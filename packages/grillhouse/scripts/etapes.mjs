@@ -252,7 +252,7 @@ const REPONSES =
 export const MONTEES = Object.fromEntries(
   Object.entries({
     lancement:
-      'Le lanceur s’arrête avant la séance : la machine se répare-t-elle, pour reprendre ?',
+      'Le lanceur s’arrête avant la séance, ou la copie n’avance pas sur la pointe de main avant une passe : la machine ou la copie se répare-t-elle, pour reprendre ?',
     bloqué:
       'La séance n’a plus bougé, et le circuit l’a arrêtée : reprendre l’étape, ou arrêter le circuit ?',
     'sans-fiche':

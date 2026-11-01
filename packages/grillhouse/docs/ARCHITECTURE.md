@@ -365,6 +365,24 @@ lecteurs en une seule séance, et un constat n'est jamais perdu (BP 320.9 : seiz
 joués l'un après l'autre, 118 min d'étapes vertes rejouées, un constat sur `exemplar` perdu six
 fois).
 
+**Une passe juge le lot sur la pointe de main** : comme la file de fusion de GitHub et bors
+rejouent les contrôles sur la branche replacée sur la pointe de main, jamais sur sa base
+d'origine, le circuit prépare sa copie sur main avant chaque passe qui juge le lot, 3.1 Contrôles
+et 4.1 Passe finale, une reprise comprise (`avantLaPasse`, `SUR_LA_POINTE`). La préparation est
+celle du lanceur, la seule (`travail-de-la-copie.mjs`, `preparer`, que `lancer.sh` appelle avant
+chaque séance) : la garde des sous-modules, l'avance de la copie, la pose des sous-modules, leur
+montage, et l'installation quand le fichier de verrouillage est plus récent qu'elle (BPScript :
+le verrou changé 27 fois en deux semaines, et le sous-module vendor/bp3-engine). Une copie déjà
+sur la pointe de main, ou en avance sur elle, n'avance pas ; une copie qui avance rejoue la passe due sur son nouvel
+arbre, sans la restriction d'une régénération d'avant. Une préparation qui échoue (une avance en
+conflit, une branche partie de main, un lot en attente dans le dossier git de la copie, un
+sous-module ou une installation en échec) arrête le circuit en
+`lancement`, avant la passe : sa question nomme la copie, chaque fichier en conflit et le geste
+qui reprend (la copie remise en état à la main, puis `--reprendre`), le travail resté dans la
+copie. Ainsi le circuit ne monte pas une question qu'un correctif déjà sur main a levée (OSC
+Bridge SH-cgi.8.2 : la passe finale et sa reprise rouges sur deux rouges que main avait levés en
+65a1f5b, la copie restée sur bc721aa).
+
 **Le tri des découvertes en fin de ticket** : comme Chromium et Mozilla donnent un verdict à
 chaque rapport de défaut neuf avant de le ranger, une fois le lot entré sur main (5.2), le
 circuit mène l'étape 5.3 : sans découverte consignée par les fiches du ticket, aucune séance ;

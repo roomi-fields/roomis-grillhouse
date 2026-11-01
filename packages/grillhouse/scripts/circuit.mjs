@@ -275,6 +275,17 @@
 //   relaunches the testwriter (BP 320.37: a first sending before any check, a second after checks
 //   that named the guard's line). That output is kept in the state (`controlesRouges`), so that a
 //   `--reprendre` or a `--depuis` keeps it.
+// - Before the checks and before the final pass (SUR_LA_POINTE), a resumption included, the copy is
+//   prepared on the tip of main by the launcher's own preparation (`avantLaPasse`,
+//   scripts/enveloppe/travail-de-la-copie.mjs `preparer`: the guard of its submodules, its
+//   advance, the pose of its submodules, their mount, the installation when the lock file is newer
+//   than it), as a merge queue plays its checks on the branch set on the tip of main: a copy at the
+//   tip or ahead of it is not moved; a copy that moves plays the pass due on its new tree, without
+//   the restriction of a regeneration before it; a preparation that fails (an advance in conflict
+//   or impossible, a branch gone from main, a lot waiting in the copy's git directory, a submodule
+//   or an installation that fails) stops at « lancement », the copy, each file in conflict and the
+//   gesture that resumes named, the work left in the copy (OSC Bridge SH-cgi.8.2: a final pass and
+//   its resumption red on two reds main had lifted, the copy still on its base of origin).
 // - The checks after the developpeur judge the plan, as Bazel plays the targets of a change: `npm
 //   test -- <package>` for each package of the plan, touched by the lot or not (a package that plays no
 //   tests, `joueDesTests`, plays only when the lot touches it), `npm test -- <test files of the lot>`
@@ -573,7 +584,9 @@
 //   project.
 // - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
 //   10 lancement (lancer.sh stopped before the session, or the tools of the project,
-//   `grillhouse.outils`, refused at the launch or a resumption, before any session), 11 bloqué (a motionless transcript),
+//   `grillhouse.outils`, refused at the launch or a resumption, before any session, or the copy
+//   that does not move forward to the tip of main before the checks or the final pass, its
+//   conflicts named), 11 bloqué (a motionless transcript),
 //   12 sans-fiche (twice no sheet that conforms), 13 preuve (the third proof fails), 14 controles
 //   (the third developpeur of the checks or of the final pass leaves a red check, a red of the
 //   final pass out of the plan or that no package of the plan holds, or reds to settle),
@@ -661,6 +674,7 @@ import {
   VERDICTS_DU_TRI,
   VERDICTS_ROUVERTS,
 } from './resultats.mjs';
+import { preparer } from './enveloppe/travail-de-la-copie.mjs';
 import { AUTEUR_DE_LA_FILE, INTEGRE } from './integration/file.mjs';
 import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
@@ -735,6 +749,7 @@ const MENEES = new Set(SUITE.filter(e => e.qui.includes(AUTO) && e.etat).map(e =
 const ici = import.meta.dirname;
 const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
 const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
+const PREPARER = path.join(ici, 'enveloppe', 'travail-de-la-copie.mjs');
 const FILE = path.join(ici, 'integration', 'file.mjs');
 const REGISTRE = path.join(ici, 'registre.mjs');
 // A generator of the frame, beside this script, as the command of a reference.
@@ -2132,6 +2147,61 @@ export const environnementDeLaPasse = (ctx, base, env = {}) => ({
   ...avecLesOutils(ctx.outils ?? {}, base),
   ...env,
 });
+
+// The steps whose pass judges the lot, 3.1 and 4.1 (one state, `finale` apart): the copy is
+// prepared on the tip of main before each of them.
+export const SUR_LA_POINTE = new Set([CONTROLES]);
+
+// What the circuit does before the step <etape>, whose regeneration before it is <regeneration>
+// (`ctx.regeneration`), as a merge queue plays its checks on the branch set on the tip of main: at a
+// step of SUR_LA_POINTE, the copy prepared by the launcher's own preparation
+// (scripts/enveloppe/travail-de-la-copie.mjs, `preparer`: the guard of its submodules, its advance
+// to the main tree's HEAD, the pose of its submodules, their mount, the installation when the lock
+// file is newer), its output in the ticket's log, with <env>. `{ avancee, regeneration }`: whether
+// the copy's HEAD moved (a copy at the tip, or ahead of it, is not moved), and the regeneration the
+// pass keeps, none once the copy moved, its tree new; at any other step, the regeneration as it is,
+// the copy untouched. Or `{ arret }`, the stop « lancement » (its name, report, piece and
+// question), the copy and its work as the preparation leaves them, each file in conflict named.
+export function avantLaPasse(
+  ctx,
+  etape,
+  regeneration,
+  env = environnementDeLaPasse(ctx, process.env)
+) {
+  if (!SUR_LA_POINTE.has(etape)) return { avancee: false, regeneration };
+  const tete = dossier =>
+    spawnSync('git', ['-C', dossier, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
+  const cible = tete(ctx.racine);
+  const avant = tete(ctx.copie);
+  let r;
+  if (cible.status === 0 && avant.status === 0) {
+    entete(ctx, 'preparation');
+    appendFileSync(
+      ctx.journal,
+      `$ node ${PREPARER} preparer ${ctx.copie} ${cible.stdout.trim()}\n`
+    );
+    const fd = openSync(ctx.journal, 'a');
+    try {
+      r = preparer(ctx.copie, cible.stdout.trim(), { env, sortie: fd });
+    } finally {
+      closeSync(fd);
+    }
+  } else {
+    r = { ok: false, message: `⛔ ${String(cible.stderr || avant.stderr).trim()}` };
+  }
+  if (r.ok) {
+    const avancee = tete(ctx.copie).stdout.trim() !== avant.stdout.trim();
+    return { avancee, regeneration: avancee ? null : regeneration };
+  }
+  return {
+    arret: {
+      nom: 'lancement',
+      rapport: `La copie ${ctx.copie} ne se prépare pas sur la pointe de main avant la passe qui juge le lot.\n\n${r.message}`,
+      piece: `$ node ${PREPARER} preparer ${ctx.copie} ${cible.stdout.trim()}\n${r.message}`,
+      question: `La copie ${ctx.copie} se remet en état à la main, comme la préparation le dit (chaque fichier en conflit résolu puis \`git add\`, le lot en attente repris, la branche ramenée sur main, ou le sous-module et l'installation réparés), sans perdre son travail ; puis \`npx grillhouse circuit ${ctx.ticket} --reprendre\`, qui prépare la copie et rejoue la passe.`,
+    },
+  };
+}
 
 // The tools of the project whose main tree is <racine>, read at the launch of a run:
 // `{ outils }`, or `{ arret }`, the stop « lancement » that goes up to the supervisor before any
@@ -3559,6 +3629,17 @@ async function derouler(ctx, debut) {
     const menee = MENEES.has(etape) ? { etape, debut: new Date().toISOString() } : null;
     ecrireEtat(ctx, { ...etat, mene: menee?.debut ?? null });
     try {
+      // A pass that judges the lot, a resumption included, plays on the copy prepared on the tip
+      // of main; a preparation that fails goes up.
+      const pointe = avantLaPasse(ctx, etape, ctx.regeneration ?? null);
+      if (pointe.arret) {
+        const { nom, rapport: motif, piece, question } = pointe.arret;
+        throw new Arret(nom, motif, { piece, question });
+      }
+      if (pointe.avancee) {
+        appendFileSync(ctx.journal, 'la copie avance sur la pointe de main avant la passe.\n');
+      }
+      ctx.regeneration = pointe.regeneration;
       // After the plan: the gesture of a mechanical ticket, the developpeur of a plan without
       // tests, else the testwriter.
       const route =

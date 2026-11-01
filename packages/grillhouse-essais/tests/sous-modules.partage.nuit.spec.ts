@@ -116,7 +116,7 @@ describe('grillhouse-3uv.58.1 critère 2 — git status of the copy does not rep
       expect(m.construire(copie).status).toBe(0);
       const g = m.garder(copie);
       expect(g.status, g.stderr).toBe(0);
-      // Reused as lancer.sh reuses the agent copy: the guard, the move onto HEAD, the preparation.
+      // Reused as lancer.sh and the circuit reuse the agent copy, by the one preparation (`preparer`).
       const r = m.avancerCommeLAgent(copie);
       expect(r.status, r.stderr).toBe(0);
       expect(m.lit(copie)).toBe(true);

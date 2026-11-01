@@ -1,17 +1,29 @@
 #!/usr/bin/env node
-// The local work of an agent's copy carried onto main, for the launcher (./lancer.sh), in the copy
-// alone: git's stash (refs/stash) is common to every copy of a repository, so the work never goes
-// there; the copy keeps it, as a merge or a rebase in conflict does (its conflicts marked in the
-// files, the unmerged entries in its own index).
+// The local work of an agent's copy carried onto main, and the preparation of that copy, for the
+// launcher (./lancer.sh) and for the circuit before each pass that judges the lot
+// (scripts/circuit.mjs, `avantLaPasse`), in the copy alone: git's stash (refs/stash) is common to
+// every copy of a repository, so the work never goes there; the copy keeps it, as a merge or a
+// rebase in conflict does (its conflicts marked in the files, the unmerged entries in its own
+// index).
 //
 //   node scripts/enveloppe/travail-de-la-copie.mjs reporter <copie> <base> <pointe>
-//   node scripts/enveloppe/travail-de-la-copie.mjs avancer <copie> <cible>
+//   node scripts/enveloppe/travail-de-la-copie.mjs preparer <copie> [<cible>]
 //
+// - `preparer`: the one preparation of a copy, which the launcher plays before each session and
+//   the circuit before each pass that judges the lot. With <cible> (an existing copy), the guard
+//   of its submodules (scripts/sous-modules.sh `garde`), then `avancer`; then, for every copy,
+//   the pose of its submodules (`pose`, the shared ones linked, the others set at the commit of
+//   HEAD), the check that their read-only mount plays (`monter … true`), and, when the copy has a
+//   package.json, the installation (`npm install --no-save`, under that mount) when node_modules
+//   is missing or the lock file is newer than the installation (`node_modules/.package-lock.json`).
+//   It prints on stdout the list its pose fixes, its messages on stderr; exit 1 on the first step
+//   that fails, named, its output after (BPScript: the lock file changed 27 times in two weeks,
+//   and the submodule vendor/bp3-engine, both stale in a copy moved forward without them).
 // - `reporter`: the lot from <base> to <pointe> (`git diff --binary`), a branch the queue sent
 //   back, becomes local work of the copy: applied three ways (`git apply --3way`), a conflict
 //   marked in its file, the rest of the lot there; the index is then left as HEAD has it, so that
 //   all of it is local work. Exit 0, the conflicts included: the agent's session resolves them.
-// - `avancer`: the copy moves forward to <cible> (the main tree's HEAD) by a fast-forward, its
+// - The advance (`avancer`, a step of `preparer`): the copy moves forward to <cible> (the main tree's HEAD) by a fast-forward, its
 //   local work kept by the same application: the work as a lot (`git diff --binary HEAD`, the
 //   submodules left out, which the launcher sets afterwards; untracked files stay in place), the
 //   copy brought back to HEAD, moved forward, the lot applied three ways. The lot waits in the
@@ -41,7 +53,7 @@
 //   and open-synth-descriptors, each copy moved by hand). A lot in conflict on another file is not
 //   regenerated: its conflicts come first.
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
@@ -250,19 +262,90 @@ export function avancer(copie, cible) {
   return r.status === 0 ? { ok: true, message: '' } : { ok: false, message: texte(r) };
 }
 
+const SOUS_MODULES = path.join(import.meta.dirname, '..', 'sous-modules.sh');
+
+/**
+ * Prepares <copie> for a pass or a session (see the header, `preparer`): with <cible>, the guard of
+ * its submodules and its advance to <cible>; then the pose of its submodules, the check of their
+ * read-only mount, and the installation when the lock file is newer than it. The output of each
+ * command goes to the file descriptor <sortie>; returns `{ ok, message, partages }`.
+ * @param {string} copie
+ * @param {string | null} cible
+ * @param {{ env?: NodeJS.ProcessEnv, sortie?: number }} [o]
+ */
+export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
+  // A command of the submodules whose error output is read: kept on <sortie> as well when it
+  // succeeds, as the launcher's log kept it.
+  const bash = (args, stdio) => {
+    const r = spawnSync('bash', [SOUS_MODULES, ...args], {
+      env,
+      stdio,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (r.status === 0 && r.stderr?.length) writeSync(sortie, r.stderr);
+    return r;
+  };
+  const echec = (r, quoi) => ({
+    ok: false,
+    message: `⛔ ${quoi} de la copie ${copie} échoue (code ${r.status ?? r.signal}).${r.stderr?.length ? `\n${String(r.stderr).trim()}` : ''}`,
+    partages: '',
+  });
+  if (cible !== null) {
+    const g = bash(['garde', copie], ['ignore', sortie, 'pipe']);
+    if (g.status !== 0) return echec(g, 'La garde des sous-modules');
+    const a = avancer(copie, cible);
+    if (!a.ok) return { ...a, partages: '' };
+  }
+  const p = bash(['pose', copie], ['ignore', 'pipe', 'pipe']);
+  if (p.status !== 0) return echec(p, 'La pose des sous-modules');
+  // As `$(…)` reads it: the final newlines dropped.
+  const partages = String(p.stdout).replace(/\n+$/, '');
+  const monter = (...commande) =>
+    bash(['monter', copie, '--partages', partages, ...commande], ['ignore', sortie, 'pipe']);
+  const m = monter('true');
+  if (m.status !== 0) return echec(m, 'Le montage des sous-modules partagés');
+  if (existsSync(path.join(copie, 'package.json'))) {
+    // As `[ lock -nt installed ]`: the lock newer than the installation, or no installation.
+    const verrou = path.join(copie, 'package-lock.json');
+    const installe = path.join(copie, 'node_modules', '.package-lock.json');
+    const plusRecent =
+      existsSync(verrou) &&
+      (!existsSync(installe) || statSync(verrou).mtimeMs > statSync(installe).mtimeMs);
+    if (!existsSync(path.join(copie, 'node_modules')) || plusRecent) {
+      // --no-save leaves the lock file as committed, so a clean copy stays clean.
+      const i = monter(
+        'npm',
+        '--prefix',
+        copie,
+        'install',
+        '--no-save',
+        '--no-audit',
+        '--no-fund',
+        '--silent'
+      );
+      if (i.status !== 0) return echec(i, "L'installation");
+    }
+  }
+  return { ok: true, message: '', partages };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [geste, copie, ...reste] = process.argv.slice(2);
   const r =
     geste === 'reporter' && reste.length === 2
       ? reporter(copie, { base: reste[0], pointe: reste[1] })
-      : geste === 'avancer' && reste.length === 1
-        ? avancer(copie, reste[0])
+      : geste === 'preparer' && reste.length <= 1
+        ? preparer(copie, reste[0] ?? null)
         : {
             ok: false,
             message:
-              'usage: travail-de-la-copie.mjs reporter <copie> <base> <pointe> | avancer <copie> <cible>',
+              'usage: travail-de-la-copie.mjs reporter <copie> <base> <pointe> | preparer <copie> [<cible>]',
           };
-  if (r.message) {
+  // `preparer` prints the list its pose fixes on stdout, its messages on stderr.
+  if (geste === 'preparer') {
+    if (r.message) process.stderr.write(`${r.message}\n`);
+    process.stdout.write(r.partages ?? '');
+  } else if (r.message) {
     process.stdout.write(`${r.message}\n`);
   }
   process.exitCode = r.ok ? 0 : 1;

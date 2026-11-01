@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { avancer, reporter } from '../../scripts/enveloppe/travail-de-la-copie.mjs';
+import { avancer, preparer, reporter } from '../../scripts/enveloppe/travail-de-la-copie.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'travail-de-la-copie-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -319,5 +319,36 @@ describe('grillhouse-8o9 critère 2 — a declared generated file is written aga
     expect(r.message).toContain('grillhouse.engendres.liste');
     expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(tete);
     expect(d.lire('liste.txt')).toBe('a.txt\nc.txt\n');
+  });
+});
+
+// grillhouse-527: the one preparation of a copy, which the launcher calls as a command (lancer.sh)
+// and the circuit as a function (scripts/circuit.mjs, `avantLaPasse`).
+describe('grillhouse-527 — `preparer`, the one preparation of a copy', () => {
+  it('with a target, moves an existing copy forward, its work kept; nothing shared, an empty list', () => {
+    const d = depot();
+    const main = d.avance('b.txt', 'b\nMAIN\n');
+    d.ecrire('a.txt', lignes('COPIE'));
+    expect(preparer(d.copie, main)).toEqual({ ok: true, message: '', partages: '' });
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(main);
+    expect(d.lire('a.txt')).toBe(lignes('COPIE'));
+  });
+
+  it('without a target, a copy just made, does not move it', () => {
+    const d = depot();
+    const tete = git(d.copie, 'rev-parse', 'HEAD');
+    d.avance('b.txt', 'b\nMAIN\n');
+    expect(preparer(d.copie, null).ok).toBe(true);
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(tete);
+  });
+
+  it('in conflict, fails, its message naming the copy and the file', () => {
+    const d = depot();
+    const main = d.avance('a.txt', lignes('MAIN'));
+    d.ecrire('a.txt', lignes('COPIE'));
+    const r = preparer(d.copie, main);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain(d.copie);
+    expect(r.message).toMatch(/^ {2}a\.txt$/m);
   });
 });

@@ -27,7 +27,7 @@ export const SCRIPTS = path.join(CADRE, 'scripts');
 export const INTEGRER = path.join(SCRIPTS, 'integration/integrer.mjs');
 export const LANCER = path.join(SCRIPTS, 'enveloppe/lancer.sh');
 export const POSE = path.join(SCRIPTS, 'sous-modules.sh');
-const AVANCER = path.join(SCRIPTS, 'enveloppe/travail-de-la-copie.mjs');
+const PREPARER = path.join(SCRIPTS, 'enveloppe/travail-de-la-copie.mjs');
 export const LONG = 60_000;
 
 // The file protocol is refused to submodule commands by default; the test repositories live on
@@ -359,21 +359,16 @@ export function sousModulesEssai(ESSAIS: string) {
       spawnSync('node', ['build.mjs'], { cwd: copie, encoding: 'utf8', env: ENV_SCRIPTS });
     // A reused copy moved onto the HEAD of the main repository, by the very commands of its caller,
     // then prepared again by the common preparation. Without bwrap, lancer.sh and the integration
-    // refuse a copy with a shared submodule (critères 13 and 15): these tests of the preparation run
-    // on every machine.
+    // refuse a copy with a shared submodule (critères 13 and 15).
     const tete = () => git(m.repo, 'rev-parse', 'HEAD').trim();
-    // As lancer.sh does for the agent copy: the guard, then the move of the copy and its work
-    // (scripts/enveloppe/travail-de-la-copie.mjs).
-    const avancerCommeLAgent = (copie: string) => {
-      const g = garder(copie);
-      expect(g.status, g.stderr).toBe(0);
-      const a = spawnSync('node', [AVANCER, 'avancer', copie, tete()], {
+    // As lancer.sh and the circuit prepare the agent copy, by the one preparation
+    // (scripts/enveloppe/travail-de-la-copie.mjs `preparer`): the guard of its submodules, the move
+    // of the copy and its work, the pose, the mount, the installation.
+    const avancerCommeLAgent = (copie: string) =>
+      spawnSync('node', [PREPARER, 'preparer', copie, tete()], {
         encoding: 'utf8',
         env: ENV_SCRIPTS,
       });
-      expect(a.status, a.stdout + a.stderr).toBe(0);
-      return poser(copie);
-    };
     // As the integration does for its copy: detached on HEAD, forced, every untracked file removed.
     const avancerCommeLIntegration = (copie: string) => {
       git(copie, 'checkout', '-q', '--detach', '--force', tete());

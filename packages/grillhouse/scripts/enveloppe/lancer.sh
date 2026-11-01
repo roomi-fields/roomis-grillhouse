@@ -39,15 +39,17 @@
 #   the copy, a conflict with main marked in its file; a branch with nothing ahead simply starts
 #   again from main. A ticket whose branch is still in the integration queue is not launched:
 #   the refusal goes to the log, which names the queue, CODE_COPIE, before any copy is made.
-#   Moving forward keeps
+#   The copy, new or existing, then goes through the one preparation of a copy, which the circuit
+#   also plays before each pass that judges the lot (scripts/enveloppe/travail-de-la-copie.mjs
+#   `preparer`, its output in the log). Moving forward keeps
 #   the work in progress of the copy in the copy, never in git's stash, which every copy of the
 #   repository shares: it is set aside as a lot, the copy fast-forwards, and the lot is applied
-#   three ways, as the lot of a branch sent back is (scripts/enveloppe/travail-de-la-copie.mjs).
+#   three ways, as the lot of a branch sent back is.
 #   A refusal, such as a branch that has left main or conflicts left unresolved, goes to
 #   the log and stops the launch, CODE_COPIE; so does a reapplication that conflicts: the log
 #   names the copy and each file in conflict, the conflicts stay marked in the copy's files and
 #   unmerged in its index, and no agent starts on a half-merged copy. Its
-#   submodules go through the common preparation (scripts/sous-modules.sh): before moving forward,
+#   submodules go through that preparation (scripts/sous-modules.sh): before moving forward,
 #   a submodule carrying local work stops the launch, CODE_COPIE, its log naming it, the work in
 #   place; then every submodule is set at the commit of HEAD, before any installation, except one the
 #   project shares (`grillhouse.partage`), which the copy reads from the main repository. Its
@@ -199,6 +201,8 @@ export TMPDIR="$temporaire" TMP="$temporaire" TEMP="$temporaire"
 echec=$(mktemp)
 (
   # Each step returns on failure: `set -e` does not act inside a subshell tested by `||`.
+  # An existing copy moves forward to main by the preparation (`cible`); a new one is made on it.
+  cible=
   if [ ! -d "$copie" ]; then
     tete=$(git -C "$racine" rev-parse HEAD) || exit 1
     branche="agent/$ticket"
@@ -220,21 +224,16 @@ echec=$(mktemp)
       node "$ici/travail-de-la-copie.mjs" reporter "$copie" "$base" "$pointe" || exit 1
     fi
   else
-    bash "$ici/../sous-modules.sh" garde "$copie" || exit 1
-    # The work in progress moves with the copy, in the copy: a conflict stops the launch, marked
-    # in the files, the log naming each one (travail-de-la-copie.mjs).
-    node "$ici/travail-de-la-copie.mjs" avancer "$copie" "$(git -C "$racine" rev-parse HEAD)" || exit 1
+    cible=$(git -C "$racine" rev-parse HEAD) || exit 1
   fi
+  # The one preparation of a copy, which the circuit also plays before each pass that judges the
+  # lot (travail-de-la-copie.mjs `preparer`): for an existing copy, the guard of its submodules and
+  # its advance to main, its work kept in the copy, a conflict stopping the launch, marked in the
+  # files, the log naming each one; then the pose of the submodules, their mount, the installation.
   # The list the pose fixes is the one every mount gets, whatever the installation rewrites.
-  partages=$(bash "$ici/../sous-modules.sh" pose "$copie") || exit 1
+  partages=$(node "$ici/travail-de-la-copie.mjs" preparer "$copie" ${cible:+"$cible"}) || exit 1
   monter() { bash "$ici/../sous-modules.sh" monter "$copie" --partages "$partages" "$@"; }
-  monter true || exit 1
   if [ -f "$copie/package.json" ]; then
-    # --no-save leaves the lock file as committed, so a clean copy stays clean.
-    installe="$copie/node_modules/.package-lock.json"
-    if [ ! -d "$copie/node_modules" ] || [ "$copie/package-lock.json" -nt "$installe" ]; then
-      monter npm --prefix "$copie" install --no-save --no-audit --no-fund --silent || exit 1
-    fi
     # The build of the copy for the session's plan, by the module of its language (`construire`),
     # when it describes one: a build that fails writes its first line and its output in $echec,
     # and the session opens with them; any other failure stops the launch.
