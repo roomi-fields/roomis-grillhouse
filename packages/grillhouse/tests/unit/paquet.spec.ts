@@ -30,7 +30,7 @@ import path from 'node:path';
 import { parse } from 'smol-toml';
 import { afterAll, describe, expect, it } from 'vitest';
 import { composantsDe, resoudreComposant } from '../../scripts/circuit.mjs';
-import { ecrireLePaquet, planDuPaquet } from '../../scripts/paquet.mjs';
+import { creerPaquet, ecrireLePaquet, planDuPaquet, Refus } from '../../scripts/paquet.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');
 const DEPOT = path.resolve(PAQUET, '../..');
@@ -238,10 +238,10 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
       'dependency-groups': { test: string[] };
       tool: { pytest: { ini_options: { testpaths: string[] } } };
     };
-    expect(projet.project.name).toBe('outils');
+    expect(projet.project.name).toBe('synthub-outils');
     expect(projet['dependency-groups'].test.some(d => d.startsWith('pytest'))).toBe(true);
     expect(projet.tool.pytest.ini_options.testpaths).toEqual(['tests']);
-    expect(existsSync(path.join(racine, 'outils/src/outils/__init__.py'))).toBe(true);
+    expect(existsSync(path.join(racine, 'outils/src/synthub_outils/__init__.py'))).toBe(true);
     expect(existsSync(path.join(racine, 'outils/tests/.gitkeep'))).toBe(true);
     expect(lire(racine, 'outils/docs/INTERFACE.md')).toMatch(/^\*\*Langage\*\* : python$/m);
   });
@@ -256,6 +256,132 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
       tool: { uv: { workspace: { members: string[] } } };
     };
     expect(racinePy.tool.uv.workspace.members).toEqual(['site', 'outils']);
+  });
+});
+
+// grillhouse-b2o — the name of a new package does not clash with the standard library: in OSC
+// Bridge (SyntHub, 0.28.3), `grillhouse paquet site` wrote a package of Python named `site`, which
+// `import site` never reaches (the standard module, loaded at the interpreter's start). As Nx
+// prefixes a library with the workspace's scope (the module typescript) and `cargo new` refuses a
+// name reserved by Rust:
+// - Criterion 1: a package of Python whose module would bear the name of a module of the standard
+//   library (`sys.stdlib_module_names`) is refused by its name, nothing written, the name to give
+//   named.
+// - Criterion 2: the name written is prefixed by the project's name when the root declares one
+//   (`[project].name` of the root pyproject.toml, else the `name` of the root package.json, its
+//   scope when it has one), the package's name in `-`, its module in `_`, as uv writes them.
+// - Criterion 3: the module cargo refuses a name cargo refuses (a keyword, `test`), nothing
+//   written, the name to give named.
+const LIGNE_PY = (nom: string) =>
+  `| Composant | Rôle | Langage |\n| --- | --- | --- |\n| \`${nom}\` | les pages | python |\n`;
+
+// A project at a folder named <dossier>, its table declaring <nom> in Python.
+function projetPy(dossier: string, nom: string): string {
+  const racine = path.join(mkdtempSync(path.join(ESSAIS, 'b2o-')), dossier);
+  ecrire(racine, 'docs/ARCHITECTURE.md', LIGNE_PY(nom));
+  return racine;
+}
+
+describe('grillhouse-b2o, critère 1 — un nom de la bibliothèque standard de Python est refusé', () => {
+  it('site, without a project name, is refused by its name, nothing written, the name to give named', () => {
+    const racine = projetPy('synthhub', 'site');
+    const avant = tous(racine);
+    expect(() => planDuPaquet(racine, 'site')).toThrow(Refus);
+    expect(() => planDuPaquet(racine, 'site')).toThrow(
+      /site.*bibliothèque standard de Python.*synthhub-site/s
+    );
+    expect(() => {
+      creerPaquet(racine, 'site', { executer: () => 0 });
+    }).toThrow(Refus);
+    expect(tous(racine)).toEqual(avant);
+  });
+
+  it('json, another module of the standard library, is refused as well', () => {
+    const racine = projetPy('essai', 'json');
+    expect(() => planDuPaquet(racine, 'json')).toThrow(/json.*bibliothèque standard/s);
+  });
+
+  it('a name out of the standard library passes', () => {
+    const racine = projetPy('essai', 'catalogue');
+    const projet = parse(
+      planDuPaquet(racine, 'catalogue').fichiers['catalogue/pyproject.toml']!
+    ) as {
+      project: { name: string };
+    };
+    expect(projet.project.name).toBe('catalogue');
+  });
+});
+
+describe('grillhouse-b2o, critère 2 — le nom écrit est préfixé par le nom du projet', () => {
+  it('the name of the root package.json prefixes the package, its module in `_`', () => {
+    const racine = projetPy('depot', 'site');
+    ecrire(racine, 'package.json', JSON.stringify({ name: 'synthhub' }));
+    const plan = planDuPaquet(racine, 'site');
+    const projet = parse(plan.fichiers['site/pyproject.toml']!) as { project: { name: string } };
+    expect(projet.project.name).toBe('synthhub-site');
+    expect(Object.keys(plan.fichiers)).toContain('site/src/synthhub_site/__init__.py');
+    expect(Object.keys(plan.fichiers).some(f => f.startsWith('site/src/site/'))).toBe(false);
+  });
+
+  it('a scoped name of the root package.json gives its scope, as the module typescript', () => {
+    const racine = projetPy('depot', 'site');
+    ecrire(racine, 'package.json', JSON.stringify({ name: '@osc-bridge/racine' }));
+    const plan = planDuPaquet(racine, 'site');
+    const projet = parse(plan.fichiers['site/pyproject.toml']!) as { project: { name: string } };
+    expect(projet.project.name).toBe('osc-bridge-site');
+    expect(Object.keys(plan.fichiers)).toContain('site/src/osc_bridge_site/__init__.py');
+  });
+
+  it('the `[project].name` of the root pyproject.toml comes first, normalized as uv does', () => {
+    const racine = projetPy('depot', 'mes_outils');
+    ecrire(racine, 'package.json', JSON.stringify({ name: 'synthhub' }));
+    ecrire(racine, 'pyproject.toml', '[project]\nname = "Osc.Bridge"\nversion = "0.1.0"\n');
+    const plan = planDuPaquet(racine, 'mes_outils');
+    const projet = parse(plan.fichiers['mes_outils/pyproject.toml']!) as {
+      project: { name: string };
+    };
+    expect(projet.project.name).toBe('osc-bridge-mes-outils');
+    expect(Object.keys(plan.fichiers)).toContain(
+      'mes_outils/src/osc_bridge_mes_outils/__init__.py'
+    );
+  });
+});
+
+describe('grillhouse-b2o, critère 3 — le module cargo refuse un nom que cargo refuse', () => {
+  const projetCargo = (nom: string) => {
+    const racine = path.join(mkdtempSync(path.join(ESSAIS, 'b2o-')), 'synthhub');
+    ecrire(
+      racine,
+      'docs/ARCHITECTURE.md',
+      `| Composant | Rôle | Langage |\n| --- | --- | --- |\n| \`crates/${nom}\` | le cœur | cargo |\n`
+    );
+    ecrire(racine, 'Cargo.toml', CARGO_RACINE);
+    return racine;
+  };
+
+  it.each([
+    ['test', /test.*built-in test library.*synthhub-test/s],
+    ['fn', /fn.*keyword.*synthhub-fn/s],
+    ['std', /std.*Rust's standard library.*synthhub-std/s],
+  ])(
+    "crates/%s is refused by its name, cargo's reason and the name to give, nothing written",
+    (nom, motif) => {
+      const racine = projetCargo(nom);
+      const avant = tous(racine);
+      expect(() => planDuPaquet(racine, `crates/${nom}`)).toThrow(Refus);
+      expect(() => planDuPaquet(racine, `crates/${nom}`)).toThrow(motif);
+      expect(tous(racine)).toEqual(avant);
+    }
+  );
+
+  it("a name cargo accepts passes, the folder's", () => {
+    const racine = projetCargo('journal');
+    const crate = parse(
+      planDuPaquet(racine, 'crates/journal').fichiers['crates/journal/Cargo.toml']!
+    ) as {
+      package: { name: string };
+    };
+    expect(crate.package.name).toBe('journal');
   });
 });
 

@@ -98,7 +98,13 @@ lit la ligne qui nomme le chemin (par son chemin, sinon par le nom du dossier, c
 langages) et refuse, par son nom, sans rien écrire : un chemin qu'aucune ligne ne nomme, une ligne
 sans langage, un langage hors de la liste du cadre, un dossier qui porte déjà le manifeste de son
 langage ; un dossier qui ne porte que `docs/` est accepté, comme `cargo init` prend un dossier sans
-son Cargo.toml. Elle écrit chaque fichier absent du squelette du langage (`squelette` du module :
+son Cargo.toml. Le squelette refuse de même un nom qui heurte celui du langage, le nom à donner
+nommé : en Python, un module de la bibliothèque standard (`sys.stdlib_module_names`, de
+l'interpréteur que fournit uv), en Rust, un nom que `cargo new` refuse (un mot-clé, `test`) ou
+déconseille (un crate de la bibliothèque standard, `std`, `core`), cargo seul juge. Le nom d'un paquet Python est celui du dossier préfixé par le nom du projet quand la
+racine en déclare un (le `[project].name` de son pyproject.toml, sinon le `name` de son
+package.json, sa portée s'il en a une), comme le module typescript préfixe le sien par la portée de
+la racine. Elle écrit chaque fichier absent du squelette du langage (`squelette` du module :
 le manifeste, la configuration des tests et du typage, un fichier de code, le dossier de tests) et
 des documents du gabarit d'un paquet (`templates/paquet/`), puis l'entrée de l'espace de travail
 (les `workspaces` de npm, les `members` de cargo, l'espace de uv) ; elle ne commite rien. Puis,

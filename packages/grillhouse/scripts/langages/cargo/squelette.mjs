@@ -8,6 +8,13 @@
 //   workspace has `[workspace.lints]`); `src/lib.rs`, a library without code; `tests/.gitkeep`, its
 //   folder of tests by the interface. Cargo needs no configuration of its own for the tests
 //   (nextest, the frame's profile) nor for the typing (`cargo check`, clippy).
+// - A name `cargo new` refuses (a keyword of Rust, `test`, a character out of a package's name) or
+//   warns against (a crate of Rust's standard library, `std`, `core`, `alloc`, `proc_macro`, whose
+//   neighbour that depends on it no longer builds; a reserved name of Windows) is refused, by its
+//   name, nothing written, cargo's reason and the name to give named (the root
+//   folder's name before the crate's): the skeleton writes its files without `cargo new`, and
+//   cargo builds and locks such a crate without a word. The judge is cargo itself, `cargo new
+//   --lib` of the name in a temporary folder removed at once, so that the rule stays cargo's.
 // - The workspace: the root Cargo.toml receives the crate's path in `members` of `[workspace]`,
 //   written in its text, the rest of the file as it was; a root without `members` receives the
 //   key, a root package without `[workspace]` the table, and a project without a root Cargo.toml a
@@ -15,11 +22,39 @@
 // - The lock of the versions: `cargo update --workspace`, at the root, which brings Cargo.lock in
 //   line with the members alone.
 // - The manifest is read with smol-toml, the tool of this module (`outils`), loaded at the call.
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
+
+// The reason `cargo new --lib` refuses or warns against the name <nom> for (its lines `error:`
+// and `warning:`), null when it accepts it without a word.
+function refusDeCargo(nom) {
+  const dossier = mkdtempSync(path.join(tmpdir(), 'grillhouse-nom-'));
+  try {
+    const r = spawnSync(
+      'cargo',
+      ['new', '--lib', '--vcs', 'none', '--offline', path.join(dossier, nom)],
+      { cwd: dossier, encoding: 'utf8' }
+    );
+    if (r.error) {
+      throw new Error(`cargo ne juge pas le nom ${nom} : ${r.error.message}`);
+    }
+    const raisons = r.stderr
+      .split('\n')
+      .filter(l => /^(error|warning):/.test(l))
+      .map(l => l.replace(/^(error|warning):\s*/, ''));
+    if (raisons.length) {
+      return raisons.join(' ; ');
+    }
+    return r.status === 0 ? null : r.stderr.trim();
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+}
 
 // The fields of a package cargo inherits from `[workspace.package]`, in the order `cargo new`
 // writes them.
@@ -72,6 +107,12 @@ function ajouterLeMembre(texte, chemin) {
 /** @type {import('../../jointure.js').Langage['squelette']} */
 export function squelette(racine, { chemin }) {
   const nom = path.posix.basename(chemin);
+  const refus = refusDeCargo(nom);
+  if (refus) {
+    throw new Error(
+      `${chemin} : cargo refuse le nom ${nom} (${refus}). Nomme-le ${path.basename(racine)}-${nom} : le dossier et sa ligne du tableau des composants.`
+    );
+  }
   const f = path.join(racine, 'Cargo.toml');
   const texte = existsSync(f) ? readFileSync(f, 'utf8') : null;
   const espace = texte === null ? null : (require('smol-toml').parse(texte).workspace ?? null);
