@@ -950,7 +950,12 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
         type: 'module',
         devDependencies: { 'jsonc-parser': '3.3.1', turbo: '2.11.8', vitest: '2.1.9' },
       }),
-      'knip.json': pkg({ entry: ['scripts/**/*.mjs'], project: ['scripts/**/*.mjs'] }),
+      // bd, which copies-finies.mjs reads, is declared as in the frame's knip.json.
+      'knip.json': pkg({
+        entry: ['scripts/**/*.mjs'],
+        project: ['scripts/**/*.mjs'],
+        ignoreBinaries: ['bd'],
+      }),
       ...Object.fromEntries(
         scripts.map(f => {
           const source = path.join(DEPOT, 'packages/grillhouse/scripts', f);
