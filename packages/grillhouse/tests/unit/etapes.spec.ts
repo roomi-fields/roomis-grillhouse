@@ -53,7 +53,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
       ...(e.sous ? [e.sous.map(arbre)] : []),
     ];
     expect((ETAPES as Etape[]).map(arbre)).toEqual([
-      ['1', 'Plan', ['explorateur', 'questionneur']],
+      ['1', 'Plan', ['explorateur', 'questionneur'], [['1.1', 'Geste mécanique', ['explorateur']]]],
       ['2', 'Tests', ['testwriter'], [['2.1', 'Preuve du rouge', [AUTO]]]],
       ['3', 'Code', ['developpeur'], [['3.1', 'Contrôles', [AUTO]]]],
       [
@@ -83,6 +83,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
   it('the sequence lists every step and sub-step in its order', () => {
     expect(suite.map(e => e.numero)).toEqual([
       '1',
+      '1.1',
       '2',
       '2.1',
       '3',
@@ -111,13 +112,14 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
 
   // grillhouse-3uv.95.5 (decision 4 of 3uv.95): the explorateur writes the plan, the questionneur
   // reads it once, the explorateur answers once; no survey of the circuit, no exploration apart.
-  it('the plan is step 1, the explorateur’s and the questionneur’s, with no sub-step, nor the numbering before it', () => {
+  // grillhouse-sos: its one sub-step is the gesture of a mechanical ticket, no survey of the plan.
+  it('the plan is step 1, the explorateur’s and the questionneur’s, with the gesture alone under it, nor the numbering before it', () => {
     expect(a('1')).toMatchObject({
       titre: 'Plan',
       questionnement: 'plan',
       arrets: ['questionnement'],
     });
-    expect(a('1').sous).toBeUndefined();
+    expect(a('1').sous?.map(e => e.numero)).toEqual(['1.1']);
     for (const titre of ['Exploration', 'Ouverture', 'Relevé des composants', 'Questionnement']) {
       expect(suite.map(e => e.titre)).not.toContain(titre);
     }
@@ -220,6 +222,7 @@ describe("a circuit's state and a role agent are at one step", () => {
   const numero = (o: object) => etapeDuCircuit(o)?.numero ?? null;
 
   it("reads each step of the circuit's state, the final pass being the checks once `finale`", () => {
+    expect(numero({ etape: 'geste' })).toBe('1.1');
     expect(numero({ etape: 'testwriter' })).toBe('2');
     expect(numero({ etape: 'preuve' })).toBe('2.1');
     expect(numero({ etape: 'developpeur' })).toBe('3');
@@ -323,11 +326,12 @@ describe('the gestures of the circuit and the questions of its stops, in the lis
       'renvoi-au-testwriter',
       'regeneration',
       'rien-a-livrer',
+      'mecanique',
     ]);
     for (const g of GESTES) {
       expect(g.geste.trim(), g.genre).not.toBe('');
       expect(g.regle.trim(), g.genre).not.toBe('');
-      expect(g.cas, g.genre).toMatch(/\b[AB]\d{1,2}\b|\bBP 320\.9\b/);
+      expect(g.cas, g.genre).toMatch(/\b[AB]\d{1,2}\b|\bBP 320\.\d+\b/);
     }
     expect(gesteDe('rien-a-livrer')?.genre).toBe('rien-a-livrer');
     expect(gesteDe('controles')).toBeNull();

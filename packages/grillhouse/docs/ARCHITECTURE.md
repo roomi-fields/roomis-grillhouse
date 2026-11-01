@@ -120,7 +120,8 @@ passation et, comme une CI rend le journal de la vérification qui échoue, la s
 derniers contrôles quand des contrôles ont tourné depuis la séance du testwriter, gardée dans
 l'état du circuit pour une reprise ; seule la même sortie deux fois de suite arrête le circuit),
 la régénération des
-références, un développeur sans rien à livrer jugé par les contrôles ; chaque geste s'écrit au ticket et au
+références, un développeur sans rien à livrer jugé par les contrôles, un ticket mécanique mené sans
+testwriter ni développeur ; chaque geste s'écrit au ticket et au
 journal avec sa règle. Tout autre arrêt finit le circuit sur une question au superviseur (`MONTEES`),
 que l'état du circuit porte : le fait, sa pièce (`fichier:ligne`, ou la commande et sa sortie), la
 question, et qui doit répondre, le superviseur ou le responsable ; le superviseur répond par une
@@ -258,11 +259,37 @@ repris sinon avec sa ligne d'avant, que la fiche porte encore. Ainsi rien de neu
 avoir été jugé contre l'architecture (Romain, 2026-10-23 : « il faut que le relecteur valide
 vraiment la conformité à l'architecture de tout ce qu'il y a de nouveau/changé »).
 
+**Un geste mécanique sort du circuit de code** : comme les grands changements de Google (Rosie,
+ClangMR) laissent un outil faire le changement que la vérification et une relecture jugent, sans
+test neuf, comme Renovate monte une dépendance et `nx migrate` un cadre, la fiche du plan porte la
+sorte du ticket (`sorte` de `resultats.mjs`, lue par `sorteDuPlan`) : `mécanique`, un geste sans
+comportement neuf, avec sa raison et sa commande ; `comportement`, avec sa raison, `inchangé`
+quand le lot ne change aucun comportement que ses tests mesurent. Le circuit l'écrit dans la
+description (« ## Sorte », après les critères) et au ticket avec le plan. Un ticket mécanique
+saute 2 Tests, 2.1 et 3 Code (le geste `mecanique`) : à 1.1 Geste mécanique, une séance de
+l'explorateur, dans l'enveloppe du plan (`lancer.sh --fiche geste`, le neuvième gabarit), joue la
+commande dans la copie et finit sur son statut (le schéma `geste`) ; puis 3.1 Contrôles, la passe
+finale, la relecture et la file. Tant qu'aucun testwriter ni développeur n'a travaillé le lot
+depuis le plan et qu'aucun `--depuis` ne l'envoie à un agent (`cheminMecanique`), un geste qui ne
+change aucun fichier du plan s'arrête à `sans-livraison`, un rouge des contrôles qu'aucune
+régénération ne lève à `controles`, un `RENDU` à `relecture-arret` (`arretDuGesteMecanique`) : le
+superviseur fait corriger le lot (`--depuis developpeur`), joue le geste corrigé dans la copie
+puis `--reprendre`, qui ne rejoue pas un geste que la copie porte déjà, ou arrête. Une preuve sans
+rouge, sans constat ouvert pour le développeur, passe aux contrôles sans lui (`apresLaPreuve`) ;
+sous un plan « comportement inchangé », comme dans un grand changement de Google, la suite
+existante fait la preuve : rien n'a à rougir et chaque vert du lot est attendu, seul un fichier du
+lot qui ne se charge pas refuse la preuve (`preuveReussie`), puis le développeur écrit le code
+(une réorganisation a du code), même sans rouge, avant les contrôles et la relecture
+(`apresLaPreuve`). Une sorte absente, hors de ses valeurs, sans sa raison, ou mécanique sans sa
+commande, vaut `comportement` : le circuit entier. Ainsi un geste sans comportement neuf ne coûte
+ni testwriter ni développeur (BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; 320.40.1 :
+une variable inutilisée, 4 séances ; si61.8 : un seuil 77 → 95, 2 séances « aucun code à livrer »).
+
 **Un circuit par ticket** : comme une demande de fusion (un auteur, une série de tests et de
 code, une CI sur l'ensemble, une revue), le circuit lance un seul testwriter et un seul
 développeur pour tout le ticket, chacun dans l'enveloppe de tous les paquets du plan, puis la
 passe finale et le relecteur sur l'ensemble ; aucun composant n'est une unité du circuit. Les
-étapes (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan · 2 Tests · 2.1 Preuve du rouge ·
+étapes (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (1.1 Geste mécanique) · 2 Tests · 2.1 Preuve du rouge ·
 3 Code · 3.1 Contrôles · 4 Passe finale et relecture (4.1 Passe finale, 4.2 Régénération des
 références, 4.3 Relecture) · 5 Intégration (5.1 Commit, 5.2 File, 5.3 Tri des découvertes). `--depuis <testwriter|developpeur>` rejoue le
 ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend

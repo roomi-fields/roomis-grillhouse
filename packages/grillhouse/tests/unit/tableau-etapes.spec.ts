@@ -3,7 +3,7 @@
 // and folds the jobs of a stage that has nothing. The maquette the owner validated (2026-10-21):
 //
 //   AGENTS  ▶ en cours · en attente
-//   1 · Plan · explorateur ⇄ questionneur
+//   ▸ 1 · Plan · explorateur ⇄ questionneur
 //   ▸ 2 · Tests · testwriter
 //   ▾ 3 · Code · développeur
 //   ▶ 320.3  Le binder lit les portées · essai 2/3   12 min · 340 k
@@ -17,11 +17,13 @@
 // final pass, the regeneration of the references and the review are the sub-steps of 4.
 //
 // A stop of the plan, a question for the supervisor (the owner, 2026-10-21; grillhouse-3uv.95.4;
-// the plan one step, the explorateur's and the questionneur's, grillhouse-3uv.95.5):
+// the plan one step, the explorateur's and the questionneur's, grillhouse-3uv.95.5; its sub-step
+// the gesture of a mechanical ticket, grillhouse-sos):
 //
-//   1 · Plan · explorateur ⇄ questionneur
+//   ▾ 1 · Plan · explorateur ⇄ questionneur
 //     ⤷ Question · superviseur
 //   ■ 322    Le parser garde…
+//     1.1 · Geste mécanique · explorateur
 //
 // - Every step stands in its order. A step with sub-steps is folded (▸) while none of them holds
 //   a ticket, unfolded (▾) once one does, all its sub-steps then shown, the empty ones in the
@@ -162,7 +164,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     expect(agents(plateau([])).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
       ...[
-        '  1 · Plan · explorateur ⇄ questionneur',
+        '▸ 1 · Plan · explorateur ⇄ questionneur',
         '▸ 2 · Tests · testwriter',
         '▸ 3 · Code · développeur',
         '▸ 4 · Passe finale et relecture',
@@ -174,6 +176,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
   it('the data holds a block per step and sub-step, in the order of the list', () => {
     expect(plateau([]).agents.map(b => [b.numero, b.titre, b.qui])).toEqual([
       ['1', 'Plan', 'explorateur ⇄ questionneur'],
+      ['1.1', 'Geste mécanique', 'explorateur'],
       ['2', 'Tests', 'testwriter'],
       ['2.1', 'Preuve du rouge', 'auto'],
       ['3', 'Code', 'développeur'],
@@ -193,7 +196,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     const t = plateau([T('demo-33')], { circuits: [circuit('demo-33')] });
     expect(agents(t).map(x => [x.texte.trimEnd().replace(/^▶ .*/, '▶'), x.ton])).toEqual([
       ['AGENTS  ▶ en cours · en attente', 'titre'],
-      ['  1 · Plan · explorateur ⇄ questionneur', 'discret'],
+      ['▸ 1 · Plan · explorateur ⇄ questionneur', 'discret'],
       ['▸ 2 · Tests · testwriter', 'discret'],
       ['▾ 3 · Code · développeur', 'titre'],
       ['▶', 'actif'],
@@ -205,10 +208,11 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
 
   it('an explorer running on a ticket stands under « 1 · Plan · explorateur ⇄ questionneur », a title', () => {
     const t = plateau([T('demo-30')], { vivants: [vivant('e1', 'demo-30', 'explorateur')] });
-    expect(textes(t).slice(0, 4)).toEqual([
+    expect(textes(t).slice(0, 5)).toEqual([
       'AGENTS  ▶ en cours · en attente',
-      '  1 · Plan · explorateur ⇄ questionneur',
+      '▾ 1 · Plan · explorateur ⇄ questionneur',
       expect.stringMatching(/^▶ 30 {2}Le sujet de demo-30 +20 min · 40$/),
+      '  1.1 · Geste mécanique · explorateur',
       '▸ 2 · Tests · testwriter',
     ]);
     expect(agents(t)[1]).toMatchObject({ ton: 'titre' });
@@ -218,7 +222,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     const t = plateau([T('demo-31')], { vivants: [vivant('a1', 'demo-31', 'questionneur')] });
     const a = agents(t);
     expect([a[1].texte.trimEnd(), a[1].ton]).toEqual([
-      '  1 · Plan · explorateur ⇄ questionneur',
+      '▾ 1 · Plan · explorateur ⇄ questionneur',
       'titre',
     ]);
     expect(a[2]).toMatchObject({ ticket: 'demo-31' });
@@ -248,6 +252,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
 
 describe("a circuit's ticket stands at the step of its state, at each instant", () => {
   it('each step of the state at its numbered step, the auto ones included', () => {
+    expect(sous({ etape: 'geste' })).toBe('  1.1 · Geste mécanique · explorateur');
     expect(sous({ etape: 'testwriter' })).toBe('▾ 2 · Tests · testwriter');
     expect(sous({ etape: 'preuve' })).toBe('  2.1 · Preuve du rouge · auto');
     expect(sous({ etape: 'developpeur' })).toBe('▾ 3 · Code · développeur');
@@ -262,7 +267,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     const t = plateau([T('demo-35')], {
       circuits: [circuit('demo-35', { etape: 'testwriter', questionnement: 'plan' })],
     });
-    expect(etapeDe(t, 'demo-35')).toBe('  1 · Plan · explorateur ⇄ questionneur');
+    expect(etapeDe(t, 'demo-35')).toBe('▾ 1 · Plan · explorateur ⇄ questionneur');
     expect(sousUneQuestion(t, 'demo-35')).toBe(false);
     expect(ligneDe(t, 'demo-35').texte).toMatch(/^▶ 35 {2}Le sujet de demo-35( |$)/);
   });
@@ -309,7 +314,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
 
   it('the stop of the plan stands at its step, 1', () => {
     expect(sous({ etape: 'testwriter', vivant: false, code: 22, arret: 'questionnement' })).toBe(
-      '  1 · Plan · explorateur ⇄ questionneur'
+      '▾ 1 · Plan · explorateur ⇄ questionneur'
     );
   });
 
@@ -320,9 +325,9 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       ],
     });
     const a = textes(t);
-    const i = a.indexOf('  1 · Plan · explorateur ⇄ questionneur');
+    const i = a.indexOf('▾ 1 · Plan · explorateur ⇄ questionneur');
     expect(a.slice(i, i + 3)).toEqual([
-      '  1 · Plan · explorateur ⇄ questionneur',
+      '▾ 1 · Plan · explorateur ⇄ questionneur',
       `  ${QUESTION}`,
       expect.stringMatching(/^■ 323 {2}Le sujet de demo-323( |$)/),
     ]);

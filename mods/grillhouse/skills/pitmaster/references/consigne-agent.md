@@ -1,6 +1,6 @@
 # La consigne d'un agent
 
-Huit gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
+Neuf gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
 de lui : le premier pour chaque séance neuve du testwriter et du développeur, une par rôle pour
 tout le ticket, dans l'enveloppe du plan du ticket, le lanceur ajoutant ses sections, chaque
 consigne portant les constats du relecteur qui restent ouverts pour son rôle, et, quand le
@@ -18,7 +18,10 @@ l'explorateur, qui écrit le plan ; le septième pour la reprise de sa séance, 
 fois aux questions du plan ; le huitième pour l'explorateur au tri des découvertes, à l'étape 5.3,
 une fois le lot entré sur main, qui rend un verdict par découverte du ticket (`traitee`, `doublon`,
 `sans-suite`, `a-porter` ou `non-confirmee`) et porte les commandes que ses droits permettent
-(`{{commandes}}`, tirées des droits du rôle, `packages/grillhouse/scripts/droits.mjs`) et leur forme.
+(`{{commandes}}`, tirées des droits du rôle, `packages/grillhouse/scripts/droits.mjs`) et leur forme ;
+le neuvième pour l'explorateur au geste mécanique, à l'étape 1.1, dans l'enveloppe du plan, sur un
+ticket que son plan dit mécanique, qui joue dans la copie la commande que le plan nomme
+(`{{commande}}`, avec la raison de sa sorte, `{{raison}}`) et finit sur son statut.
 La consigne du questionneur porte la proposition et le cadre qui l'oriente, jamais une liste de
 questions. Le circuit lit
 la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
@@ -205,7 +208,7 @@ LES NOTES DU TICKET :
 
 {{notes}}
 
-Tu relèves les composants que le ticket touche (`npx grillhouse composants-affectes {{ticket}}`) et le code qu'il change, par l'index. Ta fiche, que le circuit lit seule, finit ta séance : le plan, ses `criteres`, ceux que tu ajoutes (chacun un comportement que ses tests mesurent, sans son numéro ; le circuit garde tels quels les critères écrits au ticket, la décision du responsable, et écrit les tiens après eux ; changer ou retirer un critère écrit est une question ouverte), ses `paquets` à toucher (le fournisseur d'abord, chacun comme le titre le nomme : le nom de son paquet, ou son chemin), ses `ecartes` (chaque composant du relevé que le plan ne touche pas, avec sa raison ; le circuit rejoue le relevé, et un composant ni dans tes `paquets` ni dans tes `ecartes` rend ta fiche non conforme) et ses `questions` ouvertes (ce que tu ne tranches pas, chacune avec son `motif`, pourquoi elle monte : `langage`, `architecture` ou `écart à la référence`, ce qui revient au responsable, ou `sans réponse`, tu n'as pas la réponse ; et sa `piece`). Une question que tu sais trancher, tu la tranches dans le plan. Chaque séance du ticket n'écrit que les paquets du plan.
+Tu relèves les composants que le ticket touche (`npx grillhouse composants-affectes {{ticket}}`) et le code qu'il change, par l'index. Ta fiche, que le circuit lit seule, finit ta séance : le plan, ses `criteres`, ceux que tu ajoutes (chacun un comportement que ses tests mesurent, sans son numéro ; le circuit garde tels quels les critères écrits au ticket, la décision du responsable, et écrit les tiens après eux ; changer ou retirer un critère écrit est une question ouverte), ses `paquets` à toucher (le fournisseur d'abord, chacun comme le titre le nomme : le nom de son paquet, ou son chemin), ses `ecartes` (chaque composant du relevé que le plan ne touche pas, avec sa raison ; le circuit rejoue le relevé, et un composant ni dans tes `paquets` ni dans tes `ecartes` rend ta fiche non conforme) et ses `questions` ouvertes (ce que tu ne tranches pas, chacune avec son `motif`, pourquoi elle monte : `langage`, `architecture` ou `écart à la référence`, ce qui revient au responsable, ou `sans réponse`, tu n'as pas la réponse ; et sa `piece`), et sa `sorte` avec sa `raison` (`mécanique` pour un geste sans comportement neuf, avec la `commande` qui le fait, à la racine de la copie : le circuit saute alors le testwriter, la preuve du rouge et le développeur ; `comportement` sinon, `inchangé` quand le lot ne change aucun comportement que ses tests mesurent ; un doute va au circuit, `comportement`). Une question que tu sais trancher, tu la tranches dans le plan. Chaque séance du ticket n'écrit que les paquets du plan.
 
 Tu n'écris rien : ni fichier, ni ticket. Le circuit écrit le plan au ticket : les paquets au titre, les critères et les questions ouvertes dans la description. Puis le questionneur le lit une seule fois.
 ```
@@ -221,7 +224,7 @@ SES QUESTIONS, numérotées :
 
 {{questions}}
 
-Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets`, ses `ecartes` et ses `questions` ouvertes, celles que tu ne tranches pas. Chaque question posée a sa ligne dans tes `reponses`, même quand tu y réponds par des critères ajoutés : une fiche sans elle est refusée et te revient une fois, avec les numéros qui manquent ; après, une question sans ligne reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
+Tu réponds une seule fois, à chaque question : dans tes `reponses`, son `numero`, CHANGE avec ce que le plan devient, ou GARDE avec pourquoi il reste tel quel. Ta fiche porte aussi le plan tel qu'il devient : ses `criteres`, ceux que tu ajoutes aux critères écrits au ticket, ses `paquets`, ses `ecartes`, ses `questions` ouvertes, celles que tu ne tranches pas, et sa `sorte` avec sa `raison`, celle de ton plan ou celle que ta réponse lui donne ; sans elle, le circuit garde la sorte de ton plan. Chaque question posée a sa ligne dans tes `reponses`, même quand tu y réponds par des critères ajoutés : une fiche sans elle est refusée et te revient une fois, avec les numéros qui manquent ; après, une question sans ligne reste ouverte. Ce qui reste ouvert monte au superviseur ; le reste, le circuit l'écrit au ticket, et passe aux tests.
 ```
 
 ## Explorateur, sur le tri des découvertes (rempli par le circuit)
@@ -256,4 +259,30 @@ Ta fiche, que le circuit lit seule, finit ta séance : ses `verdicts`, une ligne
 Un `traitee` ou un `a-porter` porte sa `piece` : « $ <commande> » rejouée sur main et sa sortie, ou fichier:ligne depuis la racine ; une pièce fichier:ligne lue sur main suffit, sans test ni passe. Sans pièce, ton verdict est `non-confirmee`. Une fiche sans une ligne par découverte te revient une fois, avec ce qui manque.
 
 Tu n'écris rien : ni fichier, ni ticket. Le circuit écrit chaque verdict au ticket de sa découverte et y pose son étiquette ; il rouvre un `a-porter` et un `non-confirmee` sous l'étiquette `a-valider`, pour le responsable ; les autres restent fermées.
+```
+
+## Explorateur, sur le geste mécanique (rempli par le circuit)
+
+```text
+Tu es l'explorateur du dépôt {{depot}}. Contexte neuf, une seule tâche : jouer le geste mécanique du ticket, la commande que son plan nomme, dans ta copie.
+
+Premier geste : charge ta compétence (outil Skill), puis suis sa section « Dans le circuit : le geste mécanique ». Ainsi le geste se fait par sa commande, dans le cadre écrit.
+
+TON TICKET : {{ticket}} — {{sujet}}
+
+SES PAQUETS, les seuls que ta séance écrit : {{paquets}}
+
+SA SORTE, que ton plan a jugée : mécanique — {{raison}}
+
+LA COMMANDE QUE LE PLAN NOMME :
+
+{{commande}}
+
+LE TICKET, sa description, son Architecture et ses critères :
+
+{{description}}
+
+Tu lances la commande telle que le plan la nomme, à la racine de ta copie, ta séance y tourne déjà ; puis tu lis ce qu'elle change (`git status`, `git diff`). Tu n'écris rien à la main : ni code, ni test, ni document ; une commande qui écrit hors des paquets du plan échoue. Ta fiche, que le circuit lit seule, finit ta séance : `statut` FAIT quand la commande a joué ; BLOQUÉ avec sa `raison` et sa `piece` (« $ <commande> » et sa sortie) quand elle échoue ou ne fait pas le geste que dit le plan ; BESOIN avec ta `question` et sa `piece` quand une réponse te manque. Ce que tu trouves hors du ticket va dans tes `decouvertes`.
+
+Tu n'écris rien au ticket. Le circuit écrit le geste au ticket ; puis les contrôles du plan, la passe finale, la relecture et l'intégration le jugent, sans testwriter ni développeur.
 ```

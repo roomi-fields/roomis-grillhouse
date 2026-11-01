@@ -75,7 +75,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   comme par `setsid` : la commande que je lance relaie sa sortie et rend son code, et sa mort, ma
   séance fermée, laisse le circuit aller à sa fin. Le circuit mène l'arbre de ses étapes
   (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (l'explorateur écrit le plan, le questionneur le lit une seule
-  fois, l'explorateur répond une fois), 2 Tests (le testwriter, une séance pour tout le ticket, et
+  fois, l'explorateur répond une fois ; 1.1 Geste mécanique, l'explorateur joue dans la copie la
+  commande du plan d'un ticket mécanique), 2 Tests (le testwriter, une séance pour tout le ticket, et
   2.1 la preuve du rouge sur tous les tests du lot), 3 Code (le développeur, une séance pour tout
   le ticket, et 3.1 les contrôles du plan), 4 Passe finale et relecture (4.1 la passe
   finale, 4.2 la régénération des références : celles que le projet déclare, `grillhouse.references`
@@ -105,6 +106,21 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   données (des fichiers qu'un schéma valide) passe par le chemin de données du projet, sa
   validation et sa CI (charte commune). Ainsi les tests, la preuve du rouge et le développeur ne
   tournent que sur du code.
+- **Un ticket mécanique passe par sa commande** (charte commune, « Un geste sans comportement neuf
+  sort du circuit de code ») : sa section « Architecture » nomme la commande ou l'outil du geste
+  (montée du cadre, documents seuls, renommage ou déplacement, montée de dépendance,
+  configuration seule, correction de style, seuil relevé), comme Rosie ou `nx migrate` ; je lance
+  le circuit comme pour tout ticket. L'explorateur juge au plan sa sorte (`sorte` de sa fiche,
+  « ## Sorte » de la description, avec sa raison et sa commande) ; un ticket mécanique saute 2
+  Tests, 2.1 et 3 Code : à 1.1 Geste mécanique, l'explorateur joue la commande dans la copie,
+  puis 3.1 Contrôles, la passe finale, la relecture et la file. Un rouge des contrôles, un `RENDU`
+  ou un geste qui ne change rien me monte : je fais corriger le lot (`--depuis developpeur
+--contexte`), je joue moi-même le geste corrigé dans la copie puis `--reprendre`, qui ne rejoue
+  pas un geste que la copie porte déjà, ou j'arrête. Sous un plan « comportement inchangé », la
+  preuve accepte chaque vert, puis le développeur écrit le code, les contrôles et la relecture ;
+  hors de ce cas, une preuve sans rouge passe aux contrôles sans séance du développeur. Une sorte absente ou
+  illisible vaut « comportement » : le circuit entier. Ainsi un geste sans comportement neuf ne
+  coûte ni testwriter ni développeur.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
   branche gardée en file) : je relance `--reprendre` en arrière-plan, la
@@ -125,7 +141,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   gestes que la liste des étapes écrit (`GESTES` de `packages/grillhouse/scripts/etapes.mjs`) : rejouer une commande à 75,
   finir à 75, renvoyer au testwriter
   que nomme la fiche du développeur, régénérer les références, juger aux contrôles un développeur
-  qui n'a rien à livrer ; chaque geste s'écrit au ticket et au journal avec sa règle
+  qui n'a rien à livrer, sauter le testwriter et le développeur d'un ticket mécanique ; chaque geste s'écrit au ticket et au journal avec sa règle
   (`Circuit · … · geste`). Ainsi ma séance n'est réveillée que par la fin du lot ou par une vraie
   question.
 - **Une vraie question monte à moi** : tout autre arrêt finit le circuit sur une question
@@ -237,7 +253,9 @@ parcourt l'arbre de son circuit, les étapes « auto » comprises (`packages/gri
 liste), comme un pipeline de GitLab CI ses étapes et leurs travaux : 1 Plan : l'`explorateur` écrit le plan
 (ses critères, les paquets à toucher, ses questions ouvertes, que le circuit écrit au ticket), le
 `questionneur` le lit une seule fois, l'explorateur répond une fois, CHANGE ou GARDE par question,
-et ce qui reste ouvert me monte ;
+et ce qui reste ouvert me monte ; 1.1 Geste mécanique, l'`explorateur`, dans l'enveloppe du
+plan, sur un ticket que son plan dit mécanique : il joue la commande du plan dans la copie, en
+place de 2 et de 3 ;
 2 Tests, le `testwriter`, une séance pour tout le ticket, et 2.1 Preuve du rouge, auto, sur tous
 les tests du lot, trois essais au plus ; 3 Code, le `developpeur`, une séance pour tout le ticket,
 et 3.1 Contrôles, auto, sur tout le plan, trois essais au plus ; 4 Passe finale et relecture :

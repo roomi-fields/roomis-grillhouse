@@ -60,6 +60,8 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.fiche': [11, 52],
   'circuit.gestes': [6, 49],
   'circuit.machine': [1, 7],
+  // grillhouse-sos: the mechanical path, and the sort that survives the answer to the questionneur.
+  'circuit.mecanique': [6, 24],
   'circuit.montee': [5, 33],
   circuit: [7, 22],
   'circuit.passe-finale': [3, 19],

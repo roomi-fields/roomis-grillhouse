@@ -441,7 +441,7 @@ describe('assembler', () => {
     expect(texte).toMatch(/\n▾ 3 · Code · développeur\n▶ c\.1\.1 {2}Écrit/);
     expect(texte).toMatch(/\n▾ 3 · Code · développeur[\s\S]*\n· c\.3 {4}demo-c\.3 +1 min · 50\n/);
     expect(texte).toMatch(
-      /\n {2}1 · Plan · explorateur ⇄ questionneur\n▸ 2 · Tests · testwriter\n▾ 3 · Code · développeur\n/
+      /\n▸ 1 · Plan · explorateur ⇄ questionneur\n▸ 2 · Tests · testwriter\n▾ 3 · Code · développeur\n/
     );
     expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);

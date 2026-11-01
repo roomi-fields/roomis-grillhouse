@@ -11,7 +11,8 @@
 //   exists only when a reader reads it:
 //   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN, each
 //     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin », the piece
-//     with the stop (testwriter, developpeur);
+//     with the stop (testwriter, developpeur, and the explorateur's gesture of a mechanical ticket,
+//     its own schema, `geste`);
 //   - `verts_attendus` (`fichier` from the root, `test` its full name, or none for every green of a
 //     file HEAD holds, `raison`): the proof of the red (testwriter);
 //   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
@@ -64,6 +65,14 @@
 //     a removal of a criterion written among them, go up to the supervisor, each naming why: the
 //     language, the architecture, a gap to the reference, or no answer (BP 328: a question the
 //     ticket settled stopped the plan) (explorateur);
+//   - `sorte` (`genre` mécanique or comportement, its `raison`, the `commande` a mechanical ticket
+//     plays, and, for a comportement, `comportement` changé or inchangé): as Google's large-scale
+//     changes let a tool make a change that a verification and a review judge (Rosie, ClangMR),
+//     a ticket the plan says mechanical skips the testwriter, the proof and the developpeur, and
+//     under a plan « comportement inchangé » every green of the proof is expected and the
+//     developpeur writes the code; a sort
+//     absent, out of its kinds, or without its reason or its command is comportement, the whole
+//     circuit (`sorteDuPlan`, grillhouse-sos) (explorateur);
 //   - `ecartes` (`composant`, `raison`): the components of the survey the plan does not touch,
 //     which the circuit writes at the ticket; each other component of the survey the circuit
 //     plays is in the packages (explorateur);
@@ -186,6 +195,10 @@ export const VERDICTS_ROUVERTS = ['a-porter', 'non-confirmee'];
 // The verdicts whose piece is a command played again on main and its output, or file:line.
 const VERDICTS_PROUVES = ['traitee', 'a-porter'];
 
+// The sorts of a ticket the explorateur judges at the plan (grillhouse-sos): a gesture without new
+// behaviour, which its command makes, or a change of behaviour, which the circuit of code makes.
+export const SORTES = ['mécanique', 'comportement'];
+
 // The schema of the sheet of each role the circuit leads, and of the tri of the discoveries
 // (`tri`), the explorateur's after the queue.
 const FICHES = {
@@ -198,6 +211,28 @@ const FICHES = {
       paquets: liste(
         texte('Un paquet, comme le titre le nomme : le nom de son paquet, ou son chemin.'),
         'Les paquets à toucher, le fournisseur d’abord ; le circuit les écrit au titre, et chaque séance n’écrit qu’eux.'
+      ),
+      sorte: objet(
+        {
+          genre: {
+            type: 'string',
+            enum: SORTES,
+            description:
+              'mécanique : un geste sans comportement neuf (montée du cadre, documents seuls, renommage ou déplacement, montée de dépendance, configuration seule, correction de style, seuil relevé), que sa commande fait ; comportement : tout autre ticket, et tout doute.',
+          },
+          raison: texte('Pourquoi le ticket est de cette sorte.'),
+          commande: texte(
+            'mécanique : la commande ou l’outil qui fait le geste, tel qu’il se lance à la racine de la copie.'
+          ),
+          comportement: {
+            type: 'string',
+            enum: ['changé', 'inchangé'],
+            description:
+              'comportement : inchangé quand le lot ne change aucun comportement que ses tests mesurent (un test adapté, un seuil relevé dans un test) ; changé sinon.',
+          },
+        },
+        ['genre', 'raison'],
+        'La sorte du ticket, et sa raison ; un ticket mécanique saute le testwriter, la preuve du rouge et le développeur. Une sorte absente vaut comportement.'
       ),
       ecartes: liste(
         objet(
@@ -240,6 +275,8 @@ const FICHES = {
     },
     ['criteres', 'paquets', 'questions']
   ),
+  // The explorateur's sheet after the gesture of a mechanical ticket (1.1), in the copy.
+  geste: objet({ ...STATUT, ...DECOUVERTES }, ['statut']),
   testwriter: objet(
     {
       ...STATUT,
@@ -425,6 +462,22 @@ const FICHES = {
 
 // The schema of the sheet of <role>, or null for a role the circuit does not lead.
 export const schemaDeFiche = role => FICHES[role] ?? null;
+
+// The sort of the ticket the explorateur's sheet of the plan <fiche> says (`sorte`): `{ genre:
+// 'mécanique', raison, commande }` for a mechanical ticket with its reason and its command; else
+// `{ genre: 'comportement', raison, inchange }`, `inchange` for a plan « comportement inchangé »
+// with its reason. A sort absent, out of its kinds or without what it needs is comportement, the
+// whole circuit, as a doubt goes to the circuit (grillhouse-sos).
+export function sorteDuPlan(fiche) {
+  const s = fiche?.sorte;
+  const plein = v => typeof v === 'string' && v.trim() !== '';
+  const raison = s && typeof s === 'object' && plein(s.raison) ? s.raison.trim() : null;
+  if (raison && s.genre === 'mécanique' && plein(s.commande)) {
+    return { genre: 'mécanique', raison, commande: s.commande.trim() };
+  }
+  const inchange = Boolean(raison) && s.genre === 'comportement' && s.comportement === 'inchangé';
+  return { genre: 'comportement', raison, inchange };
+}
 
 // The errors of <valeur> against <schema>, each naming its field by its path <ou>.
 function erreurs(schema, valeur, ou) {

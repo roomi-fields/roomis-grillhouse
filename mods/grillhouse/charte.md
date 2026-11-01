@@ -44,7 +44,8 @@ professionnel.
    la fiche le circuit.
 
 Un ticket parcourt les étapes de son circuit (`etapes.mjs`, la seule liste), chacune tenue par un
-rôle, agent du cadre, sous ses droits : 1 Plan, l'explorateur puis le questionneur ; 2 Tests, une
+rôle, agent du cadre, sous ses droits : 1 Plan, l'explorateur puis le questionneur, et
+1.1 Geste mécanique, l'explorateur, pour un ticket que son plan dit mécanique ; 2 Tests, une
 séance du testwriter, et 2.1 Preuve du rouge ; 3 Code, une séance du développeur, et
 3.1 Contrôles ; 4 Passe finale et relecture : la passe finale, la régénération des références,
 puis le relecteur, qui rend une ligne de conformité par élément que le lot ajoute, change ou
@@ -117,6 +118,19 @@ responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du re
 données (des fichiers qu'un schéma valide, une fiche à un catalogue) ne passe pas par le circuit
 de code ; il passe par la validation du projet et sa CI, comme une formule de Homebrew ou un
 type de DefinitelyTyped. Ainsi le circuit garde les tests et le code pour ce qui en a.
+
+**Un geste sans comportement neuf sort du circuit de code** (montée du cadre, documents seuls,
+renommage ou déplacement, montée de dépendance, configuration seule, correction de style, seuil
+relevé), comme les grands changements de Google (Rosie, ClangMR), Renovate, `nx migrate`,
+`eslint --fix` : il passe par sa commande ou son outil, puis la vérification et la relecture du
+relecteur, sans testwriter ni développeur. L'explorateur juge au plan que le ticket est mécanique,
+et l'écrit avec sa raison et sa commande ; un doute va au circuit. Le texte qui accompagne un
+changement de comportement reste dans son lot. Une configuration dont une garde mesure l'effet
+reste au circuit. Sous un plan qui dit « comportement inchangé », la suite existante fait la
+preuve : elle accepte chaque vert, et le développeur écrit le code (une réorganisation a du code),
+puis les contrôles et la relecture. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
+contrôles et à la relecture sans séance du développeur. Ainsi chaque séance du circuit a un lot à
+écrire.
 
 **Un paquet naît hors du circuit, en quatre temps** (un squelette n'a ni comportement ni test),
 comme les générateurs de Nx et `cargo new --lib` : 1, le grill, le superviseur et le responsable

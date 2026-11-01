@@ -3,7 +3,7 @@
 # plan, the packages it writes (one session of the testwriter or the developpeur for the whole
 # ticket, `.` as its component and the plan as `--paquets`, grillhouse-3uv.95.6). The supervisor runs it in the background and is told when the session ends.
 #
-#   npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>
+#   npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] [--fiche <sorte>] <ticket> <rôle> <composant> <fichier de consigne>
 #
 # - <composant> is the component's path from the root (`packages/<nom>`, or `.` for the whole
 #   repository). It is judged before the copy is prepared, by the envelope's rule
@@ -91,7 +91,9 @@
 #   locks), its tools and the servers of the index, for the reading of the whole copy.
 # - A role that ends on a sheet (scripts/resultats.mjs: the testwriter, the developpeur) runs with
 #   `--output-format json --json-schema <its schema>` (`npx grillhouse resultats --schema
-#   <rôle>`): claude's JSON result, its sheet in `structured_output`, goes to
+#   <rôle>`); --fiche <sorte> names the schema of a sheet that is not its role's (`geste`, the
+#   explorateur's gesture of a mechanical ticket, grillhouse-sos), taking a value as --modele does:
+#   claude's JSON result, its sheet in `structured_output`, goes to
 #   .claude/worktrees/<ticket>.resultat.json, which a launch removes first and the circuit reads,
 #   then to the log; its errors go to the log.
 # - Its output, and an envelope refusal (CODE_REFUS), are added to .claude/worktrees/<ticket>.log,
@@ -111,12 +113,12 @@
 set -euo pipefail
 ici="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 eval "$(node "$ici/codes.mjs")"
-usage="usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>"
+usage="usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] [--fiche <sorte>] <ticket> <rôle> <composant> <fichier de consigne>"
 refus_usage() { echo "$usage" >&2; exit "$CODE_USAGE"; }
-modele="" effort="" seance="" reprise="" liste="" surcharge=()
+modele="" effort="" seance="" reprise="" liste="" sorte="" surcharge=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --modele|--effort|--seance|--reprise|--paquets)
+    --modele|--effort|--seance|--reprise|--paquets|--fiche)
       [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != --* ]] || refus_usage
       if [ "$1" = --modele ]; then
         modele=$2
@@ -126,6 +128,8 @@ while [ $# -gt 0 ]; do
         reprise=$2
       elif [ "$1" = --paquets ]; then
         liste=$2
+      elif [ "$1" = --fiche ]; then
+        sorte=$2
       else
         case "$2" in low|medium|high|xhigh|max) effort=$2 ;; *) refus_usage ;; esac
       fi
@@ -260,7 +264,7 @@ mapfile -t droits_du_role <<<"$droits"
 # The schema of the role's end-of-session sheet (scripts/resultats.mjs), for a role that has one:
 # the session ends on it, which claude writes in its JSON result, on the standard output.
 fiche=()
-schema=$(node "$ici/../resultats.mjs" --schema "$role" 2> /dev/null) || schema=
+schema=$(node "$ici/../resultats.mjs" --schema "${sorte:-$role}" 2> /dev/null) || schema=
 [ -z "$schema" ] || fiche=(--output-format json --json-schema "$schema")
 
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.

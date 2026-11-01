@@ -90,6 +90,25 @@
 //   passes (`plan`, its fingerprint: its title and its criteria); a plan that passed, its title
 //   and criteria unchanged since, passes with no session, whatever else of its description
 //   changed.
+// - The sheet of the plan says the sort of the ticket (`sorte`, read by `sorteDuPlan` of
+//   scripts/resultats.mjs, from the explorateur's last sheet of the plan), which the circuit
+//   writes in the description (« ## Sorte », after the criteria) and at the ticket with the plan:
+//   mechanical, a gesture without new behaviour, with its reason and the command that makes it;
+//   comportement, with its reason, the plan « comportement inchangé » when the lot changes no
+//   behaviour; absent or unreadable, comportement, the whole circuit (grillhouse-sos, BPScript
+//   320.16: 38 tools moved by mv through the testwriter and the developpeur, 117 comments). As
+//   Google's large-scale changes (Rosie, ClangMR) let a tool make the change that a verification
+//   and a review judge, with no new test, a mechanical ticket (`cheminMecanique`: no `--depuis`,
+//   no testwriter nor developpeur since the plan) skips the testwriter, the proof and the
+//   developpeur, the gesture `mecanique`: at 1.1 one session of the explorateur in the envelope
+//   of the plan (lancer.sh `--fiche geste`, its sheet the schema `geste`, its instruction the
+//   ninth template) plays in the copy the command the plan names; its BLOQUÉ or BESOIN goes up as
+//   any agent's, and a copy that then holds no change of the plan stops at « sans-livraison ». A
+//   `--reprendre` at 1.1 whose copy already holds a change of the plan (the supervisor played the
+//   command himself) plays no session. Then the checks, the final pass, the review and the
+//   integration, as for any lot; a red of the checks or of the final pass that no regeneration
+//   lifts stops at « controles », and a RENDU at « relecture-arret » (`arretDuGesteMecanique`),
+//   a question for the supervisor, who has the lot corrected (`--depuis developpeur`) or stops.
 // - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
 //   for, in its own process group, its errors written to a file: a session outlives the death of
 //   its circuit, and the state names its group while it runs. Its plan, the packages it writes (`--paquets`, the envelope's list), is the plan of the
@@ -212,11 +231,15 @@
 //   not told apart. The proof passes with a red (of the lot, existing or of a build), even without
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
 //   reds are enough. It fails with neither a file of the lot nor a red, with a broken file of the
-//   lot, or with a green of the lot no expected green justifies. A failed proof relaunches the
+//   lot, or with a green of the lot no expected green justifies; under a plan « comportement
+//   inchangé », nothing has to turn red and every green of the lot is expected, so only a broken
+//   file fails it (`preuveReussie`). A failed proof relaunches the
 //   testwriter with its report, twice at most. The report (reds, justified greens) is written at
 //   the ticket. A proof with a red launches the developpeur, and so does a proof without a red
-//   when a finding of the reviewer still open names him; else it skips him: the lot is a lot of
-//   tests alone.
+//   when a finding of the reviewer still open names him, or under a plan « comportement inchangé »,
+//   whose lot has code to write though nothing turns red; else it skips him (`apresLaPreuve`): the
+//   lot is a lot of tests alone, and the checks and the review judge it with no session of the
+//   developpeur.
 // - A developpeur is launched on a red, of a proof or of a check, on a finding of the reviewer, or
 //   on a plan without tests: a session that changes no file of the plan (`git status --porcelain`
 //   of its paths and the content of each file it lists, taken before and after the session; the
@@ -449,7 +472,7 @@
 //   22 of /proc/<pid>/stat), which together name it, a number alone being reused; `questionnement` the work
 //   on the plan under way (`{ objet, role, seance }`: the plan, the explorateur or the
 //   questionneur, its session), null otherwise; `etape` is the state's name of a numbered step of
-//   the process (scripts/etapes.mjs: testwriter 2, preuve 2.1, developpeur 3, controles 3.1, or 4.1
+//   the process (scripts/etapes.mjs: geste 1.1, testwriter 2, preuve 2.1, developpeur 3, controles 3.1, or 4.1
 //   the final pass once `finale`, references 4.2, relecture 4.3, integration 5.1, file 5.2, tri
 //   5.3), or
 //   integre at the end; `raison` names the stop (« arrete » once the supervisor stopped the
@@ -609,6 +632,7 @@ import {
   reponsesAuxQuestions,
   RESULTATS,
   schemaDeFiche,
+  sorteDuPlan,
   VERDICTS_DU_TRI,
   VERDICTS_ROUVERTS,
 } from './resultats.mjs';
@@ -645,7 +669,8 @@ const SEANCES_DEVELOPPEUR = boucle('code').max;
 const RELECTURES = boucle('relecture').max;
 // The steps of the circuit's state, read from the list of the steps.
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
-const [TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FILE, TRI] = [
+const [GESTE, TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FILE, TRI] = [
+  '1.1',
   '2',
   '2.1',
   '3',
@@ -1183,6 +1208,8 @@ function lancer(
         ...(fort ? FORT : []),
         ...(ouvre ? ['--seance', ouvre] : []),
         ...(reprend ? ['--reprise', reprend] : []),
+        // The schema of its sheet when it is not its role's (the explorateur's gesture).
+        ...(sorte ? ['--fiche', sorte] : []),
         // The plan of the session: the packages of the title, which it writes; its component the
         // whole copy, which it reads.
         '--paquets',
@@ -1295,7 +1322,7 @@ async function attendreLaSeance(ctx, groupe) {
 // reviewer's, 2 any session's on a sheet absent or out of its schema, 3 the testwriter's and the
 // developpeur's on a resumption, 4 the questionneur's on the plan, 5 the explorateur's on the plan,
 // 6 the explorateur's on the questions of the plan, 7 the explorateur's on the tri of the
-// discoveries), filled with <valeurs>.
+// discoveries, 8 the explorateur's on the gesture of a mechanical ticket), filled with <valeurs>.
 export function consigne(valeurs, rang = 0) {
   const texte = readFileSync(GABARIT, 'utf8');
   const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
@@ -2274,6 +2301,87 @@ export function arretDuTestwriterSaute(ctx, texte) {
   );
 }
 
+// The sheet of the plan that says the sort among the explorateur's sheets of the plan <plans>, in
+// their order (`{ fiche, reponse }` entries): the last one, or, when it is his answer to the
+// questionneur (`reponse`) and says none, the plan it answers, so that the sort survives the
+// answer; null without a sheet of the plan.
+export function ficheDeLaSorte(plans) {
+  const derniere = plans.at(-1);
+  if (!derniere) return null;
+  if (derniere.reponse && !('sorte' in derniere.fiche) && plans.length > 1) {
+    return plans.at(-2).fiche;
+  }
+  return derniere.fiche;
+}
+
+// The sort of the ticket its plan says (`sorteDuPlan` of scripts/resultats.mjs): the sheet of the
+// plan that says it (`ficheDeLaSorte`), comportement without one (grillhouse-sos).
+const sorteDuTicket = ctx =>
+  sorteDuPlan(
+    ficheDeLaSorte(
+      lesFiches(ctx).filter(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres))
+    )
+  );
+
+// Whether a testwriter or a developpeur has worked the lot since the last sheet of the plan.
+function lotTravaille(ctx) {
+  const tous = lesFiches(ctx);
+  const plan = tous.findLastIndex(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres));
+  return tous.slice(plan + 1).some(e => AGENTS_DU_LOT.includes(e.role));
+}
+
+// Whether the ticket of <ctx> goes the mechanical path, as Google's large-scale changes (Rosie,
+// ClangMR) let a tool make the change that a verification and a review judge: its plan says it
+// mechanical (`ctx.sorte`), no `--depuis` sends its lot to an agent, and no testwriter nor
+// developpeur has worked it since the plan (grillhouse-sos).
+export const cheminMecanique = ctx =>
+  ctx.sorte?.genre === 'mécanique' && !ctx.depuis && !lotTravaille(ctx);
+
+// The step after the plan of sort <sorte> (null when the path is not mechanical): the gesture of
+// a mechanical ticket (1.1), in place of the testwriter, the proof and the developpeur; the
+// developpeur of a plan without tests (<sansTests>); else the testwriter.
+export const etapeApresLePlan = ({ sorte, sansTests }) =>
+  sorte?.genre === 'mécanique' ? GESTE : sansTests ? CODE : TESTS;
+
+// The step after a proof that passes: the developpeur on a red (<rouges>), on a finding of the
+// reviewer still open for him (<pourLeDeveloppeur>), or under a plan « comportement inchangé »
+// (<inchange>), whose lot has code to write though nothing turns red, as a reorganisation does
+// (decision 3, amended by the owner on 2026-11-01); else the checks, a lot of tests alone, with
+// no session of the developpeur.
+export const apresLaPreuve = ({ rouges, pourLeDeveloppeur, inchange }) =>
+  rouges > 0 || pourLeDeveloppeur || inchange ? CODE : CONTROLES;
+
+// Whether a proof of the counts <compte> passes: no file of the lot that does not load, no green
+// without its expected green, and a red or a green justified or held by HEAD among the files of
+// the lot or a red without one. Under a plan « comportement inchangé » (<inchange>), nothing has
+// to turn red and every green is expected: a proof passes with no file of the lot that does not
+// load, its reds going to the developpeur.
+export function preuveReussie(
+  { fichiers, rouges, casses, injustifies, justifies, anciens },
+  { inchange }
+) {
+  if (casses > 0) return false;
+  if (inchange) return true;
+  return (fichiers > 0 || rouges > 0) && injustifies === 0 && rouges + justifies + anciens > 0;
+}
+
+// The stop for a RENDU of a mechanical lot (`cheminMecanique`), or null: no testwriter nor
+// developpeur wrote it, so no relaunch treats its findings. An Arret `relecture-arret`, the
+// verdict <texte> in its report, the findings' pieces as its piece; its question, have the lot
+// corrected by the developpeur or stop the circuit.
+export function arretDuGesteMecanique(ctx, texte) {
+  if (!cheminMecanique(ctx)) return null;
+  const pieces = (ctx.constats ?? []).map(c => c.piece ?? c.titre).join('\n');
+  return new Arret(
+    'relecture-arret',
+    `Le relecteur rend un lot mécanique (${ctx.sorte.raison}), que la commande du plan a fait sans testwriter ni développeur : le circuit ne relance personne.\n\nLe verdict :\n\n${texte}`,
+    {
+      piece: pieces || null,
+      question: `Le lot mécanique est rendu : le faire corriger par le développeur (\`--depuis developpeur --contexte\`), ou arrêter le circuit (\`--arreter\`) et changer le plan.`,
+    }
+  );
+}
+
 // The integration of the lot: its two patches, its message and the references that write files in
 // full (`--references`, from `lesReferences`, the one list), written from the copy, then
 // scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
@@ -2819,6 +2927,8 @@ function preuve(ctx) {
   let anciens = 0;
   const reportes = [];
   const mesure = mesureDeLaPreuve(ctx, liste, fichiers);
+  // A plan « comportement inchangé »: every green of the lot is expected.
+  const inchange = Boolean(ctx.sorte?.inchange);
   for (const { groupe, entier, avant, code, resultats, constructions } of mesure) {
     for (const { nom, erreur } of constructions) {
       if (reportes.includes(nom)) continue;
@@ -2880,6 +2990,8 @@ function preuve(ctx) {
             justifies.push(`${f} › ${a.nom} — ${raison}`);
           } else if (duF && avant.has(f)) {
             justifies.push(`${f} › ${a.nom} — ${duF.raison} (par le vert attendu du fichier)`);
+          } else if (inchange) {
+            justifies.push(`${f} › ${a.nom} — le plan dit « comportement inchangé »`);
           } else {
             injustifies.push(`${f} › ${a.nom}`);
           }
@@ -2889,11 +3001,17 @@ function preuve(ctx) {
   }
   const section = (titre, l) =>
     l.length ? [`${titre} (${l.length}) :`, ...l.map(x => `- ${x}`), ''] : [];
-  const ok =
-    (fichiers.length > 0 || rouges.length > 0) &&
-    casses.length === 0 &&
-    injustifies.length === 0 &&
-    rouges.length + justifies.length + anciens > 0;
+  const ok = preuveReussie(
+    {
+      fichiers: fichiers.length,
+      rouges: rouges.length,
+      casses: casses.length,
+      injustifies: injustifies.length,
+      justifies: justifies.length,
+      anciens,
+    },
+    { inchange }
+  );
   const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans vert attendu, ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const ecrit = (...sections) =>
     [
@@ -2904,7 +3022,12 @@ function preuve(ctx) {
       '',
       ...(fichiers.length || rouges.length
         ? []
-        : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
+        : inchange
+          ? [
+              'Aucun fichier de test du lot : le plan dit « comportement inchangé », rien à prouver.',
+              '',
+            ]
+          : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
       ...section('Rouges', rouges),
       ...sections,
       ...section(
@@ -3381,7 +3504,59 @@ async function derouler(ctx, debut) {
     const menee = MENEES.has(etape) ? { etape, debut: new Date().toISOString() } : null;
     ecrireEtat(ctx, { ...etat, mene: menee?.debut ?? null });
     try {
-      if (etape === TESTS && sansTests(ctx)) {
+      // After the plan: the gesture of a mechanical ticket, the developpeur of a plan without
+      // tests, else the testwriter.
+      const route =
+        etape === TESTS
+          ? etapeApresLePlan({
+              sorte: cheminMecanique(ctx) ? ctx.sorte : null,
+              sansTests: sansTests(ctx),
+            })
+          : null;
+      if (route === GESTE) {
+        geste(ctx, 'mecanique');
+        etape = GESTE;
+        tentative = 1;
+      } else if (etape === GESTE) {
+        if (reprend && livre(ctx)) {
+          // The copy already carries the gesture (the supervisor played the command himself).
+          commenter(
+            ctx,
+            'mecanique',
+            'la copie porte déjà un changement du plan : le geste ne rejoue pas, aux contrôles.'
+          );
+        } else {
+          const { description } = leTicket(ctx);
+          const fiche = await jusquALaFiche(
+            ctx,
+            EXPLORATEUR,
+            consigne(
+              {
+                depot: ctx.racine,
+                ticket: ctx.ticket,
+                sujet: ctx.sujet,
+                paquets: ctx.paquets.join(', '),
+                raison: ctx.sorte.raison,
+                commande: ctx.sorte.commande,
+                description: description.trim() || 'aucune',
+              },
+              8
+            ),
+            { fiche: 'geste', objet: 'geste' }
+          );
+          if (fiche.statut !== 'FAIT') throw arretDuStatut(ctx, EXPLORATEUR, tentative, fiche);
+          if (!livre(ctx)) {
+            throw new Arret(
+              'sans-livraison',
+              `Le geste mécanique ne change aucun fichier du plan (${ctx.paquets.join(', ')}) : la commande du plan, \`${ctx.sorte.commande}\`, n'a rien changé dans la copie.`,
+              { piece: `$ ${ctx.sorte.commande}\naucun fichier du plan changé dans ${ctx.copie}` }
+            );
+          }
+          commenter(ctx, 'mecanique', 'la commande du plan a joué dans la copie : aux contrôles.');
+        }
+        etape = CONTROLES;
+        tentative = 0;
+      } else if (route === CODE) {
         commenter(
           ctx,
           'testwriter',
@@ -3413,12 +3588,19 @@ async function derouler(ctx, debut) {
         if (p.ok) {
           // A finding of the reviewer still open for the developpeur launches him, red or not.
           const pourLui = ouverts(ctx, 'developpeur').length > 0;
-          const auDeveloppeur = p.rouges > 0 || pourLui;
+          const auDeveloppeur =
+            apresLaPreuve({
+              rouges: p.rouges,
+              pourLeDeveloppeur: pourLui,
+              inchange: Boolean(ctx.sorte?.inchange),
+            }) === CODE;
           const suite = p.rouges
             ? 'au développeur'
             : pourLui
               ? 'aucun rouge ; au développeur, que nomme un constat du relecteur'
-              : 'aucun rouge : un lot de tests seul, aux contrôles';
+              : ctx.sorte?.inchange
+                ? 'aucun rouge : le plan dit « comportement inchangé », au développeur'
+                : 'aucun rouge : un lot de tests seul, aux contrôles';
           ecrireRapport(ctx, 'preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`, p.resultat);
           etape = auDeveloppeur ? CODE : CONTROLES;
           tentative = auDeveloppeur ? 1 : 0;
@@ -3616,6 +3798,12 @@ async function derouler(ctx, debut) {
             'controles',
             'Les rouges du plan sont des constats à arbitrer : aucun développeur ne les tranche.'
           );
+        } else if (k.rouge && cheminMecanique(ctx)) {
+          // A mechanical lot: no testwriter nor developpeur lifts the red of its command.
+          arreter(
+            'controles',
+            `Le ticket est mécanique (${ctx.sorte.raison}) : ni testwriter ni développeur ne lève ce rouge du lot de sa commande. Le superviseur fait corriger le lot (\`--depuis developpeur\`, le rouge en \`--contexte\`), corrige le geste dans la copie puis \`--reprendre\`, ou arrête le circuit (\`--arreter\`).`
+          );
         } else if (k.rouge && rien) {
           // The stop stands at the developpeur's step, which a resumption plays again.
           arreter('sans-livraison', rien, CODE);
@@ -3772,7 +3960,7 @@ async function derouler(ctx, debut) {
             );
           }
           ctx.constats = constatsOuverts(ctx, v.fiche, v.texte);
-          const saute = arretDuTestwriterSaute(ctx, v.texte);
+          const saute = arretDuTestwriterSaute(ctx, v.texte) ?? arretDuGesteMecanique(ctx, v.texte);
           if (saute) throw saute;
           const auTestwriter = ouverts(ctx, 'testwriter').length > 0;
           etape = auTestwriter ? TESTS : CODE;
@@ -4064,6 +4252,14 @@ const planPasse = (ctx, empreinte) =>
 
 // The heading of the section of the open questions in a plan's description.
 const QUESTIONS_OUVERTES = '## Questions ouvertes';
+// The heading of the section of the sort of the ticket in a plan's description (grillhouse-sos).
+const SORTE = '## Sorte';
+
+// The sort <sorte> (`sorteDuPlan`) in words: its kind, then its reason.
+const texteDeLaSorte = sorte =>
+  sorte.raison
+    ? `${sorte.genre}${sorte.inchange ? ' inchangé' : ''} — ${sorte.raison}`
+    : `${sorte.genre} — la fiche ne dit pas sa sorte lisiblement : le circuit entier`;
 
 // The sections of the description <description>: the text before its first `##` heading, then
 // each heading with its lines.
@@ -4088,13 +4284,17 @@ function numerotee(ligne) {
 }
 
 // The ticket's description <description> as it was before the plan, with the criteria the plan adds
-// <criteres> in its section of criteria (a section « ## Critères » at its end without one) and its
-// open questions <questions> in their section after it, absent without one; the rest of it as it
-// was. The criteria already written stay as they are, the decision of the owner: each criterion the
-// plan adds follows them, numbered after them. Written again from the description before the plan,
-// the description holds the criteria of the explorateur's last sheet alone.
-function decrireLePlan(description, criteres, questions) {
-  const gardees = sectionsDe(description).filter(s => s.tete !== QUESTIONS_OUVERTES);
+// <criteres> in its section of criteria (a section « ## Critères » at its end without one), the sort
+// of the ticket <sorte> in its section after it, its reason and the command of a mechanical ticket
+// (absent when the sheet says none), and its open questions <questions> in their section after
+// them, absent without one; the rest of it as it was. The criteria already written stay as they
+// are, the decision of the owner: each criterion the plan adds follows them, numbered after them.
+// Written again from the description before the plan, the description holds the criteria and the
+// sort of the explorateur's last sheet alone.
+export function decrireLePlan(description, criteres, questions, sorte = null) {
+  const gardees = sectionsDe(description).filter(
+    s => s.tete !== QUESTIONS_OUVERTES && s.tete !== SORTE
+  );
   let i = gardees.findIndex(deCriteres);
   if (i < 0) {
     gardees.at(-1).lignes.push('');
@@ -4110,12 +4310,25 @@ function decrireLePlan(description, criteres, questions) {
     tete: gardees[i].tete,
     lignes: [...(avant.length ? avant : ['']), ...liste, ''],
   };
-  if (questions.length) {
-    gardees.splice(i + 1, 0, {
-      tete: QUESTIONS_OUVERTES,
-      lignes: ['', lignesOuvertes(questions), ''],
-    });
-  }
+  const apres = [
+    ...(sorte
+      ? [
+          {
+            tete: SORTE,
+            lignes: [
+              '',
+              texteDeLaSorte(sorte),
+              ...(sorte.commande ? ['', `Commande : \`${sorte.commande}\``] : []),
+              '',
+            ],
+          },
+        ]
+      : []),
+    ...(questions.length
+      ? [{ tete: QUESTIONS_OUVERTES, lignes: ['', lignesOuvertes(questions), ''] }]
+      : []),
+  ];
+  gardees.splice(i + 1, 0, ...apres);
   return gardees
     .flatMap(s => (s.tete ? [s.tete, ...s.lignes] : s.lignes))
     .join('\n')
@@ -4177,6 +4390,10 @@ function fautesDesPaquets(ctx, fiche, description) {
     ? `paquets : ${absents.join(', ')}, que le relevé nomme, n'est ni dans les paquets ni dans les écartés (ecartes, avec sa raison)`
     : null;
 }
+
+// The sort the sheet of the plan <fiche> writes in the description: the one it says, read
+// (`sorteDuPlan`), or none when the sheet says none.
+const sorteEcrite = fiche => ('sorte' in fiche ? sorteDuPlan(fiche) : null);
 
 // The components the sheet <fiche> of the explorateur sets apart, each with its reason, as the
 // circuit writes them at the ticket; empty without one.
@@ -4247,12 +4464,12 @@ async function lePlan(ctx) {
     ecrireLePlan(
       ctx,
       plan.paquets.map(ctx.resoudre),
-      decrireLePlan(t.description, plan.criteres, plan.questions)
+      decrireLePlan(t.description, plan.criteres, plan.questions, sorteEcrite(plan))
     );
     const ouvertesDuPlan = plan.questions.length ? `\n${lignesOuvertes(plan.questions)}` : 'aucune';
     dire(
       'plan',
-      `l'explorateur écrit le plan — paquets : ${plan.paquets.join(', ')}${ecartsDe(plan)} ; ${plan.criteres.length} critère(s) ajouté(s) ; questions ouvertes : ${ouvertesDuPlan}`
+      `l'explorateur écrit le plan — paquets : ${plan.paquets.join(', ')}${ecartsDe(plan)} ; sorte : ${texteDeLaSorte(sorteDuPlan(plan))} ; ${plan.criteres.length} critère(s) ajouté(s) ; questions ouvertes : ${ouvertesDuPlan}`
     );
     const ecrit = leTicket(ctx);
     const lu = await session(
@@ -4289,6 +4506,8 @@ async function lePlan(ctx) {
           : `le plan — Les questions du questionneur :\n${lignesDesQuestions(lu.questions)}`
     );
     let reponses = [];
+    // The plan the answer answers, whose sort the answer keeps when it says none.
+    const premier = plan;
     if (posees.length) {
       plan = await session(
         EXPLORATEUR,
@@ -4303,6 +4522,8 @@ async function lePlan(ctx) {
         {
           ...explorateur,
           premiere: 'reprend',
+          // The answer, apart from the plan it answers (`ficheDeLaSorte`).
+          avec: { reponse: true },
           // A line of `reponses` by question put, asked again once; after it, a question without
           // its line stays open.
           valider: (f, essai) =>
@@ -4327,7 +4548,12 @@ async function lePlan(ctx) {
       ecrireLePlan(
         ctx,
         plan.paquets.map(ctx.resoudre),
-        decrireLePlan(t.description, plan.criteres, ouvertes)
+        decrireLePlan(
+          t.description,
+          plan.criteres,
+          ouvertes,
+          sorteEcrite(ficheDeLaSorte([{ fiche: premier }, { fiche: plan, reponse: true }]))
+        )
       );
     }
     const empreinte = empreinteDuPlan(leTicket(ctx));
@@ -4585,6 +4811,8 @@ export async function main(argv) {
       const arret = await lePlan(ctx);
       if (arret !== null) return aLaFin(ctx, arret);
     }
+    // The sort of the ticket its plan says, which the run reads at each step.
+    ctx.sorte = sorteDuTicket(ctx);
     return aLaFin(ctx, await conduire(ctx, d));
   } catch (e) {
     if (!(e instanceof Usage)) throw e;

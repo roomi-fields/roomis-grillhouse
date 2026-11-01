@@ -132,7 +132,8 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
   // the circuit writes at the ticket, and answers the questionneur once, question by question.
   it('the explorateur: the plan (its criteria, the packages to touch, its open questions) and its one answer, CHANGE or GARDE by question', () => {
     expect(champs('explorateur')).toEqual(
-      ['criteres', 'decouvertes', 'ecartes', 'paquets', 'questions', 'reponses'].sort()
+      // grillhouse-sos: the sort of the ticket, which the circuit reads (`sorteDuPlan`).
+      ['criteres', 'decouvertes', 'ecartes', 'paquets', 'questions', 'reponses', 'sorte'].sort()
     );
     const s = schemaDeFiche('explorateur') as Schema;
     expect(s.required).toEqual(['criteres', 'paquets', 'questions']);

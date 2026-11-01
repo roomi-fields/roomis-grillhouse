@@ -459,9 +459,10 @@ describe('critère 5 — the header of the launcher', () => {
   });
 });
 
-// The usage line of the launcher, with its two options.
+// The usage line of the launcher, with its two options, and the schema of a sheet that is not the
+// role's (grillhouse-sos).
 const USAGE =
-  'usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] <ticket> <rôle> <composant> <fichier de consigne>';
+  'usage: npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] [--fiche <sorte>] <ticket> <rôle> <composant> <fichier de consigne>';
 
 describe('critère 6 — the usage message shows the two options', () => {
   it('critère 6 — the usage line of the header shows the two options', () => {

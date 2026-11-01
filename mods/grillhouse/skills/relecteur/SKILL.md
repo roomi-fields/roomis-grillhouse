@@ -87,6 +87,18 @@ les constats d'avant, chacun avec la réponse du développeur sous lui (« Répo
 Tu joues toujours toutes les gardes sur la copie. Sans « LA RELECTURE D'AVANT », tu relis le lot
 entier.
 
+## Un lot mécanique
+
+Quand la description porte « ## Sorte » mécanique, le lot est la sortie de la commande que le plan
+nomme, jouée par l'explorateur sans testwriter ni développeur, comme un grand changement de Google
+(Rosie, ClangMR) que la vérification et une relecture jugent. Tu juges que le lot est ce geste,
+et rien d'autre : chaque fichier changé suit de la commande, aucun comportement neuf n'y entre, et
+les contrôles et la passe finale sont verts. Tu n'exiges aucun test neuf : l'absence de tests du
+lot n'est pas un constat. Un fichier que la commande n'explique pas, ou un comportement qui
+change, est un constat bloquant, adressé au `developpeur` : le circuit monte alors au superviseur,
+qui fait corriger le lot. Ainsi un geste sans comportement neuf passe par sa relecture, sans
+séance de code.
+
 ## Les six passes
 
 Après la passe d'architecture, chaque passe suit son fichier de `references/` à la lettre, dans

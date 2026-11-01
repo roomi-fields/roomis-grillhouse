@@ -427,7 +427,7 @@ describe('the block of 1 names the explorateur and the questionneur', () => {
       qui: 'explorateur ⇄ questionneur',
     });
     expect(agentsTextes(t).map(x => x.texte.trimEnd())).toContain(
-      '  1 · Plan · explorateur ⇄ questionneur'
+      '▾ 1 · Plan · explorateur ⇄ questionneur'
     );
     expect(t.agents.filter(b => b.numero === null)).toEqual([]);
   });

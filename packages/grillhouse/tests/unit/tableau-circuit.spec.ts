@@ -368,7 +368,7 @@ describe('a circuit at the questioning', () => {
     expect(lus).toEqual([expect.objectContaining({ ticket: 'demo-12', questionnement: 'plan' })]);
     const t = plateau([T('demo-12')], [], [], lus);
     const a = agents(t);
-    const i = a.indexOf('  1 · Plan · explorateur ⇄ questionneur');
+    const i = a.indexOf('▾ 1 · Plan · explorateur ⇄ questionneur');
     expect(i).toBeGreaterThan(-1);
     expect(a[i + 1]).toBe('▶ 12  Le sujet de demo-12');
   });

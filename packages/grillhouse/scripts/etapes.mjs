@@ -13,8 +13,10 @@
 //   The plan (1) is read elsewhere in the state: by the work on the plan under way
 //   (`questionnement`, the explorateur's or the questionneur's session) and by its stop (`arrets`).
 //   The tri of the discoveries (5.3) is the explorateur's too, once the queue has brought the lot
-//   onto main, as Chromium and Mozilla give each new report a verdict before it is filed; the
-//   role's own step stays the plan (`etapeDuRole`).
+//   onto main, as Chromium and Mozilla give each new report a verdict before it is filed; so is the
+//   gesture of a mechanical ticket (1.1), the command its plan names played in the copy, as Rosie
+//   and ClangMR let a tool make a large-scale change at Google (grillhouse-sos); the role's own step
+//   stays the plan (`etapeDuRole`).
 //   SUITE is the tree in its order, each step before its sub-steps.
 // - A step carries as many bounded loops as it needs (`boucles`), each spanning the step and its
 //   sub-steps: each its key (`cle`, which keys its count in the state's `boucles`), its label and
@@ -46,6 +48,9 @@ export const ETAPES = [
     etat: null,
     questionnement: 'plan',
     arrets: ['questionnement'],
+    // The gesture of a mechanical ticket, in the copy, in place of the testwriter and the
+    // developpeur (grillhouse-sos).
+    sous: [{ numero: '1.1', titre: 'Geste mécanique', qui: [EXPLORATEUR], etat: 'geste' }],
   },
   {
     numero: '2',
@@ -215,6 +220,14 @@ export const GESTES = [
       'un développeur qui ne change aucun fichier du plan n’a rien à livrer quand les contrôles sont verts ; rouges, l’arrêt monte (sans-livraison) ; sur le lot que l’intégration refuse, pour un développeur que --depuis developpeur lance, le geste ne joue pas : il est relancé une fois avec le refus',
     cas: 'BP 320.9 : 995-tools n’a rien à livrer, 4 montées et 49 min (B5)',
   },
+  {
+    genre: 'mecanique',
+    geste:
+      'ni testwriter, ni preuve du rouge, ni développeur : l’explorateur joue dans la copie la commande que le plan nomme (1.1), puis les contrôles, la passe finale, la relecture et l’intégration',
+    regle:
+      'le plan dit le ticket mécanique, avec sa raison et sa commande (`sorte` de la fiche de l’explorateur) : un geste sans comportement neuf ; tant qu’aucun testwriter ni développeur n’a travaillé le lot, un rouge des contrôles ou un RENDU monte, sans relancer personne',
+    cas: 'BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; BP 320.40.1 : une variable inutilisée, 4 séances ; BP 322.11.1 : Vitest monté sur 31 paquets',
+  },
 ];
 
 // The gesture of name <genre>, or null.
@@ -247,11 +260,11 @@ export const MONTEES = Object.fromEntries(
     preuve:
       'La troisième preuve du rouge refuse le lot de tests : quel contexte donner au testwriter, ou le plan doit-il changer ?',
     controles:
-      'Un rouge reste, que le circuit ne rend pas au développeur (hors du plan, sans fichier, à arbitrer), ou que trois séances n’ont pas levé : avec quel contexte le lever, ou le plan doit-il s’étendre ?',
+      'Un rouge reste, que le circuit ne rend pas au développeur (hors du plan, sans fichier, à arbitrer, le lot d’un geste mécanique), ou que trois séances n’ont pas levé : avec quel contexte le lever, ou le plan doit-il s’étendre ?',
     'sans-livraison':
-      'Le développeur ne change rien et le rouge reste : avec quel contexte le lever, ou le plan doit-il changer ?',
+      'Le développeur ne change rien et le rouge reste, ou le geste mécanique ne change aucun fichier du plan : avec quel contexte le lever, ou le plan doit-il changer ?',
     'relecture-arret':
-      'La relecture ne rend pas le lot à un agent (un constat sans destinataire valide, un constat au testwriter que le plan saute, un critère en cause, ou la troisième relecture rendue) : que devient le plan, et qui reprend ?',
+      'La relecture ne rend pas le lot à un agent (un constat sans destinataire valide, un constat au testwriter que le plan saute, un lot mécanique rendu, un critère en cause, ou la troisième relecture rendue) : que devient le plan, et qui reprend ?',
     integration:
       'L’intégration refuse le lot, ou la file rouvre le ticket : que corrige le lot, et qui le reprend ?',
     'hors-portee':
