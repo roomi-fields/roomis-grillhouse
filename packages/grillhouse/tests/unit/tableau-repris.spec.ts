@@ -523,16 +523,41 @@ describe('the alert « en cours sans rien qui tourne » names a whole silent cir
   });
 });
 
-// grillhouse-erp: the pane that fuses several boards labels each line by its project's ticket
-// prefix, which the board names.
-describe("the board names its project's ticket prefix", () => {
+// grillhouse-erp.1 critères 3 et 4: the board of several projects reads each one in its folder; a
+// project whose board does not read is named in the head with its fault, the others shown, and each
+// ticket's card names the folder of its project, where the pane runs Beads for it.
+describe('the board of several projects, read in their folders', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it('the prefix Beads holds for the repository', () => {
+  it("critère 4 : a project that does not read is named in the head with its fault, the session's shown", () => {
+    const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
+    const racine = depotFactice([T('demo-5', { status: 'open' })], []);
+    const absent = path.join(ESSAIS, 'absent');
+    const t = tableau(racine, { home, projets: [absent] }) as unknown as {
+      lignes: { texte: string; ton?: string }[];
+      dossiers: Record<string, string>;
+    };
+    const tete = t.lignes.slice(0, 3).map(x => [x.texte.trimEnd(), x.ton]);
+    expect(tete[0]).toEqual([`${path.basename(racine).toUpperCase()} + ABSENT`, 'titre']);
+    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+▶ \d+ en cours · \d+ en attente · \d+ faits$/);
+    expect(tete[2]?.[0]).toBe('[absent] ⚠ dossier introuvable');
+    expect(tete[2]?.[1]).toBe('alerte');
+    expect(t.lignes.some(x => /^\[demo\]\s+demo-5 {2}demo-5\b/.test(x.texte))).toBe(true);
+    // critère 3: each ticket's card names the folder of its project.
+    expect(t.dossiers['demo-5']).toBe(racine);
+  });
+
+  it("critère 5 : with the session's project alone, the board names no project and no folder", () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const racine = depotFactice([T('demo-5')], []);
-    expect((tableau(racine, { home }) as unknown as { prefixe: string }).prefixe).toBe('demo');
+    const t = tableau(racine, { home }) as unknown as {
+      lignes: { texte: string }[];
+      dossiers?: object;
+    };
+    expect(t.lignes[0]?.texte).toBe(path.basename(racine).toUpperCase());
+    expect(t.lignes.some(x => x.texte.includes('[demo]'))).toBe(false);
+    expect(t).not.toHaveProperty('dossiers');
   });
 });

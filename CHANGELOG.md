@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The pane of several projects keeps the usual board** (grillhouse-erp.1): on 0.28.1 the owner found the fused view « abscons, sans aucune information » (2026-11-01): it replaced the board by one list of tickets sorted by step, where he wanted the usual board with a prefix before each ticket; it kept only the lines that named their step, which a project on an older frame (synthhub on 0.27.0, osc-bridge on 0.28.0) does not write, so their tickets vanished; and its lines put a label before lines already as wide as the pane (57 to 78 columns in a pane of 52), so the whole pane stood shifted left with an empty band on its right. As the multi-root explorer of VS Code keeps the view of one folder and files each root under its name, `grillhouse tableau <dossier>…`, run in the session's folder, now reads each project in its folder with the session's frame and lays out one board: the head names the projects (`OSC-BRIDGE + SH + OSD`), one line of counters per project (`[SH]  ▶ 1 en cours · 3 en attente · 112 faits`) or the fault of a project whose board does not read, the alerts prefixed (`⚠ [SH] Nuit rouge depuis le 01/11  SH-zq7`); AGENTS keeps its steps, which unfold with the tickets of every project, each ticket « [projet] id  sujet … signe durée »; each chantier `CHANTIER [OB] k — …`, its tickets prefixed; every line within the pane's width. The board names the folder of each ticket's project (`dossiers`), where the card, its whole text and the switch of a chantier run Beads. The pane draws the board as it draws one project's; with the session's project alone, the board and the pane are those of 0.28.0. The fused list, its footer, the step and question of each line of AGENTS and the board's prefix that served it are removed.
+
 ## [0.28.1] - 2026-11-01
 
 ### Added

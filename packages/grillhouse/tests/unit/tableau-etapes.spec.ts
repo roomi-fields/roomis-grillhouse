@@ -44,8 +44,6 @@ interface Ligne {
   ton?: string;
   ticket?: string;
   section?: string;
-  etape?: { numero: string | null; titre: string };
-  question?: string;
 }
 interface Bloc {
   numero: string | null;
@@ -552,43 +550,5 @@ describe('the line of 4.2, in every project', () => {
     });
     expect(etapeDe(t, 'demo-37')).toBe('  4.2 · Régénération des références · auto');
     expect(sousUneQuestion(t, 'demo-37')).toBe(true);
-  });
-});
-
-// grillhouse-erp: the pane fuses the boards of several projects into one list sorted by step; each
-// ticket's line in AGENTS names, as data, the step it stands under and, stopped on a question, who
-// must answer it, so the pane reads no text of the board.
-describe('each ticket line of AGENTS names its step, and its question', () => {
-  it('a circuit at 3 and an explorer at 1 name their steps, no question', () => {
-    const t = plateau([T('demo-50'), T('demo-51')], {
-      circuits: [circuit('demo-50')],
-      vivants: [vivant('e1', 'demo-51', 'explorateur')],
-    });
-    expect(ligneDe(t, 'demo-50').etape).toEqual({ numero: '3', titre: 'Code' });
-    expect(ligneDe(t, 'demo-51').etape).toEqual({ numero: '1', titre: 'Plan' });
-    expect(ligneDe(t, 'demo-50')).not.toHaveProperty('question');
-  });
-
-  it('a circuit stopped on a question names its step and who must answer it', () => {
-    const t = plateau([T('demo-52')], {
-      circuits: [circuit('demo-52', enQuestion({}, 'responsable'))],
-    });
-    expect(ligneDe(t, 'demo-52')).toMatchObject({
-      etape: { numero: '3', titre: 'Code' },
-      question: 'responsable',
-    });
-  });
-
-  it('a circuit stopped at no step of the list names no step number', () => {
-    const t = plateau([T('demo-53')], {
-      circuits: [circuit('demo-53', enQuestion({ etape: 'inconnue', code: 14 }))],
-    });
-    expect(ligneDe(t, 'demo-53').etape).toEqual({ numero: null, titre: '' });
-  });
-
-  it('the lines outside AGENTS name no step', () => {
-    const t = plateau([T('demo-54')], { circuits: [circuit('demo-54')] });
-    const hors = (lignes(t, 'depot') as Ligne[]).filter(x => x.section !== 'agents');
-    expect(hors.some(x => 'etape' in x)).toBe(false);
   });
 });

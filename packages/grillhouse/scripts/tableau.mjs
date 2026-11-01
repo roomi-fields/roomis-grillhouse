@@ -5,6 +5,8 @@
 //
 //   npx grillhouse tableau            the board, as JSON (with its lines, 52 columns wide)
 //   npx grillhouse tableau --texte    the board, as text
+//   npx grillhouse tableau <dossier>… the board of this project and of the projects in <dossier>…,
+//                                     one board, each ticket prefixed by its project (`ensemble`)
 //
 // Each measure writes the status line (the chantier in progress) to `grillhouse-etat.txt` in the
 // common git directory, where the status line (`scripts/ligne-etat/`) reads it.
@@ -1007,7 +1009,7 @@ export function assembler({
       /^La nuit est rouge\b/.test(titreLu) && !Number.isNaN(ouvert)
         ? `Nuit rouge depuis le ${jourEtMois(ouvert)}`
         : titreLu;
-    alertes.push({ niveau: 'rouge', texte: `${sujet} ${n}`, sujet, numero: n });
+    alertes.push({ niveau: 'rouge', texte: `${sujet} ${n}`, sujet, numero: n, id: t.id });
   }
   for (const b of blocs) {
     for (const x of b.enCours) {
@@ -1145,9 +1147,7 @@ const couperAvant = (gauche, suite, droite, largeur) => {
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
-// `chantier`. A ticket's line in AGENTS names the step it stands under (`etape`: its `numero`,
-// null after the steps, and `titre`) and, stopped on a question, who must answer it (`question`):
-// the pane that fuses several projects' boards sorts their tickets by it. The head belongs to agents, the first section; a blank line belongs to the section
+// `chantier`. The head belongs to agents, the first section; a blank line belongs to the section
 // of the title after it. A chantier's « sans go » and « reporté » groups, its « à valider » group
 // past SEUIL_REPLI tickets, and the other chantiers beside one in progress fold to their title and
 // count: the folded title carries its group's key (`groupe`), and `groupes` receives, under that
@@ -1162,32 +1162,61 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const poser = (...l) => out.push(...l.map(marquer));
   const cadre = couper;
   const L = (texte, ton, ticket) => poser(ticket ? { texte, ton, ticket } : { texte, ton });
-  const g = t.global;
-  const c = g.compteurs;
+  // A board of several projects (`projets`, scripts/tableau.mjs `ensemble`): each line of a ticket,
+  // a chantier or an alert carries its project's label, « [SH] »; one project's board, none.
+  const plusieurs = Array.isArray(t.projets);
+  const duProjet = x => (plusieurs ? `[${x.projet}] ` : '');
+  // The labels' column of the head and of AGENTS, « [OB]  », « [OSD] ».
+  const large = Math.max(0, ...(t.projets ?? []).map(p => p.etiquette.length + 3));
+  const colonneDe = etiquette => `[${etiquette}]`.padEnd(large);
   L(nom.toUpperCase(), 'titre');
-  // Two lines of states: those of the circuit, then those that wait for the owner.
-  L(
-    cadre(
-      `▶ ${c.enCours} en cours · ${c.enAttente} en attente · ${c.bloques} bloqués · ${c.fermes} faits`,
-      '',
-      largeur
-    )
-  );
-  L(
-    cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
-    c.sansGo || c.aValider ? 'attention' : undefined
-  );
-  L(
-    cadre(
-      `jour ${duree(g.jour.travail)} · ${k(g.jour.jetons)} · cumul ${duree(g.cumul.travail)} · ${k(g.cumul.jetons)}`,
-      '',
-      largeur
-    ),
-    'discret'
-  );
-  for (const a of t.alertes) {
+  if (plusieurs) {
+    // One line per project: its counters, or the fault that keeps its board out.
+    for (const p of t.projets) {
+      if (p.erreur) {
+        L(cadre(`${colonneDe(p.etiquette)}⚠ ${p.erreur}`, '', largeur), 'alerte');
+        continue;
+      }
+      const c = p.compteurs;
+      L(
+        cadre(
+          `${colonneDe(p.etiquette)}▶ ${c.enCours} en cours · ${c.enAttente} en attente · ${c.fermes} faits`,
+          '',
+          largeur
+        )
+      );
+    }
+  } else {
+    const g = t.global;
+    const c = g.compteurs;
+    // Two lines of states: those of the circuit, then those that wait for the owner.
     L(
-      a.numero ? cadre(`⚠ ${a.sujet}`, a.numero, largeur) : cadre(`⚠ ${a.texte}`, '', largeur),
+      cadre(
+        `▶ ${c.enCours} en cours · ${c.enAttente} en attente · ${c.bloques} bloqués · ${c.fermes} faits`,
+        '',
+        largeur
+      )
+    );
+    L(
+      cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
+      c.sansGo || c.aValider ? 'attention' : undefined
+    );
+    L(
+      cadre(
+        `jour ${duree(g.jour.travail)} · ${k(g.jour.jetons)} · cumul ${duree(g.cumul.travail)} · ${k(g.cumul.jetons)}`,
+        '',
+        largeur
+      ),
+      'discret'
+    );
+  }
+  // An alert of several projects' board names its ticket by its whole id.
+  for (const a of t.alertes) {
+    const droite = plusieurs ? (a.id ?? a.numero) : a.numero;
+    L(
+      droite
+        ? cadre(`⚠ ${duProjet(a)}${a.sujet}`, droite, largeur)
+        : cadre(`⚠ ${duProjet(a)}${a.texte}`, '', largeur),
       a.niveau === 'rouge' ? 'alerte' : 'attention'
     );
   }
@@ -1264,21 +1293,29 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const montres = t.agents.flatMap(b =>
     [...b.enCours, ...b.attend].filter(x => !enCircuit.has(x.id))
   );
-  const colonne = Math.max(
-    0,
-    ...[...(t.circuits ?? []), ...montres].map(x => String(x.numero).length)
-  );
-  const numero = n => String(n).padEnd(colonne);
-  // The step a ticket's line stands under, as data: its number (null after the steps) and title.
-  const etapeDuBloc = b => ({ numero: b.numero, titre: b.titre });
-  const ligneDuCircuit = (c, b, qui) => {
-    const droite = conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0);
+  // A ticket's number, or on several projects' board its whole id, in one column.
+  const nomme = x => String(plusieurs ? x.id : x.numero);
+  const colonne = Math.max(0, ...[...(t.circuits ?? []), ...montres].map(x => nomme(x).length));
+  // A ticket's line in AGENTS: « <signe> <numéro>  <sujet> … <droite> »; on several projects'
+  // board « <[projet]> <id>  <sujet> … <signe> <droite> », the owner's maquette (grillhouse-erp.1).
+  const teteDe = (signe, x) =>
+    plusieurs
+      ? `${colonneDe(x.projet)}${nomme(x).padEnd(colonne)}  `
+      : `${signe} ${nomme(x).padEnd(colonne)}  `;
+  const droiteDe = (signe, droite) =>
+    plusieurs ? `${signe}${droite ? ` ${droite}` : ''}` : droite;
+  const ligneDuCircuit = c => {
+    const signe = c.vivant ? '▶' : '■';
+    const droite = droiteDe(
+      signe,
+      conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)
+    );
     const etape = etapeDe(c);
     const boucles = (etape ? bouclesDe(etape) : [])
       .filter(b => b.max && c.boucles?.[b.cle] >= 2)
       .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
       .join('');
-    const tete = `${c.vivant ? '▶' : '■'} ${numero(c.numero)}  `;
+    const tete = teteDe(signe, c);
     const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null;
     // The progress after the counters of the loops while the subject keeps its room beside them,
     // in their place otherwise.
@@ -1292,8 +1329,6 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       texte: couperAvant(`${tete}${c.sujet}`, suite, droite, largeur),
       ton: temoin?.fige ? 'alerte' : c.vivant ? 'actif' : 'attention',
       ticket: c.id,
-      etape: etapeDuBloc(b),
-      ...(qui ? { question: qui } : {}),
       ...(temoin ? { avancement: true } : {}),
     });
   };
@@ -1322,31 +1357,32 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const tickets = (b, retrait) => {
     const { circuits, enQuestions, enCours, attend } = contenus.get(b);
     for (const c of circuits) {
-      ligneDuCircuit(c, b);
+      ligneDuCircuit(c);
     }
     for (const x of enCours) {
-      poser({
-        texte: cadre(`▶ ${numero(x.numero)}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
-        ton: 'actif',
-        ticket: x.id,
-        etape: etapeDuBloc(b),
-      });
+      L(
+        cadre(`${teteDe('▶', x)}${x.sujet}`, droiteDe('▶', conso(x.travail, x.jetons)), largeur),
+        'actif',
+        x.id
+      );
     }
     const attente = x => ({
       texte: cadre(
-        `· ${numero(x.numero)}  ${x.sujet}`,
-        x.bloquePar?.length ? `attend ${x.bloquePar.join(', ')}` : conso(x.travail, x.jetons),
+        `${teteDe('·', x)}${x.sujet}`,
+        droiteDe(
+          '·',
+          x.bloquePar?.length ? `attend ${x.bloquePar.join(', ')}` : conso(x.travail, x.jetons)
+        ),
         largeur
       ),
       ton: 'discret',
       ticket: x.id,
-      etape: etapeDuBloc(b),
     });
     poser(...attend.map(attente));
     for (const [qui, l] of enQuestions) {
       L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), 'titre');
       for (const c of l) {
-        ligneDuCircuit(c, b, qui);
+        ligneDuCircuit(c);
       }
     }
   };
@@ -1390,7 +1426,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   for (const ch of t.chantiers) {
     L('', undefined);
     poser({
-      texte: cadre(`CHANTIER ${ch.numero} — ${ch.sujet}`, '', largeur),
+      texte: cadre(`CHANTIER ${duProjet(ch)}${ch.numero} — ${ch.sujet}`, '', largeur),
       ton: 'titre',
       ticket: ch.id,
       chantier: true,
@@ -1433,7 +1469,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
             ? marque(n)
             : '';
       return {
-        texte: cadre(`   ${n.numero}  ${n.sujet}`, droite, largeur),
+        texte: cadre(`   ${duProjet(n)}${n.numero}  ${n.sujet}`, droite, largeur),
         ton: n.etat === 'enCours' ? 'actif' : undefined,
         ticket: n.id,
       };
@@ -1482,7 +1518,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   if (t.autres.length) {
     L('', undefined);
     const autres = t.autres.map(a => ({
-      texte: cadre(`${a.numero}  ${a.sujet}`, `${a.faits}/${a.total}`, largeur),
+      texte: cadre(`${duProjet(a)}${a.numero}  ${a.sujet}`, `${a.faits}/${a.total}`, largeur),
       ticket: a.id,
       chantier: true,
     }));
@@ -1518,7 +1554,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       'titre'
     );
     const fait = x => ({
-      texte: cadre(`✓ ${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
+      texte: cadre(`✓ ${duProjet(x)}${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
       ton: 'discret',
       ticket: x.id,
     });
@@ -1547,7 +1583,7 @@ export function lignesEtats(t, largeur = LARGEUR) {
     for (const x of e.tickets) {
       out.push({
         texte: couper(
-          `  ${x.numero}  ${x.sujet}`,
+          `  ${x.projet ? `[${x.projet}] ` : ''}${x.numero}  ${x.sujet}`,
           e.cle === 'bloques' && x.bloquePar.length
             ? `attend ${x.bloquePar.join(', ')}`
             : conso(t.parTicket[x.id]?.travail ?? 0, t.parTicket[x.id]?.jetons ?? 0),
@@ -1676,9 +1712,9 @@ const bdJson = (racine, ...args) => {
   }
 };
 
-// The board of the repository at <racine>, with its ticket prefix (`prefixe`), which labels its
-// lines in a pane that fuses several projects.
-export function tableau(racine, { home = os.homedir(), maintenant = Date.now() } = {}) {
+// What the board reads of the repository at <racine>: its tickets, its prefix, its running agents
+// and its assembled board (`t`), with the folder git keeps its shared files in (`commun`).
+function lire(racine, { home, maintenant, horsTicket = null }) {
   let prefix = '';
   try {
     prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
@@ -1765,42 +1801,132 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
     verdicts,
     maintenant,
     jour: minuit.getTime(),
-    horsTicket: lireLaMesure(process.env),
+    horsTicket,
   });
-  // The project is named by its repository's folder, as a shell prompt names it.
-  const nom = path.basename(racine);
-  const groupes = {};
-  const l = lignes(t, nom, LARGEUR, groupes);
-  const vue = lignesEtats(t);
-  const etat = ligneEtat(t);
+  return { t, prefix, tous, vivants, commun };
+}
+
+// The boards of several projects as one (grillhouse-erp.1), as the multi-root explorer of VS Code
+// keeps one view and files each root under its name: <lus> holds each project's label
+// (`etiquette`, its ticket prefix) and its board (`t`) or the fault that keeps it out (`erreur`),
+// the session's project first. Each ticket, alert and chantier is marked with its project's label
+// (`projet`), the agents' blocks hold every project's tickets at their step, and `projets` gives
+// each project's counters or fault, which the head shows one line each.
+export function ensemble(lus) {
+  const lisibles = lus.filter(l => l.t);
+  const [premier] = lisibles;
+  const marquer = projet => x => ({ ...x, projet });
+  const noeud = projet => n => ({ ...n, projet, enfants: n.enfants.map(noeud(projet)) });
+  const tous = cle => lisibles.flatMap(l => (l.t[cle] ?? []).map(marquer(l.etiquette)));
+  return {
+    projets: lus.map(l =>
+      l.t
+        ? { etiquette: l.etiquette, compteurs: l.t.global.compteurs }
+        : { etiquette: l.etiquette, erreur: l.erreur }
+    ),
+    alertes: tous('alertes'),
+    circuits: tous('circuits'),
+    chantiers: lisibles.flatMap(l => l.t.chantiers.map(noeud(l.etiquette))),
+    autres: tous('autres'),
+    agents: premier.t.agents.map(b => {
+      const de = cle =>
+        lisibles.flatMap(l =>
+          (l.t.agents.find(x => x.numero === b.numero)?.[cle] ?? []).map(marquer(l.etiquette))
+        );
+      return { ...b, enCours: de('enCours'), attend: de('attend') };
+    }),
+    maintenant: premier.t.maintenant,
+    horsTicket: premier.t.horsTicket,
+    faitsDuJour: tous('faitsDuJour'),
+    etats: premier.t.etats.map(e => ({
+      ...e,
+      tickets: lisibles.flatMap(l =>
+        (l.t.etats.find(x => x.cle === e.cle)?.tickets ?? []).map(marquer(l.etiquette))
+      ),
+    })),
+    parTicket: Object.assign({}, ...lisibles.map(l => l.t.parTicket)),
+  };
+}
+
+// A project beside the session's, read in its folder <dossier>: its board, or the fault that keeps
+// it out, on one line.
+function lireUnAutre(dossier, o) {
   try {
-    if (commun) {
-      writeFileSync(path.join(commun, 'grillhouse-etat.txt'), `${etat}\n`);
+    if (!existsSync(dossier)) {
+      throw new Error('dossier introuvable');
+    }
+    return { dossier, ...lire(dossier, o) };
+  } catch (e) {
+    return { dossier, erreur: String(e.message ?? e).split('\n')[0] };
+  }
+}
+
+// The board of the repository at <racine>; with <projets>, the folders of other projects, the
+// board of them all (`ensemble`), named « <dépôt> + <projet> + … », with the folder of each
+// ticket's project (`dossiers`), where the pane runs Beads for it. The status line is the
+// session's project's alone.
+export function tableau(
+  racine,
+  { home = os.homedir(), maintenant = Date.now(), projets = [] } = {}
+) {
+  const ici = {
+    dossier: racine,
+    ...lire(racine, { home, maintenant, horsTicket: lireLaMesure(process.env) }),
+  };
+  const etat = ligneEtat(ici.t);
+  try {
+    if (ici.commun) {
+      writeFileSync(path.join(ici.commun, 'grillhouse-etat.txt'), `${etat}\n`);
     }
   } catch {
     // A read-only place keeps the board working, without its status line.
   }
+  const lus = [ici, ...projets.map(d => lireUnAutre(d, { home, maintenant }))];
+  const etiquette = l => l.prefix || path.basename(l.dossier);
+  const t = projets.length
+    ? ensemble(lus.map(l => ({ etiquette: etiquette(l), t: l.t, erreur: l.erreur })))
+    : ici.t;
+  // The project is named by its repository's folder, as a shell prompt names it.
+  const nom = [path.basename(racine), ...lus.slice(1).map(etiquette)].join(' + ');
+  const groupes = {};
+  const l = lignes(t, nom, LARGEUR, groupes);
+  const vue = lignesEtats(t);
+  const toutes = [...l, ...vue, ...Object.values(groupes).flat()];
+  const lisibles = lus.filter(x => x.t);
+  const parProjet = lisibles.map(x => ({
+    dossier: x.dossier,
+    fiches: fiches(x.tous, toutes, x.prefix, x.t.parTicket, x.t.circuits, bilansGardes(x.dossier)),
+  }));
   return {
     ...t,
-    prefixe: prefix,
     lignes: l,
     vueEtats: vue,
     groupes,
-    fiches: fiches(
-      tous,
-      [...l, ...vue, ...Object.values(groupes).flat()],
-      prefix,
-      t.parTicket,
-      t.circuits,
-      bilansGardes(racine)
+    fiches: Object.assign({}, ...parProjet.map(x => x.fiches)),
+    dernier: dernierBouge(
+      lisibles.flatMap(x => x.tous),
+      l,
+      lisibles.flatMap(x => x.vivants),
+      maintenant
     ),
-    dernier: dernierBouge(tous, l, vivants, maintenant),
     etat,
+    ...(projets.length
+      ? {
+          dossiers: Object.fromEntries(
+            parProjet.flatMap(x => Object.keys(x.fiches).map(id => [id, x.dossier]))
+          ),
+        }
+      : {}),
   };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const t = tableau(process.cwd());
+  // The arguments other than --texte are the folders of the other projects.
+  const projets = process.argv
+    .slice(2)
+    .filter(a => a !== '--texte')
+    .map(d => path.resolve(d));
+  const t = tableau(process.cwd(), { projets });
   process.stdout.write(
     process.argv.includes('--texte')
       ? `${t.lignes.map(l => l.texte).join('\n')}\n`
