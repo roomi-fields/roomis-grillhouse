@@ -1145,7 +1145,9 @@ const couperAvant = (gauche, suite, droite, largeur) => {
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
-// `chantier`. The head belongs to agents, the first section; a blank line belongs to the section
+// `chantier`. A ticket's line in AGENTS names the step it stands under (`etape`: its `numero`,
+// null after the steps, and `titre`) and, stopped on a question, who must answer it (`question`):
+// the pane that fuses several projects' boards sorts their tickets by it. The head belongs to agents, the first section; a blank line belongs to the section
 // of the title after it. A chantier's « sans go » and « reporté » groups, its « à valider » group
 // past SEUIL_REPLI tickets, and the other chantiers beside one in progress fold to their title and
 // count: the folded title carries its group's key (`groupe`), and `groupes` receives, under that
@@ -1267,7 +1269,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     ...[...(t.circuits ?? []), ...montres].map(x => String(x.numero).length)
   );
   const numero = n => String(n).padEnd(colonne);
-  const ligneDuCircuit = c => {
+  // The step a ticket's line stands under, as data: its number (null after the steps) and title.
+  const etapeDuBloc = b => ({ numero: b.numero, titre: b.titre });
+  const ligneDuCircuit = (c, b, qui) => {
     const droite = conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0);
     const etape = etapeDe(c);
     const boucles = (etape ? bouclesDe(etape) : [])
@@ -1288,6 +1292,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       texte: couperAvant(`${tete}${c.sujet}`, suite, droite, largeur),
       ton: temoin?.fige ? 'alerte' : c.vivant ? 'actif' : 'attention',
       ticket: c.id,
+      etape: etapeDuBloc(b),
+      ...(qui ? { question: qui } : {}),
       ...(temoin ? { avancement: true } : {}),
     });
   };
@@ -1316,14 +1322,15 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const tickets = (b, retrait) => {
     const { circuits, enQuestions, enCours, attend } = contenus.get(b);
     for (const c of circuits) {
-      ligneDuCircuit(c);
+      ligneDuCircuit(c, b);
     }
     for (const x of enCours) {
-      L(
-        cadre(`▶ ${numero(x.numero)}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
-        'actif',
-        x.id
-      );
+      poser({
+        texte: cadre(`▶ ${numero(x.numero)}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
+        ton: 'actif',
+        ticket: x.id,
+        etape: etapeDuBloc(b),
+      });
     }
     const attente = x => ({
       texte: cadre(
@@ -1333,12 +1340,13 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ),
       ton: 'discret',
       ticket: x.id,
+      etape: etapeDuBloc(b),
     });
     poser(...attend.map(attente));
     for (const [qui, l] of enQuestions) {
       L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), 'titre');
       for (const c of l) {
-        ligneDuCircuit(c);
+        ligneDuCircuit(c, b, qui);
       }
     }
   };
@@ -1668,7 +1676,8 @@ const bdJson = (racine, ...args) => {
   }
 };
 
-// The board of the repository at <racine>.
+// The board of the repository at <racine>, with its ticket prefix (`prefixe`), which labels its
+// lines in a pane that fuses several projects.
 export function tableau(racine, { home = os.homedir(), maintenant = Date.now() } = {}) {
   let prefix = '';
   try {
@@ -1773,6 +1782,7 @@ export function tableau(racine, { home = os.homedir(), maintenant = Date.now() }
   }
   return {
     ...t,
+    prefixe: prefix,
     lignes: l,
     vueEtats: vue,
     groupes,

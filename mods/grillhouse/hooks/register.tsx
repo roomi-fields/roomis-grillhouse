@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Etat, Fiche, Ligne, Tableau } from '../types'
+import type { Etat, Fiche, Ligne, Lu, Tableau } from '../types'
 
 // The board of a Grillhouse project, in the pane (/grillhouse) on its three levels. The frame's
 // command of the project (`node_modules/.bin/grillhouse tableau`, the package
@@ -13,7 +13,10 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 // the SDK without a display): the board comes with the terminal's prompt, or with a surface that
 // attaches, as the desktop app's Code tab does (`activer`). In a Grillhouse project, every
 // session, an agent's copy included, has a Bash command that starts with cd refused, with the
-// form to take (`env -C`, `git -C`).
+// form to take (`env -C`, `git -C`). A session that coordinates several projects adds them to its
+// pane (`/grillhouse ajouter <chemin>`, `/grillhouse retirer <chemin>`), as a multi-root workspace
+// of VS Code lists its folders: the list is kept for the session's folder in the mod's store, each
+// project's board is measured in its folder, and the pane fuses them (`fusionner`).
 const PANE = 'grillhouse'
 // The frame's command, which the project's `npm install` links, and its package.
 const GRILLHOUSE = 'node_modules/.bin/grillhouse'
@@ -62,6 +65,7 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
   vue: 'tableau',
   groupe: null,
   texte: null,
+  projets: [],
 } as Etat)
 
 export const k = (n: number) =>
@@ -195,6 +199,111 @@ export const aMesurer = (s: Etat, maintenant: number) =>
 export const couleur = (ton: Ligne['ton']) =>
   ton === 'alerte' ? 'red' : ton === 'attention' ? 'yellow' : ton === 'actif' ? 'cyan' : undefined
 
+// The key of the mod's store that keeps the projects a session in <dossier> shows beside its own.
+export const cleProjets = (dossier: string) => `projets:${dossier}`
+
+// The folder <chemin> names from the session's folder <dossier>: absolute, `~/` under the home
+// <maison>, or relative; its `.` and `..` resolved, no slash at its end.
+export function dossierDe(chemin: string, dossier: string, maison = ''): string {
+  const brut = chemin.startsWith('/')
+    ? chemin
+    : chemin === '~' || chemin.startsWith('~/')
+      ? `${maison}${chemin.slice(1)}`
+      : `${dossier}/${chemin}`
+  const parts: string[] = []
+  for (const p of brut.split('/')) {
+    if (!p || p === '.') continue
+    if (p === '..') parts.pop()
+    else parts.push(p)
+  }
+  return `/${parts.join('/')}`
+}
+
+// A project's label in a fused board: its ticket prefix, else its folder's name.
+const nomDu = (dossier: string) => dossier.split('/').filter(Boolean).pop() ?? dossier
+const etiquetteDe = (l: Lu) => l.tableau?.prefixe || nomDu(l.dossier)
+
+// The width of the step's column in a fused board, « 3 Code », « ? Question ».
+const ETAPE = 13
+// A ticket line's step in words: « ? Question » stopped on a question, « ■ Arrêté » after the
+// steps, else its number and title.
+const libelleDEtape = (l: Ligne) =>
+  l.question ? '? Question' : l.etape?.numero ? `${l.etape.numero} ${l.etape.titre}` : '■ Arrêté'
+// The rank a ticket line sorts by in a fused board, the maquette's order: the steps from the last
+// to the first, a step after its sub-steps (« 4 » is « 4.0 »), then the questions, then the
+// circuits stopped after the steps.
+const rangDe = (l: Ligne): number[] =>
+  l.question ? [1] : l.etape?.numero ? [0, ...l.etape.numero.split('.').map(n => -Number(n))] : [2]
+const comparer = (a: number[], b: number[]) => {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0)
+    if (d) return d
+  }
+  return 0
+}
+const couperA = (x: string, n: number) => (x.length > n ? `${x.slice(0, n - 1)}…` : x)
+
+// The boards of several projects fused into one, the owner's maquette (grillhouse-erp): the tickets
+// at a step of each project in one list sorted by step, each line « <étape> [<projet>] <id> —
+// <sujet> », then each project's chantiers prefixed by its label; the states' view of each project
+// under its label; every card, and the folder of each ticket's project (`dossiers`); a footer
+// (`pied`) that sums up each project, « osc 2▶ · SH 1▶ 3 en attente · OSD 0 », and names each
+// project whose board does not read with its fault.
+export function fusionner(lus: Lu[]): Tableau {
+  const lisibles = lus.flatMap(l => (l.tableau && !l.erreur ? [{ ...l, tableau: l.tableau }] : []))
+  const fautifs = lus.filter(l => !l.tableau || l.erreur)
+  const large = Math.max(0, ...lisibles.map(l => etiquetteDe(l).length + 2))
+  const prefixe = (l: Lu) => `[${etiquetteDe(l)}]`.padEnd(large)
+  const tickets = lisibles.flatMap(lu =>
+    lu.tableau.lignes
+      .filter(l => l.section === 'agents' && l.ticket && l.etape)
+      .map(l => ({
+        ...l,
+        texte: `${couperA(libelleDEtape(l), ETAPE).padEnd(ETAPE)} ${prefixe(lu)} ${l.ticket} — ${lu.tableau.fiches[l.ticket ?? '']?.titre ?? ''}`,
+      })),
+  )
+  tickets.sort((a, b) => comparer(rangDe(a), rangDe(b)))
+  const chantiers = lisibles.flatMap(lu =>
+    lu.tableau.lignes
+      .filter(l => l.chantier && l.ticket)
+      .map(l => ({ ...l, texte: `[${etiquetteDe(lu)}] ${l.texte}` })),
+  )
+  const vueEtats: Ligne[] = lisibles.flatMap((lu, i) => [
+    ...(i ? [{ texte: '', section: 'etats' as const }] : []),
+    { texte: etiquetteDe(lu), ton: 'titre' as const, section: 'etats' as const },
+    ...(lu.tableau.vueEtats ?? []),
+  ])
+  // The summaries share a line while they fit the pane's width, then go on to the next.
+  const pied: Ligne[] = []
+  for (const lu of lisibles) {
+    const c = lu.tableau.global?.compteurs
+    const resume = [
+      etiquetteDe(lu),
+      ...(c?.enCours ? [`${c.enCours}▶`] : []),
+      ...(c?.enAttente ? [`${c.enAttente} en attente`] : []),
+      ...(!c?.enCours && !c?.enAttente ? ['0'] : []),
+    ].join(' ')
+    const avant = pied[pied.length - 1]
+    if (avant && avant.texte.length + 3 + resume.length <= COLONNES) avant.texte += ` · ${resume}`
+    else pied.push({ texte: resume, ton: 'discret', section: 'agents' })
+  }
+  for (const lu of fautifs) {
+    const faute = (lu.erreur ?? '').split('\n')[0]?.trim() || 'le tableau ne se lit pas'
+    pied.push({ texte: `⚠ ${nomDu(lu.dossier)} : ${faute}`, ton: 'alerte', section: 'agents' })
+  }
+  const dossiers: Record<string, string> = {}
+  for (const lu of lisibles) for (const id of Object.keys(lu.tableau.fiches)) dossiers[id] ??= lu.dossier
+  return {
+    lignes: [...tickets, ...(chantiers.length ? [{ texte: '', section: 'chantier' as const }, ...chantiers] : [])],
+    vueEtats,
+    groupes: {},
+    fiches: Object.assign({}, ...lisibles.map(l => l.tableau.fiches)) as Tableau['fiches'],
+    dernier: lisibles.map(l => l.tableau.dernier).find(Boolean) ?? null,
+    pied,
+    dossiers,
+  }
+}
+
 // The session's project, whether it is a Grillhouse project, whether the board applies to it, and
 // whether the board is on.
 let cwd = ''
@@ -265,29 +374,41 @@ async function bientot($: EngineInterface) {
   await rafraichir($)
 }
 
-async function mesurer($: EngineInterface) {
-  if (!actif) return
-  const r = await $.process.run([GRILLHOUSE, 'tableau'], { cwd, timeoutMs: 20_000 })
-  if (r.exitCode !== 0) {
-    await update($, etat, s => ({ ...s, erreur: r.stderr.slice(0, 300) }))
-    return
-  }
-  // A board past what a process returns (4 MiB) or that does not parse is said, never thrown.
-  let tableau: Tableau
+// The board of the project in <dossier>, or the fault that keeps it out. A board past what a
+// process returns (4 MiB) or that does not parse is said, never thrown.
+async function lire($: EngineInterface, dossier: string): Promise<Lu> {
+  const r = await $.process.run([GRILLHOUSE, 'tableau'], { cwd: dossier, timeoutMs: 20_000 })
+  if (r.exitCode !== 0) return { dossier, tableau: null, erreur: r.stderr.slice(0, 300) }
   try {
     if (r.isStdoutTruncated) throw new Error('la sortie de grillhouse tableau dépasse 4 Mio')
-    tableau = JSON.parse(r.stdout) as Tableau
+    return { dossier, tableau: JSON.parse(r.stdout) as Tableau, erreur: null }
   } catch (err) {
-    await update($, etat, s => ({ ...s, erreur: `Tableau illisible : ${(err as Error).message}`.slice(0, 300) }))
-    return
+    return { dossier, tableau: null, erreur: `Tableau illisible : ${(err as Error).message}`.slice(0, 300) }
   }
-  await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now() }))
 }
 
-// The whole text of a ticket, read from Beads when the card fills the pane: the board carries
-// only each card's start.
-async function lireTexte($: EngineInterface, id: string) {
-  const r = await $.process.run(['bd', 'show', id, '--json'], { cwd, timeoutMs: 20_000 })
+// The session's board alone, a fault keeping the last board read; with other projects, every
+// board, read side by side, fused.
+async function mesurer($: EngineInterface) {
+  if (!actif) return
+  const { projets } = await read($, etat)
+  if (projets.length) {
+    const lus = await Promise.all([cwd, ...projets].map(d => lire($, d)))
+    await update($, etat, s => ({ ...s, tableau: fusionner(lus), erreur: null, lu: Date.now() }))
+    return
+  }
+  const { tableau, erreur } = await lire($, cwd)
+  await update($, etat, s => (tableau ? { ...s, tableau, erreur: null, lu: Date.now() } : { ...s, erreur }))
+}
+
+// The folder of the project the ticket <id> belongs to: its own in a fused board, else the
+// session's.
+const dossierDu = (t: Tableau | null, id: string) => t?.dossiers?.[id] ?? cwd
+
+// The whole text of a ticket, read from Beads in its project when the card fills the pane: the
+// board carries only each card's start.
+async function lireTexte($: EngineInterface, id: string, dossier: string) {
+  const r = await $.process.run(['bd', 'show', id, '--json'], { cwd: dossier, timeoutMs: 20_000 })
   let contenu = ''
   try {
     const lu = JSON.parse(r.stdout) as { description?: string }[] | { description?: string }
@@ -301,11 +422,50 @@ async function lireTexte($: EngineInterface, id: string) {
 // The status a chantier's switch gives it: in progress → open, anything else → in progress.
 export const bascule = (statut: string | undefined) => (statut === 'in_progress' ? 'open' : 'in_progress')
 
-// Switches a chantier on or off in Beads, then measures the board again.
-async function basculer($: EngineInterface, id: string, statut: string | undefined) {
-  const r = await $.process.run(['bd', 'update', id, '--status', bascule(statut)], { cwd, timeoutMs: 20_000 })
+// Switches a chantier on or off in Beads, in its project, then measures the board again.
+async function basculer($: EngineInterface, id: string, statut: string | undefined, dossier: string) {
+  const r = await $.process.run(['bd', 'update', id, '--status', bascule(statut)], {
+    cwd: dossier,
+    timeoutMs: 20_000,
+  })
   if (r.exitCode !== 0) await $.ui.toast(`Le chantier n'a pas basculé : ${r.stderr.slice(0, 200)}`)
   await rafraichir($)
+}
+
+// The projects the store keeps for the session's folder; none when it holds nothing readable.
+async function lireLaListe($: EngineInterface): Promise<string[]> {
+  try {
+    const v = await $.store.get(cleProjets(cwd))
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+// Adds a project to the pane or removes it, by its path; a path that is not a Grillhouse project
+// is refused by its name. The list is kept for the session's folder, and the board measured again.
+async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', chemin: string): Promise<string> {
+  if (!chemin) return `Usage : /grillhouse ${geste} <chemin>.`
+  const maison = chemin.startsWith('~') ? ((await $.env.get('HOME')) ?? '') : ''
+  const dossier = dossierDe(chemin, cwd, maison)
+  const { projets } = await read($, etat)
+  let liste: string[]
+  if (geste === 'ajouter') {
+    if (dossier === cwd || projets.includes(dossier)) return `${dossier} est déjà au tableau.`
+    const pkg = `${dossier}/package.json`
+    const texte = (await $.fs.exists(pkg)) ? String(await $.fs.read(pkg)) : null
+    if (!declareLePaquet(texte)) {
+      return `Refusé : ${dossier} n'est pas un projet Grillhouse (son package.json ne déclare pas ${PAQUET}).`
+    }
+    liste = [...projets, dossier]
+  } else {
+    if (!projets.includes(dossier)) return `${dossier} n'est pas au tableau.`
+    liste = projets.filter(p => p !== dossier)
+  }
+  await $.store.set(cleProjets(cwd), liste)
+  await update($, etat, s => ({ ...s, projets: liste }))
+  void rafraichir($)
+  return geste === 'ajouter' ? `Projet ajouté au tableau : ${dossier}.` : `Projet retiré du tableau : ${dossier}.`
 }
 
 // The board applies to a Grillhouse project outside an agent's copy (`eligible`), once someone can
@@ -320,6 +480,7 @@ async function activer($: EngineInterface) {
   await $.command.register({
     name: 'grillhouse',
     description: 'Ouvre le tableau Grillhouse : le projet, les agents, le chantier en cours',
+    argumentHint: '[ajouter|retirer <chemin>]',
   })
   void rafraichir($)
   $.clock.every(PERIODE, () => void rafraichir($))
@@ -340,6 +501,10 @@ export const register: Register = on => {
     const texte = (await $.fs.exists(pkg)) ? String(await $.fs.read(pkg)) : null
     projet = declareLePaquet(texte)
     eligible = projet && !cwd.includes('/.claude/worktrees/')
+    if (eligible) {
+      const garde = await lireLaListe($)
+      if (garde.length) await update($, etat, s => ({ ...s, projets: garde }))
+    }
     if (e.isInteractive) await activer($)
     return started
   })
@@ -352,7 +517,11 @@ export const register: Register = on => {
 
   // The command answers at once and the board is measured behind it: a measure takes seconds on a
   // large project, and a hook past its budget (10 s) is skipped, its command answered by the engine.
+  // `ajouter <chemin>` and `retirer <chemin>` change the projects the pane shows.
   on('command.run', { command: 'grillhouse' }, async ($, e) => {
+    const [geste = '', ...reste] = (e.args ?? '').trim().split(/\s+/)
+    if (geste === 'ajouter' || geste === 'retirer') return { text: await changerLaListe($, geste, reste.join(' ')) }
+    if (geste) return { text: 'Usage : /grillhouse, /grillhouse ajouter <chemin>, /grillhouse retirer <chemin>.' }
     void rafraichir($)
     // A narrow column docked beside the transcript; a short block when seated above the prompt.
     await $.ui.open({ id: PANE, title: 'Grillhouse', columns: COLONNES, rows: 12 })
@@ -407,7 +576,9 @@ export const register: Register = on => {
     // Focused, the card shows the chosen ticket; otherwise the one that moved last.
     const montre = e.props.isFocused ? choisi : (t.dernier ?? choisi)
     const fiche = montre ? t.fiches[montre] : undefined
-    const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1)
+    // A fused board's footer stands between the list and the rule.
+    const pied = t.pied ?? []
+    const rangs = Math.max(1, e.props.scroll.bodyRows - FICHE - 1 - pied.length)
     cadre = { rangs, focus: e.props.isFocused }
     const liste = placer(s, rangs, e.props.isFocused)
     const ici = liste.findIndex(x => x.cle === element)
@@ -453,7 +624,7 @@ export const register: Register = on => {
               plain
               hotkey="g"
               onPress={() => {
-                if (!grand && montre) void lireTexte($, montre)
+                if (!grand && montre) void lireTexte($, montre, dossierDu(t, montre))
                 ligneTexte = 0
                 void update($, etat, s => ({ ...s, grand: !s.grand }))
               }}
@@ -462,7 +633,12 @@ export const register: Register = on => {
             </Button>
           ) : null}
           {chantier && fiche ? (
-            <Button key="h" plain hotkey="h" onPress={() => void basculer($, chantier, t.fiches[chantier]?.statut)}>
+            <Button
+              key="h"
+              plain
+              hotkey="h"
+              onPress={() => void basculer($, chantier, t.fiches[chantier]?.statut, dossierDu(t, chantier))}
+            >
               <Text dimColor>{`· h : ${fiche.statut === 'in_progress' ? 'désactiver' : 'activer'} `}</Text>
             </Button>
           ) : null}
@@ -565,6 +741,11 @@ export const register: Register = on => {
             )
           })}
         </Box>
+        {pied.map((l, i) => (
+          <Text key={`pied:${i}`} dimColor={l.ton === 'discret'} color={couleur(l.ton)} wrap="truncate-end">
+            {l.texte}
+          </Text>
+        ))}
         {regle('tout le texte')}
         <Box flexDirection="column" height={FICHE} flexShrink={0}>
           {carte(fiche)}

@@ -522,3 +522,17 @@ describe('the alert « en cours sans rien qui tourne » names a whole silent cir
     expect(sansRien(p, 'demo-10')).toBe(false);
   });
 });
+
+// grillhouse-erp: the pane that fuses several boards labels each line by its project's ticket
+// prefix, which the board names.
+describe("the board names its project's ticket prefix", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('the prefix Beads holds for the repository', () => {
+    const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
+    const racine = depotFactice([T('demo-5')], []);
+    expect((tableau(racine, { home }) as unknown as { prefixe: string }).prefixe).toBe('demo');
+  });
+});

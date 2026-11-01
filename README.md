@@ -210,6 +210,15 @@ in a shell included; a ticket's time adds the steps its circuit leads itself (th
 final pass, the integration, the queue), which the circuit writes to the same register, each instant once.
 The card of a ticket whose circuit ended opens on the key figures of its bilan (`packages/grillhouse/scripts/bilan.mjs`): wall
 time, share lost, sessions, cost.
+A session that coordinates several projects adds them to its pane, as a multi-root workspace of VS Code lists
+its folders: `/grillhouse ajouter <chemin>` and `/grillhouse retirer <chemin>` (a path that is not a Grillhouse
+project refused by its name), the list kept for the session's folder in the mod's store. Each project's board is
+measured in its folder, and the pane fuses them: one list of the tickets at a step, sorted by step and each line
+prefixed by its project's ticket prefix (`3 Code  [SH] SH-13y.6 — le paquet interface`), then each project's
+chantiers; a footer sums up each project (`OB 2▶ · SH 1▶ 3 en attente · OSD 0`) and names a project whose board
+does not read with its fault. The card, the whole text and the switch of a chantier run Beads in the ticket's project.
+The fused view shows neither the folded groups nor the tickets closed today; `/grillhouse` with any other argument
+answers with its usage.
 Without the mod, `npm run tableau` prints the same lines. The status line
 (`packages/grillhouse/scripts/ligne-etat/`, the project's `statusLine`) keeps the person's own status line on the
 left, or a default one (model, context, rate limits), and shows the chantier in progress on the
