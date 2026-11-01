@@ -7,6 +7,7 @@
 //   npx grillhouse verifier [--tout | --gardes]                 verifier
 //   node commandes.mjs typer                                    typer
 //   npx grillhouse preparer                                     preparer
+//   npx grillhouse tests-de-nuit                                tests-de-nuit
 //   npx grillhouse clippy | frontieres | index-interfaces       each guard, its own script
 //
 // - Each guard of structure of the module (./clippy.mjs, ./frontieres.mjs, ./index-interfaces.mjs)
@@ -28,6 +29,19 @@
 //   (`GRILLHOUSE_DEPUIS_LE_VERT`), the crates the changes since the last green touch and their
 //   dependents (./touches.mjs), every crate when no last green counts. `--force` changes nothing:
 //   cargo keeps no result of a test to replay. Another option goes to nextest.
+// - A test target is named by its file, as `*_nuit_test.py` and `*.budget.test.*` (grillhouse-wbk):
+//   `tests/<nom>_nuit.rs` (or `tests/<nom>_nuit/main.rs`, the target `<nom>_nuit`) is a night
+//   test, `tests/<nom>_budget.rs` a time budget bench. A crate played whole leaves both out of
+//   nextest, in `tester` as in `verifier`, which then plays its library (`--lib`), its binaries
+//   (`--bins`) and each other test target (`--test <nom>`); its build still compiles them. The
+//   night plays them (`tests-de-nuit`), as the module typescript's `*.budget.test.*`. A path that
+//   names the file of one plays it, as Bazel builds a target tagged `manual` when named; a folder
+//   named leaves them out, as the day does.
+// - A time budget bench plays alone, one test at a time (`--test-threads 1`), in a task `budget` of
+//   its own after the other tests: in `tests-de-nuit` and in a path that names it. A red of the
+//   task while the CPU pressure of the machine (`lirePression` of ./jointure) is at or above its
+//   threshold at its start or at its end is « à repasser », 75, said in one line with the
+//   pressure; at rest, a red.
 // - `verifier` plays the tests of the crates the changes since the last green touch and of their
 //   dependents (every crate with `--tout`, or when no last green counts), as Turborepo's
 //   `--filter=...[<commit>]`, then `cargo deny check`; green, it keeps the last green
@@ -39,7 +53,7 @@
 //   project's root scripts `grillhouse:gardes` (the frame's guards) then `gardes` (its own), each
 //   one the package.json holds a task of the root, by npm, without its tests nor cargo deny, and
 //   keeps no last green.
-// - `tester` and `verifier` play under a temporary directory of their pass, the module's guard of
+// - `tester`, `verifier` and `tests-de-nuit` play under a temporary directory of their pass, the module's guard of
 //   the temporary directory, as the CI of osc-bridge (OB-ud1.3): a base (`ouvrirBase` of
 //   ./jointure, genre `tests` or `verification`) in the temporary directory of the environment,
 //   named in TMPDIR, TMP and TEMP to cargo, which nextest and the doctests inherit; removed at the
@@ -47,6 +61,9 @@
 //   fails the pass (code 1), each name written on the error stream. A test makes its temporary
 //   directory or file with the crate `tempfile` (`TempDir`, `NamedTempFile`), removed when dropped,
 //   a failed test included, never a path built by hand under `std::env::temp_dir()`.
+// - `tests-de-nuit`: the night tests then the benches of each crate that holds some; none, nothing
+//   plays and the code is 0. The night (scripts/nuit.sh) runs it after the full pass, and plays it
+//   again at rest after a 75.
 // - `typer`: `cargo check --all-targets`. `preparer`: `cargo fetch --locked`.
 // - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
 //   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr), its server started
@@ -89,11 +106,14 @@ import {
   avecLaMachine,
   CHANGEMENTS,
   DEPUIS_LE_VERT,
+  ecrirePression,
   garderLeVert,
   ligneDesRestes,
+  lirePression,
   mesure,
   ouvrirBase,
   retirerALInterruption,
+  SEUIL_PRESSION,
 } from '../../services-du-noyau.mjs';
 import { composantDans, crates, joueDesTests, metadonnees } from './composants.mjs';
 import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
@@ -103,14 +123,35 @@ import { JUNIT, TACHES } from './verdict.mjs';
 const ICI = fileURLToPath(import.meta.url);
 const NEXTEST = path.join(path.dirname(ICI), 'nextest.toml');
 const PROFIL = 'grillhouse';
-export const NOMS = ['tester', 'verifier', 'typer', 'preparer'];
+export const NOMS = ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit'];
 const A_REPASSER = 75;
 const RACINE = '//';
+// The task of the time budget benches of a crate.
+const BUDGET = 'budget';
 const VERROU = 'Cargo.lock';
 // The commands that play the exact versions of the repository, refused without its Cargo.lock.
-const VERROUILLEES = ['tester', 'verifier', 'preparer'];
+const VERROUILLEES = ['tester', 'verifier', 'preparer', 'tests-de-nuit'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
-const COMPILENT = ['tester', 'verifier', 'typer'];
+const COMPILENT = ['tester', 'verifier', 'typer', 'tests-de-nuit'];
+/** The end of the name of a night test target, and of a time budget bench's. */
+export const DE_NUIT = '_nuit';
+export const BANC = '_budget';
+// The kinds of a target that are no library.
+const PAS_UNE_BIBLIOTHEQUE = ['test', 'bin', 'example', 'bench', 'custom-build'];
+
+/**
+ * Whether the target <t> of a crate is a test target out of the day: `nuit`, `banc`, or null.
+ * @param {{ kind: string[], name: string }} t
+ */
+export function horsDuJour(t) {
+  if (!t.kind.includes('test')) {
+    return null;
+  }
+  if (t.name.endsWith(DE_NUIT)) {
+    return 'nuit';
+  }
+  return t.name.endsWith(BANC) ? 'banc' : null;
+}
 // The subcommands of cargo that compile, before which the server of sccache starts.
 const COMPILATIONS = ['test', 'nextest', 'check'];
 
@@ -156,6 +197,8 @@ function passe(racine, env) {
   const cibles = {};
   // Cargo compiles through sccache (./sccache.mjs).
   const compilation = avecSccache(racine, env);
+  // The CPU pressure of the machine, the file <env> names or the kernel's.
+  const pression = () => lirePression(env.GRILLHOUSE_PRESSION_CPU || undefined);
   const ecrire = () => {
     if (!dossier) {
       return;
@@ -192,6 +235,8 @@ function passe(racine, env) {
       if (COMPILATIONS.includes(args[0])) {
         demarrerLeServeur(racine, env);
       }
+      const banc = t.script === BUDGET;
+      const avant = banc ? pression() : null;
       let r;
       if (journal) {
         // The output of cargo, both streams in their order, goes to the task's log, then to the
@@ -215,7 +260,11 @@ function passe(racine, env) {
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
       if (junit && dossier && existsSync(junit)) {
         mkdirSync(path.join(dossier, JUNIT), { recursive: true });
-        copyFileSync(junit, path.join(dossier, JUNIT, `${id}-${t.paquet}.xml`));
+        const suffixe = t.script === 'nextest' ? '' : `-${t.script}`;
+        copyFileSync(junit, path.join(dossier, JUNIT, `${id}-${t.paquet}${suffixe}.xml`));
+      }
+      if (banc && t.code !== 0) {
+        sousCharge(t, [avant, pression()]);
       }
       ecrire();
       return t.code;
@@ -228,6 +277,25 @@ function passe(racine, env) {
       return rouges.every(t => t.code === A_REPASSER) ? A_REPASSER : 1;
     },
   };
+}
+
+// A red of the time budget benches of the task <t>, the pressures <pressions> measured at its start
+// and at its end: « à repasser » (75) when one is at or above the threshold, said; else its code
+// stands, a pressure that does not read said.
+function sousCharge(t, pressions) {
+  const lues = pressions.filter(p => p !== null);
+  if (lues.length === 0) {
+    process.stderr.write(`⏱ banc de temps de ${t.paquet} rouge, pression CPU illisible : rouge.\n`);
+    return;
+  }
+  const haute = Math.max(...lues);
+  if (haute < SEUIL_PRESSION) {
+    return;
+  }
+  process.stderr.write(
+    `⏱ banc de temps de ${t.paquet} rouge sous charge (pression CPU ${ecrirePression(haute)}, seuil ${SEUIL_PRESSION} %) : à repasser (${A_REPASSER}).\n`
+  );
+  t.code = A_REPASSER;
 }
 
 // The crates the changes since the last green of <racine> touch, and their dependents; every crate
@@ -245,42 +313,82 @@ function depuisLeVert(racine, tous, tout, env) {
   return { choix: tous.filter(c => nommes.has(c.composant.dossier)), m };
 }
 
-// Plans and plays the tests of the crates <choix> (each `{ c, cibles }`, `cibles` the test targets
-// named, empty for the whole crate) in the run <p>: for a crate that plays tests, the build of its
-// test targets first, then nextest, then its doctests; a failed build leaves the crate's other
-// tasks not played.
+// Plans and plays the tests of the crates <choix> in the run <p>, each `{ c, cibles }`: `cibles`
+// the test targets named, empty for the whole crate of the day (its night tests and its benches
+// left out). For a crate that plays tests:
+// the build of its test targets first, then nextest, then its doctests; a failed build leaves the
+// crate's other tasks not played. The benches named, each crate's in a task `budget`, are
+// planned with the rest and played by the function this one returns, after the other tests.
 function jouerLesTests(racine, p, choix, options) {
   const m = metadonnees(racine);
   const junit = path.join(m.target_directory, 'nextest', PROFIL, 'junit.xml');
+  const nextest = ['nextest', 'run', '--tool-config-file', `${PROFIL}:${NEXTEST}`];
+  nextest.push('--profile', PROFIL, '--no-fail-fast');
   const parCrate = [];
+  const bancs = [];
   for (const { c, cibles } of choix) {
     Object.assign(p.cibles, binaires(c));
     const d = c.composant.dossier;
     const nom = c.composant.nom;
     const prevues = [];
+    const etat = { construit: true };
     if (joueDesTests(racine, c.composant)) {
-      const selection = ['-p', nom, ...cibles.flatMap(n => ['--test', n])];
+      const tests = c.cibles.filter(t => t.kind.includes('test'));
+      const deBanc = n => tests.some(t => t.name === n && horsDuJour(t) === 'banc');
+      const desBancs = cibles.filter(deBanc);
+      const autres = cibles.filter(n => !deBanc(n));
       const journal = path.join(m.target_directory, 'grillhouse', `${nom}-build.log`);
-      const construction = ['test', '--no-run', ...selection];
+      const construction = ['test', '--no-run', '-p', nom, ...cibles.flatMap(n => ['--test', n])];
       prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal }]);
-      const args = ['nextest', 'run', '--tool-config-file', `${PROFIL}:${NEXTEST}`];
-      args.push('--profile', PROFIL, '--no-fail-fast', ...selection);
-      prevues.push([p.prevoir(nom, d, 'nextest', true, [...args, ...options]), { junit }]);
+      if (cibles.length === 0 || autres.length) {
+        const selection = cibles.length ? autres.flatMap(n => ['--test', n]) : duJour(c);
+        const args = [...nextest, '-p', nom, ...selection, ...options];
+        prevues.push([p.prevoir(nom, d, 'nextest', true, args), { junit }]);
+      }
+      if (desBancs.length) {
+        const args = [...nextest, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
+        bancs.push({ nom, d, args: [...args, '--test-threads', '1', ...options], etat });
+      }
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
     if (cibles.length === 0 && doctests) {
       const args = ['test', '--doc', '-p', nom];
       prevues.push([p.prevoir(nom, d, 'doctest', true, args), {}]);
     }
-    parCrate.push(prevues);
+    parCrate.push([prevues, etat]);
   }
-  for (const prevues of parCrate) {
+  const prevusBancs = bancs.map(b => [p.prevoir(b.nom, b.d, BUDGET, true, b.args), b.etat]);
+  for (const [prevues, etat] of parCrate) {
     for (const [t, o] of prevues) {
       if (p.jouer(t, o) !== 0 && t.t.script === 'build') {
+        etat.construit = false;
         break;
       }
     }
   }
+  return () => {
+    for (const [t, etat] of prevusBancs) {
+      if (etat.construit) {
+        p.jouer(t, { junit });
+      }
+    }
+  };
+}
+
+// The selection of nextest of the crate <c> played whole in the day: none when it has no night
+// test nor bench; else its library, its binaries and each other test target, named.
+function duJour(c) {
+  const tests = c.cibles.filter(t => t.kind.includes('test'));
+  if (!tests.some(horsDuJour)) {
+    return [];
+  }
+  const lib = c.cibles.some(t => !t.kind.some(k => PAS_UNE_BIBLIOTHEQUE.includes(k)));
+  const bins = c.cibles.some(t => t.kind.includes('bin'));
+  return [
+    ...(lib ? ['--lib'] : []),
+    ...(bins ? ['--bins'] : []),
+    ...tests.filter(t => !horsDuJour(t)).flatMap(t => ['--test', t.name]),
+  ];
 }
 
 // The crates the paths <chemins> choose in <racine>: `{ choix }`, or `{ refus }` naming each path
@@ -340,7 +448,7 @@ function verifier(racine, args, env) {
       p,
       choix.map(c => ({ c, cibles: [] })),
       []
-    );
+    )();
     p.jouer(p.prevoir(RACINE, racine, 'deny', false, ['deny', 'check']));
     const code = p.code();
     if (code === 0 && m.etat) {
@@ -458,6 +566,9 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   if (nom === 'tester') {
     return sousLaBase('tests', env, envBase => tester(racine, tous, args, envBase));
   }
+  if (nom === 'tests-de-nuit') {
+    return sousLaBase('tests', env, envBase => testsDeNuit(racine, tous, envBase));
+  }
   process.stderr.write(`⛔ commande inconnue du module cargo : ${nom} (${NOMS.join(', ')})\n`);
   return 2;
 }
@@ -485,9 +596,23 @@ function tester(racine, tous, args, env) {
     choix = tous.map(c => ({ c, cibles: [] }));
   }
   try {
-    jouerLesTests(racine, p, choix, options);
+    jouerLesTests(racine, p, choix, options)();
   } finally {
     m?.retirer();
+  }
+  return p.code();
+}
+
+// The pass of `tests-de-nuit` in <racine>, the crates <tous>, under <env>: the night tests and the
+// benches of each crate that holds some, each named.
+function testsDeNuit(racine, tous, env) {
+  const p = passe(racine, env);
+  const choix = tous
+    .filter(c => joueDesTests(racine, c.composant))
+    .map(c => ({ c, cibles: c.cibles.filter(horsDuJour).map(t => t.name) }))
+    .filter(x => x.cibles.length);
+  if (choix.length) {
+    jouerLesTests(racine, p, choix, [])();
   }
   return p.code();
 }

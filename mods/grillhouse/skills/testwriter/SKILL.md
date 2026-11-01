@@ -19,7 +19,8 @@ leur module, sous `src/`, dans un fichier `tests.rs` ou un dossier `tests/`. Tu 
 toi-même dans le fichier de code du module, par la ligne `#[cfg(test)] mod tests;`, sans quoi
 le test n'est jamais compilé ; un `#[cfg(test)] mod tests { … }` en ligne, tu le retires du
 fichier de code et le déplaces dans `tests.rs`. Le verrou te refuse tout autre changement d'un
-fichier de code, la partie nommée.
+fichier de code, la partie nommée. Un test de nuit Rust est un fichier `tests/<nom>_nuit.rs`, un
+banc de temps un fichier `tests/<nom>_budget.rs`.
 La matière partagée est le crate dont le manifeste dit `[package.metadata.grillhouse] matiere = true`.
 Dans un paquet Python, tes tests sont les fichiers que pytest trouve, `test_*.py` ou `*_test.py`,
 un test de nuit `*_nuit_test.py` ; leurs aides vont dans `conftest.py` et sous `tests/`. Ce dont
@@ -181,8 +182,8 @@ régénérée (BP 320.6.5 : un test qui lisait les `turbo.json`). Ainsi le geste
 développeur aux tests verts arrêté sur le plafond des mots, la dette et l'index).
 
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier
-`*.budget.test.ts`. L'intégration de jour ne le joue pas, car la charge de la machine fait varier
-ses mesures ; la nuit le juge. Nommé lui-même (`npm test -- <son fichier>`), il se joue, et son
+`*.budget.test.ts` (en Rust, `tests/<nom>_budget.rs`). L'intégration de jour ne le joue pas, car
+la charge de la machine fait varier ses mesures ; la nuit le juge. Nommé lui-même (`npm test -- <son fichier>`), il se joue, et son
 échec sous charge est « à repasser » (code 75). Ainsi un rouge de jour dit un défaut, jamais une
 machine occupée.
 

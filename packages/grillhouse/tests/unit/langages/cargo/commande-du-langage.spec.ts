@@ -33,8 +33,15 @@ describe('grillhouse-pkl.5 — une commande du module, quand il la décrit', () 
   });
 
   it('plays nothing for a command the module does not describe', () => {
-    expect(lancerDuLangage('tests-de-nuit', [], seul)).toBe(0);
+    expect(lancerDuLangage('construire', [], seul)).toBe(0);
     expect(appels()).toEqual([]);
+  });
+
+  // grillhouse-wbk: the night runs the module cargo's night tests; a workspace without one plays
+  // no test.
+  it('runs the night tests of the module cargo; a workspace without one plays no test', () => {
+    expect(lancerDuLangage('tests-de-nuit', [], seul)).toBe(0);
+    expect(appels().filter(a => !a.startsWith('metadata '))).toEqual([]);
   });
 
   it('plays nothing in a project that declares no language', () => {

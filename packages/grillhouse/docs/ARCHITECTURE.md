@@ -565,7 +565,13 @@ durée (un délai dépassé, un banc `*.budget.test.*`, un test marqué `mesurer
 charge (la pression CPU du noyau, `/proc/pressure/cpu`, à 25 % ou plus) est « à repasser » (code
 75), ni vert ni rouge : `npm run verifier` rejoue sa tâche seule une fois la machine au repos ;
 sans repos en 15 min, la livraison reste en attente et se représente, comme Bazel classe un
-délai dépassé et CTest le rejoue. Ainsi un témoin ne se mesure jamais sous la charge de sa
+délai dépassé et CTest le rejoue. En Rust, un banc de temps est une cible de test dont le
+fichier finit par `_budget.rs` (`tests/<nom>_budget.rs`), comme `*.budget.test.*` en TypeScript,
+et un test de nuit par `_nuit.rs`, comme `*_nuit_test.py` en Python : `npm test` et la
+vérification les laissent hors (nextest joue la bibliothèque, les binaires et chaque autre
+cible) ; la nuit seule les joue (`tests-de-nuit`), les bancs seuls, après les tests de nuit, un
+test à la fois, et un rouge sous charge y est « à repasser » (75) ; un lancement ciblé qui nomme
+le fichier le joue. Ainsi un témoin ne se mesure jamais sous la charge de sa
 propre passe, et un rouge au repos reste un rouge.
 
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
@@ -707,7 +713,7 @@ sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/
 de `cargo metadata` ; les fichiers de test que le testwriter écrit, chacun un fichier à lui : les
 tests par l'interface sous `tests/` d'un crate, les tests unitaires près de leur module, un
 `tests.rs` ou un dossier `tests/` sous `src/`, comme le contrôle tidy de rustc, que le module
-déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; les tests par nextest puis les doctests, après la construction des cibles de
+déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; un test de nuit `tests/<nom>_nuit.rs` et un banc de temps `tests/<nom>_budget.rs`, reconnus au nom de leur cible ; les tests par nextest puis les doctests, après la construction des cibles de
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
 « construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,

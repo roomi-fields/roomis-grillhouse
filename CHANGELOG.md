@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The module cargo knows the night tests and the time budget benches** (grillhouse-wbk): in SyntHub (SH-13y.5, 2026-10-31), `crates/service/tests/search_budget.rs`, a search under 50 ms, played in the day with the suite and went red under the load of the machine, at the integration and at the checks of SH-ae6.4, green alone; the charter puts the large tests and the benches in the night, but nothing in the module cargo named or left out a night test (`*_nuit_test.py` for Python, `*.nuit.test.*` and `*.budget.test.*` for TypeScript), and SyntHub took the median of 20 searches to get by. As a test is known by the name of its file, and each file of `tests/` is a test target of cargo, `tests/<nom>_nuit.rs` is now a night test and `tests/<nom>_budget.rs` a time budget bench, `#[ignore]` set aside. A crate played whole leaves both out of nextest (`--lib`, `--bins` and each other `--test`), its build still compiling them, so neither `npm test` nor the verification plays them; as for `*.budget.test.*` in TypeScript, the night alone plays them (the owner's decision: the benches play at the night alone, in every language), by the new command `tests-de-nuit` of the module: the night tests, then the benches alone, one test at a time, a red while the CPU pressure is at or above its threshold « à repasser » (75); a targeted run that names the file plays it, a bench alone, 75 under load as well. The guard of the sizes of the tests in Rust is a ticket of its own (grillhouse-wbk.1). The common charter, the architecture and interface of the package, and the testwriter's and supervisor's skills name the convention beside TypeScript's and Python's.
+
 ## [0.28.3] - 2026-11-01
 
 ### Fixed

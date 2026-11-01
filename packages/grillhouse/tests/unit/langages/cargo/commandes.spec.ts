@@ -98,11 +98,12 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'verifier',
       'typer',
       'preparer',
+      'tests-de-nuit',
       'clippy',
       'frontieres',
       'index-interfaces',
     ]);
-    for (const nom of ['tester', 'verifier', 'typer', 'preparer']) {
+    for (const nom of ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit']) {
       expect(c[nom]).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
     }
     expect(existsSync(path.join(MODULE, 'commandes.mjs'))).toBe(true);
@@ -854,5 +855,153 @@ describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un 
 describe('grillhouse-cyr, critère 2 — la mise à jour installe sccache à sa version exacte', () => {
   it('sccache is a binary of the module cargo, at the version of mozilla/sccache v0.19.0', () => {
     expect(cargo.binaires.sccache).toBe('0.19.0');
+  });
+});
+
+// grillhouse-wbk: the module cargo knew no night test nor time budget bench, and SyntHub's
+// crates/service/tests/search_budget.rs (a search under 50 ms) played in the day pass and went red
+// under the load of the machine. A test target is named by its file, as `*_nuit_test.py` and
+// `*.budget.test.*`: `tests/<nom>_nuit.rs` is a night test, `tests/<nom>_budget.rs` a time budget
+// bench. The day and the verification leave both out; the night alone plays them
+// (`tests-de-nuit`), as `*.budget.test.*` in TypeScript, the benches alone and a red under load
+// « à repasser » (75); a targeted run that names the file plays it.
+describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module cargo', () => {
+  const NEXTEST = 'nextest run --no-fail-fast -p seul';
+  let racine = '';
+  const pression = (valeur: number) => {
+    const f = path.join(mkdtempSync(path.join(ESSAIS, 'pression-')), 'cpu');
+    writeFileSync(f, `some avg10=${valeur.toFixed(2)} avg60=0.00 avg300=0.00 total=0\n`);
+    return { GRILLHOUSE_PRESSION_CPU: f };
+  };
+  beforeAll(() => {
+    const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'nuit-'))) as { depots: Depots };
+    racine = e.depots.seul;
+    writeFileSync(path.join(racine, 'tests/lourd_nuit.rs'), '#[test]\nfn long() {}\n');
+    writeFileSync(path.join(racine, 'tests/recherche_budget.rs'), '#[test]\nfn vite() {}\n');
+  });
+
+  it('critère 1 — tester leaves the night test and the bench out, the rest of the crate played', () => {
+    const r = lancer(racine, 'tester');
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toEqual([
+      'test --no-run -p seul',
+      `${NEXTEST} --lib --bins --test bout`,
+      'test --doc -p seul',
+    ]);
+  });
+
+  it('critère 1 — a crate named by its folder leaves them out too, as the day', () => {
+    expect(lancer(racine, 'tester', ['src']).appels).toEqual([
+      'test --no-run -p seul',
+      `${NEXTEST} --lib --bins --test bout`,
+      'test --doc -p seul',
+    ]);
+  });
+
+  it('critères 1 et 5 — verifier plays neither the night test nor the bench', () => {
+    const r = lancer(racine, 'verifier', ['--tout'], {}, pression(0));
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toEqual([
+      'test --no-run -p seul',
+      `${NEXTEST} --lib --bins --test bout`,
+      'test --doc -p seul',
+      'deny check',
+    ]);
+    expect(r.verdict.taches.map(t => t.tache)).toEqual([
+      'seul#build',
+      'seul#nextest',
+      'seul#doctest',
+      '//#deny',
+    ]);
+  });
+
+  it('critère 1 — a crate without library: its binaries and its other test targets', () => {
+    const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'sans-lib-'))) as { depots: Depots };
+    const sansLib = e.depots.seul;
+    rmSync(path.join(sansLib, 'src/lib.rs'));
+    writeFileSync(path.join(sansLib, 'tests/lourd_nuit.rs'), '#[test]\nfn long() {}\n');
+    expect(lancer(sansLib, 'tester').appels).toEqual([
+      'test --no-run -p seul',
+      `${NEXTEST} --bins --test bout`,
+    ]);
+  });
+
+  it('critères 1 et 3 — a target in a folder, tests/<nom>_nuit/main.rs, is a night test too', () => {
+    const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'dossier-'))) as { depots: Depots };
+    const enDossier = e.depots.seul;
+    mkdirSync(path.join(enDossier, 'tests/gros_nuit'));
+    writeFileSync(path.join(enDossier, 'tests/gros_nuit/main.rs'), '#[test]\nfn long() {}\n');
+    expect(lancer(enDossier, 'tester').appels).toEqual([
+      'test --no-run -p seul',
+      `${NEXTEST} --lib --bins --test bout`,
+      'test --doc -p seul',
+    ]);
+    expect(lancer(enDossier, 'tester', ['tests/gros_nuit/main.rs']).appels).toEqual([
+      'test --no-run -p seul --test gros_nuit',
+      `${NEXTEST} --test gros_nuit`,
+    ]);
+    expect(lancer(enDossier, 'tests-de-nuit').appels).toEqual([
+      'test --no-run -p seul --test gros_nuit',
+      `${NEXTEST} --test gros_nuit`,
+    ]);
+  });
+
+  it('critère 2 — tests-de-nuit plays the night tests, then the benches alone; a crate without plays nothing', () => {
+    expect(cargo.commandes(racine)['tests-de-nuit']).toEqual({
+      script: path.join(MODULE, 'commandes.mjs'),
+      args: ['tests-de-nuit'],
+    });
+    const r = lancer(racine, 'tests-de-nuit', [], {}, pression(0));
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toEqual([
+      'test --no-run -p seul --test lourd_nuit --test recherche_budget',
+      `${NEXTEST} --test lourd_nuit`,
+      `${NEXTEST} --test recherche_budget --test-threads 1`,
+    ]);
+    const sans = lancer(d.espace, 'tests-de-nuit');
+    expect(sans.code, sans.stderr).toBe(0);
+    expect(sans.appels).toEqual([]);
+  });
+
+  it('critères 2 et 5 — tests-de-nuit: a bench red under load is 75, which the night replays at rest; at rest, a red', () => {
+    const rouge = { 'nextest seul::recherche_budget': 101 };
+    const charge = lancer(racine, 'tests-de-nuit', [], rouge, pression(60));
+    expect(charge.code, charge.stdout + charge.stderr).toBe(75);
+    expect(charge.verdict.taches.find(t => t.script === 'budget')?.code).toBe(75);
+    expect(charge.stdout + charge.stderr).toMatch(/banc de temps.*seul.*sous charge.*60\.0 %/);
+    const repos = lancer(racine, 'tests-de-nuit', [], rouge, pression(0));
+    expect(repos.code).toBe(1);
+    expect(repos.verdict.taches.find(t => t.script === 'budget')?.code).toBe(101);
+  });
+
+  it('critère 5 — a night test red beside a bench red under load stays a red', () => {
+    const r = lancer(
+      racine,
+      'tests-de-nuit',
+      [],
+      { 'nextest seul::recherche_budget': 101, 'nextest seul::lourd_nuit': 100 },
+      pression(60)
+    );
+    expect(r.code).toBe(1);
+  });
+
+  it('critère 3 — a targeted run that names the file plays it, a bench alone and at rest', () => {
+    expect(lancer(racine, 'tester', ['tests/lourd_nuit.rs']).appels).toEqual([
+      'test --no-run -p seul --test lourd_nuit',
+      `${NEXTEST} --test lourd_nuit`,
+    ]);
+    const banc = lancer(racine, 'tester', ['tests/recherche_budget.rs'], {}, pression(0));
+    expect(banc.appels).toEqual([
+      'test --no-run -p seul --test recherche_budget',
+      `${NEXTEST} --test recherche_budget --test-threads 1`,
+    ]);
+    const charge = lancer(
+      racine,
+      'tester',
+      ['tests/recherche_budget.rs'],
+      { 'nextest seul::recherche_budget': 101 },
+      pression(60)
+    );
+    expect(charge.code).toBe(75);
   });
 });

@@ -41,7 +41,9 @@
 # - The night tests: after the full pass, the night tests and the time budget benches, which
 #   `npm test` and the integration leave out, played by the command `tests-de-nuit` of the module
 #   of the copy's language (the module typescript's: the files `*.nuit.test.*`, `*.nuit.spec.*`,
-#   `*.budget.test.*` and `*.budget.spec.*`, by Vitest), when the project declares a language
+#   `*.budget.test.*` and `*.budget.spec.*`, by Vitest; the module python's, `*_nuit_test.py`; the
+#   module cargo's, the test targets `tests/*_nuit.rs` then the benches `tests/*_budget.rs`, by
+#   nextest), when the project declares a language
 #   whose module describes it (scripts/commande-du-langage.mjs); none otherwise. A red turns the night red, with a log line that
 #   says so, and the project's night script still plays. A run « à repasser » (75: every failure
 #   depended on a duration, one under load) waits for rest (`npx grillhouse pression attendre`,

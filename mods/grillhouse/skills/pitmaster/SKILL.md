@@ -232,8 +232,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   resté `en-file` sans file lancée se vide à la main : `npx grillhouse file`. Ainsi un
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
-  (`packages/grillhouse/scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`) et des
-  bancs de budget (`*.budget.test.*`), puis du script de nuit du projet, chaque étape jouée même
+  (`packages/grillhouse/scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`,
+  `*_nuit_test.py`, `tests/*_nuit.rs`) et des bancs de budget (`*.budget.test.*`, `tests/*_budget.rs`), puis du script de nuit du projet, chaque étape jouée même
   après un rouge ; chaque tâche rouge commente le ticket étiqueté `nuit` qui la nomme, ou ouvre le
   sien, avec les commits où chercher, chaque étape et chaque tâche rouges ;
   une nuit « à repasser » (code 75 : des échecs de durée sous charge, sans repos) n'ouvre rien et

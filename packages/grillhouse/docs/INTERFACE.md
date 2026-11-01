@@ -188,7 +188,8 @@ clippy`). Le noyau en lance trois
     construction en échec écrit dans `<fichier>` sa première ligne, puis sa sortie, et rend 0 ;
     tout autre échec rend un autre code et arrête le lancement ;
   - `tests-de-nuit`, que la nuit joue après la passe complète (`typescript`, les tests de nuit et
-    les bancs de temps, par Vitest ; `python`, les `*_nuit_test.py` par pytest), 75 pour « à
+    les bancs de temps, par Vitest ; `python`, les `*_nuit_test.py` par pytest ; `cargo`, les
+    cibles `tests/*_nuit.rs` puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à
     repasser ».
 - La vérification écrit ses tâches rouges dans le fichier que nomme `GRILLHOUSE_ROUGES`, une par
   ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a

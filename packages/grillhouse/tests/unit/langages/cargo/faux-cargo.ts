@@ -11,7 +11,8 @@ import path from 'node:path';
 //   write (tables, strings, booleans, arrays of strings, inline tables, dotted keys): the members
 //   of `[workspace]` (a pattern `dir/*` included) and the root's `[package]`; each crate's
 //   dependencies of each kind, by its path or by the workspace's; its targets, the library
-//   (`src/lib.rs`), the binary (`src/main.rs`) and each test (`tests/<nom>.rs`); its
+//   (`src/lib.rs`), the binary (`src/main.rs`) and each test (`tests/<nom>.rs`,
+//   `tests/<dossier>/main.rs`); its
 //   `[package.metadata]`; the workspace's `[workspace.metadata]`, as `metadata` (grillhouse-pkl.6).
 // - `cargo clippy …`: prints the file `FAUX_CARGO_CLIPPY` names, the JSON lines of a recorded run
 //   of clippy, nothing without it (grillhouse-pkl.6).
@@ -21,8 +22,8 @@ import path from 'node:path';
 //   (grillhouse-egm, as OSD-b91.2.3's tests calling `osd::convert`).
 // - `cargo nextest run -p <crate> [--test <nom>]…`: writes the JUnit report of the profile
 //   `grillhouse` under `target/nextest/grillhouse/junit.xml`, one suite per test binary of the
-//   crate (the library, each test target or the ones named), one test `essai` each, failed when
-//   its code is not 0.
+//   crate (the library, each test target, or the ones `--lib` and `--test <nom>` name), one test
+//   `essai` each, failed when its code is not 0.
 // - `cargo install --list`: the binaries `FAUX_CARGO_INSTALLES` names (JSON, a version by name),
 //   in cargo's form, `<nom> v<version>:` then the binary, indented (grillhouse-pkl.7); it reads
 //   no manifest, as cargo's own, and plays in a directory without Cargo.toml.
@@ -41,7 +42,8 @@ import path from 'node:path';
 // - Each call is a line of the journal `FAUX_CARGO_JOURNAL` names (its arguments, joined by a
 //   blank); its code is the one `FAUX_CARGO_CODES` gives (JSON, by `<sous-commande> <crate>` or
 //   `<sous-commande>`; for `install`, the crate is the one it installs, `install cargo-binstall`),
-//   0 otherwise.
+//   0 otherwise; for `nextest` with `--test <nom>`, the greatest code of the keys
+//   `nextest <crate>::<nom>` first (grillhouse-wbk: a time budget bench red, the rest green).
 const SCRIPT = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -112,6 +114,7 @@ const crate = d => {
   if (fs.existsSync(src('tests'))) {
     for (const f of fs.readdirSync(src('tests')).sort()) {
       if (f.endsWith('.rs')) targets.push({ kind: ['test'], name: f.slice(0, -3), src_path: src('tests/' + f), doctest: false });
+      else if (fs.existsSync(src('tests/' + f + '/main.rs'))) targets.push({ kind: ['test'], name: f, src_path: src('tests/' + f + '/main.rs'), doctest: false });
     }
   }
   return {
@@ -128,7 +131,9 @@ if (process.env.FAUX_CARGO_COMPILATEUR) {
   fs.appendFileSync(process.env.FAUX_CARGO_COMPILATEUR, sous + ' RUSTC_WRAPPER=' + (process.env.RUSTC_WRAPPER ?? '') + ' SCCACHE_DIR=' + (process.env.SCCACHE_DIR ?? '') + ' SCCACHE_SERVER_UDS=' + (process.env.SCCACHE_SERVER_UDS ?? '') + ' TMPDIR=' + (process.env.TMPDIR ?? '') + '\\n');
 }
 const nomme = sous === 'install' ? args.at(-1).split('@')[0] : args[args.indexOf('-p') + 1];
-const code = codes[sous + ' ' + nomme] ?? codes[sous] ?? 0;
+const nommees = args.flatMap((a, i) => (a === '--test' ? [args[i + 1]] : []));
+const parCible = nommees.map(n => codes[sous + ' ' + nomme + '::' + n]).filter(c => c !== undefined);
+const code = parCible.length ? Math.max(...parCible) : (codes[sous + ' ' + nomme] ?? codes[sous] ?? 0);
 if (sous === 'build' && code !== 0) {
   process.stderr.write(
     '   Compiling ' + nomme + ' v0.1.0\\n' +
@@ -180,9 +185,13 @@ if (sous === 'clippy' && process.env.FAUX_CARGO_CLIPPY) {
 }
 if (sous === 'nextest') {
   const c = dossiers.map(crate).find(p => p.name === nomme);
-  const tests = args.flatMap((a, i) => (a === '--test' ? [args[i + 1]] : []));
+  const choisit = nommees.length > 0 || args.includes('--lib') || args.includes('--bins');
   const binaires = c.targets
-    .filter(t => (tests.length ? t.kind[0] === 'test' && tests.includes(t.name) : ['lib', 'test'].includes(t.kind[0])))
+    .filter(t =>
+      choisit
+        ? (t.kind[0] === 'test' && nommees.includes(t.name)) || (t.kind[0] === 'lib' && args.includes('--lib'))
+        : ['lib', 'test'].includes(t.kind[0])
+    )
     .map(t => (t.kind[0] === 'lib' ? c.name : c.name + '::' + t.name));
   const cas = code === 0 ? '<testcase name="essai"/>' : '<testcase name="essai"><failure message="rouge &amp; faux">rouge</failure></testcase>';
   const xml = '<?xml version="1.0"?><testsuites>' + binaires.map(b => '<testsuite name="' + b + '">' + cas + '</testsuite>').join('') + '</testsuites>';
