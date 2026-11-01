@@ -345,14 +345,10 @@ export function retirerALInterruption(retirer: () => void): () => void;
 export const SEUIL_PRESSION: number;
 /** The exit code of a pass « à repasser ». */
 export const A_REPASSER: number;
-/** The longest wait for the rest of the machine, in milliseconds. */
-export const BORNE_ATTENTE_MS: number;
 /** The pressure of the processor, in percent, or null when it cannot be read. */
 export function lirePression(fichier?: string): number | null;
 /** The pressure `p` as a line says it. */
 export function ecrirePression(p: number | null): string;
-/** Waits for the rest of the machine, within its bound. */
-export function attendreLeRepos(o?: Record<string, unknown>): unknown;
 /** The variable naming the files changed since the last green (scripts/dernier-vert.mjs). */
 export const CHANGEMENTS: string;
 /** The variable naming the commit of the last green a run measures itself from. */

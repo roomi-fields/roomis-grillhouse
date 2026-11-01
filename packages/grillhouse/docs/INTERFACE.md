@@ -187,10 +187,11 @@ clippy`). Le noyau en lance trois
     séance trouve construit ce qu'elle lit (`typescript`, la construction par Turborepo) : une
     construction en échec écrit dans `<fichier>` sa première ligne, puis sa sortie, et rend 0 ;
     tout autre échec rend un autre code et arrête le lancement ;
-  - `tests-de-nuit`, que la nuit joue après la passe complète (`typescript`, les tests de nuit et
-    les bancs de temps, par Vitest ; `python`, les `*_nuit_test.py` par pytest ; `cargo`, les
-    cibles `tests/*_nuit.rs` puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à
-    repasser ».
+  - `tests-de-nuit`, que la nuit joue après la passe complète : les tests de nuit, puis les
+    mesures de temps seules, qu'aucune autre commande ne joue sans les nommer (`typescript`, les
+    tests de nuit puis les bancs de temps et les témoins de temps, un fichier à la fois, par
+    Vitest ; `python`, les `*_nuit_test.py` par pytest ; `cargo`, les cibles `tests/*_nuit.rs`
+    puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à repasser ».
 - La vérification écrit ses tâches rouges dans le fichier que nomme `GRILLHOUSE_ROUGES`, une par
   ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a
   une (`typescript`, `npx turbo run <tâche> --filter=<paquet>`) ; la nuit en tire sa commande

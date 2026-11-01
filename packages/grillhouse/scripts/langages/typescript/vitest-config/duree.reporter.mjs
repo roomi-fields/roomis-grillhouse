@@ -3,10 +3,13 @@
 // (`--reporter=<entry>`, or `reporters` in a configuration; types ./duree.reporter.d.ts). At the end
 // of a run with failures, it reads each one:
 //
-// - a failure depends on a duration when it is a delay past (an error « Test timed out in <n>ms. »
-//   or « Hook timed out in <n>ms. », Vitest's own message), a failure of a time budget bench (a
-//   file `*.budget.test.*`, `*.budget.spec.*`), or of a test marked as a measure of time
-//   (`mesurerAuRepos`, ./mesure.mjs); every other failure is a real red;
+// - a failure depends on a duration when it is a failure of a time budget bench (a file
+//   `*.budget.test.*`, `*.budget.spec.*`), of a test marked as a measure of time (`mesurerAuRepos`,
+//   ./mesure.mjs), or a delay past (an error « Test timed out in <n>ms. » or « Hook timed out in
+//   <n>ms. », Vitest's own message) in a file out of the day (a night test, a bench, a time
+//   witness: `estHorsDuJour` of ./cibles.mjs); every other failure is a real red, a delay past in
+//   a day test included: a delay of the day is a safeguard, not a measure, as in Bazel and Vitest
+//   (grillhouse-bd7), and one too tight widens, far above the test's usual duration;
 // - it took place under load when the CPU pressure (./pression.mjs) was at or above the threshold
 //   at the start or at the end of the test (noted by ./mesure.setup.mjs), or, for a hook or a file
 //   that fails outside of a test, at the start or at the end of the run.
@@ -23,6 +26,7 @@ import {
   lirePression,
   SEUIL_PRESSION,
 } from '../../../services-du-noyau.mjs';
+import { estHorsDuJour } from './cibles.mjs';
 
 const DELAI = /^(Test|Hook) timed out in \d+ms\./;
 const BANC = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
@@ -68,7 +72,9 @@ export default class DureeReporter {
           ? 'mesure de temps'
           : BANC.test(fichier)
             ? 'banc de temps'
-            : erreurs.length > 0 && erreurs.every(e => DELAI.test(e.message ?? ''))
+            : erreurs.length > 0 &&
+                erreurs.every(e => DELAI.test(e.message ?? '')) &&
+                estHorsDuJour(fichier)
               ? 'délai dépassé'
               : null;
       if (!cause) {

@@ -11,12 +11,13 @@
 //   writes (scripts/grillhouse-maj.mjs). Grillhouse's package imports it by its own name.
 //
 // - The exclusions of the day: a night test (`*.nuit.test.*`, `*.nuit.spec.*`) is too long for the
-//   day, and the measures of a time budget bench (`*.budget.test.*`, `*.budget.spec.*`) move with
-//   the load of the day: `npm test`, `npm run verifier` and the integration leave both out, and
-//   the night plays them (scripts/nuit.sh, scripts/langages/typescript/vitest.nuit.config.mjs); a targeted run that
+//   day, and every measure of time, a time budget bench (`*.budget.test.*`, `*.budget.spec.*`) or
+//   a time witness (a test file that imports `mesurerAuRepos`), moves with the load of the day:
+//   `npm test`, `npm run verifier` and the integration leave them out, and the night plays them
+//   (scripts/nuit.sh, scripts/langages/typescript/vitest.nuit.config.mjs); a targeted run that
 //   names the file of one itself plays it, under the measure of time below (./cibles.mjs, where
-//   the patterns live). `mergeConfig` adds the exclusions of a configuration that extends this one
-//   to these.
+//   the patterns live, and whose plugin leaves the witnesses out). `mergeConfig` adds the
+//   exclusions of a configuration that extends this one to these.
 // - A run that plays no test fails, as Vitest's default has it (`passWithNoTests` unset): a
 //   targeted run (`npm test -- <paths>`, scripts/langages/typescript/tests.mjs) plays each path in its package only,
 //   and a path that names no test is a mistake, never a green.
@@ -30,19 +31,17 @@
 //   (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection
 //   off (maintenance.auto=false, gc.auto=0). This file is the one address of these settings; the
 //   night configuration takes them from here.
-// - A time witness is measured with the CPU at rest: a setup file notes the CPU pressure at the
+// - A measure of time is taken with the CPU at rest: a setup file notes the CPU pressure at the
 //   start and at the end of each test (./mesure.setup.mjs), and the duration reporter, beside
 //   Vitest's default one, gives the exit code 75, « à repasser », when every failure depends on a
 //   duration and one took place under load (./duree.reporter.mjs; the signal and its threshold,
-//   ./pression.mjs). A test that measures time marks itself (`mesurerAuRepos`,
+//   scripts/mesure/pression.mjs); a delay past in a day test is a red. A test that measures time marks itself (`mesurerAuRepos`,
 //   `@roomi-fields/grillhouse/vitest-config/mesure`). `mergeConfig` adds the reporters and the setup files of
 //   a configuration that extends this one to these; a reporter named on the command line
 //   (`--reporter`) replaces them, and Vitest's code then stands.
 // - The machine of a test file is its own: a setup file gives it a lock of the heavy measure of
 //   its own, so that a `npm run verifier` a test plays in a repository of trial neither waits for
 //   the lock of the machine nor holds it (./machine.setup.mjs, scripts/verrou-de-machine.mjs).
-// - The time witnesses play alone in `npm run verifier`: the plugin below leaves them out of its
-//   pass, then plays them in a pass of their own (./cibles.mjs, scripts/langages/typescript/verifier.mjs).
 // - While a run names its results directory (`GRILLHOUSE_RESULTATS`, ./resultats.mjs), the JSON
 //   reporter writes Vitest's report there too, which the circuit reads (scripts/resultats.mjs); a
 //   setup file gives each test file's processes a results directory of their own, so that a run a

@@ -1,16 +1,27 @@
-// A time witness is measured with the CPU at rest. Witness: BPScript, where under load tests ran
-// past Vitest's delay (5 s) with nothing wrong and `npm run verifier` refused lots at random. The
-// frame's base configuration of Vitest (@roomi-fields/grillhouse/vitest-config) notes the kernel's CPU pressure
-// (/proc/pressure/cpu, line `some`, `avg10`) at the start and at the end of each test, and its
-// duration reporter gives the exit code 75, « à repasser », when every failure depends on a
-// duration (a delay past, a time budget bench, a test marked by `mesurerAuRepos`) and at least one
-// took place under load (a pressure at or above 25 %); else Vitest's code stands. The model is
-// Bazel's TIMEOUT/FLAKY and CTest's `--repeat after-timeout`: classify, then play again at rest.
+// A measure of time plays at night, at rest. Witness: BPScript, where under load tests ran past
+// Vitest's delay (5 s) with nothing wrong and `npm run verifier` refused lots at random; then
+// grillhouse-bd7: the day is always loaded, and the measures of time, heavy and long, harm it.
+// The frame's base configuration of Vitest (@roomi-fields/grillhouse/vitest-config) notes the
+// kernel's CPU pressure (/proc/pressure/cpu, line `some`, `avg10`) at the start and at the end of
+// each test, and its duration reporter gives the exit code 75, « à repasser », when every failure
+// depends on a duration (a delay past in a night test, a time budget bench, a test marked by
+// `mesurerAuRepos`) and at least one took place under load (a pressure at or above 25 %); else
+// Vitest's code stands. A delay past in a day test is a red: a delay is a safeguard, not a
+// measure (Bazel, Vitest). The model is Bazel's TIMEOUT/FLAKY and CTest's `--repeat
+// after-timeout`: classify, then play again at rest, at night.
 //
 // Each case plays the real Vitest of the repository in a project of trial; the pressure is read
 // from the file GRILLHOUSE_PRESSION_CPU names, which the case writes.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -33,11 +44,17 @@ const CHARGE = 90;
 const REPOS = 1;
 
 // A project of trial: the frame's base configuration (or the night's, `nuit`), its tests
-// <fichiers>, the pressure file at <some> (absent when null).
-function projet(fichiers: Record<string, string>, some: number | null, o: { nuit?: boolean } = {}) {
+// <fichiers>, the pressure file at <some> (absent when null), <env> added to the environment.
+// `{{trace}}` in a file is the path of the trace, read by `joues`.
+function projet(
+  fichiers: Record<string, string>,
+  some: number | null,
+  o: { nuit?: boolean; env?: (repo: string) => Record<string, string> } = {}
+) {
   const repo = mkdtempSync(path.join(ESSAIS, 'projet-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(repo, 'node_modules'), 'dir');
   const fichierPression = path.join(repo, 'pression');
+  const trace = path.join(repo, 'joues.txt');
   if (some !== null) {
     writeFileSync(fichierPression, pression(some));
   }
@@ -51,20 +68,22 @@ function projet(fichiers: Record<string, string>, some: number | null, o: { nuit
   writeFileSync(path.join(repo, 'package.json'), '{"type":"module"}\n');
   for (const [f, contenu] of Object.entries(fichiers)) {
     mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
-    writeFileSync(path.join(repo, f), contenu);
+    writeFileSync(path.join(repo, f), contenu.replaceAll('{{trace}}', JSON.stringify(trace)));
   }
   const env = {
     ...Object.fromEntries(
       Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
     ),
     GRILLHOUSE_PRESSION_CPU: fichierPression,
+    ...(o.env?.(repo) ?? {}),
   };
   const r = spawnSync(
     path.join(DEPOT, 'node_modules/.bin/vitest'),
     ['run', '--root', repo, '--config', config],
     { cwd: repo, encoding: 'utf8', env, timeout: 120_000 }
   );
-  return { status: r.status, sortie: `${r.stdout}\n${r.stderr}`, fichierPression };
+  const joues = existsSync(trace) ? readFileSync(trace, 'utf8').split('\n').filter(Boolean) : [];
+  return { status: r.status, sortie: `${r.stdout}\n${r.stderr}`, fichierPression, joues };
 }
 
 const MESURE = JSON.stringify(path.join(PAQUET, 'mesure.mjs'));
@@ -73,53 +92,72 @@ const DELAI = `import { it } from 'vitest';\nit('lent', async () => { await new 
 // A test that fails on an assertion.
 const ROUGE = `import { it, expect } from 'vitest';\nit('faux', () => { expect(1).toBe(2); });\n`;
 const VERT = `import { it } from 'vitest';\nit('juste', () => {});\n`;
+// A test that writes <nom> to the trace.
+const TRACE = (nom: string) =>
+  `import { appendFileSync } from 'node:fs';\nimport { it } from 'vitest';\nit('${nom}', () => { appendFileSync({{trace}}, '${nom}\\n'); });\n`;
+// A time witness (a file that imports `mesurerAuRepos`) that writes <nom> to the trace, then fails
+// its measure.
+const TEMOIN = (nom: string) =>
+  `import { appendFileSync } from 'node:fs';\nimport { it, expect } from 'vitest';\nimport { mesurerAuRepos } from ${MESURE};\n` +
+  `it('${nom}', ctx => mesurerAuRepos(ctx, () => { appendFileSync({{trace}}, '${nom}\\n'); expect(50).toBeLessThan(10); }));\n`;
+// The variable of a targeted run (scripts/langages/typescript/vitest-config/cibles.mjs), its paths
+// from the project's root.
+const CIBLES =
+  (...chemins: string[]) =>
+  (repo: string) => ({
+    GRILLHOUSE_TESTS: JSON.stringify({ arguments: chemins.map(c => path.join(repo, c)) }),
+  });
 
 describe('the duration reporter of the base configuration', { timeout: 120_000 }, () => {
-  it('a delay past under load gives 75, the pressure and the threshold written', () => {
+  it('bd7 critère 4: a delay past under load in a day test is a red, 1, never « à repasser »', () => {
     const p = projet({ 'tests/a.test.mjs': DELAI }, CHARGE);
+    expect(p.status, p.sortie).toBe(1);
+    expect(p.sortie).not.toMatch(/à repasser/);
+  });
+  it('a delay past under load in a night test gives 75, the pressure and the threshold written', () => {
+    const p = projet({ 'tests/a.nuit.test.mjs': DELAI }, CHARGE, { nuit: true });
     expect(p.status, p.sortie).toBe(A_REPASSER);
     expect(p.sortie).toContain('90.0 %');
     expect(p.sortie).toContain(`seuil ${SEUIL_PRESSION} %`);
     expect(p.sortie).toMatch(/à repasser/);
   });
-  it('a delay past at rest is a red: 1', () => {
-    const p = projet({ 'tests/a.test.mjs': DELAI }, REPOS);
+  it('a delay past at rest in a night test is a red: 1', () => {
+    const p = projet({ 'tests/a.nuit.test.mjs': DELAI }, REPOS, { nuit: true });
     expect(p.status, p.sortie).toBe(1);
     expect(p.sortie).toContain(`seuil ${SEUIL_PRESSION} %`);
   });
   it('a delay past under load beside a real red is a red: 1', () => {
-    const p = projet({ 'tests/a.test.mjs': DELAI, 'tests/b.test.mjs': ROUGE }, CHARGE);
+    const p = projet({ 'tests/a.nuit.test.mjs': DELAI, 'tests/b.nuit.test.mjs': ROUGE }, CHARGE, {
+      nuit: true,
+    });
     expect(p.status, p.sortie).toBe(1);
   });
   it('a real red under load alone is a red: 1', () => {
     const p = projet({ 'tests/b.test.mjs': ROUGE }, CHARGE);
     expect(p.status, p.sortie).toBe(1);
   });
-  it('a hook past its delay under load gives 75', () => {
+  it('a hook past its delay under load in a night test gives 75', () => {
     const p = projet(
       {
-        'tests/a.test.mjs': `import { it, describe, beforeAll } from 'vitest';\ndescribe('s', () => {\n  beforeAll(async () => { await new Promise(r => setTimeout(r, 400)); }, 100);\n  it('dedans', () => {});\n});\n`,
+        'tests/a.nuit.test.mjs': `import { it, describe, beforeAll } from 'vitest';\ndescribe('s', () => {\n  beforeAll(async () => { await new Promise(r => setTimeout(r, 400)); }, 100);\n  it('dedans', () => {});\n});\n`,
       },
-      CHARGE
+      CHARGE,
+      { nuit: true }
     );
     expect(p.status, p.sortie).toBe(A_REPASSER);
   });
   it('a pressure at the threshold at the start of the test only is a load: 75', () => {
     const p = projet(
       {
-        'tests/a.test.mjs': `import { writeFileSync } from 'node:fs';\nimport { it } from 'vitest';\nit('lent', async () => {\n  writeFileSync(process.env.GRILLHOUSE_PRESSION_CPU, ${JSON.stringify(pression(REPOS))});\n  await new Promise(r => setTimeout(r, 400));\n}, 100);\n`,
+        'tests/a.nuit.test.mjs': `import { writeFileSync } from 'node:fs';\nimport { it } from 'vitest';\nit('lent', async () => {\n  writeFileSync(process.env.GRILLHOUSE_PRESSION_CPU, ${JSON.stringify(pression(REPOS))});\n  await new Promise(r => setTimeout(r, 400));\n}, 100);\n`,
       },
-      SEUIL_PRESSION
+      SEUIL_PRESSION,
+      { nuit: true }
     );
     expect(p.status, p.sortie).toBe(A_REPASSER);
   });
   it('a test marked by mesurerAuRepos that fails under load gives 75; the same test unmarked, 1', () => {
-    const marque = projet(
-      {
-        'tests/a.test.mjs': `import { it, expect } from 'vitest';\nimport { mesurerAuRepos } from ${MESURE};\nit('mesure', ctx => mesurerAuRepos(ctx, () => { expect(50).toBeLessThan(10); }));\n`,
-      },
-      CHARGE
-    );
+    const marque = projet({ 'tests/a.test.mjs': TEMOIN('mesure') }, CHARGE, { nuit: true });
     expect(marque.status, marque.sortie).toBe(A_REPASSER);
     const nu = projet(
       {
@@ -134,7 +172,8 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
       {
         'tests/a.test.mjs': `import { it, expect } from 'vitest';\nimport { mesurerAuRepos } from ${MESURE};\nit('valeur', async ctx => {\n  expect(await mesurerAuRepos(ctx, async () => 42)).toBe(42);\n  expect(mesurerAuRepos(ctx, () => 'x')).toBe('x');\n});\n`,
       },
-      REPOS
+      REPOS,
+      { nuit: true }
     );
     expect(p.status, p.sortie).toBe(0);
   });
@@ -143,7 +182,7 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
     expect(p.status, p.sortie).toBe(0);
   });
   it('a pressure that does not read leaves the verdict to Vitest, and says so', () => {
-    const p = projet({ 'tests/a.test.mjs': DELAI }, null);
+    const p = projet({ 'tests/a.nuit.test.mjs': DELAI }, null, { nuit: true });
     expect(p.status, p.sortie).toBe(1);
     expect(p.sortie).toMatch(/pression CPU illisible/);
   });
@@ -163,7 +202,7 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
     writeFileSync(path.join(repo, 'package.json'), '{"type":"module"}\n');
     writeFileSync(path.join(repo, 'vitest.config.mjs'), 'export default {};\n');
     mkdirSync(path.join(repo, 'tests'));
-    writeFileSync(path.join(repo, 'tests/a.test.mjs'), DELAI);
+    writeFileSync(path.join(repo, 'tests/a.nuit.test.mjs'), DELAI);
     const env = {
       ...Object.fromEntries(
         Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
@@ -176,7 +215,7 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
       { cwd: repo, encoding: 'utf8', env, timeout: 120_000 }
     );
     const sortie = `${r.stdout}\n${r.stderr}`;
-    expect(sortie).toContain('⏱ tests/a.test.mjs › lent : délai dépassé');
+    expect(sortie).toContain('⏱ tests/a.nuit.test.mjs › lent : délai dépassé');
     expect(sortie).toContain(`seuil ${SEUIL_PRESSION} %`);
     expect(r.status, sortie).toBe(1);
   });
@@ -186,6 +225,54 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
     expect(charge.status, charge.sortie).toBe(A_REPASSER);
     const repos = projet(banc, REPOS, { nuit: true });
     expect(repos.status, repos.sortie).toBe(1);
+  });
+});
+
+// grillhouse-bd7: every measure of time plays at night, in every language. A time witness (a test
+// file that imports `mesurerAuRepos`) is out of the day, as a time budget bench is.
+describe('bd7 — the time witnesses play at night', { timeout: 120_000 }, () => {
+  const FICHIERS = { 'tests/temps.test.mjs': TEMOIN('temoin'), 'tests/x.test.mjs': TRACE('jour') };
+  it('critère 1: the day leaves a time witness out and plays its other tests', () => {
+    const p = projet(FICHIERS, CHARGE);
+    expect(p.status, p.sortie).toBe(0);
+    expect(p.joues).toEqual(['jour']);
+  });
+  it('critère 1: a targeted run that names a directory leaves the witness under it out', () => {
+    const p = projet(FICHIERS, CHARGE, { env: CIBLES('tests/') });
+    expect(p.status, p.sortie).toBe(0);
+    expect(p.joues).toEqual(['jour']);
+  });
+  it('critère 2: a targeted run that names the file of a witness plays it, under the measure of time: 75 under load, 1 at rest', () => {
+    const charge = projet(FICHIERS, CHARGE, { env: CIBLES('tests/temps.test.mjs') });
+    expect(charge.status, charge.sortie).toBe(A_REPASSER);
+    expect(charge.joues).toEqual(['temoin']);
+    const repos = projet(FICHIERS, REPOS, { env: CIBLES('tests/temps.test.mjs') });
+    expect(repos.status, repos.sortie).toBe(1);
+  });
+  it('critère 1: the night configuration plays the witnesses, and no day test', () => {
+    const p = projet(FICHIERS, CHARGE, { nuit: true });
+    expect(p.status, p.sortie).toBe(A_REPASSER);
+    expect(p.joues).toEqual(['temoin']);
+  });
+  it('critère 1: the night plays its night tests apart from its measures, the witnesses and the benches', () => {
+    const fichiers = {
+      ...FICHIERS,
+      'tests/a.nuit.test.mjs': TRACE('nuit'),
+      'tests/t.budget.test.mjs': TRACE('banc'),
+    };
+    const nuit = projet(fichiers, REPOS, {
+      nuit: true,
+      env: () => ({ GRILLHOUSE_TESTS_DE_NUIT: 'nuit' }),
+    });
+    expect(nuit.status, nuit.sortie).toBe(0);
+    expect(nuit.joues).toEqual(['nuit']);
+    const mesures = projet(fichiers, CHARGE, {
+      nuit: true,
+      env: () => ({ GRILLHOUSE_TESTS_DE_NUIT: 'mesures' }),
+    });
+    expect(mesures.status, mesures.sortie).toBe(A_REPASSER);
+    expect(mesures.joues.sort()).toEqual(['banc', 'temoin']);
+    expect(mesures.sortie).not.toMatch(/a\.nuit\.test/);
   });
 });
 

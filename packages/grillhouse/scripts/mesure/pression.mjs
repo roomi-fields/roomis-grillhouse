@@ -1,7 +1,8 @@
-// The CPU pressure of the machine, the witness of rest for every measure of time: a time witness
-// is measured with the CPU at rest, and a failure that depends on a duration under load is played
-// again at rest (« à repasser »), never taken as a red nor as a green. The model is Bazel's
-// TIMEOUT/FLAKY and CTest's `--repeat after-timeout`: classify, then play again.
+// The CPU pressure of the machine, the witness of rest for every measure of time, which plays at
+// night (grillhouse-bd7): a measure is taken with the CPU at rest, and a failure that depends on a
+// duration under load is played again at rest (« à repasser »), never taken as a red nor as a
+// green. The model is Bazel's TIMEOUT/FLAKY and CTest's `--repeat after-timeout`: classify, then
+// play again.
 //
 // - The signal is the kernel's pressure stall information, `/proc/pressure/cpu`, line `some`,
 //   field `avg10`: the share of the last ten seconds in which a task waited for a CPU, in %.
@@ -10,9 +11,10 @@
 // - A file that does not read (no pressure stall information on the machine) gives null: whoever
 //   reads it says « pression illisible » and leaves the verdict to the runner of the tests.
 // - A_REPASSER, 75, is the exit code of « à repasser » (EX_TEMPFAIL of sysexits.h: try again
-//   later), neither green nor red: the duration reporter of the module of the language gives it
-//   (scripts/langages/typescript/vitest-config/duree.reporter.mjs), `npm run verifier` reads it (scripts/langages/typescript/verifier.mjs),
-//   and so do the integration, the queue and the night.
+//   later), neither green nor red: the measure of time of each module of language gives it
+//   (scripts/langages/typescript/vitest-config/duree.reporter.mjs, the benches of the module cargo),
+//   and the night reads it (scripts/nuit.sh). The day waits for no rest: `npm run verifier` takes a
+//   task at 75 for a red (scripts/langages/typescript/verifier.mjs).
 //
 //   npx grillhouse pression attendre
 //

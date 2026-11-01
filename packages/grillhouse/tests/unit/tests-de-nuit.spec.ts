@@ -269,3 +269,84 @@ describe('critère 5 — by day, a fast test keeps the trial directories off a f
     }
   });
 });
+
+// grillhouse-bd7, critère 1: every measure of time plays at night, alone, at rest. The command
+// `tests-de-nuit` of the module typescript (scripts/langages/typescript/tests-de-nuit.mjs) plays the
+// night tests, then the measures, the time witnesses (a file that imports `mesurerAuRepos`) and
+// the time budget benches, one file at a time, as the module cargo plays its benches after its
+// night tests, one test at a time.
+describe('bd7 critère 1 — the night plays the measures of time alone, after its night tests', () => {
+  const SCRIPT = path.join(
+    DEPOT,
+    'packages/grillhouse/scripts/langages/typescript/tests-de-nuit.mjs'
+  );
+  const MESURE = path.join(
+    DEPOT,
+    'packages/grillhouse/scripts/langages/typescript/vitest-config/mesure.mjs'
+  );
+  // A test that writes « <nom> début », waits 300 ms, then writes « <nom> fin » to <trace>; a
+  // witness when <temoin>.
+  const lent = (trace: string, nom: string, temoin = false) =>
+    "import { appendFileSync } from 'node:fs';\nimport { it } from 'vitest';\n" +
+    (temoin ? `import { mesurerAuRepos } from ${JSON.stringify(MESURE)};\n` : '') +
+    `it('${nom}', ${temoin ? 'ctx => mesurerAuRepos(ctx, async () => {' : 'async () => {'}\n` +
+    `  appendFileSync(${JSON.stringify(trace)}, '${nom} début\\n');\n` +
+    '  await new Promise(r => setTimeout(r, 300));\n' +
+    `  appendFileSync(${JSON.stringify(trace)}, '${nom} fin\\n');\n` +
+    `}${temoin ? ')' : ''});\n`;
+  it('critère 1: the night tests first, then each witness and each bench alone, and no day test', () => {
+    const repo = mkdtempSync(path.join(ESSAIS, 'mesures-'));
+    lierDependances(repo, DEPOT);
+    const trace = path.join(repo, 'trace');
+    const fichiers: Record<string, string> = {
+      'package.json': '{"type":"module"}\n',
+      'tests/a.nuit.test.mjs': lent(trace, 'nuit-a'),
+      'tests/b.nuit.test.mjs': lent(trace, 'nuit-b'),
+      'tests/t.budget.test.mjs': lent(trace, 'banc'),
+      'tests/temps.test.mjs': lent(trace, 'temoin-1', true),
+      'tests/profond/temps.spec.mjs': lent(trace, 'temoin-2', true),
+      'tests/jour.test.mjs': lent(trace, 'jour'),
+    };
+    for (const [f, contenu] of Object.entries(fichiers)) {
+      mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
+      writeFileSync(path.join(repo, f), contenu);
+    }
+    const pression = path.join(repo, 'pression');
+    writeFileSync(pression, 'some avg10=1.00 avg60=0.00 avg300=0.00 total=1\n');
+    const env = {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST') && k !== 'NODE_OPTIONS')
+      ),
+      GRILLHOUSE_PRESSION_CPU: pression,
+    };
+    const r = spawnSync(process.execPath, [SCRIPT], {
+      cwd: repo,
+      encoding: 'utf8',
+      env,
+      timeout: 120_000,
+    });
+    expect(r.status, sortie(r)).toBe(0);
+    const lignes = readFileSync(trace, 'utf8').split('\n').filter(Boolean);
+    expect(lignes.some(l => l.startsWith('jour'))).toBe(false);
+    // The night tests, both, before any measure.
+    expect(
+      lignes
+        .slice(0, 4)
+        .map(l => l.split(' ')[0])
+        .sort()
+    ).toEqual(['nuit-a', 'nuit-a', 'nuit-b', 'nuit-b']);
+    // Then the three measures, each one ended before the next begins.
+    const mesures = lignes.slice(4);
+    expect(mesures).toHaveLength(6);
+    for (let i = 0; i < 6; i += 2) {
+      expect(mesures[i]).toMatch(/ début$/);
+      expect(mesures[i + 1]).toBe(mesures[i].replace(' début', ' fin'));
+    }
+    expect(
+      mesures
+        .filter(l => l.endsWith('début'))
+        .map(l => l.split(' ')[0])
+        .sort()
+    ).toEqual(['banc', 'temoin-1', 'temoin-2']);
+  }, 120_000);
+});

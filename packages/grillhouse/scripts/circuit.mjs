@@ -372,8 +372,8 @@
 //   file and line, message, the beginning of a failed build's own log), then the count of the
 //   others and the path of the log; the report of a stop names every red with its package.
 // - A check at 75 (« à repasser ») out of the final pass plays once more, the gesture `rejeu`;
-//   verifier plays its tasks at 75 again itself, at rest, and its 75 is the final pass's. A check
-//   still at 75 ends the circuit at 75, the gesture `a-repasser`. A red relaunches the developpeur
+//   the 75 of verifier, the final pass's, is final (its wait for the lock of the machine reached
+//   its bound). A check still at 75 ends the circuit at 75, the gesture `a-repasser`. A red relaunches the developpeur
 //   with its report, twice at most, the third session on the strong model (`lancer.sh --modele
 //   opus --effort high`): three sessions for the checks, and three for the final pass.
 // - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
@@ -3251,8 +3251,8 @@ function controles(ctx, finale, restreinte = null, reportes = null) {
         : commandesDuPlan(ctx, liste);
   const resultats = commandes.map(({ args, env }) => {
     let r = npm(ctx, 'controles', args, env);
-    // verifier plays a task at 75 again itself, at rest: its 75 is final; a command of the checks
-    // plays once more, the gesture `rejeu`.
+    // The 75 of verifier is final (its wait for the lock reached its bound); a command of the
+    // checks plays once more, the gesture `rejeu`.
     if (r.code === A_REPASSER && !finale) {
       geste(ctx, 'rejeu');
       r = npm(ctx, 'controles', args, env);

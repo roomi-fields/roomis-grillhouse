@@ -129,10 +129,11 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   coûte ni testwriter ni développeur.
 - **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
   sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
-  branche gardée en file) : je relance `--reprendre` en arrière-plan, la
-  machine au repos (`uptime`) ; repris à l'étape `file`, il relit ce qu'une autre file a fait de la
-  branche, et finit à `integre` quand elle est entrée. Ainsi un « à repasser » se rejoue au repos,
-  sans décision.
+  branche gardée en file) : le jour, un 75 vient de l'attente du verrou de la machine ou de place
+  sous /tmp, à sa borne ; je relance `--reprendre` en arrière-plan, une fois la machine libérée ;
+  repris à l'étape `file`, il relit ce qu'une autre file a fait de la branche, et finit à `integre`
+  quand elle est entrée. La machine au repos (`uptime`) ne vaut que pour une mesure de temps nommée
+  dans un lancement ciblé. Ainsi un « à repasser » se rejoue sans décision.
 - **Le bilan chiffré de chaque ticket** : à chacune de ses fins, `integre` ou un arrêt qui me
   revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur, hors nuit
   d'attente aussi, et sa part perdue, hors attentes aussi ; le temps par catégorie, l'attente répartie entre
@@ -233,7 +234,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
   (`packages/grillhouse/scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`,
-  `*_nuit_test.py`, `tests/*_nuit.rs`) et des bancs de budget (`*.budget.test.*`, `tests/*_budget.rs`), puis du script de nuit du projet, chaque étape jouée même
+  `*_nuit_test.py`, `tests/*_nuit.rs`), puis des mesures de temps seules, les bancs de budget (`*.budget.test.*`,
+  `tests/*_budget.rs`) et les témoins de temps (`mesurerAuRepos`), puis du script de nuit du projet, chaque étape jouée même
   après un rouge ; chaque tâche rouge commente le ticket étiqueté `nuit` qui la nomme, ou ouvre le
   sien, avec les commits où chercher, chaque étape et chaque tâche rouges ;
   une nuit « à repasser » (code 75 : des échecs de durée sous charge, sans repos) n'ouvre rien et

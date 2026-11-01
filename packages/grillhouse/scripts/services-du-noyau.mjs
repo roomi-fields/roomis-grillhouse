@@ -26,12 +26,5 @@ export {
   ouvrirBase,
   retirerALInterruption,
 } from './mesure/base-de-passe.mjs';
-export {
-  A_REPASSER,
-  attendreLeRepos,
-  BORNE_ATTENTE_MS,
-  ecrirePression,
-  lirePression,
-  SEUIL_PRESSION,
-} from './mesure/pression.mjs';
+export { A_REPASSER, ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
 export { attendreDeLaPlace, AttenteDeLaMachine, avecLaMachine } from './verrou-de-machine.mjs';

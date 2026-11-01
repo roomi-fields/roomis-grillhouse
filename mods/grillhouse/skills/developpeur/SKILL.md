@@ -83,9 +83,10 @@ partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test 
 joue sans la construire, et les journaux et le cache du lancement restent dans ta séance. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
 des tests, dans la passe complète que l'intégration joue ; le relecteur les joue seules sur la
-copie ; leur refus nomme la commande qui corrige. Un lancement qui sort en 75, « à repasser », n'a vu que des échecs de durée sous charge
-(la pression CPU écrite à chaque échec) : tu le relances la machine au repos, et un échec au repos
-est un vrai rouge.
+copie ; leur refus nomme la commande qui corrige. Le jour ne mesure aucun temps : un délai dépassé
+est un rouge. Un lancement qui nomme une mesure de temps (un banc, un témoin de temps) ou un test
+de nuit et sort en 75, « à repasser », n'a vu que des échecs de durée sous charge (la pression CPU
+écrite à chaque échec) : la nuit le juge, et un échec au repos est un vrai rouge.
 
 **Un fichier s'écrit par l'outil Write ou Edit**, que ton verrou juge : jamais par un script
 (python3, sed -i, perl -i) ni par une redirection du shell, que ta séance refuse ; un fichier

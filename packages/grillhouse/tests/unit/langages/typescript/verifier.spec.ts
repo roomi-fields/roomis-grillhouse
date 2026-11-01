@@ -1,8 +1,9 @@
 // `npm run verifier` (scripts/langages/typescript/verifier.mjs): Turborepo plays the guards and the tests, then the
-// frame reads the exit code of each task in the run's summary. A task at 75 (« à repasser »: every
-// failure depended on a duration, one under load, scripts/langages/typescript/vitest-config/) is played again alone
-// once the CPU pressure is back under the threshold; a task at any other non-zero code is a red.
-// Witness: BPScript, where tests past Vitest's delay under load refused lots at random.
+// frame reads the exit code of each task in the run's summary: a task at any non-zero code is a red.
+// grillhouse-bd7: the day waits for no rest. A task at 75 is a red as any other, and a delay past
+// under load in a day test is a red (the duration reporter, scripts/langages/typescript/vitest-config/): a delay
+// is a safeguard, not a measure (Bazel, Vitest); « à repasser » under load lives at night alone.
+// Witness: the day's machine is always loaded, and the waits for rest held the passes.
 //
 // Each case plays the real Turborepo and the real Vitest of the repository in a repository of
 // trial with two packages; the pressure is read from the file GRILLHOUSE_PRESSION_CPU names, which
@@ -21,8 +22,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandeDe } from '../../../../scripts/sous-commandes.mjs';
-import { A_REPASSER } from '../../../../scripts/mesure/pression.mjs';
-import { verifier } from '../../../../scripts/langages/typescript/verifier.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../../../..');
 const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/verifier.mjs');
@@ -38,19 +37,17 @@ const pression = (some: number) =>
 const json = (o: unknown) => `${JSON.stringify(o, null, 2)}\n`;
 
 // A test that writes its name to the trace, then: `vert`; `rouge` (an assertion); `delai` (past its
-// delay, every time); `delai-une-fois` (past its delay the first time only).
-type Sorte = 'vert' | 'rouge' | 'delai' | 'delai-une-fois';
+// delay, every time).
+type Sorte = 'vert' | 'rouge' | 'delai';
 const fichierDeTest = (racine: string, nom: string, sorte: Sorte) => {
   const trace = JSON.stringify(path.join(racine, 'joues.txt'));
-  const marque = JSON.stringify(path.join(racine, `${nom}.deja`));
   const corps = {
     vert: '',
     rouge: '  expect(1).toBe(2);\n',
     delai: '  await new Promise(r => setTimeout(r, 400));\n',
-    'delai-une-fois': `  if (!existsSync(${marque})) { writeFileSync(${marque}, ''); await new Promise(r => setTimeout(r, 400)); }\n`,
   }[sorte];
   return (
-    "import { appendFileSync, existsSync, writeFileSync } from 'node:fs';\n" +
+    "import { appendFileSync } from 'node:fs';\n" +
     "import { it, expect } from 'vitest';\n" +
     `it('${nom}', async () => {\n  appendFileSync(${trace}, '${nom}\\n');\n${corps}}, 100);\n`
   );
@@ -126,23 +123,16 @@ function depot(
   return { racine: r, env, joues, ecrirePression };
 }
 
-// The script run as `npm run verifier` runs it; <auPremierAttente> runs when its first wait line
-// comes out.
+// The script run as `npm run verifier` runs it.
 function lancer(
   d: ReturnType<typeof depot>,
-  args: string[] = [],
-  auPremierAttente?: () => void
+  args: string[] = []
 ): Promise<{ status: number | null; sortie: string }> {
   return new Promise(resolve => {
     const p = spawn(process.execPath, [SCRIPT, ...args], { cwd: d.racine, env: d.env });
     let sortie = '';
-    let vu = false;
     const lire = (b: Buffer) => {
       sortie += b.toString();
-      if (!vu && auPremierAttente && sortie.includes('⏳')) {
-        vu = true;
-        auPremierAttente();
-      }
     };
     p.stdout.on('data', lire);
     p.stderr.on('data', lire);
@@ -150,49 +140,46 @@ function lancer(
   });
 }
 
+// A package whose script of the tests exits 75.
+const A_75 = { 'test:unit': 'node -e "process.exit(75)"' };
+
 describe('npm run verifier', { timeout: 180_000 }, () => {
-  it('a delay past under load: the task waits for rest, plays again alone, and the pass is green', async () => {
-    const d = depot('delai-une-fois', 'vert', 90);
-    const r = await lancer(d, [], () => d.ecrirePression(1));
-    expect(r.status, r.sortie).toBe(0);
-    expect(r.sortie).toContain('90.0 %');
-    expect(r.sortie).toContain('↻ a#test:unit');
-    expect(r.sortie).not.toContain('↻ b#test:unit');
-    expect(d.joues().sort()).toEqual(['a', 'a', 'b']);
-  });
-  it('a real red beside a task at 75 is a red, named, and nothing waits', async () => {
-    const d = depot('delai', 'rouge', 90);
+  it('bd7 critère 4: a delay past under load is a red at once, named; nothing waits for rest, nothing plays again', async () => {
+    const d = depot('delai', 'vert', 90);
     const r = await lancer(d);
     expect(r.status, r.sortie).toBe(1);
-    expect(r.sortie).toContain('⛔ b#test:unit');
+    expect(r.sortie).toContain('⛔ a#test:unit');
     expect(r.sortie).not.toContain('⏳');
     expect(r.sortie).not.toContain('↻');
+    expect(r.sortie).not.toMatch(/à repasser/);
     expect(d.joues().sort()).toEqual(['a', 'b']);
   });
-  it('a task played again at rest that fails is a red', async () => {
-    const d = depot('delai', 'vert', 90);
-    const r = await lancer(d, [], () => d.ecrirePression(1));
+  it('bd7 critère 4: a task at 75 is a red, named with its code; the pass never gives 75', async () => {
+    const d = depot('vert', 'vert', 90, { a: A_75 });
+    const r = await lancer(d);
     expect(r.status, r.sortie).toBe(1);
-    expect(r.sortie).toContain('↻ a#test:unit');
-    expect(r.sortie).toContain('⛔ a#test:unit');
+    expect(r.sortie).toContain('⛔ a#test:unit (code 75)');
+    expect(r.sortie).not.toContain('⏳');
+    expect(r.sortie).not.toContain('↻');
   });
   // grillhouse-3uv.56.2: the red tasks, one Turborepo task id per line, go to the file
-  // GRILLHOUSE_ROUGES names, where the night reads them for its bisect commands; a task at 75 is
-  // none of them. grillhouse-pkl.5: each with the command that replays it alone, after a tab,
-  // which the night gives to `git bisect run` without naming the tool itself.
-  it('3uv.56.2: the file GRILLHOUSE_ROUGES names holds the red task, not the task at 75', async () => {
+  // GRILLHOUSE_ROUGES names, where the night reads them for its bisect commands. grillhouse-pkl.5:
+  // each with the command that replays it alone, after a tab, which the night gives to `git
+  // bisect run` without naming the tool itself.
+  it('3uv.56.2: the file GRILLHOUSE_ROUGES names holds each red task, a delay past under load included', async () => {
     const d = depot('delai', 'rouge', 90);
     const fichier = path.join(d.racine, 'rouges');
     const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
     expect(r.status, r.sortie).toBe(1);
-    expect(readFileSync(fichier, 'utf8')).toBe('b#test:unit\tnpx turbo run test:unit --filter=b\n');
+    expect(readFileSync(fichier, 'utf8').split('\n').filter(Boolean).sort()).toEqual([
+      'a#test:unit\tnpx turbo run test:unit --filter=a',
+      'b#test:unit\tnpx turbo run test:unit --filter=b',
+    ]);
   });
-  it('3uv.56.2: a task red at rest is in the file GRILLHOUSE_ROUGES names', async () => {
-    const d = depot('delai', 'vert', 90);
+  it('bd7 critère 4: a task at 75 is in the file GRILLHOUSE_ROUGES names', async () => {
+    const d = depot('vert', 'vert', 90, { a: A_75 });
     const fichier = path.join(d.racine, 'rouges');
-    const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } }, [], () =>
-      d.ecrirePression(1)
-    );
+    const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
     expect(r.status, r.sortie).toBe(1);
     expect(readFileSync(fichier, 'utf8')).toBe('a#test:unit\tnpx turbo run test:unit --filter=a\n');
   });
@@ -203,23 +190,6 @@ describe('npm run verifier', { timeout: 180_000 }, () => {
     const r = await lancer({ ...d, env: { ...d.env, GRILLHOUSE_ROUGES: fichier } });
     expect(r.status, r.sortie).toBe(0);
     expect(readFileSync(fichier, 'utf8')).toBe('');
-  });
-  it('the bound reached without rest gives 75, neither green nor red', () => {
-    const d = depot('delai', 'vert', 90);
-    const lignes: string[] = [];
-    const code = verifier({
-      racine: d.racine,
-      args: [],
-      env: d.env,
-      borneMs: 1_500,
-      pasMs: 100,
-      dire: (l: string) => {
-        lignes.push(l);
-        return true;
-      },
-    });
-    expect(code, lignes.join('\n')).toBe(A_REPASSER);
-    expect(lignes.join('\n')).toMatch(/à repasser/);
   });
   it('green at once is 0, and the summary of the run is removed', async () => {
     const d = depot('vert', 'vert', 90);

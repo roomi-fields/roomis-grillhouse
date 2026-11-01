@@ -404,9 +404,9 @@ describe('an integration', () => {
     expect(r.stdout.indexOf('sortie des tests : t > rouge')).toBeGreaterThanOrEqual(0);
     expect(r.stdout.indexOf('sortie des tests')).toBeLessThan(r.stdout.indexOf('⛔'));
   });
-  // « À repasser » (75): every failure of the tests depended on a duration under load, and the
-  // pass found no rest in its bound (scripts/langages/typescript/verifier.mjs). Neither green nor red: nothing is
-  // committed, nothing is refused, the lot stays where it is for the same command again.
+  // « À repasser » (75): the wait of the pass for the lock of the machine, or for room in the
+  // temporary directory, reached its bound (scripts/verrou-de-machine.mjs). Neither green nor red:
+  // nothing is committed, nothing is refused, the lot stays where it is for the same command again.
   it('a npm run verifier à repasser (75) neither commits nor refuses: exit 75, the lot stays', () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('suites.mjs', "process.stdout.write('⏱ à repasser\\n');\nprocess.exit(75);\n");

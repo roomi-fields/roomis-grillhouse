@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The night: once a day, the full pass played for real, then what the day never plays: the night
-# tests and the time budget benches. During the day `npm run verifier` (the integration's) plays
+# tests and the measures of time (the time budget benches and the time witnesses). During the day `npm run verifier` (the integration's) plays
 # what the changes since the last green touch (scripts/integration/integrer.mjs,
 # scripts/dernier-vert.mjs); the module of the project's language plays each step
 # (scripts/jointure.d.ts).
@@ -23,8 +23,9 @@
 #   becomes the last green of the day's passes.
 #   Its three steps (the full pass, the night tests, the project's night script) each play even
 #   when one before is red, as a CI plays its independent jobs; the night is red when one of them
-#   is. A full pass « à repasser » (75: a failure of duration under load, which found no rest in
-#   its bound) ends the night there, « à repasser », below.
+#   is. A full pass « à repasser » (75: the wait for the machine reached its bound; the pass plays
+#   no measure of time, and a delay past is a red there) ends the night there, « à repasser »,
+#   below.
 #   An existing copy that does not get ready (its move onto HEAD, its cleaning or the setting of
 #   its submodules fails) is removed by `scripts/retirer-copie.sh --jetable` (local work does not
 #   hold it, a lock does) and created again, once; a copy that does not get ready the second time
@@ -38,12 +39,13 @@
 #   (scripts/outils-cles.mjs) gives each command of the project its variables, each set to its
 #   path, whatever the environment of the night's launcher; a faulty key turns the night red, the
 #   log naming it, and nothing runs.
-# - The night tests: after the full pass, the night tests and the time budget benches, which
-#   `npm test` and the integration leave out, played by the command `tests-de-nuit` of the module
-#   of the copy's language (the module typescript's: the files `*.nuit.test.*`, `*.nuit.spec.*`,
-#   `*.budget.test.*` and `*.budget.spec.*`, by Vitest; the module python's, `*_nuit_test.py`; the
-#   module cargo's, the test targets `tests/*_nuit.rs` then the benches `tests/*_budget.rs`, by
-#   nextest), when the project declares a language
+# - The night tests: after the full pass, the night tests, then the measures of time alone (the
+#   time budget benches and the time witnesses), which `npm test` and the integration leave out
+#   (grillhouse-bd7), played by the command `tests-de-nuit` of the module of the copy's language
+#   (the module typescript's: the files `*.nuit.test.*` and `*.nuit.spec.*`, then the files
+#   `*.budget.test.*`, `*.budget.spec.*` and those that import `mesurerAuRepos`, one at a time, by
+#   Vitest; the module python's, `*_nuit_test.py`; the module cargo's, the test targets
+#   `tests/*_nuit.rs` then the benches `tests/*_budget.rs`, by nextest), when the project declares a language
 #   whose module describes it (scripts/commande-du-langage.mjs); none otherwise. A red turns the night red, with a log line that
 #   says so, and the project's night script still plays. A run « à repasser » (75: every failure
 #   depended on a duration, one under load) waits for rest (`npx grillhouse pression attendre`,
@@ -231,7 +233,7 @@ jouer() {
   GRILLHOUSE_ROUGES="$rouges" monter npm --prefix "$copie" run verifier -- --force
   code=$?
   if [ "$code" -eq 75 ]; then
-    echo "⏱ la passe complète est à repasser (code 75) : un échec de durée sous charge, sans repos dans la borne."
+    echo "⏱ la passe complète est à repasser (code 75) : l'attente de la machine a atteint sa borne."
     return 75
   fi
   if [ "$code" -ne 0 ]; then

@@ -8,9 +8,9 @@ les agents. Chaque règle dit le comportement, et le modèle mûr qu’il suit.
 et joué dans son paquet avec ce dont ses tests dépendent (un autre jeu de chemins relit les
 constructions du cache ; un changement de ce qu'ils importent les rejoue),
 `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test soupçonné instable ; un
-lancement qui ne joue aucun test échoue ; un banc de temps ou un test de nuit se joue quand son
-propre fichier est nommé, au repos (un dossier ou un paquet nommé les laisse hors, comme le
-jour) ; aucun agent ne lance l'outil de test directement, ni Vitest ni Turborepo (les droits d'un
+lancement qui ne joue aucun test échoue ; un test de nuit ou une mesure de temps (un banc de
+temps, un témoin de temps) se joue quand son propre fichier est nommé, sous la mesure du temps
+(un dossier ou un paquet nommé les laisse hors, comme le jour) ; aucun agent ne lance l'outil de test directement, ni Vitest ni Turborepo (les droits d'un
 rôle qui écrit les refusent, `droits.mjs`). `npm run verifier` joue, après la
 construction : les gardes du cadre,
 celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les
@@ -558,21 +558,26 @@ de tests faits sur prévus (la file, les étapes de sa CI), que le panneau affic
 depuis son dernier signe, « ⚠ figée » au-delà de 5 min, comme le compteur d'actions de Bazel.
 Ainsi une passe qui fige se voit.
 
-**Un témoin de temps joue seul** : un fichier de test qui importe `mesurerAuRepos` est un
-témoin de temps ; `npm run verifier` joue tous les autres tests, puis les témoins dans une passe
-à eux, une tâche après l'autre, comme Bazel joue un test `exclusive`. Un échec qui dépend d'une
-durée (un délai dépassé, un banc `*.budget.test.*`, un test marqué `mesurerAuRepos`) survenu sous
-charge (la pression CPU du noyau, `/proc/pressure/cpu`, à 25 % ou plus) est « à repasser » (code
-75), ni vert ni rouge : `npm run verifier` rejoue sa tâche seule une fois la machine au repos ;
-sans repos en 15 min, la livraison reste en attente et se représente, comme Bazel classe un
-délai dépassé et CTest le rejoue. En Rust, un banc de temps est une cible de test dont le
-fichier finit par `_budget.rs` (`tests/<nom>_budget.rs`), comme `*.budget.test.*` en TypeScript,
-et un test de nuit par `_nuit.rs`, comme `*_nuit_test.py` en Python : `npm test` et la
-vérification les laissent hors (nextest joue la bibliothèque, les binaires et chaque autre
-cible) ; la nuit seule les joue (`tests-de-nuit`), les bancs seuls, après les tests de nuit, un
-test à la fois, et un rouge sous charge y est « à repasser » (75) ; un lancement ciblé qui nomme
-le fichier le joue. Ainsi un témoin ne se mesure jamais sous la charge de sa
-propre passe, et un rouge au repos reste un rouge.
+**Une mesure de temps joue la nuit** : le jour sert l'activité, et la machine y est toujours
+chargée ; toute mesure qui demande une machine au repos joue la nuit, dans chaque langage, comme
+Bazel laisse une cible `manual` hors de tout motif et joue seul un test `exclusive`, et comme les
+bancs de performance de Chromium et de rustc-perf quittent la CI de chaque commit pour une
+machine au repos (grillhouse-bd7). Une mesure de temps est un banc de temps (en TypeScript un
+fichier `*.budget.test.*` ou `*.budget.spec.*`, en Rust une cible `tests/<nom>_budget.rs`) ou un
+témoin de temps (un fichier de test qui importe `mesurerAuRepos`) ; un test de nuit, un fichier
+`*.nuit.test.*`, `*_nuit_test.py` ou une cible `tests/<nom>_nuit.rs`. `npm test` et la
+vérification les laissent hors (la configuration de base de Vitest et son greffon ; nextest y
+joue la bibliothèque, les binaires et chaque autre cible) ; la nuit seule les joue
+(`tests-de-nuit` de chaque module) : les tests de nuit, puis les mesures seules, un fichier ou
+un test à la fois ; un lancement ciblé qui nomme le fichier le joue. Un échec qui dépend d'une
+durée (l'échec d'une mesure, un délai dépassé dans un test de nuit) survenu sous charge (la
+pression CPU du noyau, `/proc/pressure/cpu`, à 25 % ou plus) est « à repasser » (code 75), ni
+vert ni rouge : la nuit attend le repos (15 min au plus) et rejoue une fois, comme Bazel classe
+un délai dépassé et CTest le rejoue. Le jour n'attend aucun repos : un délai de test est un
+garde-fou, pas une mesure (Bazel, Vitest) ; un délai dépassé y est un rouge, et un délai trop
+juste s'élargit, très au-dessus de la durée normale du test ; `npm run verifier` tient une tâche
+à 75 pour un rouge. Ainsi une mesure ne se prend jamais sous la charge du jour, et le jour
+n'attend jamais la machine.
 
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
 scripts, appelés par `npx grillhouse <sous-commande>`, et il est le greffon `grillhouse`, qui

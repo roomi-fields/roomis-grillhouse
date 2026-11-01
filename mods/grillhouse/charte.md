@@ -88,6 +88,14 @@ Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-d
 un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Ainsi
 le jour reste court, et la preuve longue tourne la nuit.
 
+**Une mesure de temps joue la nuit** (les tests `manual` de Bazel, les bancs de rustc-perf hors de
+la CI de chaque commit) : le jour sert l'activité, et sa machine est toujours chargée. Un test qui
+mesure un temps (un banc de temps, un témoin de temps) est hors du jour dans chaque langage, comme
+un test de nuit ; la nuit le joue seul, au repos, et un échec sous charge y est « à repasser »
+(75). Le jour n'attend aucun repos : un délai de test est un garde-fou, pas une mesure ; dépassé,
+il est rouge, et un délai trop juste s'élargit, très au-dessus de la durée normale du test. Ainsi
+le jour avance, et une mesure se prend au repos.
+
 **Un projet a plusieurs langages, un paquet un seul** : chaque paquet relève du langage de son
 outil, et `npm test`, la vérification et le circuit jouent chaque paquet avec cet outil. Ainsi
 chaque paquet se construit et se teste d'une seule façon.

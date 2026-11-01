@@ -44,8 +44,8 @@
 //     main tree when its inputs are unchanged). Green is required: main stays green, and nothing is compared with a base. A test
 //     known red is put in quarantine in the test itself (`it.skip` or `it.fails`, with its
 //     ticket), as a mature continuous integration does; the integration admits none. A
-//     `npm run verifier` « à repasser » (75: a failure of duration under load, which found no rest
-//     in its bound, scripts/langages/typescript/verifier.mjs) is neither green nor red: the run stops there, exit 75,
+//     `npm run verifier` « à repasser » (75: the wait for the lock of the machine reached its
+//     bound, scripts/verrou-de-machine.mjs) is neither green nor red: the run stops there, exit 75,
 //     nothing committed and nothing refused, the lot where it was, for the same command again;
 //     any other code than 0 refuses;
 //  7. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
@@ -406,7 +406,7 @@ function main(argv) {
     const verdict = tester().status;
     if (verdict === A_REPASSER) {
       dire(
-        `⏱ À repasser (code ${A_REPASSER}) : un échec de durée sous charge, sans repos dans la borne. Le lot n'est ni commis ni refusé ; relance la même commande.`
+        `⏱ À repasser (code ${A_REPASSER}) : l'attente de la machine a atteint sa borne. Le lot n'est ni commis ni refusé ; relance la même commande.`
       );
       return A_REPASSER;
     }

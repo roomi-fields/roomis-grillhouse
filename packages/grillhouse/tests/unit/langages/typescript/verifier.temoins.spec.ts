@@ -1,12 +1,13 @@
-// grillhouse-3uv.89, L5 — the time witnesses play alone (scripts/langages/typescript/verifier.mjs,
-// scripts/langages/typescript/vitest-config/cibles.mjs), as Bazel plays a test tagged `exclusive` after the others,
-// with nothing beside it. Witness: BPScript 320.3, where the final pass played 66 tasks side by side
-// and a time witness measured under the load of its own pass: 9 passes « à repasser », ~25 min of
-// waiting and of tasks replayed whole.
+// grillhouse-bd7 — every measure of time plays at night, in every language: `npm run verifier`
+// plays no time witness, and no pass of its own for them. Witness: the pass of the witnesses of
+// grillhouse-3uv.89, played alone under the lock of the machine after the others, still met the
+// load of the day (the day's machine is always loaded), and its waits for rest held the day. As
+// Bazel leaves a test tagged `manual` out of a pattern and the benchmarks of Chromium and rustc-perf
+// leave the CI of each commit for a machine at rest, the day leaves the witnesses out, and the
+// night plays them (scripts/langages/typescript/tests-de-nuit.mjs).
 //
 // A time witness is a test file that marks its tests as measures of time (`mesurerAuRepos`, imported
-// from `@roomi-fields/grillhouse/vitest-config/mesure`). `npm run verifier` plays every other test first, then the
-// witnesses in a pass of their own, one task at a time, one file at a time.
+// from `@roomi-fields/grillhouse/vitest-config/mesure`).
 //
 // Each case plays the real Turborepo and the real Vitest of the repository in a repository of trial
 // with two packages; the pressure is read from the file GRILLHOUSE_PRESSION_CPU names.
@@ -46,24 +47,19 @@ const ordinaire = (trace: string, nom: string) =>
   "import { appendFileSync } from 'node:fs';\n" +
   "import { it } from 'vitest';\n" +
   `it('${nom}', () => { appendFileSync(${JSON.stringify(trace)}, '${nom}\\n'); });\n`;
-// A time witness that writes « <nom> début », waits 300 ms, writes « <nom> fin »; with <uneFois>,
-// it fails the first time it plays, inside its measure of time.
-const temoin = (trace: string, nom: string, marque?: string) =>
-  "import { appendFileSync, existsSync, writeFileSync } from 'node:fs';\n" +
+// A time witness that writes « <nom> » to the trace, then fails its measure of time.
+const temoin = (trace: string, nom: string) =>
+  "import { appendFileSync } from 'node:fs';\n" +
   "import { it, expect } from 'vitest';\n" +
   `import { mesurerAuRepos } from ${JSON.stringify(MESURE)};\n` +
-  `it('${nom}', ctx => mesurerAuRepos(ctx, async () => {\n` +
-  `  appendFileSync(${JSON.stringify(trace)}, '${nom} début\\n');\n` +
-  '  await new Promise(r => setTimeout(r, 300));\n' +
-  `  appendFileSync(${JSON.stringify(trace)}, '${nom} fin\\n');\n` +
-  (marque
-    ? `  if (!existsSync(${JSON.stringify(marque)})) { writeFileSync(${JSON.stringify(marque)}, ''); expect(400).toBeLessThan(100); }\n`
-    : '') +
+  `it('${nom}', ctx => mesurerAuRepos(ctx, () => {\n` +
+  `  appendFileSync(${JSON.stringify(trace)}, '${nom}\\n');\n` +
+  '  expect(400).toBeLessThan(100);\n' +
   '}));\n';
 
-// A repository of packages `a` and `b`: each has an ordinary test; <temoins> gives a package its
-// time witness (`temps.test.mjs`), failing once when `uneFois`.
-function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some: number) {
+// A repository of packages `a` and `b`: each has an ordinary test; the packages <temoins> name
+// have a time witness (`temps.test.mjs`) too.
+function depot(temoins: ('a' | 'b')[], some: number) {
   const r = mkdtempSync(path.join(ESSAIS, 'depot-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
   const trace = path.join(r, 'joues.txt');
@@ -99,12 +95,8 @@ function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some:
       `import base from ${JSON.stringify(BASE)};\nexport default base;\n`
     );
     ecrire(`packages/${nom}/test/x.test.mjs`, ordinaire(trace, nom));
-    const t = temoins[nom];
-    if (t) {
-      ecrire(
-        `packages/${nom}/test/temps.test.mjs`,
-        temoin(trace, `${nom}-temoin`, t.uneFois ? path.join(r, `${nom}.deja`) : undefined)
-      );
+    if (temoins.includes(nom)) {
+      ecrire(`packages/${nom}/test/temps.test.mjs`, temoin(trace, `${nom}-temoin`));
     }
   }
   ecrire('.gitignore', 'node_modules\n.turbo/\n');
@@ -122,27 +114,19 @@ function depot(temoins: Partial<Record<'a' | 'b', { uneFois?: boolean }>>, some:
   };
   const joues = () =>
     existsSync(trace) ? readFileSync(trace, 'utf8').split('\n').filter(Boolean) : [];
-  const ecrirePression = (s: number) => writeFileSync(fichierPression, pression(s));
-  return { racine: r, env, joues, ecrirePression };
+  return { racine: r, env, joues };
 }
 
-// The script run as `npm run verifier -- <args>` runs it; <auPremierAttente> runs when its first
-// wait line comes out.
+// The script run as `npm run verifier -- <args>` runs it.
 function lancer(
   d: ReturnType<typeof depot>,
-  auPremierAttente?: () => void,
   args: string[] = []
 ): Promise<{ status: number | null; sortie: string }> {
   return new Promise(resolve => {
     const p = spawn(process.execPath, [SCRIPT, ...args], { cwd: d.racine, env: d.env });
     let sortie = '';
-    let vu = false;
     const lire = (b: Buffer) => {
       sortie += b.toString();
-      if (!vu && auPremierAttente && sortie.includes('⏳')) {
-        vu = true;
-        auPremierAttente();
-      }
     };
     p.stdout.on('data', lire);
     p.stderr.on('data', lire);
@@ -150,55 +134,26 @@ function lancer(
   });
 }
 
-describe('grillhouse-3uv.89 — les témoins de temps jouent seuls', { timeout: 180_000 }, () => {
-  it('chaque témoin joue une fois, après tous les autres tests, et la passe est verte', async () => {
-    const d = depot({ a: {} }, 1);
-    const r = await lancer(d);
-    expect(r.status, r.sortie).toBe(0);
-    const j = d.joues();
-    expect(j.filter(l => l.startsWith('a-temoin'))).toEqual(['a-temoin début', 'a-temoin fin']);
-    expect(j.slice(0, 2).sort()).toEqual(['a', 'b']);
-    expect(j.slice(2)).toEqual(['a-temoin début', 'a-temoin fin']);
-  });
-
-  it('les témoins jouent une tâche après l’autre, jamais côte à côte', async () => {
-    const d = depot({ a: {}, b: {} }, 1);
-    const r = await lancer(d);
-    expect(r.status, r.sortie).toBe(0);
-    const temoins = d.joues().filter(l => l.includes('-temoin'));
-    expect(temoins).toHaveLength(4);
-    // Each witness ends before the next one starts.
-    for (let i = 0; i < 4; i += 2) {
-      expect(temoins[i]).toMatch(/ début$/);
-      expect(temoins[i + 1]).toBe(temoins[i].replace(' début', ' fin'));
-    }
-  });
-
-  it('un témoin en échec sous une charge qui n’est pas la passe se rejoue seul au repos, sans rejouer les autres tests', async () => {
-    const d = depot({ a: { uneFois: true } }, 90);
-    const r = await lancer(d, () => d.ecrirePression(1));
-    expect(r.status, r.sortie).toBe(0);
-    expect(r.sortie).toContain('↻ a#test:unit');
-    const j = d.joues();
-    expect(j.filter(l => l === 'a')).toEqual(['a']);
-    expect(j.filter(l => l === 'b')).toEqual(['b']);
-    expect(j.filter(l => l === 'a-temoin début')).toHaveLength(2);
-  });
-
-  // grillhouse-3uv.89, L3: the circuit restricts a final pass to what a fix touches
-  // (`--filter=...[<avant>...<après>]`); the witnesses' pass keeps that choice.
-  it('une passe restreinte par --filter ne joue que les témoins des paquets qu’elle choisit', async () => {
-    const d = depot({ a: {}, b: {} }, 1);
-    const r = await lancer(d, undefined, ['--filter=a']);
-    expect(r.status, r.sortie).toBe(0);
-    expect(d.joues()).toEqual(['a', 'a-temoin début', 'a-temoin fin']);
-  });
-
-  it('un dépôt sans témoin ne joue aucune passe de témoins', async () => {
-    const d = depot({}, 1);
+describe('grillhouse-bd7 — npm run verifier plays no time witness', { timeout: 180_000 }, () => {
+  it('critère 1: the witnesses do not play, every other test does, and the pass is green under load', async () => {
+    const d = depot(['a', 'b'], 90);
     const r = await lancer(d);
     expect(r.status, r.sortie).toBe(0);
     expect(d.joues().sort()).toEqual(['a', 'b']);
     expect(r.sortie).not.toMatch(/témoins de temps/);
+  });
+
+  it('critère 1: --tout, the complete pass, plays no witness either', async () => {
+    const d = depot(['a'], 1);
+    const r = await lancer(d, ['--tout']);
+    expect(r.status, r.sortie).toBe(0);
+    expect(d.joues().sort()).toEqual(['a', 'b']);
+  });
+
+  it('critère 1: a pass restricted by --filter plays no witness of the packages it chooses', async () => {
+    const d = depot(['a', 'b'], 1);
+    const r = await lancer(d, ['--filter=a']);
+    expect(r.status, r.sortie).toBe(0);
+    expect(d.joues()).toEqual(['a']);
   });
 });
