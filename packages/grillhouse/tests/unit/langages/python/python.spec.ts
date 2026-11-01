@@ -401,3 +401,59 @@ describe('grillhouse-ziy, critère 6 — maj installe uv à sa version exacte', 
     expect(python.miseAJour.gabarit).toBe('templates/python');
   });
 });
+
+// grillhouse-1ic — a package born without a test passes, as `cargo test` on a crate without a test
+// and Vitest under the `passWithNoTests` of the skeleton typescript: pytest's code 5, « no tests
+// collected », counts green when the package plays whole (no path, or its own folder named); a
+// file named that collects no test, a red test (1) and a pytest that does not start stay red.
+describe('grillhouse-1ic — un paquet python sans test passe', () => {
+  const RIEN = { FAUX_UV_CODES: JSON.stringify({ pytest: 5 }) };
+
+  // A project whose package `site` is the skeleton's: its pyproject.toml, its uv.lock, its module
+  // without code, its folder `tests/` empty.
+  function squelette() {
+    const racine = mkdtempSync(path.join(ESSAIS, 'squelette-'));
+    ecrire(racine, 'package.json', JSON.stringify({ name: 'p', private: true }));
+    declarerLesLangages(racine, { site: 'python' });
+    ecrire(racine, 'site/pyproject.toml', PYPROJECT);
+    ecrire(racine, 'site/uv.lock', 'version = 1\n');
+    ecrire(racine, 'site/src/p_site/__init__.py', '');
+    ecrire(racine, 'site/tests/.gitkeep', '');
+    return racine;
+  }
+
+  it('critère 1: the skeleton’s package, played whole, is green', () => {
+    const r = lancer(squelette(), 'tester', [], RIEN);
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.verdict.taches.filter(t => t.code !== 0)).toEqual([]);
+  });
+
+  it('critère 1: a package whose pytest collects no test, played whole, is green', () => {
+    const r = lancer(projet(), 'tester', [], RIEN);
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toHaveLength(1);
+    expect(r.verdict.taches.map(t => [t.tache, t.code])).toEqual([['site#pytest', 0]]);
+  });
+
+  it('critère 1: the package’s own folder named, pytest collecting no test, is green', () => {
+    const r = lancer(squelette(), 'tester', ['site'], RIEN);
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toHaveLength(1);
+    expect(r.verdict.taches.map(t => [t.tache, t.code])).toEqual([['site#pytest', 0]]);
+  });
+
+  it('critère 2: a test file named that collects no test stays red', () => {
+    const r = lancer(projet(), 'tester', ['site/pages/test_pages.py'], RIEN);
+    expect(r.code).toBe(1);
+    expect(r.verdict.taches.map(t => [t.tache, t.code])).toEqual([['site#pytest', 5]]);
+  });
+
+  it('critère 3: a red test (1) and a pytest that does not start (2, 127) stay red', () => {
+    for (const code of [1, 2, 127]) {
+      const env = { FAUX_UV_CODES: JSON.stringify({ pytest: code }) };
+      const r = lancer(projet(), 'tester', [], env);
+      expect(r.code, `pytest ${code}`).toBe(1);
+      expect(r.verdict.taches.map(t => t.code)).toEqual([code]);
+    }
+  });
+});

@@ -110,6 +110,18 @@ describe('grillhouse-ziy — verifier, depuis le dernier vert', () => {
     expect(taches(site)).toEqual(['site#pytest 0']);
   });
 
+  it('grillhouse-1ic, critère 1: pytest collecting no test (5) leaves verifier green', () => {
+    const { projet } = (
+      exemples.preparer(mkdtempSync(path.join(ESSAIS, 'sans-test-'))) as {
+        depots: Depots;
+      }
+    ).depots;
+    const c = commande(projet, 'verifier');
+    const r = lancer(projet, c.script, c.args, { FAUX_UV_CODES: JSON.stringify({ pytest: 5 }) });
+    expect(r.code, r.stderr).toBe(0);
+    expect(taches(r)).toEqual(['outil#compileall 0', 'site#compileall 0', 'site#pytest 0']);
+  });
+
   it('a red test makes verifier red, and keeps no green', () => {
     const { projet } = (
       exemples.preparer(mkdtempSync(path.join(ESSAIS, 'rouge-'))) as {

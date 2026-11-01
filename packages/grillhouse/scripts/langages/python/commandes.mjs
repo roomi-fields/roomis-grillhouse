@@ -21,7 +21,11 @@
 //   mark (`GRILLHOUSE_DEPUIS_LE_VERT`), the packages the changes since the last green touch
 //   (./lot.mjs), every package when no last green counts; the night tests (`*_nuit_test.py`) are
 //   left out (`--ignore-glob`), and a night test plays when its own file is named. `--force`
-//   changes nothing: pytest keeps no result to replay. Another option goes to pytest.
+//   changes nothing: pytest keeps no result to replay. Another option goes to pytest. A package
+//   played whole (no path, or its own folder named) whose pytest collects no test (code 5) is
+//   green, as `cargo test` on a crate without a test and the skeleton typescript's
+//   `passWithNoTests`; a path within the package that collects no test stays red, as a run whose
+//   paths name no test fails in every language.
 // - `verifier` plays, in each package the changes since the last green touch (every package with
 //   `--tout`, or when no last green counts), the typing then the tests of the day; green, it keeps
 //   the last green (scripts/dernier-vert.mjs). It plays under the lock of the machine
@@ -158,7 +162,8 @@ function passe(racine, env) {
       rapports[f] = dossierDuPaquet;
       return ['-o', 'junit_family=xunit1', `--junit-xml=${path.join(dossier, JUNIT, f)}`];
     },
-    jouer({ t, args, cwd, programme }) {
+    // <vert>, the codes that count green beside 0.
+    jouer({ t, args, cwd, programme }, vert = []) {
       // The environment of uv of the package, at the root (`sorties` of ./index.mjs).
       const venv = path.join(racine, VENV, path.relative(racine, cwd));
       const r = spawnSync(programme, args, {
@@ -170,6 +175,9 @@ function passe(racine, env) {
         process.stderr.write("⛔ uv absent du PATH : `npx grillhouse maj` l'installe.\n");
       }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
+      if (vert.includes(t.code)) {
+        t.code = 0;
+      }
       ecrire();
       return t.code;
     },
@@ -184,16 +192,24 @@ function passe(racine, env) {
 }
 
 const UV_RUN = ['run', '--locked'];
+// The code of pytest for « no tests collected », distinct from a failure (1).
+const AUCUN_TEST = 5;
 
 // Plays pytest in the run <p> for each `{ c, chemins }` of <choix>, `chemins` from the package's
-// folder (empty: the whole package, the night left out), <options> given to pytest.
+// folder (empty: the whole package, the night left out), <options> given to pytest. The package
+// played whole (no path, or its own folder) that collects no test is green, as `cargo test` on a
+// crate without a test; a path within it that collects none stays red.
 function jouerLesTests(p, choix, options) {
   for (const { c, chemins } of choix) {
     const selection = chemins.length ? chemins : [`--ignore-glob=${DE_NUIT}`];
     const cache = path.join(p.racine, CACHE_DE_PYTEST, path.relative(p.racine, c.dossier));
     const args = [...UV_RUN, '--group', GROUPE, 'pytest', '-o', `cache_dir=${cache}`];
     args.push(...p.junit(c.nom, c.dossier));
-    p.jouer(p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection, ...options]));
+    const entier = chemins.every(ch => ch === '.');
+    p.jouer(
+      p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection, ...options]),
+      entier ? [AUCUN_TEST] : []
+    );
   }
 }
 
