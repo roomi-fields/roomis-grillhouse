@@ -97,6 +97,7 @@ const AVANT: Record<string, [number, number]> = {
   'session-start': [47, 102], // [45, 98], plus the two tests grillhouse-ca7 added (e506a50)
   'grillhouse-maj': [141, 329],
   'enveloppe.lanceur': [26, 67],
+  'premier-paquet': [4, 10],
   'pre-push-nuit': [16, 63],
   'greffons-du-cadre': [63, 170],
   'file-integration.ci': [15, 68],
