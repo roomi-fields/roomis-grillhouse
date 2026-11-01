@@ -226,7 +226,7 @@ export const GESTES = [
       'ni testwriter, ni preuve du rouge, ni développeur : l’explorateur joue dans la copie la commande que le plan nomme (1.1), puis les contrôles, la passe finale, la relecture et l’intégration',
     regle:
       'le plan dit le ticket mécanique, avec sa raison et sa commande (`sorte` de la fiche de l’explorateur) : un geste sans comportement neuf ; tant qu’aucun testwriter ni développeur n’a travaillé le lot, un rouge des contrôles ou un RENDU monte, sans relancer personne',
-    cas: 'BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; BP 320.40.1 : une variable inutilisée, 4 séances ; BP 322.11.1 : Vitest monté sur 31 paquets',
+    cas: 'BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; BP 320.40.1 : une variable inutilisée, 4 séances ; BP 322.11.1 : l’outil de test monté sur 31 paquets',
   },
 ];
 

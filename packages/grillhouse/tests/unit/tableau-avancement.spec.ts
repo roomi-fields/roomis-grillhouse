@@ -240,6 +240,6 @@ describe('a measure out of a ticket stands at the head of AGENTS', () => {
   });
 
   it('without a measure, the steps follow the title', () => {
-    expect(tete(agents(racine())).texte).toMatch(/^ *1 · Plan/);
+    expect(tete(agents(racine())).texte).toMatch(/^ *[▸▾]? ?1 · Plan/);
   });
 });
