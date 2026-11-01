@@ -133,7 +133,12 @@ remplace jamais le grill. Les branches de l'arbre :
    le reprend (`**Langage** : <nom>`). La garde `grillhouse langages-des-paquets` refuse un paquet
    que le tableau ne déclare pas, un paquet dont le manifeste suit un autre langage (un
    `package.json` pour `typescript`, un `Cargo.toml` pour `cargo`, un `pyproject.toml` pour
-   `python`), un dossier déclaré sans ce manifeste, et une interface qui en nomme un autre. **Plusieurs paquets,
+   `python`), un dossier déclaré sans ce manifeste, et une interface qui en nomme un autre.
+   **Un paquet neuf naît en quatre temps, hors du circuit** (charte commune) : ce grill tranche
+   son rôle, sa frontière, ses refus, son interface et son langage (1) ; le superviseur écrit sa
+   ligne et ses documents, relus par le responsable (2) ; `npx grillhouse paquet <chemin>` bâtit
+   son squelette et, pour le premier paquet d'un langage, les outils de ce langage (3), dans le
+   même commit que 2 ; son code part en ticket ordinaire (4). **Plusieurs paquets,
    une forme publiée** : chaque paquet publie son entrée dans le champ `exports` de son
    `package.json`, construite dans `dist/` ; ses tests et leurs données restent dans le paquet.
    **Les outils du projet, un paquet** : les scripts propres au projet (son typage, ses gardes, ses

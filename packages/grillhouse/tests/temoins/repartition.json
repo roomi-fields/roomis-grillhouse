@@ -59,6 +59,7 @@
     "scripts/migrations/0.27.0-langages-dans-l-architecture.mjs",
     "scripts/nuit.sh",
     "scripts/outils-cles.mjs",
+    "scripts/paquet.mjs",
     "scripts/paquets.d.ts",
     "scripts/paquets.mjs",
     "scripts/poussee-cles.mjs",
@@ -111,6 +112,7 @@
     "scripts/langages/typescript/regle-des-tests.mjs",
     "scripts/langages/typescript/resumes.mjs",
     "scripts/langages/typescript/script-des-tests.mjs",
+    "scripts/langages/typescript/squelette.mjs",
     "scripts/langages/typescript/tailles-des-tests.mjs",
     "scripts/langages/typescript/tests-de-nuit.mjs",
     "scripts/langages/typescript/tests.mjs",
@@ -147,6 +149,7 @@
     "scripts/langages/cargo/mise-a-jour.mjs",
     "scripts/langages/cargo/nextest.toml",
     "scripts/langages/cargo/sccache.mjs",
+    "scripts/langages/cargo/squelette.mjs",
     "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"
   ],
@@ -160,6 +163,7 @@
     "scripts/langages/python/index.mjs",
     "scripts/langages/python/lot.mjs",
     "scripts/langages/python/mise-a-jour.mjs",
+    "scripts/langages/python/squelette.mjs",
     "scripts/langages/python/tailles-des-tests.mjs",
     "scripts/langages/python/verdict.mjs"
   ]

@@ -256,6 +256,24 @@ export interface Langage extends Composition {
    * several languages (scripts/index-interfaces.mjs). */
   entreesDeLIndex(racine: string): { rel: string; lignes: string[] }[];
   miseAJour: MiseAJour;
+  /** The skeleton of a new package of this language at `chemin` (from the root) of the project at
+   * `racine`, without behaviour nor test, as `cargo new --lib` or `nx g @nx/js:lib` writes one
+   * (`grillhouse paquet`, scripts/paquet.mjs): `fichiers`, each file of the package from the root
+   * and its text (its manifest, the configuration of its tests and of its typing, a file of code,
+   * its folder of tests), which the core writes where absent; `espace`, the manifest of the
+   * workspace with the package's entry, from the root and its new text, null when it holds it
+   * already; `verrouiller`, the command, run in `dossier` (from the root), that brings the lock of
+   * the versions in line with the new package. `modele`: the package.json of the module's template
+   * (`miseAJour.gabarit`), the versions of its tools. Throws, named, for a path where the module
+   * holds no package. */
+  squelette(
+    racine: string,
+    o: { chemin: string; modele: Record<string, unknown> }
+  ): {
+    fichiers: Record<string, string>;
+    espace: { fichier: string; texte: string } | null;
+    verrouiller: { commande: string; args: string[]; dossier: string };
+  };
 }
 
 /** The frame's languages, each its module. */

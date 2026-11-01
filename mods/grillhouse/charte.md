@@ -118,6 +118,17 @@ données (des fichiers qu'un schéma valide, une fiche à un catalogue) ne passe
 de code ; il passe par la validation du projet et sa CI, comme une formule de Homebrew ou un
 type de DefinitelyTyped. Ainsi le circuit garde les tests et le code pour ce qui en a.
 
+**Un paquet naît hors du circuit, en quatre temps** (un squelette n'a ni comportement ni test),
+comme les générateurs de Nx et `cargo new --lib` : 1, le grill, le superviseur et le responsable
+(son rôle, sa frontière, ses refus, son interface, son langage) ; 2, l'écriture, le superviseur
+avec la compétence `redacteur`, relue par le responsable : sa ligne du tableau des composants de
+`docs/ARCHITECTURE.md`, avec son langage, et ses documents (`<chemin>/docs/CADRE.md`,
+`INTERFACE.md`) ; 3, la création, sans agent : `npx grillhouse paquet <chemin>` lit la ligne et
+bâtit ce que son langage demande, les outils de ce langage compris pour son premier paquet ; 4, le
+code, un ticket ordinaire du circuit sur un paquet qui existe. Les temps 2 et 3 entrent dans un
+même commit, après une vérification verte. Ainsi main ne voit jamais un paquet déclaré sans
+dossier.
+
 ## Ce qui tient le dépôt droit
 
 - **Une matière, une adresse** : ce qu'un document décrit déjà s'y verse. Ainsi l'architecture

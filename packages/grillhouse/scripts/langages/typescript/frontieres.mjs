@@ -9,7 +9,9 @@
 // other option replaces the frame's at its first level, as the `extends` of dependency-cruiser does.
 //
 //   npx grillhouse frontieres           refuses a stale configuration, then runs dependency-cruiser
-//   npx grillhouse frontieres --ecrire  writes the configuration
+//   npx grillhouse frontieres --ecrire  writes the configuration, and `.dependency-cruiser.projet.cjs`
+//                                       empty when the project has none, so that knip resolves
+//                                       the require of the configuration (grillhouse-b32)
 //
 // The rules: no cycle; a package reaches another by its name, never by a path into its tree; a
 // module of `src/` reaches another by its entry (`index`); the code of `src/` imports no test; the
@@ -46,6 +48,13 @@ import { CODE, horsCadre } from '../../paquets.mjs';
 import { trancher } from '../../dette.mjs';
 
 export const CONFIGURATION = '.dependency-cruiser.cjs';
+// The project's own rules and options, which the configuration requires, and their text when
+// `--ecrire` writes them for a project that has none.
+const REGLES_DU_PROJET = '.dependency-cruiser.projet.cjs';
+const REGLES_VIDES = `// The project's own rules and options of dependency-cruiser, which the generated
+// ${CONFIGURATION} reads (\`npx grillhouse frontieres\`); written empty once, the project's own after.
+module.exports = {};
+`;
 export const RACINES = ['src', 'packages'];
 /** The test files, as a pattern of a path from the repository's root. */
 export const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
@@ -391,6 +400,10 @@ function frontieres(racine, args) {
   const cible = path.join(racine, CONFIGURATION);
   if (args.includes('--ecrire')) {
     writeFileSync(cible, attendu);
+    const propres = path.join(racine, REGLES_DU_PROJET);
+    if (!existsSync(propres)) {
+      writeFileSync(propres, REGLES_VIDES);
+    }
     return 0;
   }
   const present = existsSync(cible) ? readFileSync(cible, 'utf8') : '';

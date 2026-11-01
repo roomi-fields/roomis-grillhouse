@@ -33,6 +33,24 @@ const TEMOIN = {
 const OPTIONS_TEMOIN =
   "{ doNotFollow: { path: '(node_modules|(^|/)(\\\\.publie|\\\\.last)/)' }, exclude: { path: '\\\\.svelte-kit' } }";
 
+// grillhouse-b32, criterion 3: the first package of TypeScript of a project of Rust left knip red on
+// « .dependency-cruiser.cjs : import introuvable — ./.dependency-cruiser.projet.cjs »: `--ecrire`
+// writes the project's file empty when it has none, and leaves a present one as it is.
+describe('grillhouse-b32 — the project’s file of rules, written empty by --ecrire', () => {
+  it('a project without it receives it empty, which the configuration loads', () => {
+    const { dir } = repo({ 'src/index.ts': 'export const a = 1;' });
+    const propres = path.join(dir, '.dependency-cruiser.projet.cjs');
+    expect(readFileSync(propres, 'utf8')).toMatch(/^module\.exports = \{\};$/m);
+    expect(charge(dir).forbidden.length).toBeGreaterThan(0);
+  });
+
+  it('a project’s own file stays as it is', () => {
+    const propre = 'module.exports = { forbidden: [] };\n';
+    const { dir } = repo({ '.dependency-cruiser.projet.cjs': propre });
+    expect(readFileSync(path.join(dir, '.dependency-cruiser.projet.cjs'), 'utf8')).toBe(propre);
+  });
+});
+
 describe("the project's options", () => {
   it('the witness without its options is refused (the trial bites)', () => {
     const r = verdict(TEMOIN);

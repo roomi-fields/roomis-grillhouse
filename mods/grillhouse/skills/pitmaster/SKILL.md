@@ -315,6 +315,13 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   l'écris avant de le proposer ; le circuit refuse dès son départ un ticket qui ne l'a pas, avec
   la raison du verrou du développeur. Un mécanisme manquant devient le travail, jamais une compensation
   locale.
+- **Un paquet naît hors du circuit, en quatre temps** (charte, « Un paquet naît hors du
+  circuit ») : je mène le grill avec le responsable (1) ; j'écris, avec `redacteur`, sa ligne du
+  tableau des composants, son langage compris, et ses `docs/CADRE.md` et `docs/INTERFACE.md`, que
+  le responsable relit (2) ; je lance `npx grillhouse paquet <chemin>` dans une copie, sans agent,
+  puis `npm run verifier`, et je commite 2 et 3 ensemble sur ce vert (3) ; le code part ensuite
+  en ticket ordinaire du circuit, sur le paquet qui existe (4). Ainsi je ne lance jamais un
+  circuit sur un paquet absent du disque.
 - **Les critères naissent avec le ticket** : je crée chaque ticket de réalisation avec ses
   critères d'acceptation numérotés (`docs/agents/issue-tracker.md`, « Conventions ») ; un critère
   sur le changelog dit « le CHANGELOG le dit », sans le lier à un titre de section, et le

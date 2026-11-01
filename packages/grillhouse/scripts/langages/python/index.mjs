@@ -27,6 +27,7 @@
 //   No migration yet.
 // - Its share of the update (./mise-a-jour.mjs): the template `templates/python/`, its test
 //   scripts, the generator of the index and the installation of uv.
+// - The skeleton of a new package (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +44,7 @@ import {
 import { enRetard, SORTIE } from './index-interfaces.mjs';
 import { elementsDuLot, touches } from './lot.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
+import { squelette } from './squelette.mjs';
 import { verdict } from './verdict.mjs';
 
 const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
@@ -91,4 +93,5 @@ export default {
   gardes: () => GARDES.map(({ script, args }) => [script, ...args]),
   migrations: [],
   miseAJour,
+  squelette,
 };

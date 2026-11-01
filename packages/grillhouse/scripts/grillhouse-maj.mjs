@@ -486,24 +486,25 @@ function installerLesBinairesDe(projet, langage) {
 
 /**
  * Runs each generator of the languages of the project (`miseAJour.generateurs` of each module,
- * each once) whose output the project holds (every one with `tous`, for a project `grillhouse init` creates);
+ * each once) whose output the project holds (every one with `tous`, for a project `grillhouse init` creates;
+ * every one of the module <langage>, for the first package of a language `grillhouse paquet` creates);
  * returns the lines of failure.
  */
-export function regenerer(projet, { tous = false } = {}) {
+export function regenerer(projet, { tous = false, langage = null } = {}) {
   const lignes = [];
   const grillhouse = path.join(projet, 'node_modules', '.bin', 'grillhouse');
   const aPaquets = lireJson(path.join(projet, 'package.json'), {})?.workspaces !== undefined;
   const vus = new Set();
-  for (const g of langagesDe(projet).flatMap(m => m.miseAJour.generateurs)) {
+  for (const { g, m } of langagesDe(projet).flatMap(m =>
+    m.miseAJour.generateurs.map(g => ({ g, m }))
+  )) {
     const cle = JSON.stringify([g.commande, ...g.args]);
-    if (vus.has(cle)) {
+    const absente =
+      g.sortie !== null && !tous && m.nom !== langage && !existsSync(path.join(projet, g.sortie));
+    if (vus.has(cle) || (g.sortie === null ? !aPaquets : absente)) {
       continue;
     }
     vus.add(cle);
-    const absente = g.sortie !== null && !tous && !existsSync(path.join(projet, g.sortie));
-    if (g.sortie === null ? !aPaquets : absente) {
-      continue;
-    }
     if (g.sortie !== null) {
       mkdirSync(path.dirname(path.join(projet, g.sortie)), { recursive: true });
     }
@@ -548,7 +549,7 @@ export function rapport(b) {
 
 // Whether the bilan <b> of `mettreAJour` asks for `npm install` (a tool or what the language's
 // share declares), which the verification needs first.
-const aInstaller = b => b.dependances.length > 0 || b.duLangage.installer;
+export const aInstaller = b => b.dependances.length > 0 || b.duLangage.installer;
 
 // The project's verification, the last step of the update (see the header): `{ code, ligne,
 // erreur }`, the code of `npm run verifier` (null when it is not played), the line of the report,

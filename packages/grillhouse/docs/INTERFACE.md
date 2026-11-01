@@ -48,8 +48,8 @@ Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une 
 cibles, un outil par langage. `langagesDe(racine)` rend les modules déclarés, dans l'ordre de la
 déclaration, chacun chargé une fois par processus ; `langageDe(racine)` rend leur composition
 (`scripts/composition-des-langages.mjs`), le module lui-même quand le projet n'en déclare qu'un.
-La composition répond aux demandes ci-dessous, `manifeste` et `miseAJour` à part, que la garde des
-langages et `maj` demandent à chaque module :
+La composition répond aux demandes ci-dessous, `manifeste`, `miseAJour` et `squelette` à part, que la
+garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
   nommé avec les deux langages ;
@@ -115,6 +115,21 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 <nom>@<version>` ; `python` : ses scripts de test, l'index des interfaces, et uv par `uv --version`
   puis l'installeur d'Astral à sa version, les profils du shell laissés tels quels
   (UV_NO_MODIFY_PATH).
+- `squelette` : le squelette d'un paquet neuf du langage, sans comportement ni test, que
+  `grillhouse paquet <chemin>` écrit (`scripts/paquet.mjs`), comme `cargo new --lib` ou
+  `nx g @nx/js:lib` : `fichiers`, chaque fichier du paquet et son texte (son manifeste, la configuration de
+  ses tests et de son typage, un fichier de code, son dossier de tests), que le noyau écrit là où il
+  manque ; `espace`, le manifeste de l'espace de travail avec l'entrée du paquet, null quand il la
+  porte déjà ; `verrouiller`, la commande qui accorde le verrou des versions au paquet neuf, et son
+  dossier. `typescript` : sous `packages/<nom>` seul, son `package.json` (`test:unit`, TypeScript,
+  Vitest et les types de Node que la racine ne déclare pas), son `tsconfig.json`, son
+  `vitest.config.ts`, qui passe tant que le paquet n'a aucun test (`passWithNoTests`), `src/index.ts`,
+  `tests/`, l'entrée de `workspaces`, `npm install` ; `cargo` : son `Cargo.toml`, qui hérite des
+  champs de `[workspace.package]` et de `[workspace.lints]`, `src/lib.rs`, `tests/`, le membre de
+  `[workspace]`, `cargo update --workspace` ; `python` : son `pyproject.toml` (son groupe `test`,
+  pytest et sa configuration), `src/<module>/__init__.py`, `tests/`, le membre d'un espace de uv
+  à la racine quand il y en a un, `uv lock`. Un chemin où le module ne tient aucun paquet est
+  refusé, nommé.
 - `sorties` : où écrit un lancement des outils du langage, que l'enveloppe ouvre à la séance.
   `ecrites` s'ouvrent en écriture, créées avant la séance, un dossier quand le chemin finit par
   `/`, sinon un fichier vide : un chemin depuis la racine de la copie, `~/…` depuis la maison,

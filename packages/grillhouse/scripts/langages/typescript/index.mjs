@@ -45,6 +45,7 @@
 // - No binary of the machine (`binaires`); what its tools write in a project, `.turbo`
 //   (`ignorer`); its share of the update (./mise-a-jour.mjs, `miseAJour`): the tests by Vitest,
 //   the frame's package declared, the typing, the turbo.json, and the generators.
+// - The skeleton of a new package (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -59,6 +60,7 @@ import { estUnTest, manifestes } from './regle-des-tests.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
+import { squelette } from './squelette.mjs';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
@@ -330,4 +332,5 @@ export default {
     cheminsDesTests,
   ],
   miseAJour: miseAJour(joueDesTests),
+  squelette,
 };

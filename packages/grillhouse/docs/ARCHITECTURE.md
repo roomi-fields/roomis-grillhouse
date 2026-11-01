@@ -86,6 +86,30 @@ le circuit s'arrête à « lancement », l'enveloppe, `verifier` et la nuit refu
 développeur joue les tests qu'il doit rendre verts avec l'outil que voient les contrôles (SyntHub,
 SH-cgi.8 : son Python, donné par `SYNTHHUB_PYTHON`, n'existait pas dans l'enveloppe).
 
+**Un paquet naît hors du circuit, en quatre temps** : un squelette n'a ni comportement ni test,
+et le circuit travaille un paquet qui existe (il refuse un titre qui nomme un paquet absent du
+disque, `resoudreComposant` de `circuit.mjs`). Le grill tranche le paquet (1) ; le superviseur
+écrit sa ligne du tableau des composants, son langage compris, et ses documents (2) ; `npx
+grillhouse paquet <chemin>` (`scripts/paquet.mjs`) le bâtit, sans agent (3) ; son code part en
+ticket ordinaire (4) ; 2 et 3 entrent dans un même commit, après une vérification verte. Comme
+les générateurs de Nx (`nx g @nx/js:lib`, après `nx add` qui installe les outils d'un greffon),
+`turbo gen workspace` et `cargo new --lib` ajouté aux membres de l'espace de travail, la commande
+lit la ligne qui nomme le chemin (par son chemin, sinon par le nom du dossier, comme la garde des
+langages) et refuse, par son nom, sans rien écrire : un chemin qu'aucune ligne ne nomme, une ligne
+sans langage, un langage hors de la liste du cadre, un dossier qui porte déjà le manifeste de son
+langage ; un dossier qui ne porte que `docs/` est accepté, comme `cargo init` prend un dossier sans
+son Cargo.toml. Elle écrit chaque fichier absent du squelette du langage (`squelette` du module :
+le manifeste, la configuration des tests et du typage, un fichier de code, le dossier de tests) et
+des documents du gabarit d'un paquet (`templates/paquet/`), puis l'entrée de l'espace de travail
+(les `workspaces` de npm, les `members` de cargo, l'espace de uv) ; elle ne commite rien. Puis,
+comme `nx add`, les outils du langage : la part de la mise à jour de chaque langage déclaré
+(`mettreAJour`), `npm install` quand elle le demande, la commande du module qui accorde le verrou
+des versions au paquet neuf, les binaires, et les générateurs, ceux du langage du paquet quels que
+soient les fichiers du projet. Ainsi le premier paquet d'un langage arrive avec ses outils, et
+main ne voit jamais un paquet déclaré sans dossier (OSC Bridge, SyntHub SH-13y.6 : un premier
+paquet TypeScript dans un projet Rust, l'index des interfaces et la carte des frontières « pas à
+jour », knip illisible, « Turborepo sort en null »).
+
 **Le circuit fait les gestes, une vraie question monte** : comme une CI applique ses règles
 (rejouer, régénérer, sauter une tâche sans objet) sans demander et n'appelle une personne que pour
 ce qu'aucune règle ne tranche (l'approbation d'une revue), le circuit d'un ticket
@@ -613,7 +637,8 @@ qui rejoue seule une tâche rouge, que la vérification écrit pour la bissectio
 migrations du langage, que `maj` joue avec celles du noyau, comme `nx migrate` réunit celles de
 chaque greffon ; la part du langage dans `maj` (`miseAJour`), comme le générateur `init` d'un
 greffon de Nx : son gabarit (`templates/projet/`, `templates/cargo/`), ce que ses outils
-demandent au projet, ses générateurs ; ses binaires (`binaires`), que `maj` installe par
+demandent au projet, ses générateurs ; le squelette d'un paquet neuf (`squelette`), que
+`grillhouse paquet` écrit, comme le générateur d'une bibliothèque d'un greffon de Nx ; ses binaires (`binaires`), que `maj` installe par
 `cargo binstall` ; ce que ses outils écrivent dans un projet (`ignorer` : `.turbo`, `target`), que
 les fichiers sources laissent de côté, que `maj` écrit dans le `.gitignore` et que le retrait
 des copies finies retire d'une copie gardée dont le ticket est fermé. Le module typescript vit sous

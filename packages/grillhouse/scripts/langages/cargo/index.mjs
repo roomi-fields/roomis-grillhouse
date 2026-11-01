@@ -30,6 +30,7 @@
 //   languages. No migration yet.
 // - Its share of the update (./mise-a-jour.mjs, `miseAJour`): the template of a project of cargo
 //   (`templates/cargo/`) and its test scripts.
+// - The skeleton of a new crate (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +47,7 @@ import {
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, entreesDeLIndex, SORTIE } from './index-interfaces.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
+import { squelette } from './squelette.mjs';
 import { CACHE } from './sccache.mjs';
 import { touches } from './touches.mjs';
 import { verdict } from './verdict.mjs';
@@ -120,4 +122,5 @@ export default {
   gardes: () => GARDES.map(({ script, args }) => [script, ...args]),
   migrations: [],
   miseAJour,
+  squelette,
 };
