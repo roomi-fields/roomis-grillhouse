@@ -289,6 +289,18 @@ commande, vaut `comportement` : le circuit entier. Ainsi un geste sans comportem
 ni testwriter ni développeur (BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; 320.40.1 :
 une variable inutilisée, 4 séances ; si61.8 : un seuil 77 → 95, 2 séances « aucun code à livrer »).
 
+**Le plan fixe les noms publiés** : comme l'approbation d'un propriétaire de code (CODEOWNERS)
+porte sur ce qu'il a relu, la fiche du plan porte les noms qu'un composant publie à un autre et
+que le lot ajoute aux lignes « Consommateurs » de l'INTERFACE du fournisseur (`noms_publies` de
+`resultats.mjs` : le fournisseur, chaque consommateur, ses noms). Le circuit les écrit dans la
+description (« ## Noms publiés », après la sorte), réécrite à chaque plan depuis la dernière fiche
+(une liste vide l'efface ; une fiche sans le champ garde la section que la description porte,
+celle qu'un superviseur a écrite à la main comprise), et la garde des consommateurs (`consommateurs-arbitres.mjs`), qui lit cette section, laisse entrer
+ces lignes sans arbitrage ; un nom que le plan ne publie pas reste refusé. Ainsi le développeur
+écrit les lignes que le plan fixe sans arrêt ni geste du superviseur (BP 320.14.2.10, 320.28,
+320.6.5 : un critère seul nommait les noms, la garde refusait le lot, et le superviseur écrivait
+la section à la main avant une nouvelle séance).
+
 **Un circuit par ticket** : comme une demande de fusion (un auteur, une série de tests et de
 code, une CI sur l'ensemble, une revue), le circuit lance un seul testwriter et un seul
 développeur pour tout le ticket, chacun dans l'enveloppe de tous les paquets du plan, puis la

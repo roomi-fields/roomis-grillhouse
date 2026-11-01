@@ -138,9 +138,12 @@ describe('critère 1 — la fiche de l’explorateur porte une sorte, mécanique
 
   // The relecteur of 2c54260: an answer to the questionneur without `sorte` lost the sort.
   it('the sort survives the answer to the questionneur: an answer that says none keeps the plan’s', () => {
-    const ficheDeLaSorte = circuit.ficheDeLaSorte as (
-      plans: { fiche: object; reponse?: boolean }[]
+    const ficheDuPlan = circuit.ficheDuPlan as (
+      plans: { fiche: object; reponse?: boolean }[],
+      champ: string
     ) => object | null;
+    const ficheDeLaSorte = (plans: { fiche: object; reponse?: boolean }[]) =>
+      ficheDuPlan(plans, 'sorte');
     const premier = { ...PLAN, sorte: MECANIQUE };
     const reponse = { ...PLAN, reponses: [{ numero: '1', reponse: 'GARDE', texte: 't' }] };
     expect(sorte(ficheDeLaSorte([{ fiche: premier }, { fiche: reponse, reponse: true }])!)).toEqual(

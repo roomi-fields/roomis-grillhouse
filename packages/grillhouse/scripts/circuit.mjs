@@ -90,6 +90,15 @@
 //   passes (`plan`, its fingerprint: its title and its criteria); a plan that passed, its title
 //   and criteria unchanged since, passes with no session, whatever else of its description
 //   changed.
+// - The sheet of the plan names what a component publishes to another (`noms_publies`: the
+//   provider, each consumer, its names), which the circuit writes in the description (« ## Noms
+//   publiés », after the sort), written again at each plan from the explorateur's last sheet (an
+//   empty list erases it, a sheet without the field keeps the section the description holds), as
+//   a code owner's approval covers what it reviewed: the guard of the consumers
+//   (scripts/langages/typescript/consommateurs-arbitres.mjs) reads that section, and a lot that
+//   adds those names to the provider's « Consommateurs » lines passes it with no arbitrage
+//   (grillhouse-la3, BPScript 320.14.2.10: a criterion alone named them, the guard refused the
+//   lot, and the supervisor wrote the section by hand before a new session).
 // - The sheet of the plan says the sort of the ticket (`sorte`, read by `sorteDuPlan` of
 //   scripts/resultats.mjs, from the explorateur's last sheet of the plan), which the circuit
 //   writes in the description (« ## Sorte », after the criteria) and at the ticket with the plan:
@@ -2318,25 +2327,26 @@ export function arretDuTestwriterSaute(ctx, texte) {
   );
 }
 
-// The sheet of the plan that says the sort among the explorateur's sheets of the plan <plans>, in
-// their order (`{ fiche, reponse }` entries): the last one, or, when it is his answer to the
-// questionneur (`reponse`) and says none, the plan it answers, so that the sort survives the
-// answer; null without a sheet of the plan.
-export function ficheDeLaSorte(plans) {
+// The sheet of the plan that says its field <champ> (`sorte`, `noms_publies`) among the
+// explorateur's sheets of the plan <plans>, in their order (`{ fiche, reponse }` entries): the last
+// one, or, when it is his answer to the questionneur (`reponse`) and says none, the plan it
+// answers, so that the field survives the answer; null without a sheet of the plan.
+export function ficheDuPlan(plans, champ) {
   const derniere = plans.at(-1);
   if (!derniere) return null;
-  if (derniere.reponse && !('sorte' in derniere.fiche) && plans.length > 1) {
+  if (derniere.reponse && !(champ in derniere.fiche) && plans.length > 1) {
     return plans.at(-2).fiche;
   }
   return derniere.fiche;
 }
 
 // The sort of the ticket its plan says (`sorteDuPlan` of scripts/resultats.mjs): the sheet of the
-// plan that says it (`ficheDeLaSorte`), comportement without one (grillhouse-sos).
+// plan that says it (`ficheDuPlan`), comportement without one (grillhouse-sos).
 const sorteDuTicket = ctx =>
   sorteDuPlan(
-    ficheDeLaSorte(
-      lesFiches(ctx).filter(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres))
+    ficheDuPlan(
+      lesFiches(ctx).filter(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres)),
+      'sorte'
     )
   );
 
@@ -4303,6 +4313,19 @@ const planPasse = (ctx, empreinte) =>
 const QUESTIONS_OUVERTES = '## Questions ouvertes';
 // The heading of the section of the sort of the ticket in a plan's description (grillhouse-sos).
 const SORTE = '## Sorte';
+// The heading of the section of the names the plan publishes in its description, the one that
+// scripts/langages/typescript/consommateurs-arbitres.mjs reads (grillhouse-la3).
+const NOMS_PUBLIES = '## Noms publiés';
+
+// The names <noms> a plan publishes (`noms_publies`), one line each, as the guard of the consumers
+// reads them: the provider, the consumer and each name between backquotes.
+const lignesDesNoms = noms =>
+  noms
+    .map(
+      n =>
+        `- \`${n.fournisseur}\` publie à \`${n.consommateur}\` : ${n.noms.map(x => `\`${x}\``).join(', ')}`
+    )
+    .join('\n');
 
 // The sort <sorte> (`sorteDuPlan`) in words: its kind, then its reason.
 const texteDeLaSorte = sorte =>
@@ -4335,14 +4358,19 @@ function numerotee(ligne) {
 // The ticket's description <description> as it was before the plan, with the criteria the plan adds
 // <criteres> in its section of criteria (a section « ## Critères » at its end without one), the sort
 // of the ticket <sorte> in its section after it, its reason and the command of a mechanical ticket
-// (absent when the sheet says none), and its open questions <questions> in their section after
-// them, absent without one; the rest of it as it was. The criteria already written stay as they
-// are, the decision of the owner: each criterion the plan adds follows them, numbered after them.
-// Written again from the description before the plan, the description holds the criteria and the
-// sort of the explorateur's last sheet alone.
-export function decrireLePlan(description, criteres, questions, sorte = null) {
+// (absent when the sheet says none), the names the plan publishes <noms> in their section after it
+// (an empty list erases the section; a sheet without them, <noms> undefined, keeps the section the
+// description holds, a supervisor's by hand included), and its open questions <questions> in their
+// section after them, absent without one; the rest of it as it was. The criteria already written
+// stay as they are, the decision of the owner: each criterion the plan adds follows them, numbered
+// after them. Written again from the description before the plan, the description holds the
+// criteria, the sort and the names of the explorateur's last sheet alone.
+export function decrireLePlan(description, criteres, questions, sorte = null, noms = undefined) {
   const gardees = sectionsDe(description).filter(
-    s => s.tete !== QUESTIONS_OUVERTES && s.tete !== SORTE
+    s =>
+      s.tete !== QUESTIONS_OUVERTES &&
+      s.tete !== SORTE &&
+      (noms === undefined || s.tete !== NOMS_PUBLIES)
   );
   let i = gardees.findIndex(deCriteres);
   if (i < 0) {
@@ -4373,6 +4401,7 @@ export function decrireLePlan(description, criteres, questions, sorte = null) {
           },
         ]
       : []),
+    ...(noms?.length ? [{ tete: NOMS_PUBLIES, lignes: ['', lignesDesNoms(noms), ''] }] : []),
     ...(questions.length
       ? [{ tete: QUESTIONS_OUVERTES, lignes: ['', lignesOuvertes(questions), ''] }]
       : []),
@@ -4513,7 +4542,13 @@ async function lePlan(ctx) {
     ecrireLePlan(
       ctx,
       plan.paquets.map(ctx.resoudre),
-      decrireLePlan(t.description, plan.criteres, plan.questions, sorteEcrite(plan))
+      decrireLePlan(
+        t.description,
+        plan.criteres,
+        plan.questions,
+        sorteEcrite(plan),
+        plan.noms_publies
+      )
     );
     const ouvertesDuPlan = plan.questions.length ? `\n${lignesOuvertes(plan.questions)}` : 'aucune';
     dire(
@@ -4571,7 +4606,7 @@ async function lePlan(ctx) {
         {
           ...explorateur,
           premiere: 'reprend',
-          // The answer, apart from the plan it answers (`ficheDeLaSorte`).
+          // The answer, apart from the plan it answers (`ficheDuPlan`).
           avec: { reponse: true },
           // A line of `reponses` by question put, asked again once; after it, a question without
           // its line stays open.
@@ -4594,6 +4629,7 @@ async function lePlan(ctx) {
         .map(question => ({ question, piece: 'question du questionneur, sans réponse' })),
     ];
     if (posees.length) {
+      const plans = [{ fiche: premier }, { fiche: plan, reponse: true }];
       ecrireLePlan(
         ctx,
         plan.paquets.map(ctx.resoudre),
@@ -4601,7 +4637,8 @@ async function lePlan(ctx) {
           t.description,
           plan.criteres,
           ouvertes,
-          sorteEcrite(ficheDeLaSorte([{ fiche: premier }, { fiche: plan, reponse: true }]))
+          sorteEcrite(ficheDuPlan(plans, 'sorte')),
+          ficheDuPlan(plans, 'noms_publies').noms_publies
         )
       );
     }

@@ -76,6 +76,12 @@
 //   - `ecartes` (`composant`, `raison`): the components of the survey the plan does not touch,
 //     which the circuit writes at the ticket; each other component of the survey the circuit
 //     plays is in the packages (explorateur);
+//   - `noms_publies` (`fournisseur`, `consommateur`, `noms`): the names a component publishes to
+//     another, which the lot adds to the provider's « Consommateurs » lines; as a code owner's
+//     approval covers what it reviewed, the circuit writes them in the description (« ## Noms
+//     publiés »), which scripts/langages/typescript/consommateurs-arbitres.mjs reads (BP
+//     320.14.2.10: a criterion alone named them, the guard refused the lot) (grillhouse-la3)
+//     (explorateur);
 //   - `reponses` (`numero` of the question, `reponse` CHANGE or GARDE, `texte`): the explorateur's
 //     one answer to the questionneur, which the circuit writes at the ticket; a question without
 //     an answer stays open (explorateur);
@@ -243,6 +249,22 @@ const FICHES = {
           ['composant', 'raison']
         ),
         'Les composants du relevé que le plan ne touche pas, chacun avec sa raison ; chaque autre composant du relevé est dans tes paquets.'
+      ),
+      noms_publies: liste(
+        objet(
+          {
+            fournisseur: texte('Le composant qui publie, comme le titre le nomme.'),
+            consommateur: texte(
+              'Le composant qui les lit, comme sa ligne « Consommateurs » de l’INTERFACE du fournisseur le nomme.'
+            ),
+            noms: liste(
+              texte('Un nom publié, tel que la ligne « Consommateurs » l’écrit.'),
+              'Les noms que le lot ajoute à la ligne de ce consommateur.'
+            ),
+          },
+          ['fournisseur', 'consommateur', 'noms']
+        ),
+        'Les noms qu’un composant publie à un autre et que le lot ajoute aux lignes « Consommateurs » de l’INTERFACE du fournisseur, un par consommateur ; le circuit les écrit dans « ## Noms publiés », que la garde des consommateurs lit. Une liste vide efface la section ; sans le champ, le circuit garde celle que la description porte.'
       ),
       questions: liste(
         objet(

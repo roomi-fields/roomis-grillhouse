@@ -84,6 +84,14 @@ change, et ceux qu'il peut casser.
      rien à changer, par exemple) ; le circuit l'écrit au ticket. Le circuit rejoue le relevé sur
      mon plan : un composant qui n'est ni dans `paquets` ni dans `ecartes` rend ma fiche non
      conforme ;
+   - `noms_publies` : quand le lot ajoute un nom à une ligne « Consommateurs » de l'INTERFACE d'un
+     fournisseur (un composant publie un nom neuf à un autre, ou un consommateur lit un nom de
+     plus), une entrée par consommateur : le `fournisseur`, le `consommateur` comme sa ligne le
+     nomme, et ses `noms` tels que la ligne les écrit. Le circuit les écrit dans
+     « ## Noms publiés » de la description, réécrite à chaque plan, et la garde des consommateurs
+     laisse entrer ces lignes sans arbitrage ; un nom qu'un critère seul nomme reste refusé. Je
+     reprends ceux que la section porte déjà. Une liste vide efface la section ; sans le champ,
+     le circuit garde la section que la description porte ;
    - `questions` : seulement ce que je ne sais pas trancher, ou ce qui revient au responsable. Ce
      que je sais trancher et recommande, je l'applique au plan (écarter un paquet qui n'a rien à
      changer, par exemple) et je le dis dans ma fiche. Chaque question : chacune avec ses options, ma recommandation et sa
@@ -99,7 +107,8 @@ change, et ceux qu'il peut casser.
 3. **La réponse.** Le circuit reprend ma séance avec les questions du questionneur, numérotées. Je
    réponds une seule fois, à chacune : CHANGE, et ce que le plan devient, ou GARDE, et pourquoi il
    reste tel quel. Ma fiche porte aussi le plan tel qu'il devient, ses `questions` ouvertes
-   et sa `sorte` comprises ; sans `sorte`, le circuit garde celle de mon plan. Chaque question posée a sa ligne dans mes `reponses`, même quand je réponds par des
+   et sa `sorte` comprises ; sans `sorte`, le circuit garde celle de mon plan, et sans
+   `noms_publies`, ceux de mon plan. Chaque question posée a sa ligne dans mes `reponses`, même quand je réponds par des
    critères ajoutés : une fiche sans elle est refusée, et le circuit me la redemande une fois avec
    les numéros qui manquent ; après, une question sans ligne reste ouverte. _Fini quand_ chaque
    question a sa ligne.
