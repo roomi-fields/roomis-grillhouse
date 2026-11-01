@@ -75,7 +75,8 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.relance': [3, 10],
   'circuit.relecture': [13, 113],
   'circuit.reprise': [5, 58],
-  'circuit.sessions': [18, 107],
+  // grillhouse-pq6: four more expects, a resumption gives the hand back before the session left.
+  'circuit.sessions': [18, 111],
   'circuit.statut': [10, 66],
   'circuit.tests-de-head': [5, 22],
   'circuit.ticket': [10, 71], // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d)
@@ -108,7 +109,8 @@ const AVANT: Record<string, [number, number]> = {
   'crochets-du-cadre': [25, 58],
   'integrer.references': [4, 18],
   'nouveau-projet': [15, 37],
-  superviseur: [7, 26],
+  // grillhouse-pq6: three more expects, the opening names the wait of the questions.
+  superviseur: [7, 29],
   // grillhouse-0v3: the night test of a real session through the launcher, which mounts a project
   // the launcher prepares (./enveloppe-essai.ts), read on main before the move (b048461).
   'lancer-modele.seance': [2, 5],
