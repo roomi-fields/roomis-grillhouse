@@ -469,6 +469,16 @@ de 4 Go libres dans le dossier temporaire attend la place sous la borne du verro
 l'occupe, le ticket dont le dossier tient la place nommé, au lieu d'échouer faute de place (la nuit du 2026-11-01 : 25 rouges, 8 Go de
 scratchpads sur 16). Ainsi le disque en mémoire du poste ne sature jamais.
 
+**Une passe lourde attend aussi la place sur le disque de sa copie**, où cargo écrit ses
+`target/` : sous le même plancher de 4 Go (`GRILLHOUSE_COPIE_LIBRE` en nomme un autre), elle
+attend sous la même borne, comptée depuis le début de l'attente, et dit ce qui occupe ce disque :
+les copies de son dépôt, les cinq plus grosses d'abord, chacune avec son ticket, sa place et celle
+des sorties de ses outils (« .claude/worktrees/SH-ae6.2.7 (le ticket SH-ae6.2.7, 5,0 Go, dont
+target 4,8 Go) », `occupantsDesCopies`), puis « à repasser » (75), comme Bazel et Buildkite
+refusent de démarrer une construction sous un plancher de place libre plutôt que d'échouer en
+cours. Ainsi une passe ne meurt jamais faute de place sans l'avoir dit (le disque principal plein
+le 2026-11-01 : trois circuits tués sans un mot).
+
 **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
 que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touche, la file
 l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
@@ -491,8 +501,16 @@ copies. Les tickets en cours se lisent seulement quand une copie reste à juger 
 autre copie que la sienne n'appelle pas Beads. Une copie gardée dont le ticket est fermé perd
 ce que les outils de ses langages y écrivent, hors du suivi de git : les dossiers que le module
 du langage nomme (`ignorer` : `target`, `.turbo`) et `node_modules` ; son travail suivi reste.
-Chaque ligne d'une copie gardée nomme la place qu'elle tient. Le même retrait tourne à la fin de
-chaque circuit, sa copie de nuit laissée à la nuit, ses lignes au journal du ticket. Le retrait
+Chaque ligne d'une copie gardée nomme la place qu'elle tient. Une copie dont le circuit ne tourne
+plus (son `.travail` là, l'état `<copie>.circuit.json` nommant un processus parti), son ticket
+ouvert, reste, son code et ses commits intacts, et sa ligne le dit avec la place de chaque sortie
+de ses outils (« son circuit ne tourne plus (son processus 4242 est parti) ; target y tient
+5,1 Go »). Les copies qui durent perdent les sorties de leurs outils une fois leur passe jouée,
+leur `node_modules` gardé, puisque leur préparation suivante les efface (`git clean -x`) : la
+nuit nomme sa propre copie au retrait après ses étapes, et la copie de l'intégration ou de la
+file, gardée sans son verrou, les perd de même ; ainsi une copie qui dure ne tient jamais plus
+qu'une passe (synthhub : 2,9 Go dans la nuit, 4,8 Go dans l'intégration). Le même retrait tourne
+à la fin de chaque circuit, sa copie de nuit laissée à la nuit, ses lignes au journal du ticket. Le retrait
 ne change ni le verdict de la nuit, ni le code du circuit. Ainsi aucune copie ne survit à
 l'entrée de son contenu sur main, ni un dossier de compilation à son ticket (Grillhouse, 79
 copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go ; synthhub, 34 Go de `target/`).
@@ -784,6 +802,12 @@ test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
 « construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,
 sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
+sans compilation incrémentale (`CARGO_INCREMENTAL=0`, comme la CI de Rust : une copie compile une
+fois, et son `target/debug/incremental` tenait 1,1 Go d'un `target/` de 5,0 Go chez synthhub),
+sauf quand l'appelant la décide (`CARGO_INCREMENTAL`, `CARGO_BUILD_INCREMENTAL`, un
+`CARGO_PROFILE_<nom>_INCREMENTAL`, ainsi `CARGO_INCREMENTAL=1` pour déboguer) ou le projet (un
+`incremental` dans un `[profile.*]` de son Cargo.toml, `build.incremental` ou un profil d'un
+`.cargo/config.toml`), que cargo laisse primer sur chaque profil et que le cadre n'écrase pas ;
 à travers sccache (`RUSTC_WRAPPER=sccache`), le cache de compilation de Mozilla qu'emploient
 Firefox et les CI Rust, son cache sous la maison (`~/.cache/grillhouse/sccache`), commun aux copies du poste
 et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans le verrou que cargo

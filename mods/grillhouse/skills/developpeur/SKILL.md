@@ -94,6 +94,13 @@ temporaire va dans `$TMPDIR`. Les tests se lancent par `npm test -- <fichiers>`,
 de test directement. Ainsi chaque écriture passe par le verrou de ton rôle, et une substitution qui
 ne trouve pas son texte échoue au lieu de passer en silence.
 
+**Cargo compile sans compilation incrémentale** (`CARGO_INCREMENTAL=0`, posé par le cadre, comme
+la CI de Rust) : une copie compile une fois, et son `target/` reste petit. Pour déboguer, tu la
+rallumes pour ta propre passe : `CARGO_INCREMENTAL=1 npm test -- <fichiers>` ; la valeur que tu
+poses l'emporte. Un projet garde ses profils de compilation (`[profile.*]` de son `Cargo.toml`) :
+un `incremental` qu'il y écrit reste le sien, et le cadre ne pose rien. Ainsi la place disque reste
+bornée, et le débogage garde son outil.
+
 **Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
 avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 

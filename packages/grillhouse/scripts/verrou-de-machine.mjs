@@ -73,6 +73,15 @@
 //   entries, by the blocks their files hold, the temporary directory of a ticket naming its
 //   ticket), when it begins and every 30 s, under the same bound as the
 //   lock's, then « à repasser » (75).
+// - It then wants room on the disk of the copy it plays in (its root, `racine`), where cargo
+//   writes its target directories: under LIBRE_MIN as well (GRILLHOUSE_COPIE_LIBRE names another
+//   floor, in bytes; the base configuration of the tests sets 0), it waits the same way, under
+//   the same bound counted from the start of the wait, and says what holds that disk: the copies
+//   of its repository, the largest first, each with its ticket and its tools' outputs
+//   (`occupantsDesCopies` of scripts/copies-finies.mjs: « .claude/worktrees/SH-ae6.2.7 (le
+//   ticket SH-ae6.2.7, 5,0 Go, dont target 4,8 Go) »), as Bazel and Buildkite refuse to start a
+//   build under a floor of free room rather than fail in its middle (the main disk full on
+//   2026-11-01, three circuits killed without a word, grillhouse-k5y).
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
@@ -87,6 +96,7 @@ import {
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { occupantsDesCopies } from './copies-finies.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
@@ -98,8 +108,10 @@ const VARIABLE_VERROU = 'GRILLHOUSE_VERROU_MACHINE';
 const VARIABLE_TENUE = 'GRILLHOUSE_MESURE_TENUE';
 const VARIABLE_ATTENTE = 'GRILLHOUSE_ATTENTE_MACHINE_MS';
 const VARIABLE_LIBRE = 'GRILLHOUSE_TEMPORAIRE_LIBRE';
+const VARIABLE_COPIE = 'GRILLHOUSE_COPIE_LIBRE';
 
-/** The room a heavy measure wants free in the temporary directory, in bytes: 4 GB. */
+/** The room a heavy measure wants free in the temporary directory, and on the disk of its copy,
+ * in bytes: 4 GB. */
 export const LIBRE_MIN = 4 * 1024 ** 3;
 
 // The name of the frame's package, which a repository of the first rank develops.
@@ -417,10 +429,10 @@ function ancetre(pid) {
   return false;
 }
 
-// The floor of room under <env>, in bytes.
-function plancherDe(env) {
-  const n = Number(env[VARIABLE_LIBRE]);
-  return env[VARIABLE_LIBRE] && Number.isFinite(n) && n >= 0 ? n : LIBRE_MIN;
+// The floor of room the variable <variable> names under <env>, in bytes, LIBRE_MIN by default.
+function plancherDe(env, variable) {
+  const n = Number(env[variable]);
+  return env[variable] && Number.isFinite(n) && n >= 0 ? n : LIBRE_MIN;
 }
 
 // The room free in <dossier>, in bytes; Infinity when it does not read.
@@ -483,10 +495,26 @@ function occupants(dossier) {
     .join(', ');
 }
 
+// The disks a heavy pass waits for room on, in order: `{ nom, ou, variable }`, the words of its
+// lines (« le dossier temporaire », « dans le dossier temporaire »), and the variable of its floor.
+const DISQUES = {
+  temporaire: {
+    nom: 'le dossier temporaire',
+    ou: 'dans le dossier temporaire',
+    variable: VARIABLE_LIBRE,
+  },
+  copie: {
+    nom: 'le disque de la copie',
+    ou: 'sur le disque de la copie',
+    variable: VARIABLE_COPIE,
+  },
+};
+
 // Waits until <dossier> holds <plancher> bytes free (`libre`, a statfs at each turn), saying so
-// (`dire`) with what holds it (`occupe`, counted only when a line is written) when it begins and
-// every <rappelMs>, and naming itself among the waits once it waits (`inscrire`, a function that
-// returns the removal of its name). Throws an AttenteDeLaMachine (75) at <borneMs>.
+// (`dire`) in the words of <disque> (DISQUES) with what holds it (`occupe`, counted only when a
+// line is written) when it begins and every <rappelMs>, and naming itself among the waits once it
+// waits (`inscrire`, a function that returns the removal of its name). Throws an
+// AttenteDeLaMachine (75) at <borneMs> from <debut> (now by default), the start of the whole wait.
 function attendreLaPlace(dossier, { inscrire, ...o }) {
   let retirer = null;
   try {
@@ -503,21 +531,19 @@ function attendreLaPlace(dossier, { inscrire, ...o }) {
 
 function attendreLaPlaceEnNommant(
   dossier,
-  { plancher, libre, occupe, dire, borneMs, rappelMs, nommer }
+  { disque, plancher, libre, occupe, dire, borneMs, rappelMs, nommer, debut = Date.now() }
 ) {
-  const debut = Date.now();
   let dit = null;
   for (;;) {
     const l = libre(dossier);
     if (l >= plancher) {
-      if (dit !== null)
-        dire(`✓ place dans le dossier temporaire après ${duree(Date.now() - debut)}.`);
+      if (dit !== null) dire(`✓ place ${disque.ou} après ${duree(Date.now() - debut)}.`);
       return;
     }
     nommer();
     const t = Date.now();
     const etat = () =>
-      `le dossier temporaire (${dossier}) n'a que ${go(l)} libres, moins des ${go(plancher)} qu'une passe lourde demande (${VARIABLE_LIBRE}) ; l'occupent : ${occupe(dossier)}`;
+      `${disque.nom} (${dossier}) n'a que ${go(l)} libres, moins des ${go(plancher)} qu'une passe lourde demande (${disque.variable}) ; l'occupent : ${occupe(dossier)}`;
     if (t - debut >= borneMs)
       throw new AttenteDeLaMachine(
         `⏱ attente de place bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}) : ${etat()} ; à repasser (code ${A_REPASSER}).`,
@@ -532,13 +558,16 @@ function attendreLaPlaceEnNommant(
 }
 
 /**
- * Waits for room in the temporary directory under <env> (`os.tmpdir()` as it reads it): what a
- * heavy pass does before it plays (`avecLaMachine`, the night tests).
- * @param {{ env?: Record<string, string | undefined>, dire?: (ligne: string) => void,
- *   borneMs?: number, rappelMs?: number, libre?: (dossier: string) => number,
- *   occupe?: (dossier: string) => string, racine?: string, ticket?: string | null,
- *   sorte?: string }} [options] as `avecLaMachine`'s; the wait names itself among those of the
- *   lock of the machine under <env> while it waits
+ * Waits for room in the temporary directory under <env> (`os.tmpdir()` as it reads it), then on
+ * the disk of the copy at <racine>, where the pass writes its target directories: what a heavy
+ * pass does before it plays (see the header).
+ * @param {{ env?: Record<string, string | undefined>, dire?: (l: string) => void, borneMs?: number,
+ *   rappelMs?: number, libre?: (dossier: string) => number, occupe?: (dossier: string) => string,
+ *   occupeLaCopie?: (racine: string) => string, racine?: string, ticket?: string | null,
+ *   sorte?: string }} [o] `libre` reads the room of each disk, `occupe` what holds the temporary
+ *   directory, `occupeLaCopie` the copies that hold the disk of the copy; the wait names its
+ *   project <racine>, its ticket and its kind among the waits of the lock of the machine under
+ *   <env> while it waits
  * @throws {AttenteDeLaMachine} at the bound of the wait (code 75)
  */
 export function attendreDeLaPlace({
@@ -548,20 +577,27 @@ export function attendreDeLaPlace({
   rappelMs = RAPPEL_MS,
   libre = libreDans,
   occupe = occupants,
+  occupeLaCopie = occupantsDesCopies,
   racine = process.cwd(),
   ticket = null,
   sorte = 'Mesure',
 } = {}) {
   const temporaire = env.TMPDIR || env.TMP || env.TEMP || tmpdir();
   const id = identite({ racine, ticket, sorte });
+  const inscrire = () => inscrireLAttente(verrouDeMachine(env), id, 'place');
+  const debut = Date.now();
+  const commun = { libre, dire, borneMs, rappelMs, inscrire, debut };
   attendreLaPlace(temporaire, {
-    plancher: plancherDe(env),
-    libre,
+    ...commun,
+    disque: DISQUES.temporaire,
+    plancher: plancherDe(env, VARIABLE_LIBRE),
     occupe,
-    dire,
-    borneMs,
-    rappelMs,
-    inscrire: () => inscrireLAttente(verrouDeMachine(env), id, 'place'),
+  });
+  attendreLaPlace(racine, {
+    ...commun,
+    disque: DISQUES.copie,
+    plancher: plancherDe(env, VARIABLE_COPIE),
+    occupe: occupeLaCopie,
   });
 }
 

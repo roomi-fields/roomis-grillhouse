@@ -79,8 +79,11 @@
 #   refused (commits or work not entered, a lock) or held by a running circuit (its ticket in progress, its
 #   `<copie>.travail`, the lock of the integration or of the queue) stays, its log line naming
 #   why and the place it holds, a kept copy whose ticket is closed losing what the tools of its
-#   languages wrote there. The removal never changes the night's verdict; the end of each
-#   circuit runs it too (scripts/circuit.mjs).
+#   languages wrote there. The night names its own copy to the removal, its steps played: the copy
+#   stays, and loses what the tools of its languages wrote there (`target`, `.turbo`), its
+#   `node_modules` kept, which its next preparation would remove anyway (grillhouse-k5y). The
+#   removal never changes the night's verdict; the end of each circuit runs it too
+#   (scripts/circuit.mjs), the night's copy untouched.
 # - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an
 #   integration and the queue run during the night, each in its own copy.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
@@ -291,8 +294,8 @@ fin() {
 }
 jouer >> "$journal" 2>&1
 verdict=$?
-# The copies whose content is on main go once the steps are played, the night's own kept; their
-# removal never changes the verdict.
+# The copies whose content is on main go once the steps are played, the night's own kept and
+# pruned of its tools' outputs; their removal never changes the verdict.
 (cd "$racine" && node "$ici/copies-finies.mjs" "$copie") >> "$journal" 2>&1 || true
 
 if [ "$verdict" -eq 75 ]; then

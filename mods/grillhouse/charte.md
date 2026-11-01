@@ -209,8 +209,9 @@ dossier.
   reprendre vit dans la copie du ticket ou sa passation, jamais dans le seul dossier temporaire,
   qui ne porte que ce qui se refait. Le dossier temporaire ne tient ni copie du dépôt, ni
   `node_modules`, ni cache : un cache de compilation va sous `~/.cache/grillhouse/`. Une passe
-  lourde qui y trouve moins de 4 Go libres attend la place et dit ce qui l'occupe, le ticket
-  nommé. Ainsi le poste ne sature jamais son disque en mémoire.
+  lourde qui trouve moins de 4 Go libres, sous le dossier temporaire ou sur le disque de sa copie,
+  attend la place et dit ce qui l'occupe, le ticket nommé. Ainsi le poste ne sature jamais ses
+  disques.
 - **Main reste vert** : l'intégration exige un `npm run verifier` vert. Un test connu rouge se met
   en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
   Ainsi chaque rouge a son ticket.

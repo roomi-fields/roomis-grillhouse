@@ -10,6 +10,16 @@
 //   (`cacheDeLaRacine`), swept once the root is gone, as Bazel keeps its output_base under
 //   ~/.cache and never on a disk in memory; a `CARGO_TARGET_DIR` already set stays
 //   (`cibleDeCompilation`).
+// - Cargo compiles without incremental compilation (`CARGO_INCREMENTAL=0`), as the CI of Rust and
+//   the usual continuous integrations do: a copy of a ticket compiles once and seldom again, and
+//   its `target/debug/incremental` held up to 1.1 GB of a target of 5.0 GB (SyntHub, SH-ae6.2.7,
+//   grillhouse-k5y); sccache caches no incremental compilation either. Whoever decides it keeps
+//   it, as cargo reads it, which lets each of them override every profile: the caller, by
+//   `CARGO_INCREMENTAL` (an agent or a person who debugs, `CARGO_INCREMENTAL=1`),
+//   `CARGO_BUILD_INCREMENTAL` or a `CARGO_PROFILE_<nom>_INCREMENTAL` of the environment; the
+//   project, by `incremental` in a `[profile.*]` of its Cargo.toml, or `build.incremental` or a
+//   profile of a `.cargo/config.toml` from the project up to the root, then of `$CARGO_HOME`. The
+//   frame writes no other setting of a profile.
 // Every command of the module that compiles (tests, verification, typing, clippy) runs cargo
 // under this environment, in a copy as in an agent's envelope.
 //
@@ -180,16 +190,58 @@ export function cibleDeCompilation(racine, env, { creer = true } = {}) {
   return { CARGO_TARGET_DIR: cacheDeLaRacine('cargo', racine, env, { creer }) };
 }
 
+// Whether a TOML document <toml> sets `incremental` in one of its profiles (`[profile.<nom>]`),
+// or, with <build>, in its `[build]` table.
+const poseLIncremental = (toml, build) =>
+  Object.values(toml?.profile ?? {}).some(p => p && Object.hasOwn(p, 'incremental')) ||
+  (build && Object.hasOwn(toml?.build ?? {}, 'incremental'));
+
+// Whether the caller or the project at <racine> under <env> decides incremental compilation, as
+// cargo reads it (see the header): the environment (`CARGO_INCREMENTAL`, `CARGO_BUILD_INCREMENTAL`,
+// a `CARGO_PROFILE_<nom>_INCREMENTAL`), the profiles of the Cargo.toml at <racine>, then
+// `build.incremental` and the profiles of each `.cargo/config.toml` (or `.cargo/config`).
+function incrementalDecide(racine, env) {
+  if (
+    Object.keys(env).some(
+      k =>
+        k === 'CARGO_INCREMENTAL' ||
+        k === 'CARGO_BUILD_INCREMENTAL' ||
+        /^CARGO_PROFILE_\w+_INCREMENTAL$/.test(k)
+    )
+  ) {
+    return true;
+  }
+  const { parse } = require('smol-toml');
+  const lu = f => {
+    try {
+      return parse(readFileSync(f, 'utf8'));
+    } catch {
+      // An absent or unreadable file decides nothing.
+      return null;
+    }
+  };
+  if (poseLIncremental(lu(path.join(racine, 'Cargo.toml')), false)) {
+    return true;
+  }
+  return dossiersDeConfiguration(racine, env).some(d =>
+    ['config.toml', 'config'].some(nom => poseLIncremental(lu(path.join(d, nom)), true))
+  );
+}
+
 /**
  * <env> with rustc wrapped by sccache for the copy at <racine>, its cache the home's, its server
  * the copy's, its target out of the temporary directory (`cibleDeCompilation`); without sccache
- * when the project sets its own wrapper.
+ * when the project sets its own wrapper. Incremental compilation is off (`CARGO_INCREMENTAL=0`)
+ * unless the caller or the project decides it (`incrementalDecide`).
  * @param {string} racine
  * @param {NodeJS.ProcessEnv} env
  * @returns {NodeJS.ProcessEnv}
  */
 export function avecSccache(racine, env) {
-  const cible = cibleDeCompilation(racine, env);
+  const cible = {
+    ...cibleDeCompilation(racine, env),
+    ...(incrementalDecide(racine, env) ? {} : { CARGO_INCREMENTAL: '0' }),
+  };
   if (lanceurDuProjet(racine, env)) {
     return { ...env, ...cible };
   }

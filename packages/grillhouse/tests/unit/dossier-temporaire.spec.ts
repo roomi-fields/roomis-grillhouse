@@ -234,6 +234,8 @@ describe('grillhouse-xv9, critère 4 — une passe lourde attend la place au lie
           ...ENV,
           TMPDIR: dans,
           GRILLHOUSE_VERROU_MACHINE: path.join(unDossier('verrou'), 'mesure.lock'),
+          // The disk of the copy is grillhouse-k5y's (place-des-copies.spec.ts): no floor here.
+          GRILLHOUSE_COPIE_LIBRE: '0',
           ...env,
         },
       }

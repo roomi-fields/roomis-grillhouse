@@ -5,10 +5,19 @@
 // CI pipeline (Jenkins « Workspace Cleanup »): no copy outlives the entry of its content on main,
 // and no target directory its ticket (grillhouse-cyr: 34 GB of target/ under synthhub's copies).
 //
-//   node scripts/copies-finies.mjs [<copie à garder>…]   from the main tree of the repository
+//   node scripts/copies-finies.mjs [<copie finie de jouer>…]   from the main tree of the repository
 //
 // - The night's copy (`.claude/worktrees/nuit`) is always left out: the night prepares and
 //   removes its own.
+// - A copy named on the command line (the night's, by scripts/nuit.sh once its steps are played)
+//   is left out too, and pruned: its owner has played its pass in it, so it loses what the tools
+//   of its languages wrote there (`ignorer`), its install (`node_modules`) kept, as its next
+//   preparation would (`git clean -x -e node_modules`). Its line names each output removed with
+//   the place it held (« target retiré (2,9 Go) »). The copy of the integration and that of the
+//   queue, kept that no lock holds, lose them the same way: a copy that lasts holds between its
+//   passes none of the outputs its next pass would remove anyway, and at most one pass's
+//   (grillhouse-k5y: 2.9 GB in the night's, 4.8 GB in the integration's of SyntHub). The night's
+//   copy named by no one is never touched: a night may play in it.
 // - First `git worktree prune`: a copy whose folder is gone leaves the list. Then each copy
 //   `git worktree list` names, the main tree and the copies named on the command line (the
 //   night's) left out, passes through scripts/retirer-copie.sh, without `--jetable`: a copy whose
@@ -24,6 +33,16 @@
 //   progress that do not read, or not within a minute, hold every copy: none is removed. They are
 //   read only when a copy is left to judge: a repository with no copy but the night's calls no bd.
 //   A locked copy (`git worktree lock`, as Claude Code locks the copy of a live agent) stays too.
+//   A copy whose circuit no longer runs (its `<copie>.travail` there, the state
+//   `<copie>.circuit.json` naming a process gone, `leMemeVivant`), its ticket still open, stays,
+//   its code and commits untouched, and its line says so with the place it holds and that of each
+//   of its tools' outputs (« son circuit ne tourne plus (son processus 4242 est parti) ; target y
+//   tient 5,1 Go ; son code et ses commits restent »): 5.2 GB of SyntHub's SH-cgi.8.2 were kept
+//   so under the words of a running circuit (grillhouse-k5y).
+// - The count of what holds the disk of a copy (`occupantsDesCopies`), which the wait for room of
+//   a heavy pass names (scripts/verrou-de-machine.mjs): the copies of its repository, the five
+//   largest first, each with its ticket (the copy's folder, but the frame's copies that last and
+//   Claude Code's `agent-*`), its place and that of its tools' outputs.
 // - A copy whose commits are not on main stays, its line naming the first path that has not
 //   entered: retirer-copie.sh judges the local work alone, so the copy's HEAD is judged first, as
 //   the removal judges local work: each path HEAD changed since its base with main holds the
@@ -54,12 +73,12 @@
 //   output, which the night adds to its log. The exit is
 //   0 whatever is removed or kept: the removal never changes the night's verdict.
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { PILOTE } from './fusion-du-changelog.mjs';
 import { langageDe } from './langages.mjs';
-import { balayerLesTickets } from './mesure/base-de-passe.mjs';
+import { balayerLesTickets, leMemeVivant } from './mesure/base-de-passe.mjs';
 
 const RETIRER = path.join(import.meta.dirname, 'retirer-copie.sh');
 const PRINCIPALE = 'main';
@@ -67,8 +86,14 @@ const PRINCIPALE = 'main';
 const VERROUS = { integration: 'integration.lock', file: 'file-integration.lock' };
 // The install of a copy: a link to the main tree's, or its own directory.
 const INSTALLATION = 'node_modules';
+// The folder of the copies of a repository, from its main tree.
+const COPIES = path.join('.claude', 'worktrees');
 // The copy of the night, its own to prepare and to remove (scripts/nuit.sh).
-const NUIT = path.join('.claude', 'worktrees', 'nuit');
+const NUIT = path.join(COPIES, 'nuit');
+// The frame's copies that last, each prepared again before its pass, every untracked file removed
+// (`git clean -x`, scripts/nuit.sh and scripts/integration/rejeu.mjs): the night's, the
+// integration's, the queue's. Their folder bears no ticket.
+const DURABLES = new Set(['nuit', ...Object.keys(VERROUS)]);
 
 const lancer = (dossier, cmd, args) =>
   spawnSync(cmd, args, { cwd: dossier, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -97,10 +122,26 @@ function lesCopies(racine) {
     }));
 }
 
-// What holds the copy <chemin> for a running circuit or a live process (its lock), or null.
-function tenue({ chemin, verrou: raison }, enCours, commun) {
+const lireJson = f => {
+  try {
+    return JSON.parse(readFileSync(f, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+// What holds the copy <chemin> for a running circuit or a live process (its lock), or null. A
+// copy whose circuit no longer runs (the state `<copie>.circuit.json` beside its `.travail` names
+// a process gone, scripts/circuit.mjs) stays held, and its line names the place its tools'
+// outputs (<ignorer>) hold there.
+function tenue({ chemin, verrou: raison }, enCours, commun, ignorer) {
   const nom = path.basename(chemin);
   if (existsSync(`${chemin}.travail`)) {
+    const etat = lireJson(`${chemin}.circuit.json`);
+    if (etat && !leMemeVivant(etat.processus, etat.depart)) {
+      const sorties = placeDesSorties(chemin, ignorer).map(s => ` ; ${s}`);
+      return `son circuit ne tourne plus (son processus ${etat.processus} est parti)${sorties.join('')} ; son code et ses commits restent`;
+    }
     return `son circuit a son dossier ${nom}.travail`;
   }
   if (enCours.has(nom)) {
@@ -174,9 +215,15 @@ function pasEntre(racine, b) {
   return null;
 }
 
-// The place <chemin> holds on the disk, as `du` counts it (a link not followed): « 2,7 Go ».
-function place(chemin) {
-  const ko = Number.parseInt(lancer(chemin, 'du', ['-sk', chemin]).stdout, 10);
+// The kilobytes <chemin> holds on the disk, as `du -sk` counts them (a link not followed); NaN
+// when it does not read.
+const kilooctets = chemin => Number.parseInt(lancer(chemin, 'du', ['-sk', chemin]).stdout, 10);
+
+// The place <chemin> holds on the disk, as `du` counts it: « 2,7 Go ».
+const place = chemin => texteDePlace(kilooctets(chemin));
+
+// The place of <ko> kilobytes in words: « 2,7 Go », « 12 Ko ».
+function texteDePlace(ko) {
   if (!Number.isFinite(ko)) {
     return '? Go';
   }
@@ -197,6 +244,58 @@ function sortiesDesOutils(chemin, ignorer) {
     .filter(p => p && noms.has(path.basename(p)));
 }
 
+// The tools' outputs of the copy <chemin> but its install (<ignorer>), each with its place:
+// « target y tient 4,8 Go ».
+const placeDesSorties = (chemin, ignorer) =>
+  sortiesDesOutils(chemin, ignorer)
+    .filter(p => path.basename(p) !== INSTALLATION)
+    .map(p => `${p} y tient ${place(path.join(chemin, p))}`);
+
+// The ticket the copy at <chemin> bears by its folder (`.claude/worktrees/<ticket>`, as the
+// circuit and the launcher name it); null for the frame's copies that last and for Claude Code's
+// (`agent-*`).
+function ticketDeLaCopie(chemin) {
+  const nom = path.basename(chemin);
+  return path.dirname(chemin).endsWith(COPIES) && !DURABLES.has(nom) && !nom.startsWith('agent-')
+    ? nom
+    : null;
+}
+
+/**
+ * What holds the disk of the repository whose copy or main tree is <racine>: its copies, the
+ * main tree left out, the five largest first, each with its ticket, its place and the place of
+ * its tools' outputs (<ignorer>, by default the directories the module of the project's language
+ * names): « .claude/worktrees/SH-ae6.2.7 (le ticket SH-ae6.2.7, 5,0 Go, dont target 4,8 Go) ».
+ * What the wait for room on the disk of a copy names (scripts/verrou-de-machine.mjs).
+ * @param {string} racine
+ * @param {string[]} [ignorer]
+ * @returns {string}
+ */
+export function occupantsDesCopies(racine, ignorer) {
+  const [principale, ...copies] = lesCopies(racine);
+  if (!principale) {
+    return `aucune copie de dépôt sous ${racine}`;
+  }
+  if (!copies.length) {
+    return `aucune copie de ${principale.chemin} hors son arbre principal`;
+  }
+  const noms = ignorer ?? ignoresDuLangage(principale.chemin);
+  const ici = reel(principale.chemin);
+  return copies
+    .map(({ chemin }) => ({ chemin, ko: kilooctets(chemin) }))
+    .sort((a, b) => (b.ko || 0) - (a.ko || 0))
+    .slice(0, 5)
+    .map(({ chemin, ko }) => {
+      const vu = path.relative(ici, reel(chemin));
+      const ticket = ticketDeLaCopie(chemin);
+      const dont = sortiesDesOutils(chemin, noms)
+        .filter(p => path.basename(p) !== INSTALLATION)
+        .map(p => `${p} ${place(path.join(chemin, p))}`);
+      return `${vu.startsWith('..') ? chemin : vu} (${ticket ? `le ticket ${ticket}, ` : ''}${texteDePlace(ko)}${dont.length ? `, dont ${dont.join(', ')}` : ''})`;
+    })
+    .join(', ');
+}
+
 // Whether the link `node_modules` is the only local work of the copy <chemin>, as
 // scripts/retirer-copie.sh reads it (`git status`, submodules included).
 function seulLeLien(chemin) {
@@ -204,13 +303,27 @@ function seulLeLien(chemin) {
   return r.status === 0 && r.stdout === `?? ${INSTALLATION}\0`;
 }
 
-// Removes from the copy <chemin> what the tools of the languages wrote there; their paths.
-function retirerLesSorties(chemin, ignorer) {
-  const retirees = sortiesDesOutils(chemin, ignorer);
+// Removes from the copy <chemin> what the tools of the languages wrote there, its install
+// (`node_modules`) but with <installation> false; their paths.
+function retirerLesSorties(chemin, ignorer, { installation = true } = {}) {
+  const retirees = sortiesDesOutils(chemin, ignorer).filter(
+    p => installation || path.basename(p) !== INSTALLATION
+  );
   for (const p of retirees) {
     rmSync(path.join(chemin, p), { recursive: true, force: true });
   }
   return retirees;
+}
+
+// Removes from the frame's copy that lasts at <chemin> its tools' outputs, its install kept, as
+// its next preparation would (`git clean -x -e node_modules`): « target retiré (4,8 Go) », each.
+function elaguer(chemin, ignorer) {
+  const places = new Map(
+    sortiesDesOutils(chemin, ignorer).map(p => [p, place(path.join(chemin, p))])
+  );
+  return retirerLesSorties(chemin, ignorer, { installation: false }).map(
+    p => `${p} retiré (${places.get(p)})`
+  );
 }
 
 /**
@@ -221,16 +334,37 @@ function retirerLesSorties(chemin, ignorer) {
  * asks nothing; <lireFermes> reads the ids of the tickets closed, called once, when a copy is kept
  * that no circuit holds. A copy kept whose ticket is closed loses what the tools of its languages
  * wrote there (<ignorer>, the directories the module of the language names, and `node_modules`).
+ * <elaguer> names copies left out too, whose owner has played its pass (the night's own): each
+ * loses its tools' outputs, its install kept; so does a copy of the integration or of the queue
+ * kept that no lock holds.
  */
-export function retirerLesCopiesFinies(racine, { garder = [], lireEnCours, lireFermes, ignorer }) {
+export function retirerLesCopiesFinies(
+  racine,
+  { garder = [], elaguer: aElaguer = [], lireEnCours, lireFermes, ignorer }
+) {
   const [principale, ...listees] = lesCopies(racine);
-  const ecartees = new Set([principale?.chemin, ...garder].filter(Boolean).map(reel));
+  const ici = reel(racine);
+  const vu = c => (path.relative(ici, reel(c)).startsWith('..') ? c : path.relative(ici, reel(c)));
+  const elaguees = new Set(aElaguer.map(reel));
+  const lignes = [];
+  for (const { chemin } of listees) {
+    if (elaguees.has(reel(chemin))) {
+      const retirees = elaguer(chemin, ignorer);
+      if (retirees.length) {
+        lignes.push(`✓ copie élaguée : ${vu(chemin)} : ${retirees.join(', ')}.`);
+      }
+    }
+  }
+  const ecartees = new Set([principale?.chemin, ...garder, ...aElaguer].filter(Boolean).map(reel));
   if (listees.every(c => ecartees.has(reel(c.chemin)))) {
-    return [];
+    return lignes;
   }
   const enCours = lireEnCours();
   if (enCours === null) {
-    return ['✗ les tickets en cours ne se lisent pas (bd list) : aucune copie n’est retirée.'];
+    return [
+      ...lignes,
+      '✗ les tickets en cours ne se lisent pas (bd list) : aucune copie n’est retirée.',
+    ];
   }
   git(racine, 'worktree', 'prune');
   const commun = git(
@@ -240,15 +374,21 @@ export function retirerLesCopiesFinies(racine, { garder = [], lireEnCours, lireF
     '--git-common-dir'
   ).stdout.trim();
   const copies = lesCopies(racine).slice(1);
-  const ici = reel(racine);
-  const vu = c => (path.relative(ici, reel(c)).startsWith('..') ? c : path.relative(ici, reel(c)));
-  const lignes = [];
   let fermes;
-  // The line of the copy <chemin> kept for <raison>: what it lost when its ticket is closed, then
-  // the place it holds.
+  // The line of the copy <chemin> kept for <raison>: what it lost when its ticket is closed, or,
+  // for the copy of the integration or of the queue, its tools' outputs, which its next
+  // preparation removes; then the place it holds.
   const gardee = (chemin, raison) => {
+    const nom = path.basename(chemin);
+    if (Object.hasOwn(VERROUS, nom) && path.dirname(chemin).endsWith(COPIES)) {
+      const retirees = elaguer(chemin, ignorer);
+      const perte = retirees.length
+        ? ` ; sa prochaine préparation l'efface : ${retirees.join(', ')}`
+        : '';
+      return `· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}${perte}`;
+    }
     fermes ??= lireFermes() ?? new Set();
-    const perdues = fermes.has(path.basename(chemin)) ? retirerLesSorties(chemin, ignorer) : [];
+    const perdues = fermes.has(nom) ? retirerLesSorties(chemin, ignorer) : [];
     const perte = perdues.length ? ` ; son ticket est fermé : ${perdues.join(', ')} retirés` : '';
     return `· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}${perte}`;
   };
@@ -257,7 +397,7 @@ export function retirerLesCopiesFinies(racine, { garder = [], lireEnCours, lireF
     if (ecartees.has(reel(chemin))) {
       continue;
     }
-    const raison = tenue(copie, enCours, commun);
+    const raison = tenue(copie, enCours, commun, ignorer);
     if (raison) {
       lignes.push(`· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}.`);
       continue;
@@ -330,16 +470,18 @@ function ignoresDuLangage(racine) {
 
 /**
  * The removal of the copies of the repository at <racine> (`retirerLesCopiesFinies`), the copy of
- * the night and the copies <garder> left out, the tickets read by bd, then of the temporary
- * directories of its closed tickets (`balayerLesTickets`): what the night and the end of each
- * circuit (scripts/circuit.mjs) run. Its lines.
+ * the night left out, the copies <finies> left out and pruned, their owner having played its pass
+ * in them (the night's own, which scripts/nuit.sh names), the tickets read by bd, then of the
+ * temporary directories of its closed tickets (`balayerLesTickets`): what the night and the end
+ * of each circuit (scripts/circuit.mjs) run. Its lines.
  * @param {string} racine the main tree
- * @param {string[]} [garder]
+ * @param {string[]} [finies]
  * @returns {string[]}
  */
-export function retirerLesCopiesDuDepot(racine, garder = []) {
+export function retirerLesCopiesDuDepot(racine, finies = []) {
   const lignes = retirerLesCopiesFinies(racine, {
-    garder: [path.join(racine, NUIT), ...garder],
+    garder: [path.join(racine, NUIT)],
+    elaguer: finies,
     lireEnCours: () => tickets(racine, 'in_progress'),
     lireFermes: () => tickets(racine, 'closed'),
     ignorer: ignoresDuLangage(racine),

@@ -255,8 +255,9 @@ outil sous `${XDG_CACHE_HOME:-~/.cache}/grillhouse/<outil>`, jamais sous le doss
 dossier temporaire, balayé quand sa racine n'est plus, vue du même espace de processus, ou depuis l'hôte
 après 7 jours sans usage, son seul
 chemin quand `creer` est faux ;
-`attendreDeLaPlace(options)`, l'attente de 4 Go libres dans le dossier temporaire avant une passe
-lourde, qui nomme ce qui l'occupe et rend 75 à sa borne. Un module n'importe rien d'autre du noyau que ses entrées publiées
+`attendreDeLaPlace(options)`, l'attente de 4 Go libres dans le dossier temporaire, puis sur le
+disque de la copie (`racine`), avant une passe lourde, qui nomme ce qui occupe chacun (sur le
+disque de la copie, les copies du dépôt, leur ticket et leur `target/`) et rend 75 à sa borne. Un module n'importe rien d'autre du noyau que ses entrées publiées
 (`./jointure`, `./paquets`, `./dette`, `./resultats`, `./conformite`).
 
 ## La conformité
