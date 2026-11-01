@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A reference red at the checks of the plan is regenerated before any red goes to the developpeur** (grillhouse-du1): in BPScript (bp-mono-vbwf.320.6.5, 0.27.0, 2026-11-01), the lot added `grillhouse.lit` to the package.json of five packages, so their turbo.json, which the frame generates, had to change. At the checks (3.1), the guard `turbo-des-paquets` and a test of the project that reads the hash the turbo.json declare (`declarations-des-captures.test.ts`) were red; the circuit regenerated references only when the checks were green but for them, so the test went to the developpeur, who had nothing to deliver (`sans-livraison`), and, relaunched to write the turbo.json, met EROFS, the references being out of his rights: the ticket never reached 4.2. As Bazel builds a genrule before the tests that read it, the checks of the plan with a red of a reference, mixed with other reds or not, now regenerate it first (the gesture `regeneration`, 4.2); beside other reds, the checks of the plan play again on the regenerated tree, which judges the guard and the test that reads the reference, then each red that remains goes to its owner; alone, the final pass that is due follows, as before. Neither pass regenerates again a reference regenerated on the same tree, so the regeneration of the final pass stays and changes nothing after the checks'; a regeneration that changes nothing plays the checks no more, their reds standing. The skills of the testwriter and the developpeur, the instruction template and the package's architecture say it.
+
 ## [0.28.0] - 2026-11-01
 
 ### Added

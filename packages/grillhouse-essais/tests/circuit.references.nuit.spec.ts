@@ -232,10 +232,143 @@ describe.runIf(canWrap)(
       expect(c.filter(x => x === REGENERER)).toHaveLength(1);
       // The checks say the red goes to its regeneration, not to the final pass.
       const controles = commentaires(id).find(t => t.startsWith('Circuit · controles :'));
-      expect(controles).toContain(`à leur régénération avant la passe finale (${NOM})`);
+      expect(controles).toContain(`(${NOM}) : à leur régénération, puis la passe finale.`);
       expect(controles).not.toContain('laissés à la passe finale');
       expect(ordre(id)).toEqual(['developpeur', 'relecteur']);
       expect(gitRepo('show', 'main:reference.txt')).toBe('4\n');
+    });
+
+    // A test of forms, in the copy <copie>, in the plan, that reads the reference: red until it is
+    // regenerated.
+    const litLaReference = (copie: string) =>
+      ecrire(
+        path.join(copie, 'packages/forms/test/reference.test.mjs'),
+        `import { readFileSync } from 'node:fs';
+import { expect, it } from 'vitest';
+import { mesure } from '../src/index.mjs';
+it('la référence suit la mesure', () => {
+  const lu = readFileSync(new URL('../../../reference.txt', import.meta.url), 'utf8').trim();
+  expect(lu).toBe(String(mesure(2)));
+});
+`
+      );
+    const DEVELOPPEUR_BLOQUE = `fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le rouge."}'\n`;
+
+    // grillhouse-du1 — a reference the lot makes stale is regenerated before the checks of the plan
+    // judge the lot, as Bazel builds a genrule before the tests that read it: a test of the plan
+    // that reads the reference is judged on the regenerated file, mixed reds or not. Witness:
+    // BPScript 320.6.5 (07:16:56, 0.27.0): the lot added `grillhouse.lit` to five package.json,
+    // the turbo-des-paquets guard and declarations-des-captures.test.ts, which reads the hash the
+    // turbo.json declare, red at the checks; the test went to the developpeur, who had nothing to
+    // deliver (sans-livraison), then met EROFS on the turbo.json (hors-portee): 4.2 never came.
+    it('grillhouse-du1 critère 1, 2 et 3 — a test of the plan that reads a stale reference, beside the reference’s red: the regeneration, then the checks of the plan again, on the regenerated tree; no developpeur relaunched, the final pass regenerates nothing', () => {
+      const id = 'demo-references-avant-les-controles';
+      laReference(true);
+      litLaReference(leTicket(id, DESCRIPTION));
+      const r = lancer(id);
+      expect(r.status, sortie(r)).toBe(0);
+      // Criterion 2: the red of the test that reads the reference goes to no developpeur.
+      expect(ordre(id)).toEqual(['developpeur', 'relecteur']);
+      expect(entrees(id).some(x => x.arret === 'sans-livraison' || x.arret === 'hors-portee')).toBe(
+        false
+      );
+      const c = commandes(id);
+      const regeneration = c.indexOf(REGENERER);
+      expect(regeneration, c.join('\n')).toBeGreaterThan(0);
+      // Criterion 1: the checks of the plan see the reds, the regeneration, then the checks of the
+      // plan again, on the regenerated tree, then the final pass.
+      expect(c.slice(0, regeneration).some(x => x.startsWith('npm test'))).toBe(true);
+      expect(c.slice(0, regeneration).some(x => x.startsWith('npm run verifier'))).toBe(false);
+      const apres = c.slice(regeneration + 1);
+      const finale = apres.indexOf('npm run verifier');
+      expect(finale, apres.join('\n')).toBeGreaterThan(0);
+      expect(apres.slice(0, finale).some(x => x.startsWith('npm test'))).toBe(true);
+      // Criterion 3: the final pass stands, once, and regenerates nothing the checks regenerated.
+      expect(apres.filter(x => x.startsWith('npm run verifier'))).toEqual(['npm run verifier']);
+      expect(c.filter(x => x === REGENERER)).toHaveLength(1);
+      // The checks after the regeneration are green, and say so.
+      const controles = commentaires(id).filter(t => t.startsWith('Circuit · controles :'));
+      expect(controles[0], controles.join('\n')).toContain(
+        `(${NOM}) : à leur régénération, puis les contrôles du plan.`
+      );
+      expect(controles[1], controles.join('\n')).toMatch(/^Circuit · controles : verts/);
+      expect(gitRepo('show', 'main:reference.txt')).toBe('4\n');
+    });
+
+    // grillhouse-du1 — a regeneration at the checks that changes no file plays the checks no more:
+    // their reds stand, each to its owner, as a CI keeps the verdict of a job it does not run again.
+    it('grillhouse-du1 — a regeneration at the checks that changes nothing: the checks do not play again, their reds go to the developpeur', () => {
+      const id = 'demo-references-aux-controles-sans-changement';
+      laReference(true);
+      // The command of the reference writes it as it is: the regeneration changes nothing.
+      ecrire(
+        path.join(REPO, 'regenerer.mjs'),
+        `import { writeFileSync } from 'node:fs';\nwriteFileSync('reference.txt', '2\\n');\n`
+      );
+      git('add', '-A');
+      git('commit', '-qm', 'une commande qui ne change rien');
+      litLaReference(leTicket(id, DESCRIPTION));
+      scenario(id, 'developpeur-2', DEVELOPPEUR_BLOQUE);
+      lancer(id);
+      const c = commandes(id);
+      const regeneration = c.indexOf(REGENERER);
+      expect(regeneration, c.join('\n')).toBeGreaterThan(0);
+      // No command plays after it: neither the checks again nor the final pass.
+      expect(c.slice(regeneration + 1), c.join('\n')).toEqual([]);
+      const e = entrees(id).find(x => x.etape === 'references') as { rapport?: string } | undefined;
+      expect(e?.rapport).toContain('les contrôles ne rejouent pas, et leurs rouges restent');
+      // The reds of the checks before stand, and go to the developpeur.
+      const controles = commentaires(id).filter(t => t.startsWith('Circuit · controles :'));
+      expect(controles[1], controles.join('\n')).toContain(
+        "ceux des contrôles d'avant, que la régénération ne change pas ; développeur relancé (séance 2)"
+      );
+      expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
+      expect(essai(id, 'developpeur-2.prompt')).toContain('la référence suit la mesure');
+    });
+
+    // grillhouse-du1 — a developpeur who had nothing to deliver before checks green but for a red
+    // of a reference: the final pass, whose red of the plan relaunches him, as any red of the final
+    // pass; the stop `sans-livraison` judges the checks after his session alone.
+    it('grillhouse-du1 — nothing to deliver, checks green but for a reference: the final pass relaunches the developpeur on its red of the plan, no « sans-livraison »', () => {
+      const id = 'demo-references-rien-a-livrer';
+      laReference(true);
+      // A guard that judges forms out of the envelope alone: a red of the plan the final pass
+      // alone sees.
+      const pkg = JSON.parse(lire(path.join(REPO, 'package.json'))) as {
+        scripts: Record<string, string>;
+      };
+      pkg.scripts.gardes = `${pkg.scripts.gardes} && node garde-finale.mjs`;
+      ecrire(path.join(REPO, 'package.json'), json(pkg));
+      ecrire(
+        path.join(REPO, 'garde-finale.mjs'),
+        `import { ecrireSarif } from ${JSON.stringify(RESULTATS)};
+const constats = process.env.GRILLHOUSE_ENVELOPPE
+  ? []
+  : [{ fichier: 'packages/forms/src/index.mjs', ligne: 1, message: 'forms rougit à la passe finale' }];
+for (const k of constats) console.log('⛔ ' + k.fichier + ' — ' + k.message);
+ecrireSarif({ garde: 'finale', constats });
+if (constats.length) process.exit(1);
+`
+      );
+      git('add', '-A');
+      git('commit', '-qm', 'une garde de la passe finale');
+      const copie = leTicket(id, DESCRIPTION);
+      // The code already in the copy: the developpeur's session changes nothing.
+      ecrire(
+        path.join(copie, 'packages/forms/src/index.mjs'),
+        'export const mesure = x => 2 * x;\n'
+      );
+      scenario(id, 'developpeur-2', DEVELOPPEUR_BLOQUE);
+      lancer(id);
+      expect(
+        entrees(id).some(x => x.arret === 'sans-livraison'),
+        commentaires(id).join('\n')
+      ).toBe(false);
+      const c = commandes(id);
+      expect(c.indexOf(REGENERER), c.join('\n')).toBeGreaterThan(0);
+      expect(c).toContain('npm run verifier');
+      expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
+      expect(essai(id, 'developpeur-2.prompt')).toContain('forms rougit à la passe finale');
     });
 
     // grillhouse-3uv.95.4: the regeneration is a gesture of the circuit, said with its rule.
@@ -247,7 +380,7 @@ describe.runIf(canWrap)(
       expect(r.status, sortie(r)).toBe(0);
       expect(commentaires(id).filter(t => / · geste : /.test(t))).toEqual([
         expect.stringMatching(
-          /^Circuit · geste : regeneration → à la régénération des références \(4\.2\), puis la passe finale : celle qui est due, après les contrôles ; restreinte à ce qu’elle change, après une passe finale \(règle : un rouge de la passe finale est celui d’une référence, même mêlé à d’autres, ou les contrôles du plan sont verts hors des rouges de références/
+          /^Circuit · geste : regeneration → à la régénération des références \(4\.2\), puis la passe qui juge l’arbre régénéré : après les contrôles, les contrôles du plan encore quand d’autres rouges s’y mêlent, sinon la passe finale qui est due ; après une passe finale, la passe finale restreinte à ce qu’elle change \(règle : un rouge des contrôles du plan ou de la passe finale est celui d’une référence, même mêlé à d’autres/
         ),
       ]);
       expect(
@@ -509,17 +642,26 @@ if (refus.length) process.exit(1);
     // the ceiling of the words refused it at the checks, and no « Tes rouges » named it; the final
     // pass regenerated the ceiling, whose command refuses to raise it (« le plafond ne monte pas :
     // 030-binder 86 > 83 »), and stopped at « references ».
-    it('grillhouse-u4s.1 critère 1 et 3 — at the checks of the plan, a finding of the reference’s guard on the code of the plan goes to the developpeur, beside its finding without a file: no regeneration plays', () => {
+    // grillhouse-du1: the finding without a file, the reference's, is regenerated at the checks
+    // before any red goes to the developpeur; the command refuses to raise the ceiling beside the
+    // red of the plan, so the copy is restored and the red goes to him with its output, as at the
+    // final pass (grillhouse-u4s.1 critère 2).
+    it('grillhouse-u4s.1 critère 1 et 3, grillhouse-du1 — at the checks of the plan, a finding of the reference’s guard on the code of the plan goes to the developpeur, beside its finding without a file: the regeneration refuses, the copy restored, no final pass', () => {
       const id = 'demo-references-plafond-depasse';
       lePlafond(3);
       const copie = auDelaDuPlafond(id);
       const r = lancer(id);
       expect(r.status, sortie(r)).toBe(ARRETS['hors-portee']);
       const c = commandes(id);
-      // The checks send the red to the developpeur: no regeneration, no final pass.
-      expect(c, c.join('\n')).not.toContain('node abaisser.mjs');
+      // The checks regenerate the finding without a file, whose command refuses: the red goes to
+      // the developpeur, no final pass.
+      expect(
+        c.filter(x => x === 'node abaisser.mjs'),
+        c.join('\n')
+      ).toHaveLength(1);
       expect(c.some(x => x.startsWith('npm run verifier'))).toBe(false);
-      expect(entrees(id).some(x => x.etape === 'references')).toBe(false);
+      expect(entrees(id).some(x => x.arret === 'references')).toBe(false);
+      expect(essai(id, 'developpeur-2.prompt')).toContain(MONTE);
       expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
       // The finding on the code of forms is among his reds; the line without a file is not.
       expect(sesRouges(id)).toContain(`packages/forms/src/index.mjs:1 — ${MOT}`);

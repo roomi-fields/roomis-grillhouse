@@ -145,6 +145,9 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   projet déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
   et ta fiche finit FAIT sur ta part. Exemple : en 320.8 de BPScript, un développeur aux tests
   verts s'est arrêté sur le plafond des mots, la dette et l'index, que 4.2 a régénérés ensuite.
+  Le circuit les régénère avant de te rendre tes rouges : un test qui les lit, sous « Tes rouges »,
+  a déjà été jugé sur elles régénérées. Exemple : en 320.6.5 de BPScript, un test qui lisait les
+  `turbo.json` périmés est allé au développeur, qui ne pouvait pas les écrire.
   Un constat de leur garde sur ton code reste le tien, sous « Tes rouges », comme le refus de leur
   commande qu'il cause : un plafond ne monte jamais. Exemple : en 320.10 de BPScript, le mot
   « door » écrit dans 030-binder dépassait le plafond des mots. Ainsi le geste mécanique reste au

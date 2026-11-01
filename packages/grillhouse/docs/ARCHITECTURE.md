@@ -142,11 +142,15 @@ circuit ne lit pas, tombé à la relecture après 25 min de passes finales).
 engendré se réécrit par sa commande, puis le circuit rejoue seulement ce qui en dépend. Une passe
 finale dont un rouge est celui d'une référence, mêlé ou non à d'autres, régénère les références
 qu'il nomme (4.2), puis rejoue la passe finale restreinte à ce que la régénération change ; les
-autres rouges restent, chacun à son propriétaire. Des contrôles du plan verts hors des rouges de
-références les régénèrent aussitôt, comme make refait un fichier engendré avant ce qui le lit :
-la passe finale due joue alors une fois, sur l'arbre régénéré, sans régénérer de nouveau une
-référence régénérée sur ce même arbre (BP 320.3.9 : le plafond des mots, rouge aux contrôles,
-laissé à une passe finale qui rejouait les mêmes tests sur le même arbre, 6,1 min). Les références sont celles que le projet déclare
+autres rouges restent, chacun à son propriétaire. Des contrôles du plan où rougit une référence,
+mêlée ou non à d'autres rouges, la régénèrent avant qu'aucun rouge n'aille au développeur, comme
+Bazel construit une genrule avant les tests qui la lisent : mêlés à d'autres rouges, les contrôles
+du plan rejouent sur l'arbre régénéré, qui juge un test lisant la référence (BP 320.6.5 : un test
+qui lit le hachage que déclarent les `turbo.json`, rouge à côté de leur garde, envoyé à un
+développeur qui n'avait rien à livrer, puis ne pouvait pas les écrire) ; seuls, la passe finale
+due joue une fois, sur l'arbre régénéré. Aucune ne régénère de nouveau une référence régénérée
+sur ce même arbre (BP 320.3.9 : le plafond des mots, rouge aux contrôles, laissé à une passe
+finale qui rejouait les mêmes tests sur le même arbre, 6,1 min). Les références sont celles que le projet déclare
 (`grillhouse.references`) et celles du cadre, dans chaque projet (`referencesDuCadre` de
 `circuit.mjs`, les fichiers que le module du langage engendre, `fichiersEngendres`) : l'index des
 interfaces, les `turbo.json` des paquets et les rapports d'API, chacun

@@ -208,10 +208,10 @@ export const GESTES = [
   {
     genre: 'regeneration',
     geste:
-      'à la régénération des références (4.2), puis la passe finale : celle qui est due, après les contrôles ; restreinte à ce qu’elle change, après une passe finale',
+      'à la régénération des références (4.2), puis la passe qui juge l’arbre régénéré : après les contrôles, les contrôles du plan encore quand d’autres rouges s’y mêlent, sinon la passe finale qui est due ; après une passe finale, la passe finale restreinte à ce qu’elle change',
     regle:
-      'un rouge de la passe finale est celui d’une référence, même mêlé à d’autres, ou les contrôles du plan sont verts hors des rouges de références : une que le projet déclare (`grillhouse.references`), ou un fichier que le cadre engendre (l’index des interfaces, les fichiers que le module du langage engendre) ; ou la passe abaisse la dette des gardes (`dette.mjs --abaisser`, depuis ses notes)',
-    cas: 'BP 320.9 : 292 min autour des références, dont 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte, des rouges de références mêlés à d’autres ; BP 320.3.9 : le plafond rouge aux contrôles, laissé à une passe finale qui rejoue les mêmes tests sur le même arbre (6,1 min)',
+      'un rouge des contrôles du plan ou de la passe finale est celui d’une référence, même mêlé à d’autres : une que le projet déclare (`grillhouse.references`), ou un fichier que le cadre engendre (l’index des interfaces, les fichiers que le module du langage engendre) ; ou la passe abaisse la dette des gardes (`dette.mjs --abaisser`, depuis ses notes)',
+    cas: 'BP 320.9 : 292 min autour des références, dont 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte, des rouges de références mêlés à d’autres ; BP 320.3.9 : le plafond rouge aux contrôles, laissé à une passe finale qui rejoue les mêmes tests sur le même arbre (6,1 min) ; BP 320.6.5 : un test qui lit les turbo.json, rouge à côté de leur garde, envoyé au développeur, qui n’a rien à livrer puis ne peut pas les écrire',
   },
   {
     genre: 'rien-a-livrer',

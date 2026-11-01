@@ -176,7 +176,8 @@ passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement
 RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2, sur la copie entière : l'index
 des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes, et celles que le projet
 déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
-et ta fiche finit FAIT sur ta part. Ainsi le geste mécanique reste au circuit (BP 320.8 : un
+et ta fiche finit FAIT sur ta part. Un test qui lit une référence se juge, aux contrôles, sur elle
+régénérée (BP 320.6.5 : un test qui lisait les `turbo.json`). Ainsi le geste mécanique reste au circuit (BP 320.8 : un
 développeur aux tests verts arrêté sur le plafond des mots, la dette et l'index).
 
 **Un budget de temps vit dans son fichier** : un test qui mesure une durée s'écrit dans un fichier
