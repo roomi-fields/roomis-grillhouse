@@ -24,16 +24,20 @@
 //   npx grillhouse circuit <ticket> --depuis <testwriter|developpeur> --contexte <texte>
 //   npx grillhouse circuit <ticket> --etendre <paquet>[,<paquet>…] [--contexte <texte>]
 //   npx grillhouse circuit <ticket> --arreter [--contexte <motif>]
+//   npx grillhouse circuit <ticket> --rattacher
 //
-// The run is a daemon (scripts/demon.mjs), as daemon(3) and `setsid --fork` make one: the command
-// launches a relay,
-// which launches the run in a session of its own and ends at once, so that the run is neither in
-// the caller's process group nor under it in the tree of processes, and goes on to its end when
-// its caller dies (BP 320.8: the circuit, a background command of the supervisor's session, died
-// with it). The caller relays the run's output to its own streams while it lives, and ends on the
-// run's exit code; the state names the run (`processus` and its start `depart`), which the board
-// reads, and a second run of the ticket while it lives is refused (exit 2), `--arreter` stopping
-// it.
+// The run is a daemon (scripts/demon.mjs), as daemon(3) and `setsid --fork` make one, in a unit of
+// its own (`grillhouse-circuit-<ticket>-<pid>.scope`) when the user's systemd answers, as
+// `systemd-run --user` starts one: the command launches a relay, which launches the run in a
+// session of its own and ends at once, so that the run is neither in the caller's process group,
+// nor under it in the tree of processes, nor in its group of control, and goes on to its end when
+// its caller dies or when the scope of its caller's terminal is killed (BP 320.8: the circuit, a
+// background command of the supervisor's session, died with it; grillhouse-mwz: systemd-oomd
+// killed the scope of the tmux pane of BPScript's supervisor, two circuits with it). The caller
+// relays the run's output to its own streams while it lives, and ends on the run's exit code; the
+// state names the run (`processus` and its start `depart`), which the board reads, and a second
+// run of the ticket while it lives is refused (exit 2), `--arreter` stopping it, `--rattacher`
+// waiting for its end as its caller did.
 //
 // The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
 // formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
@@ -538,6 +542,13 @@
 //   the session it led (`seance`); the state keeps its step, its stop « arrete », its question
 //   lifted, its motive (`--contexte`) as its report, said at the ticket (`Circuit · arret : le
 //   superviseur arrête le circuit : <motif>`), exit 0. Without a state, the call is refused.
+// - `--rattacher`, alone, is a client of the circuit of the ticket, as Bazel's client of its
+//   server (`rattacher`): run in its caller's process, not as a daemon, it waits while the process
+//   the state names lives, then ends as the circuit's own end does: 0 at « integre », the line of
+//   the question and its code on a stop, and 1 for a circuit dead without a final state, with the
+//   command that resumes it (`--reprendre`). Killed, it leaves the circuit going. It is the command
+//   the supervisor launches, in the background, on each circuit the opening of his session names
+//   running (scripts/superviseur.mjs). Without a state, the call is refused.
 // - On a stop other than 0, the circuit applies its gesture when one settles it (`a-repasser`:
 //   it ends at 75), the gesture written at the ticket and in the log; every other stop goes up to
 //   the supervisor (`monter`): its question (MONTEES of scripts/etapes.mjs, or the agent's own
@@ -817,11 +828,13 @@ function lireArguments(argv) {
     depuis: null,
     etendre: null,
     arreter: false,
+    rattacher: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--reprendre') o.reprendre = true;
     else if (a === '--arreter') o.arreter = true;
+    else if (a === '--rattacher') o.rattacher = true;
     else if (a === '--etendre') {
       const liste = String(argv[i + 1] ?? '')
         .split(',')
@@ -853,6 +866,8 @@ function lireArguments(argv) {
     );
   if (o.arreter && (o.reprendre || o.depuis))
     throw new Usage('--arreter va seule, son motif en --contexte.');
+  if (o.rattacher && (o.reprendre || o.depuis || o.etendre || o.arreter || o.contexte !== null))
+    throw new Usage('--rattacher va seule.');
   return o;
 }
 
@@ -4182,10 +4197,45 @@ function monter(ctx, a) {
   });
   const ou = ouDansLeCircuit({ ...a.etat, raison: a.nom });
   commenter(ctx, 'question', `${a.nom} à ${ou} — ${fait} — au ${qui} : ${question}`);
-  process.stderr.write(
-    `⛔ Circuit de ${ctx.ticket} : question au ${qui} (${a.nom}, à ${ou}), dans ${ctx.etat} ; la réponse : \`npx grillhouse circuit ${ctx.ticket} --reprendre\`, \`--depuis <testwriter|developpeur>\`, \`--etendre <paquet>\` ou \`--arreter\`.\n`
-  );
+  process.stderr.write(laQuestion(ctx.ticket, ctx.etat, { arret: a.nom, qui, ou }));
   return a.code;
+}
+
+// The line that says the question of the circuit of <ticket> stopped at <ou> on <arret>, kept in
+// its state <fichier>, to <qui>, with the commands that answer it.
+const laQuestion = (ticket, fichier, { arret, qui, ou }) =>
+  `⛔ Circuit de ${ticket} : question au ${qui} (${arret}, à ${ou}), dans ${fichier} ; la réponse : \`npx grillhouse circuit ${ticket} --reprendre\`, \`--depuis <testwriter|developpeur>\`, \`--etendre <paquet>\` ou \`--arreter\`.\n`;
+
+// The client of the circuit of <ticket> whose state is <fichier> (`--rattacher`), as Bazel's
+// client attaches to its server: it waits, reading the state every <pas> ms, while the process the
+// state names lives (`processus`, the same one by its start `depart`), then ends on what the state
+// says, as the circuit's own end says it on <erreurs>: 0 at « integre »; on a stop, its question
+// (laQuestion) or its name, and its code (0 for the supervisor's « arrete »); a circuit dead
+// without a final state (its process gone, no stop written), 1, with the command that resumes it.
+// It holds nothing of the circuit: killed, it leaves the circuit going.
+export async function rattacher({ ticket, etat: fichier, pas = 2000, erreurs = process.stderr }) {
+  let e = lireJson(fichier);
+  if (!e) throw new Usage(`--rattacher : ${fichier} n'existe pas, aucun circuit à attendre.`);
+  while (leMemeVivant(e.processus, e.depart)) {
+    await new Promise(r => setTimeout(r, pas));
+    e = lireJson(fichier) ?? e;
+  }
+  const ou = ouDansLeCircuit(e);
+  if (e.etape === 'integre') return 0;
+  if (e.question) {
+    erreurs.write(
+      laQuestion(ticket, fichier, { arret: e.question.arret, qui: e.question.qui, ou })
+    );
+    return e.code;
+  }
+  if (e.raison) {
+    erreurs.write(`⛔ Circuit de ${ticket} arrêté : ${e.raison}, à ${ou}.\n`);
+    return e.code ?? 0;
+  }
+  erreurs.write(
+    `⛔ Circuit de ${ticket} mort sans état final (processus ${e.processus ?? '?'} parti, aucun arrêt écrit, à ${ou}) ; la reprise : \`npx grillhouse circuit ${ticket} --reprendre\`.\n`
+  );
+  return 1;
 }
 
 // The run from <d> (where `depart` starts it) to its end: 0 at « integre »; a stop the gesture
@@ -4838,7 +4888,15 @@ function etendre(ctx, e) {
 export async function main(argv) {
   let ctx = null;
   try {
-    ctx = contexte(lireArguments(argv));
+    const o = lireArguments(argv);
+    if (o.rattacher) {
+      const dossier = path.join(arbrePrincipal(), '.claude', 'worktrees');
+      return await rattacher({
+        ticket: o.ticket,
+        etat: path.join(dossier, `${o.ticket}.circuit.json`),
+      });
+    }
+    ctx = contexte(o);
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
     // The findings of the reviewer still open, the lot the whole final pass verified, the session a
@@ -4920,7 +4978,7 @@ export async function main(argv) {
   } catch (e) {
     if (!(e instanceof Usage)) throw e;
     process.stderr.write(
-      `usage: npx grillhouse circuit <ticket> [--reprendre | --depuis <testwriter|developpeur>] [--contexte <texte>] | --etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>]\n⛔ ${e.message}\n`
+      `usage: npx grillhouse circuit <ticket> [--reprendre | --depuis <testwriter|developpeur>] [--contexte <texte>] | --etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>] | --rattacher\n⛔ ${e.message}\n`
     );
     return CODE_USAGE;
   } finally {
@@ -4928,7 +4986,19 @@ export async function main(argv) {
   }
 }
 
-// The entry: the run as a daemon (scripts/demon.mjs), apart from its caller.
+// The entry: the run as a daemon (scripts/demon.mjs), apart from its caller, in a unit named after
+// its ticket; `--rattacher`, a client, in the caller's own process, which dies with its session.
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exitCode = await executerEnDemon(import.meta.filename, process.argv.slice(2), main);
+  const argv = process.argv.slice(2);
+  let o = null;
+  try {
+    o = lireArguments(argv);
+  } catch {
+    // a malformed call: the run says its usage
+  }
+  process.exitCode = o?.rattacher
+    ? await main(argv)
+    : await executerEnDemon(import.meta.filename, argv, main, {
+        unite: `grillhouse-circuit-${o?.ticket ?? 'usage'}`,
+      });
 }

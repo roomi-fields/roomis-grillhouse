@@ -12,11 +12,23 @@
 //   copies, taken through scripts/verrou-de-fichier.mjs for the session's own process: the first
 //   process above this one that is not a shell (sh, bash, dash, zsh), the claude of the session.
 //   It holds as long as that process lives: a lock whose process is gone is taken over.
-// - Free, or held by a process that is gone: taken, nothing said. Held by the session itself (a
-//   session reopened in the same process): kept, nothing said. Held by another live session: the
+// - Free, or held by a process that is gone: taken, nothing said of it. Held by the session itself
+//   (a session reopened in the same process, by a compaction or a /clear): kept, nothing said of
+//   it, circuits included. Held by another live session: the
 //   lock stays, and the section « ## Un autre superviseur tient ce dépôt » names its process and
 //   since when it holds the lock, and asks to say so to the owner and to launch no circuit
 //   (skill pitmaster, « Au lancement de la séance »).
+// - The session whose opening takes the lock (not one that keeps it) receives the circuits of the
+//   repository it finds (`circuitsALOuverture`, read by scripts/tableau.mjs `lireCircuits`): the
+//   section « ## Circuits à rattacher ou à reprendre » names each circuit that runs, with the
+//   command that attaches to it (`npx grillhouse circuit <ticket> --rattacher`, which waits for its
+//   end and ends on its code), each circuit stopped on a question (its stop written, `--rattacher`
+//   ends on its code), and each circuit dead without a final state whose ticket is not closed, with the
+//   command that resumes it (`--reprendre`); the supervisor launches each one in the background
+//   without waiting for the owner's word. A circuit runs detached from the sessions
+//   (scripts/demon.mjs): the end of the session that launched it kills the command that waited for
+//   it, never the circuit, whose stop would otherwise reach no session (grillhouse-mwz: SyntHub's
+//   SH-br0.1 stopped 27 s after a relaunch of its session, read only on a word of the owner).
 // Exit 0, whatever it finds.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
@@ -24,6 +36,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
+import { lireCircuits } from './tableau.mjs';
+import { etapeDuCircuit, libelle } from './etapes.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
 const COQUILLES = new Set(['sh', 'bash', 'dash', 'zsh']);
@@ -51,6 +65,66 @@ function seance(depart = process.ppid) {
     pid = p.parent;
   }
   return depart;
+}
+
+// Of the tickets <ids> of the repository at <racine>, those that bd gives closed; none when bd does
+// not read them.
+function ticketsFermes(racine, ids) {
+  const r = spawnSync('bd', ['show', ...ids, '--json'], {
+    cwd: racine,
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  try {
+    return new Set(
+      JSON.parse(r.stdout)
+        .filter(t => t.status === 'closed')
+        .map(t => t.id)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * The section of the circuits a session of supervision finds at its opening in <racine>: each one
+ * that runs, with the command that attaches to it, and each one dead without a final state, with
+ * the command that resumes it, and each one stopped on a question (a stop other than the
+ * supervisor's own « arrete »), with the command that attaches to it and gives its stop again,
+ * those whose ticket <fermes> gives closed left out; empty when none.
+ * @param {string} racine the root of the repository
+ * @param {{ fermes?: (racine: string, ids: string[]) => Set<string> }} options
+ * @returns {string}
+ */
+export function circuitsALOuverture(racine, { fermes = ticketsFermes } = {}) {
+  const lus = lireCircuits({ racine }).filter(
+    c => c.vivant || c.interrompu || (c.arret && c.arret !== 'arrete')
+  );
+  const ferme = lus.length
+    ? fermes(
+        racine,
+        lus.map(c => c.ticket)
+      )
+    : new Set();
+  const nommes = lus
+    .filter(c => !ferme.has(c.ticket))
+    .sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'));
+  if (!nommes.length) return '';
+  const ou = c => {
+    const e = etapeDuCircuit({ ...c, raison: c.arret });
+    return e ? libelle(e) : c.etape;
+  };
+  return [
+    '## Circuits à rattacher ou à reprendre',
+    "Un circuit tourne détaché des séances : la fin de la séance qui l'a lancé a tué la commande qui attendait sa fin, pas lui. Dès ta première réponse, sans attendre le mot du responsable, lance en arrière-plan (`run_in_background`) la commande de chacun : `--rattacher` attend la fin du circuit qui tourne, ou rend l'arrêt d'un circuit arrêté sur une question, avec son code, comme son lancement ; `--reprendre` reprend un circuit mort sans état final à son étape.",
+    ...nommes.map(c =>
+      c.vivant
+        ? `- ${c.ticket} tourne, à ${ou(c)} : \`npx grillhouse circuit ${c.ticket} --rattacher\``
+        : c.arret
+          ? `- ${c.ticket} est arrêté sur une question (${c.arret}), à ${ou(c)} : \`npx grillhouse circuit ${c.ticket} --rattacher\``
+          : `- ${c.ticket} est mort sans état final (son processus parti, aucun arrêt écrit), à ${ou(c)} : \`npx grillhouse circuit ${c.ticket} --reprendre\``
+    ),
+  ].join('\n');
 }
 
 const git = (racine, ...args) =>
@@ -81,7 +155,9 @@ function superviseur(racine, { env = process.env } = {}) {
     }
   };
   if (tenant() === moi) return '';
-  if (prendreVerrou(verrou, { attendre: false, pid: moi })) return '';
+  if (prendreVerrou(verrou, { attendre: false, pid: moi })) {
+    return circuitsALOuverture(path.dirname(commun));
+  }
   const autre = tenant();
   if (!autre || autre === moi || !vivant(autre)) return '';
   let depuis = '';

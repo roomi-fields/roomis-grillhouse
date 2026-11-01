@@ -600,8 +600,10 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // under way (`plan`), null without one, `question` the whole question of a circuit ended on one
 // and `qui` who must answer it (`superviseur` or `responsable`), null without one,
 // the counters of its bounded loops (`boucles`, by their key), the progress of the automatic pass under way (`avancement`, read in the directory its state
-// names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one). A state that
-// does not parse is left out.
+// names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one), and `interrompu`
+// for a circuit dead without a final state (its process gone, neither a stop nor a code written,
+// as a circuit killed with the group of control that held it, grillhouse-mwz): its question, to
+// the supervisor, gives the command that resumes it. A state that does not parse is left out.
 export function lireCircuits({ racine }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
   const out = [];
@@ -616,6 +618,8 @@ export function lireCircuits({ racine }) {
       continue;
     }
     const ticket = path.basename(f, '.circuit.json');
+    const vivant = leMemeVivant(e.processus, e.depart);
+    const interrompu = !vivant && (e.code ?? null) === null && !e.raison;
     out.push({
       ticket,
       etape: e.etape ?? null,
@@ -624,15 +628,18 @@ export function lireCircuits({ racine }) {
       code: e.code ?? null,
       arret: e.raison ?? null,
       raison: premiereLigne(e.rapport),
-      question: String(e.question?.question ?? '').trim() || null,
-      qui: e.question ? String(e.question.qui ?? SUPERVISEUR) : null,
+      question: interrompu
+        ? `Le circuit est mort sans état final : son processus est parti, aucun arrêt écrit. \`npx grillhouse circuit ${ticket} --reprendre\` le reprend.`
+        : String(e.question?.question ?? '').trim() || null,
+      qui: interrompu ? SUPERVISEUR : e.question ? String(e.question.qui ?? SUPERVISEUR) : null,
       questionnement: e.questionnement?.objet ?? null,
       boucles: e.boucles && typeof e.boucles === 'object' ? e.boucles : {},
       mene:
         typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
       avancement:
         typeof e.avancement?.dossier === 'string' ? lireAvancement(e.avancement.dossier) : null,
-      vivant: leMemeVivant(e.processus, e.depart),
+      vivant,
+      interrompu,
     });
   }
   return out;
@@ -1677,14 +1684,14 @@ export function lignesEtats(t, largeur = LARGEUR) {
   return out;
 }
 
-// Where the stopped circuit <c> is: its step by number and title, its attempt, and its stop
-// (« interrompu » for a circuit dead without a stop written).
+// Where the stopped circuit <c> is: its step by number and title, its attempt, and its stop, with
+// its code when it has one.
 const ouEnEst = c => {
   const e = etapeDuCircuit({ ...c, raison: c.arret });
   const ou = [e ? libelle(e) : c.etape, c.tentative ?? null]
     .filter(x => x !== null && x !== undefined)
     .join(' ');
-  const arret = c.code === null ? 'interrompu' : `arrêt ${c.arret ?? '?'} (${c.code})`;
+  const arret = `arrêt ${c.arret ?? '?'}${c.code === null ? '' : ` (${c.code})`}`;
   return `${ou}, ${arret}`;
 };
 

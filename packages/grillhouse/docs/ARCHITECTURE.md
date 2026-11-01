@@ -491,14 +491,31 @@ copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go ; synthhub, 34 Go de `target/`).
 **Le circuit est un démon** (`packages/grillhouse/scripts/demon.mjs`) : comme daemon(3) et
 `setsid --fork`, `npx grillhouse circuit` lance
 un relais, qui lance le circuit dans une session à lui puis finit aussitôt ; le circuit n'est ni
-dans le groupe de son appelant ni sous lui dans l'arbre des processus. L'appelant relaie sa sortie
-jusqu'à sa dernière ligne et rend son code de fin ; mort, il laisse le circuit aller à sa fin.
+dans le groupe de son appelant ni sous lui dans l'arbre des processus. Quand le systemd de
+l'utilisateur répond, le circuit part aussi dans une unité à lui, comme `systemd-run --user` en
+lance une (`grillhouse-circuit-<ticket>-<pid>.scope`, sous `app.slice`) : il sort du groupe de
+contrôle du terminal ou du volet tmux de la séance, que systemd tue en entier (le 2026-11-01,
+systemd-oomd a tué le volet du superviseur de BPScript, 94 processus, deux circuits avec lui).
+L'appelant relaie sa sortie jusqu'à sa dernière ligne et rend son code de fin ; mort, il laisse le
+circuit aller à sa fin. Comme le client de Bazel se rattache à son serveur,
+`npx grillhouse circuit <ticket> --rattacher` est un client du circuit qui tourne : il attend que
+son processus finisse, puis rend ce que dit son état (0 à « integre », la ligne de sa question et
+son code sur un arrêt, 1 avec la commande qui le reprend pour un circuit mort sans état final).
+L'ouverture d'une séance de supervision (`packages/grillhouse/scripts/superviseur.mjs`, joué par le
+crochet de démarrage), quand cette ouverture prend le verrou du dépôt (non quand la même séance le
+garde déjà, après un compactage ou un `/clear`), nomme chaque circuit qui tourne, avec sa commande `--rattacher`, et chaque
+circuit mort sans état final (son processus parti, ni arrêt ni code écrit), avec sa commande
+`--reprendre`, et chaque circuit arrêté sur une question dont le ticket est ouvert (hors l’arrêt `arrete` du superviseur), avec sa commande `--rattacher`, qui redonne son arrêt ; le superviseur les lance sans attendre le mot du responsable. Le panneau range un
+circuit mort sans état final sous « ⤷ Question · superviseur », la commande qui le reprend en tête
+de sa fiche.
 L'état du circuit le nomme par son numéro et son heure de départ (`processus`, `depart`, le champ
 22 de `/proc/<pid>/stat`), comme un gestionnaire de services vérifie qu'un numéro réutilisé ne
 désigne pas un autre processus : le panneau tient un circuit pour vivant sur ce seul processus,
 jamais sur la ligne de commande de l'appelant, une seconde course du ticket est refusée tant
-qu'il vit, et `--arreter` ne vise que lui. Ainsi un circuit survit à la séance qui le lance (BP 320.8 : un circuit mort avec
-la séance du superviseur, repris à la main).
+qu'il vit, et `--arreter` ne vise que lui. Ainsi un circuit survit à la séance qui le lance, et
+son arrêt monte à la séance de supervision ouverte (BP 320.8 : un circuit mort avec la séance du
+superviseur, repris à la main ; SyntHub SH-br0.1 : un arrêt 27 s après la relance de la séance,
+lu sur un mot du responsable).
 
 **Main reste vert** : l'intégration exige un `npm run verifier` vert, sans rouge admis, mesuré
 contre le dernier vert ; la nuit rejoue la passe complète. La mise à jour du cadre

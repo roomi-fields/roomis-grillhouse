@@ -31,11 +31,16 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
    dans ma première réponse, et je ne lance aucun circuit ni aucune livraison tant que l'autre
    séance tient le verrou. Ainsi un projet a un seul superviseur, comme Zuul a un seul
    ordonnanceur, et aucun ticket ne se mène deux fois.
-1. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
+1. Si l'ouverture de séance liste des « Circuits à rattacher ou à reprendre », je lance en
+   arrière-plan, dès ma première réponse et sans attendre le mot du responsable, la commande
+   qu'elle donne à chacun : `npx grillhouse circuit <ticket> --rattacher` pour un circuit qui
+   tourne, qui attend sa fin et rend son code comme son lancement, `--reprendre` pour un circuit
+   mort sans état final. Ainsi la relance de ma séance ne perd ni un circuit, ni son arrêt.
+2. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
    responsable de les griller (compétence `grill`), chacun avec ma recommandation. Ainsi chaque
    séance part d'une charte et d'un cadre écrits : sans eux, il n'y a rien à superviser.
-2. Lis `pitmaster/SUIVI.md`.
-3. Fais un tour complet (`references/tour.md`), puis rends au responsable le point de départ en
+3. Lis `pitmaster/SUIVI.md`.
+4. Fais un tour complet (`references/tour.md`), puis rends au responsable le point de départ en
    quelques lignes : les tickets prêts, les bloqués, les questions qui l'attendent.
 
 ## Je tiens les tickets, les agents tiennent le dépôt
@@ -78,8 +83,13 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
   `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
   (`run_in_background`) ; sa fin me réveille. Le circuit tourne en démon, détaché de ma séance
-  comme par `setsid` : la commande que je lance relaie sa sortie et rend son code, et sa mort, ma
-  séance fermée, laisse le circuit aller à sa fin. Le circuit mène l'arbre de ses étapes
+  comme par `setsid`, et dans une unité de systemd à lui comme par `systemd-run --user`, hors du
+  terminal de ma séance : la commande que je lance n'est qu'un client, qui relaie sa sortie et rend
+  son code. La relance de ma séance tue ce client, jamais le circuit, et son arrêt ne réveille plus
+  personne : à l'ouverture de la séance suivante, je me rattache à chaque circuit qui tourne
+  (`--rattacher`, en arrière-plan), et je reprends chaque circuit mort sans état final
+  (`--reprendre`), comme l'ouverture me les nomme. Je ne dis jamais « les circuits continuent »
+  sans que ma séance en attende la fin. Le circuit mène l'arbre de ses étapes
   (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (l'explorateur écrit le plan, le questionneur le lit une seule
   fois, l'explorateur répond une fois ; 1.1 Geste mécanique, l'explorateur joue dans la copie la
   commande du plan d'un ticket mécanique), 2 Tests (le testwriter, une séance pour tout le ticket, et
@@ -245,8 +255,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Un « en cours » est un processus vivant** : un « en cours » se vérifie par un processus vivant
   ou un journal qui bouge, jamais par une phrase ; un circuit dont l'état nomme un processus
   vivant (`processus`, le même par son départ `depart`) tourne encore, ma séance d'appel fermée comprise, et une seconde course sur
-  son ticket est refusée ; un circuit mort sans code de fin est relancé par moi, `--reprendre`,
-  sur son ticket. Ainsi la file ne s'arrête jamais sur une promesse.
+  son ticket est refusée, et `--rattacher` en attend la fin ; un circuit mort sans état final (ni
+  arrêt ni code écrit), que le panneau range sous « ⤷ Question · superviseur », est relancé par
+  moi, `--reprendre`, sur son ticket, sans attendre un mot du responsable. Ainsi la file ne s'arrête
+  jamais sur une promesse.
 
 ## Le circuit d'un ticket
 

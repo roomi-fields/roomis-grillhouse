@@ -285,15 +285,44 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     );
   });
 
-  it('a circuit dead without a stop written is drawn arrêté, interrupted', () => {
+  // grillhouse-mwz, criterion 2: a circuit dead without a final state (its process gone, no stop
+  // written) is named with the command that resumes it, a question for the supervisor.
+  it('grillhouse-mwz critère 2 — a circuit dead without a stop written stands under « ⤷ Question · superviseur », with the command that resumes it', () => {
     const racine = depot({ 'demo-13': { etape: 'preuve', tentative: 1 } });
-    const t = plateau([T('demo-13')], [], [], circuits(racine));
+    const lus = circuits(racine);
+    expect(lus).toEqual([
+      expect.objectContaining({
+        ticket: 'demo-13',
+        vivant: false,
+        interrompu: true,
+        qui: 'superviseur',
+      }),
+    ]);
+    expect(lus[0]?.question).toContain('`npx grillhouse circuit demo-13 --reprendre`');
+    const t = plateau([T('demo-13')], [], [], lus);
     const a = agents(t);
-    const i = a.indexOf('  2.1 · Preuve du rouge · auto');
+    const i = a.indexOf(QUESTION);
+    expect(a[i - 1]).toBe('  2.1 · Preuve du rouge · auto');
     expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
-      /^Circuit arrêté en 2\.1 Preuve du rouge 1, interrompu : le circuit ne tourne plus/
+      /^Question · superviseur : Le circuit est mort sans état final .*`npx grillhouse circuit demo-13 --reprendre`/
     );
+  });
+
+  it('grillhouse-mwz critère 2 — a circuit running, stopped or ended is not interrupted', () => {
+    const racine = depot({
+      'demo-13': { etape: 'preuve' },
+      'demo-14': ARRET,
+      'demo-15': { etape: 'relecture', raison: 'arrete' },
+      'demo-16': { etape: 'relecture', code: 0 },
+    });
+    const lus = circuits(racine, 'demo-13');
+    expect(lus.map(c => [c.ticket, c.interrompu]).sort()).toEqual([
+      ['demo-13', false],
+      ['demo-14', false],
+      ['demo-15', false],
+      ['demo-16', false],
+    ]);
   });
 
   // grillhouse-3uv.95.4, criterion 4: the board shows the stop « question » and who must answer it.

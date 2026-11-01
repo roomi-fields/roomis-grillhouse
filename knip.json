@@ -54,6 +54,7 @@
     "pm2",
     "rustc",
     "sccache",
+    "systemd-run",
     "uv"
   ],
   "ignoreUnresolved": [

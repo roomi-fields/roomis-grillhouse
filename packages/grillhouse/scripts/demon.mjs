@@ -1,10 +1,13 @@
-// A command run as a daemon, as daemon(3) and `setsid --fork` make one: the circuit of a ticket
-// (scripts/circuit.mjs) runs so, and goes on to its end when the session that launched it ends
-// (BP 320.8: the circuit, a background command of the supervisor's session, died with it).
+// A command run as a daemon, as daemon(3) and `setsid --fork` make one, in a unit of its own as
+// `systemd-run --user` starts one: the circuit of a ticket (scripts/circuit.mjs) runs so, and goes
+// on to its end when the session that launched it ends, or when the group of control that holds
+// that session is killed (grillhouse-mwz: on 2026-11-01, systemd-oomd killed the scope of the tmux
+// pane of BPScript's supervisor, 94 processes, two circuits among them, daemons apart from the
+// session's tree; BP 320.8 before: the circuit, a background command of the session, died with it).
 //
-// - `executerEnDemon(script, argv, main)` is the entry of the script <script>, run with the
-//   arguments <argv>; it returns the exit code of its process. It plays one of three roles, which
-//   the variable DETACHE carries from one to the next.
+// - `executerEnDemon(script, argv, main, { unite })` is the entry of the script <script>, run with
+//   the arguments <argv>; it returns the exit code of its process. It plays one of three roles,
+//   which the variable DETACHE carries from one to the next. <unite> names the daemon's unit.
 // - The caller (no variable): it launches a relay, its own script again, in a session of its own,
 //   and waits for it; then it reads the daemon's output in a directory of its own
 //   (`<tmpdir>/grillhouse-sortie-du-circuit-XXXXXX`, apart from the bases of the runs, which a sweep
@@ -15,10 +18,15 @@
 // - The relay: it launches the daemon, its own script again, in a session of its own (setsid), its
 //   output to the directory, writes its pid there and ends at once: the daemon's parent becomes the
 //   system's, so that the daemon is neither in the caller's process group nor under it in the tree
-//   of processes, which the end of a session of Claude Code kills.
+//   of processes, which the end of a session of Claude Code kills. When the user's systemd answers
+//   (`systemdUtilisateur`), the daemon starts through `systemd-run --user --scope`, which runs it
+//   in place, its process and environment kept, in a scope of its own
+//   (`<unite>-<pid of the relay>.scope`, under app.slice), out of the group of control of its
+//   caller (the scope of a terminal or of a tmux pane), which systemd stops whole; without it, as
+//   in the envelope of the agents, it starts as it is.
 // - The daemon: it runs <main>(<argv>); at its exit, its code is written for the caller, or the
 //   directory removed when the caller is gone.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
@@ -40,8 +48,31 @@ const PAS_MS = 100;
 
 const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 
+// The environment in which systemd-run reaches the user's systemd: the directory of the user's
+// runtime, `/run/user/<uid>` as pam_systemd sets it, when the environment does not give it (a task
+// of Turborepo passes on neither it nor the address of the bus).
+const pourSystemd = () => ({
+  ...process.env,
+  XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.()}`,
+});
+
+let systemd = null;
+/** Whether the user's systemd starts a scope (`systemd-run --user --scope true` ends at 0), read once. */
+export function systemdUtilisateur() {
+  systemd ??=
+    spawnSync('systemd-run', ['--user', '--scope', '--quiet', '--collect', '--', 'true'], {
+      stdio: 'ignore',
+      timeout: 5000,
+      env: pourSystemd(),
+    }).status === 0;
+  return systemd;
+}
+
+// A name of unit of systemd from <nom>: each character it refuses becomes `_`.
+const nomDUnite = nom => String(nom).replace(/[^A-Za-z0-9:_.-]/g, '_');
+
 // The caller: see the header.
-async function appeler(script, argv) {
+async function appeler(script, argv, unite) {
   const dossier = mkdtempSync(path.join(os.tmpdir(), 'grillhouse-sortie-du-circuit-'));
   const f = nom => path.join(dossier, nom);
   try {
@@ -50,7 +81,7 @@ async function appeler(script, argv) {
       stdio: 'ignore',
       env: {
         ...process.env,
-        [DETACHE]: JSON.stringify({ role: 'relais', dossier, appelant: process.pid }),
+        [DETACHE]: JSON.stringify({ role: 'relais', dossier, appelant: process.pid, unite }),
       },
     });
     await new Promise(r => {
@@ -97,13 +128,30 @@ async function appeler(script, argv) {
 }
 
 // The relay: see the header.
-function relayer(script, argv, { dossier, appelant }) {
+function relayer(script, argv, { dossier, appelant, unite }) {
   const sortie = openSync(path.join(dossier, 'sortie'), 'a');
   const erreurs = openSync(path.join(dossier, 'erreurs'), 'a');
-  const demon = spawn(process.execPath, [script, ...argv], {
+  const commande = [process.execPath, script, ...argv];
+  const aPart = systemdUtilisateur();
+  const [programme, ...args] = aPart
+    ? [
+        'systemd-run',
+        '--user',
+        '--scope',
+        '--quiet',
+        '--collect',
+        `--unit=${nomDUnite(`${unite}-${process.pid}`)}`,
+        '--',
+        ...commande,
+      ]
+    : commande;
+  const demon = spawn(programme, args, {
     detached: true,
     stdio: ['ignore', sortie, erreurs],
-    env: { ...process.env, [DETACHE]: JSON.stringify({ role: 'demon', dossier, appelant }) },
+    env: {
+      ...(aPart ? pourSystemd() : process.env),
+      [DETACHE]: JSON.stringify({ role: 'demon', dossier, appelant }),
+    },
   });
   writeFileSync(path.join(dossier, 'pid'), String(demon.pid ?? ''));
   demon.unref();
@@ -124,8 +172,11 @@ async function demon(argv, main, { dossier, appelant }) {
   return await main(argv);
 }
 
-/** The entry of <script> run with <argv> as a daemon, <main> its run: the exit code. */
-export async function executerEnDemon(script, argv, main) {
+/**
+ * The entry of <script> run with <argv> as a daemon, <main> its run, in the unit <unite>: the exit
+ * code.
+ */
+export async function executerEnDemon(script, argv, main, { unite = path.basename(script) } = {}) {
   const lu = process.env[DETACHE] ? JSON.parse(process.env[DETACHE]) : null;
   delete process.env[DETACHE];
   if (lu?.role === 'relais') {
@@ -134,5 +185,5 @@ export async function executerEnDemon(script, argv, main) {
   if (lu?.role === 'demon') {
     return await demon(argv, main, lu);
   }
-  return await appeler(script, argv);
+  return await appeler(script, argv, unite);
 }
