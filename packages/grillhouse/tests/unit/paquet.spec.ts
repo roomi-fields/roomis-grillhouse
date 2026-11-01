@@ -152,7 +152,7 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
   it('typescript: manifest, tests, typing, code, folder of tests, the workspaces entry, the documents', () => {
     const racine = synthub();
     const plan = planDuPaquet(racine, 'packages/interface');
-    expect(plan.verrouiller).toEqual({ commande: 'npm', args: ['install'], dossier: '.' });
+    expect(plan.verrouiller).toEqual([{ commande: 'npm', args: ['install'], dossier: '.' }]);
     ecrireLePaquet(racine, plan);
     const pkg = json(racine, 'packages/interface/package.json') as {
       name: string;
@@ -200,11 +200,9 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
   it('cargo: its Cargo.toml inheriting the workspace, src/lib.rs, tests/, the member added', () => {
     const racine = synthub();
     const plan = planDuPaquet(racine, 'crates/journal');
-    expect(plan.verrouiller).toEqual({
-      commande: 'cargo',
-      args: ['update', '--workspace'],
-      dossier: '.',
-    });
+    expect(plan.verrouiller).toEqual([
+      { commande: 'cargo', args: ['update', '--workspace'], dossier: '.' },
+    ]);
     ecrireLePaquet(racine, plan);
     const crate = parse(lire(racine, 'crates/journal/Cargo.toml')) as {
       package: Record<string, unknown>;
@@ -231,7 +229,7 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
     const racine = synthub();
     const plan = planDuPaquet(racine, 'outils');
     expect(plan.espace).toBeNull();
-    expect(plan.verrouiller).toEqual({ commande: 'uv', args: ['lock'], dossier: 'outils' });
+    expect(plan.verrouiller).toEqual([{ commande: 'uv', args: ['lock'], dossier: 'outils' }]);
     ecrireLePaquet(racine, plan);
     const projet = parse(lire(racine, 'outils/pyproject.toml')) as {
       project: { name: string };
@@ -250,7 +248,7 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
     const racine = synthub();
     ecrire(racine, 'pyproject.toml', '[tool.uv.workspace]\nmembers = ["site"]\n');
     const plan = planDuPaquet(racine, 'outils');
-    expect(plan.verrouiller.dossier).toBe('.');
+    expect(plan.verrouiller).toEqual([{ commande: 'uv', args: ['lock'], dossier: '.' }]);
     ecrireLePaquet(racine, plan);
     const racinePy = parse(lire(racine, 'pyproject.toml')) as {
       tool: { uv: { workspace: { members: string[] } } };
@@ -382,6 +380,228 @@ describe('grillhouse-b2o, critère 3 — le module cargo refuse un nom que cargo
       package: { name: string };
     };
     expect(crate.package.name).toBe('journal');
+  });
+});
+
+// grillhouse-0cy — a package born on code already there keeps its tests and its dependencies: in
+// OSC Bridge (SyntHub, 0.28.3), `grillhouse paquet` on site/ (its tests site/pages/test_pages.py,
+// its dependencies site/pages/requirements.txt) wrote `testpaths = ["tests"]` and no dependency:
+// pytest collected nothing, and `import markdown` failed. The owner's decision (2026-11-01), as
+// `cargo init` takes the code in place and `uv add -r` takes the dependencies a file declares:
+// - Criterion 1: a folder of Python that holds tests and requirements.txt is taken back: its
+//   testpaths cover the folders of its tests, each requirements.txt is taken by `uv add -r`, and no
+//   src/ is written when Python code is there. Its run by the real uv plays at night
+//   (tests/unit/langages/python/python.nuit.test.ts).
+// - Criterion 2: an empty folder is unchanged (criterion 2 of grillhouse-b32, above).
+// - Criterion 3: a manifest the module does not read (setup.py, setup.cfg, Pipfile) and, in Rust
+//   and TypeScript, code out of the module's layout are refused by their name, nothing written,
+//   what is missing named.
+// - Criterion 4: the CHANGELOG says it.
+const TABLE_0CY = `| Composant | Rôle | Langage |
+| --- | --- | --- |
+| \`site\` | les pages | python |
+| \`scripts\` | les commandes | python |
+| \`crates/journal\` | le journal | cargo |
+| \`interface\` | le navigateur | typescript |
+`;
+
+// A project named synthhub whose table declares site and scripts in Python, crates/journal in Rust
+// and interface in TypeScript.
+function existant(): string {
+  const racine = path.join(mkdtempSync(path.join(ESSAIS, '0cy-')), 'osc-bridge');
+  ecrire(racine, 'docs/ARCHITECTURE.md', TABLE_0CY);
+  ecrire(racine, 'package.json', JSON.stringify({ name: 'synthhub' }));
+  ecrire(racine, 'Cargo.toml', CARGO_RACINE);
+  return racine;
+}
+
+// The configuration of pytest of the pyproject.toml <f> the plan <plan> writes.
+const pytestDe = (plan: ReturnType<typeof planDuPaquet>, f: string) =>
+  (parse(plan.fichiers[f]!) as { tool: { pytest: { ini_options: Record<string, unknown> } } }).tool
+    .pytest.ini_options;
+
+describe('grillhouse-0cy, critère 1 — un dossier Python existant est repris', () => {
+  it("SyntHub's site/: its folder of tests collected, its requirements.txt taken by uv add -r, no src/", () => {
+    const racine = existant();
+    ecrire(racine, 'site/pages/test_pages.py', 'import markdown\n\ndef test_x():\n    pass\n');
+    ecrire(racine, 'site/pages/build.py', 'import markdown\n');
+    ecrire(racine, 'site/pages/requirements.txt', 'markdown>=3\n');
+    const plan = planDuPaquet(racine, 'site');
+    const pytest = pytestDe(plan, 'site/pyproject.toml');
+    expect(pytest.testpaths).toEqual(['pages', 'tests']);
+    expect(pytest.pythonpath).toBeUndefined();
+    expect(Object.keys(plan.fichiers).filter(f => f.startsWith('site/src/'))).toEqual([]);
+    expect(plan.verrouiller).toEqual([
+      { commande: 'uv', args: ['add', '-r', 'pages/requirements.txt'], dossier: 'site' },
+    ]);
+    ecrireLePaquet(racine, plan);
+    expect(lire(racine, 'site/pages/test_pages.py')).toBe(
+      'import markdown\n\ndef test_x():\n    pass\n'
+    );
+    expect(lire(racine, 'site/pages/requirements.txt')).toBe('markdown>=3\n');
+  });
+
+  it("SyntHub's scripts/: a test at the package's root, its testpaths the package itself", () => {
+    const racine = existant();
+    ecrire(racine, 'scripts/test_import_readmes.py', 'def test_x():\n    pass\n');
+    ecrire(racine, 'scripts/import_readmes.py', 'print(1)\n');
+    const plan = planDuPaquet(racine, 'scripts');
+    expect(pytestDe(plan, 'scripts/pyproject.toml').testpaths).toEqual(['.']);
+    expect(Object.keys(plan.fichiers).filter(f => f.startsWith('scripts/src/'))).toEqual([]);
+    expect(plan.verrouiller).toEqual([{ commande: 'uv', args: ['lock'], dossier: 'scripts' }]);
+  });
+
+  it('each requirements.txt in the order of its path; nested folders of tests covered once; .venv left out', () => {
+    const racine = existant();
+    ecrire(racine, 'site/requirements.txt', 'jinja2\n');
+    ecrire(racine, 'site/pages/requirements.txt', 'markdown>=3\n');
+    ecrire(racine, 'site/pages/test_b.py', 'def test_b():\n    pass\n');
+    ecrire(racine, 'site/pages/tests/test_a.py', 'def test_a():\n    pass\n');
+    ecrire(racine, 'site/outils/rendu_test.py', 'def test_r():\n    pass\n');
+    ecrire(racine, 'site/.venv/lib/test_tiers.py', 'def test_t():\n    pass\n');
+    ecrire(racine, 'site/.venv/lib/requirements.txt', 'tiers\n');
+    const plan = planDuPaquet(racine, 'site');
+    expect(pytestDe(plan, 'site/pyproject.toml').testpaths).toEqual(['outils', 'pages', 'tests']);
+    expect(plan.verrouiller).toEqual([
+      { commande: 'uv', args: ['add', '-r', 'pages/requirements.txt'], dossier: 'site' },
+      { commande: 'uv', args: ['add', '-r', 'requirements.txt'], dossier: 'site' },
+    ]);
+  });
+
+  it('Python code under src/: its pythonpath kept, its tests under tests/, no second module', () => {
+    const racine = existant();
+    ecrire(racine, 'site/src/foo/__init__.py', 'def f():\n    return 1\n');
+    ecrire(
+      racine,
+      'site/tests/test_foo.py',
+      'import foo\n\ndef test_f():\n    assert foo.f() == 1\n'
+    );
+    const plan = planDuPaquet(racine, 'site');
+    const pytest = pytestDe(plan, 'site/pyproject.toml');
+    expect(pytest.pythonpath).toEqual(['src']);
+    expect(pytest.testpaths).toEqual(['tests']);
+    expect(Object.keys(plan.fichiers).filter(f => f.startsWith('site/src/'))).toEqual([]);
+  });
+
+  it('the outputs of a build are not files of the package: .venv, dist/, target/, __pycache__', () => {
+    const racine = existant();
+    ecrire(racine, 'site/.venv/lib/setup.py', '\n');
+    ecrire(racine, 'site/target/test_tiers.py', 'def test_t():\n    pass\n');
+    ecrire(racine, 'site/dist/setup.cfg', '\n');
+    ecrire(racine, 'site/__pycache__/requirements.txt', 'tiers\n');
+    const plan = planDuPaquet(racine, 'site');
+    expect(pytestDe(plan, 'site/pyproject.toml').testpaths).toEqual(['tests']);
+    expect(plan.verrouiller).toEqual([{ commande: 'uv', args: ['lock'], dossier: 'site' }]);
+  });
+
+  it('Python code without tests: no src/, its tests under tests/', () => {
+    const racine = existant();
+    ecrire(racine, 'site/build.py', 'print(1)\n');
+    const plan = planDuPaquet(racine, 'site');
+    expect(pytestDe(plan, 'site/pyproject.toml').testpaths).toEqual(['tests']);
+    expect(Object.keys(plan.fichiers).filter(f => f.startsWith('site/src/'))).toEqual([]);
+    expect(Object.keys(plan.fichiers)).toContain('site/tests/.gitkeep');
+  });
+
+  it('grillhouse paquet plays each command of the lock, in its order', () => {
+    const racine = existant();
+    ecrire(racine, 'site/requirements.txt', 'jinja2\n');
+    ecrire(racine, 'site/pages/requirements.txt', 'markdown>=3\n');
+    ecrire(racine, 'site/pages/test_pages.py', 'def test_x():\n    pass\n');
+    const joues: string[][] = [];
+    creerPaquet(racine, 'site', {
+      executer: (commande, args, dossier) => {
+        joues.push([commande, ...args, path.relative(racine, dossier)]);
+        return 0;
+      },
+    });
+    expect(joues.filter(j => j[0] === 'uv')).toEqual([
+      ['uv', 'add', '-r', 'pages/requirements.txt', 'site'],
+      ['uv', 'add', '-r', 'requirements.txt', 'site'],
+    ]);
+  });
+});
+
+describe('grillhouse-0cy, critère 3 — un dossier que le module ne sait pas reprendre est refusé', () => {
+  it.each([['setup.py'], ['setup.cfg'], ['Pipfile'], ['pages/setup.py']])(
+    'python: %s is refused by its name, nothing written, what to do named',
+    f => {
+      const racine = existant();
+      ecrire(racine, `site/${f}`, '\n');
+      ecrire(racine, 'site/pages/test_pages.py', 'def test_x():\n    pass\n');
+      const avant = tous(racine);
+      expect(() => planDuPaquet(racine, 'site')).toThrow(Refus);
+      const motif = new RegExp(`site : .*${f.replace(/[.]/g, '\\.')}.*requirements\\.txt`, 's');
+      expect(() => planDuPaquet(racine, 'site')).toThrow(motif);
+      expect(() => creerPaquet(racine, 'site', { executer: () => 0 })).toThrow(Refus);
+      expect(tous(racine)).toEqual(avant);
+    }
+  );
+
+  it.each([
+    ['src/main.rs', /crates\/journal : .*src\/main\.rs/s],
+    ['src/bin/outil.rs', /crates\/journal : .*src\/bin\/outil\.rs/s],
+    ['lib.rs', /crates\/journal : .*lib\.rs.*src\/lib\.rs/s],
+    ['src/journal.rs', /crates\/journal : .*src\/journal\.rs.*src\/lib\.rs/s],
+  ])(
+    'cargo: %s, out of the layout of the module, is refused by its name, nothing written',
+    (f, motif) => {
+      const racine = existant();
+      ecrire(racine, `crates/journal/${f}`, 'fn f() {}\n');
+      const avant = tous(racine);
+      expect(() => planDuPaquet(racine, 'crates/journal')).toThrow(Refus);
+      expect(() => planDuPaquet(racine, 'crates/journal')).toThrow(motif);
+      expect(tous(racine)).toEqual(avant);
+    }
+  );
+
+  it('cargo: src/lib.rs and tests/ already there are taken as they are', () => {
+    const racine = existant();
+    ecrire(racine, 'crates/journal/src/lib.rs', 'pub mod ecrire;\n');
+    ecrire(racine, 'crates/journal/src/ecrire.rs', 'pub fn f() {}\n');
+    ecrire(racine, 'crates/journal/tests/journal.rs', '#[test]\nfn t() {}\n');
+    ecrireLePaquet(racine, planDuPaquet(racine, 'crates/journal'));
+    expect(lire(racine, 'crates/journal/src/lib.rs')).toBe('pub mod ecrire;\n');
+    expect(lire(racine, 'crates/journal/tests/journal.rs')).toBe('#[test]\nfn t() {}\n');
+    expect(existsSync(path.join(racine, 'crates/journal/Cargo.toml'))).toBe(true);
+  });
+
+  it.each([['scripts/construire.ts'], ['index.js'], ['outils/rendu.mjs']])(
+    'typescript: %s, out of src/ and tests/, is refused by its name, nothing written',
+    f => {
+      const racine = existant();
+      ecrire(racine, `packages/interface/${f}`, 'export {};\n');
+      const avant = tous(racine);
+      expect(() => planDuPaquet(racine, 'packages/interface')).toThrow(Refus);
+      expect(() => planDuPaquet(racine, 'packages/interface')).toThrow(
+        new RegExp(`packages/interface : .*${f.replace(/[.]/g, '\\.')}.*src/.*tests/`, 's')
+      );
+      expect(tous(racine)).toEqual(avant);
+    }
+  );
+
+  it('typescript and cargo: dist/ and target/, outputs of a build, are not refused', () => {
+    const racine = existant();
+    ecrire(racine, 'packages/interface/dist/index.js', 'export {};\n');
+    ecrire(racine, 'crates/journal/target/debug/build/out.rs', 'fn f() {}\n');
+    expect(() => planDuPaquet(racine, 'packages/interface')).not.toThrow();
+    expect(() => planDuPaquet(racine, 'crates/journal')).not.toThrow();
+  });
+
+  it('typescript: code under src/ and tests/ already there is taken as it is', () => {
+    const racine = existant();
+    ecrire(racine, 'packages/interface/src/index.ts', 'export const a = 1;\n');
+    ecrire(racine, 'packages/interface/tests/a.spec.ts', "import '../src/index';\n");
+    ecrire(racine, 'packages/interface/README.md', '# interface\n');
+    ecrireLePaquet(racine, planDuPaquet(racine, 'packages/interface'));
+    expect(lire(racine, 'packages/interface/src/index.ts')).toBe('export const a = 1;\n');
+    expect(lire(racine, 'packages/interface/tests/a.spec.ts')).toBe("import '../src/index';\n");
+  });
+});
+
+describe('grillhouse-0cy, critère 4 — le CHANGELOG le dit', () => {
+  it('the CHANGELOG names the ticket', () => {
+    expect(readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8')).toContain('grillhouse-0cy');
   });
 });
 

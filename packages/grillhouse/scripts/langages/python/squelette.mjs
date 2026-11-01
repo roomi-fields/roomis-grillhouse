@@ -24,15 +24,41 @@
 //   the package's path there, as `uv init` adds a project under a workspace to its members; without
 //   one, the package is its own project of uv, as the module plays each package (./commandes.mjs).
 // - The lock of the versions: `uv lock`, at the workspace's root, else in the package.
+// - A folder that already holds Python code is taken as it is, as `cargo init` takes the code in
+//   place: its tests (`test_*.py`, `*_test.py`, pytest's names) are collected where they are, its
+//   testpaths the folders that hold them and `tests`, each once, the package itself for a test at
+//   its root; no `src/<module>/` beside its code, and no `pythonpath` for code out of `src/`
+//   (code under `src/` keeps `pythonpath = ["src"]`); each `requirements.txt` is
+//   taken by `uv add -r`, in the order of its path, run in the package, which declares its
+//   dependencies and locks them, in place of `uv lock`. A manifest the module does not read
+//   (`setup.py`, `setup.cfg`, `Pipfile`) is refused by its name, nothing written, what to do named.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { estUnFichierDeTest } from './composants.mjs';
 
 const require = createRequire(import.meta.url);
 
 // The Python a package requires.
 const PYTHON = '>=3.12';
+
+// The manifests of Python the module does not read.
+const ETRANGERS = new Set(['setup.py', 'setup.cfg', 'Pipfile']);
+
+// The testpaths of a package whose files of tests lie in <fichiers> (from the package): the
+// folders that hold them and `tests`, each once, a folder under another left out; the package
+// itself, `.`, for a test at its root.
+function cheminsDesTests(fichiers) {
+  const dossiers = new Set(
+    fichiers.filter(f => estUnFichierDeTest(path.posix.basename(f))).map(f => path.posix.dirname(f))
+  );
+  if (dossiers.has('.')) {
+    return ['.'];
+  }
+  const tous = [...dossiers, 'tests'].filter((d, i, l) => l.indexOf(d) === i).sort();
+  return tous.filter(d => !tous.some(o => d.startsWith(`${o}/`)));
+}
 
 // <n> normalized as uv writes the name of a project (PEP 503).
 const normaliser = n => n.toLowerCase().replace(/[-_.]+/g, '-');
@@ -67,7 +93,23 @@ function modulesStandard(racine) {
 }
 
 /** @type {import('../../jointure.js').Langage['squelette']} */
-export function squelette(racine, { chemin }) {
+export function squelette(racine, { chemin, existants }) {
+  const etrangers = existants.filter(e => ETRANGERS.has(path.posix.basename(e)));
+  if (etrangers.length) {
+    throw new Error(
+      `${chemin} : ${etrangers.join(', ')} déclare un paquet Python que le module python ne lit pas. Reprends ses dépendances dans un requirements.txt, que le paquet reprend par \`uv add -r\`, retire-le, puis relance la commande.`
+    );
+  }
+  const code = existants.some(e => e.endsWith('.py'));
+  // Code out of src/ and tests/, which `pythonpath = ["src"]` would not reach.
+  const aPlat = existants.some(
+    e =>
+      e.endsWith('.py') &&
+      !e.startsWith('src/') &&
+      !e.startsWith('tests/') &&
+      !estUnFichierDeTest(path.posix.basename(e))
+  );
+  const exigences = existants.filter(e => path.posix.basename(e) === 'requirements.txt');
   const f = path.join(racine, 'pyproject.toml');
   const texte = existsSync(f) ? readFileSync(f, 'utf8') : null;
   const racinePy = texte === null ? null : require('smol-toml').parse(texte);
@@ -92,13 +134,17 @@ export function squelette(racine, { chemin }) {
     'test = ["pytest>=8"]',
     '',
     '[tool.pytest.ini_options]',
-    'testpaths = ["tests"]',
-    'pythonpath = ["src"]',
+    `testpaths = ${JSON.stringify(cheminsDesTests(existants)).replaceAll(',', ', ')}`,
+    ...(aPlat ? [] : ['pythonpath = ["src"]']),
     '',
   ].join('\n');
   const fichiers = {
     [`${chemin}/pyproject.toml`]: manifeste,
-    [`${chemin}/src/${module}/__init__.py`]: `"""The package ${nom}: its interface, docs/INTERFACE.md, says what it offers."""\n`,
+    ...(code
+      ? {}
+      : {
+          [`${chemin}/src/${module}/__init__.py`]: `"""The package ${nom}: its interface, docs/INTERFACE.md, says what it offers."""\n`,
+        }),
     [`${chemin}/tests/.gitkeep`]: '',
   };
   const espace = racinePy?.tool?.uv?.workspace ?? null;
@@ -115,6 +161,8 @@ export function squelette(racine, { chemin }) {
   return {
     fichiers,
     espace: entree,
-    verrouiller: { commande: 'uv', args: ['lock'], dossier: membres ? '.' : chemin },
+    verrouiller: exigences.length
+      ? exigences.map(e => ({ commande: 'uv', args: ['add', '-r', e], dossier: chemin }))
+      : [{ commande: 'uv', args: ['lock'], dossier: membres ? '.' : chemin }],
   };
 }

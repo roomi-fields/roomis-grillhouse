@@ -15,7 +15,9 @@
 //   names; a row whose cell of the column « Langage » is empty; a language out of the frame's
 //   list; a folder that already holds the manifest of its language (`manifeste` of its module). A
 //   folder that holds docs/ alone, the documents of the second time, is accepted, as `cargo init`
-//   takes a folder without its Cargo.toml.
+//   takes a folder without its Cargo.toml; a folder that already holds code is given to the
+//   module with its files (`existants`), which takes them as they are, or refuses, by its name,
+//   what it cannot take.
 // - The skeleton: the module of the row's language gives the files of the package and the entry
 //   of the workspace (`squelette`, scripts/jointure.d.ts), the versions of its tools from its
 //   template (`miseAJour.gabarit`); the documents of the package, docs/CADRE.md and
@@ -26,15 +28,15 @@
 // - The tools of the language, as `nx add` installs them before the first generator: the share
 //   of the update of each declared language (`mettreAJour` of ./grillhouse-maj.mjs: its tools at
 //   its template's versions, its scripts, its files, `turbo.json` for typescript), then `npm
-//   install` when the update asks it, the module's command that locks the versions of the new
-//   package (`verrouiller`), the binaries of the declared languages (`installerBinaires`), and the
+//   install` when the update asks it, the module's commands that lock the versions of the new
+//   package (`verrouiller`), in their order, the binaries of the declared languages (`installerBinaires`), and the
 //   generators (`regenerer`), those of the package's language whatever files the project holds:
 //   the first package of a language receives its boundaries' configuration and its index.
 // - The report: each file written, then the lines of the update; on the error stream, each
 //   command that fails, named with its output. The exit code: 0; 1 for a refusal (⛔ and its
 //   reason) or a command that fails; 2 for the usage.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CADRE } from './cadre.mjs';
@@ -46,6 +48,7 @@ import {
   regenerer,
 } from './grillhouse-maj.mjs';
 import { LANGAGES, langage } from './langages.mjs';
+import { hors } from './sources.mjs';
 import {
   ARCHITECTURE,
   colonneDesNoms,
@@ -100,13 +103,34 @@ export function ligneDuPaquet(racine, rel) {
 
 const lireJson = f => (existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {});
 
+// The files the folder <dossier> of the project at <racine> already holds, from it, in the order of
+// their path: its docs/ (the documents of the second time), its hidden entries and the folders the
+// sources of the project leave out (`hors` of ./sources.mjs: the frame's, node_modules and dist,
+// and what the tools of its languages write, cargo's target, Python's .venv and
+// __pycache__) left out.
+function existants(racine, dossier) {
+  const exclus = hors(racine);
+  if (!existsSync(dossier)) {
+    return [];
+  }
+  return readdirSync(dossier, { recursive: true, withFileTypes: true })
+    .filter(e => e.isFile())
+    .map(e => path.relative(dossier, path.join(e.parentPath, e.name)).split(path.sep).join('/'))
+    .filter(
+      f => !f.startsWith('docs/') && !f.split('/').some(p => p.startsWith('.') || exclus.has(p))
+    )
+    .sort();
+}
+
 /**
  * The plan of the package at <chemin> of the project at <racine>, nothing written: `{ chemin,
  * langage, fichiers, espace, verrouiller }`, `fichiers` the skeleton of its language and its
  * documents (path from the root → text), `espace` the manifest of the workspace with its entry
- * (null when it holds it), `verrouiller` the command that locks its versions. Throws a Refus, by
- * its name, for a path no row names, a row without language, a language out of the frame's list,
- * or a folder that holds the manifest of its language.
+ * (null when it holds it), `verrouiller` the commands that lock its versions, played in their
+ * order. Throws a Refus, by its name, for a path no row names, a row without language, a language
+ * out of the frame's list, a folder that holds the manifest of its language, and a folder whose
+ * code the module cannot take (a manifest of Python it does not read, Rust or TypeScript out of
+ * its layout), what is missing named.
  * @param {string} racine the root of the project
  * @param {string} chemin the package's folder, from the root
  * @param {{ source?: string }} [o] the frame's files (CADRE)
@@ -139,7 +163,11 @@ export function planDuPaquet(racine, chemin, { source = CADRE } = {}) {
   const modele = lireJson(path.join(source, m.miseAJour.gabarit, 'package.json'));
   let s;
   try {
-    s = m.squelette(racine, { chemin: rel, modele });
+    s = m.squelette(racine, {
+      chemin: rel,
+      modele,
+      existants: existants(racine, path.join(racine, rel)),
+    });
   } catch (e) {
     throw new Refus(e.message);
   }
@@ -219,8 +247,9 @@ export function creerPaquet(racine, chemin, { source = CADRE, executer = lancer 
   if (aInstaller(b)) {
     jouer('npm', ['install'], '.');
   }
-  const v = plan.verrouiller;
-  jouer(v.commande, v.args, v.dossier);
+  for (const v of plan.verrouiller) {
+    jouer(v.commande, v.args, v.dossier);
+  }
   const binaires = installerBinaires(racine);
   echecs.push(...binaires.lignes, ...regenerer(racine, { langage: plan.langage.nom }));
   const lignes = rapport(b)

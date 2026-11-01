@@ -120,16 +120,26 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `nx g @nx/js:lib` : `fichiers`, chaque fichier du paquet et son texte (son manifeste, la configuration de
   ses tests et de son typage, un fichier de code, son dossier de tests), que le noyau écrit là où il
   manque ; `espace`, le manifeste de l'espace de travail avec l'entrée du paquet, null quand il la
-  porte déjà ; `verrouiller`, la commande qui accorde le verrou des versions au paquet neuf, et son
-  dossier. `typescript` : sous `packages/<nom>` seul, son `package.json` (`test:unit`, TypeScript,
+  porte déjà ; `verrouiller`, les commandes qui accordent le verrou des versions au paquet neuf,
+  chacune avec son dossier, jouées dans leur ordre. Le noyau lui passe `existants`, les fichiers
+  que le dossier porte déjà (hors `docs/`, des entrées cachées et des dossiers que les sources du projet écartent :
+  `node_modules`, `dist`, ce qu'écrivent les outils de ses langages, `ignorer`) : le module
+  les reprend tels quels, comme `cargo init` reprend le code en place, ou refuse, par son nom, ce
+  qu'il ne sait pas reprendre, ce qui manque nommé. `typescript` : sous `packages/<nom>` seul, son `package.json` (`test:unit`, TypeScript,
   Vitest et les types de Node que la racine ne déclare pas), son `tsconfig.json`, son
   `vitest.config.ts`, qui passe tant que le paquet n'a aucun test (`passWithNoTests`), `src/index.ts`,
   `tests/`, l'entrée de `workspaces`, `npm install` ; `cargo` : son `Cargo.toml`, qui hérite des
   champs de `[workspace.package]` et de `[workspace.lints]`, `src/lib.rs`, `tests/`, le membre de
   `[workspace]`, `cargo update --workspace` ; `python` : son `pyproject.toml` (son groupe `test`,
   pytest et sa configuration), `src/<module>/__init__.py`, `tests/`, le membre d'un espace de uv
-  à la racine quand il y en a un, `uv lock`. Un chemin où le module ne tient aucun paquet est
-  refusé, nommé.
+  à la racine quand il y en a un, `uv lock`. Sur du code en place : `typescript` reprend `src/` et
+  `tests/` et refuse un fichier de code hors d'eux ; `cargo` reprend une bibliothèque (`src/lib.rs`,
+  `src/`, `tests/`) et refuse un binaire (`src/main.rs`, `src/bin/`), un fichier hors de `src/` et
+  `tests/`, du code sous `src/` sans `src/lib.rs` ; `python` collecte les tests là où ils sont
+  (ses `testpaths`, leurs dossiers et `tests`), n'écrit pas `src/<module>/` à côté du code, garde
+  `pythonpath = ["src"]` pour du code sous `src/` et le retire pour du code à plat, reprend chaque `requirements.txt` par `uv add -r` au lieu de `uv lock`, et refuse un
+  manifeste qu'il ne lit pas (`setup.py`, `setup.cfg`, `Pipfile`). Un chemin où le module ne
+  tient aucun paquet est refusé, nommé.
 - `sorties` : où écrit un lancement des outils du langage, que l'enveloppe ouvre à la séance.
   `ecrites` s'ouvrent en écriture, créées avant la séance, un dossier quand le chemin finit par
   `/`, sinon un fichier vide : un chemin depuis la racine de la copie, `~/…` depuis la maison,

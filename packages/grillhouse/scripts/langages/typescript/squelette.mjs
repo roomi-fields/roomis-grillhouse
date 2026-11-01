@@ -17,8 +17,16 @@
 // - The workspace: the root package.json receives the package's path in its `workspaces` (created
 //   when the root has none), unless a pattern there covers it already.
 // - The lock of the versions: `npm install`, at the root.
+// - A folder that already holds code is taken as it is when its code lies under `src/` and
+//   `tests/`, which its tsconfig.json and its vitest.config.ts cover, each file present kept; a
+//   file of code out of them (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`), which
+//   neither its typing nor its tests would reach, is refused by its name, nothing written, the
+//   layout named, in place of a skeleton beside it.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+
+// A file of code of TypeScript or JavaScript.
+const CODE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 
 const CHAMPS = ['dependencies', 'devDependencies', 'optionalDependencies'];
 // The tools of a package's tests and of its typing, at the versions of the module's template.
@@ -68,10 +76,18 @@ export default mergeConfig(
 `;
 
 /** @type {import('../../jointure.js').Langage['squelette']} */
-export function squelette(racine, { chemin, modele }) {
+export function squelette(racine, { chemin, modele, existants }) {
   if (!/^packages\/[^/]+$/.test(chemin)) {
     throw new Error(
       `${chemin} : un paquet typescript vit sous packages/<nom>, où le module trouve ses composants.`
+    );
+  }
+  const hors = existants.filter(
+    f => CODE.test(f) && !f.startsWith('src/') && !f.startsWith('tests/')
+  );
+  if (hors.length) {
+    throw new Error(
+      `${chemin} : ${hors.join(', ')} hors de la disposition du module typescript : son code sous src/, ses tests sous tests/, que son typage et ses tests couvrent. Range le code ainsi, puis relance la commande.`
     );
   }
   const racinePkg = lireJson(path.join(racine, 'package.json')) ?? {};
@@ -116,5 +132,5 @@ export function squelette(racine, { chemin, modele }) {
     }
     espace = { fichier: 'package.json', texte: json(p) };
   }
-  return { fichiers, espace, verrouiller: { commande: 'npm', args: ['install'], dossier: '.' } };
+  return { fichiers, espace, verrouiller: [{ commande: 'npm', args: ['install'], dossier: '.' }] };
 }

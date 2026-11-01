@@ -24,9 +24,9 @@ const HORS = [
   '.rtfm',
 ];
 
-// The directories left out in the project at <racine>: the frame's, and what its language's tools
-// write (every language's, for a project that declares none).
-function hors(racine) {
+/** The directories left out in the project at <racine>: the frame's, and what its language's tools
+ * write (every language's, for a project that declares none). */
+export function hors(racine) {
   const declares = langagesDeclares(racine);
   const ecrits =
     declares.length > 0

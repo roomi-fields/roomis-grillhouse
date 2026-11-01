@@ -21,6 +21,12 @@
 //   virtual workspace. A member or a pattern that covers the path leaves it as it is.
 // - The lock of the versions: `cargo update --workspace`, at the root, which brings Cargo.lock in
 //   line with the members alone.
+// - A folder that already holds Rust code is taken as it is when the code lies in the module's
+//   layout, a library: `src/lib.rs` and what it declares under `src/`, its tests under `tests/`,
+//   each file present kept, as `cargo init` takes the code in place. Out of it (a binary,
+//   `src/main.rs` or `src/bin/`; a file out of `src/` and `tests/`, a `lib.rs` at the folder's
+//   root; code under `src/` without `src/lib.rs`), the folder is refused by its name, nothing
+//   written, the layout and what is missing named, in place of a skeleton beside the code.
 // - The manifest is read with smol-toml, the tool of this module (`outils`), loaded at the call.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -104,8 +110,30 @@ function ajouterLeMembre(texte, chemin) {
   return [...lignes.slice(0, debut + 1), nouvelle, ...lignes.slice(fin)].join('\n');
 }
 
+// The refusal of the Rust files <existants> (from the crate's folder <chemin>) out of the module's
+// layout (see the header), null when they lie in it.
+function horsDeLaDisposition(chemin, existants) {
+  const rs = existants.filter(f => f.endsWith('.rs'));
+  const hors = rs.filter(
+    f =>
+      !(f.startsWith('src/') || f.startsWith('tests/')) ||
+      f === 'src/main.rs' ||
+      f.startsWith('src/bin/')
+  );
+  const sansLib = rs.some(f => f.startsWith('src/')) && !rs.includes('src/lib.rs');
+  if (!hors.length && !sansLib) {
+    return null;
+  }
+  const fautifs = hors.length ? hors : rs.filter(f => f.startsWith('src/'));
+  return `${chemin} : ${fautifs.join(', ')} hors de la disposition du module cargo, une bibliothèque : son code sous src/, que src/lib.rs déclare, ses tests sous tests/${sansLib ? ' ; src/lib.rs manque' : ''}. Range le code ainsi, puis relance la commande.`;
+}
+
 /** @type {import('../../jointure.js').Langage['squelette']} */
-export function squelette(racine, { chemin }) {
+export function squelette(racine, { chemin, existants }) {
+  const hors = horsDeLaDisposition(chemin, existants);
+  if (hors) {
+    throw new Error(hors);
+  }
   const nom = path.posix.basename(chemin);
   const refus = refusDeCargo(nom);
   if (refus) {
@@ -147,6 +175,6 @@ export function squelette(racine, { chemin }) {
   return {
     fichiers,
     espace: entree,
-    verrouiller: { commande: 'cargo', args: ['update', '--workspace'], dossier: '.' },
+    verrouiller: [{ commande: 'cargo', args: ['update', '--workspace'], dossier: '.' }],
   };
 }

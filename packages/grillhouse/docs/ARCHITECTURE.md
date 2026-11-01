@@ -109,12 +109,21 @@ le manifeste, la configuration des tests et du typage, un fichier de code, le do
 des documents du gabarit d'un paquet (`templates/paquet/`), puis l'entrée de l'espace de travail
 (les `workspaces` de npm, les `members` de cargo, l'espace de uv) ; elle ne commite rien. Puis,
 comme `nx add`, les outils du langage : la part de la mise à jour de chaque langage déclaré
-(`mettreAJour`), `npm install` quand elle le demande, la commande du module qui accorde le verrou
-des versions au paquet neuf, les binaires, et les générateurs, ceux du langage du paquet quels que
+(`mettreAJour`), `npm install` quand elle le demande, les commandes du module qui accordent le
+verrou des versions au paquet neuf, dans leur ordre, les binaires, et les générateurs, ceux du langage du paquet quels que
 soient les fichiers du projet. Ainsi le premier paquet d'un langage arrive avec ses outils, et
 main ne voit jamais un paquet déclaré sans dossier (OSC Bridge, SyntHub SH-13y.6 : un premier
 paquet TypeScript dans un projet Rust, l'index des interfaces et la carte des frontières « pas à
 jour », knip illisible, « Turborepo sort en null »).
+Un dossier qui porte déjà du code est repris tel quel, comme `cargo init` reprend le code en place
+et `uv add -r` les dépendances qu'un fichier déclare : le noyau passe au module les fichiers du
+dossier, et le module garde chacun, déclare ce qui doit l'être, ou refuse, par son nom et sans
+rien écrire, ce qu'il ne sait pas reprendre, ce qui manque nommé (`squelette`, `INTERFACE.md`). En
+Python, ses tests se collectent là où ils sont et chaque `requirements.txt` entre dans ses
+dépendances ; en Rust et en TypeScript, du code hors de la disposition du module est refusé au
+lieu d'un squelette posé à côté. Ainsi un paquet né sur du code existant garde ses tests et ses
+dépendances (OSC Bridge, SyntHub, 0.28.3 : `site/`, ses tests sous `pages/` jamais collectés,
+`ModuleNotFoundError: markdown`).
 
 **Le circuit fait les gestes, une vraie question monte** : comme une CI applique ses règles
 (rejouer, régénérer, sauter une tâche sans objet) sans demander et n'appelle une personne que pour

@@ -262,17 +262,22 @@ export interface Langage extends Composition {
    * and its text (its manifest, the configuration of its tests and of its typing, a file of code,
    * its folder of tests), which the core writes where absent; `espace`, the manifest of the
    * workspace with the package's entry, from the root and its new text, null when it holds it
-   * already; `verrouiller`, the command, run in `dossier` (from the root), that brings the lock of
-   * the versions in line with the new package. `modele`: the package.json of the module's template
-   * (`miseAJour.gabarit`), the versions of its tools. Throws, named, for a path where the module
-   * holds no package. */
+   * already; `verrouiller`, the commands, each run in its `dossier` (from the root) in their order,
+   * that bring the lock of the versions in line with the new package, as `uv add -r` takes the
+   * dependencies a file declares. `modele`: the package.json of the module's template
+   * (`miseAJour.gabarit`), the versions of its tools; `existants`: the files the folder already
+   * holds, from it, its docs/, its hidden entries and the directories the sources of the project
+   * leave out (`hors` of scripts/sources.mjs: node_modules, dist, each `ignorer`) left out, which the
+   * skeleton takes as they are (as `cargo init` takes the code in place). Throws, named, for a
+   * path where the module holds no package, and for a folder whose files it cannot take, what is
+   * missing named. */
   squelette(
     racine: string,
-    o: { chemin: string; modele: Record<string, unknown> }
+    o: { chemin: string; modele: Record<string, unknown>; existants: string[] }
   ): {
     fichiers: Record<string, string>;
     espace: { fichier: string; texte: string } | null;
-    verrouiller: { commande: string; args: string[]; dossier: string };
+    verrouiller: { commande: string; args: string[]; dossier: string }[];
   };
 }
 
