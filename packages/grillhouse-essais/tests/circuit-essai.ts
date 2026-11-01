@@ -364,6 +364,46 @@ export const TA_TACHE =
 export const lire = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 export const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`;
 
+// The line a launch of the circuit ends on once the run is detached (scripts/circuit.mjs,
+// `rendreLaMain`): the run goes on alone, and `--rattacher` waits for its end (grillhouse-pq6).
+export const LANCE = /^▶ Circuit de \S+ lancé /m;
+
+// The ticket a run of the circuit with <args> names: its first argument that is no option.
+const ticketDe = (args: string[]) => args.find(a => !a.startsWith('--')) ?? '';
+
+/**
+ * The circuit run with <args> to its end, as a test waits for it: its launch, which returns once
+ * the run is detached, then `--rattacher`, which ends on what the run's state says; its code, and
+ * the outputs of both, the launch's first. <lance> is the launch, to read or kill.
+ */
+export function circuitJusquALaFin(
+  args: string[],
+  options: { cwd: string; env: NodeJS.ProcessEnv }
+): { lance: ReturnType<typeof spawn>; fin: Promise<number | null> } {
+  const lance = spawn('node', [CIRCUIT, ...args], {
+    ...options,
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  let erreurs = '';
+  lance.stderr?.on('data', d => {
+    erreurs += String(d);
+  });
+  const fin = new Promise<number | null>(ok => {
+    lance.on('close', code => {
+      if (code !== 0 || !LANCE.test(erreurs)) {
+        ok(code);
+        return;
+      }
+      const attache = spawn('node', [CIRCUIT, ticketDe(args), '--rattacher'], {
+        ...options,
+        stdio: 'ignore',
+      });
+      attache.on('close', ok);
+    });
+  });
+  return { lance, fin };
+}
+
 // The circuit's named values, read once in a process; a circuit that does not load leaves them
 // empty, and the tests that read them fail on their own assertion.
 const valeurs = valeursDe('scripts/circuit.mjs', ['ARRETS', 'IMMOBILE_MS']);
@@ -525,13 +565,26 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
     DO_NOT_TRACK: '1',
   };
 
-  const circuit = (args: string[], env: Record<string, string> = {}) =>
-    spawnSync('node', [CIRCUIT, ...args], {
-      cwd: REPO,
-      encoding: 'utf8',
-      env: { ...ENV, ...env },
-      timeout: 280_000,
-    });
+  // The circuit run with <args> to its end: its launch, then, once the run is detached (`LANCE`),
+  // `--rattacher`, whose code is the run's; the outputs of both, the launch's first.
+  const options = (env: Record<string, string>) => ({
+    cwd: REPO,
+    encoding: 'utf8' as const,
+    env: { ...ENV, ...env },
+    timeout: 280_000,
+  });
+  // The launch of the circuit with <args> alone, as the supervisor runs it in the foreground: it
+  // returns once the run is detached (`LANCE`), or on the run's code when it ends before.
+  const lancer = (args: string[], env: Record<string, string> = {}) =>
+    spawnSync('node', [CIRCUIT, ...args], options(env));
+  const circuit = (args: string[], env: Record<string, string> = {}) => {
+    const r = lancer(args, env);
+    if (r.status !== 0 || !LANCE.test(r.stderr)) {
+      return r;
+    }
+    const a = spawnSync('node', [CIRCUIT, ticketDe(args), '--rattacher'], options(env));
+    return { ...a, stdout: r.stdout + a.stdout, stderr: r.stderr + a.stderr };
+  };
   const essai = (id: string, f: string) => lire(path.join(BEADS, 'essai', id, f));
   const sessions = (id: string, role: string) => Number(essai(id, `${role}.n`) || 0);
   const args = (id: string, role: string, n: number) =>
@@ -610,6 +663,7 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
     scenario,
     ENV,
     circuit,
+    lancer,
     essai,
     sessions,
     args,

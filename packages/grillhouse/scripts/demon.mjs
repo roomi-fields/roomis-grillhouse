@@ -13,8 +13,11 @@
 //   (`<tmpdir>/grillhouse-sortie-du-circuit-XXXXXX`, apart from the bases of the runs, which a sweep
 //   reads) and relays it to its own streams while it waits, every PAS_MS; once the daemon's code is
 //   there, written after its last line, it reads the output to its end, then ends on that code. A
-//   daemon gone without a code ends the caller at 1, said. A caller that dies leaves the daemon
-//   running.
+//   daemon gone without a code ends the caller at 1, said. A daemon that gives the hand back
+//   (`rendreLaMain`, as `systemctl start` returns once its unit has started) ends the caller at 0
+//   once its output so far is relayed, and goes on alone (grillhouse-pq6: the supervisor's launch
+//   of a circuit returns at once, and the circuit's question wakes it by the wait of the
+//   questions, scripts/superviseur.mjs). A caller that dies leaves the daemon running.
 // - The relay: it launches the daemon, its own script again, in a session of its own (setsid), its
 //   output to the directory, writes its pid there and ends at once: the daemon's parent becomes the
 //   system's, so that the daemon is neither in the caller's process group nor under it in the tree
@@ -25,7 +28,7 @@
 //   caller (the scope of a terminal or of a tmux pane), which systemd stops whole; without it, as
 //   in the envelope of the agents, it starts as it is.
 // - The daemon: it runs <main>(<argv>); at its exit, its code is written for the caller, or the
-//   directory removed when the caller is gone.
+//   directory removed when the caller is gone or has the hand back.
 import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -47,6 +50,10 @@ const DETACHE = 'GRILLHOUSE_CIRCUIT_DETACHE';
 const PAS_MS = 100;
 
 const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
+
+// The directory of the caller of this daemon while it waits, null once the hand is given back or
+// out of a daemon.
+let aRendre = null;
 
 // The environment in which systemd-run reaches the user's systemd: the directory of the user's
 // runtime, `/run/user/<uid>` as pam_systemd sets it, when the environment does not give it (a task
@@ -106,11 +113,16 @@ async function appeler(script, argv, unite) {
       }
     };
     for (;;) {
-      // The code is written after the last line: once it is there, the output is read to its end.
+      // The code is written after the last line: once it is there, the output is read to its end;
+      // the hand given back (`rendreLaMain`) is written after the daemon's line that says so.
       const fini = existsSync(f('code'));
+      const rendue = existsSync(f('rendu'));
       recopier();
       if (fini) {
         return Number(lire(f('code')));
+      }
+      if (rendue) {
+        return 0;
       }
       if (!pid || !vivant(pid)) {
         recopier();
@@ -160,8 +172,9 @@ function relayer(script, argv, { dossier, appelant, unite }) {
 
 // The daemon: see the header.
 async function demon(argv, main, { dossier, appelant }) {
+  aRendre = dossier;
   process.on('exit', code => {
-    if (!vivant(appelant)) {
+    if (!vivant(appelant) || !existsSync(dossier)) {
       rmSync(dossier, { recursive: true, force: true });
       return;
     }
@@ -170,6 +183,41 @@ async function demon(argv, main, { dossier, appelant }) {
     renameSync(provisoire, path.join(dossier, 'code'));
   });
   return await main(argv);
+}
+
+/**
+ * Whether this process is the daemon of a script run by `executerEnDemon`, read before it runs.
+ * @returns {boolean}
+ */
+export function estLeDemon() {
+  try {
+    return JSON.parse(process.env[DETACHE] ?? 'null')?.role === 'demon';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Gives the hand back to the caller of this daemon, as `systemctl start` returns once its unit has
+ * started: <message> on the daemon's error stream, which the caller relays, then the caller ends
+ * at 0, and the daemon goes on alone, its output no longer read. Once per daemon; nothing out of
+ * a daemon (a run in its caller's own process).
+ * @param {string} message the line the caller relays last
+ * @returns {boolean} whether a caller got the hand back
+ */
+export function rendreLaMain(message) {
+  if (aRendre === null) {
+    return false;
+  }
+  const dossier = aRendre;
+  aRendre = null;
+  process.stderr.write(message);
+  try {
+    writeFileSync(path.join(dossier, 'rendu'), '');
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 /**

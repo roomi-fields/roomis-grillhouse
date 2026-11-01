@@ -1,6 +1,6 @@
 // The opening of a session of supervision as the script plays it (grillhouse-mwz critère 2,
 // scripts/superviseur.mjs launched on a repository of trial): only a real launch proves that the
-// session start of the supervisor that takes the lock says the circuits to attach or resume.
+// session start of the supervisor that takes the lock says the wait of the questions to launch and the circuits it finds (grillhouse-pq6).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -34,8 +34,11 @@ describe('the opening of a session of supervision, launched', () => {
       env: { ...process.env, BEADS_ACTOR: '' },
     });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain('## Circuits à rattacher ou à reprendre');
-    expect(r.stdout).toContain('`npx grillhouse circuit demo-1 --rattacher`');
+    expect(r.stdout).toContain("## L'attente des questions");
+    expect(r.stdout).toContain('`npx grillhouse superviseur --attendre`');
+    expect(r.stdout).toContain('## Les circuits du dépôt');
+    expect(r.stdout).toContain('- demo-1 tourne, à 3.1 Contrôles.');
+    expect(r.stdout).not.toContain('--rattacher');
     expect(r.stdout).toContain('`npx grillhouse circuit demo-2 --reprendre`');
   });
 
@@ -55,10 +58,10 @@ describe('the opening of a session of supervision, launched', () => {
       });
     const premiere = ouvrir();
     expect(premiere.status).toBe(0);
-    expect(premiere.stdout).toContain('## Circuits à rattacher ou à reprendre');
+    expect(premiere.stdout).toContain("## L'attente des questions");
     const seconde = ouvrir();
     expect(seconde.status).toBe(0);
-    expect(seconde.stdout).not.toContain('## Circuits à rattacher ou à reprendre');
+    expect(seconde.stdout).not.toContain("## L'attente des questions");
     expect(seconde.stdout).not.toContain('Un autre superviseur');
   });
 });

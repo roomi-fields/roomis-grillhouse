@@ -10,7 +10,9 @@ import {
   CODE_JUSTE,
   ECRIT_ROUGE,
   TA_TACHE,
+  LANCE,
   circuitEssai,
+  circuitJusquALaFin,
 } from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
@@ -33,6 +35,7 @@ const {
   scenario,
   ENV,
   circuit,
+  lancer,
   essai,
   sessions,
   args,
@@ -475,8 +478,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}sleep 4\npassation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const premier = spawn('node', [CIRCUIT, id], { cwd: REPO, env: ENV, stdio: 'ignore' });
-    const fin = new Promise<number | null>(r => premier.on('close', r));
+    const { fin } = circuitJusquALaFin([id], { cwd: REPO, env: ENV });
     for (let i = 0; i < 600 && sessions(id, 'testwriter') < 1; i++) {
       await attendre(100);
     }
@@ -512,7 +514,14 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     const laisse = etat(id);
     expect(laisse).toMatchObject({ etape: 'testwriter', code: null });
     expect(typeof laisse?.seance).toBe('number');
-    const r = circuit([id, '--reprendre']);
+    // grillhouse-pq6: the launch, in the foreground, gives the hand back at once; the run waits
+    // for the session alone, as a daemon.
+    const l = lancer([id, '--reprendre']);
+    expect(l.status, sortie(l)).toBe(0);
+    expect(l.stderr).toMatch(LANCE);
+    expect(essai(id, 'testwriter-1.fin')).toBe('');
+    expect(etat(id)).toMatchObject({ etape: 'testwriter', code: null, raison: null });
+    const r = circuit([id, '--rattacher']);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testwriter')).toBe(2);
     expect(BigInt(essai(id, 'testwriter-2.debut').trim())).toBeGreaterThan(

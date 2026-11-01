@@ -541,18 +541,49 @@ l'utilisateur répond, le circuit part aussi dans une unité à lui, comme `syst
 lance une (`grillhouse-circuit-<ticket>-<pid>.scope`, sous `app.slice`) : il sort du groupe de
 contrôle du terminal ou du volet tmux de la séance, que systemd tue en entier (le 2026-11-01,
 systemd-oomd a tué le volet du superviseur de BPScript, 94 processus, deux circuits avec lui).
-L'appelant relaie sa sortie jusqu'à sa dernière ligne et rend son code de fin ; mort, il laisse le
-circuit aller à sa fin. Comme le client de Bazel se rattache à son serveur,
-`npx grillhouse circuit <ticket> --rattacher` est un client du circuit qui tourne : il attend que
-son processus finisse, puis rend ce que dit son état (0 à « integre », la ligne de sa question et
-son code sur un arrêt, 1 avec la commande qui le reprend pour un circuit mort sans état final).
+Comme `systemctl start` rend la main une fois son unité partie, l'appelant relaie la sortie du
+circuit jusqu'à ce que son premier état le nomme, puis finit à 0 sur la ligne qui le dit
+(« ▶ Circuit de <ticket> lancé », `rendreLaMain` de `demon.mjs`) ; un circuit qui finit avant
+(un usage, une seconde course refusée, `--arreter`, un arrêt avant toute séance comme le refus d'un
+arbitrage) le fait finir sur son code, la ligne de sa question avec la question. Une reprise qui
+trouve encore la séance de l'arrêt d'avant se nomme d'abord dans l'état, rend la main, puis
+attend cette séance en démon. La question d'un
+circuit réveille le superviseur par la seule attente des questions (ci-dessous), et sa fin
+normale ne réveille personne : le panneau la montre (décision du responsable, grillhouse-pq6).
+Comme le client de Bazel se rattache à son serveur,
+`npx grillhouse circuit <ticket> --rattacher` est un client du circuit qui tourne, pour qui veut
+l'attendre : il attend que son processus finisse, puis rend ce que dit son état (0 à « integre »,
+la ligne de sa question et son code sur un arrêt, 1 avec la commande qui le reprend pour un
+circuit mort sans état final).
 L'ouverture d'une séance de supervision (`packages/grillhouse/scripts/superviseur.mjs`, joué par le
 crochet de démarrage), quand cette ouverture prend le verrou du dépôt (non quand la même séance le
-garde déjà, après un compactage ou un `/clear`), nomme chaque circuit qui tourne, avec sa commande `--rattacher`, et chaque
-circuit mort sans état final (son processus parti, ni arrêt ni code écrit), avec sa commande
-`--reprendre`, et chaque circuit arrêté sur une question dont le ticket est ouvert (hors l’arrêt `arrete` du superviseur), avec sa commande `--rattacher`, qui redonne son arrêt ; le superviseur les lance sans attendre le mot du responsable. Le panneau range un
-circuit mort sans état final sous « ⤷ Question · superviseur », la commande qui le reprend en tête
-de sa fiche.
+garde déjà, après un compactage ou un `/clear`), demande de lancer l'attente des questions, puis
+nomme les circuits du dépôt dont le ticket est ouvert : chaque circuit qui tourne ; chaque circuit
+arrêté sur une question (hors l’arrêt `arrete` du superviseur), avec sa question et la commande qui
+répond ; chaque circuit mort sans état final (son processus parti, ni arrêt ni code écrit), avec
+sa commande `--reprendre`, que le superviseur lance sans attendre le mot du responsable. Le panneau range sous
+« ⤷ Question · superviseur » tout circuit qui attend le superviseur, par la même règle que
+l'ouverture et l'attente : un circuit mort sans état final, la commande qui le reprend en tête de
+sa fiche, et un circuit arrêté sans texte de question, « à repasser » (75) compris, que le
+superviseur reprend une fois la machine libre.
+Comme la demande de revue de GitHub et l'ensemble d'attention de Gerrit appellent celui qu'un
+changement attend, quel que soit son chemin, `npx grillhouse superviseur --attendre` est l'attente
+que la séance de supervision garde en arrière-plan, seule voie par laquelle une question la
+réveille, une seule à la fois par dépôt
+(`.claude/worktrees/attente-des-questions.lock`) : elle se termine seulement quand paraît une
+question neuve d'un circuit (lancé seul, dans une file ou par une autre séance), et sa sortie
+donne, par question, le ticket, l'étape, la question et la commande qui répond ; la fin de sa tâche
+réveille la séance, qui ne dépense rien pendant qu'elle attend. Les questions en attente ont une
+seule règle, `attendLeSuperviseur` de `tableau.mjs`, à côté de `lireCircuits` (un circuit parti,
+arrêté hors l'`arrete` du superviseur, « à repasser » compris, ou mort sans état final) : le
+panneau la lit, et `questionsEnAttente` de `superviseur.mjs`, que lisent l'ouverture et l'attente.
+L'attente surveille le dossier des états des circuits (`fs.watch`, inotify sous Linux) ; un
+circuit marque sa sortie en touchant son état, et la relecture toutes les 30 s ne sert qu'au
+circuit tué, seul à partir sans marque. Une question remontée (par l'attente, ou nommée à l'ouverture) s'inscrit dans
+`.claude/worktrees/questions-remontees.json`, par son ticket, la course de son circuit
+(`processus`, `depart`) et son arrêt : elle ne réveille plus la séance, et elle en sort une fois
+répondue, le circuit reparti ou fini (grillhouse-pq6 : SH-ae6.5.2, SH-ae6.5.6 et SH-br0.1.5 de
+SyntHub, lancés par une file en arrière-plan, ont attendu des heures leur réponse).
 L'état du circuit le nomme par son numéro et son heure de départ (`processus`, `depart`, le champ
 22 de `/proc/<pid>/stat`), comme un gestionnaire de services vérifie qu'un numéro réutilisé ne
 désigne pas un autre processus : le panneau tient un circuit pour vivant sur ce seul processus,

@@ -31,11 +31,14 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
    dans ma première réponse, et je ne lance aucun circuit ni aucune livraison tant que l'autre
    séance tient le verrou. Ainsi un projet a un seul superviseur, comme Zuul a un seul
    ordonnanceur, et aucun ticket ne se mène deux fois.
-1. Si l'ouverture de séance liste des « Circuits à rattacher ou à reprendre », je lance en
-   arrière-plan, dès ma première réponse et sans attendre le mot du responsable, la commande
-   qu'elle donne à chacun : `npx grillhouse circuit <ticket> --rattacher` pour un circuit qui
-   tourne, qui attend sa fin et rend son code comme son lancement, `--reprendre` pour un circuit
-   mort sans état final. Ainsi la relance de ma séance ne perd ni un circuit, ni son arrêt.
+1. Si l'ouverture de séance dit « L'attente des questions », je lance en arrière-plan, dès ma
+   première réponse et sans attendre le mot du responsable,
+   `npx grillhouse superviseur --attendre` (« L'attente des questions me réveille »). Si elle
+   liste « Les circuits du
+   dépôt », je relance chaque circuit mort sans état final par la commande qu'elle donne
+   (`--reprendre`), et je réponds à chaque question qu'elle nomme, ou je la porte au
+   responsable ; un circuit qui tourne n'appelle rien. Ainsi la relance de ma séance ne perd
+   ni un circuit, ni son arrêt.
 2. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
    responsable de les griller (compétence `grill`), chacun avec ma recommandation. Ainsi chaque
    séance part d'une charte et d'un cadre écrits : sans eux, il n'y a rien à superviser.
@@ -81,15 +84,17 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 ## Un agent, un ticket
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
-  `npx grillhouse circuit <ticket>`, que je lance une fois, en arrière-plan
-  (`run_in_background`) ; sa fin me réveille. Le circuit tourne en démon, détaché de ma séance
-  comme par `setsid`, et dans une unité de systemd à lui comme par `systemd-run --user`, hors du
-  terminal de ma séance : la commande que je lance n'est qu'un client, qui relaie sa sortie et rend
-  son code. La relance de ma séance tue ce client, jamais le circuit, et son arrêt ne réveille plus
-  personne : à l'ouverture de la séance suivante, je me rattache à chaque circuit qui tourne
-  (`--rattacher`, en arrière-plan), et je reprends chaque circuit mort sans état final
-  (`--reprendre`), comme l'ouverture me les nomme. Je ne dis jamais « les circuits continuent »
-  sans que ma séance en attende la fin. Le circuit mène l'arbre de ses étapes
+  `npx grillhouse circuit <ticket>`, que je lance une fois, au premier plan. Le circuit tourne en démon, détaché
+  de ma séance comme par `setsid`, et dans une unité de systemd à lui comme par
+  `systemd-run --user`, hors du terminal de ma séance : la commande rend la main dès que l'état
+  du circuit le nomme (« ▶ Circuit de <ticket> lancé »), comme `systemctl start`. Sa question me
+  réveille par l'attente des questions, seule voie, et sa fin normale ne me réveille pas : le
+  panneau la montre. Je ne me sers pas de `--rattacher`, qui attend la fin d'un circuit, pour être
+  réveillé ; je ne dis jamais « les circuits continuent » sans que l'attente des questions
+  tourne. Lancé en arrière-plan, son lancement me réveillerait pour rien en rendant la main :
+  seule l'attente des questions tourne en arrière-plan. Une file de lancements part d'un coup,
+  au premier plan, chaque lancement rendant la main en quelques secondes ; les questions de ses
+  circuits me parviennent par l'attente. Le circuit mène l'arbre de ses étapes
   (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (l'explorateur écrit le plan, le questionneur le lit une seule
   fois, l'explorateur répond une fois ; 1.1 Geste mécanique, l'explorateur joue dans la copie la
   commande du plan d'un ticket mécanique), 2 Tests (le testwriter, une séance pour tout le ticket, et
@@ -137,10 +142,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   hors de ce cas, une preuve sans rouge passe aux contrôles sans séance du développeur. Une sorte absente ou
   illisible vaut « comportement » : le circuit entier. Ainsi un geste sans comportement neuf ne
   coûte ni testwriter ni développeur.
-- **Le code de fin du circuit dit la suite** : 0, le lot est sur main et le ticket fermé ; je lis
-  sa fermeture. 75 (`a-repasser` : un contrôle ou l'intégration encore « à repasser », ou la
-  branche gardée en file) : le jour, un 75 vient de l'attente du verrou de la machine ou de place
-  sous /tmp, à sa borne ; je relance `--reprendre` en arrière-plan, une fois la machine libérée ;
+- **La fin du circuit dit la suite** : à `integre`, le lot est sur main et le ticket fermé ; le
+  panneau le montre, et je lis sa fermeture au tour suivant. Un arrêt me parvient par l'attente
+  des questions, son code dans l'état du circuit. 75 (`a-repasser` : un contrôle ou l'intégration
+  encore « à repasser », ou la branche gardée en file) : le jour, un 75 vient de l'attente du
+  verrou de la machine ou de place sous /tmp, à sa borne, et attend mon `--reprendre`, au
+  premier plan, une fois la machine libérée ;
   repris à l'étape `file`, il relit ce qu'une autre file a fait de la branche, et finit à `integre`
   quand elle est entrée. La machine au repos (`uptime`) ne vaut que pour une mesure de temps nommée
   dans un lancement ciblé. Ainsi un « à repasser » se rejoue sans décision.
@@ -159,7 +166,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   finir à 75, renvoyer au testwriter
   que nomme la fiche du développeur, régénérer les références, juger aux contrôles un développeur
   qui n'a rien à livrer, sauter le testwriter et le développeur d'un ticket mécanique ; chaque geste s'écrit au ticket et au journal avec sa règle
-  (`Circuit · … · geste`). Ainsi ma séance n'est réveillée que par la fin du lot ou par une vraie
+  (`Circuit · … · geste`). Ainsi ma séance n'est réveillée que par une vraie
   question.
 - **Une vraie question monte à moi** : tout autre arrêt finit le circuit sur une question
   (`MONTEES` de la liste des étapes), son code celui de l'arrêt ; l'état du circuit la porte
@@ -169,7 +176,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   responsable. Je réponds moi-même à ce qui est à moi (le cadre du ticket, un
   arbitrage, un geste) ; je porte au responsable ce qui est à lui (`qui` responsable : la question
   du relecteur sur un vrai mot de la langue), le fonctionnel et ce que la charte lui garde. Je
-  réponds par une commande du circuit, en arrière-plan : `--reprendre`, avec `--contexte` quand
+  réponds par une commande du circuit, au premier plan, qui rend la main dès le circuit
+  reparti : `--reprendre`, avec `--contexte` quand
   l'agent repris doit savoir ce que j'ai tranché, ou `--depuis <testwriter|developpeur>
 --contexte`, l'étape d'où le ticket entier repart ; `--etendre <paquet>` quand le plan doit
   gagner un paquet (un `hors-plan`, un rouge hors du plan), que le circuit met au titre avant son
@@ -186,9 +194,18 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   reprenne. 22 (`questionnement`) : des questions du plan restent ouvertes après la réponse de
   l'explorateur, au ticket avec leur pièce ; je change le plan (`bd update <ticket>`) ou je le
   garde, puis `--reprendre` le fait passer tel qu'il est alors ; ce qui revient au responsable lui
-  monte d'abord. J'arrête tout
-  agent que j'ai lancé moi-même dès son rapport lu (`TaskStop`). Ainsi ma séance ne porte pas le
-  détail des tickets, et elle reste courte.
+  monte d'abord.
+- **L'attente des questions me réveille** : `npx grillhouse superviseur --attendre`, que je
+  garde en arrière-plan (`run_in_background`), une seule à la fois, est la seule voie par
+  laquelle une question me réveille. Elle se termine seulement quand paraît une question neuve
+  d'un circuit, lancé seul, dans une file ou par une autre séance ; sa sortie donne, par
+  question, le ticket, l'étape, la question et la commande qui répond. Une question déjà remontée
+  (par l'attente, ou nommée à l'ouverture) ne la termine plus. Je ne sonde jamais les circuits
+  moi-même. Je la relance une fois les questions de sa sortie répondues, ou portées au
+  responsable. Ainsi je ne suis réveillé que par une question neuve, et aucune n'attend des
+  heures.
+- **J'arrête tout agent que j'ai lancé moi-même** dès son rapport lu (`TaskStop`). Ainsi ma
+  séance ne porte pas le détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au
   ticket et dans sa copie ; `--reprendre` repart de l'état. Ainsi
   le travail fait sert à la reprise.
@@ -255,7 +272,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 - **Un « en cours » est un processus vivant** : un « en cours » se vérifie par un processus vivant
   ou un journal qui bouge, jamais par une phrase ; un circuit dont l'état nomme un processus
   vivant (`processus`, le même par son départ `depart`) tourne encore, ma séance d'appel fermée comprise, et une seconde course sur
-  son ticket est refusée, et `--rattacher` en attend la fin ; un circuit mort sans état final (ni
+  son ticket est refusée, et `--rattacher` en attend la fin pour qui veut l'attendre ; un circuit mort sans état final (ni
   arrêt ni code écrit), que le panneau range sous « ⤷ Question · superviseur », est relancé par
   moi, `--reprendre`, sur son ticket, sans attendre un mot du responsable. Ainsi la file ne s'arrête
   jamais sur une promesse.
@@ -337,7 +354,10 @@ qu'un changement atteint.
 
 ⛔ **Aucune commande ne fait attendre le responsable** : dans une séance où il attend, celle du
 superviseur, toute commande qui peut dépasser une minute part en arrière-plan, et son avis de fin
-réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Ce que la séance
+réveille la séance ; aucune boucle d'attente, aucun long délai au premier plan. Le lancement d'un
+circuit et chaque réponse au circuit (`--reprendre`, `--depuis`, `--etendre`, `--arreter`)
+rendent la main en quelques secondes : ils vont au premier plan, et seule l'attente des questions
+tourne en arrière-plan. Ce que la séance
 annonce de sa façon de faire vaut dès la commande suivante ; quand le responsable arrête, elle ne
 lance plus rien. Un agent de rôle, lui, attend au premier plan ce qu'il lance, car sa séance
 finit avec son tour : ses réglages lui ôtent les tâches de fond (`packages/grillhouse/scripts/droits.mjs`). Ainsi le responsable n'attend jamais une commande, et aucun travail ne se

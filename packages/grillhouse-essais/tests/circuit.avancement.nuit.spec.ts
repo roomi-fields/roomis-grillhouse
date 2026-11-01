@@ -1,9 +1,8 @@
-import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CIRCUIT, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai, circuitJusquALaFin } from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
 const lireAvancement = enProcessus<{ faits: number; prevus: number; dernier: number } | null>(
@@ -50,14 +49,11 @@ describe.runIf(canWrap)(
           return null;
         }
       };
-      const enfant = spawn('node', [CIRCUIT, id], { cwd: REPO, env: ENV, stdio: 'ignore' });
       let fini = false;
-      const fin = new Promise<number | null>(resolve =>
-        enfant.on('close', c => {
-          fini = true;
-          resolve(c);
-        })
-      );
+      const fin = circuitJusquALaFin([id], { cwd: REPO, env: ENV }).fin.then(c => {
+        fini = true;
+        return c;
+      });
       // Each step seen with a progress directory, and the greatest number of files planned read there.
       const vus = new Map<string, number>();
       while (!fini) {

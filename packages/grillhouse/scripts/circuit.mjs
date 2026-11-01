@@ -34,10 +34,18 @@
 // its caller dies or when the scope of its caller's terminal is killed (BP 320.8: the circuit, a
 // background command of the supervisor's session, died with it; grillhouse-mwz: systemd-oomd
 // killed the scope of the tmux pane of BPScript's supervisor, two circuits with it). The caller
-// relays the run's output to its own streams while it lives, and ends on the run's exit code; the
-// state names the run (`processus` and its start `depart`), which the board reads, and a second
-// run of the ticket while it lives is refused (exit 2), `--arreter` stopping it, `--rattacher`
-// waiting for its end as its caller did.
+// relays the run's output to its own streams until the run's first state names it, then ends at 0
+// on the line that says so (`rendreLaMain` of scripts/demon.mjs, as `systemctl start` returns once
+// its unit has started); a run that ends before (a usage, a second run refused, `--arreter`, a
+// stop before any session) ends it on its code, the line of its question with the question; a
+// resumption that finds the session of the stop before still running names itself in the state
+// first, so gives the hand back, then waits for that session as a daemon. The question of a run wakes the supervisor by the wait of the questions
+// (`npx grillhouse superviseur --attendre`, scripts/superviseur.mjs), and its normal end wakes no
+// one, the board shows it (grillhouse-pq6: a launch that waited for its end woke the supervisor a
+// second time on its question, and a queue of launches woke no one before its end). The state
+// names the run (`processus` and its start `depart`), which the board reads, and a second run of
+// the ticket while it lives is refused (exit 2), `--arreter` stopping it, `--rattacher` waiting
+// for its end.
 //
 // The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
 // formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
@@ -622,6 +630,7 @@ import {
   rmSync,
   statSync,
   appendFileSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
@@ -689,7 +698,7 @@ import { sansArchitecture } from './verrous/verrou.mjs';
 import { A_REPASSER } from './mesure/pression.mjs';
 import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
-import { executerEnDemon } from './demon.mjs';
+import { estLeDemon, executerEnDemon, rendreLaMain } from './demon.mjs';
 import { retirerLesCopiesDuDepot } from './copies-finies.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
@@ -1105,7 +1114,8 @@ function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
 
 // The state of the run, written whole (`seance` and `question` null and `finale` false unless <etat>
 // sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise`, `aRegenerer`, `refus` and
-// `controlesRouges` the run's), kept as the run's current state.
+// `controlesRouges` the run's), kept as the run's current state. Its first write in a daemon gives
+// the hand back to the caller (`rendreLaMain`): the state names the run from then on.
 function ecrireEtat(ctx, etat) {
   ctx.courant = {
     finale: false,
@@ -1131,6 +1141,15 @@ function ecrireEtat(ctx, etat) {
     `${JSON.stringify({ ...ctx.courant, journal: ctx.journal }, null, 2)}\n`
   );
   renameSync(provisoire, ctx.etat);
+  // The supervisor's « --arreter » is no launch, and a run whose first state is already a stop (a
+  // refusal before any session: the arbitrage, the tools, the generated files) ends at once: their
+  // caller waits for their end, and says the stop and its question (`monter`) with its code.
+  if (ctx.arreter || ctx.courant.raison) {
+    return;
+  }
+  rendreLaMain(
+    `▶ Circuit de ${ctx.ticket} lancé (processus ${process.pid}), détaché : sa question réveille l'attente des questions (\`npx grillhouse superviseur --attendre\`), sa fin se lit au panneau ; \`--rattacher\` attend sa fin.\n`
+  );
 }
 
 // The register's line of the step <etape> the circuit led itself from <debut> (an ISO date) to
@@ -4278,14 +4297,14 @@ function monter(ctx, a) {
   });
   const ou = ouDansLeCircuit({ ...a.etat, raison: a.nom });
   commenter(ctx, 'question', `${a.nom} à ${ou} — ${fait} — au ${qui} : ${question}`);
-  process.stderr.write(laQuestion(ctx.ticket, ctx.etat, { arret: a.nom, qui, ou }));
+  process.stderr.write(laQuestion(ctx.ticket, ctx.etat, { arret: a.nom, qui, ou, question }));
   return a.code;
 }
 
-// The line that says the question of the circuit of <ticket> stopped at <ou> on <arret>, kept in
-// its state <fichier>, to <qui>, with the commands that answer it.
-const laQuestion = (ticket, fichier, { arret, qui, ou }) =>
-  `⛔ Circuit de ${ticket} : question au ${qui} (${arret}, à ${ou}), dans ${fichier} ; la réponse : \`npx grillhouse circuit ${ticket} --reprendre\`, \`--depuis <testwriter|developpeur>\`, \`--etendre <paquet>\` ou \`--arreter\`.\n`;
+// The line that says the question <question> of the circuit of <ticket> stopped at <ou> on
+// <arret>, kept in its state <fichier>, to <qui>, with the commands that answer it.
+const laQuestion = (ticket, fichier, { arret, qui, ou, question }) =>
+  `⛔ Circuit de ${ticket} : question au ${qui} (${arret}, à ${ou}) : ${String(question ?? '').trim()}\n\nDans ${fichier} ; la réponse : \`npx grillhouse circuit ${ticket} --reprendre\`, \`--depuis <testwriter|developpeur>\`, \`--etendre <paquet>\` ou \`--arreter\`.\n`;
 
 // The client of the circuit of <ticket> whose state is <fichier> (`--rattacher`), as Bazel's
 // client attaches to its server: it waits, reading the state every <pas> ms, while the process the
@@ -4305,7 +4324,12 @@ export async function rattacher({ ticket, etat: fichier, pas = 2000, erreurs = p
   if (e.etape === 'integre') return 0;
   if (e.question) {
     erreurs.write(
-      laQuestion(ticket, fichier, { arret: e.question.arret, qui: e.question.qui, ou })
+      laQuestion(ticket, fichier, {
+        arret: e.question.arret,
+        qui: e.question.qui,
+        ou,
+        question: e.question.question,
+      })
     );
     return e.code;
   }
@@ -5018,7 +5042,12 @@ export async function main(argv) {
       });
     }
     const d = depart(ctx, e);
-    // A session a dead circuit left running ends before this run launches its own.
+    // A session a dead circuit left running ends before this run launches its own. The run first
+    // names itself in the state, at the step it found, the session kept: the launch gives the hand
+    // back at once (`ecrireEtat`), and the run waits for the session alone, as a daemon.
+    if (e?.seance && signalerGroupe(e.seance, 0)) {
+      ecrireEtat(ctx, { ...e, code: null, raison: null, question: null, rapport: null });
+    }
     await attendreLaSeance(ctx, e?.seance);
     // A ticket labelled arbitrage starts and resumes only on the arbitrage its integration will
     // ask for: the integration's rule, before any session.
@@ -5076,6 +5105,28 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     o = lireArguments(argv);
   } catch {
     // a malformed call: the run says its usage
+  }
+  // The run's last mark at its exit, whatever ends it but a kill: its state touched, so that the
+  // wait of the questions, which watches the directory of the states (scripts/superviseur.mjs),
+  // reads it at once, the process gone, rather than at its next reading.
+  let etat = null;
+  try {
+    etat =
+      o?.ticket && !o.rattacher && estLeDemon()
+        ? path.join(arbrePrincipal(), '.claude', 'worktrees', `${o.ticket}.circuit.json`)
+        : null;
+  } catch {
+    // out of a repository: the run says so
+  }
+  if (etat) {
+    process.on('exit', () => {
+      try {
+        const maintenant = new Date();
+        utimesSync(etat, maintenant, maintenant);
+      } catch {
+        // no state written: nothing to mark
+      }
+    });
   }
   process.exitCode = o?.rattacher
     ? await main(argv)

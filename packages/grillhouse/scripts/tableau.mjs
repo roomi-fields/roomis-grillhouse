@@ -23,10 +23,13 @@
 //   names runs (`processus`, the same one by its start `depart`), and stands at the step of its
 //   state, with its attempt, every step one for the whole ticket; while the explorateur or
 //   the questionneur works on its plan (its state names that work, `questionnement`, of the
-//   plan), it stands at the plan (1); stopped on a question for the supervisor (its state names it,
-//   `question`), it stands under the stopped step after a line « ⤷ Question · <qui> », who must
-//   answer it, the supervisor or the owner; its card opens on that question, or on the stop (its
-//   name and code) and the first line of its reason. A ticket with a circuit waits in no block.
+//   plan), it stands at the plan (1); waiting for the supervisor (`attendLeSuperviseur`, the one
+//   rule the opening and the wait of the questions read too: stopped, « à repasser » included, but
+//   by the supervisor's « arrete », or dead without a final state), it stands under the stopped
+//   step after a line « ⤷ Question · <qui> », who must answer it, the supervisor or the owner, the
+//   supervisor when its state names no question; its card opens on that question, or on the stop
+//   (its name and code) and the first line of its reason. A ticket with a circuit waits in no
+//   block.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
 //   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures: wall time, share lost,
 //   sessions, cost.
@@ -603,7 +606,9 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 // names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one), and `interrompu`
 // for a circuit dead without a final state (its process gone, neither a stop nor a code written,
 // as a circuit killed with the group of control that held it, grillhouse-mwz): its question, to
-// the supervisor, gives the command that resumes it. A state that does not parse is left out.
+// the supervisor, gives the command that resumes it; `processus` and `depart` as the state names
+// them, null without them, which tell one run of a circuit from the next. A state that does not
+// parse is left out.
 export function lireCircuits({ racine }) {
   const dossier = path.join(racine, '.claude', 'worktrees');
   const out = [];
@@ -640,10 +645,26 @@ export function lireCircuits({ racine }) {
         typeof e.avancement?.dossier === 'string' ? lireAvancement(e.avancement.dossier) : null,
       vivant,
       interrompu,
+      processus: e.processus ?? null,
+      depart: e.depart ?? null,
     });
   }
   return out;
 }
+
+/**
+ * Whether the circuit <c>, as `lireCircuits` reads it, waits for the supervisor: its process gone,
+ * dead without a final state, on a question, or stopped (any stop but the supervisor's own
+ * « arrete », « à repasser » included: the supervisor resumes it once the machine is free). The
+ * one rule of the questions that wait for the supervisor (grillhouse-pq6), which the board reads,
+ * and `questionsEnAttente` of scripts/superviseur.mjs, the one source of the opening and of the
+ * wait of the questions.
+ * @param {{ vivant: boolean, interrompu: boolean, question: string | null, arret: string | null }} c
+ * @returns {boolean}
+ */
+export const attendLeSuperviseur = c =>
+  !c.vivant && Boolean(c.interrompu || c.question || (c.arret && c.arret !== 'arrete'));
+
 // The first line of a report that is not blank, or null.
 const premiereLigne = r =>
   String(r ?? '')
@@ -1343,8 +1364,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // its sub-steps then shown, indented, the empty ones in the discreet tone; a step without
   // sub-steps stands on one line « number · title · who », discreet when empty, a title with its
   // tickets under it. A circuit's ticket stands on one line, at the step of its state, and nowhere
-  // else in AGENTS: the work on the plan at its step; stopped on a question for the
-  // supervisor (its state's `question`), under its step after a line « ⤷ Question · <qui> », who
+  // else in AGENTS: the work on the plan at its step; waiting for the supervisor
+  // (`attendLeSuperviseur`), under its step after a line « ⤷ Question · <qui> », who
   // must answer it, the supervisor or the owner, which unfolds the step, its counters those of its
   // step; a stopped circuit at no step of the list stands under that line after the steps. A
   // circuit's line gives its subject (`texte`), then the counters of the bounded loops of its step
@@ -1369,8 +1390,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The block of the circuits at no step of the list, after the steps.
   const ailleurs = { numero: null, titre: '', qui: '', enCours: [], attend: [] };
   const etapeDe = c => etapeDuCircuit({ ...c, raison: c.arret });
-  // A circuit stopped on a question: who must answer it.
-  const enQuestion = c => (!c.vivant && c.question ? (c.qui ?? SUPERVISEUR) : null);
+  // A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
+  // its question, the supervisor when its stop names no one.
+  const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null);
   const blocDuCircuit = c => {
     const e = etapeDe(c);
     return e ? blocDe(e) : !c.vivant ? ailleurs : undefined;

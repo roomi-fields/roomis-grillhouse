@@ -4,7 +4,7 @@
 // without reading the output once more, lost the end of 3 runs in 150, the « ⛔ » of a question
 // among it.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -59,5 +59,52 @@ describe('the caller of a daemon', { timeout: 300_000 }, () => {
     );
     expect(fins).toHaveLength(150);
     expect(perdues).toEqual([]);
+  });
+});
+
+// grillhouse-pq6: a run that gives the hand back (`rendreLaMain`, as `systemctl start` returns
+// once its unit has started) ends its caller at 0 once its output so far is relayed, its line
+// last, and goes on alone.
+const RENDU = path.join(ESSAIS, 'circuit-qui-rend-la-main.mjs');
+writeFileSync(
+  RENDU,
+  `import { writeFileSync } from 'node:fs';
+import { executerEnDemon, rendreLaMain } from ${JSON.stringify(DEMON)};
+const main = async ([fin]) => {
+  process.stdout.write('avant\\n');
+  rendreLaMain('▶ lancé\\n');
+  rendreLaMain('▶ une seconde fois\\n');
+  await new Promise(r => setTimeout(r, 1500));
+  process.stdout.write('après\\n');
+  writeFileSync(fin, 'fini');
+  return 14;
+};
+process.exitCode = await executerEnDemon(import.meta.filename, process.argv.slice(2), main);
+`
+);
+
+describe('a daemon that gives the hand back', { timeout: 60_000 }, () => {
+  it('grillhouse-pq6 — ends its caller at 0 on its line, and goes on alone to its end', async () => {
+    const fin = path.join(ESSAIS, 'fin-du-demon');
+    const r = await new Promise<{ code: number | null; sortie: string; erreurs: string }>(ok => {
+      const p = spawn('node', [RENDU, fin], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let sortie = '';
+      let erreurs = '';
+      p.stdout.on('data', d => {
+        sortie += String(d);
+      });
+      p.stderr.on('data', d => {
+        erreurs += String(d);
+      });
+      p.on('close', code => ok({ code, sortie, erreurs }));
+    });
+    expect(r).toEqual({ code: 0, sortie: 'avant\n', erreurs: '▶ lancé\n' });
+    // The caller ended before the run did.
+    expect(existsSync(fin)).toBe(false);
+    const limite = Date.now() + 20_000;
+    while (!existsSync(fin) && Date.now() < limite) {
+      await new Promise(ok => setTimeout(ok, 50));
+    }
+    expect(readFileSync(fin, 'utf8')).toBe('fini');
   });
 });

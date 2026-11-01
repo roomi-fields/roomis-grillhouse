@@ -3,8 +3,10 @@
 // A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
 // (scripts/etapes.mjs); one that stopped on a question for the supervisor stands under its step,
 // after the line « ⤷ Question · <qui> », who must answer it (grillhouse-3uv.95.4), its card opening
-// on that question; one stopped without a question stands at its step, its card opening on where it
-// stopped, its stop's name and code and the first line of its reason.
+// on that question; one stopped without a question's text (« à repasser » among them) stands there
+// too (grillhouse-pq6: one rule of the questions that wait for the supervisor), its card opening
+// on where it stopped, its stop's name and code and the first line of its reason; one the
+// supervisor stopped (« arrete ») stands at its step.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -272,17 +274,35 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     ]);
   });
 
-  it('stopped without a question, the board draws it at its step, and its card where it stopped and why', () => {
+  // grillhouse-pq6: one rule of the questions that wait for the supervisor, the board's as the
+  // opening's and the wait's (`attendLeSuperviseur`): a stop without a question's text waits for
+  // him as well.
+  it('grillhouse-pq6 — stopped without a question, it stands under « ⤷ Question · superviseur », and its card says where it stopped and why', () => {
     const racine = depot({ 'demo-13': ARRET });
     const t = plateau([T('demo-13')], [], [], circuits(racine));
     const a = agents(t);
     const i = a.indexOf('  3.1 · Contrôles · auto');
-    expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
-    expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
-    expect(a).not.toContain(QUESTION);
+    expect(a[i + 1]).toBe(QUESTION);
+    expect(a[i + 2]).toBe('⏸ 13  Le sujet de demo-13');
+    expect(lignesAgents(t)[i + 2]).toMatchObject({ ton: 'attention', ticket: 'demo-13' });
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
       /^Circuit arrêté en 3\.1 Contrôles 3, arrêt controles \(14\) : Le test « tableau » reste rouge\./
     );
+  });
+
+  it('grillhouse-pq6 — « à repasser » (75) waits for the supervisor’s --reprendre: under « ⤷ Question · superviseur »', () => {
+    const racine = depot({
+      'demo-13': { etape: 'controles', tentative: 1, code: 75, raison: 'a-repasser' },
+    });
+    const a = agents(plateau([T('demo-13')], [], [], circuits(racine)));
+    const i = a.indexOf(QUESTION);
+    expect(i).toBeGreaterThan(-1);
+    expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
+  });
+
+  it('grillhouse-pq6 — stopped by the supervisor (« arrete »), it waits for no one', () => {
+    const racine = depot({ 'demo-13': { etape: 'controles', code: 0, raison: 'arrete' } });
+    expect(agents(plateau([T('demo-13')], [], [], circuits(racine)))).not.toContain(QUESTION);
   });
 
   // grillhouse-mwz, criterion 2: a circuit dead without a final state (its process gone, no stop

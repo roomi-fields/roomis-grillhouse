@@ -72,11 +72,13 @@ const ouvrir = (dir: string, ajouts: Record<string, string> = {}) =>
 const pid = (verrou: string) => readFileSync(verrou, 'utf8').split(':')[0];
 
 describe('grillhouse-3uv.89 — un seul superviseur par projet', () => {
-  it('la première séance prend le verrou du dépôt, sans rien dire', () => {
+  it('la première séance prend le verrou du dépôt, et dit seulement de lancer l’attente des questions', () => {
     const p = projet();
     const r = ouvrir(p.racine);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe('');
+    expect(r.stdout).toMatch(/^## L'attente des questions\n/);
+    expect(r.stdout).toContain('`npx grillhouse superviseur --attendre`');
+    expect(r.stdout).not.toContain('## Les circuits du dépôt');
     expect(pid(p.verrou)).toBe(String(process.pid));
   });
 
@@ -101,12 +103,13 @@ describe('grillhouse-3uv.89 — un seul superviseur par projet', () => {
     expect(readFileSync(p.verrou, 'utf8')).toBe(`${dormeur.pid}:autre-seance`);
   });
 
-  it('un verrou dont la séance est morte se reprend, sans rien dire', () => {
+  it('un verrou dont la séance est morte se reprend, sans rien dire de lui', () => {
     const p = projet();
     const mort = spawnSync(process.execPath, ['-e', '']).pid;
     writeFileSync(p.verrou, `${mort}:seance-fermee`);
     const r = ouvrir(p.racine);
-    expect(r.stdout).toBe('');
+    expect(r.stdout).toMatch(/^## L'attente des questions\n/);
+    expect(r.stdout).not.toContain(String(mort));
     expect(pid(p.verrou)).toBe(String(process.pid));
   });
 

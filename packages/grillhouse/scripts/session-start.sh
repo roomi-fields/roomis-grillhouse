@@ -29,9 +29,10 @@
 #
 # One supervisor per project (scripts/superviseur.mjs): the session takes the lock of its
 # repository, and, when its opening takes the lock (not when it keeps it, after a compaction or a
-# /clear), receives the section « Circuits à rattacher ou à reprendre », each circuit that runs or
-# is stopped on a question with the command that attaches to it and each one dead without a final
-# state with the command that resumes it, when there is one; a second session, while the first one lives, receives first the section « Un autre
+# /clear), receives the section « L'attente des questions », the wait to launch in the background,
+# then « Les circuits du dépôt » when there are some: each circuit that runs, each one stopped on a
+# question with its question and the command that answers it, each one dead without a final state
+# with the command that resumes it; a second session, while the first one lives, receives first the section « Un autre
 # superviseur tient ce dépôt », which asks it to say so to the owner and to launch no circuit. An
 # agent's copy and a session of a role the circuit launches take nothing and receive nothing.
 #

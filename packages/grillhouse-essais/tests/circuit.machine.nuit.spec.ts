@@ -3,7 +3,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CIRCUIT, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai, circuitJusquALaFin } from './circuit-essai.js';
 
 // grillhouse-3uv.89, L5 — the heavy passes of the circuit (the proof of the red, the checks, the
 // final pass) take the lock of the machine (scripts/verrou-de-machine.mjs), as every
@@ -30,12 +30,10 @@ describe.runIf(canWrap)('the circuit of a ticket and the machine', { timeout: 30
     writeFileSync(verrou, `${autre.pid}:autre-depot`);
     const journal = path.join(REPO, '.claude/worktrees', `${id}.log`);
     const lire = () => (existsSync(journal) ? readFileSync(journal, 'utf8') : '');
-    const enfant = spawn('node', [CIRCUIT, id], {
+    const { fin } = circuitJusquALaFin([id], {
       cwd: REPO,
       env: { ...ENV, GRILLHOUSE_VERROU_MACHINE: verrou },
-      stdio: 'ignore',
     });
-    const fin = new Promise<number | null>(resolve => enfant.on('close', resolve));
     try {
       // The proof waits for the other measure, and says so.
       const limite = Date.now() + 200_000;
