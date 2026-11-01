@@ -74,6 +74,7 @@ function ticketsFermes(racine, ids) {
     cwd: racine,
     encoding: 'utf8',
     timeout: 5000,
+    maxBuffer: 256 * 1024 * 1024,
   });
   try {
     return new Set(
