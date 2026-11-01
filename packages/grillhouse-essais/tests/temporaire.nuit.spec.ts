@@ -3,7 +3,7 @@
 // directory (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), kept from one session and one
 // resumption to the next; the removal of the finished copies (scripts/copies-finies.mjs) removes it
 // once the ticket is closed, and only then, frozen or not, as a retention policy fixed in advance.
-// The rest is the day's (packages/grillhouse/tests/unit/temporaire.spec.ts).
+// The rest is the day's (packages/grillhouse/tests/unit/dossier-temporaire.spec.ts).
 import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,

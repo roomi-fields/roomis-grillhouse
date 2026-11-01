@@ -89,7 +89,8 @@ const AVANT: Record<string, [number, number]> = {
   'integrer.dependances': [13, 40],
   'sous-modules.adresses': [29, 119],
   'file-integration': [21, 92],
-  'lancer-modele': [39, 115],
+  'lancer-modele': [40, 118],
+  temporaire: [2, 6],
   'file-integration.renvois': [15, 85],
   integrer: [63, 217],
   'integrer.commandes': [18, 61],
@@ -98,7 +99,7 @@ const AVANT: Record<string, [number, number]> = {
   'file-integration.dependances': [7, 40],
   'session-start': [47, 102], // [45, 98], plus the two tests grillhouse-ca7 added (e506a50)
   'grillhouse-maj': [141, 329],
-  'enveloppe.lanceur': [26, 67],
+  'enveloppe.lanceur': [26, 68],
   'premier-paquet': [4, 10],
   'pre-push-nuit': [16, 63],
   'greffons-du-cadre': [63, 170],
