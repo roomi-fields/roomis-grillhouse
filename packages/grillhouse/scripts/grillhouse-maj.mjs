@@ -85,9 +85,11 @@
 //   previous version added stays, and `devDependencies` are written sorted by name. The report
 //   names each tool added and `npm install`, which installs them. A project without
 //   `packageManager` receives the template's.
-// - What the tools of the declared language write in a project (`ignorer` of its module:
-//   typescript's `.turbo`, cargo's `target`): a `.gitignore` that does not ignore one receives its
-//   line, `<nom>/`.
+// - What the frame writes in a project (IGNORES_DU_CADRE: the copies of the tickets,
+//   `.claude/worktrees`) and what the tools of the declared language write there (`ignorer` of its
+//   module: typescript's `.turbo`, cargo's `target`): a `.gitignore` that does not ignore one
+//   receives its line, `<nom>/`. The template's `.gitignore` lists none of them: the update is
+//   their one source, for a project `init` creates as for an existing one.
 // - The binaries of the declared language (`binaires` of its module: cargo's nextest and
 //   cargo-deny), after the files: the command line runs the commands of its module
 //   (`miseAJour.installation`), which list what is installed and install each one missing or at
@@ -181,14 +183,21 @@ const lireJson = (f, defaut) => {
   }
 };
 
-// Adds to the `.gitignore` of the project at <projet> each directory its language's tools write
-// (`ignorer` of its module: `<nom>/`), when no line ignores it (`<nom>`, `<nom>/`, `/<nom>`,
-// `/<nom>/`); its own lines stay.
+/**
+ * The directories the frame itself writes in a project, which its `.gitignore` ignores: the
+ * copies of the tickets. The template's `.gitignore` lists none of them, nor what the tools of its
+ * language write: the update lays both, in a new project as in an existing one.
+ */
+export const IGNORES_DU_CADRE = ['.claude/worktrees'];
+
+// Adds to the `.gitignore` of the project at <projet> each directory the frame writes
+// (IGNORES_DU_CADRE) and each its language's tools write (`ignorer` of its module), as `<nom>/`,
+// when no line ignores it (`<nom>`, `<nom>/`, `/<nom>`, `/<nom>/`); its own lines stay.
 function ignorer(projet) {
   const f = path.join(projet, '.gitignore');
   let texte = existsSync(f) ? readFileSync(f, 'utf8') : '';
   const avant = texte;
-  for (const nom of langageDe(projet).ignorer) {
+  for (const nom of [...IGNORES_DU_CADRE, ...langageDe(projet).ignorer]) {
     const lignes = texte.split('\n').map(l => l.trim());
     if ([nom, `${nom}/`, `/${nom}`, `/${nom}/`].some(l => lignes.includes(l))) {
       continue;

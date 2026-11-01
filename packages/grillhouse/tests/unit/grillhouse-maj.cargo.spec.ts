@@ -14,7 +14,12 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { VERSION } from '../../scripts/cadre.mjs';
-import { installerBinaires, LIGNE_DU_CADRE, mettreAJour } from '../../scripts/grillhouse-maj.mjs';
+import {
+  IGNORES_DU_CADRE,
+  installerBinaires,
+  LIGNE_DU_CADRE,
+  mettreAJour,
+} from '../../scripts/grillhouse-maj.mjs';
 import cargo from '../../scripts/langages/cargo/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 import { sources as lesSources } from '../../scripts/sources.mjs';
@@ -433,9 +438,9 @@ describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écriven
   });
 
   it('a .gitignore that already ignores target (/target) stays as it is', () => {
-    const r = rust({ '.gitignore': '/target\n' });
+    const r = rust({ '.gitignore': '/target\n/.claude/worktrees\n' });
     mettreAJour(r, DEPOT);
-    expect(lire(r, '.gitignore')).toBe('/target\n');
+    expect(lire(r, '.gitignore')).toBe('/target\n/.claude/worktrees\n');
   });
 });
 
@@ -470,5 +475,52 @@ describe('grillhouse-akd, critère 4 — la mise à jour d’un projet de deux l
     const r = installerBinaires(racine) as { installes: string[]; lignes: string[] };
     expect(r.installes).toEqual(Object.entries(BINAIRES).map(([n, v]) => `${n}@${v}`));
     expect(r.lignes).toEqual([]);
+  });
+});
+
+describe('grillhouse-icj — la montée ignore les copies de tickets, d’une seule source', () => {
+  const formes = (nom: string) => [nom, `${nom}/`, `/${nom}`, `/${nom}/`];
+  const IGNORES_TS = (typescript as unknown as { ignorer: string[] }).ignorer;
+
+  it('critère 1 — a .gitignore that does not ignore .claude/worktrees/ receives it; its lines stay', () => {
+    const t = ts({ '.gitignore': 'dist/\n# mine\n*.log' });
+    mettreAJour(t, DEPOT);
+    const lignes = lire(t, '.gitignore').split('\n');
+    expect(lignes.slice(0, 3)).toEqual(['dist/', '# mine', '*.log']);
+    expect(lignes).toContain('.claude/worktrees/');
+    const r = rust();
+    mettreAJour(r, DEPOT);
+    expect(lire(r, '.gitignore').split('\n')).toContain('.claude/worktrees/');
+  });
+
+  it.each(formes('.claude/worktrees'))(
+    'critère 2 — a .gitignore that ignores it as %s stays as it is',
+    forme => {
+      const texte = `${forme}\n.turbo/\n`;
+      const t = ts({ '.gitignore': texte });
+      mettreAJour(t, DEPOT);
+      expect(lire(t, '.gitignore')).toBe(texte);
+    }
+  );
+
+  it('critère 3 — the frame’s lines come from the update alone: the template lists none, a new project has each once', () => {
+    expect(IGNORES_DU_CADRE).toEqual(['.claude/worktrees']);
+    const gabarit = readFileSync(path.join(DEPOT, 'templates/projet/_gitignore'), 'utf8');
+    const duGabarit = gabarit.split('\n').map(l => l.trim());
+    for (const nom of [...IGNORES_DU_CADRE, ...IGNORES_TS]) {
+      expect(
+        formes(nom).filter(f => duGabarit.includes(f)),
+        nom
+      ).toEqual([]);
+    }
+    const t = ts({ '.gitignore': gabarit });
+    mettreAJour(t, DEPOT);
+    const lignes = lire(t, '.gitignore').split('\n');
+    for (const nom of [...IGNORES_DU_CADRE, ...IGNORES_TS]) {
+      expect(
+        lignes.filter(l => l === `${nom}/`),
+        nom
+      ).toHaveLength(1);
+    }
   });
 });

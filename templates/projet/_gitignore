@@ -84,8 +84,5 @@ pids/
 .rtfm/
 .codegraph/
 
-# Agent copies (one worktree per ticket) and their session logs
-.claude/worktrees/
-
-# Turborepo: its local cache and its runs
-.turbo/
+# The directories the frame and the tools of its language write (the copies of the tickets,
+# Turborepo's cache) are laid by grillhouse maj, which init runs.

@@ -761,7 +761,10 @@ demandent au projet, ses générateurs ; le squelette d'un paquet neuf (`squelet
 `grillhouse paquet` écrit, comme le générateur d'une bibliothèque d'un greffon de Nx ; ses binaires (`binaires`), que `maj` installe par
 `cargo binstall` ; ce que ses outils écrivent dans un projet (`ignorer` : `.turbo`, `target`), que
 les fichiers sources laissent de côté, que `maj` écrit dans le `.gitignore` et que le retrait
-des copies finies retire d'une copie gardée dont le ticket est fermé. Le module typescript vit sous
+des copies finies retire d'une copie gardée dont le ticket est fermé. `maj` y joint ce que le
+cadre lui-même écrit dans un projet (`IGNORES_DU_CADRE` : les copies des tickets,
+`.claude/worktrees`) ; le `.gitignore` du gabarit ne porte aucune de ces lignes, que `maj`, que
+lance `init`, pose seule, dans un projet neuf comme dans un projet existant. Le module typescript vit sous
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
 de `cargo metadata` ; les fichiers de test que le testwriter écrit, chacun un fichier à lui : les
