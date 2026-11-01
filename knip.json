@@ -42,7 +42,8 @@
   },
   "ignore": [
     "mods/**",
-    "templates/**"
+    "templates/**",
+    "website/**"
   ],
   "ignoreBinaries": [
     "bd",

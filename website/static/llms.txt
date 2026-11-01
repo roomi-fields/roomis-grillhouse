@@ -1,0 +1,23 @@
+# Roomi's Grillhouse
+
+> An elephant–goldfish framework for building with Claude Code agents. A grill decides what a project must be and writes its charter and reference documents; then every ticket runs through a circuit of fresh agents: the plan, the tests, the code, an adversarial review, the integration.
+
+Grillhouse implements the Elephant–Goldfish Model: an agent that holds the context writes, agents that hold none review, and a human settles the trade-offs. It is not affiliated with Google.
+
+The package is published to npm as `@roomi-fields/grillhouse` (Node 22 or newer, Linux with Bubblewrap). The repository lives at https://github.com/roomi-fields/roomis-grillhouse. The skills speak French.
+
+## Quick start
+
+```bash
+npx @roomi-fields/grillhouse init ~/dev/my-project [ticket-prefix]
+cd ~/dev/my-project && claude
+```
+
+## Pages
+
+- [Overview](https://grillhouse.roomi-fields.com/): what Grillhouse does, the intentions every rule serves, how decisions are arbitrated
+- [The elephant and the goldfish](https://grillhouse.roomi-fields.com/elephant-goldfish): the model and its correspondence in Grillhouse
+- [The circuit of a ticket](https://grillhouse.roomi-fields.com/circuit): the steps and the roles
+- [The grill](https://grillhouse.roomi-fields.com/grill): how the architecture of a project is decided
+- [Getting started](https://grillhouse.roomi-fields.com/getting-started): requirements and commands
+- [Release history](https://grillhouse.roomi-fields.com/changelog): the per-version changelog
