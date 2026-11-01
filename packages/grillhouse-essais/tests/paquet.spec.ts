@@ -67,7 +67,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.passe-finale': [3, 19],
   'circuit.plan': [18, 124],
   'circuit.preuve': [10, 49],
-  'circuit.references': [26, 173],
+  'circuit.references': [30, 199],
   'circuit.refus': [3, 22],
   'circuit.registre': [1, 9],
   'circuit.rejeu': [7, 51],
