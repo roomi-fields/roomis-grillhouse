@@ -422,12 +422,10 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
 });
 
 describe('grillhouse-k5y, critère 6 — le CHANGELOG le dit', () => {
-  it('the Unreleased section names the ticket', () => {
+  // The journal of the versions names the ticket, in the section that is open or in the one a
+  // release dated since: the entry moves with each release, its text stays.
+  it('the journal of the versions names the ticket', () => {
     const journal = readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8');
-    const nonPublie = journal.slice(
-      journal.indexOf('## [Unreleased]'),
-      journal.indexOf('\n## [', journal.indexOf('## [Unreleased]') + 1)
-    );
-    expect(nonPublie).toMatch(/grillhouse-k5y/);
+    expect(journal).toMatch(/grillhouse-k5y/);
   });
 });
