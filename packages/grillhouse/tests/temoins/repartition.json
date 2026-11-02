@@ -1,6 +1,7 @@
 {
   "noyau": [
     "bin/grillhouse.mjs",
+    "scripts/aiguillage.mjs",
     "scripts/arbitrages.mjs",
     "scripts/avancement.mjs",
     "scripts/bilan.mjs",
@@ -59,6 +60,7 @@
     "scripts/migrations/0.25.0-script-des-tests.mjs",
     "scripts/migrations/0.27.0-langages-dans-l-architecture.mjs",
     "scripts/nuit.sh",
+    "scripts/outil.mjs",
     "scripts/outils-cles.mjs",
     "scripts/paquet.mjs",
     "scripts/paquets.d.ts",
