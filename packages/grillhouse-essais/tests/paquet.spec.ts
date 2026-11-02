@@ -56,7 +56,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.arbitrage': [2, 18],
   'circuit.avancement': [1, 6],
   'circuit.bilan': [2, 20],
-  'circuit.conformite': [4, 22],
+  'circuit.conformite': [5, 31],
   'circuit.consigne': [3, 25],
   'circuit.construction': [3, 21],
   'circuit.fiche': [11, 52],
@@ -76,7 +76,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.registre': [1, 9],
   'circuit.rejeu': [7, 51],
   'circuit.relance': [3, 10],
-  'circuit.relecture': [13, 113],
+  'circuit.relecture': [14, 130],
   'circuit.reprise': [5, 58],
   // grillhouse-pq6: four more expects, a resumption gives the hand back before the session left.
   'circuit.sessions': [18, 111],
