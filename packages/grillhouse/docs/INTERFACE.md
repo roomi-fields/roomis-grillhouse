@@ -269,7 +269,11 @@ qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'
 passe et sa mesure, la base d'une passe (son dossier temporaire, nommé dans `TMPDIR`, `TMP` et
 `TEMP` ; la ligne de sa garde, qui nomme ce que les tests y laissent ; son retrait à
 l'interruption), la pression de la machine et son verrou, le dernier vert,
-les arbitrages d'un ticket, les fichiers sources d'un projet. Pour le dossier temporaire et les
+les arbitrages d'un ticket, les fichiers sources d'un projet, et la lecture unique
+(`luUneFois(cle, lire)` : ce qu'un module lit à grand coût, les métadonnées de cargo, ses
+composants, se lit une fois tant que le noyau tient une portée de lecture unique, un geste qui
+pose beaucoup de questions sur un arbre immobile, le balayage des sœurs ; à chaque appel hors
+d'elle). Pour le dossier temporaire et les
 caches de compilation : `dansLeTemporaire(chemin, env)`, si un chemin est sous le dossier
 temporaire (`TMPDIR`, celui du système, `/tmp`) ; `cacheDeCompilation(outil, env)`, le cache d'un
 outil sous `${XDG_CACHE_HOME:-~/.cache}/grillhouse/<outil>`, jamais sous le dossier temporaire ;

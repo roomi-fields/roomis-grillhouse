@@ -389,6 +389,10 @@ export function attendreDeLaPlace(o?: Record<string, unknown>): void;
 /** The source files of the project at `racine` under `dossier`, as paths from `racine`, what the
  * tools of its language write left out (scripts/sources.mjs). */
 export function sources(racine: string, dossier?: string): string[];
+/** What `lire` returns, read once under `cle` while the core holds a scope of readings done once
+ * (a sweep that asks many questions of a tree that does not move), at each call otherwise
+ * (scripts/lecture-unique.mjs). */
+export function luUneFois<T>(cle: string, lire: () => T): T;
 /** True when the text of a ticket's comment is an arbitrage (scripts/arbitrages.mjs). */
 export function estArbitrage(text: string | null | undefined): boolean;
 /** True when the arbitrage `a` of `comments` is settled. */

@@ -35,6 +35,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { luUneFois } from '../../services-du-noyau.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -77,8 +78,14 @@ function dossiersAvecManifeste(dossier) {
   return out;
 }
 
-/** The components of the project at <racine>, sorted by folder. */
+/** The components of the project at <racine>, sorted by folder; read once in a scope of the core
+ * (`luUneFois`): a sweep asks it of every file of a folder. */
 export function composants(racine) {
+  return luUneFois(`python composants ${path.resolve(racine)}`, () => lireLesComposants(racine));
+}
+
+// The components of `composants`, read at each call.
+function lireLesComposants(racine) {
   return dossiersAvecManifeste(racine)
     .sort()
     .map(dossier => ({

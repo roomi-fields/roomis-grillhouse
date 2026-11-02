@@ -248,7 +248,8 @@
 //   justifies nothing, and the report says so for that file. A green test HEAD already holds has
 //   nothing to prove: the version of HEAD of each file plays in the same run, from a sibling file
 //   the module of its language names (`soeurDAvant` of the join, removed after it, a red
-//   included), and a green test whose full name HEAD's
+//   included; one a killed process left is swept at the circuit's start and before each measure,
+//   `balayerLesSoeurs`), and a green test whose full name HEAD's
 //   version holds, green there too, is set aside, counted; a body changed under the same name is
 //   not told apart. A file its tool cannot play twice in a run (cargo: a unit test of `src/`, a
 //   target `tests/<dossier>/main.rs`) has no sibling: the module reads the names of the tests of
@@ -702,6 +703,7 @@ import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { AVANCEMENT } from './mesure/avancement.mjs';
 import { nomsDesGardes } from './gardes-du-cadre.mjs';
 import { langageDe } from './langages.mjs';
+import { avecUneLecture } from './lecture-unique.mjs';
 import { sansArchitecture } from './verrous/verrou.mjs';
 import { A_REPASSER } from './mesure/pression.mjs';
 import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
@@ -2974,14 +2976,60 @@ function avecAvancement(ctx, genre, passe) {
   }
 }
 
+// Removes from the copy each sibling of HEAD's version a killed process left there, between its
+// writing and its removal (`avecLesVersionsDAvant`): a file git does not track, the sibling, by
+// the name the module of its language gives (`soeurDAvant` of the join, a file beside its own),
+// of a file of its folder that git tracks and that exists, each named in the ticket's log. A file
+// git tracks, or whose file is absent, is left. What the module reads at a cost is read once for
+// the sweep (`avecUneLecture`, ./lecture-unique.mjs), whatever the number of files. Returns the
+// siblings removed, from the copy, sorted.
+export function balayerLesSoeurs(ctx) {
+  return avecUneLecture(() => balayer(ctx));
+}
+
+// The sweep of `balayerLesSoeurs`, in its scope of readings done once.
+function balayer(ctx) {
+  const git = (...a) =>
+    spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const r = git('ls-files', '-z', '--others', '--exclude-standard');
+  if (r.status !== 0) return [];
+  const parDossier = new Map();
+  for (const f of r.stdout.split('\0').filter(Boolean)) {
+    const d = path.posix.dirname(f);
+    parDossier.set(d, [...(parDossier.get(d) ?? []), f]);
+  }
+  const langage = langageDe(ctx.copie);
+  const retirees = [];
+  for (const [dossier, nonSuivis] of parDossier) {
+    const suivis = git('ls-files', '-z', ...(dossier === '.' ? [] : ['--', `${dossier}/`]));
+    const soeurs = new Set(
+      suivis.stdout
+        .split('\0')
+        .filter(f => f && path.posix.dirname(f) === dossier)
+        .filter(f => existsSync(path.join(ctx.copie, f)))
+        .map(f => langage.soeurDAvant(f, ctx.copie))
+    );
+    for (const f of nonSuivis.filter(n => soeurs.has(n))) {
+      rmSync(path.join(ctx.copie, f), { force: true });
+      retirees.push(f);
+      if (ctx.journal) {
+        appendFileSync(ctx.journal, `sœur de la version de HEAD laissée, retirée : ${f}\n`);
+      }
+    }
+  }
+  return retirees.sort();
+}
+
 // Runs <jouer> with HEAD's version of each file of <fichiers> that HEAD holds written beside it in
 // the copy, under the name the module of its language gives (`soeurDAvant` of the join), a test
 // its tool plays in the same run: <jouer> gets the Map file → sibling, both relative to the copy,
 // and the Map file → names of the tests of HEAD's version, read without playing them, of each file
-// its tool cannot play twice in a run (`testsDeHead` of the join). The siblings are removed after
-// it, a red included. With <sansSoeurs>, no sibling is written: the names of HEAD's tests of each
-// file that has one are read too (`testsDeHead`, `sansSoeur`). Returns what <jouer> returns.
+// its tool cannot play twice in a run (`testsDeHead` of the join). A sibling left before is swept
+// first (`balayerLesSoeurs`); the siblings are removed after it, a red included. With
+// <sansSoeurs>, no sibling is written: the names of HEAD's tests of each file that has one are read
+// too (`testsDeHead`, `sansSoeur`). Returns what <jouer> returns.
 export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansSoeurs = false } = {}) {
+  balayerLesSoeurs(ctx);
   const avant = new Map();
   const lus = new Map();
   const deHead = f => {
@@ -3685,6 +3733,8 @@ async function derouler(ctx, debut) {
   let reprise = Boolean(ctx.reprendre);
   // A developpeur relaunched on the integration's refusal of the lot he left unchanged.
   let relanceSurLeRefus = false;
+  // A sibling of HEAD's version a killed circuit left in the copy never enters the lot.
+  if (existsSync(ctx.copie)) balayerLesSoeurs(ctx);
   for (;;) {
     const reprend = reprise;
     reprise = false;

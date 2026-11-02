@@ -31,6 +31,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { luUneFois } from './lecture-unique.mjs';
 
 // The scripts of the commands above the composition, named by their paths, never imported: the
 // one that plays a composed command (./commandes-composees.mjs), and the index of the interfaces
@@ -103,6 +104,15 @@ const sous = (dossier, abs) => abs === dossier || abs.startsWith(`${dossier}${pa
  * @param {string} racine
  */
 export function composantsRanges(modules, racine) {
+  // Read once in a scope of readings done once (./lecture-unique.mjs): a sweep asks the module of
+  // every file of a folder.
+  return luUneFois(`composants ${modules.map(m => m.nom).join('+')} ${path.resolve(racine)}`, () =>
+    rangerLesComposants(modules, racine)
+  );
+}
+
+// The components of `composantsRanges`, read at each call.
+function rangerLesComposants(modules, racine) {
   const ranges = modules.flatMap(module =>
     module.composants(racine).map(composant => ({ composant, module }))
   );

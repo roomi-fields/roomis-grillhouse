@@ -52,6 +52,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { luUneFois } from '../../services-du-noyau.mjs';
 import { cibleDeCompilation } from './sccache.mjs';
 import { nomsDeHead } from './tests-de-head.mjs';
 
@@ -71,6 +72,12 @@ export function metadonnees(racine) {
   if (!existsSync(path.join(racine, 'Cargo.toml'))) {
     return null;
   }
+  // Read once in a scope of the core (`luUneFois`): a sweep asks it of every file of a folder.
+  return luUneFois(`cargo metadata ${path.resolve(racine)}`, () => lireLesMetadonnees(racine));
+}
+
+// What `cargo metadata` says of the workspace at <racine>, read at each call.
+function lireLesMetadonnees(racine) {
   // The target directory cargo reports is the one the compilations use (./sccache.mjs), named
   // without being made: a reading writes nothing in the home.
   const r = spawnSync('cargo', ['metadata', '--format-version', '1', '--no-deps', '--offline'], {

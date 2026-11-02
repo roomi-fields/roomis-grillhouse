@@ -807,7 +807,12 @@ porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture d
 (le verrou du testwriter), le nom de la sœur où la preuve du rouge joue la version de HEAD d'un
 fichier de test, dans le même lancement que lui (`soeurDAvant` : un nom que l'outil du langage
 joue de lui-même, ses tests nommés comme ceux du fichier, de sa classe, jour, nuit ou banc ; le
-circuit ne bâtit aucun nom de langage ; pour un fichier que l'outil ne sait pas jouer en deux
+circuit ne bâtit aucun nom de langage ; une sœur qu'un processus tué a laissée, un fichier non
+suivi par git, sœur d'un fichier suivi de son dossier qui existe, est retirée au départ du
+circuit et avant chaque mesure, donc n'entre jamais au lot, nommée au journal du ticket ; le
+balayage tient une portée de lecture unique (`scripts/lecture-unique.mjs`), où les composants
+de la composition et ce qu'un module lit à grand coût, les métadonnées de cargo, se lisent une
+fois, quel que soit le nombre de fichiers ; pour un fichier que l'outil ne sait pas jouer en deux
 versions, un test unitaire Rust de `src/` ou une cible `tests/<dossier>/main.rs`, pas de sœur :
 `testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve tient pour
 des verts que HEAD tient déjà ; une sœur qui ne compile plus n'est pas un rouge du lot : quand la

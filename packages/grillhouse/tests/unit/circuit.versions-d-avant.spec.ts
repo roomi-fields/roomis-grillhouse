@@ -507,3 +507,116 @@ describe('grillhouse-3e2.2 — a Rust sibling that no longer compiles is not a r
     expect(r.constructions).toEqual([]);
   });
 });
+
+// grillhouse-3e2.1 — a sibling a killed process left in the copy, between its writing and its
+// removal, is swept before the next measure and never enters the lot nor the commit
+// (`balayerLesSoeurs`): a file git does not track, the sibling (`soeurDAvant` of the module) of a
+// file of its folder that git tracks and that exists. The reviewer of grillhouse-3e2 found it.
+const balayerLesSoeurs = circuit.balayerLesSoeurs as (ctx: { copie: string }) => string[];
+const nonSuivis = (racine: string) =>
+  spawnSync('git', ['-C', racine, 'ls-files', '--others', '--exclude-standard'], {
+    encoding: 'utf8',
+  })
+    .stdout.split('\n')
+    .filter(Boolean)
+    .sort();
+
+describe('grillhouse-3e2.1 — a sibling of HEAD’s version left in the copy is swept', () => {
+  it.each(LANGAGES)(
+    'criteria 1 and 2 (%s): the sibling left is removed, by the name its module gives; the lot is left as it is',
+    (_nom, langages, fichiers, modifie, soeur, neuf) => {
+      const racine = depot(langages, fichiers, modifie, neuf);
+      ecrire(racine, soeur, fichiers[modifie] as string);
+      expect(balayerLesSoeurs({ copie: racine })).toEqual([soeur]);
+      expect(existsSync(path.join(racine, soeur))).toBe(false);
+      expect(nonSuivis(racine)).toEqual([neuf]);
+      expect(readFileSync(path.join(racine, modifie), 'utf8')).toBe(
+        `${fichiers[modifie]}// le lot\n`
+      );
+    }
+  );
+
+  it('criterion 1: the next measure starts without the siblings left, and writes its own', () => {
+    const [, langages, fichiers, modifie, soeur, neuf] = LANGAGES[0] as (typeof LANGAGES)[number];
+    const racine = depot(langages, fichiers, modifie, neuf);
+    const autre = 'crates/service/tests/drivers_circuit_avant_budget.rs';
+    ecrire(racine, autre, 'oubliée\n');
+    ecrire(racine, soeur, 'oubliée\n');
+    let present: string[] = [];
+    avecLesVersionsDAvant({ copie: racine }, [modifie], () => {
+      present = nonSuivis(racine);
+    });
+    expect(present).toEqual([soeur, neuf].sort());
+    expect(nonSuivis(racine)).toEqual([neuf]);
+  });
+
+  it('criterion 3: a file named as a sibling is kept when git tracks it or when its file is absent', () => {
+    const [, langages, fichiers, modifie, , neuf] = LANGAGES[3] as (typeof LANGAGES)[number];
+    const suivie = 'packages/a/test/ancien.circuit-avant.test.ts';
+    const racine = depot(langages, { ...fichiers, [suivie]: 'suivie\n' }, modifie, neuf);
+    // The sibling of a file the lot removes, and of a file that never was.
+    git(racine, 'rm', '-q', 'packages/a/test/vitesse.budget.test.ts');
+    const orphelines = [
+      'packages/a/test/vitesse.circuit-avant.budget.test.ts',
+      'packages/a/test/jamais.circuit-avant.test.ts',
+    ];
+    for (const f of orphelines) {
+      ecrire(racine, f, 'du testwriter\n');
+    }
+    expect(balayerLesSoeurs({ copie: racine })).toEqual([]);
+    for (const f of [suivie, ...orphelines]) {
+      expect(existsSync(path.join(racine, f))).toBe(true);
+    }
+  });
+
+  // The review of the lot: on SyntHub, each question to the module read cargo's metadata again,
+  // 400 launches of cargo for 37 files, 11.4 s a sweep. A sweep reads them once, whatever the
+  // number of files its folders hold.
+  it('a sweep reads the metadata of cargo once, whatever the number of files of the folder', () => {
+    const journal = path.join(ESSAIS, 'journal');
+    const lancements = (n: number) => {
+      const extra = Object.fromEntries(
+        Array.from({ length: n }, (_, i) => [
+          `crates/service/tests/extra_${i}.rs`,
+          '#[test]\nfn t() {}\n',
+        ])
+      );
+      const racine = depot(
+        { 'crates/service': 'cargo', 'packages/a': 'typescript' },
+        { ...CARGO, ...TYPESCRIPT, ...extra },
+        'crates/service/tests/electra_reimport.rs',
+        'crates/service/tests/neuf.rs'
+      );
+      ecrire(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs', 'oubliée\n');
+      const avant = readFileSync(journal, 'utf8').split('\n').length;
+      expect(balayerLesSoeurs({ copie: racine })).toEqual([
+        'crates/service/tests/electra_reimport_circuit_avant.rs',
+      ]);
+      return readFileSync(journal, 'utf8')
+        .split('\n')
+        .slice(avant - 1)
+        .filter(l => l.startsWith('metadata')).length;
+    };
+    expect(lancements(2)).toBe(1);
+    expect(lancements(20)).toBe(1);
+  });
+
+  it('each sibling swept is named in the log of the ticket', () => {
+    const [, langages, fichiers, modifie, soeur, neuf] = LANGAGES[3] as (typeof LANGAGES)[number];
+    const racine = depot(langages, fichiers, modifie, neuf);
+    ecrire(racine, soeur, 'oubliée\n');
+    const journal = path.join(racine, '..', `${path.basename(racine)}.log`);
+    writeFileSync(journal, '');
+    balayerLesSoeurs({ copie: racine, journal } as { copie: string });
+    expect(readFileSync(journal, 'utf8')).toContain(soeur);
+  });
+
+  // derouler is the circuit's loop, reached only through a whole run (a ticket, its state, its
+  // sessions): a test of its behaviour would be a large test. The sweep's behaviour is proved
+  // above; this test holds only its place, before the loop's first reading of the lot.
+  it('the circuit sweeps at its start, before any reading of the lot', () => {
+    const source = readFileSync(path.resolve(__dirname, '../../scripts/circuit.mjs'), 'utf8');
+    const derouler = source.slice(source.indexOf('async function derouler('));
+    expect(derouler.slice(0, derouler.indexOf('for (;;)'))).toContain('balayerLesSoeurs(ctx)');
+  });
+});

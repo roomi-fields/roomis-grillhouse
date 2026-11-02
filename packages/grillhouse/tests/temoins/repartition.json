@@ -42,6 +42,7 @@
     "scripts/jointure.d.ts",
     "scripts/langages-des-paquets.mjs",
     "scripts/langages.mjs",
+    "scripts/lecture-unique.mjs",
     "scripts/ligne-etat/defaut.sh",
     "scripts/ligne-etat/ligne-etat.mjs",
     "scripts/mesure/avancement.mjs",
