@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // grillhouse-9kq, critères 6 et 21 (décision 6) : les contrôles et la preuve du rouge, qui ne jouent
 // que les tests du ticket, prennent une place comme une séance d'agent, et non le verrou exclusif de
 // la machine ; le verrou ne sert qu'aux passes lourdes (passe finale, vérification, nuit, références).
@@ -64,14 +65,18 @@ V.avecLaMachine(() => {
   e.stderr?.on('data', d => (texte += String(d)));
   const fin = Date.now() + 60_000;
   while (!texte.includes('tenu')) {
-    if (Date.now() > fin || e.exitCode !== null) throw new Error(`le verrou n'est pas tenu : ${texte}`);
+    if (Date.now() > fin || e.exitCode !== null) {
+      throw new Error(`le verrou n'est pas tenu : ${texte}`);
+    }
     await attendre(25);
   }
   return e;
 }
 const tuer = (e: ChildProcess) =>
   new Promise<void>(r => {
-    if (e.exitCode !== null) return r();
+    if (e.exitCode !== null) {
+      return r();
+    }
     e.on('exit', () => r());
     e.kill('SIGKILL');
   });
@@ -86,18 +91,22 @@ describe('grillhouse-9kq critère 6 — quelle commande est une passe lourde', (
     ).toBe(true);
   });
   it('la preuve du rouge (npm test sur les tests du lot) est ciblée', () => {
-    expect(passeLourde({ etape: 'preuve', args: ['test', '--', '--force', 'a/b.spec.ts'] })).toBe(false);
+    expect(passeLourde({ etape: 'preuve', args: ['test', '--', '--force', 'a/b.spec.ts'] })).toBe(
+      false
+    );
   });
   it('la preuve sur un paquet entier est ciblée', () => {
     expect(passeLourde({ etape: 'preuve', args: ['test', '--', 'packages/x'] })).toBe(false);
   });
   it('les contrôles qui ne jouent que les tests du ticket (npm test) sont ciblés', () => {
-    expect(passeLourde({ etape: 'controles', args: ['test', '--', 'packages/x/tests/a.spec.ts'] })).toBe(
-      false
-    );
+    expect(
+      passeLourde({ etape: 'controles', args: ['test', '--', 'packages/x/tests/a.spec.ts'] })
+    ).toBe(false);
   });
   it('les gardes d’une copie (npm run verifier -- --gardes) restent lourdes : verifier, quel que soit l’étape', () => {
-    expect(passeLourde({ etape: 'controles', args: ['run', 'verifier', '--', '--gardes'] })).toBe(true);
+    expect(passeLourde({ etape: 'controles', args: ['run', 'verifier', '--', '--gardes'] })).toBe(
+      true
+    );
   });
 });
 

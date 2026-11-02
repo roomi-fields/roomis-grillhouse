@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // grillhouse-9kq — les places de la machine (scripts/places-de-la-machine.mjs) : un nombre fixe de
 // places pour toute la machine, comme les exécuteurs de Jenkins et le serveur de tâches de GNU
 // make ; une admission à la charge, comme `make -l` (un départ seulement sous la charge des cœurs,
@@ -60,13 +61,18 @@ const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
 async function jusqua(condition: () => boolean, ms = 60_000) {
   const fin = Date.now() + ms;
   while (!condition()) {
-    if (Date.now() > fin) throw new Error('la condition ne vient pas');
+    if (Date.now() > fin) {
+      throw new Error('la condition ne vient pas');
+    }
     await attendre(25);
   }
 }
 
 // Un enfant qui joue <corps> (module `P` importé), l'environnement <env> de la machine d'essai.
-function enfant(env: Record<string, string>, corps: string): ChildProcess & { sortie: () => string } {
+function enfant(
+  env: Record<string, string>,
+  corps: string
+): ChildProcess & { sortie: () => string } {
   const source = `import * as P from ${JSON.stringify(pathToFileURL(MODULE).href)};\n${corps}`;
   const e = spawn(process.execPath, ['--input-type=module', '-e', source], {
     env: { PATH: process.env.PATH ?? '', ...env },
@@ -231,7 +237,9 @@ describe('grillhouse-9kq critères 1 et 7 — jamais plus de N places, rendues �
 
   it('l’état est commun à la machine : un fichier sous ~/.cache/grillhouse (XDG_CACHE_HOME)', () => {
     const { env, cache } = machine();
-    expect(cheminDesPlaces(env)).toBe(path.join(cache, 'grillhouse', path.basename(cheminDesPlaces(env))));
+    expect(cheminDesPlaces(env)).toBe(
+      path.join(cache, 'grillhouse', path.basename(cheminDesPlaces(env)))
+    );
     const sans = { HOME: '/home/essai' };
     expect(cheminDesPlaces(sans)).toBe(
       path.join('/home/essai', '.cache', 'grillhouse', path.basename(cheminDesPlaces(env)))
@@ -419,7 +427,9 @@ describe('grillhouse-9kq critère 15 — la mesure et la prise sous le même ver
     const essai = () => prendreUnePlace({ ...LIBRE, env, charge, borneMs: 200 });
     prises.push(essai(), essai(), essai());
     expect(essai).toThrow(/charge/);
-    for (const p of prises) p.rendre();
+    for (const p of prises) {
+      p.rendre();
+    }
   });
 
   it('trois départs simultanés ne passent pas tous le test', async () => {

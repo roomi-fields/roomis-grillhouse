@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // grillhouse-9kq critères 5 et 17 — le parallélisme des tests d'une séance d'agent : chaque séance
 // reçoit max(1, cœurs ÷ places) travailleurs (GRILLHOUSE_TRAVAILLEURS), que le module de chaque
 // langage passe à son outil (Vitest `maxWorkers`, nextest et cargo `-j`, pytest `-n`) ; la séance
@@ -59,7 +60,10 @@ const sansLaVariable = () => {
 
 describe('grillhouse-9kq critères 5 et 17 — Vitest (module typescript)', () => {
   const maxWorkers = (travailleurs?: string) => {
-    const env = { ...sansLaVariable(), ...(travailleurs ? { GRILLHOUSE_TRAVAILLEURS: travailleurs } : {}) };
+    const env = {
+      ...sansLaVariable(),
+      ...(travailleurs ? { GRILLHOUSE_TRAVAILLEURS: travailleurs } : {}),
+    };
     const r = spawnSync(
       process.execPath,
       [
@@ -107,7 +111,9 @@ describe('grillhouse-9kq critère 17 — nextest et cargo (module cargo)', () =>
     const appels = jouer({ GRILLHOUSE_TRAVAILLEURS: '4' });
     const jouant = appels.filter(l => /^(nextest|test)\b/.test(l));
     expect(jouant.length).toBeGreaterThan(0);
-    for (const l of jouant) expect(l, l).toMatch(/(^| )-j 4( |$)/);
+    for (const l of jouant) {
+      expect(l, l).toMatch(/(^| )-j 4( |$)/);
+    }
   });
 
   it('le nombre suit la variable : 2 donne « -j 2 »', () => {
@@ -227,7 +233,9 @@ describe('grillhouse-9kq critères 5 et 18 — le lancement de chaque séance et
     });
 
     it('plus de places que de cœurs : un travailleur au moins', () => {
-      expect(lancer({ ...base, GRILLHOUSE_PLACES: '100000' }).env.GRILLHOUSE_TRAVAILLEURS).toBe('1');
+      expect(lancer({ ...base, GRILLHOUSE_PLACES: '100000' }).env.GRILLHOUSE_TRAVAILLEURS).toBe(
+        '1'
+      );
     });
   });
 

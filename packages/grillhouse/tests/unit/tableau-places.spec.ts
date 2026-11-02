@@ -95,9 +95,9 @@ describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’
   });
 
   it('sans lecture des places, aucune ligne', () => {
-    expect(
-      agents(plateau([], { places: null })).some(l => l.texte.startsWith('Places '))
-    ).toBe(false);
+    expect(agents(plateau([], { places: null })).some(l => l.texte.startsWith('Places '))).toBe(
+      false
+    );
   });
 
   it('la ligne tient dans la largeur du panneau', () => {

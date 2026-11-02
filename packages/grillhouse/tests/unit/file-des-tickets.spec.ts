@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // grillhouse-9kq — la file des tickets d'un projet (scripts/file-des-tickets.mjs) : les tickets
 // validés (`circuit`) dont toutes les dépendances sont fermées partent, par priorité Beads, sans
 // geste du superviseur ; ceux dont une dépendance est ouverte restent. À la fin d'un circuit et à
@@ -135,9 +136,9 @@ describe('grillhouse-9kq critère 2 — la dépendance fermée, le ticket part s
 
   it('une file vide ne lance rien', () => {
     const lances: string[] = [];
-    expect(lancerLaFile('/projet', { tickets: [], lancer: (id: string) => lances.push(id) })).toEqual(
-      []
-    );
+    expect(
+      lancerLaFile('/projet', { tickets: [], lancer: (id: string) => lances.push(id) })
+    ).toEqual([]);
     expect(lances).toEqual([]);
   });
 });
@@ -151,7 +152,11 @@ describe('grillhouse-9kq critère 13 — à l’ouverture du superviseur', () =>
 
   it('l’ouverture lance les tickets circuit prêts du projet, retient ceux qui attendent une dépendance', () => {
     const lances: string[] = [];
-    const tickets = [T('d-1'), T('d-2', { dependencies: bloque('d-1') }), T('d-3', { priority: 0 })];
+    const tickets = [
+      T('d-1'),
+      T('d-2', { dependencies: bloque('d-1') }),
+      T('d-3', { priority: 0 }),
+    ];
     const texte = circuitsALOuverture(depot(), {
       fermes: () => new Set(),
       tickets: () => tickets,
