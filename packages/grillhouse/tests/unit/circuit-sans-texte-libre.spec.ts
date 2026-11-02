@@ -28,8 +28,6 @@ const bilan = readFileSync(BILAN, 'utf8');
 const PERMISES: Record<string, string> = {
   '/```text\\n([\\s\\S]*?)\\n```/g': 'les blocs de consigne du gabarit, un fichier du cadre',
   '/\\{\\{(\\w+)\\}\\}/g': 'les champs d’un gabarit de consigne',
-  '/\\.(test|spec)(\\.[cm]?[jt]sx?)$/': 'le nom d’un fichier de test, pour sa version de HEAD',
-  '/\\.circuit-avant\\.(test|spec)\\./': 'le nom d’un fichier de test, la version de HEAD',
   '/^##\\s+(.*)$/': 'les titres de section de la description, pour le message de commit',
   '/^Critères\\b/':
     'le titre de la section des critères de la description, pour le message de commit',

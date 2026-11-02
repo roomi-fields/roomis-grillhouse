@@ -235,6 +235,22 @@ export default {
           'packages/m/src/index.ts : matiere',
         ],
       },
+      versionDeHead: {
+        valide: ['packages/a/src/index.ts', 'packages/a/tests/aide.ts', 'README.md'],
+        // A night test and a bench keep their mark, so that their sibling plays as they do.
+        invalide: [
+          'packages/a/src/index.test.ts',
+          'packages/a/src/index.spec.mjs',
+          'packages/a/tests/tout.nuit.test.ts',
+          'packages/a/tests/vitesse.budget.test.ts',
+        ],
+        attendu: [
+          'packages/a/src/index.test.ts → packages/a/src/index.circuit-avant.test.ts',
+          'packages/a/src/index.spec.mjs → packages/a/src/index.circuit-avant.spec.mjs',
+          'packages/a/tests/tout.nuit.test.ts → packages/a/tests/tout.circuit-avant.nuit.test.ts',
+          'packages/a/tests/vitesse.budget.test.ts → packages/a/tests/vitesse.circuit-avant.budget.test.ts',
+        ],
+      },
       fichiersEngendres: {
         valide: aJour,
         invalide: enRetard,

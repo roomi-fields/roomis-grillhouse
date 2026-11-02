@@ -43,6 +43,8 @@ import {
   composantDans,
   composants,
   estUnTest,
+  soeurDAvant,
+  testsDeHead,
   joueDesTests,
   lecteurs,
   manifestes,
@@ -113,6 +115,8 @@ export default {
   commandes,
   verdict,
   estUnTest,
+  soeurDAvant,
+  testsDeHead,
   manifestes,
   fichiersEngendres: () => [
     {

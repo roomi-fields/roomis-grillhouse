@@ -80,6 +80,8 @@ function faux(nom: string, dossiers: string[], autres: Partial<Langage> = {}): L
       de(chemin) || chemin.startsWith('tests/')
         ? { joue: true, test: true, matiere: false }
         : { joue: false, test: false, matiere: nom === 'b' && chemin.endsWith('.b') },
+    soeurDAvant: chemin => (de(chemin) ? `${chemin}.avant-${nom}` : null),
+    testsDeHead: (chemin, _racine, lire) => (de(chemin) ? [`${nom}:${lire(chemin)}`] : null),
     manifestes: {
       verrous: [`${nom}.lock`],
       horsDesTests: (chemin: string) => (chemin.endsWith(`${nom}.toml`) ? [nom] : null),
@@ -142,6 +144,26 @@ describe('grillhouse-akd, critère 1 — chaque fichier va au module du composan
     ]);
     expect(aucun.estUnTest('x.b', RACINE)).toEqual({ joue: false, test: false, matiere: true });
     expect(aucun.estUnTest('y', RACINE)).toBeNull();
+  });
+
+  // grillhouse-3e2: the sibling of HEAD's version of a test file is its module's, so that its
+  // tool plays it in the same run.
+  it('the sibling of HEAD’s version of a test file is its own module’s; out of every component, the first that names one', () => {
+    expect(AB.soeurDAvant('b/tests/x.b', RACINE)).toBe('b/tests/x.b.avant-b');
+    expect(AB.soeurDAvant('commun/a/x.a', RACINE)).toBe('commun/a/x.a.avant-a');
+    expect(AB.soeurDAvant('ailleurs/x', RACINE)).toBeNull();
+    const second = composer([
+      faux('a', ['a'], { soeurDAvant: () => null }),
+      faux('b', ['b'], { soeurDAvant: (c: string) => `${c}.b` }),
+    ]);
+    expect(second.soeurDAvant('tests/x', RACINE)).toBe('tests/x.b');
+  });
+
+  it('the names of the tests of HEAD’s version of a file are read by its own module', () => {
+    const lire = (f: string) => `texte de ${f}`;
+    expect(AB.testsDeHead('b/src/tests.b', RACINE, lire)).toEqual(['b:texte de b/src/tests.b']);
+    expect(AB.testsDeHead('commun/a/t', RACINE, lire)).toEqual(['a:texte de commun/a/t']);
+    expect(AB.testsDeHead('ailleurs/x', RACINE, lire)).toBeNull();
   });
 
   it('whether a component plays tests is its module’s answer', () => {

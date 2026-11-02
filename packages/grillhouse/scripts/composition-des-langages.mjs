@@ -8,7 +8,8 @@
 //   is refused, named with both languages: a package has one language. A file belongs to the
 //   module of the component that holds it, the deepest (`moduleDuFichier`); a file out of every
 //   component stays the core's, as with one language: the first module, in the order of the
-//   declaration, whose answer is not null judges it (`estUnTest`, `manifestes.horsDesTests`).
+//   declaration, whose answer is not null judges it (`estUnTest`, `soeurDAvant`,
+//   `testsDeHead`, `manifestes.horsDesTests`).
 // - Whether a component plays tests, the readers of components and the components touched are
 //   each module's on its own components, the results joined: a name without supplier is without
 //   supplier in every module, a file out of the graph is out of every module's graph.
@@ -259,6 +260,10 @@ export function composer(modules) {
     },
     estUnTest: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m => m.estUnTest(chemin, racine)),
+    soeurDAvant: (chemin, racine) =>
+      premiereReponse(modules, racine, chemin, m => m.soeurDAvant(chemin, racine)),
+    testsDeHead: (chemin, racine, lire) =>
+      premiereReponse(modules, racine, chemin, m => m.testsDeHead(chemin, racine, lire)),
     manifestes: {
       verrous: unique(modules.flatMap(m => m.manifestes.verrous)),
       horsDesTests: (chemin, racine, avant, apres) =>

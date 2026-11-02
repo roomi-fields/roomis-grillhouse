@@ -1,7 +1,7 @@
 // The components of a workspace of cargo, as cargo itself describes them (`cargo metadata
 // --format-version 1 --no-deps --offline`): the crates the module cargo answers the join with
 // (scripts/jointure.d.ts, `composants`, `composantDe`, `matieres`, `joueDesTests`, `lecteurs`,
-// `estUnTest`).
+// `estUnTest`, `soeurDAvant`, `testsDeHead`).
 //
 // - A component is a member of the workspace (`workspace_members`): its folder, the manifest's;
 //   its name and its package, the crate's name. A directory without a Cargo.toml at its root holds
@@ -29,6 +29,11 @@
 //   `tests.rs` under `src/`, and any file of a folder `tests/` under `src/`, is a unit test file,
 //   played with its crate when it is Rust; a file of a crate of the shared test material is
 //   material; any other file of a crate (the code of `src/`) is none of them.
+// - The sibling of HEAD's version of a test file (`soeurDAvant`), which the proof of the red plays
+//   beside it: `tests/<nom>_circuit_avant.rs` for a target `tests/<nom>.rs`, a target cargo finds
+//   by itself, the end `_nuit` or `_budget` kept last; none for `tests/<dossier>/main.rs` nor a
+//   unit test of `src/`, whose names of tests HEAD's version holds are read without playing them
+//   (`testsDeHead`, ./tests-de-head.mjs), the proof holding each for a green HEAD holds.
 // - What the testwriter writes of the manifests (`manifestes`): the tables that declare what the
 //   tests of a crate depend on, `[dev-dependencies]` and `[target.<cible>.dev-dependencies]` of
 //   its Cargo.toml (cargo's book, « Development dependencies »), as the author of a test of Bazel
@@ -47,6 +52,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { cibleDeCompilation } from './sccache.mjs';
+import { nomsDeHead } from './tests-de-head.mjs';
 
 // The loader of the optional peers this module reads when it needs them (smol-toml), under the
 // name by which knip reads a dependency.
@@ -248,6 +254,73 @@ export function estUnTest(chemin, racine) {
     return { joue: parts.at(-1).endsWith('.rs'), test: true, matiere };
   }
   return matiere ? { joue: false, test: false, matiere: true } : null;
+}
+
+/** The end of the name of a night test target, and of a time budget bench's (./commandes.mjs,
+ * `horsDuJour`). */
+export const DE_NUIT = '_nuit';
+export const BANC = '_budget';
+
+/**
+ * The sibling of HEAD's version of the test file <chemin> (from the root <racine>), which cargo
+ * plays in the same run: `tests/<nom>_circuit_avant.rs` beside a test target `tests/<nom>.rs`, a
+ * target cargo finds by itself (`autotests`), its `mod` of the same folder read as the file's,
+ * and nextest names its tests as the file's, without the target; the end of a night test or of a
+ * bench kept, so that the sibling plays as its file does (`tests/<nom>_circuit_avant_budget.rs`
+ * beside `tests/<nom>_budget.rs`, alone on one thread). Null for any other file: a target
+ * `tests/<dossier>/main.rs` holds its modules beside it, and a unit test of `src/` is compiled in
+ * its crate's module.
+ */
+export function soeurDAvant(chemin, racine) {
+  const abs = path.resolve(racine, chemin);
+  const c = composantDans(
+    crates(racine).map(x => x.composant),
+    racine,
+    abs
+  );
+  const parts = c ? path.relative(c.dossier, abs).split(path.sep) : [];
+  const cible = parts.length === 2 && parts[0] === 'tests' && parts[1].endsWith('.rs');
+  if (!cible) {
+    return null;
+  }
+  const base = chemin.slice(0, -'.rs'.length);
+  const fin = [DE_NUIT, BANC].find(f => base.endsWith(f)) ?? '';
+  return `${base.slice(0, base.length - fin.length)}_circuit_avant${fin}.rs`;
+}
+
+/**
+ * The names of the tests of HEAD's version of the test file <chemin> (from the root <racine>),
+ * read without playing them, for a file cargo cannot play twice in a run and that has no sibling
+ * (`soeurDAvant`): a unit test file of `src/` (`tests.rs`, a file of a folder `tests/` under
+ * `src/`, out of `src/bin/`) and a target `tests/<dossier>/main.rs` (./tests-de-head.mjs); <lire>
+ * gives HEAD's text of a file from the root. Null for any other file, or one HEAD does not hold.
+ * @param {string} chemin
+ * @param {string} racine
+ * @param {(f: string) => string | null} lire
+ */
+export function testsDeHead(chemin, racine, lire) {
+  const abs = path.resolve(racine, chemin);
+  const c = composantDans(
+    crates(racine).map(x => x.composant),
+    racine,
+    abs
+  );
+  if (!c || !chemin.endsWith('.rs')) {
+    return null;
+  }
+  const parts = path.relative(c.dossier, abs).split(path.sep);
+  if (parts.length === 3 && parts[0] === 'tests' && parts[2] === 'main.rs') {
+    return nomsDeHead(chemin, null, lire);
+  }
+  if (!unitaire(parts) || parts[1] === 'bin') {
+    return null;
+  }
+  const module = parts.slice(1);
+  module[module.length - 1] = module[module.length - 1].replace(/\.rs$/, '');
+  if (module.at(-1) === 'mod') {
+    module.pop();
+  }
+  return nomsDeHead(chemin, module, lire);
 }
 
 // The tables of a manifest that declare what its tests depend on.

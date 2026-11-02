@@ -247,9 +247,13 @@
 //   file HEAD holds, justifies each green test of that file and excuses no red; on a new file it
 //   justifies nothing, and the report says so for that file. A green test HEAD already holds has
 //   nothing to prove: the version of HEAD of each file plays in the same run, from a sibling file
-//   (`<nom>.circuit-avant.test.<ext>`, removed after it), and a green test whose full name HEAD's
+//   the module of its language names (`soeurDAvant` of the join, removed after it, a red
+//   included), and a green test whose full name HEAD's
 //   version holds, green there too, is set aside, counted; a body changed under the same name is
-//   not told apart. The proof passes with a red (of the lot, existing or of a build), even without
+//   not told apart. A file its tool cannot play twice in a run (cargo: a unit test of `src/`, a
+//   target `tests/<dossier>/main.rs`) has no sibling: the module reads the names of the tests of
+//   its HEAD's version without playing them (`testsDeHead` of the join), and each is held for a
+//   green HEAD holds, as main stays green. The proof passes with a red (of the lot, existing or of a build), even without
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
 //   reds are enough. It fails with neither a file of the lot nor a red, with a broken file of the
 //   lot, or with a green of the lot no expected green justifies; under a plan « comportement
@@ -2965,23 +2969,40 @@ function avecAvancement(ctx, genre, passe) {
   }
 }
 
-// HEAD's version of each file of <fichiers> that HEAD holds, written beside it in the copy under
-// the name `<nom>.circuit-avant.<test|spec>.<ext>`, which the same run plays: Map file → sibling,
-// both relative to the copy. The caller removes the siblings.
-function versionsDAvant(ctx, fichiers) {
-  const out = new Map();
-  for (const f of fichiers) {
+// Runs <jouer> with HEAD's version of each file of <fichiers> that HEAD holds written beside it in
+// the copy, under the name the module of its language gives (`soeurDAvant` of the join), a test
+// its tool plays in the same run: <jouer> gets the Map file → sibling, both relative to the copy,
+// and the Map file → names of the tests of HEAD's version, read without playing them, of each file
+// its tool cannot play twice in a run (`testsDeHead` of the join). The siblings are removed after
+// it, a red included. Returns what <jouer> returns.
+export function avecLesVersionsDAvant(ctx, fichiers, jouer) {
+  const avant = new Map();
+  const lus = new Map();
+  const deHead = f => {
     const r = spawnSync('git', ['-C', ctx.copie, 'show', `HEAD:${f}`], {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
     });
-    if (r.status !== 0) continue;
-    const soeur = f.replace(/\.(test|spec)(\.[cm]?[jt]sx?)$/, '.circuit-avant.$1$2');
-    if (soeur === f) continue;
-    writeFileSync(path.join(ctx.copie, soeur), r.stdout);
-    out.set(f, soeur);
+    return r.status === 0 ? r.stdout : null;
+  };
+  try {
+    for (const f of fichiers) {
+      const langage = langageDe(ctx.copie);
+      const soeur = langage.soeurDAvant(f, ctx.copie);
+      if (soeur === null) {
+        const noms = langage.testsDeHead(f, ctx.copie, deHead);
+        if (noms !== null) lus.set(f, noms);
+        continue;
+      }
+      const texte = deHead(f);
+      if (texte === null) continue;
+      writeFileSync(path.join(ctx.copie, soeur), texte);
+      avant.set(f, soeur);
+    }
+    return jouer(avant, lus);
+  } finally {
+    for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
   }
-  return out;
 }
 
 // The log of the task <t> of a summary of Turborepo, its file from the root of the copy: its path,
@@ -2994,8 +3015,8 @@ function journalDeTache(ctx, t) {
 
 // The measure of the proof of the red: one run per package, `npm test -- --force <files>` of the
 // lot that lie in it, HEAD's version of each beside it, or, with no file of the lot, `npm test --
-// <package>` for each package of the plan, played whole. Each run `{ groupe, entier, avant, code,
-// resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
+// <package>` for each package of the plan, played whole. Each run `{ groupe, entier, avant, lus,
+// code, resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
 // not played again, as Turborepo replays a task whose inputs did not move: the last one is kept
 // in `ctx.mesureDeLaPreuve`.
 function mesureDeLaPreuve(ctx, liste, fichiers) {
@@ -3010,25 +3031,24 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
   const runs = [];
   for (const [dossier, groupe] of groupes) {
     const entier = entiers.includes(dossier);
-    const avant = versionsDAvant(ctx, groupe);
-    let r;
-    try {
-      // The files of the lot play for real (`--force`): a run replayed from Turborepo's cache, the
-      // checks' same command on the same inputs, writes no report of Vitest.
-      r = npm(ctx, 'preuve', [
+    // The files of the lot play for real (`--force`): a run replayed from Turborepo's cache, the
+    // checks' same command on the same inputs, writes no report of Vitest.
+    const { avant, lus, r } = avecLesVersionsDAvant(ctx, groupe, (avant, lus) => ({
+      avant,
+      lus,
+      r: npm(ctx, 'preuve', [
         'test',
         '--',
         ...(entier ? [dossier] : ['--force']),
         ...groupe,
         ...avant.values(),
-      ]);
-    } finally {
-      for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
-    }
+      ]),
+    }));
     runs.push({
       groupe,
       entier,
       avant,
+      lus,
       code: r.code,
       resultats: langageDe(ctx.copie).verdict(r.dossier).rapports,
       // The builds of the plan's packages that failed: each one a red, not compiling is failing.
@@ -3037,6 +3057,21 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
   }
   ctx.mesureDeLaPreuve = { cle, runs };
   return runs;
+}
+
+// The green tests of HEAD's version of the file <f> of the lot, by their full name: those of the
+// report of its sibling (`avant`, file → sibling, from the copy <copie>) in the results <resultats>
+// of the run (`verdict` of the join), or, for a file without sibling, the names of its tests read
+// in HEAD's version (`lus`, file → names), each held green, as main stays green; empty for a file
+// HEAD does not hold.
+export function vertsDeHead(resultats, copie, f, avant, lus = new Map()) {
+  if (lus.has(f)) return new Set(lus.get(f));
+  const soeur = avant.has(f) ? path.join(copie, avant.get(f)) : null;
+  return new Set(
+    (resultats.find(t => soeur !== null && t.fichier === soeur)?.tests ?? [])
+      .filter(a => a.etat === 'passed')
+      .map(a => a.nom)
+  );
 }
 
 // The full name of a test <nom> with each separator between a group and what it holds, « > » or
@@ -3077,7 +3112,7 @@ function preuve(ctx) {
   const mesure = mesureDeLaPreuve(ctx, liste, fichiers);
   // A plan « comportement inchangé »: every green of the lot is expected.
   const inchange = Boolean(ctx.sorte?.inchange);
-  for (const { groupe, entier, avant, code, resultats, constructions } of mesure) {
+  for (const { groupe, entier, avant, lus, code, resultats, constructions } of mesure) {
     for (const { nom, erreur } of constructions) {
       if (reportes.includes(nom)) continue;
       rouges.push(`construction de ${nom} — ${erreur}`);
@@ -3101,15 +3136,9 @@ function preuve(ctx) {
     for (const f of groupe) {
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];
-      // The green tests of HEAD's version of the file, by their full name.
-      const deHead = new Set(
-        (
-          resultats.find(t => avant.has(f) && t.fichier === path.join(ctx.copie, avant.get(f)))
-            ?.tests ?? []
-        )
-          .filter(a => a.etat === 'passed')
-          .map(a => a.nom)
-      );
+      const deHead = vertsDeHead(resultats, ctx.copie, f, avant, lus);
+      // Whether HEAD holds the file: its sibling played, or the names of its tests read.
+      const tenu = avant.has(f) || lus.has(f);
       if (constructions.length && (!res || tests.length === 0)) {
         // It cannot load before the build: it plays at the checks.
       } else if (!res) {
@@ -3121,7 +3150,7 @@ function preuve(ctx) {
       }
       // The expected green of the whole file justifies its greens only for a file HEAD holds.
       const duF = duFichier(f);
-      if (duF && !avant.has(f)) {
+      if (duF && !tenu) {
         neufs.push(
           `${f} — fichier neuf, que HEAD ne tient pas : son vert attendu sans test ne justifie aucun de ses verts`
         );
@@ -3136,7 +3165,7 @@ function preuve(ctx) {
           const raison = raisonDuTest(f, a);
           if (raison) {
             justifies.push(`${f} › ${a.nom} — ${raison}`);
-          } else if (duF && avant.has(f)) {
+          } else if (duF && tenu) {
             justifies.push(`${f} › ${a.nom} — ${duF.raison} (par le vert attendu du fichier)`);
           } else if (inchange) {
             justifies.push(`${f} › ${a.nom} — le plan dit « comportement inchangé »`);

@@ -6,7 +6,9 @@
 // covers the components alone, the readers, the elements of a lot, the shared test material, and
 // each generated file late. grillhouse-3dr.2.3: and the repositories where the module finds its
 // language. grillhouse-pkl.2: and the components that play tests (`joueDesTests`, the script
-// `test:unit` for typescript), and the task of a run that plays them.
+// `test:unit` for typescript), and the task of a run that plays them. grillhouse-3e2: and HEAD's
+// version of a test file: its sibling, one its tool plays in the same run (`soeurDAvant`), or the
+// names of its tests read without playing them (`testsDeHead`).
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -76,6 +78,42 @@ const MUTANTS: [string, string, Partial<Langage>][] = [
     {
       estUnTest: (chemin: string, racine: string) =>
         chemin.endsWith('.spec.mjs') ? null : typescript.estUnTest(chemin, racine),
+    },
+  ],
+  // grillhouse-3e2: the sibling of HEAD's version of a test file is one its tool plays.
+  [
+    'soeurDAvant qui nomme une sœur que Vitest ne joue pas',
+    'versionDeHead',
+    {
+      soeurDAvant: (chemin: string, racine: string) => {
+        const s = typescript.soeurDAvant(chemin, racine);
+        return s === null ? null : `${s}.avant`;
+      },
+    },
+  ],
+  [
+    'soeurDAvant qui perd la classe d’un test de nuit ou d’un banc',
+    'versionDeHead',
+    {
+      soeurDAvant: (chemin: string, racine: string) =>
+        typescript.soeurDAvant(chemin, racine) === null
+          ? null
+          : chemin.replace(/\.(test|spec)(\.[cm]?[jt]sx?)$/, '.circuit-avant.$1$2'),
+    },
+  ],
+  // The owner's decision on grillhouse-3e2: the names of HEAD's tests are read only for a file
+  // that has no sibling.
+  [
+    'testsDeHead qui lit des noms d’un fichier que l’outil joue en deux versions',
+    'versionDeHead',
+    { testsDeHead: () => [] },
+  ],
+  [
+    'soeurDAvant qui rend le fichier lui-même',
+    'versionDeHead',
+    {
+      soeurDAvant: (chemin: string, racine: string) =>
+        typescript.soeurDAvant(chemin, racine) === null ? null : chemin,
     },
   ],
   [
@@ -182,6 +220,7 @@ describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { time
       'commandes',
       'verdict',
       'estUnTest',
+      'versionDeHead',
       'fichiersEngendres',
       'gardes',
       'elementsDuLot',

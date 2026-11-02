@@ -116,7 +116,7 @@ import {
   retirerALInterruption,
   SEUIL_PRESSION,
 } from '../../services-du-noyau.mjs';
-import { composantDans, crates, joueDesTests, metadonnees } from './composants.mjs';
+import { BANC, composantDans, crates, DE_NUIT, joueDesTests, metadonnees } from './composants.mjs';
 import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
 import { touchesDesFichiers } from './touches.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
@@ -134,9 +134,6 @@ const VERROU = 'Cargo.lock';
 const VERROUILLEES = ['tester', 'verifier', 'preparer', 'tests-de-nuit'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
 const COMPILENT = ['tester', 'verifier', 'typer', 'tests-de-nuit'];
-/** The end of the name of a night test target, and of a time budget bench's. */
-export const DE_NUIT = '_nuit';
-export const BANC = '_budget';
 // The kinds of a target that are no library.
 const PAS_UNE_BIBLIOTHEQUE = ['test', 'bin', 'example', 'bench', 'custom-build'];
 

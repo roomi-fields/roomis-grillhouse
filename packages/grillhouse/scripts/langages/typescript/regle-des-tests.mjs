@@ -11,6 +11,10 @@
 //
 // Any other file is none of them: null.
 //
+// The sibling of HEAD's version of a test file Vitest plays (`soeurDAvant`), which the proof of
+// the red plays beside it: `<nom>.circuit-avant.<test|spec>.<ext>`, the mark of a night test or of
+// a bench kept before it (`<nom>.circuit-avant.nuit.test.<ext>`), so that it plays as its file.
+//
 // What the testwriter writes of the manifests (`manifestes`): the field that declares what the
 // tests of a package depend on, `devDependencies` of its package.json (npm's docs,
 // « devDependencies »), as the author of a test of Bazel declares the deps of its target; and
@@ -44,6 +48,15 @@ export function estUnTest(chemin, racine) {
   const test = isTestFile(path.relative(path.resolve(racine), abs));
   const matiere = matieres(racine).some(m => isInside(abs, m.dir));
   return joue || test || matiere ? { joue, test, matiere } : null;
+}
+
+// The sibling of HEAD's version of the test file <chemin> (from the root <racine>), which Vitest
+// plays in the same run: `<nom>.circuit-avant.<test|spec>.<ext>` beside it, a name of NOM_DE_TEST,
+// of its file's kind (`.nuit` or `.budget` kept before `.test`);
+// null for a file Vitest does not play.
+export function soeurDAvant(chemin, racine) {
+  if (!estUnTest(chemin, racine)?.joue) return null;
+  return chemin.replace(/((?:\.nuit|\.budget)?\.(?:test|spec)\.[cm]?[jt]sx?)$/, '.circuit-avant$1');
 }
 
 // The field of a manifest that declares what its tests depend on.

@@ -54,8 +54,8 @@ garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
   nommé avec les deux langages ;
 - un fichier va au module du composant qui le tient, le plus profond ; un fichier hors de tout
-  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`,
-  `manifestes.horsDesTests`) ;
+  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`, `soeurDAvant`,
+  `testsDeHead`, `manifestes.horsDesTests`) ;
 - les lecteurs, les composants touchés et les éléments d'un lot sont ceux de chaque module sur ses
   composants, réunis : un nom sans fournisseur l'est dans chaque module, un fichier hors du graphe
   l'est de chaque module ; le verdict d'une passe, celui de chaque module, lu dans le même dossier
@@ -213,6 +213,25 @@ clippy`). Le noyau en lance trois
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
   partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le
   circuit le lisent.
+- `soeurDAvant` : le nom de la sœur d'un fichier de test, à côté de lui, où la preuve du rouge
+  écrit sa version de HEAD : un test que l'outil du langage joue dans le même lancement, ses tests
+  nommés comme ceux du fichier, de la même classe que lui, jour, nuit ou banc, pour qu'elle se joue
+  comme lui (`typescript`, `<nom>.circuit-avant.test.<ext>`, `<nom>.circuit-avant.nuit.test.<ext>`,
+  `<nom>.circuit-avant.budget.test.<ext>` ; `cargo`, `tests/<nom>_circuit_avant.rs` pour une cible
+  `tests/<nom>.rs`, `tests/<nom>_circuit_avant_nuit.rs`, `tests/<nom>_circuit_avant_budget.rs` ;
+  `python`, `test_<nom>_circuit_avant.py`, `<nom>_circuit_avant_test.py`,
+  `<nom>_circuit_avant_nuit_test.py`), ou null pour un fichier que
+  l'outil ne joue pas ou ne sait pas jouer deux fois (`cargo` : une cible `tests/<dossier>/main.rs`,
+  un test unitaire de `src/`).
+- `testsDeHead(chemin, racine, lire)` : pour un fichier de test que l'outil ne sait pas jouer en
+  deux versions dans un lancement, et qui n'a donc pas de sœur, les noms des tests de sa version
+  de HEAD, lus sans les jouer, tels que le verdict les nomme ; la preuve du rouge tient chacun pour
+  un vert que HEAD tient déjà, puisque main reste vert. `lire` rend le texte de HEAD d'un fichier
+  depuis la racine. `cargo` : un test unitaire de `src/`, ses tests marqués `#[test]` ou
+  `#[<chemin>::test]` dans leurs modules en ligne, sous le chemin de module que nextest rapporte
+  (`server::tests::groupe::nom`) ; une cible `tests/<dossier>/main.rs`, avec ses modules hors
+  ligne (`mod aide;`). Null pour tout autre fichier, ou un fichier que HEAD ne tient pas ;
+  `typescript` et `python`, toujours null.
 - `manifestes` : ce que le testwriter écrit des manifestes, comme l'auteur d'un test de Bazel
   déclare les dépendances de sa cible. `verrous`, les fichiers de verrouillage des versions depuis
   la racine (cargo : `Cargo.lock` ; typescript : `package-lock.json` ; python : `uv.lock`, celui

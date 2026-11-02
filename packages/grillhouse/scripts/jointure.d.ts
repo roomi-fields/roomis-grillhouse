@@ -240,6 +240,23 @@ export interface Composition {
   ): { tester: Commande; verifier: Commande; typer: Commande } & Record<string, Commande>;
   verdict(dossier: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
   estUnTest(chemin: string, racine: string): ClasseDeTest;
+  /** The sibling of HEAD's version of the test file `chemin` (from `racine`), from the root: a
+   * file beside it, a test the module's tool plays in the same run as it, its tests named in the
+   * run's report as the file's, of its class (day, night, bench), which the proof of the red
+   * writes, plays and removes; null for a file the tool cannot play twice in a run (cargo: a
+   * target `tests/<dossier>/main.rs`, a unit test of `src/`: `testsDeHead`) or does not play. */
+  soeurDAvant(chemin: string, racine: string): string | null;
+  /** The names of the tests of HEAD's version of the test file `chemin` (from `racine`), as the
+   * verdict names them, read without playing them, for a file that has no sibling because the
+   * tool cannot play two versions of it in one run (cargo: a unit test of `src/`, a target
+   * `tests/<dossier>/main.rs`, its out-of-line modules read too); the proof of the red holds each
+   * for a green HEAD already holds. `lire` gives HEAD's text of a file from the root, null for
+   * none. Null for any other file, or one HEAD does not hold. */
+  testsDeHead(
+    chemin: string,
+    racine: string,
+    lire: (fichier: string) => string | null
+  ): string[] | null;
   manifestes: Manifestes;
   fichiersEngendres(racine: string): FichierEngendre[];
   gardes(racine: string): string[][];

@@ -153,6 +153,7 @@
     "scripts/langages/cargo/sccache.mjs",
     "scripts/langages/cargo/squelette.mjs",
     "scripts/langages/cargo/tailles-des-tests.mjs",
+    "scripts/langages/cargo/tests-de-head.mjs",
     "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"
   ],

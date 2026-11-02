@@ -227,6 +227,25 @@ export default {
           'site/tests/donnees.json : test',
         ],
       },
+      versionDeHead: {
+        valide: [
+          'site/pages/generer.py',
+          'site/conftest.py',
+          'site/tests/donnees.json',
+          'README.md',
+        ],
+        // A night test keeps its end, so that its sibling stays one.
+        invalide: [
+          'site/pages/test_pages.py',
+          'site/pages/pages_test.py',
+          'site/pages/site_nuit_test.py',
+        ],
+        attendu: [
+          'site/pages/test_pages.py → site/pages/test_pages_circuit_avant.py',
+          'site/pages/pages_test.py → site/pages/pages_circuit_avant_test.py',
+          'site/pages/site_nuit_test.py → site/pages/site_circuit_avant_nuit_test.py',
+        ],
+      },
       fichiersEngendres: {
         valide: aJour,
         invalide: enRetard,

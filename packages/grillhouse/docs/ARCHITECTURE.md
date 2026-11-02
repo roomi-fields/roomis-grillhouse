@@ -801,7 +801,13 @@ composants et celui d'un fichier, avec les lecteurs par le code des éléments q
 les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
 typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
 porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
-(le verrou du testwriter), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
+(le verrou du testwriter), le nom de la sœur où la preuve du rouge joue la version de HEAD d'un
+fichier de test, dans le même lancement que lui (`soeurDAvant` : un nom que l'outil du langage
+joue de lui-même, ses tests nommés comme ceux du fichier, de sa classe, jour, nuit ou banc ; le
+circuit ne bâtit aucun nom de langage ; pour un fichier que l'outil ne sait pas jouer en deux
+versions, un test unitaire Rust de `src/` ou une cible `tests/<dossier>/main.rs`, pas de sœur :
+`testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve tient pour
+des verts que HEAD tient déjà), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
 avec le fichier de verrouillage des versions (`manifestes` : le testwriter les écrit, comme
 l'auteur d'un test de Bazel déclare les dépendances de sa cible ; le verrou refuse tout autre
 changement du manifeste, chaque partie nommée ; en cargo, d'un fichier de code, le testwriter
@@ -819,7 +825,7 @@ commande joue dans chaque module qui la décrit, avec son outil, et les verdicts
 un seul fichier, assemblé par le noyau des entrées de chaque module (`scripts/index-interfaces.mjs`) ;
 le verrou des rôles, l'enveloppe et `maj` prennent l'union de ce que demandent les modules. Passent par elle : les
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
-des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
+des lots de l'intégration et du circuit ; la sœur de la version de HEAD de la preuve du rouge ; les commandes de `grillhouse tests` et `grillhouse
 verifier` ; le verdict que le circuit lit, et les paquets du plan qui portent des tests ; les fichiers engendrés du circuit ; les gardes de
 `grillhouse gardes-du-cadre` ; les sous-commandes du module, chacune de son nom (`grillhouse
 frontieres`) ; les éléments du lot que le circuit donne au relecteur ; la matière de test que

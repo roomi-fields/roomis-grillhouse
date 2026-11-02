@@ -196,6 +196,37 @@ function resultats(dans, taches, rapports, cibles) {
   return dossier;
 }
 
+// HEAD's text of a unit test file of `src/`: two tests, one in an inline module, and braces and
+// a false test in a comment, a raw string and a character, which are not counted.
+const UNITAIRE = [
+  'use super::*;',
+  '// fn faux() { #[test]',
+  '#[test]',
+  'fn ancien() {',
+  '    let _ = r#"{ #[test] fn dans_la_chaine() {} "#;',
+  "    let _ = '{';",
+  '}',
+  '/* } #[test] fn commentee() {} */',
+  'mod groupe {',
+  '    #[test]',
+  '    #[ignore]',
+  '    fn interne() {}',
+  '}',
+  '',
+].join('\n');
+// HEAD's text of a target `tests/<dossier>/main.rs`: a test, one under `#[tokio::test]` in an
+// inline module, and an out-of-line module `aide`.
+const PRINCIPAL = [
+  'mod aide;',
+  '#[test]',
+  'fn principal() {}',
+  'mod m {',
+  '    #[tokio::test]',
+  '    async fn dedans() {}',
+  '}',
+  '',
+].join('\n');
+
 export default {
   // The trials under <dans>.
   preparer(dans) {
@@ -341,6 +372,42 @@ export default {
           'crates/core/tests/t.rs : joue, test',
           'crates/core/tests/common/mod.rs : test, matiere',
           'crates/matiere/src/lib.rs : matiere',
+        ],
+      },
+      versionDeHead: {
+        valide: [
+          'crates/core/src/lib.rs',
+          'crates/core/src/tests.rs',
+          'crates/core/tests/common/mod.rs',
+          'crates/core/tests/scenario/main.rs',
+          'Cargo.toml',
+        ],
+        // A night test and a bench keep their end, so that their sibling plays as they do.
+        invalide: [
+          'crates/core/tests/t.rs',
+          'crates/core/tests/t_nuit.rs',
+          'crates/core/tests/t_budget.rs',
+          // A unit test of `src/` and a target `tests/<dossier>/main.rs` have no sibling: the
+          // names of HEAD's tests are read, as nextest reports them (its module path), the
+          // braces of a comment, a string or a character not counted, a `mod` of main.rs read.
+          {
+            chemin: 'crates/core/src/rendu/tests.rs',
+            textes: { 'crates/core/src/rendu/tests.rs': UNITAIRE },
+          },
+          {
+            chemin: 'crates/core/tests/scenario/main.rs',
+            textes: {
+              'crates/core/tests/scenario/main.rs': PRINCIPAL,
+              'crates/core/tests/scenario/aide.rs': '#[test]\nfn aidant() {}\n',
+            },
+          },
+        ],
+        attendu: [
+          'crates/core/tests/t.rs → crates/core/tests/t_circuit_avant.rs',
+          'crates/core/tests/t_nuit.rs → crates/core/tests/t_circuit_avant_nuit.rs',
+          'crates/core/tests/t_budget.rs → crates/core/tests/t_circuit_avant_budget.rs',
+          'crates/core/src/rendu/tests.rs : rendu::tests::ancien, rendu::tests::groupe::interne',
+          'crates/core/tests/scenario/main.rs : principal, m::dedans, aide::aidant',
         ],
       },
       fichiersEngendres: {

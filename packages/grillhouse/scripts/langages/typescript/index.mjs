@@ -32,8 +32,8 @@
 //   (./vitest-config/base.mjs).
 // - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory
 //   (./verdict.mjs).
-// - The rule of a test file and what the testwriter writes of the manifests
-//   (./regle-des-tests.mjs).
+// - The rule of a test file, the sibling of HEAD's version of a test file and what the testwriter
+//   writes of the manifests (./regle-des-tests.mjs).
 // - The generated files, each its command, the guard that checks it and the names its findings
 //   carry: the index of the interfaces, the turbo.json of the packages, the reports of API.
 // - The entries of the index of each interface (`entreesDeLIndex`, ./index-interfaces.mjs), which
@@ -56,7 +56,7 @@ import { composants as lesComposants, matieres } from './consommateurs.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
-import { estUnTest, manifestes } from './regle-des-tests.mjs';
+import { estUnTest, manifestes, soeurDAvant } from './regle-des-tests.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
@@ -264,6 +264,9 @@ export default {
   }),
   verdict,
   estUnTest,
+  soeurDAvant,
+  // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no name to read.
+  testsDeHead: () => null,
   manifestes,
   fichiersEngendres: () => [
     engendre(

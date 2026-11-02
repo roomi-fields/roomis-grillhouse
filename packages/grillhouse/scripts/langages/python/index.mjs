@@ -38,6 +38,7 @@ import {
   composants,
   entreesDeLIndex,
   estUnTest,
+  soeurDAvant,
   joueDesTests,
   lecteurs,
   manifestes,
@@ -78,6 +79,9 @@ export default {
   commandes,
   verdict,
   estUnTest,
+  soeurDAvant,
+  // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no name to read.
+  testsDeHead: () => null,
   manifestes,
   fichiersEngendres: () => [
     {

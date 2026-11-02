@@ -42,6 +42,17 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
     expect(echecs(cargo, exemples, { dans: ESSAIS })).toEqual([]);
   });
 
+  // grillhouse-3e2, criterion 5: the names of HEAD's tests are the verdict's, their module path
+  // whole; a module that reads them bare fails the case of HEAD's version alone.
+  it('testsDeHead that drops the module path fails the case of HEAD’s version alone', () => {
+    const mutant = {
+      ...cargo,
+      testsDeHead: (chemin: string, racine: string, lire: (f: string) => string | null) =>
+        cargo.testsDeHead(chemin, racine, lire)?.map(n => n.split('::').at(-1) ?? n) ?? null,
+    } as Langage;
+    expect(echecs(mutant, exemples, { dans: ESSAIS }).map(e => e.nom)).toEqual(['versionDeHead']);
+  });
+
   it('each case has a defective entry with faults', () => {
     const vides = cas(cargo, exemples, { dans: ESSAIS })
       .filter(c => c.attendu.length === 0)
