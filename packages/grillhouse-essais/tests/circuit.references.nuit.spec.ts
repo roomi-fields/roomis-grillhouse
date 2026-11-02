@@ -82,6 +82,12 @@ const {
 const RESULTATS = path.join(CADRE, 'scripts/resultats.mjs');
 const NOM = 'la référence de la mesure';
 const REGENERER = 'node regenerer.mjs';
+// The one preparation of the copy on the tip of main, which the circuit plays before each pass
+// that judges the lot, after a regeneration too (grillhouse-527, `avantLaPasse` of
+// scripts/circuit.mjs): its line in the ticket's log.
+const PREPARATION: unknown = expect.stringMatching(
+  /^node \S+\/scripts\/enveloppe\/travail-de-la-copie\.mjs preparer \S+ [0-9a-f]{40}$/
+);
 
 // The reference of the trial on main, the project's guard judging it beside the trial's own;
 // <declarer> declares it in the package.json (`grillhouse.references`).
@@ -191,9 +197,12 @@ describe.runIf(canWrap)(
       const regeneration = c.indexOf(REGENERER);
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
       // Before it, the checks of the plan, which see the red (grillhouse-982.2); after it, the
-      // final pass, whole.
+      // preparation of the copy, then the final pass, whole.
       expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
-      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
+        PREPARATION,
+        'npm run verifier',
+      ]);
       // The step leaves its result with the circuit's, its report naming the reference and its file.
       const e = entrees(id).find(x => x.etape === 'references') as
         { rapport?: string; resultat?: { regenerees?: string[] } } | undefined;
@@ -313,8 +322,8 @@ it('la référence suit la mesure', () => {
       const c = commandes(id);
       const regeneration = c.indexOf(REGENERER);
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      // No command plays after it: neither the checks again nor the final pass.
-      expect(c.slice(regeneration + 1), c.join('\n')).toEqual([]);
+      // After it, the preparation of the copy alone: neither the checks again nor the final pass.
+      expect(c.slice(regeneration + 1), c.join('\n')).toEqual([PREPARATION]);
       const e = entrees(id).find(x => x.etape === 'references') as { rapport?: string } | undefined;
       expect(e?.rapport).toContain('les contrôles ne rejouent pas, et leurs rouges restent');
       // The reds of the checks before stand, and go to the developpeur.
@@ -626,7 +635,10 @@ if (refus.length) process.exit(1);
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
       // The checks see the red: the regeneration, then the final pass, whole (grillhouse-982.2).
-      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
+        PREPARATION,
+        'npm run verifier',
+      ]);
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { regenerees?: string[]; fichiers?: string[] } } | undefined;
       expect(e?.resultat?.regenerees).toEqual([PLAFOND]);
@@ -820,7 +832,10 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       // the plan; after it, the final pass, whole, red on binder (grillhouse-982.2).
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
       expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
-      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
+        PREPARATION,
+        'npm run verifier',
+      ]);
       // The reference regenerated stays in the copy.
       expect(lire(path.join(copie, 'reference.txt'))).toBe('4\n');
       // The stop names the red that stands, binder's, out of the plan; not the reference's.
@@ -858,7 +873,10 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       );
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
       // The checks of the plan see the stale turbo.json: the final pass after it, whole.
-      expect(c.slice(regeneration + 1)[0]).toBe('npm run verifier');
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
+        PREPARATION,
+        'npm run verifier',
+      ]);
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { fichiers?: string[] } } | undefined;
       expect(e?.resultat?.fichiers).toContain('packages/binder/turbo.json');
@@ -986,9 +1004,13 @@ process.exitCode = refus.length ? 1 : 0;
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
       // The interface's generated part changes: the index that reads it follows (grillhouse-j2m).
       expect(c[regeneration + 1]).toContain('index-interfaces.mjs');
-      expect(c.slice(regeneration + 2)[0]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      // Then the preparation of the copy, which stays on the tip of main, and the restricted pass.
+      expect(c.slice(regeneration + 2, regeneration + 4)).toEqual([
+        PREPARATION,
+        expect.stringMatching(
+          /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
+        ),
+      ]);
       // The report regenerated stays in the copy, beside the lot.
       expect(lire(path.join(copie, 'packages/forms/docs/INTERFACE.api.md'))).toContain(
         'y?: number'
@@ -1050,9 +1072,12 @@ process.exitCode = refus.length ? 1 : 0;
       // One regeneration, then the restricted pass, green: no stop, no second regeneration.
       expect(entrees(id).filter(x => x.etape === 'references')).toHaveLength(1);
       expect(entrees(id).some(x => x.arret)).toBe(false);
-      expect(c.slice(index + 1)[0]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      expect(c.slice(index + 1, index + 3)).toEqual([
+        PREPARATION,
+        expect.stringMatching(
+          /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
+        ),
+      ]);
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { regenerees?: string[]; fichiers?: string[] } } | undefined;
       expect(e?.resultat?.regenerees).toEqual(["les rapports d'API", "l'index des interfaces"]);

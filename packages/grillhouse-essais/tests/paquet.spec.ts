@@ -50,7 +50,8 @@ const importsDe = (t: string) =>
 // on main before the move (23dd5ba).
 const AVANT: Record<string, [number, number]> = {
   // grillhouse-nt4: one more expect, the guard that names the trial directory the test leaves.
-  'base-de-passe': [10, 55],
+  // grillhouse-1eq: one more expect, the killed circuit gone before the sweep (pq6).
+  'base-de-passe': [10, 56],
   // grillhouse-pq6: three more expects, an immediate stop gives its code and its question.
   'circuit.arbitrage': [2, 18],
   'circuit.avancement': [1, 6],
@@ -66,9 +67,11 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.montee': [5, 33],
   circuit: [7, 22],
   'circuit.passe-finale': [3, 19],
-  'circuit.plan': [18, 124],
+  // grillhouse-1eq: one more expect, the explorateur's template of the mechanical gesture (sos).
+  'circuit.plan': [18, 125],
   'circuit.preuve': [10, 49],
-  'circuit.references': [30, 199],
+  // grillhouse-1eq: three more expects, the preparation of the copy before a pass (527).
+  'circuit.references': [30, 202],
   'circuit.refus': [3, 22],
   'circuit.registre': [1, 9],
   'circuit.rejeu': [7, 51],
@@ -83,7 +86,8 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.tri': [8, 78],
   'circuit.vert-par-fichier': [8, 28],
   // grillhouse-3dr.3.3: the other tests of the chain, read on main before the move (255b40d).
-  nuit: [73, 318],
+  // grillhouse-1eq: one more test, its night blind to a neighbour's ticket directory.
+  nuit: [74, 320],
   'sous-modules': [24, 95],
   'commandes-en-enveloppe': [23, 76],
   'retirer-copie': [48, 124],
@@ -129,7 +133,8 @@ const SCINDES: Record<string, [number, number]> = {
   'ligne-etat': [2, 2],
   'registre-fin': [1, 3],
   'tests-cibles': [11, 27],
-  'tests-de-nuit': [14, 38],
+  // grillhouse-1eq: one more test, its night blind to a neighbour's ticket directory.
+  'tests-de-nuit': [15, 40],
   'verifier.depuis-le-vert': [6, 31],
   // grillhouse-3dr.3.7: the last five; the hook, the guard or the command run in a git repository,
   // and Turborepo's own graph and hashes.

@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { CADRE, RACINE } from './cadre.js';
+import { CADRE, RACINE, enProcessus } from './cadre.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nuit-'));
@@ -36,6 +36,10 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
   const repo = mkdtempSync(path.join(ESSAIS, 'nuit-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const appels = path.join(bin, 'appels');
+  // The temporary directory of the night of trial, its own, under its trial directory, as Bazel
+  // gives each test its TEST_TMPDIR: the night reads the tickets' directories there
+  // (scripts/copies-finies.mjs), never those the neighbour files of the pass make meanwhile.
+  const tmp = mkdtempSync(path.join(ESSAIS, 'tmp-'));
   writeFileSync(
     path.join(bin, 'bd'),
     `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1 $2 $3" in "config get issue_prefix") echo ${prefixe}; exit 0;; esac\ncase "$1" in list) cat ${bin}/OUVERTS 2>/dev/null || echo '[]';; create) echo ${prefixe}-${numero};; esac\n`,
@@ -63,7 +67,7 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
     spawnSync('bash', [path.join(repo, 'scripts/nuit.sh'), ...args], {
       cwd: repo,
       encoding: 'utf8',
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: tmp },
     });
   const commun = path.join(repo, '.git', 'nuit');
   const lire = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
@@ -109,7 +113,26 @@ const ouvert = (id: string, cause: string) => ({
   title: `${id.split('-').pop()} — La nuit est rouge sur « ${cause} » depuis la nuit du 2026-10-20 — parent`,
 });
 
+// The temporary directory of a ticket, as the launcher opens it for a session (grillhouse-xv9).
+const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
+  'scripts/mesure/base-de-passe.mjs',
+  'ouvrirBaseDuTicket'
+);
+
 describe('the night', () => {
+  // grillhouse-1eq: on the night of 2026-11-02, the launcher's trials, beside this file in the
+  // same pass, left their tickets' directories in the temporary directory of the pass; the night
+  // of trial read them, and asked the fake bd for the closed tickets (13 reds).
+  it("grillhouse-1eq — a ticket's directory a neighbour file leaves in the common temporary directory: the night of trial does not see it", () => {
+    const voisin = ouvrirBaseDuTicket('demo-voisin-nuit');
+    try {
+      const m = monde();
+      expect(m.nuit().status).toBe(0);
+      expect(m.appels()).toBe('');
+    } finally {
+      rmSync(voisin.base, { recursive: true, force: true });
+    }
+  });
   it('marks a green HEAD as the last green, and opens nothing', () => {
     const m = monde();
     expect(m.nuit().status).toBe(0);

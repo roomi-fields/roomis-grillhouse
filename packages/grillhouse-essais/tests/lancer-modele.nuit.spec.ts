@@ -1,13 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   canWrap,
   racineSousLaMaison,
   declarerLesLangages,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { projetDuLanceur } from './enveloppe-essai.js';
+import { projetDuLanceur, retirerALaFin } from './enveloppe-essai.js';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) as {
@@ -26,7 +26,19 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
 // definition decides. The trial repositories live outside /tmp, which the envelope replaces.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-modele-');
-afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+// The tickets these trials launch, whose temporary directories go with the root: those named here,
+// and each numbered one, recorded as it is made.
+const unTicket = retirerALaFin(ESSAIS, [
+  'demo-x',
+  'demo-echec',
+  'demo-dossier',
+  'demo-absent',
+  'demo-neuf',
+  'demo-renvoi',
+  'demo-journal',
+  'demo-fin',
+  'demo-fin-refus',
+]);
 
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
 const SCRIPT = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
@@ -143,7 +155,7 @@ let numero = 0;
 // One launch, on a ticket of its own: the options come before the four arguments of today, and
 // `apres` after them.
 function lancer(options: string[], apres: string[] = [], composant = 'packages/a') {
-  const ticket = `demo-${++numero}`;
+  const ticket = unTicket(`demo-${++numero}`);
   const consigne = path.join(REPO, `${ticket}.txt`);
   writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
   const r = spawnSync(
@@ -343,7 +355,7 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
   // grillhouse-3uv.95.6: one session works the whole plan of a ticket; the section gives, for
   // each package of the plan, what its providers publish to it.
   it('gives the session of a plan of two packages what the providers of each publish', () => {
-    const ticket = `demo-${++numero}`;
+    const ticket = unTicket(`demo-${++numero}`);
     const consigne = path.join(REPO, `${ticket}.txt`);
     writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
     const r = spawnSync(

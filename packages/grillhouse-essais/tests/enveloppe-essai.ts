@@ -1,7 +1,8 @@
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { afterAll } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CADRE } from './cadre.js';
+import { CADRE, enProcessus } from './cadre.js';
 import { installerFauxTurbo } from './integration-essai.js';
 
 // The trial harness of the launcher of an agent (scripts/enveloppe/lancer.sh) and of its envelope
@@ -24,4 +25,28 @@ export function projetDuLanceur(repo: string) {
   declarerLesLangages(repo);
   installerFauxTurbo(repo);
   appendFileSync(path.join(repo, '.gitignore'), 'node_modules\n');
+}
+
+const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
+  'scripts/mesure/base-de-passe.mjs',
+  'ouvrirBaseDuTicket'
+);
+
+// The trial root <essais> of a test file that launches sessions, removed at its end, red or
+// green; before it, the temporary directory of each ticket of the trial, which the launcher gives
+// each session of the ticket and which outlives the session (grillhouse-xv9), as the frame names
+// it (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`). The tickets: <tickets>, and each
+// one the returned function records, which gives it back.
+export function retirerALaFin(essais: string, tickets: string[] = []): (id: string) => string {
+  const ids = new Set(tickets);
+  afterAll(() => {
+    for (const id of ids) {
+      rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
+    }
+    rmSync(essais, { recursive: true, force: true });
+  });
+  return id => {
+    ids.add(id);
+    return id;
+  };
 }

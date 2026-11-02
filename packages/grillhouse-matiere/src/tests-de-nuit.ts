@@ -140,6 +140,10 @@ export function testsDeNuitEssai(
       TRACE: trace,
       PATH: `${bin}:${process.env.PATH}`,
       GRILLHOUSE_PRESSION_CPU: pression,
+      // A temporary directory of its own, under the trial directory, as Bazel gives each test its
+      // TEST_TMPDIR: the night of trial never reads what the neighbour files of the pass leave in
+      // theirs (grillhouse-1eq).
+      TMPDIR: mkdtempSync(path.join(ESSAIS, 'tmp-')),
     };
     const lancer = (cmd: string, args: string[]) =>
       spawnSync(cmd, args, { cwd: repo, encoding: 'utf8', env, timeout: 120_000 });

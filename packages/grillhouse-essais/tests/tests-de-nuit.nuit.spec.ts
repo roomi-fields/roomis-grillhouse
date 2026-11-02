@@ -48,6 +48,28 @@ const { projet, nuitDe } = testsDeNuitEssai(ESSAIS, { depot: DEPOT, mettreAJour 
 
 const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`.slice(-3000);
 
+// grillhouse-1eq: on the night of 2026-11-02, the launcher's trials, beside this file in the same
+// pass, left their tickets' directories in the temporary directory of the pass; the night of
+// trial read them, and asked the fake bd for the closed tickets. The night of trial has a
+// temporary directory of its own (the shared material: testsDeNuitEssai).
+const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
+  'scripts/mesure/base-de-passe.mjs',
+  'ouvrirBaseDuTicket'
+);
+describe('grillhouse-1eq — the night of trial has a temporary directory of its own', () => {
+  it("a ticket's directory a neighbour file leaves in the common temporary directory: the night of trial does not see it", () => {
+    const voisin = ouvrirBaseDuTicket('demo-voisin-tests-de-nuit');
+    try {
+      const p = projet({}, { nuits: false });
+      const n = nuitDe(p);
+      expect(n.status, n.journal).toBe(0);
+      expect(existsSync(path.join(p.bin, 'appels'))).toBe(false);
+    } finally {
+      rmSync(voisin.base, { recursive: true, force: true });
+    }
+  }, 240_000);
+});
+
 describe('critère 4 — npm test leaves the night tests out', () => {
   it('critère 4: npm test plays the day tests and no night test, at any depth and in any form', () => {
     const p = projet();

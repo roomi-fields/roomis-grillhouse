@@ -12,7 +12,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canWrap, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CADRE, RACINE, valeursDe } from './cadre.js';
+import { afterAll } from 'vitest';
+import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
 
 // The trial harness of the circuit of a ticket (scripts/circuit.mjs), shared by its tests
 // (tests/circuit*.nuit.spec.ts): the frame's paths, the stand-ins of claude and bd, the scenarios a
@@ -35,6 +36,10 @@ import { CADRE, RACINE, valeursDe } from './cadre.js';
 export const CIRCUIT = path.join(CADRE, 'scripts/circuit.mjs');
 const ENVELOPPE = path.join(CADRE, 'scripts/enveloppe/enveloppe.mjs');
 export const BASE = path.join(CADRE, 'scripts/langages/typescript/vitest-config/base.mjs');
+const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
+  'scripts/mesure/base-de-passe.mjs',
+  'ouvrirBaseDuTicket'
+);
 
 // The turbo.json of each package of <racine> and its root's, written by the frame's command.
 export function ecrireTurbo(racine: string): void {
@@ -528,7 +533,17 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
   // A ticket of the stand-in bd, whose title names <composants>; its copy made ahead, with this
   // repository's dependencies as its own (the launcher then installs nothing), as a project holds them.
   // Its reviewer accepts the lot, by its sheet, unless the test writes it another scenario.
+  // The temporary directory of each ticket of the trial, which the launcher gives its sessions and
+  // which outlives them (grillhouse-xv9), goes at the end of the file, as the frame names it
+  // (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`).
+  const tickets = new Set<string>();
+  afterAll(() => {
+    for (const id of tickets) {
+      rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
+    }
+  });
   function ticket(id: string, composants: string) {
+    tickets.add(id);
     ecrire(
       path.join(BEADS, `${id}.json`),
       json([{ id, title: `${id} — La mesure — ${composants}`, description: DESCRIPTION }])

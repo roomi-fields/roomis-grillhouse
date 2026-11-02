@@ -1,14 +1,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   canWrap,
   enveloppeEssai,
   declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
+import { SCRIPT, projetDuLanceur, retirerALaFin } from './enveloppe-essai.js';
 import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_COPIE, CODE_REFUS, CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', [
@@ -28,7 +28,18 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // The real envelope, when this machine can build one. Its repositories live outside /tmp, which
 // the envelope replaces with an empty directory, in a trial directory of this run alone.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-');
-afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+// The tickets these trials launch, whose temporary directories go with the root.
+retirerALaFin(ESSAIS, [
+  'demo-1',
+  'demo-2',
+  'demo-10',
+  'demo-d',
+  'demo-h',
+  'demo-p',
+  'demo-s',
+  'demo-t',
+  'demo-z',
+]);
 const { essai } = enveloppeEssai(ESSAIS);
 
 const CODES = path.join(CADRE, 'scripts/enveloppe/codes.mjs');

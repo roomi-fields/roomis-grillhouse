@@ -20,9 +20,27 @@ import {
 const PAQUET = path.resolve(__dirname, '../..');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'verdicts-jointure-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+type Verdict = {
+  commande: string;
+  sorte: string;
+  pression: number;
+  code: number;
+  taches: { paquet: string; script: string; code: number }[];
+};
 const { verdicts } = JSON.parse(
   readFileSync(path.join(PAQUET, 'tests/temoins/verdicts.json'), 'utf8')
-) as { verdicts: { commande: string; sorte: string; pression: number }[] };
+) as { verdicts: Verdict[] };
+// The verdict due today: the witness's, but for the one change made since on purpose.
+// grillhouse-bd7: by day a delay past is a red as any other (1), never « à repasser », whatever
+// the pressure; the witness, recorded before, gives `tests delai` under a pressure of 90 the 75.
+const aujourdhui = (v: Verdict): Verdict =>
+  v.commande === 'tests' && v.sorte === 'delai'
+    ? {
+        ...v,
+        code: 1,
+        taches: v.taches.map(t => (t.code === 75 ? { ...t, code: 1 } : t)),
+      }
+    : v;
 
 describe('grillhouse-3dr.2.1 — les verdicts comme avant', { timeout: 300_000 }, () => {
   it('the witness holds each verdict of the trials', () => {
@@ -54,7 +72,7 @@ describe('grillhouse-3dr.2.1 — les verdicts comme avant', { timeout: 300_000 }
       expect({
         ...v,
         ...verdictStable(d.racine, r.status, langageDe(d.racine).verdict(resultats)),
-      }).toEqual(v);
+      }).toEqual(aujourdhui(v));
     }
   );
 });

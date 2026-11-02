@@ -321,9 +321,23 @@ describe('critère 4 — the working directory of an integration and of a circui
             }
           }
           expect(groupe, `la séance du testwriter ${n} tourne`).toBeGreaterThan(0);
-          // The circuit itself, a daemon apart from its caller, which ends once it is gone.
+          // The circuit itself, a daemon apart from its caller; the caller ended at its first
+          // state, which gives it the hand back (grillhouse-pq6), so the test waits for the run to
+          // be gone before any sweep.
           process.kill(circuit, 'SIGKILL');
           await fin;
+          const vivant = () => {
+            try {
+              process.kill(circuit, 0);
+              return true;
+            } catch {
+              return false;
+            }
+          };
+          for (let i = 0; i < 300 && vivant(); i++) {
+            await new Promise(ok => setTimeout(ok, 100));
+          }
+          expect(vivant(), `le circuit ${circuit} est parti`).toBe(false);
           try {
             process.kill(-groupe, 'SIGKILL');
           } catch {

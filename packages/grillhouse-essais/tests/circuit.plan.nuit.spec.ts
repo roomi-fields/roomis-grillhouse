@@ -587,7 +587,8 @@ describe('critère 3 — the rounds, the survey played again and the referent ar
     expect(ARRETS).not.toHaveProperty('composants-manquants');
   });
 
-  it('the explorateur has three templates of its own: the plan, its one answer, and the tri', () => {
+  // The fourth, the mechanical gesture of a ticket its plan judges mechanical (grillhouse-sos).
+  it('the explorateur has four templates of its own: the plan, its one answer, the tri, and the mechanical gesture', () => {
     const gabarit = readFileSync(
       path.resolve(
         __dirname,
@@ -602,6 +603,7 @@ describe('critère 3 — the rounds, the survey played again and the referent ar
       'Explorateur, sur le plan (rempli par le circuit)',
       'Explorateur, sur les questions du plan (rempli par le circuit)',
       'Explorateur, sur le tri des découvertes (rempli par le circuit)',
+      'Explorateur, sur le geste mécanique (rempli par le circuit)',
     ]);
     for (const champ of ['ticket', 'titre', 'description', 'contexte']) {
       expect(blocs[0].texte, champ).toContain(`{{${champ}}}`);
@@ -609,5 +611,6 @@ describe('critère 3 — the rounds, the survey played again and the referent ar
     expect(blocs[0].texte).toContain('npx grillhouse composants-affectes {{ticket}}');
     expect(blocs[1].texte).toContain('{{questions}}');
     expect(blocs[1].texte).toContain('une seule fois');
+    expect(blocs[3].texte).toContain('{{commande}}');
   });
 });

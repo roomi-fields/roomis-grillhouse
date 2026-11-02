@@ -2,13 +2,7 @@ import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { enProcessus } from './cadre.js';
 import { sortie, ARRETS, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
-
-const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
-  'scripts/mesure/base-de-passe.mjs',
-  'ouvrirBaseDuTicket'
-);
 
 // grillhouse-527: a resumption of the circuit (scripts/circuit.mjs, `avantLaPasse`) prepares the
 // copy on the tip of main before it plays the checks again, by the one preparation of a copy
@@ -22,8 +16,6 @@ const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-pointe-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const { REPO, revenirAuDebut, ticket, scenario, circuit, sessions, etat, journal, gitRepo } =
   circuitEssai(ESSAIS);
-
-const IDS = ['demo-pointe-reprise', 'demo-pointe-conflit'];
 
 // A commit on the main of the trial that writes <contenu> in packages/forms/src/index.mjs.
 function surMain(contenu: string) {
@@ -51,14 +43,6 @@ describe.runIf(canWrap)(
   { timeout: 600_000 },
   () => {
     afterEach(revenirAuDebut);
-    // The temporary directory of each ticket, which its sessions get and which outlives them,
-    // as the frame names it (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), goes with
-    // the test.
-    afterEach(() => {
-      for (const id of IDS) {
-        rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
-      }
-    });
 
     it('critère 1: a copy behind main, resumed at 3.1, moves forward before its checks, which main’s fix turns green', () => {
       const id = 'demo-pointe-reprise';
