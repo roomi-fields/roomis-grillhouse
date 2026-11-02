@@ -51,10 +51,11 @@
 //     and the circuit refuses a sheet without a line for each element, or with a line on an
 //     element out of the list, a file the lot changes named alone or as `<fichier>#<nom>`
 //     (`conformiteDuLot`) (reviewer);
-//   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): after a review sent back, each finding
-//     before it judged on the difference of the lot, by its title (its number « Constat N — »
-//     recognised, `cleDuConstat`), which the circuit writes at the ticket with the verdict, for
-//     the human (reviewer);
+//   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): each finding still open judged on the
+//     lot, bounded or whole, by its title (its number « Constat N — » recognised, `cleDuConstat`),
+//     which the circuit writes at the ticket with the verdict, for the human; the circuit refuses
+//     a sheet without a line for one, or an ACCEPTÉ that holds one not lifted
+//     (`suiviDesConstats`) (reviewer);
 //   - `question`, with its `piece` (reviewer): what goes up to the owner, a real word of the
 //     language written in the code; the circuit stops at « besoin » before it commits or
 //     relaunches anyone;
@@ -425,7 +426,7 @@ const FICHES = {
           },
           ['titre', 'etat']
         ),
-        'Relecture bornée : chaque constat de la relecture d’avant, levé ou non.'
+        'Chaque constat encore ouvert, levé ou non, en relecture bornée comme entière.'
       ),
       question: texte(
         'Ce qui revient au responsable (par exemple un vrai mot du langage écrit en dur) : la question et ta recommandation ; le circuit s’arrête avant de commiter ou de relancer.'
@@ -616,6 +617,22 @@ export function reponsesAuxConstats(fiche, titres) {
   const sans = titres.filter(t => !repondus.has(t)).map(t => `« ${t} »`);
   if (!sans.length) return null;
   return `reponses : sans réponse ${sans.length > 1 ? 'aux constats' : 'au constat'} ${sans.join(', ')}`;
+}
+
+// What makes the reviewer's sheet <fiche> out of conformity with the findings still open (their
+// <titres>), as Gerrit carries each unresolved comment to the next patch set whatever the form of
+// the review: a finding without its line in `suivi` (by its title, numbered or not), or an ACCEPTÉ
+// that holds one not lifted. The fault, or null.
+export function suiviDesConstats(fiche, titres) {
+  const etats = new Map((fiche.suivi ?? []).map(s => [cleDuConstat(s.titre), s.etat]));
+  const liste = l => l.map(t => `« ${t} »`).join(', ');
+  const sans = titres.filter(t => !etats.has(t));
+  if (sans.length) {
+    return `suivi : sans ligne pour ${sans.length > 1 ? 'les constats' : 'le constat'} ${liste(sans)}`;
+  }
+  const tenus = fiche.verdict === 'ACCEPTÉ' ? titres.filter(t => etats.get(t) !== 'levé') : [];
+  if (!tenus.length) return null;
+  return `suivi : un ACCEPTÉ tient ${tenus.length > 1 ? 'les constats' : 'le constat'} ${liste(tenus)} non levé${tenus.length > 1 ? 's' : ''}`;
 }
 
 // What makes the sheet of the tri <fiche> out of conformity with the discoveries <decouvertes> of

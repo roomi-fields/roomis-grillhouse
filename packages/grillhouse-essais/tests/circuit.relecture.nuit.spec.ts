@@ -162,14 +162,28 @@ describe('the verdict the circuit writes at the ticket from the reviewer’s she
 
 describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
+  const TITRE = 'packages/forms/src/index.mjs';
+  // The line of `suivi` that judges the finding <titre> still open <etat> (grillhouse-527.1.1).
+  const suivi = (etat: 'levé' | 'non levé', titre = TITRE) => ({
+    titre,
+    etat,
+    preuve: 'la différence du lot.',
+  });
   // The reviewer's sheet RENDU whose one finding goes to <role> (none when null), or puts the
-  // criterion <critere> in question.
-  const rendu = (role: string | null, constat = 'mesure de 0 doit rendre 0.', critere?: string) => {
+  // criterion <critere> in question; after a RENDU, it judges the finding still open not lifted
+  // (<tenu>), as every review judges each one.
+  const rendu = (
+    role: string | null,
+    constat = 'mesure de 0 doit rendre 0.',
+    critere?: string,
+    tenu = false
+  ) => {
     const fiche = {
       verdict: 'RENDU',
+      ...(tenu ? { suivi: [suivi('non levé')] } : {}),
       constats: [
         {
-          titre: 'packages/forms/src/index.mjs',
+          titre: TITRE,
           genre: 'bloquant',
           regle: 'critère 1',
           ...(role ? { role } : {}),
@@ -182,6 +196,9 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     return `fiche '${JSON.stringify(fiche)}'\n`;
   };
   const accepte = `fiche '{"verdict":"ACCEPTÉ"}'\n`;
+  // The reviewer's sheet ACCEPTÉ after a RENDU: it judges the finding still open <titre> lifted.
+  const accepteLeve = (titre = TITRE) =>
+    `fiche '${JSON.stringify({ verdict: 'ACCEPTÉ', suivi: [suivi('levé', titre)] })}'\n`;
 
   it('ACCEPTÉ leads to the integration: one commit on agent/<ticket>, the branch in the queue', () => {
     const id = 'demo-accepte';
@@ -289,8 +306,8 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'RENDU 000-forms — constat traité.'\n`
     );
     scenario(id, 'relecteur-1', rendu('developpeur'));
-    scenario(id, 'relecteur-2', rendu('developpeur'));
-    scenario(id, 'relecteur-3', accepte);
+    scenario(id, 'relecteur-2', rendu('developpeur', undefined, undefined, true));
+    scenario(id, 'relecteur-3', accepteLeve());
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'relecteur')).toBe(3);
@@ -312,7 +329,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
     );
     scenario(id, 'relecteur-1', rendu('developpeur'));
-    scenario(id, 'relecteur-2', accepte);
+    scenario(id, 'relecteur-2', accepteLeve());
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // The verdict, written by the circuit from the reviewer's sheet, is at the ticket on several
@@ -388,7 +405,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     };
     scenario(id, 'developpeur-3', `fiche '${JSON.stringify(reponse)}'\n`);
     scenario(id, 'relecteur-1', rendu('developpeur'));
-    scenario(id, 'relecteur-2', accepte);
+    scenario(id, 'relecteur-2', accepteLeve());
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // The sheet without the answer is refused, the finding named, and asked again of the session.
@@ -404,6 +421,58 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     // The bounded review reads the answer under its finding.
     expect(essai(id, 'relecteur-2.prompt')).toMatch(
       /### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : developpeur\nmesure de 0 doit rendre 0\.\nPièce : packages\/forms\/src\/index\.mjs:1\nRéponse du développeur : contesté — le critère 1 demande ce comportement\.\nPièce de la réponse : packages\/forms\/src\/index\.mjs:1 rend la mesure\./
+    );
+    expect(ticketDe(id)).toMatchObject({ status: 'closed' });
+  });
+
+  // grillhouse-527.1.1, found by the reviewer of grillhouse-527.1: a whole review received no
+  // finding still open, and its ACCEPTÉ closed them all unchecked. As Gerrit carries the
+  // unresolved comments to each new patch set, every review judges each finding still open.
+  it('critère 1 et 2 — an ACCEPTÉ that does not judge a finding still open is refused, twice a stop; a whole review, its lot before gone, receives the finding and closes it lifted', () => {
+    const id = 'demo-relecture-entiere';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    scenario(
+      id,
+      'developpeur-2',
+      `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité.'\n`
+    );
+    scenario(id, 'relecteur-1', rendu('developpeur'));
+    // The bounded review accepts without judging the finding: refused, resumed once, the stop.
+    scenario(id, 'relecteur-2', accepte);
+    scenario(id, 'relecteur-3', accepte);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(ARRETS['sans-fiche']);
+    expect(sessions(id, 'relecteur')).toBe(3);
+    const faute = `suivi : sans ligne pour le constat « ${TITRE} »`;
+    expect(commentaires(id)).toContainEqual(
+      expect.stringContaining(`séance finie sans fiche conforme : fiche non conforme : ${faute}`)
+    );
+    expect(essai(id, 'relecteur-3.prompt')).toContain(faute);
+    const e = etat(id);
+    expect(e).toMatchObject({ etape: 'relecture', raison: 'sans-fiche' });
+    expect(e?.rapport).toContain(faute);
+    expect(e?.question).toMatchObject({ arret: 'sans-fiche', qui: 'superviseur' });
+    expect(e?.constats.map(c => c.titre)).toEqual([TITRE]);
+    expect(enFile()).not.toContain(`agent/${id}`);
+    // The lot the review before read leaves the repository (a review before without its base):
+    // the next review reads the whole lot, and receives the finding still open with the answer
+    // under it; the stand-in's sheet judges it lifted, and the lot goes to the queue.
+    gitRepo('reflog', 'expire', '--expire=now', '--all');
+    gitRepo('gc', '--quiet', '--prune=now');
+    const r2 = circuit([id, '--reprendre']);
+    expect(r2.status, sortie(r2)).toBe(0);
+    const entiere = essai(id, 'relecteur-4.prompt');
+    expect(entiere).toContain("LA RELECTURE D'AVANT : aucune différence à lire");
+    expect(entiere).not.toContain('- La différence : `git diff');
+    expect(entiere).toMatch(
+      /### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : developpeur\nmesure de 0 doit rendre 0\.\nPièce : packages\/forms\/src\/index\.mjs:1\nRéponse du développeur : levé/
+    );
+    expect(commentaires(id)).toContainEqual(
+      expect.stringMatching(
+        /^ACCEPTÉ\n\n## Constats d'avant\n\n- packages\/forms\/src\/index\.mjs : levé/
+      )
     );
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
   });
@@ -441,7 +510,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       ],
     };
     scenario(id, 'relecteur-1', `fiche '${JSON.stringify(fiche)}'\n`);
-    scenario(id, 'relecteur-2', accepte);
+    scenario(id, 'relecteur-2', accepteLeve('packages/forms/src/index.mjs:1'));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // The blocking finding relaunches its developpeur; the remark relaunches no testwriter.
@@ -485,7 +554,7 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
       `printf 'export const echelle = x => 3 * x;\\n' >> $c/src/index.mjs\npassation 'Echelle écrite.'\n`
     );
     scenario(id, 'relecteur-1', rendu('testwriter', 'echelle manque.'));
-    scenario(id, 'relecteur-2', accepte);
+    scenario(id, 'relecteur-2', accepteLeve());
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testwriter')).toBe(2);
@@ -565,7 +634,8 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure
       'developpeur',
       `echo $(( $(cat $c/tour 2>/dev/null || echo 0) + 1 )) > $c/tour\npassation 'Un tour.'\n`
     );
-    scenario(id, 'relecteur', rendu('developpeur'));
+    scenario(id, 'relecteur-1', rendu('developpeur'));
+    scenario(id, 'relecteur', rendu('developpeur', undefined, undefined, true));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(16);
     expect(sessions(id, 'relecteur')).toBe(3);

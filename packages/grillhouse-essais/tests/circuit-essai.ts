@@ -119,6 +119,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter, the same for a
 // developpeur with an answer `levé` to each finding its prompt carries (« ### Constat <n> — <titre> »),
+// `{"verdict":"ACCEPTÉ"}` for the relecteur with a line `levé` of `suivi` to each finding its
+// prompt carries,
 // `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), for the explorateur the plan
 // its ticket holds (the components of its title, no criterion added, no open question), or on the
 // schema of the tri a verdict `sans-suite` for each discovery its prompt lists, none for another role
@@ -178,6 +180,10 @@ case "$role" in
 const titres = [...process.argv[1].matchAll(/^### Constat \\d+ — (.+)$/gm)].map(m => m[1]);
 const reponses = titres.map(titre => ({ titre, etat: "levé", piece: "$ git diff\\nle correctif" }));
 console.log(JSON.stringify({ statut: "FAIT", ...(reponses.length ? { reponses } : {}) }));' "$prompt") ;;
+  relecteur) la_fiche=$(node -e '
+const titres = [...process.argv[1].matchAll(/^### Constat \\d+ — (.+)$/gm)].map(m => m[1]);
+const suivi = titres.map(titre => ({ titre, etat: "levé", preuve: "la différence du lot." }));
+console.log(JSON.stringify({ verdict: "ACCEPTÉ", ...(suivi.length ? { suivi } : {}) }));' "$prompt") ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
   explorateur) la_fiche=$(node -e '
 const [ticket, schema, prompt] = process.argv.slice(1);
@@ -551,7 +557,6 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
     const copie = path.join(REPO, '.claude/worktrees', id);
     execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${id}`, copie]);
     symlinkSync(path.join(RACINE, 'node_modules'), path.join(copie, 'node_modules'), 'dir');
-    scenario(id, 'relecteur', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
     return copie;
   }
 

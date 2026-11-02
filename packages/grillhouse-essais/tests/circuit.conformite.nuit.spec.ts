@@ -108,9 +108,15 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
         conformite: [ligne('non', { role: 'developpeur' }), unite],
       })
     );
-    // The line of unite left out: refused, the session resumed once.
-    scenario(id, 'relecteur-2', fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui')] }));
-    scenario(id, 'relecteur-3', fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui'), unite] }));
+    // The finding still open judged lifted (grillhouse-527.1.1); the line of unite left out:
+    // refused, the session resumed once.
+    const suivi = [{ titre: MESURE, etat: 'levé', preuve: 'la différence du lot.' }];
+    scenario(id, 'relecteur-2', fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui')], suivi }));
+    scenario(
+      id,
+      'relecteur-3',
+      fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui'), unite], suivi })
+    );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'developpeur')).toBe(2);
@@ -188,7 +194,14 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
     scenario(
       id,
       'relecteur-2',
-      `${surMain('packages/binder/src/index.mjs', 'export const mesure = x => x;\n// main\n')}${fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui'), unite] })}`
+      `${surMain('packages/binder/src/index.mjs', 'export const mesure = x => x;\n// main\n')}${fiche(
+        {
+          verdict: 'ACCEPTÉ',
+          conformite: [ligne('oui'), unite],
+          // The finding still open judged lifted (grillhouse-527.1.1).
+          suivi: [{ titre: MESURE, etat: 'levé', preuve: 'la différence du lot.' }],
+        }
+      )}`
     );
     const r = circuit([id]);
     // The bounded review: the difference it names holds the fix, not main's line in unite.

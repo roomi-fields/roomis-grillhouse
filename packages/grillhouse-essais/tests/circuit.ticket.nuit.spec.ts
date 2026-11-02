@@ -213,7 +213,26 @@ describe.runIf(canWrap)(
           ],
         })}'\n`
       );
-      scenario(id, 'relecteur', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
+      // The review after it judges each finding still open lifted (grillhouse-527.1.1).
+      scenario(
+        id,
+        'relecteur',
+        `fiche '${JSON.stringify({
+          verdict: 'ACCEPTÉ',
+          suivi: [
+            {
+              titre: 'packages/forms/src/index.mjs:1 — exemplar reste',
+              etat: 'levé',
+              preuve: 'la différence du lot.',
+            },
+            {
+              titre: 'packages/forms/test/mesure.test.mjs:3 — le cas de zéro manque',
+              etat: 'levé',
+              preuve: 'la différence du lot.',
+            },
+          ],
+        })}'\n`
+      );
       const r2 = circuit([id, '--depuis', 'testwriter', '--contexte', 'Le zéro est mesuré.']);
       expect(r2.status, sortie(r2)).toBe(0);
       expect(essai(id, 'testwriter-5.prompt')).toContain('le cas de zéro manque');
@@ -247,7 +266,20 @@ describe.runIf(canWrap)(
           ],
         })}'\n`
       );
-      scenario(id, 'relecteur', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
+      scenario(
+        id,
+        'relecteur',
+        `fiche '${JSON.stringify({
+          verdict: 'ACCEPTÉ',
+          suivi: [
+            {
+              titre: 'packages/binder/src/index.mjs:1 — un nom flou',
+              etat: 'levé',
+              preuve: 'la différence du lot.',
+            },
+          ],
+        })}'\n`
+      );
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(0);
       expect(ordre(id)).toEqual([
@@ -261,8 +293,9 @@ describe.runIf(canWrap)(
     });
 
     // The findings carried from one RENDU to the next, as the threads of a review: a thread the
-    // next review resolves closes, one it does not restate stays open, a new one opens.
-    it('critère 2 — from one RENDU to the next, a finding lifted closes, one not restated stays open, a new one joins it', () => {
+    // next review resolves closes, one it judges not lifted stays open without being restated, a
+    // new one opens.
+    it('critère 2 — from one RENDU to the next, a finding lifted closes, one not lifted stays open unrestated, a new one joins it', () => {
       const id = 'demo-ticket-deux-rendus';
       ticket(id, '000-forms');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -296,7 +329,10 @@ describe.runIf(canWrap)(
         'relecteur-2',
         `fiche '${JSON.stringify({
           verdict: 'RENDU',
-          suivi: [{ titre: constat('A').titre, etat: 'levé', preuve: 'A est traité.' }],
+          suivi: [
+            { titre: constat('A').titre, etat: 'levé', preuve: 'A est traité.' },
+            { titre: constat('B').titre, etat: 'non levé', preuve: 'B reste.' },
+          ],
           constats: [constat('C')],
         })}'\n`
       );

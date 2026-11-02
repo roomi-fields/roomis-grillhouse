@@ -89,6 +89,16 @@ les constats d'avant, chacun avec la réponse du développeur sous lui (« Répo
 Tu joues toujours toutes les gardes sur la copie. Sans « LA RELECTURE D'AVANT », tu relis le lot
 entier.
 
+## La relecture entière
+
+Quand ta consigne porte « LA RELECTURE D'AVANT : aucune différence à lire » avec des constats
+(le rejeu du lot en conflit, une relecture d'avant sans sa base), tu relis le lot entier et tu
+juges chaque constat encore ouvert dans `suivi`, comme Gerrit reporte chaque commentaire non
+résolu sur le jeu de correctifs suivant : `levé` ou `non levé`, sa preuve tirée du lot. Un
+constat non levé revient dans `constats`, bloquant, au même destinataire. Le circuit refuse une
+fiche sans ligne de `suivi` pour un constat ouvert, et un ACCEPTÉ qui en tient un non levé. Ainsi
+un ACCEPTÉ ne ferme que des constats vérifiés.
+
 ## Un lot mécanique
 
 Quand la description porte « ## Sorte » mécanique, le lot est la sortie de la commande que le plan
@@ -181,7 +191,7 @@ Ainsi un ticket répond de ce qu'il ajoute, et l'existant reste à sa dette.
 **Chaque constat bloquant nomme son agent** : `role` `testwriter` quand le constat vise un test
 qui manque ou qui ne mord pas, `developpeur` quand il vise le code. Le circuit va droit à cet agent,
 une séance pour tout le ticket, et le constat reste ouvert d'une relance à l'autre jusqu'à ce que
-ton `suivi` le dise levé ou que tu acceptes le lot. Un constat qui met en cause le
+ton `suivi` le dise levé. Un constat qui met en cause le
 critère lui-même, et non le lot, porte à la place `critere_en_cause` (son numéro) : le circuit
 s'arrête, et la question monte au superviseur. Ainsi chaque constat arrive à l'agent qui le corrige.
 

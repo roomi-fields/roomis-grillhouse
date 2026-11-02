@@ -690,6 +690,7 @@ import {
   RESULTATS,
   schemaDeFiche,
   sorteDuPlan,
+  suiviDesConstats,
   VERDICTS_DU_TRI,
   VERDICTS_ROUVERTS,
 } from './resultats.mjs';
@@ -1794,7 +1795,9 @@ async function relire(ctx) {
   const precedents = fichesDe(ctx, 'relecteur').length;
   const { avant, depuis, lot } = leLotGarde(ctx);
   let lus = { tests, code };
-  let precedente = 'aucune : tu relis le lot entier';
+  // The findings still open go to every review, bounded or whole.
+  const ouvertsALaRelecture = (ctx.constats ?? []).map(c => c.titre);
+  let precedente = relectureEntiere(ctx.constats ?? []);
   if (avant && depuis && lot) {
     const dansLeLot = new Set([...tests, ...code, ...(avant.lot.fichiers ?? [])]);
     const changes = differenceDesLots(ctx, depuis, lot.commit).filter(f => dansLeLot.has(f));
@@ -1856,12 +1859,32 @@ async function relire(ctx) {
     horsEnveloppe: true,
     droits: horsDeLEnveloppe(ctx, 'relecteur', 'opus'),
     avec: lot ? { lot: { ...lot, fichiers: [...tests, ...code] } } : {},
-    valider: f => conformiteDuLot(f, liste),
+    // Every review judges the findings still open, bounded or whole (`suiviDesConstats`).
+    valider: f =>
+      [conformiteDuLot(f, liste), suiviDesConstats(f, ouvertsALaRelecture)]
+        .filter(Boolean)
+        .join(' ; ') || null,
   });
   const texte = texteDuVerdict(fiche);
   const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
   if (r.status !== 0) process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
   return { verdict: fiche.verdict, fiche, texte, arbre: lot?.arbre ?? null };
+}
+
+// The line « LA RELECTURE D'AVANT » of a whole review (no review before, the replay of the lot in
+// conflict, or a review before without its base): with the findings <constats> still open, each
+// with its recipient and the developpeur's answer under it, which it judges lifted or not in
+// `suivi`, as Gerrit carries the unresolved comments to each new patch set whatever the form of
+// the review.
+export function relectureEntiere(constats) {
+  if (!constats.length) return 'aucune : tu relis le lot entier';
+  return [
+    'aucune différence à lire : tu relis le lot entier, et tu juges chaque constat bloquant qui reste ouvert, levé ou non levé, dans `suivi`, selon ta compétence (« La relecture entière ») ; chacun, avec son destinataire :',
+    '',
+    ...lignesDesConstats(constats),
+  ]
+    .join('\n')
+    .trim();
 }
 
 // The elements of the lot <liste> (`elementsDuLot` of the module of language) as the reviewer's instruction
@@ -4283,7 +4306,8 @@ async function derouler(ctx, debut) {
           );
         }
         if (v.verdict === 'ACCEPTÉ') {
-          // The review that accepts the lot closes every finding.
+          // The review that accepts the lot closes every finding, each one it judged lifted
+          // (`suiviDesConstats`).
           ctx.constats = [];
         }
         if (v.verdict === 'ACCEPTÉ' && (!v.arbre || ctx.verifie === v.arbre)) {

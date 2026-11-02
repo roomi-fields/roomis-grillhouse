@@ -338,7 +338,12 @@ file de fusion juge le dernier essai des vérifications : un rejeu vert (`gh run
 testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » sans un fichier changé, les contrôles de la copie
 verts, l'intégration rouge sur le même lot). Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
-levé ou accepte le lot. Comme une CI échoue vite sur une étape qu'elle ne peut pas jouer, un
+levé. Comme Gerrit reporte les commentaires non résolus sur chaque jeu de correctifs, toute
+relecture reçoit les constats encore ouverts, bornée ou entière (le rejeu du lot en conflit, une
+relecture d'avant sans sa base : `relectureEntiere`), et juge chacun levé ou non levé dans
+`suivi` ; le circuit refuse une fiche sans ligne pour l'un d'eux, ou un ACCEPTÉ qui en tient un
+non levé (`suiviDesConstats`). Ainsi un ACCEPTÉ ne ferme que des constats vérifiés
+(grillhouse-527.1.1). Comme une CI échoue vite sur une étape qu'elle ne peut pas jouer, un
 `RENDU` dont un constat va au testwriter quand le plan le saute (aucun paquet du plan ne joue de
 tests) arrête le circuit dès ce verdict, en `relecture-arret`, sans relancer ni le testwriter, ni
 le développeur, ni les contrôles ; la question au superviseur nomme le constat et le plan :

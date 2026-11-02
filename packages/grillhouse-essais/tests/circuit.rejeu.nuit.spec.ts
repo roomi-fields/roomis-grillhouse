@@ -34,7 +34,13 @@ const {
 } = circuitEssai(ESSAIS, { feuille: true });
 
 const TROIS = '000-forms, 030-binder, 060-sheet';
-const accepte = `fiche '{"verdict":"ACCEPTÉ"}'\n`;
+// The reviewer's sheet ACCEPTÉ after a RENDU, which judges each finding still open, by its
+// <titres>, lifted (grillhouse-527.1.1).
+const accepte = (...titres: string[]) =>
+  `fiche '${JSON.stringify({
+    verdict: 'ACCEPTÉ',
+    suivi: titres.map(titre => ({ titre, etat: 'levé', preuve: 'la différence du lot.' })),
+  })}'\n`;
 // The reviewer's sheet RENDU whose findings go each to its agent.
 const rendu = (...constats: [string, string, string][]) =>
   `fiche '${JSON.stringify({
@@ -81,7 +87,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
       'relecteur-1',
       rendu(['developpeur', 'packages/forms/src/index.mjs', 'mesure de 0 doit rendre 0.'])
     );
-    scenario(id, 'relecteur-2', accepte);
+    scenario(id, 'relecteur-2', accepte('packages/forms/src/index.mjs'));
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // The developpeur of the ticket again, no testwriter.
@@ -185,7 +191,11 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
 `
     );
     scenario(id, 'developpeur-3', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
-    scenario(id, 'relecteur-2', accepte);
+    scenario(
+      id,
+      'relecteur-2',
+      accepte('packages/forms/src/index.mjs', 'packages/sheet/src/index.mjs')
+    );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id).slice(3)).toEqual(['developpeur', 'testwriter', 'developpeur', 'relecteur']);
@@ -274,7 +284,11 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
         ['developpeur', 'packages/forms/src/index.mjs:1', 'Le commentaire manque.']
       )
     );
-    scenario(id, 'relecteur-2', accepte);
+    scenario(
+      id,
+      'relecteur-2',
+      accepte('packages/forms/test/mesure.test.mjs', 'packages/forms/src/index.mjs:1')
+    );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'developpeur')).toBe(2);

@@ -56,7 +56,17 @@ describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, ()
       'relecteur-1',
       `fiche '{"verdict":"RENDU","constats":[{"titre":"packages/forms/test/mesure.test.mjs","genre":"bloquant","regle":"critère 1","role":"testwriter","corps":"Constat adressé au testwriter.","piece":"packages/forms/test/mesure.test.mjs:1"},{"titre":"packages/binder/src/index.mjs","genre":"bloquant","regle":"critère 1","role":"developpeur","corps":"Constat adressé au développeur.","piece":"packages/binder/src/index.mjs:1"}]}'\n`
     );
-    scenario(id, 'relecteur-2', `fiche '{"verdict":"ACCEPTÉ"}'\n`);
+    // It judges each finding still open lifted (grillhouse-527.1.1).
+    scenario(
+      id,
+      'relecteur-2',
+      `fiche '${JSON.stringify({
+        verdict: 'ACCEPTÉ',
+        suivi: ['packages/forms/test/mesure.test.mjs', 'packages/binder/src/index.mjs'].map(
+          titre => ({ titre, etat: 'levé', preuve: 'la différence du lot.' })
+        ),
+      })}'\n`
+    );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual([
