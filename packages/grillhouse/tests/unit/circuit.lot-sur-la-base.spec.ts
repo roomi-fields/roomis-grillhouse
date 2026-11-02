@@ -14,11 +14,26 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { laPasseFinale, leLotAccepte, leLotGarde } from '../../scripts/circuit.mjs';
+import * as circuit from '../../scripts/circuit.mjs';
 import { avancer } from '../../scripts/enveloppe/travail-de-la-copie.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-lot-base-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+
+interface Lot {
+  commit: string;
+  arbre: string;
+}
+const leLotGarde = circuit.leLotGarde as (ctx: object) => {
+  avant: unknown;
+  depuis: string | null;
+  lot: Lot | null;
+};
+const laPasseFinale = circuit.laPasseFinale as (ctx: object) => {
+  arbre: string;
+  restreinte: { avant: string; apres: string } | null;
+};
+const leLotAccepte = circuit.leLotAccepte as (ctx: object, arbre: string) => boolean;
 
 const git = (dossier: string, ...args: string[]) => {
   const r = spawnSync('git', ['-C', dossier, ...args], { encoding: 'utf8' });
@@ -59,7 +74,9 @@ function depot() {
     writeFileSync(path.join(racine, fichier), contenu);
     git(racine, 'commit', '-qam', `main ${fichier}`);
     const r = avancer(copie, git(racine, 'rev-parse', 'HEAD'));
-    if (!r.ok) throw new Error(r.message);
+    if (!r.ok) {
+      throw new Error(r.message);
+    }
   };
   // A review of the lot as it stands, its verdict <verdict>, inscribed as the circuit does.
   const relu = (verdict: string, fichiers: string[]) => {
