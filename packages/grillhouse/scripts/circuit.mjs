@@ -845,6 +845,47 @@ class Arret extends Error {
 // A malformed call: its message.
 class Usage extends Error {}
 
+// The stop « inattendu » of the exception <erreur> fallen at the step <etape> of the circuit of
+// <ctx>: `{ code, nom, rapport, piece, question }`. As a scheduler writes a job's error as a
+// result with its log (Zuul, Buildbot, GitLab CI) and does not die of it, the circuit ends on a
+// written stop whose question carries the message, the stack, the step and the command that
+// resumes. Only the supervisor resumes, once the cause is lifted.
+export function arretInattendu(ctx, erreur, etape) {
+  const message = String(erreur?.message ?? erreur);
+  const pile = String(erreur?.stack ?? message);
+  const reprise = `npx grillhouse circuit ${ctx.ticket} --reprendre`;
+  return {
+    code: ARRETS.inattendu,
+    nom: 'inattendu',
+    rapport: message,
+    piece: `${message}\n${pile}`,
+    question: `Une exception inattendue est tombée à l'étape « ${etape} » : ${message}\n\nPile :\n${pile}\n\nLa commande qui reprend, une fois la cause levée : \`${reprise}\`.`,
+  };
+}
+
+// The red of the reading of the copy <ctx.copie> right after a session of the testwriter or the
+// developpeur: the module of the language (`langageDe`, the common call) no longer reads its
+// components (cargo metadata red), so the copy that agent left is a red build handed back to him
+// with the tool's output, or null when the copy reads. The place makes the red, not the error: a
+// reading that fails anywhere else is the stop « inattendu ».
+export function rougeDeLecture(ctx) {
+  try {
+    composantsDe(ctx.copie);
+    return null;
+  } catch (e) {
+    return {
+      rapport: `La copie ne se lit plus : le module de langage ne lit pas ses composants.\n\n${sansCouleurs(e?.message ?? e)}`,
+    };
+  }
+}
+
+// What follows that red after the session <tentative> of <role>: the agent again, one attempt
+// used as a red build uses it, or, the attempts used up, the stop « controles » as the red checks.
+export function suiteDuRougeDeLecture(role, tentative) {
+  const max = boucle(role === 'testwriter' ? 'tests' : 'code').max;
+  return tentative < max ? { etape: role, tentative: tentative + 1 } : { arret: 'controles' };
+}
+
 const sansCouleurs = t => stripVTControlCharacters(String(t ?? ''));
 const premiereLigne = t => sansCouleurs(t).trim().split('\n')[0].slice(0, 300);
 const fin = (t, n) => sansCouleurs(t).split('\n').slice(-n).join('\n');
@@ -3921,6 +3962,21 @@ async function derouler(ctx, debut) {
         // No checks have run since this session.
         ctx.controlesRouges = null;
         commenter(ctx, 'testwriter', `séance ${tentative} finie, sa fiche lue.`);
+        // A copy the module of the language no longer reads is a red of the testwriter.
+        const illisible = rougeDeLecture(ctx);
+        if (illisible) {
+          const suite = suiteDuRougeDeLecture('testwriter', tentative);
+          if (suite.arret) throw new Arret(suite.arret, illisible.rapport);
+          commenter(
+            ctx,
+            'testwriter',
+            `la copie ne se lit plus ; testwriter relancé (séance ${suite.tentative}).\n\n${illisible.rapport}`
+          );
+          etape = TESTS;
+          tentative = suite.tentative;
+          rapport = illisible.rapport;
+          continue;
+        }
         etape = PREUVE;
       } else if (etape === PREUVE) {
         const p = preuve(ctx);
@@ -4006,6 +4062,20 @@ async function derouler(ctx, debut) {
           throw arretDuStatut(ctx, 'developpeur', tentative, fiche);
         }
         if (fiche.hors_plan?.length) throw arretHorsDuPlan(ctx, tentative, fiche);
+        // A copy the module of the language no longer reads is a red of the developpeur.
+        const illisible = rougeDeLecture(ctx);
+        if (illisible) {
+          const suite = suiteDuRougeDeLecture('developpeur', tentative);
+          if (suite.arret) throw new Arret(suite.arret, illisible.rapport);
+          commenter(
+            ctx,
+            'developpeur',
+            `séance ${tentative} finie ; la copie ne se lit plus, développeur relancé (séance ${suite.tentative}).\n\n${illisible.rapport}`
+          );
+          tentative = suite.tentative;
+          rapport = illisible.rapport;
+          continue;
+        }
         const inchangee = empreinte(ctx) === avant;
         if (inchangee && ctx.refus?.lance && ctx.refus.empreinte === avant) {
           // The lot the integration refused, unchanged: as a merge queue lets a lot pass again only
@@ -4385,8 +4455,14 @@ async function derouler(ctx, debut) {
       } else {
         throw new Usage(`étape inconnue dans l'état : ${etape}`);
       }
-    } catch (e) {
-      if (!(e instanceof Arret)) throw e;
+    } catch (erreur) {
+      // Any exception but a malformed call ends on the stop « inattendu », at the step it fell.
+      if (erreur instanceof Usage) throw erreur;
+      let e = erreur;
+      if (!(e instanceof Arret)) {
+        const a = arretInattendu(ctx, e, etape);
+        e = new Arret(a.nom, a.rapport, { piece: a.piece, question: a.question });
+      }
       const code = ARRETS[e.nom];
       const lieu = e.etape ?? etape;
       const arrete = { ...etat, etape: lieu };
@@ -5185,8 +5261,11 @@ function etendre(ctx, e) {
 
 export async function main(argv) {
   let ctx = null;
+  let o = null;
+  // The state of the step the run was at when an exception falls before `derouler` takes over.
+  let avantLeDepart = null;
   try {
-    const o = lireArguments(argv);
+    o = lireArguments(argv);
     if (o.rattacher) {
       const dossier = path.join(arbrePrincipal(), '.claude', 'worktrees');
       return await rattacher({
@@ -5197,6 +5276,7 @@ export async function main(argv) {
     ctx = contexte(o);
     mkdirSync(path.dirname(ctx.copie), { recursive: true });
     let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
+    avantLeDepart = e;
     // The findings of the reviewer still open, the lot the whole final pass verified, the session a
     // relaunch resumes, the references a regeneration has to run, the integration's refusal of
     // the lot, and the red output of the last checks, kept from one run to the next.
@@ -5279,7 +5359,7 @@ export async function main(argv) {
     ctx.sorte = sorteDuTicket(ctx);
     return aLaFin(ctx, await conduire(ctx, d));
   } catch (e) {
-    if (!(e instanceof Usage)) throw e;
+    if (!(e instanceof Usage)) return arreterSurLInattendu(ctx, o, e, avantLeDepart);
     process.stderr.write(
       `usage: npx grillhouse circuit <ticket> [--reprendre | --depuis <testwriter|developpeur>] [--contexte <texte>] | --etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>] | --rattacher\n⛔ ${e.message}\n`
     );
@@ -5287,6 +5367,65 @@ export async function main(argv) {
   } finally {
     ctx?.base.fermer();
   }
+}
+
+// The unexpected exception <erreur> of a run (a reading of the copy before the first session, a
+// state or a comment unreadable, any bug) ended on the stop « inattendu », written to the state at
+// the step the run was at (<etat> before the start, else the step it had reached), its question
+// to the supervisor, said at the ticket. A run whose context could not be built (the reading of
+// the copy that fails is the very cause) writes the stop to the ticket's state all the same. The
+// circuit never resumes alone: the stop stands until the supervisor's `--reprendre`. Its exit code.
+function arreterSurLInattendu(ctx, o, erreur, etat) {
+  let c = ctx;
+  if (!c) {
+    if (!o?.ticket) throw erreur;
+    const racine = arbrePrincipal();
+    const copie = path.join(racine, '.claude', 'worktrees', o.ticket);
+    mkdirSync(path.dirname(copie), { recursive: true });
+    const bd = (...a) =>
+      spawnSync('bd', a, {
+        cwd: racine,
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        env: { ...process.env, [ACTEUR]: AUTEUR_DU_CIRCUIT },
+      });
+    const fichier = `${copie}.circuit.json`;
+    // The state on disk is read first: the stop keeps what the state carries from one run to the
+    // next (the open findings, the verified lot, the refusal, the red checks).
+    if (!etat && existsSync(fichier)) {
+      try {
+        etat = JSON.parse(readFileSync(fichier, 'utf8'));
+      } catch {
+        // an unreadable state: the stop below replaces it
+      }
+    }
+    c = {
+      ...o,
+      racine,
+      copie,
+      bd,
+      etat: fichier,
+      journal: `${copie}.log`,
+      fiches: `${copie}.fiches.jsonl`,
+      paquets: etat?.paquets ?? [],
+      constats: [...(etat?.constats ?? [])],
+      verifie: etat?.verifie ?? null,
+      reprise: etat?.reprise ?? null,
+      aRegenerer: etat?.aRegenerer ?? null,
+      refus: etat?.refus ?? null,
+      controlesRouges: etat?.controlesRouges ?? null,
+    };
+  }
+  const lieu = c.courant ?? etat ?? { etape: TESTS, tentative: 1, rapport: null, finale: false };
+  const a = arretInattendu(c, erreur, lieu.etape);
+  const arrete = {
+    etape: lieu.etape,
+    tentative: lieu.tentative ?? 1,
+    finale: lieu.finale === true,
+    rapport: lieu.rapport ?? null,
+    seance: null,
+  };
+  return aLaFin(c, monter(c, { ...a, etat: arrete }));
 }
 
 // The entry: the run as a daemon (scripts/demon.mjs), apart from its caller, in a unit named after

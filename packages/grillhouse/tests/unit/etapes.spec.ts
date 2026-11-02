@@ -209,6 +209,7 @@ describe('the stops of the circuit, each with its exit code', () => {
       questionnement: 22,
       references: 23,
       'hors-plan': 24,
+      inattendu: 25,
       'a-repasser': 75,
     });
   });

@@ -63,6 +63,20 @@ les frontières de modules de Nx, la règle refuse et le code reste lisible ; co
 lit ce dont il a besoin, et les gardes tiennent l'architecture (BP 320.9 : la lecture cloisonnée
 causait l'essentiel des pertes).
 
+**Une exception inattendue arrête le circuit par écrit** : comme un ordonnanceur ne meurt pas d'une
+tâche (Zuul, Buildbot, GitLab CI écrivent l'erreur d'un job comme un résultat « erreur » avec son
+journal), toute exception que le circuit ne prévoit pas (hors `Arret` et hors un appel mal formé)
+finit sur l'arrêt `inattendu` (code 25) : l'état final porte `code` et `raison`, l'étape reste celle
+où l'exception est tombée, l'arrêt est commenté au ticket, et la question au superviseur porte le
+message, la pile, l'étape et la commande qui reprend (`npx grillhouse circuit <ticket> --reprendre`).
+Il vaut avant la première séance, `--reprendre` compris, même quand le contexte ne se construit pas
+(la lecture de la copie qui échoue). Le circuit ne se relance jamais seul : si la cause persiste,
+`--reprendre` écrit de nouveau le même arrêt. La frontière tient à l'endroit : la lecture de la
+copie que fait le circuit juste après la séance du testwriter ou du développeur (`rougeDeLecture`,
+par l'appel commun du module de langage, `langageDe`, quel que soit le langage) est un rouge rendu
+à cet agent avec la sortie de l'outil, qui consomme une tentative comme une construction rouge et,
+les tentatives épuisées, monte à `controles` ; toute autre lecture qui échoue est `inattendu`.
+
 **Les outils du projet se déclarent** : comme Bazel déclare ce qu'une action voit hors de son bac
 à sable (`--sandbox_add_mount_pair`) et l'environnement qu'elle reçoit (`--action_env`), un projet
 déclare ses outils hors du dépôt dans `grillhouse.outils` de son `package.json`

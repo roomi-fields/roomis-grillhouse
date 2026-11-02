@@ -136,6 +136,7 @@ export const ARRETS = {
   questionnement: 22,
   references: 23,
   'hors-plan': 24,
+  inattendu: 25,
   'a-repasser': A_REPASSER,
 };
 
@@ -276,6 +277,8 @@ export const MONTEES = Object.fromEntries(
       'La régénération des références change un fichier qu’aucune référence n’écrit, ou sa commande échoue (ses écarts ci-dessus) : qui corrige la référence ou le lot ?',
     'hors-plan':
       'La séance écrit hors du plan du ticket : le plan s’étend-il à ce paquet (`--etendre`), ou l’écriture est-elle refusée (`--reprendre` avec son contexte) ?',
+    inattendu:
+      'Une exception que le circuit ne prévoit pas (une lecture de la copie, une commande, un fichier illisible) l’a arrêté : sa cause se lève-t-elle, pour reprendre (`--reprendre`, qui écrit de nouveau cet arrêt si la cause reste), ou le circuit s’arrête-t-il ?',
   }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])
 );
 

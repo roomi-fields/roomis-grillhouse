@@ -104,6 +104,16 @@ const crate = d => {
     for (const [nom, v] of Object.entries(m[table] ?? {})) {
       const duTout = v && v.workspace === true;
       const w = duTout ? tete.workspace?.dependencies?.[nom] : v;
+      if (duTout && w === undefined) {
+        // As cargo refuses a dependency \`.workspace = true\` that the root does not declare
+        // (grillhouse-f24): code 101, the cause on its last line.
+        process.stderr.write(
+          'error: failed to parse manifest at \`' + path.join(d, 'Cargo.toml') + '\`\\n\\n' +
+          'Caused by:\\n  error inheriting \`' + nom + '\` from workspace root manifest\\'s \`workspace.dependencies.' + nom + '\`\\n\\n' +
+          'Caused by:\\n  \`dependency.' + nom + '\` was not found in \`workspace.dependencies\`\\n'
+        );
+        process.exit(101);
+      }
       const p = w && typeof w === 'object' && w.path ? path.resolve(duTout ? racine : d, w.path) : undefined;
       deps.push({ name: nom, kind, path: p, rename: null });
     }
