@@ -33,7 +33,8 @@ import {
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'sous-modules-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { ENV_SCRIPTS, mondePartage, pathSansBwrap, pathBwrapRefuse } = sousModulesEssai(ESSAIS);
+const { ENV_SCRIPTS, mondePartage, pathSansBwrap, pathBwrapRefuse, unTicket } =
+  sousModulesEssai(ESSAIS);
 
 const RETIRER = path.join(SCRIPTS, 'retirer-copie.sh');
 
@@ -154,16 +155,20 @@ echo "agent $s $c $lu" >> packages/a/ecritures.log
       mkdirSync(path.join(maison, '.claude/projects'), { recursive: true });
       writeFileSync(path.join(maison, '.claude/settings.json'), '{}');
       writeFileSync(path.join(maison, '.claude.json'), '{}');
-      const r = spawnSync('bash', [LANCER, 'demo-1', 'developpeur', 'packages/a', consigne], {
-        cwd: m.repo,
-        encoding: 'utf8',
-        env: {
-          ...ENV_SCRIPTS,
-          HOME: maison,
-          PATH: `${m.bin}:${process.env.PATH}`,
-          CLAUDE_BIN: path.join(m.copies.agent, 'agent.sh'),
-        },
-      });
+      const r = spawnSync(
+        'bash',
+        [LANCER, unTicket('demo-1'), 'developpeur', 'packages/a', consigne],
+        {
+          cwd: m.repo,
+          encoding: 'utf8',
+          env: {
+            ...ENV_SCRIPTS,
+            HOME: maison,
+            PATH: `${m.bin}:${process.env.PATH}`,
+            CLAUDE_BIN: path.join(m.copies.agent, 'agent.sh'),
+          },
+        }
+      );
       expect(r.status, r.stderr + readFileSync(`${m.copies.agent}.log`, 'utf8')).toBe(0);
       expect(m.ecrituresDe(path.join(m.copies.agent, 'packages/a'))).toEqual(['agent refus ok v1']);
       expect(m.intrus()).toEqual([]);

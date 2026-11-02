@@ -16,6 +16,7 @@ import {
 import path from 'node:path';
 import { configGit, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { CADRE } from './cadre.js';
+import { retirerLesTicketsALaFin } from './enveloppe-essai.js';
 
 // The trial harness of the submodules of the working copies (scripts/sous-modules.sh), shared by
 // their tests (sous-modules*.nuit.spec.ts): the frame's scripts, git's environment, and the
@@ -116,6 +117,9 @@ export function sousModulesEssai(ESSAIS: string) {
     GIT_COMMITTER_NAME: 't',
     GIT_COMMITTER_EMAIL: 't@t',
   };
+  // The tickets the file launches, whose temporary directories go at the end (grillhouse-527.2):
+  // each one `lancer` launches, and each one a test launches itself, recorded by `unTicket`.
+  const unTicket = retirerLesTicketsALaFin();
   // git as the scripts see it: no allowance from the environment of the test.
   const gitScripts = (dir: string, ...a: string[]) =>
     spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: ENV_SCRIPTS });
@@ -235,7 +239,7 @@ export function sousModulesEssai(ESSAIS: string) {
     const lancer = (ticket = 'demo-1') => {
       const c = ticket === 'demo-1' ? consigne : path.join(bin, `consigne-${ticket}.txt`);
       writeFileSync(c, `TON TICKET : ${ticket} — un sujet.`);
-      return spawnSync('bash', [LANCER, ticket, 'developpeur', 'packages/a', c], {
+      return spawnSync('bash', [LANCER, unTicket(ticket), 'developpeur', 'packages/a', c], {
         cwd: repo,
         encoding: 'utf8',
         env: { ...env, CLAUDE_BIN: 'true' },
@@ -450,6 +454,7 @@ export function sousModulesEssai(ESSAIS: string) {
   return {
     CONFIG_GLOBALE,
     ENV_SCRIPTS,
+    unTicket,
     gitScripts,
     monde,
     mondePartage,

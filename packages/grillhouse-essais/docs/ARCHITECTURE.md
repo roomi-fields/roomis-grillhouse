@@ -48,7 +48,8 @@ packages/grillhouse-essais ──(processus : node <script>, grillhouse <command
 - `tests/sous-modules-essai.ts` : les mondes d'essai des sous-modules (`sous-modules*.nuit.spec.ts`).
 - `tests/enveloppe-essai.ts` : l'enveloppe du cadre et le projet que prépare le lanceur d'un agent
   (`enveloppe*.nuit.spec.ts`, `lancer-modele*.nuit.spec.ts`), et le retrait, en fin de fichier,
-  du dossier temporaire de chacun de ses tickets (`retirerLesTicketsALaFin`).
+  du dossier temporaire de chacun de ses tickets (`retirerLesTicketsALaFin`), que prennent aussi
+  les mondes des sous-modules et `commandes-en-enveloppe.nuit.spec.ts`.
 - La matière que ces tests partagent avec ceux du cadre vient de
   `@roomi-fields/grillhouse-matiere/test-fixtures` : les projets d'essai de la nuit
   (`testsDeNuitEssai`, le dépôt et sa mise à jour passés par l'appelant), le langage d'un projet
