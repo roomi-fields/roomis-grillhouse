@@ -1,13 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   canWrap,
   racineSousLaMaison,
   declarerLesLangages,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { projetDuLanceur, retirerALaFin } from './enveloppe-essai.js';
+import { projetDuLanceur, retirerLesTicketsALaFin } from './enveloppe-essai.js';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) as {
@@ -26,9 +26,10 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
 // definition decides. The trial repositories live outside /tmp, which the envelope replaces.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-modele-');
-// The tickets these trials launch, whose temporary directories go with the root: those named here,
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+// The tickets these trials launch, whose temporary directories go at the end: those named here,
 // and each numbered one, recorded as it is made.
-const unTicket = retirerALaFin(ESSAIS, [
+const unTicket = retirerLesTicketsALaFin([
   'demo-x',
   'demo-echec',
   'demo-dossier',

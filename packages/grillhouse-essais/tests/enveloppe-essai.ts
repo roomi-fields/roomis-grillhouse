@@ -32,18 +32,16 @@ const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
   'ouvrirBaseDuTicket'
 );
 
-// The trial root <essais> of a test file that launches sessions, removed at its end, red or
-// green; before it, the temporary directory of each ticket of the trial, which the launcher gives
-// each session of the ticket and which outlives the session (grillhouse-xv9), as the frame names
-// it (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`). The tickets: <tickets>, and each
-// one the returned function records, which gives it back.
-export function retirerALaFin(essais: string, tickets: string[] = []): (id: string) => string {
+// The temporary directory of each ticket of a test file that launches sessions, removed at its
+// end, red or green: the launcher gives it each session of the ticket and it outlives the session
+// (grillhouse-xv9), as the frame names it (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`).
+// The tickets: <tickets>, and each one the returned function records, which gives it back.
+export function retirerLesTicketsALaFin(tickets: string[] = []): (id: string) => string {
   const ids = new Set(tickets);
   afterAll(() => {
     for (const id of ids) {
       rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
     }
-    rmSync(essais, { recursive: true, force: true });
   });
   return id => {
     ids.add(id);
