@@ -27,14 +27,19 @@ const unDossier = () => {
 const environnement = (ajouts: Record<string, string | undefined>) => {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
-    if (v !== undefined && !k.startsWith('VITEST') && k !== 'NODE_OPTIONS') env[k] = v;
+    if (v !== undefined && !k.startsWith('VITEST') && k !== 'NODE_OPTIONS') {
+      env[k] = v;
+    }
   }
   delete env.GRILLHOUSE_VERROU_MACHINE;
   delete env.GRILLHOUSE_MESURE_TENUE;
   delete env.GRILLHOUSE_ENVELOPPE;
   for (const [k, v] of Object.entries(ajouts)) {
-    if (v === undefined) delete env[k];
-    else env[k] = v;
+    if (v === undefined) {
+      delete env[k];
+    } else {
+      env[k] = v;
+    }
   }
   return env;
 };
