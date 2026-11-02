@@ -275,7 +275,10 @@ L'entrée `@roomi-fields/grillhouse/jointure` donne au module de langage les ser
 qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'avancement d'une
 passe et sa mesure, la base d'une passe (son dossier temporaire, nommé dans `TMPDIR`, `TMP` et
 `TEMP` ; la ligne de sa garde, qui nomme ce que les tests y laissent ; son retrait à
-l'interruption), la pression de la machine et son verrou, le dernier vert,
+l'interruption), la pression de la machine et son verrou, les travailleurs d'une séance
+(`travailleursDeLaSeance(env)` : le nombre que donne `GRILLHOUSE_TRAVAILLEURS`, max(1, cœurs ÷
+places), que le module passe à son outil — `maxWorkers`, `-j`, `-n` — ou `null` pour une passe
+lourde, qui garde tous les cœurs ; une valeur fautive est refusée par son nom), le dernier vert,
 les arbitrages d'un ticket, les fichiers sources d'un projet, et la lecture unique
 (`luUneFois(cle, lire)` : ce qu'un module lit à grand coût, les métadonnées de cargo, ses
 composants, se lit une fois tant que le noyau tient une portée de lecture unique, un geste qui

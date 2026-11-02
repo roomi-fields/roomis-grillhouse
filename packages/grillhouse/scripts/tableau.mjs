@@ -116,6 +116,7 @@ import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
 import { lireAvancement, lireLaMesure } from './avancement.mjs';
 import { leMemeVivant } from './mesure/base-de-passe.mjs';
+import { etatDesPlaces } from './places-de-la-machine.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
@@ -743,10 +744,13 @@ export function lecture(t, prefix) {
 /**
  * The board, from what was read. Pure: every source comes in, the time included; `machine`, the
  * lock of the machine; `outil`, the failed installation of the published version that leads the
- * repository (scripts/aiguillage.mjs `echecDeLOutil`).
+ * repository (scripts/aiguillage.mjs `echecDeLOutil`); `places`, the places of the machine
+ * (scripts/places-de-la-machine.mjs `etatDesPlaces`), whose line heads AGENTS.
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
  *   verdicts?: Record<string, any>, maintenant: number, jour: number,
- *   machine?: Machine | null, outil?: { version: string, raison: string } | null }} lu
+ *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
+ *   places?: { prises: number, plafond: number, charge: number, coeurs: number, memoireGo: number,
+ *   attentes: { ticket: string, depuis: number }[] } | null }} lu
  */
 export function assembler({
   tous,
@@ -759,6 +763,7 @@ export function assembler({
   jour,
   machine = null,
   outil = null,
+  places: placesDeLaMachine = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1141,6 +1146,7 @@ export function assembler({
     agents: blocs,
     maintenant,
     machine,
+    places: placesDeLaMachine,
     faitsDuJour,
     etats,
     parTicket,
@@ -1328,7 +1334,22 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // alert. Then each wait, the oldest first, « ⏳ <sorte> · <projet> · <ticket> · attend ·
   // <durée> ». The project and the ticket are cut, never the figures nor the time.
   const maintenant = t.maintenant ?? Date.now();
-  const deQui = x => `${x.sorte} · ${x.projet}${x.ticket ? ` · ${courtDuTicket(x.ticket)}` : ''}`;
+  // The places of the machine (scripts/places-de-la-machine.mjs), the first line of AGENTS:
+  // « Places 3/3 · charge 11,2/12 · mémoire 9 Go », the places taken of the ceiling, the load over
+  // one minute of the cores, the free memory.
+  const p = t.places;
+  if (p) {
+    const nb = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
+    poser({
+      texte: cadre(
+        `Places ${p.prises}/${p.plafond} · charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo} Go`,
+        '',
+        largeur
+      ),
+      ton: p.charge >= p.coeurs ? 'attention' : 'discret',
+    });
+  }
+  const deQui =x => `${x.sorte} · ${x.projet}${x.ticket ? ` · ${courtDuTicket(x.ticket)}` : ''}`;
   const tenu = t.machine?.detenteur;
   if (tenu) {
     const a = tenu.avancement;
@@ -1367,6 +1388,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   }
   // The tickets whose circuit waits for the lock or for room.
   const enAttente = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  // The tickets whose circuit waits for a place of the machine.
+  const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  for (const id of attendUnePlace) enAttente.add(id);
   // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
   // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
   // (« ▸ 2 · Composants ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
@@ -1437,11 +1461,14 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     // in their place otherwise.
     const reste = avec =>
       largeur - (droite ? colonnes(droite) + 1 : 0) - colonnes(tete) - colonnes(avec);
-    const suite = !temoin
-      ? boucles
-      : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)
-        ? `${boucles}${temoin.texte}`
-        : temoin.texte;
+    const place = attendUnePlace.has(c.id) ? ' · attend une place' : '';
+    const suite = `${
+      !temoin
+        ? boucles
+        : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)
+          ? `${boucles}${temoin.texte}`
+          : temoin.texte
+    }${place}`;
     poser({
       texte: couperAvant(`${tete}${c.sujet}`, suite, droite, largeur),
       ton: temoin?.fige ? 'alerte' : c.vivant ? 'actif' : 'attention',
@@ -1842,7 +1869,7 @@ const bdJson = (racine, ...args) => {
 
 // What the board reads of the repository at <racine>: its tickets, its prefix, its running agents
 // and its assembled board (`t`), with the folder git keeps its shared files in (`commun`).
-function lire(racine, { home, maintenant, machine = null }) {
+function lire(racine, { home, maintenant, machine = null, places = null }) {
   let prefix = '';
   try {
     prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
@@ -1930,9 +1957,20 @@ function lire(racine, { home, maintenant, machine = null }) {
     maintenant,
     jour: minuit.getTime(),
     machine,
+    places,
     outil: echecDeLOutil(racine),
   });
   return { t, prefix, tous, vivants, commun };
+}
+
+// The places of the machine as the board shows them (`etatDesPlaces`), null when they do not read
+// (a faulty GRILLHOUSE_PLACES): the board then shows no line of places.
+function lireLesPlaces() {
+  try {
+    return etatDesPlaces();
+  } catch {
+    return null;
+  }
 }
 
 // The boards of several projects as one (grillhouse-erp.1), as the multi-root explorer of VS Code
@@ -1966,6 +2004,7 @@ export function ensemble(lus) {
     }),
     maintenant: premier.t.maintenant,
     machine: premier.t.machine,
+    places: premier.t.places,
     faitsDuJour: tous('faitsDuJour'),
     etats: premier.t.etats.map(e => ({
       ...e,
@@ -2019,7 +2058,12 @@ export function tableau(
 ) {
   const ici = {
     dossier: racine,
-    ...lire(racine, { home, maintenant, machine: lireLaMesure(process.env) }),
+    ...lire(racine, {
+      home,
+      maintenant,
+      machine: lireLaMesure(process.env),
+      places: lireLesPlaces(),
+    }),
   };
   const lus = [ici, ...projets.map(d => lireUnAutre(d, { home, maintenant }))];
   const etiquette = l => l.prefix || path.basename(l.dossier);

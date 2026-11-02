@@ -700,6 +700,9 @@ import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
+import { lancerLaFile } from './file-des-tickets.mjs';
+import { prendreUnePlace, prendreUnRang } from './places-de-la-machine.mjs';
+import { avecLaPasse, lancementDeLaPasse, passeLourde } from './passe-de-la-machine.mjs';
 import { AttenteDeLaMachine, avecLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
 import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
 import { AVANCEMENT } from './mesure/avancement.mjs';
@@ -1188,6 +1191,7 @@ function ecrireEtat(ctx, etat) {
     aRegenerer: ctx.aRegenerer ?? null,
     refus: ctx.refus ?? null,
     controlesRouges: ctx.controlesRouges ?? null,
+    rang: ctx.rang ?? null,
   };
   const provisoire = `${ctx.etat}.${process.pid}`;
   writeFileSync(
@@ -1339,15 +1343,44 @@ function lancer(
       cwd: ctx.racine,
     };
   }
+  // Each session of an agent takes a place of the machine (scripts/places-de-la-machine.mjs) at
+  // its start and gives it back at its end: the circuit holds none between two sessions, nor on a
+  // question. The wait keeps the rank of the circuit's arrival, says its reason in the log, and is
+  // bounded as the lock of the machine's: « à repasser » (75).
+  let place;
+  try {
+    place = prendreUnePlace({
+      ticket: ctx.ticket,
+      rang: ctx.rang ?? undefined,
+      dire: l => appendFileSync(ctx.journal, `${l}\n`),
+    });
+  } catch (e) {
+    for (const fd of new Set(fds.filter(f => typeof f === 'number'))) closeSync(fd);
+    if (!(e instanceof AttenteDeLaMachine)) throw e;
+    throw new Arret('a-repasser', e.message);
+  }
   return new Promise(resolve => {
     // The session writes at the ticket under the author of its role.
-    const enfant = spawn(commande.cmd, commande.args, {
+    // A session out of the envelope (the relecteur, which plays tests) plays them on its share of
+    // the cores, under nice and ionice; the launcher of an enveloped one does it in the envelope.
+    const lancement = horsEnveloppe
+      ? lancementDeLaPasse({
+          lourde: false,
+          cmd: commande.cmd,
+          args: commande.args,
+          env: { ...process.env, [ACTEUR]: role },
+        })
+      : { cmd: commande.cmd, args: commande.args, env: { ...process.env, [ACTEUR]: role } };
+    const enfant = spawn(lancement.cmd, lancement.args, {
       cwd: commande.cwd,
       detached: true,
       stdio: fds,
-      env: { ...process.env, [ACTEUR]: role },
+      env: lancement.env,
     });
     for (const fd of new Set(fds.filter(f => typeof f === 'number'))) closeSync(fd);
+    // The place is the session's own from now on: its process and its start, so that it is freed
+    // with the session, even if the circuit dies before.
+    if (enfant.pid) place.rattacher({ pid: enfant.pid, depart: departDe(enfant.pid) });
     let erreurDeLancement = null;
     ecrireEtat(ctx, { ...ctx.courant, seance: enfant.pid ?? null });
     let bloque = false;
@@ -1365,6 +1398,7 @@ function lancer(
       clearInterval(veille);
       // What remains of the group goes with its launcher.
       if (bloque) signalerGroupe(enfant.pid, 'SIGKILL');
+      place.rendre();
       ecrireEtat(ctx, { ...ctx.courant, seance: null });
       let seance;
       let sortie;
@@ -3020,10 +3054,11 @@ function paquetDe(liste, fichier) {
 // One npm command in the copy, under <env> added to the circuit's environment, its results written
 // to a directory of its own (RESULTATS, scripts/resultats.mjs: the summaries of Turborepo, the
 // JSON reports of Vitest, the SARIF of the guards), its output added to the log for the human:
-// `{ code, dossier }`. The circuit reads its results, never its output. It is a heavy pass (the
-// proof, the checks, the final pass): it holds the lock of the machine
-// (scripts/verrou-de-machine.mjs), its wait written to the log, and passes it to the
-// `npm run verifier` it runs. A wait that stops (its bound, 75; a lock held by an ancestor, 1) is
+// `{ code, dossier }`. The circuit reads its results, never its output. A heavy pass (the final
+// pass, `npm run verifier`) holds the lock of the machine (scripts/verrou-de-machine.mjs) and
+// passes it to the `npm run verifier` it runs; a targeted one (the proof of the red, the checks on
+// the tests of the ticket) takes a place like a session of an agent
+// (scripts/passe-de-la-machine.mjs); its wait is written to the log. A wait that stops (its bound, 75; a lock held by an ancestor, 1) is
 // the command's code, its message in the log. Once it holds the lock, the pass plays under a
 // progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names. It plays in
 // the environment of a pass (`environnementDeLaPasse`).
@@ -3035,14 +3070,18 @@ function npm(ctx, etape, args, env = {}) {
   const fd = openSync(ctx.journal, 'a');
   try {
     const finale = etape === 'controles' && args[1] === 'verifier';
-    const r = avecLaMachine(
+    const lourde = passeLourde({ etape, args });
+    const r = avecLaPasse(
       envMachine =>
         avecAvancement(ctx, genreDeLaPasse(ctx, etape, args), avancement => {
           const oublier = nommerLAvancement({ env: envMachine, dossier: avancement });
           try {
-            return spawnSync('npm', args, {
-              cwd: ctx.copie,
-              stdio: ['ignore', fd, fd],
+            // A targeted pass plays on its share of the cores under nice and ionice; a heavy one
+            // keeps every core.
+            const lancement = lancementDeLaPasse({
+              lourde,
+              cmd: 'npm',
+              args,
               env: environnementDeLaPasse(ctx, envMachine, {
                 ...env,
                 [RESULTATS]: dossier,
@@ -3050,14 +3089,22 @@ function npm(ctx, etape, args, env = {}) {
                 ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
               }),
             });
+            return spawnSync(lancement.cmd, lancement.args, {
+              cwd: ctx.copie,
+              stdio: ['ignore', fd, fd],
+              env: lancement.env,
+            });
           } finally {
             oublier();
           }
         }),
       {
+        lourde,
+        env: process.env,
         racine: ctx.copie,
         dire: l => appendFileSync(ctx.journal, `${l}\n`),
         ticket: ctx.ticket,
+        rang: ctx.rang ?? undefined,
         sorte: etapeDuCircuit({ etape, finale })?.titre ?? etape,
       }
     );
@@ -4672,7 +4719,27 @@ function depart(ctx, e) {
 // finished copies of the repository (scripts/copies-finies.mjs), as a CI cleans its workspaces at
 // the end of each pipeline, not only the night's: its lines added to the log and written on the
 // error stream, each kept copy with the place it holds; it never changes the code.
+// The next rank of arrival of the machine, null when its state does not write (the circuit then
+// draws one at its first wait for a place).
+function tirerLeRang() {
+  try {
+    return prendreUnRang();
+  } catch {
+    return null;
+  }
+}
+
 function aLaFin(ctx, code) {
+  // The queue of the project (scripts/file-des-tickets.mjs): the tickets `circuit` whose
+  // dependencies are all closed now start, each waiting for a place. A queue that cannot read
+  // leaves the end of this circuit as it is.
+  try {
+    const partis = lancerLaFile(ctx.racine);
+    if (partis.length)
+      process.stderr.write(`▶ La file lance ${partis.join(', ')} (dépendances fermées).\n`);
+  } catch (e) {
+    process.stderr.write(`⚠️  file des tickets non lancée : ${e.message}\n`);
+  }
   try {
     if (code !== 0) {
       const superviseur = process.env.CLAUDE_CODE_SESSION_ID;
@@ -5302,6 +5369,10 @@ export async function main(argv) {
     // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
     // question `--etendre` gives it) are its sessions' context; without one, their task.
     ctx.constats = auLancement(ctx.contexte, ctx.constats);
+    // The rank of the circuit's arrival among the machine's waits for a place: drawn at its
+    // launch, kept by its state from one session to the next and across a resumption, so that a
+    // circuit well advanced is not passed by a ticket that arrived after it.
+    ctx.rang = e?.rang ?? tirerLeRang();
     // The supervisor's resumption of the questioning lets the plan pass as it is now.
     if (ctx.reprendre && e?.raison === 'questionnement') {
       commenter(

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Places bounded for the machine, a queue of tickets, workers for the tests** (grillhouse-9kq): load 39 on 12 cores found several projects' circuits all running at once. As Buildkite's agents and make's job server, each session of an agent and each targeted pass (the proof of the red, the checks) takes one of 3 places (`GRILLHOUSE_PLACES`) counted in a state common to the machine (`~/.cache/grillhouse/`, under a file lock, a place freed once its process is gone), keeping the rank of the circuit's arrival; as `make -l`, a start waits for a 1-minute load under the number of cores and 4 GB of free memory, two starts 10 s apart (`GRILLHOUSE_ESPACEMENT_MS`), says its reason and stops at 75 at the bound of the lock's wait. The heavy passes (final pass, verification, night) keep the exclusive lock, independent of the places. Each session plays its tests on max(1, cores ÷ places) workers (Vitest `maxWorkers`, cargo and nextest `-j`, pytest `-n`) under `nice` and `ionice`. The tickets labelled `circuit` whose dependencies are closed start by Beads priority at the end of a circuit and at the opening of the supervisor, no daemon. The board shows « Places n/N · charge x/c · mémoire m Go », ⏳ « attend une place » and « attend <ticket> ». The architecture and the interface of the package say so.
+
 ## [0.29.0] - 2026-11-02
 
 ### Added

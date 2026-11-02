@@ -28,7 +28,10 @@
 //   the owner's word; their ticket open, and the stopped and the dead ones then gone up. A circuit
 //   runs detached from the sessions (scripts/demon.mjs), its launch returns at once, and its
 //   question wakes the supervisor by the wait alone (grillhouse-mwz: SyntHub's SH-br0.1 stopped
-//   27 s after a relaunch of its session, read only on a word of the owner).
+//   27 s after a relaunch of its session, read only on a word of the owner). The same opening
+//   launches the queue of the project (« ## La file des tickets », scripts/file-des-tickets.mjs):
+//   each ticket `circuit` whose dependencies are all closed, by Beads priority; each waits for a
+//   place of the machine (scripts/places-de-la-machine.mjs).
 // Exit 0, whatever it finds.
 //
 //   npx grillhouse superviseur --attendre [<dossier>]
@@ -51,6 +54,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
+import { lancerLaFile } from './file-des-tickets.mjs';
 import { attendLeSuperviseur, lireCircuits } from './tableau.mjs';
 import { etapeDuCircuit, libelle, SUPERVISEUR } from './etapes.mjs';
 
@@ -344,10 +348,23 @@ export function texteDesQuestions(questions) {
  * that answers it; each one dead without a final state, with the command that resumes it. The
  * stopped and the dead ones are then gone up: the wait does not give them again.
  * @param {string} racine the root of the repository
- * @param {{ fermes?: (racine: string, ids: string[]) => Set<string> }} options
+ * The tickets `circuit` of the repository whose dependencies are all closed are launched then, by
+ * Beads priority (`lancerLaFile`, scripts/file-des-tickets.mjs), and named; each waits for a place
+ * of the machine. Those with an open dependency stay.
+ * @param {{ fermes?: (racine: string, ids: string[]) => Set<string>,
+ *   tickets?: (racine: string) => unknown[], lancer?: (ticket: string) => unknown }} options
+ *   `tickets` reads the tickets of the queue and `lancer` launches one circuit (Beads and the
+ *   circuit by default)
  * @returns {string}
  */
-export function circuitsALOuverture(racine, { fermes = ticketsFermes } = {}) {
+export function circuitsALOuverture(
+  racine,
+  { fermes = ticketsFermes, tickets: lireLesTickets, lancer } = {}
+) {
+  const partis = lancerLaFile(racine, {
+    ...(lireLesTickets ? { tickets: lireLesTickets(racine) } : {}),
+    ...(lancer ? { lancer } : {}),
+  });
   const questions = remonter(racine, () => {
     const q = questionsEnAttente(racine, { fermes });
     return { cles: q.map(x => x.cle), rendu: q };
@@ -373,6 +390,15 @@ export function circuitsALOuverture(racine, { fermes = ticketsFermes } = {}) {
     "## L'attente des questions",
     "Dès ta première réponse, sans attendre le mot du responsable, lance en arrière-plan (`run_in_background`) l'attente des questions : `npx grillhouse superviseur --attendre`. Elle se termine sur la question neuve d'un circuit, quel que soit son lanceur, et te réveille ainsi ; un lancement de circuit rend la main tout de suite, et la fin normale d'un circuit ne te réveille pas : le panneau la montre.",
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
+    ...(partis.length
+      ? [
+          '',
+          '## La file des tickets',
+          ...partis.map(
+            t => `- ${t} (validé, dépendances fermées) est lancé : son circuit attend une place.`
+          ),
+        ]
+      : []),
   ].join('\n');
 }
 

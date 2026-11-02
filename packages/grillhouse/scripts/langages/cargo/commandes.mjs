@@ -116,6 +116,7 @@ import {
   ouvrirBase,
   retirerALInterruption,
   SEUIL_PRESSION,
+  travailleursDeLaSeance,
 } from '../../services-du-noyau.mjs';
 import { BANC, composantDans, crates, DE_NUIT, joueDesTests, metadonnees } from './composants.mjs';
 import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
@@ -326,6 +327,14 @@ function jouerLesTests(racine, p, choix, options) {
   const junit = path.join(m.workspace_root, 'target', 'nextest', PROFIL, 'junit.xml');
   const nextest = ['nextest', 'run', '--tool-config-file', `${PROFIL}:${NEXTEST}`];
   nextest.push('--profile', PROFIL, '--no-fail-fast');
+  // The workers of a session of an agent (GRILLHOUSE_TRAVAILLEURS): `-j` of cargo and of nextest;
+  // a heavy pass, without it, keeps every core.
+  const travailleurs = travailleursDeLaSeance(process.env);
+  const j = travailleurs === null ? [] : ['-j', String(travailleurs)];
+  // A bench plays on one thread (`--test-threads 1`, which `-j` of nextest is the alias of): it
+  // takes the arguments without `-j`.
+  const nextestDuBanc = [...nextest];
+  nextest.push(...j);
   const parCrate = [];
   const bancs = [];
   for (const { c, cibles } of choix) {
@@ -340,7 +349,14 @@ function jouerLesTests(racine, p, choix, options) {
       const desBancs = cibles.filter(deBanc);
       const autres = cibles.filter(n => !deBanc(n));
       const journal = path.join(m.target_directory, 'grillhouse', `${nom}-build.log`);
-      const construction = ['test', '--no-run', '-p', nom, ...cibles.flatMap(n => ['--test', n])];
+      const construction = [
+        'test',
+        '--no-run',
+        ...j,
+        '-p',
+        nom,
+        ...cibles.flatMap(n => ['--test', n]),
+      ];
       prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal }]);
       if (cibles.length === 0 || autres.length) {
         const selection = cibles.length ? autres.flatMap(n => ['--test', n]) : duJour(c);
@@ -348,13 +364,13 @@ function jouerLesTests(racine, p, choix, options) {
         prevues.push([p.prevoir(nom, d, 'nextest', true, args), { junit }]);
       }
       if (desBancs.length) {
-        const args = [...nextest, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
+        const args = [...nextestDuBanc, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
         bancs.push({ nom, d, args: [...args, '--test-threads', '1', ...options], etat });
       }
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
     if (cibles.length === 0 && doctests) {
-      const args = ['test', '--doc', '-p', nom];
+      const args = ['test', '--doc', ...j, '-p', nom];
       prevues.push([p.prevoir(nom, d, 'doctest', true, args), {}]);
     }
     parCrate.push([prevues, etat]);

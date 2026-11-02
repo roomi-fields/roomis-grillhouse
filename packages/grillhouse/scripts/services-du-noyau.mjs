@@ -28,6 +28,7 @@ export {
   retirerALInterruption,
 } from './mesure/base-de-passe.mjs';
 export { A_REPASSER, ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
+export { travailleursDeLaSeance } from './places-de-la-machine.mjs';
 export {
   attendreDeLaPlace,
   AttenteDeLaMachine,

@@ -676,8 +676,30 @@ chemin entier, ou son paquet le déclare. Les constats d'un projet s'inscrivent 
 mise à jour qui apporte la garde (migration 0.25.0). Ainsi aucun script lancé par un test ne se
 perd en silence, et un changement d'un script ne rejoue que les tests qui le lisent.
 
+**Des places bornées pour les séances** (grillhouse-9kq ; modèles : les agents de Buildkite, le
+serveur de tâches de GNU make, l'admission de `make -l`) : chaque séance d'agent, et chaque passe
+ciblée du circuit (preuve du rouge, contrôles, qui ne jouent que les tests du ticket), prend une
+place à son départ et la rend à sa fin ; un circuit qui attend une question ou une séance n'en tient
+aucune. Les places se comptent dans un état commun à la machine (`~/.cache/grillhouse/places.json`,
+sous verrou de fichier), 3 par défaut (`GRILLHOUSE_PLACES`) ; une place porte le processus de la
+séance et son début (pid et heure de départ), et le prochain lecteur la libère quand ce processus
+n'existe plus, sans bail. Un départ n'est admis que si la charge sur 1 min est sous le nombre de
+cœurs et si 4 Go au moins sont libres, mesurées et prises sous le même verrou, deux départs étant
+espacés de 10 s (`GRILLHOUSE_ESPACEMENT_MS`) ; l'attente dit sa raison (place, charge, mémoire,
+espacement), garde le rang d'arrivée du circuit (pris à son lancement) et s'arrête à la borne de
+l'attente du verrou, 75. Chaque séance joue ses tests sur max(1, cœurs ÷ places) travailleurs
+(`GRILLHOUSE_TRAVAILLEURS`, lu par le module de chaque langage : `maxWorkers` de Vitest, `-j` de
+cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; une passe lourde garde tous les cœurs.
+Les places et le verrou sont indépendants : une passe ciblée part pendant qu'une passe lourde tient
+le verrou, et une passe lourde part sans attendre les séances.
+
+**La file des tickets** (`scripts/file-des-tickets.mjs`) : chaque projet garde la sienne, ses
+tickets `circuit` ; à la fin d'un circuit et à l'ouverture du superviseur, ceux dont toutes les
+dépendances `blocks` sont fermées sont lancés par priorité Beads, et attendent une place dans
+l'ordre d'arrivée, commun aux projets ; ceux dont une dépendance est ouverte restent. Aucun démon.
+
 **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
-lourde du circuit (preuve du rouge, contrôles, passe finale) prennent le verrou de la machine,
+lourde du circuit (la passe finale, la vérification, la nuit) prennent le verrou de la machine,
 partagé par tous ses dépôts (`~/.cache/grillhouse/mesure-lourde.lock`) ; une seconde mesure
 attend la fin de la première et le redit toutes les 30 s, en nommant qui tient le verrou (le
 processus, son dossier, sa commande, depuis quand) ; un verrou dont le processus est mort se
@@ -700,7 +722,9 @@ comme Bazel ordonne ses tests par priorité.
 machine, quel qu'il soit (une passe hors ticket, le circuit d'un ticket, de n'importe quel projet
 de la machine), se nomme à côté (la racine de son dépôt, son ticket s'il en a un, sa sorte, depuis quand, puis
 son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
-processus. Le panneau de chaque projet les montre en tête des agents : « 🔒 <sorte> · <projet> ·
+processus. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · charge x/c ·
+mémoire m Go », puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
+dépendance ouverte, « attend <ticket> ». Il les montre en tête des agents : « 🔒 <sorte> · <projet> ·
 <ticket> · faits/prévus · <durée> » pour le détenteur, « ⏳ <sorte> · <projet> · <ticket> ·
 attend · <durée> » pour chaque attente, le projet nommé comme le tableau le nomme (son dossier pour le projet de la séance, son étiquette pour un autre, son dossier hors du tableau) ; un circuit qui attend montre aussi ⏳ sur sa ligne de
 ticket. Une ligne part avec son processus, et un détenteur mort ne s'affiche pas ; un verrou tenu
@@ -710,7 +734,7 @@ lslocks nomme qui tient un verrou et comme cargo dit qui bloque son attente (« 
 for file lock »). Ainsi une attente se voit, avec ce qui la bloque, depuis n'importe quel projet.
 
 **Un signe par sorte d'état** (décision du responsable, 2026-11-01) : ▶ en cours ; ⏸ circuit
-arrêté ; 🔒 tient le verrou de la machine ; ⏳ attend le verrou ou la place sous /tmp ; 💤 ticket
+arrêté ; 🔒 tient le verrou de la machine ; ⏳ attend le verrou, une place ou la place sous /tmp ; 💤 ticket
 pris sans rien qui tourne ; 🌙 nuit rouge ; ⚠ les alertes sans sorte à elles (une passe figée, un
 projet illisible, un agent silencieux). Un signe large se cale comme les autres, un signe puis une
 espace, et la largeur d'une ligne compte ses colonnes. Ainsi chaque signe garde un seul sens.

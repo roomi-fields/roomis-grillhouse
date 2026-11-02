@@ -926,6 +926,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'verrou-de-machine.mjs',
       // What verrou-de-machine.mjs imports to name the copies that hold the disk (grillhouse-k5y).
       'copies-finies.mjs',
+      // What services-du-noyau.mjs imports for the workers of a session (grillhouse-9kq).
+      'places-de-la-machine.mjs',
       'fusion-du-changelog.mjs',
       'verrou-de-fichier.mjs',
       'enveloppe/paquets-du-plan.mjs',

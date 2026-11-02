@@ -123,6 +123,7 @@ import {
 
 export { paquetsDuLangage };
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
+import { travailleursDe } from '../places-de-la-machine.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
 // The role that writes the package of the shared test material and the lock files of the versions.
@@ -233,9 +234,14 @@ export function dossierDeTravail(copie, env = process.env) {
 // script: a `prepare` that writes under the read-only `.git` would fail `npm install`; the
 // launcher installs outside the session), `TMPDIR`, `TMP` and `TEMP` set to the session's working
 // directory <travail>, and `GRILLHOUSE_ENVELOPPE` set to the plan <paquets>; with them, each tool of the
-// project <outils> (`grillhouse.outils`), its variable set to its path. Nothing else of <env>
-// enters.
-export function environnementDeLaSeance(env, { cacheNpm, paquets, travail, outils = {} }) {
+// project <outils> (`grillhouse.outils`), its variable set to its path; and, when <travailleurs>
+// is given, GRILLHOUSE_TRAVAILLEURS set to it: the workers the session's tests play on, which the
+// module of each language passes to its tool (scripts/places-de-la-machine.mjs `travailleursDe`).
+// Nothing else of <env> enters.
+export function environnementDeLaSeance(
+  env,
+  { cacheNpm, paquets, travail, outils = {}, travailleurs }
+) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
     VARIABLES_DE_CHEMIN.includes(nom) ||
@@ -250,6 +256,39 @@ export function environnementDeLaSeance(env, { cacheNpm, paquets, travail, outil
     TMP: travail,
     TEMP: travail,
     [VARIABLE]: ecrireLaListe(paquets),
+    ...(travailleurs === undefined ? {} : { GRILLHOUSE_TRAVAILLEURS: String(travailleurs) }),
+  };
+}
+
+/**
+ * The command <commande> placed under `nice` then `ionice`, so a session of an agent yields the
+ * CPU and the disk to the rest of the machine (its command kept whole at the end).
+ * @param {string[]} commande
+ * @returns {string[]}
+ */
+export function sousNiceEtIonice(commande) {
+  return ['nice', '-n', '10', 'ionice', '-c', '2', '-n', '7', ...commande];
+}
+
+/**
+ * What `envelopper` launches for a session: `bwrap` with the arguments <argsBwrap> of the plan, then
+ * <commande> under `nice` and `ionice`, behind the test of the variables that name a path; and the
+ * environment of the session, GRILLHOUSE_TRAVAILLEURS set to max(1, cores ÷ places) of <env>.
+ * @param {{ argsBwrap: string[], commande: string[], env: Record<string, string | undefined>,
+ *   cacheNpm: string, paquets: string[], travail: string, outils?: Record<string, string> }} o
+ * @returns {{ cmd: string, args: string[], env: Record<string, string> }}
+ */
+export function lancementDeLaSeance({ argsBwrap, commande, env, cacheNpm, paquets, travail, outils }) {
+  return {
+    cmd: 'bwrap',
+    args: [...argsBwrap, ...commandeEprouvee(sousNiceEtIonice(commande))],
+    env: environnementDeLaSeance(env, {
+      cacheNpm,
+      paquets,
+      travail,
+      outils,
+      travailleurs: travailleursDe({ env }),
+    }),
   };
 }
 
@@ -672,10 +711,16 @@ function envelopper(argv) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);
     code = CODE_REFUS;
   } else {
-    const r = spawnSync('bwrap', [...args, ...commandeEprouvee(commande)], {
-      stdio: 'inherit',
-      env: environnementDeLaSeance(process.env, { cacheNpm, paquets, travail, outils }),
+    const lancement = lancementDeLaSeance({
+      argsBwrap: args,
+      commande,
+      env: process.env,
+      cacheNpm,
+      paquets,
+      travail,
+      outils,
     });
+    const r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     code = r.error ? CODE_REFUS : (r.status ?? 1);
   }

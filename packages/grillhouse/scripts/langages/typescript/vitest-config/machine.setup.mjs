@@ -7,13 +7,28 @@
 // the temporary directory (GRILLHOUSE_TEMPORAIRE_LIBRE, 0) nor on the disk of their copy
 // (GRILLHOUSE_COPIE_LIBRE, 0): the room of the machine is the pass's that plays the file, which
 // waited for it.
+//
+// The places of the machine (scripts/places-de-la-machine.mjs) of that trial machine are files
+// beside its lock (`<lock>.places.json` and its lock); the file's end removes them, so that no
+// test writes in the user's cache nor leaves a file in the temporary directory.
 import { randomUUID } from 'node:crypto';
+import { readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterAll } from 'vitest';
 
+const proprietaire = !process.env.GRILLHOUSE_VERROU_MACHINE;
 process.env.GRILLHOUSE_VERROU_MACHINE ||= path.join(
   tmpdir(),
   `grillhouse-mesure-${process.pid}-${randomUUID()}.lock`
 );
+if (proprietaire) {
+  const verrou = process.env.GRILLHOUSE_VERROU_MACHINE;
+  afterAll(() => {
+    const prefixe = `${path.basename(verrou)}.places.json`;
+    for (const nom of readdirSync(path.dirname(verrou)))
+      if (nom.startsWith(prefixe)) rmSync(path.join(path.dirname(verrou), nom), { force: true });
+  });
+}
 process.env.GRILLHOUSE_TEMPORAIRE_LIBRE ||= '0';
 process.env.GRILLHOUSE_COPIE_LIBRE ||= '0';

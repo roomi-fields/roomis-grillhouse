@@ -609,8 +609,13 @@ export function attendreDeLaPlace({
   });
 }
 
-// The bound of the wait under <env>, in ms.
-function borneDe(env) {
+/**
+ * The bound of the wait under <env>, in ms (GRILLHOUSE_ATTENTE_MACHINE_MS, else ATTENTE_MACHINE_MS);
+ * the wait for a place of the machine (scripts/places-de-la-machine.mjs) has the same.
+ * @param {Record<string, string | undefined>} env
+ * @returns {number}
+ */
+export function borneDe(env) {
   const n = Number(env[VARIABLE_ATTENTE]);
   return env[VARIABLE_ATTENTE] && Number.isFinite(n) && n >= 0 ? n : ATTENTE_MACHINE_MS;
 }

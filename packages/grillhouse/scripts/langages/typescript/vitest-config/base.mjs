@@ -62,7 +62,12 @@
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
 //   scripts/tableau.mjs).
 import { fileURLToPath } from 'node:url';
-import { ligneDesRestes, ouvrirBase, retirerALInterruption } from '../../../services-du-noyau.mjs';
+import {
+  ligneDesRestes,
+  ouvrirBase,
+  retirerALInterruption,
+  travailleursDeLaSeance,
+} from '../../../services-du-noyau.mjs';
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
 import { rapportAvancement } from './avancement.reporter.mjs';
 import { rapportJson } from './resultats.mjs';
@@ -136,5 +141,14 @@ export default {
       ici('./resultats.setup.mjs'),
     ],
     watch: false,
+    ...travailleurs(),
   },
 };
+
+// The workers of a session of an agent: `maxWorkers` of Vitest is GRILLHOUSE_TRAVAILLEURS
+// (max(1, cores ÷ places), scripts/places-de-la-machine.mjs); without it (a heavy pass), Vitest's
+// own default stands: every core.
+function travailleurs() {
+  const n = travailleursDeLaSeance(process.env);
+  return n === null ? {} : { maxWorkers: n };
+}

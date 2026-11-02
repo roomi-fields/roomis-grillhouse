@@ -76,6 +76,7 @@ import {
   mesure,
   ouvrirBase,
   retirerALInterruption,
+  travailleursDeLaSeance,
 } from '../../services-du-noyau.mjs';
 import {
   composantDans,
@@ -217,6 +218,15 @@ function selection(c, chemins) {
   return [`--ignore-glob=${DE_NUIT}`, ...nommes];
 }
 
+// Whether the pyproject of the package at <dossier> declares pytest-xdist, which `-n` needs.
+function declareXdist(dossier) {
+  try {
+    return /pytest-xdist/.test(readFileSync(path.join(dossier, 'pyproject.toml'), 'utf8'));
+  } catch {
+    return false;
+  }
+}
+
 // Plays pytest in the run <p> for each `{ c, chemins }` of <choix>, `chemins` from the package's
 // folder (empty: the whole package), the night left out (`selection`), <options> given to pytest.
 // The package played whole (no path, or its own folder) that collects no test is green, as
@@ -226,6 +236,10 @@ function jouerLesTests(p, choix, options) {
     const cache = path.join(p.racine, CACHE_DE_PYTEST, path.relative(p.racine, c.dossier));
     const args = [...UV_RUN, '--group', GROUPE, 'pytest', '-o', `cache_dir=${cache}`];
     args.push(...p.junit(c.nom, c.dossier));
+    // The workers of a session of an agent (GRILLHOUSE_TRAVAILLEURS): `-n` of pytest-xdist, for a
+    // package whose test group declares it; a heavy pass, without the variable, plays alone.
+    const travailleurs = travailleursDeLaSeance(process.env);
+    if (travailleurs !== null && declareXdist(c.dossier)) args.push('-n', String(travailleurs));
     const entier = chemins.every(ch => ch === '.');
     p.jouer(
       p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection(c, chemins), ...options]),

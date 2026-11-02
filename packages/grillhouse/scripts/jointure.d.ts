@@ -380,6 +380,9 @@ export const DEPUIS_LE_VERT: string;
 export function garderLeVert(etat: unknown, env?: NodeJS.ProcessEnv): void;
 /** The measure of the repository at `racine` against its last green. */
 export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): unknown;
+/** The workers a session of an agent plays its tests on (`GRILLHOUSE_TRAVAILLEURS` of `env`), or
+ * null in a heavy pass (every core); refuses a value that is not a positive integer, by name. */
+export function travailleursDeLaSeance(env?: NodeJS.ProcessEnv): number | null;
 /** The wait for the lock of the machine, ended without it (scripts/verrou-de-machine.mjs). */
 export class AttenteDeLaMachine extends Error {}
 /** Runs `faire` under the lock of the machine. */
