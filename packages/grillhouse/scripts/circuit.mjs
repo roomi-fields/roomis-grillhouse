@@ -326,9 +326,10 @@
 //   `grillhouse.lit` (a reader out of the plan whose tests read a directory the lot changes
 //   included). After a review, save on the lot it accepted, the final pass is restricted to what
 //   changed since the lot it read and to its dependents, as Turborepo selects them
-//   (`laPasseFinale`): the circuit keeps the copy as it stands as a commit on that lot
-//   (`garderLeLot`), and plays `npm run verifier -- --filter=...[<lot relu>...<copie>]
-//   --filter=//`, the root's tasks (the guards) with them; Turborepo reads a range from its merge
+//   (`laPasseFinale`): the circuit keeps the copy as it stands as a commit on that lot, replayed
+//   on the copy's HEAD when the copy advanced since, as Gerrit compares two patch sets each
+//   against its own base (`leLotGarde`), and plays `npm run verifier --
+//   --filter=...[<lot relu>...<copie>] --filter=//`, the root's tasks (the guards) with them; Turborepo reads a range from its merge
 //   base, the lot read, where a single `[<commit>]` would be read against HEAD. The whole final
 //   pass green keeps the tree of its lot (`verifie`). A red of a package of the plan goes to the
 //   developpeur, three sessions for the final pass, counted apart from those of the checks, the
@@ -1781,24 +1782,22 @@ export function texteDuVerdict(fiche) {
 // The review of the lot, the reviewer's session out of the envelope, from the second template:
 // `{ verdict, fiche, texte, arbre }`, its sheet, the verdict the circuit writes at the ticket from
 // it, under the reviewer's author, and the tree of the lot it read. The lot it reads is kept as a
-// patch set (`garderLeLot`), on the lot the review before read, joined to its sheet's entry (`lot:
-// { commit, arbre, fichiers }`); after a review sent back, the review reads the difference
-// between the two and the findings before it (the bounded review), as Gerrit has the next review
-// read the difference between two patch sets: the files of the lot that changed since, the
-// command of the difference, the findings still open with their recipients.
+// patch set (`leLotGarde`), on the lot the review before read set on the copy's HEAD, joined to
+// its sheet's entry (`lot: { commit, arbre, base, fichiers }`); after a review sent back, the
+// review reads the difference between the two and the findings before it (the bounded review), as
+// Gerrit has the next review read the difference between two patch sets, each against its own
+// base: the files of the lot that changed since, the command of the difference, the findings
+// still open with their recipients.
 async function relire(ctx) {
   const { tests, code } = fichiersDuLot(ctx);
   const rapports = rapportsDuCircuit(ctx);
   const precedents = fichesDe(ctx, 'relecteur').length;
-  const avant = relectureDAvant(ctx);
-  const lot = garderLeLot(ctx, avant?.lot.commit);
+  const { avant, depuis, lot } = leLotGarde(ctx);
   let lus = { tests, code };
   let precedente = 'aucune : tu relis le lot entier';
-  if (avant && lot) {
+  if (avant && depuis && lot) {
     const dansLeLot = new Set([...tests, ...code, ...(avant.lot.fichiers ?? [])]);
-    const changes = differenceDesLots(ctx, avant.lot.commit, lot.commit).filter(f =>
-      dansLeLot.has(f)
-    );
+    const changes = differenceDesLots(ctx, depuis, lot.commit).filter(f => dansLeLot.has(f));
     lus = {
       tests: changes.filter(f => duTestwriter(ctx, f)),
       code: changes.filter(f => !duTestwriter(ctx, f)),
@@ -1806,7 +1805,7 @@ async function relire(ctx) {
     precedente = [
       `la relecture ${precedents}, ${avant.fiche.verdict} : tu relis la différence du lot depuis elle et ses constats, selon ta compétence (« La relecture bornée »).`,
       '',
-      `- La différence : \`git diff ${avant.lot.commit} ${lot.commit}\`, dans la copie du ticket ; ses fichiers : ${changes.join(', ') || 'aucun'}.`,
+      `- La différence : \`git diff ${depuis} ${lot.commit}\`, dans la copie du ticket ; ses fichiers : ${changes.join(', ') || 'aucun'}.`,
       '- Les constats bloquants qui restent ouverts, chacun avec son destinataire :',
       '',
       ...lignesDesConstats(ctx.constats ?? []),
@@ -1824,8 +1823,9 @@ async function relire(ctx) {
   // since.
   const touches =
     avant &&
+    depuis &&
     lot &&
-    langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: avant.lot.commit, apres: lot.commit });
+    langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: depuis, apres: lot.commit });
   const bornee = touches
     ? {
         touches: touches.etat === 'fait' ? new Set(touches.elements.map(e => e.id)) : null,
@@ -1841,7 +1841,7 @@ async function relire(ctx) {
       ? `oui : ${precedents} relecture(s) d'avant ont rendu le lot, et le lot a repassé le circuit depuis`
       : 'non',
     lots: [
-      ...(avant && lot ? ["ce que le lot change depuis la relecture d'avant"] : []),
+      ...(avant && depuis && lot ? ["ce que le lot change depuis la relecture d'avant"] : []),
       `le lot de tests : ${lus.tests.join(', ') || 'aucun fichier'}`,
       `le lot de code : ${lus.code.join(', ') || 'aucun fichier'}`,
     ].join(' ; '),
@@ -1898,13 +1898,14 @@ function texteDesElements(liste, bornee = null) {
 }
 
 // The last review of the ticket and the lot it read: its sheet's entry (`{ fiche, lot: { commit,
-// arbre, fichiers } }`), or null before any, without a copy, or when the repository no longer
-// holds that lot.
+// arbre, base, fichiers } }`), or null before any, without a copy, or when the lot or its base is
+// not kept (the repository no longer holds one of them).
 function relectureDAvant(ctx) {
   const e = lesFiches(ctx).findLast(x => x.role === 'relecteur');
-  if (!e?.lot?.commit || !existsSync(ctx.copie)) return null;
-  const r = spawnSync('git', ['-C', ctx.copie, 'cat-file', '-e', `${e.lot.commit}^{commit}`]);
-  return r.status === 0 ? e : null;
+  if (!e?.lot?.commit || !e.lot.base || !existsSync(ctx.copie)) return null;
+  const tient = c =>
+    spawnSync('git', ['-C', ctx.copie, 'cat-file', '-e', `${c}^{commit}`]).status === 0;
+  return tient(e.lot.commit) && tient(e.lot.base) ? e : null;
 }
 
 // The tree of the copy as it stands, the copy's HEAD and index untouched: its index copied to a
@@ -1930,29 +1931,89 @@ function arbreDeLaCopie(ctx) {
   }
 }
 
-// The lot of the copy kept as a commit on <parent> (the lot kept before, or HEAD), as Gerrit keeps
-// each patch set of a change: `{ commit, arbre }`, or null when git fails. Turborepo compares two
-// of them (`--filter=...[<avant>...<après>]`, the merge base of the range being the first), and
-// the reviewer reads their difference.
+// The copy's HEAD, the base of the lot as it stands (the tip of main of its time), or null.
+function laBase(ctx) {
+  const r = spawnSync('git', ['-C', ctx.copie, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+// The tree <arbre> kept as a commit on <parent> in the copy, under the circuit's author, with the
+// message <message>: its id, or null when git fails.
+function unCommit(ctx, arbre, parent, message) {
+  const qui = { name: AUTEUR_DU_CIRCUIT, email: 'circuit@grillhouse.invalid' };
+  const r = spawnSync('git', ['-C', ctx.copie, 'commit-tree', arbre, '-p', parent, '-m', message], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: qui.name,
+      GIT_AUTHOR_EMAIL: qui.email,
+      GIT_COMMITTER_NAME: qui.name,
+      GIT_COMMITTER_EMAIL: qui.email,
+    },
+  });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+// The lot of the copy kept as a commit on <parent> (a lot kept before, or HEAD), as Gerrit keeps
+// each patch set of a change: `{ commit, arbre, base }`, its base the copy's HEAD, or null when git
+// fails. Turborepo compares two of them (`--filter=...[<avant>...<après>]`, the merge base of the
+// range being the first), and the reviewer reads their difference.
 function garderLeLot(ctx, parent) {
   const arbre = arbreDeLaCopie(ctx);
-  if (!arbre) return null;
-  const qui = { name: AUTEUR_DU_CIRCUIT, email: 'circuit@grillhouse.invalid' };
+  const base = laBase(ctx);
+  if (!arbre || !base) return null;
+  const commit = unCommit(ctx, arbre, parent ?? base, `lot de ${ctx.ticket}`);
+  return commit ? { commit, arbre, base } : null;
+}
+
+// The lot <lot> kept before (`{ commit, base }`) as it reads on the copy's HEAD, as Gerrit compares
+// two patch sets each against its own base: the lot itself while HEAD is its base; after an
+// advance of the copy, what it changed since its base replayed on HEAD (`git merge-tree
+// --write-tree --merge-base=<base> HEAD <lot>`), kept as a commit on HEAD, so that its difference
+// with the next lot holds what the lot changed, never the commits of main. Null when the replay
+// conflicts with what main changed, or git fails: nothing bounds the next review.
+function leLotSurLaBase(ctx, lot) {
+  const base = laBase(ctx);
+  if (!base) return null;
+  if (lot.base === base) return lot.commit;
   const r = spawnSync(
     'git',
-    ['-C', ctx.copie, 'commit-tree', arbre, '-p', parent ?? 'HEAD', '-m', `lot de ${ctx.ticket}`],
-    {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        GIT_AUTHOR_NAME: qui.name,
-        GIT_AUTHOR_EMAIL: qui.email,
-        GIT_COMMITTER_NAME: qui.name,
-        GIT_COMMITTER_EMAIL: qui.email,
-      },
-    }
+    ['-C', ctx.copie, 'merge-tree', '--write-tree', `--merge-base=${lot.base}`, base, lot.commit],
+    { encoding: 'utf8' }
   );
-  return r.status === 0 ? { commit: r.stdout.trim(), arbre } : null;
+  if (r.status !== 0) return null;
+  const arbre = r.stdout.split('\n')[0].trim();
+  return unCommit(ctx, arbre, base, `lot relu de ${ctx.ticket} sur ${base}`);
+}
+
+// The lot of the copy kept against the review before: `{ avant, depuis, lot }`, that review
+// (`relectureDAvant`, null before any), the lot it read set on the copy's HEAD (`leLotSurLaBase`,
+// null when nothing bounds), and the copy kept as a lot on it (on HEAD without it). The bounded
+// review, its elements to judge again and the restricted final pass read the difference from
+// `depuis` to `lot`.
+export function leLotGarde(ctx) {
+  const avant = relectureDAvant(ctx);
+  const depuis = avant ? leLotSurLaBase(ctx, avant.lot) : null;
+  return { avant, depuis, lot: garderLeLot(ctx, depuis) };
+}
+
+// The tree of the commit <commit> in the copy, or null.
+function arbreDuCommit(ctx, commit) {
+  const r = spawnSync('git', ['-C', ctx.copie, 'rev-parse', `${commit}^{tree}`], {
+    encoding: 'utf8',
+  });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+// Whether the last review accepted the lot whose tree is <arbre>: its lot, set on the copy's HEAD
+// (`leLotSurLaBase`), is that tree, as Gerrit keeps the votes of a patch set across a trivial
+// rebase; an advance of the copy that leaves the lot as it was sends it to no other review.
+export function leLotAccepte(ctx, arbre) {
+  const r = relectureDAvant(ctx);
+  if (r?.fiche.verdict !== 'ACCEPTÉ' || !arbre) return false;
+  if (r.lot.arbre === arbre) return true;
+  const surLaBase = leLotSurLaBase(ctx, r.lot);
+  return Boolean(surLaBase) && arbreDuCommit(ctx, surLaBase) === arbre;
 }
 
 // The files that differ between the lots kept <avant> and <apres>, relative to the copy, sorted.
@@ -1966,19 +2027,16 @@ function differenceDesLots(ctx, avant, apres) {
 
 // The final pass the lot calls for: `{ arbre, restreinte }`, the tree of the copy, and, after a
 // review whose lot it no longer is the accepted one, the range Turborepo plays (`{ avant, apres }`:
-// the lot that review read and the copy kept on it), null for the whole pass: before any review,
-// or on the lot the last review accepted.
-function laPasseFinale(ctx) {
-  const avant = relectureDAvant(ctx);
+// the lot that review read set on the copy's HEAD, and the copy kept on it, `leLotGarde`), null
+// for the whole pass: before any review, on the lot the last review accepted (`leLotAccepte`, an
+// advance of the copy included), or when that lot does not replay on HEAD.
+export function laPasseFinale(ctx) {
   const arbre = arbreDeLaCopie(ctx);
-  if (!avant || !arbre) return { arbre, restreinte: null };
-  if (avant.fiche.verdict === 'ACCEPTÉ' && avant.lot.arbre === arbre) {
-    return { arbre, restreinte: null };
-  }
-  const apres = garderLeLot(ctx, avant.lot.commit);
+  if (!arbre || leLotAccepte(ctx, arbre)) return { arbre, restreinte: null };
+  const { depuis, lot } = leLotGarde(ctx);
   return {
     arbre,
-    restreinte: apres ? { avant: avant.lot.commit, apres: apres.commit } : null,
+    restreinte: depuis && lot ? { avant: depuis, apres: lot.commit } : null,
   };
 }
 
@@ -2065,7 +2123,7 @@ function regenerer(ctx, noms, notes = [], suite = null, refusAuLot = false) {
   );
   const aJouer = toutes.filter(r => noms.includes(r.nom));
   if (aJouer.some(r => r.abaisser)) writeFileSync(fichierDesNotes, `${JSON.stringify(notes)}\n`);
-  const avant = garderLeLot(ctx, relectureDAvant(ctx)?.lot.commit);
+  const { lot: avant } = leLotGarde(ctx);
   if (!avant) {
     throw new Arret(
       'references',
@@ -4150,10 +4208,7 @@ async function derouler(ctx, debut) {
             if (passe.arbre && (regeneration ? regeneration.entiere : !passe.restreinte)) {
               ctx.verifie = passe.arbre;
             }
-            const r = relectureDAvant(ctx);
-            const accepte =
-              r?.fiche.verdict === 'ACCEPTÉ' && passe.arbre && r.lot.arbre === passe.arbre;
-            etape = accepte ? INTEGRATION : RELECTURE;
+            etape = leLotAccepte(ctx, passe.arbre) ? INTEGRATION : RELECTURE;
           }
         }
       } else if (etape === REFERENCES) {

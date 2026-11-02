@@ -1,4 +1,6 @@
-import { rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
@@ -20,6 +22,8 @@ const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const { revenirAuDebut, ticket, scenario, circuit, essai, sessions, etat, commentaires } =
   circuitEssai(ESSAIS);
+// The trial repository's main tree, as circuitEssai makes it.
+const DEPOT = path.join(ESSAIS, 'depot');
 
 // The developpeur's code, with the tsconfig.json that puts the package in the language service.
 const TSCONFIG = `printf '{"compilerOptions":{"allowJs":true,"noEmit":true},"include":["src"]}\\n' > $c/tsconfig.json\n`;
@@ -127,6 +131,86 @@ describe.runIf(canWrap)('the conformity of each element of the lot', { timeout: 
       `- \`${UNITE}\` : constante, neuf, non exporté, paquet 000-forms, packages/forms/src/index.mjs:2 — reprise, la différence ne le touche pas : oui — CADRE de 000-forms, R1 — packages/forms/src/index.mjs:2`
     );
     expect(essai(id, 'relecteur-3.prompt')).toContain(UNITE);
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
+  });
+
+  // grillhouse-527.1: as Gerrit compares two patch sets each against its own base, after an advance
+  // of the copy between two reviews the bounded review reads what the lot changed, never the
+  // commits of main, even on a file of the lot; and a lot accepted that an advance out of its
+  // files leaves as it was goes to the integration, without one more review.
+  it('after an advance between two reviews, the bounded review reads only the lot; an accepted lot advanced again goes to the integration', () => {
+    const id = 'demo-conformite-avance';
+    const UNITE = 'packages/forms/src/index.mjs#unite';
+    const FORMS = path.join(DEPOT, 'packages/forms/src/index.mjs');
+    // The base of the ticket: a file of the lot with two elements far apart, so that main and
+    // the lot change it without conflict.
+    const base = (mesure: string, u: string, retour: string) =>
+      `export const mesure = ${mesure};\n// a\n// b\n// c\nexport const unite = () => {\n  const u = ${u};\n  // d\n  // e\n  return ${retour};\n};\n`;
+    writeFileSync(FORMS, base('x => x', '1', 'u'));
+    execFileSync('git', [
+      '-C',
+      DEPOT,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-qam',
+      'unite',
+    ]);
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
+    const ecrireForms = (texte: string) => `cat > $c/src/index.mjs <<'EOF'\n${texte}EOF\n`;
+    scenario(
+      id,
+      'developpeur-1',
+      `${ecrireForms(base('x => 2 * x', '2', 'u'))}${TSCONFIG}passation 'Code écrit.'\n`
+    );
+    scenario(
+      id,
+      'developpeur-2',
+      // The copy advanced at its launch: the fix changes its own line, main's kept.
+      `sed -i 's/2 \\* x/x * 2/' $c/src/index.mjs\npassation 'Rendu traité.'\n`
+    );
+    // Main moves while the reviewer reads: inside unite, a line the lot does not change; then,
+    // after the acceptance, out of the files of the lot.
+    const surMain = (fichier: string, texte: string) =>
+      `cat > "$racine/${fichier}" <<'EOF'\n${texte}EOF\ngit -C "$racine" commit -qam 'main ${fichier}'\n`;
+    const unite = ligne('oui', { element: UNITE, piece: 'packages/forms/src/index.mjs:5' });
+    scenario(
+      id,
+      'relecteur-1',
+      `${surMain('packages/forms/src/index.mjs', base('x => x', '1', 'u + 0'))}${fiche({
+        verdict: 'RENDU',
+        conformite: [ligne('non', { role: 'developpeur' }), unite],
+      })}`
+    );
+    scenario(
+      id,
+      'relecteur-2',
+      `${surMain('packages/binder/src/index.mjs', 'export const mesure = x => x;\n// main\n')}${fiche({ verdict: 'ACCEPTÉ', conformite: [ligne('oui'), unite] })}`
+    );
+    const r = circuit([id]);
+    // The bounded review: the difference it names holds the fix, not main's line in unite.
+    const borne = essai(id, 'relecteur-2.prompt');
+    const [, depuis, lot] = /- La différence : `git diff (\S+) (\S+)`/.exec(borne) ?? [];
+    expect(depuis, borne).toBeTruthy();
+    const difference = execFileSync('git', ['-C', DEPOT, 'diff', depuis, lot], {
+      encoding: 'utf8',
+    });
+    expect(difference).toContain('x * 2');
+    expect(difference).not.toContain('u + 0');
+    expect(borne).toContain('ses fichiers : packages/forms/src/index.mjs.');
+    // unite, which main changed and the fix did not: taken up, not judged again.
+    expect(borne).toMatch(
+      new RegExp(`- \`${MESURE}\` : [^\\n]* — à rejuger : la différence le touche\\n`)
+    );
+    expect(borne).toMatch(
+      new RegExp(`- \`${UNITE}\` : [^\\n]* — reprise, la différence ne le touche pas : oui`)
+    );
+    // The lot accepted, then advanced on main out of its files: no third review.
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'relecteur')).toBe(2);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 

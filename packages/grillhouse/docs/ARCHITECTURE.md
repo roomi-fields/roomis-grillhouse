@@ -383,6 +383,21 @@ copie. Ainsi le circuit ne monte pas une question qu'un correctif déjà sur mai
 Bridge SH-cgi.8.2 : la passe finale et sa reprise rouges sur deux rouges que main avait levés en
 65a1f5b, la copie restée sur bc721aa).
 
+**Chaque version du lot se prend contre la pointe de main de son temps** : comme Gerrit compare
+deux jeux de modifications chacun contre sa base, le circuit garde chaque lot avec sa base, la
+tête de la copie quand il le garde (`garderLeLot`, `lot: { commit, arbre, base }`). Après une
+avance entre deux relectures, le lot relu se rejoue sur la nouvelle tête (`leLotSurLaBase`,
+`git merge-tree --write-tree --merge-base=<base>`), et le lot d'aujourd'hui se garde sur ce rejeu
+(`leLotGarde`) : la relecture bornée, les éléments à rejuger et la passe finale restreinte lisent
+la différence entre les deux, ce que le lot a changé, jamais les commits de main. Un lot accepté
+que l'avance laisse tel quel reste accepté (`leLotAccepte`), comme Gerrit garde les votes d'un
+rebasage trivial : la passe finale joue entière, puis l'intégration, sans relecture de plus. Un
+rejeu en conflit avec main ne borne rien : la relecture et la passe suivantes sont entières.
+Un fichier engendré que l'avance réécrit peut écarter l'arbre du rejeu : le lot repasse alors
+la relecture. Ainsi un mouvement de main sur lequel le lot se rejoue tel quel ne coûte ni
+relecture ni constat (grillhouse-527 : la différence bornée portait les changements de main sur les
+fichiers du lot, marqués à rejuger).
+
 **Le tri des découvertes en fin de ticket** : comme Chromium et Mozilla donnent un verdict à
 chaque rapport de défaut neuf avant de le ranger, une fois le lot entré sur main (5.2), le
 circuit mène l'étape 5.3 : sans découverte consignée par les fiches du ticket, aucune séance ;

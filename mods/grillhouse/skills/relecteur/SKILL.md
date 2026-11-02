@@ -71,8 +71,10 @@ qui change est jugé contre l'architecture.
 
 Quand ta consigne porte « LA RELECTURE D'AVANT » (un `RENDU` d'avant), tu relis la seule
 différence du lot depuis elle, comme Gerrit fait relire la différence entre deux jeux de
-correctifs : le circuit garde le lot que chaque relecture a lu, et ta consigne nomme la commande
-de la différence (`git diff <lot d'avant> <lot d'aujourd'hui>`, dans la copie), ses fichiers et
+correctifs : le circuit garde le lot que chaque relecture a lu, rejoué sur la pointe de main
+quand la copie a avancé depuis, et ta consigne nomme la commande de la différence (`git diff
+<lot d'avant> <lot d'aujourd'hui>`, dans la copie : ce que le lot a changé, sans les commits de
+main), ses fichiers et
 les constats d'avant, chacun avec la réponse du développeur sous lui (« Réponse du développeur » :
 `levé` ou `contesté` avec sa raison, et sa pièce).
 
