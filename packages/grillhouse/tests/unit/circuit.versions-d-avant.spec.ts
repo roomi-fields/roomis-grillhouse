@@ -392,3 +392,118 @@ describe('grillhouse-3e2, criterion 5 — the names of HEAD’s tests of a file 
     });
   });
 });
+
+// grillhouse-3e2.2 — the owner's decision of 2026-11-02: a sibling that does not compile is not a
+// red of the lot. When the lot changes the shared matter of a crate's tests (`tests/common/mod.rs`),
+// HEAD's version of a test target, played beside it as a sibling, may no longer compile, and
+// cargo's build of the crate's test targets (`cargo test --no-run --test <f> --test <sibling>`) is
+// red for the whole crate. Tried by hand on 2026-11-02 with cargo and cargo-nextest: the build
+// with the sibling fails (E0061 in `electra_circuit_avant`, code 101), the build of the lot alone
+// passes, and nextest names the tests of `tests/electra.rs` and its `mod common;` `ancien`,
+// `groupe::interne`, `common::commun`. The proof then plays the package again without its
+// siblings, and reads the names of HEAD's tests of those files without playing them
+// (`testsDeHead`, its option `sansSoeur`); a build that the lot alone breaks stays a red.
+type Jeu = { code: number; resultats: unknown[]; constructions: { nom: string; erreur: string }[] };
+const jouerAvecLesVersionsDAvant = circuit.jouerAvecLesVersionsDAvant as (
+  ctx: { copie: string },
+  groupe: string[],
+  jouer: (fichiers: string[]) => Jeu
+) => Jeu & { avant: Map<string, string>; lus: Map<string, string[]> };
+const cargoDeHead = moduleCargo as unknown as {
+  testsDeHead: (
+    chemin: string,
+    racine: string,
+    lire: (f: string) => string | null,
+    o?: { sansSoeur?: boolean }
+  ) => string[] | null;
+};
+
+const COMMUN_HEAD = 'pub fn aide() -> i32 { 1 }\n#[test]\nfn commun() {}\n';
+const COMMUN_LOT = 'pub fn aide(x: i32) -> i32 { x }\n#[test]\nfn commun() {}\n';
+const CIBLE_HEAD =
+  'mod common;\n#[test]\nfn ancien() { assert_eq!(common::aide(), 1); }\nmod groupe { #[test] fn interne() {} }\n';
+const CIBLE_LOT =
+  'mod common;\n#[test]\nfn ancien() { assert_eq!(common::aide(1), 1); }\nmod groupe { #[test] fn interne() {} }\n#[test]\nfn neuf() {}\n';
+const CIBLE = 'crates/service/tests/electra_reimport.rs';
+const SOEUR = 'crates/service/tests/electra_reimport_circuit_avant.rs';
+const COMMUN = 'crates/service/tests/common/mod.rs';
+
+// A crate whose HEAD holds the target <CIBLE> and its shared matter <COMMUN>, both changed by the
+// lot: the signature of `common::aide` takes an argument, the target <cible> of the lot.
+function depotCommun(cible = CIBLE_LOT) {
+  const racine = mkdtempSync(path.join(ESSAIS, 'commun-'));
+  declarerLesLangages(racine, { 'crates/service': 'cargo' });
+  const fichiers = { ...CARGO, [CIBLE]: CIBLE_HEAD, [COMMUN]: COMMUN_HEAD };
+  for (const [f, texte] of Object.entries(fichiers)) {
+    ecrire(racine, f, texte);
+  }
+  git(racine, 'init', '-q');
+  git(racine, 'add', '-A');
+  git(racine, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'HEAD');
+  ecrire(racine, COMMUN, COMMUN_LOT);
+  ecrire(racine, CIBLE, cible);
+  return racine;
+}
+
+// The build of the crate's test targets as cargo makes it: a played file that calls
+// `common::aide()` without argument does not compile against a `common` whose `aide` takes one;
+// red, the build is a red of the crate, and no test plays.
+function fauxBuild(racine: string, appels: string[][]) {
+  return (fichiers: string[]): Jeu => {
+    appels.push(fichiers);
+    const commun = readFileSync(path.join(racine, COMMUN), 'utf8');
+    const casse = fichiers.some(
+      f =>
+        /common::aide\(\)/.test(readFileSync(path.join(racine, f), 'utf8')) &&
+        /fn aide\(x/.test(commun)
+    );
+    return casse
+      ? { code: 1, resultats: [], constructions: [{ nom: 'service', erreur: 'E0061' }] }
+      : { code: 0, resultats: ['joué'], constructions: [] };
+  };
+}
+
+describe('grillhouse-3e2.2 — a Rust sibling that no longer compiles is not a red of the lot', () => {
+  it('testsDeHead, option sansSoeur: the names of HEAD’s tests of a target tests/<nom>.rs, its mod common read', () => {
+    const racine = depotCommun();
+    const lire = (f: string) => (f === CIBLE ? CIBLE_HEAD : f === COMMUN ? COMMUN_HEAD : null);
+    expect(cargoDeHead.testsDeHead(CIBLE, racine, lire, { sansSoeur: true })).toEqual([
+      'ancien',
+      'groupe::interne',
+      'common::commun',
+    ]);
+    // Without the option, a file that has its sibling has no names read (criterion of 3e2).
+    expect(cargoDeHead.testsDeHead(CIBLE, racine, lire)).toBeNull();
+  });
+
+  it('criteria 1 and 3: the lot changes tests/common, the sibling alone breaks the build: played again without it, HEAD’s names read, no red of build', () => {
+    const racine = depotCommun();
+    const appels: string[][] = [];
+    const r = jouerAvecLesVersionsDAvant({ copie: racine }, [CIBLE], fauxBuild(racine, appels));
+    expect(appels).toEqual([[CIBLE, SOEUR], [CIBLE]]);
+    expect(r.constructions).toEqual([]);
+    expect(r.resultats).toEqual(['joué']);
+    expect(r.avant).toEqual(new Map());
+    expect(r.lus).toEqual(new Map([[CIBLE, ['ancien', 'groupe::interne', 'common::commun']]]));
+    // The sibling is removed, the lot's files left as they are.
+    expect(existsSync(path.join(racine, SOEUR))).toBe(false);
+    expect(readFileSync(path.join(racine, CIBLE), 'utf8')).toBe(CIBLE_LOT);
+  });
+
+  it('criterion 2: a build the lot alone breaks stays a red', () => {
+    const racine = depotCommun(CIBLE_HEAD);
+    const appels: string[][] = [];
+    const r = jouerAvecLesVersionsDAvant({ copie: racine }, [CIBLE], fauxBuild(racine, appels));
+    expect(r.constructions).toEqual([{ nom: 'service', erreur: 'E0061' }]);
+  });
+
+  it('a build that passes with the siblings plays once, the siblings kept', () => {
+    const racine = depotCommun(CIBLE_HEAD);
+    ecrire(racine, COMMUN, COMMUN_HEAD);
+    const appels: string[][] = [];
+    const r = jouerAvecLesVersionsDAvant({ copie: racine }, [CIBLE], fauxBuild(racine, appels));
+    expect(appels).toEqual([[CIBLE, SOEUR]]);
+    expect(r.avant).toEqual(new Map([[CIBLE, SOEUR]]));
+    expect(r.constructions).toEqual([]);
+  });
+});

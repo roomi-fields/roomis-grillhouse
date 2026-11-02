@@ -223,15 +223,18 @@ clippy`). Le noyau en lance trois
   `<nom>_circuit_avant_nuit_test.py`), ou null pour un fichier que
   l'outil ne joue pas ou ne sait pas jouer deux fois (`cargo` : une cible `tests/<dossier>/main.rs`,
   un test unitaire de `src/`).
-- `testsDeHead(chemin, racine, lire)` : pour un fichier de test que l'outil ne sait pas jouer en
+- `testsDeHead(chemin, racine, lire, { sansSoeur })` : pour un fichier de test que l'outil ne sait pas jouer en
   deux versions dans un lancement, et qui n'a donc pas de sœur, les noms des tests de sa version
   de HEAD, lus sans les jouer, tels que le verdict les nomme ; la preuve du rouge tient chacun pour
   un vert que HEAD tient déjà, puisque main reste vert. `lire` rend le texte de HEAD d'un fichier
   depuis la racine. `cargo` : un test unitaire de `src/`, ses tests marqués `#[test]` ou
   `#[<chemin>::test]` dans leurs modules en ligne, sous le chemin de module que nextest rapporte
   (`server::tests::groupe::nom`) ; une cible `tests/<dossier>/main.rs`, avec ses modules hors
-  ligne (`mod aide;`). Null pour tout autre fichier, ou un fichier que HEAD ne tient pas ;
-  `typescript` et `python`, toujours null.
+  ligne (`mod aide;`). Avec `sansSoeur`, aussi un fichier dont la preuve ne joue pas la sœur,
+  parce qu'elle seule casse la construction de son paquet (`cargo` : une cible `tests/<nom>.rs`
+  dont la version de HEAD ne compile plus contre le `tests/common` du lot ; ses noms sans la
+  cible, ses modules hors ligne lus, `common::<fn>`). Null pour tout autre fichier, ou un fichier
+  que HEAD ne tient pas ; `typescript` et `python`, toujours null.
 - `manifestes` : ce que le testwriter écrit des manifestes, comme l'auteur d'un test de Bazel
   déclare les dépendances de sa cible. `verrous`, les fichiers de verrouillage des versions depuis
   la racine (cargo : `Cargo.lock` ; typescript : `package-lock.json` ; python : `uv.lock`, celui

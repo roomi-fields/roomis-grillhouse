@@ -807,7 +807,10 @@ joue de lui-même, ses tests nommés comme ceux du fichier, de sa classe, jour, 
 circuit ne bâtit aucun nom de langage ; pour un fichier que l'outil ne sait pas jouer en deux
 versions, un test unitaire Rust de `src/` ou une cible `tests/<dossier>/main.rs`, pas de sœur :
 `testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve tient pour
-des verts que HEAD tient déjà), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
+des verts que HEAD tient déjà ; une sœur qui ne compile plus n'est pas un rouge du lot : quand la
+construction échoue avec les sœurs et que le lot seul construit, la preuve rejoue le paquet sans
+elles et lit de même les noms de HEAD de ces fichiers, `testsDeHead` avec `sansSoeur` ; une
+construction que le lot seul casse reste un rouge), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
 avec le fichier de verrouillage des versions (`manifestes` : le testwriter les écrit, comme
 l'auteur d'un test de Bazel déclare les dépendances de sa cible ; le verrou refuse tout autre
 changement du manifeste, chaque partie nommée ; en cargo, d'un fichier de code, le testwriter

@@ -253,7 +253,11 @@
 //   not told apart. A file its tool cannot play twice in a run (cargo: a unit test of `src/`, a
 //   target `tests/<dossier>/main.rs`) has no sibling: the module reads the names of the tests of
 //   its HEAD's version without playing them (`testsDeHead` of the join), and each is held for a
-//   green HEAD holds, as main stays green. The proof passes with a red (of the lot, existing or of a build), even without
+//   green HEAD holds, as main stays green. A sibling that no longer compiles (cargo: HEAD's version
+//   of a target against the lot's `tests/common`) is not a red of the lot: when the build fails
+//   with the siblings and the lot alone builds, the package plays without them, the names of
+//   HEAD's tests of those files read (`testsDeHead`, `sansSoeur`); a build the lot alone breaks
+//   stays a red (`jouerAvecLesVersionsDAvant`). The proof passes with a red (of the lot, existing or of a build), even without
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
 //   reds are enough. It fails with neither a file of the lot nor a red, with a broken file of the
 //   lot, or with a green of the lot no expected green justifies; under a plan « comportement
@@ -2974,8 +2978,9 @@ function avecAvancement(ctx, genre, passe) {
 // its tool plays in the same run: <jouer> gets the Map file → sibling, both relative to the copy,
 // and the Map file → names of the tests of HEAD's version, read without playing them, of each file
 // its tool cannot play twice in a run (`testsDeHead` of the join). The siblings are removed after
-// it, a red included. Returns what <jouer> returns.
-export function avecLesVersionsDAvant(ctx, fichiers, jouer) {
+// it, a red included. With <sansSoeurs>, no sibling is written: the names of HEAD's tests of each
+// file that has one are read too (`testsDeHead`, `sansSoeur`). Returns what <jouer> returns.
+export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansSoeurs = false } = {}) {
   const avant = new Map();
   const lus = new Map();
   const deHead = f => {
@@ -2989,8 +2994,9 @@ export function avecLesVersionsDAvant(ctx, fichiers, jouer) {
     for (const f of fichiers) {
       const langage = langageDe(ctx.copie);
       const soeur = langage.soeurDAvant(f, ctx.copie);
-      if (soeur === null) {
-        const noms = langage.testsDeHead(f, ctx.copie, deHead);
+      if (soeur === null || sansSoeurs) {
+        const sansSoeur = soeur !== null;
+        const noms = langage.testsDeHead(f, ctx.copie, deHead, { sansSoeur });
         if (noms !== null) lus.set(f, noms);
         continue;
       }
@@ -3005,6 +3011,29 @@ export function avecLesVersionsDAvant(ctx, fichiers, jouer) {
   }
 }
 
+// The run of the files <groupe> of one package of the proof, HEAD's version of each beside it
+// (`avecLesVersionsDAvant`): `{ avant, lus, code, resultats, constructions }`, <jouer> given the
+// files to play and returning `{ code, resultats, constructions }`. A sibling that does not compile
+// is not a red of the lot (the owner's decision on grillhouse-3e2.2): when the build fails with
+// siblings, the package plays again without them, and when the lot alone builds, that run is kept,
+// the names of HEAD's tests of those files read without playing them; a build the lot alone breaks
+// stays a red, the first run kept.
+export function jouerAvecLesVersionsDAvant(ctx, groupe, jouer) {
+  const avecSoeurs = avecLesVersionsDAvant(ctx, groupe, (avant, lus) => ({
+    avant,
+    lus,
+    ...jouer([...groupe, ...avant.values()]),
+  }));
+  if (avecSoeurs.avant.size === 0 || avecSoeurs.constructions.length === 0) return avecSoeurs;
+  const sansSoeurs = avecLesVersionsDAvant(
+    ctx,
+    groupe,
+    (avant, lus) => ({ avant, lus, ...jouer(groupe) }),
+    { sansSoeurs: true }
+  );
+  return sansSoeurs.constructions.length === 0 ? sansSoeurs : avecSoeurs;
+}
+
 // The log of the task <t> of a summary of Turborepo, its file from the root of the copy: its path,
 // and its first lines, the task's own output.
 function journalDeTache(ctx, t) {
@@ -3014,8 +3043,9 @@ function journalDeTache(ctx, t) {
 }
 
 // The measure of the proof of the red: one run per package, `npm test -- --force <files>` of the
-// lot that lie in it, HEAD's version of each beside it, or, with no file of the lot, `npm test --
-// <package>` for each package of the plan, played whole. Each run `{ groupe, entier, avant, lus,
+// lot that lie in it, HEAD's version of each beside it, played again without the siblings when
+// they alone break the build (`jouerAvecLesVersionsDAvant`), or, with no file of the lot, `npm
+// test -- <package>` for each package of the plan, played whole. Each run `{ groupe, entier, avant, lus,
 // code, resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
 // not played again, as Turborepo replays a task whose inputs did not move: the last one is kept
 // in `ctx.mesureDeLaPreuve`.
@@ -3033,27 +3063,21 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
     const entier = entiers.includes(dossier);
     // The files of the lot play for real (`--force`): a run replayed from Turborepo's cache, the
     // checks' same command on the same inputs, writes no report of Vitest.
-    const { avant, lus, r } = avecLesVersionsDAvant(ctx, groupe, (avant, lus) => ({
-      avant,
-      lus,
-      r: npm(ctx, 'preuve', [
+    const run = jouerAvecLesVersionsDAvant(ctx, groupe, aJouer => {
+      const r = npm(ctx, 'preuve', [
         'test',
         '--',
         ...(entier ? [dossier] : ['--force']),
-        ...groupe,
-        ...avant.values(),
-      ]),
-    }));
-    runs.push({
-      groupe,
-      entier,
-      avant,
-      lus,
-      code: r.code,
-      resultats: langageDe(ctx.copie).verdict(r.dossier).rapports,
-      // The builds of the plan's packages that failed: each one a red, not compiling is failing.
-      constructions: constructionsEchouees(ctx, liste, r.dossier),
+        ...aJouer,
+      ]);
+      return {
+        code: r.code,
+        resultats: langageDe(ctx.copie).verdict(r.dossier).rapports,
+        // The builds of the plan's packages that failed: each one a red, not compiling is failing.
+        constructions: constructionsEchouees(ctx, liste, r.dossier),
+      };
     });
+    runs.push({ groupe, entier, ...run });
   }
   ctx.mesureDeLaPreuve = { cle, runs };
   return runs;

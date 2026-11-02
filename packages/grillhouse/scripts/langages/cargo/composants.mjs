@@ -33,7 +33,8 @@
 //   beside it: `tests/<nom>_circuit_avant.rs` for a target `tests/<nom>.rs`, a target cargo finds
 //   by itself, the end `_nuit` or `_budget` kept last; none for `tests/<dossier>/main.rs` nor a
 //   unit test of `src/`, whose names of tests HEAD's version holds are read without playing them
-//   (`testsDeHead`, ./tests-de-head.mjs), the proof holding each for a green HEAD holds.
+//   (`testsDeHead`, ./tests-de-head.mjs), the proof holding each for a green HEAD holds; those of
+//   a target `tests/<nom>.rs` too, when its sibling no longer compiles (grillhouse-3e2.2).
 // - What the testwriter writes of the manifests (`manifestes`): the tables that declare what the
 //   tests of a crate depend on, `[dev-dependencies]` and `[target.<cible>.dev-dependencies]` of
 //   its Cargo.toml (cargo's book, « Development dependencies »), as the author of a test of Bazel
@@ -292,13 +293,17 @@ export function soeurDAvant(chemin, racine) {
  * The names of the tests of HEAD's version of the test file <chemin> (from the root <racine>),
  * read without playing them, for a file cargo cannot play twice in a run and that has no sibling
  * (`soeurDAvant`): a unit test file of `src/` (`tests.rs`, a file of a folder `tests/` under
- * `src/`, out of `src/bin/`) and a target `tests/<dossier>/main.rs` (./tests-de-head.mjs); <lire>
- * gives HEAD's text of a file from the root. Null for any other file, or one HEAD does not hold.
+ * `src/`, out of `src/bin/`) and a target `tests/<dossier>/main.rs` (./tests-de-head.mjs); with
+ * <sansSoeur>, a target `tests/<nom>.rs` too, whose sibling the proof does not play because it no
+ * longer compiles (grillhouse-3e2.2): its names as nextest gives them, without the target, its
+ * out-of-line modules read (`mod common;`, `common::<fn>`). <lire> gives HEAD's text of a file
+ * from the root. Null for any other file, or one HEAD does not hold.
  * @param {string} chemin
  * @param {string} racine
  * @param {(f: string) => string | null} lire
+ * @param {{ sansSoeur?: boolean }} [options]
  */
-export function testsDeHead(chemin, racine, lire) {
+export function testsDeHead(chemin, racine, lire, { sansSoeur = false } = {}) {
   const abs = path.resolve(racine, chemin);
   const c = composantDans(
     crates(racine).map(x => x.composant),
@@ -310,6 +315,9 @@ export function testsDeHead(chemin, racine, lire) {
   }
   const parts = path.relative(c.dossier, abs).split(path.sep);
   if (parts.length === 3 && parts[0] === 'tests' && parts[2] === 'main.rs') {
+    return nomsDeHead(chemin, null, lire);
+  }
+  if (sansSoeur && soeurDAvant(chemin, racine) !== null) {
     return nomsDeHead(chemin, null, lire);
   }
   if (!unitaire(parts) || parts[1] === 'bin') {

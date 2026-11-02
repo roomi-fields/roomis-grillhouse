@@ -251,11 +251,15 @@ export interface Composition {
    * tool cannot play two versions of it in one run (cargo: a unit test of `src/`, a target
    * `tests/<dossier>/main.rs`, its out-of-line modules read too); the proof of the red holds each
    * for a green HEAD already holds. `lire` gives HEAD's text of a file from the root, null for
-   * none. Null for any other file, or one HEAD does not hold. */
+   * none. With `sansSoeur`, the names of a file whose sibling the proof does not play, because
+   * it breaks the build of its package while the lot alone builds (cargo: a target
+   * `tests/<nom>.rs` whose HEAD's version no longer compiles against the lot's `tests/common`,
+   * grillhouse-3e2.2). Null for any other file, or one HEAD does not hold. */
   testsDeHead(
     chemin: string,
     racine: string,
-    lire: (fichier: string) => string | null
+    lire: (fichier: string) => string | null,
+    options?: { sansSoeur?: boolean }
   ): string[] | null;
   manifestes: Manifestes;
   fichiersEngendres(racine: string): FichierEngendre[];

@@ -2,7 +2,9 @@
 // one run, read without playing them (the join, `testsDeHead`; the owner's decision on
 // grillhouse-3e2): a unit test file of `src/` (`src/**/tests.rs`, a file of a folder `tests/` under
 // `src/`), compiled as a module of its crate, and a test target `tests/<dossier>/main.rs`, whose
-// modules lie beside it. The proof of the red holds each name for a green HEAD already holds.
+// modules lie beside it; and a target `tests/<nom>.rs` whose sibling no longer compiles, read as a
+// target `tests/<dossier>/main.rs`, its modules beside it (grillhouse-3e2.2). The proof of the red
+// holds each name for a green HEAD already holds.
 //
 // - A name is the one the verdict gives (./verdict.mjs), the path nextest reports: the module path
 //   of the test in its binary, `<module>::…::<fn>` (tried on 2026-11-02:

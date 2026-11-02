@@ -262,8 +262,8 @@ export function composer(modules) {
       premiereReponse(modules, racine, chemin, m => m.estUnTest(chemin, racine)),
     soeurDAvant: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m => m.soeurDAvant(chemin, racine)),
-    testsDeHead: (chemin, racine, lire) =>
-      premiereReponse(modules, racine, chemin, m => m.testsDeHead(chemin, racine, lire)),
+    testsDeHead: (chemin, racine, lire, options) =>
+      premiereReponse(modules, racine, chemin, m => m.testsDeHead(chemin, racine, lire, options)),
     manifestes: {
       verrous: unique(modules.flatMap(m => m.manifestes.verrous)),
       horsDesTests: (chemin, racine, avant, apres) =>
