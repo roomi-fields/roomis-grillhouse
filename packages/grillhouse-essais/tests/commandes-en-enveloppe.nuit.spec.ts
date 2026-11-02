@@ -18,7 +18,7 @@ import {
   architecture,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
-import { retirerLesTicketsALaFin } from './enveloppe-essai.js';
+import { temporaireDuFichier } from './temporaire-du-fichier.js';
 
 const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
   CODE_COPIE: number;
@@ -53,8 +53,8 @@ const LANCEUR = path.join(DEPOT, 'packages/grillhouse/scripts/enveloppe/lancer.s
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-commandes-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-// The tickets these trials launch, whose temporary directories go at the end.
-retirerLesTicketsALaFin(['demo-1', 'demo-2', 'demo-gros']);
+// The temporary directory of this file, under which the launcher opens each ticket's own.
+temporaireDuFichier();
 
 const json = (o: unknown) => `${JSON.stringify(o, null, 2)}\n`;
 const ecrire = (racine: string, f: string, texte: string) => {

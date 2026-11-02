@@ -8,7 +8,8 @@ import {
   declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { SCRIPT, projetDuLanceur, retirerLesTicketsALaFin } from './enveloppe-essai.js';
+import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
+import { temporaireDuFichier } from './temporaire-du-fichier.js';
 import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_COPIE, CODE_REFUS, CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', [
@@ -29,18 +30,8 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // the envelope replaces with an empty directory, in a trial directory of this run alone.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-// The tickets these trials launch, whose temporary directories go at the end.
-retirerLesTicketsALaFin([
-  'demo-1',
-  'demo-2',
-  'demo-10',
-  'demo-d',
-  'demo-h',
-  'demo-p',
-  'demo-s',
-  'demo-t',
-  'demo-z',
-]);
+// The temporary directory of this file, under which the launcher opens each ticket's own.
+temporaireDuFichier();
 const { essai } = enveloppeEssai(ESSAIS);
 
 const CODES = path.join(CADRE, 'scripts/enveloppe/codes.mjs');

@@ -459,6 +459,11 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   // that records the session in <bin>/sessions.
   const cadre = path.join(bin, 'cadre');
   const lanceur = path.join(cadre, 'scripts/enveloppe/lancer.sh');
+  // The temporary directory of the launches of this site, as Bazel gives each test its
+  // TEST_TMPDIR: the launcher opens there the temporary directory of each ticket
+  // (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), never in one a neighbour file shares;
+  // it goes with the trial root of the file.
+  const temporaire = mkdtempSync(path.join(bin, 'tmp-'));
   const lancer = (id: string): SpawnSyncReturns<string> => {
     if (!existsSync(lanceur)) {
       const scripts = path.dirname(path.dirname(LANCER));
@@ -481,7 +486,14 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     return spawnSync('bash', [lanceur, id, 'developpeur', 'src/a', consigne], {
       cwd: repo,
       encoding: 'utf8',
-      env: { ...env, CLAUDE_BIN: path.join(bin, 'claude'), HOME: home },
+      env: {
+        ...env,
+        CLAUDE_BIN: path.join(bin, 'claude'),
+        HOME: home,
+        TMPDIR: temporaire,
+        TMP: temporaire,
+        TEMP: temporaire,
+      },
       timeout: 120_000,
     });
   };

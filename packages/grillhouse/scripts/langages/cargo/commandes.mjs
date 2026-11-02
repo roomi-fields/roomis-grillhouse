@@ -72,8 +72,9 @@
 //   and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
 //   and `npx grillhouse maj`, which installs it (code 2).
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
-//   the project's own, `--tool-config-file`), whose JUnit report lands at
-//   `<target>/nextest/grillhouse/junit.xml`.
+//   the project's own, `--tool-config-file`), whose JUnit report lands in nextest's store, at
+//   `<workspace root>/target/nextest/grillhouse/junit.xml` (nextest's default `store.dir`, under
+//   the workspace's root, even when the compilations' target directory lies elsewhere).
 // - While the environment names a results directory (`GRILLHOUSE_RESULTATS`), the run writes
 //   there what ./verdict.mjs reads: its tasks, each planned before it plays (`code` null until it
 //   ran), and the JUnit report of each run of nextest. A task of the workspace is named after its
@@ -320,7 +321,9 @@ function depuisLeVert(racine, tous, tout, env) {
 // planned with the rest and played by the function this one returns, after the other tests.
 function jouerLesTests(racine, p, choix, options) {
   const m = metadonnees(racine);
-  const junit = path.join(m.target_directory, 'nextest', PROFIL, 'junit.xml');
+  // Nextest's store is `target/nextest` under the workspace's root (its default `store.dir`),
+  // whatever the target directory of the compilations (./sccache.mjs).
+  const junit = path.join(m.workspace_root, 'target', 'nextest', PROFIL, 'junit.xml');
   const nextest = ['nextest', 'run', '--tool-config-file', `${PROFIL}:${NEXTEST}`];
   nextest.push('--profile', PROFIL, '--no-fail-fast');
   const parCrate = [];

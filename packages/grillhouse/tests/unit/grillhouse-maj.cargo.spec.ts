@@ -324,12 +324,17 @@ describe('grillhouse-pkl.7, critère 3 — le gabarit d’un projet cargo', () =
 
   it('the JUnit report lands where the verdict reads it: the frame’s profile, which the project’s nextest.toml leaves to it', () => {
     // The frame's profile, a tool's configuration under the project's (./commandes.mjs reads
-    // `<target>/nextest/grillhouse/junit.xml`, then copies it where ./verdict.mjs reads it).
+    // `<workspace root>/target/nextest/grillhouse/junit.xml`, nextest's store by its default
+    // `store.dir`, then copies it where ./verdict.mjs reads it).
     const cadre = toml(lire(DEPOT, 'packages/grillhouse/scripts/langages/cargo/nextest.toml'));
     expect(cadre['profile.grillhouse.junit']).toEqual({ path: 'junit.xml' });
     const commandes = lire(DEPOT, 'packages/grillhouse/scripts/langages/cargo/commandes.mjs');
     expect(commandes).toContain("const PROFIL = 'grillhouse';");
-    expect(commandes).toContain("path.join(m.target_directory, 'nextest', PROFIL, 'junit.xml')");
+    expect(commandes).toContain(
+      "path.join(m.workspace_root, 'target', 'nextest', PROFIL, 'junit.xml')"
+    );
+    // The project's configuration leaves nextest's store where the frame reads it.
+    expect(toml(lire(GABARIT, '.config/nextest.toml')).store).toBeUndefined();
     // The project's configuration overrides a tool's: it defines no profile of the frame.
     const projet = toml(lire(GABARIT, '.config/nextest.toml'));
     expect(Object.keys(projet).filter(k => k.startsWith('profile.grillhouse'))).toEqual([]);

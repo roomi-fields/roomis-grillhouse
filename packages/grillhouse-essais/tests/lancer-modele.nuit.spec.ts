@@ -7,7 +7,8 @@ import {
   racineSousLaMaison,
   declarerLesLangages,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { projetDuLanceur, retirerLesTicketsALaFin } from './enveloppe-essai.js';
+import { projetDuLanceur } from './enveloppe-essai.js';
+import { temporaireDuFichier } from './temporaire-du-fichier.js';
 import { RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) as {
@@ -27,19 +28,8 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // definition decides. The trial repositories live outside /tmp, which the envelope replaces.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-modele-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-// The tickets these trials launch, whose temporary directories go at the end: those named here,
-// and each numbered one, recorded as it is made.
-const unTicket = retirerLesTicketsALaFin([
-  'demo-x',
-  'demo-echec',
-  'demo-dossier',
-  'demo-absent',
-  'demo-neuf',
-  'demo-renvoi',
-  'demo-journal',
-  'demo-fin',
-  'demo-fin-refus',
-]);
+// The temporary directory of this file, under which the launcher opens each ticket's own.
+temporaireDuFichier();
 
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
 const SCRIPT = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/enveloppe.mjs');
@@ -156,7 +146,7 @@ let numero = 0;
 // One launch, on a ticket of its own: the options come before the four arguments of today, and
 // `apres` after them.
 function lancer(options: string[], apres: string[] = [], composant = 'packages/a') {
-  const ticket = unTicket(`demo-${++numero}`);
+  const ticket = `demo-${++numero}`;
   const consigne = path.join(REPO, `${ticket}.txt`);
   writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
   const r = spawnSync(
@@ -356,7 +346,7 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
   // grillhouse-3uv.95.6: one session works the whole plan of a ticket; the section gives, for
   // each package of the plan, what its providers publish to it.
   it('gives the session of a plan of two packages what the providers of each publish', () => {
-    const ticket = unTicket(`demo-${++numero}`);
+    const ticket = `demo-${++numero}`;
     const consigne = path.join(REPO, `${ticket}.txt`);
     writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
     const r = spawnSync(

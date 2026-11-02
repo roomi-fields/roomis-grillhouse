@@ -9,7 +9,8 @@ import path from 'node:path';
 // - `cargo metadata`: what cargo answers with `--no-deps`, read from the manifests of the
 //   working directory in the subset of TOML the trials of scripts/langages/cargo/exemples.mjs
 //   write (tables, strings, booleans, arrays of strings, inline tables, dotted keys): the members
-//   of `[workspace]` (a pattern `dir/*` included) and the root's `[package]`; each crate's
+//   of `[workspace]` (a pattern `dir/*` included) and the root's `[package]`; its target
+//   directory, `CARGO_TARGET_DIR` when set, as cargo's, `<racine>/target` otherwise; each crate's
 //   dependencies of each kind, by its path or by the workspace's; its targets, the library
 //   (`src/lib.rs`), the binary (`src/main.rs`) and each test (`tests/<nom>.rs`,
 //   `tests/<dossier>/main.rs`); its
@@ -157,7 +158,7 @@ if (sous === 'metadata') {
     packages,
     workspace_members: packages.map(p => p.id),
     workspace_root: racine,
-    target_directory: path.join(racine, 'target'),
+    target_directory: path.resolve(process.env.CARGO_TARGET_DIR || path.join(racine, 'target')),
     metadata: tete.workspace?.metadata ?? null,
     resolve: null,
     version: 1,

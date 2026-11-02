@@ -44,12 +44,17 @@ packages/grillhouse-essais ──(processus : node <script>, grillhouse <command
   `circuit*.nuit.spec.ts` et `base-de-passe.nuit.spec.ts`.
 - `tests/integration-essai.ts` et `tests/file-integration-essai.ts` : le dépôt d'essai de
   l'intégration et de sa file, partagé par les `integrer*`, les `file-integration*` et le banc de
-  l'enveloppe.
+  l'enveloppe ; chaque chantier donne au lanceur qu'il relance un dossier temporaire à lui, retiré
+  avec la racine d'essai du fichier.
 - `tests/sous-modules-essai.ts` : les mondes d'essai des sous-modules (`sous-modules*.nuit.spec.ts`).
 - `tests/enveloppe-essai.ts` : l'enveloppe du cadre et le projet que prépare le lanceur d'un agent
-  (`enveloppe*.nuit.spec.ts`, `lancer-modele*.nuit.spec.ts`), et le retrait, en fin de fichier,
-  du dossier temporaire de chacun de ses tickets (`retirerLesTicketsALaFin`), que prennent aussi
-  les mondes des sous-modules et `commandes-en-enveloppe.nuit.spec.ts`.
+  (`enveloppe*.nuit.spec.ts`, `lancer-modele*.nuit.spec.ts`).
+- `tests/temporaire-du-fichier.ts` : le dossier temporaire d'un fichier qui lance le lanceur
+  (`temporaireDuFichier`), comme le TEST_TMPDIR de Bazel : nommé dans `TMPDIR`, `TMP` et `TEMP` du
+  fichier, le lanceur y ouvre le dossier de chaque ticket, et il part en fin de fichier avec ce que
+  le fichier y a fait ; deux fichiers qui lancent un ticket du même nom n'en partagent jamais le
+  dossier. Le prennent les essais du lanceur, les mondes des sous-modules et
+  `commandes-en-enveloppe.nuit.spec.ts`.
 - La matière que ces tests partagent avec ceux du cadre vient de
   `@roomi-fields/grillhouse-matiere/test-fixtures` : les projets d'essai de la nuit
   (`testsDeNuitEssai`, le dépôt et sa mise à jour passés par l'appelant), le langage d'un projet

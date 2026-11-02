@@ -28,8 +28,7 @@ const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'sous-modules-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { ENV_SCRIPTS, mondePartage, pathSansBwrap, pathBwrapRefuse, unTicket } =
-  sousModulesEssai(ESSAIS);
+const { ENV_SCRIPTS, mondePartage, pathSansBwrap, pathBwrapRefuse } = sousModulesEssai(ESSAIS);
 
 // The pre-commit hook of the test repository: a command of the project that the commit of the
 // integration plays, in the copy; it tries to write into the shared submodule and into the copy.
@@ -49,7 +48,7 @@ const lancerChez = (m: ReturnType<typeof mondePartage>, chemin = process.env.PAT
   writeFileSync(path.join(maison, '.claude.json'), '{}');
   return spawnSync(
     'bash',
-    [LANCER, unTicket('demo-1'), 'developpeur', 'packages/a', path.join(m.bin, 'consigne.txt')],
+    [LANCER, 'demo-1', 'developpeur', 'packages/a', path.join(m.bin, 'consigne.txt')],
     {
       cwd: m.repo,
       encoding: 'utf8',

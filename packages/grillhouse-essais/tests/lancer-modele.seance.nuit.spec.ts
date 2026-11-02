@@ -14,15 +14,16 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { RACINE } from './cadre.js';
-import { SCRIPT, projetDuLanceur, retirerLesTicketsALaFin } from './enveloppe-essai.js';
+import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
+import { temporaireDuFichier } from './temporaire-du-fichier.js';
 
 // Ticket grillhouse-3uv.46, critère 3: a real session launched with --modele runs on the model
 // asked, over the model of the role's definition; its transcript says so in the model field of
 // its messages. A real claude answers, on the real home, so the night plays it.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-nuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-// The tickets these sessions run, whose temporary directories go at the end.
-retirerLesTicketsALaFin(['demo-haiku', 'demo-role']);
+// The temporary directory of this file, under which the launcher opens each ticket's own.
+temporaireDuFichier();
 
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
 const projetsReels = path.join(userInfo().homedir, '.claude/projects');
