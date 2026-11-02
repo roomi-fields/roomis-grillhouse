@@ -200,7 +200,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   laquelle une question me réveille. Elle se termine seulement quand paraît une question neuve
   d'un circuit, lancé seul, dans une file ou par une autre séance ; sa sortie donne, par
   question, le ticket, l'étape, la question et la commande qui répond. Une question déjà remontée
-  (par l'attente, ou nommée à l'ouverture) ne la termine plus. Je ne sonde jamais les circuits
+  (par l'attente, nommée à l'ouverture, ou lue dans la sortie d'un circuit au premier plan) ne la
+  termine plus. Je ne sonde jamais les circuits
   moi-même. Je la relance une fois les questions de sa sortie répondues, ou portées au
   responsable. Ainsi je ne suis réveillé que par une question neuve, et aucune ne reste sans
   réponse.

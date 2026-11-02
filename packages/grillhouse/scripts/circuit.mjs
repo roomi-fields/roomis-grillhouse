@@ -706,7 +706,8 @@ import { sansArchitecture } from './verrous/verrou.mjs';
 import { A_REPASSER } from './mesure/pression.mjs';
 import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
-import { estLeDemon, executerEnDemon, rendreLaMain } from './demon.mjs';
+import { estLeDemon, executerEnDemon, rendreLaMain, sortieLue } from './demon.mjs';
+import { inscrireLaQuestionLue } from './superviseur.mjs';
 import { retirerLesCopiesDuDepot } from './copies-finies.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
@@ -4351,6 +4352,16 @@ function monter(ctx, a) {
   const ou = ouDansLeCircuit({ ...a.etat, raison: a.nom });
   commenter(ctx, 'question', `${a.nom} à ${ou} — ${fait} — au ${qui} : ${question}`);
   process.stderr.write(laQuestion(ctx.ticket, ctx.etat, { arret: a.nom, qui, ou, question }));
+  // A question its caller reads here (a launch in the foreground that stops before any session)
+  // is gone up: the wait of the questions does not wake on it (grillhouse-pq6.1).
+  if (sortieLue()) {
+    inscrireLaQuestionLue(ctx.racine, {
+      ticket: ctx.ticket,
+      processus: process.pid,
+      depart: DEPART,
+      arret: a.nom,
+    });
+  }
   return a.code;
 }
 

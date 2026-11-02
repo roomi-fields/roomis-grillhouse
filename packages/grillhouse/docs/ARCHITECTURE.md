@@ -579,11 +579,14 @@ arrêté hors l'`arrete` du superviseur, « à repasser » compris, ou mort sans
 panneau la lit, et `questionsEnAttente` de `superviseur.mjs`, que lisent l'ouverture et l'attente.
 L'attente surveille le dossier des états des circuits (`fs.watch`, inotify sous Linux) ; un
 circuit marque sa sortie en touchant son état, et la relecture toutes les 30 s ne sert qu'au
-circuit tué, seul à partir sans marque. Une question remontée (par l'attente, ou nommée à l'ouverture) s'inscrit dans
+circuit tué, seul à partir sans marque. Une question remontée (par l'attente, nommée à l'ouverture, ou rendue par le circuit dans la sortie que lit encore son appelant, comme un arrêt avant toute séance au premier plan) s'inscrit dans
 `.claude/worktrees/questions-remontees.json`, par son ticket, la course de son circuit
 (`processus`, `depart`) et son arrêt : elle ne réveille plus la séance, et elle en sort une fois
 répondue, le circuit reparti ou fini (grillhouse-pq6 : SH-ae6.5.2, SH-ae6.5.6 et SH-br0.1.5 de
-SyntHub, lancés par une file en arrière-plan, ont attendu des heures leur réponse).
+SyntHub, lancés par une file en arrière-plan, ont attendu des heures leur réponse ;
+grillhouse-pq6.1 : un arrêt avant toute séance réveillait l'attente sur une question déjà lue).
+L'inscription se fait sous le verrou du fichier, et une question lue reste inscrite tant que son
+circuit, arrêté, finit de sortir.
 L'état du circuit le nomme par son numéro et son heure de départ (`processus`, `depart`, le champ
 22 de `/proc/<pid>/stat`), comme un gestionnaire de services vérifie qu'un numéro réutilisé ne
 désigne pas un autre processus : le panneau tient un circuit pour vivant sur ce seul processus,

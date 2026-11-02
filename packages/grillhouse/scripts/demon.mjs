@@ -54,6 +54,8 @@ const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 // The directory of the caller of this daemon while it waits, null once the hand is given back or
 // out of a daemon.
 let aRendre = null;
+// The caller of this daemon, null out of a daemon.
+let appelantDuDemon = null;
 
 // The environment in which systemd-run reaches the user's systemd: the directory of the user's
 // runtime, `/run/user/<uid>` as pam_systemd sets it, when the environment does not give it (a task
@@ -173,6 +175,7 @@ function relayer(script, argv, { dossier, appelant, unite }) {
 // The daemon: see the header.
 async function demon(argv, main, { dossier, appelant }) {
   aRendre = dossier;
+  appelantDuDemon = appelant;
   process.on('exit', code => {
     if (!vivant(appelant) || !existsSync(dossier)) {
       rmSync(dossier, { recursive: true, force: true });
@@ -195,6 +198,17 @@ export function estLeDemon() {
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether what this process writes on its error stream now reaches a reader: in a daemon, while
+ * it has not given the hand back (`rendreLaMain`) and its caller, which relays it, lives; out of a
+ * daemon, always, its output its caller's own (grillhouse-pq6.1: the circuit inscribes the
+ * question it says there as gone up, scripts/superviseur.mjs).
+ * @returns {boolean}
+ */
+export function sortieLue() {
+  return appelantDuDemon === null || (aRendre !== null && vivant(appelantDuDemon));
 }
 
 /**

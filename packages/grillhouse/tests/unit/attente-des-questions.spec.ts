@@ -13,6 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   attendreUneQuestion,
   circuitsALOuverture,
+  inscrireLaQuestionLue,
   questionsEnAttente,
   texteDesQuestions,
 } from '../../scripts/superviseur.mjs';
@@ -204,5 +205,88 @@ setTimeout(() => {}, 600);`,
       /une attente des questions tourne déjà/i
     );
     expect(await premiere).toEqual([]);
+  });
+});
+
+// grillhouse-pq6.1: a circuit whose caller reads its output (a launch in the foreground that stops
+// before any session: the refusal of an arbitrage, the tools, the generated files) says its
+// question there, and inscribes it among those gone up, the one source of what was read: the wait
+// does not wake on it. A circuit detached, whose question no one reads, wakes the wait, once.
+// Witness: the review of grillhouse-pq6 (2026-11-01), the wait woken once on a question its
+// caller had already given to the session.
+describe('a question its caller read', () => {
+  // A run as the circuit's, alive while the test reads it, stopped on the question <question>
+  // written in its state: the child, and its stop as its circuit inscribes it.
+  const arreteVivant = async (racine: string, ticket: string, question: string) => {
+    const enfant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)']);
+    await new Promise(r => enfant.once('spawn', r));
+    const depart = departDe(enfant.pid ?? 0);
+    ecrire(racine, ticket, arrete(question, enfant.pid, depart));
+    return {
+      enfant,
+      lue: { ticket, processus: enfant.pid ?? 0, depart, arret: 'controles' },
+    };
+  };
+  // The wait under <racine>, a killed circuit read every 100 ms, ended after <ms> by its signal.
+  const attendreVite = (racine: string, ms: number) => {
+    const fin = new AbortController();
+    const minuteur = setTimeout(() => fin.abort(), ms);
+    return attendreUneQuestion({ racine, fermes: aucun, pas: 100, signal: fin.signal }).finally(
+      () => clearTimeout(minuteur)
+    );
+  };
+
+  it('grillhouse-pq6.1 critère 1 — a circuit in the foreground stopped before any session, its question in its output, does not wake the wait', async () => {
+    const racine = depot();
+    const { enfant, lue } = await arreteVivant(racine, 'demo-1', 'Q1 ?');
+    try {
+      inscrireLaQuestionLue(racine, lue);
+      // The opening, read while the circuit ends, keeps it gone up.
+      expect(circuitsALOuverture(racine, { fermes: aucun })).not.toContain('Q1 ?');
+      const attente = attendreVite(racine, 1500);
+      await new Promise(r => setTimeout(r, 200));
+      enfant.kill('SIGKILL');
+      expect(await attente).toEqual([]);
+    } finally {
+      enfant.kill('SIGKILL');
+    }
+  });
+
+  it('grillhouse-pq6.1 critère 2 — a circuit detached that stops on a question wakes the wait, once', async () => {
+    const racine = depot();
+    const { enfant } = await arreteVivant(racine, 'demo-1', 'Q1 ?');
+    try {
+      // The opening, read while the circuit ends, does not take its question for gone up.
+      circuitsALOuverture(racine, { fermes: aucun });
+      const attente = attendreVite(racine, 5000);
+      await new Promise(r => setTimeout(r, 200));
+      enfant.kill('SIGKILL');
+      expect((await attente).map(q => [q.ticket, q.question])).toEqual([['demo-1', 'Q1 ?']]);
+      expect(await attendreVite(racine, 500)).toEqual([]);
+    } finally {
+      enfant.kill('SIGKILL');
+    }
+  });
+
+  it('grillhouse-pq6.1 critère 3 — a question its caller read, then answered, leaves those gone up', async () => {
+    const racine = depot();
+    const { enfant, lue } = await arreteVivant(racine, 'demo-1', 'Q1 ?');
+    try {
+      inscrireLaQuestionLue(racine, lue);
+      enfant.kill('SIGKILL');
+      await new Promise(r => enfant.once('exit', r));
+      expect(await attendreVite(racine, 300)).toEqual([]);
+      // The supervisor answers: the circuit runs again.
+      ecrire(racine, 'demo-1', { etape: 'controles' });
+      rendreVivant(racine, 'demo-1');
+      expect(await attendreVite(racine, 300)).toEqual([]);
+      const remontees = readFileSync(
+        path.join(racine, '.claude', 'worktrees', 'questions-remontees.json'),
+        'utf8'
+      );
+      expect(remontees).not.toContain('demo-1');
+    } finally {
+      enfant.kill('SIGKILL');
+    }
   });
 });

@@ -108,3 +108,39 @@ describe('a daemon that gives the hand back', { timeout: 60_000 }, () => {
     expect(readFileSync(fin, 'utf8')).toBe('fini');
   });
 });
+
+// grillhouse-pq6.1: whether the run's error output reaches a reader, which the circuit reads to
+// inscribe the question it says there as gone up: in a daemon, while it has not given the hand
+// back to its caller; out of a daemon, always, its output its caller's own.
+const LUE = path.join(ESSAIS, 'circuit-dont-la-sortie-est-lue.mjs');
+writeFileSync(
+  LUE,
+  `import { writeFileSync } from 'node:fs';
+import { executerEnDemon, rendreLaMain, sortieLue } from ${JSON.stringify(DEMON)};
+const main = async ([fin]) => {
+  const avant = sortieLue();
+  rendreLaMain('▶ lancé\\n');
+  writeFileSync(fin, JSON.stringify([avant, sortieLue()]));
+  return 0;
+};
+process.exitCode = await executerEnDemon(import.meta.filename, process.argv.slice(2), main);
+`
+);
+
+describe('the output of a daemon, read', { timeout: 60_000 }, () => {
+  it('grillhouse-pq6.1 — read until the hand goes back to the caller, unread after; read out of a daemon', async () => {
+    const fin = path.join(ESSAIS, 'sortie-lue');
+    const code = await new Promise<number | null>(ok => {
+      const p = spawn('node', [LUE, fin], { stdio: ['ignore', 'ignore', 'ignore'] });
+      p.on('close', ok);
+    });
+    expect(code).toBe(0);
+    const limite = Date.now() + 20_000;
+    while (!existsSync(fin) && Date.now() < limite) {
+      await new Promise(ok => setTimeout(ok, 50));
+    }
+    expect(JSON.parse(readFileSync(fin, 'utf8'))).toEqual([true, false]);
+    const { sortieLue } = await import('../../scripts/demon.mjs');
+    expect(sortieLue()).toBe(true);
+  });
+});

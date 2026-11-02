@@ -105,8 +105,14 @@ process.exitCode = await main(['t-1']);`,
     expect(r.stderr).toContain('lancement');
     const etat = JSON.parse(
       readFileSync(path.join(racine, '.claude/worktrees/t-1.circuit.json'), 'utf8')
-    ) as { raison: string; rapport: string; seance: unknown };
+    ) as { raison: string; rapport: string; seance: unknown; processus: number; depart: string };
     expect(etat.raison).toBe('lancement');
+    // grillhouse-pq6.1: its question, said on the output its caller reads, is gone up, so that
+    // the wait of the questions does not wake on it.
+    const remontees = JSON.parse(
+      readFileSync(path.join(racine, '.claude/worktrees/questions-remontees.json'), 'utf8')
+    ) as { remontees: string[] };
+    expect(remontees.remontees).toEqual([`t-1:${etat.processus}:${etat.depart}:lancement`]);
     expect(etat.rapport).toContain('grillhouse.outils.X_OUTIL');
     expect(etat.seance).toBeNull();
     expect(readFileSync(path.join(bin, 'bd.journal'), 'utf8')).toContain(

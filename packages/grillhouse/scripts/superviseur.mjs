@@ -133,17 +133,48 @@ function lireRemontees(racine) {
   }
 }
 
-// Writes the stops gone up <cles>, whole, when they change.
-function ecrireRemontees(racine, cles) {
-  const avant = lireRemontees(racine);
-  if (avant.size === cles.size && [...cles].every(c => avant.has(c))) {
-    return;
-  }
+// The stops gone up of the repository at <racine>, under the lock of their file: <faire>(<avant>,
+// those gone up before) returns the keys it makes go up (`cles`) and what it gives (`rendu`); the
+// file is written whole with them and those of <avant> whose stop still stands, its circuit waiting
+// for the supervisor, or alive and stopped, a question its caller read on its output
+// (`inscrireLaQuestionLue`) until its process ends. A question answered so leaves them. Its
+// `rendu`.
+function remonter(racine, faire) {
   const f = remonteesDe(racine);
   mkdirSync(path.dirname(f), { recursive: true });
-  const provisoire = `${f}.${process.pid}`;
-  writeFileSync(provisoire, `${JSON.stringify({ remontees: [...cles].sort() }, null, 2)}\n`);
-  renameSync(provisoire, f);
+  const verrou = `${f}.verrou`;
+  // Held for one reading of the states: older than that, abandoned.
+  prendreVerrou(verrou, { attendre: true, perime: 30_000 });
+  try {
+    const avant = lireRemontees(racine);
+    const { cles, rendu } = faire(avant);
+    const debout = new Set(
+      lireCircuits({ racine })
+        .filter(c => attendLeSuperviseur(c) || (c.vivant && c.arret))
+        .map(cleDe)
+    );
+    const apres = new Set([...cles, ...[...avant].filter(c => debout.has(c))]);
+    if (avant.size !== apres.size || [...apres].some(c => !avant.has(c))) {
+      const provisoire = `${f}.${process.pid}`;
+      writeFileSync(provisoire, `${JSON.stringify({ remontees: [...apres].sort() }, null, 2)}\n`);
+      renameSync(provisoire, f);
+    }
+    return rendu;
+  } finally {
+    lacherVerrou(verrou);
+  }
+}
+
+/**
+ * Inscribes as gone up the question of the circuit of <ticket>, its run (`processus`, `depart`)
+ * stopped on <arret>, that its caller read on its output (grillhouse-pq6.1: a launch in the
+ * foreground that stops before any session, scripts/circuit.mjs `monter`): the wait of the
+ * questions does not wake on it, by the one source of the stops gone up.
+ * @param {string} racine
+ * @param {{ ticket: string, processus: number, depart: string, arret: string }} arret
+ */
+export function inscrireLaQuestionLue(racine, arret) {
+  remonter(racine, () => ({ cles: [cleDe(arret)] }));
 }
 
 // The question that waits for the supervisor from the circuit <c>: its ticket, its step, its
@@ -205,10 +236,10 @@ const aucunFerme = () => new Set();
 // and now gone up; a question answered (its circuit runs again, or ended) leaves those gone up, and
 // one whose ticket <fermes> gives closed goes up without a word. bd is asked of the new ones alone.
 function releverLesNeuves(racine, fermes) {
-  const toutes = questionsEnAttente(racine, { fermes: aucunFerme });
-  const neuves = questionsEnAttente(racine, { fermes, sauf: lireRemontees(racine) });
-  ecrireRemontees(racine, new Set(toutes.map(q => q.cle)));
-  return neuves;
+  return remonter(racine, avant => ({
+    cles: questionsEnAttente(racine, { fermes: aucunFerme }).map(q => q.cle),
+    rendu: questionsEnAttente(racine, { fermes, sauf: avant }),
+  }));
 }
 
 /**
@@ -317,8 +348,10 @@ export function texteDesQuestions(questions) {
  * @returns {string}
  */
 export function circuitsALOuverture(racine, { fermes = ticketsFermes } = {}) {
-  const questions = questionsEnAttente(racine, { fermes });
-  ecrireRemontees(racine, new Set(questions.map(q => q.cle)));
+  const questions = remonter(racine, () => {
+    const q = questionsEnAttente(racine, { fermes });
+    return { cles: q.map(x => x.cle), rendu: q };
+  });
   const tournent = enAttente(
     lireCircuits({ racine }).filter(c => c.vivant),
     racine,
