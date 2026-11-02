@@ -15,13 +15,13 @@
 //
 //   AGENTS  ▶ en cours · en attente
 //   🔒 Mesure · roomis-grillhouse · 124/190 · 8 min
-//   ⏳ Contrôles · bp-mono · 320.11 · attend · 2 min
+//   ⏳ Contrôles · bp-mono · vbwf.3.11 · attend · 2 min
 //   ▾ 1 · Plan · explorateur ⇄ questionneur
 //     ⤷ Question · superviseur
 //   [bp-mono]    bp-mono-vbwf.320.6.2.1… ⏸ 3 min · 135 k
 //   ▾ 3 · Code · développeur
 //     3.1 · Contrôles · auto
-//   [bp-mono]    bp-mono-vbwf.320.11  … ⏳ 4 h 59 · 1,2 M
+//   [bp-mono]    bp-mono-vbwf.3.11  … ⏳ 4 h 59 · 1,2 M
 //
 // The reading of the lock itself (scripts/verrou-de-machine.mjs) is tests/unit/verrou-de-machine.spec.ts's.
 import { describe, expect, it } from 'vitest';
@@ -103,7 +103,7 @@ const MESURE = {
 };
 const ATTENTE = {
   projet: 'bp-mono',
-  ticket: 'bp-mono-vbwf.320.11',
+  ticket: 'bp-mono-vbwf.3.11',
   sorte: 'Contrôles',
   depuis: MAINTENANT - 2 * MIN,
   quoi: 'verrou',
@@ -127,13 +127,13 @@ describe('critère 1 : the holder of the lock has its line 🔒 at the head of A
   it('the circuit of a ticket of another project: its kind, its project, its ticket, without figures when it has none', () => {
     const detenteur = {
       projet: 'bp-mono',
-      ticket: 'bp-mono-vbwf.320.11',
+      ticket: 'bp-mono-vbwf.3.11',
       sorte: 'Contrôles',
       depuis: MAINTENANT - 7 * MIN,
       avancement: null,
     };
     const [l] = tete(agents({ detenteur, attentes: [] }));
-    expect(l.texte).toBe('🔒 Contrôles · bp-mono · 320.11 · 7 min');
+    expect(l.texte).toBe('🔒 Contrôles · bp-mono · vbwf.3.11 · 7 min');
   });
 
   it('a ticket without children under its prefix keeps its own name: « grillhouse-wui » shows « wui »', () => {
@@ -192,14 +192,14 @@ describe('critère 1 : the line of the lock names each project as the board name
         .map(l => l.texte)
     ).toEqual([
       '🔒 Mesure · roomis-grillhouse · 124/190 · 8 min',
-      '⏳ Contrôles · bp-mono · 320.11 · attend · 2 min',
+      '⏳ Contrôles · bp-mono · vbwf.3.11 · attend · 2 min',
     ]);
   });
 
   it('a project out of the board keeps its folder', () => {
     const noms = new Map([['/dev/roomis-grillhouse', 'roomis-grillhouse']]);
     expect(tete(agents(nommerLesProjets(machine, noms)))[1].texte).toBe(
-      '⏳ Contrôles · BPScript · 320.11 · attend · 2 min'
+      '⏳ Contrôles · BPScript · vbwf.3.11 · attend · 2 min'
     );
   });
 });
@@ -217,7 +217,7 @@ describe('critère 2 : each pass that waits has its line ⏳, after the holder',
     expect(a.slice(0, 3).map(l => l.texte)).toEqual([
       '🔒 Mesure · roomis-grillhouse · 124/190 · 8 min',
       '⏳ Mesure · roomis-grillhouse · attend · 5 min',
-      '⏳ Contrôles · bp-mono · 320.11 · attend · 2 min',
+      '⏳ Contrôles · bp-mono · vbwf.3.11 · attend · 2 min',
     ]);
     expect(a[1]).toMatchObject({ avancement: true });
   });
@@ -225,7 +225,7 @@ describe('critère 2 : each pass that waits has its line ⏳, after the holder',
   it('a wait under a minute counts its seconds', () => {
     const attente = { ...ATTENTE, depuis: MAINTENANT - 20 * S };
     expect(tete(agents({ detenteur: null, attentes: [attente] }))[0].texte).toBe(
-      '⏳ Contrôles · bp-mono · 320.11 · attend · 20 s'
+      '⏳ Contrôles · bp-mono · vbwf.3.11 · attend · 20 s'
     );
   });
 
@@ -255,7 +255,7 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
     'bp-mono',
     [
       T('bp-mono-vbwf.320.6.2.1', 'Le binder garde ses portées'),
-      T('bp-mono-vbwf.320.11', 'Le checker refuse les gabarits'),
+      T('bp-mono-vbwf.3.11', 'Le checker refuse les gabarits'),
       T('bp-mono-905n', 'La nuit est rouge', {
         status: 'open',
         labels: ['nuit'],
@@ -265,7 +265,7 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
     {
       circuits: [
         circuit('bp-mono-vbwf.320.6.2.1', { vivant: false, etape: 'developpeur', code: 1 }),
-        circuit('bp-mono-vbwf.320.11'),
+        circuit('bp-mono-vbwf.3.11'),
       ],
       machine: { detenteur: MESURE, attentes: [ATTENTE] },
     }
@@ -294,10 +294,10 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
     const a = tete(deux().filter(x => x.section === 'agents'));
     expect(a.slice(0, 2).map(x => x.texte)).toEqual([
       '🔒 Mesure · roomis-grillhouse · 124/190 · 8 min',
-      '⏳ Contrôles · bp-mono · 320.11 · attend · 2 min',
+      '⏳ Contrôles · bp-mono · vbwf.3.11 · attend · 2 min',
     ]);
     expect(a.find(x => x.ticket === 'bp-mono-vbwf.320.6.2.1')?.texte).toMatch(/ ⏸$| ⏸ /);
-    expect(a.find(x => x.ticket === 'bp-mono-vbwf.320.11')?.texte).toMatch(/ ⏳$| ⏳ /);
+    expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toMatch(/ ⏳$| ⏳ /);
     expect(deux().some(x => x.texte.includes('■'))).toBe(false);
   });
 
@@ -305,7 +305,7 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
     for (const l of deux()) {
       expect(colonnes(l.texte), l.texte).toBeLessThanOrEqual(LARGEUR);
     }
-    const attend = deux().find(x => x.ticket === 'bp-mono-vbwf.320.11')!;
+    const attend = deux().find(x => x.ticket === 'bp-mono-vbwf.3.11')!;
     const stoppe = deux().find(x => x.ticket === 'bp-mono-vbwf.320.6.2.1')!;
     expect(colonnes(attend.texte)).toBe(colonnes(stoppe.texte));
   });
@@ -332,5 +332,66 @@ describe('critère 4 : the status line says the same', () => {
 
   it('without alerts nor lock, the status line is the counters alone', () => {
     expect(ligneEtat(plateau('demo', []))).toMatch(/^Grillhouse : /);
+  });
+});
+
+// grillhouse-6ay: the line of the lock names the phase and the ticket of the verification it
+// shows. The owner's decision (2026-11-02): the ticket loses only the prefix of its project, already
+// on the line, « SH-ae6.5 » → « ae6.5 », « grillhouse-527.1.1 » → « 527.1.1 ».
+describe('grillhouse-6ay critères 1, 6 et 11 : la ligne du verrou porte la phase et le ticket court', () => {
+  const inscrit = (sorte: string, ticket: string | null, projet = 'synthhub') => ({
+    projet,
+    ticket,
+    sorte,
+    depuis: MAINTENANT - 34 * S,
+    avancement: null,
+  });
+  const premiere = (machine: Machine) => tete(agents(machine))[0].texte;
+
+  it('critère 1 : « 🔒 Intégration · synthhub · ae6.5 · 34 s » depuis le ticket SH-ae6.5', () => {
+    expect(premiere({ detenteur: inscrit('Intégration', 'SH-ae6.5'), attentes: [] })).toBe(
+      '🔒 Intégration · synthhub · ae6.5 · 34 s'
+    );
+  });
+
+  it('critère 11 : un identifiant à préfixe long garde sa partie d’épopée (« synthhub-ae6.5 » → « ae6.5 »)', () => {
+    expect(premiere({ detenteur: inscrit('Intégration', 'synthhub-ae6.5'), attentes: [] })).toBe(
+      '🔒 Intégration · synthhub · ae6.5 · 34 s'
+    );
+  });
+
+  it('critère 11 : « grillhouse-527.1.1 » → « 527.1.1 », « grillhouse-wui » → « wui »', () => {
+    expect(
+      premiere({ detenteur: inscrit('File', 'grillhouse-527.1.1', 'grillhouse'), attentes: [] })
+    ).toBe('🔒 File · grillhouse · 527.1.1 · 34 s');
+    expect(
+      premiere({ detenteur: inscrit('File', 'grillhouse-wui', 'grillhouse'), attentes: [] })
+    ).toBe('🔒 File · grillhouse · wui · 34 s');
+  });
+
+  it('critère 1 : une attente de la file : « ⏳ File · bpscript · <ticket> · attend · 1 min »', () => {
+    const attente = {
+      ...inscrit('File', 'synthhub-ae6.5', 'bpscript'),
+      depuis: MAINTENANT - MIN,
+      quoi: 'verrou',
+    };
+    expect(premiere({ detenteur: null, attentes: [attente] })).toBe(
+      '⏳ File · bpscript · ae6.5 · attend · 1 min'
+    );
+  });
+
+  it('critères 2 et 3 : sans ticket, la ligne porte la phase seule (Nuit, Vérification)', () => {
+    expect(premiere({ detenteur: inscrit('Nuit', null, 'grillhouse'), attentes: [] })).toBe(
+      '🔒 Nuit · grillhouse · 34 s'
+    );
+    expect(premiere({ detenteur: inscrit('Vérification', null), attentes: [] })).toBe(
+      '🔒 Vérification · synthhub · 34 s'
+    );
+  });
+
+  it('critère 4 : le circuit garde son nom d’étape et son ticket', () => {
+    expect(
+      premiere({ detenteur: inscrit('Preuve du rouge', 'synthhub-cgi.15'), attentes: [] })
+    ).toBe('🔒 Preuve du rouge · synthhub · cgi.15 · 34 s');
   });
 });

@@ -50,7 +50,8 @@
 //   « Blocking waiting for file lock » says what a wait waits for. Whoever takes it, a pass out of
 //   a ticket or the circuit of a ticket, of any project of the machine, names itself beside it in
 //   `<lock>.detenteur.json`: its mark, its process, its project, its ticket or null, its kind
-//   (`sorte`: « Mesure » by default, a step's title for a circuit), since when, and its progress
+//   (`sorte`: « Vérification » by default, or GRILLHOUSE_VERIFICATION_SORTE and
+//   GRILLHOUSE_VERIFICATION_TICKET from the caller, a step's title for a circuit), since when, and its progress
 //   directory once it names it (`nommerLAvancement`); the name goes with the lock. Each measure
 //   that waits, for the lock or for room in the temporary directory, names itself in the
 //   directory `<lock>.attentes/`, one file per waiting process (its process, its rank, its
@@ -106,6 +107,8 @@ import { A_REPASSER } from './mesure/pression.mjs';
 
 const VARIABLE_VERROU = 'GRILLHOUSE_VERROU_MACHINE';
 const VARIABLE_TENUE = 'GRILLHOUSE_MESURE_TENUE';
+const VARIABLE_VERIFICATION_SORTE = 'GRILLHOUSE_VERIFICATION_SORTE';
+const VARIABLE_VERIFICATION_TICKET = 'GRILLHOUSE_VERIFICATION_TICKET';
 const VARIABLE_ATTENTE = 'GRILLHOUSE_ATTENTE_MACHINE_MS';
 const VARIABLE_LIBRE = 'GRILLHOUSE_TEMPORAIRE_LIBRE';
 const VARIABLE_COPIE = 'GRILLHOUSE_COPIE_LIBRE';
@@ -237,7 +240,12 @@ const dossierDesAttentes = verrou => `${verrou}.attentes`;
 
 // Who a measure is, from its options: `{ depot, ticket, sorte }`, the root of its repository
 // read when first asked.
-function identite({ racine, ticket = null, sorte = 'Mesure' }) {
+// The kind and the ticket come from the option of the caller (the circuit) when it gives one,
+// else from the caller's environment (GRILLHOUSE_VERIFICATION_SORTE, GRILLHOUSE_VERIFICATION_TICKET,
+// empty as absent), else « Vérification » and null.
+function identite({ racine, env = {}, ticket, sorte }) {
+  ticket = ticket ?? (env[VARIABLE_VERIFICATION_TICKET] || null);
+  sorte = sorte ?? (env[VARIABLE_VERIFICATION_SORTE] || 'Vérification');
   let depot = null;
   return {
     get depot() {
@@ -579,11 +587,11 @@ export function attendreDeLaPlace({
   occupe = occupants,
   occupeLaCopie = occupantsDesCopies,
   racine = process.cwd(),
-  ticket = null,
-  sorte = 'Mesure',
+  ticket,
+  sorte,
 } = {}) {
   const temporaire = env.TMPDIR || env.TMP || env.TEMP || tmpdir();
-  const id = identite({ racine, ticket, sorte });
+  const id = identite({ racine, env, ticket, sorte });
   const inscrire = () => inscrireLAttente(verrouDeMachine(env), id, 'place');
   const debut = Date.now();
   const commun = { libre, dire, borneMs, rappelMs, inscrire, debut };
@@ -664,7 +672,8 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
  *   (GRILLHOUSE_ATTENTE_MACHINE_MS, else ATTENTE_MACHINE_MS); `rappelMs`, the gap between two
  *   lines that say the wait goes on (30 s); `libre`, the room free in a directory, in bytes
  *   (`statfs`, at each turn); `occupe`, what holds it, counted when a line of the wait is written;
- *   `ticket` (null out of a ticket) and `sorte` (« Mesure » by default), who the measure is,
+ *   `ticket` (null out of a ticket) and `sorte` (« Vérification » by default), who the measure is;
+ *   an option left out is read from GRILLHOUSE_VERIFICATION_TICKET and GRILLHOUSE_VERIFICATION_SORTE,
  *   named beside the lock while it waits and while it holds it, with its project
  * @returns {T}
  * @throws {AttenteDeLaMachine} at the bound of the wait (code 75), or at once when an ancestor
@@ -681,15 +690,15 @@ export function avecLaMachine(
     rappelMs = RAPPEL_MS,
     libre = libreDans,
     occupe = occupants,
-    ticket = null,
-    sorte = 'Mesure',
+    ticket,
+    sorte,
   } = {}
 ) {
   if (paquetsDeLEnveloppe(env)) return mesure(env);
   const verrou = verrouDeMachine(env);
   if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) return mesure(env);
   attendreDeLaPlace({ env, libre, occupe, dire, borneMs, rappelMs, racine, ticket, sorte });
-  const id = identite({ racine, ticket, sorte });
+  const id = identite({ racine, env, ticket, sorte });
   mkdirSync(path.dirname(verrou), { recursive: true });
   const rang = rangDeLaMesure(racine);
   if (!(peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))) {
@@ -699,7 +708,8 @@ export function avecLaMachine(
   let oublier = () => {};
   try {
     oublier = nommerLeDetenteur(verrou, id);
-    return mesure({ ...env, [VARIABLE_TENUE]: lire(verrou) ?? '' });
+    const { [VARIABLE_VERIFICATION_SORTE]: _s, [VARIABLE_VERIFICATION_TICKET]: _t, ...enfant } = env;
+    return mesure({ ...enfant, [VARIABLE_TENUE]: lire(verrou) ?? '' });
   } finally {
     oublier();
     lacherVerrou(verrou);

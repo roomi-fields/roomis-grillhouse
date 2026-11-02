@@ -233,7 +233,7 @@ jouer() {
   # The full pass, played for real: the night replays no log of the cache. Each step plays even
   # when one before it is red; a step à repasser ends the night there, red if a step before it is.
   local code tache avant
-  GRILLHOUSE_ROUGES="$rouges" monter npm --prefix "$copie" run verifier -- --force
+  GRILLHOUSE_ROUGES="$rouges" GRILLHOUSE_VERIFICATION_SORTE=Nuit monter npm --prefix "$copie" run verifier -- --force
   code=$?
   if [ "$code" -eq 75 ]; then
     echo "⏱ la passe complète est à repasser (code 75) : l'attente de la machine a atteint sa borne."

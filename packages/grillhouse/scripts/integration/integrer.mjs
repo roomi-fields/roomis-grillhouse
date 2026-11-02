@@ -403,7 +403,7 @@ function main(argv) {
 
     // 6. The tests: the build, the guards and every test of the day, green required.
     dire('— npm run verifier (construction, gardes, tests)');
-    const verdict = tester().status;
+    const verdict = tester({ sorte: 'Intégration', ticket: o.ticket }).status;
     if (verdict === A_REPASSER) {
       dire(
         `⏱ À repasser (code ${A_REPASSER}) : l'attente de la machine a atteint sa borne. Le lot n'est ni commis ni refusé ; relance la même commande.`

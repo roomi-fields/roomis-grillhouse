@@ -73,7 +73,7 @@
 //   machine), « 🔒 <sorte> · <projet> · <ticket> · faits/prévus · <durée> » since it took the
 //   lock, « ⚠ <sorte> figée <durée> · … » past FIGEE without a sign of its progress; then each
 //   pass that waits for the lock or for room under /tmp, the oldest first, « ⏳ <sorte> ·
-//   <projet> · <ticket> · attend · <durée> ». The ticket shows without its prefix and its epic
+//   <projet> · <ticket> · attend · <durée> ». The ticket shows without its prefix
 //   (`courtDuTicket`). Such a line is marked `avancement`, which the pane measures again more
 //   often. A circuit that waits shows ⏳ on its ticket's line, ▶ while it waits for nothing.
 // - Signs: each sign keeps one sense (the owner's decision of 2026-11-01): ▶ in progress, ⏸ a
@@ -1238,13 +1238,10 @@ const couperAvant = (gauche, suite, droite, largeur) => {
 // The sign of the alert <a>: its kind's (`signe`: 🌙 a red night, 💤 a ticket claimed with
 // nothing running), ⚠ for the others.
 const signeDe = a => a.signe ?? '⚠';
-// A ticket's short name on the line of the lock, whatever its project: its id after the prefix,
-// without the epic's part when it has children's numbers, « bp-mono-vbwf.320.11 » → « 320.11 »,
-// « grillhouse-wui » → « wui ».
-const courtDuTicket = id => {
-  const n = id.slice(id.lastIndexOf('-') + 1);
-  return n.includes('.') ? n.slice(n.indexOf('.') + 1) : n;
-};
+// A ticket's short name on the line of the lock, whatever its project: its id without the
+// project's prefix, which the line already names, « bp-mono-vbwf.320.11 » → « vbwf.320.11 »,
+// « SH-ae6.5 » → « ae6.5 ».
+const courtDuTicket = id => id.slice(id.lastIndexOf('-') + 1);
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked

@@ -120,9 +120,10 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
   ];
   const montage = spawnSync('bash', monter('true'), { encoding: 'utf8' });
   if (montage.status !== 0) return { refus: montage.stderr.trim() };
-  const lancer = (commande, args) => {
+  const lancer = (commande, args, envPlus = null) => {
     const r = spawnSync('bash', monter(commande, ...args), {
       cwd: copie,
+      ...(envPlus ? { env: { ...process.env, ...envPlus } } : {}),
       encoding: 'utf8',
       maxBuffer: SORTIE_MAX,
     });
@@ -154,10 +155,24 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
 
   // The checks of the copy: its preparation, then its verification; the first that is not green
   // ends them.
-  const tester = () => {
+  // `identite` (`{ sorte, ticket }`, the ticket null when unknown) is set in the environment of
+  // `npm run verifier` alone, which names itself so at the lock of the machine; the preparation
+  // does not receive it.
+  const tester = identite => {
     let r;
-    for (const [commande, args] of commandesDeVerification(copie)) {
-      r = lancer(commande, args);
+    const commandes = commandesDeVerification(copie);
+    for (const [i, [commande, args]] of commandes.entries()) {
+      const verifier = i === commandes.length - 1 && identite;
+      r = lancer(
+        commande,
+        args,
+        verifier
+          ? {
+              GRILLHOUSE_VERIFICATION_SORTE: identite.sorte,
+              GRILLHOUSE_VERIFICATION_TICKET: identite.ticket ?? '',
+            }
+          : null
+      );
       if (r.status !== 0) {
         break;
       }

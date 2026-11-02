@@ -677,7 +677,7 @@ describe(
           depot: cadre,
           projet: 'roomis-grillhouse',
           ticket: null,
-          sorte: 'Mesure',
+          sorte: 'Vérification',
           quoi: 'verrou',
           pid: b.p.pid,
         }),
@@ -736,6 +736,265 @@ describe(
       const lu = await lireLeVerrou(environnement({ GRILLHOUSE_VERROU_MACHINE: verrou }));
       expect(lu.detenteur).toMatchObject({ sorte: 'Verrou', ticket: null, pid: process.pid });
       expect(String(lu.detenteur?.projet)).not.toBe('');
+    });
+  }
+);
+
+// grillhouse-6ay — la phase et le ticket d'une vérification passent de son appelant au verrou par
+// l'environnement (GRILLHOUSE_VERIFICATION_SORTE, GRILLHOUSE_VERIFICATION_TICKET), comme
+// GRILLHOUSE_MESURE_TENUE passe la marque du verrou ; ils ne passent qu'à la prise du verrou.
+describe(
+  'grillhouse-6ay — l’identité d’une vérification vient de son appelant',
+  { timeout: 60_000 },
+  () => {
+    const SORTE = 'GRILLHOUSE_VERIFICATION_SORTE';
+    const TICKET = 'GRILLHOUSE_VERIFICATION_TICKET';
+    interface Lu {
+      detenteur: Record<string, unknown> | null;
+      attentes: Record<string, unknown>[];
+    }
+    const lireLeVerrou = async (env: Record<string, string>) =>
+      (
+        (await import(MODULE)) as { lireLeVerrou: (env: Record<string, string>) => Lu }
+      ).lireLeVerrou(env);
+    // What the holder was inscribed as, and what its measure received: a child takes the lock
+    // with <options> under <ajouts>, writes the variables of its measure's environment to a file,
+    // holds the lock while <lire> reads it, then lets go.
+    async function inscription(
+      ajouts: Record<string, string | undefined>,
+      options = '{}'
+    ) {
+      const d = unDossier();
+      const env = environnement({
+        GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),
+        ...ajouts,
+      });
+      const trace = path.join(d, 'trace');
+      const libere = path.join(d, 'libere');
+      const enfant = path.join(d, 'enfant.json');
+      const corps = `
+        appendFileSync(${JSON.stringify(enfant)}, JSON.stringify({
+          sorte: envEnfant.${SORTE} ?? null,
+          ticket: envEnfant.${TICKET} ?? null,
+          tenue: Boolean(envEnfant.GRILLHOUSE_MESURE_TENUE),
+        }));
+        ${tenir(libere)}
+      `;
+      const p = lancer(preneur('A', trace, corps, options), env);
+      const fini = fin(p);
+      try {
+        await jusqua(() => lignes(trace).includes('A début'));
+        const { detenteur } = await lireLeVerrou(env);
+        return {
+          detenteur,
+          enfant: JSON.parse(readFileSync(enfant, 'utf8')) as {
+            sorte: string | null;
+            ticket: string | null;
+            tenue: boolean;
+          },
+        };
+      } finally {
+        writeFileSync(libere, '');
+        await fini;
+      }
+    }
+
+    it('critère 7 : l’identité lit la sorte et le ticket de l’environnement', async () => {
+      const lu = await inscription({ [SORTE]: 'Intégration', [TICKET]: 'SH-ae6.5' });
+      expect(lu.detenteur).toMatchObject({ sorte: 'Intégration', ticket: 'SH-ae6.5' });
+    });
+
+    it('critère 7 : la sorte seule (la nuit) s’inscrit sans ticket', async () => {
+      const lu = await inscription({ [SORTE]: 'Nuit' });
+      expect(lu.detenteur).toMatchObject({ sorte: 'Nuit', ticket: null });
+    });
+
+    it('critère 7 : une sorte libre est inscrite telle quelle', async () => {
+      const lu = await inscription({ [SORTE]: 'Banc du matin', [TICKET]: 'demo-3' });
+      expect(lu.detenteur).toMatchObject({ sorte: 'Banc du matin', ticket: 'demo-3' });
+    });
+
+    it('critère 7 : une option explicite de l’appelant l’emporte sur l’environnement', async () => {
+      const lu = await inscription(
+        { [SORTE]: 'Intégration', [TICKET]: 'SH-ae6.5' },
+        "{ ticket: 'demo-12', sorte: 'Preuve du rouge' }"
+      );
+      expect(lu.detenteur).toMatchObject({ sorte: 'Preuve du rouge', ticket: 'demo-12' });
+    });
+
+    it('critères 3 et 7 : sans variable, la sorte vaut « Vérification » et le ticket null', async () => {
+      const lu = await inscription({ [SORTE]: undefined, [TICKET]: undefined });
+      expect(lu.detenteur).toMatchObject({ sorte: 'Vérification', ticket: null });
+    });
+
+    it('critère 7 : des variables vides valent des variables absentes', async () => {
+      const lu = await inscription({ [SORTE]: '', [TICKET]: '' });
+      expect(lu.detenteur).toMatchObject({ sorte: 'Vérification', ticket: null });
+    });
+
+    it('critère 8 : la mesure du détenteur reçoit la marque, sans les deux variables', async () => {
+      const lu = await inscription({ [SORTE]: 'File', [TICKET]: 'SH-ae6.5' });
+      expect(lu.enfant).toEqual({ sorte: null, ticket: null, tenue: true });
+    });
+
+    it('critère 10 : l’attente de la place porte le même nom que le détenteur', async () => {
+      const d = unDossier();
+      const env = environnement({
+        GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),
+        GRILLHOUSE_TEMPORAIRE_LIBRE: undefined,
+        [SORTE]: 'File',
+        [TICKET]: 'SH-ae6.5',
+      });
+      const code = `
+        import { attendreDeLaPlace } from ${JSON.stringify(MODULE)};
+        attendreDeLaPlace({ libre: () => 0, occupe: () => 'rien', borneMs: 600000 });
+      `;
+      const p = spawn(process.execPath, ['--input-type=module', '-e', code], {
+        env,
+        cwd: d,
+        stdio: 'pipe',
+      });
+      let sortie = '';
+      p.stdout?.on('data', b => (sortie += b));
+      const fini = fin(p);
+      try {
+        await jusqua(() => sortie.includes('⏳'));
+        expect((await lireLeVerrou(env)).attentes).toEqual([
+          expect.objectContaining({ quoi: 'place', sorte: 'File', ticket: 'SH-ae6.5' }),
+        ]);
+      } finally {
+        p.kill('SIGKILL');
+        await fini;
+      }
+    });
+
+    // The verification of a language module, played in a trial project: its guards script writes
+    // what the lock says of its holder and the variables it received.
+    const GARDE = `
+      import { readFileSync, writeFileSync } from 'node:fs';
+      const lock = process.env.GRILLHOUSE_VERROU_MACHINE;
+      writeFileSync('lu.json', JSON.stringify({
+        detenteur: JSON.parse(readFileSync(lock + '.detenteur.json', 'utf8')),
+        sorte: process.env.${SORTE} ?? null,
+        ticket: process.env.${TICKET} ?? null,
+      }));
+    `;
+    const projetDEssai = (d: string) => {
+      writeFileSync(path.join(d, 'garde.mjs'), GARDE);
+      writeFileSync(
+        path.join(d, 'package.json'),
+        JSON.stringify({
+          name: 'essai',
+          private: true,
+          scripts: { gardes: 'node garde.mjs' },
+        })
+      );
+      const bin = path.join(d, 'bin');
+      mkdirSync(bin, { recursive: true });
+      writeFileSync(path.join(bin, 'sccache'), '#!/bin/sh\nexit 0\n');
+      chmodSync(path.join(bin, 'sccache'), 0o755);
+      return bin;
+    };
+    const lu = (d: string) =>
+      JSON.parse(readFileSync(path.join(d, 'lu.json'), 'utf8')) as {
+        detenteur: Record<string, unknown>;
+        sorte: string | null;
+        ticket: string | null;
+      };
+
+    // The Cargo module needs a trial repository (a Cargo.lock that git tracks): its case is a night
+    // test, verrou-de-machine-cargo.nuit.test.ts.
+    for (const langage of ['python'] as const) {
+      const module = pathToFileURL(
+        path.join(RACINE, `packages/grillhouse/scripts/langages/${langage}/commandes.mjs`)
+      ).href;
+      const jouer = async (d: string, ajouts: Record<string, string | undefined>) => {
+        const bin = projetDEssai(d);
+        // The home of the trial: the Cargo module writes its caches under ~/.cache/grillhouse.
+        const maison = path.join(d, 'maison');
+        mkdirSync(path.join(maison, '.cache', 'grillhouse'), { recursive: true });
+        const env = environnement({
+          HOME: maison,
+          GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),
+          PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
+          ...ajouts,
+        });
+        const { lancer: jouerLaCommande } = (await import(module)) as {
+          lancer: (
+            nom: string,
+            args: string[],
+            o: { racine: string; env: Record<string, string> }
+          ) => number;
+        };
+        return jouerLaCommande('verifier', ['--gardes'], { racine: d, env });
+      };
+
+      it(`critère 5 (${langage}) : la vérification s’inscrit avec l’identité de l’environnement, que sa mesure ne reçoit pas`, async () => {
+        const d = unDossier();
+        const code = await jouer(d, { [SORTE]: 'Intégration', [TICKET]: 'SH-ae6.5' });
+        expect(code).toBe(0);
+        expect(lu(d)).toMatchObject({
+          detenteur: { sorte: 'Intégration', ticket: 'SH-ae6.5' },
+          sorte: null,
+          ticket: null,
+        });
+      });
+
+      it(`critères 3 et 5 (${langage}) : lancée à la main, elle s’inscrit « Vérification », sans ticket`, async () => {
+        const d = unDossier();
+        const code = await jouer(d, { [SORTE]: undefined, [TICKET]: undefined });
+        expect(code).toBe(0);
+        expect(lu(d).detenteur).toMatchObject({ sorte: 'Vérification', ticket: null });
+      });
+    }
+
+    describe('critères 3, 5 et 8 : npm run verifier du module TypeScript', () => {
+      // A Turborepo that writes what the lock says of its holder and the variables it received.
+      const turboEspion = (d: string) => {
+        const bin = path.join(d, 'bin');
+        mkdirSync(bin, { recursive: true });
+        const f = path.join(bin, 'turbo');
+        writeFileSync(
+          f,
+          `#!/bin/sh
+cp "$GRILLHOUSE_VERROU_MACHINE.detenteur.json" ${JSON.stringify(path.join(d, 'detenteur.json'))}
+echo "sorte=\${${SORTE}:-} ticket=\${${TICKET}:-}" > ${JSON.stringify(path.join(d, 'variables'))}
+exit 0
+`
+        );
+        chmodSync(f, 0o755);
+        writeFileSync(path.join(d, 'package.json'), '{ "name": "essai", "private": true }\n');
+        return bin;
+      };
+      const jouer = async (ajouts: Record<string, string | undefined>) => {
+        const d = unDossier();
+        const bin = turboEspion(d);
+        const env = environnement({
+          GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),
+          PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
+          ...ajouts,
+        });
+        const v = await fin(spawn(process.execPath, [VERIFIER], { cwd: d, env, stdio: 'pipe' }));
+        expect(v.code, v.sortie).toBe(0);
+        return {
+          detenteur: JSON.parse(readFileSync(path.join(d, 'detenteur.json'), 'utf8')) as Record<
+            string,
+            unknown
+          >,
+          variables: readFileSync(path.join(d, 'variables'), 'utf8').trim(),
+        };
+      };
+
+      it('critère 5 : la vérification de l’intégration s’inscrit « Intégration » avec le ticket du lot ; ses tâches ne reçoivent pas les variables', async () => {
+        const r = await jouer({ [SORTE]: 'Intégration', [TICKET]: 'SH-ae6.5' });
+        expect(r.detenteur).toMatchObject({ sorte: 'Intégration', ticket: 'SH-ae6.5' });
+        expect(r.variables).toBe('sorte= ticket=');
+      });
+
+      it('critère 3 : lancée à la main, elle s’inscrit « Vérification », sans ticket', async () => {
+        const r = await jouer({ [SORTE]: undefined, [TICKET]: undefined });
+        expect(r.detenteur).toMatchObject({ sorte: 'Vérification', ticket: null });
+      });
     });
   }
 );

@@ -206,6 +206,13 @@ clippy`). Le noyau en lance trois
   ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a
   une (`typescript`, `npx turbo run <tâche> --filter=<paquet>`) ; la nuit en tire sa commande
   `git bisect run`.
+- Une vérification se nomme au verrou de la machine par deux variables que son appelant pose :
+  `GRILLHOUSE_VERIFICATION_SORTE` (sa phase : « Intégration », « File » ou « Nuit » chez les
+  appelants du cadre, une sorte libre est inscrite telle quelle) et `GRILLHOUSE_VERIFICATION_TICKET`
+  (son ticket, absent quand elle n'en a pas). Absentes ou vides, la sorte vaut « Vérification » et
+  le ticket null ; l'option explicite du circuit l'emporte. Elles ne servent qu'à la prise du
+  verrou (aux côtés de `GRILLHOUSE_MESURE_TENUE`, la marque de la prise) : la mesure que le
+  détenteur lance ne les reçoit pas.
 - `verdict` : ce qu'un lancement a laissé dans son dossier de résultats (`GRILLHOUSE_RESULTATS`) :
   `{ rapports, taches }`, chaque fichier de test avec ses tests, chaque tâche avec son code, 0 vert,
   1 rouge, 75 « à repasser », et `tests` vrai pour la tâche qui joue les tests de son composant.

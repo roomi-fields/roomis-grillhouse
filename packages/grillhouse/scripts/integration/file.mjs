@@ -459,7 +459,7 @@ function main(argv) {
 
   // The branch replaced on main, replayed: { nouveau } (the commit to move main onto), or
   // { sortie: [titre, détail] } (it leaves the queue), or { garde } (it stays, the reason).
-  const rejouer = (tip, tete) => {
+  const rejouer = (tip, tete, ticketRejoue = null) => {
     if (existsSync(copie))
       spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
     // The keys of the project, before any work: its generated files and its tools.
@@ -538,7 +538,7 @@ function main(argv) {
       dire(`✓ fichiers engendrés régénérés sur main : ${touches.map(e => e.nom).join(', ')}`);
     }
     dire('— npm run verifier (construction, gardes, tests)');
-    const t = tester();
+    const t = tester({ sorte: 'File', ticket: ticketRejoue });
     if (t.status === A_REPASSER) {
       return {
         garde: `son \`npm run verifier\` est à repasser (code ${A_REPASSER}) une fois replacée : l'attente de la machine a atteint sa borne. Ni vert ni rouge ; la prochaine file la rejoue.`,
@@ -607,7 +607,7 @@ function main(argv) {
       const tete = git('rev-parse', refPrincipale).stdout.trim();
       let nouveau = tip;
       if (git('merge-base', '--is-ancestor', tete, tip).status !== 0) {
-        const r = rejouer(tip, tete);
+        const r = rejouer(tip, tete, entree.ticket);
         if (r.sortie) return sortir(entree, ...r.sortie);
         if (r.garde) return garder(entree, r.garde);
         nouveau = r.nouveau;
