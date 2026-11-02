@@ -760,10 +760,7 @@ describe(
     // What the holder was inscribed as, and what its measure received: a child takes the lock
     // with <options> under <ajouts>, writes the variables of its measure's environment to a file,
     // holds the lock while <lire> reads it, then lets go.
-    async function inscription(
-      ajouts: Record<string, string | undefined>,
-      options = '{}'
-    ) {
+    async function inscription(ajouts: Record<string, string | undefined>, options = '{}') {
       const d = unDossier();
       const env = environnement({
         GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),

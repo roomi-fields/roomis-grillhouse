@@ -28,12 +28,7 @@ const unDossier = () => {
 
 describe('grillhouse-6ay critère 9 — le rejeu passe l’identité à npm run verifier seul', () => {
   interface Rejeu {
-    ouvrirCopie: (o: {
-      racine: string;
-      copie: string;
-      ref: string;
-      dire: (l: string) => void;
-    }) => {
+    ouvrirCopie: (o: { racine: string; copie: string; ref: string; dire: (l: string) => void }) => {
       refus?: string;
       tester: (identite?: { sorte: string; ticket: string | null }) => { status: number };
     };
@@ -64,8 +59,7 @@ exit 0
     git('commit', '-q', '-m', 'essai');
     return { racine, copie, journal, bin };
   }
-  const lire = (journal: string) =>
-    readFileSync(journal, 'utf8').split('\n').filter(Boolean);
+  const lire = (journal: string) => readFileSync(journal, 'utf8').split('\n').filter(Boolean);
   async function jouer(identite: { sorte: string; ticket: string | null } | undefined) {
     const o = ouvrir();
     const ancien = process.env.PATH;

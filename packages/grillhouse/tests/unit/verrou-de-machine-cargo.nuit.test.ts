@@ -2,14 +2,7 @@
 // machine. Il refuse un espace de travail dont git ne suit pas Cargo.lock : le cas monte un dépôt
 // d'essai et y lance le module, donc c'est un grand test, joué la nuit.
 import { spawnSync } from 'node:child_process';
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
