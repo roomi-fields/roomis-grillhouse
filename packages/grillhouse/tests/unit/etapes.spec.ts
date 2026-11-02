@@ -286,7 +286,14 @@ describe('one list, which the circuit, the board and the texts read', () => {
         recursive: true,
         encoding: 'utf8',
       })
-        .filter(f => /\.(mjs|sh)$/.test(f) && f !== 'etapes.mjs')
+        // A `<config>.timestamp-<n>-<hash>.mjs` is the bundle Vite writes beside a configuration, then
+        // removes, while a run loads it: no script of the frame (grillhouse-82n).
+        .filter(
+          f =>
+            /\.(mjs|sh)$/.test(f) &&
+            f !== 'etapes.mjs' &&
+            !/\.timestamp-\d+-[0-9a-f]+\.mjs$/.test(f)
+        )
         .map(f => path.join('packages/grillhouse/scripts', f)),
       'mods/grillhouse/hooks/register.tsx',
     ];
