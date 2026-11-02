@@ -19,7 +19,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as circuit from '../../scripts/circuit.mjs';
-import { ARRETS, MONTEES, boucle, monteeDe } from '../../scripts/etapes.mjs';
+import { ARRETS, MONTEES, boucle as boucleDeLEtape, monteeDe } from '../../scripts/etapes.mjs';
 import module from '../../scripts/langages/cargo/index.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
@@ -52,12 +52,12 @@ const arretInattendu = circuit.arretInattendu as (
   erreur: unknown,
   etape: string
 ) => Arret;
+const boucle = boucleDeLEtape as (nom: string) => { max: number };
 const cargo = module as unknown as { composants: (racine: string) => unknown };
 
 const ARCHITECTURE_DU_PAQUET = path.resolve(__dirname, '../../docs/ARCHITECTURE.md');
 const TICKET = 'essai-1';
-const LIGNE_DE_CARGO =
-  '`dependency.pyo3-build-config` was not found in `workspace.dependencies`';
+const LIGNE_DE_CARGO = '`dependency.pyo3-build-config` was not found in `workspace.dependencies`';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-inattendu-'));
 const JOURNAL = path.join(ESSAIS, 'journal');
@@ -153,7 +153,7 @@ describe('grillhouse-f24, critères 3, 8 et 9 — la lecture de la copie après 
   });
 
   it('critère 8: the red consumes an attempt of the testwriter, as a red build', () => {
-    const max = boucle('tests').max as number;
+    const max = boucle('tests').max;
     expect(suiteDuRougeDeLecture('testwriter', 1)).toEqual({ etape: 'testwriter', tentative: 2 });
     expect(suiteDuRougeDeLecture('testwriter', max - 1)).toEqual({
       etape: 'testwriter',
@@ -162,7 +162,7 @@ describe('grillhouse-f24, critères 3, 8 et 9 — la lecture de la copie après 
   });
 
   it('critère 8: the red consumes an attempt of the developpeur, as a red build', () => {
-    const max = boucle('code').max as number;
+    const max = boucle('code').max;
     expect(suiteDuRougeDeLecture('developpeur', 1)).toEqual({ etape: 'developpeur', tentative: 2 });
     expect(suiteDuRougeDeLecture('developpeur', max - 1)).toEqual({
       etape: 'developpeur',
@@ -171,10 +171,10 @@ describe('grillhouse-f24, critères 3, 8 et 9 — la lecture de la copie après 
   });
 
   it('critère 8: attempts used up, the red goes up as the red checks do (« controles »), not « inattendu »', () => {
-    expect(suiteDuRougeDeLecture('testwriter', boucle('tests').max as number)).toEqual({
+    expect(suiteDuRougeDeLecture('testwriter', boucle('tests').max)).toEqual({
       arret: 'controles',
     });
-    expect(suiteDuRougeDeLecture('developpeur', boucle('code').max as number)).toEqual({
+    expect(suiteDuRougeDeLecture('developpeur', boucle('code').max)).toEqual({
       arret: 'controles',
     });
   });

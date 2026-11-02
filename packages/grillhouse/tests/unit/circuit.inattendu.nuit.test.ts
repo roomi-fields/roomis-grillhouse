@@ -22,8 +22,7 @@ import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.j
 
 const CIRCUIT = path.resolve(__dirname, '../../scripts/circuit.mjs');
 const TICKET = 'essai-1';
-const LIGNE_DE_CARGO =
-  '`dependency.pyo3-build-config` was not found in `workspace.dependencies`';
+const LIGNE_DE_CARGO = '`dependency.pyo3-build-config` was not found in `workspace.dependencies`';
 
 // What the ticket’s state holds before the stop and must still hold after it.
 const CONSTAT = {
@@ -53,7 +52,9 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const git = (dossier: string, ...args: string[]) => {
   const r = spawnSync('git', ['-C', dossier, ...args], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`git ${args.join(' ')} : ${r.stderr}`);
+  if (r.status !== 0) {
+    throw new Error(`git ${args.join(' ')} : ${r.stderr}`);
+  }
 };
 const ecrire = (racine: string, fichiers: Record<string, string>) => {
   for (const [rel, texte] of Object.entries(fichiers)) {
@@ -135,23 +136,29 @@ if (a[0] === 'show') {
     const code =
       `import { main } from ${JSON.stringify(CIRCUIT)};\n` +
       `process.exitCode = await main(process.argv.slice(1));`;
-    return spawnSync(
-      process.execPath,
-      ['--input-type=module', '-e', code, TICKET, '--reprendre'],
-      {
-        cwd: depot,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${dossierBd}${path.delimiter}${process.env.PATH ?? ''}`,
-          XDG_CACHE_HOME: path.join(ESSAIS, 'cache'),
-          HOME: ESSAIS,
-        },
-      }
-    );
+    return spawnSync(process.execPath, ['--input-type=module', '-e', code, TICKET, '--reprendre'], {
+      cwd: depot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${dossierBd}${path.delimiter}${process.env.PATH ?? ''}`,
+        XDG_CACHE_HOME: path.join(ESSAIS, 'cache'),
+        HOME: ESSAIS,
+      },
+    });
   }
 
-  const lireEtat = (fichier: string) => JSON.parse(readFileSync(fichier, 'utf8'));
+  interface Etat {
+    code: number | null;
+    raison: string | null;
+    etape: string;
+    question: { arret: string; qui: string; question: string };
+    constats: unknown;
+    refus: unknown;
+    controlesRouges: unknown;
+    verifie: unknown;
+  }
+  const lireEtat = (fichier: string): Etat => JSON.parse(readFileSync(fichier, 'utf8')) as Etat;
 
   it('critères 2 et 7: --reprendre on a copy whose manifest does not read writes the stop « inattendu » and does not die', () => {
     const depot = projet('reprise', false);
@@ -169,9 +176,9 @@ if (a[0] === 'show') {
     expect(etat.question.question).toContain(LIGNE_DE_CARGO);
     expect(etat.question.question).toContain(`npx grillhouse circuit ${TICKET} --reprendre`);
     expect(r.stderr).toContain('inattendu');
-    expect(existsSync(faux_bd.commentaires) ? readFileSync(faux_bd.commentaires, 'utf8') : '').toContain(
-      'inattendu'
-    );
+    expect(
+      existsSync(faux_bd.commentaires) ? readFileSync(faux_bd.commentaires, 'utf8') : ''
+    ).toContain('inattendu');
   });
 
   it('critère 7: the stop « inattendu » keeps the ticket’s state: open finding, integration refusal, red checks, verified tree', () => {
