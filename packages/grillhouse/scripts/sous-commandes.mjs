@@ -41,6 +41,7 @@ export const SOUS_COMMANDES = {
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',
   maj: 'grillhouse-maj.mjs',
   nuit: 'nuit.sh',
+  outil: 'outil.mjs',
   paquet: 'paquet.mjs',
   pression: 'mesure/pression.mjs',
   registre: 'registre.mjs',

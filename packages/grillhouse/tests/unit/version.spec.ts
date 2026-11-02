@@ -11,7 +11,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { etiqueter, preparerSortie, verifierEtiquette } from '../../scripts/sortie.mjs';
+import {
+  etiqueter,
+  preparerSortie,
+  suiteDeLaSortie,
+  verifierEtiquette,
+} from '../../scripts/sortie.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = 'packages/grillhouse/package.json';
@@ -152,6 +157,17 @@ describe('a release of Grillhouse tags its commit locally, never pushing', () =>
     for (const { appels } of [existe, change]) {
       expect(appels.filter(a => a[0] === 'tag' && a[1] === '-a')).toEqual([]);
     }
+  });
+});
+
+// grillhouse-9tu: Grillhouse is led by a published version (`grillhouse.outil`, scripts/outil.mjs);
+// once a release is published, moving to it is one gesture, which the tagging proposes, with the
+// update of the frame's plugin installed for the repository.
+describe('a release proposes to lead Grillhouse with it (sortie --etiqueter)', () => {
+  it('names the gesture that moves the published version, and the update of the plugin at its local scope', () => {
+    const texte = suiteDeLaSortie('v0.29.0');
+    expect(texte).toContain('npx grillhouse outil 0.29.0');
+    expect(texte).toContain('claude plugin update grillhouse@roomi-fields --scope local');
   });
 });
 

@@ -111,6 +111,7 @@ import {
   SUITE,
   SUPERVISEUR,
 } from './etapes.mjs';
+import { echecDeLOutil } from './aiguillage.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
 import { lireAvancement, lireLaMesure } from './avancement.mjs';
@@ -741,10 +742,11 @@ export function lecture(t, prefix) {
 
 /**
  * The board, from what was read. Pure: every source comes in, the time included; `machine`, the
- * lock of the machine.
+ * lock of the machine; `outil`, the failed installation of the published version that leads the
+ * repository (scripts/aiguillage.mjs `echecDeLOutil`).
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
  *   verdicts?: Record<string, any>, maintenant: number, jour: number,
- *   machine?: Machine | null }} lu
+ *   machine?: Machine | null, outil?: { version: string, raison: string } | null }} lu
  */
 export function assembler({
   tous,
@@ -756,6 +758,7 @@ export function assembler({
   maintenant,
   jour,
   machine = null,
+  outil = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1068,6 +1071,15 @@ export function assembler({
       sujet,
       numero: n,
       id: t.id,
+    });
+  }
+  // The published version that leads the repository cannot be installed: the orchestration runs on
+  // the code of the repository (scripts/aiguillage.mjs).
+  if (outil) {
+    alertes.push({
+      niveau: 'orange',
+      signe: '🧰',
+      texte: `Outil ${outil.version} non installable : code du dépôt`,
     });
   }
   for (const b of blocs) {
@@ -1921,6 +1933,7 @@ function lire(racine, { home, maintenant, machine = null }) {
     maintenant,
     jour: minuit.getTime(),
     machine,
+    outil: echecDeLOutil(racine),
   });
   return { t, prefix, tous, vivants, commun };
 }

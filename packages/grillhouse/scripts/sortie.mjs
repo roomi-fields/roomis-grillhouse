@@ -4,6 +4,7 @@
 //
 //   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, CHANGELOG.md
 //   npx grillhouse sortie --etiqueter                the annotated tag v<version> on HEAD, the release commit
+//                                                    and the gesture that leads Grillhouse with it once published
 //   npx grillhouse sortie --verifier-etiquette <v>   exits 0 when the tag <v> names the version of the package
 //   npx grillhouse sortie --entree-du-marche         the entry of the plugin in the marketplace roomi-fields
 //
@@ -115,6 +116,23 @@ export function etiqueter(
   return etiquette;
 }
 
+/**
+ * What follows the tag <etiquette> once its package is published: the gesture that leads Grillhouse
+ * with it (`npx grillhouse outil <version>`, scripts/outil.mjs, which writes `grillhouse.outil` and
+ * installs the version), and the update of the frame's plugin installed for the repository, at
+ * its local scope, as in the other projects.
+ * @param {string} etiquette v<x.y.z>
+ * @returns {string}
+ */
+export function suiteDeLaSortie(etiquette) {
+  const version = etiquette.replace(/^v/, '');
+  return (
+    `Une fois ${version} publiée, Grillhouse se mène avec elle : npx grillhouse outil ${version} ` +
+    '(la clé grillhouse.outil, à commiter, et la version installée), puis ' +
+    'claude plugin update grillhouse@roomi-fields --scope local (le greffon de Grillhouse).\n'
+  );
+}
+
 const USAGE =
   'Usage : npx grillhouse sortie <x.y.z>                    prépare la sortie (package.json du paquet, CHANGELOG.md)\n' +
   "        npx grillhouse sortie --etiqueter                pose l'étiquette v<version> sur le commit de sortie\n" +
@@ -136,7 +154,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       const e = etiqueter(racine);
       process.stdout.write(
         `Étiquette ${e} posée sur HEAD, en local. La poussée, que valide le responsable : git push origin ${e} ` +
-          '(la CI joue alors le commit, puis publie le paquet sur npm)\n'
+          '(la CI joue alors le commit, puis publie le paquet sur npm)\n' +
+          suiteDeLaSortie(e)
       );
     } else if (args.length === 1 && args[0] === '--entree-du-marche') {
       process.stdout.write(`${JSON.stringify(ENTREE_DU_MARCHE, null, 2)}\n`);

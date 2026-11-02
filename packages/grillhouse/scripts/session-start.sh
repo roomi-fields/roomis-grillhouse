@@ -60,6 +60,11 @@ fi
 # One supervisor per project: the lock of the repository, or the section that says who holds it.
 superviseur="$(node "$ici/superviseur.mjs" "$root" 2>/dev/null)"
 [ -z "$superviseur" ] || echo "$superviseur"
+# The published version that leads the repository (grillhouse.outil), when it cannot be installed:
+# the orchestration runs on the code of the repository, which the session is told
+# (scripts/aiguillage.mjs).
+outil="$(node "$ici/aiguillage.mjs" --echec "$root" 2>/dev/null)"
+[ -z "$outil" ] || echo "$outil"
 
 missing=()
 

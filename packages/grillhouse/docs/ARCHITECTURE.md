@@ -751,6 +751,50 @@ deux ajouts au même endroit sont gardés tous deux, ceux de main d'abord, et to
 reste un conflit. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
 recopier.
 
+**Le dépôt du cadre se mène avec une version publiée** : comme rustc se construit avec son
+stage0 (un compilateur publié, fixé dans `src/stage0`, téléchargé dans un cache) et Bazel avec un
+Bazel publié, l'outil qui orchestre est une version publiée, et le code construit et testé est
+celui en cours. Dans Grillhouse, `node_modules/.bin/grillhouse` est le paquet de l'espace de
+travail, le code que les tickets changent ; la clé `grillhouse.outil` du `package.json` racine
+nomme la version publiée (`x.y.z`), que `npx grillhouse outil` installe sous
+`~/.cache/grillhouse/outil/<version>/`, et que `npx grillhouse outil <x.y.z>` écrit puis
+installe : changer de version est ce seul geste, que la sortie propose. L'installation pose le
+paquet publié, puis les dépendances qu'il attend du projet (`peerDependencies`, les facultatives
+comprises : TypeScript, Turborepo, API Extractor…), aux plages qu'il déclare : l'outil est
+autonome, comme un stage0 apporte sa bibliothèque. Elle se fait dans un dossier à côté, renommé
+une fois complet ; le dossier d'un processus mort se balaie à l'installation suivante, et celui
+qu'un autre lancement a complété entre-temps se prend. La commande (`bin/grillhouse.mjs`)
+aiguille avant toute sous-commande (`scripts/aiguillage.mjs`), selon trois listes où chaque
+sous-commande du noyau a sa place, qu'un test tient :
+
+- l'orchestration tourne par la version nommée, installée à son premier lancement : `circuit`,
+  `superviseur`, `nuit`, `tableau`, `ligne-etat`, les crochets de Claude Code (`session-start`,
+  `structure-guard`, `ticket-du-sous-agent`, `registre`), les verrous et les droits des séances
+  (`verrou`, `commande`, `droits`), l'enveloppe et son lanceur (`enveloppe`, `lancer`),
+  l'intégration et la file (`integrer`, `file`), `resultats`, `retirer-copie` et `bilan`, même
+  lancés à la main par le superviseur ;
+- le code de la copie : `tests`, `verifier`, `gardes-du-cadre`, `langages-des-paquets`,
+  `temporaire`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
+  `composants-affectes`, et les commandes des modules de langage ;
+- les outils du dépôt, qui tournent par son code : `init`, `maj`, `paquet`, `sortie`, `outil`,
+  `greffons`, `sous-modules`, `pression`, `ticket`.
+
+Une version non installable (le réseau absent) se dit en une ligne sur la sortie d'erreur, et le
+code du dépôt la remplace. L'échec s'écrit dans le fichier d'état de l'outil
+(`~/.cache/grillhouse/outil/<version>.echec`, sa date et sa raison), retiré à la première
+installation réussie : pendant 5 minutes, aucun lancement ne relance npm ; tant qu'il existe pour
+la version de la clé, l'ouverture de séance le dit sur sa sortie standard (« l'orchestration tourne
+sur le code du dépôt », avec `npx grillhouse outil` qui la réinstalle), et le tableau porte une
+alerte orange, « Outil <version> non installable : code du dépôt ». Ainsi un échec qui dure se
+voit. Le paquet qui tourne est la version installée quand leurs chemins sont les mêmes : il
+tourne alors sur place, sans variable d'environnement qui passerait aux agents. Le circuit lancé
+par la version publiée lance ses scripts voisins et le greffon de son paquet, et joue les tests,
+la preuve du rouge, les contrôles et les gardes par `npm` dans la copie du ticket, dont
+l'installation lie son propre `packages/grillhouse` ; la nuit joue sa passe de même dans sa copie.
+Les crochets du greffon installé, les droits des séances et le panneau appellent la commande du
+projet, donc l'aiguillage. Un projet ordinaire n'a pas la clé : rien ne change, sa commande est
+déjà la version qu'il installe. Ainsi un défaut du jour ne casse jamais le circuit qui le corrige.
+
 **Le paquet publie ses entrées nommées, son interface** : un projet importe le paquet par son
 nom et l'une de ses entrées (le champ `exports`), jamais par l'adresse d'un fichier, comme
 `eslint/use-at-your-own-risk` publie les outils d'ESLint. Chaque entrée sort du module qui porte
