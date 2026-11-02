@@ -19,8 +19,12 @@
 //   and pytest plays that path alone; a path out of every package is refused, named, and nothing
 //   plays (code 2). Without a path, every package that plays tests plays, or, under the circuit's
 //   mark (`GRILLHOUSE_DEPUIS_LE_VERT`), the packages the changes since the last green touch
-//   (./lot.mjs), every package when no last green counts; the night tests (`*_nuit_test.py`) are
-//   left out (`--ignore-glob`), and a night test plays when its own file is named. `--force`
+//   (./lot.mjs), every package when no last green counts. The night tests (`*_nuit_test.py`, the
+//   one class out of the day: Python has no time budget bench) are left out of every folder,
+//   played whole or named (`--ignore-glob`), and a night test plays when its own file is named,
+//   as the module cargo's: pytest never ignores a path named, and a folder named that holds a
+//   night file named gives its tests of the day file by file, since pytest would collect that
+//   file through the folder (grillhouse-1ic.1). `--force`
 //   changes nothing: pytest keeps no result to replay. Another option goes to pytest. A package
 //   played whole (no path, or its own folder named) whose pytest collects no test (code 5) is
 //   green, as `cargo test` on a crate without a test and the skeleton typescript's
@@ -195,19 +199,36 @@ const UV_RUN = ['run', '--locked'];
 // The code of pytest for « no tests collected », distinct from a failure (1).
 const AUCUN_TEST = 5;
 
+// The selection of pytest for the paths <chemins> of the package <c>, from its folder (empty: the
+// whole package): the night left out of every folder (`--ignore-glob`), as the module cargo's;
+// a night file named plays, pytest never ignoring a path named, unless a folder named holds it,
+// through which pytest collects it: that folder then gives its tests of the day, file by file.
+function selection(c, chemins) {
+  const nuits = chemins.filter(ch => estDeNuit(path.basename(ch)));
+  const tient = (d, f) => d !== f && !path.relative(d, f).startsWith('..');
+  const nommes = chemins.flatMap(ch => {
+    if (!nuits.some(n => tient(ch, n))) {
+      return [ch];
+    }
+    return fichiersDeTest(path.join(c.dossier, ch))
+      .filter(f => !estDeNuit(path.basename(f)))
+      .map(f => path.relative(c.dossier, f));
+  });
+  return [`--ignore-glob=${DE_NUIT}`, ...nommes];
+}
+
 // Plays pytest in the run <p> for each `{ c, chemins }` of <choix>, `chemins` from the package's
-// folder (empty: the whole package, the night left out), <options> given to pytest. The package
-// played whole (no path, or its own folder) that collects no test is green, as `cargo test` on a
-// crate without a test; a path within it that collects none stays red.
+// folder (empty: the whole package), the night left out (`selection`), <options> given to pytest.
+// The package played whole (no path, or its own folder) that collects no test is green, as
+// `cargo test` on a crate without a test; a path within it that collects none stays red.
 function jouerLesTests(p, choix, options) {
   for (const { c, chemins } of choix) {
-    const selection = chemins.length ? chemins : [`--ignore-glob=${DE_NUIT}`];
     const cache = path.join(p.racine, CACHE_DE_PYTEST, path.relative(p.racine, c.dossier));
     const args = [...UV_RUN, '--group', GROUPE, 'pytest', '-o', `cache_dir=${cache}`];
     args.push(...p.junit(c.nom, c.dossier));
     const entier = chemins.every(ch => ch === '.');
     p.jouer(
-      p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection, ...options]),
+      p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection(c, chemins), ...options]),
       entier ? [AUCUN_TEST] : []
     );
   }

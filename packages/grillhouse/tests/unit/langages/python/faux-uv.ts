@@ -10,9 +10,11 @@ import path from 'node:path';
 //   UV_PROJECT_ENVIRONMENT, its UV_CACHE_DIR and its TMPDIR.
 // - `uv --version`: `uv <FAUX_UV_VERSION> (faux)`, 0.10.4 by default; under `FAUX_UV_ABSENT`, it
 //   fails (code 2).
-// - `uv run … pytest …`: the test files are the paths named after `pytest`, else every `test_*.py`
-//   and `*_test.py` under its working directory, those an `--ignore-glob=*_nuit_test.py` names
-//   left out; with `--junit-xml=<f>`, it writes there a JUnit report of the family xunit1, one
+// - `uv run … pytest …`: the test files are those of the paths named after `pytest`, else of its
+//   working directory, as pytest 9 collects them (measured): a folder gives every `test_*.py` and
+//   `*_test.py` under it, those an `--ignore-glob=*_nuit_test.py` names left out; a file named
+//   plays even when an `--ignore-glob` names it, as pytest never ignores a path named, unless a
+//   folder named holds it, through which pytest collects it, the `--ignore-glob` applied; with `--junit-xml=<f>`, it writes there a JUnit report of the family xunit1, one
 //   `testcase` « essai » per file, its `file` from the working directory, failed when its code is
 //   not 0. Under `FAUX_UV_RESTE`, it leaves a file of that name in its TMPDIR, as a test that
 //   forgets its file.
@@ -53,9 +55,13 @@ if (sous === 'pytest') {
     if (e.isDirectory()) return e.name.startsWith('.') ? [] : tous(f);
     return estTest(e.name) ? [path.relative(cwd, f)] : [];
   });
-  const fichiers = nommes.length
-    ? nommes
-    : tous(cwd).filter(f => !ignores.some(g => path.matchesGlob(path.basename(f), g)));
+  const ignore = f => ignores.some(g => path.matchesGlob(path.basename(f), g));
+  const dossiers = (nommes.length ? nommes : ['.']).filter(n => fs.existsSync(path.join(cwd, n)) && fs.statSync(path.join(cwd, n)).isDirectory());
+  const dans = (f, d) => !path.relative(d, f).startsWith('..');
+  const fichiers = [...new Set([
+    ...dossiers.flatMap(d => tous(path.join(cwd, d))).filter(f => !ignore(f)),
+    ...nommes.filter(n => !dossiers.includes(n) && !dossiers.some(d => dans(n, d))).map(n => path.normalize(n)),
+  ])];
   if (junit) {
     const cas = f => '<testcase classname="x" name="essai" file="' + f + '" line="1">' + (code === 0 ? '' : '<failure message="rouge &amp; faux">rouge</failure>') + '</testcase>';
     fs.mkdirSync(path.dirname(junit), { recursive: true });

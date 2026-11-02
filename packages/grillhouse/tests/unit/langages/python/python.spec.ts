@@ -300,7 +300,9 @@ describe('grillhouse-ziy, critère 5 — les tailles et le dossier temporaire', 
     expect(nuit.appels[0].args.at(-1)).toBe('pages/site_nuit_test.py');
     expect(nuit.verdict.rapports.map(x => path.basename(x.fichier))).toEqual(['site_nuit_test.py']);
     const nomme = lancer(racine, 'tester', ['site/pages/site_nuit_test.py']);
-    expect(nomme.appels[0].args).not.toContain('--ignore-glob=*_nuit_test.py');
+    expect(nomme.verdict.rapports.map(x => path.basename(x.fichier))).toEqual([
+      'site_nuit_test.py',
+    ]);
   });
 
   it('the guard of the sizes refuses a large test of the day, never a night one', () => {
@@ -455,5 +457,44 @@ describe('grillhouse-1ic — un paquet python sans test passe', () => {
       expect(r.code, `pytest ${code}`).toBe(1);
       expect(r.verdict.taches.map(t => t.code)).toEqual([code]);
     }
+  });
+});
+
+// grillhouse-1ic.1 — a folder named leaves the night out, a night file named plays, as the module
+// cargo does (a folder named leaves the night tests and the benches out, a file named plays it).
+// Python has no time budget bench of its own: its one class out of the day is `*_nuit_test.py`.
+// The fake uv collects as pytest 9 does (./faux-uv.ts).
+describe('grillhouse-1ic.1 — un dossier nommé laisse la nuit de côté', () => {
+  const joues = (r: ReturnType<typeof lancer>) =>
+    r.verdict.rapports.map(x => path.basename(x.fichier)).sort();
+
+  it('critère 1: the package’s own folder named does not give its night tests to pytest', () => {
+    const r = lancer(projet(), 'tester', ['site']);
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels[0].args).toContain('--ignore-glob=*_nuit_test.py');
+    expect(joues(r)).toEqual(['test_pages.py']);
+  });
+
+  it('critère 1: a folder within the package named leaves its night tests out', () => {
+    const r = lancer(projet(), 'tester', ['site/pages']);
+    expect(r.code, r.stderr).toBe(0);
+    expect(joues(r)).toEqual(['test_pages.py']);
+  });
+
+  it('critère 2: a night file named plays, beside a folder named', () => {
+    const racine = projet();
+    ecrire(racine, 'site/autre/test_autre.py', 'def test_a():\n    assert True\n');
+    ecrire(racine, 'site/autre/autre_nuit_test.py', 'def test_n():\n    assert True\n');
+    const r = lancer(racine, 'tester', ['site/autre', 'site/pages/site_nuit_test.py']);
+    expect(r.code, r.stderr).toBe(0);
+    expect(joues(r)).toEqual(['site_nuit_test.py', 'test_autre.py']);
+  });
+
+  it('critère 2: a night file named plays, its own folder named too, the folder’s night left out', () => {
+    const racine = projet();
+    ecrire(racine, 'site/pages/autre_nuit_test.py', 'def test_n():\n    assert True\n');
+    const r = lancer(racine, 'tester', ['site', 'site/pages/site_nuit_test.py']);
+    expect(r.code, r.stderr).toBe(0);
+    expect(joues(r)).toEqual(['site_nuit_test.py', 'test_pages.py']);
   });
 });

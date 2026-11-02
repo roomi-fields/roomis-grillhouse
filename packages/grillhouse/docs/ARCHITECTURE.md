@@ -878,7 +878,9 @@ python sous `scripts/langages/python/` (un paquet par `pyproject.toml`, PEP 621 
 `test_*.py` et `*_test.py` que pytest trouve, un test de nuit `*_nuit_test.py`, `conftest.py` et
 `tests/` ses aides ; du manifeste, le testwriter n'écrit que le groupe `test` de
 `[dependency-groups]`, PEP 735, et `uv.lock` ; les tests par `uv run --locked --group test pytest`
-dans chaque paquet, leur rapport JUnit ; un paquet joué entier, sans chemin ou son dossier nommé,
+dans chaque paquet, leur rapport JUnit ; les tests de nuit laissés de côté de tout dossier, le
+paquet entier ou un dossier nommé, et joués quand leur fichier est nommé, comme le module cargo
+(Python n'a pas de banc de temps) ; un paquet joué entier, sans chemin ou son dossier nommé,
 dont pytest ne collecte aucun test (code 5) est vert, comme `cargo test` sur un crate sans test et
 le `passWithNoTests` du squelette typescript, et un chemin dans le paquet qui n'en collecte aucun
 reste rouge ; le typage par `python -m compileall`, la préparation par
