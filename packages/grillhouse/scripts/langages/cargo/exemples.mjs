@@ -382,12 +382,12 @@ export default {
           'crates/core/tests/scenario/main.rs',
           'Cargo.toml',
         ],
-        // A night test and a bench keep their end, so that their sibling plays as they do.
+        // A target, a night test and a bench play in a tree, under their own name.
         invalide: [
           'crates/core/tests/t.rs',
           'crates/core/tests/t_nuit.rs',
           'crates/core/tests/t_budget.rs',
-          // A unit test of `src/` and a target `tests/<dossier>/main.rs` have no sibling: the
+          // A unit test of `src/` and a target `tests/<dossier>/main.rs` have no tree: the
           // names of HEAD's tests are read, as nextest reports them (its module path), the
           // braces of a comment, a string or a character not counted, a `mod` of main.rs read.
           {
@@ -403,9 +403,9 @@ export default {
           },
         ],
         attendu: [
-          'crates/core/tests/t.rs → crates/core/tests/t_circuit_avant.rs',
-          'crates/core/tests/t_nuit.rs → crates/core/tests/t_circuit_avant_nuit.rs',
-          'crates/core/tests/t_budget.rs → crates/core/tests/t_circuit_avant_budget.rs',
+          'crates/core/tests/t.rs → un arbre',
+          'crates/core/tests/t_nuit.rs → un arbre',
+          'crates/core/tests/t_budget.rs → un arbre',
           'crates/core/src/rendu/tests.rs : rendu::tests::ancien, rendu::tests::groupe::interne',
           'crates/core/tests/scenario/main.rs : principal, m::dedans, aide::aidant',
         ],

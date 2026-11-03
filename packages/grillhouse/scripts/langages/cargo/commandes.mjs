@@ -118,7 +118,15 @@ import {
   SEUIL_PRESSION,
   travailleursDeLaSeance,
 } from '../../services-du-noyau.mjs';
-import { BANC, composantDans, crates, DE_NUIT, joueDesTests, metadonnees } from './composants.mjs';
+import {
+  BANC,
+  COPIE_DE_L_ARBRE,
+  composantDans,
+  crates,
+  DE_NUIT,
+  joueDesTests,
+  metadonnees,
+} from './composants.mjs';
 import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
 import { touchesDesFichiers } from './touches.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
@@ -524,16 +532,18 @@ function sousLaBase(genre, env, jouer) {
 
 /**
  * The line that refuses the workspace at <racine> whose Cargo.lock git does not track, the
- * gesture named; null when git tracks it.
+ * gesture named; null when git tracks it. <copie> is the root git reads (a tree of HEAD's version
+ * has no `.git`: its copy's, where the same file is tracked).
  * @param {string} racine
+ * @param {string} [copie]
  * @returns {string | null}
  */
-export function verrouNonVersionne(racine) {
+export function verrouNonVersionne(racine, copie = racine) {
   if (!existsSync(path.join(racine, VERROU))) {
     return `⛔ ${VERROU} absent : cargo generate-lockfile, puis git add ${VERROU}`;
   }
   const r = spawnSync('git', ['ls-files', '--error-unmatch', '--', VERROU], {
-    cwd: racine,
+    cwd: copie,
     stdio: 'ignore',
   });
   return r.status === 0 ? null : `⛔ ${VERROU} non versionné : git add ${VERROU}`;
@@ -547,7 +557,7 @@ export function verrouNonVersionne(racine) {
  */
 export function lancer(nom, args, { racine = process.cwd(), env = process.env } = {}) {
   const refus =
-    (VERROUILLEES.includes(nom) ? verrouNonVersionne(racine) : null) ??
+    (VERROUILLEES.includes(nom) ? verrouNonVersionne(racine, env[COPIE_DE_L_ARBRE] || racine) : null) ??
     (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
   if (refus) {
     process.stderr.write(`${refus}\n`);

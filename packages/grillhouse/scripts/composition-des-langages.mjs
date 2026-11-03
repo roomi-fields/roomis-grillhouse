@@ -8,7 +8,7 @@
 //   is refused, named with both languages: a package has one language. A file belongs to the
 //   module of the component that holds it, the deepest (`moduleDuFichier`); a file out of every
 //   component stays the core's, as with one language: the first module, in the order of the
-//   declaration, whose answer is not null judges it (`estUnTest`, `soeurDAvant`,
+//   declaration, whose answer is not null judges it (`estUnTest`, `soeurDAvant`, `arbreDAvant`,
 //   `testsDeHead`, `manifestes.horsDesTests`).
 // - Whether a component plays tests, the readers of components and the components touched are
 //   each module's on its own components, the results joined: a name without supplier is without
@@ -271,7 +271,17 @@ export function composer(modules) {
     estUnTest: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m => m.estUnTest(chemin, racine)),
     soeurDAvant: (chemin, racine) =>
-      premiereReponse(modules, racine, chemin, m => m.soeurDAvant(chemin, racine)),
+      premiereReponse(modules, racine, chemin, m =>
+        typeof m.soeurDAvant === 'function' ? m.soeurDAvant(chemin, racine) : null
+      ),
+    arbreDAvant: (chemin, racine) =>
+      Boolean(
+        premiereReponse(modules, racine, chemin, m =>
+          typeof m.arbreDAvant === 'function' ? m.arbreDAvant(chemin, racine) : null
+        )
+      ),
+    envDArbre: (chemin, racine) =>
+      moduleDuFichier(modules, racine, chemin)?.envDArbre?.(chemin, racine) ?? {},
     testsDeHead: (chemin, racine, lire, options) =>
       premiereReponse(modules, racine, chemin, m => m.testsDeHead(chemin, racine, lire, options)),
     manifestes: {

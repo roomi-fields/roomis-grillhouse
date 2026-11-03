@@ -38,7 +38,7 @@ import {
   composants,
   entreesDeLIndex,
   estUnTest,
-  soeurDAvant,
+  arbreDAvant,
   joueDesTests,
   lecteurs,
   manifestes,
@@ -79,8 +79,10 @@ export default {
   commandes,
   verdict,
   estUnTest,
-  soeurDAvant,
-  // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no name to read.
+  arbreDAvant,
+  // Its tree needs no environment of its own: the virtual environment of a tree is uv's.
+  envDArbre: () => ({}),
+  // Its tool plays HEAD's version of each test file in a tree (`arbreDAvant`): no name to read.
   testsDeHead: () => null,
   manifestes,
   fichiersEngendres: () => [

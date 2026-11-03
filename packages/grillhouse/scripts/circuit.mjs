@@ -246,19 +246,21 @@
 //   from the root and its full name (or its title), with its reason; one without `test`, for a test
 //   file HEAD holds, justifies each green test of that file and excuses no red; on a new file it
 //   justifies nothing, and the report says so for that file. A green test HEAD already holds has
-//   nothing to prove: the version of HEAD of each file plays in the same run, from a sibling file
-//   the module of its language names (`soeurDAvant` of the join, removed after it, a red
-//   included; one a killed process left is swept at the circuit's start and before each measure,
-//   `balayerLesSoeurs`), and a green test whose full name HEAD's
-//   version holds, green there too, is set aside, counted; a body changed under the same name is
-//   not told apart. A file its tool cannot play twice in a run (cargo: a unit test of `src/`, a
-//   target `tests/<dossier>/main.rs`) has no sibling: the module reads the names of the tests of
-//   its HEAD's version without playing them (`testsDeHead` of the join), and each is held for a
-//   green HEAD holds, as main stays green. A sibling that no longer compiles (cargo: HEAD's version
-//   of a target against the lot's `tests/common`) is not a red of the lot: when the build fails
-//   with the siblings and the lot alone builds, the package plays without them, the names of
-//   HEAD's tests of those files read (`testsDeHead`, `sansSoeur`); a build the lot alone breaks
-//   stays a red (`jouerAvecLesVersionsDAvant`). The proof passes with a red (of the lot, existing or of a build), even without
+//   nothing to prove: the version of HEAD of each file plays in the same proof, from a sibling
+//   file the module of its language names (`soeurDAvant` of the join, TypeScript: removed after
+//   it, a red included; one a killed process left is swept at the circuit's start and before each
+//   measure, `balayerLesSoeurs`), or in a tree of its own (`arbreDAvant` of the join, Rust and
+//   Python: the copy with that file alone replaced by its version of HEAD, in the temporary
+//   directory of the ticket, removed after the run, a red included, so that no test of the lot
+//   sees a file more), and a green test whose full name HEAD's version holds, green there too, is
+//   set aside, counted; a body changed under the same name is not told apart. A file its tool
+//   cannot play twice in a run (cargo: a unit test of `src/`, a target `tests/<dossier>/main.rs`)
+//   has neither: the module reads the names of the tests of its HEAD's version without playing
+//   them (`testsDeHead` of the join), and each is held for a green HEAD holds, as main stays
+//   green. A tree that no longer compiles (cargo: HEAD's version of a target against the lot's
+//   `tests/common`) is not a red of the lot: when the build fails with the trees and the lot
+//   alone builds, the package plays without them, the names of HEAD's tests of those files read
+//   (`testsDeHead`); a build the lot alone breaks stays a red (`jouerAvecLesVersionsDAvant`). The proof passes with a red (of the lot, existing or of a build), even without
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
 //   reds are enough. It fails with neither a file of the lot nor a red, with a broken file of the
 //   lot, or with a green of the lot no expected green justifies; under a plan « comportement
@@ -630,6 +632,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   copyFileSync,
+  cpSync,
   existsSync,
   openSync,
   mkdirSync,
@@ -639,6 +642,7 @@ import {
   renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   appendFileSync,
   utimesSync,
   writeFileSync,
@@ -3062,7 +3066,7 @@ function paquetDe(liste, fichier) {
 // the command's code, its message in the log. Once it holds the lock, the pass plays under a
 // progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names. It plays in
 // the environment of a pass (`environnementDeLaPasse`).
-function npm(ctx, etape, args, env = {}) {
+function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
   entete(ctx, etape);
   const dossier = mkdtempSync(path.join(ctx.base.dossier, 'resultats-'));
   const prefixe = Object.entries(env).map(([k, v]) => `${k}=${v} `);
@@ -3090,7 +3094,7 @@ function npm(ctx, etape, args, env = {}) {
               }),
             });
             return spawnSync(lancement.cmd, lancement.args, {
-              cwd: ctx.copie,
+              cwd,
               stdio: ['ignore', fd, fd],
               env: lancement.env,
             });
@@ -3147,13 +3151,25 @@ function avecAvancement(ctx, genre, passe) {
 
 // Removes from the copy each sibling of HEAD's version a killed process left there, between its
 // writing and its removal (`avecLesVersionsDAvant`): a file git does not track, the sibling, by
-// the name the module of its language gives (`soeurDAvant` of the join, a file beside its own),
-// of a file of its folder that git tracks and that exists, each named in the ticket's log. A file
-// git tracks, or whose file is absent, is left. What the module reads at a cost is read once for
-// the sweep (`avecUneLecture`, ./lecture-unique.mjs), whatever the number of files. Returns the
-// siblings removed, from the copy, sorted.
+// the name the module of its language gives (`soeurDAvant` of the join, a file beside its own:
+// TypeScript's alone, Rust and Python play HEAD's version in a tree), of a file of its folder that
+// git tracks and that exists, each named in the ticket's log. A file git tracks, or whose file is
+// absent, is left. What the module reads at a cost is read once for the sweep (`avecUneLecture`,
+// ./lecture-unique.mjs), whatever the number of files. Returns the siblings removed, from the
+// copy, sorted.
 export function balayerLesSoeurs(ctx) {
   return avecUneLecture(() => balayer(ctx));
+}
+
+// The sibling of HEAD's version of <f> by the module of its language, null for a module that
+// names none (Rust, Python).
+function soeurDe(langage, f, racine) {
+  return typeof langage.soeurDAvant === 'function' ? langage.soeurDAvant(f, racine) : null;
+}
+
+// Whether HEAD's version of <f> plays in a tree of its own, by the module of its language.
+function arbreDe(langage, f, racine) {
+  return typeof langage.arbreDAvant === 'function' && langage.arbreDAvant(f, racine) === true;
 }
 
 // The sweep of `balayerLesSoeurs`, in its scope of readings done once.
@@ -3176,7 +3192,8 @@ function balayer(ctx) {
         .split('\0')
         .filter(f => f && path.posix.dirname(f) === dossier)
         .filter(f => existsSync(path.join(ctx.copie, f)))
-        .map(f => langage.soeurDAvant(f, ctx.copie))
+        .map(f => soeurDe(langage, f, ctx.copie))
+        .filter(n => n !== null)
     );
     for (const f of nonSuivis.filter(n => soeurs.has(n))) {
       rmSync(path.join(ctx.copie, f), { force: true });
@@ -3189,67 +3206,133 @@ function balayer(ctx) {
   return retirees.sort();
 }
 
-// Runs <jouer> with HEAD's version of each file of <fichiers> that HEAD holds written beside it in
-// the copy, under the name the module of its language gives (`soeurDAvant` of the join), a test
-// its tool plays in the same run: <jouer> gets the Map file → sibling, both relative to the copy,
-// and the Map file → names of the tests of HEAD's version, read without playing them, of each file
-// its tool cannot play twice in a run (`testsDeHead` of the join). A sibling left before is swept
-// first (`balayerLesSoeurs`); the siblings are removed after it, a red included. With
-// <sansSoeurs>, no sibling is written: the names of HEAD's tests of each file that has one are read
-// too (`testsDeHead`, `sansSoeur`). Returns what <jouer> returns.
-export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansSoeurs = false } = {}) {
-  balayerLesSoeurs(ctx);
-  const avant = new Map();
-  const lus = new Map();
-  const deHead = f => {
-    const r = spawnSync('git', ['-C', ctx.copie, 'show', `HEAD:${f}`], {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    return r.status === 0 ? r.stdout : null;
-  };
-  try {
-    for (const f of fichiers) {
-      const langage = langageDe(ctx.copie);
-      const soeur = langage.soeurDAvant(f, ctx.copie);
-      if (soeur === null || sansSoeurs) {
-        const sansSoeur = soeur !== null;
-        const noms = langage.testsDeHead(f, ctx.copie, deHead, { sansSoeur });
-        if (noms !== null) lus.set(f, noms);
-        continue;
-      }
-      const texte = deHead(f);
-      if (texte === null) continue;
-      writeFileSync(path.join(ctx.copie, soeur), texte);
-      avant.set(f, soeur);
+// What a tree of HEAD's version leaves out of the copy: the history, the builds, the installed
+// dependencies, none of which a test reads as its own file.
+const HORS_DE_L_ARBRE = new Set(['.git', 'target', 'node_modules', '.venv']);
+
+// Removes from the temporary directory of the ticket each tree of HEAD's version (`avant-<pid>-*`)
+// whose owner, the process that built it, no longer lives: a circuit killed between the building
+// and the removal (`avecLesVersionsDAvant`) leaves one, no `finally` having played. A tree of a
+// live process is left.
+function balayerLesArbres(ctx) {
+  if (!existsSync(ctx.tmp)) return;
+  for (const nom of readdirSync(ctx.tmp)) {
+    // The name is written by `batirLArbre`: `avant-`, the pid, `-`, the suffix of mkdtemp.
+    const [prefixe, pid] = nom.split('-');
+    if (prefixe !== 'avant' || !Number.isInteger(Number(pid)) || Number(pid) <= 0) continue;
+    try {
+      process.kill(Number(pid), 0);
+      continue;
+    } catch (e) {
+      if (e.code === 'EPERM') continue;
     }
-    return jouer(avant, lus);
-  } finally {
-    for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
+    rmSync(path.join(ctx.tmp, nom), { recursive: true, force: true });
   }
 }
 
-// The run of the files <groupe> of one package of the proof, HEAD's version of each beside it
-// (`avecLesVersionsDAvant`): `{ avant, lus, code, resultats, constructions }`, <jouer> given the
-// files to play and returning `{ code, resultats, constructions }`. A sibling that does not compile
-// is not a red of the lot (the owner's decision on grillhouse-3e2.2): when the build fails with
-// siblings, the package plays again without them, and when the lot alone builds, that run is kept,
-// the names of HEAD's tests of those files read without playing them; a build the lot alone breaks
-// stays a red, the first run kept.
+// Builds under the temporary directory of the ticket the tree of HEAD's version of <f>: the copy
+// (the code of the lot included), without `.git`, `target`, `node_modules` and `.venv`, where <f>
+// alone holds <texte>, HEAD's text, under its own name. Returns its root.
+function batirLArbre(ctx, f, texte) {
+  const racine = mkdtempSync(path.join(ctx.tmp, `avant-${process.pid}-`));
+  try {
+    cpSync(ctx.copie, racine, {
+      recursive: true,
+      filter: src =>
+        src === ctx.copie ||
+        (!HORS_DE_L_ARBRE.has(path.basename(src)) && path.resolve(src) !== path.resolve(ctx.tmp)),
+    });
+    writeFileSync(path.join(racine, f), texte);
+  } catch (e) {
+    rmSync(racine, { recursive: true, force: true });
+    throw e;
+  }
+  return racine;
+}
+
+// Runs <jouer> with HEAD's version of each file of <fichiers> that HEAD holds, where the module
+// of its language puts it: a sibling written beside the file in the copy (`soeurDAvant` of the
+// join: TypeScript, whose tool plays it in the same run), swept first (`balayerLesSoeurs`) and
+// removed after the run, a red included; or a tree of its own (`arbreDAvant` of the join: Rust,
+// Python), the copy's with that file alone replaced by its version of HEAD, under its own name, in
+// the temporary directory of the ticket (`batirLArbre`), removed after the run, a red included,
+// the copy getting no file. <jouer> gets the Map file → sibling (from the copy), the Map file →
+// names of the tests of HEAD's version, read without playing them, of each file its tool cannot
+// play twice (`testsDeHead` of the join), and the Map file → `{ racine, env }`, the root of its
+// tree and the environment it plays under (`envDArbre` of the join). With <sansArbres>, no tree
+// is built: the names of HEAD's tests of each file that would have one are read too. Returns
+// what <jouer> returns.
+export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansArbres = false } = {}) {
+  balayerLesSoeurs(ctx);
+  balayerLesArbres(ctx);
+  return avecUneLecture(() => {
+    const avant = new Map();
+    const lus = new Map();
+    const arbres = new Map();
+    const deHead = f => {
+      const r = spawnSync('git', ['-C', ctx.copie, 'show', `HEAD:${f}`], {
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      return r.status === 0 ? r.stdout : null;
+    };
+    try {
+      const langage = langageDe(ctx.copie);
+      for (const f of fichiers) {
+        const soeur = soeurDe(langage, f, ctx.copie);
+        if (soeur !== null) {
+          const texte = deHead(f);
+          if (texte === null) continue;
+          writeFileSync(path.join(ctx.copie, soeur), texte);
+          avant.set(f, soeur);
+          continue;
+        }
+        if (arbreDe(langage, f, ctx.copie) && !sansArbres) {
+          const texte = deHead(f);
+          if (texte === null) continue;
+          const env =
+            typeof langage.envDArbre === 'function' ? langage.envDArbre(f, ctx.copie) : {};
+          arbres.set(f, { racine: batirLArbre(ctx, f, texte), env });
+          continue;
+        }
+        const noms = langage.testsDeHead(f, ctx.copie, deHead);
+        if (noms !== null) lus.set(f, noms);
+      }
+      return jouer(avant, lus, arbres);
+    } finally {
+      for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
+      for (const { racine } of arbres.values()) rmSync(racine, { recursive: true, force: true });
+    }
+  });
+}
+
+// The run of the files <groupe> of one package of the proof, HEAD's version of each beside it or
+// in a tree (`avecLesVersionsDAvant`): `{ avant, lus, arbres, code, resultats, constructions }`,
+// <jouer> given the files to play in the copy and the trees to play, and returning `{ code,
+// resultats, constructions }`. A tree that does not compile is not a red of the lot (the owner's
+// decision on grillhouse-3e2.2): when the build fails with trees, the package plays again without
+// them, and when the lot alone builds, that run is kept, the names of HEAD's tests of those files
+// read without playing them; a build the lot alone breaks stays a red, the first run kept.
 export function jouerAvecLesVersionsDAvant(ctx, groupe, jouer) {
-  const avecSoeurs = avecLesVersionsDAvant(ctx, groupe, (avant, lus) => ({
+  const avecArbres = avecLesVersionsDAvant(ctx, groupe, (avant, lus, arbres) => ({
     avant,
     lus,
-    ...jouer([...groupe, ...avant.values()]),
+    arbres,
+    ...jouer([...groupe, ...avant.values()], arbres),
   }));
-  if (avecSoeurs.avant.size === 0 || avecSoeurs.constructions.length === 0) return avecSoeurs;
-  const sansSoeurs = avecLesVersionsDAvant(
+  if (avecArbres.arbres.size === 0 || avecArbres.constructions.length === 0) return avecArbres;
+  const sansArbres = avecLesVersionsDAvant(
     ctx,
     groupe,
-    (avant, lus) => ({ avant, lus, ...jouer(groupe) }),
-    { sansSoeurs: true }
+    (avant, lus, arbres) => ({
+      avant,
+      lus,
+      arbres,
+      ...jouer([...groupe, ...avant.values()], arbres),
+    }),
+    { sansArbres: true }
   );
-  return sansSoeurs.constructions.length === 0 ? sansSoeurs : avecSoeurs;
+  return sansArbres.constructions.length === 0 ? sansArbres : avecArbres;
 }
 
 // The log of the task <t> of a summary of Turborepo, its file from the root of the copy: its path,
@@ -3260,11 +3343,26 @@ function journalDeTache(ctx, t) {
   return { chemin, debut: sansCouleurs(lire(chemin)).trim().split('\n').slice(0, 80).join('\n') };
 }
 
+// Runs <jouer> with the installed dependencies of the copy (`node_modules` of its root) linked in
+// the tree <racine>, which carries none, so that its tool (npm) starts there; the link goes after
+// the run, a red included.
+function avecLesDependancesDeLaCopie(ctx, racine, jouer) {
+  const source = path.join(ctx.copie, 'node_modules');
+  const lien = path.join(racine, 'node_modules');
+  if (!existsSync(source) || existsSync(lien)) return jouer();
+  symlinkSync(source, lien);
+  try {
+    return jouer();
+  } finally {
+    rmSync(lien, { force: true });
+  }
+}
+
 // The measure of the proof of the red: one run per package, `npm test -- --force <files>` of the
-// lot that lie in it, HEAD's version of each beside it, played again without the siblings when
-// they alone break the build (`jouerAvecLesVersionsDAvant`), or, with no file of the lot, `npm
-// test -- <package>` for each package of the plan, played whole. Each run `{ groupe, entier, avant, lus,
-// code, resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
+// lot that lie in it, HEAD's version of each beside it or in a tree of its own, played again
+// without the trees when they alone break the build (`jouerAvecLesVersionsDAvant`), or, with no
+// file of the lot, `npm test -- <package>` for each package of the plan, played whole. Each run
+// `{ groupe, entier, avant, lus, arbres, code, resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
 // not played again, as Turborepo replays a task whose inputs did not move: the last one is kept
 // in `ctx.mesureDeLaPreuve`.
 function mesureDeLaPreuve(ctx, liste, fichiers) {
@@ -3281,18 +3379,22 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
     const entier = entiers.includes(dossier);
     // The files of the lot play for real (`--force`): a run replayed from Turborepo's cache, the
     // checks' same command on the same inputs, writes no report of Vitest.
-    const run = jouerAvecLesVersionsDAvant(ctx, groupe, aJouer => {
-      const r = npm(ctx, 'preuve', [
-        'test',
-        '--',
-        ...(entier ? [dossier] : ['--force']),
-        ...aJouer,
-      ]);
+    const run = jouerAvecLesVersionsDAvant(ctx, groupe, (aJouer, arbres) => {
+      // The copy plays the files of the lot; each tree plays its one file, HEAD's version, in its
+      // own root, under its own environment, as the copy's tool plays it.
+      const passes = [
+        npm(ctx, 'preuve', ['test', '--', ...(entier ? [dossier] : ['--force']), ...aJouer]),
+        ...[...arbres].map(([f, arbre]) =>
+          avecLesDependancesDeLaCopie(ctx, arbre.racine, () =>
+            npm(ctx, 'preuve', ['test', '--', '--force', f], arbre.env, arbre.racine)
+          )
+        ),
+      ];
       return {
-        code: r.code,
-        resultats: langageDe(ctx.copie).verdict(r.dossier).rapports,
+        code: passes.find(r => r.code !== 0)?.code ?? 0,
+        resultats: passes.flatMap(r => langageDe(ctx.copie).verdict(r.dossier).rapports),
         // The builds of the plan's packages that failed: each one a red, not compiling is failing.
-        constructions: constructionsEchouees(ctx, liste, r.dossier),
+        constructions: passes.flatMap(r => constructionsEchouees(ctx, liste, r.dossier)),
       };
     });
     runs.push({ groupe, entier, ...run });
@@ -3302,13 +3404,18 @@ function mesureDeLaPreuve(ctx, liste, fichiers) {
 }
 
 // The green tests of HEAD's version of the file <f> of the lot, by their full name: those of the
-// report of its sibling (`avant`, file → sibling, from the copy <copie>) in the results <resultats>
-// of the run (`verdict` of the join), or, for a file without sibling, the names of its tests read
-// in HEAD's version (`lus`, file → names), each held green, as main stays green; empty for a file
-// HEAD does not hold.
-export function vertsDeHead(resultats, copie, f, avant, lus = new Map()) {
+// report of its sibling (`avant`, file → sibling, from the copy <copie>) or of its tree (`arbres`,
+// file → `{ racine }`, the file there at the same path: the copy's by the change of root alone)
+// in the results <resultats> of the run (`verdict` of the join), or, for a file played in neither,
+// the names of its tests read in HEAD's version (`lus`, file → names), each held green, as main
+// stays green; empty for a file HEAD does not hold.
+export function vertsDeHead(resultats, copie, f, avant, lus = new Map(), arbres = new Map()) {
   if (lus.has(f)) return new Set(lus.get(f));
-  const soeur = avant.has(f) ? path.join(copie, avant.get(f)) : null;
+  const soeur = avant.has(f)
+    ? path.join(copie, avant.get(f))
+    : arbres.has(f)
+      ? path.join(arbres.get(f).racine, f)
+      : null;
   return new Set(
     (resultats.find(t => soeur !== null && t.fichier === soeur)?.tests ?? [])
       .filter(a => a.etat === 'passed')
@@ -3354,7 +3461,7 @@ function preuve(ctx) {
   const mesure = mesureDeLaPreuve(ctx, liste, fichiers);
   // A plan « comportement inchangé »: every green of the lot is expected.
   const inchange = Boolean(ctx.sorte?.inchange);
-  for (const { groupe, entier, avant, lus, code, resultats, constructions } of mesure) {
+  for (const { groupe, entier, avant, lus, arbres, code, resultats, constructions } of mesure) {
     for (const { nom, erreur } of constructions) {
       if (reportes.includes(nom)) continue;
       rouges.push(`construction de ${nom} — ${erreur}`);
@@ -3378,9 +3485,9 @@ function preuve(ctx) {
     for (const f of groupe) {
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];
-      const deHead = vertsDeHead(resultats, ctx.copie, f, avant, lus);
-      // Whether HEAD holds the file: its sibling played, or the names of its tests read.
-      const tenu = avant.has(f) || lus.has(f);
+      const deHead = vertsDeHead(resultats, ctx.copie, f, avant, lus, arbres);
+      // Whether HEAD holds the file: its sibling or its tree played, or the names of its tests read.
+      const tenu = avant.has(f) || arbres.has(f) || lus.has(f);
       if (constructions.length && (!res || tests.length === 0)) {
         // It cannot load before the build: it plays at the checks.
       } else if (!res) {

@@ -265,7 +265,10 @@ export default {
   verdict,
   estUnTest,
   soeurDAvant,
-  // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no name to read.
+  // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no tree, no name
+  // to read.
+  arbreDAvant: () => false,
+  envDArbre: () => ({}),
   testsDeHead: () => null,
   manifestes,
   fichiersEngendres: () => [

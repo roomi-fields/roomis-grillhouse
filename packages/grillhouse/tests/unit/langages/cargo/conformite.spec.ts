@@ -35,7 +35,12 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
   });
 
   it('it exports every member of the join, as the module typescript does', () => {
-    expect(Object.keys(cargo).sort()).toEqual(Object.keys(typescript).sort());
+    // grillhouse-3e2.3, criterion 8: soeurDAvant is typescript's alone.
+    expect(Object.keys(cargo).sort()).toEqual(
+      Object.keys(typescript)
+        .filter(m => m !== 'soeurDAvant')
+        .sort()
+    );
   });
 
   it('the suite finds no fault in it', () => {

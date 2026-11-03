@@ -240,26 +240,33 @@ export interface Composition {
   ): { tester: Commande; verifier: Commande; typer: Commande } & Record<string, Commande>;
   verdict(dossier: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
   estUnTest(chemin: string, racine: string): ClasseDeTest;
-  /** The sibling of HEAD's version of the test file `chemin` (from `racine`), from the root: a
-   * file beside it, a test the module's tool plays in the same run as it, its tests named in the
-   * run's report as the file's, of its class (day, night, bench), which the proof of the red
-   * writes, plays and removes; null for a file the tool cannot play twice in a run (cargo: a
-   * target `tests/<dossier>/main.rs`, a unit test of `src/`: `testsDeHead`) or does not play. */
-  soeurDAvant(chemin: string, racine: string): string | null;
+  /** Optional, for a tool that reads a test file beside it (typescript): the sibling of HEAD's
+   * version of the test file `chemin` (from `racine`), from the root: a file beside it, a test
+   * the tool plays in the same run as it, its tests named in the run's report as the file's, of
+   * its class (day, night, bench), which the proof of the red writes, plays and removes; null for
+   * a file that has none. */
+  soeurDAvant?(chemin: string, racine: string): string | null;
+  /** Whether HEAD's version of the test file `chemin` (from `racine`) plays in a tree of its own,
+   * the copy's with that file alone replaced, under the file's own name, which the proof of the
+   * red builds, plays and removes (cargo, python); false for a file the tool cannot play so
+   * (cargo: a target `tests/<dossier>/main.rs`, a unit test of `src/`: `testsDeHead`), plays
+   * beside it (typescript: `soeurDAvant`) or does not play. */
+  arbreDAvant(chemin: string, racine: string): boolean;
+  /** The environment a tree of HEAD's version of `chemin` plays under (cargo: the target
+   * directory of the copy's compilations); empty for none. */
+  envDArbre(chemin: string, racine: string): Record<string, string>;
   /** The names of the tests of HEAD's version of the test file `chemin` (from `racine`), as the
-   * verdict names them, read without playing them, for a file that has no sibling because the
-   * tool cannot play two versions of it in one run (cargo: a unit test of `src/`, a target
-   * `tests/<dossier>/main.rs`, its out-of-line modules read too); the proof of the red holds each
-   * for a green HEAD already holds. `lire` gives HEAD's text of a file from the root, null for
-   * none. With `sansSoeur`, the names of a file whose sibling the proof does not play, because
-   * it breaks the build of its package while the lot alone builds (cargo: a target
-   * `tests/<nom>.rs` whose HEAD's version no longer compiles against the lot's `tests/common`,
-   * grillhouse-3e2.2). Null for any other file, or one HEAD does not hold. */
+   * verdict names them, read without playing them, for a file whose tree the proof does not play
+   * (cargo: a unit test of `src/`, a target `tests/<dossier>/main.rs`, its out-of-line modules read
+   * too), or whose tree breaks the build of its package while the lot alone builds (cargo: a
+   * target `tests/<nom>.rs` whose HEAD's version no longer compiles against the lot's
+   * `tests/common`, grillhouse-3e2.2); the proof of the red holds each for a green HEAD already
+   * holds. `lire` gives HEAD's text of a file from the root, null for none. Null for any other
+   * file, or one HEAD does not hold. */
   testsDeHead(
     chemin: string,
     racine: string,
-    lire: (fichier: string) => string | null,
-    options?: { sansSoeur?: boolean }
+    lire: (fichier: string) => string | null
   ): string[] | null;
   manifestes: Manifestes;
   fichiersEngendres(racine: string): FichierEngendre[];

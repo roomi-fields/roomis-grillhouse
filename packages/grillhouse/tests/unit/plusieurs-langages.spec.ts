@@ -81,6 +81,7 @@ function faux(nom: string, dossiers: string[], autres: Partial<Langage> = {}): L
         ? { joue: true, test: true, matiere: false }
         : { joue: false, test: false, matiere: nom === 'b' && chemin.endsWith('.b') },
     soeurDAvant: chemin => (de(chemin) ? `${chemin}.avant-${nom}` : null),
+    arbreDAvant: chemin => de(chemin),
     testsDeHead: (chemin, _racine, lire) => (de(chemin) ? [`${nom}:${lire(chemin)}`] : null),
     manifestes: {
       verrous: [`${nom}.lock`],
@@ -157,6 +158,13 @@ describe('grillhouse-akd, critère 1 — chaque fichier va au module du composan
       faux('b', ['b'], { soeurDAvant: (c: string) => `${c}.b` }),
     ]);
     expect(second.soeurDAvant('tests/x', RACINE)).toBe('tests/x.b');
+  });
+
+  // grillhouse-3e2.3: whether HEAD's version of a test file plays in a tree of its own is its module's.
+  it('whether HEAD’s version of a file plays in a tree is its own module’s answer; out of every component, no', () => {
+    expect(AB.arbreDAvant('b/tests/x.b', RACINE)).toBe(true);
+    expect(AB.arbreDAvant('commun/a/x.a', RACINE)).toBe(true);
+    expect(AB.arbreDAvant('ailleurs/x', RACINE)).toBe(false);
   });
 
   it('the names of the tests of HEAD’s version of a file are read by its own module', () => {

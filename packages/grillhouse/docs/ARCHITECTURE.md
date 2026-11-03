@@ -906,8 +906,13 @@ composants et celui d'un fichier, avec les lecteurs par le code des éléments q
 les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
 typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
 porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
-(le verrou du testwriter), le nom de la sœur où la preuve du rouge joue la version de HEAD d'un
-fichier de test, dans le même lancement que lui (`soeurDAvant` : un nom que l'outil du langage
+(le verrou du testwriter), où la preuve du rouge joue la version de HEAD d'un fichier de test :
+dans un arbre à elle pour Rust et Python (`arbreDAvant`, `envDArbre` : la copie, code du lot
+compris, où ce seul fichier est remplacé par sa version de HEAD sous son propre nom, bâtie dans le
+dossier temporaire du ticket sans `.git`, `target`, `node_modules` ni `.venv`, retirée à la fin de
+la preuve, un rouge compris ; comme `git bisect run`, jamais un fichier de plus dans le dossier de
+tests qu'un autre test parcourt), ou, pour TypeScript, à côté de lui, dans le même lancement que
+lui (`soeurDAvant` : un nom que l'outil du langage
 joue de lui-même, ses tests nommés comme ceux du fichier, de sa classe, jour, nuit ou banc ; le
 circuit ne bâtit aucun nom de langage ; une sœur qu'un processus tué a laissée, un fichier non
 suivi par git, sœur d'un fichier suivi de son dossier qui existe, est retirée au départ du
@@ -915,11 +920,11 @@ circuit et avant chaque mesure, donc n'entre jamais au lot, nommée au journal d
 balayage tient une portée de lecture unique (`scripts/lecture-unique.mjs`), où les composants
 de la composition et ce qu'un module lit à grand coût, les métadonnées de cargo, se lisent une
 fois, quel que soit le nombre de fichiers ; pour un fichier que l'outil ne sait pas jouer en deux
-versions, un test unitaire Rust de `src/` ou une cible `tests/<dossier>/main.rs`, pas de sœur :
+versions, un test unitaire Rust de `src/` ou une cible `tests/<dossier>/main.rs`, pas d'arbre :
 `testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve tient pour
-des verts que HEAD tient déjà ; une sœur qui ne compile plus n'est pas un rouge du lot : quand la
-construction échoue avec les sœurs et que le lot seul construit, la preuve rejoue le paquet sans
-elles et lit de même les noms de HEAD de ces fichiers, `testsDeHead` avec `sansSoeur` ; une
+des verts que HEAD tient déjà ; un arbre qui ne compile plus n'est pas un rouge du lot : quand la
+construction échoue avec les arbres et que le lot seul construit, la preuve rejoue le paquet sans
+eux et lit de même les noms de HEAD de ces fichiers, `testsDeHead` ; une
 construction que le lot seul casse reste un rouge), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
 avec le fichier de verrouillage des versions (`manifestes` : le testwriter les écrit, comme
 l'auteur d'un test de Bazel déclare les dépendances de sa cible ; le verrou refuse tout autre

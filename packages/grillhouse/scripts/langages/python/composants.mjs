@@ -1,6 +1,6 @@
 // The components of a project of Python, as uv finds a project (PEP 621, `pyproject.toml`): the
 // packages the module python answers the join with (scripts/jointure.d.ts, `composants`,
-// `composantDe`, `matieres`, `joueDesTests`, `lecteurs`, `estUnTest`, `soeurDAvant`, `manifestes`,
+// `composantDe`, `matieres`, `joueDesTests`, `lecteurs`, `estUnTest`, `arbreDAvant`, `manifestes`,
 // `entreesDeLIndex`).
 //
 // - A component is a folder that holds a pyproject.toml, found under the root, the folders whose
@@ -19,10 +19,9 @@
 //   any file under a folder `tests/` of a component, his helpers and his data. Of the manifests
 //   (`manifestes`): the group `test` of the table `[dependency-groups]` of a pyproject.toml (PEP
 //   735), what the tests depend on, and the uv.lock of a component, which uv brings in line with
-//   it; a change of any other part of a pyproject.toml is named by it. The sibling of HEAD's
-//   version of a test file (`soeurDAvant`), which the proof of the red plays beside it, is a name
-//   pytest collects, of its file's kind: `test_<nom>_circuit_avant.py`, `<nom>_circuit_avant_test.py`,
-//   `<nom>_circuit_avant_nuit_test.py`. The pyproject.toml is read
+//   it; a change of any other part of a pyproject.toml is named by it. HEAD's version of a test
+//   file (`arbreDAvant`) plays in a tree of its own, under the file's name, which the proof of the
+//   red builds. The pyproject.toml is read
 //   with smol-toml, a tool of this module (`outils`), an optional peer of the package loaded when a
 //   manifest is judged.
 // - The readers of a package: none read by the module (a dependency between two packages of
@@ -148,23 +147,12 @@ export function estUnTest(chemin, racine) {
 }
 
 /**
- * The sibling of HEAD's version of the test file <chemin> (from <racine>), which pytest collects
- * and plays in the same run: `test_<nom>_circuit_avant.py` beside `test_<nom>.py`,
- * `<nom>_circuit_avant_test.py` beside `<nom>_test.py`, `<nom>_circuit_avant_nuit_test.py`
- * beside a night test `<nom>_nuit_test.py`, so that it stays one; a name pytest collects by
- * default (`python_files`), its tests named in its report as the file's; null for a file pytest
- * does not play.
+ * Whether HEAD's version of the test file <chemin> (from <racine>) plays in a tree of its own,
+ * under the file's own name, so that its tests are named in its report as the file's, of its
+ * kind (day, night); false for a file pytest does not play.
  */
-export function soeurDAvant(chemin, racine) {
-  if (!estUnTest(chemin, racine)?.joue) {
-    return null;
-  }
-  if (estDeNuit(path.basename(chemin))) {
-    return chemin.replace(/_nuit_test\.py$/, '_circuit_avant_nuit_test.py');
-  }
-  return chemin.endsWith('_test.py')
-    ? chemin.replace(/_test\.py$/, '_circuit_avant_test.py')
-    : chemin.replace(/\.py$/, '_circuit_avant.py');
+export function arbreDAvant(chemin, racine) {
+  return Boolean(estUnTest(chemin, racine)?.joue);
 }
 
 // The parts of the parsed manifests <a> and <b> that differ, out of the group of the tests: each
