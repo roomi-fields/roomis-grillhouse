@@ -198,8 +198,8 @@ describe('grillhouse-3e2.4, critère 2 et 4 — la preuve met de côté les fich
     fichiers: 0,
     rouges: 0,
     casses: 0,
-    injustifies: 0,
-    justifies: 0,
+    nommes: 0,
+    nonNommes: 0,
     anciens: 0,
     misDeCote: 0,
   };
@@ -210,10 +210,10 @@ describe('grillhouse-3e2.4, critère 2 et 4 — la preuve met de côté les fich
     }
   });
 
-  it('critère 2 : un fichier mis de côté ne remplace pas la preuve d’un fichier du jour — un vert sans vert attendu refuse encore', () => {
+  it('critère 2 : un fichier mis de côté ne remplace pas la preuve d’un fichier du jour — un vert nommé par la fiche refuse encore', () => {
     expect(
       preuveReussie(
-        { ...COMPTE, fichiers: 1, injustifies: 1, justifies: 1, misDeCote: 1 },
+        { ...COMPTE, fichiers: 1, nommes: 1, nonNommes: 1, misDeCote: 1 },
         { inchange: false }
       )
     ).toBe(false);

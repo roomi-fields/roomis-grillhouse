@@ -104,12 +104,26 @@ locaux ; un test grand, qui monte un projet d'essai et y lance le produit ou le 
 s'écrit dans un fichier `*.nuit.test.ts`. La garde des tailles refuse un grand test de jour. Ainsi
 le jour garde ses tests rapides, et chaque critère sa preuve la plus directe.
 
-**Chaque test rougit d'abord** : pendant que tu l'écris, tu le lances sur le code présent
-(`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt) et tu vois qu'il échoue pour
-la bonne raison. Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de
-ton lot, dans tous les paquets du plan, et écrit au ticket les rouges et les verts ; les autres
-tests du plan se jouent aux contrôles. Ainsi chaque test prouve qu'il sait échouer, et la preuve se
-mesure hors de ta séance.
+**Le rouge prouve le travail du ticket** : tu lances tes tests sur le code présent
+(`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt), et ta fiche nomme dans
+`portent_le_travail` ceux qui portent le travail du ticket : seuls ceux-là rougissent d'abord. Les
+autres sont verts avant le code, sans justification à donner. Chaque sorte de test prouve une chose :
+
+| Sorte | Ce qu'elle prouve | Rouge avant le code |
+|---|---|---|
+| Test du comportement développé | Le ticket fait ce que dit son critère | Oui : c'est la preuve du travail |
+| Test d'un défaut corrigé | Le défaut est reproduit, puis corrigé | Oui : il montre le défaut |
+| Test d'un comportement existant | Le lot ne casse rien | Non : vert d'avance |
+| Test d'interface | Un paquet tient ce qu'il publie | Oui s'il porte le travail du ticket, sinon non |
+| Banc de temps, témoin de temps | Un temps reste sous sa borne | Non : mesuré la nuit |
+| Test de nuit | Le produit entier, monté dans un projet d'essai | Oui s'il porte le travail du ticket, joué la nuit |
+
+Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de ton lot, dans
+tous les paquets du plan, et écrit au ticket les rouges, les verts non nommés (acceptés, que le
+relecteur lit) et les tests nommés encore verts, qui sont un défaut : il te relance. Un test nommé
+que HEAD tient déjà vert sous le même nom n'a rien à prouver. Sous un plan « comportement changé »,
+la preuve passe avec au moins un rouge ; sans rouge, la question monte au superviseur. Ainsi la
+preuve mesure le travail du ticket, et aucun test ne rougit pour la forme.
 
 **Un rouge existant suffit** : sans fichier de ton lot, la preuve joue en entier les paquets du
 plan ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a changé un
@@ -118,21 +132,12 @@ couvrent les critères du ticket, tu n'écris aucun test neuf et ta passation le
 Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur du lecteur est lancé sur
 ce que le lot casse.
 
-**Un test vert avant le code se justifie** : ta fiche le nomme dans `verts_attendus`, son fichier
-depuis la racine du dépôt, son nom complet tel que le rapport de la preuve l'écrit (après « › »)
-et sa raison ; sans lui, le circuit te relance avec son rapport. Un test que HEAD tient déjà sous
-le même nom, vert, n'a rien à prouver. Un fichier qui ne se charge pas ne prouve rien. Ainsi un
-vert reste un choix écrit.
-
-**Un test adapté porte son vert attendu dès ta première fiche** : un test existant que tu adaptes
-à un nom ou un type changé, et qui passe sur le code présent, entre dans `verts_attendus` de ta
-première fiche. Ainsi la preuve passe du premier coup, sans une séance de plus.
-
-**Un fichier adapté se justifie une fois** : quand tous les tests verts d'un fichier de tests que
-HEAD tient, que tu adaptes, le sont pour une même raison, son vert attendu porte le fichier et la
-raison, sans `test`. Il justifie chaque test vert de ce fichier et n'excuse aucun rouge. Sur un
-fichier neuf, il ne justifie rien, et le rapport le dit : chaque test vert y a le sien. Les verts
-attendus par test se combinent avec lui. Ainsi une fiche dit une raison une fois.
+**Un fichier entier se nomme sans `test`** : `portent_le_travail` porte `fichier` (depuis la
+racine du dépôt) et, facultatif, `test` (son nom complet tel que le rapport de la preuve l'écrit,
+après « › ») ; sans `test`, chaque test du fichier porte le travail. La liste se remplace à chaque fiche : un champ
+absent garde la liste de ta fiche d'avant, une liste donnée la remplace, et `[]` la vide (ainsi tu
+retires un nom donné par erreur). Un fichier qui ne se charge
+pas ne prouve rien. Ainsi la fiche dit en une ligne ce qui porte le travail.
 
 **Un type changé migre d'emblée ses lecteurs de test** : quand le ticket change un type ou un nom
 d'un paquet du plan, tu migres aussi, dans la même séance, la matière de test partagée et les tests
@@ -219,7 +224,7 @@ tests arrivent au dépôt avec le code qui les rend verts.
   partagée, la copie est en lecture seule, ton verrou arrête ta séance sur une écriture hors du
   plan, et ta `raison` nomme le paquet qui possède le fichier ;
 - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
-- `verts_attendus` : chaque test vert avant le code, et sa raison ;
+- `portent_le_travail` : les tests du lot qui portent le travail du ticket (`fichier`, et `test` facultatif) ;
 - `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),
   que le circuit consigne fermée sous le ticket.
 
@@ -237,7 +242,7 @@ entière. Ainsi tu repars de ce que tu sais. Toute relance (une preuve refusée,
 développeur, un `RENDU`, une reprise du superviseur) porte les constats du relecteur qui restent
 ouverts pour toi, tous, jusqu'à la relecture qui les juge levés. Ainsi aucun constat ne se perd
 d'une relance à l'autre. Une séance qui ne change aucun fichier, ta fiche seule
-complétée (un vert attendu oublié), se juge sur les résultats de la preuve déjà jouée, sans la
+complétée (un test à nommer oublié), se juge sur les résultats de la preuve déjà jouée, sans la
 rejouer. Ainsi un oubli de fiche coûte une séance courte, pas une preuve de plus.
 
 Une règle qui manque ou se contredit t'arrête seulement si tu n'as pas la réponse, ou si elle revient

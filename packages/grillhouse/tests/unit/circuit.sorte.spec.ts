@@ -59,8 +59,8 @@ const preuveReussie = circuit.preuveReussie as (
     fichiers: number;
     rouges: number;
     casses: number;
-    injustifies: number;
-    justifies: number;
+    nommes: number;
+    nonNommes: number;
     anciens: number;
   },
   options: { inchange: boolean }
@@ -241,7 +241,7 @@ describe('critère 2 — un ticket mécanique se mène dans sa copie par sa comm
 });
 
 describe('critère 3 — sous « comportement inchangé », la preuve accepte chaque vert et le développeur travaille le lot ; hors de ce cas, une preuve sans rouge passe aux contrôles sans lui', () => {
-  const compte = { fichiers: 0, rouges: 0, casses: 0, injustifies: 0, justifies: 0, anciens: 0 };
+  const compte = { fichiers: 0, rouges: 0, casses: 0, nommes: 0, nonNommes: 0, anciens: 0 };
 
   it('a proof without a red, with no finding open for the developpeur, goes to the checks', () => {
     expect(apresLaPreuve({ rouges: 0, pourLeDeveloppeur: false, inchange: false })).toBe(
@@ -270,14 +270,14 @@ describe('critère 3 — sous « comportement inchangé », la preuve accepte ch
     ).toEqual({ genre: 'comportement', raison: 'un seuil relevé', inchange: true });
   });
 
-  it('under « comportement inchangé », nothing has to turn red and every green is expected: only a broken file refuses the proof', () => {
+  it('under « comportement inchangé », nothing has to turn red and every green passes: only a broken file refuses the proof', () => {
     expect(preuveReussie(compte, { inchange: true })).toBe(true);
     expect(preuveReussie(compte, { inchange: false })).toBe(false);
-    const vertSansVertAttendu = { ...compte, fichiers: 1, injustifies: 1 };
+    const vertSansVertAttendu = { ...compte, fichiers: 1, nommes: 1 };
     expect(preuveReussie(vertSansVertAttendu, { inchange: true })).toBe(true);
     expect(preuveReussie(vertSansVertAttendu, { inchange: false })).toBe(false);
     expect(preuveReussie({ ...compte, fichiers: 1, casses: 1 }, { inchange: true })).toBe(false);
-    expect(preuveReussie({ ...compte, fichiers: 1, anciens: 1 }, { inchange: false })).toBe(true);
+    expect(preuveReussie({ ...compte, fichiers: 1, anciens: 1 }, { inchange: false })).toBe(false);
   });
 });
 

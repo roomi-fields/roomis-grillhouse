@@ -535,7 +535,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     ticket(id, '000-forms');
     scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    // The testwriter adds the case the reviewer found; the test already green is justified.
+    // The testwriter adds the case the reviewer found; its test turns red until the developpeur writes it.
     scenario(
       id,
       'testwriter-2',
@@ -545,7 +545,7 @@ import * as m from '../src/index.mjs';
 it('critère 2 — echelle rend le triple', () => { expect(m.echelle?.(2)).toBe(6); });
 EOF
 passation 'Echelle testée.'
-fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'
+fiche '{"statut":"FAIT"}'
 `
     );
     scenario(

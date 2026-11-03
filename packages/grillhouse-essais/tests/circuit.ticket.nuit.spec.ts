@@ -198,20 +198,22 @@ describe.runIf(canWrap)(
         );
       }
       expect(etat(id)?.constats.map(c => c.role)).toEqual(['developpeur', 'testwriter']);
-      // The supervisor's answer: the testwriter again, whose tests are green before the code.
+      // The supervisor's answer: the testwriter again, who writes the case of zero, red until the code.
       scenario(
         id,
         'testwriter',
-        `fiche '${JSON.stringify({
-          statut: 'FAIT',
-          verts_attendus: [
-            {
-              fichier: 'packages/forms/test/mesure.test.mjs',
-              test: 'critère 1 — mesure rend le double',
-              raison: 'le code rend déjà le double',
-            },
-          ],
-        })}'\n`
+        `cat > $c/test/zero.test.mjs <<'EOF'
+import { expect, it } from 'vitest';
+import * as m from '../src/index.mjs';
+it('critère 1 — zero rend 0', () => { expect(m.zero?.()).toBe(0); });
+EOF
+fiche '${JSON.stringify({ statut: 'FAIT' })}'
+`
+      );
+      scenario(
+        id,
+        'developpeur-2',
+        `printf 'export const zero = () => 0;\\n' >> $c/src/index.mjs\npassation 'Zéro écrit.'\n`
       );
       // The review after it judges each finding still open lifted (grillhouse-527.1.1).
       scenario(
@@ -236,7 +238,7 @@ describe.runIf(canWrap)(
       const r2 = circuit([id, '--depuis', 'testwriter', '--contexte', 'Le zéro est mesuré.']);
       expect(r2.status, sortie(r2)).toBe(0);
       expect(essai(id, 'testwriter-5.prompt')).toContain('le cas de zéro manque');
-      // The proof has no red, and the finding still open launches the developpeur, who receives it.
+      // The proof has its red, and the finding still open launches the developpeur, who receives it.
       expect(ordre(id).slice(6)).toEqual(['testwriter', 'developpeur', 'relecteur']);
       expect(essai(id, 'developpeur-2.prompt')).toContain('exemplar reste dans forms.');
       expect(essai(id, 'developpeur-2.prompt')).not.toContain('le cas de zéro manque');

@@ -57,7 +57,8 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.avancement': [1, 6],
   'circuit.bilan': [2, 20],
   'circuit.conformite': [5, 31],
-  'circuit.consigne': [3, 25],
+  // grillhouse-3e2.5: one more it and expect, the testwriter's red test written in a scenario.
+  'circuit.consigne': [4, 26],
   'circuit.construction': [3, 21],
   'circuit.fiche': [11, 52],
   'circuit.gestes': [6, 49],
@@ -69,7 +70,8 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.passe-finale': [3, 19],
   // grillhouse-1eq: one more expect, the explorateur's template of the mechanical gesture (sos).
   'circuit.plan': [18, 125],
-  'circuit.preuve': [10, 49],
+  // grillhouse-3e2.5: three more tests, the report names the tests that carry the work.
+  'circuit.preuve': [13, 56],
   // grillhouse-1eq: three more expects, the preparation of the copy before a pass (527).
   'circuit.references': [30, 202],
   'circuit.refus': [3, 22],
@@ -82,9 +84,12 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.sessions': [18, 111],
   'circuit.statut': [10, 66],
   'circuit.tests-de-head': [5, 22],
-  'circuit.ticket': [10, 71], // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d)
+  // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d); grillhouse-3e2.5: one
+  // more it and expect, the testwriter's red test written in a scenario.
+  'circuit.ticket': [11, 72],
   'circuit.tri': [8, 78],
-  'circuit.vert-par-fichier': [8, 28],
+  // grillhouse-3e2.5: fewer expects, the file-wide green gives way to the unnamed greens.
+  'circuit.vert-par-fichier': [8, 20],
   // grillhouse-3dr.3.3: the other tests of the chain, read on main before the move (255b40d).
   // grillhouse-1eq: one more test, its night blind to a neighbour's ticket directory.
   nuit: [74, 320],

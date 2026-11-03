@@ -48,9 +48,9 @@ const sortie = (structured?: unknown) =>
   });
 
 describe('the sheet of each role holds only the fields a reader reads', () => {
-  it('the testwriter: its status, its reason or question, its expected greens, its discoveries', () => {
+  it('the testwriter: its status, its reason or question, the tests of the lot that carry the work, its discoveries', () => {
     expect(champs('testwriter')).toEqual(
-      ['decouvertes', 'piece', 'question', 'raison', 'statut', 'verts_attendus'].sort()
+      ['decouvertes', 'piece', 'portent_le_travail', 'question', 'raison', 'statut'].sort()
     );
     expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
@@ -917,13 +917,13 @@ describe('the reading of a sheet in the output of a session', () => {
       'testwriter',
       sortie({
         statut: 'FAIT',
-        verts_attendus: [{ fichier: 'packages/a/test/x.test.ts', raison: 'renommé' }],
+        portent_le_travail: [{ fichier: 'packages/a/test/x.test.ts', test: 'critère 1 — rend 2' }],
       })
     );
     expect(lu).toEqual({
       fiche: {
         statut: 'FAIT',
-        verts_attendus: [{ fichier: 'packages/a/test/x.test.ts', raison: 'renommé' }],
+        portent_le_travail: [{ fichier: 'packages/a/test/x.test.ts', test: 'critère 1 — rend 2' }],
       },
       seance: 'abc',
     });
@@ -942,7 +942,12 @@ describe('the reading of a sheet in the output of a session', () => {
     ['testwriter', { statut: 'FAIT', note: 'x' }, 'note'],
     ['testwriter', { statut: 'BLOQUÉ' }, 'raison'],
     ['developpeur', { statut: 'BESOIN' }, 'question'],
-    ['testwriter', { statut: 'FAIT', verts_attendus: [{ fichier: 'a.test.ts' }] }, 'raison'],
+    ['testwriter', { statut: 'FAIT', portent_le_travail: [{ test: 'critère 1' }] }, 'fichier'],
+    [
+      'testwriter',
+      { statut: 'FAIT', verts_attendus: [{ fichier: 'a.test.ts', raison: 'x' }] },
+      'verts_attendus',
+    ],
     ['developpeur', { statut: 'FAIT', renvoi: { role: 'developpeur' } }, 'role'],
     ['relecteur', { verdict: 'PEUT-ÊTRE' }, 'verdict'],
     ['relecteur', { verdict: 'RENDU', constats: [{ titre: 't', genre: 'bloquant' }] }, 'corps'],

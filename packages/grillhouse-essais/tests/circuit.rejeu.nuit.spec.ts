@@ -169,7 +169,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
         ['developpeur', 'packages/sheet/src/index.mjs', 'mesure de 1 doit rendre 2.']
       )
     );
-    // The developpeur sends his red to the testwriter, whose tests the code already passes.
+    // The developpeur sends his red to the testwriter, whose new test turns red.
     scenario(
       id,
       'developpeur-2',
@@ -183,14 +183,18 @@ fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","piece":"pac
       'testwriter-2',
       `cat > $c/test/zero.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
-import { mesure } from '../src/index.mjs';
-it('critère 1 — mesure de 0 rend 0', () => { expect(mesure(0)).toBe(0); });
+import * as m from '../src/index.mjs';
+it('critère 1 — zero rend 0', () => { expect(m.zero?.()).toBe(0); });
 EOF
 passation 'Le cas 0 testé.'
-fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.test.mjs","test":"critère 1 — mesure de 0 rend 0","raison":"le code livré le tient"},{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'
+fiche '{"statut":"FAIT"}'
 `
     );
-    scenario(id, 'developpeur-3', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
+    scenario(
+      id,
+      'developpeur-3',
+      `printf 'export const zero = () => 0;\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`
+    );
     scenario(
       id,
       'relecteur-2',
@@ -253,28 +257,28 @@ fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.t
     );
   });
 
-  it('launches the developpeur a finding names even when the proof has no red', () => {
+  it('launches the developpeur a finding names, each agent receiving the findings of its own role', () => {
     const id = 'demo-rejeu-constat';
     ticket(id, '000-forms');
     scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    // The testwriter adds a case the code already holds: the proof has no red.
+    // The testwriter adds a case that turns red.
     scenario(
       id,
       'testwriter-2',
       `cat > $c/test/zero.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
-import { mesure } from '../src/index.mjs';
-it('critère 1 — mesure de 0 rend 0', () => { expect(mesure(0)).toBe(0); });
+import * as m from '../src/index.mjs';
+it('critère 1 — zero rend 0', () => { expect(m.zero?.()).toBe(0); });
 EOF
 passation 'Le cas 0 testé.'
-fiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/zero.test.mjs","test":"critère 1 — mesure de 0 rend 0","raison":"le code livré le tient"},{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'
+fiche '{"statut":"FAIT"}'
 `
     );
     scenario(
       id,
       'developpeur-2',
-      `printf '// mesure : le double\\n' >> $c/src/index.mjs\npassation 'Commentaire écrit.'\n`
+      `printf '// mesure : le double\\nexport const zero = () => 0;\\n' >> $c/src/index.mjs\npassation 'Commentaire écrit.'\n`
     );
     scenario(
       id,

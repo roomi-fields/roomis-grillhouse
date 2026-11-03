@@ -118,29 +118,35 @@ describe('the sheets the circuit reads', () => {
     .exec(lire('mods/grillhouse/skills/pitmaster/references/consigne-agent.md'))?.[1]
     .replace(/\s+/g, ' ');
 
-  it('each green test before the code goes into `verts_attendus`: its file from the root, its full name, its reason', () => {
+  // grillhouse-3e2.5 (critères 1, 5, 11): the sheet names the tests that carry the work of the
+  // ticket; `verts_attendus`, its whole-file form and its rule « chaque test rougit d'abord » are gone.
+  it('grillhouse-3e2.5 critères 5 et 11 — the testwriter names in `portent_le_travail` the tests of the lot that carry the work, by `fichier` and optional `test`', () => {
     for (const [nom, texte] of [
       ['testwriter', testwriter],
       ['consigne', premier ?? ''],
     ]) {
-      expect(texte, nom).toContain('`verts_attendus`');
-      expect(texte, nom).toMatch(/son nom complet tel que le rapport de la preuve l'écrit/);
+      expect(texte, nom).toContain('`portent_le_travail`');
+      expect(texte, nom).not.toContain('verts_attendus');
+      expect(texte, nom).not.toMatch(/Chaque test rougit d'abord/);
+      expect(texte, nom).not.toMatch(/vert(s)? attendu/);
     }
-    expect(testwriter).toMatch(/adaptes? à un nom ou un type changé/);
-    expect(testwriter).toMatch(/première fiche/);
+    expect(testwriter).toMatch(/travail du ticket/);
   });
 
-  // Witness: BPScript (vbwf.320.2.4.5.1, 2026-10-20): up to 14 KB of « vert attendu » per handover,
-  // one per test, most with the same reason; nine sessions of the testwriter only added these lines.
-  it('a test file HEAD holds, adapted, all its tests green for one reason, takes one expected green for the file', () => {
-    for (const [nom, texte] of [
-      ['testwriter', testwriter],
-      ['consigne', premier ?? ''],
+  it('grillhouse-3e2.5 critères 1 et 11 — the skill of the testwriter takes back the table of the kinds of tests of the charter', () => {
+    for (const sorte of [
+      'Test du comportement développé',
+      'Test d.un défaut corrigé',
+      'Test d.un comportement existant',
+      'Test d.interface',
+      'Banc de temps, témoin de temps',
+      'Test de nuit',
     ]) {
-      expect(texte, nom).toMatch(/fichier de tests que HEAD tient/);
-      expect(texte, nom).toMatch(/fichier neuf/);
-      expect(texte, nom).toMatch(/n'excuse(nt)? aucun rouge/);
+      expect(testwriter, sorte).toMatch(new RegExp(sorte));
     }
+    expect(testwriter).not.toMatch(/Chaque test rougit d'abord/);
+    expect(testwriter).not.toMatch(/Un test vert avant le code se justifie/);
+    expect(testwriter).not.toMatch(/verts_attendus/);
   });
 
   it('a developpeur whose remaining red lies in the tests of the lot sends it by `renvoi`', () => {

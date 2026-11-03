@@ -315,8 +315,10 @@ superviseur fait corriger le lot (`--depuis developpeur`), joue le geste corrig�
 puis `--reprendre`, qui ne rejoue pas un geste que la copie porte déjà, ou arrête. Une preuve sans
 rouge, sans constat ouvert pour le développeur, passe aux contrôles sans lui (`apresLaPreuve`) ;
 sous un plan « comportement inchangé », comme dans un grand changement de Google, la suite
-existante fait la preuve : rien n'a à rougir et chaque vert du lot est attendu, seul un fichier du
-lot qui ne se charge pas refuse la preuve (`preuveReussie`) ; un fichier que seule la nuit joue
+existante fait la preuve : rien n'a à rougir et chaque vert du lot passe, seul un fichier du
+lot qui ne se charge pas refuse la preuve (`preuveReussie`) ; la liste `portent_le_travail` du
+testwriter se remplace à chaque fiche (`portentLeTravail`) : un champ absent garde la liste de la
+fiche d'avant, une liste donnée la remplace, `[]` la vide ; un fichier que seule la nuit joue
 (test de nuit, banc ou témoin de temps) est mis de côté avant la preuve
 (`separerLesFichiersDuJour`), nommé dans la section « Mis de côté (joués par la nuit seule) » du
 rapport, ni compté « ne se charge pas » ni exigé rouge : le rouge prouve le comportement que le

@@ -116,7 +116,7 @@ passation 'Test ajouté, rouge.'
     expect(sessions(id, 'testwriter')).toBe(1);
     const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
     expect(preuve).toContain('1 rouge(s)');
-    expect(preuve).toContain('0 vert(s) sans vert attendu');
+    expect(preuve).toContain('0 vert(s) non nommé(s)');
     expect(preuve).not.toContain('› ancien — mesure rend un nombre');
     // The version of HEAD it played leaves nothing in the lot: the commit holds the two files.
     expect(existsSync(copie)).toBe(false);

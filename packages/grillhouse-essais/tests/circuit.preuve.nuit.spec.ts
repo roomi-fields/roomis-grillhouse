@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
@@ -149,34 +149,77 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(lancements(id)).toEqual(['npm test -- --force packages/forms/test/mesure.test.mjs']);
   });
 
-  it('sends a green test no expected green of the testwriter’s sheet names back to the testwriter', () => {
-    const id = 'demo-vert';
+  const NOMME = {
+    fichier: 'packages/forms/test/forme.test.mjs',
+    test: 'critère 1 — mesure rend un nombre',
+  };
+  const fiche = (portent: unknown[]) =>
+    `fiche '${JSON.stringify({ statut: 'FAIT', portent_le_travail: portent })}'\n`;
+
+  it('grillhouse-3e2.5 critères 2, 6 et 9 — accepts a green test the sheet does not name, with no reason nor relaunch, and lists it under « Verts non nommés »', () => {
+    const id = 'demo-vert-non-nomme';
     ticket(id, '000-forms');
-    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(1);
+    const preuves = commentaires(id).filter(t => t.startsWith('Circuit · preuve'));
+    expect(preuves).toHaveLength(1);
+    expect(preuves[0]).toContain('Verts non nommés (acceptés sans justification) (1) :');
+    expect(preuves[0]).toContain(
+      '- packages/forms/test/forme.test.mjs › critère 1 — mesure rend un nombre'
+    );
+    expect(preuves[0]).not.toContain('Tests qui portent le travail, verts avant le code');
+  });
+
+  it('grillhouse-3e2.5 critères 3 et 7 — sends back to the testwriter a green test the sheet names in portent_le_travail, under « Tests qui portent le travail, verts avant le code »', () => {
+    const id = 'demo-vert-nomme';
+    ticket(id, '000-forms');
     scenario(
       id,
-      'testwriter-2',
-      `passation 'Vert justifié.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/forme.test.mjs","test":"critère 1 — mesure rend un nombre","raison":"la forme est déjà juste"}]}'\n`
+      'testwriter-1',
+      `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n${fiche([NOMME])}`
     );
+    scenario(id, 'testwriter-2', `passation 'Vert non nommé.'\n${fiche([])}`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     expect(sessions(id, 'testwriter')).toBe(2);
     const relance = essai(id, 'testwriter-2.prompt');
+    expect(relance).toContain('Tests qui portent le travail, verts avant le code (1) :');
     expect(relance).toContain('critère 1 — mesure rend un nombre');
-    expect(relance).toContain('vert attendu');
-    // The second testwriter changes no file: his expected green is judged on the result of the
-    // proof already played, which does not play again (witness: BPScript, bp-mono-vbwf.325).
+    // The second testwriter changes no file: the proof already played is judged again, not replayed.
     expect(lancements(id)).toHaveLength(1);
-    // The proof at the ticket names its whole report, which holds the justified green and its
-    // reason; the ticket does not.
-    const preuves = commentaires(id).filter(t => t.startsWith('Circuit · preuve'));
-    expect(preuves.at(-1)).not.toContain('la forme est déjà juste');
-    const complet = /Le rapport entier, avec les verts justifiés et leurs raisons : (\S+)/.exec(
-      preuves.at(-1) ?? ''
-    )?.[1];
-    expect(complet).toMatch(new RegExp(`/\\.claude/worktrees/${id}\\.preuve-\\d+\\.md$`));
-    expect(readFileSync(complet ?? '', 'utf8')).toContain('la forme est déjà juste');
+  });
+
+  it('grillhouse-3e2.5 critère 7 — a whole file named by portent_le_travail (no test) makes each of its green tests a defect', () => {
+    const id = 'demo-vert-fichier-nomme';
+    ticket(id, '000-forms');
+    scenario(
+      id,
+      'testwriter-1',
+      `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n${fiche([{ fichier: NOMME.fichier }])}`
+    );
+    scenario(id, 'testwriter-2', `passation 'Fichier non nommé.'\n${fiche([])}`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(2);
+    expect(essai(id, 'testwriter-2.prompt')).toContain(
+      '- packages/forms/test/forme.test.mjs › critère 1 — mesure rend un nombre'
+    );
+  });
+
+  it('grillhouse-3e2.5 critère 9 — a red test stays a red of the proof, named or not by the sheet', () => {
+    const id = 'demo-rouge-non-nomme';
+    ticket(id, '000-forms');
+    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n${fiche([NOMME])}`);
+    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
+    const r = circuit([id]);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(sessions(id, 'testwriter')).toBe(1);
+    expect(sessions(id, 'developpeur')).toBe(1);
   });
 
   // grillhouse-j2m — the proof reads the full name of an expected green whatever the separator
@@ -184,7 +227,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   // proof (« › »). Witness: BPScript 320.3.2.1, the sheet of 11:45:03 refused (« 7 vert(s) sans
   // vert attendu ») for « the order of the cascade the library declares › critère 3 : … », the
   // report naming « the order of the cascade the library declares critère 3 : … ».
-  it('grillhouse-j2m critère 5 — an expected green named with « › » or « > » between its group and its test justifies its test, at the first proof', () => {
+  it('grillhouse-j2m critère 5 — a test named with « › » or « > » between its group and its test is read as that test: both are defects at the first proof', () => {
     const id = 'demo-verts-separateurs';
     ticket(id, '000-forms');
     const groupes = `cat > $c/test/forme.test.mjs <<'EOF'
@@ -198,40 +241,39 @@ describe('le signe', () => {
 });
 EOF
 `;
-    const fiche = {
-      statut: 'FAIT',
-      verts_attendus: [
-        {
-          fichier: 'packages/forms/test/forme.test.mjs',
-          test: 'la forme › critère 1 — mesure rend un nombre',
-          raison: 'la forme est déjà juste',
-        },
-        {
-          fichier: 'packages/forms/test/forme.test.mjs',
-          test: 'le signe > critère 1 — mesure de zéro rend zéro',
-          raison: 'zéro est déjà juste',
-        },
-      ],
-    };
+    const nommes = [
+      {
+        fichier: 'packages/forms/test/forme.test.mjs',
+        test: 'la forme › critère 1 — mesure rend un nombre',
+      },
+      {
+        fichier: 'packages/forms/test/forme.test.mjs',
+        test: 'le signe > critère 1 — mesure de zéro rend zéro',
+      },
+    ];
     scenario(
       id,
-      'testwriter',
-      `${ECRIT_ROUGE}${groupes}passation 'Tests écrits.'\nfiche '${JSON.stringify(fiche)}'\n`
+      'testwriter-1',
+      `${ECRIT_ROUGE}${groupes}passation 'Tests écrits.'\n${fiche(nommes)}`
     );
+    scenario(id, 'testwriter-2', `passation 'Rien de nommé.'\n${fiche([])}`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testwriter')).toBe(1);
-    expect(lancements(id)).toHaveLength(1);
-    const preuves = commentaires(id).filter(t => t.startsWith('Circuit · preuve'));
-    expect(preuves).toHaveLength(1);
-    expect(preuves[0]).toContain('2 vert(s) justifié(s), 0 vert(s) sans vert attendu');
+    expect(sessions(id, 'testwriter')).toBe(2);
+    expect(essai(id, 'testwriter-2.prompt')).toContain(
+      'Tests qui portent le travail, verts avant le code (2) :'
+    );
   });
 
   it('relaunches the testwriter twice at most, then stops at « preuve »', () => {
     const id = 'demo-preuve';
     ticket(id, '000-forms');
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+    scenario(
+      id,
+      'testwriter',
+      `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n${fiche([NOMME])}`
+    );
     const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(ARRETS.preuve);
     expect(sessions(id, 'testwriter')).toBe(3);

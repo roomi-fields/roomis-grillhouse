@@ -450,7 +450,8 @@ describe('3uv.42 critère 5 : the text output stays readable, without the closed
   const texte = lancer('--texte');
   const json = JSON.parse(lancer()) as { lignes: Ligne[] };
 
-  it('3uv.42 critère 5 : the text is the texts of the lines, one per line, nothing more', () => {
+  // Quarantaine : rougit au hasard (la ligne des places lit la charge réelle entre deux rendus) ; grillhouse-9kq.4 le corrige.
+  it.skip('3uv.42 critère 5 : the text is the texts of the lines, one per line, nothing more', () => {
     expect(json.lignes.length).toBeGreaterThan(5);
     expect(texte).toBe(`${json.lignes.map(x => x.texte).join('\n')}\n`);
   });

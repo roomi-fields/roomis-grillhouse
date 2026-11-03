@@ -242,10 +242,11 @@
 //   failed build of a package of the plan (a task `<package>#build` of the summary) is a red, as
 //   not compiling is failing, named with its log, and the files it keeps from loading play at the
 //   checks, after the developpeur; a failed build of a package out of the plan leaves them broken.
-//   A green test passes only when a sheet of the testwriter names it in `verts_attendus`: its file
-//   from the root and its full name (or its title), with its reason; one without `test`, for a test
-//   file HEAD holds, justifies each green test of that file and excuses no red; on a new file it
-//   justifies nothing, and the report says so for that file. A green test HEAD already holds has
+//   Only a test that carries the ticket's work turns red first: the sheet of the testwriter names
+//   those in `portent_le_travail` (`fichier` from the root, `test` its full name or its title, or
+//   none for every test of the file). A green test the sheet names is a defect of the proof, named
+//   in the report; a green test it does not name is accepted with no reason, counted and listed
+//   under « Verts non nommés ». A green test HEAD already holds has
 //   nothing to prove: the version of HEAD of each file plays in the same proof, from a sibling
 //   file the module of its language names (`soeurDAvant` of the join, TypeScript: removed after
 //   it, a red included; one a killed process left is swept at the circuit's start and before each
@@ -262,9 +263,9 @@
 //   alone builds, the package plays without them, the names of HEAD's tests of those files read
 //   (`testsDeHead`); a build the lot alone breaks stays a red (`jouerAvecLesVersionsDAvant`). The proof passes with a red (of the lot, existing or of a build), even without
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
-//   reds are enough. It fails with neither a file of the lot nor a red, with a broken file of the
-//   lot, or with a green of the lot no expected green justifies; under a plan « comportement
-//   inchangé », nothing has to turn red and every green of the lot is expected, so only a broken
+//   reds are enough. Under a plan « comportement changé » it fails without a red, with a broken file
+//   of the lot, or with a green the sheet names; under a plan « comportement
+//   inchangé », nothing has to turn red and every green passes, so only a broken
 //   file fails it (`preuveReussie`). A failed proof relaunches the
 //   testwriter with its report, twice at most. The report (reds, justified greens) is written at
 //   the ticket. A proof with a red launches the developpeur, and so does a proof without a red
@@ -1161,7 +1162,7 @@ function commenter(ctx, etape, texte) {
 
 // The report of a proof or of checks: its line at the ticket, and its report kept for the
 // reviewer, <rapport> when the comment carries only its summary, beside its outcome <resultat>,
-// which the bilan reads (scripts/bilan.mjs): for a proof `{ ok, rouges, justifies, sans, casses,
+// which the bilan reads (scripts/bilan.mjs): for a proof `{ ok, rouges, justifies (non named greens), sans (named greens), casses,
 // anciens, vide }`, for checks `{ issue, finale, rouges }`.
 function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
   commenter(ctx, etape, texte);
@@ -2660,21 +2661,20 @@ export const apresLaPreuve = ({ rouges, pourLeDeveloppeur, inchange }) =>
   rouges > 0 || pourLeDeveloppeur || inchange ? CODE : CONTROLES;
 
 // Whether a proof of the counts <compte> passes: no file of the lot that does not load, no green
-// without its expected green, and a red or a green justified or held by HEAD among the files of
-// the lot or a red without one. Under a plan « comportement inchangé » (<inchange>), nothing has
-// to turn red and every green is expected: a proof passes with no file of the lot that does not
-// load, its reds going to the developpeur.
+// the sheet names in `portent_le_travail` (`nommes`), and at least one red (of the lot, existing
+// or of a build); the greens the sheet does not name and the ones HEAD holds are accepted but prove
+// nothing. Under a plan « comportement inchangé » (<inchange>), nothing has to turn red and every
+// green passes: a proof passes with no file of the lot that does not load, its reds going to the
+// developpeur.
 // The files of the lot that only the night plays (<misDeCote>, `separerLesFichiersDuJour`) are no
 // part of the proof: the red proves the behaviour the ticket develops, and a bench or a night test
 // is neither required red nor a cause of refusal. A lot whose only test files are those passes.
-export function preuveReussie(
-  { fichiers, rouges, casses, injustifies, justifies, anciens, misDeCote = 0 },
-  { inchange }
-) {
+export function preuveReussie({ fichiers, rouges, casses, nommes, misDeCote = 0 }, { inchange }) {
   if (casses > 0) return false;
   if (inchange) return true;
-  if (fichiers === 0 && rouges === 0 && misDeCote > 0) return injustifies === 0;
-  return (fichiers > 0 || rouges > 0) && injustifies === 0 && rouges + justifies + anciens > 0;
+  if (nommes > 0) return false;
+  if (fichiers === 0 && rouges === 0 && misDeCote > 0) return true;
+  return rouges > 0;
 }
 
 // The files <fichiers> of the lot, in the copy, split into the ones the day plays (`jour`) and the
@@ -3458,32 +3458,36 @@ const sansSeparateur = nom =>
     .replace(/\s+[>›]\s+/g, ' ')
     .trim();
 
-// The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` without
-// the list of the justified greens, which only the whole report, written to its file, holds. A
-// green test passes by the expected greens of the testwriter's sheets (`verts_attendus`), read at
-// each proof, a sheet without them justifying none; a test's full name is read whatever the
+// The tests that carry the ticket's work, from the testwriter's sheets in their order: the list is
+// replaced, not added. A sheet without the field keeps the list of the sheet before, a given list
+// replaces it, and `[]` empties it (a rerun testwriter withdraws a name that way).
+export const portentLeTravail = fiches =>
+  fiches.filter(f => Array.isArray(f.portent_le_travail)).at(-1)?.portent_le_travail ?? [];
+
+// The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` the
+// report, written whole to its file beside the copy. A
+// green test is a defect when the testwriter's sheets name it (`portent_le_travail`), read at
+// each proof, and accepted when they do not; a test's full name is read whatever the
 // separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
 // Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
 // the copy changed (`mesureDeLaPreuve`).
 function preuve(ctx) {
   // Only the files of the day are proved; the ones only the night plays are put aside, named.
   const { jour: fichiers, misDeCote } = separerLesFichiersDuJour(ctx, testsDuLot(ctx));
-  const verts = fichesDe(ctx, 'testwriter').flatMap(f => f.verts_attendus ?? []);
-  const raisonDuTest = (f, a) =>
-    verts.find(
+  const portent = portentLeTravail(fichesDe(ctx, 'testwriter'));
+  // Whether the sheet names the test <a> of the file <f>, by its full name or by its whole file.
+  const nomme = (f, a) =>
+    portent.some(
       v =>
         v.fichier === f &&
-        v.test &&
-        [a.nom, a.titre].some(n => sansSeparateur(v.test) === sansSeparateur(n))
-    )?.raison ?? null;
-  const duFichier = f => verts.find(v => v.fichier === f && !v.test) ?? null;
+        (!v.test || [a.nom, a.titre].some(n => sansSeparateur(v.test) === sansSeparateur(n)))
+    );
   const rouges = [];
   // The reds of the files of the lot, apart from the existing ones and the builds.
   let rougesDuLot = 0;
-  const justifies = [];
-  const injustifies = [];
+  const nonNommes = [];
+  const nommes = [];
   const casses = [];
-  const neufs = [];
   const liste = composantsDe(ctx.copie).filter(p => !p.hors);
   let anciens = 0;
   const reportes = [];
@@ -3527,13 +3531,6 @@ function preuve(ctx) {
       } else if (tests.length === 0) {
         casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);
       }
-      // The expected green of the whole file justifies its greens only for a file HEAD holds.
-      const duF = duFichier(f);
-      if (duF && !tenu) {
-        neufs.push(
-          `${f} — fichier neuf, que HEAD ne tient pas : son vert attendu sans test ne justifie aucun de ses verts`
-        );
-      }
       for (const a of tests) {
         if (a.etat === 'failed') {
           rouges.push(`${f} › ${a.nom} — ${premiereLigne(a.message)}`);
@@ -3541,16 +3538,7 @@ function preuve(ctx) {
         } else if (a.etat === 'passed' && deHead.has(a.nom)) {
           anciens++;
         } else if (a.etat === 'passed') {
-          const raison = raisonDuTest(f, a);
-          if (raison) {
-            justifies.push(`${f} › ${a.nom} — ${raison}`);
-          } else if (duF && tenu) {
-            justifies.push(`${f} › ${a.nom} — ${duF.raison} (par le vert attendu du fichier)`);
-          } else if (inchange) {
-            justifies.push(`${f} › ${a.nom} — le plan dit « comportement inchangé »`);
-          } else {
-            injustifies.push(`${f} › ${a.nom}`);
-          }
+          (nomme(f, a) ? nommes : nonNommes).push(`${f} › ${a.nom}`);
         }
       }
     }
@@ -3562,14 +3550,14 @@ function preuve(ctx) {
       fichiers: fichiers.length,
       rouges: rouges.length,
       casses: casses.length,
-      injustifies: injustifies.length,
-      justifies: justifies.length,
+      nommes: nommes.length,
+      nonNommes: nonNommes.length,
       anciens,
       misDeCote: misDeCote.length,
     },
     { inchange }
   );
-  const resume = `${rouges.length} rouge(s), ${justifies.length} vert(s) justifié(s), ${injustifies.length} vert(s) sans vert attendu, ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
+  const resume = `${rouges.length} rouge(s), ${nommes.length} vert(s) nommé(s) qui portent le travail, ${nonNommes.length} vert(s) non nommé(s), ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const ecrit = (...sections) =>
     [
       `${SUITE.find(e => e.etat === PREUVE).titre} : ${resume}.`,
@@ -3587,14 +3575,14 @@ function preuve(ctx) {
           : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
       ...section('Rouges', rouges),
       ...sections,
-      ...section(
-        'Verts sans vert attendu (un test vert avant le code passe seulement quand ta fiche le nomme dans `verts_attendus` : `fichier` depuis la racine, `test` son nom complet tel que ce rapport l’écrit après « › », et `raison` ; tous les verts d’un fichier de tests que HEAD tient passent par `fichier` et `raison` seuls)',
-        injustifies
-      ),
-      ...section(
-        'Verts attendus sans test qui ne justifient rien (ils valent seulement pour un fichier de tests que HEAD tient)',
-        neufs
-      ),
+      ...(nommes.length
+        ? [
+            `Tests qui portent le travail, verts avant le code (${nommes.length}) :`,
+            'Ta fiche les nomme dans `portent_le_travail` : un test qui porte le travail du ticket rougit d’abord ; nomme seulement ceux-là, ou écris-les pour qu’ils échouent sur le code présent.',
+            ...nommes.map(x => `- ${x}`),
+            '',
+          ]
+        : []),
       ...section('Fichiers qui ne prouvent rien', casses),
       ...sectionMisDeCote(misDeCote),
     ]
@@ -3603,11 +3591,12 @@ function preuve(ctx) {
   let n = 1;
   while (existsSync(`${ctx.copie}.preuve-${n}.md`)) n++;
   const complet = `${ctx.copie}.preuve-${n}.md`;
-  writeFileSync(complet, `${ecrit(...section('Verts justifiés', justifies))}\n`);
   const texte = ecrit(
-    `Le rapport entier, avec les verts justifiés et leurs raisons : ${complet}`,
-    ''
+    `Le rapport entier : ${complet}`,
+    '',
+    ...section('Verts non nommés (acceptés sans justification)', nonNommes)
   );
+  writeFileSync(complet, `${texte}\n`);
   return {
     ok,
     rouges: rouges.length,
@@ -3616,11 +3605,11 @@ function preuve(ctx) {
     resultat: {
       ok,
       rouges: rouges.length,
-      justifies: justifies.length,
-      sans: injustifies.length,
+      justifies: nonNommes.length,
+      sans: nommes.length,
       casses: casses.length,
       anciens,
-      vide: rougesDuLot + justifies.length + injustifies.length + casses.length === 0,
+      vide: rougesDuLot + nonNommes.length + nommes.length + casses.length === 0,
     },
   };
 }

@@ -13,8 +13,9 @@
 //     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin », the piece
 //     with the stop (testwriter, developpeur, and the explorateur's gesture of a mechanical ticket,
 //     its own schema, `geste`);
-//   - `verts_attendus` (`fichier` from the root, `test` its full name, or none for every green of a
-//     file HEAD holds, `raison`): the proof of the red (testwriter);
+//   - `portent_le_travail` (`fichier` from the root, `test` its full name, or none for every test of
+//     the file): the tests of the lot that carry the ticket's work, which the proof of the red
+//     requires red (testwriter);
 //   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
 //     developpeur (developpeur);
 //   - `hors_plan` (`critere` its number, `paquet` the package out of the plan that would hold it,
@@ -303,18 +304,15 @@ const FICHES = {
   testwriter: objet(
     {
       ...STATUT,
-      verts_attendus: liste(
+      portent_le_travail: liste(
         objet(
           {
             fichier: texte('Le fichier de tests, depuis la racine du dépôt.'),
-            test: texte(
-              'Le nom complet du test ; absent, chaque vert du fichier, s’il est un fichier que HEAD tient.'
-            ),
-            raison: texte('Pourquoi ce test passe avant le code.'),
+            test: texte('Le nom complet du test ; absent, chaque test du fichier.'),
           },
-          ['fichier', 'raison']
+          ['fichier']
         ),
-        'Chaque test vert avant le code, que la preuve du rouge admet.'
+        'Les tests du lot qui portent le travail du ticket : la preuve du rouge exige qu’ils échouent avant le code.'
       ),
       ...DECOUVERTES,
     },

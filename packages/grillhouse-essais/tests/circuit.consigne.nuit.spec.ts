@@ -38,18 +38,25 @@ describe.runIf(canWrap)('the instruction of a session', { timeout: 300_000 }, ()
     const id = 'demo-consigne-passation';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Passation du testwriter.'\n`);
-    // After the RENDU, the testwriter justifies its test, already green: no red, the developpeur
-    // comes right after him on his own finding.
+    // After the RENDU, the testwriter adds a test that turns red: the developpeur comes right after
+    // him, and writes what it asks.
     scenario(
       id,
       'testwriter-2',
-      `passation 'Rendu traité par le testwriter.'\nfiche '{"statut":"FAIT","verts_attendus":[{"fichier":"packages/forms/test/mesure.test.mjs","test":"critère 1 — mesure rend le double","raison":"livré avant le rendu"}]}'\n`
+      `cat > $c/test/zero.test.mjs <<'EOF'
+import { expect, it } from 'vitest';
+import * as m from '../src/index.mjs';
+it('critère 1 — zero rend 0', () => { expect(m.zero?.()).toBe(0); });
+EOF
+passation 'Rendu traité par le testwriter.'
+fiche '{"statut":"FAIT"}'
+`
     );
     scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
     scenario(
       id,
       'developpeur-2',
-      `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu traité par le développeur.'\n`
+      `printf 'export const zero = () => 0;\\n' >> $c/src/index.mjs\npassation 'Rendu traité par le développeur.'\n`
     );
     scenario(
       id,

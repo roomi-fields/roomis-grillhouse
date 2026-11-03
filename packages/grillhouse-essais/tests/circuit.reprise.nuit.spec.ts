@@ -150,7 +150,11 @@ describe.runIf(canWrap)(
     it('the testwriter relaunched after a refused proof resumes its first session; its last attempt is fresh and whole', () => {
       const id = 'demo-reprise-testwriter';
       ticket(id, '000-forms');
-      scenario(id, 'testwriter', `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\n`);
+      scenario(
+        id,
+        'testwriter',
+        `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\nfiche '${JSON.stringify({ statut: 'FAIT', portent_le_travail: [{ fichier: 'packages/forms/test/forme.test.mjs', test: 'critère 1 — mesure rend un nombre' }] })}'\n`
+      );
       const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.preuve);
       expect(sessions(id, 'testwriter')).toBe(3);
@@ -162,9 +166,9 @@ describe.runIf(canWrap)(
       const courte = essai(id, 'testwriter-2.prompt');
       expect(courte).toContain(COURTE);
       expect(courte).not.toContain(ENTIERE);
-      // The proof's report: the green test without its line.
+      // The proof's report: the green test the sheet names.
       expect(courte).toContain('critère 1 — mesure rend un nombre');
-      expect(courte).toContain('vert attendu');
+      expect(courte).toContain('Tests qui portent le travail, verts avant le code');
       const derniere = valeur(a3, '--session-id');
       expect(derniere).toMatch(UUID);
       expect(derniere).not.toBe(premiere);
