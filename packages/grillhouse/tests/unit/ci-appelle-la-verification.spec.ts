@@ -1,0 +1,82 @@
+// grillhouse-61z: the verification plays every control of the CI, and the CI calls it alone
+// (critère 2); the lint and the format check keep a cache under node_modules/.cache (critère 8).
+// Witness: main's CI stayed red from 8f16106 to 83785bd on a lint the verification did not play.
+// The build job (`npm run build`, `npm pack --dry-run`) stays in the CI as the written exception to
+// critère 2: it is the control of the publication and plays no test.
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
+
+const DEPOT = path.resolve(__dirname, '../../../..');
+const lire = (f: string) => readFileSync(path.join(DEPOT, f), 'utf8');
+
+type Etape = { name?: string; run?: string; uses?: string };
+type Flux = { jobs: Record<string, { steps?: Etape[] }> };
+
+const CIS = [
+  ['the CI of Grillhouse', '.github/workflows/ci.yml'],
+  ['the CI of the project template', 'templates/projet/.github/workflows/ci.yml'],
+] as const;
+
+// What a step of the test job may run besides the verification: the installation of the project
+// and of the tools the verification plays (uv, the command claude).
+const INSTALLATION = [/^npm ci$/, /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/];
+const CONTROLES = /format:check|lint|typecheck|\bbuild\b|\bnpm test\b|\bvitest\b|\btsc\b/;
+
+describe('critère 2: the CI calls the verification alone', () => {
+  for (const [titre, fichier] of CIS) {
+    const jobs = (parse(lire(fichier)) as Flux).jobs;
+    const lancees = (jobs.test.steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
+
+    it(`critère 2: ${titre} plays, after the installation, \`npm run verifier\` and nothing else`, () => {
+      const verifs = lancees.filter(r => r === 'npm run verifier');
+      expect(verifs).toHaveLength(1);
+      expect(lancees.at(-1)).toBe('npm run verifier');
+      for (const r of lancees.slice(0, -1)) {
+        expect(
+          INSTALLATION.some(re => re.test(r)),
+          `étape de test hors installation : ${r}`
+        ).toBe(true);
+      }
+    });
+
+    it(`critère 2: ${titre} plays no control by itself in its test job`, () => {
+      for (const r of lancees.filter(l => l !== 'npm run verifier')) {
+        expect(r, r).not.toMatch(CONTROLES);
+      }
+    });
+
+    it(`critère 2: ${titre} keeps the build job as the written exception, which plays no test`, () => {
+      const autres = Object.entries(jobs).filter(([nom]) => nom !== 'test');
+      expect(autres.map(([nom]) => nom)).toEqual(['build']);
+      const runs = (autres[0][1].steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
+      expect(runs).toContain('npm run build --if-present');
+      expect(runs.some(r => r.startsWith('npm pack --dry-run'))).toBe(true);
+      for (const r of runs) {
+        expect(r, r).not.toMatch(/format:check|lint|typecheck|verifier|\bnpm test\b|\bvitest\b/);
+      }
+    });
+  }
+});
+
+const PROJETS = [
+  ['the repository of Grillhouse', 'package.json', '.gitignore'],
+  ['the project template', 'templates/projet/package.json', 'templates/projet/_gitignore'],
+] as const;
+
+describe('critère 8: lint and format:check keep a cache under node_modules/.cache', () => {
+  for (const [titre, manifeste, ignore] of PROJETS) {
+    const scripts = (JSON.parse(lire(manifeste)) as { scripts: Record<string, string> }).scripts;
+    for (const nom of ['lint', 'format:check']) {
+      it(`critère 8: ${titre}: the script ${nom} carries --cache and --cache-location under node_modules/.cache`, () => {
+        expect(scripts[nom]).toMatch(/(^|\s)--cache(\s|$)/);
+        expect(scripts[nom]).toMatch(/--cache-location[ =]\S*node_modules\/\.cache\//);
+      });
+    }
+
+    it(`critère 8: ${titre}: git ignores node_modules, where the cache lives`, () => {
+      expect(lire(ignore)).toMatch(/^\/?node_modules\/?$/m);
+    });
+  }
+});

@@ -180,6 +180,28 @@ const TOPOLOGIE = ['dependencies', 'devDependencies', 'optionalDependencies'];
 const RACINES = ['turbo.json', 'turbo.jsonc'];
 // The guard tasks of the root: the frame's controls, and the project's own guards.
 export const GARDES = ['grillhouse:gardes', 'gardes'];
+// The controls of the root the CI used to play beside the verification: the format check and the
+// lint (grillhouse-61z). A root plays those its package.json holds a script for, none demanded.
+export const CONTROLES = ['format:check', 'lint'];
+// The controls the root package.json of <racine> holds a script for.
+export function controlesDeRacine(racine) {
+  try {
+    const scripts = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts;
+    return CONTROLES.filter(c => typeof scripts?.[c] === 'string');
+  } catch {
+    return [];
+  }
+}
+// The tasks of the controls of the root at <racine> its root turbo.json lacks: [{ cle }].
+function controlesAbsents(racine) {
+  const r = confRacine(racine);
+  if (!r) return [];
+  const prefixe = paquets(racine).length ? '//#' : '';
+  return controlesDeRacine(racine)
+    .map(c => `${prefixe}${c}`)
+    .filter(cle => !r.conf.tasks?.[cle])
+    .map(cle => ({ f: r.f, cle }));
+}
 // The layout of what the generator writes in the root's turbo.json.
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
 // The builds the typing of a package waits for in <racine>: its own, whose built entry its tests
@@ -759,6 +781,16 @@ export function ecrire(racine) {
     );
     if (!ecrits.includes(typage.f)) ecrits.push(typage.f);
   }
+  const controles = controlesAbsents(racine);
+  if (controles.length) {
+    const abs = path.join(racine, controles[0].f);
+    let texte = readFileSync(abs, 'utf8');
+    for (const { cle } of controles) {
+      texte = applyEdits(texte, modify(texte, ['tasks', cle], { outputs: [] }, MISE_EN_FORME));
+    }
+    writeFileSync(abs, texte);
+    if (!ecrits.includes(controles[0].f)) ecrits.push(controles[0].f);
+  }
   const tests = testsSansVariable(racine);
   if (tests) {
     const abs = path.join(racine, tests.f);
@@ -944,6 +976,11 @@ export function verifier(racine) {
       typage.manques
         ? `⛔ ${typage.f} : la tâche \`${TYPAGE}\` doit attendre ${typage.manques.map(d => `\`${d}\``).join(' et ')}, la construction du paquet et celle de ses dépendances, dont son typage lit les types ; \`${COMMANDE}\` l'ajoute.`
         : `⛔ ${typage.f} : la tâche \`${TYPAGE}\` manque, le typage de chaque paquet que \`npm run verifier\` joue ; \`${COMMANDE}\` l'ajoute.`
+    );
+  }
+  for (const { f, cle } of controlesAbsents(racine)) {
+    refus.push(
+      `⛔ ${f} : la tâche \`${cle}\` manque, le contrôle de la racine que \`npm run verifier\` joue ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   const tests = testsSansVariable(racine);

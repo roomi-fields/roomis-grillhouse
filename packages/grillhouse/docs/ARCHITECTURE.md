@@ -22,9 +22,14 @@ sources et ses tests, `tsc -p tsconfig.json --noEmit` du gabarit et de `npx gril
 tâche `typecheck` du turbo.json racine, que le générateur tient, attend, comme `test:unit`,
 la construction du paquet, dont ses tests peuvent importer l'entrée construite, et celle de ses
 dépendances, `build` et `^build`, comme `check-types` des exemples de create-turbo) et les
-tests, côte à côte ; un rouge n'arrête pas la passe, qui joue tout ce que ses tâches
-préalables permettent et nomme chaque rouge ; `npm run verifier -- --gardes` joue les gardes
-seules, ce que le relecteur joue sur la copie du ticket. Une tâche dont
+tests, côte à côte, avec la mise en forme et le lint du dépôt (les scripts racine `format:check`
+et `lint`, joués comme les tâches `//#format:check` et `//#lint` du turbo.json racine, que le
+générateur tient ; un script que la racine n'a pas n'est pas exigé, et leur cache ne relit que ce
+qui a changé) : tout ce que joue la CI, qui n'appelle que `npm run verifier` ; un rouge n'arrête
+pas la passe, qui joue tout ce que ses tâches préalables permettent et nomme chaque rouge ;
+`npm run verifier -- --gardes` joue les gardes, la mise en forme et le lint, ce que le relecteur
+joue sur la copie du ticket (ESLint et Prettier n'ont pas de notion de lot : ils jugent le dépôt
+entier). Une tâche dont
 rien n'a bougé n'est pas rejouée : Turborepo relit sa sortie consignée dans son cache (« cache
 hit, replaying logs »), et cette relecture vaut un lancement. Une passe se mesure contre le
 dernier vert, l'arbre de la dernière passe verte de sa branche, celle de main pour une copie

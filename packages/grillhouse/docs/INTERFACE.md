@@ -72,8 +72,9 @@ garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
   (`entreesDeLIndex`) dans l'ordre de leurs chemins, celle de la racine une fois, sous une seule
   commande (`index-interfaces`) et une seule garde ; les verrous, les sorties, les droits, les
   outils, les binaires et les dossiers à ignorer, leur union ;
-- `npm run verifier -- --gardes` joue dans chaque module les gardes seules : celles du cadre, puis
-  celles du projet, sans ses tests.
+- `npm run verifier -- --gardes` joue dans chaque module les gardes : celles du cadre, puis
+  celles du projet, sans ses tests ; puis, à la racine, la mise en forme et le lint (les tâches
+  `//#format:check` et `//#lint`, jouées quand le script existe).
 
 ## Les demandes
 

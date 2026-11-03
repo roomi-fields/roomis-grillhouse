@@ -43,8 +43,14 @@
 //   its patterns and the benchmarks of Chromium and rustc-perf leave the CI of each commit for a
 //   machine at rest. The day waits for no rest: a delay past is a red (the duration reporter
 //   classifies a delay of a day test as a real red), and so is a task at 75.
-// - `--gardes` plays the two tasks of guards alone, `turbo run grillhouse:gardes gardes …`, with the
-//   same verdict: what the reviewer plays on the ticket's copy, the tests aside.
+// - The pass plays too the format check and the lint of the root (grillhouse-61z), its scripts
+//   `format:check` and `lint` when its package.json holds them, as root tasks (`//#format:check`,
+//   `//#lint`) under the same `--continue`: a red lint hides no red test, each red is named. The
+//   CI calls the pass alone.
+// - `--gardes` plays the tasks of guards and these two controls alone, `turbo run grillhouse:gardes
+//   gardes format:check lint …`, the repository whole (ESLint and Prettier have no notion of a lot;
+//   their cache reads again what changed), with the same verdict: what the reviewer plays on the
+//   ticket's copy, the tests aside.
 // - The verdict reads the exit code of each task in the summary of each run
 //   (`.turbo/runs/<id>.json`), since Turborepo exits with the greatest code of its tasks (a 75
 //   would hide a 1). The summary each run writes is removed, and `.turbo/runs` with it when the
@@ -91,7 +97,7 @@ import {
   retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
-import { planifier } from './turbo-des-paquets.mjs';
+import { controlesDeRacine, planifier } from './turbo-des-paquets.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { garderLesResumes } from './verdict.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
@@ -230,6 +236,7 @@ function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coe
   const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
   const a = [
     ...(gardesSeules ? GARDES : TACHES),
+    ...controlesDeRacine(racine),
     '--continue=dependencies-successful',
     ...borne,
     ...args,

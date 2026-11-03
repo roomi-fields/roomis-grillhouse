@@ -39,19 +39,8 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code@2.1.312
 
-      - name: Check formatting
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build --if-present
-
-      - name: Guards and tests
+      # Formatting, lint, typing, build, guards and tests: the one command of the poste.
+      - name: Verification
         run: npm run verifier
 
   build:

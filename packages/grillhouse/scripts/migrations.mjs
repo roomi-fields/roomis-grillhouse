@@ -33,6 +33,8 @@ import * as triDesDecouvertes from './migrations/0.24.12-tri-des-decouvertes.mjs
 import * as scriptDesTests from './migrations/0.25.0-script-des-tests.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 
+import * as ciAppelleLaVerification from './migrations/0.30.0-ci-appelle-la-verification.mjs';
+
 /** The migrations of the core. */
 export const MIGRATIONS = [
   crochetsDeSeance,
@@ -44,6 +46,7 @@ export const MIGRATIONS = [
   triDesDecouvertes,
   scriptDesTests,
   langagesDansLArchitecture,
+  ciAppelleLaVerification,
 ];
 
 /**
