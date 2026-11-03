@@ -634,7 +634,9 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
     const agents = l.findIndex(y => y.startsWith('AGENTS'));
     expect(agents).toBeGreaterThan(0);
     expect(l.findIndex(y => y.startsWith('CHANTIER e'))).toBeGreaterThan(agents);
-  });
+    // The run starts the board as a process (2 s at rest, several times that on a busy machine):
+    // the limit is a guard far above its normal time, not a measure.
+  }, 120_000);
 });
 
 describe('3uv.42 critère 8 : a blank line before a section title belongs to that section', () => {
