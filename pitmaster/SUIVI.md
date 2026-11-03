@@ -5,9 +5,11 @@ sort et sa réponse va dans son ticket.
 
 ## Dernier tour
 
-- Date : 2026-10-14
-- Agents lancés : chef de chantier de grillhouse-3uv.82, livré (57b8717) ; BPScript à prévenir (séance fermée)
-- À vérifier au prochain tour : la nuit rouge (grillhouse-mer) ; la réponse de la séance RTFM sur ses crochets asynchrones
+- Date : 2026-11-03 (nuit), avant la relance de la séance pour monter Claude Code
+- Tous les circuits de Grillhouse à l’arrêt, sur le mot du responsable (ticket prioritaire de SyntHub) : 61z arrêté à 4.1 (son rouge tenait aux fichiers de test de 9kq, corrigés depuis, e1c94c0, CI verte) ; 3e2.3 arrêté au début de 2 Tests (la relecture lui a renvoyé des constats). Les deux se reprennent par `--reprendre` sur son mot.
+- Fermés le 2026-11-02 : 6ay (à la main, CI verte sur c0277e5 qui le contient ; découverte 6ay.5), f24, 9kq.
+- À valider : 3e2.4 (la preuve refuse un lot pour un test sous src ou un banc de nuit, rapporté par OSC Bridge pour SyntHub).
+- Un testwriter orphelin (bwrap 402947, cwd supprimé, 0 % de processeur) reste depuis le 2026-11-02 ; l’arrêter sur le mot du responsable.
 
 ## R — à confirmer par le responsable
 
