@@ -61,6 +61,7 @@ import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
+import { estHorsDuJour } from './vitest-config/cibles.mjs';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
@@ -264,6 +265,8 @@ export default {
   }),
   verdict,
   estUnTest,
+  // A night test, a bench or a time witness (./vitest-config/cibles.mjs, `estHorsDuJour`).
+  horsDuJour: (chemin, racine) => estHorsDuJour(path.resolve(racine, chemin)),
   soeurDAvant,
   // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no tree, no name
   // to read.

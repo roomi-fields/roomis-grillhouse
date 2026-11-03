@@ -2664,14 +2664,42 @@ export const apresLaPreuve = ({ rouges, pourLeDeveloppeur, inchange }) =>
 // the lot or a red without one. Under a plan « comportement inchangé » (<inchange>), nothing has
 // to turn red and every green is expected: a proof passes with no file of the lot that does not
 // load, its reds going to the developpeur.
+// The files of the lot that only the night plays (<misDeCote>, `separerLesFichiersDuJour`) are no
+// part of the proof: the red proves the behaviour the ticket develops, and a bench or a night test
+// is neither required red nor a cause of refusal. A lot whose only test files are those passes.
 export function preuveReussie(
-  { fichiers, rouges, casses, injustifies, justifies, anciens },
+  { fichiers, rouges, casses, injustifies, justifies, anciens, misDeCote = 0 },
   { inchange }
 ) {
   if (casses > 0) return false;
   if (inchange) return true;
+  if (fichiers === 0 && rouges === 0 && misDeCote > 0) return injustifies === 0;
   return (fichiers > 0 || rouges > 0) && injustifies === 0 && rouges + justifies + anciens > 0;
 }
+
+// The files <fichiers> of the lot, in the copy, split into the ones the day plays (`jour`) and the
+// ones only the night plays (`misDeCote`: a night test, a bench, a time witness), by each module's
+// own definition (`horsDuJour` of the join); the order of the lot kept.
+export function separerLesFichiersDuJour(ctx, fichiers) {
+  const langage = langageDe(ctx.copie);
+  const jour = [];
+  const misDeCote = [];
+  for (const f of fichiers) {
+    (langage.horsDuJour(f, ctx.copie) ? misDeCote : jour).push(f);
+  }
+  return { jour, misDeCote };
+}
+
+// The lines of the section of the report of the proof that names the files <fichiers> put aside;
+// none for none.
+export const sectionMisDeCote = fichiers =>
+  fichiers.length
+    ? [
+        `Mis de côté (joués par la nuit seule) (${fichiers.length}) :`,
+        ...fichiers.map(f => `- ${f}`),
+        '',
+      ]
+    : [];
 
 // The stop for a RENDU of a mechanical lot (`cheminMecanique`), or null: no testwriter nor
 // developpeur wrote it, so no relaunch treats its findings. An Arret `relecture-arret`, the
@@ -3438,7 +3466,8 @@ const sansSeparateur = nom =>
 // Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
 // the copy changed (`mesureDeLaPreuve`).
 function preuve(ctx) {
-  const fichiers = testsDuLot(ctx);
+  // Only the files of the day are proved; the ones only the night plays are put aside, named.
+  const { jour: fichiers, misDeCote } = separerLesFichiersDuJour(ctx, testsDuLot(ctx));
   const verts = fichesDe(ctx, 'testwriter').flatMap(f => f.verts_attendus ?? []);
   const raisonDuTest = (f, a) =>
     verts.find(
@@ -3458,7 +3487,8 @@ function preuve(ctx) {
   const liste = composantsDe(ctx.copie).filter(p => !p.hors);
   let anciens = 0;
   const reportes = [];
-  const mesure = mesureDeLaPreuve(ctx, liste, fichiers);
+  // A lot of files put aside alone plays nothing, not the packages whole.
+  const mesure = fichiers.length || !misDeCote.length ? mesureDeLaPreuve(ctx, liste, fichiers) : [];
   // A plan « comportement inchangé »: every green of the lot is expected.
   const inchange = Boolean(ctx.sorte?.inchange);
   for (const { groupe, entier, avant, lus, arbres, code, resultats, constructions } of mesure) {
@@ -3535,6 +3565,7 @@ function preuve(ctx) {
       injustifies: injustifies.length,
       justifies: justifies.length,
       anciens,
+      misDeCote: misDeCote.length,
     },
     { inchange }
   );
@@ -3546,7 +3577,7 @@ function preuve(ctx) {
         nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
       ),
       '',
-      ...(fichiers.length || rouges.length
+      ...(fichiers.length || rouges.length || misDeCote.length
         ? []
         : inchange
           ? [
@@ -3565,6 +3596,7 @@ function preuve(ctx) {
         neufs
       ),
       ...section('Fichiers qui ne prouvent rien', casses),
+      ...sectionMisDeCote(misDeCote),
     ]
       .join('\n')
       .trim();

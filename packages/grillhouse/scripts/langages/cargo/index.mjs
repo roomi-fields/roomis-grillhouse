@@ -38,7 +38,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { commandes, GARDES } from './commandes.mjs';
+import { commandes, fichierHorsDuJour, GARDES } from './commandes.mjs';
 import {
   composantDans,
   composants,
@@ -116,6 +116,7 @@ export default {
   commandes,
   verdict,
   estUnTest,
+  horsDuJour: fichierHorsDuJour,
   arbreDAvant,
   envDArbre,
   testsDeHead,

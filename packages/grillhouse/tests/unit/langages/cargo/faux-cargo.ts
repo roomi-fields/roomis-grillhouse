@@ -205,7 +205,12 @@ if (sous === 'nextest') {
     )
     .map(t => (t.kind[0] === 'lib' ? c.name : c.name + '::' + t.name));
   const cas = code === 0 ? '<testcase name="essai"/>' : '<testcase name="essai"><failure message="rouge &amp; faux">rouge</failure></testcase>';
-  const xml = '<?xml version="1.0"?><testsuites>' + binaires.map(b => '<testsuite name="' + b + '">' + cas + '</testsuite>').join('') + '</testsuites>';
+  // Under \`FAUX_CARGO_CAS\` (JSON, test binary → names of tests), the binary's tests are those names,
+  // each passed, instead of the one \`essai\` (grillhouse-3e2.4: a unit test of \`src/\`, whose module path
+  // names its file).
+  const noms = JSON.parse(process.env.FAUX_CARGO_CAS || '{}');
+  const casDe = b => noms[b] ? noms[b].map(n => '<testcase name="' + n + '"/>').join('') : cas;
+  const xml = '<?xml version="1.0"?><testsuites>' + binaires.map(b => '<testsuite name="' + b + '">' + casDe(b) + '</testsuite>').join('') + '</testsuites>';
   const j = path.join(racine, 'target', 'nextest', 'grillhouse');
   fs.mkdirSync(j, { recursive: true });
   fs.writeFileSync(path.join(j, 'junit.xml'), xml);

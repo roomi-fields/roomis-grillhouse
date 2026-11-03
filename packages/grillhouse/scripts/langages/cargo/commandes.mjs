@@ -160,6 +160,19 @@ export function horsDuJour(t) {
   }
   return t.name.endsWith(BANC) ? 'banc' : null;
 }
+
+/**
+ * Whether the test file <chemin> (from the root <racine>) is a test target out of the day, a night
+ * test or a time budget bench (`horsDuJour`); false for any other file, a unit test of `src/`
+ * included.
+ * @param {string} chemin
+ * @param {string} racine
+ */
+export function fichierHorsDuJour(chemin, racine) {
+  const abs = path.resolve(racine, chemin);
+  const c = crates(racine).find(x => x.cibles.some(t => t.src === abs));
+  return Boolean(c?.cibles.some(t => t.src === abs && horsDuJour(t) !== null));
+}
 // The subcommands of cargo that compile, before which the server of sccache starts.
 const COMPILATIONS = ['test', 'nextest', 'check'];
 
@@ -345,7 +358,11 @@ function jouerLesTests(racine, p, choix, options) {
   nextest.push(...j);
   const parCrate = [];
   const bancs = [];
-  for (const { c, cibles } of choix) {
+  for (const { c, cibles: nommees, jour } of choix) {
+    // Targets named beside the day of the crate (`jour`, a unit test of `src/` named): the day
+    // builds whole, and plays besides the targets named.
+    const cibles = jour && nommees.length === 0 ? [] : nommees;
+    const avecLeJour = Boolean(jour) && nommees.length > 0;
     Object.assign(p.cibles, binaires(c));
     const d = c.composant.dossier;
     const nom = c.composant.nom;
@@ -363,11 +380,13 @@ function jouerLesTests(racine, p, choix, options) {
         ...j,
         '-p',
         nom,
-        ...cibles.flatMap(n => ['--test', n]),
+        ...(avecLeJour ? [] : cibles.flatMap(n => ['--test', n])),
       ];
       prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal }]);
-      if (cibles.length === 0 || autres.length) {
-        const selection = cibles.length ? autres.flatMap(n => ['--test', n]) : duJour(c);
+      if (cibles.length === 0 || autres.length || avecLeJour) {
+        const duC = duJour(c);
+        const nommes = autres.flatMap(n => ['--test', n]);
+        const selection = !cibles.length ? duC : avecLeJour ? (duC.length ? [...duC, ...nommes] : []) : nommes;
         const args = [...nextest, '-p', nom, ...selection, ...options];
         prevues.push([p.prevoir(nom, d, 'nextest', true, args), { junit }]);
       }
@@ -377,7 +396,7 @@ function jouerLesTests(racine, p, choix, options) {
       }
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
-    if (cibles.length === 0 && doctests) {
+    if ((cibles.length === 0 || avecLeJour) && doctests) {
       const args = ['test', '--doc', ...j, '-p', nom];
       prevues.push([p.prevoir(nom, d, 'doctest', true, args), {}]);
     }
@@ -440,12 +459,14 @@ function choisir(racine, tous, chemins) {
     }
     const cible = crate.cibles.find(t => t.kind.includes('test') && t.src === abs);
     const deja = parDossier.get(c.dossier);
+    // A file with no target of its own (a unit test of `src/`) asks for the day of its crate; a
+    // target named stays named, whatever the order of the paths.
+    const entree = deja ?? { c: crate, cibles: [], jour: false };
+    parDossier.set(c.dossier, entree);
     if (!cible) {
-      parDossier.set(c.dossier, { c: crate, cibles: [] });
-    } else if (!deja) {
-      parDossier.set(c.dossier, { c: crate, cibles: [cible.name] });
-    } else if (deja.cibles.length) {
-      deja.cibles.push(cible.name);
+      entree.jour = true;
+    } else {
+      entree.cibles.push(cible.name);
     }
   }
   if (refus.length) {

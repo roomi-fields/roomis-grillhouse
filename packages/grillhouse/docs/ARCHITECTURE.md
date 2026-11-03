@@ -316,7 +316,14 @@ puis `--reprendre`, qui ne rejoue pas un geste que la copie porte déjà, ou arr
 rouge, sans constat ouvert pour le développeur, passe aux contrôles sans lui (`apresLaPreuve`) ;
 sous un plan « comportement inchangé », comme dans un grand changement de Google, la suite
 existante fait la preuve : rien n'a à rougir et chaque vert du lot est attendu, seul un fichier du
-lot qui ne se charge pas refuse la preuve (`preuveReussie`), puis le développeur écrit le code
+lot qui ne se charge pas refuse la preuve (`preuveReussie`) ; un fichier que seule la nuit joue
+(test de nuit, banc ou témoin de temps) est mis de côté avant la preuve
+(`separerLesFichiersDuJour`), nommé dans la section « Mis de côté (joués par la nuit seule) » du
+rapport, ni compté « ne se charge pas » ni exigé rouge : le rouge prouve le comportement que le
+ticket développe, et un banc se joue la nuit (décision du responsable, 2026-11-03) ; un lot dont
+les seuls fichiers de test sont hors du jour passe donc la preuve ; un test unitaire cargo sous
+`src/` (`tests.rs`, `src/**/tests/`) que le lot touche est joué, rapporté sous son propre fichier,
+sa version de HEAD comprise ; puis le développeur écrit le code
 (une réorganisation a du code), même sans rouge, avant les contrôles et la relecture
 (`apresLaPreuve`). Une sorte absente, hors de ses valeurs, sans sa raison, ou mécanique sans sa
 commande, vaut `comportement` : le circuit entier. Ainsi un geste sans comportement neuf ne coûte
@@ -911,7 +918,11 @@ composants et celui d'un fichier, avec les lecteurs par le code des éléments q
 les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
 typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
 porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
-(le verrou du testwriter), où la preuve du rouge joue la version de HEAD d'un fichier de test :
+(le verrou du testwriter), et celle qui dit qu'un fichier de test est hors du jour, que la nuit
+seule joue (`horsDuJour` : les définitions que le module a déjà, `horsDuJour` de cargo,
+`estDeNuit` de python, `horsDuJour` et `estTemoin` de typescript, sans seconde liste ; un nom
+qui ne les suit pas est du jour), que la preuve du rouge met de côté ; où la preuve du rouge joue
+la version de HEAD d'un fichier de test :
 dans un arbre à elle pour Rust et Python (`arbreDAvant`, `envDArbre` : la copie, code du lot
 compris, où ce seul fichier est remplacé par sa version de HEAD sous son propre nom, bâtie dans le
 dossier temporaire du ticket sans `.git`, `target`, `node_modules` ni `.venv`, retirée à la fin de

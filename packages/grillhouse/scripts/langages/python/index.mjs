@@ -37,6 +37,7 @@ import {
   composantDans,
   composants,
   entreesDeLIndex,
+  estDeNuit,
   estUnTest,
   arbreDAvant,
   joueDesTests,
@@ -79,6 +80,8 @@ export default {
   commandes,
   verdict,
   estUnTest,
+  // A night test, `*_nuit_test.py` (`estDeNuit`).
+  horsDuJour: chemin => estDeNuit(path.basename(chemin)),
   arbreDAvant,
   // Its tree needs no environment of its own: the virtual environment of a tree is uv's.
   envDArbre: () => ({}),

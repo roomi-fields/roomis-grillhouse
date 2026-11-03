@@ -54,7 +54,7 @@ garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
   nommé avec les deux langages ;
 - un fichier va au module du composant qui le tient, le plus profond ; un fichier hors de tout
-  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`, `soeurDAvant`, `arbreDAvant`,
+  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`, `horsDuJour`, `soeurDAvant`, `arbreDAvant`,
   `testsDeHead`, `manifestes.horsDesTests`) ;
 - les lecteurs, les composants touchés et les éléments d'un lot sont ceux de chaque module sur ses
   composants, réunis : un nom sans fournisseur l'est dans chaque module, un fichier hors du graphe
@@ -221,6 +221,9 @@ clippy`). Le noyau en lance trois
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
   partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le
   circuit le lisent.
+- `horsDuJour` (`chemin`, `racine`) : vrai quand le fichier de test est de ceux que seule la nuit
+  joue (test de nuit, banc ou témoin de temps), selon les définitions du module ; faux pour tout
+  autre fichier, absent compris. La preuve du rouge met ces fichiers de côté et les nomme.
 - `soeurDAvant` (facultatif, `typescript` seul) : le nom de la sœur d'un fichier de test, à côté de
   lui, où la preuve du rouge écrit sa version de HEAD : un test que l'outil du langage joue dans le
   même lancement, ses tests nommés comme ceux du fichier, de la même classe que lui, jour, nuit ou

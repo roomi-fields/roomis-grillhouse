@@ -240,6 +240,10 @@ export interface Composition {
   ): { tester: Commande; verifier: Commande; typer: Commande } & Record<string, Commande>;
   verdict(dossier: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
   estUnTest(chemin: string, racine: string): ClasseDeTest;
+  /** Whether the test file `chemin` (from `racine`) is out of the day, one that only the night
+   * plays (a night test, a time budget bench, a time witness), by the module's own definitions;
+   * false for any other file. */
+  horsDuJour(chemin: string, racine: string): boolean;
   /** Optional, for a tool that reads a test file beside it (typescript): the sibling of HEAD's
    * version of the test file `chemin` (from `racine`), from the root: a file beside it, a test
    * the tool plays in the same run as it, its tests named in the run's report as the file's, of
