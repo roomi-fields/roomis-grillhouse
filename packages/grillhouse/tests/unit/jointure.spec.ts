@@ -134,9 +134,11 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
 
   it('grillhouse-pkl.3: jointure.d.ts declares exactly what the module cargo answers, its files under its folder', () => {
     // grillhouse-3e2.3, criterion 8: soeurDAvant is optional, typescript's alone.
-    expect(membresDeLangage().filter(m => m !== 'soeurDAvant').sort()).toEqual(
-      Object.keys(cargo).sort()
-    );
+    expect(
+      membresDeLangage()
+        .filter(m => m !== 'soeurDAvant')
+        .sort()
+    ).toEqual(Object.keys(cargo).sort());
     expect(REPARTITION.cargo).toContain('scripts/langages/cargo/index.mjs');
     for (const f of REPARTITION.cargo) {
       expect(f).toMatch(/^scripts\/langages\/cargo\//);
@@ -144,9 +146,11 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
   });
 
   it('grillhouse-ziy: jointure.d.ts declares exactly what the module python answers, its files under its folder', () => {
-    expect(membresDeLangage().filter(m => m !== 'soeurDAvant').sort()).toEqual(
-      Object.keys(python).sort()
-    );
+    expect(
+      membresDeLangage()
+        .filter(m => m !== 'soeurDAvant')
+        .sort()
+    ).toEqual(Object.keys(python).sort());
     expect(REPARTITION.python).toContain('scripts/langages/python/index.mjs');
     for (const f of REPARTITION.python) {
       expect(f).toMatch(/^scripts\/langages\/python\//);

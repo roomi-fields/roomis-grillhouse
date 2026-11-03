@@ -21,7 +21,11 @@ type Ctx = { copie: string; tmp: string };
 const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
   ctx: Ctx,
   fichiers: string[],
-  jouer: (avant: Map<string, string>, lus: Map<string, string[]>, arbres: Map<string, Arbre>) => unknown
+  jouer: (
+    avant: Map<string, string>,
+    lus: Map<string, string[]>,
+    arbres: Map<string, Arbre>
+  ) => unknown
 ) => unknown;
 
 // Out of every temporary directory, beside the package, as the copies under `.claude/worktrees` lie.
@@ -60,7 +64,9 @@ const CARGO: Record<string, string> = {
 function depotCargo(dans: string) {
   const racine = mkdtempSync(path.join(dans, 'depot-'));
   declarerLesLangages(racine, { 'crates/service': 'cargo' });
-  for (const [f, texte] of Object.entries(CARGO)) ecrire(racine, f, texte);
+  for (const [f, texte] of Object.entries(CARGO)) {
+    ecrire(racine, f, texte);
+  }
   ecrire(racine, '.gitignore', 'target/\nnode_modules/\n');
   git(racine, 'init', '-q');
   git(racine, 'add', '-A');
@@ -91,12 +97,13 @@ describe('grillhouse-3e2.3 — the tree played for real, in cargo', () => {
       const arbre = arbres.get(CIBLE) as Arbre;
       racineDeLArbre = arbre.racine;
       const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-      code = lancer('tester', ['--force', CIBLE], {
+      code = (lancer as (...a: unknown[]) => number)('tester', ['--force', CIBLE], {
         racine: arbre.racine,
         env: { ...process.env, ...arbre.env, [RESULTATS]: resultats },
       });
-      rapport = (moduleCargo as unknown as { verdict: (d: string) => { rapports: typeof rapport } })
-        .verdict(resultats).rapports;
+      rapport = (
+        moduleCargo as unknown as { verdict: (d: string) => { rapports: typeof rapport } }
+      ).verdict(resultats).rapports;
     });
     expect(code).toBe(0);
     // The report is the copy’s by the change of root alone, the file under its own name.

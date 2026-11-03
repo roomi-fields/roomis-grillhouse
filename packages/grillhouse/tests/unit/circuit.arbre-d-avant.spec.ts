@@ -72,9 +72,7 @@ const nonSuivis = (racine: string) =>
 const lister = (dossier: string, sous = ''): string[] =>
   readdirSync(path.join(dossier, sous), { withFileTypes: true })
     .flatMap(e =>
-      e.isDirectory()
-        ? lister(dossier, path.join(sous, e.name))
-        : [path.join(sous, e.name)]
+      e.isDirectory() ? lister(dossier, path.join(sous, e.name)) : [path.join(sous, e.name)]
     )
     .sort();
 
@@ -119,12 +117,16 @@ function depot(
 ) {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
   declarerLesLangages(racine, langages);
-  for (const [f, texte] of Object.entries(fichiers)) ecrire(racine, f, texte);
+  for (const [f, texte] of Object.entries(fichiers)) {
+    ecrire(racine, f, texte);
+  }
   ecrire(racine, '.gitignore', 'target/\nnode_modules/\n.venv/\n');
   git(racine, 'init', '-q');
   git(racine, 'add', '-A');
   git(racine, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'HEAD');
-  for (const f of modifie) ecrire(racine, f, `${fichiers[f]}// le lot\n`);
+  for (const f of modifie) {
+    ecrire(racine, f, `${fichiers[f]}// le lot\n`);
+  }
   ecrire(racine, code, 'LOT_CODE\n');
   ecrire(racine, neuf, 'neuf\n');
   ecrire(racine, 'target/debug/x', 'cible\n');
@@ -216,7 +218,9 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
       // files are the files of before the proof.
       expect(dansLaCopie).toEqual(avantLaPreuve);
       expect(nonSuivis(racine)).toEqual(nonSuivisAvant);
-      for (const f of [...dansLaCopie, ...dansLArbre]) expect(f).not.toContain('circuit_avant');
+      for (const f of [...dansLaCopie, ...dansLArbre]) {
+        expect(f).not.toContain('circuit_avant');
+      }
       // The tree is the copy's, the file replaced, without `.git`, `target`, `node_modules`, `.venv`.
       expect(dansLArbre).toEqual(
         dansLaCopie.filter(
@@ -269,7 +273,13 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
     expect(env.CARGO_TARGET_DIR).toBe(
       cibleDeCompilation(c.racine, process.env, { creer: false }).CARGO_TARGET_DIR
     );
-    const p = depot({ site: 'python' }, PYTHON, ['site/tests/test_pages.py'], 'site/src/page.py', 'site/tests/test_neuf.py');
+    const p = depot(
+      { site: 'python' },
+      PYTHON,
+      ['site/tests/test_pages.py'],
+      'site/src/page.py',
+      'site/tests/test_neuf.py'
+    );
     avecLesVersionsDAvant(p.ctx, ['site/tests/test_pages.py'], (_a, _l, arbres) => {
       env = (arbres.get('site/tests/test_pages.py') as Arbre).env;
     });
@@ -279,7 +289,13 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
   it('criterion 4: several files, one tree each, each with its own file replaced alone', () => {
     const a = 'crates/service/tests/electra_reimport.rs';
     const b = 'crates/service/tests/drivers_budget.rs';
-    const { ctx } = depot({ 'crates/service': 'cargo' }, CARGO, [a, b], 'crates/service/src/lib.rs', 'crates/service/tests/neuf.rs');
+    const { ctx } = depot(
+      { 'crates/service': 'cargo' },
+      CARGO,
+      [a, b],
+      'crates/service/src/lib.rs',
+      'crates/service/tests/neuf.rs'
+    );
     avecLesVersionsDAvant(ctx, [a, b], (_a, _l, arbres) => {
       const [ta, tb] = [arbres.get(a), arbres.get(b)] as Arbre[];
       expect(ta.racine).not.toBe(tb.racine);
@@ -292,7 +308,13 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
 
   it('criterion 3: a test that walks its folder of tests is as green during the proof as outside it', () => {
     const f = 'crates/service/tests/electra_reimport.rs';
-    const { racine, ctx } = depot({ 'crates/service': 'cargo' }, CARGO, [f], 'crates/service/src/lib.rs', 'crates/service/tests/neuf.rs');
+    const { racine, ctx } = depot(
+      { 'crates/service': 'cargo' },
+      CARGO,
+      [f],
+      'crates/service/src/lib.rs',
+      'crates/service/tests/neuf.rs'
+    );
     // The walk of tests/parcours.rs: every `.rs` of the folder, refused when it is a copy of before.
     const parcours = () =>
       lister(path.join(racine, 'crates/service/tests')).filter(x => /_circuit_avant/.test(x));
@@ -301,9 +323,17 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
       expect(parcours()).toEqual([]);
     });
     expect(parcours()).toEqual([]);
-    const p = depot({ site: 'python' }, PYTHON, ['site/tests/test_pages.py'], 'site/src/page.py', 'site/tests/test_neuf.py');
+    const p = depot(
+      { site: 'python' },
+      PYTHON,
+      ['site/tests/test_pages.py'],
+      'site/src/page.py',
+      'site/tests/test_neuf.py'
+    );
     avecLesVersionsDAvant(p.ctx, ['site/tests/test_pages.py'], () => {
-      expect(lister(path.join(p.racine, 'site/tests')).filter(x => /_circuit_avant/.test(x))).toEqual([]);
+      expect(
+        lister(path.join(p.racine, 'site/tests')).filter(x => /_circuit_avant/.test(x))
+      ).toEqual([]);
     });
   });
 
@@ -312,7 +342,13 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
     const python = modulePython as unknown as Record<string, unknown>;
     expect(cargo.soeurDAvant).toBeUndefined();
     expect(python.soeurDAvant).toBeUndefined();
-    const c = depot({ 'crates/service': 'cargo' }, CARGO, [], 'crates/service/src/lib.rs', 'crates/service/tests/neuf.rs');
+    const c = depot(
+      { 'crates/service': 'cargo' },
+      CARGO,
+      [],
+      'crates/service/src/lib.rs',
+      'crates/service/tests/neuf.rs'
+    );
     const arbreC = cargo.arbreDAvant as (f: string, r: string) => boolean;
     expect(arbreC('crates/service/tests/electra_reimport.rs', c.racine)).toBe(true);
     expect(arbreC('crates/service/tests/drivers_budget.rs', c.racine)).toBe(true);
@@ -341,19 +377,31 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
     let vu: { avant: string[]; arbres: string[] } = { avant: [], arbres: [] };
     avecLesVersionsDAvant(ctx, [rs, pyf, ts], (avant, _l, arbres) => {
       vu = { avant: [...avant.keys()], arbres: [...arbres.keys()].sort() };
-      expect(existsSync(path.join(racine, 'packages/a/test/ancien.circuit-avant.test.ts'))).toBe(true);
-      expect(existsSync(path.join(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs'))).toBe(false);
+      expect(existsSync(path.join(racine, 'packages/a/test/ancien.circuit-avant.test.ts'))).toBe(
+        true
+      );
+      expect(
+        existsSync(path.join(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs'))
+      ).toBe(false);
     });
     expect(vu).toEqual({ avant: [ts], arbres: [pyf, rs].sort() });
   });
 
   it('a sweep of the copy has no sibling of Rust or Python to remove: such a file is the lot’s own', () => {
     const f = 'crates/service/tests/electra_reimport.rs';
-    const { racine } = depot({ 'crates/service': 'cargo' }, CARGO, [f], 'crates/service/src/lib.rs', 'crates/service/tests/neuf.rs');
+    const { racine } = depot(
+      { 'crates/service': 'cargo' },
+      CARGO,
+      [f],
+      'crates/service/src/lib.rs',
+      'crates/service/tests/neuf.rs'
+    );
     ecrire(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs', 'du testwriter\n');
     const balayer = circuit.balayerLesSoeurs as (c: { copie: string }) => string[];
     expect(balayer({ copie: racine })).toEqual([]);
-    expect(existsSync(path.join(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs'))).toBe(true);
+    expect(
+      existsSync(path.join(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs'))
+    ).toBe(true);
   });
 
   // The review of grillhouse-3e2.1: each question to the module read cargo's metadata again.
@@ -361,10 +409,19 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
     const journal = path.join(ESSAIS, 'journal');
     const lancements = (n: number) => {
       const extra = Object.fromEntries(
-        Array.from({ length: n }, (_, i) => [`crates/service/tests/extra_${i}.rs`, '#[test]\nfn t() {}\n'])
+        Array.from({ length: n }, (_, i) => [
+          `crates/service/tests/extra_${i}.rs`,
+          '#[test]\nfn t() {}\n',
+        ])
       );
       const fichiers = Object.keys(extra);
-      const { ctx } = depot({ 'crates/service': 'cargo' }, { ...CARGO, ...extra }, fichiers, 'crates/service/src/lib.rs', 'crates/service/tests/neuf.rs');
+      const { ctx } = depot(
+        { 'crates/service': 'cargo' },
+        { ...CARGO, ...extra },
+        fichiers,
+        'crates/service/src/lib.rs',
+        'crates/service/tests/neuf.rs'
+      );
       const avant = readFileSync(journal, 'utf8').split('\n').length;
       avecLesVersionsDAvant(ctx, fichiers, () => undefined);
       return readFileSync(journal, 'utf8')
@@ -401,63 +458,101 @@ describe('grillhouse-3e2.3 — the greens HEAD holds, read in the report of the 
     ['a target', 'electra_reimport'],
     ['a night test', 'drivers_nuit'],
     ['a bench', 'drivers_budget'],
-  ])('criterion 6, Rust (%s): the names are the file’s, HEAD’s greens set aside, the lot’s new green alone left', (_c, cible) => {
-    const copie = mkdtempSync(path.join(ESSAIS, 'copie-cargo-'));
-    const arbre = mkdtempSync(path.join(ESSAIS, 'arbre-cargo-'));
-    const f = `crates/service/tests/${cible}.rs`;
-    const suite = `service::${cible}`;
-    const rapporter = (racine: string, cases: string[]) => {
-      const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-      ecrire(resultats, 'cargo/1-1.json', JSON.stringify({ taches: [], cibles: { [suite]: path.join(racine, f) } }));
-      ecrire(
-        resultats,
-        'nextest/1-1-service.xml',
-        ['<testsuites>', `<testsuite name="${suite}">`, ...cases, '</testsuite>', '</testsuites>'].join('\n')
+  ])(
+    'criterion 6, Rust (%s): the names are the file’s, HEAD’s greens set aside, the lot’s new green alone left',
+    (_c, cible) => {
+      const copie = mkdtempSync(path.join(ESSAIS, 'copie-cargo-'));
+      const arbre = mkdtempSync(path.join(ESSAIS, 'arbre-cargo-'));
+      const f = `crates/service/tests/${cible}.rs`;
+      const suite = `service::${cible}`;
+      const rapporter = (racine: string, cases: string[]) => {
+        const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
+        ecrire(
+          resultats,
+          'cargo/1-1.json',
+          JSON.stringify({ taches: [], cibles: { [suite]: path.join(racine, f) } })
+        );
+        ecrire(
+          resultats,
+          'nextest/1-1-service.xml',
+          [
+            '<testsuites>',
+            `<testsuite name="${suite}">`,
+            ...cases,
+            '</testsuite>',
+            '</testsuites>',
+          ].join('\n')
+        );
+        return cargo.verdict(resultats).rapports;
+      };
+      const deLArbre = rapporter(arbre, [
+        nx('groupe::interne', suite),
+        nx('ancien', suite),
+        nx('casse', suite, echec),
+      ]);
+      const deHead = vertsDeHead(
+        deLArbre,
+        copie,
+        f,
+        new Map(),
+        new Map(),
+        new Map([[f, { racine: arbre }]])
       );
-      return cargo.verdict(resultats).rapports;
-    };
-    const deLArbre = rapporter(arbre, [
-      nx('groupe::interne', suite),
-      nx('ancien', suite),
-      nx('casse', suite, echec),
-    ]);
-    const deHead = vertsDeHead(deLArbre, copie, f, new Map(), new Map(), new Map([[f, { racine: arbre }]]));
-    expect([...deHead].sort()).toEqual(['ancien', 'groupe::interne']);
-    // Without its tree, the file is new: nothing set aside (SyntHub SH-cgi.15).
-    expect(vertsDeHead(deLArbre, copie, f, new Map()).size).toBe(0);
-    // The report of the copy holds the lot's greens, set against HEAD's by name.
-    const duLot = rapporter(copie, [nx('ancien', suite), nx('neuf', suite), nx('casse', suite, echec)]);
-    const verts = (duLot.find(r => r.fichier === path.join(copie, f))?.tests ?? [])
-      .filter(t => t.etat === 'passed')
-      .map(t => t.nom);
-    expect(verts.filter(n => !deHead.has(n))).toEqual(['neuf']);
-  });
+      expect([...deHead].sort()).toEqual(['ancien', 'groupe::interne']);
+      // Without its tree, the file is new: nothing set aside (SyntHub SH-cgi.15).
+      expect(vertsDeHead(deLArbre, copie, f, new Map()).size).toBe(0);
+      // The report of the copy holds the lot's greens, set against HEAD's by name.
+      const duLot = rapporter(copie, [
+        nx('ancien', suite),
+        nx('neuf', suite),
+        nx('casse', suite, echec),
+      ]);
+      const verts = (duLot.find(r => r.fichier === path.join(copie, f))?.tests ?? [])
+        .filter(t => t.etat === 'passed')
+        .map(t => t.nom);
+      expect(verts.filter(n => !deHead.has(n))).toEqual(['neuf']);
+    }
+  );
 
   it.each([
     ['test_*.py', 'test_pages', 'tests/test_pages.py'],
     ['*_test.py', 'forme_test', 'tests/forme_test.py'],
     ['a night test', 'site_nuit_test', 'tests/site_nuit_test.py'],
-  ])('criterion 6, Python (%s): the names are the file’s, HEAD’s greens set aside', (_c, module, rel) => {
-    const copie = mkdtempSync(path.join(ESSAIS, 'copie-python-'));
-    const arbre = mkdtempSync(path.join(ESSAIS, 'arbre-python-'));
-    const f = `site/${rel}`;
-    const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-    ecrire(resultats, 'python/1-1.json', JSON.stringify({ taches: [], rapports: { '1-1-site.xml': path.join(arbre, 'site') } }));
-    ecrire(
-      resultats,
-      'pytest/1-1-site.xml',
-      [
-        '<testsuites><testsuite name="pytest">',
-        py('test_ancien', `tests.${module}`, rel),
-        py('test_interne', `tests.${module}.TestGroupe`, rel),
-        py('test_rouge', `tests.${module}`, rel, echec),
-        '</testsuite></testsuites>',
-      ].join('')
-    );
-    const { rapports } = python.verdict(resultats);
-    const deHead = vertsDeHead(rapports, copie, f, new Map(), new Map(), new Map([[f, { racine: arbre }]]));
-    expect([...deHead].sort()).toEqual(['test_ancien', 'test_interne']);
-  });
+  ])(
+    'criterion 6, Python (%s): the names are the file’s, HEAD’s greens set aside',
+    (_c, module, rel) => {
+      const copie = mkdtempSync(path.join(ESSAIS, 'copie-python-'));
+      const arbre = mkdtempSync(path.join(ESSAIS, 'arbre-python-'));
+      const f = `site/${rel}`;
+      const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
+      ecrire(
+        resultats,
+        'python/1-1.json',
+        JSON.stringify({ taches: [], rapports: { '1-1-site.xml': path.join(arbre, 'site') } })
+      );
+      ecrire(
+        resultats,
+        'pytest/1-1-site.xml',
+        [
+          '<testsuites><testsuite name="pytest">',
+          py('test_ancien', `tests.${module}`, rel),
+          py('test_interne', `tests.${module}.TestGroupe`, rel),
+          py('test_rouge', `tests.${module}`, rel, echec),
+          '</testsuite></testsuites>',
+        ].join('')
+      );
+      const { rapports } = python.verdict(resultats);
+      const deHead = vertsDeHead(
+        rapports,
+        copie,
+        f,
+        new Map(),
+        new Map(),
+        new Map([[f, { racine: arbre }]])
+      );
+      expect([...deHead].sort()).toEqual(['test_ancien', 'test_interne']);
+    }
+  );
 
   it('criterion 6: a TypeScript sibling is still read in the copy’s report', () => {
     const copie = '/copie';
@@ -465,7 +560,12 @@ describe('grillhouse-3e2.3 — the greens HEAD holds, read in the report of the 
       { fichier: '/copie/a/x.circuit-avant.test.ts', tests: [{ nom: 'ancien', etat: 'passed' }] },
     ];
     expect([
-      ...vertsDeHead(rapports, copie, 'a/x.test.ts', new Map([['a/x.test.ts', 'a/x.circuit-avant.test.ts']])),
+      ...vertsDeHead(
+        rapports,
+        copie,
+        'a/x.test.ts',
+        new Map([['a/x.test.ts', 'a/x.circuit-avant.test.ts']])
+      ),
     ]).toEqual(['ancien']);
   });
 });
@@ -501,7 +601,9 @@ function depotCommun(cible = CIBLE_LOT) {
   const racine = mkdtempSync(path.join(ESSAIS, 'commun-'));
   declarerLesLangages(racine, { 'crates/service': 'cargo' });
   const fichiers = { ...CARGO, [CIBLE]: CIBLE_HEAD, [COMMUN]: COMMUN_HEAD };
-  for (const [f, texte] of Object.entries(fichiers)) ecrire(racine, f, texte);
+  for (const [f, texte] of Object.entries(fichiers)) {
+    ecrire(racine, f, texte);
+  }
   git(racine, 'init', '-q');
   git(racine, 'add', '-A');
   git(racine, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'HEAD');
@@ -587,7 +689,12 @@ describe('grillhouse-3e2.3, criterion 8 — what the replaced leaves', () => {
   });
 
   it('the sources of the modules of Rust and Python name no sibling', () => {
-    for (const f of ['cargo/composants.mjs', 'cargo/index.mjs', 'python/composants.mjs', 'python/index.mjs']) {
+    for (const f of [
+      'cargo/composants.mjs',
+      'cargo/index.mjs',
+      'python/composants.mjs',
+      'python/index.mjs',
+    ]) {
       const source = readFileSync(path.resolve(__dirname, '../../scripts/langages', f), 'utf8');
       expect(source, f).not.toContain('soeurDAvant');
       expect(source, f).not.toContain('circuit_avant');

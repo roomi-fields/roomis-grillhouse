@@ -2,7 +2,15 @@
 // A large test (a repository of trial, a node process killed by a signal): a night test. The
 // review of grillhouse-3e2.3, finding 1.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -15,7 +23,11 @@ type Ctx = { copie: string; tmp: string };
 const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
   ctx: Ctx,
   fichiers: string[],
-  jouer: (avant: Map<string, string>, lus: Map<string, string[]>, arbres: Map<string, Arbre>) => unknown
+  jouer: (
+    avant: Map<string, string>,
+    lus: Map<string, string[]>,
+    arbres: Map<string, Arbre>
+  ) => unknown
 ) => unknown;
 const CIRCUIT = path.resolve(__dirname, '../../scripts/circuit.mjs');
 
@@ -32,7 +44,7 @@ beforeAll(() => {
 });
 afterAll(() => restaurer());
 
-const ecrire =(racine: string, f: string, texte: string) => {
+const ecrire = (racine: string, f: string, texte: string) => {
   mkdirSync(path.dirname(path.join(racine, f)), { recursive: true });
   writeFileSync(path.join(racine, f), texte);
 };
@@ -53,10 +65,17 @@ const CARGO: Record<string, string> = {
 
 describe('grillhouse-3e2.3 — a tree left by a killed process', () => {
   // A child process builds the tree, says where, and stays inside <jouer> as a long test does.
-  async function tuerLeProprietaire(signal: NodeJS.Signals, fichier: string, langages: Record<string, string>, fichiers: Record<string, string>) {
+  async function tuerLeProprietaire(
+    signal: NodeJS.Signals,
+    fichier: string,
+    langages: Record<string, string>,
+    fichiers: Record<string, string>
+  ) {
     const racine = mkdtempSync(path.join(DEHORS, 'depot-'));
     declarerLesLangages(racine, langages);
-    for (const [f, texte] of Object.entries(fichiers)) ecrire(racine, f, texte);
+    for (const [f, texte] of Object.entries(fichiers)) {
+      ecrire(racine, f, texte);
+    }
     git(racine, 'init', '-q');
     git(racine, 'add', '-A');
     git(racine, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'HEAD');
@@ -77,7 +96,9 @@ describe('grillhouse-3e2.3 — a tree left by a killed process', () => {
       enfant.stdout.on('data', d => {
         vu += d;
         const m = /ARBRE (.+)\n/.exec(vu);
-        if (m) resolve(m[1]);
+        if (m) {
+          resolve(m[1]);
+        }
       });
       enfant.on('exit', () => reject(new Error(`l’enfant s’est arrêté avant l’arbre : ${vu}`)));
     });
@@ -93,13 +114,22 @@ describe('grillhouse-3e2.3 — a tree left by a killed process', () => {
   it.each([
     ['SIGKILL', 'SIGKILL' as const],
     ['SIGTERM', 'SIGTERM' as const],
-  ])('criterion 5, cargo (%s): the next run removes the tree the dead owner left, and leaves nothing', async (_n, signal) => {
-    const { racine, tmp, arbre } = await tuerLeProprietaire(signal, CIBLE, { 'crates/service': 'cargo' }, CARGO);
-    avecLesVersionsDAvant({ copie: racine, tmp }, [CIBLE], () => undefined);
-    expect(existsSync(arbre)).toBe(false);
-    expect(lister(tmp)).toEqual([]);
-    expect(readFileSync(path.join(racine, CIBLE), 'utf8')).toBe(`${CARGO[CIBLE]}// le lot\n`);
-  }, 60000);
+  ])(
+    'criterion 5, cargo (%s): the next run removes the tree the dead owner left, and leaves nothing',
+    async (_n, signal) => {
+      const { racine, tmp, arbre } = await tuerLeProprietaire(
+        signal,
+        CIBLE,
+        { 'crates/service': 'cargo' },
+        CARGO
+      );
+      avecLesVersionsDAvant({ copie: racine, tmp }, [CIBLE], () => undefined);
+      expect(existsSync(arbre)).toBe(false);
+      expect(lister(tmp)).toEqual([]);
+      expect(readFileSync(path.join(racine, CIBLE), 'utf8')).toBe(`${CARGO[CIBLE]}// le lot\n`);
+    },
+    60000
+  );
 
   it('criterion 5, python (SIGKILL): the next run removes the tree the dead owner left, and leaves nothing', async () => {
     const f = 'site/tests/test_pages.py';
@@ -108,7 +138,12 @@ describe('grillhouse-3e2.3 — a tree left by a killed process', () => {
       'site/pyproject.toml': '[project]\nname = "site"\nversion = "0.1.0"\n',
       [f]: 'def test_ancien():\n    assert True\n',
     };
-    const { racine, tmp, arbre } = await tuerLeProprietaire('SIGKILL', f, { site: 'python' }, fichiers);
+    const { racine, tmp, arbre } = await tuerLeProprietaire(
+      'SIGKILL',
+      f,
+      { site: 'python' },
+      fichiers
+    );
     avecLesVersionsDAvant({ copie: racine, tmp }, [f], () => undefined);
     expect(existsSync(arbre)).toBe(false);
     expect(lister(tmp)).toEqual([]);
