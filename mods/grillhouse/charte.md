@@ -79,6 +79,22 @@ en un seul commit, et se crée sous sa mère (`docs/agents/issue-tracker.md`). U
 découpage n'est pas connu commence par une exploration, sans code. Ainsi l'avancement se lit
 ticket par ticket.
 
+**Le rouge prouve le travail du ticket** : un test qui échoue avant le code prouve qu'avant le
+travail le comportement manque, et qu'après il est là ; c'est son seul sens. Seul un test qui
+porte le travail du ticket rougit donc d'abord ; les autres sont verts avant le code, sans
+justification à donner. Chaque sorte de test prouve une chose :
+
+| Sorte | Ce qu'elle prouve | Rouge avant le code |
+|---|---|---|
+| Test du comportement développé | Le ticket fait ce que dit son critère | Oui : c'est la preuve du travail |
+| Test d'un défaut corrigé | Le défaut est reproduit, puis corrigé | Oui : il montre le défaut |
+| Test d'un comportement existant | Le lot ne casse rien | Non : vert attendu |
+| Test d'interface | Un paquet tient ce qu'il publie | Oui s'il porte le travail du ticket, sinon non |
+| Banc de temps, témoin de temps | Un temps reste sous sa borne | Non : mesuré la nuit |
+| Test de nuit | Le produit entier, monté dans un projet d'essai | Oui s'il porte le travail du ticket, joué la nuit |
+
+Ainsi la preuve du rouge mesure le travail, et aucun test ne rougit pour la forme.
+
 **La taille d'un test suit la pyramide** (la pyramide des tests de Google, les tailles de
 Bazel) : un test petit vérifie son module par son interface, sans processus ; un test moyen
 assemble quelques modules sur la machine, avec des processus locaux ; un test grand monte un
