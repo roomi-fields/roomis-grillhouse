@@ -86,6 +86,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'hook',
         'hooks',
         'langages-des-paquets',
+        'style-a-l-ecriture',
         'temporaire',
         'tests',
         'verifier',

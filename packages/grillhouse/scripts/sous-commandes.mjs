@@ -53,6 +53,7 @@ export const SOUS_COMMANDES = {
   'retirer-copie': 'retirer-copie.sh',
   'session-start': 'session-start.sh',
   sortie: 'sortie.mjs',
+  'style-a-l-ecriture': 'style-a-l-ecriture.mjs',
   'sous-modules': 'sous-modules.sh',
   'structure-guard': 'structure-guard.sh',
   superviseur: 'superviseur.mjs',

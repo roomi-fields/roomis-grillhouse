@@ -12,7 +12,8 @@
     "packages/grillhouse/*.ts",
     "packages/grillhouse-essais/tests/**/*",
     "packages/grillhouse-essais/*.ts",
-    "packages/grillhouse-matiere/src/**/*"
+    "packages/grillhouse-matiere/src/**/*",
+    "packages/grillhouse-matiere/tests/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

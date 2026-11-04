@@ -5,6 +5,14 @@
   "description": "Roomi's Grillhouse: the test material its packages share, by its entry ./test-fixtures",
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "test:unit": "vitest run",
+    "lint": "eslint src tests --ext .ts,.js,.mjs",
+    "format:check": "prettier --check \"{src,tests}/**/*.ts\""
+  },
+  "devDependencies": {
+    "@roomi-fields/grillhouse": "*"
+  },
   "exports": {
     "./test-fixtures": {
       "types": "./src/index.ts",

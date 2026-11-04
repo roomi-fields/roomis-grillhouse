@@ -203,15 +203,80 @@ export function controlesDeRacine(racine) {
 // and the order of the builds, while the pass of their own module plays their tests and typing.
 export const horsTypescript = racine =>
   paquetsSansPackageJson(racine).map(p => `--filter=!${p.nom}`);
+// The controls <racine> plays: those its root package.json or one of its packages (out of the
+// frame's list left out) holds a script for. `turbo run <control>` plays the task of each package
+// that holds it, beside the root's `//#<control>`.
+export function controlesDuDepot(racine) {
+  const deLaRacine = controlesDeRacine(racine);
+  return CONTROLES.filter(
+    c =>
+      deLaRacine.includes(c) ||
+      paquets(racine).some(({ pkg, hors }) => !hors && typeof pkg.scripts?.[c] === 'string')
+  );
+}
 // The tasks of the controls of the root at <racine> its root turbo.json lacks: [{ cle }].
 function controlesAbsents(racine) {
   const r = confRacine(racine);
   if (!r) return [];
-  const prefixe = paquets(racine).length ? '//#' : '';
-  return controlesDeRacine(racine)
-    .map(c => `${prefixe}${c}`)
+  const liste = paquets(racine);
+  const prefixe = liste.length ? '//#' : '';
+  // Format and lint play per package (Turborepo's advice: each red carries its package, the cache
+  // replays the changed packages only): the task of a package's script, none for the root's.
+  const deLaRacine = controlesDeRacine(racine).map(c => `${prefixe}${c}`);
+  const desPaquets = CONTROLES.filter(c =>
+    liste.some(({ pkg, hors }) => !hors && typeof pkg.scripts?.[c] === 'string')
+  );
+  return [...deLaRacine, ...desPaquets]
     .filter(cle => !r.conf.tasks?.[cle])
     .map(cle => ({ f: r.f, cle }));
+}
+
+// The tokens of a root script that name a file or a folder: the arguments that are no flag nor the
+// value of one.
+function cheminsDuScript(script) {
+  const mots = (String(script).match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map(m =>
+    m.replace(/^(["'])(.*)\1$/, '$2')
+  );
+  const chemins = [];
+  for (let i = 1; i < mots.length; i++) {
+    const m = mots[i];
+    if (['--cache-location', '--ext', '--config', '--ignore-path', '-c'].includes(m)) i++;
+    else if (!m.startsWith('-') && !['&&', '||', ';', '|'].includes(m)) chemins.push(m);
+  }
+  return chemins.map(m => m.replace(/^\.\//, ''));
+}
+
+// The refusals of the root's format and lint scripts at <racine> that name a file a package holds:
+// the root keeps its own files (grillhouse-44b.9), a package plays its own.
+function controlesDeRacineRefuses(racine) {
+  const dossiers = paquets(racine)
+    .filter(p => !p.hors)
+    .map(p => p.dossier);
+  /** @type {string[]} */
+  const refus = [];
+  if (dossiers.length === 0) return refus;
+  let scripts;
+  try {
+    scripts = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts;
+  } catch {
+    return refus;
+  }
+  for (const c of CONTROLES) {
+    for (const chemin of cheminsDuScript(scripts?.[c] ?? '')) {
+      const { fixe, glob } = partieFixe(chemin);
+      // A glob at the root's top (`*.mjs`) names the root's files; `**` reaches the packages.
+      const vise =
+        fixe === ''
+          ? chemin.split('/')[0] === '**'
+          : dossiers.some(d => sous(fixe, d) || (glob && sous(d, fixe)));
+      if (vise) {
+        refus.push(
+          `⛔ package.json : le script \`${c}\` de la racine (tâche \`//#${c}\`) nomme \`${chemin}\`, un fichier qu'un paquet porte (${dossiers.find(d => sous(fixe, d) || sous(d, fixe)) ?? 'un paquet'}) ; le script \`${c}\` de ce paquet le joue, la racine ne garde que ses propres fichiers.`
+        );
+      }
+    }
+  }
+  return refus;
 }
 // The layout of what the generator writes in the root's turbo.json.
 const MISE_EN_FORME = { formattingOptions: { insertSpaces: true, tabSize: 2, eol: '\n' } };
@@ -238,7 +303,8 @@ const POURQUOI = {
 // that is no variable name is the guard of the tools' (`grillhouse outil`), not this one's.
 function variablesDOutils(racine) {
   try {
-    const o = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).grillhouse?.outils;
+    const o = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).grillhouse
+      ?.outils;
     return o && typeof o === 'object' && !Array.isArray(o)
       ? Object.keys(o).filter(n => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n))
       : [];
@@ -587,7 +653,7 @@ export function attendus(racine) {
   );
   const horsJs = new Map(paquetsSansPackageJson(racine).map(p => [p.chemin, p.langage]));
   const decls = new Map(declarations(liste).map(d => [d.dossier, d]));
-  const traces =[...decls.values()].flatMap(d => d.traces);
+  const traces = [...decls.values()].flatMap(d => d.traces);
   // The trace tasks whose output one of <lit> overlaps, <soi> left out, sorted.
   const jointes = (lit, soi) =>
     traces
@@ -1002,6 +1068,7 @@ function racineRefusee(racine) {
 export function verifier(racine) {
   const refus = [
     ...racineRefusee(racine),
+    ...controlesDeRacineRefuses(racine),
     ...declarationsRefusees(racine),
     ...configsMatiereRefusees(racine),
   ];

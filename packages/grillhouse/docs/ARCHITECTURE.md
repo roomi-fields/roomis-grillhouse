@@ -22,10 +22,11 @@ sources et ses tests, `tsc -p tsconfig.json --noEmit` du gabarit et de `npx gril
 tâche `typecheck` du turbo.json racine, que le générateur tient, attend, comme `test:unit`,
 la construction du paquet, dont ses tests peuvent importer l'entrée construite, et celle de ses
 dépendances, `build` et `^build`, comme `check-types` des exemples de create-turbo) et les
-tests, côte à côte, avec la mise en forme et le lint du dépôt (les scripts racine `format:check`
-et `lint`, joués comme les tâches `//#format:check` et `//#lint` du turbo.json racine, que le
-générateur tient ; un script que la racine n'a pas n'est pas exigé, et leur cache ne relit que ce
-qui a changé) : tout ce que joue la CI, qui n'appelle que `npm run verifier` ; un rouge n'arrête
+tests, côte à côte, avec la mise en forme et le lint du dépôt (les scripts `format:check` et `lint`
+de chaque paquet, joués comme ses tâches `<paquet>#format:check` et `<paquet>#lint` du turbo.json,
+que le générateur tient, et ceux de la racine, tâches `//#format:check` et `//#lint`, pour les seuls
+fichiers que nul paquet ne porte ; un script absent n'est pas exigé, et leur cache ne relit que ce
+qui a changé ; un rouge de style porte son paquet et revient à l'auteur du fichier) : tout ce que joue la CI, qui n'appelle que `npm run verifier` ; un rouge n'arrête
 pas la passe, qui joue tout ce que ses tâches préalables permettent et nomme chaque rouge ;
 `npm run verifier -- --gardes` joue les gardes, la mise en forme et le lint, ce que le relecteur
 joue sur la copie du ticket (ESLint et Prettier n'ont pas de notion de lot : ils jugent le dépôt
@@ -865,7 +866,7 @@ sous-commande du noyau a sa place, qu'un test tient :
   l'intégration et la file (`integrer`, `file`), `resultats`, `retirer-copie` et `bilan`, même
   lancés à la main par le superviseur ;
 - le code de la copie : `tests`, `verifier`, `gardes-du-cadre`, `langages-des-paquets`,
-  `dependances-internes`, `flux-des-paquets`, `temporaire`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
+  `dependances-internes`, `flux-des-paquets`, `temporaire`, `style-a-l-ecriture`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
   `composants-affectes`, et les commandes des modules de langage ;
 - les outils du dépôt, qui tournent par son code : `init`, `maj`, `paquet`, `sortie`, `outil`,
   `greffons`, `sous-modules`, `pression`, `ticket`.
@@ -885,6 +886,17 @@ l'installation lie son propre `packages/grillhouse` ; la nuit joue sa passe de m
 Les crochets du greffon installé, les droits des séances et le panneau appellent la commande du
 projet, donc l'aiguillage. Un projet ordinaire n'a pas la clé : rien ne change, sa commande est
 déjà la version qu'il installe. Ainsi un défaut du jour ne casse jamais le circuit qui le corrige.
+
+**Le style s'applique à l'écriture** (`style-a-l-ecriture`, `scripts/style-a-l-ecriture.mjs`),
+comme le format-on-save d'un éditeur et lint-staged : le crochet PostToolUse du greffon
+(`hooks.json`, pour Write, Edit et MultiEdit) lit le fichier qu'un agent vient d'écrire, trouve le
+paquet qui le porte (le `package.json` le plus proche, la racine sinon), et, si les motifs des
+scripts `format:check` et `lint` de ce paquet le couvrent, applique les corrections du lint puis
+la mise en forme à ce seul fichier. Un constat qu'aucune correction ne lève, ou un fichier illisible
+pour l'outil, revient à l'agent avec sa ligne et sa règle, à chaque écriture tant qu'il subsiste ;
+rien ne bloque, et le crochet n'échoue jamais sur l'outil (Prettier ou ESLint absent : aucun
+effet). Un constat laissé reste un rouge de la passe finale, attribué à l'auteur du fichier.
+Ainsi le style se règle au moment où l'on écrit.
 
 **Le paquet publie ses entrées nommées, son interface** : un projet importe le paquet par son
 nom et l'une de ses entrées (le champ `exports`), jamais par l'adresse d'un fichier, comme

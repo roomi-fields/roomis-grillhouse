@@ -6,6 +6,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "lint": "eslint tests --ext .ts,.js,.mjs",
+    "format:check": "prettier --check \"tests/**/*.{ts,js,mjs}\"",
     "test:unit": "vitest run"
   },
   "dependencies": {

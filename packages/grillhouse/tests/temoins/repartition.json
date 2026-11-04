@@ -87,6 +87,7 @@
     "scripts/sous-commandes.mjs",
     "scripts/sous-modules.sh",
     "scripts/structure-guard.sh",
+    "scripts/style-a-l-ecriture.mjs",
     "scripts/superviseur.mjs",
     "scripts/tableau-des-composants.mjs",
     "scripts/taches-du-graphe.mjs",

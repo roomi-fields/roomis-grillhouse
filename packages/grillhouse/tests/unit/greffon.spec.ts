@@ -179,10 +179,17 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       SessionStart: [{ matcher: undefined, sous: ['session-start'] }],
       UserPromptSubmit: [{ matcher: undefined, sous: ['structure-guard'] }],
       PreToolUse: [{ matcher: 'Agent|Task', sous: ['ticket-du-sous-agent'] }],
+      PostToolUse: [{ matcher: 'Write|Edit|MultiEdit', sous: ['style-a-l-ecriture'] }],
       SubagentStop: [{ matcher: undefined, sous: ['registre'] }],
       SessionEnd: [{ matcher: undefined, sous: ['registre'] }],
     });
-    for (const sous of ['session-start', 'structure-guard', 'ticket-du-sous-agent', 'registre']) {
+    for (const sous of [
+      'session-start',
+      'structure-guard',
+      'ticket-du-sous-agent',
+      'style-a-l-ecriture',
+      'registre',
+    ]) {
       expect(Object.keys(SOUS_COMMANDES), sous).toContain(sous);
     }
   });

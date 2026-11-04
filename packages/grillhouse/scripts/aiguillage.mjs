@@ -93,6 +93,7 @@ export const DU_CODE_EN_COURS = new Set([
   'hook',
   'hooks',
   'langages-des-paquets',
+  'style-a-l-ecriture',
   'temporaire',
   'tests',
   'verifier',

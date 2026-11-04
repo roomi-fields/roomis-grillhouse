@@ -29,6 +29,8 @@ module.exports = {
       parser: '@typescript-eslint/parser',
       parserOptions: {
         project: './tsconfig.eslint.json',
+        // The root's tsconfig whichever package's folder ESLint runs from (a package plays its own lint).
+        tsconfigRootDir: __dirname,
       },
       plugins: ['@typescript-eslint'],
       extends: [

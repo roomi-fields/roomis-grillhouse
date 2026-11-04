@@ -47,10 +47,11 @@
 //   its patterns and the benchmarks of Chromium and rustc-perf leave the CI of each commit for a
 //   machine at rest. The day waits for no rest: a delay past is a red (the duration reporter
 //   classifies a delay of a day test as a real red), and so is a task at 75.
-// - The pass plays too the format check and the lint of the root (grillhouse-61z), its scripts
-//   `format:check` and `lint` when its package.json holds them, as root tasks (`//#format:check`,
-//   `//#lint`) under the same `--continue`: a red lint hides no red test, each red is named. The
-//   CI calls the pass alone.
+// - The pass plays too the format check and the lint (grillhouse-61z, grillhouse-44b.9), per
+//   package: the scripts `format:check` and `lint` of each package that holds them, as its tasks
+//   (`<package>#format:check`, `<package>#lint`), and the root's for its own files only, as root
+//   tasks (`//#format:check`, `//#lint`), under the same `--continue`: a red lint hides no red
+//   test, each red is named with its package. The CI calls the pass alone.
 // - `--gardes` plays the tasks of guards and these two controls alone, `turbo run grillhouse:gardes
 //   gardes format:check lint …`, the repository whole (ESLint and Prettier have no notion of a lot;
 //   their cache reads again what changed), with the same verdict: what the reviewer plays on the
@@ -105,7 +106,7 @@ import {
   testsCibles,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
-import { controlesDeRacine, planifier } from './turbo-des-paquets.mjs';
+import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
@@ -248,7 +249,7 @@ function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coe
   const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
   const a = [
     ...(gardesSeules ? GARDES : TACHES),
-    ...controlesDeRacine(racine),
+    ...controlesDuDepot(racine),
     '--continue=dependencies-successful',
     ...borne,
     ...args,

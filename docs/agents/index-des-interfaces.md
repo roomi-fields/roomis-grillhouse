@@ -19,4 +19,4 @@ La matière de test que partagent les paquets de Grillhouse, par la seule entré
 
 Le noyau demande à un module de langage ce que ce document écrit, et rien d'autre. (`packages/grillhouse/docs/INTERFACE.md`)
 
-- **Consommateurs** — grillhouse-essais (*)
+- **Consommateurs** — grillhouse-essais (*) ; grillhouse-matiere (*)

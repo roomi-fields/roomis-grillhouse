@@ -3673,6 +3673,9 @@ function constructionsEchouees(ctx, liste, dossier) {
     });
 }
 
+// The tasks of style, played per package (`<package>#lint`, `<package>#format:check`).
+const STYLE = new Set(['lint', 'format:check']);
+
 // Where <chemin> (from the root of the copy) lies: `{ dansLePlan, paquet, horsTitre }`, whether
 // a path of the plan holds it, the name of the package of <liste> that holds it, and that name
 // again when the plan does not hold it.
@@ -3764,6 +3767,9 @@ function rougesDe(ctx, liste, c) {
           : `tâche ${t.tache} rouge (code ${t.code}) — son journal : ${j.chemin}`,
       detail: t.script === 'build' ? j.debut : '',
       ...lieu,
+      // A red task of style (`<package>#lint`, `<package>#format:check`) is named by its task, as
+      // the plan's package that holds it: the one out of the plan reads `<package>#lint`.
+      horsTitre: lieu.horsTitre && STYLE.has(t.script) ? t.tache : lieu.horsTitre,
       joue: t.paquet,
     });
   }
