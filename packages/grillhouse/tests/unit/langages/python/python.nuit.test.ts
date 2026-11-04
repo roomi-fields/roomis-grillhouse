@@ -40,8 +40,11 @@ describe('grillhouse-ziy, critère 7 — le vrai uv', () => {
     expect(lock.status, lock.stderr).toBe(0);
     const jouer = (nom: string) => {
       const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-      const c = python.commandes(racine)[nom];
-      const r = spawnSync(process.execPath, [c.script, ...c.args], {
+      // grillhouse-44b.5 : `tester` lance les tâches de Turborepo ; le corps de la tâche d'un
+      // projet est `tests-du-paquet`.
+      const corps = nom === 'tester';
+      const c = python.commandes(racine)[corps ? 'tests-du-paquet' : nom];
+      const r = spawnSync(process.execPath, [c.script, ...c.args, ...(corps ? ['site'] : [])], {
         cwd: racine,
         encoding: 'utf8',
         env: { ...process.env, GRILLHOUSE_RESULTATS: resultats },
@@ -102,8 +105,8 @@ describe('grillhouse-0cy, critère 1 — un dossier Python existant, par le vrai
       expect(r.status, `${v.commande} ${v.args.join(' ')}\n${r.stderr}`).toBe(0);
     }
     const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-    const c = python.commandes(racine).tester;
-    const r = spawnSync(process.execPath, [c.script, ...c.args], {
+    const c = python.commandes(racine)['tests-du-paquet'];
+    const r = spawnSync(process.execPath, [c.script, ...c.args, 'site'], {
       cwd: racine,
       encoding: 'utf8',
       env: { ...process.env, GRILLHOUSE_RESULTATS: resultats },

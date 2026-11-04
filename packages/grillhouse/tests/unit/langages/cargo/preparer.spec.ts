@@ -2,7 +2,7 @@
 // of the language describes (`preparer` of `commandes`) before the verification, as a CI fetches
 // the dependencies of a job before its tests (`cargo fetch --locked`, then the tests offline): in
 // a workspace of cargo, against the fake cargo (./faux-cargo.ts), `cargo fetch --locked` comes
-// before the first run of nextest. A language that describes no preparation goes straight to the
+// before the run of `cargo deny check` of the verification. A language that describes no preparation goes straight to the
 // verification.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -35,7 +35,7 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 afterAll(() => restaurer());
 
 describe('grillhouse-pkl.5, critère 3 — l’intégration prépare avant de vérifier', () => {
-  it('a workspace of cargo: cargo fetch --locked, then the verification and its nextest', () => {
+  it('a workspace of cargo: cargo fetch --locked, then the verification and its cargo deny', () => {
     const etapes = commandesDeVerification(seul);
     expect(etapes.map(([c, a]) => [path.basename(c), ...a.slice(-1)])).toEqual([
       [path.basename(process.execPath), 'preparer'],
@@ -55,9 +55,11 @@ describe('grillhouse-pkl.5, critère 3 — l’intégration prépare avant de v�
       .split('\n')
       .filter(l => l && !l.startsWith('metadata '));
     const fetch = appels.indexOf('fetch --locked');
-    const nextest = appels.findIndex(l => l.startsWith('nextest run'));
+    // The verifier of cargo plays the tests as tasks of Turborepo (a graph this trial has not) and
+    // then `cargo deny check`: the run of cargo that follows the preparation.
+    const deny = appels.indexOf('deny check');
     expect(fetch, appels.join('\n')).toBe(0);
-    expect(nextest, appels.join('\n')).toBeGreaterThan(fetch);
+    expect(deny, appels.join('\n')).toBeGreaterThan(fetch);
   }, 60_000);
 
   it('a project of TypeScript describes no preparation: the verification alone', () => {

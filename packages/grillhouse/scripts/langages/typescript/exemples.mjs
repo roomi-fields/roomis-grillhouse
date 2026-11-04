@@ -8,8 +8,7 @@
 //   interfaces, the turbo.json of the packages): `aJour`; the same with each generated file out
 //   of date: the interface of `a` changed after its index, a fault listed that its code never
 //   produces (the check of the interfaces against the code), the turbo.json of `b` stale:
-//   `enRetard`; the same, committed, a file of `a` then changed and a file out of every package
-//   added: `change`, measured from its commit; the same where the code of `b` imports `a` and the
+//   `enRetard`; the same where the code of `b` imports `a` and the
 //   code of `c` imports `b`: `lus`; the same with a second commit that changes a file of `a`:
 //   `lot`. A directory whose package.json names no package: `vide`. A
 //   repository of two packages, one with the script of the tests (`test:unit`): `avecTests`.
@@ -141,10 +140,6 @@ export default {
     const avantLeLot = tete(lot);
     writeFileSync(path.join(lot, 'packages/a/src/index.ts'), 'export const a = 3;\n');
     git(lot, 'commit', '-q', '-am', 'lot');
-    const change = depot(dans);
-    const depuis = tete(change);
-    writeFileSync(path.join(change, 'packages/a/src/index.ts'), 'export const a = 2;\n');
-    writeFileSync(path.join(change, 'notes.txt'), 'hors des paquets\n');
     return {
       racine: aJour,
       composants: {
@@ -168,11 +163,6 @@ export default {
         valide: { racine: aJour, noms: [] },
         invalide: { racine: lus, noms: ['package.json'] },
         attendu: ['b lit a', 'c lit b', 'package.json : sans fournisseur'],
-      },
-      touches: {
-        valide: { racine: aJour, depuis: 'HEAD' },
-        invalide: { racine: change, depuis },
-        attendu: ['touché a', 'dépendant b', 'dépendant c', 'hors notes.txt'],
       },
       commandes: {
         valide: [

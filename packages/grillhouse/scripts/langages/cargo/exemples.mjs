@@ -8,8 +8,7 @@
 //   `ws-outil`, which depends on `ws-app` for its tests (`dev`) and on `ws-core` for its build
 //   script (`build`); `ws-matiere`, the shared test material (`[package.metadata.grillhouse]
 //   matiere = true`); the interfaces of `ws-core`, of `ws-app` and of the root, and the index of the
-//   interfaces they give, up to date (grillhouse-pkl.6). Committed: `espace`; the same, a source of `ws-core` then changed and a file
-//   out of every crate added: `change`, measured from its commit; the same with a second commit
+//   interfaces they give, up to date (grillhouse-pkl.6). Committed: `espace`; the same with a second commit
 //   that changes `ws-core`, adds the crate `ws-neuf` and removes `ws-outil`: `lot`; the same, the
 //   interface of `ws-core` then changed, its index late: `enRetard`.
 // - Each workspace commits its Cargo.lock, the one cargo writes (grillhouse-rph): the commands
@@ -251,13 +250,6 @@ export default {
       'crates/aide/Cargo.toml': manifeste('aide'),
       'crates/aide/src/lib.rs': 'pub fn aide() {}\n',
     });
-    const change = espace(dans);
-    const depuis = tete(change);
-    writeFileSync(
-      path.join(change, 'crates/core/src/lib.rs'),
-      'pub fn core() -> i32 {\n    2\n}\n'
-    );
-    writeFileSync(path.join(change, 'notes.txt'), 'hors des crates\n');
     const lot = espace(dans);
     const avantLeLot = tete(lot);
     const ecrireLot = ecrireDans(lot);
@@ -289,8 +281,6 @@ export default {
         espace: aJour,
         seul,
         imbrique,
-        change,
-        depuis,
         lot,
         avantLeLot,
         enRetard,
@@ -324,11 +314,6 @@ export default {
           'ws-outil lit ws-core',
           'ws-absent : sans fournisseur',
         ],
-      },
-      touches: {
-        valide: { racine: aJour, depuis: 'HEAD' },
-        invalide: { racine: change, depuis },
-        attendu: ['touché ws-core', 'dépendant ws-app', 'dépendant ws-outil', 'hors notes.txt'],
       },
       commandes: {
         valide: ['tester', 'verifier', 'typer', 'preparer'],

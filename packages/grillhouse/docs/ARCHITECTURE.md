@@ -45,7 +45,15 @@ Python a un `package.json` à côté de son manifeste (modèle `multi-language.m
 et le générateur du `turbo.json` écrit ses entrées de hash selon le langage que déclare
 `docs/ARCHITECTURE.md` (un crate : son dossier, `Cargo.lock`, le `Cargo.toml` racine ; un projet
 Python : son dossier, `uv.lock`, `pyproject.toml`), plus `grillhouse.lit`, et les variables de
-`grillhouse.outils` dans `globalPassThroughEnv` ; la construction d'un voisin lit les entrées du `build` de son turbo.json,
+`grillhouse.outils` dans `globalPassThroughEnv` ; les tests d'un crate et d'un projet Python sont
+des tâches de ce graphe comme ceux d'un paquet TypeScript (grillhouse-44b.5) : `npm test` lance
+`turbo run test:unit` sur les paquets du langage, le script `test:unit` du `package.json` d'un
+paquet appelle la commande `tests-du-paquet` du module (nextest et les doctests, ou pytest), qui ne
+relance jamais Turborepo, et le cache des tâches choisit ce qui se rejoue, sans sélection du cadre
+par le dernier vert ; les chemins nommés passent à la tâche par la variable `GRILLHOUSE_TESTS` de
+son `env`, qui entre dans son hash, et `--force` y porte le moment du rejeu ; aucun module de
+langage ne pose le dernier vert : la passe de la vérification le pose seule, une fois, quand toutes
+les tâches de tous les langages du graphe sont vertes ; la construction d'un voisin lit les entrées du `build` de son turbo.json,
 lues comme Turborepo les lit (`$TURBO_DEFAULT$` : tous les fichiers du paquet, `docs/`
 compris ; `$TURBO_EXTENDS$` : les entrées du `build` de la racine), et, quand elles n'en
 nomment aucune, son code et sa configuration hors de son `docs/` ; jamais un test ; sans vert
@@ -941,9 +949,9 @@ inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langa
 ou Nx : une seule équipe tient tous les langages, et un seul paquet n'a ni versions à aligner ni
 imports à réécrire chez les projets.
 
-**La jointure des langages** : le noyau ne demande à un module de langage que six choses — ses
+**La jointure des langages** : le noyau ne demande à un module de langage que cinq choses — ses
 composants et celui d'un fichier, avec les lecteurs par le code des éléments qu'un ticket nomme ;
-les composants touchés depuis un commit, avec leurs dépendants ; les commandes qui testent,
+les commandes qui testent,
 typent et vérifient, les composants qui jouent des tests (`joueDesTests` ; le script des tests
 porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture de leur verdict ; la règle qui dit qu'un fichier est un test
 (le verrou du testwriter), et celle qui dit qu'un fichier de test est hors du jour, que la nuit
@@ -996,7 +1004,9 @@ séance, comme un bac à sable de Bazel ouvre ce que l'action déclare (le cache
 `target/` et les magasins de cargo) ; l'outil de test lancé directement, que les droits refusent
 à un rôle qui écrit (`droits`) ; la préparation que l'intégration et la file jouent avant la
 vérification (`preparer`, `cargo fetch --locked`), la construction de la copie d'un agent que joue
-le lanceur (`construire`), les tests de nuit que joue la nuit (`tests-de-nuit`), et la commande
+le lanceur (`construire --echec`, une seule implémentation du noyau pour tous les langages :
+`turbo run build --filter=<paquet>…` sur le plan et ses fournisseurs, la copie entière pour un
+plan dont un chemin n'est pas un paquet, `scripts/taches-du-graphe.mjs`), les tests de nuit que joue la nuit (`tests-de-nuit`), et la commande
 qui rejoue seule une tâche rouge, que la vérification écrit pour la bissection de la nuit ; les
 migrations du langage, que `maj` joue avec celles du noyau, comme `nx migrate` réunit celles de
 chaque greffon ; la part du langage dans `maj` (`miseAJour`), comme le générateur `init` d'un
@@ -1017,8 +1027,9 @@ tests par l'interface sous `tests/` d'un crate, les tests unitaires près de leu
 déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; un test de nuit `tests/<nom>_nuit.rs` et un banc de temps `tests/<nom>_budget.rs`, reconnus au nom de leur cible ; les tests par nextest puis les doctests, après la construction des cibles de
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
-« construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; la vérification par cargo-deny,
-sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
+« construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; ces tests sont la
+tâche `test:unit` de chaque crate, jouée par Turborepo (`tests-du-paquet`, grillhouse-44b.5) ; la
+vérification par cargo-deny, après les tâches de Turborepo des crates, sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
 sans compilation incrémentale (`CARGO_INCREMENTAL=0`, comme la CI de Rust : une copie compile une
 fois, et son `target/debug/incremental` tenait 1,1 Go d'un `target/` de 5,0 Go chez synthhub),
 sauf quand l'appelant la décide (`CARGO_INCREMENTAL`, `CARGO_BUILD_INCREMENTAL`, un
@@ -1040,7 +1051,8 @@ python sous `scripts/langages/python/` (un paquet par `pyproject.toml`, PEP 621 
 `test_*.py` et `*_test.py` que pytest trouve, un test de nuit `*_nuit_test.py`, `conftest.py` et
 `tests/` ses aides ; du manifeste, le testwriter n'écrit que le groupe `test` de
 `[dependency-groups]`, PEP 735, et `uv.lock` ; les tests par `uv run --locked --group test pytest`
-dans chaque paquet, leur rapport JUnit ; les tests de nuit laissés de côté de tout dossier, le
+dans chaque paquet (la tâche `test:unit` du paquet dans Turborepo, par `tests-du-paquet`), leur
+rapport JUnit ; les tests de nuit laissés de côté de tout dossier, le
 paquet entier ou un dossier nommé, et joués quand leur fichier est nommé, comme le module cargo
 (Python n'a pas de banc de temps) ; un paquet joué entier, sans chemin ou son dossier nommé,
 dont pytest ne collecte aucun test (code 5) est vert, comme `cargo test` sur un crate sans test et

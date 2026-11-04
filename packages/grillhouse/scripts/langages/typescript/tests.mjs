@@ -89,13 +89,15 @@ import {
   ouvrirBase,
   paquetsDeLEnveloppe,
   retirerALInterruption,
+  SCRIPT_DES_TESTS,
+  TESTS_CIBLES,
+  testsCibles,
+  tracesDuPlan,
 } from '../../services-du-noyau.mjs';
 import { paquets } from '../../paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
 import { RESULTATS } from '../../resultats.mjs';
-import { horsTypescript, planifier, tracesDuPlan } from './turbo-des-paquets.mjs';
-import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
-import { VARIABLE } from './vitest-config/cibles.mjs';
+import { horsTypescript, planifier } from './turbo-des-paquets.mjs';
 
 const racine = process.cwd();
 // The base of the run (scripts/mesure/base-de-passe.mjs): this process and every run of
@@ -118,10 +120,10 @@ if (depuis) process.stdout.write(`${depuis.ligne}\n`);
 // (RESULTATS), Turborepo writes its summary, which goes there.
 const turbo = (args, tests) => {
   const env = { ...process.env };
-  delete env[VARIABLE];
+  delete env[TESTS_CIBLES];
   delete env[CHANGEMENTS];
   Object.assign(env, depuis?.env ?? {});
-  if (tests) env[VARIABLE] = JSON.stringify(tests);
+  if (tests) env[TESTS_CIBLES] = JSON.stringify(tests);
   const resume = env[RESULTATS] ? ['--summarize'] : [];
   const runs = path.join(racine, '.turbo', 'runs');
   const avant = new Set(existsSync(runs) ? readdirSync(runs) : []);
@@ -162,7 +164,8 @@ const traces = (filtres, noms) => {
 // in an envelope, the build of the packages they name with their own traces, then the tests alone.
 // Its exit code: the first that is not 0, else the tests'.
 const cibles = (filtres, passes) => {
-  const tests = { arguments: passes, ...(force ? { rejouer: new Date().toISOString() } : {}) };
+  // `testsCibles` is undefined with no path and no `--force`: the variable then stays unset.
+  const tests = testsCibles({ arguments: passes, force });
   if (!enveloppe) return turbo([SCRIPT_DES_TESTS, ...filtres], tests);
   // A package the envelope shows read-only arrives built: only the packages it shows in writing
   // build, as the envelope mounts them (`inscriptible`).

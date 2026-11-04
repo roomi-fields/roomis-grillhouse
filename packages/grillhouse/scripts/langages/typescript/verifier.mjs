@@ -16,7 +16,11 @@
 //   and so do the builds. The changes reach Vitest in a variable no hash counts
 //   (`GRILLHOUSE_CHANGEMENTS`). Without a last green that counts, the pass is complete. The
 //   line `↳` says which. A pass green, restricted by no filter, keeps its tree as the last green;
-//   a red one keeps the last green as it was.
+//   a red one keeps the last green as it was. The pass is the one that keeps it, for every language
+//   of the project: it plays the tasks of every package of the graph, a crate's and a Python
+//   project's beside a TypeScript package's (their `test:unit` and `typecheck`, scripts of their
+//   package.json), so it is green only when every task of every language is, and no module of
+//   language keeps a green of its own (scripts/dernier-vert.mjs).
 // - `--tout`, and `--force` (the night, scripts/nuit.sh), play the complete pass: no measure
 //   against the last green, and each task of tests played for real (the variable of the tests
 //   carries the moment of the pass, `rejouer`, which no cached run holds).
@@ -94,13 +98,15 @@ import {
   nommerLAvancement,
   ouvrirAvancement,
   ouvrirBase,
+  PASSE_ROUGE,
   retirerALInterruption,
+  SCRIPT_DES_TESTS,
+  TESTS_CIBLES,
+  testsCibles,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
-import { controlesDeRacine, horsTypescript, planifier } from './turbo-des-paquets.mjs';
-import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
+import { controlesDeRacine, planifier } from './turbo-des-paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
-import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, TYPAGE, SCRIPT_DES_TESTS];
@@ -190,6 +196,12 @@ function depotAvecTests(racine) {
 // Whether <args> hold a filter of Turborepo (`--filter=<f>`, `--filter <f>`, `-F <f>`).
 const filtre = args => args.some(a => a.startsWith('--filter=') || a === '--filter' || a === '-F');
 
+// A pass green on every package keeps its tree as the last green (`garder`): not when it is
+// restricted by a filter, measured against nothing, or run after a red module (PASSE_ROUGE).
+export function poserLeVert({ code, etat, args, env, garder }) {
+  if (code === 0 && etat && !filtre(args) && !env[PASSE_ROUGE]) garder(etat);
+}
+
 function passe({ racine, demandes, env, dire, coeurs }) {
   const gardesSeules = demandes.includes('--gardes');
   const tout = demandes.includes('--tout') || demandes.includes('--force');
@@ -213,7 +225,7 @@ function passe({ racine, demandes, env, dire, coeurs }) {
     if (env[ROUGES])
       writeFileSync(env[ROUGES], [...taches].map(t => `${t}\t${rejeu(t)}\n`).join(''));
     // A pass green on every package keeps its tree as the last green.
-    if (code === 0 && m?.etat && !filtre(args)) garderLeVert(m.etat);
+    poserLeVert({ code, etat: m?.etat, args, env, garder: garderLeVert });
     return code;
   } finally {
     m?.retirer();
@@ -230,14 +242,13 @@ function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coe
         ...propre,
         ...ajouts,
         ...(tout
-          ? { [TESTS_CIBLES]: JSON.stringify({ arguments: [], rejouer: new Date().toISOString() }) }
+          ? { [TESTS_CIBLES]: JSON.stringify(testsCibles({ arguments: [], force: true })) }
           : {}),
       };
   const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
   const a = [
     ...(gardesSeules ? GARDES : TACHES),
     ...controlesDeRacine(racine),
-    ...horsTypescript(racine),
     '--continue=dependencies-successful',
     ...borne,
     ...args,

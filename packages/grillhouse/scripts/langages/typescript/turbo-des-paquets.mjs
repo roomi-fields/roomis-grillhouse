@@ -73,8 +73,9 @@
 //   output, `ecrit`, a directory inside the package that git ignores. A restore from the cache
 //   adds files and removes none: the command empties its directory before writing it.
 //   The traces a package's tests wait for are read in Turborepo's plan of its tests
-//   (`tracesDuPlan`), by the targeted run (scripts/langages/typescript/tests.mjs) and the build of an
-//   agent's copy (./construire.mjs), which produce them before the tests; the envelope shows the
+//   (`tracesDuPlan` of scripts/taches-du-graphe.mjs), by the targeted run
+//   (scripts/langages/typescript/tests.mjs) and the build of an agent's copy
+//   (scripts/taches-du-graphe.mjs, every language's), which produce them before the tests; the envelope shows the
 //   directory of a neighbour's trace read-only (scripts/enveloppe/enveloppe.mjs), and the targeted
 //   run inside it plays the traces of the agent's package only.
 // - The package holding a declared path of data alone (the shared test material) has its `build`
@@ -167,13 +168,13 @@ import {
   CHANGEMENTS,
   inscrireLePlan,
   paquetsSansPackageJson,
+  TRACE,
 } from '../../services-du-noyau.mjs';
 import { matieres } from './consommateurs.mjs';
 import { parcourir } from './parcours.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { ecrireSarif, RESULTATS } from '../../resultats.mjs';
-import { SCRIPT_DES_TESTS as TESTS } from './script-des-tests.mjs';
-import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
+import { SCRIPT_DES_TESTS as TESTS, TESTS_CIBLES } from '../../services-du-noyau.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'npx grillhouse turbo-des-paquets --ecrire';
@@ -267,7 +268,6 @@ function variablesDeDonnees(racine) {
   return [...new Set(noms)];
 }
 // The prefix of a trace task.
-const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
 // takes a `.d.ts` into the program, whose types the build checks) and JavaScript (`allowJs`).
 const CODE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
@@ -309,14 +309,6 @@ function tachesRacine(racine) {
   return taches;
 }
 
-// The trace tasks of a plan of Turborepo (`turbo run … --dry=json`, parsed), its tasks that
-// <garder> keeps: their task ids (`<producer>#trace:<name>`), sorted.
-export const tracesDuPlan = (plan, garder = () => true) =>
-  plan.tasks
-    .filter(t => t.task.startsWith(TRACE) && garder(t))
-    .map(t => t.taskId)
-    .sort();
-
 /**
  * Before a run of Turborepo of <args> in <racine> under <env>, while <dossier> is a progress
  * directory (scripts/avancement.mjs): the plan of the run (`turbo run … --dry=json`), its tasks of
@@ -344,26 +336,6 @@ export function planifier(dossier, { racine, args, env = process.env }) {
     racine,
     taches: taches.map(t => ({ hash: t.hash, cache: t.cache?.status === 'HIT' })),
   });
-}
-
-// The tasks of a plan of Turborepo (`turbo run … --dry=json`, parsed) that wait, directly or not,
-// for a task of one of the packages <paquets>, those tasks included: their task ids. As Bazel
-// under --keep_going, a task that waits for a target of the plan goes with the plan, whose failure
-// is the session's work; the others are the plan's providers.
-export function attendentLePlan(plan, paquets) {
-  const parId = new Map(plan.tasks.map(t => [t.taskId, t]));
-  const verdicts = new Map();
-  const attend = id => {
-    if (verdicts.has(id)) return verdicts.get(id);
-    // A cycle of tasks is no wait on the plan by itself; Turborepo refuses it anyway.
-    verdicts.set(id, false);
-    const t = parId.get(id);
-    const v =
-      t !== undefined && (paquets.includes(t.package) || (t.dependencies ?? []).some(attend));
-    verdicts.set(id, v);
-    return v;
-  };
-  return new Set(plan.tasks.map(t => t.taskId).filter(attend));
 }
 
 // A path from the root, without its trailing slashes.

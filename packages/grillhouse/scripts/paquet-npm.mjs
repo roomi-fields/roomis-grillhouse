@@ -8,8 +8,9 @@
 // - Its name is the manifest's: the `name` of the `[package]` of a Cargo.toml, of the `[project]`
 //   of a pyproject.toml.
 // - Its scripts call the commands of the package's module on its path, from the root of the
-//   project, where the module plays: `build` the module's `construire`, `test:unit` its `tests`,
-//   `typecheck` its `typer`.
+//   project, where the module plays: `build` the module's `construire`, `test:unit` its
+//   `tests-du-paquet` (the body of the task, which never runs Turborepo: its `tests` does, and
+//   would loop), `typecheck` its `typer`.
 // - The entry of its folder in the `workspaces` of the root package.json: none for a folder the
 //   patterns already select; else its path, after the pattern `!` that takes it out when one does.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -115,7 +116,7 @@ export function packageJsonDuPaquet(nom, chemin) {
     private: true,
     scripts: {
       build: appel('construire'),
-      'test:unit': appel('tests'),
+      'test:unit': appel('tests-du-paquet'),
       typecheck: appel('typer'),
     },
   };

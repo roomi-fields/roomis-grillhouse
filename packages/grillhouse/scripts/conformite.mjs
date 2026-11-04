@@ -17,8 +17,6 @@
 // - composantDe: each file of the entry lies in the component it names, among `composants`;
 // - lecteurs: what each component reads of another, by its code, and each name of the entry no
 //   component provides;
-// - touches: what changed since the commit of the entry, each component touched, each dependent
-//   and each file out of the graph;
 // - commandes: each command named is described (`{ script, args }`, the script a file), and asking
 //   them writes nothing in the repository;
 // - verdict: each task neither green nor unplayed (« à repasser » at 75, red otherwise), the one
@@ -116,14 +114,6 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
       return [
         ...[...l.lit].flatMap(([c, lus]) => [...lus].map(f => `${c.nom} lit ${f.nom}`)).sort(),
         ...l.sansFournisseur.map(n => `${n} : sans fournisseur`),
-      ];
-    },
-    touches: ({ racine, depuis }) => {
-      const t = langage.touches(racine, { depuis });
-      return [
-        ...t.touches.map(c => `touché ${c.nom}`),
-        ...t.dependants.map(c => `dépendant ${c.nom}`),
-        ...t.horsGraphe.map(f => `hors ${f}`),
       ];
     },
     commandes: noms => {

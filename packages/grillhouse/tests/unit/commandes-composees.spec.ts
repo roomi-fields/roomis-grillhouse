@@ -16,32 +16,36 @@ import type { Composant, Langage } from '../../scripts/jointure.js';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'commandes-composees-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const VERT = path.resolve(__dirname, '../../scripts/dernier-vert.mjs');
 const RACINE = path.join(ESSAIS, 'depot');
 const JOURNAL = path.join(ESSAIS, 'journal');
 
-// The fake tool of the module <nom>: it writes « <nom> <commande> <args> » in the journal and ends
-// with the code CODE_<nom> (0 by default); its verifier, green, keeps the last green, as each
-// module's verifier does.
+// The fake tool of the module <nom>: it writes « <nom> <commande> <args> » in the journal, then
+// whether the environment names a file of deferred greens (`GRILLHOUSE_VERT_DIFFERE`), and ends
+// with the code CODE_<nom> (0 by default). grillhouse-44b.5, critère 9: no module of language
+// keeps or defers a green, so this tool does neither.
 function outil(nom: string) {
   const f = path.join(ESSAIS, `outil-${nom}.mjs`);
   writeFileSync(
     f,
     [
       "import { appendFileSync } from 'node:fs';",
-      `import { garderLeVert, mesure } from ${JSON.stringify(VERT)};`,
       'const [commande, ...args] = process.argv.slice(2);',
       `appendFileSync(process.env.JOURNAL, ${JSON.stringify(nom)} + ' ' + [commande, ...args].join(' ') + '\\n');`,
-      `const code = Number(process.env.CODE_${nom} ?? 0);`,
-      "if (commande === 'verifier' && code === 0) { const m = mesure(process.cwd()); m.retirer(); garderLeVert(m.etat); }",
-      'process.exitCode = code;',
+      "if (process.env.GRILLHOUSE_VERT_DIFFERE) appendFileSync(process.env.JOURNAL, 'DIFFERE ' + process.env.GRILLHOUSE_VERT_DIFFERE + '\\n');",
+      "appendFileSync(process.env.JOURNAL, 'MARQUES ' + [process.env.GRILLHOUSE_GRAPHE_JOUE ? 'GRAPHE_JOUE' : '', process.env.GRILLHOUSE_PASSE_ROUGE ? 'PASSE_ROUGE' : ''].filter(Boolean).join(',') + '\\n');",
+      `process.exitCode = Number(process.env.CODE_${nom} ?? 0);`,
     ].join('\n')
   );
   return f;
 }
 
 // A fake module <nom> whose components are the folders <dossiers> of the trial.
-function module(nom: string, dossiers: string[], commandes = ['tester', 'verifier']): Langage {
+function module(
+  nom: string,
+  dossiers: string[],
+  commandes = ['tester', 'verifier'],
+  manifeste?: string
+): Langage {
   const comps: Composant[] = dossiers.map(d => ({
     dossier: path.join(RACINE, d),
     nom: d,
@@ -50,6 +54,7 @@ function module(nom: string, dossiers: string[], commandes = ['tester', 'verifie
   const script = outil(nom);
   return {
     nom,
+    ...(manifeste ? { manifeste } : {}),
     composants: () => comps,
     estUnTest: () => null,
     commandes: () => Object.fromEntries(commandes.map(c => [c, { script, args: [c] }])),
@@ -67,7 +72,7 @@ git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'init');
 const vert = () => path.join(RACINE, '.git/grillhouse/dernier-vert/main.json');
 
 const CARGO = module('cargo', ['moteur'], ['tester', 'verifier', 'preparer']);
-const TS = module('typescript', ['site']);
+const TS = module('typescript', ['site'], ['tester', 'verifier'], 'package.json');
 const MODULES = [CARGO, TS];
 
 const lancer = (nom: string, args: string[], env: Record<string, string> = {}) =>
@@ -76,7 +81,14 @@ const lancer = (nom: string, args: string[], env: Record<string, string> = {}) =
     modules: MODULES,
     env: { ...process.env, JOURNAL, ...env },
   });
-const journal = () => readFileSync(JOURNAL, 'utf8').split('\n').filter(Boolean);
+const lignes = () => readFileSync(JOURNAL, 'utf8').split('\n').filter(Boolean);
+const journal = () => lignes().filter(l => !l.startsWith('DIFFERE') && !l.startsWith('MARQUES'));
+// The marks each module received, in the order they played: '' for none.
+const marques = () =>
+  lignes()
+    .filter(l => l.startsWith('MARQUES'))
+    .map(l => l.slice('MARQUES '.length));
+const differes = () => lignes().filter(l => l.startsWith('DIFFERE'));
 
 beforeEach(() => {
   writeFileSync(JOURNAL, '');
@@ -123,18 +135,59 @@ describe('grillhouse-akd, critère 3 — chaque module joue ses composants, un s
     expect(journal()).toEqual(['cargo preparer']);
   });
 
-  it('npm run verifier: green on every module, the last green is kept once, after the last module', () => {
+  it('grillhouse-44b.5 critère 9: no module is given a file of deferred greens, whatever the command', () => {
     expect(lancer('verifier', ['--tout'])).toBe(0);
-    expect(journal()).toEqual(['cargo verifier --tout', 'typescript verifier --tout']);
-    expect(existsSync(vert())).toBe(true);
-    const v = JSON.parse(readFileSync(vert(), 'utf8')) as { commit: string };
-    expect(v.commit).toBe(git('rev-parse', 'HEAD').stdout.trim());
+    expect(lancer('tester', [])).toBe(0);
+    expect(differes()).toEqual([]);
   });
 
-  it('npm run verifier: one module red, no last green is kept, though the other was green', () => {
+  it('grillhouse-44b.5 critère 9: the composed command keeps no green itself, green or red', () => {
+    expect(lancer('verifier', ['--tout'])).toBe(0);
+    expect(journal()).toEqual(['cargo verifier --tout', 'typescript verifier --tout']);
+    expect(existsSync(vert())).toBe(false);
     expect(lancer('verifier', [], { CODE_typescript: '1' })).toBe(1);
     expect(existsSync(vert())).toBe(false);
+  });
+});
+
+// grillhouse-44b.5, critère 9 — « une fois » et « jamais quand l'une est rouge » : sous `verifier`,
+// le module du graphe (package.json) passe sur toutes les tâches, les autres reçoivent
+// GRILLHOUSE_GRAPHE_JOUE et ne les rejouent pas ; un module qui joue après un rouge reçoit
+// GRILLHOUSE_PASSE_ROUGE, et la passe ne pose alors aucun vert.
+describe('grillhouse-44b.5 critère 9 — les marques GRAPHE_JOUE et PASSE_ROUGE', () => {
+  it('verifier: le module hors package.json reçoit GRAPHE_JOUE, celui du graphe non', () => {
+    expect(lancer('verifier', [])).toBe(0);
+    expect(marques()).toEqual(['GRAPHE_JOUE', '']);
+  });
+
+  it('tester: aucun module ne reçoit GRAPHE_JOUE', () => {
+    expect(lancer('tester', [])).toBe(0);
+    expect(marques()).toEqual(['', '']);
+  });
+
+  it('verifier sans module du graphe (package.json): aucun GRAPHE_JOUE', () => {
+    expect(
+      jouer('verifier', [], {
+        racine: RACINE,
+        modules: [CARGO],
+        env: { ...process.env, JOURNAL },
+      })
+    ).toBe(0);
+    expect(marques()).toEqual(['']);
+  });
+
+  it('un module qui joue après un module rouge reçoit PASSE_ROUGE, le rouge et ceux d’avant non', () => {
     expect(lancer('verifier', [], { CODE_cargo: '1' })).toBe(1);
-    expect(existsSync(vert())).toBe(false);
+    expect(marques()).toEqual(['GRAPHE_JOUE', 'PASSE_ROUGE']);
+  });
+
+  it('deux verts à la suite: aucun PASSE_ROUGE', () => {
+    expect(lancer('verifier', [])).toBe(0);
+    expect(marques().join(',')).not.toMatch(/PASSE_ROUGE/);
+  });
+
+  it('un rouge du dernier module ne marque personne', () => {
+    expect(lancer('verifier', [], { CODE_typescript: '1' })).toBe(1);
+    expect(marques().join(',')).not.toMatch(/PASSE_ROUGE/);
   });
 });

@@ -4,6 +4,7 @@
 // `commandes`; run by `grillhouse <commande>` in the root of the workspace, its arguments after.
 //
 //   npx grillhouse tests [--force] [<chemin>…] [--<option>…]   tester
+//   npx grillhouse tests-du-paquet <chemin>… [--<option>…]      tests-du-paquet
 //   npx grillhouse verifier [--tout | --gardes]                 verifier
 //   node commandes.mjs typer                                    typer
 //   npx grillhouse preparer                                     preparer
@@ -14,22 +15,36 @@
 // - Each guard of structure of the module (./tailles-des-tests.mjs, ./clippy.mjs,
 //   ./frontieres.mjs, ./index-interfaces.mjs) is a command by its name too, its own script, as the module typescript's: the line of a red
 //   guard (`grillhouse <garde>`, scripts/gardes-du-cadre.mjs) names a command that exists.
-// - `tester` plays the tests of each crate chosen, one crate after the other. For a crate that
-//   plays tests (./composants.mjs, `joueDesTests`): the build of its test targets, `cargo test
-//   --no-run -p <crate>`, a task `build` of its own, as Turborepo's `test` depends on `build`
-//   (grillhouse-egm); then `cargo nextest run -p <crate> --no-fail-fast`, which finds them built.
-//   Then `cargo test --doc -p <crate>` for a crate whose library has doctests, which nextest does
-//   not play. A failed build leaves the crate's other tasks not played (`code` null): a test that
-//   does not compile is a red of the build, which the proof of the red reads as one (« construction
-//   de <crate> », scripts/circuit.mjs), and the tests play at the checks. The output of the build
-//   goes to its log, `<target>/grillhouse/<crate>-build.log`, the task's `journal` from the root,
-//   then to the error stream. A path, written from the root, chooses the crate that holds it; the
-//   source of a test target (`<crate>/tests/<nom>.rs`) builds and plays that target alone
-//   (`--test <nom>`), without the doctests. A path out of every crate, or in a crate without tests, is refused, named, and
-//   nothing plays (code 2). Without a path, every crate plays, or, under the circuit's mark
-//   (`GRILLHOUSE_DEPUIS_LE_VERT`), the crates the changes since the last green touch and their
-//   dependents (./touches.mjs), every crate when no last green counts. `--force` changes nothing:
-//   cargo keeps no result of a test to replay. Another option goes to nextest.
+// - `tester` plays the tests of the crates as tasks of Turborepo, the way of the module
+//   typescript's (scripts/langages/typescript/tests.mjs): `turbo run test:unit --filter=<crate>…`
+//   on the crates of the graph, each one a package with its own `package.json`
+//   (scripts/paquet-npm.mjs), the task of a crate whose inputs did not move replayed from
+//   Turborepo's cache; the frame selects nothing by the last green. A path, written from the root,
+//   chooses the crate that holds it (only its task plays) and reaches the task, made absolute, in
+//   the variable `GRILLHOUSE_TESTS` (`TESTS_CIBLES`, scripts/taches-du-graphe.mjs) beside the
+//   options, which the `env` of the task names: it enters its hash, so a run by path of a crate
+//   unchanged replays from the cache, and another path moves the hash. `--force` carries the moment
+//   of the run in the variable instead (`rejouer`), which no cached run holds: the task plays for
+//   real (`npm run test:forcer`). A path out of every crate, or in a crate without tests, or in a
+//   crate that is no package of the graph, is refused, named, and nothing plays (code 2). The exit
+//   code is Turborepo's.
+// - `tests-du-paquet <chemin>…` is the body of that task, which the `test:unit` script of a crate
+//   calls (`grillhouse tests-du-paquet <dossier du crate>`, written with the package): it never runs
+//   Turborepo, so `tester` and the task do not loop. For a crate that plays tests
+//   (./composants.mjs, `joueDesTests`): the build of its test targets, `cargo test --no-run -p
+//   <crate>`, a task `build` of its own, as Turborepo's `test` depends on `build` (grillhouse-egm);
+//   then `cargo nextest run -p <crate> --no-fail-fast`, which finds them built. Then `cargo test
+//   --doc -p <crate>` for a crate whose library has doctests, which nextest does not play. A failed
+//   build leaves the crate's other tasks not played (`code` null): a test that does not compile is
+//   a red of the build, which the proof of the red reads as one (« construction de <crate> »,
+//   scripts/circuit.mjs), and the tests play at the checks. The output of the build goes to its log,
+//   `<target>/grillhouse/<crate>-build.log`, the task's `journal` from the root, then to the error
+//   stream. The folder of a crate plays it whole; the source of a test target
+//   (`<crate>/tests/<nom>.rs`) builds and plays that target alone (`--test <nom>`), without the
+//   doctests; the paths of the variable `GRILLHOUSE_TESTS` that lie in the crate replace the folder.
+//   A path out of every crate, or in a crate without tests, is refused, named, and nothing plays
+//   (code 2). `--force` changes nothing here: cargo keeps no result of a test to replay. Another
+//   option goes to nextest.
 // - A test target is named by its file, as `*_nuit_test.py` and `*.budget.test.*` (grillhouse-wbk):
 //   `tests/<nom>_nuit.rs` (or `tests/<nom>_nuit/main.rs`, the target `<nom>_nuit`) is a night
 //   test, `tests/<nom>_budget.rs` a time budget bench. A crate played whole leaves both out of
@@ -43,18 +58,22 @@
 //   task while the CPU pressure of the machine (`lirePression` of ./jointure) is at or above its
 //   threshold at its start or at its end is « à repasser », 75, said in one line with the
 //   pressure; at rest, a red.
-// - `verifier` plays the tests of the crates the changes since the last green touch and of their
-//   dependents (every crate with `--tout`, or when no last green counts), as Turborepo's
-//   `--filter=...[<commit>]`, then `cargo deny check`; green, it keeps the last green
-//   (scripts/dernier-vert.mjs). It plays under the lock of the machine, one heavy measure at a
-//   time (`avecLaMachine` of ./jointure, as the module typescript's verifier): a measure that
-//   holds it makes it wait, and the bound of the wait reached, it stops at 75 without running
-//   cargo.
+// - `verifier` plays the tests of the crates as the tasks of Turborepo (`turbo run test:unit
+//   --filter=<crate>…`, each crate a package of the graph, the cache of the tasks selecting those
+//   that play again; `--tout` plays them for real, the moment of the pass in the variable
+//   `GRILLHOUSE_TESTS`), then `cargo deny check`, the only run of cargo of the pass. It keeps no
+//   green: the one pass of the verification keeps it (scripts/dernier-vert.mjs,
+//   scripts/langages/typescript/verifier.mjs). Beside the module of package.json, whose pass plays
+//   every task of the graph, the composed command sets `GRAPHE_JOUE` and `verifier` plays `cargo
+//   deny check` alone (scripts/commandes-composees.mjs). It plays under the lock of the machine, one heavy
+//   measure at a time (`avecLaMachine` of ./jointure, as the module typescript's verifier): a
+//   measure that holds it makes it wait, and the bound of the wait reached, it stops at 75 without
+//   running cargo.
 // - `verifier --gardes` plays the guards alone, the same verdict as the module typescript's: the
 //   project's root scripts `grillhouse:gardes` (the frame's guards) then `gardes` (its own), each
 //   one the package.json holds a task of the root, by npm, without its tests nor cargo deny, and
 //   keeps no last green.
-// - `tester`, `verifier` and `tests-de-nuit` play under a temporary directory of their pass, the module's guard of
+// - `tests-du-paquet`, `verifier` and `tests-de-nuit` play under a temporary directory of their pass, the module's guard of
 //   the temporary directory, as the CI of osc-bridge (OB-ud1.3): a base (`ouvrirBase` of
 //   ./jointure, genre `tests` or `verification`) in the temporary directory of the environment,
 //   named in TMPDIR, TMP and TEMP to cargo, which nextest and the doctests inherit; removed at the
@@ -68,8 +87,8 @@
 // - `typer`: `cargo check --all-targets`. `preparer`: `cargo fetch --locked`.
 // - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
 //   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr), its server started
-//   under the machine's /tmp before each run of cargo that compiles (grillhouse-qmk). `tester`, `verifier`
-//   and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
+//   under the machine's /tmp before each run of cargo that compiles (grillhouse-qmk).
+//   `tests-du-paquet`, `verifier` and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
 //   and `npx grillhouse maj`, which installs it (code 2).
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
 //   the project's own, `--tool-config-file`), whose JUnit report lands in nextest's store, at
@@ -79,7 +98,7 @@
 //   there what ./verdict.mjs reads: its tasks, each planned before it plays (`code` null until it
 //   ran), and the JUnit report of each run of nextest. A task of the workspace is named after its
 //   root, `//`, as Turborepo names the root's tasks.
-// - `tester`, `verifier` and `preparer` refuse, before any run of cargo, a workspace whose
+// - `tests-du-paquet`, `verifier` and `preparer` refuse, before any run of cargo, a workspace whose
 //   Cargo.lock git does not track (grillhouse-rph), in one line that names the file and the
 //   gesture: `git add Cargo.lock`, or `cargo generate-lockfile` first when it is absent. Cargo
 //   recommends committing it for every project, and the verification plays the exact versions of
@@ -88,6 +107,10 @@
 //   git, the integration's.
 // - The exit code: 0 when every task is green, 75 when the only reds are « à repasser », 1
 //   otherwise; 2 for a path refused, a Cargo.lock not tracked or a command unknown.
+// - `construire --echec <fichier> <plan>` is the launcher's build of the copy (scripts/enveloppe/lancer.sh),
+//   the core's one for every language (`construireDepuisLesArguments` of
+//   scripts/taches-du-graphe.mjs): the plan and its providers by `turbo run build --filter=<paquet>…`.
+//   `construire <chemin>` builds one crate (`cargo build -p`), as the script `build` of its package.
 import { spawnSync } from 'node:child_process';
 import {
   closeSync,
@@ -106,16 +129,19 @@ import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
   avecLaMachine,
-  CHANGEMENTS,
-  DEPUIS_LE_VERT,
+  cheminsDeLaTache,
+  construireDepuisLesArguments,
   ecrirePression,
-  garderLeVert,
+  GRAPHE_JOUE,
+  lancerLesTaches,
   ligneDesRestes,
   lirePression,
-  mesure,
+  nomDuPaquet,
   ouvrirBase,
   retirerALInterruption,
+  SCRIPT_DES_TESTS,
   SEUIL_PRESSION,
+  testsCibles,
   travailleursDeLaSeance,
 } from '../../services-du-noyau.mjs';
 import {
@@ -128,22 +154,31 @@ import {
   metadonnees,
 } from './composants.mjs';
 import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
-import { touchesDesFichiers } from './touches.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
 
 const ICI = fileURLToPath(import.meta.url);
 const NEXTEST = path.join(path.dirname(ICI), 'nextest.toml');
 const PROFIL = 'grillhouse';
-export const NOMS = ['tester', 'verifier', 'typer', 'construire', 'preparer', 'tests-de-nuit'];
+export const NOMS = [
+  'tester',
+  'tests-du-paquet',
+  'verifier',
+  'typer',
+  'construire',
+  'preparer',
+  'tests-de-nuit',
+];
+// The task runner of the graph of the packages.
+const OUTIL = 'turbo';
 const A_REPASSER = 75;
 const RACINE = '//';
 // The task of the time budget benches of a crate.
 const BUDGET = 'budget';
 const VERROU = 'Cargo.lock';
 // The commands that play the exact versions of the repository, refused without its Cargo.lock.
-const VERROUILLEES = ['tester', 'verifier', 'preparer', 'tests-de-nuit'];
+const VERROUILLEES = ['tests-du-paquet', 'verifier', 'preparer', 'tests-de-nuit'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
-const COMPILENT = ['tester', 'verifier', 'typer', 'construire', 'tests-de-nuit'];
+const COMPILENT = ['tests-du-paquet', 'verifier', 'typer', 'construire', 'tests-de-nuit'];
 // The kinds of a target that are no library.
 const PAS_UNE_BIBLIOTHEQUE = ['test', 'bin', 'example', 'bench', 'custom-build'];
 
@@ -320,21 +355,6 @@ function sousCharge(t, pressions) {
   t.code = A_REPASSER;
 }
 
-// The crates the changes since the last green of <racine> touch, and their dependents; every crate
-// with <tout> or without a last green that counts. `{ choix, m }`, `m` the measure.
-function depuisLeVert(racine, tous, tout, env) {
-  const m = mesure(racine, { tout, dans: env.TMPDIR });
-  process.stderr.write(`${m.ligne}\n`);
-  const f = m.env[CHANGEMENTS];
-  if (!f) {
-    return { choix: tous, m };
-  }
-  const ch = JSON.parse(readFileSync(f, 'utf8'));
-  const t = touchesDesFichiers(racine, [...ch.fichiers, ...ch.supprimes]);
-  const nommes = new Set([...t.touches, ...t.dependants].map(c => c.dossier));
-  return { choix: tous.filter(c => nommes.has(c.composant.dossier)), m };
-}
-
 // Plans and plays the tests of the crates <choix> in the run <p>, each `{ c, cibles }`: `cibles`
 // the test targets named, empty for the whole crate of the day (its night tests and its benches
 // left out). For a crate that plays tests:
@@ -453,7 +473,9 @@ function choisir(racine, tous, chemins) {
       refus.push(`${chemin} : hors de tout crate`);
       continue;
     }
-    if (!joueDesTests(racine, c)) {
+    // The folder of a crate without tests plays whole (its doctests, as the task of its package
+    // does); any other path in it names a test that does not exist.
+    if (!joueDesTests(racine, c) && abs !== c.dossier) {
       refus.push(`${chemin} : ${c.nom} n'a aucun test, ni dossier tests/, ni tests.rs sous src/`);
       continue;
     }
@@ -479,32 +501,57 @@ function choisir(racine, tous, chemins) {
   };
 }
 
+// The packages of the graph of the crates <crates>: `{ noms, absents }`, the names of those that are
+// packages of the graph, and the names of the crates that are not.
+function nomsDuGraphe(racine, crates) {
+  const noms = new Set();
+  const absents = [];
+  for (const c of crates) {
+    const nom = nomDuPaquet(racine, c.composant.dossier);
+    if (nom === null) {
+      absents.push(c.composant.nom);
+    } else {
+      noms.add(nom);
+    }
+  }
+  return { noms, absents };
+}
+
+// Says, on the error stream, each crate of <absents> that is no package of the graph: its tests do
+// not play, as a package without a `package.json` is out of Turborepo's tasks.
+function direLesAbsents(absents) {
+  for (const nom of absents) {
+    process.stderr.write(
+      `⚠️  ${nom} : pas un paquet du graphe (package.json absent) ; ses tests ne se jouent pas : npx grillhouse maj\n`
+    );
+  }
+}
+
 // The pass of `verifier` in <racine>, under the lock of the machine (<env> carries its mark): the
-// tests of the crates the changes since the last green touch, then cargo deny; green, it keeps the
-// last green.
+// tests of the crates as tasks of Turborepo (every one played for real with <args> `--tout`), then
+// cargo deny. It keeps no green.
 function verifier(racine, args, env) {
   const p = passe(racine, env);
   if (args.includes('--gardes')) {
     return gardes(racine, p);
   }
-  const tous = crates(racine);
-  const { choix, m } = depuisLeVert(racine, tous, args.includes('--tout'), env);
-  try {
-    jouerLesTests(
-      racine,
-      p,
-      choix.map(c => ({ c, cibles: [] })),
-      []
-    )();
-    p.jouer(p.prevoir(RACINE, racine, 'deny', false, ['deny', 'check']));
-    const code = p.code();
-    if (code === 0 && m.etat) {
-      garderLeVert(m.etat);
-    }
-    return code;
-  } finally {
-    m.retirer();
-  }
+  // Beside the module of package.json (composed command), its pass has played the tasks.
+  const { noms, absents } = env[GRAPHE_JOUE]
+    ? { noms: new Set(), absents: [] }
+    : nomsDuGraphe(racine, crates(racine));
+  direLesAbsents(absents);
+  const code = noms.size
+    ? lancerLesTaches({
+        outil: OUTIL,
+        racine,
+        taches: [SCRIPT_DES_TESTS],
+        noms,
+        tests: testsCibles({ arguments: [], force: args.includes('--tout') }),
+        env,
+      })
+    : 0;
+  p.jouer(p.prevoir(RACINE, racine, 'deny', false, ['deny', 'check']));
+  return code === 0 ? p.code() : 1;
 }
 
 // The scripts of guards of the project, in the order they play, as the module typescript's
@@ -581,11 +628,11 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   // `cargo check -p`), as Turborepo's task of one package; `typer` alone checks the workspace.
   let crate = null;
   // The launcher's `construire` (`--echec <fichier> <plan>`, scripts/enveloppe/lancer.sh) builds
-  // the copy for a session: a crate has no such build, and plays nothing.
+  // the copy for a session, the plan and its providers, as every language's.
   if (nom === 'construire' && args.includes('--echec')) {
-    return 0;
+    return construireDepuisLesArguments(OUTIL, args, racine);
   }
-  if (nom === 'construire' ||(nom === 'typer' && args.length)) {
+  if (nom === 'construire' || (nom === 'typer' && args.length)) {
     const [chemin, ...autres] = args;
     const abs = chemin === undefined ? null : path.resolve(racine, chemin);
     crate = abs === null ? undefined : crates(racine).find(x => x.composant.dossier === abs);
@@ -638,7 +685,10 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   }
   const tous = crates(racine);
   if (nom === 'tester') {
-    return sousLaBase('tests', env, envBase => tester(racine, tous, args, envBase));
+    return tester(racine, tous, args, env);
+  }
+  if (nom === 'tests-du-paquet') {
+    return sousLaBase('tests', env, envBase => testsDuPaquet(racine, tous, args, envBase));
   }
   if (nom === 'tests-de-nuit') {
     return sousLaBase('tests', env, envBase => testsDeNuit(racine, tous, envBase));
@@ -647,13 +697,13 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   return 2;
 }
 
-// The pass of `tester` in <racine>, the crates <tous>, its arguments <args>, under <env>.
+// The pass of `tester` in <racine>, the crates <tous>, its arguments <args>, under <env>: the tasks
+// `test:unit` of the crates the paths choose (every crate without a path) as Turborepo's, the
+// exit code its.
 function tester(racine, tous, args, env) {
-  const p = passe(racine, env);
   const chemins = args.filter(a => !a.startsWith('-'));
   const options = args.filter(a => a.startsWith('-') && a !== '--force');
-  let choix;
-  let m = null;
+  let choisis = tous;
   if (chemins.length) {
     const r = choisir(racine, tous, chemins);
     if (r.refus) {
@@ -662,18 +712,57 @@ function tester(racine, tous, args, env) {
       }
       return 2;
     }
-    choix = r.choix;
-  } else if (env[DEPUIS_LE_VERT]) {
-    ({ choix, m } = depuisLeVert(racine, tous, args.includes('--force'), env));
-    choix = choix.map(c => ({ c, cibles: [] }));
-  } else {
-    choix = tous.map(c => ({ c, cibles: [] }));
+    choisis = r.choix.map(x => x.c);
   }
-  try {
-    jouerLesTests(racine, p, choix, options)();
-  } finally {
-    m?.retirer();
+  const { noms, absents } = nomsDuGraphe(racine, choisis);
+  if (chemins.length && absents.length) {
+    process.stderr.write(
+      `⛔ ${absents.join(', ')} : pas un paquet du graphe (package.json absent) : npx grillhouse maj\n`
+    );
+    return 2;
   }
+  direLesAbsents(absents);
+  if (noms.size === 0) {
+    return 0;
+  }
+  return lancerLesTaches({
+    outil: OUTIL,
+    racine,
+    taches: [SCRIPT_DES_TESTS],
+    noms,
+    tests: testsCibles({
+      arguments: [...chemins.map(c => path.resolve(racine, c)), ...options],
+      force: args.includes('--force'),
+    }),
+    env,
+  });
+}
+
+// The pass of `tests-du-paquet` in <racine>, the crates <tous>, its arguments <args>, under <env>:
+// the body of the task `test:unit` of a crate. The paths its script names, completed by those of
+// the variable of the task that lie in the same crate.
+function testsDuPaquet(racine, tous, args, env) {
+  const donnes = args.filter(a => !a.startsWith('-'));
+  if (donnes.length === 0) {
+    process.stderr.write('⛔ tests-du-paquet : aucun chemin (un dossier de crate, ou un fichier de test).\n');
+    return 2;
+  }
+  const dossierDe = abs =>
+    composantDans(
+      tous.map(x => x.composant),
+      racine,
+      abs
+    )?.dossier ?? null;
+  const { chemins, options } = cheminsDeLaTache({ racine, donnes, env, dossierDe });
+  const r = choisir(racine, tous, chemins);
+  if (r.refus) {
+    for (const l of r.refus) {
+      process.stderr.write(`⛔ ${l}\n`);
+    }
+    return 2;
+  }
+  const p = passe(racine, env);
+  jouerLesTests(racine, p, r.choix, [...args.filter(a => a.startsWith('-')), ...options])();
   return p.code();
 }
 

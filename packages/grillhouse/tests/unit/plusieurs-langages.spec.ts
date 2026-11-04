@@ -54,11 +54,6 @@ function faux(nom: string, dossiers: string[], autres: Partial<Langage> = {}): L
       lit: new Map(o.composants.map(c => [c, new Set<Composant>()])),
       parLesTests: new Map(),
     }),
-    touches: () => ({
-      touches: comps.slice(0, 1),
-      dependants: [],
-      horsGraphe: ['racine.txt', `hors-de-${nom}`],
-    }),
     elementsDuLot: () => ({
       etat: 'fait',
       raison: null,
@@ -198,10 +193,8 @@ describe('grillhouse-akd, critère 1 — chaque fichier va au module du composan
     expect(r.types.etat).toBe('fait');
   });
 
-  it('the components touched: joined; a file out of the graph is out of every module’s', () => {
-    const t = AB.touches(RACINE, { depuis: 'HEAD' });
-    expect(t.touches.map(c => c.nom)).toEqual(['a', 'b']);
-    expect(t.horsGraphe).toEqual(['racine.txt']);
+  it('grillhouse-44b.5 critère 3: la jointure composée ne demande plus `touches` aux modules', () => {
+    expect(AB).not.toHaveProperty('touches');
   });
 
   it('the elements of a lot: joined; a source read by no element is the one its own module names', () => {

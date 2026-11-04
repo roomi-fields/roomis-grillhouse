@@ -7,10 +7,11 @@
 // Each case plays the real git in a repository of trial: main (the main tree, three files) and
 // the copies (worktrees) of tickets on branches `agent/<ticket>`.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import * as derniersVerts from '../../scripts/dernier-vert.mjs';
 import { garderLeVert, mesure } from '../../scripts/dernier-vert.mjs';
 import { restreindre } from '../../scripts/langages/typescript/vitest-config/changements.mjs';
 
@@ -277,5 +278,28 @@ describe('the complete pass', () => {
     const m = mesurer(r);
     expect(m.fichiers).toBeNull();
     expect(m.ligne).toMatch(/passe complète : le dernier vert n’est pas un ancêtre de HEAD/);
+  });
+});
+
+// grillhouse-44b.5, critère 9 : le dernier vert ne garde que la mesure des fichiers changés (pour
+// `vitest --changed`) et la pose du vert ; le vert différé d'un module de langage et le choix des
+// paquets à jouer par le dernier vert n'y sont plus.
+describe('grillhouse-44b.5 critère 9 — la mesure des fichiers changés et la pose du vert, seules', () => {
+  it('le module publie la mesure, la pose et les variables de la mesure, plus la variable du vert différé', () => {
+    expect(Object.keys(derniersVerts).sort()).toEqual(
+      ['CHANGEMENTS', 'DEPUIS_LE_VERT', 'garderLeVert', 'mesure'].sort()
+    );
+  });
+
+  it('garderLeVert pose le vert, que le dossier d’un fichier de verts différés soit nommé ou non', () => {
+    const r = depot();
+    const differe = path.join(mkdtempSync(path.join(ESSAIS, 'differe-')), 'verts');
+    const m = mesure(r) as { etat: unknown; retirer: () => void };
+    m.retirer();
+    garderLeVert(m.etat, { GRILLHOUSE_VERT_DIFFERE: differe });
+    // Le vert est posé, et rien n'est différé dans le fichier nommé.
+    expect(existsSync(differe)).toBe(false);
+    modifier(r, 'a.txt');
+    expect(mesurer(r).fichiers).toEqual(['a.txt']);
   });
 });

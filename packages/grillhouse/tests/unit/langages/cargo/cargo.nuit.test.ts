@@ -39,8 +39,10 @@ describe('grillhouse-pkl.3 — le module cargo contre le vrai cargo', () => {
         depots: { seul: string };
       };
       const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-      const c = cargo.commandes(depots.seul).tester;
-      const r = spawnSync(process.execPath, [c.script, ...c.args], {
+      // grillhouse-44b.5 : `tester` lance les tâches de Turborepo ; le corps de la tâche d'un
+      // crate est `tests-du-paquet`.
+      const c = cargo.commandes(depots.seul)['tests-du-paquet'];
+      const r = spawnSync(process.execPath, [c.script, ...c.args, '.'], {
         cwd: depots.seul,
         encoding: 'utf8',
         env: { ...process.env, GRILLHOUSE_RESULTATS: resultats },

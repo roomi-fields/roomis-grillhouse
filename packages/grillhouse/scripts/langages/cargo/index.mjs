@@ -15,14 +15,14 @@
 // - The components, a file's, the shared test material, the components that play tests, the
 //   readers of a crate, the rule of a test file and what the testwriter writes of the manifests
 //   (./composants.mjs).
-// - The crates touched since a commit and their dependents (./touches.mjs).
 // - The elements of a lot, one per crate (./elements-du-lot.mjs).
-// - The commands `tester`, `verifier`, `typer`, `preparer` and `tests-de-nuit` (./commandes.mjs),
+// - The commands `tester` (the crates' tasks of Turborepo), `tests-du-paquet` (the body of a crate's
+//   task), `verifier`, `typer`, `preparer` and `tests-de-nuit` (./commandes.mjs),
 //   each described, `{ script, args }`, never run, `preparer` played by the integration before the
 //   verification, `tests-de-nuit` by the night (the test targets `tests/*_nuit.rs`, then the time
 //   budget benches `tests/*_budget.rs`, which the day leaves out);
 //   the verdict of a run (./verdict.mjs). The tool of a test's temporary directory, the crate
-//   `tempfile`, and its guard: `tester` and `verifier` play under a base of their pass, named in
+//   `tempfile`, and its guard: `tests-du-paquet` and `verifier` play under a base of their pass, named in
 //   TMPDIR, TMP and TEMP, and fail naming what the tests left there (./commandes.mjs).
 // - The generated file, the index of the interfaces (./index-interfaces.mjs), its command and its
 //   check; the guards of structure, in the order they play: the sizes of the tests
@@ -60,7 +60,6 @@ import { miseAJour } from './mise-a-jour.mjs';
 import * as taillesDesTests from './migrations/0.28.4-tailles-des-tests.mjs';
 import { squelette } from './squelette.mjs';
 import { CACHE, CIBLES } from './sccache.mjs';
-import { touches } from './touches.mjs';
 import { verdict } from './verdict.mjs';
 
 // The scripts of this module, beside this file.
@@ -120,7 +119,6 @@ export default {
   matieres,
   joueDesTests,
   lecteurs,
-  touches,
   elementsDuLot,
   commandes,
   verdict,

@@ -97,7 +97,9 @@ describe('grillhouse-3e2.3 — the tree played for real, in cargo', () => {
       const arbre = arbres.get(CIBLE) as Arbre;
       racineDeLArbre = arbre.racine;
       const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-      code = (lancer as (...a: unknown[]) => number)('tester', ['--force', CIBLE], {
+      // The body of the task of the crate (grillhouse-44b.5): `tester` hands it to Turborepo, which
+      // a tree without a graph does not run.
+      code = (lancer as (...a: unknown[]) => number)('tests-du-paquet', [CIBLE], {
         racine: arbre.racine,
         env: { ...process.env, ...arbre.env, [RESULTATS]: resultats },
       });

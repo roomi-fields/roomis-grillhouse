@@ -47,16 +47,6 @@ const reference: Langage = {
 // The defects, each the case it must fail.
 const MUTANTS: [string, string, Partial<Langage>][] = [
   [
-    'touches sans dépendants transitifs',
-    'touches',
-    {
-      touches: (racine: string, o: { depuis: string }) => {
-        const t = typescript.touches(racine, o);
-        return { ...t, dependants: t.dependants.slice(0, 1) };
-      },
-    },
-  ],
-  [
     'verdict qui lit le code 75 comme 1',
     'verdict',
     {
@@ -216,7 +206,6 @@ describe('grillhouse-3dr.2.1 — la suite de conformité de la jointure', { time
       'composants',
       'composantDe',
       'lecteurs',
-      'touches',
       'commandes',
       'verdict',
       'estUnTest',

@@ -95,7 +95,7 @@ describe('grillhouse-44b.4, décision 2 — la migration écrit les package.json
       const p = json(r, `${d}/package.json`);
       expect(p.private, d).toBe(true);
       expect(p.scripts.build, d).toMatch(new RegExp(`grillhouse construire ${c}$`));
-      expect(p.scripts['test:unit'], d).toMatch(new RegExp(`grillhouse tests ${c}$`));
+      expect(p.scripts['test:unit'], d).toMatch(new RegExp(`grillhouse tests-du-paquet ${c}$`));
       expect(p.scripts.typecheck, d).toMatch(new RegExp(`grillhouse typer ${c}$`));
     }
   });

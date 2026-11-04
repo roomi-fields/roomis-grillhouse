@@ -32,6 +32,7 @@ import {
   espaceDesProcessus,
   socketDuServeur,
 } from '../../../../scripts/langages/cargo/sccache.mjs';
+import { installerFauxTurbo } from '../../faux-turbo.js';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
 
 const cargo = module as unknown as Langage;
@@ -45,7 +46,9 @@ const JOURNAL = path.join(ESSAIS, 'journal');
 const MAISON_DES_ESSAIS = path.join(ESSAIS, 'maison-des-essais');
 let restaurer = () => {};
 let d: Depots;
+let FAUX_TURBO: string;
 beforeAll(() => {
+  FAUX_TURBO = installerFauxTurbo(ESSAIS);
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), JOURNAL);
   d = (exemples.preparer(ESSAIS) as { depots: Depots }).depots;
 });
@@ -56,6 +59,11 @@ beforeEach(() => writeFileSync(JOURNAL, ''));
 // Runs the command <nom> of the module in <racine> with <args>, the codes <codes> of the fake
 // cargo, a results directory of its own: `{ code, stderr, appels, verdict }`, `appels` the calls
 // of cargo but metadata.
+//
+// grillhouse-44b.5 : `tester` lance les tâches de Turborepo (./tests-par-turbo.spec.ts) ; ce que ce
+// fichier mesure de `tester` (la construction des cibles, nextest, les doctests, le verdict, le
+// dossier temporaire, sccache) est le corps de la tâche, la commande `tests-du-paquet` d'un crate :
+// `lancer(…, 'tester', chemins)` la joue, sur les chemins nommés, ou sur chaque crate sans chemin.
 function lancer(
   racine: string,
   nom: string,
@@ -63,14 +71,25 @@ function lancer(
   codes: object = {},
   env: NodeJS.ProcessEnv = {}
 ) {
-  writeFileSync(JOURNAL, '');
   const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
+  if (nom === 'tester') {
+    nom = 'tests-du-paquet';
+    if (!args.some(a => !a.startsWith('-'))) {
+      args = [
+        ...args,
+        ...cargo.composants(racine).map(x => path.relative(racine, x.dossier) || '.'),
+      ];
+    }
+  }
+  // After the listing of the crates above, which writes its `metadata` line in this process.
+  writeFileSync(JOURNAL, '');
   const c = cargo.commandes(racine)[nom];
   const r = spawnSync(process.execPath, [c.script, ...c.args, ...args], {
     cwd: racine,
     encoding: 'utf8',
     env: {
       ...process.env,
+      PATH: `${FAUX_TURBO}${path.delimiter}${process.env.PATH ?? ''}`,
       HOME: MAISON_DES_ESSAIS,
       XDG_CACHE_HOME: '',
       GRILLHOUSE_RESULTATS: resultats,
@@ -95,6 +114,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     const c = cargo.commandes(d.espace);
     expect(Object.keys(c)).toEqual([
       'tester',
+      'tests-du-paquet',
       'verifier',
       'typer',
       'construire',
@@ -105,7 +125,15 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'frontieres',
       'index-interfaces',
     ]);
-    for (const nom of ['tester', 'verifier', 'typer', 'construire', 'preparer', 'tests-de-nuit']) {
+    for (const nom of [
+      'tester',
+      'tests-du-paquet',
+      'verifier',
+      'typer',
+      'construire',
+      'preparer',
+      'tests-de-nuit',
+    ]) {
       expect(c[nom]).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
     }
     expect(existsSync(path.join(MODULE, 'commandes.mjs'))).toBe(true);
@@ -164,26 +192,20 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     expect(lancer(d.seul, 'preparer').appels).toEqual(['fetch --locked']);
   });
 
-  it('verifier plays the tests, then cargo deny check', () => {
+  it('verifier plays cargo deny check, the tests being tasks of Turborepo (tests-par-turbo.spec.ts)', () => {
     const r = lancer(d.seul, 'verifier', ['--tout']);
     expect(r.code).toBe(0);
-    expect(r.appels).toEqual([
-      'test --no-run -p seul',
-      'nextest run --no-fail-fast -p seul',
-      'test --doc -p seul',
-      'deny check',
-    ]);
+    expect(r.appels).toEqual(['deny check']);
   });
 });
 
 describe('grillhouse-pkl.3, critère 8 — le verdict d’un lancement', () => {
   it('green: each task 0, each test of the JUnit report in its file', () => {
-    const v = lancer(d.seul, 'verifier', ['--tout']).verdict;
+    const v = lancer(d.seul, 'tester').verdict;
     expect(v.taches.map(t => [t.tache, t.code, t.tests])).toEqual([
       ['seul#build', 0, false],
       ['seul#nextest', 0, true],
       ['seul#doctest', 0, true],
-      ['//#deny', 0, false],
     ]);
     expect(v.rapports.map(r => [path.relative(d.seul, r.fichier), r.etat])).toEqual([
       ['src/lib.rs', 'passed'],
@@ -312,6 +334,7 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
       cwd: d.seul,
       env: {
         ...process.env,
+        PATH: `${FAUX_TURBO}${path.delimiter}${process.env.PATH ?? ''}`,
         HOME: MAISON_DES_ESSAIS,
         XDG_CACHE_HOME: '',
         GRILLHOUSE_RESULTATS: resultats,
@@ -326,35 +349,8 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
     dormeur.kill();
     expect(await fin, sortie).toBe(0);
     expect(sortie).toMatch(/verrou de la machine pris après/);
-    expect(lu(resultats).appels).toEqual([
-      'test --no-run -p seul',
-      'nextest run --no-fail-fast -p seul',
-      'test --doc -p seul',
-      'deny check',
-    ]);
+    expect(lu(resultats).appels).toEqual(['deny check']);
   }, 30_000);
-});
-
-describe('grillhouse-pkl.3 — verifier depuis le dernier vert', () => {
-  it('a change of ws-app plays ws-app and its dependents; a README alone plays no crate', () => {
-    const { espace } = (
-      exemples.preparer(mkdtempSync(path.join(ESSAIS, 'vert-'))) as { depots: Depots }
-    ).depots;
-    // No last green yet: every crate, and the green is kept.
-    expect(lancer(espace, 'verifier').code).toBe(0);
-    writeFileSync(path.join(espace, 'crates/app/src/lib.rs'), 'pub fn app() -> i32 {\n    2\n}\n');
-    const r = lancer(espace, 'verifier');
-    expect(r.code).toBe(0);
-    expect(r.appels).toEqual([
-      'test --no-run -p ws-app',
-      'nextest run --no-fail-fast -p ws-app',
-      'test --doc -p ws-app',
-      'test --doc -p ws-outil',
-      'deny check',
-    ]);
-    writeFileSync(path.join(espace, 'README.md'), '# Changé\n');
-    expect(lancer(espace, 'verifier').appels).toEqual(['deny check']);
-  });
 });
 
 // grillhouse-nt4: a pass of tests plays under a temporary directory of its own (TMPDIR, TMP,
@@ -372,10 +368,7 @@ describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un
   const motif = (dans: string, genre: string) =>
     new RegExp(`^${dans.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/grillhouse-${genre}-[^/]+/t$`);
 
-  for (const [nom, args, genre] of [
-    ['tester', [], 'tests'],
-    ['verifier', ['--tout'], 'verification'],
-  ] as const) {
+  for (const [nom, args, genre] of [['tester', [], 'tests']] as const) {
     it(`${nom}: a red nextest plays under TMPDIR, TMP and TEMP of the pass, then nothing stays and no leftover is named`, () => {
       const { dans, sonde } = essai();
       const r = lancer(
@@ -405,8 +398,8 @@ describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un
 
   it('tester interrupted (SIGINT) leaves nothing in the temporary directory', async () => {
     const { dans, sonde } = essai();
-    const c = cargo.commandes(d.seul).tester;
-    const enfant = spawn(process.execPath, [c.script, ...c.args], {
+    const c = cargo.commandes(d.seul)['tests-du-paquet'];
+    const enfant = spawn(process.execPath, [c.script, ...c.args, '.'], {
       cwd: d.seul,
       detached: true,
       stdio: 'ignore',
@@ -624,7 +617,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
 
   it('tester, verifier and typer give cargo the wrapper sccache and the common cache', () => {
     parSccache(compilateur(d.seul, 'tester'), ['build', 'nextest', 'test']);
-    parSccache(compilateur(d.seul, 'verifier', ['--tout']), ['build', 'nextest', 'test', 'deny']);
+    parSccache(compilateur(d.seul, 'verifier', ['--tout']), ['deny']);
     parSccache(compilateur(d.seul, 'typer'), ['check']);
   });
 
@@ -831,15 +824,6 @@ describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un 
 
   it('tester, verifier and typer start the server of the copy under /tmp before each build', () => {
     demarreAvant(appels(d.seul, 'tester'), [DEMARRE, 'build', DEMARRE, 'nextest', DEMARRE, 'test']);
-    demarreAvant(appels(d.seul, 'verifier', ['--tout']), [
-      DEMARRE,
-      'build',
-      DEMARRE,
-      'nextest',
-      DEMARRE,
-      'test',
-      'deny',
-    ]);
     demarreAvant(appels(d.seul, 'typer'), [DEMARRE, 'check']);
   });
 
@@ -897,23 +881,6 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
       'test --no-run -p seul',
       `${NEXTEST} --lib --bins --test bout`,
       'test --doc -p seul',
-    ]);
-  });
-
-  it('critères 1 et 5 — verifier plays neither the night test nor the bench', () => {
-    const r = lancer(racine, 'verifier', ['--tout'], {}, pression(0));
-    expect(r.code, r.stderr).toBe(0);
-    expect(r.appels).toEqual([
-      'test --no-run -p seul',
-      `${NEXTEST} --lib --bins --test bout`,
-      'test --doc -p seul',
-      'deny check',
-    ]);
-    expect(r.verdict.taches.map(t => t.tache)).toEqual([
-      'seul#build',
-      'seul#nextest',
-      'seul#doctest',
-      '//#deny',
     ]);
   });
 

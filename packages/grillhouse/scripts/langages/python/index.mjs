@@ -18,9 +18,10 @@
 //   `requires-python` and `.python-version`. The rules that refuse a role that writes pytest run
 //   directly (`droits`).
 // - The packages, a file's, the test files, what the testwriter writes, of the manifests too, the
-//   readers, the entries of the index of the interfaces (./composants.mjs); the packages touched
-//   since a commit and the elements of a lot (./lot.mjs).
-// - The commands `tester`, `verifier`, `typer`, `preparer` and `tests-de-nuit` (./commandes.mjs),
+//   readers, the entries of the index of the interfaces (./composants.mjs); the elements of a lot
+//   (./lot.mjs).
+// - The commands `tester` (the projects' tasks of Turborepo), `tests-du-paquet` (the body of a
+//   project's task), `verifier`, `typer`, `preparer` and `tests-de-nuit` (./commandes.mjs),
 //   each described, never run, and the verdict of a run (./verdict.mjs); the guard of the sizes of
 //   the tests (./tailles-des-tests.mjs) and the index of the interfaces up to date, each a command
 //   by its name too. The generated file, the index of the interfaces (./index-interfaces.mjs), its
@@ -47,7 +48,7 @@ import {
   nomDuManifeste,
 } from './composants.mjs';
 import { enRetard, SORTIE } from './index-interfaces.mjs';
-import { elementsDuLot, touches } from './lot.mjs';
+import { elementsDuLot } from './lot.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
 import { verdict } from './verdict.mjs';
@@ -86,7 +87,6 @@ export default {
   matieres: () => [],
   joueDesTests,
   lecteurs,
-  touches,
   elementsDuLot,
   commandes,
   verdict,

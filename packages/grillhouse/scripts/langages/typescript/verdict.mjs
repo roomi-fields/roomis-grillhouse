@@ -21,7 +21,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { RESULTATS } from '../../resultats.mjs';
-import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
+import { SCRIPT_DES_TESTS } from '../../services-du-noyau.mjs';
 import { VITEST } from './vitest-config/resultats.mjs';
 
 const TURBO = 'turbo';

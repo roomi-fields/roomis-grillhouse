@@ -64,9 +64,22 @@ function projet() {
 // Runs the command <nom> of the module in <racine> with <args>, the fake uv first on the PATH:
 // `{ code, stderr, appels, verdict }`, `appels` the calls of uv, each `{ args, cwd, pycache, venv,
 // cache, tmpdir }`.
+// grillhouse-44b.5 : `tester` lance les tâches de Turborepo (./tests-par-turbo.spec.ts) ; ce que ce
+// fichier mesure de `tester` (pytest, son rapport, les caches, le dossier temporaire, les tests de
+// nuit) est le corps de la tâche, la commande `tests-du-paquet` d'un projet : `lancer(…, 'tester',
+// chemins)` la joue, sur les chemins nommés, ou sur chaque projet sans chemin.
 function lancer(racine: string, nom: string, args: string[] = [], env: NodeJS.ProcessEnv = {}) {
   writeFileSync(JOURNAL, '');
   const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
+  if (nom === 'tester') {
+    nom = 'tests-du-paquet';
+    if (!args.some(a => !a.startsWith('-'))) {
+      args = [
+        ...args,
+        ...python.composants(racine).map(x => path.relative(racine, x.dossier) || '.'),
+      ];
+    }
+  }
   const c = python.commandes(racine)[nom];
   const r = spawnSync(process.execPath, [c.script, ...c.args, ...args], {
     cwd: racine,

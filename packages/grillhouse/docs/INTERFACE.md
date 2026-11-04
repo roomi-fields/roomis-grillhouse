@@ -56,16 +56,17 @@ garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 - un fichier va au module du composant qui le tient, le plus profond ; un fichier hors de tout
   composant, au premier module dont la réponse n'est pas nulle (`estUnTest`, `horsDuJour`, `soeurDAvant`, `arbreDAvant`,
   `testsDeHead`, `manifestes.horsDesTests`) ;
-- les lecteurs, les composants touchés et les éléments d'un lot sont ceux de chaque module sur ses
-  composants, réunis : un nom sans fournisseur l'est dans chaque module, un fichier hors du graphe
-  l'est de chaque module ; le verdict d'une passe, celui de chaque module, lu dans le même dossier
+- les lecteurs et les éléments d'un lot sont ceux de chaque module sur ses
+  composants, réunis : un nom sans fournisseur l'est dans chaque module ; le verdict d'une passe, celui de chaque module, lu dans le même dossier
   de résultats ;
 - chaque commande d'un module est la commande composée de son nom
   (`scripts/commandes-composees.mjs`) : chaque module qui la décrit la joue avec son outil, l'un
-  après l'autre ; pour `tester`, chaque chemin va au module de son composant, et un module sans
-  chemin ne joue pas ; le code est 0 quand chaque module est vert, 75 quand les seuls rouges sont
-  « à repasser », sinon le premier autre ; le dernier vert se garde une fois, quand chaque module a
-  joué vert ;
+  après l'autre ; pour `tester`, `tests-du-paquet`, `construire` et `typer`, chaque chemin va au
+  module de son composant, et un module sans chemin ne joue pas ; le code est 0 quand chaque
+  module est vert, 75 quand les seuls rouges sont « à repasser », sinon le premier autre ; la
+  commande composée ne garde aucun vert et n'en confie aucun à différer à un module : le dernier
+  vert se garde par la seule passe de la vérification, une fois, quand toutes les tâches de tous les
+  langages du graphe sont vertes ;
 - les gardes, les fichiers engendrés, les migrations et la matière de test partagée sont ceux de
   chaque module, sauf l'index des interfaces, que chaque module engendre : il en reste un seul,
   celui du noyau (`scripts/index-interfaces.mjs`), assemblé des entrées de chaque module
@@ -195,10 +196,6 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   lisent ses tests (`parLesTests` : leurs imports ; `cargo`, ses dépendances de développement),
   d'où `--etendre` tire l'ordre du plan. Le relevé des composants touchés
   (`composants-affectes`) y ajoute les chemins lus et l'architecture.
-- `touches` : les composants touchés depuis un commit, leurs dépendants, transitivement, et les
-  fichiers hors de tout composant (`{ touches, dependants, horsGraphe }`), comme le
-  `--filter=...[<commit>]` de Turborepo ; `cargo`, un fichier de l'espace de travail lui-même
-  (`Cargo.toml`, `Cargo.lock` à la racine) touche tous les crates.
 - `elementsDuLot` : les éléments qu'un lot ajoute, change ou supprime entre deux commits, chacun à
   sa place, les fichiers qu'il change, et les sources dont le module ne lit aucun élément ; le
   circuit les donne au relecteur.
@@ -222,9 +219,20 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     `dependances-internes` refuse un `package.json` dont les dépendances internes diffèrent de
     `Cargo.toml` (`path = …`) ou de `pyproject.toml` (`[tool.uv.sources]`) ;
   - `construire --echec <fichier> <plan>`, que le lanceur joue dans la copie préparée, pour que la
-    séance trouve construit ce qu'elle lit (`typescript`, la construction par Turborepo) : une
-    construction en échec écrit dans `<fichier>` sa première ligne, puis sa sortie, et rend 0 ;
-    tout autre échec rend un autre code et arrête le lancement ;
+    séance trouve construit ce qu'elle lit : une seule implémentation du noyau pour tous les
+    langages (`construireDepuisLesArguments`), la construction par Turborepo du plan et de ses
+    fournisseurs (`turbo run build --filter=<paquet>…`), la copie entière pour un plan dont un
+    chemin n'est pas un paquet du graphe ; une construction en échec écrit dans `<fichier>` sa
+    première ligne, puis sa sortie, et rend 0 ; tout autre échec rend un autre code et arrête le
+    lancement ;
+  - `tests-du-paquet <chemin>…` (`cargo`, `python`), le corps de la tâche `test:unit` d'un paquet,
+    que le script `test:unit` de son `package.json` appelle (`grillhouse tests-du-paquet
+    <dossier>`, que `npx grillhouse paquet` écrit) : nextest et les doctests d'un crate, ou
+    pytest d'un projet Python, sans relancer Turborepo, donc sans la boucle que ferait `tester`.
+    `tester` de ces langages lance `turbo run test:unit` sur les paquets du langage (les chemins
+    nommés choisissent leurs paquets et passent à la tâche par `GRILLHOUSE_TESTS`, qui entre dans
+    son hash ; `--force` y porte le moment du rejeu), et le cache des tâches choisit ce qui se
+    rejoue ;
   - `tests-de-nuit`, que la nuit joue après la passe complète : les tests de nuit, puis les
     mesures de temps seules, qu'aucune autre commande ne joue sans les nommer (`typescript`, les
     tests de nuit puis les bancs de temps et les témoins de temps, un fichier à la fois, par
@@ -318,8 +326,17 @@ lourde, qui garde tous les cœurs ; une valeur fautive est refusée par son nom)
 les arbitrages d'un ticket, les fichiers sources d'un projet, les paquets d'un langage sans
 `package.json` à lui (`paquetsSansPackageJson(racine)` : les crates et les projets Python que le
 tableau des composants de `docs/ARCHITECTURE.md` déclare, chacun `{ langage, chemin, nom }`, `nom`
-celui du manifeste ; le module typescript en exclut les tâches `test:unit` et `typecheck`, que la
-passe de leur propre module joue), et la lecture unique
+celui du manifeste ; le `tester` du module typescript en exclut les tâches `test:unit`, que le
+`tester` de leur propre module joue, mais sa passe de vérification les joue toutes, avec le
+dernier vert qu'elle pose seule), les tâches du graphe des paquets (`lancerLesTaches` : les
+tâches de Turborepo de paquets nommés, les chemins nommés dans la variable `GRILLHOUSE_TESTS` ; `nomDuPaquet` ;
+`testsCibles` ; `cheminsDeLaTache` ; `construireDepuisLesArguments`, le lanceur de la copie d'un
+agent, le même pour tout langage, que le module appelle en lui donnant l'outil des tâches ;
+`SCRIPT_DES_TESTS` et `TESTS_CIBLES`, le nom du script des tests et celui de la variable des
+chemins, uniques pour tout langage, typescript compris ; `GRAPHE_JOUE`, que la commande composée
+pose aux modules qui jouent à côté du module de `package.json`, dont la passe joue déjà toutes les
+tâches du graphe ; `PASSE_ROUGE`, que la commande composée pose à un module qui joue après un
+module rouge : la passe de la vérification ne pose alors aucun vert ; `TRACE`, `tracesDuPlan`), et la lecture unique
 (`luUneFois(cle, lire)` : ce qu'un module lit à grand coût, les métadonnées de cargo, ses
 composants, se lit une fois tant que le noyau tient une portée de lecture unique, un geste qui
 pose beaucoup de questions sur un arbre immobile, le balayage des sœurs ; à chaque appel hors

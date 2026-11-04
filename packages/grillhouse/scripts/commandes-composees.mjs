@@ -13,26 +13,29 @@
 //   results directory included (`GRILLHOUSE_RESULTATS`), where each module writes under names of
 //   its own. A line on the error stream names each module before it plays, so that what a
 //   command prints on its standard output stays its own.
-// - `tester`, `construire` and `typer` (the last two: one package, as the scripts of its
-//   package.json call them): an argument that begins with « - » is an option, given to every module; any other is
+// - `tester`, `tests-du-paquet`, `construire` and `typer` (the last three: one package, as the
+//   scripts of its package.json call them): an argument that begins with « - » is an option, given to every module; any other is
 //   a path from the root, given to the module of the component that holds it
 //   (`moduleDuFichier`), or out of every component to the first module whose rule of a test file
 //   judges it (`estUnTest`). With paths, the modules that receive none do not play. A path no
 //   module takes is refused, named, and nothing plays (code 2).
-// - The last green (scripts/dernier-vert.mjs) is kept once, after the last module: while the
-//   modules play, a module green defers its own (`VERT_DIFFERE`); when every module played green
-//   and each deferred one, the first deferred is kept, the state of the repository when the pass
-//   began. A pass with one module red keeps none, so that the next pass plays its changes again.
+// - The launcher's `construire --echec <fichier> <plan>` is one implementation for every language
+//   (scripts/taches-du-graphe.mjs): the first module plays it, once.
+// - No green is kept here, and no module is given one to defer: the last green
+//   (scripts/dernier-vert.mjs) is kept by the one pass of the verification, once, when every task
+//   of every language of the graph is green (scripts/langages/typescript/verifier.mjs). A module
+//   that plays after a red one gets `PASSE_ROUGE` in its environment: that pass keeps none.
+// - `verifier`: the module of package.json passes over the whole graph (every task of every
+//   language, once); the others get `GRAPHE_JOUE` and play no task of it again (cargo: its
+//   `deny check` alone), so that nextest and pytest play once.
 // - The exit code: 0 when every module is green, 75 when the only reds are « à repasser », else the
 //   first other code; 128 plus the number of a signal that ended a module.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { constants, tmpdir } from 'node:os';
-import path from 'node:path';
+import { constants } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { moduleDuFichier } from './composition-des-langages.mjs';
-import { garderLeVert, VERT_DIFFERE } from './dernier-vert.mjs';
 import { langagesDe } from './langages.mjs';
+import { GRAPHE_JOUE, PASSE_ROUGE } from './taches-du-graphe.mjs';
 
 /** This script, the one every composed command runs. */
 export const SCRIPT = fileURLToPath(import.meta.url);
@@ -48,14 +51,18 @@ export const unir = codes =>
   (codes.some(c => c === A_REPASSER) ? A_REPASSER : 0);
 
 // The commands whose path arguments go to the module of the component that holds each.
-const PAR_CHEMIN = ['tester', 'construire', 'typer'];
+const PAR_CHEMIN = ['tester', 'tests-du-paquet', 'construire', 'typer'];
 
 // The arguments of each module of <modules> for the command <nom>: `{ parts: [{ module, args }] }`,
 // or `{ refus }`, the paths no module takes.
 function repartir(nom, args, modules, racine) {
-  // `construire` and `typer` name a package by its path, as `tester`; the launcher's `construire`
-  // (`--echec <fichier> <plan>`) names none.
-  if (!PAR_CHEMIN.includes(nom) || args.includes('--echec')) {
+  // `construire` and `typer` name a package by its path, as `tester`.
+  // The launcher's build is one implementation for every language (scripts/taches-du-graphe.mjs): it
+  // plays once, by the first module, not once per module (each would build the same copy again).
+  if (nom === 'construire' && args.includes('--echec')) {
+    return { parts: modules.slice(0, 1).map(module => ({ module, args })) };
+  }
+  if (!PAR_CHEMIN.includes(nom)) {
     return { parts: modules.map(module => ({ module, args })) };
   }
   const estChemin = a => !a.startsWith('-');
@@ -115,40 +122,31 @@ export function jouer(
     }
     return 2;
   }
-  const dossier = mkdtempSync(path.join(tmpdir(), 'grillhouse-vert-differe-'));
-  const differe = path.join(dossier, 'verts');
-  try {
-    const codes = r.parts.map(({ module, args: siens }) => {
-      const c = module.commandes(racine)[nom];
-      dire(`▶ ${module.nom} : ${nom}`);
-      const p = spawnSync(process.execPath, [c.script, ...c.args, ...siens], {
-        cwd: racine,
-        stdio: 'inherit',
-        env: { ...env, [VERT_DIFFERE]: differe },
-      });
-      if (p.error) {
-        process.stderr.write(`⛔ ${module.nom} : ${nom} : ${p.error.message}\n`);
-        return 1;
-      }
-      return p.status ?? 128 + (constants.signals[p.signal ?? 'SIGTERM'] ?? 0);
+  // A module that plays after a red one is told so (PASSE_ROUGE): the one pass of the verification
+  // keeps no green then.
+  const codes = [];
+  const duGraphe = r.parts.find(x => x.module.manifeste === 'package.json')?.module;
+  for (const { module, args: siens } of r.parts) {
+    const c = module.commandes(racine)[nom];
+    dire(`▶ ${module.nom} : ${nom}`);
+    const rouge = codes.some(x => x !== 0);
+    const p = spawnSync(process.execPath, [c.script, ...c.args, ...siens], {
+      cwd: racine,
+      stdio: 'inherit',
+      env: {
+        ...env,
+        ...(rouge ? { [PASSE_ROUGE]: '1' } : {}),
+        ...(nom === 'verifier' && module !== duGraphe && duGraphe ? { [GRAPHE_JOUE]: '1' } : {}),
+      },
     });
-    const code = unir(codes);
-    let verts = [];
-    try {
-      verts = readFileSync(differe, 'utf8')
-        .split('\n')
-        .filter(Boolean)
-        .map(l => JSON.parse(l));
-    } catch {
-      verts = [];
+    if (p.error) {
+      process.stderr.write(`⛔ ${module.nom} : ${nom} : ${p.error.message}\n`);
+      codes.push(1);
+    } else {
+      codes.push(p.status ?? 128 + (constants.signals[p.signal ?? 'SIGTERM'] ?? 0));
     }
-    if (code === 0 && verts.length > 0 && verts.length === r.parts.length) {
-      garderLeVert(verts[0], {});
-    }
-    return code;
-  } finally {
-    rmSync(dossier, { recursive: true, force: true });
   }
+  return unir(codes);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

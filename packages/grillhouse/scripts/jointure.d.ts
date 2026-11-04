@@ -230,10 +230,6 @@ export interface Composition {
     racine: string,
     o: { composants: Composant[]; noms: string[]; texte: string; nommes: Composant[] }
   ): Lecteurs;
-  touches(
-    racine: string,
-    o: { depuis: string }
-  ): { touches: Composant[]; dependants: Composant[]; horsGraphe: string[] };
   elementsDuLot(racine: string, o: { avant: string; apres: string }): ElementsDuLot;
   commandes(
     racine: string
@@ -415,9 +411,13 @@ export function ecrirePression(p: number | null): string;
 export const CHANGEMENTS: string;
 /** The variable naming the commit of the last green a run measures itself from. */
 export const DEPUIS_LE_VERT: string;
-/** Keeps the green of a pass, which the next one measures itself from; deferred to the file
- * `GRILLHOUSE_VERT_DIFFERE` of `env` names, in a project of several languages. */
-export function garderLeVert(etat: unknown, env?: NodeJS.ProcessEnv): void;
+/** The variable the composed command sets for a module that plays after a module whose pass was
+ * red: the pass of the verification then keeps no green. */
+export const PASSE_ROUGE: string;
+/** Keeps the green of a pass, which the next one measures itself from: the one pass of the
+ * verification keeps it, once, when every task of every language of the graph is green; no module
+ * of language keeps one. */
+export function garderLeVert(etat: unknown): void;
 /** The measure of the repository at `racine` against its last green. */
 export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): unknown;
 /** The workers a session of an agent plays its tests on (`GRILLHOUSE_TRAVAILLEURS` of `env`), or
@@ -439,6 +439,57 @@ export function sources(racine: string, dossier?: string): string[];
 export function paquetsSansPackageJson(
   racine: string
 ): { langage: string; chemin: string; nom: string }[];
+/** The name of the script and of the task of the tests of a package, the same for every language. */
+export const SCRIPT_DES_TESTS: string;
+/** The name of the environment variable that carries the paths and the options of a targeted run
+ * to the task of the tests (`{ arguments, rejouer? }` in JSON), the same for every language. */
+export const TESTS_CIBLES: string;
+/** The variable the composed command sets for the modules of a `verifier` that plays beside the
+ * module of package.json, whose pass already plays every task of the graph: they play none. */
+export const GRAPHE_JOUE: string;
+/** The beginning of the name of a trace task, the output of a package that another's tests read. */
+export const TRACE: string;
+/** The name of the package of the graph whose folder is `dossier` (absolute) in `racine`, or null
+ * when that folder is no package of the graph (scripts/taches-du-graphe.mjs). */
+export function nomDuPaquet(racine: string, dossier: string): string | null;
+/** Runs the tasks `taches` of the packages `noms` (all when empty) with the task runner `outil`,
+ * each task whose dependencies succeed played to its end: the runner's exit code. `tests` is the
+ * content of the variable `TESTS_CIBLES` of the run; the variable of `env` never passes on. */
+export function lancerLesTaches(o: {
+  outil: string;
+  racine: string;
+  taches: string[];
+  noms?: Iterable<string>;
+  tests?: { arguments: string[]; rejouer?: string };
+  env?: NodeJS.ProcessEnv;
+}): number;
+/** The content of the variable `TESTS_CIBLES` for a targeted run: the paths and options it names, and
+ * the moment of the run when `force` (the task plays for real); undefined when there is nothing to
+ * carry. */
+export function testsCibles(o: {
+  arguments: string[];
+  force?: boolean;
+}): { arguments: string[]; rejouer?: string } | undefined;
+/** The paths and the options of a task of the tests of a package, run by its script: the paths
+ * `donnes` its script names, each replaced by those of the variable `TESTS_CIBLES` of `env` that
+ * lie in the same component (`dossierDe`: the folder of the component of an absolute path, or
+ * null), and the options of the variable. */
+export function cheminsDeLaTache(o: {
+  racine: string;
+  donnes: string[];
+  env?: NodeJS.ProcessEnv;
+  dossierDe: (absolu: string) => string | null;
+}): { chemins: string[]; options: string[] };
+/** The trace tasks of a plan of the runner (`run … --dry=json`, parsed), those `garder` keeps: their
+ * task ids, sorted. */
+export function tracesDuPlan(
+  plan: { tasks: { task: string; taskId: string }[] },
+  garder?: (t: any) => boolean
+): string[];
+/** The command `construire --echec <fichier> <plan>` of a module, run from the root of the copy:
+ * builds the plan and its providers with the task runner `outil`, `run build --filter=<paquet>…`
+ * (the whole copy for a plan with a path that is no package); its exit code. */
+export function construireDepuisLesArguments(outil: string, args: string[], racine?: string): number;
 /** What `lire` returns, read once under `cle` while the core holds a scope of readings done once
  * (a sweep that asks many questions of a tree that does not move), at each call otherwise
  * (scripts/lecture-unique.mjs). */

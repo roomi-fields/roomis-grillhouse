@@ -43,13 +43,13 @@
 //   files played to those Vitest relates to them, the files named themselves kept, or leave every
 //   test when a change lies out of Vitest's graph.
 //
-// This module's top level uses Node alone: scripts/langages/typescript/tests.mjs reads its VARIABLE.
 import { globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { CHANGEMENTS } from '../../../services-du-noyau.mjs';
+import { CHANGEMENTS, TESTS_CIBLES } from '../../../services-du-noyau.mjs';
 import { lireChangements, restreindre } from './changements.mjs';
 
-export const VARIABLE = 'GRILLHOUSE_TESTS';
+// The name of the variable is the core's (`TESTS_CIBLES`); this module reads it under its own name.
+export const VARIABLE = TESTS_CIBLES;
 // The day's exclusions, which the base configuration (./base.mjs) sets and the night plays
 // (scripts/langages/typescript/vitest.nuit.config.mjs): the night tests, too long for the day, and the time budget
 // benches, whose measures move with the load of the day.

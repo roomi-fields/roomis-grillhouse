@@ -12,12 +12,6 @@
 //   shared test material, the components whose package exports `./test-fixtures` (`matieres`); a
 //   component plays tests when its package.json holds the script `test:unit` (`joueDesTests`),
 //   which Turborepo runs in it (./tests.mjs).
-// - The components touched since a commit: the files git sees changed since it, the working tree
-//   and the untracked files included (`git diff --name-only <depuis>`, `git ls-files -o
-//   --exclude-standard`), each in its component, and the components that depend on them by their
-//   package.json (its `dependencies`, `devDependencies`, `optionalDependencies` and
-//   `peerDependencies` that name another component), transitively, as Turborepo's
-//   `--filter=...[<depuis>]`; a file out of every component is out of the graph.
 // - The elements of a lot (./elements-du-lot.mjs).
 // - Where its tools write, which the envelope opens to a session (`sorties`), and the rules that
 //   refuse a role that writes the test tool run directly (`droits`).
@@ -57,7 +51,7 @@ import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest, manifestes, soeurDAvant } from './regle-des-tests.mjs';
-import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
+import { SCRIPT_DES_TESTS } from '../../services-du-noyau.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
@@ -74,7 +68,6 @@ const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 const requis = createRequire(import.meta.url);
 const ici = nom => path.join(SCRIPTS, nom);
 const generateur = (script, ...args) => [`node ${JSON.stringify(ici(script))}`, ...args].join(' ');
-const CHAMPS = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
 
 const composants = racine =>
   lesComposants(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet }));
@@ -106,57 +99,6 @@ const lireJson = f => {
     return null;
   }
 };
-
-const lignesDeGit = (racine, args) => {
-  const r = spawnSync('git', ['-C', racine, ...args, '-z'], {
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  if (r.status !== 0) throw new Error(`⛔ git ${args.join(' ')} : ${r.stderr.trim()}`);
-  return r.stdout.split('\0').filter(Boolean);
-};
-
-// The components touched in <racine> since the commit <depuis>, their dependents, and the files
-// out of every component.
-function touches(racine, { depuis }) {
-  const liste = composants(racine);
-  const fichiers = new Set([
-    ...lignesDeGit(racine, ['diff', '--name-only', '--no-renames', depuis]),
-    ...lignesDeGit(racine, ['ls-files', '-o', '--exclude-standard']),
-  ]);
-  const touches = new Set();
-  const horsGraphe = [];
-  for (const f of fichiers) {
-    const c = composantDans(liste, racine, f);
-    if (c) touches.add(c);
-    else horsGraphe.push(f);
-  }
-  // The components that read each one, by the packages their package.json names.
-  const parPaquet = new Map(liste.filter(c => c.paquet).map(c => [c.paquet, c]));
-  const lecteursDe = new Map(liste.map(c => [c, new Set()]));
-  for (const c of liste) {
-    const pkg = lireJson(path.join(c.dossier, 'package.json')) ?? {};
-    for (const nom of new Set(CHAMPS.flatMap(ch => Object.keys(pkg[ch] ?? {})))) {
-      const lu = parPaquet.get(nom);
-      if (lu && lu !== c) lecteursDe.get(lu).add(c);
-    }
-  }
-  const dependants = new Set();
-  const suivre = c => {
-    for (const l of lecteursDe.get(c)) {
-      if (touches.has(l) || dependants.has(l)) continue;
-      dependants.add(l);
-      suivre(l);
-    }
-  };
-  for (const c of touches) suivre(c);
-  const parNom = (a, b) => a.nom.localeCompare(b.nom);
-  return {
-    touches: [...touches].sort(parNom),
-    dependants: [...dependants].sort(parNom),
-    horsGraphe: horsGraphe.sort(),
-  };
-}
 
 // TypeScript's compiler, the project's at <racine>, else the frame's.
 function compilateur(racine) {
@@ -280,7 +222,6 @@ export default {
     matieres(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet })),
   joueDesTests,
   lecteurs,
-  touches,
   elementsDuLot,
   commandes: racine => ({
     tester: { script: ici('tests.mjs'), args: [] },

@@ -2,7 +2,7 @@
 // (scripts/conformite.mjs) finds no fault in it, on its entries (scripts/langages/python/
 // exemples.mjs), against the fake uv first on the PATH (./faux-uv.ts). Each case has a defective
 // entry that finds something, but `matieres`: Python has no shared test material. Beside the suite:
-// `verifier`, which plays the packages the changes since the last green touch, and keeps it;
+// the body of the task of the tests (`tests-du-paquet`);
 // `verifier --gardes`, the project's guards alone; the index of the interfaces, its entries, its
 // check, and `index-interfaces --publie` in a project of Python alone, which the launcher reads
 // before every session (scripts/enveloppe/lancer.sh).
@@ -94,50 +94,35 @@ describe('grillhouse-ziy — le module python passe la suite de conformité', ()
   });
 });
 
-describe('grillhouse-ziy — verifier, depuis le dernier vert', () => {
-  it('green, it keeps the last green; then it plays the packages the changes since touch', () => {
-    const dans = mkdtempSync(path.join(ESSAIS, 'vert-'));
-    const { projet } = (exemples.preparer(dans) as { depots: Depots }).depots;
-    const c = commande(projet, 'verifier');
-    const premier = lancer(projet, c.script, c.args);
-    expect(premier.code, premier.stderr).toBe(0);
-    expect(taches(premier)).toEqual(['outil#compileall 0', 'site#compileall 0', 'site#pytest 0']);
-    writeFileSync(path.join(projet, 'outil/outil.py'), 'def outil():\n    return 2\n');
-    const second = lancer(projet, c.script, c.args);
-    expect(second.code, second.stderr).toBe(0);
-    expect(taches(second)).toEqual(['outil#compileall 0']);
-    const t = commande(projet, 'tester');
-    const tests = lancer(projet, t.script, t.args, { GRILLHOUSE_DEPUIS_LE_VERT: '1' });
-    expect(tests.code, tests.stderr).toBe(0);
-    expect(tests.appels).toEqual([]);
-    writeFileSync(path.join(projet, 'site/pages/generer.py'), 'def generer():\n    return 2\n');
-    const site = lancer(projet, t.script, t.args, { GRILLHOUSE_DEPUIS_LE_VERT: '1' });
-    expect(taches(site)).toEqual(['site#pytest 0']);
-  });
-
-  it('grillhouse-1ic, critère 1: pytest collecting no test (5) leaves verifier green', () => {
+// grillhouse-44b.5 : la sélection par le dernier vert (critère 3) a disparu du module ; `verifier`
+// passe par les tâches de Turborepo (./tests-par-turbo.spec.ts), et pytest ne se lance que dans le
+// corps de la tâche, `tests-du-paquet`.
+describe('grillhouse-ziy — verifier et le corps de la tâche des tests', () => {
+  it('grillhouse-1ic, critère 1: pytest collecting no test (5) leaves the body of the task green', () => {
     const { projet } = (
       exemples.preparer(mkdtempSync(path.join(ESSAIS, 'sans-test-'))) as {
         depots: Depots;
       }
     ).depots;
-    const c = commande(projet, 'verifier');
-    const r = lancer(projet, c.script, c.args, { FAUX_UV_CODES: JSON.stringify({ pytest: 5 }) });
+    const c = commande(projet, 'tests-du-paquet');
+    const r = lancer(projet, c.script, [...c.args, 'site'], {
+      FAUX_UV_CODES: JSON.stringify({ pytest: 5 }),
+    });
     expect(r.code, r.stderr).toBe(0);
-    expect(taches(r)).toEqual(['outil#compileall 0', 'site#compileall 0', 'site#pytest 0']);
+    expect(r.appels.some(a => a.args.includes('pytest'))).toBe(true);
   });
 
-  it('a red test makes verifier red, and keeps no green', () => {
+  it('a red pytest makes the body of the task red', () => {
     const { projet } = (
       exemples.preparer(mkdtempSync(path.join(ESSAIS, 'rouge-'))) as {
         depots: Depots;
       }
     ).depots;
-    const c = commande(projet, 'verifier');
-    const r = lancer(projet, c.script, c.args, { FAUX_UV_CODES: JSON.stringify({ pytest: 1 }) });
+    const c = commande(projet, 'tests-du-paquet');
+    const r = lancer(projet, c.script, [...c.args, 'site'], {
+      FAUX_UV_CODES: JSON.stringify({ pytest: 1 }),
+    });
     expect(r.code).toBe(1);
-    const encore = lancer(projet, c.script, c.args);
-    expect(taches(encore)).toContain('site#pytest 0');
   });
 
   it('verifier --gardes plays the project’s guards alone, no test', () => {

@@ -34,13 +34,13 @@
 //   removes at its end.
 // - `npm test` measures itself against the last green under the circuit's mark,
 //   `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/langages/typescript/tests.mjs, scripts/circuit.mjs); it never keeps one.
-// - In a project of several languages, each language's pass defers its green to the file that
-//   `GRILLHOUSE_VERT_DIFFERE` names (`VERT_DIFFERE`): the composed command keeps the first one once
-//   every language played green (scripts/commandes-composees.mjs), so that a language played after
-//   another does not measure itself against the green of the first.
+// - Only the measure of the changed files and the keeping of the green live here: the files go to
+//   `vitest --changed`, and no module of language chooses the packages it plays by the last green
+//   (the tests of a crate or a Python project are tasks of Turborepo, which its cache selects).
+//   The green is kept by the one pass of the verification (scripts/langages/typescript/verifier.mjs),
+//   once, when every task of every language of the graph is green, and never when one is red.
 import { spawnSync } from 'node:child_process';
 import {
-  appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -56,9 +56,6 @@ import path from 'node:path';
 // tests of the module of the language reads in each package.
 export const CHANGEMENTS = 'GRILLHOUSE_CHANGEMENTS';
 export const DEPUIS_LE_VERT = 'GRILLHOUSE_DEPUIS_LE_VERT';
-// The variable that names the file where a pass of one language among several defers its green,
-// which the composed command keeps once every language played green (scripts/commandes-composees.mjs).
-export const VERT_DIFFERE = 'GRILLHOUSE_VERT_DIFFERE';
 const SHA = /^[0-9a-f]{40,64}$/;
 
 const git = (racine, args, env = process.env) =>
@@ -159,13 +156,8 @@ function lireLeVertDe(etat, branche) {
   return { commit: v.commit, arbre: v.arbre, branche };
 }
 
-// Keeps <etat> (etatDuDepot) as the last green of its branch, of main when HEAD is detached; while
-// <env> names a file of deferred greens (`VERT_DIFFERE`), adds it there instead, one line of JSON.
-export function garderLeVert(etat, env = process.env) {
-  if (env[VERT_DIFFERE]) {
-    appendFileSync(env[VERT_DIFFERE], `${JSON.stringify(etat)}\n`);
-    return;
-  }
+// Keeps <etat> (etatDuDepot) as the last green of its branch, of main when HEAD is detached.
+export function garderLeVert(etat) {
   const branche = etat.branche ?? etat.main;
   const f = branche ? fichierDuVert(etat.racine, branche) : null;
   if (!f) return;

@@ -5,8 +5,7 @@
 // - A project of two packages, declared python in its architecture: `site` (its project
 //   `generateur`, a test of the day `pages/test_pages.py`, a night test, a `conftest.py`, its
 //   interface) and `outil` (its project `outil`, no test); the root's interface, and the index of
-//   the interfaces they give, up to date. Committed: `projet`; the same, a source of `site` then
-//   changed and a file out of every package added: `change`, measured from its commit; the same
+//   the interfaces they give, up to date. Committed: `projet`; the same
 //   with a second commit that changes `site`, adds the package `neuf` and removes `outil`: `lot`;
 //   the same, the interface of `site` then changed, its index late: `enRetard`.
 // - A directory without pyproject.toml: `vide`.
@@ -129,10 +128,6 @@ export default {
     const aJour = projet(dans);
     const vide = mkdtempSync(path.join(dans, 'vide-'));
     writeFileSync(path.join(vide, 'README.md'), 'aucun paquet\n');
-    const change = projet(dans);
-    const depuis = tete(change);
-    writeFileSync(path.join(change, 'site/pages/generer.py'), 'def generer():\n    return 2\n');
-    writeFileSync(path.join(change, 'notes.txt'), 'hors des paquets\n');
     const lot = projet(dans);
     const avantLeLot = tete(lot);
     const ecrireLot = ecrireDans(lot);
@@ -150,7 +145,7 @@ export default {
     const site = path.join(aJour, 'site');
     return {
       racine: aJour,
-      depots: { projet: aJour, change, depuis, lot, avantLeLot, enRetard, vide },
+      depots: { projet: aJour, lot, avantLeLot, enRetard, vide },
       composants: {
         valide: vide,
         invalide: aJour,
@@ -172,11 +167,6 @@ export default {
         valide: { racine: vide, noms: [] },
         invalide: { racine: aJour, noms: ['generateur', 'absent'] },
         attendu: ['absent : sans fournisseur'],
-      },
-      touches: {
-        valide: { racine: aJour, depuis: 'HEAD' },
-        invalide: { racine: change, depuis },
-        attendu: ['touché site', 'hors notes.txt'],
       },
       commandes: {
         valide: ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit', 'index-interfaces'],

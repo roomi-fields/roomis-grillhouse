@@ -223,16 +223,6 @@ export function composer(modules) {
         parLesTests: new Map(parts.flatMap(p => [...p.parLesTests])),
       };
     },
-    touches(racine, o) {
-      const parts = modules.map(m => m.touches(racine, o));
-      const touches = parts.flatMap(p => p.touches);
-      const vus = new Set(touches.map(c => c.dossier));
-      return {
-        touches,
-        dependants: parts.flatMap(p => p.dependants).filter(c => !vus.has(c.dossier)),
-        horsGraphe: parts[0].horsGraphe.filter(f => parts.every(p => p.horsGraphe.includes(f))),
-      };
-    },
     elementsDuLot(racine, o) {
       const parts = modules.map(m => ({ m, l: m.elementsDuLot(racine, o) }));
       const impossibles = parts.filter(p => p.l.etat !== 'fait');

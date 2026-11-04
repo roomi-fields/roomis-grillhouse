@@ -50,9 +50,8 @@ import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { CODE, paquets, TYPAGE } from '../../paquets.mjs';
-import { sources } from '../../services-du-noyau.mjs';
+import { SCRIPT_DES_TESTS, sources } from '../../services-du-noyau.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
-import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 
 // The frame's package, as a project declares it, and its base configuration of Vitest.
 const PAQUET_DU_CADRE = '@roomi-fields/grillhouse';

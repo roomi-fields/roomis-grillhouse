@@ -49,11 +49,12 @@ function crate(avec: { banc: boolean; nuit: boolean }) {
   return racine;
 }
 
-// `tester <chemins>` dans <racine> : les appels de cargo (hors metadata) et les rapports du verdict.
+// `tests-du-paquet <chemins>` dans <racine> (grillhouse-44b.5 : le corps de la tâche des tests, que
+// `tester` lance par Turborepo) : les appels de cargo (hors metadata) et les rapports du verdict.
 function tester(racine: string, chemins: string[], cas: object = {}) {
   writeFileSync(JOURNAL, '');
   const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
-  const c = cargo.commandes(racine).tester;
+  const c = cargo.commandes(racine)['tests-du-paquet'];
   const r = spawnSync(process.execPath, [c.script, ...c.args, ...chemins], {
     cwd: racine,
     encoding: 'utf8',

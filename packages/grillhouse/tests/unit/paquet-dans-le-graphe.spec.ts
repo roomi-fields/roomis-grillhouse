@@ -118,7 +118,10 @@ describe('grillhouse-44b.4, critère 1 — le package.json d’un crate ou d’u
     expect(p.private).toBe(true);
     expect(Object.keys(p.scripts).sort()).toEqual(['build', 'test:unit', 'typecheck']);
     expect(p.scripts.build).toMatch(/\bgrillhouse construire\b.*crates\/journal/);
-    expect(p.scripts['test:unit']).toMatch(/\bgrillhouse tests\b.*crates\/journal/);
+    // grillhouse-44b.5, critère 7 : le script joue le corps de la tâche, jamais `tests`, qui lance
+    // Turborepo (qui relancerait `test:unit` : une boucle).
+    expect(p.scripts['test:unit']).toMatch(/\bgrillhouse tests-du-paquet\b.*crates\/journal/);
+    expect(p.scripts['test:unit']).not.toMatch(/\bgrillhouse tests\s/);
     expect(p.scripts.typecheck).toMatch(/\bgrillhouse typer\b.*crates\/journal/);
   });
 
@@ -129,7 +132,8 @@ describe('grillhouse-44b.4, critère 1 — le package.json d’un crate ou d’u
     const p = json(racine, 'outils/package.json');
     expect(p.private).toBe(true);
     expect(p.scripts.build).toMatch(/\bgrillhouse construire\b.*\boutils\b/);
-    expect(p.scripts['test:unit']).toMatch(/\bgrillhouse tests\b.*\boutils\b/);
+    expect(p.scripts['test:unit']).toMatch(/\bgrillhouse tests-du-paquet\b.*\boutils\b/);
+    expect(p.scripts['test:unit']).not.toMatch(/\bgrillhouse tests\s/);
     expect(p.scripts.typecheck).toMatch(/\bgrillhouse typer\b.*\boutils\b/);
   });
 
@@ -152,8 +156,8 @@ describe('grillhouse-44b.4, critère 1 — le package.json d’un crate ou d’u
     );
     chmodSync(path.join(faux, 'grillhouse'), 0o755);
     for (const [chemin, ...commandes] of [
-      ['crates/journal', 'construire', 'tests', 'typer'],
-      ['outils', 'construire', 'tests', 'typer'],
+      ['crates/journal', 'construire', 'tests-du-paquet', 'typer'],
+      ['outils', 'construire', 'tests-du-paquet', 'typer'],
     ] as const) {
       ecrireLePaquet(racine, planDuPaquet(racine, chemin));
       writeFileSync(sortie, '');

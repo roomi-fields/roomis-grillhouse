@@ -88,6 +88,7 @@
     "scripts/structure-guard.sh",
     "scripts/superviseur.mjs",
     "scripts/tableau-des-composants.mjs",
+    "scripts/taches-du-graphe.mjs",
     "scripts/tableau.mjs",
     "scripts/ticket.sh",
     "scripts/un-commit-par-ticket.mjs",
@@ -123,7 +124,6 @@
     "scripts/langages/typescript/references-par-les-types.mjs",
     "scripts/langages/typescript/regle-des-tests.mjs",
     "scripts/langages/typescript/resumes.mjs",
-    "scripts/langages/typescript/script-des-tests.mjs",
     "scripts/langages/typescript/squelette.mjs",
     "scripts/langages/typescript/tailles-des-tests.mjs",
     "scripts/langages/typescript/tests-de-nuit.mjs",
@@ -165,7 +165,6 @@
     "scripts/langages/cargo/squelette.mjs",
     "scripts/langages/cargo/tailles-des-tests.mjs",
     "scripts/langages/cargo/tests-de-head.mjs",
-    "scripts/langages/cargo/touches.mjs",
     "scripts/langages/cargo/verdict.mjs"
   ],
   "python": [

@@ -89,8 +89,13 @@ describe('grillhouse-9kq critères 5 et 17 — Vitest (module typescript)', () =
 
 describe('grillhouse-9kq critère 17 — nextest et cargo (module cargo)', () => {
   const jouer = (env: NodeJS.ProcessEnv) => {
-    const c = cargo.commandes(espace).tester;
-    const r = spawnSync(process.execPath, [c.script, ...c.args], {
+    // The body of the task of each crate (grillhouse-44b.5): `tester` hands it to Turborepo, whose
+    // parallelism is its own; the workers of the session reach cargo and nextest through it.
+    const c = cargo.commandes(espace)['tests-du-paquet']!;
+    const crates = (cargoModule as unknown as { composants: (r: string) => { dossier: string }[] })
+      .composants(espace)
+      .map(x => path.relative(espace, x.dossier) || '.');
+    const r = spawnSync(process.execPath, [c.script, ...c.args, ...crates], {
       cwd: espace,
       encoding: 'utf8',
       env: {
@@ -139,8 +144,9 @@ describe('grillhouse-9kq critère 17 — pytest (module python)', () => {
     );
     ecrire(racine, 'site/uv.lock', 'version = 1\n');
     ecrire(racine, 'site/test_a.py', 'def test_a():\n    assert True\n');
-    const c = python.commandes(racine).tester;
-    const r = spawnSync(process.execPath, [c.script, ...c.args], {
+    // The body of the task of the project (grillhouse-44b.5), which `tester` hands to Turborepo.
+    const c = python.commandes(racine)['tests-du-paquet']!;
+    const r = spawnSync(process.execPath, [c.script, ...c.args, 'site'], {
       cwd: racine,
       encoding: 'utf8',
       env: {
