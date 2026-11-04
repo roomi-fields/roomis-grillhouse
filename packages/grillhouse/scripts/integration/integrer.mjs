@@ -93,6 +93,7 @@ import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { langageDe } from '../langages.mjs';
+import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { dossierCommun, inscrireEntree } from './file-attente.mjs';
@@ -278,9 +279,11 @@ function main(argv) {
     // 0. The keys of the project, before any work.
     let engendres;
     let outils;
+    let donnees;
     try {
       engendres = engendresDe(racine);
       outils = outilsDe(racine);
+      donnees = donneesDe(racine);
     } catch (e) {
       return refuser(`Une clé grillhouse du package.json est refusée :\n${e.message}`);
     }
@@ -385,7 +388,7 @@ function main(argv) {
     const installation = installer();
     if (installation) return refuser(installation);
     if (aRegenerer.length) {
-      const env = avecLesOutils(outils, process.env);
+      const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env));
       const refus = regenerer({
         refs: aRegenerer,
         dansCopie,

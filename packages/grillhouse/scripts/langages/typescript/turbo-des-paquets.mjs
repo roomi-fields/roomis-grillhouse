@@ -245,6 +245,27 @@ function variablesDOutils(racine) {
     return [];
   }
 }
+// The variables of the data of the packages of the project at <racine> (`grillhouse.donnees` of
+// the package.json of the root and of each package, scripts/donnees-cles.mjs), each once, in the
+// order the packages declare them: the paths of the outputs of a provider that a consumer's tests
+// run, which the run passes to every task without hashing them (the provider's build is awaited by
+// `^build`, which hashes its sources). A faulty key is the reader's refusal, not this guard's.
+function variablesDeDonnees(racine) {
+  const noms = [];
+  const lire = f => {
+    try {
+      const o = JSON.parse(readFileSync(f, 'utf8')).grillhouse?.donnees;
+      if (o && typeof o === 'object' && !Array.isArray(o)) {
+        noms.push(...Object.keys(o).filter(n => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n)));
+      }
+    } catch {
+      // No readable package.json declares nothing.
+    }
+  };
+  lire(path.join(racine, 'package.json'));
+  for (const p of paquets(racine)) lire(path.join(racine, p.dossier, 'package.json'));
+  return [...new Set(noms)];
+}
 // The prefix of a trace task.
 const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
@@ -761,7 +782,9 @@ function passagesManquants(racine) {
   const r = confRacine(racine);
   if (!r) return null;
   const actuel = Array.isArray(r.conf.globalPassThroughEnv) ? r.conf.globalPassThroughEnv : [];
-  const manques = [...PASSAGES, ...variablesDOutils(racine)].filter(v => !actuel.includes(v));
+  const manques = [
+    ...new Set([...PASSAGES, ...variablesDOutils(racine), ...variablesDeDonnees(racine)]),
+  ].filter(v => !actuel.includes(v));
   return manques.length ? { f: r.f, attendu: [...actuel, ...manques], manques } : null;
 }
 
@@ -1038,7 +1061,7 @@ export function verifier(racine) {
   const passage = passagesManquants(racine);
   for (const v of passage?.manques ?? []) {
     refus.push(
-      `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${v}, ${POURQUOI[v] ?? "l'outil du projet (`grillhouse.outils`) que ses tests exigent"} ; \`${COMMANDE}\` l'ajoute.`
+      `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${v}, ${POURQUOI[v] ?? (variablesDeDonnees(racine).includes(v) ? "la donnée d'un paquet (`grillhouse.donnees`) que ses tests exigent" : "l'outil du projet (`grillhouse.outils`) que ses tests exigent")} ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {

@@ -110,6 +110,27 @@ le circuit s'arrête à « lancement », l'enveloppe, `verifier` et la nuit refu
 développeur joue les tests qu'il doit rendre verts avec l'outil que voient les contrôles (SyntHub,
 SH-cgi.8 : son Python, donné par `SYNTHHUB_PYTHON`, n'existait pas dans l'enveloppe).
 
+**Les données d'un paquet se déclarent** : comme les `data` de Bazel (`data = ["//crates/service:synthhub"]`),
+un paquet déclare la sortie d'un autre paquet que ses tests lancent dans `grillhouse.donnees` de son
+`package.json` (`{ "<VARIABLE>": "<paquet>#<sortie>" }`), à côté de `grillhouse.outils`, et inscrit
+le fournisseur dans ses `devDependencies` : Turborepo construit le fournisseur avant les tests du
+consommateur (`^build`, dont le hash suit les sources du fournisseur), même hors du plan ; un
+`npm test -- <chemin dans le paquet>` le construit lui-même d'abord (`turbo run build`), puis
+contrôle le binaire et passe la variable à tout chemin du paquet. La variable
+porte le chemin absolu de la sortie construite, lue en un seul endroit
+(`packages/grillhouse/scripts/donnees-cles.mjs`) : le module du langage du fournisseur le donne
+(`sortieDuPaquet` ; pour un crate, un binaire de `cargo metadata` dans son dossier des cibles, sous
+`release` quand le script `build` du fournisseur porte `--release`, `debug` sinon ; un autre langage est
+refusé, « sortie non prise en charge pour <langage> »). Les passes du circuit, `npm run verifier`, la
+file, l'intégration, l'enveloppe et la nuit la passent comme les outils ; le générateur du `turbo.json`
+l'écrit dans `globalPassThroughEnv` (sans l'entrer dans un hash), et la garde des passages refuse
+un `turbo.json` qui ne la nomme pas. Une clé fautive (valeur hors de la forme `<paquet>#<sortie>`,
+paquet inconnu, fournisseur absent des `devDependencies`, sortie que le fournisseur ne produit pas)
+est refusée par son nom avant tout travail ; un binaire absent après la construction fait échouer le
+lancement des tests du consommateur, la variable et le chemin nommés. Ainsi les tests d'un paquet
+d'un langage lancent ce que construit un paquet d'un autre (SyntHub, SH-ae6.5.14.6 : le service Rust,
+hors du plan, n'était pas construit pour les tests Python).
+
 **Un paquet naît hors du circuit, en quatre temps** : un squelette n'a ni comportement ni test,
 et le circuit travaille un paquet qui existe (il refuse un titre qui nomme un paquet absent du
 disque, `resoudreComposant` de `circuit.mjs`). Le grill tranche le paquet (1) ; le superviseur

@@ -59,6 +59,13 @@ export default {
   manifeste: 'pyproject.toml',
   nomDuManifeste,
   liensDuManifeste,
+  construireLesPaquets: () => {
+    throw new Error('construction non prise en charge pour python');
+  },
+  // No output of a project of Python is a datum of another package's tests.
+  sortieDuPaquet: () => {
+    throw new Error('sortie non prise en charge pour python');
+  },
   outils: ['smol-toml'],
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
   ignorer: ['.venv', '.pytest_cache', PYCACHE],

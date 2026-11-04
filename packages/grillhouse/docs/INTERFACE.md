@@ -48,7 +48,7 @@ Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une 
 cibles, un outil par langage. `langagesDe(racine)` rend les modules déclarés, dans l'ordre de la
 déclaration, chacun chargé une fois par processus ; `langageDe(racine)` rend leur composition
 (`scripts/composition-des-langages.mjs`), le module lui-même quand le projet n'en déclare qu'un.
-La composition répond aux demandes ci-dessous, `manifeste`, `nomDuManifeste`, `liensDuManifeste`, `miseAJour` et `squelette` à part, que la
+La composition répond aux demandes ci-dessous, `manifeste`, `nomDuManifeste`, `liensDuManifeste`, `sortieDuPaquet`, `construireLesPaquets`, `miseAJour` et `squelette` à part, que la
 garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
@@ -94,6 +94,15 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   dont le manifeste est dans un dossier ; sans lui, la clé), avec `table` (où le manifeste les lie) et
   `outil` (l'outil qui construit par elles) ; aucune pour un langage dont le manifeste est le
   `package.json`. La garde des dépendances internes les compare à celles du `package.json`.
+- `sortieDuPaquet` : le chemin absolu de la sortie qu'un paquet construit, que les tests d'un autre
+  paquet lancent (`grillhouse.donnees`, à côté de `grillhouse.outils`) ; pour un crate, un binaire de
+  `cargo metadata` dans son dossier des cibles, sous `release` ou `debug` selon l'option `release`
+  (le script `build` du fournisseur porte `--release`). Un paquet sans cette sortie est refusé,
+  nommé ; `typescript` et `python` refusent : « sortie non prise en charge pour <langage> ».
+- `construireLesPaquets` : construit les paquets nommés (par leur nom au `package.json`) avant les
+  tests d'un paquet qui les déclare en données ; le module du langage dont le manifeste est le
+  `package.json` le fait par le graphe des paquets (rien dans l'exécution du graphe, qui les a
+  construits), `cargo` et `python` refusent : « construction non prise en charge pour <langage> ».
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
@@ -209,7 +218,7 @@ clippy`). Le noyau en lance trois
     d'un projet Python appellent, comme la tâche d'un paquet dans Turborepo ; un chemin qui ne
     désigne pas un paquet du langage est refusé (2). `typer` sans chemin type l'espace entier.
     Tout langage entre dans le graphe de Turborepo par ce `package.json`, que `npx grillhouse
-    paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `workspaces` ;
+paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `workspaces` ;
     `dependances-internes` refuse un `package.json` dont les dépendances internes diffèrent de
     `Cargo.toml` (`path = …`) ou de `pyproject.toml` (`[tool.uv.sources]`) ;
   - `construire --echec <fichier> <plan>`, que le lanceur joue dans la copie préparée, pour que la

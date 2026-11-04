@@ -654,6 +654,7 @@ import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
+import { avecLesDonnees, donneesDe } from './donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from './outils-cles.mjs';
 import { couvertPar, engendresDe } from './engendres.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
@@ -2333,9 +2334,10 @@ function regenerer(ctx, noms, notes = [], suite = null, refusAuLot = false) {
 
 // The environment of a pass of the circuit (the proof, the checks, the final pass, a command of a
 // reference): <base>, the launcher's under the lock of the machine, with the tools of the project
-// (`ctx.outils`, `grillhouse.outils`, read at the launch) whatever <base> holds, then <env>.
+// (`ctx.outils`, `grillhouse.outils`) and its data (`ctx.donnees`, `grillhouse.donnees`), read at
+// the launch, whatever <base> holds, then <env>.
 export const environnementDeLaPasse = (ctx, base, env = {}) => ({
-  ...avecLesOutils(ctx.outils ?? {}, base),
+  ...avecLesDonnees(ctx.donnees ?? {}, avecLesOutils(ctx.outils ?? {}, base)),
   ...env,
 });
 
@@ -2409,6 +2411,26 @@ export function outilsAuLancement(racine) {
         rapport,
         piece: `$ npm pkg get grillhouse.outils\n${rapport}`,
         question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
+      },
+    };
+  }
+}
+
+// The data of the project whose main tree is <racine> (`grillhouse.donnees`), read at the launch
+// of a run: `{ donnees }`, or `{ arret }`, the stop « lancement » that goes up to the supervisor
+// before any session, the faults of the key named.
+export function donneesAuLancement(racine) {
+  try {
+    return { donnees: donneesDe(racine) };
+  } catch (err) {
+    const rapport = `La clé grillhouse.donnees du package.json est refusée :\n${err.message}`;
+    return {
+      arret: {
+        code: ARRETS.lancement,
+        nom: 'lancement',
+        rapport,
+        piece: `$ npm pkg get grillhouse.donnees\n${rapport}`,
+        question: `${rapport}\nLa clé se corrige au package.json du consommateur, puis \`--reprendre\`.`,
       },
     };
   }
@@ -5543,6 +5565,9 @@ export async function main(argv) {
     const lancement = outilsAuLancement(ctx.racine);
     if (lancement.arret) return aLaFin(ctx, monter(ctx, { ...lancement.arret, etat: d }));
     ctx.outils = lancement.outils;
+    const donnees = donneesAuLancement(ctx.racine);
+    if (donnees.arret) return aLaFin(ctx, monter(ctx, { ...donnees.arret, etat: d }));
+    ctx.donnees = donnees.donnees;
     // The generated files the project declares: references of the circuit, which 4.2 regenerates
     // only when a red of a pass lies in their files (`referencesDesRouges`); the integration
     // regenerates them whenever the lot touches their files or what they read.

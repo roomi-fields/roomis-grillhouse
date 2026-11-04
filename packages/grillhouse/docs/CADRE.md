@@ -34,6 +34,11 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   projet existant), inscrit aux `workspaces`, dont les scripts appellent les commandes par paquet
   du module (`construire <chemin>`, `typer <chemin>`, `tester <chemin>`) ; la garde
   `dependances-internes` tient ses dépendances internes d'accord avec le manifeste du langage.
+- **R2.2.** Un paquet déclare dans `grillhouse.donnees` (`{ "<VARIABLE>": "<paquet>#<sortie>" }`), à
+  côté de `grillhouse.outils`, la sortie d'un autre paquet que ses tests lancent, et inscrit le
+  fournisseur en `devDependencies` : la construction l'attend, même hors du plan, et la variable
+  porte le chemin absolu de la sortie (pour un crate, un binaire de `cargo metadata`). Une
+  déclaration fautive est refusée par son nom avant tout travail.
 
 ## Ce qu'il refuse
 

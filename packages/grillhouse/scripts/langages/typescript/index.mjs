@@ -214,6 +214,22 @@ export default {
     }
   },
   liensDuManifeste: () => ({ noms: [], table: 'dependencies', outil: 'npm' }),
+  // Builds the packages <noms> (by their package.json name) of the project in the working
+  // directory, through the graph of the project's packages, the cache reading what did not move;
+  // inside the graph's own run (`TURBO_HASH`) the providers are built already, nothing plays.
+  construireLesPaquets: noms => {
+    if (process.env.TURBO_HASH) return;
+    for (const nom of noms) {
+      const r = spawnSync('npx', ['--no-install', 'turbo', 'run', 'build', `--filter=${nom}`], {
+        stdio: 'inherit',
+      });
+      if (r.status !== 0) throw new Error(`la construction du fournisseur ${nom} échoue.`);
+    }
+  },
+  // No output of a package of TypeScript is a datum of another package's tests.
+  sortieDuPaquet: () => {
+    throw new Error('sortie non prise en charge pour typescript');
+  },
   // The tools a project of TypeScript installs, optional peers of the package: what this module
   // runs as commands (Turborepo, knip, dependency-cruiser) and what its scripts import (API
   // Extractor, its model, TSDoc's configuration, jsonc-parser); the project's own TypeScript and

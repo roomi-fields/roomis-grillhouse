@@ -57,6 +57,7 @@ import { existsSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 
 const LOT = 'grillhouse-travail.patch';
@@ -89,7 +90,10 @@ const fichiersDuLot = (copie, lot) =>
  */
 function lesCles(copie) {
   try {
-    return { engendres: engendresDe(copie), env: avecLesOutils(outilsDe(copie), process.env) };
+    return {
+      engendres: engendresDe(copie),
+      env: avecLesDonnees(donneesDe(copie), avecLesOutils(outilsDe(copie), process.env)),
+    };
   } catch (e) {
     return {
       refus: `⛔ Une clé grillhouse du package.json est refusée :\n${/** @type {Error} */ (e).message}`,

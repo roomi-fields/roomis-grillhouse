@@ -22,6 +22,7 @@
     "scripts/dernier-vert.mjs",
     "scripts/dette.d.ts",
     "scripts/dette.mjs",
+    "scripts/donnees-cles.mjs",
     "scripts/droits.mjs",
     "scripts/engendres.mjs",
     "scripts/enveloppe/codes.mjs",

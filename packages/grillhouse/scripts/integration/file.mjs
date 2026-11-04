@@ -84,6 +84,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
@@ -467,7 +468,7 @@ function main(argv) {
     let env;
     try {
       engendres = engendresDe(racine);
-      env = avecLesOutils(outilsDe(racine), process.env);
+      env = avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), process.env));
     } catch (e) {
       return { garde: `une clé grillhouse du package.json est refusée :\n${e.message}` };
     }

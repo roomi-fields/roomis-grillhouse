@@ -124,6 +124,7 @@ import {
 export { paquetsDuLangage };
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 import { travailleursDe } from '../places-de-la-machine.mjs';
+import { donneesDe } from '../donnees-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
 // The role that writes the package of the shared test material and the lock files of the versions.
@@ -240,7 +241,7 @@ export function dossierDeTravail(copie, env = process.env) {
 // Nothing else of <env> enters.
 export function environnementDeLaSeance(
   env,
-  { cacheNpm, paquets, travail, outils = {}, travailleurs }
+  { cacheNpm, paquets, travail, outils = {}, donnees = {}, travailleurs }
 ) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
@@ -250,6 +251,7 @@ export function environnementDeLaSeance(
   return {
     ...Object.fromEntries(garde),
     ...outils,
+    ...donnees,
     npm_config_cache: cacheNpm,
     npm_config_ignore_scripts: 'true',
     TMPDIR: travail,
@@ -275,10 +277,20 @@ export function sousNiceEtIonice(commande) {
  * <commande> under `nice` and `ionice`, behind the test of the variables that name a path; and the
  * environment of the session, GRILLHOUSE_TRAVAILLEURS set to max(1, cores ÷ places) of <env>.
  * @param {{ argsBwrap: string[], commande: string[], env: Record<string, string | undefined>,
- *   cacheNpm: string, paquets: string[], travail: string, outils?: Record<string, string> }} o
+ *   cacheNpm: string, paquets: string[], travail: string, outils?: Record<string, string>,
+ *   donnees?: Record<string, string> }} o
  * @returns {{ cmd: string, args: string[], env: Record<string, string> }}
  */
-export function lancementDeLaSeance({ argsBwrap, commande, env, cacheNpm, paquets, travail, outils }) {
+export function lancementDeLaSeance({
+  argsBwrap,
+  commande,
+  env,
+  cacheNpm,
+  paquets,
+  travail,
+  outils,
+  donnees,
+}) {
   return {
     cmd: 'bwrap',
     args: [...argsBwrap, ...commandeEprouvee(sousNiceEtIonice(commande))],
@@ -287,6 +299,7 @@ export function lancementDeLaSeance({ argsBwrap, commande, env, cacheNpm, paquet
       paquets,
       travail,
       outils,
+      donnees,
       travailleurs: travailleursDe({ env }),
     }),
   };
@@ -632,10 +645,12 @@ function envelopper(argv) {
   ];
   // The tools of the project, judged before anything is prepared: none holds a mount.
   let outils;
+  let donnees;
   try {
     outils = outilsDe(copie, {
       montages: [copie, claude, scratchpads, cacheNpm, TEMPORAIRE, ...sessions],
     });
+    donnees = donneesDe(copie);
   } catch (e) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
     return CODE_REFUS;
@@ -719,6 +734,7 @@ function envelopper(argv) {
       paquets,
       travail,
       outils,
+      donnees,
     });
     const r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
     if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);

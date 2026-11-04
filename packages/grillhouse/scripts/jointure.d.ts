@@ -297,6 +297,21 @@ export interface Langage extends Composition {
     chemin: string,
     nomA: (dossier: string) => string | null
   ): { noms: string[]; table: string; outil: string };
+  /** Builds the packages `noms` (by their package.json name) of the project in the working
+   * directory, before the tests of a package that declares them as data; throws, named, on a
+   * failure. Held by the module of the language whose manifest is the package.json. */
+  construireLesPaquets(noms: string[]): void;
+  /** The absolute path of the output `sortie` that the package at `chemin` (from `racine`) builds,
+   * which another package's tests run (`grillhouse.donnees`, scripts/donnees-cles.mjs): for a
+   * crate, a binary of `cargo metadata` in its target directory, `release` or `debug` as `release`
+   * says. Throws, named, for a package without that output, and « sortie non prise en charge pour
+   * <langage> » for a language whose outputs are not data. */
+  sortieDuPaquet(
+    racine: string,
+    chemin: string,
+    sortie: string,
+    options?: { release?: boolean }
+  ): string;
   /** The entries of the index of the interfaces, one per interface of the module's components and
    * the root's, `lignes` as the index writes them, which the core assembles for a project of
    * several languages (scripts/index-interfaces.mjs). */

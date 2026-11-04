@@ -38,6 +38,13 @@ import { constants } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { aiguillage, installer } from '../scripts/aiguillage.mjs';
 import {
+  avecLesDonnees,
+  construireLesFournisseurs,
+  controlerLesDonnees,
+  donneesDuPaquet,
+  fournisseursDuPaquet,
+} from '../scripts/donnees-cles.mjs';
+import {
   commandeDe,
   environnementDe,
   SOUS_COMMANDES,
@@ -143,6 +150,19 @@ async function lancer([nom, ...args]) {
   let env;
   try {
     env = environnementDe(nom);
+    // The tests of a package, named by its folder or a path in it, get the data it declares. Run
+    // by the graph of the packages, its providers are built already; run by hand, they are built
+    // first (by the module of the language, which skips it inside the graph), then each output is
+    // checked once built.
+    if (nom === 'tests') {
+      for (const a of args.filter(x => !x.startsWith('-'))) {
+        const chemin = a.replace(/\/$/, '');
+        const donnees = donneesDuPaquet(process.cwd(), chemin);
+        construireLesFournisseurs(fournisseursDuPaquet(process.cwd(), chemin));
+        controlerLesDonnees(donnees);
+        env = avecLesDonnees(donnees, env);
+      }
+    }
   } catch (e) {
     process.stderr.write(`⛔ grillhouse ${nom} : ${e.message}\n`);
     process.exitCode = 2;

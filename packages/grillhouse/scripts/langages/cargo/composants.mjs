@@ -547,6 +547,33 @@ export function nomDuManifeste(texte) {
 const TABLES = ['dependencies', 'dev-dependencies', 'build-dependencies'];
 
 /**
+ * The absolute path of the binary <sortie> of the crate at <chemin> (from the root of the workspace
+ * at <racine>): a target of kind `bin` of `cargo metadata`, in its target directory, under
+ * `release` or `debug`. Throws, named, for a folder that holds no crate and for a crate without
+ * that binary.
+ * @param {string} racine
+ * @param {string} chemin
+ * @param {string} sortie
+ * @param {{ release?: boolean }} [o]
+ */
+export function sortieDuPaquet(racine, chemin, sortie, { release = false } = {}) {
+  const m = metadonnees(racine);
+  const crate = m?.packages.find(
+    p => path.relative(m.workspace_root, path.dirname(p.manifest_path)) === path.normalize(chemin)
+  );
+  if (!crate) {
+    throw new Error(`${chemin} ne tient aucun crate du dépôt.`);
+  }
+  const binaires = crate.targets.filter(t => t.kind.includes('bin')).map(t => t.name);
+  if (!binaires.includes(sortie)) {
+    throw new Error(
+      `le crate ${crate.name} ne produit pas de binaire « ${sortie} » (ses binaires : ${binaires.join(', ') || 'aucun'}).`
+    );
+  }
+  return path.join(m.target_directory, release ? 'release' : 'debug', sortie);
+}
+
+/**
  * The internal dependencies of the crate at <chemin> (from <racine>): each dependency with a
  * `path` (in `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]` and the same under
  * `[target.*]`; a `workspace = true` one takes the `path` of `[workspace.dependencies]` of the

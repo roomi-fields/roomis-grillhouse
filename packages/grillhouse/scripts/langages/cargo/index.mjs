@@ -52,6 +52,7 @@ import {
   manifestes,
   matieres,
   nomDuManifeste,
+  sortieDuPaquet,
 } from './composants.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, entreesDeLIndex, SORTIE } from './index-interfaces.mjs';
@@ -70,6 +71,10 @@ export default {
   manifeste: 'Cargo.toml',
   nomDuManifeste,
   liensDuManifeste,
+  sortieDuPaquet,
+  construireLesPaquets: () => {
+    throw new Error('construction non prise en charge pour cargo');
+  },
   // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
   outils: ['smol-toml'],
   // The binaries the module runs, each at an exact version: nextest and cargo-deny at the ones the

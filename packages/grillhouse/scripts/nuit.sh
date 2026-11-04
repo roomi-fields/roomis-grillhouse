@@ -226,6 +226,13 @@ jouer() {
     return 1
   fi
   eval "$outils"
+  # The data of the project (donnees-cles.mjs), exported the same way.
+  local donnees
+  if ! donnees=$(node "$ici/donnees-cles.mjs" "$copie"); then
+    echo "✗ la clé grillhouse.donnees est refusée : rien n'est joué."
+    return 1
+  fi
+  eval "$donnees"
   if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
