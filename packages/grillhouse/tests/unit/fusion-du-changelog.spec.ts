@@ -20,6 +20,7 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const COMMANDE = path.join(DEPOT, 'packages/grillhouse/bin/grillhouse.mjs');
+const JOURNAL = 'packages/grillhouse/CHANGELOG.md';
 
 const git = (racine: string, ...a: string[]) =>
   spawnSync('git', ['-C', racine, '-c', 'user.email=e@example.com', '-c', 'user.name=e', ...a], {
@@ -53,16 +54,17 @@ function depot(entreesDuLot: string[], entreesDeMain: string[]) {
   ecrire(racine, '.gitignore', 'node_modules\n');
   mkdirSync(path.join(racine, 'node_modules/.bin'), { recursive: true });
   symlinkSync(COMMANDE, path.join(racine, 'node_modules/.bin/grillhouse'));
-  ecrire(racine, '.gitattributes', `${ATTRIBUT}\n`);
-  ecrire(racine, 'CHANGELOG.md', changelog(BASE));
+  // Grillhouse's own attributes, as the repository holds them, and its CHANGELOG in its package.
+  ecrire(racine, '.gitattributes', lire(DEPOT, '.gitattributes'));
+  ecrire(racine, JOURNAL, changelog(BASE));
   ok(racine, 'add', '-A');
   ok(racine, 'commit', '-q', '-m', 'base');
   poserLePilote(racine);
-  ecrire(racine, 'CHANGELOG.md', changelog(...entreesDuLot));
+  ecrire(racine, JOURNAL, changelog(...entreesDuLot));
   const lot = path.join(racine, '..', `${path.basename(racine)}.patch`);
   writeFileSync(lot, ok(racine, 'diff'));
-  ok(racine, 'checkout', '-q', '--', 'CHANGELOG.md');
-  ecrire(racine, 'CHANGELOG.md', changelog(...entreesDeMain));
+  ok(racine, 'checkout', '-q', '--', JOURNAL);
+  ecrire(racine, JOURNAL, changelog(...entreesDeMain));
   ok(racine, 'commit', '-q', '-a', '-m', 'main');
   return { racine, lot };
 }
@@ -75,7 +77,7 @@ describe('grillhouse-tkv, critère 1 — deux ajouts sous le même titre entrent
     const r = git(racine, 'apply', '--3way', '--index', lot);
     expect(r.status, r.stderr).toBe(0);
     expect(ok(racine, 'ls-files', '-u')).toBe('');
-    expect(lire(racine, 'CHANGELOG.md')).toBe(changelog(A, B, BASE));
+    expect(lire(racine, JOURNAL)).toBe(changelog(A, B, BASE));
   });
 
   it('the relaunch’s apply (--3way) keeps both, nothing left unmerged', () => {
@@ -83,7 +85,7 @@ describe('grillhouse-tkv, critère 1 — deux ajouts sous le même titre entrent
     const r = git(racine, 'apply', '--3way', lot);
     expect(r.status, r.stderr).toBe(0);
     expect(ok(racine, 'ls-files', '-u')).toBe('');
-    expect(lire(racine, 'CHANGELOG.md')).toBe(changelog(A, B, BASE));
+    expect(lire(racine, JOURNAL)).toBe(changelog(A, B, BASE));
   });
 
   it('the copy brought to main (merge --ff-only --autostash) keeps its entry and main’s', () => {
@@ -93,7 +95,7 @@ describe('grillhouse-tkv, critère 1 — deux ajouts sous le même titre entrent
     const r = git(racine, 'merge', '-q', '--ff-only', '--autostash', 'main');
     expect(r.status, r.stderr).toBe(0);
     expect(ok(racine, 'diff', '--name-only', '--diff-filter=U')).toBe('');
-    expect(lire(racine, 'CHANGELOG.md')).toBe(changelog(A, B, BASE));
+    expect(lire(racine, JOURNAL)).toBe(changelog(A, B, BASE));
   });
 
   it('several entries on each side are all kept, each block as its side wrote it', () => {
@@ -101,7 +103,14 @@ describe('grillhouse-tkv, critère 1 — deux ajouts sous le même titre entrent
     const A2 = '**A second entry of main** (t-a2).';
     const { racine, lot } = depot([B, B2, BASE], [A, A2, BASE]);
     expect(git(racine, 'apply', '--3way', '--index', lot).status).toBe(0);
-    expect(lire(racine, 'CHANGELOG.md')).toBe(changelog(A, A2, B, B2, BASE));
+    expect(lire(racine, JOURNAL)).toBe(changelog(A, A2, B, B2, BASE));
+  });
+});
+
+describe('grillhouse-bf5.4, critère 4 — le pilote s’applique au CHANGELOG du paquet', () => {
+  it('the .gitattributes of Grillhouse gives packages/grillhouse/CHANGELOG.md to the driver', () => {
+    const r = ok(DEPOT, 'check-attr', 'merge', '--', JOURNAL);
+    expect(r.trim()).toBe(`${JOURNAL}: merge: ${PILOTE}`);
   });
 });
 
@@ -110,8 +119,8 @@ describe('grillhouse-tkv, critère 2 — un autre conflit du CHANGELOG arrête t
     const { racine, lot } = depot([`${BASE} Changed by the lot.`], [`${BASE} Changed on main.`]);
     const r = git(racine, 'apply', '--3way', '--index', lot);
     expect(r.status).not.toBe(0);
-    expect(ok(racine, 'ls-files', '-u')).toContain('CHANGELOG.md');
-    const texte = lire(racine, 'CHANGELOG.md');
+    expect(ok(racine, 'ls-files', '-u')).toContain(JOURNAL);
+    const texte = lire(racine, JOURNAL);
     expect(marques(texte)).toBe(true);
     expect(texte).toContain(`${BASE} Changed by the lot.`);
     expect(texte).toContain(`${BASE} Changed on main.`);
@@ -121,8 +130,8 @@ describe('grillhouse-tkv, critère 2 — un autre conflit du CHANGELOG arrête t
     const { racine, lot } = depot([B], [`${BASE} Changed on main.`]);
     const r = git(racine, 'apply', '--3way', '--index', lot);
     expect(r.status).not.toBe(0);
-    expect(ok(racine, 'ls-files', '-u')).toContain('CHANGELOG.md');
-    expect(marques(lire(racine, 'CHANGELOG.md'))).toBe(true);
+    expect(ok(racine, 'ls-files', '-u')).toContain(JOURNAL);
+    expect(marques(lire(racine, JOURNAL))).toBe(true);
   });
 
   it('without the frame’s command, git’s own merge marks the conflict of additions', () => {
@@ -130,7 +139,7 @@ describe('grillhouse-tkv, critère 2 — un autre conflit du CHANGELOG arrête t
     rmSync(path.join(racine, 'node_modules'), { recursive: true, force: true });
     const r = git(racine, 'apply', '--3way', lot);
     expect(r.status).not.toBe(0);
-    const texte = lire(racine, 'CHANGELOG.md');
+    const texte = lire(racine, JOURNAL);
     expect(marques(texte)).toBe(true);
     expect(texte).toContain(A);
     expect(texte).toContain(B);

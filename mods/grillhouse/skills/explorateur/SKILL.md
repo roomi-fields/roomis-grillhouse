@@ -62,7 +62,8 @@ change, et ceux qu'il peut casser.
      responsable, que le circuit garde tels quels, les miens après eux. Pour changer ou retirer un
      critère écrit, je pose une question ouverte. Un critère sur le changelog s'écrit
      « le CHANGELOG le dit », sans le lier à un titre de section, que chaque sortie déplace : le
-     relecteur juge l'entrée sur le lot, et aucun test ne la lit ;
+     relecteur juge l'entrée sur le lot, dans le CHANGELOG du paquet publié que le lot touche (dans
+     le dossier de ce paquet, donc dans son plan), et aucun test ne la lit ;
    - `paquets` : les paquets à toucher, le fournisseur d'abord, puis ses lecteurs, chacun comme le
      titre le nomme (le nom de son paquet, ou son chemin) ; le circuit les écrit au titre, et
      chaque séance du ticket n'écrit qu'eux ;

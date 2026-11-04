@@ -6,7 +6,11 @@
   ],
   "tasks": {
     "build": {
-      "dependsOn": []
+      "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!CHANGELOG.md/**"
+      ]
     },
     "test:unit": {
       "dependsOn": [
@@ -30,12 +34,12 @@
         "$TURBO_ROOT$/.eslintrc.cjs/**",
         "$TURBO_ROOT$/.github/**",
         "$TURBO_ROOT$/.mcp.json/**",
-        "$TURBO_ROOT$/CHANGELOG.md/**",
         "$TURBO_ROOT$/knip.json/**",
         "$TURBO_ROOT$/mods/**",
         "$TURBO_ROOT$/package.json/**",
         "$TURBO_ROOT$/packages/grillhouse-essais/tests/**",
         "$TURBO_ROOT$/packages/grillhouse-matiere/**",
+        "$TURBO_ROOT$/packages/grillhouse/CHANGELOG.md/**",
         "$TURBO_ROOT$/packages/grillhouse/bin/**",
         "$TURBO_ROOT$/templates/**",
         "$TURBO_ROOT$/tsdoc.json/**"

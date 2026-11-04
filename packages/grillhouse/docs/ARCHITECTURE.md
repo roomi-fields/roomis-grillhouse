@@ -828,7 +828,7 @@ projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, e
 `grillhouse hook <nom>`, sans effet sans le paquet. Le même geste écrit dans la configuration du
 dépôt le pilote de fusion du CHANGELOG (`scripts/fusion-du-changelog.mjs`, sur le modèle de
 git-merge-changelog de gnulib), que le `.gitattributes` du projet nomme
-(`CHANGELOG.md merge=grillhouse-changelog`, posé par le gabarit et par `npx grillhouse maj`) :
+(`CHANGELOG.md merge=grillhouse-changelog`, posé par le gabarit et par `npx grillhouse maj` ; Grillhouse l'y pose pour son propre fichier, le CHANGELOG du paquet publié, `packages/grillhouse/CHANGELOG.md`, dans le dossier de son paquet comme changesets et lerna : le plan de tout lot du paquet l'ouvre) :
 partout où git fusionne en trois voies (l'intégration, la relance, la copie ramenée sur main),
 deux ajouts au même endroit sont gardés tous deux, ceux de main d'abord, et tout autre conflit
 reste un conflit. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à

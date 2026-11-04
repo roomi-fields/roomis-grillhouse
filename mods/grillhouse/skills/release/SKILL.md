@@ -14,7 +14,7 @@ This skill automates the complete release workflow for npm packages, ensuring co
 Files that may need version updates:
 - `package.json` - Source of truth for version (ALWAYS update first)
 - `README.md` - Version badges, installation commands
-- `CHANGELOG.md` - Release history
+- `CHANGELOG.md` - Release history (le CHANGELOG du paquet publié, dans le dossier de ce paquet; à la racine seulement pour un projet dont la racine est son paquet)
 
 ## Pre-Release Checklist
 
@@ -50,7 +50,7 @@ npm version major --no-git-tag-version
 
 ### 3. Update CHANGELOG.md
 
-Add a new section at the top of CHANGELOG.md:
+The CHANGELOG du paquet publié lives in the folder of that package (`packages/<paquet>/CHANGELOG.md`; at the root only for a project whose root is its package). Add a new section at the top of it:
 
 ```markdown
 ## [X.Y.Z] - YYYY-MM-DD
@@ -84,7 +84,7 @@ npm test
 ### 6. Commit and Tag
 
 ```bash
-git add package.json package-lock.json CHANGELOG.md README.md   # the files this release changed, named
+git add package.json package-lock.json <chemin du CHANGELOG du paquet publié> README.md   # the files this release changed, named
 git commit -m "chore: release vX.Y.Z"
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
 ```

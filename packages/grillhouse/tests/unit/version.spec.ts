@@ -20,6 +20,7 @@ import {
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = 'packages/grillhouse/package.json';
+const JOURNAL = 'packages/grillhouse/CHANGELOG.md';
 const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/sortie.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'version-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -57,7 +58,7 @@ function grillhouse(version = '0.16.0', changelog = CHANGELOG) {
     PAQUET,
     `${JSON.stringify({ name: '@roomi-fields/grillhouse', version, bin: { grillhouse: 'b.mjs' } }, null, 2)}\n`
   );
-  ecrire(r, 'CHANGELOG.md', changelog);
+  ecrire(r, JOURNAL, changelog);
   return r;
 }
 
@@ -70,9 +71,9 @@ describe('the version of Grillhouse', () => {
   it('lives in no other file: .claude/grillhouse/VERSION is gone', () => {
     expect(existsSync(path.join(DEPOT, '.claude/grillhouse/VERSION'))).toBe(false);
   });
-  it('has its section in CHANGELOG.md, dated, under an open « [Unreleased] »', () => {
+  it('critère 1 — has its section in packages/grillhouse/CHANGELOG.md, dated, under an open « [Unreleased] »', () => {
     const v = versionDe(DEPOT, PAQUET);
-    const texte = lire(DEPOT, 'CHANGELOG.md');
+    const texte = lire(DEPOT, JOURNAL);
     const section = texte.indexOf(`\n## [${v}] - `);
     expect(section).toBeGreaterThan(0);
     expect(texte.slice(section)).toMatch(/^\n## \[[^\]]+\] - \d{4}-\d{2}-\d{2}\n/);
@@ -103,7 +104,7 @@ describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () =
   it('dates the « [Unreleased] » section and opens an empty one above it', () => {
     const r = grillhouse();
     preparerSortie(r, '0.16.1', '2026-11-02');
-    expect(lire(r, 'CHANGELOG.md')).toBe(
+    expect(lire(r, JOURNAL)).toBe(
       CHANGELOG.replace('## [Unreleased]\n', '## [Unreleased]\n\n## [0.16.1] - 2026-11-02\n')
     );
   });
@@ -112,8 +113,27 @@ describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () =
       const r = grillhouse();
       expect(() => preparerSortie(r, v, '2026-11-02')).toThrow();
       expect(versionDe(r, PAQUET)).toBe('0.16.0');
-      expect(lire(r, 'CHANGELOG.md')).toBe(CHANGELOG);
+      expect(lire(r, JOURNAL)).toBe(CHANGELOG);
     }
+  });
+  it('critère 3 — writes the entry of the version in the package’s CHANGELOG, and leaves the root without one', () => {
+    const r = grillhouse();
+    preparerSortie(r, '0.17.0', '2026-11-02');
+    expect(lire(r, JOURNAL)).toContain('## [0.17.0] - 2026-11-02\n');
+    expect(existsSync(path.join(r, 'CHANGELOG.md'))).toBe(false);
+  });
+  it('critère 3 — reads the « [Unreleased] » section in the package’s CHANGELOG: a root CHANGELOG alone is not read', () => {
+    const r = grillhouse('0.16.0', '# Changelog\n\n## [Unreleased]\n\n## [0.16.0] - 2026-10-18\n');
+    ecrire(r, 'CHANGELOG.md', CHANGELOG);
+    expect(() => preparerSortie(r, '0.16.1', '2026-11-02')).toThrow(/Unreleased/);
+    expect(lire(r, 'CHANGELOG.md')).toBe(CHANGELOG);
+  });
+  it('critère 3 — the command npx grillhouse sortie <x.y.z> prepares the package’s CHANGELOG', () => {
+    const r = grillhouse();
+    const sortie = spawnSync('node', [SCRIPT, '0.17.0'], { cwd: r, encoding: 'utf8' });
+    expect(sortie.status, sortie.stderr).toBe(0);
+    expect(sortie.stdout).toContain(JOURNAL);
+    expect(lire(r, JOURNAL)).toContain('## [0.17.0] - ');
   });
   it('refuses a release whose « [Unreleased] » section holds nothing', () => {
     const r = grillhouse('0.16.0', '# Changelog\n\n## [Unreleased]\n\n## [0.16.0] - 2026-10-18\n');
@@ -285,6 +305,7 @@ describe('the package is publishable', () => {
     expect(chemins).toContain('bin/grillhouse.mjs');
     expect(chemins).toContain('scripts/circuit.mjs');
     expect(chemins).toContain('package.json');
+    expect(chemins, 'critère 2').toContain('CHANGELOG.md');
     expect(chemins.filter(c => c.startsWith('tests/'))).toEqual([]);
   });
 });

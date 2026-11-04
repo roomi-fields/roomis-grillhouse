@@ -22,7 +22,6 @@
         "$TURBO_ROOT$/.dependency-cruiser.cjs/**",
         "$TURBO_ROOT$/.dependency-cruiser.projet.cjs/**",
         "$TURBO_ROOT$/.eslintrc.cjs/**",
-        "$TURBO_ROOT$/CHANGELOG.md/**",
         "$TURBO_ROOT$/knip.json/**",
         "$TURBO_ROOT$/mods/**",
         "$TURBO_ROOT$/package.json/**",

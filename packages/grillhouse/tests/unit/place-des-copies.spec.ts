@@ -420,12 +420,3 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
     LONG
   );
 });
-
-describe('grillhouse-k5y, critère 6 — le CHANGELOG le dit', () => {
-  // The journal of the versions names the ticket, in the section that is open or in the one a
-  // release dated since: the entry moves with each release, its text stays.
-  it('the journal of the versions names the ticket', () => {
-    const journal = readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8');
-    expect(journal).toMatch(/grillhouse-k5y/);
-  });
-});

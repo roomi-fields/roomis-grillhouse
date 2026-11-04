@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'website/**'
-      - 'CHANGELOG.md'
+      - 'packages/grillhouse/CHANGELOG.md'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 

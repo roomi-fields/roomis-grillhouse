@@ -12,7 +12,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const ANCIEN = 'test:vitest';
-const HISTOIRE = ['packages/grillhouse/scripts/migrations/', 'CHANGELOG.md'];
+const HISTOIRE = ['packages/grillhouse/scripts/migrations/', 'packages/grillhouse/CHANGELOG.md'];
 const SURVEILLES = /(?:^|\/)package\.json$|^templates\/|\.md$/;
 
 // The lines of <racine> that name the former script, out of the history: `fichier:ligne`.
@@ -51,7 +51,7 @@ describe('grillhouse-pkl.2 — le nom neutre du script de test', () => {
     ecrire('mods/x/skills/y/SKILL.md', `Un script \`${ANCIEN}\`.\n`);
     ecrire('templates/turbo/paquets.json', `{ "tasks": { "${ANCIEN}": {} } }\n`);
     ecrire('packages/grillhouse/scripts/migrations/0.25.0-x.mjs', `'${ANCIEN}';\n`);
-    ecrire('CHANGELOG.md', `- \`${ANCIEN}\` devient \`test:unit\`.\n`);
+    ecrire('packages/grillhouse/CHANGELOG.md', `- \`${ANCIEN}\` devient \`test:unit\`.\n`);
     ecrire('packages/a/src/index.ts', `export const x = '${ANCIEN}';\n`);
     expect(anciens(r).sort()).toEqual([
       'mods/x/skills/y/SKILL.md:1',

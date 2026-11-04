@@ -27,7 +27,7 @@ One version covers the frame: the `version` of `packages/grillhouse/package.json
 
 The versions follow semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the patch. A version is released per lot delivered to the projects, never per commit:
 
-1. `npx grillhouse sortie <x.y.z>` writes the version in the package's `package.json`, and dates `CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
+1. `npx grillhouse sortie <x.y.z>` writes the version in the package's `package.json`, and dates the CHANGELOG.md in the published package (`packages/grillhouse/CHANGELOG.md`, in the folder of the package, so in the plan of any lot of the package): « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
 2. The release commit carries these two files.
 3. `npx grillhouse sortie --etiqueter` creates the annotated tag `v<x.y.z>` on that commit, locally, once its CI is green, and names the push. It pushes nothing: the owner validates the push of the tag.
 4. On the tag, `.github/workflows/release.yml` plays the CI on the tagged commit; once it is green, it checks that the tag names the version (`npx grillhouse sortie --verifier-etiquette <tag>`), publishes the package on the npm registry by trusted publishing (the package's trusted publisher on npmjs.com names this repository and `release.yml`; no token is stored), and publishes the GitHub release.

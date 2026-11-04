@@ -57,7 +57,7 @@ function grillhouse(version = '0.16.0', changelog = CHANGELOG) {
     PAQUET,
     `${JSON.stringify({ name: '@roomi-fields/grillhouse', version, bin: { grillhouse: 'b.mjs' } }, null, 2)}\n`
   );
-  ecrire(r, 'CHANGELOG.md', changelog);
+  ecrire(r, 'packages/grillhouse/CHANGELOG.md', changelog);
   return r;
 }
 

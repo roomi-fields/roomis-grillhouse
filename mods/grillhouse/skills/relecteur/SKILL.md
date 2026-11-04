@@ -138,8 +138,10 @@ cet ordre.
    autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
 6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
    le code ne fait rien que les critères ne disent. L'entrée du CHANGELOG se juge sur le lot,
-   comme une revue mûre relit les notes de version : un critère qui la nomme n'a pas de test, et
-   tu lis l'entrée que le lot ajoute, ce qu'elle dit du changement et de son pourquoi ; un test du
+   comme une revue mûre relit les notes de version : elle s'écrit au CHANGELOG.md du paquet
+   publié que le lot touche, dans le dossier de ce paquet (changesets, lerna) ; un projet dont la
+   racine est son paquet garde son `CHANGELOG.md` à la racine, et tu l'y juges. Un critère qui la
+   nomme n'a pas de test, et tu lis l'entrée que le lot ajoute, ce qu'elle dit du changement et de son pourquoi ; un test du
    lot qui lit le CHANGELOG, ou un autre document de suivi des versions, se rend au testwriter
    (`testwriter`, « Aucun test ne lit le CHANGELOG »). Tu lances les tests par `npm test --
 <fichiers>` (chemins depuis la racine du dépôt) ; une sortie relue du cache de Turborepo (« cache hit, replaying logs ») vaut un

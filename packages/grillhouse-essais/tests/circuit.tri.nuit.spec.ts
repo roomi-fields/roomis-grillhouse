@@ -354,7 +354,7 @@ describe('the texts that say the tri of the discoveries', () => {
     'mods/grillhouse/skills/pitmaster/SKILL.md',
     'mods/grillhouse/skills/pitmaster/references/consigne-agent.md',
     'packages/grillhouse/docs/ARCHITECTURE.md',
-    'CHANGELOG.md',
+    'packages/grillhouse/CHANGELOG.md',
   ])('%s names the tri of the discoveries and its verdicts', f => {
     const t = lire(f);
     expect(t).toMatch(/[Tt]ri(age)? (des|of the) (découvertes|discoveries)/);

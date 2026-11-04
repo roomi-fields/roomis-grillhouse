@@ -54,13 +54,13 @@ const VERSION = (
 const RACINE_DU_PLUGIN = '${CLAUDE_PLUGIN_ROOT}';
 const ROOMI = { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } };
 
-// A repository of the frame of trial: the package (its package.json, bin/, scripts/) beside a copy
+// A repository of the frame of trial: the package (its package.json, CHANGELOG.md, bin/, scripts/) beside a copy
 // of the plugin and the template, so that its prepack writes in the trial and never in the
 // repository.
 function depotDEssai() {
   const depot = mkdtempSync(path.join(ESSAIS, 'depot-'));
   const paquet = path.join(depot, 'packages/grillhouse');
-  for (const f of ['package.json', 'bin', 'docs', 'scripts']) {
+  for (const f of ['package.json', 'CHANGELOG.md', 'bin', 'docs', 'scripts']) {
     cpSync(path.join(PAQUET, f), path.join(paquet, f), { recursive: true });
   }
   for (const f of [...FICHIERS_DU_CADRE, 'mods/grillhouse']) {
@@ -109,6 +109,7 @@ describe('critère 1 — the published package is the plugin', () => {
       'cadre/templates/projet/package.json',
       'bin/grillhouse.mjs',
       'docs/ARCHITECTURE.md',
+      'CHANGELOG.md',
     ]) {
       expect(chemins, f).toContain(f);
     }
@@ -123,7 +124,13 @@ describe('critère 1 — the published package is the plugin', () => {
   it('npm pack holds no test of the plugin nor its configuration of TypeScript, and the postpack leaves the trial as it was', () => {
     expect(chemins.filter(c => c.startsWith('tests/') || c === 'tsconfig.json')).toEqual([]);
     expect(chemins.filter(c => c.startsWith('cadre/mods/'))).toEqual([]);
-    expect(readdirSync(paquet).sort()).toEqual(['bin', 'docs', 'package.json', 'scripts']);
+    expect(readdirSync(paquet).sort()).toEqual([
+      'CHANGELOG.md',
+      'bin',
+      'docs',
+      'package.json',
+      'scripts',
+    ]);
   });
 
   it('the package publishes its own entries and each entry of the plugin, none of the same name', () => {

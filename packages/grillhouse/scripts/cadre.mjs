@@ -43,7 +43,14 @@ export const FICHIERS_DU_CADRE = ['templates'];
  * The entries the package publishes of its own; `docs/` holds the architecture the charter names,
  * `tsdoc-base.json` the TSDoc base a project's tsdoc.json extends.
  */
-export const PROPRES_DU_PAQUET = ['bin', 'cadre', 'docs', 'scripts', 'tsdoc-base.json'];
+export const PROPRES_DU_PAQUET = [
+  'CHANGELOG.md',
+  'bin',
+  'cadre',
+  'docs',
+  'scripts',
+  'tsdoc-base.json',
+];
 
 /** The entries of the plugin's source the package leaves out. */
 export const HORS_DU_GREFFON = ['tests', 'tsconfig.json'];

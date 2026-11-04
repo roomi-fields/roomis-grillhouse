@@ -4,7 +4,7 @@
  * Bring the repository's changelog into the site, and write each page's
  * structured data.
  *
- * Source:  repo root CHANGELOG.md, and the pages of website/docs/
+ * Source:  packages/grillhouse/CHANGELOG.md, and the pages of website/docs/
  * Target:  website/docs/CHANGELOG.md and website/src/page-schemas.json
  *          (regenerated on every build, gitignored)
  *
@@ -166,9 +166,9 @@ for (const file of readdirSync(docsDir)) {
   console.log(`  ${file}`);
 }
 
-// Sync root CHANGELOG.md → website/docs/CHANGELOG.md
+// Sync packages/grillhouse/CHANGELOG.md → website/docs/CHANGELOG.md
 {
-  const changelogSrc = resolve(repoRoot, 'CHANGELOG.md');
+  const changelogSrc = resolve(repoRoot, 'packages/grillhouse/CHANGELOG.md');
   const changelogDst = resolve(docsDir, 'CHANGELOG.md');
   const changelogDate = lastCommitDate(changelogSrc);
   const fm = renderFrontmatter({

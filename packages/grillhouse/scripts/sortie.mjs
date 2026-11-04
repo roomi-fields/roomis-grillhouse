@@ -2,8 +2,8 @@
 // A release of Grillhouse, its package npm, which carries the frame's plugin: Grillhouse's own
 // script, which no project runs (`grillhouse init` installs the template of a project alone).
 //
-//   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, CHANGELOG.md
-//   npx grillhouse sortie --etiqueter                the annotated tag v<version> on HEAD, the release commit
+//   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, packages/grillhouse/CHANGELOG.md
+//   npx grillhouse sortie --etiqueter               the annotated tag v<version> on HEAD, the release commit
 //                                                    and the gesture that leads Grillhouse with it once published
 //   npx grillhouse sortie --verifier-etiquette <v>   exits 0 when the tag <v> names the version of the package
 //   npx grillhouse sortie --entree-du-marche         the entry of the plugin in the marketplace roomi-fields
@@ -39,7 +39,7 @@ export const ENTREE_DU_MARCHE = {
   name: 'grillhouse',
   source: { source: 'npm', package: '@roomi-fields/grillhouse' },
 };
-const CHANGELOG = 'CHANGELOG.md';
+const CHANGELOG = 'packages/grillhouse/CHANGELOG.md';
 const OUVERTE = '## [Unreleased]\n';
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 

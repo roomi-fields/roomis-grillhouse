@@ -599,12 +599,6 @@ describe('grillhouse-0cy, critère 3 — un dossier que le module ne sait pas re
   });
 });
 
-describe('grillhouse-0cy, critère 4 — le CHANGELOG le dit', () => {
-  it('the CHANGELOG names the ticket', () => {
-    expect(readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8')).toContain('grillhouse-0cy');
-  });
-});
-
 describe('grillhouse-b32, critère 4 — un paquet né de la commande entre au circuit', () => {
   it('typescript: the title naming it by its path resolves once it is born, not before', () => {
     const racine = mkdtempSync(path.join(ESSAIS, 'ts-'));
@@ -650,9 +644,5 @@ describe('grillhouse-b32, critère 5 — les textes disent les quatre temps', ()
     const texte = readFileSync(path.join(DEPOT, f), 'utf8');
     expect(texte).toContain('grillhouse paquet');
     expect(texte).toMatch(/quatre temps/);
-  });
-
-  it('the CHANGELOG says it', () => {
-    expect(readFileSync(path.join(DEPOT, 'CHANGELOG.md'), 'utf8')).toContain('grillhouse paquet');
   });
 });

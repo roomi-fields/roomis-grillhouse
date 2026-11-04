@@ -20,7 +20,7 @@ const PUBLISHED = '2026-10-07';
  */
 function lastModified(): string {
   try {
-    const iso = execFileSync('git', ['log', '-1', '--format=%cI', '--', '.', '../CHANGELOG.md'], {
+    const iso = execFileSync('git', ['log', '-1', '--format=%cI', '--', '.', '../packages/grillhouse/CHANGELOG.md'], {
       encoding: 'utf8',
     }).trim();
     if (iso) return iso.slice(0, 10);

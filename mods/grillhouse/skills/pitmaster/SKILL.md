@@ -384,7 +384,8 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
 - **Les critères naissent avec le ticket** : je crée chaque ticket de réalisation avec ses
   critères d'acceptation numérotés (`docs/agents/issue-tracker.md`, « Conventions ») ; un critère
   sur le changelog dit « le CHANGELOG le dit », sans le lier à un titre de section, et le
-  relecteur le juge sur le lot. Un cas
+  relecteur le juge sur le lot, dans le CHANGELOG du paquet publié (dans son dossier, donc dans le
+  plan de tout lot du paquet). Un cas
   qu'un agent me rend en cours de travail s'y ajoute s'il est un besoin réel de l'usage actuel ;
   une remarque du relecteur hors des critères devient une découverte (`relecteur`, « Le
   verdict »). Ainsi chaque comportement attendu devient un test, et aucun agent ne le tranche
