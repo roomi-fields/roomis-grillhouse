@@ -49,7 +49,7 @@
 //   when a manifest is judged, so that a project of another language, which loads this module
 //   without it, never needs it.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
@@ -523,3 +523,57 @@ function horsDesTests(chemin, racine, avant, apres) {
 
 /** What the testwriter writes of the manifests (scripts/jointure.d.ts, `manifestes`). */
 export const manifestes = { verrous: ['Cargo.lock'], horsDesTests };
+
+/**
+ * The name a Cargo.toml <texte> gives its package: the `name` of its `[package]`; null for none.
+ * @param {string} texte
+ */
+export function nomDuManifeste(texte) {
+  let section = null;
+  for (const l of texte.split('\n')) {
+    const s = /^\s*\[([^\]]+)\]\s*(?:#.*)?$/.exec(l);
+    if (s) {
+      section = s[1].trim();
+      continue;
+    }
+    const n = /^\s*name\s*=\s*["']([^"']+)["']/.exec(l);
+    if (section === 'package' && n) {
+      return n[1];
+    }
+  }
+  return null;
+}
+
+const TABLES = ['dependencies', 'dev-dependencies', 'build-dependencies'];
+
+/**
+ * The internal dependencies of the crate at <chemin> (from <racine>): each dependency with a
+ * `path` (in `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]` and the same under
+ * `[target.*]`; a `workspace = true` one takes the `path` of `[workspace.dependencies]` of the
+ * root Cargo.toml), named by <nomA> of the folder at that path, else by its key.
+ * @param {string} racine
+ * @param {string} chemin
+ * @param {(dossier: string) => string | null} nomA
+ */
+export function liensDuManifeste(racine, chemin, nomA) {
+  const { parse } = require('smol-toml');
+  const lire = f => (existsSync(f) ? parse(readFileSync(f, 'utf8')) : null);
+  const dossier = path.join(racine, chemin);
+  const m = lire(path.join(dossier, 'Cargo.toml')) ?? {};
+  const communes = lire(path.join(racine, 'Cargo.toml'))?.workspace?.dependencies ?? {};
+  const noms = new Set();
+  const tables = [
+    ...TABLES.map(t => m[t]),
+    ...Object.values(m.target ?? {}).flatMap(c => TABLES.map(t => c?.[t])),
+  ];
+  for (const table of tables) {
+    for (const [cle, spec] of Object.entries(table ?? {})) {
+      const commune = spec?.workspace === true;
+      const lien = commune ? communes[cle]?.path : spec?.path;
+      if (typeof lien === 'string') {
+        noms.add(nomA(path.resolve(commune ? racine : dossier, lien)) ?? cle);
+      }
+    }
+  }
+  return { noms: [...noms], table: 'path', outil: 'cargo' };
+}

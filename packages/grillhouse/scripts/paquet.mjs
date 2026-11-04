@@ -25,6 +25,11 @@
 //   and its language written in. Each file absent is written, a file present stays; the manifest
 //   of the workspace receives the entry. The command commits nothing: the second and the third
 //   times enter one commit, after a green verification.
+// - The entry into the Turborepo graph: a crate or a Python project, whose manifest is not a
+//   package.json, receives one beside it (./paquet-npm.mjs: the `name` of its manifest, `private`,
+//   the scripts build, test:unit and typecheck that call the module's commands on its path) and
+//   its path in the `workspaces` of the root when no pattern selects it (after the `!` pattern
+//   that excludes it). A package.json already there is never rewritten: a different name is refused.
 // - The tools of the language, as `nx add` installs them before the first generator: the share
 //   of the update of each declared language (`mettreAJour` of ./grillhouse-maj.mjs: its tools at
 //   its template's versions, its scripts, its files, `turbo.json` for typescript), then `npm
@@ -48,6 +53,13 @@ import {
   regenerer,
 } from './grillhouse-maj.mjs';
 import { LANGAGES, langage } from './langages.mjs';
+import {
+  inscrireAuxEspaces,
+  nomDuManifeste,
+  packageJsonDuPaquet,
+  sansPackageJson,
+} from './paquet-npm.mjs';
+import { paquets } from './paquets.mjs';
 import { hors } from './sources.mjs';
 import {
   ARCHITECTURE,
@@ -122,6 +134,58 @@ function existants(racine, dossier) {
     .sort();
 }
 
+// The package.json of the package at <rel> when its language has none of its own (a crate, a
+// project of Python; ./paquet-npm.mjs): `{ fichiers, espace }`, its text when it lacks, and the
+// root package.json with the entry of <rel> in its `workspaces` (null when its patterns select
+// it). A package.json present is never rewritten: refused, by its name, when its `name` is not the
+// manifest's or is already another package's of the workspaces. Nothing for the other languages.
+/**
+ * @param {string} racine
+ * @param {string} rel
+ * @param {string} langage
+ * @param {{ manifeste: string }} m
+ * @param {{ fichiers: Record<string, string> }} squelette
+ * @returns {{ fichiers: Record<string, string>, espace: { fichier: string, texte: string } | null }}
+ */
+function packageJsonDuPaquetNonJs(racine, rel, langage, m, squelette) {
+  if (!sansPackageJson().includes(langage)) {
+    return { fichiers: {}, espace: null };
+  }
+  const manifeste = squelette.fichiers[`${rel}/${m.manifeste}`];
+  const nom = manifeste === undefined ? null : nomDuManifeste(langage, manifeste);
+  if (nom === null) {
+    throw new Refus(`${rel}/${m.manifeste} : le squelette du module n'écrit aucun nom de paquet.`);
+  }
+  const f = `${rel}/package.json`;
+  const abs = path.join(racine, f);
+  /** @type {Record<string, string>} */
+  const fichiers = {};
+  if (existsSync(abs)) {
+    let present;
+    try {
+      present = JSON.parse(readFileSync(abs, 'utf8')).name;
+    } catch (e) {
+      throw new Refus(`${f} : ${e.message} ; la commande ne réécrit pas un package.json.`);
+    }
+    if (present !== nom) {
+      throw new Refus(
+        `${f} : son nom est ${JSON.stringify(present)}, celui de ${m.manifeste} est ${JSON.stringify(nom)} ; la commande ne réécrit pas un package.json, le nom s'accorde au manifeste.`
+      );
+    }
+  } else {
+    fichiers[f] = packageJsonDuPaquet(nom, rel);
+  }
+  const autre = paquets(racine).find(p => p.pkg.name === nom && p.dossier !== rel);
+  if (autre) {
+    throw new Refus(
+      `${f} : le nom ${JSON.stringify(nom)} est déjà celui de ${autre.dossier}/package.json, un paquet des workspaces ; un nom ne désigne qu'un paquet.`
+    );
+  }
+  const fr = path.join(racine, 'package.json');
+  const texte = existsSync(fr) ? inscrireAuxEspaces(readFileSync(fr, 'utf8'), rel) : null;
+  return { fichiers, espace: texte === null ? null : { fichier: 'package.json', texte } };
+}
+
 /**
  * The plan of the package at <chemin> of the project at <racine>, nothing written: `{ chemin,
  * langage, fichiers, espace, verrouiller }`, `fichiers` the skeleton of its language and its
@@ -171,7 +235,9 @@ export function planDuPaquet(racine, chemin, { source = CADRE } = {}) {
   } catch (e) {
     throw new Refus(e.message);
   }
+  const npm = packageJsonDuPaquetNonJs(racine, rel, l.langage, m, s);
   const nom = path.posix.basename(rel);
+  /** @type {Record<string, string>} */
   const documents = Object.fromEntries(
     DOCUMENTS.map(d => [
       `${rel}/${d}`,
@@ -183,8 +249,9 @@ export function planDuPaquet(racine, chemin, { source = CADRE } = {}) {
   return {
     chemin: rel,
     langage: m,
-    fichiers: { ...s.fichiers, ...documents },
+    fichiers: { ...s.fichiers, ...npm.fichiers, ...documents },
     espace: s.espace,
+    espaceNpm: npm.espace,
     verrouiller: s.verrouiller,
   };
 }
@@ -206,9 +273,11 @@ export function ecrireLePaquet(racine, plan) {
     writeFileSync(abs, texte);
     ecrits.push(f);
   }
-  if (plan.espace) {
-    writeFileSync(path.join(racine, plan.espace.fichier), plan.espace.texte);
-    ecrits.push(plan.espace.fichier);
+  for (const espace of [plan.espace, plan.espaceNpm]) {
+    if (espace) {
+      writeFileSync(path.join(racine, espace.fichier), espace.texte);
+      ecrits.push(espace.fichier);
+    }
   }
   return ecrits;
 }

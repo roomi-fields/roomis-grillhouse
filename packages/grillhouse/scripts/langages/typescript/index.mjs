@@ -203,6 +203,17 @@ const joueDesTests = (_racine, composant) =>
 export default {
   nom: 'typescript',
   manifeste: 'package.json',
+  // The name a package.json gives its package; its internal dependencies are the package.json's
+  // own, so no other manifest holds any.
+  nomDuManifeste: texte => {
+    try {
+      const nom = JSON.parse(texte)?.name;
+      return typeof nom === 'string' ? nom : null;
+    } catch {
+      return null;
+    }
+  },
+  liensDuManifeste: () => ({ noms: [], table: 'dependencies', outil: 'npm' }),
   // The tools a project of TypeScript installs, optional peers of the package: what this module
   // runs as commands (Turborepo, knip, dependency-cruiser) and what its scripts import (API
   // Extractor, its model, TSDoc's configuration, jsonc-parser); the project's own TypeScript and

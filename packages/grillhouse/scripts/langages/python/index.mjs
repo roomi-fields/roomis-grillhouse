@@ -42,7 +42,9 @@ import {
   arbreDAvant,
   joueDesTests,
   lecteurs,
+  liensDuManifeste,
   manifestes,
+  nomDuManifeste,
 } from './composants.mjs';
 import { enRetard, SORTIE } from './index-interfaces.mjs';
 import { elementsDuLot, touches } from './lot.mjs';
@@ -55,6 +57,8 @@ const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 export default {
   nom: 'python',
   manifeste: 'pyproject.toml',
+  nomDuManifeste,
+  liensDuManifeste,
   outils: ['smol-toml'],
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
   ignorer: ['.venv', '.pytest_cache', PYCACHE],

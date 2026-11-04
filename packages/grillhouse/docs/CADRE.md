@@ -29,6 +29,12 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   `./vitest-config/mesure`, `./vitest-config/duree` et `./tsdoc-base.json` mènent au module
   typescript.
 
+- **R2.1.** Tout langage entre dans le graphe de Turborepo par un `package.json` : celui d'un
+  crate ou d'un projet Python, écrit par `npx grillhouse paquet` (ou la migration 0.31.0 pour un
+  projet existant), inscrit aux `workspaces`, dont les scripts appellent les commandes par paquet
+  du module (`construire <chemin>`, `typer <chemin>`, `tester <chemin>`) ; la garde
+  `dependances-internes` tient ses dépendances internes d'accord avec le manifeste du langage.
+
 ## Ce qu'il refuse
 
 - **R3.** Le noyau n'importe aucun fichier d'un module de langage hors de la jointure

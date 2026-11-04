@@ -97,7 +97,7 @@ import {
   retirerALInterruption,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
-import { controlesDeRacine, planifier } from './turbo-des-paquets.mjs';
+import { controlesDeRacine, horsTypescript, planifier } from './turbo-des-paquets.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { garderLesResumes } from './verdict.mjs';
 import { VARIABLE as TESTS_CIBLES } from './vitest-config/cibles.mjs';
@@ -237,6 +237,7 @@ function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coe
   const a = [
     ...(gardesSeules ? GARDES : TACHES),
     ...controlesDeRacine(racine),
+    ...horsTypescript(racine),
     '--continue=dependencies-successful',
     ...borne,
     ...args,

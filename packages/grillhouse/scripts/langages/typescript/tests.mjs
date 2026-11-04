@@ -93,7 +93,7 @@ import {
 import { paquets } from '../../paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
 import { RESULTATS } from '../../resultats.mjs';
-import { planifier, tracesDuPlan } from './turbo-des-paquets.mjs';
+import { horsTypescript, planifier, tracesDuPlan } from './turbo-des-paquets.mjs';
 import { SCRIPT_DES_TESTS } from './script-des-tests.mjs';
 import { VARIABLE } from './vitest-config/cibles.mjs';
 
@@ -195,7 +195,7 @@ const dossiers = new Map(liste.map(p => [p.pkg.name, path.join(racine, p.dossier
 const lancer = () => {
   if (chemins.length === 0) {
     return turbo(
-      [SCRIPT_DES_TESTS, ...(force ? ['--force'] : [])],
+      [SCRIPT_DES_TESTS, ...horsTypescript(racine), ...(force ? ['--force'] : [])],
       options.length ? { arguments: options } : undefined
     );
   }

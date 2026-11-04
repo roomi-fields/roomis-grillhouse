@@ -10,8 +10,9 @@
 // - `tests` and `verifier` run the commands the modules of the project's languages describe
 //   (`commandes`, scripts/jointure.d.ts: `tester` and `verifier`; for several languages, the
 //   composed command, scripts/commandes-composees.mjs), the project being the working directory
-//   (scripts/langages.mjs); each other command it describes but `typer` is a subcommand
-//   by its name (`frontieres`, `index-interfaces`), as a backend of Pants brings its goals.
+//   (scripts/langages.mjs); each other command it describes is a subcommand by its name
+//   (`frontieres`, `index-interfaces`, `typer`, `construire`), as a backend of Pants brings its
+//   goals.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { langageDe } from './langages.mjs';
@@ -26,6 +27,7 @@ export const SOUS_COMMANDES = {
   circuit: 'circuit.mjs',
   commande: 'verrous/commande.mjs',
   'composants-affectes': 'composants-affectes.mjs',
+  'dependances-internes': 'dependances-internes.mjs',
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
   file: 'integration/file.mjs',
@@ -62,8 +64,8 @@ export const SOUS_COMMANDES = {
 };
 
 // The commands of the module of the language that serve the project at <racine> and are no
-// subcommand by their name: the ones `tests` and `verifier` run, and the typing.
-const DU_NOYAU = new Set(['tester', 'verifier', 'typer']);
+// subcommand by their name: the ones `tests` and `verifier` run.
+const DU_NOYAU = new Set(['tester', 'verifier']);
 
 /**
  * The subcommands in the project at <racine>, sorted: the core's (SOUS_COMMANDES), and the

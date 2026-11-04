@@ -40,7 +40,12 @@ ligne de commande, avec ce que ce fichier importe et nomme à son tour, comme le
 cible de Bazel, `vitest-config/lances.mjs`), et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
 configuration, un fichier qu'aucun module n'importe, un fichier, changé ou supprimé, que lit
 la construction d'un paquet dont il dépend, un chemin que ses tests déclarent lire,
-`grillhouse.lit`) ; la construction d'un voisin lit les entrées du `build` de son turbo.json,
+`grillhouse.lit`) ; un seul graphe Turborepo sert tous les langages : un crate ou un projet
+Python a un `package.json` à côté de son manifeste (modèle `multi-language.mdx` de Turborepo),
+et le générateur du `turbo.json` écrit ses entrées de hash selon le langage que déclare
+`docs/ARCHITECTURE.md` (un crate : son dossier, `Cargo.lock`, le `Cargo.toml` racine ; un projet
+Python : son dossier, `uv.lock`, `pyproject.toml`), plus `grillhouse.lit`, et les variables de
+`grillhouse.outils` dans `globalPassThroughEnv` ; la construction d'un voisin lit les entrées du `build` de son turbo.json,
 lues comme Turborepo les lit (`$TURBO_DEFAULT$` : tous les fichiers du paquet, `docs/`
 compris ; `$TURBO_EXTENDS$` : les entrées du `build` de la racine), et, quand elles n'en
 nomment aucune, son code et sa configuration hors de son `docs/` ; jamais un test ; sans vert
@@ -831,7 +836,7 @@ sous-commande du noyau a sa place, qu'un test tient :
   l'intégration et la file (`integrer`, `file`), `resultats`, `retirer-copie` et `bilan`, même
   lancés à la main par le superviseur ;
 - le code de la copie : `tests`, `verifier`, `gardes-du-cadre`, `langages-des-paquets`,
-  `temporaire`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
+  `dependances-internes`, `temporaire`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
   `composants-affectes`, et les commandes des modules de langage ;
 - les outils du dépôt, qui tournent par son code : `init`, `maj`, `paquet`, `sortie`, `outil`,
   `greffons`, `sous-modules`, `pression`, `ticket`.

@@ -13,7 +13,8 @@
 //   results directory included (`GRILLHOUSE_RESULTATS`), where each module writes under names of
 //   its own. A line on the error stream names each module before it plays, so that what a
 //   command prints on its standard output stays its own.
-// - `tester`: an argument that begins with « - » is an option, given to every module; any other is
+// - `tester`, `construire` and `typer` (the last two: one package, as the scripts of its
+//   package.json call them): an argument that begins with « - » is an option, given to every module; any other is
 //   a path from the root, given to the module of the component that holds it
 //   (`moduleDuFichier`), or out of every component to the first module whose rule of a test file
 //   judges it (`estUnTest`). With paths, the modules that receive none do not play. A path no
@@ -46,10 +47,15 @@ export const unir = codes =>
   codes.find(c => c !== 0 && c !== A_REPASSER) ??
   (codes.some(c => c === A_REPASSER) ? A_REPASSER : 0);
 
+// The commands whose path arguments go to the module of the component that holds each.
+const PAR_CHEMIN = ['tester', 'construire', 'typer'];
+
 // The arguments of each module of <modules> for the command <nom>: `{ parts: [{ module, args }] }`,
 // or `{ refus }`, the paths no module takes.
 function repartir(nom, args, modules, racine) {
-  if (nom !== 'tester') {
+  // `construire` and `typer` name a package by its path, as `tester`; the launcher's `construire`
+  // (`--echec <fichier> <plan>`) names none.
+  if (!PAR_CHEMIN.includes(nom) || args.includes('--echec')) {
     return { parts: modules.map(module => ({ module, args })) };
   }
   const estChemin = a => !a.startsWith('-');

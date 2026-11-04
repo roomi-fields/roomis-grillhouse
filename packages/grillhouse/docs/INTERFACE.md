@@ -48,7 +48,7 @@ Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une 
 cibles, un outil par langage. `langagesDe(racine)` rend les modules déclarés, dans l'ordre de la
 déclaration, chacun chargé une fois par processus ; `langageDe(racine)` rend leur composition
 (`scripts/composition-des-langages.mjs`), le module lui-même quand le projet n'en déclare qu'un.
-La composition répond aux demandes ci-dessous, `manifeste`, `miseAJour` et `squelette` à part, que la
+La composition répond aux demandes ci-dessous, `manifeste`, `nomDuManifeste`, `liensDuManifeste`, `miseAJour` et `squelette` à part, que la
 garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
@@ -85,6 +85,15 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 - `manifeste` : le manifeste d'un paquet du langage, dans son dossier (`typescript`, un
   `package.json` ; `cargo`, un `Cargo.toml` ; `python`, un `pyproject.toml`), que la garde des langages demande à un paquet que
   l'architecture déclare de ce langage.
+- `nomDuManifeste` : le nom que le texte d'un manifeste du langage donne à son paquet (le `name` du
+  `package.json`, du `[package]` d'un `Cargo.toml`, du `[project]` d'un `pyproject.toml`) ; nul sans
+  nom. Le noyau y lit le nom du `package.json` qu'`npx grillhouse paquet` écrit à côté d'un manifeste
+  qui n'est pas un `package.json`.
+- `liensDuManifeste` : les dépendances internes que le manifeste du paquet à `chemin` lie par un
+  `path` ou une entrée d'espace de travail, par les noms des paquets (`nomA` donne le nom du paquet
+  dont le manifeste est dans un dossier ; sans lui, la clé), avec `table` (où le manifeste les lie) et
+  `outil` (l'outil qui construit par elles) ; aucune pour un langage dont le manifeste est le
+  `package.json`. La garde des dépendances internes les compare à celles du `package.json`.
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
@@ -194,6 +203,15 @@ clippy`). Le noyau en lance trois
   quand le module les décrit, et passe l'étape sinon :
   - `preparer`, que l'intégration et la file jouent avant la vérification (`cargo`, `cargo fetch
 --locked`, qui télécharge les dépendances ; `python`, `uv sync --locked --group test`) ;
+  - `construire <chemin>` et `typer <chemin>` (`cargo`, `cargo build -p` et `cargo check -p` du
+    crate de ce dossier ; `python`, la construction et le typage du projet de ce dossier) : les
+    commandes par paquet que les scripts `build` et `typecheck` du `package.json` d'un crate ou
+    d'un projet Python appellent, comme la tâche d'un paquet dans Turborepo ; un chemin qui ne
+    désigne pas un paquet du langage est refusé (2). `typer` sans chemin type l'espace entier.
+    Tout langage entre dans le graphe de Turborepo par ce `package.json`, que `npx grillhouse
+    paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `workspaces` ;
+    `dependances-internes` refuse un `package.json` dont les dépendances internes diffèrent de
+    `Cargo.toml` (`path = …`) ou de `pyproject.toml` (`[tool.uv.sources]`) ;
   - `construire --echec <fichier> <plan>`, que le lanceur joue dans la copie préparée, pour que la
     séance trouve construit ce qu'elle lit (`typescript`, la construction par Turborepo) : une
     construction en échec écrit dans `<fichier>` sa première ligne, puis sa sortie, et rend 0 ;
@@ -288,7 +306,11 @@ l'interruption), la pression de la machine et son verrou, les travailleurs d'une
 (`travailleursDeLaSeance(env)` : le nombre que donne `GRILLHOUSE_TRAVAILLEURS`, max(1, cœurs ÷
 places), que le module passe à son outil — `maxWorkers`, `-j`, `-n` — ou `null` pour une passe
 lourde, qui garde tous les cœurs ; une valeur fautive est refusée par son nom), le dernier vert,
-les arbitrages d'un ticket, les fichiers sources d'un projet, et la lecture unique
+les arbitrages d'un ticket, les fichiers sources d'un projet, les paquets d'un langage sans
+`package.json` à lui (`paquetsSansPackageJson(racine)` : les crates et les projets Python que le
+tableau des composants de `docs/ARCHITECTURE.md` déclare, chacun `{ langage, chemin, nom }`, `nom`
+celui du manifeste ; le module typescript en exclut les tâches `test:unit` et `typecheck`, que la
+passe de leur propre module joue), et la lecture unique
 (`luUneFois(cle, lire)` : ce qu'un module lit à grand coût, les métadonnées de cargo, ses
 composants, se lit une fois tant que le noyau tient une portée de lecture unique, un geste qui
 pose beaucoup de questions sur un arbre immobile, le balayage des sœurs ; à chaque appel hors

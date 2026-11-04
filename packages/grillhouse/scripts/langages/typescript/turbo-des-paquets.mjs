@@ -162,7 +162,12 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { applyEdits, modify, parse } from 'jsonc-parser';
-import { AVANCEMENT, CHANGEMENTS, inscrireLePlan } from '../../services-du-noyau.mjs';
+import {
+  AVANCEMENT,
+  CHANGEMENTS,
+  inscrireLePlan,
+  paquetsSansPackageJson,
+} from '../../services-du-noyau.mjs';
 import { matieres } from './consommateurs.mjs';
 import { parcourir } from './parcours.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
@@ -192,6 +197,11 @@ export function controlesDeRacine(racine) {
     return [];
   }
 }
+// The filters that leave out of a run of Turborepo the packages of another language than TypeScript
+// of <racine> (`--filter=!<name>`): they hold the tasks `test:unit` and `typecheck` for the graph
+// and the order of the builds, while the pass of their own module plays their tests and typing.
+export const horsTypescript = racine =>
+  paquetsSansPackageJson(racine).map(p => `--filter=!${p.nom}`);
 // The tasks of the controls of the root at <racine> its root turbo.json lacks: [{ cle }].
 function controlesAbsents(racine) {
   const r = confRacine(racine);
@@ -221,6 +231,20 @@ const POURQUOI = {
   [TEMPORAIRE]:
     'la base de la passe, où chaque tâche écrit ses fichiers temporaires, effacée à sa fin',
 };
+// The variables of the tools of the project at <racine> (`grillhouse.outils` of its package.json,
+// scripts/outils-cles.mjs), in the order it declares them: the paths of tools outside the
+// repository its tests demand, which the run passes to every task without hashing them. A key
+// that is no variable name is the guard of the tools' (`grillhouse outil`), not this one's.
+function variablesDOutils(racine) {
+  try {
+    const o = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).grillhouse?.outils;
+    return o && typeof o === 'object' && !Array.isArray(o)
+      ? Object.keys(o).filter(n => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n))
+      : [];
+  } catch {
+    return [];
+  }
+}
 // The prefix of a trace task.
 const TRACE = 'trace:';
 // The files a build compiles: TypeScript's sources and declarations (tsc's default `include`
@@ -501,6 +525,23 @@ function entreesBuild(racine, dossier, pkg, sm) {
   ];
 }
 
+// The inputs of the build of a package of the language <langageNom> that has no package.json of
+// its own (a crate, a project of Python) in <dossier>: what its build reads, as Turborepo's
+// example of Rust names them (rust.mdx § Caching behavior), none of TypeScript's. A crate: its
+// folder (Turborepo's default), then the Cargo.lock and the Cargo.toml of the root, the lock and
+// the manifest of its workspace. A project of Python: its folder, which holds its own uv.lock and
+// pyproject.toml, then the ones of the root when it has them (a workspace of uv).
+function entreesDeBuildHorsJs(racine, langageNom) {
+  const racineDe = f => `$TURBO_ROOT$/${f}`;
+  if (langageNom === 'cargo') {
+    return ['$TURBO_DEFAULT$', racineDe('Cargo.lock'), racineDe('Cargo.toml')];
+  }
+  return [
+    '$TURBO_DEFAULT$',
+    ...['pyproject.toml', 'uv.lock'].filter(f => existsSync(path.join(racine, f))).map(racineDe),
+  ];
+}
+
 // The data and traces each package of the frame declares in its package.json:
 // [{ dossier, pkg, lit, traces: [{ tache, id, lit, ecrit }] }], each path from the root.
 function declarations(liste) {
@@ -551,8 +592,9 @@ export function attendus(racine) {
       .filter(({ pkg, hors }) => !hors && typeof pkg.scripts?.build === 'string')
       .map(({ pkg }) => pkg.name)
   );
+  const horsJs = new Map(paquetsSansPackageJson(racine).map(p => [p.chemin, p.langage]));
   const decls = new Map(declarations(liste).map(d => [d.dossier, d]));
-  const traces = [...decls.values()].flatMap(d => d.traces);
+  const traces =[...decls.values()].flatMap(d => d.traces);
   // The trace tasks whose output one of <lit> overlaps, <soi> left out, sorted.
   const jointes = (lit, soi) =>
     traces
@@ -581,7 +623,10 @@ export function attendus(racine) {
       taches.build = {
         dependsOn: internes(pkg, EXECUTION, construits).map(n => `${n}#build`),
       };
-      const propres = entreesBuild(racine, dossier, pkg, sm);
+      const langageDuPaquet = horsJs.get(dossier);
+      const propres = langageDuPaquet
+        ? entreesDeBuildHorsJs(racine, langageDuPaquet)
+        : entreesBuild(racine, dossier, pkg, sm);
       // The files the build reads by name stay its inputs, a reader's declaration never changing
       // them (Bazel: a file is `srcs` of one target and `data` of another): the ones its inputs
       // name, else its package.json and tsconfig*.json.
@@ -594,7 +639,8 @@ export function attendus(racine) {
         .filter(d => !lusParBuild(d))
         .sort();
       const sansDonnees = dedans.map(d => `!${d}/**`);
-      if (propres) taches.build.inputs = [...racineBuild, ...propres, ...sansDonnees];
+      if (langageDuPaquet) taches.build.inputs = [...propres, ...sansDonnees];
+      else if (propres) taches.build.inputs = [...racineBuild, ...propres, ...sansDonnees];
       else if (dedans.length) taches.build.inputs = [base('build'), ...sansDonnees];
       const horsVoisin = TOPOLOGIE.some(c => Object.keys(pkg[c] ?? {}).some(n => hors.has(n)));
       const voisins = internes(pkg, TOPOLOGIE, duCadre);
@@ -715,7 +761,7 @@ function passagesManquants(racine) {
   const r = confRacine(racine);
   if (!r) return null;
   const actuel = Array.isArray(r.conf.globalPassThroughEnv) ? r.conf.globalPassThroughEnv : [];
-  const manques = PASSAGES.filter(v => !actuel.includes(v));
+  const manques = [...PASSAGES, ...variablesDOutils(racine)].filter(v => !actuel.includes(v));
   return manques.length ? { f: r.f, attendu: [...actuel, ...manques], manques } : null;
 }
 
@@ -992,7 +1038,7 @@ export function verifier(racine) {
   const passage = passagesManquants(racine);
   for (const v of passage?.manques ?? []) {
     refus.push(
-      `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${v}, ${POURQUOI[v]} ; \`${COMMANDE}\` l'ajoute.`
+      `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${v}, ${POURQUOI[v] ?? "l'outil du projet (`grillhouse.outils`) que ses tests exigent"} ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {

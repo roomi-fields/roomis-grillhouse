@@ -97,6 +97,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'tester',
       'verifier',
       'typer',
+      'construire',
       'preparer',
       'tests-de-nuit',
       'tailles-des-tests',
@@ -104,7 +105,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'frontieres',
       'index-interfaces',
     ]);
-    for (const nom of ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit']) {
+    for (const nom of ['tester', 'verifier', 'typer', 'construire', 'preparer', 'tests-de-nuit']) {
       expect(c[nom]).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
     }
     expect(existsSync(path.join(MODULE, 'commandes.mjs'))).toBe(true);

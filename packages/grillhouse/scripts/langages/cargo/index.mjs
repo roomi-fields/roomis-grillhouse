@@ -48,8 +48,10 @@ import {
   testsDeHead,
   joueDesTests,
   lecteurs,
+  liensDuManifeste,
   manifestes,
   matieres,
+  nomDuManifeste,
 } from './composants.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, entreesDeLIndex, SORTIE } from './index-interfaces.mjs';
@@ -66,6 +68,8 @@ const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 export default {
   nom: 'cargo',
   manifeste: 'Cargo.toml',
+  nomDuManifeste,
+  liensDuManifeste,
   // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
   outils: ['smol-toml'],
   // The binaries the module runs, each at an exact version: nextest and cargo-deny at the ones the

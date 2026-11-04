@@ -134,7 +134,7 @@ import { JUNIT, TACHES } from './verdict.mjs';
 const ICI = fileURLToPath(import.meta.url);
 const NEXTEST = path.join(path.dirname(ICI), 'nextest.toml');
 const PROFIL = 'grillhouse';
-export const NOMS = ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit'];
+export const NOMS = ['tester', 'verifier', 'typer', 'construire', 'preparer', 'tests-de-nuit'];
 const A_REPASSER = 75;
 const RACINE = '//';
 // The task of the time budget benches of a crate.
@@ -143,7 +143,7 @@ const VERROU = 'Cargo.lock';
 // The commands that play the exact versions of the repository, refused without its Cargo.lock.
 const VERROUILLEES = ['tester', 'verifier', 'preparer', 'tests-de-nuit'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
-const COMPILENT = ['tester', 'verifier', 'typer', 'tests-de-nuit'];
+const COMPILENT = ['tester', 'verifier', 'typer', 'construire', 'tests-de-nuit'];
 // The kinds of a target that are no library.
 const PAS_UNE_BIBLIOTHEQUE = ['test', 'bin', 'example', 'bench', 'custom-build'];
 
@@ -174,7 +174,7 @@ export function fichierHorsDuJour(chemin, racine) {
   return Boolean(c?.cibles.some(t => t.src === abs && horsDuJour(t) !== null));
 }
 // The subcommands of cargo that compile, before which the server of sccache starts.
-const COMPILATIONS = ['test', 'nextest', 'check'];
+const COMPILATIONS = ['test', 'nextest', 'check', 'build'];
 
 /** The guards of structure of the module, in the order they play: each its name, its script beside
  * this one, and its arguments as a guard. */
@@ -577,6 +577,25 @@ export function verrouNonVersionne(racine, copie = racine) {
  * @param {{ racine?: string, env?: NodeJS.ProcessEnv }} [o]
  */
 export function lancer(nom, args, { racine = process.cwd(), env = process.env } = {}) {
+  // `construire` and `typer` with a path: the one crate of that folder (`cargo build -p`,
+  // `cargo check -p`), as Turborepo's task of one package; `typer` alone checks the workspace.
+  let crate = null;
+  // The launcher's `construire` (`--echec <fichier> <plan>`, scripts/enveloppe/lancer.sh) builds
+  // the copy for a session: a crate has no such build, and plays nothing.
+  if (nom === 'construire' && args.includes('--echec')) {
+    return 0;
+  }
+  if (nom === 'construire' ||(nom === 'typer' && args.length)) {
+    const [chemin, ...autres] = args;
+    const abs = chemin === undefined ? null : path.resolve(racine, chemin);
+    crate = abs === null ? undefined : crates(racine).find(x => x.composant.dossier === abs);
+    if (!crate || autres.length) {
+      process.stderr.write(
+        `⛔ ${nom} : ${chemin ?? 'aucun chemin'} ne désigne pas un crate (un dossier de crate, une fois).\n`
+      );
+      return 2;
+    }
+  }
   const refus =
     (VERROUILLEES.includes(nom) ? verrouNonVersionne(racine, env[COPIE_DE_L_ARBRE] || racine) : null) ??
     (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
@@ -585,6 +604,12 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     return 2;
   }
   const p = passe(racine, env);
+  if (crate) {
+    const sous = nom === 'construire' ? 'build' : 'check';
+    const nomDuCrate = crate.composant.nom;
+    p.jouer(p.prevoir(nomDuCrate, crate.composant.dossier, sous, false, [sous, '-p', nomDuCrate]));
+    return p.code();
+  }
   if (nom === 'typer') {
     p.jouer(p.prevoir(RACINE, racine, 'check', false, ['check', '--all-targets']));
     return p.code();

@@ -283,6 +283,20 @@ export interface Langage extends Composition {
   /** The manifest of a package of this language, in its folder (`package.json`, `Cargo.toml`):
    * the guard of the languages asks it of a package the architecture declares of this language. */
   manifeste: string;
+  /** The name the text of a manifest of this language gives its package (the `name` of a
+   * `package.json`, of the `[package]` of a `Cargo.toml`, of the `[project]` of a
+   * `pyproject.toml`); null for none. */
+  nomDuManifeste(texte: string): string | null;
+  /** The internal dependencies the manifest of the package at `chemin` (from `racine`) links by a
+   * path or a workspace entry, as the names of the packages (`nomA` gives the name of the package
+   * whose manifest lies in a folder, null for none; a dependency without one keeps its key);
+   * `table` names where the manifest links them and `outil` the tool that builds by them. None for
+   * a language whose manifest is the package.json. */
+  liensDuManifeste(
+    racine: string,
+    chemin: string,
+    nomA: (dossier: string) => string | null
+  ): { noms: string[]; table: string; outil: string };
   /** The entries of the index of the interfaces, one per interface of the module's components and
    * the root's, `lignes` as the index writes them, which the core assembles for a project of
    * several languages (scripts/index-interfaces.mjs). */
@@ -403,6 +417,13 @@ export function attendreDeLaPlace(o?: Record<string, unknown>): void;
 /** The source files of the project at `racine` under `dossier`, as paths from `racine`, what the
  * tools of its language write left out (scripts/sources.mjs). */
 export function sources(racine: string, dossier?: string): string[];
+/** The packages of a language that has no package.json of its own (a crate, a project of Python)
+ * the tables of docs/ARCHITECTURE.md declare at `racine`, each `{ langage, chemin, nom }` (`chemin`
+ * from the root, `nom` the manifest's name); none for a project that declares neither language
+ * (scripts/paquet-npm.mjs). */
+export function paquetsSansPackageJson(
+  racine: string
+): { langage: string; chemin: string; nom: string }[];
 /** What `lire` returns, read once under `cle` while the core holds a scope of readings done once
  * (a sweep that asks many questions of a tree that does not move), at each call otherwise
  * (scripts/lecture-unique.mjs). */

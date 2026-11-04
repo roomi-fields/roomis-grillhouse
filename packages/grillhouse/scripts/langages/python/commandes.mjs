@@ -90,7 +90,7 @@ import { touchesDesFichiers } from './lot.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
 
 const ICI = fileURLToPath(import.meta.url);
-export const NOMS = ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit'];
+export const NOMS = ['tester', 'verifier', 'typer', 'construire', 'preparer', 'tests-de-nuit'];
 const A_REPASSER = 75;
 const RACINE = '//';
 /** The night tests, which the day leaves out. */
@@ -439,10 +439,30 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
       return e.code;
     }
   }
-  if (nom === 'typer' || nom === 'preparer') {
+  // The launcher's `construire` (`--echec <fichier> <plan>`, scripts/enveloppe/lancer.sh) builds
+  // the copy for a session: a project has no such build, and plays nothing.
+  if (nom === 'construire' && args.includes('--echec')) {
+    return 0;
+  }
+  if (nom === 'typer' || nom === 'preparer' || nom === 'construire') {
+    // `construire` and `typer` with a path: the one project of that folder, as Turborepo's task of
+    // one package; `typer` alone types them all, `preparer` syncs them all.
+    let choisis = composants(racine);
+    if (nom === 'construire' || (nom === 'typer' && args.length)) {
+      const [chemin, ...autres] = args;
+      const abs = chemin === undefined ? null : path.resolve(racine, chemin);
+      const c = abs === null ? undefined : choisis.find(x => x.dossier === abs);
+      if (!c || autres.length) {
+        process.stderr.write(
+          `⛔ ${nom} : ${chemin ?? 'aucun chemin'} ne désigne pas un projet Python (un dossier de pyproject.toml, une fois).\n`
+        );
+        return 2;
+      }
+      choisis = [c];
+    }
     return sousLaBase('tests', env, e => {
       const p = passe(racine, e);
-      for (const c of composants(racine)) {
+      for (const c of choisis) {
         if (nom === 'typer') {
           typerLePaquet(p, c);
         } else {

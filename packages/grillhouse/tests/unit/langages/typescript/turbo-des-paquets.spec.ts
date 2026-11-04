@@ -932,6 +932,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'verrou-de-fichier.mjs',
       'enveloppe/paquets-du-plan.mjs',
       'paquets.mjs',
+      // What services-du-noyau.mjs imports to write the package.json of a package (grillhouse-44b.4).
+      'paquet-npm.mjs',
       'langages/typescript/consommateurs.mjs',
       // The walk of the guards (grillhouse-rm7).
       'langages/typescript/parcours.mjs',

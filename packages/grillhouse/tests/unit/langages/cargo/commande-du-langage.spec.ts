@@ -33,7 +33,7 @@ describe('grillhouse-pkl.5 — une commande du module, quand il la décrit', () 
   });
 
   it('plays nothing for a command the module does not describe', () => {
-    expect(lancerDuLangage('construire', [], seul)).toBe(0);
+    expect(lancerDuLangage('commande-inconnue-du-module', [], seul)).toBe(0);
     expect(appels()).toEqual([]);
   });
 

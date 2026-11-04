@@ -124,6 +124,12 @@ function espace(dans) {
   ecrire('Cargo.lock', verrou(Object.entries(DEPENDANCES)));
   ecrire('.gitignore', '/target\n');
   ecrire('README.md', "# L'espace d'essai\n");
+  ecrire(
+    'docs/ARCHITECTURE.md',
+    `# Architecture\n\n| Composant | Langage |\n| --- | --- |\n${Object.keys(CRATES)
+      .map(n => `| \`crates/${n}\` | cargo |\n`)
+      .join('')}`
+  );
   for (const [n, m] of Object.entries(CRATES)) {
     ecrire(`crates/${n}/Cargo.toml`, m);
     ecrire(`crates/${n}/src/lib.rs`, `pub fn ${n}() -> i32 {\n    1\n}\n`);

@@ -34,6 +34,7 @@ import * as scriptDesTests from './migrations/0.25.0-script-des-tests.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 
 import * as ciAppelleLaVerification from './migrations/0.30.0-ci-appelle-la-verification.mjs';
+import * as paquetsDansLeGraphe from './migrations/0.31.0-paquets-dans-le-graphe.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -47,6 +48,7 @@ export const MIGRATIONS = [
   scriptDesTests,
   langagesDansLArchitecture,
   ciAppelleLaVerification,
+  paquetsDansLeGraphe,
 ];
 
 /**

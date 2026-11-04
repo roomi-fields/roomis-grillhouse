@@ -79,6 +79,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
     expect([...DU_CODE_EN_COURS].sort()).toEqual(
       [
         'composants-affectes',
+        'dependances-internes',
         'fusion-du-changelog',
         'gardes-du-cadre',
         'hook',

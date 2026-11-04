@@ -15,6 +15,7 @@ export * from './langages.mjs';
 export { arbitrageTranche, estArbitrage } from './arbitrages.mjs';
 export { garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mjs';
 export { sources } from './sources.mjs';
+export { paquetsSansPackageJson } from './paquet-npm.mjs';
 export { luUneFois } from './lecture-unique.mjs';
 export { CHANGEMENTS, DEPUIS_LE_VERT, garderLeVert, mesure } from './dernier-vert.mjs';
 export { lireLaListe, paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';

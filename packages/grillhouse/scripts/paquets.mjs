@@ -65,14 +65,19 @@ const lireJson = f => {
   }
 };
 
-// The packages of the repository at <racine>: [{ dossier, pkg, hors }], sorted by directory;
-// `hors` whether `docs/agents/hors-cadre.txt` lists it (a directory under `packages/` or `src/`).
-export function paquets(racine) {
-  const p = lireJson(path.join(racine, 'package.json'));
-  const declares = Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? []);
+/**
+ * The patterns of the `workspaces` of the root `package.json` <p> (an array, or its `packages` key):
+ * `{ declares, motifs, nies }`, the patterns as written, those that select, and those that take out
+ * what the others select, none put back by a later pattern.
+ * @param {Record<string, any> | null} p
+ */
+export function motifsDesEspaces(p) {
+  const declares = (
+    Array.isArray(p?.workspaces) ? p.workspaces : (p?.workspaces?.packages ?? [])
+  ).map(String);
   const motifs = [];
   let nies = [];
-  for (const brut of declares.map(String)) {
+  for (const brut of declares) {
     const excl = /^!+/.exec(brut)?.[0] ?? '';
     const motif = brut
       .slice(excl.length)
@@ -86,6 +91,29 @@ export function paquets(racine) {
       motifs.push(motif);
     }
   }
+  return { declares, motifs, nies };
+}
+
+/**
+ * Whether the `workspaces` of the root `package.json` <p> select the directory <dossier> (from the
+ * root), as `paquets` maps them, whether or not it holds its package.json yet.
+ * @param {Record<string, any> | null} p
+ * @param {string} dossier
+ */
+export function selectionne(p, dossier) {
+  const { motifs, nies } = motifsDesEspaces(p);
+  return (
+    !dossier.split('/').includes('node_modules') &&
+    motifs.some(m => path.matchesGlob(dossier, m)) &&
+    !nies.some(n => path.matchesGlob(dossier, n))
+  );
+}
+
+// The packages of the repository at <racine>: [{ dossier, pkg, hors }], sorted by directory;
+// `hors` whether `docs/agents/hors-cadre.txt` lists it (a directory under `packages/` or `src/`).
+export function paquets(racine) {
+  const p = lireJson(path.join(racine, 'package.json'));
+  const { motifs, nies } = motifsDesEspaces(p);
   const dossiers = new Set();
   for (const motif of motifs) {
     for (const f of globSync(`${motif}/package.json`, { cwd: racine })) {

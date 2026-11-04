@@ -212,6 +212,50 @@ function horsDesTests(chemin, racine, avant, apres) {
 /** What the testwriter writes of the manifests (scripts/jointure.d.ts, `manifestes`). */
 export const manifestes = { verrous: [VERROU], horsDesTests };
 
+/**
+ * The name a pyproject.toml <texte> gives its project: the `name` of its `[project]`; null for none.
+ * @param {string} texte
+ */
+export function nomDuManifeste(texte) {
+  let section = null;
+  for (const l of texte.split('\n')) {
+    const s = /^\s*\[([^\]]+)\]\s*(?:#.*)?$/.exec(l);
+    if (s) {
+      section = s[1].trim();
+      continue;
+    }
+    const n = /^\s*name\s*=\s*["']([^"']+)["']/.exec(l);
+    if (section === 'project' && n) {
+      return n[1];
+    }
+  }
+  return null;
+}
+
+/**
+ * The internal dependencies of the project at <chemin> (from <racine>): each entry of
+ * `[tool.uv.sources]` with a `path` (named by <nomA> of the folder there, else by its key) or
+ * `workspace = true` (named by its key).
+ * @param {string} racine
+ * @param {string} chemin
+ * @param {(dossier: string) => string | null} nomA
+ */
+export function liensDuManifeste(racine, chemin, nomA) {
+  const { parse } = require('smol-toml');
+  const dossier = path.join(racine, chemin);
+  const f = path.join(dossier, MANIFESTE);
+  const m = existsSync(f) ? parse(readFileSync(f, 'utf8')) : {};
+  const noms = new Set();
+  for (const [cle, spec] of Object.entries(m.tool?.uv?.sources ?? {})) {
+    if (typeof spec?.path === 'string') {
+      noms.add(nomA(path.resolve(dossier, spec.path)) ?? cle);
+    } else if (spec?.workspace === true) {
+      noms.add(cle);
+    }
+  }
+  return { noms: [...noms], table: '[tool.uv.sources]', outil: 'uv' };
+}
+
 /** The readers of the packages <noms>: none; a name no component bears, without provider. */
 export function lecteurs(_racine, { composants: liste, noms }) {
   const elements = [];
