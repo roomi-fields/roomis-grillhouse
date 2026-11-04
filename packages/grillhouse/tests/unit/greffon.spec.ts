@@ -304,6 +304,8 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
         // The migrations and their tests keep the trace of the forms before.
         ':!packages/grillhouse/scripts/migrations',
         ':!packages/grillhouse/tests/unit/migration.*.spec.ts',
+        // The history keeps the trace of the forms before.
+        ':!packages/grillhouse/CHANGELOG.md',
       ],
       { encoding: 'utf8' }
     );
