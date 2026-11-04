@@ -80,6 +80,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
       [
         'composants-affectes',
         'dependances-internes',
+        'flux-des-paquets',
         'fusion-du-changelog',
         'gardes-du-cadre',
         'hook',

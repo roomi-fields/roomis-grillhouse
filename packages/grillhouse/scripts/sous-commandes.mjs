@@ -32,6 +32,7 @@ export const SOUS_COMMANDES = {
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
   file: 'integration/file.mjs',
+  'flux-des-paquets': 'flux-des-paquets.mjs',
   'fusion-du-changelog': 'fusion-du-changelog.mjs',
   'gardes-du-cadre': 'gardes-du-cadre.mjs',
   greffons: 'greffons.mjs',

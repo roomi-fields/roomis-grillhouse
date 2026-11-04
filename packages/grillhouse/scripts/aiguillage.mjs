@@ -87,6 +87,7 @@ export const REDIRIGEES = new Set([
 export const DU_CODE_EN_COURS = new Set([
   'composants-affectes',
   'dependances-internes',
+  'flux-des-paquets',
   'fusion-du-changelog',
   'gardes-du-cadre',
   'hook',

@@ -48,6 +48,19 @@
   },
   "packageManager": "npm@10.9.8",
   "grillhouse": {
-    "outil": "0.29.0"
+    "outil": "0.29.0",
+    "flux": {
+      ".github/workflows/ci.yml": [
+        "@roomi-fields/grillhouse",
+        "@roomi-fields/grillhouse-essais",
+        "@roomi-fields/grillhouse-matiere"
+      ],
+      ".github/workflows/deploy-docs.yml": [
+        "@roomi-fields/grillhouse"
+      ],
+      ".github/workflows/release.yml": [
+        "@roomi-fields/grillhouse"
+      ]
+    }
   }
 }

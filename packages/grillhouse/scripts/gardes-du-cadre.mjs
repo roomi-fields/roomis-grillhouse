@@ -6,7 +6,8 @@
 // - The guards are the core's, the languages of the packages first (./langages-des-paquets.mjs:
 //   each package follows the language the architecture declares for it; ./dependances-internes.mjs:
 //   the package.json of a crate or of a project of Python names the internal packages its
-//   manifest links), then those of the
+//   manifest links; ./flux-des-paquets.mjs: each flow of the CI declares the packages it exercises),
+//   then those of the
 //   modules of the project's languages (`gardes`, scripts/jointure.d.ts, scripts/langages.mjs),
 //   each module's in their order, the modules in the order of the declaration.
 // - Each guard is a script of the package, and plays in the working directory, under the environment of the run
@@ -24,13 +25,19 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SCRIPT as DEPENDANCES_INTERNES } from './dependances-internes.mjs';
 import { SCRIPT as LANGAGES_DES_PAQUETS } from './langages-des-paquets.mjs';
+import { SCRIPT as FLUX_DES_PAQUETS } from './flux-des-paquets.mjs';
 import { langageDe } from './langages.mjs';
 import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
 
 // The guards of the frame in the repository at <racine>, each its script and its arguments, in
 // the order they play: the core's, then the languages'.
 export function gardesDuCadre(racine) {
-  return [[LANGAGES_DES_PAQUETS], [DEPENDANCES_INTERNES], ...langageDe(racine).gardes(racine)];
+  return [
+    [LANGAGES_DES_PAQUETS],
+    [DEPENDANCES_INTERNES],
+    [FLUX_DES_PAQUETS],
+    ...langageDe(racine).gardes(racine),
+  ];
 }
 
 // The name of each guard of the frame, as its findings carry it: its script's, without extension.

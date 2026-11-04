@@ -32,6 +32,7 @@
     "scripts/enveloppe/travail-de-la-copie.mjs",
     "scripts/etapes.mjs",
     "scripts/file-des-tickets.mjs",
+    "scripts/flux-des-paquets.mjs",
     "scripts/fusion-du-changelog.mjs",
     "scripts/gardes-du-cadre.mjs",
     "scripts/greffons.mjs",

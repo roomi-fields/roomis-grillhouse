@@ -183,6 +183,10 @@ dossier.
   Ainsi le cadre ne maintient aucune spécificité par composant.
 - **Une dette connue s'inscrit et se gèle** (`grillhouse-dette.json`) : une garde refuse tout
   constat neuf, et le compte ne remonte jamais. Ainsi la dette ne fait que baisser.
+- **Un flux de la CI déclare les paquets qu'il exerce, le relecteur le lit** (`grillhouse.flux` du
+  `package.json` racine) : une garde refuse un flux sans entrée ou un paquet inconnu, et la
+  consigne du relecteur nomme chaque flux que le lot touche. Ainsi un flux qui ne suit pas un
+  changement est lu avant le commit.
 - **Un fichier engendré se construit** plutôt que de se commiter (au démarrage, au déploiement),
   comme les index de Homebrew ou de caniuse. Un fichier qu'un lecteur ne peut pas construire
   (une page lue sur GitHub, une somme de contrôle publiée) reste commité : le projet le déclare

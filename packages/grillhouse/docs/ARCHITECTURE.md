@@ -865,7 +865,7 @@ sous-commande du noyau a sa place, qu'un test tient :
   l'intégration et la file (`integrer`, `file`), `resultats`, `retirer-copie` et `bilan`, même
   lancés à la main par le superviseur ;
 - le code de la copie : `tests`, `verifier`, `gardes-du-cadre`, `langages-des-paquets`,
-  `dependances-internes`, `temporaire`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
+  `dependances-internes`, `flux-des-paquets`, `temporaire`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
   `composants-affectes`, et les commandes des modules de langage ;
 - les outils du dépôt, qui tournent par son code : `init`, `maj`, `paquet`, `sortie`, `outil`,
   `greffons`, `sous-modules`, `pression`, `ticket`.
@@ -948,6 +948,24 @@ TypeScript, BPScript aucun outil Rust ; les scripts d'un langage non déclaré r
 inertes. Un module par langage et un seul paquet, plutôt qu'un paquet par langage comme ESLint
 ou Nx : une seule équipe tient tous les langages, et un seul paquet n'a ni versions à aligner ni
 imports à réécrire chez les projets.
+
+**Un flux de la CI déclare les paquets qu'il exerce, le relecteur le lit** : un projet déclare sous
+`grillhouse.flux` de son `package.json` racine, de la famille de `engendres` et d'`outils`, chaque
+fichier de `.github/workflows` avec les noms des paquets du graphe qu'il exerce
+(`{ ".github/workflows/<flux>.yml": ["<paquet>", …] }`), lue dans l'arbre principal
+(`packages/grillhouse/scripts/flux-des-paquets.mjs`) ; une valeur qui n'est pas cet objet, une clé
+hors de `.github/workflows` ou une liste qui n'est pas de chaînes est refusée par le nom de la clé
+avant tout travail. La garde `flux-des-paquets`, jouée avec celles du cadre sur le dépôt entier,
+refuse un fichier de `.github/workflows` sans entrée, un flux déclaré dont le fichier n'existe pas
+et un nom de paquet que le graphe ne porte pas, quel que soit le langage du paquet ; un projet sans
+`.github/workflows` ni clé n'a rien à dire. La consigne du relecteur porte une ligne par flux que
+le lot touche : le flux lui-même, ou un fichier sous le dossier d'un paquet qu'il déclare, sans
+compter les dépendants ni les dépendances du graphe (le flux déclare chaque paquet qu'il exerce).
+Référence et écart : GitHub joue un flux sur son filtre `paths:` (le filtre de chemins des
+déclencheurs de GitHub Actions), qui décide quand GitHub le joue et ne dit rien au relecteur ; la
+liste écrite à la main dit ce que le flux exerce, ce qu'aucun outil ne déduit des commandes d'un
+flux. Un flux de SyntHub qui ne suivait pas un changement du service, sans que personne le relise,
+a motivé la règle.
 
 **La jointure des langages** : le noyau ne demande à un module de langage que cinq choses — ses
 composants et celui d'un fichier, avec les lecteurs par le code des éléments qu'un ticket nomme ;

@@ -657,6 +657,7 @@ import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { avecLesDonnees, donneesDe } from './donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from './outils-cles.mjs';
 import { couvertPar, engendresDe } from './engendres.mjs';
+import { consigneDesFlux, fluxDe } from './flux-des-paquets.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import {
   ecrireLaListe,
@@ -1932,6 +1933,7 @@ async function relire(ctx) {
     precedente,
     affirmations,
     elements: texteDesElements(liste, bornee),
+    flux: consigneDesFlux(ctx.racine, [...tests, ...code]),
     rapports: rapports.join('\n\n') || 'aucun',
     // The supervisor's context of a resumption, his answer to a question of the reviewer among them.
     contexte: contexteDe(ctx),
@@ -2450,6 +2452,26 @@ export function engendresAuLancement(racine) {
         nom: 'lancement',
         rapport,
         piece: `$ npm pkg get grillhouse.engendres\n${rapport}`,
+        question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
+      },
+    };
+  }
+}
+
+// The flows of the CI the project declares (`grillhouse.flux`, scripts/flux-des-paquets.mjs), read
+// at the launch of a run from its main tree: `{ flux }`, or `{ arret }`, the stop « lancement »
+// that goes up to the supervisor before any session, the faults of the key named.
+export function fluxAuLancement(racine) {
+  try {
+    return { flux: fluxDe(racine) };
+  } catch (err) {
+    const rapport = `La clé grillhouse.flux du package.json est refusée :\n${err.message}`;
+    return {
+      arret: {
+        code: ARRETS.lancement,
+        nom: 'lancement',
+        rapport,
+        piece: `$ npm pkg get grillhouse.flux\n${rapport}`,
         question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
       },
     };
@@ -5574,6 +5596,10 @@ export async function main(argv) {
     const engendres = engendresAuLancement(ctx.racine);
     if (engendres.arret) return aLaFin(ctx, monter(ctx, { ...engendres.arret, etat: d }));
     ctx.engendres = engendres.engendres;
+    // The flows of the CI: the reviewer's instruction names those the lot touches.
+    const flux = fluxAuLancement(ctx.racine);
+    if (flux.arret) return aLaFin(ctx, monter(ctx, { ...flux.arret, etat: d }));
+    ctx.flux = flux.flux;
     // From the testwriter: the plan, which the explorateur writes and the questionneur reads once.
     if (d.etape === TESTS) {
       const arret = await lePlan(ctx);
