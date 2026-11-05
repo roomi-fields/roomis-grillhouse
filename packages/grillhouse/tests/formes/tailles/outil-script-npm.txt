@@ -1,0 +1,8 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+it('script npm en projet d essai', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  spawnSync('npm', ['run', 'verifier'], { cwd: dir });
+});

@@ -18,6 +18,13 @@
 //   test is classed the day the rule arrives.
 //   - large (`grand`): it mounts a trial repository (git's `init`, `clone` or `worktree add`) and
 //     starts there something else than git (node, npm, a shell, a binary of the product);
+//     or it mounts a temporary directory (`mkdtemp`, `tmpdir`) and, in a process call carrying
+//     `cwd:` (or `-C`, `--prefix`), starts one of the heavy tools of OUTILS_LOURDS (turbo,
+//     vitest, knip, depcruise, api-extractor), named by a literal argument or a literal path to
+//     its binary, with no `git init` (grillhouse-44b.10.4, Bazel's test-encyclopedia: a test
+//     that runs the product in a trial project is large). A tool named by a variable, or run by
+//     an npm script (`npm run verifier`), escapes the reading and the test stays medium; so
+//     does a call without `cwd` (on the repository);
 //   - medium (`moyen`): it starts a process (it imports `child_process`, `execa` or `zx`), or it
 //     imports several modules of the repository;
 //   - small (`petit`): it imports one module of the repository at most, and starts no process.
@@ -56,6 +63,35 @@ const APPEL =
   /(?:(?<![\w$])(?:spawnSync|spawn|execFileSync|execFile|execSync|fork|execaSync|execa)|(?<![.\w$])exec)\s*\(\s*([^,)\n]*)/g;
 // A first argument that names git.
 const GIT = /^['"`]git(?:['"`]|\s)/;
+/** The heavy tools of the product: a test that starts one in a trial project is large. */
+export const OUTILS_LOURDS = ['turbo', 'vitest', 'knip', 'depcruise', 'api-extractor'];
+// A temporary directory mounted.
+const DOSSIER_TEMPORAIRE = /\bmkdtemp(?:Sync)?\b|\btmpdir\b/;
+// An option of a call that carries the directory the process runs in.
+const OPTION_DE_DOSSIER = /\bcwd\b|['"`](?:-C|--prefix)['"`]/;
+// A heavy tool named by a literal in a call: a name, or the end of a path to its binary.
+const OUTIL_LITTERAL = new RegExp(
+  `(?:^|[\\s'"\`/])(?:${OUTILS_LOURDS.join('|')})(?=$|[\\s'"\`])`
+);
+// The text of the call whose `(` is at <debut> in <texte>, to its closing parenthesis.
+function appelComplet(texte, debut) {
+  let profondeur = 0;
+  const fin = Math.min(texte.length, debut + 2000);
+  for (let i = debut; i < fin; i++) {
+    if (texte[i] === '(') profondeur++;
+    else if (texte[i] === ')' && --profondeur === 0) return texte.slice(debut, i + 1);
+  }
+  return texte.slice(debut, fin);
+}
+// Whether <texte> mounts a temporary directory and, in a process call carrying `cwd`, `-C` or
+// `--prefix`, starts a heavy tool named by a literal.
+function outilLourdEnProjetDEssai(texte) {
+  if (!DOSSIER_TEMPORAIRE.test(texte)) return false;
+  return [...texte.matchAll(APPEL)].some(m => {
+    const appel = appelComplet(texte, m.index + m[0].indexOf('('));
+    return OPTION_DE_DOSSIER.test(appel) && OUTIL_LITTERAL.test(appel);
+  });
+}
 // A re-export of a whole module.
 const TOUT_REEXPORTE = /\bexport\s*\*\s*from\b/;
 // The names an import clause <clause> takes in braces (`import { a, b as c }` gives a and b);
@@ -150,7 +186,7 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
   const processus = PROCESSUS.test(tout);
   const autreQueGit = [...tout.matchAll(APPEL)].some(m => !GIT.test(m[1].trim()));
   const taille =
-    processus && autreQueGit && DEPOT_D_ESSAI.test(tout)
+    processus && ((autreQueGit && DEPOT_D_ESSAI.test(tout)) || outilLourdEnProjetDEssai(tout))
       ? 'grand'
       : processus || modules.size > 1
         ? 'moyen'
@@ -200,7 +236,7 @@ export function verifier(racine) {
     .map(({ fichier }) => ({
       fichier,
       regle: GRAND_DE_JOUR,
-      message: `${fichier} : un grand test (il monte un dépôt d'essai et y lance le produit ou le cadre) est un test de nuit, jamais joué au fil du travail ; il se renomme en *.nuit.test.*, ou il se réduit à la plus petite taille qui prouve son critère.`,
+      message: `${fichier} : un grand test (il monte un dépôt ou un projet d'essai et y lance le produit ou le cadre) est un test de nuit, jamais joué au fil du travail ; il se renomme en *.nuit.test.*, ou il se réduit à la plus petite taille qui prouve son critère.`,
     }));
 }
 

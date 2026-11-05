@@ -57,3 +57,9 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   (`peerDependencies`, `peerDependenciesMeta` facultatif), comme Vite déclare les préprocesseurs
   qu'il importe quand un projet les a. Un projet n'installe que ceux de son langage, et
   `grillhouse maj` les lui ajoute.
+- **R7.** La garde des tailles du module TypeScript classe grand, comme la taille large de Bazel,
+  un test qui monte un dossier temporaire et y lance le produit : un dépôt d'essai (git), ou un
+  outil lourd (turbo, vitest, knip, depcruise, api-extractor, la constante `OUTILS_LOURDS`)
+  nommé en littéral dans un appel de processus à `cwd:`, `-C` ou `--prefix`. Un outil nommé par
+  variable ou par script npm échappe à la lecture. Un grand test de jour est un constat inscrit
+  à la dette, qui ne remonte jamais ; la migration 0.30.0 l'inscrit dans un projet.

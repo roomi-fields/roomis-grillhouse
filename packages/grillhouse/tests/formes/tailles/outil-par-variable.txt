@@ -1,0 +1,9 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+const outil = process.env.OUTIL;
+it('outil nomme par variable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  spawnSync(outil, ['run'], { cwd: dir });
+});

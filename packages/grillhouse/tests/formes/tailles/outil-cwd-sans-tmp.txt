@@ -1,0 +1,4 @@
+import { spawnSync } from 'node:child_process';
+it('api-extractor dans un dossier fixe', () => {
+  spawnSync('npx', ['api-extractor', 'run'], { cwd: '/repo/packages/x' });
+});

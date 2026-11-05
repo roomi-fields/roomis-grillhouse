@@ -1,0 +1,8 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+it('knip en projet d essai', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  execFileSync('/repo/node_modules/.bin/knip', ['--no-progress'], { cwd: dir });
+});

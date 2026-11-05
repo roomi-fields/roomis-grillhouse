@@ -121,6 +121,7 @@
     "scripts/langages/typescript/migrations/0.24.7-matiere-dans-les-tests.mjs",
     "scripts/langages/typescript/migrations/0.25.0-chemins-des-tests.mjs",
     "scripts/langages/typescript/migrations/0.25.0-tailles-des-tests.mjs",
+    "scripts/langages/typescript/migrations/0.30.0-tailles-des-outils-lourds.mjs",
     "scripts/langages/typescript/mise-a-jour.mjs",
     "scripts/langages/typescript/parcours.mjs",
     "scripts/langages/typescript/references-par-les-types.mjs",

@@ -62,6 +62,7 @@ import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
 import * as matiereDansLesTests from './migrations/0.24.7-matiere-dans-les-tests.mjs';
 import * as taillesDesTests from './migrations/0.25.0-tailles-des-tests.mjs';
 import * as cheminsDesTests from './migrations/0.25.0-chemins-des-tests.mjs';
+import * as taillesDesOutilsLourds from './migrations/0.30.0-tailles-des-outils-lourds.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -307,6 +308,7 @@ export default {
     matiereDansLesTests,
     taillesDesTests,
     cheminsDesTests,
+    taillesDesOutilsLourds,
   ],
   miseAJour: miseAJour(joueDesTests),
   squelette,

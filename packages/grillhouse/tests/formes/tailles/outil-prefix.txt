@@ -1,0 +1,8 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+it('depcruise par --prefix', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  execFileSync('npm', ['--prefix', dir, 'exec', 'depcruise', 'src']);
+});

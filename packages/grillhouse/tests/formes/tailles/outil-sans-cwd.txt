@@ -1,0 +1,8 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+it('vitest sur le depot', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  spawnSync('npx', ['vitest', 'run', dir]);
+});

@@ -1,1 +1,14 @@
-{}
+{
+  "tailles-des-tests": {
+    "packages/grillhouse/tests/unit/temps-au-repos.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/tests-de-nuit.spec.ts": {
+      "grand-de-jour": {
+        "count": 1
+      }
+    }
+  }
+}

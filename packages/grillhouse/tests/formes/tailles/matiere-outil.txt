@@ -1,0 +1,8 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+export function jouerKnip() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  return spawnSync('npx', ['knip'], { cwd: dir });
+}

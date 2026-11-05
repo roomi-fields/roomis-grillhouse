@@ -1,0 +1,8 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+it('turbo par -C', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'essai-'));
+  execFileSync('npx', ['-C', dir, 'turbo', 'run', 'build']);
+});

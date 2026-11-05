@@ -694,10 +694,15 @@ cadre) : comme la pyramide des tests de Google et le `size` de Bazel, chaque fic
 que git liste est petit, moyen ou grand, lu dans son texte et dans la matière de test qu'il
 importe, par un chemin relatif ou par le nom d'un paquet de la matière partagée (son entrée
 `./test-fixtures`, suivie jusqu'aux modules qui déclarent les noms importés) : grand, il monte un dépôt d'essai (`init`, `clone` ou `worktree add` de git) et y lance
-autre chose que git ; moyen, il lance un processus ou importe plusieurs modules du dépôt ;
+autre chose que git, ou il monte un dossier temporaire (`mkdtemp`, `tmpdir`) et y lance, dans un
+appel de processus à option `cwd:` (ou `-C`, `--prefix`), un outil lourd du produit (turbo,
+vitest, knip, depcruise, api-extractor : la constante `OUTILS_LOURDS`, nom littéral ou chemin
+littéral de son binaire ; un outil nommé par variable ou par script npm échappe à la lecture) ;
+moyen, il lance un processus ou importe plusieurs modules du dépôt ;
 petit, sinon. Un grand test de jour est un constat (`grand-de-jour`), un test de nuit ou un banc
 jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la mise à jour qui
-apporte la garde (`npx grillhouse maj`, migration 0.25.0), sans qu'un test se réécrive. Chaque
+apporte la garde (`npx grillhouse maj`, migration 0.25.0), et celles que l'outil lourd fait grandes à la migration
+0.30.0, sans qu'un test se réécrive. Chaque
 module de langage porte la sienne sous la même commande, chacune sa part de la dette : le module
 python lit un test et ses `conftest.py` ; le module cargo lit chaque cible de test et chaque
 fichier de tests unitaires d'un crate, les modules qu'il déclare (`mod common;`) et les crates de
