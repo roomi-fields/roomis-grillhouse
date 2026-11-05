@@ -33,6 +33,9 @@
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
 //   git and the session's tools) and the repository. No socket of the session comes back. Of
 //   the machine's credentials, only claude's own are in sight.
+// - A project that names its published version (`grillhouse.outil`) gets `~/.cache/grillhouse/outil`
+//   read-only, the version installed by the envelope before the session starts: the write lock
+//   runs on that version, never on the code of the copy it guards.
 // - The tools of the project (`grillhouse.outils` of the package.json of the main tree, never of
 //   the copy, so that an agent never opens a path for its next session; `{ "<VARIABLE>":
 //   "<chemin>" }`, read by scripts/outils-cles.mjs), as Bazel declares what an action sees out of
@@ -122,6 +125,7 @@ import {
 } from './paquets-du-plan.mjs';
 
 export { paquetsDuLangage };
+import { cacheDesOutils, installer, versionDeLOutil } from '../aiguillage.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 import { travailleursDe } from '../places-de-la-machine.mjs';
 import { donneesDe } from '../donnees-cles.mjs';
@@ -325,6 +329,7 @@ export function montagesDeLaSeance({
   scratchpads,
   sessions = [],
   outils = {},
+  publie = null,
 }) {
   const maison = path.dirname(claude);
   return [
@@ -336,6 +341,7 @@ export function montagesDeLaSeance({
     { chemin: projet, ecriture: true },
     ...MAISON_EN_LECTURE.map(rel => ({ chemin: path.join(maison, rel), ecriture: false })),
     ...Object.values(outils).map(chemin => ({ chemin, ecriture: false })),
+    ...(publie === null ? [] : [{ chemin: publie, ecriture: false }]),
   ];
 }
 
@@ -611,6 +617,34 @@ export function plan(
 
 const disque = { existe: existsSync, lien: lienSurDisque };
 
+// The cache of the published versions to mount when the project of <copie> names its version
+// (`grillhouse.outil`, read in the main tree), after installing the version here, outside the
+// session; null without the key, or when the version cannot be installed (said on the error stream:
+// the lock then falls back on the code of the copy, and refuses when that does not load either).
+function cacheDeLaVersionPubliee(copie) {
+  const commun = execFileSync(
+    'git',
+    ['-C', copie, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }
+  ).trim();
+  let version;
+  try {
+    version = versionDeLOutil(path.dirname(commun));
+  } catch {
+    return null;
+  }
+  if (version === null) return null;
+  try {
+    installer(version);
+  } catch (e) {
+    process.stderr.write(
+      `⚠️  enveloppe : version publiée ${version} non installable : ${e.message}\n`
+    );
+    return null;
+  }
+  return cacheDesOutils();
+}
+
 // The command: the session of <commande> in the envelope of the plan <paquets> in <copie>; its
 // exit code.
 function envelopper(argv) {
@@ -655,6 +689,10 @@ function envelopper(argv) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
     return CODE_REFUS;
   }
+  // The cache of the published versions (`grillhouse.outil` of the main tree's package.json) comes
+  // in read-only, the version installed here, outside the session: the write lock runs on it, and
+  // a session cannot install it. A version that cannot be installed is said, nothing mounted.
+  const publie = cacheDeLaVersionPubliee(copie);
   mkdirSync(projet, { recursive: true });
   // The session's working directory, created here inside the scratchpads that bwrap mounts.
   mkdirSync(travail, { recursive: true });
@@ -665,7 +703,16 @@ function envelopper(argv) {
   const etatJetable = path.join(temporaire.dossier, 'claude.json');
   if (existsSync(`${claude}.json`)) copyFileSync(`${claude}.json`, etatJetable);
   const montages = avecLiens(
-    montagesDeLaSeance({ cacheNpm, claude, projet, etatJetable, scratchpads, sessions, outils }),
+    montagesDeLaSeance({
+      cacheNpm,
+      claude,
+      projet,
+      etatJetable,
+      scratchpads,
+      sessions,
+      outils,
+      publie,
+    }),
     lienSurDisque
   );
   const langage = langageDe(copie);

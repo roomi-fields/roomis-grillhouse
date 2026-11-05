@@ -22,12 +22,15 @@
 //   nothing run, and the exit code is 2.
 // - In a project whose package.json names its published version (`grillhouse.outil`, the frame's
 //   repository), a subcommand of the orchestration (circuit, superviseur, nuit, tableau, the status
-//   line and the hooks of Claude Code) runs by that version, installed under
+//   line, the hooks of Claude Code and the write lock) runs by that version, installed under
 //   ~/.cache/grillhouse/outil/<version>/ at its first launch, its arguments, streams and exit
 //   code this command's; every other subcommand runs here (scripts/aiguillage.mjs). A faulty key
 //   is refused by its name on the error stream, nothing run, and the exit code is 2; a version
 //   that cannot be installed is said in one line on the error stream, and the subcommand runs
-//   here.
+//   here, or, when the code of this repository does not load either, is refused by its version
+//   and its cause, exit code 2. The code of the copy is loaded only once the subcommand is known to
+//   run here, so a module of the copy that no longer loads never stops a subcommand that the
+//   published version runs (the write lock).
 // - A subcommand missing or unknown writes the usage and the list of the subcommands on the error
 //   stream, and the exit code is 2.
 // - A script finds its neighbours by its own directory, and the project by the working directory
@@ -37,34 +40,31 @@ import { realpathSync } from 'node:fs';
 import { constants } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { aiguillage, installer } from '../scripts/aiguillage.mjs';
-import {
-  avecLesDonnees,
-  construireLesFournisseurs,
-  controlerLesDonnees,
-  donneesDuPaquet,
-  fournisseursDuPaquet,
-} from '../scripts/donnees-cles.mjs';
-import {
-  commandeDe,
-  environnementDe,
-  SOUS_COMMANDES,
-  sousCommandes,
-} from '../scripts/sous-commandes.mjs';
+
+// The code of the copy, loaded once the subcommand is known to run here: a module of the copy that
+// no longer loads must not stop a subcommand the published version runs (the write lock above all).
+async function chargerLeCode() {
+  const [donnees, sous] = await Promise.all([
+    import('../scripts/donnees-cles.mjs'),
+    import('../scripts/sous-commandes.mjs'),
+  ]);
+  return { ...donnees, ...sous };
+}
 
 // The subcommands in the working directory: the core's, and the ones of the module of its
 // language; the core's alone when the frame refuses its language.
-const lesSousCommandes = () => {
+const lesSousCommandes = code => {
   try {
-    return sousCommandes();
+    return code.sousCommandes();
   } catch {
-    return SOUS_COMMANDES;
+    return code.SOUS_COMMANDES;
   }
 };
 
 // The usage and the list of the subcommands, as the error stream receives them.
-const usage = () =>
+const usage = code =>
   'Usage : grillhouse <sous-commande> [arguments…]\n' +
-  `Sous-commandes : ${Object.keys(lesSousCommandes()).join(', ')}\n`;
+  `Sous-commandes : ${Object.keys(lesSousCommandes(code)).join(', ')}\n`;
 
 // The command is run by its link (`node_modules/.bin/grillhouse`), which Node resolves for the
 // module, not for `process.argv[1]`.
@@ -96,9 +96,10 @@ function lancerLeScript(nom, commande, args, env = process.env) {
 }
 
 // The subcommand <nom> handed to the published version the project names (scripts/aiguillage.mjs),
-// installed at its first launch: true when it is handed, false when it runs here, a version that
-// cannot be installed said in one line.
-function aiguiller(nom, args) {
+// installed at its first launch: true when it is handed (or refused), false when it runs here, a
+// version that cannot be installed said in one line; when the code here does not load either, the
+// subcommand is refused (exit code 2) by the version and both causes.
+async function aiguiller(nom, args) {
   let vers;
   try {
     vers = nom === undefined ? null : aiguillage(nom);
@@ -111,6 +112,17 @@ function aiguiller(nom, args) {
   try {
     installer(vers.version);
   } catch (e) {
+    try {
+      await chargerLeCode();
+    } catch (c) {
+      process.stderr.write(
+        `⛔ grillhouse ${nom} : version publiée ${vers.version} non installable : ${e.message} ; ` +
+          `le code de ce dépôt ne se charge pas non plus : ${c.message} ; ` +
+          "la réparation de l'arbre principal revient au superviseur, hors séance d'agent.\n"
+      );
+      process.exitCode = 2;
+      return true;
+    }
     process.stderr.write(
       `⚠️  grillhouse ${nom} : version publiée ${vers.version} non installable : ${e.message} ; le code du dépôt la remplace.\n`
     );
@@ -123,7 +135,27 @@ function aiguiller(nom, args) {
 // The script of the subcommand, run (see the header); the exit code is set, never forced
 // (`process.exitCode`), so that what the command wrote on a pipe reaches its reader.
 async function lancer([nom, ...args]) {
-  if (aiguiller(nom, args)) return;
+  if (await aiguiller(nom, args)) return;
+  let code;
+  try {
+    code = await chargerLeCode();
+  } catch (e) {
+    process.stderr.write(
+      `⛔ grillhouse ${nom ?? ''} : le code de ce dépôt ne se charge pas : ${e.message}\n`
+    );
+    process.exitCode = 2;
+    return;
+  }
+  const {
+    avecLesDonnees,
+    commandeDe,
+    construireLesFournisseurs,
+    controlerLesDonnees,
+    donneesDuPaquet,
+    environnementDe,
+    fournisseursDuPaquet,
+    SOUS_COMMANDES,
+  } = code;
   let commande;
   try {
     commande = nom === undefined ? null : commandeDe(nom);
@@ -134,7 +166,7 @@ async function lancer([nom, ...args]) {
   }
   if (commande === null) {
     process.stderr.write(
-      nom === undefined ? usage() : `⛔ sous-commande inconnue : ${nom}\n${usage()}`
+      nom === undefined ? usage(code) : `⛔ sous-commande inconnue : ${nom}\n${usage(code)}`
     );
     process.exitCode = 2;
     return;

@@ -887,6 +887,26 @@ Les crochets du greffon installé, les droits des séances et le panneau appelle
 projet, donc l'aiguillage. Un projet ordinaire n'a pas la clé : rien ne change, sa commande est
 déjà la version qu'il installe. Ainsi un défaut du jour ne casse jamais le circuit qui le corrige.
 
+**Le verrou d'écriture charge son code de la version publiée, jamais de la copie qu'il garde** :
+celui qui juge un changement ne tourne pas sur ce qu'il juge (`pull_request_target` joue le flux de
+la branche de base, un crochet pre-commit tourne sur une version épinglée, la chaîne d'outils de
+Bazel est fixée hors de la cible construite). `verrou` est une sous-commande de l'orchestration :
+la commande de la copie remet l'écriture à la version nommée par `grillhouse.outil`, avant de
+charger le moindre module de la copie (`bin/grillhouse.mjs` ne charge les scripts de la copie
+qu'une fois la sous-commande sue locale). Une copie dont un module ne se charge plus (une erreur
+de syntaxe, un export retiré qu'un autre module importe) est donc jugée comme une copie saine :
+l'écriture du plan qui la répare passe, une écriture hors du plan reste arrêtée, un test du
+testwriter ou du développeur reste refusé avec son message. L'enveloppe monte
+`~/.cache/grillhouse/outil` en lecture seule pour tout projet qui nomme la clé, et installe la
+version absente avant le lancement de la séance, hors de la séance, qui ne peut pas la poser. Si la version n'est pas
+installable et que le code de la copie ne se charge pas non plus, le verrou refuse l'écriture,
+code 2, en nommant la version, les deux causes et l'arbre principal : il ne laisse jamais passer
+une écriture ni n'échoue sans message. Limite voulue : un lot qui change le verrou, ses règles de
+paquets du plan ou le langage est jugé, pour ses propres écritures, par la version publiée, donc
+l'ancienne ; ses changements ne jugent qu'après la montée de la version. La réparation d'un
+arbre principal cassé, ou d'une version publiée qui ne se charge pas, revient au superviseur, hors
+séance d'agent.
+
 **Le style s'applique à l'écriture** (`style-a-l-ecriture`, `scripts/style-a-l-ecriture.mjs`),
 comme le format-on-save d'un éditeur et lint-staged : le crochet PostToolUse du greffon
 (`hooks.json`, pour Write, Edit et MultiEdit) lit le fichier qu'un agent vient d'écrire, trouve le

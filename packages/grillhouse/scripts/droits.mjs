@@ -323,6 +323,16 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
     ),
     env: SANS_TACHE_DE_FOND,
   };
+  // The write lock runs the frame of the main tree, never the copy's; a copy that is the root keeps
+  // the project's own command.
+  const distincte = path.resolve(copie) !== path.resolve(racine);
+  const cadre = distincte ? racine : '$CLAUDE_PROJECT_DIR';
+  const commande = `"${cadre}/node_modules/.bin/grillhouse"`;
+  // Fails closed (a firewall's rule): a missing command makes the shell exit 127, which Claude Code
+  // reads as an error that does not block, so a copy with a main tree lacking the frame refuses (2).
+  const verrou = distincte
+    ? `[ -x ${commande} ] || { echo "⛔ verrou : le cadre de l'arbre principal manque ou n'est pas exécutable : ${cadre}/node_modules/.bin/grillhouse (écriture refusée)" >&2; exit 2; }; exec ${commande} verrou ${role}`
+    : `${commande} verrou ${role}`;
   if (r.ecrit) {
     reglages.hooks = {
       PreToolUse: [
@@ -331,7 +341,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
           hooks: [
             {
               type: 'command',
-              command: `"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" verrou ${role}`,
+              command: verrou,
             },
           ],
         },

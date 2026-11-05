@@ -7,7 +7,9 @@
 //
 // - The project is `CLAUDE_PROJECT_DIR`, else the working directory; its command is
 //   `node_modules/.bin/grillhouse`, which the project's `npm install` links (the package
-//   @roomi-fields/grillhouse).
+//   @roomi-fields/grillhouse). When the project is a git worktree, the command is the main
+//   tree's (the parent of `git rev-parse --git-common-dir`) and runs with the worktree as its
+//   working directory: the code that judges is not the code of the copy it judges.
 // - The common charter reaches each session, a subagent's included, by the import of the
 //   project's CLAUDE.md, from the package installed, which Claude Code loads whole; no hook writes it, since Claude Code caps a hook's output (10,000 characters).
 // - Each subcommand runs `grillhouse <sous-commande>`; without the command, `session-start` writes
@@ -20,11 +22,26 @@ import path from 'node:path';
 
 const sous = process.argv[2] ?? '';
 const projet = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const commande = path.join(projet, 'node_modules', '.bin', 'grillhouse');
+
+// The main tree of a git worktree: the parent of the common directory of git; the project itself
+// outside a worktree or a repository.
+function arbrePrincipal() {
+  const r = spawnSync('git', ['-C', projet, 'rev-parse', '--path-format=absolute', '--git-common-dir'], {
+    encoding: 'utf8',
+  });
+  return r.status === 0 && r.stdout.trim() !== '' ? path.dirname(r.stdout.trim()) : projet;
+}
+const commande = path.join(arbrePrincipal(), 'node_modules', '.bin', 'grillhouse');
 
 if (existsSync(commande)) {
   const r = spawnSync(commande, [sous], { stdio: 'inherit', cwd: projet });
   process.exitCode = r.status ?? 1;
+} else if (sous === 'verrou') {
+  writeSync(
+    2,
+    `⛔ verrou : le cadre de l'arbre principal est absent (${commande}) ; écriture refusée. La réparation de l'arbre principal revient au superviseur, hors séance d'agent.\n`
+  );
+  process.exitCode = 2;
 } else if (sous === 'session-start') {
   writeSync(
     1,

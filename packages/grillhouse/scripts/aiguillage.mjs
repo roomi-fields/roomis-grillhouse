@@ -116,7 +116,7 @@ export const OUTILS_DU_DEPOT = new Set([
 const RETENUE_MS = 5 * 60 * 1000;
 
 // The cache of the published versions: ~/.cache/grillhouse/outil.
-const cacheDesOutils = () => path.join(os.homedir(), '.cache', 'grillhouse', 'outil');
+export const cacheDesOutils = () => path.join(os.homedir(), '.cache', 'grillhouse', 'outil');
 
 /** The folder of the version <version> under <cache>. */
 export const dossierDeLOutil = (version, cache = cacheDesOutils()) => path.join(cache, version);
