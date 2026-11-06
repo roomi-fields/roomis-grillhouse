@@ -5,7 +5,15 @@
 // Medium tests: a local process, the fake cargo (./langages/cargo/faux-cargo.ts), a repository of
 // trial. The review of grillhouse-3e2.3, finding 1.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -28,9 +36,37 @@ const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
   ) => unknown
 ) => unknown;
 
-// Out of every temporary directory, beside the package, as the copies under `.claude/worktrees` lie.
-const DEHORS = mkdtempSync(path.resolve(__dirname, '../../.essai-3e2.3-'));
+// Out of every temporary directory, beside the package, as the copies under `.claude/worktrees` lie:
+// the test measures a copy that no temporary directory holds, so it cannot lie under one (the
+// decision of grillhouse-44b.4.6, question 1). The folder is named by the pid of its test; the
+// `afterAll` removes it, and a killed test leaves it, which the next run sweeps below.
+const PAQUET = path.resolve(__dirname, '../..');
+const PREFIXE = '.essai-3e2.3-';
+const DUREE_MAX_MS = 60 * 60 * 1000;
+const vivant = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+const DEHORS = mkdtempSync(path.join(PAQUET, `${PREFIXE}${process.pid}-`));
 afterAll(() => rmSync(DEHORS, { recursive: true, force: true }));
+// What a killed run left: a folder whose process is gone, or older than the test can last.
+beforeAll(() => {
+  for (const nom of readdirSync(PAQUET)) {
+    const pid = Number(nom.match(/^\.essai-3e2\.3-(\d+)-/)?.[1] ?? Number.NaN);
+    const chemin = path.join(PAQUET, nom);
+    if (!nom.startsWith(PREFIXE) || chemin === DEHORS) {
+      continue;
+    }
+    const vieux = Date.now() - statSync(chemin).mtimeMs > DUREE_MAX_MS;
+    if (Number.isNaN(pid) || !vivant(pid) || vieux) {
+      rmSync(chemin, { recursive: true, force: true });
+    }
+  }
+});
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'arbre-joue-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 

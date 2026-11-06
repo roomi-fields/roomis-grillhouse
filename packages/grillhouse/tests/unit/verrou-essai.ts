@@ -4,7 +4,7 @@
 // home. The lock judges the packages of the plan only in a git repository: the test that needs one
 // makes it itself.
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { expect } from 'vitest';
@@ -13,18 +13,27 @@ import { dossier, PAQUET } from './outil-essai.js';
 export const VERSION = '9.9.9';
 const BIN = 'bin/grillhouse.mjs';
 
-// The package of the repository, its tests and node_modules left out, copied to <vers>.
-function copierLePaquet(vers: string) {
-  cpSync(PAQUET, vers, {
-    recursive: true,
-    filter: s => !/[\\/](tests|node_modules)$/.test(s),
-  });
+// The package <source> as npm publishes it, copied to <vers>: its package.json and the entries of
+// its `files` that the tree holds (one that `prepack` makes is absent from the tree and skipped).
+// The root is never walked, so a folder that lies beside the package, or is born or vanishes
+// meanwhile, is neither read nor copied.
+export function copierLePaquet(source: string, vers: string) {
+  const manifeste = readFileSync(path.join(source, 'package.json'), 'utf8');
+  const files = (JSON.parse(manifeste) as { files?: string[] }).files ?? [];
+  mkdirSync(vers, { recursive: true });
+  writeFileSync(path.join(vers, 'package.json'), manifeste);
+  for (const entree of files) {
+    if (existsSync(path.join(source, entree))) {
+      cpSync(path.join(source, entree), path.join(vers, entree), { recursive: true });
+    }
+  }
 }
 
 // A home whose cache holds the healthy published version VERSION.
 export function maisonAvecLaVersionSaine() {
   const maison = dossier('maison');
   copierLePaquet(
+    PAQUET,
     path.join(maison, '.cache/grillhouse/outil', VERSION, 'node_modules/@roomi-fields/grillhouse')
   );
   return maison;
@@ -33,7 +42,7 @@ export function maisonAvecLaVersionSaine() {
 // A healthy copy of the package, in a folder of its own.
 export function copieSaine(nom = 'copie') {
   const vers = path.join(dossier(nom), 'node_modules/@roomi-fields/grillhouse');
-  copierLePaquet(vers);
+  copierLePaquet(PAQUET, vers);
   return vers;
 }
 
