@@ -231,7 +231,9 @@ const SANS_ENVELOPPE = [
 ];
 
 describe('critère 2 — on a machine without bwrap, a test that launches a real envelope skips', () => {
-  it(
+  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
+  // moves to the night.
+  it.skip(
     'critère 2: the agent copy of the submodules skips, the other tests of its describe run green',
     () => {
       const r = jouer(
@@ -250,7 +252,9 @@ describe('critère 2 — on a machine without bwrap, a test that launches a real
 });
 
 describe.runIf(canWrap)('critère 4 — on a machine where bwrap works, nothing skips', () => {
-  it(
+  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
+  // moves to the night.
+  it.skip(
     'critère 4: the agent copy of the submodules runs, with the tests beside it',
     () => {
       const r = jouer([], 'critère 4', SOUS_MODULES, { racine: ESSAIS_DU_CADRE });
@@ -291,7 +295,9 @@ const bdSurLeChemin = (process.env.PATH ?? '').split(':').some(d => {
 });
 
 describe('critère 1 (grillhouse-3uv.50.1) — on a machine without bd, no test file fails', () => {
-  it.runIf(canWrap)(
+  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
+  // moves to the night.
+  it.skip(
     'critère 1 (grillhouse-3uv.50.1): the test that needs the real bd skips, those beside it pass',
     () => {
       const r = jouer(
@@ -316,7 +322,9 @@ describe.runIf(bdSurLeChemin)('critère 3 (grillhouse-3uv.50.1) — on a machine
     expect(hasBd).toBe(true);
   });
 
-  it.runIf(canWrap)(
+  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
+  // moves to the night.
+  it.skip(
     'critère 3 (grillhouse-3uv.50.1): the test that needs the real bd runs, with those beside it',
     () => {
       const r = jouer(
