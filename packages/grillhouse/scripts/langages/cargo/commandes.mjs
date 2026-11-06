@@ -51,8 +51,9 @@
 //   nextest, in `tester` as in `verifier`, which then plays its library (`--lib`), its binaries
 //   (`--bins`) and each other test target (`--test <nom>`); its build still compiles them. The
 //   night plays them (`tests-de-nuit`), as the module typescript's `*.budget.test.*`. A path that
-//   names the file of one plays it, as Bazel builds a target tagged `manual` when named; a folder
-//   named leaves them out, as the day does.
+//   names the file of a bench plays it, as Bazel builds a target tagged `manual` when named; a path
+//   that names a night test is refused, named, and nothing plays (code 2): the night alone plays
+//   it; a folder named leaves them out, as the day does.
 // - A time budget bench plays alone, one test at a time (`--test-threads 1`), in a task `budget` of
 //   its own after the other tests: in `tests-de-nuit` and in a path that names it. A red of the
 //   task while the CPU pressure of the machine (`lirePression` of ./jointure) is at or above its
@@ -406,7 +407,13 @@ function jouerLesTests(racine, p, choix, options) {
       if (cibles.length === 0 || autres.length || avecLeJour) {
         const duC = duJour(c);
         const nommes = autres.flatMap(n => ['--test', n]);
-        const selection = !cibles.length ? duC : avecLeJour ? (duC.length ? [...duC, ...nommes] : []) : nommes;
+        const selection = !cibles.length
+          ? duC
+          : avecLeJour
+            ? duC.length
+              ? [...duC, ...nommes]
+              : []
+            : nommes;
         const args = [...nextest, '-p', nom, ...selection, ...options];
         prevues.push([p.prevoir(nom, d, 'nextest', true, args), { junit }]);
       }
@@ -456,6 +463,9 @@ function duJour(c) {
   ];
 }
 
+// The refusal of a night test named in a targeted run: the night alone plays it.
+const REFUS_DE_NUIT = 'un test de nuit se joue la nuit seulement (npx grillhouse nuit le joue)';
+
 // The crates the paths <chemins> choose in <racine>: `{ choix }`, or `{ refus }` naming each path
 // refused.
 function choisir(racine, tous, chemins) {
@@ -480,6 +490,11 @@ function choisir(racine, tous, chemins) {
       continue;
     }
     const cible = crate.cibles.find(t => t.kind.includes('test') && t.src === abs);
+    // A night test plays at night alone (`tests-de-nuit`): a targeted run refuses it, named.
+    if (cible && horsDuJour(cible) === 'nuit') {
+      refus.push(`${chemin} : ${REFUS_DE_NUIT}`);
+      continue;
+    }
     const deja = parDossier.get(c.dossier);
     // A file with no target of its own (a unit test of `src/`) asks for the day of its crate; a
     // target named stays named, whatever the order of the paths.
@@ -644,8 +659,9 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     }
   }
   const refus =
-    (VERROUILLEES.includes(nom) ? verrouNonVersionne(racine, env[COPIE_DE_L_ARBRE] || racine) : null) ??
-    (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
+    (VERROUILLEES.includes(nom)
+      ? verrouNonVersionne(racine, env[COPIE_DE_L_ARBRE] || racine)
+      : null) ?? (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
   if (refus) {
     process.stderr.write(`${refus}\n`);
     return 2;
@@ -744,7 +760,9 @@ function tester(racine, tous, args, env) {
 function testsDuPaquet(racine, tous, args, env) {
   const donnes = args.filter(a => !a.startsWith('-'));
   if (donnes.length === 0) {
-    process.stderr.write('⛔ tests-du-paquet : aucun chemin (un dossier de crate, ou un fichier de test).\n');
+    process.stderr.write(
+      '⛔ tests-du-paquet : aucun chemin (un dossier de crate, ou un fichier de test).\n'
+    );
     return 2;
   }
   const dossierDe = abs =>

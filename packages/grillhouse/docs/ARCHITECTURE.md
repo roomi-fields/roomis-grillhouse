@@ -8,9 +8,10 @@ les agents. Chaque règle dit le comportement, et le modèle mûr qu’il suit.
 et joué dans son paquet avec ce dont ses tests dépendent (un autre jeu de chemins relit les
 constructions du cache ; un changement de ce qu'ils importent les rejoue),
 `npm run test:forcer -- <chemins>` pour rejouer pour de vrai un test soupçonné instable ; un
-lancement qui ne joue aucun test échoue ; un test de nuit ou une mesure de temps (un banc de
-temps, un témoin de temps) se joue quand son propre fichier est nommé, sous la mesure du temps
-(un dossier ou un paquet nommé les laisse hors, comme le jour) ; aucun agent ne lance l'outil de test directement, ni Vitest ni Turborepo (les droits d'un
+lancement qui ne joue aucun test échoue ; un test de nuit nommé est refusé, par son nom, et rien
+ne se joue : la nuit seule le joue ; une mesure de temps (un banc de temps, un témoin de temps) se
+joue quand son propre fichier est nommé, sous la mesure du temps (un dossier ou un paquet nommé
+les laisse hors, comme le jour) ; aucun agent ne lance l'outil de test directement, ni Vitest ni Turborepo (les droits d'un
 rôle qui écrit les refusent, `droits.mjs`). `npm run verifier` joue, après la
 construction : les gardes du cadre,
 celles du projet (son script racine `gardes`, un nom que le cadre réserve ; une garde juge les

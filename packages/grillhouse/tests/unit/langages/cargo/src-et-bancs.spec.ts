@@ -1,5 +1,5 @@
 // grillhouse-3e2.4 — le module cargo joue un test unitaire sous `src/` (`tests.rs`) et garde un banc
-// (`tests/<nom>_budget.rs`) ou un test de nuit nommé, même quand un fichier sous `src/` du même
+// (`tests/<nom>_budget.rs`) nommé, et refuse un test de nuit nommé, même quand un fichier sous `src/` du même
 // crate le précède dans la liste. Témoin : SyntHub SH-ae6.5.14 (2026-11-02), où la preuve du rouge
 // nommait `crates/service/src/server/tests.rs` puis `crates/service/tests/search_budget.rs` :
 // `choisir` créait l'entrée du crate avec « tout le jour » au premier, n'ajoutait plus aucune
@@ -92,7 +92,7 @@ describe('grillhouse-3e2.4, critère 1 — un test unitaire sous src/ se joue', 
   });
 });
 
-describe('grillhouse-3e2.4, critère 5 — un banc ou un test de nuit nommé reste joué derrière un fichier sous src/', () => {
+describe('grillhouse-3e2.4, critère 5 — un banc nommé reste joué derrière un fichier sous src/', () => {
   it('critère 5 : tests.rs puis le banc — le banc se joue seul, sur un fil, et le jour aussi', () => {
     const r = tester(crate({ banc: true, nuit: false }), [TESTS_RS, BANC]);
     expect(r.code, r.erreur).toBe(0);
@@ -110,19 +110,11 @@ describe('grillhouse-3e2.4, critère 5 — un banc ou un test de nuit nommé res
     expect(jour(r.appels)).toHaveLength(1);
   });
 
-  it('critère 5 : tests.rs puis un test de nuit — le test de nuit se joue, le jour aussi', () => {
+  it('un test de nuit nommé, même derrière tests.rs, est refusé par son nom et rien ne se joue', () => {
     const r = tester(crate({ banc: false, nuit: true }), [TESTS_RS, NUIT]);
-    expect(r.code, r.erreur).toBe(0);
-    expect(nextests(r.appels).filter(a => a.includes('--test lourd_nuit'))).toHaveLength(1);
-    expect(jour(r.appels)).toHaveLength(1);
-  });
-
-  it('critère 5 : tests.rs, un banc et un test de nuit — chacun est joué', () => {
-    const r = tester(crate({ banc: true, nuit: true }), [TESTS_RS, BANC, NUIT]);
-    expect(r.code, r.erreur).toBe(0);
-    expect(banc(r.appels)).toHaveLength(1);
-    expect(nextests(r.appels).filter(a => a.includes('--test lourd_nuit'))).toHaveLength(1);
-    expect(jour(r.appels)).toHaveLength(1);
+    expect(r.code, r.erreur).toBe(2);
+    expect(r.erreur).toContain('un test de nuit se joue la nuit seulement');
+    expect(nextests(r.appels)).toHaveLength(0);
   });
 });
 

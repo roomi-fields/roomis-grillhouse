@@ -905,10 +905,7 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
       `${NEXTEST} --lib --bins --test bout`,
       'test --doc -p seul',
     ]);
-    expect(lancer(enDossier, 'tester', ['tests/gros_nuit/main.rs']).appels).toEqual([
-      'test --no-run -p seul --test gros_nuit',
-      `${NEXTEST} --test gros_nuit`,
-    ]);
+    expect(lancer(enDossier, 'tester', ['tests/gros_nuit/main.rs']).appels).toEqual([]);
     expect(lancer(enDossier, 'tests-de-nuit').appels).toEqual([
       'test --no-run -p seul --test gros_nuit',
       `${NEXTEST} --test gros_nuit`,
@@ -954,11 +951,10 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     expect(r.code).toBe(1);
   });
 
-  it('critère 3 — a targeted run that names the file plays it, a bench alone and at rest', () => {
-    expect(lancer(racine, 'tester', ['tests/lourd_nuit.rs']).appels).toEqual([
-      'test --no-run -p seul --test lourd_nuit',
-      `${NEXTEST} --test lourd_nuit`,
-    ]);
+  it('critère 3 — a targeted run refuses a night test it names, and plays a bench it names, alone and at rest', () => {
+    const nuit = lancer(racine, 'tester', ['tests/lourd_nuit.rs']);
+    expect(nuit.code).toBe(2);
+    expect(nuit.appels).toEqual([]);
     const banc = lancer(racine, 'tester', ['tests/recherche_budget.rs'], {}, pression(0));
     expect(banc.appels).toEqual([
       'test --no-run -p seul --test recherche_budget',

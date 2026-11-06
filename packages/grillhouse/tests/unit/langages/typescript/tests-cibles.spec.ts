@@ -239,10 +239,11 @@ describe(
 // left out every bench and night test, so `npm test -- <the bench>` played nothing (« No test
 // files found », code 1), the proof of the red counted the bench a file that does not load, and
 // the reviewer judged on the night's measure. As Bazel's `manual` target, out of every pattern and
-// played when named, a bench or a night test named itself plays, under the duration reporter; a
-// directory or a package named leaves them out, as the day does.
+// played when named, a bench named itself plays, under the duration reporter; a directory or a
+// package named leaves them out, as the day does. A night test named is refused: the night alone
+// plays it.
 describe(
-  'npm test -- <file> plays a time budget bench or a night test it names itself',
+  'npm test -- <file> plays a time budget bench it names itself, and refuses a night test',
   { timeout: 60_000 },
   () => {
     // The repository of packages, with in `a` a bench and a night test that write their mark, and
@@ -266,11 +267,14 @@ describe(
       expect(joues(racine)).toEqual(['a/z.budget']);
     });
 
-    it('a night test named plays, in its package', () => {
+    it('a night test named is refused by its name, and nothing plays: the night alone plays it', () => {
       const racine = depotAvecBancs();
       const r = lancer(racine, ['packages/a/test/n.nuit.test.mjs']);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(joues(racine)).toEqual(['a/n.nuit']);
+      expect(r.status, sortie(r)).not.toBe(0);
+      expect(sortie(r)).toContain(
+        'test/n.nuit.test.mjs : un test de nuit se joue la nuit seulement'
+      );
+      expect(joues(racine)).toEqual([]);
     });
 
     it('its package named, the bench and the night test stay out, as the day has it', () => {

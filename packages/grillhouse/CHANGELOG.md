@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **A targeted run refuses a night test it names**: on 2026-11-06 an agent replayed the night tests of a branch one by one in the day, eight hours of the machine. As the charter has it, a night test plays at night alone. `npm test -- <chemins>` (and `test:forcer`) now refuses a night test named (`*.nuit.test.*`, `*.nuit.spec.*`, `tests/<nom>_nuit.rs`, `*_nuit_test.py`), by its name, and plays nothing (code 2 for cargo and Python, a red for Vitest); `npx grillhouse nuit` (`tests-de-nuit`) plays it. A time budget bench or a time witness named still plays, under the measure of time. The proof of the red already set night tests aside. **Action for projects**: none; a night test is checked at night.
+
 ### Added
 
 - **The guard of the sizes sees large a test that starts a heavy tool in a trial project** (grillhouse-44b.10.4): as Bazel's large size (test-encyclopedia), a test that mounts a temporary directory (`mkdtemp`, `tmpdir`) and starts turbo, vitest, knip, depcruise or api-extractor there, in a process call with `cwd:` (or `-C`, `--prefix`), is large, without `git init`; the shared test material it imports is followed as for the trial repository rule. A tool named by a variable or an npm script (`npm run verifier`) escapes the reading, as the guard's header says. The tests of the day it makes large are inscribed in the debt (`grillhouse-dette.json`), frozen: the count never rises. **Action for projects**: `npx grillhouse maj` (migration 0.30.0) inscribes them once in the project's debt; each then moves to the night (`*.nuit.test.*`) or is reduced.

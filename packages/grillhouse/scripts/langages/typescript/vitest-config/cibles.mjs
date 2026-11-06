@@ -27,7 +27,9 @@
 //   the plugin excludes the witnesses found under the configuration's directory
 //   (`fichiersTemoins`, node_modules, dist, .git, .turbo and .claude left out), with or without
 //   the variable.
-// - A night test, a bench or a witness plays when its own file is named, as Bazel's target tagged
+// - A night test named is refused, named, and nothing plays: the night alone plays it
+//   (./tests-de-nuit.mjs).
+// - A bench or a witness plays when its own file is named, as Bazel's target tagged
 //   `manual` builds when named: the day's exclusions lift for that file, the include of the
 //   configuration notwithstanding, and the measure of time of the base configuration applies, its
 //   duration reporter giving 75, « à repasser », to a measure that fails under load. A directory
@@ -182,10 +184,22 @@ async function cibler(config, test, valeur, temoins) {
     const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
     const include = test.include ?? INCLUDE;
     const chemins = filter.map(f => path.resolve(f.replace(/[\\/]+$/, '')));
+    const relatif = f => path.relative(dir, f).split(path.sep).join('/');
     // The files named themselves, not through a directory.
     const seuls = new Set(chemins.filter(f => fichiers(f)[0] === f));
+    // A night test plays at night alone (./tests-de-nuit.mjs): a targeted run refuses it, named.
+    const deNuit = [...seuls].filter(f => path.matchesGlob(relatif(f), NUIT));
+    if (deNuit.length) {
+      throw new Error(
+        deNuit
+          .map(
+            f =>
+              `⛔ ${relatif(f)} : un test de nuit se joue la nuit seulement (npx grillhouse nuit le joue)`
+          )
+          .join('\n')
+      );
+    }
     nommes = [...seuls];
-    const relatif = f => path.relative(dir, f).split(path.sep).join('/');
     const joues = [...new Set(chemins.flatMap(fichiers))]
       .filter(f => {
         const r = relatif(f);
@@ -198,7 +212,7 @@ async function cibler(config, test, valeur, temoins) {
       })
       .map(relatif)
       .sort();
-    // A bench or a night test named itself plays: the day's exclusions of both lift, and the
+    // A bench named itself plays: the day's exclusions lift, and the
     // files under a directory named stay out by the filter above (a witness, by the plugin).
     if (joues.some(horsDuJour) && Array.isArray(test.exclude)) {
       test.exclude = test.exclude.filter(p => !HORS_DU_JOUR.includes(p));

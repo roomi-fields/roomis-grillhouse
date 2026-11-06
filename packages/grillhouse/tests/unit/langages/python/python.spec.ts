@@ -303,7 +303,7 @@ describe('grillhouse-ziy, critère 4 — l’enveloppe', () => {
 });
 
 describe('grillhouse-ziy, critère 5 — les tailles et le dossier temporaire', () => {
-  it('the day leaves *_nuit_test.py out; tests-de-nuit plays it; named, it plays', () => {
+  it('the day leaves *_nuit_test.py out; tests-de-nuit plays it; named, it is refused', () => {
     const racine = projet();
     const jour = lancer(racine, 'tester');
     expect(jour.appels[0].args).toContain('--ignore-glob=*_nuit_test.py');
@@ -313,9 +313,11 @@ describe('grillhouse-ziy, critère 5 — les tailles et le dossier temporaire', 
     expect(nuit.appels[0].args.at(-1)).toBe('pages/site_nuit_test.py');
     expect(nuit.verdict.rapports.map(x => path.basename(x.fichier))).toEqual(['site_nuit_test.py']);
     const nomme = lancer(racine, 'tester', ['site/pages/site_nuit_test.py']);
-    expect(nomme.verdict.rapports.map(x => path.basename(x.fichier))).toEqual([
-      'site_nuit_test.py',
-    ]);
+    expect(nomme.code).toBe(2);
+    expect(nomme.stderr).toContain(
+      'site/pages/site_nuit_test.py : un test de nuit se joue la nuit seulement'
+    );
+    expect(nomme.appels).toHaveLength(0);
   });
 
   it('the guard of the sizes refuses a large test of the day, never a night one', () => {
@@ -494,20 +496,14 @@ describe('grillhouse-1ic.1 — un dossier nommé laisse la nuit de côté', () =
     expect(joues(r)).toEqual(['test_pages.py']);
   });
 
-  it('critère 2: a night file named plays, beside a folder named', () => {
+  it('a night file named beside a folder named is refused by its name, and nothing plays', () => {
     const racine = projet();
     ecrire(racine, 'site/autre/test_autre.py', 'def test_a():\n    assert True\n');
-    ecrire(racine, 'site/autre/autre_nuit_test.py', 'def test_n():\n    assert True\n');
     const r = lancer(racine, 'tester', ['site/autre', 'site/pages/site_nuit_test.py']);
-    expect(r.code, r.stderr).toBe(0);
-    expect(joues(r)).toEqual(['site_nuit_test.py', 'test_autre.py']);
-  });
-
-  it('critère 2: a night file named plays, its own folder named too, the folder’s night left out', () => {
-    const racine = projet();
-    ecrire(racine, 'site/pages/autre_nuit_test.py', 'def test_n():\n    assert True\n');
-    const r = lancer(racine, 'tester', ['site', 'site/pages/site_nuit_test.py']);
-    expect(r.code, r.stderr).toBe(0);
-    expect(joues(r)).toEqual(['site_nuit_test.py', 'test_pages.py']);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain(
+      'site/pages/site_nuit_test.py : un test de nuit se joue la nuit seulement'
+    );
+    expect(r.appels).toHaveLength(0);
   });
 });

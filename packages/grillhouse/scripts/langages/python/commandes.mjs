@@ -35,10 +35,8 @@
 //   variable `GRILLHOUSE_TESTS` that lie in the project replace the folder the script names. A path
 //   out of every project is refused, named, and nothing plays (code 2). The night tests
 //   (`*_nuit_test.py`, the one class out of the day: Python has no time budget bench) are left out
-//   of every folder, played whole or named (`--ignore-glob`), and a night test plays when its own
-//   file is named, as the module cargo's: pytest never ignores a path named, and a folder named
-//   that holds a night file named gives its tests of the day file by file, since pytest would
-//   collect that file through the folder (grillhouse-1ic.1). `--force` changes nothing here:
+//   of every folder, played whole or named (`--ignore-glob`), and a night test named is refused,
+//   named, and nothing plays (code 2), as the module cargo's: the night alone plays it. `--force` changes nothing here:
 //   pytest keeps no result to replay. Another option goes to pytest. A project played whole (its
 //   own folder named) whose pytest collects no test (code 5) is green, as `cargo test` on a crate
 //   without a test and the skeleton typescript's `passWithNoTests`; a path within the project that
@@ -236,22 +234,11 @@ const UV_RUN = ['run', '--locked'];
 // The code of pytest for « no tests collected », distinct from a failure (1).
 const AUCUN_TEST = 5;
 
-// The selection of pytest for the paths <chemins> of the package <c>, from its folder (empty: the
-// whole package): the night left out of every folder (`--ignore-glob`), as the module cargo's;
-// a night file named plays, pytest never ignoring a path named, unless a folder named holds it,
-// through which pytest collects it: that folder then gives its tests of the day, file by file.
-function selection(c, chemins) {
-  const nuits = chemins.filter(ch => estDeNuit(path.basename(ch)));
-  const tient = (d, f) => d !== f && !path.relative(d, f).startsWith('..');
-  const nommes = chemins.flatMap(ch => {
-    if (!nuits.some(n => tient(ch, n))) {
-      return [ch];
-    }
-    return fichiersDeTest(path.join(c.dossier, ch))
-      .filter(f => !estDeNuit(path.basename(f)))
-      .map(f => path.relative(c.dossier, f));
-  });
-  return [`--ignore-glob=${DE_NUIT}`, ...nommes];
+// The selection of pytest for the paths <chemins> of a package, from its folder (empty: the
+// whole package): the night left out of every folder (`--ignore-glob`), as the module cargo's; a
+// night file named never reaches it (`choisir` refuses it).
+function selection(chemins) {
+  return [`--ignore-glob=${DE_NUIT}`, ...chemins];
 }
 
 // Whether the pyproject of the package at <dossier> declares pytest-xdist, which `-n` needs.
@@ -278,7 +265,7 @@ function jouerLesTests(p, choix, options) {
     if (travailleurs !== null && declareXdist(c.dossier)) args.push('-n', String(travailleurs));
     const entier = chemins.every(ch => ch === '.');
     p.jouer(
-      p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection(c, chemins), ...options]),
+      p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection(chemins), ...options]),
       entier ? [AUCUN_TEST] : []
     );
   }
@@ -292,6 +279,13 @@ function choisir(racine, tous, chemins) {
     const c = composantDans(tous, racine, chemin);
     if (!c) {
       refus.push(`${chemin} : hors de tout paquet Python (pyproject.toml)`);
+      continue;
+    }
+    // A night test plays at night alone (`tests-de-nuit`): a targeted run refuses it, named.
+    if (estDeNuit(path.basename(chemin))) {
+      refus.push(
+        `${chemin} : un test de nuit se joue la nuit seulement (npx grillhouse nuit le joue)`
+      );
       continue;
     }
     const rel = path.relative(c.dossier, path.resolve(racine, chemin)) || '.';
@@ -377,7 +371,9 @@ function testsDuPaquet(racine, args, env) {
   const tous = composants(racine);
   const donnes = args.filter(a => !a.startsWith('-'));
   if (donnes.length === 0) {
-    process.stderr.write('⛔ tests-du-paquet : aucun chemin (un dossier de projet, ou un fichier de test).\n');
+    process.stderr.write(
+      '⛔ tests-du-paquet : aucun chemin (un dossier de projet, ou un fichier de test).\n'
+    );
     return 2;
   }
   const dossierDe = abs => composantDans(tous, racine, abs)?.dossier ?? null;
