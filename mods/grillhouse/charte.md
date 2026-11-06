@@ -104,6 +104,10 @@ Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-d
 un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Ainsi
 le jour reste court, et la preuve longue tourne la nuit.
 
+**Un test porte le nom du comportement qu'il prouve**, jamais le numéro de son ticket, qui va au
+message du commit (Software Engineering at Google, chap. 12 : un test par comportement). Ainsi un
+test vit autant que son comportement, pas que son ticket.
+
 **Une mesure de temps joue la nuit** (les tests `manual` de Bazel, les bancs de rustc-perf hors de
 la CI de chaque commit) : le jour sert l'activité, et sa machine est toujours chargée. Un test qui
 mesure un temps (un banc de temps, un témoin de temps) est hors du jour dans chaque langage, comme
