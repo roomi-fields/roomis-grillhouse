@@ -7,6 +7,7 @@ import {
   refus,
   passe,
   generee,
+  nomme,
   FIN,
   DEBUT,
   TSCONFIG,
@@ -23,79 +24,70 @@ import {
 // (scripts/langages/typescript/index-interfaces.mjs). This file: the members and constants, the @faute repeated,
 // malformed or on a member, the root interface, the marks, the components without exports, the
 // hand titles, the frame's tsdoc.json and the entries of an interface or a class
-// (grillhouse-3uv.64, critères 13 to 24).
+// (grillhouse-3uv.64, critères 13 to 24). The cases that judge a rubric call `jugerExport` and
+// `partieGeneree` on the elements one call of `rapportApi` draws from a declaration entry; those on a
+// whole trial project call `verifierComposant` (grillhouse-44b.10.1, critères 1 and 2).
 // The projects of trial and their checks: ./interfaces-contre-code-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'interfaces-contre-code-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { iface, projet, ecrit, apres } = interfacesEssai(ESSAIS);
+const { iface, projet, ecrit, apres, analyse, juge, partie } = interfacesEssai(ESSAIS);
 
 // Critère 13 : the rubrics are required of exports only: a class or interface member requires
 // none; an exported constant, arrow included, is a variable and requires its summary only.
 describe('critère 13 — members and constants (grillhouse-3uv.64)', () => {
+  const MEMBRES =
+    DUREE +
+    '/** Un objet lu. */\nexport interface Lu {\n  compte: number;\n  lire(x: number): number;\n}\n' +
+    '/** Une horloge. */\nexport declare class Horloge {\n  constructor(t: number);\n  readonly tempo: number;\n  tic(n: number): number;\n}\n' +
+    '/** Rend vite une durée. */\nexport declare const vite: (x: number) => number;\n' +
+    'export declare const viteSansResume: (x: number) => number;\n';
+
   it('critère 13 : undocumented members of an interface and a class pass', () => {
-    passe(
-      apres({
-        'dist/a/index.d.ts':
-          DUREE +
-          '/** Un objet lu. */\nexport interface Lu {\n  compte: number;\n  lire(x: number): number;\n}\n' +
-          '/** Une horloge. */\nexport declare class Horloge {\n  constructor(t: number);\n  readonly tempo: number;\n  tic(n: number): number;\n}\n',
-      })
-    );
+    const a = analyse(MEMBRES);
+    expect(juge(a, 'Lu').lignes).toEqual([]);
+    expect(juge(a, 'Horloge').lignes).toEqual([]);
   });
   it('critère 13 : an exported arrow constant with its summary only passes', () => {
-    passe(
-      apres({
-        'dist/a/index.d.ts':
-          DUREE +
-          '/** Rend vite une durée. */\nexport declare const vite: (x: number) => number;\n',
-      })
-    );
+    expect(juge(analyse(MEMBRES), 'vite').lignes).toEqual([]);
   });
   it('critère 13 : an exported arrow constant without its summary is refused', () => {
-    refusNommant(
-      apres({
-        'dist/a/index.d.ts': DUREE + 'export declare const vite: (x: number) => number;\n',
-      }),
-      'vite',
-      /résumé/
-    );
+    nomme(juge(analyse(MEMBRES), 'viteSansResume').lignes, 'viteSansResume', /résumé/);
   });
 });
 
 // Critère 14 : two @faute of the same code on one export are not refused.
 describe('critère 14 — a repeated @faute (grillhouse-3uv.64)', () => {
   it('critère 14 : two @faute of the same code pass', () => {
-    passe(
-      apres({
-        'dist/a/index.d.ts': DUREE.replace(
-          ' * @faute DUREE_NEGATIVE',
-          ' * @faute DUREE_NEGATIVE\n * @faute DUREE_NEGATIVE'
-        ),
-      })
+    const a = analyse(
+      DUREE.replace(
+        ' * @faute DUREE_NEGATIVE',
+        ' * @faute DUREE_NEGATIVE\n * @faute DUREE_NEGATIVE'
+      )
     );
+    expect(juge(a, 'duree').lignes).toEqual([]);
   });
 });
 
 // Critère 15 : an @faute without a code, or whose first word is not a code, is refused as
 // malformed, naming the export.
 describe('critère 15 — a malformed @faute (grillhouse-3uv.64)', () => {
-  it.each([
-    ['without a code', ' * @faute'],
-    ['whose word is not a code', ' * @faute négatif'],
-    ['whose first word is not the code', ' * @faute Le code DUREE_NEGATIVE'],
-  ])('critère 15 : an @faute %s is refused, naming the export', (_cas, ligne) => {
-    refusNommant(
-      apres({
-        'dist/a/index.d.ts':
-          DUREE +
-          doc('Rend le tempo.', '@returns Le tempo.').replace(' */', `${ligne}\n */`) +
-          'export declare function tempo(): number;\n',
-      }),
-      'tempo',
-      '@faute'
-    );
+  const MAL_FORMEES = [
+    ['without a code', 'tempoSansCode', ' * @faute'],
+    ['whose word is not a code', 'tempoSansMot', ' * @faute négatif'],
+    ['whose first word is not the code', 'tempoMotPremier', ' * @faute Le code DUREE_NEGATIVE'],
+  ];
+  const dts = () =>
+    DUREE +
+    MAL_FORMEES.map(
+      ([, nom, ligne]) =>
+        doc('Rend le tempo.', '@returns Le tempo.').replace(' */', `${ligne}\n */`) +
+        `export declare function ${nom}(): number;\n`
+    ).join('');
+
+  it.each(MAL_FORMEES)('critère 15 : an @faute %s is refused, naming the export', (_cas, nom) => {
+    nomme(juge(analyse(dts()), nom).lignes, nom, '@faute');
   });
 });
 
@@ -264,33 +256,33 @@ describe('critère 24 — an @faute on a member (grillhouse-3uv.64)', () => {
       )
       .concat([`${indent} */`, `${indent}lire(x: number): number;`])
       .join('\n');
-  const CLASSE = (...fautes: string[]) =>
-    `/** Un lecteur. */\nexport declare class Lecteur {\n${membre('  ', ...fautes)}\n}\n`;
-  const INTERFACE = (...fautes: string[]) =>
-    `/** Un lecteur. */\nexport interface Lecteur {\n${membre('  ', ...fautes)}\n}\n`;
+  const CLASSE = (nom: string, ...fautes: string[]) =>
+    `/** Un lecteur. */\nexport declare class ${nom} {\n${membre('  ', ...fautes)}\n}\n`;
+  const INTERFACE = (nom: string, ...fautes: string[]) =>
+    `/** Un lecteur. */\nexport interface ${nom} {\n${membre('  ', ...fautes)}\n}\n`;
+  const CAS: [string, (nom: string, ...fautes: string[]) => string, string][] = [
+    ['a class method', CLASSE, 'Classe'],
+    ['an interface member', INTERFACE, 'Interface'],
+  ];
+  const HORS =
+    DUREE +
+    CAS.map(([, fait, nom]) => fait(`${nom}Hors`, 'DUREE_NEGATIVE', 'HORS_CATALOGUE')).join('');
+  const DANS =
+    SANS_FAUTE + CAS.map(([, fait, nom]) => fait(`${nom}Dans`, 'DUREE_NEGATIVE')).join('');
 
-  it.each([
-    ['a class method', CLASSE],
-    ['an interface member', INTERFACE],
-  ])(
+  it.each(CAS)(
     'critère 24 : an @faute out of the catalogue on %s is refused, naming the code',
-    (_cas, fait) => {
-      refusNommant(
-        apres({ 'dist/a/index.d.ts': DUREE + fait('DUREE_NEGATIVE', 'HORS_CATALOGUE') }),
-        '@faute',
-        'HORS_CATALOGUE'
-      );
+    (_cas, _fait, nom) => {
+      nomme(juge(analyse(HORS), `${nom}Hors`).lignes, '@faute', 'HORS_CATALOGUE');
     }
   );
-  it.each([
-    ['a class method', CLASSE],
-    ['an interface member', INTERFACE],
-  ])(
+  it.each(CAS)(
     'critère 24 : a catalogue fault named only by %s is not refused under critère 22',
-    (_cas, fait) => {
-      const r = apres({ 'dist/a/index.d.ts': SANS_FAUTE + fait('DUREE_NEGATIVE') });
-      expect(refus(r.stderr).filter(l => l.includes('DUREE_NEGATIVE'))).toEqual([]);
-      passe(r);
+    (_cas, _fait, nom) => {
+      const j = juge(analyse(DANS), `${nom}Dans`);
+      expect(j.lignes).toEqual([]);
+      expect([...j.codes]).toEqual(['DUREE_NEGATIVE']);
+      expect(juge(analyse(DANS), 'duree').codes.size).toBe(0);
     }
   );
 });
@@ -298,26 +290,19 @@ describe('critère 24 — an @faute on a member (grillhouse-3uv.64)', () => {
 // Critère 23 : the generated entry of an interface or a class lists its members, with their summary
 // when they have one; a member without summary stays accepted.
 describe('critère 23 — the entry of an interface or a class lists its members (grillhouse-3uv.64)', () => {
+  const MEMBRES =
+    DUREE +
+    '/** Un objet lu. */\nexport interface Lu {\n  /** Le nombre de battements lus. */\n  compte: number;\n  nomPropre: string;\n}\n' +
+    '/** Une horloge. */\nexport declare class Horloge {\n  /** Fait avancer d’un battement. */\n  tic(): void;\n  /** Le tempo courant. */\n  readonly tempoCourant: number;\n  arreter(): void;\n}\n';
+
   it('critère 23 : an interface entry lists each member, with its summary when it has one', () => {
-    const p = ecrit({
-      'dist/a/index.d.ts':
-        DUREE +
-        '/** Un objet lu. */\nexport interface Lu {\n  /** Le nombre de battements lus. */\n  compte: number;\n  nomPropre: string;\n}\n',
-    });
-    passe(p.run());
-    const e = entree(generee(p.lire()), 'Lu');
+    const e = entree(partie(analyse(MEMBRES)), 'Lu');
     expect(e).toMatch(/\bcompte\b/);
     expect(e).toContain('Le nombre de battements lus.');
     expect(e).toMatch(/\bnomPropre\b/);
   });
   it('critère 23 : a class entry lists its methods and properties, with their summaries', () => {
-    const p = ecrit({
-      'dist/a/index.d.ts':
-        DUREE +
-        '/** Une horloge. */\nexport declare class Horloge {\n  /** Fait avancer d’un battement. */\n  tic(): void;\n  /** Le tempo courant. */\n  readonly tempoCourant: number;\n  arreter(): void;\n}\n',
-    });
-    passe(p.run());
-    const e = entree(generee(p.lire()), 'Horloge');
+    const e = entree(partie(analyse(MEMBRES)), 'Horloge');
     expect(e).toMatch(/\btic\b/);
     expect(e).toContain('Fait avancer d’un battement.');
     expect(e).toMatch(/\btempoCourant\b/);
@@ -325,11 +310,6 @@ describe('critère 23 — the entry of an interface or a class lists its members
     expect(e).toMatch(/\barreter\b/);
   });
   it('critère 23 : the members of one export stay out of another export’s entry', () => {
-    const p = ecrit({
-      'dist/a/index.d.ts':
-        DUREE +
-        '/** Un objet lu. */\nexport interface Lu {\n  /** Le nombre de battements lus. */\n  compte: number;\n}\n',
-    });
-    expect(entree(generee(p.lire()), 'duree')).not.toContain('Le nombre de battements lus.');
+    expect(entree(partie(analyse(MEMBRES)), 'duree')).not.toContain('Le nombre de battements lus.');
   });
 });

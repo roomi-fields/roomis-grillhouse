@@ -12,6 +12,7 @@ import {
   FAUTES,
   DUREE,
   entree,
+  nomme,
   interfacesEssai,
 } from './interfaces-contre-code-essai.js';
 
@@ -24,37 +25,27 @@ import {
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'interfaces-contre-code-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { iface, projet, ecrit, apres } = interfacesEssai(ESSAIS);
+const { iface, projet, ecrit, apres, analyse, juge, partie, reecrit } = interfacesEssai(ESSAIS);
 
 // Critère 3 : an @faute CODE whose code is not in the component's « ## Les fautes » catalogue is
 // refused.
 describe('critère 3 — an @faute names a fault of the catalogue (grillhouse-3uv.64)', () => {
+  const FAUTES_DTS =
+    DUREE +
+    DUREE.replace('function duree', 'function dureeInconnue').replace(
+      ' * @faute DUREE_NEGATIVE',
+      ' * @faute DUREE_NEGATIVE\n * @faute DUREE_INCONNUE'
+    ) +
+    '/**\n * Rend le tempo.\n * @param s - Le texte.\n * @returns Le tempo.\n * @faute DUREE_NEGATIVE\n */\nexport declare function tempo(s: string): number;\n';
+
   it('critère 3 : an @faute code absent from the catalogue is refused, naming the code', () => {
-    const r = apres({
-      'dist/a/index.d.ts': DUREE.replace(
-        ' * @faute DUREE_NEGATIVE',
-        ' * @faute DUREE_NEGATIVE\n * @faute DUREE_INCONNUE'
-      ),
-    });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/⛔.*DUREE_INCONNUE/);
+    nomme(juge(analyse(FAUTES_DTS), 'dureeInconnue').lignes, 'DUREE_INCONNUE');
   });
   it('critère 3 : an @faute on a component without a « ## Les fautes » catalogue is refused', () => {
-    const r = apres({
-      'src/a/docs/INTERFACE.md': iface(),
-      'src/a/index.ts': 'export function duree(x: number): number { return x; }\n',
-    });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/⛔.*DUREE_NEGATIVE/);
+    nomme(juge(analyse(FAUTES_DTS), 'duree', null).lignes, 'DUREE_NEGATIVE');
   });
   it('critère 3 : a second export whose @faute is in the catalogue passes', () => {
-    const r = apres({
-      'dist/a/index.d.ts':
-        DUREE +
-        '/**\n * Rend le tempo.\n * @param s - Le texte.\n * @returns Le tempo.\n * @faute DUREE_NEGATIVE\n */\nexport declare function tempo(s: string): number;\n',
-    });
-    expect(r.stderr).toBe('');
-    expect(r.status).toBe(0);
+    expect(juge(analyse(FAUTES_DTS), 'tempo').lignes).toEqual([]);
   });
 });
 
@@ -108,8 +99,7 @@ describe('critère 4 — npm run api writes the generated part (grillhouse-3uv.6
     DUREE + '/**\n * Un objet lu depuis la source.\n */\nexport interface Lu {\n  n: number;\n}\n';
 
   it('critère 4 : the entry of a function gives its title, signature, summary, parameter, return and fault', () => {
-    const p = ecrit({});
-    const e = entree(generee(p.lire()), 'duree');
+    const e = entree(partie(analyse(DUREE)), 'duree');
     expect(e).toMatch(/x: number/);
     expect(e).toContain('Rend la durée d’un objet en battements.');
     expect(e).toMatch(/\bx\b[\s\S]*Le tempo de l’objet\./);
@@ -117,20 +107,17 @@ describe('critère 4 — npm run api writes the generated part (grillhouse-3uv.6
     expect(e).toContain('DUREE_NEGATIVE');
   });
   it('critère 4 : each export has its entry, an interface as well as a function', () => {
-    const p = ecrit({ 'dist/a/index.d.ts': DEUX });
-    const part = generee(p.lire());
+    const part = partie(analyse(DEUX));
     expect(entree(part, 'Lu')).toContain('Un objet lu depuis la source.');
     expect(entree(part, 'duree')).toContain('Rend la durée d’un objet en battements.');
     expect(entree(part, 'duree')).not.toContain('Un objet lu depuis la source.');
   });
   it('critère 4 : the entries follow the TSDoc comments when they change', () => {
-    const p = ecrit({});
-    writeFileSync(
-      path.join(p.dir, 'dist/a/index.d.ts'),
+    const avant = reecrit(iface(), analyse(DUREE));
+    const modifie = analyse(
       DUREE.replace('Rend la durée d’un objet en battements.', 'Calcule une durée.')
     );
-    p.run('--ecrire');
-    const e = entree(generee(p.lire()), 'duree');
+    const e = entree(generee(reecrit(avant, modifie)), 'duree');
     expect(e).toContain('Calcule une durée.');
     expect(e).not.toContain('Rend la durée d’un objet en battements.');
   });
@@ -138,28 +125,26 @@ describe('critère 4 — npm run api writes the generated part (grillhouse-3uv.6
     const avant =
       '# a — l’interface\n\nA rend des durées. Il ne lit rien.\n\n## Vue d’ensemble\n\n```ts\n## `faux`\n```\n\n| x | y |\n\n';
     const apresMarques = `${FAUTES}\n## Consommateurs\n\n- \`b\` : duree\n`;
-    const p = ecrit({ 'src/a/docs/INTERFACE.md': iface(avant, apresMarques) });
-    const texte = p.lire();
+    const texte = reecrit(iface(avant, apresMarques), analyse(DUREE));
     expect(entree(generee(texte), 'duree')).toContain('Rend la durée d’un objet en battements.');
     expect(texte.startsWith(avant + DEBUT)).toBe(true);
     expect(texte.endsWith(FIN + '\n' + apresMarques)).toBe(true);
   });
   it('critère 4 : a part written from stale content is replaced whole, the hand part untouched', () => {
     const avant = '# a\n\nA.\n\n';
-    const p = ecrit({
-      'src/a/docs/INTERFACE.md': `${avant}${DEBUT}\n## \`vieux\`\n\nUn export disparu.\n${FIN}\n${FAUTES}`,
-    });
-    const texte = p.lire();
+    const texte = reecrit(
+      `${avant}${DEBUT}\n## \`vieux\`\n\nUn export disparu.\n${FIN}\n${FAUTES}`,
+      analyse(DUREE)
+    );
     expect(generee(texte)).not.toMatch(/vieux|disparu/);
     expect(texte.startsWith(avant + DEBUT)).toBe(true);
     expect(texte.endsWith(FIN + '\n' + FAUTES)).toBe(true);
   });
   it('critère 4 : writing twice gives the same text', () => {
-    const p = ecrit({ 'dist/a/index.d.ts': DEUX });
-    const premier = p.lire();
+    const a = analyse(DEUX);
+    const premier = reecrit(iface(), a);
     expect(entree(generee(premier), 'Lu')).toContain('Un objet lu depuis la source.');
-    p.run('--ecrire');
-    expect(p.lire()).toBe(premier);
+    expect(reecrit(premier, a)).toBe(premier);
   });
 });
 

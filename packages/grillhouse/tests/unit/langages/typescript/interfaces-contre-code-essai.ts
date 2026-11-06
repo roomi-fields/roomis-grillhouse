@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import {
   copyFileSync,
   existsSync,
@@ -10,6 +11,19 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
+import {
+  aVerifier,
+  avecPartie,
+  jugerExport,
+  marques,
+  partieGeneree,
+  rapportApi,
+  verifierComposant,
+} from '../../../../scripts/langages/typescript/interfaces-contre-code.mjs';
+
+type Constat = { fichier?: string; ligne?: number; regle?: string; message: string };
+// A run of the check: its exit code, its stderr and its refusals as the check gives them.
+export type Run = { status: number | null; stderr: string; constats: Constat[] };
 
 // The trial harness of the check of the interfaces against the code
 // (scripts/langages/typescript/interfaces-contre-code.mjs) and of their index (scripts/langages/typescript/index-interfaces.mjs), shared
@@ -77,6 +91,17 @@ export const refusNommant = (
   );
   expect(ligne, `a refusal naming ${motifs.join(', ')}:\n${r.stderr}`).toBeDefined();
 };
+// The elements and TSDoc messages of one declaration entry (see `analyse`).
+type Analyse = { exports: { displayName: string }[]; tsdoc: string[] };
+// The catalogue of the trial project: the one fault `duree` declares.
+const FAUTES_DU_CATALOGUE = new Set(['DUREE_NEGATIVE']);
+// Asserts that a line of <lignes> contains every one of <motifs>.
+export const nomme = (lignes: string[], ...motifs: (string | RegExp)[]) => {
+  const ligne = lignes.find(l =>
+    motifs.every(m => (typeof m === 'string' ? l.includes(m) : m.test(l)))
+  );
+  expect(ligne, `a refusal naming ${motifs.join(', ')}:\n${lignes.join('\n')}`).toBeDefined();
+};
 export const passe = (r: { status: number | null; stderr: string }) => {
   expect(r.stderr).toBe('');
   expect(r.status).toBe(0);
@@ -110,11 +135,75 @@ export function interfacesEssai(ESSAIS: string) {
       copyFileSync(TSDOC, path.join(dir, 'tsdoc.json'));
     }
     symlinkSync(MODULES, path.join(dir, 'node_modules'));
-    const run = (...args: string[]) =>
-      spawnSync('node', [SCRIPT, ...args], { cwd: dir, encoding: 'utf8' });
+    // A run of the check in this process (verifierComposant on each component), as the script's
+    // output reads: its ⚠️ signals and ⛔ refusals on `stderr`, 1 when a refusal remains.
+    const run = (...args: string[]): Run => {
+      const ecrire = args.includes('--ecrire');
+      const signaux: string[] = [];
+      const constats: Constat[] = [];
+      for (const c of aVerifier(dir, {})) {
+        const v = verifierComposant(dir, c, { ecrire }) as { signaux: string[]; refus: Constat[] };
+        signaux.push(...v.signaux);
+        constats.push(...v.refus);
+      }
+      const lignes = [...signaux.map(s => `⚠️  ${s}`), ...constats.map(r => `⛔ ${r.message}`)];
+      return {
+        status: constats.length ? 1 : 0,
+        stderr: lignes.map(l => `${l}\n`).join(''),
+        constats,
+      };
+    };
+    // The script as a process: the one real launch, for the refusals' exit code and their SARIF.
+    const lancer = (env: Record<string, string> = {}) =>
+      spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8', env: { ...process.env, ...env } });
     const lire = (rel = 'src/a/docs/INTERFACE.md') => readFileSync(path.join(dir, rel), 'utf8');
-    return { dir, run, lire };
+    return { dir, run, lancer, lire };
   }
+  // The elements one call of `rapportApi` draws from a declaration entry, and its TSDoc messages;
+  // one call per distinct entry in this file, shared by the cases that judge it.
+  const analyses = new Map<string, Analyse>();
+  const analyse = (dts: string): Analyse => {
+    const connue = analyses.get(dts);
+    if (connue) {
+      return connue;
+    }
+    const p = projet({ 'dist/a/index.d.ts': dts });
+    const { TSDocConfigFile } = createRequire(SCRIPT)('@microsoft/tsdoc-config') as {
+      TSDocConfigFile: { loadFile: (f: string) => unknown };
+    };
+    const r = rapportApi(
+      p.dir,
+      { dir: path.join(p.dir, 'src/a') },
+      path.join(p.dir, 'dist/a/index.d.ts'),
+      false,
+      TSDocConfigFile.loadFile(TSDOC)
+    );
+    const a = { exports: r.exports, tsdoc: r.tsdoc.map((t: { texte: string }) => t.texte) };
+    analyses.set(dts, a);
+    return a;
+  };
+  // The lines `jugerExport` refuses for the exports named <nom> (every signature of an overload)
+  // against the catalogue <fautes>, and the codes they name.
+  const juge = (a: Analyse, nom: string, fautes: Set<string> | null = FAUTES_DU_CATALOGUE) => {
+    const lignes: string[] = [];
+    const codes = new Set<string>();
+    for (const item of a.exports.filter(i => i.displayName === nom)) {
+      const j = jugerExport(item, fautes);
+      lignes.push(...j.refus.map((r: { texte: string }) => r.texte));
+      for (const c of j.codes as string[]) {
+        codes.add(c);
+      }
+    }
+    return { lignes, codes };
+  };
+  // Every refusal line of an analysis: its TSDoc messages, then those of each export.
+  const tout = (a: Analyse, fautes: Set<string> | null = FAUTES_DU_CATALOGUE) => [
+    ...a.tsdoc.map(t => `TSDoc : ${t}`),
+    ...a.exports.flatMap(i => jugerExport(i, fautes).refus.map((r: { texte: string }) => r.texte)),
+  ];
+  // The generated part of an analysis, and an interface text rewritten with it.
+  const partie = (a: Analyse) => partieGeneree(a.exports);
+  const reecrit = (texte: string, a: Analyse) => avecPartie(marques(texte), texte, partie(a));
   const ecrit = (files: Record<string, string>) => {
     const p = projet(files);
     p.run('--ecrire');
@@ -127,5 +216,5 @@ export function interfacesEssai(ESSAIS: string) {
     }
     return p.run();
   };
-  return { iface, projet, ecrit, apres };
+  return { iface, projet, ecrit, apres, analyse, juge, tout, partie, reecrit };
 }

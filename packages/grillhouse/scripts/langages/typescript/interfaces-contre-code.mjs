@@ -140,7 +140,7 @@ function codesDuCode(dir, racine, prefixes) {
 // Runs API Extractor on one component: whether the repository's report is up to date, the exports
 // of the documentation model built from the code (whether or not the report exists) and the TSDoc
 // messages of its comments.
-function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
+export function rapportApi(racine, c, entreeDts, ecrire, tsdocConfigFile) {
   const { Extractor, ExtractorConfig } = require('@microsoft/api-extractor');
   const { ApiModel } = require('@microsoft/api-extractor-model');
   const pj = existsSync(path.join(c.dir, 'package.json'))
@@ -293,7 +293,7 @@ function fautesJugees(nom, textes, fautes, refus, codes) {
 
 // The refusals for one export against its contract (`{ regle, texte }`), with the fault codes it
 // and its members name.
-function jugerExport(item, fautes) {
+export function jugerExport(item, fautes) {
   const refus = [];
   const nom = `\`${item.displayName}\``;
   const k = contratDe(item);
@@ -412,12 +412,12 @@ function entreeDe(item) {
 }
 
 // The text between the marks for <exports>: empty without export.
-const partieGeneree = exports =>
+export const partieGeneree = exports =>
   exports.length ? `\n${exports.map(entreeDe).join('\n\n')}\n\n` : '\n';
 
 // The text of an interface with its generated part replaced; the marks are added at the end of a
 // text that has none.
-function avecPartie(m, texte, partie) {
+export function avecPartie(m, texte, partie) {
   if (m.etat === 'absentes')
     return `${texte}${texte.endsWith('\n') ? '' : '\n'}\n${DEBUT}${partie}${FIN}\n`;
   const avant = m.lignes.slice(0, m.debut).join('\n');

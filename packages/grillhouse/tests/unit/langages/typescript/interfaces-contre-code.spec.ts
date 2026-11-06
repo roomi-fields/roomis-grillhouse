@@ -1,9 +1,14 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { declare } from '../../../../scripts/langages/typescript/interfaces-contre-code.mjs';
+import {
+  avecPartie,
+  declare,
+  jugerExport,
+  partieGeneree,
+  rapportApi,
+} from '../../../../scripts/langages/typescript/interfaces-contre-code.mjs';
 import { lireSarif, RESULTATS } from '../../../../scripts/resultats.mjs';
 
 // The findings of a SARIF, as scripts/resultats.mjs reads them.
@@ -60,28 +65,60 @@ describe('the check', () => {
   it('names the rule of the refusals its regeneration lifts, `rapport-api` and `partie-generee`, without a file', () => {
     const p = ecrit({});
     writeFileSync(path.join(p.dir, 'dist/a/index.d.ts'), DUREE.replace('x: number)', 'x: string)'));
-    const resultats = path.join(p.dir, 'resultats');
-    const r = spawnSync(
-      'node',
-      [
-        path.resolve(
-          __dirname,
-          '../../../../scripts/langages/typescript/interfaces-contre-code.mjs'
-        ),
-      ],
-      {
-        cwd: p.dir,
-        encoding: 'utf8',
-        env: { ...process.env, [RESULTATS as string]: resultats },
-      }
-    );
-    expect(r.status).toBe(1);
-    const regles = (lireSarif(resultats) as Sarif).constats.map(k => ({
-      regle: k.regle,
-      fichier: k.fichier,
-    }));
-    expect(regles).toContainEqual({ regle: 'rapport-api', fichier: null });
-    expect(regles).toContainEqual({ regle: 'partie-generee', fichier: null });
+    const { constats } = p.run();
+    const regles = constats.map(k => ({ regle: k.regle, fichier: k.fichier }));
+    expect(regles).toContainEqual({ regle: 'rapport-api', fichier: undefined });
+    expect(regles).toContainEqual({ regle: 'partie-generee', fichier: undefined });
+  });
+
+  // The three real launches of the script, one per refusal code: its exit code 1, its ⛔ line and
+  // the rule it writes to the SARIF (grillhouse-44b.10.1, critère 3). Importing the module does
+  // not run the script (its entry guard holds).
+  describe('the script as a process', () => {
+    const regles = (resultats: string) =>
+      (lireSarif(resultats) as Sarif).constats.map(k => ({ regle: k.regle, fichier: k.fichier }));
+
+    it('importing the module runs nothing: its checks are exported', () => {
+      expect(typeof jugerExport).toBe('function');
+      expect(typeof partieGeneree).toBe('function');
+      expect(typeof avecPartie).toBe('function');
+      expect(typeof rapportApi).toBe('function');
+    });
+    it('a TSDoc refusal: exit code 1, a ⛔ line naming the tag, its rule TSDoc inscribed', () => {
+      const p = ecrit({});
+      writeFileSync(
+        path.join(p.dir, 'dist/a/index.d.ts'),
+        DUREE.replace(' * @faute', ' * @bidule rien\n * @faute')
+      );
+      const resultats = path.join(p.dir, 'resultats');
+      const r = p.lancer({ [RESULTATS as string]: resultats });
+      refusNommant(r, '@bidule', 'dist/a/index.d.ts');
+      expect(regles(resultats).some(k => k.regle?.startsWith('tsdoc-') && k.fichier)).toBe(true);
+    });
+    it('rapport-api: an API changed without its report, exit code 1, no file in the SARIF', () => {
+      const p = ecrit({});
+      writeFileSync(
+        path.join(p.dir, 'dist/a/index.d.ts'),
+        DUREE.replace('x: number)', 'x: string)')
+      );
+      const resultats = path.join(p.dir, 'resultats');
+      const r = p.lancer({ [RESULTATS as string]: resultats });
+      refusNommant(r, /l'API a changé sans son rapport/);
+      expect(regles(resultats)).toContainEqual({ regle: 'rapport-api', fichier: null });
+    });
+    it('partie-generee: a generated part edited by hand, exit code 1, no file in the SARIF', () => {
+      const p = ecrit({});
+      const texte = p.lire();
+      const part = generee(texte);
+      writeFileSync(
+        path.join(p.dir, 'src/a/docs/INTERFACE.md'),
+        texte.replace(part, part.replace('Rend la durée', 'Donne la durée'))
+      );
+      const resultats = path.join(p.dir, 'resultats');
+      const r = p.lancer({ [RESULTATS as string]: resultats });
+      refusNommant(r, /npm run api/);
+      expect(regles(resultats)).toContainEqual({ regle: 'partie-generee', fichier: null });
+    });
   });
   it('refuses a listed fault the code does not raise, and a raised fault not listed', () => {
     const r = apres({
