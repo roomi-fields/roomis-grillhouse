@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { configuration } from '../../../../scripts/langages/typescript/frontieres.mjs';
-import { SCRIPT, Chargee, charge, frontieresEssai } from './frontieres-essai.js';
+import { SCRIPT, Chargee, frontieresEssai } from './frontieres-essai.js';
 
 // The boundaries between components (scripts/langages/typescript/frontieres.mjs, dependency-cruiser): the generated
 // configuration and the rules it holds. The project's options are tested in frontieres.options,
@@ -14,12 +14,12 @@ import { SCRIPT, Chargee, charge, frontieresEssai } from './frontieres-essai.js'
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { repo, verdict } = frontieresEssai(ESSAIS);
+const { repo, chargee, verdict } = frontieresEssai(ESSAIS);
 
 describe('configuration', () => {
   it('adds the entry rule only when src has modules', () => {
-    const avec = repo({ 'src/a/index.ts': '' });
-    const sans = repo({ 'src/index.ts': '' });
+    const avec = chargee({ 'src/a/index.ts': '' });
+    const sans = chargee({ 'src/index.ts': '' });
     expect(configuration(avec.dir)).toMatch(/un-module-par-son-entree/);
     expect(configuration(sans.dir)).not.toMatch(/un-module-par-son-entree/);
   });
@@ -138,7 +138,7 @@ describe('grillhouse-3uv.56 critère 16 — the generated configuration holds in
       .filter(({ l }) => [...l].length > 100)
       .map(({ n, l }) => `${n}: ${[...l].length}`);
   it('critère 16: the configuration of a repository with modules under src and a tsconfig holds in 100 columns', () => {
-    const { dir } = repo({ 'src/a/index.ts': '', 'src/b/index.ts': '', 'tsconfig.json': '{}' });
+    const { dir } = chargee({ 'src/a/index.ts': '', 'src/b/index.ts': '', 'tsconfig.json': '{}' });
     expect(longues(readFileSync(path.join(dir, '.dependency-cruiser.cjs'), 'utf8'))).toEqual([]);
   });
   it('critère 16: with packages out of the frame whose names make a long exclusion, it still holds in 100 columns, the exclusion unchanged', () => {
@@ -156,9 +156,9 @@ describe('grillhouse-3uv.56 critère 16 — the generated configuration holds in
       fichiers[`packages/${nom}/package.json`] = `{"name":"${nom}"}`;
       fichiers[`packages/${nom}/src/index.ts`] = '';
     }
-    const { dir } = repo(fichiers);
+    const { dir, config } = chargee(fichiers);
     expect(longues(readFileSync(path.join(dir, '.dependency-cruiser.cjs'), 'utf8'))).toEqual([]);
-    const exclus = charge(dir).options.exclude.path;
+    const exclus = config.options.exclude.path;
     for (const nom of noms) {
       expect(new RegExp(exclus).test(`packages/${nom}/src/index.ts`), nom).toBe(true);
     }
@@ -177,7 +177,7 @@ describe('grillhouse-3uv.56 critère 17 — the project file brings every key of
     allowedSeverity?: string;
     extends?: unknown;
   };
-  const chargeComplete = (files: Record<string, string>) => charge(repo(files).dir) as Complete;
+  const chargeComplete = (files: Record<string, string>) => chargee(files).config as Complete;
   const ALLOWED = "[{ from: {}, to: { path: '^src/(index|a)[.]ts$' } }]";
   const REQUIRED =
     "[{ name: 'doit-importer-a', severity: 'error', module: { path: '^src/index[.]ts$' }, to: { path: '^src/a[.]ts$' } }]";

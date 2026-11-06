@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { configuration } from '../../../../scripts/langages/typescript/frontieres.mjs';
 
 // The trial harness of the boundaries between components (scripts/langages/typescript/frontieres.mjs,
 // dependency-cruiser), shared by their tests (tests/unit/frontieres*.spec.ts).
@@ -62,6 +63,17 @@ export function frontieresEssai(ESSAIS: string) {
     run('--ecrire');
     return { dir, run };
   }
+  // The configuration of a repository with the given files, loaded without any process: the text
+  // `configuration(racine)` returns is written where `--ecrire` writes it, then required.
+  function chargee(files: Record<string, string>) {
+    const dir = mkdtempSync(path.join(ESSAIS, 'configuration-'));
+    for (const [rel, text] of Object.entries({ 'package.json': '{"name":"r"}', ...files })) {
+      mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      writeFileSync(path.join(dir, rel), text);
+    }
+    writeFileSync(path.join(dir, '.dependency-cruiser.cjs'), configuration(dir));
+    return { dir, config: charge(dir) };
+  }
   const verdict = (files: Record<string, string>) => {
     const r = repo(files).run();
     return { status: r.status, sortie: r.stdout + r.stderr };
@@ -91,5 +103,5 @@ export function frontieresEssai(ESSAIS: string) {
     const r = run();
     return { dir, status: r.status, sortie: r.stdout + r.stderr };
   }
-  return { repo, verdict, espace };
+  return { repo, chargee, verdict, espace };
 }

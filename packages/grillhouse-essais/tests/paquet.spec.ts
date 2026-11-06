@@ -137,7 +137,8 @@ const SCINDES: Record<string, [number, number]> = {
   'git-des-tests': [2, 3],
   'ligne-etat': [2, 2],
   'registre-fin': [1, 3],
-  'tests-cibles': [11, 27],
+  // grillhouse-44b.10.3: the five cache, --force and failing-build cases leave the day file for here.
+  'tests-cibles': [17, 46],
   // grillhouse-1eq: one more test, its night blind to a neighbour's ticket directory.
   'tests-de-nuit': [15, 40],
   'verifier.depuis-le-vert': [6, 31],

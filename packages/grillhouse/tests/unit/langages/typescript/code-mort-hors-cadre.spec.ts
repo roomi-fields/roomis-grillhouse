@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { codeMortEssai } from './code-mort-essai.js';
+import { codeMortEssai, codeMortPartage, empreinte } from './code-mort-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'code-mort-hors-cadre-'));
@@ -51,6 +51,30 @@ const GELE_MORT = {
 
 const T = 60_000;
 
+// v1 listed, a clean: read, never written, by the cases of critères 1 and 4 that judge it (shared,
+// the guard run once).
+const LISTE_V1 = { ...A_PROPRE, ...V1_MORT, [HORS_CADRE]: 'v1 version gelée\n' };
+const v1Liste = codeMortPartage(ESSAIS, {
+  'package.json': JSON.stringify({ name: 'r', private: true, workspaces: ['packages/*'] }),
+  'knip.json': JSON.stringify(KNIP, null, 2) + '\n',
+  'src/index.ts': 'export const i = 1;\n',
+  ...LISTE_V1,
+});
+
+describe('critère 7 (grillhouse-44b.10.3) — a shared trial repository is written by no case', () => {
+  it('critère 7 — the content map holds the files of the shared repository, not its modules', () => {
+    const fichiers = Object.keys(empreinte(v1Liste().dir));
+    expect(fichiers).toContain('knip.json');
+    expect(fichiers.some(f => f.startsWith('node_modules'))).toBe(false);
+  });
+  it('critère 7 — the content map sees a file written after the creation (the check bites)', () => {
+    const essai = codeMort({ ...A_PROPRE });
+    const avant = empreinte(essai.dir);
+    writeFileSync(path.join(essai.dir, 'src/index.ts'), 'export const i = 2;\n');
+    expect(empreinte(essai.dir)).not.toEqual(avant);
+  });
+});
+
 describe('critère 1 — a package listed out of the frame yields no finding of the dead-code guard', () => {
   it(
     'critère 1 — witness: unlisted, v1 yields its findings (file, export, dependency, unresolved import)',
@@ -67,7 +91,7 @@ describe('critère 1 — a package listed out of the frame yields no finding of 
   it(
     'critère 1 — listed, v1 yields no finding of any kind: file, export, dependency, import',
     () => {
-      const r = codeMort({ ...A_PROPRE, ...V1_MORT, [HORS_CADRE]: 'v1 version gelée\n' });
+      const r = v1Liste();
       expect(r.status, r.sortie).toBe(0);
       expect(r.sortie).not.toContain('v1');
     },
@@ -213,7 +237,7 @@ describe('critère 4 — without the list the guard is unchanged; knip.json is n
   it(
     'critère 4 — with the list, the project knip.json is left byte for byte',
     () => {
-      const r = codeMort({ ...A_PROPRE, ...V1_MORT, [HORS_CADRE]: 'v1 version gelée\n' });
+      const r = v1Liste();
       const knip = path.join(r.dir, 'knip.json');
       expect(readFileSync(knip, 'utf8')).toBe(JSON.stringify(KNIP, null, 2) + '\n');
     },

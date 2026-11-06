@@ -52,15 +52,14 @@ const fichierDeTest = (profondeur: number, marque: string) =>
 const configuration = `import base from ${JSON.stringify(BASE)};\nexport default base;\n`;
 
 // A build script that writes <marque> to `construits.txt` at the root of the trial, <profondeur>
-// directories up; it fails when <echoue>.
-const construction = (profondeur: number, marque: string, echoue = false) =>
-  `node -e "require('node:fs').appendFileSync('${'../'.repeat(profondeur)}construits.txt', '${marque}\\n')"${echoue ? ' && exit 1' : ''}`;
+// directories up.
+const construction = (profondeur: number, marque: string) =>
+  `node -e "require('node:fs').appendFileSync('${'../'.repeat(profondeur)}construits.txt', '${marque}\\n')"`;
 
 // A repository of packages: `a` (two tests), `ab` (a name `a` prefixes), `b`, which depends on
 // `socle` (a build, no tests), `gele` listed out of the frame, `outil` without tests, and a test
-// file at the root, out of every package. `socle`'s build fails when <socleEchoue>; each package of
-// <casses> has a build of its own, which fails.
-function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
+// file at the root, out of every package.
+function depotAPaquets() {
   const r = mkdtempSync(path.join(ESSAIS, 'paquets-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
   ecrire(
@@ -89,7 +88,6 @@ function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
         type: 'module',
         scripts: {
           'test:unit': 'vitest run',
-          ...(casses.includes(nom) ? { build: construction(2, nom, true) } : {}),
         },
         ...(nom === 'b' ? { dependencies: { socle: '*' } } : {}),
       })
@@ -103,7 +101,7 @@ function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
   ecrire(
     r,
     'packages/socle/package.json',
-    json({ name: 'socle', scripts: { build: construction(2, 'socle', socleEchoue) } })
+    json({ name: 'socle', scripts: { build: construction(2, 'socle') } })
   );
   ecrire(r, 'packages/outil/test/x.test.mjs', fichierDeTest(3, 'outil/x'));
   ecrire(r, 'tests/x.test.mjs', fichierDeTest(1, 'racine/x'));
@@ -233,62 +231,6 @@ describe(
       const r = lancer(racine, []);
       expect(r.status, sortie(r)).toBe(0);
       expect(joues(racine)).toEqual(['a/x', 'a/y', 'ab/x', 'ab/y', 'b/x']);
-    });
-
-    it('a run replays from the cache; --force (npm run test:forcer) plays for real', () => {
-      const racine = depotAPaquets();
-      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
-      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
-      expect(joues(racine)).toEqual(['b/x']);
-      const r = lancer(racine, ['--force', 'packages/b/test/x.test.mjs']);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(joues(racine)).toEqual(['b/x', 'b/x']);
-    });
-
-    // Witness: BPScript, whose targeted runs replayed the 12 builds a package depends on: Turborepo
-    // passes the arguments after `--` to every task of the graph and counts them in its hash.
-    it('the builds a targeted run waits for replay from the cache when another file is named', () => {
-      const racine = depotAPaquets();
-      const r1 = lancer(racine, ['packages/b/test/x.test.mjs']);
-      expect(r1.status, sortie(r1)).toBe(0);
-      const r2 = lancer(racine, ['packages/b']);
-      expect(r2.status, sortie(r2)).toBe(0);
-      expect(construits(racine)).toEqual(['socle']);
-      expect(joues(racine)).toEqual(['b/x', 'b/x']);
-    });
-
-    it('--force plays the named tests for real, and their builds from the cache', () => {
-      const racine = depotAPaquets();
-      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
-      const r = lancer(racine, ['--force', 'packages/b/test/x.test.mjs']);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(construits(racine)).toEqual(['socle']);
-      expect(joues(racine)).toEqual(['b/x', 'b/x']);
-    });
-
-    it('a build that fails fails the targeted run, and no test plays', () => {
-      const racine = depotAPaquets({ socleEchoue: true });
-      const r = lancer(racine, ['packages/b/test/x.test.mjs']);
-      expect(r.status).not.toBe(0);
-      expect(joues(racine)).toEqual([]);
-    });
-
-    // Witness: BPScript, whose run of 030-binder named only the failed build of 040-checker:
-    // Turborepo stopped at the first failure, and the build of 030-binder was never reported.
-    it('every build that fails is named, and no test it holds back plays', () => {
-      const racine = depotAPaquets({ casses: ['a', 'ab'] });
-      const r = lancer(racine, ['packages/a/test/x.test.mjs', 'packages/ab/test/x.test.mjs']);
-      expect(r.status).not.toBe(0);
-      const echecs = /^\s*Failed:\s+(.+)$/m.exec(stripVTControlCharacters(sortie(r)));
-      expect(
-        echecs?.[1]
-          .split(/[,\s]+/)
-          .filter(Boolean)
-          .sort(),
-        sortie(r)
-      ).toEqual(['a#build', 'ab#build']);
-      expect(construits(racine).sort()).toEqual(['a', 'ab']);
-      expect(joues(racine)).toEqual([]);
     });
   }
 );

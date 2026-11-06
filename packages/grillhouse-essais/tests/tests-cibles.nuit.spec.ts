@@ -15,6 +15,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { afterAll, describe, expect, it } from 'vitest';
 import { CADRE, RACINE, enProcessus } from './cadre.js';
 
@@ -355,3 +356,139 @@ describe('npm test -- <files> plays the traces its tests wait for', { timeout: 6
     expect(traces(racine)).toEqual(['g', 'g']);
   });
 });
+
+// The cache, `--force` and the builds that fail: each plays Turborepo over a repository of
+// packages, a large test (the pyramid), so the night's (they were the day's in tests-cibles.spec.ts).
+
+// A test file that, once played, writes <marque> to `joues.txt` at the root of the trial.
+const fichierDeTest = (profondeur: number, marque: string) =>
+  [
+    "import { appendFileSync } from 'node:fs';",
+    "import { it } from 'vitest';",
+    `it('${marque}', () => {`,
+    `  appendFileSync(new URL('${'../'.repeat(profondeur)}joues.txt', import.meta.url), '${marque}\\n');`,
+    '});',
+    '',
+  ].join('\n');
+// A build script that writes <marque> to `construits.txt` at the root of the trial, <profondeur>
+// directories up; it fails when <echoue>.
+const construction = (profondeur: number, marque: string, echoue = false) =>
+  `node -e "require('node:fs').appendFileSync('${'../'.repeat(profondeur)}construits.txt', '${marque}\\n')"${echoue ? ' && exit 1' : ''}`;
+// The builds played since the trial began, in order.
+const construits = (racine: string) =>
+  existsSync(path.join(racine, 'construits.txt'))
+    ? readFileSync(path.join(racine, 'construits.txt'), 'utf8').split('\n').filter(Boolean)
+    : [];
+
+// A repository of packages: `a` (two tests), `ab`, `b`, which depends on `socle` (a build, no
+// tests). `socle`'s build fails when <socleEchoue>; each package of <casses> has a build of its
+// own, which fails.
+function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
+  const r = mkdtempSync(path.join(ESSAIS, 'paquets-'));
+  symlinkSync(path.join(DEPOT, 'node_modules'), path.join(r, 'node_modules'), 'dir');
+  ecrire(
+    r,
+    'package.json',
+    json({
+      name: 'essai',
+      private: true,
+      workspaces: ['packages/*'],
+      packageManager: 'npm@10.9.8',
+    })
+  );
+  ecrire(r, 'turbo.json', readFileSync(path.join(DEPOT, 'templates/turbo/paquets.json'), 'utf8'));
+  ecrire(r, 'docs/agents/hors-cadre.txt', '');
+  for (const [nom, tests] of [
+    ['a', ['x', 'y']],
+    ['ab', ['x', 'y']],
+    ['b', ['x']],
+  ] as const) {
+    ecrire(
+      r,
+      `packages/${nom}/package.json`,
+      json({
+        name: nom,
+        type: 'module',
+        scripts: {
+          'test:unit': 'vitest run',
+          ...(casses.includes(nom) ? { build: construction(2, nom, true) } : {}),
+        },
+        ...(nom === 'b' ? { dependencies: { socle: '*' } } : {}),
+      })
+    );
+    ecrire(r, `packages/${nom}/vitest.config.mjs`, configuration);
+    for (const t of tests) {
+      ecrire(r, `packages/${nom}/test/${t}.test.mjs`, fichierDeTest(3, `${nom}/${t}`));
+    }
+  }
+  ecrire(
+    r,
+    'packages/socle/package.json',
+    json({ name: 'socle', scripts: { build: construction(2, 'socle', socleEchoue) } })
+  );
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\nconstruits.txt\n');
+  ecrireTurbo(r);
+  return r;
+}
+
+describe(
+  'npm test -- <files>, in a repository of packages, replays from the cache and reports the builds that fail',
+  { timeout: 120_000 },
+  () => {
+    it('a run replays from the cache; --force (npm run test:forcer) plays for real', () => {
+      const racine = depotAPaquets();
+      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
+      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
+      expect(joues(racine)).toEqual(['b/x']);
+      const r = lancer(racine, ['--force', 'packages/b/test/x.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(joues(racine)).toEqual(['b/x', 'b/x']);
+    });
+
+    // Witness: BPScript, whose targeted runs replayed the 12 builds a package depends on: Turborepo
+    // passes the arguments after `--` to every task of the graph and counts them in its hash.
+    it('the builds a targeted run waits for replay from the cache when another file is named', () => {
+      const racine = depotAPaquets();
+      const r1 = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r1.status, sortie(r1)).toBe(0);
+      const r2 = lancer(racine, ['packages/b']);
+      expect(r2.status, sortie(r2)).toBe(0);
+      expect(construits(racine)).toEqual(['socle']);
+      expect(joues(racine)).toEqual(['b/x', 'b/x']);
+    });
+
+    it('--force plays the named tests for real, and their builds from the cache', () => {
+      const racine = depotAPaquets();
+      expect(lancer(racine, ['packages/b/test/x.test.mjs']).status).toBe(0);
+      const r = lancer(racine, ['--force', 'packages/b/test/x.test.mjs']);
+      expect(r.status, sortie(r)).toBe(0);
+      expect(construits(racine)).toEqual(['socle']);
+      expect(joues(racine)).toEqual(['b/x', 'b/x']);
+    });
+
+    it('a build that fails fails the targeted run, and no test plays', () => {
+      const racine = depotAPaquets({ socleEchoue: true });
+      const r = lancer(racine, ['packages/b/test/x.test.mjs']);
+      expect(r.status).not.toBe(0);
+      expect(joues(racine)).toEqual([]);
+    });
+
+    // Witness: BPScript, whose run of 030-binder named only the failed build of 040-checker:
+    // Turborepo stopped at the first failure, and the build of 030-binder was never reported.
+    it('every build that fails is named, and no test it holds back plays', () => {
+      const racine = depotAPaquets({ casses: ['a', 'ab'] });
+      const r = lancer(racine, ['packages/a/test/x.test.mjs', 'packages/ab/test/x.test.mjs']);
+      expect(r.status).not.toBe(0);
+      const echecs = /^\s*Failed:\s+(.+)$/m.exec(stripVTControlCharacters(sortie(r)));
+      expect(
+        echecs?.[1]
+          .split(/[,\s]+/)
+          .filter(Boolean)
+          .sort(),
+        sortie(r)
+      ).toEqual(['a#build', 'ab#build']);
+      expect(construits(racine).sort()).toEqual(['a', 'ab']);
+      expect(joues(racine)).toEqual([]);
+    });
+  }
+);

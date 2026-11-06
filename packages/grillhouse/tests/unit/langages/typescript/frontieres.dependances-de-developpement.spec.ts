@@ -6,7 +6,6 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { configuration } from '../../../../scripts/langages/typescript/frontieres.mjs';
 import {
   SCRIPT,
-  charge,
   EXPORTS,
   REGLE,
   erreurs,
@@ -22,7 +21,7 @@ import {
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { espace } = frontieresEssai(ESSAIS);
+const { espace, chargee } = frontieresEssai(ESSAIS);
 
 describe('grillhouse-3uv.77 — the published code imports no development dependency', () => {
   it('critère 1: a file published by an export, out of src, importing a development dependency is refused, naming the file, the dependency and the rule', () => {
@@ -148,12 +147,12 @@ describe('grillhouse-3uv.77 — the published code imports no development depend
     );
   });
   it('critère 7: one rule alone refuses a development dependency, the existing one extended', () => {
-    const { dir } = espace({
+    const { config } = chargee({
       'packages/p/package.json': paquet(EXPORTS),
       'packages/p/src/index.ts': 'export const a = 1;',
       'packages/p/test-fixtures/index.ts': 'export const f = 1;',
     });
-    const noms = (charge(dir).forbidden as { name: string }[])
+    const noms = (config.forbidden as { name: string }[])
       .filter(r => JSON.stringify(r).includes('npm-dev'))
       .map(r => r.name);
     expect(noms).toEqual([REGLE]);

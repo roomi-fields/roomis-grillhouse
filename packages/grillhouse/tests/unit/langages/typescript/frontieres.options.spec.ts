@@ -12,7 +12,7 @@ import { SCRIPT, charge, frontieresEssai } from './frontieres-essai.js';
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { repo, verdict } = frontieresEssai(ESSAIS);
+const { repo, chargee, verdict } = frontieresEssai(ESSAIS);
 
 // The project's options (grillhouse-3uv.56.1): `.dependency-cruiser.projet.cjs` carries its own
 // options next to its rules, and the generated configuration adds them to the frame's when
@@ -74,12 +74,12 @@ describe("the project's options", () => {
     expect(r.status).toBe(0);
   });
   it('1 — the frame’s own options stay in the loaded configuration', () => {
-    const { dir } = repo({
+    const { config } = chargee({
       'src/index.ts': '',
       'tsconfig.json': '{}',
       '.dependency-cruiser.projet.cjs': projet('{ maxDepth: 4 }'),
     });
-    const options = charge(dir).options;
+    const options = config.options;
     expect(options.maxDepth).toBe(4);
     expect(options.tsPreCompilationDeps).toBe(true);
     expect(options.preserveSymlinks).toBe(true);
@@ -141,11 +141,11 @@ describe("the project's options", () => {
     expect(r.status).toBe(0);
   });
   it('2 — the project exclusion does not replace the frame’s pattern in the loaded options', () => {
-    const { dir } = repo({
+    const { config } = chargee({
       'src/index.ts': '',
       '.dependency-cruiser.projet.cjs': projet("{ exclude: { path: '\\\\.svelte-kit' } }"),
     });
-    const motif = new RegExp(charge(dir).options.exclude.path);
+    const motif = new RegExp(config.options.exclude.path);
     expect(motif.test('packages/app/.svelte-kit/types.ts')).toBe(true);
     expect(motif.test('packages/app/dist/index.js')).toBe(true);
     expect(motif.test('dist/index.js')).toBe(true);
@@ -153,15 +153,15 @@ describe("the project's options", () => {
   });
   it('3 — without options, or without a project file, the configuration is unchanged', () => {
     const fichiers = { 'src/index.ts': '', 'tsconfig.json': '{}' };
-    const sans = repo(fichiers);
-    const regles = repo({
+    const sans = chargee(fichiers);
+    const regles = chargee({
       ...fichiers,
       '.dependency-cruiser.projet.cjs': 'module.exports = { forbidden: [] };',
     });
-    const vides = repo({ ...fichiers, '.dependency-cruiser.projet.cjs': projet('{}') });
-    const reference = charge(sans.dir);
-    expect(charge(regles.dir)).toEqual(reference);
-    expect(charge(vides.dir)).toEqual(reference);
+    const vides = chargee({ ...fichiers, '.dependency-cruiser.projet.cjs': projet('{}') });
+    const reference = sans.config;
+    expect(regles.config).toEqual(reference);
+    expect(vides.config).toEqual(reference);
     expect(configuration(regles.dir)).toBe(configuration(sans.dir));
     expect(configuration(vides.dir)).toBe(configuration(sans.dir));
     expect(reference.options.doNotFollow).toEqual({ path: 'node_modules' });
@@ -175,7 +175,7 @@ describe("the project's options", () => {
     expect(entete).toMatch(/options/);
   });
   it('4 — the line of the generated configuration says the project options are read there too', () => {
-    const { dir } = repo({ 'src/index.ts': '' });
+    const { dir } = chargee({ 'src/index.ts': '' });
     const entete = configuration(dir)
       .split('\n')
       .filter(l => l.startsWith('//'))
@@ -199,7 +199,7 @@ const couvre = (filtre: unknown, chemin: string): boolean => {
           : [];
   return motifs(filtre).some(m => new RegExp(m).test(chemin));
 };
-const options = (files: Record<string, string>) => charge(repo(files).dir).options;
+const options = (files: Record<string, string>) => chargee(files).config.options;
 // The witness's files, with the frame's built files: what the project excludes or does not follow.
 const SVELTE = {
   'src/index.ts': 'export const a = 1;',
@@ -327,14 +327,13 @@ describe("the project's options — criteria 5 to 8", () => {
   });
   it('8 — a project file with options only loads, its rules an empty list', () => {
     const fichiers = { 'src/index.ts': '' };
-    const reference = charge(repo(fichiers).dir);
-    const { dir } = repo({
+    const reference = chargee(fichiers).config;
+    const { config: chargeeAvec } = chargee({
       ...fichiers,
       '.dependency-cruiser.projet.cjs': 'module.exports = { options: { maxDepth: 4 } };',
     });
-    const chargee = charge(dir);
-    expect(chargee.forbidden).toEqual(reference.forbidden);
-    expect(chargee.options.maxDepth).toBe(4);
+    expect(chargeeAvec.forbidden).toEqual(reference.forbidden);
+    expect(chargeeAvec.options.maxDepth).toBe(4);
   });
   it('8 — a project file with options only applies them: the witness passes', () => {
     const r = verdict({
@@ -346,9 +345,12 @@ describe("the project's options — criteria 5 to 8", () => {
   });
   it('8 — an empty project file loads, the configuration that of the frame', () => {
     const fichiers = { 'src/index.ts': '' };
-    const reference = charge(repo(fichiers).dir);
-    const { dir } = repo({ ...fichiers, '.dependency-cruiser.projet.cjs': 'module.exports = {};' });
-    expect(charge(dir)).toEqual(reference);
+    const reference = chargee(fichiers).config;
+    const { config } = chargee({
+      ...fichiers,
+      '.dependency-cruiser.projet.cjs': 'module.exports = {};',
+    });
+    expect(config).toEqual(reference);
   });
 });
 
