@@ -173,34 +173,30 @@ describe('critère 1 — on a machine without ~/.cache, no test file fails to lo
     // A second root beside it: the parent is there, and each root is its own.
     expect(racineSousLaMaison('grillhouse-essais-machine-', maison)).not.toBe(racine);
   });
+});
 
-  it(
-    'critère 1: every day test file loads in a home without ~/.cache',
-    () => {
-      const maison = maisonNeuve();
-      const r = jouer([], AUCUN, { HOME: maison });
-      expect(nonCharges(r)).toEqual([]);
-      expect(r.numFailedTestSuites).toBe(0);
-      // No day test makes a root under the home since grillhouse-3dr.3.7 (the locks' roots are in
-      // the temp directory): the case above proves a root under the home makes ~/.cache.
-      // The roots of trial of the files, made at load and left by the tests that did not run, go
-      // with the base of the child's run, in its temp directory (grillhouse-3uv.93): nothing stays.
-      expect(readdirSync(r.temp)).toEqual([]);
-    },
-    LONG
-  );
-
-  it(
-    'critère 1: every night test file loads in a home without ~/.cache',
-    () => {
-      const maison = maisonNeuve();
-      const r = jouer([], AUCUN, { HOME: maison }, { config: nuitDeLArbre() });
-      expect(r.numTotalTestSuites).toBeGreaterThan(0);
-      expect(nonCharges(r)).toEqual([]);
-      expect(r.numFailedTestSuites).toBe(0);
-    },
-    LONG
-  );
+// The whole suite in a child vitest is a night test (packages/grillhouse-essais/tests/
+// machine.suite-entiere.nuit.spec.ts): a call of the child here names the root of its package.
+describe('critère 7 — a child vitest of the day never plays a whole suite', () => {
+  it('critère 7: every call of the child names the root of a package', () => {
+    const source = readFileSync(path.resolve(__dirname, 'machine.spec.ts'), 'utf8');
+    const appels: string[] = [];
+    for (const m of source.matchAll(/(?<!function )\bjouer\(/g)) {
+      let profondeur = 0;
+      let fin = m.index + m[0].length - 1;
+      for (; fin < source.length; fin++) {
+        if (source[fin] === '(') {
+          profondeur++;
+        }
+        if (source[fin] === ')' && --profondeur === 0) {
+          break;
+        }
+      }
+      appels.push(source.slice(m.index, fin + 1));
+    }
+    expect(appels.length).toBeGreaterThan(0);
+    expect(appels.filter(a => !/\bracine\b/.test(a))).toEqual([]);
+  });
 });
 
 describe('critère 1 — the night run of a tree loads the night tests of that tree, not of its copies', () => {
@@ -295,16 +291,6 @@ const bdSurLeChemin = (process.env.PATH ?? '').split(':').some(d => {
 });
 
 describe('critère 1 (grillhouse-3uv.50.1) — on a machine without bd, no test file fails', () => {
-  it(
-    'critère 1 (grillhouse-3uv.50.1): every day test file loads on a machine without bd',
-    () => {
-      const r = jouer([], AUCUN, { HOME: maisonNeuve(), PATH: cheminSans('bd') });
-      expect(nonCharges(r)).toEqual([]);
-      expect(r.numFailedTestSuites).toBe(0);
-    },
-    LONG
-  );
-
   it.runIf(canWrap)(
     'critère 1 (grillhouse-3uv.50.1): the test that needs the real bd skips, those beside it pass',
     () => {

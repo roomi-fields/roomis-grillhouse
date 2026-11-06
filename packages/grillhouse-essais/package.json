@@ -32,6 +32,7 @@
       "packages/grillhouse/bin",
       "packages/grillhouse/package.json",
       "packages/grillhouse/scripts",
+      "packages/grillhouse/tests",
       "templates",
       "tsdoc.json"
     ]
