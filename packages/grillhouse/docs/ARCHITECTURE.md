@@ -736,8 +736,9 @@ garde du cadre) : comme Software Engineering at Google (chap. 12, un test par co
 test porte le nom du comportement qu'il prouve, jamais celui de son ticket, qui va au message du
 commit. La garde lit les tests Vitest que liste la garde des tailles (`*.test.*`, `*.spec.*`, les
 tests de nuit compris) : chaque titre de `describe`, `it`, `test` et de leurs variantes (`skip`,
-`only`, `each`, `todo`…) qui nomme un ticket du projet (son préfixe, lu dans Beads comme le
-crochet des commits le lit, suivi d'un identifiant) ou un « critère N » est un constat
+`only`, `each`, `todo`…) qui nomme un ticket du projet (son préfixe, lu dans la clé `issue-prefix` du
+fichier commité `.beads/config.yaml`, jamais par `bd`, absent d'une CI ; sans ce fichier ou sans la
+clé, la garde le dit par son nom au lieu de compter à moitié ; suivi d'un identifiant) ou un « critère N » est un constat
 (`titre-nommant-un-ticket`), compté une fois s'il nomme les deux. Elle voit le texte statique d'un
 titre : un littéral, les parties fixes d'un gabarit, le format d'un `each` ; un titre porté par une
 variable ou écrit dans un commentaire lui échappe. Les tests Rust et Python sont hors du compte :

@@ -4,9 +4,18 @@
 // ticket of the project or a « critère N » (a union: a title counts once), judges the count against
 // the debt inscribed file by file, and refuses a count that rises or a debt left above the count.
 // The texts of the cases lie in files of their own (tests/formes/titres/), so that the reading of
-// this file sees no title that names a ticket.
+// this file sees no title that names a ticket. The guard is called in process: the trial
+// repositories take git alone, so the file is medium, not large.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -23,6 +32,7 @@ type Constat = { fichier: string; ligne?: number; regle: string; message: string
 type Refus = { fichier: string; message: string };
 interface Garde {
   jugerLesTitres: (...a: unknown[]) => Refus[];
+  prefixe: (...a: unknown[]) => string;
   renommesDuLot: (...a: unknown[]) => Record<string, string>;
   titresNommantUnTicket: (...a: unknown[]) => { titre: string; ligne: number }[];
   verifier: (...a: unknown[]) => Constat[];
@@ -42,6 +52,7 @@ beforeAll(async () => {
 const GARDE = 'titres-de-tests';
 const REGLE = 'titre-nommant-un-ticket';
 const jugerLesTitres = (...a: unknown[]) => mod.jugerLesTitres(...a);
+const prefixe = (...a: unknown[]) => mod.prefixe(...a);
 const renommesDuLot = (...a: unknown[]) => mod.renommesDuLot(...a);
 const titresNommantUnTicket = (...a: unknown[]) => mod.titresNommantUnTicket(...a);
 const verifier = (...a: unknown[]) => mod.verifier(...a);
@@ -154,6 +165,28 @@ describe('the count of the project, file by file', () => {
   });
 });
 
+describe('the files a lot moves or renames', () => {
+  const valider = (r: string) => {
+    spawnSync('git', ['-C', r, 'add', '-A']);
+    spawnSync('git', ['-C', r, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'x']);
+  };
+
+  it('gives the former name of a test file renamed in the working copy, its content kept', () => {
+    const r = depot({ 'tests/ancien.test.ts': DEUX_TITRES, 'tests/autre.test.ts': SANS_TICKET });
+    valider(r);
+    mkdirSync(path.join(r, 'tests/sous'));
+    renameSync(path.join(r, 'tests/ancien.test.ts'), path.join(r, 'tests/sous/neuf.test.ts'));
+    expect(renommesDuLot(r)).toEqual({ 'tests/sous/neuf.test.ts': 'tests/ancien.test.ts' });
+  });
+
+  it('gives nothing for a lot that renames no file', () => {
+    const r = depot({ 'tests/a.test.ts': DEUX_TITRES });
+    valider(r);
+    writeFileSync(path.join(r, 'tests/b.test.ts'), SANS_TICKET);
+    expect(renommesDuLot(r)).toEqual({});
+  });
+});
+
 const dette = (parFichier: Record<string, number>) => ({
   [GARDE]: Object.fromEntries(
     Object.entries(parFichier).map(([f, count]) => [f, { [REGLE]: { count } }])
@@ -245,22 +278,64 @@ describe('the debt inscribed file by file', () => {
   });
 });
 
-describe('the files a lot moves or renames', () => {
-  it('gives the former name of a test file renamed in the working copy, its content kept', () => {
-    const r = depot({ 'tests/ancien.test.ts': DEUX_TITRES, 'tests/autre.test.ts': SANS_TICKET });
-    spawnSync('git', ['-C', r, 'add', '-A']);
-    spawnSync('git', ['-C', r, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'x']);
-    mkdirSync(path.join(r, 'tests/sous'));
-    renameSync(path.join(r, 'tests/ancien.test.ts'), path.join(r, 'tests/sous/neuf.test.ts'));
-    expect(renommesDuLot(r)).toEqual({ 'tests/sous/neuf.test.ts': 'tests/ancien.test.ts' });
+const CONFIG_BEADS = '.beads/config.yaml';
+// A directory with <contenu> as the file of Beads (none when <contenu> is null).
+const racineBeads = (contenu: string | null) => {
+  const r = mkdtempSync(path.join(ESSAIS, 'beads-'));
+  if (contenu !== null) {
+    mkdirSync(path.join(r, '.beads'));
+    writeFileSync(path.join(r, CONFIG_BEADS), contenu);
+  }
+  return r;
+};
+// Runs <f> with a PATH that holds no `bd`, then puts the PATH back.
+const sansBd = <T>(f: () => T): T => {
+  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
+  symlinkSync(process.execPath, path.join(bin, 'node'));
+  const avant = process.env.PATH;
+  process.env.PATH = `${bin}:/usr/bin:/bin`;
+  try {
+    return f();
+  } finally {
+    process.env.PATH = avant;
+  }
+};
+
+describe('the prefix of the tickets, read from the committed file of Beads, never from `bd`', () => {
+  it('reads the prefix of the key `issue-prefix`, quoted or not', () => {
+    expect(prefixe(racineBeads('issue-prefix: "tck"\n'))).toBe('tck');
+    expect(prefixe(racineBeads("issue-prefix: 'tck'\n"))).toBe('tck');
+    expect(prefixe(racineBeads('no-db: false\nissue-prefix: tck # le projet\n'))).toBe('tck');
   });
 
-  it('gives nothing for a lot that renames no file', () => {
-    const r = depot({ 'tests/a.test.ts': DEUX_TITRES });
-    spawnSync('git', ['-C', r, 'add', '-A']);
-    spawnSync('git', ['-C', r, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'x']);
-    writeFileSync(path.join(r, 'tests/b.test.ts'), SANS_TICKET);
-    expect(renommesDuLot(r)).toEqual({});
+  it('answers the same with `bd` absent from the PATH as with it present', () => {
+    const r = racineBeads('issue-prefix: "tck"\n');
+    expect(sansBd(() => prefixe(r))).toBe(prefixe(r));
+  });
+
+  it('counts the same titles of Grillhouse with `bd` absent from the PATH as with it present', () => {
+    const compter = () => verifier(DEPOT, prefixe(DEPOT)).length;
+    const avec = compter();
+    expect(avec).toBeGreaterThan(0);
+    expect(sansBd(compter)).toBe(avec);
+  });
+
+  it('says by its name that the file is missing, and counts nothing by halves', () => {
+    expect(() => prefixe(racineBeads(null))).toThrow(CONFIG_BEADS);
+  });
+
+  it('says by its name that the key `issue-prefix` is missing, a commented line not being the key', () => {
+    expect(() => prefixe(racineBeads('# issue-prefix: "tck"\nno-db: false\n'))).toThrow(
+      'issue-prefix'
+    );
+  });
+});
+
+describe('the prefix committed in Grillhouse', () => {
+  it('is `grillhouse` in the file of Beads of the repository', () => {
+    expect(readFileSync(path.join(DEPOT, CONFIG_BEADS), 'utf8')).toMatch(
+      /^issue-prefix:\s*["']?grillhouse["']?\s*$/m
+    );
   });
 });
 

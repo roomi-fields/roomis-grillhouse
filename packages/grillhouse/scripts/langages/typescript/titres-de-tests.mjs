@@ -7,7 +7,8 @@
 //   npx grillhouse titres-de-tests   run from the repository root (a guard of grillhouse:gardes)
 //
 // - The count is a union: a title counts once if it names a ticket of the project (its prefix, read
-//   from Beads as the hook of the commits reads it (`bd config get issue_prefix`), followed by an
+//   from the key `issue-prefix` of `.beads/config.yaml`, committed, never by `bd`, which a CI does
+//   not have; the guard names the file or the key when it is missing), followed by an
 //   identifier: `grillhouse-44b.10.8`) or a « critère N » (or « critères N »), or both.
 // - The guard reads the Vitest tests of the project (the files `*.test.*` and `*.spec.*` of every
 //   component, the night tests included, as ./tailles-des-tests.mjs lists them): the calls
@@ -22,7 +23,7 @@
 //   above the real count is refused too, so that the lot lowers it by `npm run
 //   grillhouse:dette:elaguer`. A test file moved or renamed by the lot, its content kept (or
 //   nearly), takes the debt of its former name (`renommesDuLot`).
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -233,22 +234,41 @@ export function jugerLesTitres(dette, constats, renommes = {}) {
   return refus.sort((a, b) => (a.fichier < b.fichier ? -1 : a.fichier > b.fichier ? 1 : 0));
 }
 
-// The prefix of the tickets, read from Beads as the hook of the commits reads it; empty without.
-function prefixe() {
+const CONFIG_BEADS = '.beads/config.yaml';
+
+// The prefix of the tickets, read from the key `issue-prefix` of the committed file of Beads, never
+// from `bd` (absent in a CI). Throws an error that names the file or the key when it is missing, so
+// that nothing is counted by halves.
+export function prefixe(racine) {
+  let texte;
   try {
-    return execFileSync('bd', ['config', 'get', 'issue_prefix'], {
-      encoding: 'utf8',
-      stdio: 'pipe',
-      maxBuffer: 256 * 1024 * 1024,
-    }).trim();
+    texte = readFileSync(path.join(racine, CONFIG_BEADS), 'utf8');
   } catch {
-    return '';
+    throw new Error(
+      `${CONFIG_BEADS} manque : le préfixe des tickets s'y lit (clé \`issue-prefix\`), jamais par bd.`
+    );
   }
+  const m = /^issue-prefix:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/m.exec(texte);
+  const valeur = m ? (m[1] ?? m[2] ?? m[3] ?? '') : '';
+  if (!valeur) {
+    throw new Error(
+      `${CONFIG_BEADS} n'a pas la clé \`issue-prefix\` (une ligne commentée n'est pas la clé) : le préfixe des tickets s'y lit.`
+    );
+  }
+  return valeur;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+function main() {
   const racine = process.cwd();
-  const constats = verifier(racine, prefixe());
+  let pref;
+  try {
+    pref = prefixe(racine);
+  } catch (e) {
+    process.stderr.write(`⛔ ${e.message}\n`);
+    process.exitCode = 1;
+    return;
+  }
+  const constats = verifier(racine, pref);
   const renommes = renommesDuLot(racine);
   let refus;
   let lignes = [];
@@ -296,3 +316,5 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   );
   process.exitCode = refus.length ? 1 : 0;
 }
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) main();
