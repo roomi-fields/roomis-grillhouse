@@ -27,6 +27,10 @@
 //   tests Vitest relates to the files changed since it (`GRILLHOUSE_CHANGEMENTS`,
 //   ./changements.mjs). `mergeConfig` adds the plugins of a configuration that extends this one to
 //   it.
+// - A test has the delay of its size, as in Bazel (the delays are in ./bornes.mjs), the size read
+//   by the classification of the guard of the sizes, one address (./delais.mjs, applied to each
+//   test file by ./delais.setup.mjs). `slowTestThreshold` marks the slow tests, and the duration
+//   reporter names the 20 slowest files and their share of the time.
 // - The common environment: Node, no watch, and git's settings for the tests by the environment
 //   (GIT_CONFIG_COUNT/KEY/VALUE, git-config(1)), the automatic maintenance and garbage collection
 //   off (maintenance.auto=false, gc.auto=0). This file is the one address of these settings; the
@@ -135,7 +139,10 @@ export default {
     },
     exclude: ['**/node_modules/**', '**/dist/**', ...HORS_DU_JOUR],
     reporters: ['default', ici('./duree.reporter.mjs'), ...rapportJson(), ...rapportAvancement()],
+    // The slow-test mark of the report, in ms: Vitest's default, fixed, apart from the delays.
+    slowTestThreshold: 300,
     setupFiles: [
+      ici('./delais.setup.mjs'),
       ici('./mesure.setup.mjs'),
       ici('./machine.setup.mjs'),
       ici('./resultats.setup.mjs'),

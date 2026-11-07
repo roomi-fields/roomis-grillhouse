@@ -16,6 +16,7 @@
 // under load (scripts/langages/typescript/vitest-config/duree.reporter.mjs).
 import base from './vitest-config/base.mjs';
 import { HORS_DU_JOUR, nuit } from './vitest-config/cibles.mjs';
+import { DELAI_NUIT_MS } from './vitest-config/bornes.mjs';
 
 export default {
   plugins: [nuit()],
@@ -26,6 +27,9 @@ export default {
     setupFiles: base.test.setupFiles,
     include: HORS_DU_JOUR,
     exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+    // The large delay of Bazel for a night test: 900 s (./vitest-config/delais.mjs).
+    testTimeout: DELAI_NUIT_MS,
+    hookTimeout: DELAI_NUIT_MS,
     watch: false,
   },
 };

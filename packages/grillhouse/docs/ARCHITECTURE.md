@@ -690,6 +690,16 @@ rouge se met en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), av
 le corrige, comme le fait une intégration continue mature. Ainsi chaque rouge a son ticket, et
 main ne porte aucun rouge.
 
+**Le délai d'un test** (module typescript, `vitest-config/delais.mjs`, appliqué par un fichier
+d'amorce de la configuration de base) : comme le `size` de Bazel (test-encyclopedia), chaque taille
+a son délai, petit 60 s, moyen 300 s, grand 900 s, écrits une fois dans `vitest-config/bornes.mjs` ;
+Vitest tue un test à celui de la taille de son fichier, lue par `classer` de la garde des tailles,
+une seule adresse. Un fichier hors du jour qu'un lancement ciblé nomme a le délai de la grande
+taille, comme un test de nuit, dont la configuration l'écrit. `slowTestThreshold` (300 ms, fixé)
+marque les tests lents, et le rapport de durée nomme les 20 fichiers les plus lents et leur part du
+temps ; la ligne d'un test rouge pour délai dépassé écrit la taille et le délai de son fichier
+(« petit, 60 s »). Un délai est un garde-fou, pas une mesure : dépassé, le test du jour est rouge.
+
 **La taille d'un test** (`packages/grillhouse/scripts/langages/typescript/tailles-des-tests.mjs`, une garde du
 cadre) : comme la pyramide des tests de Google et le `size` de Bazel, chaque fichier de tests
 que git liste est petit, moyen ou grand, lu dans son texte et dans la matière de test qu'il

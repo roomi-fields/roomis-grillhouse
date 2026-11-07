@@ -126,7 +126,7 @@ function entreeDeLaMatiere(paquet) {
 // The packages of the shared test material of the repository at <racine>: `[{ nom, dir, entree }]`,
 // `nom` the name by which a test imports it, `dir` its directory and `entree` the file of its
 // entry `./test-fixtures`, absolute.
-function lesMatieres(racine) {
+export function lesMatieres(racine) {
   return matieres(racine).flatMap(({ dir, paquet }) => {
     let pkg;
     try {

@@ -27,6 +27,7 @@ import {
   SEUIL_PRESSION,
 } from '../../../services-du-noyau.mjs';
 import { estHorsDuJour } from './cibles.mjs';
+import { delaisSurLeDisque, libelleDuDelai } from './delais.mjs';
 
 const DELAI = /^(Test|Hook) timed out in \d+ms\./;
 const BANC = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
@@ -46,6 +47,24 @@ const nomDe = t => {
   return noms.join(' › ');
 };
 
+// The 20 slowest files of the run, slowest first, each with its share of the total time.
+const PLUS_LENTS = 20;
+function plusLents(files, dire) {
+  const duree = f => f.result?.duration ?? 0;
+  const total = files.reduce((s, f) => s + duree(f), 0);
+  if (total <= 0) return;
+  const lents = [...files].sort((a, b) => duree(b) - duree(a)).slice(0, PLUS_LENTS);
+  dire(
+    `${lents.length === 1 ? '1 fichier le plus lent' : `${lents.length} fichiers les plus lents`} (part du temps total, ${Math.round(total)} ms) :`
+  );
+  for (const f of lents) {
+    const part = ((100 * duree(f)) / total).toFixed(1);
+    dire(
+      `${part.padStart(5)} % ${Math.round(duree(f))} ms ${path.relative(process.cwd(), f.filepath)}`
+    );
+  }
+}
+
 export default class DureeReporter {
   onInit() {
     this.debut = lirePression();
@@ -60,25 +79,34 @@ export default class DureeReporter {
         if (t.type === 'test' ? t.result?.state === 'fail' : erreurs.length > 0) echecs.push(t);
       }
     }
-    if (echecs.length === 0) return;
     const dire = l => process.stdout.write(`⏱ ${l}\n`);
+    plusLents(files, dire);
+    if (echecs.length === 0) return;
     let reels = 0;
     const pressions = [];
     for (const t of echecs) {
       const fichier = fichierDe(t);
       const erreurs = t.result?.errors ?? [];
+      const delaiDepasse = erreurs.length > 0 && erreurs.every(e => DELAI.test(e.message ?? ''));
       const cause =
         t.type === 'test' && t.meta?.mesureDeTemps
           ? 'mesure de temps'
           : BANC.test(fichier)
             ? 'banc de temps'
-            : erreurs.length > 0 &&
-                erreurs.every(e => DELAI.test(e.message ?? '')) &&
-                estHorsDuJour(fichier)
+            : delaiDepasse && estHorsDuJour(fichier)
               ? 'délai dépassé'
               : null;
+      // A delay past names the size of its file and its delay (« petit, 60 s »), whether it is
+      // a red of the day or a failure of duration.
+      const delai = delaiDepasse ? ` (${libelleDuDelai(delaisSurLeDisque(fichier).taille)})` : '';
       if (!cause) {
         reels++;
+        if (delaiDepasse) {
+          const n = nomDe(t);
+          dire(
+            `${path.relative(process.cwd(), fichier)}${n ? ` › ${n}` : ''} : délai dépassé${delai}.`
+          );
+        }
         continue;
       }
       const debut = t.type === 'test' ? (t.meta?.pressionDebut ?? this.debut) : this.debut;
@@ -86,7 +114,7 @@ export default class DureeReporter {
       pressions.push(debut, finT);
       const nom = nomDe(t);
       dire(
-        `${path.relative(process.cwd(), fichier)}${nom ? ` › ${nom}` : ''} : ${cause}, pression CPU ${ecrirePression(debut)} au début, ${ecrirePression(finT)} à la fin (seuil ${SEUIL_PRESSION} %).`
+        `${path.relative(process.cwd(), fichier)}${nom ? ` › ${nom}` : ''} : ${cause}${delai}, pression CPU ${ecrirePression(debut)} au début, ${ecrirePression(finT)} à la fin (seuil ${SEUIL_PRESSION} %).`
       );
     }
     if (pressions.length === 0) return;
