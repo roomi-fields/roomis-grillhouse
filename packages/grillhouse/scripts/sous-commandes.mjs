@@ -13,6 +13,9 @@
 //   (scripts/langages.mjs); each other command it describes is a subcommand by its name
 //   (`frontieres`, `index-interfaces`, `typer`, `construire`), as a backend of Pants brings its
 //   goals.
+// - `temporal` runs the build of src/temporal/commande.ts (dist/temporal/commande.js), the
+//   package's TypeScript, which Turborepo builds before the tests and the package publishes.
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { langageDe } from './langages.mjs';
@@ -25,13 +28,12 @@ const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 // that runs it (`{ langage }`, its name in `commandes`).
 export const SOUS_COMMANDES = {
   bilan: 'bilan.mjs',
-  circuit: 'circuit.mjs',
+  circuit: '../dist/temporal/circuit/commande.js',
   commande: 'verrous/commande.mjs',
   'composants-affectes': 'composants-affectes.mjs',
   'dependances-internes': 'dependances-internes.mjs',
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
-  file: 'integration/file.mjs',
   'flux-des-paquets': 'flux-des-paquets.mjs',
   'fusion-du-changelog': 'fusion-du-changelog.mjs',
   'gardes-du-cadre': 'gardes-du-cadre.mjs',
@@ -59,6 +61,7 @@ export const SOUS_COMMANDES = {
   superviseur: 'superviseur.mjs',
   tableau: 'tableau.mjs',
   temporaire: 'mesure/base-de-passe.mjs',
+  temporal: '../dist/temporal/commande.js',
   tests: { langage: 'tester' },
   ticket: 'ticket.sh',
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
@@ -98,6 +101,24 @@ export function commandeDe(nom, racine = process.cwd()) {
   const commandes = langageDe(racine).commandes(racine);
   const n = s?.langage ?? (DU_NOYAU.has(nom) ? null : nom);
   return n !== null && Object.hasOwn(commandes, n) ? commandes[n] : null;
+}
+
+/**
+ * The refusal of the subcommand <nom> whose script <script> is missing, or null when it exists: a
+ * script of the package's TypeScript (under `dist/`) is named with the command that builds it,
+ * as a fresh clone has it unbuilt.
+ * @param {string} nom the subcommand
+ * @param {string} script its script, absolute
+ * @returns {string | null}
+ */
+export function scriptAbsent(nom, script) {
+  if (existsSync(script)) {
+    return null;
+  }
+  const construit = script.split(path.sep).includes('dist')
+    ? ' : la construction du paquet le pose, `npm run build --workspace @roomi-fields/grillhouse`'
+    : '';
+  return `⛔ grillhouse ${nom} : ${script} n'existe pas${construit}.`;
 }
 
 /**

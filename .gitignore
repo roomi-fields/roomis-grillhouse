@@ -76,6 +76,8 @@ pids/
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
+# The database file of reference of the tests of src/temporal/, recorded by the pinned temporal
+!packages/grillhouse/tests/temporal/base-de-reference/temporal.db
 .beads-credential-key
 .beads/proxieddb/
 

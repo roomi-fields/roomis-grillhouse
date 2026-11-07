@@ -19,6 +19,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -54,18 +55,29 @@ const VERSION = (
 const RACINE_DU_PLUGIN = '${CLAUDE_PLUGIN_ROOT}';
 const ROOMI = { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } };
 
-// A repository of the frame of trial: the package (its package.json, CHANGELOG.md, bin/, scripts/) beside a copy
-// of the plugin and the template, so that its prepack writes in the trial and never in the
-// repository.
+// A repository of the frame of trial: the package (its package.json, CHANGELOG.md, bin/, scripts/,
+// its TypeScript's sources and configuration, no dist/) beside a copy of the plugin and the
+// template, the repository's dependencies linked, so that its prepack builds and writes in the
+// trial and never in the repository.
 function depotDEssai() {
   const depot = mkdtempSync(path.join(ESSAIS, 'depot-'));
   const paquet = path.join(depot, 'packages/grillhouse');
-  for (const f of ['package.json', 'CHANGELOG.md', 'bin', 'docs', 'scripts']) {
+  for (const f of [
+    'package.json',
+    'CHANGELOG.md',
+    'bin',
+    'docs',
+    'scripts',
+    'src',
+    'tsconfig.json',
+    'tsconfig.build.json',
+  ]) {
     cpSync(path.join(PAQUET, f), path.join(paquet, f), { recursive: true });
   }
   for (const f of [...FICHIERS_DU_CADRE, 'mods/grillhouse']) {
     cpSync(path.join(DEPOT, f), path.join(depot, f), { recursive: true });
   }
+  symlinkSync(path.join(DEPOT, 'node_modules'), path.join(depot, 'node_modules'));
   return paquet;
 }
 
@@ -110,6 +122,9 @@ describe('critère 1 — the published package is the plugin', () => {
       'bin/grillhouse.mjs',
       'docs/ARCHITECTURE.md',
       'CHANGELOG.md',
+      // The prepack builds src/ into dist/ in a tree that had no dist/.
+      'dist/temporal/commande.js',
+      'dist/temporal/travailleur.js',
     ]) {
       expect(chemins, f).toContain(f);
     }
@@ -124,12 +139,17 @@ describe('critère 1 — the published package is the plugin', () => {
   it('npm pack holds no test of the plugin nor its configuration of TypeScript, and the postpack leaves the trial as it was', () => {
     expect(chemins.filter(c => c.startsWith('tests/') || c === 'tsconfig.json')).toEqual([]);
     expect(chemins.filter(c => c.startsWith('cadre/mods/'))).toEqual([]);
+    // The copies removed; the build of src/ (dist/, which git ignores) stays, as any build does.
     expect(readdirSync(paquet).sort()).toEqual([
       'CHANGELOG.md',
       'bin',
+      'dist',
       'docs',
       'package.json',
       'scripts',
+      'src',
+      'tsconfig.build.json',
+      'tsconfig.json',
     ]);
   });
 

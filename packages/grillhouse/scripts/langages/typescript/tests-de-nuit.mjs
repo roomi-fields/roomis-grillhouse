@@ -26,21 +26,24 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { A_REPASSER, attendreDeLaPlace } from '../../services-du-noyau.mjs';
-import { fichiersTemoins, NUIT_VARIABLE } from './vitest-config/cibles.mjs';
+import {
+  estUnBanc,
+  estUnTestDeNuit,
+  fichiersTemoins,
+  NUIT_VARIABLE,
+} from './vitest-config/cibles.mjs';
 
 const CONFIGURATION = fileURLToPath(new URL('./vitest.nuit.config.mjs', import.meta.url));
 const HORS = new Set(['node_modules', 'dist', '.git']);
-const DE_NUIT = /\.nuit\.(test|spec)\.(c|m)?[jt]sx?$/;
-const BANC = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
 
-// Whether a file whose name <motif> matches lies under <dossier>.
-function enTient(dossier, motif) {
+// Whether a file that <est> (the rules of ./vitest-config/cibles.mjs) lies under <dossier>.
+function enTient(dossier, est) {
   for (const e of readdirSync(dossier, { withFileTypes: true })) {
     if (e.isDirectory()) {
-      if (!HORS.has(e.name) && enTient(path.join(dossier, e.name), motif)) {
+      if (!HORS.has(e.name) && enTient(path.join(dossier, e.name), est)) {
         return true;
       }
-    } else if (e.isFile() && motif.test(e.name)) {
+    } else if (e.isFile() && est(e.name)) {
       return true;
     }
   }
@@ -54,8 +57,8 @@ function enTient(dossier, motif) {
  */
 export function testsDeNuit(racine) {
   const runs = [
-    enTient(racine, DE_NUIT) && 'nuit',
-    (enTient(racine, BANC) || fichiersTemoins(racine).length > 0) && 'mesures',
+    enTient(racine, estUnTestDeNuit) && 'nuit',
+    (enTient(racine, estUnBanc) || fichiersTemoins(racine).length > 0) && 'mesures',
   ].filter(Boolean);
   if (runs.length === 0) {
     return 0;

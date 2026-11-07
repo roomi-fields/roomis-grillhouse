@@ -18,6 +18,7 @@ const {
   ticket,
   scenario,
   circuit,
+  travailleurAvec,
   essai,
   sessions,
   etat,
@@ -57,13 +58,15 @@ EOF
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
-  it('passes the ticket through its steps: testwriter, proof, developpeur, checks, final pass, review, integration', () => {
+  it('passes the ticket through its steps: testwriter, proof, developpeur, checks, final pass, review, integration', async () => {
     const id = 'demo-ordre';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    // A zone of its own, half an hour past the hour: the log says the local time of the machine.
-    const r = circuit([id], { TZ: 'Asia/Kolkata' });
+    // A zone of its own, half an hour past the hour, for the worker whose acts write the log: the
+    // log says the local time of the machine.
+    await travailleurAvec({ TZ: 'Asia/Kolkata' });
+    const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     // grillhouse-5m1.1, criterion 4. Witness: BP 320.3.2.1 (N8), the sessions' headers in local
     // time, the steps' in UTC. Every header of the log, a session's or a step's, says the local
@@ -95,25 +98,23 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     expect(Object.keys(e ?? {}).sort()).toEqual(
       [
         'aRegenerer',
-        'avancement',
         'boucles',
         'code',
         'constats',
         'controlesRouges',
-        'depart',
         'etape',
         'finale',
         'journal',
         'mene',
         'paquets',
-        'processus',
         'question',
         'questionnement',
         'raison',
         'rapport',
+        'rang',
         'refus',
+        'relanceSurLeRefus',
         'reprise',
-        'seance',
         'tentative',
         'verifie',
       ].sort()

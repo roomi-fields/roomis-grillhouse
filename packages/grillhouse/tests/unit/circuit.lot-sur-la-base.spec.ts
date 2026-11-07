@@ -14,7 +14,7 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
 import { avancer } from '../../scripts/enveloppe/travail-de-la-copie.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-lot-base-'));
@@ -24,16 +24,16 @@ interface Lot {
   commit: string;
   arbre: string;
 }
-const leLotGarde = circuit.leLotGarde as (ctx: object) => {
+const leLotGarde = activites.leLotGarde as (ctx: object) => {
   avant: unknown;
   depuis: string | null;
   lot: Lot | null;
 };
-const laPasseFinale = circuit.laPasseFinale as (ctx: object) => {
+const laPasseFinale = activites.laPasseFinale as (ctx: object) => {
   arbre: string;
   restreinte: { avant: string; apres: string } | null;
 };
-const leLotAccepte = circuit.leLotAccepte as (ctx: object, arbre: string) => boolean;
+const leLotAccepte = activites.leLotAccepte as (ctx: object, arbre: string) => boolean;
 
 const git = (dossier: string, ...args: string[]) => {
   const r = spawnSync('git', ['-C', dossier, ...args], { encoding: 'utf8' });

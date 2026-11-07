@@ -16,11 +16,11 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
 
 type Arbre = { racine: string; env: Record<string, string> };
 type Ctx = { copie: string; tmp: string };
-const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
+const avecLesVersionsDAvant = activites.avecLesVersionsDAvant as (
   ctx: Ctx,
   fichiers: string[],
   jouer: (
@@ -29,7 +29,7 @@ const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
     arbres: Map<string, Arbre>
   ) => unknown
 ) => unknown;
-const CIRCUIT = path.resolve(__dirname, '../../scripts/circuit.mjs');
+const ACTIVITES = path.resolve(__dirname, '../../scripts/activites.mjs');
 
 // Out of every temporary directory, beside the package, as the copies under `.claude/worktrees` lie.
 const DEHORS = mkdtempSync(path.resolve(__dirname, '../../.essai-3e2.3-tue-'));
@@ -82,7 +82,7 @@ describe('grillhouse-3e2.3 — a tree left by a killed process', () => {
     ecrire(racine, fichier, `${fichiers[fichier]}// le lot\n`);
     const tmp = mkdtempSync(path.join(ESSAIS, 'ticket-'));
     const script = `
-      import { avecLesVersionsDAvant } from ${JSON.stringify(CIRCUIT)};
+      import { avecLesVersionsDAvant } from ${JSON.stringify(ACTIVITES)};
       avecLesVersionsDAvant({ copie: ${JSON.stringify(racine)}, tmp: ${JSON.stringify(tmp)} }, [${JSON.stringify(fichier)}], (_a, _l, arbres) => {
         process.stdout.write('ARBRE ' + [...arbres.values()][0].racine + '\\n');
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000);

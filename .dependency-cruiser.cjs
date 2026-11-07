@@ -108,7 +108,7 @@ module.exports = {
         "from": {
           "orphan": true,
           "pathNot": "(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$|(^|" +
-            "/)index[.][a-z]+$|[.]d[.]ts$|[.]config[.][a-z]+$|" +
+            "/)index[.][a-z]+$|[.]d[.][mc]?ts$|[.]config[.][a-z]+$|" +
             "^packages/grillhouse/bin/grillhouse\\.mjs$"
         },
         "to": {}

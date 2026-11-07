@@ -12,8 +12,8 @@ import { paquets } from '../paquets.mjs';
 
 export const VARIABLE = 'GRILLHOUSE_ENVELOPPE';
 // The file the lock of a session leaves in its working directory when it stops the session on a
-// write out of the plan (scripts/verrous/verrou.mjs); the launcher hands it to the circuit as
-// `<copie>.hors-plan` (scripts/enveloppe/lancer.sh).
+// write out of the plan (scripts/verrous/verrou.mjs); the launcher hands it to the circuit in the
+// session's result folder, `<copie>.travail/seances/<id>/hors-plan` (scripts/enveloppe/lancer.sh).
 export const MARQUE_HORS_PLAN = 'hors-plan';
 
 // The list <paquets> as the variable carries it.

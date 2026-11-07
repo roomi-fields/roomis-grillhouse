@@ -10,8 +10,8 @@
 // - The machine is at rest under SEUIL_PRESSION (25 %); at or above it, it is under load.
 // - A file that does not read (no pressure stall information on the machine) gives null: whoever
 //   reads it says « pression illisible » and leaves the verdict to the runner of the tests.
-// - A_REPASSER, 75, is the exit code of « à repasser » (EX_TEMPFAIL of sysexits.h: try again
-//   later), neither green nor red: the measure of time of each module of language gives it
+// - A_REPASSER (scripts/codes-de-sortie.mjs), 75, is the exit code of « à repasser » (EX_TEMPFAIL
+//   of sysexits.h: try again later), neither green nor red: the measure of time of each module of language gives it
 //   (scripts/langages/typescript/vitest-config/duree.reporter.mjs, the benches of the module cargo),
 //   and the night reads it (scripts/nuit.sh). The day waits for no rest: `npm run verifier` takes a
 //   task at 75 for a red (scripts/langages/typescript/verifier.mjs).
@@ -22,9 +22,9 @@
 // waits so before it plays its time budget benches again (scripts/nuit.sh).
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { A_REPASSER } from '../codes-de-sortie.mjs';
 
 export const SEUIL_PRESSION = 25;
-export const A_REPASSER = 75;
 export const FICHIER_PRESSION = '/proc/pressure/cpu';
 // The longest wait for rest, and the shortest gap between two lines that say it waits.
 export const BORNE_ATTENTE_MS = 15 * 60_000;

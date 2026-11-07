@@ -19,15 +19,15 @@
 //   roles of the flow that ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the
 //   start of a comment).
 // - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
-//   in its state `.claude/worktrees/<ticket>.circuit.json`: it runs while the process its state
-//   names runs (`processus`, the same one by its start `depart`), and stands at the step of its
-//   state, with its attempt, every step one for the whole ticket; while the explorateur or
-//   the questionneur works on its plan (its state names that work, `questionnement`, of the
-//   plan), it stands at the plan (1); waiting for the supervisor (`attendLeSuperviseur`, the one
-//   rule the opening and the wait of the questions read too: stopped, « à repasser » included, but
-//   by the supervisor's « arrete », or dead without a final state), it stands under the stopped
+//   from the Temporal server in one call (scripts/circuits-du-serveur.mjs, the memo of its
+//   workflow): it runs while its workflow runs with no question awaited, and stands at the step of
+//   its last state, with its attempt, every step one for the whole ticket; while the explorateur
+//   or the questionneur works on its plan (`questionnement`, of the plan), it stands at the plan
+//   (1); waiting for the supervisor (`attendLeSuperviseur`, the one rule the opening and the wait
+//   of the questions read too: stopped, « à repasser » included, but by the supervisor's
+//   « arrete », or ended without its issue), it stands under the stopped
 //   step after a line « ⤷ Question · <qui> », who must answer it, the supervisor or the owner, the
-//   supervisor when its state names no question; its card opens on that question, or on the stop
+//   supervisor when it names no question; its card opens on that question, or on the stop
 //   (its name and code) and the first line of its reason. A ticket with a circuit waits in no
 //   block.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
@@ -114,8 +114,8 @@ import {
 import { echecDeLOutil } from './aiguillage.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { verdictDe } from './integration/verdict.mjs';
-import { lireAvancement, lireLaMesure } from './avancement.mjs';
-import { leMemeVivant } from './mesure/base-de-passe.mjs';
+import { lireLaMesure } from './avancement.mjs';
+import { SANS_REPONSE_EN, ServeurMuet, circuitsDuServeur } from './circuits-du-serveur.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 
 const MINUTE = 60_000;
@@ -598,66 +598,11 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
   return vivants;
 }
 
-// The circuits of the repository at <racine>: each state `.claude/worktrees/<ticket>.circuit.json`
-// scripts/circuit.mjs writes, but those at « integre », with `vivant` when the process its state
-// names lives (`processus`, the same one by its start `depart`: a circuit is a daemon, apart from
-// the command that launched it), `questionnement` the object of the work on the plan
-// under way (`plan`), null without one, `question` the whole question of a circuit ended on one
-// and `qui` who must answer it (`superviseur` or `responsable`), null without one,
-// the counters of its bounded loops (`boucles`, by their key), the progress of the automatic pass under way (`avancement`, read in the directory its state
-// names, scripts/avancement.mjs: `{ faits, prevus, dernier }`, null without one), and `interrompu`
-// for a circuit dead without a final state (its process gone, neither a stop nor a code written,
-// as a circuit killed with the group of control that held it, grillhouse-mwz): its question, to
-// the supervisor, gives the command that resumes it; `processus` and `depart` as the state names
-// them, null without them, which tell one run of a circuit from the next. A state that does not
-// parse is left out.
-export function lireCircuits({ racine }) {
-  const dossier = path.join(racine, '.claude', 'worktrees');
-  const out = [];
-  for (const f of fichiers(dossier, '.circuit.json')) {
-    let e;
-    try {
-      e = JSON.parse(readFileSync(f, 'utf8'));
-    } catch {
-      continue;
-    }
-    if (!e || e.etape === 'integre') {
-      continue;
-    }
-    const ticket = path.basename(f, '.circuit.json');
-    const vivant = leMemeVivant(e.processus, e.depart);
-    const interrompu = !vivant && (e.code ?? null) === null && !e.raison;
-    out.push({
-      ticket,
-      etape: e.etape ?? null,
-      tentative: e.tentative ?? null,
-      finale: e.finale === true,
-      code: e.code ?? null,
-      arret: e.raison ?? null,
-      raison: premiereLigne(e.rapport),
-      question: interrompu
-        ? `Le circuit est mort sans état final : son processus est parti, aucun arrêt écrit. \`npx grillhouse circuit ${ticket} --reprendre\` le reprend.`
-        : String(e.question?.question ?? '').trim() || null,
-      qui: interrompu ? SUPERVISEUR : e.question ? String(e.question.qui ?? SUPERVISEUR) : null,
-      questionnement: e.questionnement?.objet ?? null,
-      boucles: e.boucles && typeof e.boucles === 'object' ? e.boucles : {},
-      mene:
-        typeof e.mene === 'string' && !Number.isNaN(Date.parse(e.mene)) ? Date.parse(e.mene) : null,
-      avancement:
-        typeof e.avancement?.dossier === 'string' ? lireAvancement(e.avancement.dossier) : null,
-      vivant,
-      interrompu,
-      processus: e.processus ?? null,
-      depart: e.depart ?? null,
-    });
-  }
-  return out;
-}
-
 /**
- * Whether the circuit <c>, as `lireCircuits` reads it, waits for the supervisor: its process gone,
- * dead without a final state, on a question, or stopped (any stop but the supervisor's own
- * « arrete », « à repasser » included: the supervisor resumes it once the machine is free). The
+ * Whether the circuit <c>, as scripts/circuits-du-serveur.mjs reads it, waits for the supervisor:
+ * not running on its own, and ended without its issue, on a question, or stopped (any stop but the
+ * supervisor's own « arrete », « à repasser » included: the supervisor resumes it once the machine
+ * is free). The
  * one rule of the questions that wait for the supervisor (grillhouse-pq6), which the board reads,
  * and `questionsEnAttente` of scripts/superviseur.mjs, the one source of the opening and of the
  * wait of the questions.
@@ -666,13 +611,6 @@ export function lireCircuits({ racine }) {
  */
 export const attendLeSuperviseur = c =>
   !c.vivant && Boolean(c.interrompu || c.question || (c.arret && c.arret !== 'arrete'));
-
-// The first line of a report that is not blank, or null.
-const premiereLigne = r =>
-  String(r ?? '')
-    .split('\n')
-    .map(x => x.trim())
-    .find(Boolean) ?? null;
 
 // The reviewer's last verdict among a ticket's comments (verdictDe: a comment of the reviewer's
 // author), or null.
@@ -745,12 +683,14 @@ export function lecture(t, prefix) {
  * The board, from what was read. Pure: every source comes in, the time included; `machine`, the
  * lock of the machine; `outil`, the failed installation of the published version that leads the
  * repository (scripts/aiguillage.mjs `echecDeLOutil`); `places`, the places of the machine
- * (scripts/places-de-la-machine.mjs `etatDesPlaces`), whose line heads AGENTS.
+ * (scripts/places-de-la-machine.mjs `etatDesPlaces`), whose line heads AGENTS; `muet`, the Temporal
+ * server did not answer the reading of the circuits, which the first alert says; `faute`, any
+ * other fault of that reading, said in the first alert as it is.
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
  *   verdicts?: Record<string, any>, maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, charge: number, coeurs: number, memoireGo: number,
- *   attentes: { ticket: string, depuis: number }[] } | null }} lu
+ *   attentes: { ticket: string, depuis: number }[] } | null, muet?: boolean, faute?: string | null }} lu
  */
 export function assembler({
   tous,
@@ -764,6 +704,8 @@ export function assembler({
   machine = null,
   outil = null,
   places: placesDeLaMachine = null,
+  muet = false,
+  faute = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1059,6 +1001,13 @@ export function assembler({
 
   // Alerts.
   const alertes = [];
+  // The Temporal server does not answer: the board shows the tickets without their circuits, and
+  // its first alert names the command that tells the state of the service.
+  if (muet) {
+    alertes.push({ niveau: 'rouge', texte: `${SANS_REPONSE_EN} · temporal etat` });
+  } else if (faute) {
+    alertes.push({ niveau: 'rouge', texte: `Circuits illisibles : ${faute}` });
+  }
   // A red night says the night it turned red, short enough to stand whole on its line: the local
   // day and month its ticket was opened, the night's date (scripts/nuit.sh), whatever its title names, a
   // commit in older ones.
@@ -1349,7 +1298,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ton: p.charge >= p.coeurs ? 'attention' : 'discret',
     });
   }
-  const deQui =x => `${x.sorte} · ${x.projet}${x.ticket ? ` · ${courtDuTicket(x.ticket)}` : ''}`;
+  const deQui = x => `${x.sorte} · ${x.projet}${x.ticket ? ` · ${courtDuTicket(x.ticket)}` : ''}`;
   const tenu = t.machine?.detenteur;
   if (tenu) {
     const a = tenu.avancement;
@@ -1390,7 +1339,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const enAttente = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
   // The tickets whose circuit waits for a place of the machine.
   const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
-  for (const id of attendUnePlace) enAttente.add(id);
+  for (const id of attendUnePlace) {
+    enAttente.add(id);
+  }
   // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
   // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
   // (« ▸ 2 · Composants ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
@@ -1767,6 +1718,7 @@ export function fiches(
   bilans = {}
 ) {
   const arretes = new Map(circuits.filter(c => !c.vivant).map(c => [c.ticket, c]));
+  const liens = new Map(circuits.filter(c => c.lien).map(c => [c.ticket, c.lien]));
   const ids = new Set(lignesDuTableau.map(l => l.ticket).filter(Boolean));
   const out = {};
   for (const t of tous) {
@@ -1779,15 +1731,20 @@ export function fiches(
       .filter(x => x && !x.startsWith('#'))
       .join(' ');
     // A stopped circuit's card opens on its question and who must answer it, or on where it
-    // stopped and why.
+    // stopped and why; a circuit whose workflow ended without its issue, on the answers the client
+    // accepts (`reponse`), named once.
     const a = arretes.get(t.id);
+    const reprise = a?.sansIssue && a.reponse ? ` \`${a.reponse}\` le reprend.` : '';
     const tete = a?.question
-      ? `Question · ${a.qui ?? SUPERVISEUR} : ${a.question.replace(/\s+/g, ' ')} `
+      ? `Question · ${a.qui ?? SUPERVISEUR} : ${a.question.replace(/\s+/g, ' ')}${reprise} `
       : a
         ? `Circuit arrêté en ${ouEnEst(a)} : ${a.raison ?? 'le circuit ne tourne plus'} `
         : '';
     const chiffres = bilans[t.id] ? `${enBref(bilans[t.id])} ` : '';
     const texte = `${tete}${chiffres}${resume}`;
+    // The card of a ticket with a circuit ends on the page of its workflow on the web UI of the
+    // server, whole, after the text.
+    const lien = liens.has(t.id) ? `\nTemporal : ${liens.get(t.id)}` : '';
     out[t.id] = {
       numero: lecture(t, prefix).numero,
       titre: lecture(t, prefix).sujet,
@@ -1795,7 +1752,7 @@ export function fiches(
       statut: t.status,
       travail: mesures[t.id]?.travail ?? 0,
       jetons: mesures[t.id]?.jetons ?? 0,
-      resume: texte.length > 400 ? `${texte.slice(0, 399)}…` : texte,
+      resume: `${texte.length > 400 ? `${texte.slice(0, 399)}…` : texte}${lien}`,
     };
   }
   return out;
@@ -1867,9 +1824,13 @@ const bdJson = (racine, ...args) => {
   }
 };
 
-// What the board reads of the repository at <racine>: its tickets, its prefix, its running agents
-// and its assembled board (`t`), with the folder git keeps its shared files in (`commun`).
-function lire(racine, { home, maintenant, machine = null, places = null }) {
+// What the board reads of the repository at <racine>, its circuits <circuits> read: its tickets,
+// its prefix, its running agents and its assembled board (`t`), with the folder git keeps its
+// shared files in (`commun`).
+function lire(
+  racine,
+  { home, maintenant, circuits, muet = false, faute = null, machine = null, places = null }
+) {
   let prefix = '';
   try {
     prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
@@ -1934,7 +1895,6 @@ function lire(racine, { home, maintenant, machine = null, places = null }) {
     ps,
     cache,
   });
-  const circuits = lireCircuits({ racine });
   try {
     if (fichierCache) {
       writeFileSync(
@@ -1958,13 +1918,16 @@ function lire(racine, { home, maintenant, machine = null, places = null }) {
     jour: minuit.getTime(),
     machine,
     places,
+    muet,
+    faute,
     outil: echecDeLOutil(racine),
   });
   return { t, prefix, tous, vivants, commun };
 }
 
 // The places of the machine as the board shows them (`etatDesPlaces`), null when they do not read
-// (a faulty GRILLHOUSE_PLACES): the board then shows no line of places.
+// (a faulty GRILLHOUSE_PLACES, a server of the places that does not answer): the board then shows
+// no line of places.
 function lireLesPlaces() {
   try {
     return etatDesPlaces();
@@ -2018,14 +1981,29 @@ export function ensemble(lus) {
 
 // A project beside the session's, read in its folder <dossier>: its board, or the fault that keeps
 // it out, on one line.
-function lireUnAutre(dossier, o) {
+async function lireUnAutre(dossier, { circuitsDe, ...o }) {
   try {
     if (!existsSync(dossier)) {
       throw new Error('dossier introuvable');
     }
-    return { dossier, ...lire(dossier, o) };
+    return {
+      dossier,
+      ...lire(dossier, { ...o, circuits: (await lesCircuits(circuitsDe, dossier)).circuits }),
+    };
   } catch (e) {
     return { dossier, erreur: String(e.message ?? e).split('\n')[0] };
+  }
+}
+
+// The circuits of the repository at <racine> by the reader <circuitsDe>; none when the reading
+// fails, the board shows the rest: the server stayed silent (`muet`, `ServeurMuet`), or another
+// fault, a client not built among them, by the first line of its message (`faute`).
+async function lesCircuits(circuitsDe, racine) {
+  try {
+    return { circuits: await circuitsDe(racine), muet: false, faute: null };
+  } catch (e) {
+    const muet = e instanceof ServeurMuet;
+    return { circuits: [], muet, faute: muet ? null : String(e?.message ?? e).split('\n')[0] };
   }
 }
 
@@ -2051,21 +2029,39 @@ export function nommerLesProjets(machine, noms) {
 // The board of the repository at <racine>; with <projets>, the folders of other projects, the
 // board of them all (`ensemble`), named « <dépôt> + <projet> + … », with the folder of each
 // ticket's project (`dossiers`), where the pane runs Beads for it. The status line is the
-// session's project's alone.
-export function tableau(
+// session's project's alone. Each project's circuits are read by <circuitsDe> (one call to the
+// Temporal server, scripts/circuits-du-serveur.mjs, by default).
+/**
+ * @param {string} racine
+ * @param {{ home?: string, maintenant?: number, projets?: string[],
+ *   circuitsDe?: (racine: string) => Promise<object[]> }} [o]
+ */
+export async function tableau(
   racine,
-  { home = os.homedir(), maintenant = Date.now(), projets = [] } = {}
+  {
+    home = os.homedir(),
+    maintenant = Date.now(),
+    projets = [],
+    circuitsDe = circuitsDuServeur,
+  } = {}
 ) {
+  const [{ circuits, muet, faute }, ...autres] = await Promise.all([
+    lesCircuits(circuitsDe, racine),
+    ...projets.map(d => lireUnAutre(d, { home, maintenant, circuitsDe })),
+  ]);
   const ici = {
     dossier: racine,
     ...lire(racine, {
       home,
       maintenant,
+      circuits,
+      muet,
+      faute,
       machine: lireLaMesure(process.env),
       places: lireLesPlaces(),
     }),
   };
-  const lus = [ici, ...projets.map(d => lireUnAutre(d, { home, maintenant }))];
+  const lus = [ici, ...autres];
   const etiquette = l => l.prefix || path.basename(l.dossier);
   // The lock of the machine names each project of the board as the board does: the session's by
   // its folder, another by its label; the root of its main tree, its common git directory's parent.
@@ -2128,10 +2124,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     .slice(2)
     .filter(a => a !== '--texte')
     .map(d => path.resolve(d));
-  const t = tableau(process.cwd(), { projets });
-  process.stdout.write(
-    process.argv.includes('--texte')
-      ? `${t.lignes.map(l => l.texte).join('\n')}\n`
-      : JSON.stringify(t)
+  void tableau(process.cwd(), { projets }).then(t =>
+    process.stdout.write(
+      process.argv.includes('--texte')
+        ? `${t.lignes.map(l => l.texte).join('\n')}\n`
+        : JSON.stringify(t)
+    )
   );
 }

@@ -37,8 +37,7 @@
 #   without a copy, it is brought back to the main tree's HEAD and the copy is made on it: the lot
 #   the branch carried ahead of main (a branch the queue sent back) comes back as local work in
 #   the copy, a conflict with main marked in its file; a branch with nothing ahead simply starts
-#   again from main. A ticket whose branch is still in the integration queue is not launched:
-#   the refusal goes to the log, which names the queue, CODE_COPIE, before any copy is made.
+#   again from main.
 #   The copy, new or existing, then goes through the one preparation of a copy, which the circuit
 #   also plays before each pass that judges the lot (scripts/enveloppe/travail-de-la-copie.mjs
 #   `preparer`, its output in the log). Moving forward keeps
@@ -98,19 +97,20 @@
 #   `--output-format json --json-schema <its schema>` (`npx grillhouse resultats --schema
 #   <rôle>`); --fiche <sorte> names the schema of a sheet that is not its role's (`geste`, the
 #   explorateur's gesture of a mechanical ticket, grillhouse-sos), taking a value as --modele does:
-#   claude's JSON result, its sheet in `structured_output`, goes to
-#   .claude/worktrees/<ticket>.resultat.json, which a launch removes first and the circuit reads,
-#   then to the log; its errors go to the log.
+#   claude's JSON result, its sheet in `structured_output`, goes to `resultat.json` in the folder
+#   of the session (.claude/worktrees/<ticket>.travail/seances/<id>/, <id> the session's
+#   --seance or --reprise, `courante` without one), which a launch removes first and the circuit
+#   reads, then to the log; its errors go to the log.
 # - Its output, and an envelope refusal (CODE_REFUS), are added to .claude/worktrees/<ticket>.log,
 #   the log of the ticket, which keeps every session of the ticket: each launch past the checks of
 #   its call adds a header line, `=== <time> · <rôle> · <composant> ===`, then its preparation and
 #   its session. The agent writes its handover in the ticket. Once the envelope has ended, the
-#   launcher writes the session's exit code to .claude/worktrees/<ticket>.fin, which a launch
+#   launcher writes the session's exit code to `fin` in the folder of the session, which a launch
 #   removes first: a launch that stops before its session leaves none, so the circuit
 #   (scripts/circuit.mjs) tells a code of the session from CODE_USAGE, CODE_REFUS and CODE_COPIE.
 #   A session its lock stopped on a write out of the plan (scripts/verrous/verrou.mjs) left the
 #   reason in its working directory (`hors-plan`, removed before the session): the launcher moves
-#   it to .claude/worktrees/<ticket>.hors-plan, which a launch removes first and the circuit reads,
+#   it to `hors-plan` in the folder of the session, which a launch removes first and the circuit reads,
 #   and adds it to the log. It then writes the session's line to the register
 #   (scripts/registre.mjs --copie), and exits with the envelope's code.
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
@@ -176,19 +176,15 @@ grep -qE "TON TICKET : ${motif}([^A-Za-z0-9_.-]|$)" "$consigne" || { echo "⛔ L
 
 copie="$racine/.claude/worktrees/$ticket"
 journal="$copie.log"
-fin="$copie.fin"
-resultat="$copie.resultat.json"
-hors_plan="$copie.hors-plan"
-mkdir -p "$(dirname "$copie")"
+# The folder of the session, its id the one it opens or resumes: each session's result apart, so
+# that an attempt played again reads the one its dead attempt left.
+rang="$copie.travail/seances/${seance:-${reprise:-courante}}"
+fin="$rang/fin"
+resultat="$rang/resultat.json"
+hors_plan="$rang/hors-plan"
+mkdir -p "$(dirname "$copie")" "$rang"
 rm -f "$fin" "$resultat" "$hors_plan"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
-# A branch still in the queue is not relaunched: the queue brings it onto main, or sends it back.
-if node --input-type=module -e "import { lireEntrees } from '$ici/../integration/file-attente.mjs'; const [r, b, t] = process.argv.slice(1); process.exit(lireEntrees(r).some(e => e.branche === b || e.ticket === t) ? 0 : 1);" "$racine" "agent/$ticket" "$ticket"; then
-  refus="⛔ La branche agent/$ticket est encore en file d'intégration : la file l'amène sur main ou la renvoie ; le ticket ne se relance pas avant."
-  echo "$refus" >> "$journal"
-  echo "$refus" >&2
-  exit "$CODE_COPIE"
-fi
 # The temporary directory of the ticket (`ouvrirBaseDuTicket`, scripts/mesure/base-de-passe.mjs):
 # TMPDIR, TMP and TEMP of the rest of the launch and of the session, whose scratchpads and working
 # directory lie in it. It stays from one session and one resumption of the ticket to the next, and

@@ -4,11 +4,16 @@
 // Witness: OSC Bridge, circuit OB-vch.1.3 under 0.25.3 (2026-10-30): the ticket had no
 // « ## Architecture » section; the circuit led step 1 (plan, questioner) and step 2 (testwriter),
 // then the developer's lock refused it at step 3, two steps of sessions lost.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { ticketAuDepart } from '../../scripts/circuit.mjs';
+import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import {
+  DepartRefuse,
+  ticketAuDepart,
+  ticketAuLancement,
+} from '../../scripts/depart-du-ticket.mjs';
 import { refusal, sansArchitecture } from '../../scripts/verrous/verrou.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-architecture-'));
@@ -57,6 +62,33 @@ describe('grillhouse-d57, critère 1 — le circuit refuse dès son départ un t
     expect(() => {
       ticketAuDepart('OB-vch.1.3', montre(SANS), { arreter: false });
     }).toThrow('« ## Architecture »');
+  });
+});
+
+// The launch reads the ticket by Beads (`ticketAuLancement`): a title without its components is
+// refused by its name, and a launch that does not check the title (`arreter`, which `--etendre`
+// takes to resolve its packages) keeps it whole, with no plan.
+describe('le départ d’un ticket lit son titre, sauf l’arrêt du superviseur', () => {
+  const RACINE = mkdtempSync(path.join(ESSAIS, 'depot-'));
+  mkdirSync(path.join(RACINE, 'docs'));
+  writeFileSync(path.join(RACINE, 'docs', 'ARCHITECTURE.md'), architecture());
+  // A Beads that shows the ticket titled <titre>, its description <description>.
+  const bd =
+    (titre: string, description = AVEC) =>
+    () => ({
+      status: 0,
+      stdout: JSON.stringify([{ id: 'demo-1', title: titre, description }]),
+      stderr: '',
+    });
+  it('a title that names no component is refused at the launch, named', () => {
+    expect(() => ticketAuLancement(RACINE, 'demo-1', { bd: bd('un sujet seul') })).toThrow(
+      new DepartRefuse('le titre de demo-1 ne nomme pas ses composants.')
+    );
+  });
+  it('a launch that does not check the title keeps it whole: no plan, no refusal', () => {
+    expect(
+      ticketAuLancement(RACINE, 'demo-1', { arreter: true, bd: bd('un sujet seul', SANS) })
+    ).toMatchObject({ sujet: 'un sujet seul', plan: [] });
   });
 });
 

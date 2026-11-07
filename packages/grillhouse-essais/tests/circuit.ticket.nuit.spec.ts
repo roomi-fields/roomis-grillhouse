@@ -364,40 +364,6 @@ fiche '${JSON.stringify({ statut: 'FAIT' })}'
       expect(consigne).not.toContain('Le corps du constat A.');
     });
 
-    // Remarque A of the review of 3uv.95.6: a run that starts over, neither resumed nor from a
-    // step, carries no finding of the runs before it.
-    it('critère 2 — a run that starts over carries no finding open before it', () => {
-      const id = 'demo-ticket-repart';
-      ticket(id, '000-forms');
-      scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-      scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      scenario(
-        id,
-        'relecteur-1',
-        `fiche '${JSON.stringify({
-          verdict: 'RENDU',
-          constats: [
-            {
-              titre: 'packages/forms/test/mesure.test.mjs:3 — le cas de zéro manque',
-              genre: 'bloquant',
-              piece: 'packages/forms/src/index.mjs:1',
-              regle: 'critère 1',
-              role: 'testwriter',
-              corps: 'Aucun test ne mesure zéro.',
-            },
-          ],
-        })}'\n`
-      );
-      scenario(id, 'testwriter', "passation 'Rien écrit.'\n");
-      const r1 = circuit([id]);
-      expect(r1.status, sortie(r1)).toBe(ARRETS.preuve);
-      expect(etat(id)?.constats).toHaveLength(1);
-      const r2 = circuit([id]);
-      expect(r2.status, sortie(r2)).toBe(ARRETS.preuve);
-      expect(essai(id, 'testwriter-5.prompt')).not.toContain('Aucun test ne mesure zéro.');
-      expect(etat(id)?.constats).toEqual([]);
-    });
-
     // Witness: BPScript (320.2.4.5.1), whose circuit stopped at the proof of its first component;
     // `--depuis developpeur spec` played only the checks of the nine components after it.
     it('critère 3 — --depuis names a step for the whole ticket: the developpeur, once, on every package of the plan', () => {

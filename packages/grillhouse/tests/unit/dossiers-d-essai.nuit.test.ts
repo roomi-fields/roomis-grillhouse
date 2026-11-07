@@ -19,8 +19,9 @@ const SUITES = [
   'tests/unit/verrous.spec.ts',
 ];
 // The tests of the launcher, of the real envelope and of the locks' hooks, night tests of the
-// package of the frame's chain beside this one, which a run in that package plays when it names
-// them (GRILLHOUSE_TESTS, scripts/langages/typescript/vitest-config/cibles.mjs).
+// package of the frame's chain beside this one, which a run of the night's configuration plays
+// (scripts/langages/typescript/tests-de-nuit.mjs: GRILLHOUSE_TESTS_DE_NUIT=nuit), the files named
+// on its command line; a targeted run of the day refuses a night test named (cibles.mjs).
 const ESSAIS_DU_CADRE = path.resolve(DEPOT, '../grillhouse-essais');
 const LANCEUR = [
   'enveloppe.lanceur',
@@ -30,6 +31,10 @@ const LANCEUR = [
   'verrous',
 ].map(f => path.join(ESSAIS_DU_CADRE, `tests/${f}.nuit.spec.ts`));
 const VITEST = path.resolve(DEPOT, '../../node_modules/vitest/vitest.mjs');
+const CONFIGURATION_DE_NUIT = path.join(
+  DEPOT,
+  'scripts/langages/typescript/vitest.nuit.config.mjs'
+);
 const ECART_MS = 8000;
 
 // A run of Vitest in <cwd>, with <args> and the variables <ajouts>: its exit code and its output.
@@ -61,7 +66,13 @@ function executer(delai: number): Promise<{ code: number | null; sortie: string 
     setTimeout(() => {
       void Promise.all([
         vitest(DEPOT, SUITES, {}),
-        vitest(ESSAIS_DU_CADRE, [], { GRILLHOUSE_TESTS: JSON.stringify({ arguments: LANCEUR }) }),
+        vitest(
+          ESSAIS_DU_CADRE,
+          ['--root', ESSAIS_DU_CADRE, '--config', CONFIGURATION_DE_NUIT, ...LANCEUR],
+          {
+            GRILLHOUSE_TESTS_DE_NUIT: 'nuit',
+          }
+        ),
       ]).then(([cadre, lanceur]) =>
         resolve({
           code: cadre.code === 0 ? lanceur.code : cadre.code,

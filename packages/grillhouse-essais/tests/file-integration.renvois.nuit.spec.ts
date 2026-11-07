@@ -2,17 +2,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantier, type Chantier } from './integration-essai.js';
+import { chantier, serveurDeLaFileDIntegration, type Chantier } from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
-import { enProcessus, valeursDe } from './cadre.js';
+import { valeursDe } from './cadre.js';
 
 const { CODE_COPIE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_COPIE']) as {
   CODE_COPIE: number;
 };
-const lireEntrees = enProcessus<{ fichier: string; branche: string; ticket: string }[]>(
-  'scripts/integration/file-attente.mjs',
-  'lireEntrees'
-);
 
 // The integration queue (scripts/integration/file.mjs, grillhouse-3uv.63): a copy still in place,
 // a ticket sent back and relaunched, a branch with nothing ahead of main.
@@ -22,6 +18,7 @@ const lireEntrees = enProcessus<{ fichier: string; branche: string; ticket: stri
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+serveurDeLaFileDIntegration(ESSAIS);
 
 // grillhouse-3uv.63 critères 15 et 16: the queue and a branch whose copy is still in place; an
 // entry carries one ticket.
@@ -81,16 +78,14 @@ describe('grillhouse-3uv.63 — a copy still in place, one ticket per entry', ()
     LONG
   );
   it(
-    'an entry of the queue carries the branch and its one ticket',
+    'the integration labels its ticket en-file, the one mark of a lot that waits for the queue',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       const r = m.integrer('demo-1');
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      const entrees = lireEntrees(m.repo) as { fichier: string }[];
-      expect(entrees).toEqual([
-        { fichier: expect.any(String) as string, branche: 'agent/demo-1', ticket: 'demo-1' },
-      ]);
+      expect(m.bd('demo-1').labels).toContain('en-file');
+      expect(existsSync(path.join(m.repo, '.git', 'file-integration'))).toBe(false);
     },
     LONG
   );
@@ -271,8 +266,7 @@ describe('grillhouse-3uv.63 — a ticket sent back by the queue, relaunched', ()
 });
 
 // grillhouse-3uv.63 critère 23: a branch in the queue with nothing ahead of main does not enter: the
-// queue takes it out without closing its ticket, and writes it to the ticket. The launcher refuses
-// to relaunch a ticket whose branch is still in the queue.
+// queue takes it out without closing its ticket, and writes it to the ticket.
 describe('grillhouse-3uv.63 — a branch with nothing ahead of main does not enter', () => {
   const commentaires = (m: Chantier, id: string) => m.bd(id).comments.map(c => c.text);
   it(
@@ -330,49 +324,6 @@ describe('grillhouse-3uv.63 — a branch with nothing ahead of main does not ent
       expect(m.file().status).toBe(0);
       expect(commentaires(m, 'demo-1').length).toBe(apres);
       expect(m.bd('demo-1').status).not.toBe('closed');
-    },
-    LONG
-  );
-  // The launcher's log of <id> (.claude/worktrees/<ticket>.log), empty when absent.
-  const journalDe = (m: Chantier, id: string) => {
-    const journal = `${m.copieDe(id)}.log`;
-    return existsSync(journal) ? readFileSync(journal, 'utf8') : '';
-  };
-  it(
-    'critère 23: the launcher refuses to relaunch a ticket whose branch is still in the queue: no copy, no session, the branch untouched, and it still enters',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.livrer('demo-1');
-      m.poser({ 'src/c/index.ts': 'export const c = 9;\n' }, 'main avance');
-      const commit = m.sha('agent/demo-1');
-      const r = m.lancer('demo-1');
-      expect(r.status, r.stdout + r.stderr).toBe(CODE_COPIE);
-      expect(journalDe(m, 'demo-1')).toMatch(/file d'intégration/);
-      expect(m.sessions()).toEqual([]);
-      expect(existsSync(m.copieDe('demo-1'))).toBe(false);
-      expect(m.sha('agent/demo-1')).toBe(commit);
-      const f = m.file();
-      expect(f.status, f.stdout + f.stderr).toBe(0);
-      expect(m.sujets()[0]).toBe('feat: lot (demo-1)');
-      expect(m.bd('demo-1').status).toBe('closed');
-    },
-    LONG
-  );
-  it(
-    'critère 23: the launcher refuses too when the copy of the ticket in the queue is still in place (locked at its integration)',
-    () => {
-      const m = chantier(ESSAIS);
-      const copie = m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.git('worktree', 'lock', '--reason', 'en cours', copie);
-      expect(m.integrer('demo-1').status).toBe(0);
-      expect(existsSync(copie)).toBe(true);
-      const commit = m.sha('agent/demo-1');
-      const r = m.lancer('demo-1');
-      expect(r.status, r.stdout + r.stderr).toBe(CODE_COPIE);
-      expect(journalDe(m, 'demo-1')).toMatch(/file d'intégration/);
-      expect(m.sessions()).toEqual([]);
-      expect(m.sha('agent/demo-1')).toBe(commit);
     },
     LONG
   );

@@ -1,6 +1,7 @@
 // The classification of the duration reporter (./duree.reporter.mjs), a pure function: it takes
 // data (the tasks of the run, the errors outside the tests, the CPU pressures at the start and at
-// the end, Vitest's exit code, and per file its size label and whether it is out of the day) and
+// the end, Vitest's exit code, and per file its size label, whether it is out of the day and
+// whether it is a time budget bench, by the rules of ./cibles.mjs) and
 // never reads the disk nor the global state. The reporter reads those, calls `classer`, writes the
 // lines and sets the exit code.
 //
@@ -17,7 +18,6 @@
 import { A_REPASSER, SEUIL_PRESSION } from '../../../services-du-noyau.mjs';
 
 const DELAI = /^(Test|Hook) timed out in \d+ms\./;
-const BANC = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
 
 function* taches(t) {
   yield t;
@@ -36,7 +36,7 @@ const nomDe = t => {
 
 /**
  * @param {{ files?: any[], errors?: unknown[], debut: number | null, fin: number | null,
- *   codeDeSortie: number | undefined, fichiers: Record<string, { horsDuJour: boolean, libelleDelai: string }> }} entree
+ *   codeDeSortie: number | undefined, fichiers: Record<string, { horsDuJour: boolean, banc?: boolean, libelleDelai: string }> }} entree
  */
 export function classer({ files = [], errors = [], debut, fin, codeDeSortie, fichiers }) {
   const echecs = [];
@@ -50,7 +50,7 @@ export function classer({ files = [], errors = [], debut, fin, codeDeSortie, fic
       const cause =
         t.type === 'test' && t.meta?.mesureDeTemps
           ? 'mesure de temps'
-          : BANC.test(fichier)
+          : info?.banc
             ? 'banc de temps'
             : delaiDepasse && info?.horsDuJour
               ? 'délai dépassé'

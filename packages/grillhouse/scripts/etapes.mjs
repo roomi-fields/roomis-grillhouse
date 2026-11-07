@@ -6,7 +6,7 @@
 // - A step (ETAPES): its number (« 2 », « 4.1 »), its title, who works there (`qui`: the role
 //   agents, or AUTO for a step the circuit leads itself; none for a step that only holds its
 //   sub-steps), its sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the
-//   `etape` of `.claude/worktrees/<ticket>.circuit.json`, the final pass being the checks once
+//   `etape` of the state the circuit writes, which the workflow of its ticket holds, the final pass being the checks once
 //   `finale`). Every step runs once for the whole ticket, as a merge request has one author of
 //   its tests and one of its code, one CI on the whole and one review: one session of the
 //   testwriter (2) and one of the developpeur (3) carry the whole plan.
@@ -30,7 +30,7 @@
 //   with no session.
 // - The question of each other stop (MONTEES, below): what goes up to the supervisor, and who
 //   must answer it.
-import { A_REPASSER } from './mesure/pression.mjs';
+import { A_REPASSER } from './codes-de-sortie.mjs';
 
 // Who works at a step the circuit leads itself, with no agent.
 export const AUTO = 'auto';

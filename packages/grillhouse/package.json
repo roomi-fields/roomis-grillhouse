@@ -30,6 +30,7 @@
     "bin",
     "cadre",
     "charte.md",
+    "dist",
     "docs",
     "hooks",
     "scripts",
@@ -81,13 +82,21 @@
     "./tsdoc-base.json": "./tsdoc-base.json"
   },
   "scripts": {
-    "prepack": "node scripts/cadre.mjs --empaqueter",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build && node scripts/cadre.mjs --empaqueter",
     "postpack": "node scripts/cadre.mjs --nettoyer",
-    "lint": "eslint tests --ext .ts,.js,.mjs",
-    "format:check": "prettier --check \"tests/**/*.{ts,js,mjs}\"",
-    "test:unit": "vitest run"
+    "lint": "eslint src tests --ext .ts,.js,.mjs",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.{ts,js,mjs}\"",
+    "test:unit": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "npm run build"
   },
   "dependencies": {
+    "@temporalio/activity": "1.24.0",
+    "@temporalio/client": "1.24.0",
+    "@temporalio/common": "1.24.0",
+    "@temporalio/worker": "1.24.0",
+    "@temporalio/workflow": "1.24.0",
     "semver": "^7.8.5",
     "yaml": "2.9.1"
   },

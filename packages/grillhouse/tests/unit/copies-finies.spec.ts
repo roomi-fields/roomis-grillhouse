@@ -235,14 +235,13 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
   );
 
   it(
-    'criterion 3: the integration copy and the queue copy stay while their lock stands',
+    'criterion 3: the integration copy stays while its lock stands, the queue copy always',
     () => {
       const racine = depot();
       const integration = copie(racine, 'integration', null);
       const file = copie(racine, 'file', null);
       const commun = git(racine, 'rev-parse', '--path-format=absolute', '--git-common-dir');
       writeFileSync(path.join(commun, 'integration.lock'), `${process.pid}:x`);
-      writeFileSync(path.join(commun, 'file-integration.lock'), `${process.pid}:y`);
       const journal = balayer(racine);
       expect(existsSync(integration)).toBe(true);
       expect(existsSync(file)).toBe(true);
@@ -250,7 +249,7 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
         /copie gardée : \.claude\/worktrees\/integration \([^)]*\) : .*integration\.lock/
       );
       expect(journal).toMatch(
-        /copie gardée : \.claude\/worktrees\/file \([^)]*\) : .*file-integration\.lock/
+        /copie gardée : \.claude\/worktrees\/file \([^)]*\) : la file y rejoue ses entrées/
       );
     },
     LONG
@@ -518,14 +517,14 @@ describe('grillhouse-cyr, critère 3 — le retrait tourne aussi à la fin de ch
 });
 
 describe('the night calls the removal after its steps, its verdict unchanged (grillhouse-5vv)', () => {
-  it('criterion 1: nuit.sh runs copies-finies.mjs once its steps are played, whatever its code', () => {
+  it('criterion 1: nuit.sh runs retirer-les-copies-finies.mjs once its steps are played, whatever its code', () => {
     const nuit = readFileSync(path.join(import.meta.dirname, '../../scripts/nuit.sh'), 'utf8');
     const code = nuit
       .split('\n')
       .filter(l => !l.trim().startsWith('#'))
       .join('\n');
     const verdict = code.indexOf('verdict=$?');
-    const appel = code.indexOf('copies-finies.mjs');
+    const appel = code.indexOf('retirer-les-copies-finies.mjs');
     expect(verdict).toBeGreaterThan(0);
     expect(appel).toBeGreaterThan(verdict);
     expect(appel).toBeLessThan(code.indexOf('if [ "$verdict" -eq 75 ]'));

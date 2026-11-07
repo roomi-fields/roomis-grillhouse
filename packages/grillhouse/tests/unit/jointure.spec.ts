@@ -423,7 +423,16 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
   });
 
   it('the tools of the modules are optional peers of the package; its dependencies are the core’s', () => {
-    expect(Object.keys(PKG.dependencies).sort()).toEqual(['semver', 'yaml']);
+    // The core's: semver, yaml, and the SDK of the account's Temporal (grillhouse-4nr.2).
+    expect(Object.keys(PKG.dependencies).sort()).toEqual([
+      '@temporalio/activity',
+      '@temporalio/client',
+      '@temporalio/common',
+      '@temporalio/worker',
+      '@temporalio/workflow',
+      'semver',
+      'yaml',
+    ]);
     // The module typescript's, then the module cargo's (grillhouse-ool: smol-toml, the reader of
     // a Cargo.toml).
     const outils = [

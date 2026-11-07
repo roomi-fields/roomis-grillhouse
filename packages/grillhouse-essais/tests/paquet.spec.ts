@@ -51,9 +51,9 @@ const importsDe = (t: string) =>
 const AVANT: Record<string, [number, number]> = {
   // grillhouse-nt4: one more expect, the guard that names the trial directory the test leaves.
   // grillhouse-1eq: one more expect, the killed circuit gone before the sweep (pq6).
-  'base-de-passe': [10, 56],
+  'base-de-passe': [10, 58],
   // grillhouse-pq6: three more expects, an immediate stop gives its code and its question.
-  'circuit.arbitrage': [2, 18],
+  'circuit.arbitrage': [2, 17], // grillhouse-4nr.12: driven by the command, the client of the workflow.
   'circuit.avancement': [1, 6],
   'circuit.bilan': [2, 20],
   'circuit.conformite': [5, 31],
@@ -62,11 +62,10 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.construction': [3, 21],
   'circuit.fiche': [11, 52],
   'circuit.gestes': [6, 49],
-  'circuit.machine': [1, 7],
   // grillhouse-sos: the mechanical path, and the sort that survives the answer to the questionneur.
   'circuit.mecanique': [6, 24],
-  'circuit.montee': [5, 33],
-  circuit: [7, 22],
+  'circuit.montee': [5, 35], // grillhouse-4nr.12: driven by the command, the client of the workflow.
+  circuit: [9, 27], // grillhouse-4nr.12: driven by the command, the client of the workflow.
   'circuit.passe-finale': [3, 19],
   // grillhouse-1eq: one more expect, the explorateur's template of the mechanical gesture (sos).
   'circuit.plan': [18, 125],
@@ -81,45 +80,45 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.relecture': [14, 130],
   'circuit.reprise': [5, 58],
   // grillhouse-pq6: four more expects, a resumption gives the hand back before the session left.
-  'circuit.sessions': [18, 111],
+  'circuit.sessions': [16, 92], // grillhouse-4nr.12: driven by the command, the client of the workflow; the cases of the circuit's process gone with it.
   'circuit.statut': [10, 66],
   'circuit.tests-de-head': [5, 22],
   // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d); grillhouse-3e2.5: one
   // more it and expect, the testwriter's red test written in a scenario.
-  'circuit.ticket': [11, 72],
+  'circuit.ticket': [10, 67], // grillhouse-4nr.12: driven by the command, the client of the workflow; a run that starts over is refused, a stopped circuit reopens.
   'circuit.tri': [8, 78],
   // grillhouse-3e2.5: fewer expects, the file-wide green gives way to the unnamed greens.
   'circuit.vert-par-fichier': [8, 20],
   // grillhouse-3dr.3.3: the other tests of the chain, read on main before the move (255b40d).
   // grillhouse-1eq: one more test, its night blind to a neighbour's ticket directory.
-  nuit: [74, 320],
+  nuit: [74, 319], // grillhouse-4nr.12: the queue's command is gone, the night's lock alone is read.
   'sous-modules': [24, 95],
   'commandes-en-enveloppe': [23, 76],
   'retirer-copie': [48, 124],
   'tests-de-nuit.script-de-nuit': [14, 40],
   'integrer.dependances': [13, 40],
   'sous-modules.adresses': [29, 119],
-  'file-integration': [21, 92],
+  'file-integration': [17, 71], // grillhouse-4nr.12: the queue is its workflow; its command's cases go.
   'lancer-modele': [40, 118],
   temporaire: [2, 6],
-  'file-integration.renvois': [15, 85],
+  'file-integration.renvois': [13, 71], // grillhouse-4nr.12: the launcher no longer reads a queue.
   integrer: [63, 217],
   'integrer.commandes': [18, 61],
   'sous-modules.montage': [14, 86],
   'sous-modules.partage': [23, 124],
   'file-integration.dependances': [7, 40],
   'session-start': [47, 102], // [45, 98], plus the two tests grillhouse-ca7 added (e506a50)
-  'grillhouse-maj': [141, 329],
+  'grillhouse-maj': [141, 333],
   'enveloppe.lanceur': [26, 68],
   'premier-paquet': [4, 10],
   'pre-push-nuit': [16, 63],
   'greffons-du-cadre': [63, 170],
-  'file-integration.ci': [15, 68],
+  'file-integration.ci': [15, 71],
   'crochets-du-cadre': [25, 58],
   'integrer.references': [4, 18],
   'nouveau-projet': [15, 37],
   // grillhouse-pq6: three more expects, the opening names the wait of the questions.
-  superviseur: [7, 29],
+  superviseur: [7, 30],
   // grillhouse-0v3: the night test of a real session through the launcher, which mounts a project
   // the launcher prepares (./enveloppe-essai.ts), read on main before the move (b048461).
   'lancer-modele.seance': [2, 5],
@@ -151,7 +150,7 @@ const SCINDES: Record<string, [number, number]> = {
   version: [1, 6],
   // grillhouse-4id: the runs of the circuit, the night, the command of the key and `grillhouse
   // verifier` with the tools of the project; the day proves them by the exported functions.
-  outils: [6, 24],
+  outils: [6, 22], // grillhouse-4nr.12: driven by the command, the client of the workflow.
   // grillhouse-8o9: the integration of a generated file a project declares, on a real repository.
   'integrer.engendres': [5, 25],
   // grillhouse-qmk: a real envelope with a fake sccache, and the cause replayed with the real one.

@@ -22,7 +22,7 @@ import {
   declarerLesLangages,
   sansClaude,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { RACINE } from './cadre.js';
+import { DE_BD_INIT, RACINE } from './cadre.js';
 
 // grillhouse-3uv.71: the nominal configuration. The frame's plugins are listed once, in
 // `enabledPlugins` (and `extraKnownMarketplaces`) of the project's `.claude/settings.json`. One
@@ -130,12 +130,16 @@ function installer(p: string, etat: EtatClaude = { noms: NOMS }) {
   return { ...r, sortie: `${r.stdout}\n${r.stderr}`, claude };
 }
 
-// The tools the preparation calls, stood in: Beads, CodeGraph, npm. None installs anything.
+// The tools the preparation calls, stood in: Beads (its `bd init` writes the key of bd 1.2.2),
+// CodeGraph, npm. None installs anything.
 function outilsDeLaPreparation() {
   const bin = dossier('outils');
   const outil = (nom: string, corps: string) =>
     writeFileSync(path.join(bin, nom), `#!/bin/sh\n${corps}\n`, { mode: 0o755 });
-  outil('bd', 'case "$1" in\n  config) echo demo;;\n  init) mkdir -p .beads;;\nesac\nexit 0');
+  outil(
+    'bd',
+    `case "$1" in\n  config) echo demo;;\n  init) mkdir -p .beads; [ -f .beads/config.yaml ] || printf '%s' '${DE_BD_INIT}' > .beads/config.yaml;;\nesac\nexit 0`
+  );
   outil('codegraph', '[ "$1" = init ] && mkdir -p "$2/.codegraph"\nexit 0');
   outil('npm', 'exit 0');
   return bin;

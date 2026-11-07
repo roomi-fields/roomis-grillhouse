@@ -122,6 +122,11 @@ describe.runIf(canWrap)(
           /^Circuit · arret : le superviseur arrête le circuit : Le ticket change de plan\.$/
         )
       );
+      // Alone, the ticket of a circuit stopped on the supervisor's word is refused: an answer
+      // reopens it.
+      const r3 = circuit([id]);
+      expect(r3.status, sortie(r3)).toBe(2);
+      expect(r3.stderr).toContain(`le circuit de ${id} est arrêté sur le mot du superviseur`);
     });
 
     it('--etendre and --arreter go alone, and --etendre names a package of the repository', () => {

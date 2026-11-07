@@ -1,17 +1,9 @@
-#!/usr/bin/env node
-// The queue: brings the branches `agent/<ticket>` the integration committed onto main, one at a time,
-// in their order of arrival (scripts/integration/file-attente.mjs). Run from the main tree by the
-// circuit of a ticket (scripts/circuit.mjs), once it has put the ticket's branch in the queue, and
-// by the supervisor by hand.
+// The gestures of the queue, which brings the branches `agent/<ticket>` the integration committed
+// onto main, one at a time: the workflow of the queue of a project (`file:<racine>`,
+// src/temporal/file/deroule.ts) plays them, each in an act of its own (scripts/faits-du-circuit.mjs),
+// for the entries the circuits of the tickets send it at their step 5.2, in their order of arrival.
 //
-//   npx grillhouse file [--ci <ticket>]
-//
-// No argument, or `--ci <ticket>` (below; exit 2 and the usage otherwise). It takes the branches waiting one by one until none is
-// left, then exits 0, whatever became of each branch. A queue launched while another runs exits 0 at
-// once, refusing nothing: the running queue takes the branch that arrived (it reads the entries
-// again before it lets go of its lock, `.git/file-integration.lock`).
-//
-// For each branch, against the main of the moment:
+// For each branch, against the main of the moment (`avancerMain`):
 //  - main is an ancestor of the branch (main has not moved since its base): main moves forward onto
 //    the branch (`merge --ff-only`), nothing replayed;
 //  - main has moved: the branch is replaced on main in the queue's own copy
@@ -36,17 +28,20 @@
 //  - a branch that does not replace (the files in conflict) or whose `npm run verifier` is red once
 //    replaced leaves the queue: its ticket loses `en-file`, reopens with a comment that
 //    names the files or ends with the output of the tests, and the branch stays where it is, for
-//    the relaunch of its ticket (scripts/enveloppe/lancer.sh);
+//    the resumption of its circuit;
 //  - a branch whose replay cannot be done (the copy does not get ready, main does not take the
 //    branch, the main tree holds a file of the lot), or whose `npm run verifier` is « à repasser »
 //    once replaced (75: the wait for the lock of the machine reached its bound,
 //    scripts/verrou-de-machine.mjs; neither green nor red), stays in the queue, the reason written to its
-//    ticket, which is neither reopened nor closed, and the queue goes on; the next queue takes it
-//    again. Any other code than 0 and 75 is red.
-// At its entry on main, the branch's ticket closes « intégré : <commit> », loses `en-file`, the
-// working directory of its circuit (`.claude/worktrees/<ticket>.travail`, scripts/circuit.mjs),
-// which lives as long as the ticket, is removed, and the branch is deleted; a branch git does not delete (its copy still in place) is written to the
-// ticket, which closes all the same. Then main is pushed to origin, on the branch
+//    ticket, which is neither reopened nor closed, and the queue goes on; the circuit of the ticket
+//    stops at « a-repasser », and its resumption sends the branch again. Any other code than 0 and
+//    75 is red.
+// At its entry on main, the branch's ticket closes « intégré : <commit> », loses `en-file`, and the
+// branch is deleted; a branch git does not delete (its copy still in place) is written to the
+// ticket, which closes all the same. The working directory of its circuit
+// (`.claude/worktrees/<ticket>.travail`, scripts/circuit.mjs), which lives as long as the ticket
+// and holds the progress the board reads, the CI's included, is removed when the queue is done
+// with the ticket closed: its CI concluded, or its push not made (`retirerLeTravail`). Then main is pushed to origin, on the branch
 // `grillhouse.poussee.commit` of main's package.json (`main` without the key); a refused push is
 // written to the ticket and does not stop the queue.
 // Once pushed, the queue reads the CI of the commit pushed, as a merge queue waits for its checks.
@@ -55,57 +50,52 @@
 // branch it pushes to (`fluxDeLaBranche`, the files `.github/workflows/*.yml` and `*.yaml`, their
 // `on` and its filters as GitHub reads them); with none, the ticket is told in one line that
 // there is no CI for that branch, and nothing is waited for. A workflow the queue cannot judge (a
-// file it cannot read, a filter on the paths) counts as one that runs. With one, it looks for its
-// run (`gh run list --commit <sha> --json databaseId,status,conclusion`) for 2 min at most
-// (GRILLHOUSE_CI_RECHERCHE_MS replaces it, in milliseconds), the time the CI takes to create it,
-// then reads it (`gh run view <id> --json status,conclusion,jobs`) every 10 s
-// (GRILLHOUSE_CI_PAS_MS), as `gh run watch` does, until it completes, for 30 min at most
-// (GRILLHOUSE_CI_ATTENTE_MS): green on the conclusion `success`, red on any other. Under the
-// circuit's progress directory (GRILLHOUSE_AVANCEMENT, scripts/avancement.mjs), each reading writes
-// there the steps of the run done over planned, which the board shows; the queue's own runs of
-// `npm run verifier` play out of it. A red CI reopens the ticket (`bd reopen`), its comment giving the
-// address of the run (`gh run view <id> --json url`) and the end of `gh run view <id>
-// --log-failed`. Without `gh`, without a run found, with `gh` refusing or past the 30 min, the
-// ticket is told that the CI was not read, and why, and stays closed. The run is read at its current
-// attempt (`gh run view <id>` without `--attempt`), as a merge queue judges the last attempt of a
-// commit's checks.
-// `--ci <ticket>` reads again the CI of a ticket a red CI reopened, which the circuit runs at 5.2
-// on `--reprendre` (scripts/circuit.mjs, `argumentsDeLaFile`), once the supervisor had the failed
-// jobs run again (`gh run rerun <id> --failed`): the commit of main that delivers the ticket, its
-// CI read as above (`relireCI`); green, the ticket closes « intégré : <commit> », the run named at
-// it; red or not read, it stays open, the reading at the ticket. A flaky test has no path of its
-// own: the red comment gives the charter's rule, a test known red goes into quarantine in the test
-// itself, with the ticket that fixes it. It takes no lock: it does not move main.
+// file it cannot read, a filter on the paths) counts as one that runs. With one, each reading
+// (`lireUneFoisLaCI`) looks for its run (`gh run list --commit <sha> --json
+// databaseId,status,conclusion`), then reads it (`gh run view <id> --json status,conclusion,jobs`),
+// as `gh run watch` does; the workflow of the CI of the commit spaces the readings and bounds the
+// search and the wait (`ciDuCommit`). Green on the conclusion `success`, red on any other. Under
+// the circuit's progress directory (scripts/avancement.mjs), each reading writes there the steps
+// of the run done over planned, which the board shows. A red CI reopens the ticket (`bd reopen`),
+// its comment giving the address of the run (`gh run view <id> --json url`) and the end of `gh run
+// view <id> --log-failed` (`conclureLaCI`). Without `gh`, without a run found, with `gh` refusing
+// or past the wait, the ticket is told that the CI was not read, and why, and stays closed. The
+// run is read at its current attempt (`gh run view <id>` without `--attempt`), as a merge queue
+// judges the last attempt of a commit's checks: after a red CI, `--reprendre` reads again the CI
+// of the ticket's commit on main (`situerLeLot`), once the supervisor had the failed jobs run
+// again (`gh run rerun <id> --failed`); green, the ticket closes « intégré : <commit> », the run
+// named at it; red or not read, it stays open, the reading at the ticket. A flaky test has no path
+// of its own: the red comment gives the charter's rule, a test known red goes into quarantine in
+// the test itself, with the ticket that fixes it.
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
-import { attendreUnPeu, lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
-import { dossierCommun, lireEntrees, retirerEntree } from './file-attente.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
-import { A_REPASSER } from '../mesure/pression.mjs';
-import { AVANCEMENT, ecrireTache } from '../mesure/avancement.mjs';
+import { A_REPASSER } from '../codes-de-sortie.mjs';
+import { ecrireTache } from '../mesure/avancement.mjs';
+import { ACTEUR, emettre } from '../effets.mjs';
+import { enUneLigne } from '../ticket-du-circuit.mjs';
 
 const ESSAIS_PAR_BRANCHE = 5;
-// The variable in which bd reads the author of a comment, and the queue's author.
-const ACTEUR = 'BEADS_ACTOR';
+// The queue's author.
 export const AUTEUR_DE_LA_FILE = 'file';
+
+// The comment <texte> at <ticket> with the tools <o>, by the queue: the effect `commentaire`
+// (../effets.mjs), written at once by the queue on its file, gathered by an act of the queue under
+// Temporal, which the workflow writes in an activity of its own, under its key.
+const commenterAu = (o, ticket, texte) =>
+  emettre(o, { genre: 'commentaire', ticket, texte, auteur: AUTEUR_DE_LA_FILE });
 // The reason of the closure of a ticket the queue brought onto main, before its commit, which the
 // circuit reads to name that commit (scripts/circuit.mjs, the tri of the discoveries).
 export const INTEGRE = 'intégré : ';
-// How long the queue looks for the run of the CI, then waits for it.
-const RECHERCHE_CI_MS = 2 * 60 * 1000;
-const ATTENTE_CI_MS = 30 * 60 * 1000;
-// The gap between two readings of the run, as `gh run watch` reads it again.
-const PAS_CI_MS = 10 * 1000;
 // The steps done over planned of the view <vue> of a run (`gh run view --json jobs`), written to
 // the progress directory <avancement> as the record `etapes-de-la-ci`; nothing without one.
 function ecrireLesEtapes(avancement, vue) {
@@ -122,11 +112,6 @@ function ecrireLesEtapes(avancement, vue) {
     // A directory that does not write leaves the queue going, without its progress.
   }
 }
-
-const delai = (variable, defaut) => {
-  const v = Number(process.env[variable]);
-  return Number.isFinite(v) && process.env[variable] !== '' && v >= 0 ? v : defaut;
-};
 
 // The directory of the workflows GitHub reads, and the extensions it reads in it.
 const DOSSIER_DES_FLUX = '.github/workflows';
@@ -214,9 +199,8 @@ export function fluxDeLaBranche(fichiers, branche) {
     .map(({ chemin }) => chemin);
 }
 
-// The verdicts of a reading of the CI (`lireCI`).
+// The verdicts of a reading of the CI (`lireUneFoisLaCI`, then the workflow `ciDuCommit`).
 const VERTE = 'verte';
-const ROUGE = 'rouge';
 const SANS_CI = 'sans-ci';
 const NON_LUE = 'non-lue';
 
@@ -245,169 +229,12 @@ const ghDans =
       ...options,
     });
 
-// The CI of the commit <sha> pushed to <branche>, for the ticket <ticket>, read with the tools <o>
-// (`{ racine, principale, bd, gh, dire, avancement }`: the main tree, its branch, bd, the GitHub
-// CLI, a line of the output, the progress directory or null): `{ verdict, passage }`, the verdict
-// VERTE, ROUGE, SANS_CI or NON_LUE, and the id of the run read. The run is read by `gh run view
-// <id>`, which gives its current attempt: a run whose failed jobs were run again
-// (`gh run rerun <id> --failed`) is judged on that attempt, as a merge queue judges the last
-// attempt of a commit's checks. No CI, red or not read, the ticket is told so; green, nothing is
-// written to it.
-function lireCI(o, ticket, sha, branche) {
-  const court = sha.slice(0, 7);
-  const commenter = texte => o.bd('comments', 'add', ticket, texte);
-  if (fluxDuCommit(o.racine, sha, branche).length === 0) {
-    const texte = `Aucune CI pour origin/${branche} : aucun flux de ${DOSSIER_DES_FLUX} de ${court} ne se lance sur la branche ${branche}, la file n'en attend pas.`;
-    commenter(texte);
-    o.dire(`✓ ${texte}`);
-    return { verdict: SANS_CI, passage: null };
-  }
-  const { gh } = o;
-  const nonLue = raison => {
-    commenter(`## CI non lue\n\nLa CI de ${court} n'a pas été lue : ${raison}`);
-    o.dire(`⚠ CI de ${court} non lue : ${raison}`);
-    return { verdict: NON_LUE, passage: null };
-  };
-  const recherche = delai('GRILLHOUSE_CI_RECHERCHE_MS', RECHERCHE_CI_MS);
-  const debut = Date.now();
-  let passage = null;
-  for (;;) {
-    const r = gh(['run', 'list', '--commit', sha, '--json', 'databaseId,status,conclusion']);
-    if (r.error) return nonLue(`gh ne se lance pas (${r.error.code ?? r.error.message}).`);
-    if (r.status !== 0) return nonLue(`gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}`);
-    let passages = [];
-    try {
-      passages = JSON.parse(r.stdout || '[]');
-    } catch {
-      return nonLue(`gh run list rend une sortie illisible :\n${r.stdout.trim()}`);
-    }
-    passage = passages.find(x => x?.databaseId);
-    const reste = recherche - (Date.now() - debut);
-    if (passage || reste <= 0) break;
-    attendreUnPeu(Math.min(10_000, reste));
-  }
-  if (!passage) {
-    return nonLue(`aucun passage de la CI pour ce commit en ${Math.round(recherche / 1000)} s.`);
-  }
-  const id = String(passage.databaseId);
-  const attente = delai('GRILLHOUSE_CI_ATTENTE_MS', ATTENTE_CI_MS);
-  const pas = delai('GRILLHOUSE_CI_PAS_MS', PAS_CI_MS);
-  const limite = Date.now() + attente;
-  let vue = null;
-  for (;;) {
-    const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
-      timeout: 60_000,
-      killSignal: 'SIGKILL',
-    });
-    if (v.error) return nonLue(`gh ne se lance pas (${v.error.code ?? v.error.message}).`);
-    if (v.status !== 0) return nonLue(`gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}`);
-    try {
-      vue = JSON.parse(v.stdout || '{}');
-    } catch {
-      return nonLue(`gh run view rend une sortie illisible :\n${v.stdout.trim()}`);
-    }
-    ecrireLesEtapes(o.avancement, vue);
-    if (vue?.status === 'completed') break;
-    const reste = limite - Date.now();
-    if (reste <= 0) {
-      return nonLue(`le passage ${id} n'a pas fini en ${Math.round(attente / 60_000)} min.`);
-    }
-    attendreUnPeu(Math.min(pas, reste));
-  }
-  if (vue.conclusion === 'success') {
-    o.dire(`✓ CI de ${court} verte (passage ${id})`);
-    return { verdict: VERTE, passage: id };
-  }
-  const url = gh(['run', 'view', id, '--json', 'url', '--jq', '.url']).stdout?.trim() || id;
-  const journal = `${gh(['run', 'view', id, '--log-failed']).stdout ?? ''}`
-    .trim()
-    .split('\n')
-    .slice(-60)
-    .join('\n');
-  commenter(
-    `## CI rouge\n\nLa CI de ${court} sur ${o.principale} est rouge : ${url}\n\nLa fin de gh run view ${id} --log-failed :\n\n${journal}\n\nLe ticket est rouvert : sa correction entre sous son numéro. Un rejeu vert de la même CI (\`gh run rerun ${id} --failed\`), puis \`--reprendre\` du circuit, le ferme ; un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`
-  );
-  o.dire(`✗ CI de ${court} rouge (passage ${id}) : ${ticket} rouvert`);
-  return { verdict: ROUGE, passage: id };
-}
-
 /**
- * The CI of the ticket's commit on main read again, with the tools <o> (`{ racine, principale,
- * ticket, bd, gh, dire, avancement }`, as `lireCI`), for a ticket a red CI reopened: as a merge
- * queue judges the last attempt of a commit's checks, a run whose failed jobs were run again green
- * is green. The commit is the last of main that delivers the ticket (its title line names it,
- * `commitsDelivering` of ../un-commit-par-ticket.mjs, the prefix read from bd); green, or no CI
- * for the branch pushed to, the ticket closes as an entry closes it (« intégré : <commit> »), its
- * run named at the ticket; red or not read, it stays open, the reading at the ticket. No commit of
- * main delivering it, or its branch `agent/<ticket>` still ahead of main (a lot not yet on main),
- * the ticket is told that the CI is not read again. Exit 0.
+ * The tools of the queue on the main tree <racine>, its lines said by <dire>: `{ racine,
+ * principale, bd, gh, dire, avancement }`, bd run under the queue's author (BEADS_ACTOR), the
+ * branch of the main tree (null when it is on none).
  */
-export function relireCI(o) {
-  const { racine, principale, ticket } = o;
-  const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
-  const nonRelue = raison => {
-    o.bd('comments', 'add', ticket, `## CI non relue\n\n${raison}`);
-    o.dire(`⚠ CI non relue : ${raison}`);
-    return 0;
-  };
-  const refPrincipale = `refs/heads/${principale}`;
-  const branche = `agent/${ticket}`;
-  const enAvance = git('rev-list', '--count', `${refPrincipale}..refs/heads/${branche}`);
-  if (enAvance.status === 0 && Number(enAvance.stdout.trim()) > 0) {
-    return nonRelue(
-      `La branche ${branche} a des commits hors de ${principale} : son lot n'est pas sur ${principale}, la file n'en relit pas la CI.`
-    );
-  }
-  const prefixe = o.bd('config', 'get', 'issue_prefix').stdout?.trim() ?? '';
-  const sha = commitsDelivering(ticket, prefixe, gitLog(racine))
-    .map(c => git('rev-parse', '--verify', '-q', `${c}^{commit}`).stdout.trim())
-    .find(c => c && git('merge-base', '--is-ancestor', c, refPrincipale).status === 0);
-  if (!sha) {
-    return nonRelue(
-      `Aucun commit de ${principale} ne livre ${ticket} : la file n'a pas de CI à relire.`
-    );
-  }
-  const court = sha.slice(0, 7);
-  const paquet = git('show', `${refPrincipale}:package.json`);
-  const { commit, faute } = lireCommit(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
-  if (faute) {
-    return nonRelue(`grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`);
-  }
-  const ci = lireCI(o, ticket, sha, commit);
-  if (ci.verdict === VERTE || ci.verdict === SANS_CI) {
-    o.bd('close', ticket, '--reason', `${INTEGRE}${court}`);
-    if (ci.passage) {
-      o.bd(
-        'comments',
-        'add',
-        ticket,
-        `## CI relue\n\nLa CI de ${court} sur ${principale} est verte au dernier essai du passage ${ci.passage} : le ticket se ferme.`
-      );
-    }
-    o.dire(`✓ ${ticket} fermé : ${court} est sur ${principale}`);
-  }
-  return 0;
-}
-
-function main(argv) {
-  const relecture = argv.length === 2 && argv[0] === '--ci' && argv[1] ? argv[1] : null;
-  if (argv.length && !relecture) {
-    process.stderr.write('usage: file.mjs [--ci <ticket>]\n');
-    return 2;
-  }
-  // The progress directory of the circuit's step (scripts/avancement.mjs), where the queue writes
-  // the steps of the CI; its own runs of `npm run verifier` play out of it, as measures of their
-  // own.
-  const avancement = process.env[AVANCEMENT] || null;
-  delete process.env[AVANCEMENT];
-  // The main tree, from git's common directory: launched from a copy, the queue still works on it.
-  const racine = path.dirname(
-    spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
-      encoding: 'utf8',
-    }).stdout.trim()
-  );
-  const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
-  // bd runs under the queue's author (BEADS_ACTOR), apart from the supervisor's and the owner's.
+export function outilsDeLaFile(racine, dire, avancement = null) {
   const bd = (...a) => {
     const r = spawnSync('bd', a, {
       cwd: racine,
@@ -418,234 +245,461 @@ function main(argv) {
     if (r.status !== 0) process.stderr.write(`bd ${a[0]} ${a[1] ?? ''} : ${r.stderr}`);
     return r;
   };
-  const dire = s => process.stdout.write(`${s}\n`);
-  const principale = git('symbolic-ref', '--short', '-q', 'HEAD').stdout.trim();
-  if (!principale) {
-    process.stderr.write("⛔ L'arbre principal n'est pas sur une branche.\n");
-    return 1;
-  }
-  // The tools of the reading of the CI, the queue's and its reading again.
-  const lecture = { racine, principale, bd, gh: ghDans(racine), dire, avancement };
-  if (relecture) return relireCI({ ...lecture, ticket: relecture });
-  const refPrincipale = `refs/heads/${principale}`;
-  const copie = path.join(racine, '.claude', 'worktrees', 'file');
-  const verrou = path.join(dossierCommun(racine), 'file-integration.lock');
+  const principale =
+    spawnSync('git', ['-C', racine, 'symbolic-ref', '--short', '-q', 'HEAD'], {
+      encoding: 'utf8',
+    }).stdout.trim() || null;
+  return { racine, principale, bd, gh: ghDans(racine), dire, avancement };
+}
 
-  const commenter = (ticket, texte) => bd('comments', 'add', ticket, texte);
-  // The branch leaves the queue and stays in place; its ticket reopens.
-  const sortir = (entree, titre, detail) => {
-    const texte = `## Sortie de la file\n\nLa branche ${entree.branche} ne peut pas entrer sur ${principale} : ${titre}\n${detail}\n\nLa branche reste en place ; la relance du ticket remet son lot en travail local sur ${principale}.`;
-    bd('update', entree.ticket, '--status', 'open', '--remove-label', 'en-file');
-    bd('comments', 'add', entree.ticket, texte);
-    retirerEntree(entree);
-    dire(`✗ ${entree.branche} sort de la file : ${titre}`);
-  };
-  // The branch has nothing ahead of main: it leaves the queue, its ticket stays as it is and loses
-  // `en-file`.
-  const ecarter = entree => {
-    const texte = `## Sortie de la file\n\nLa branche ${entree.branche} n'a rien en avance sur ${principale} : elle n'entre pas, et le ticket reste ouvert.`;
-    bd('update', entree.ticket, '--remove-label', 'en-file');
-    bd('comments', 'add', entree.ticket, texte);
-    retirerEntree(entree);
-    dire(`⚠ ${entree.branche} n'a rien en avance sur ${principale} : elle sort de la file`);
-  };
-  // The branch stays in the queue, the reason written to its ticket.
-  const garder = (entree, raison) => {
-    commenter(
-      entree.ticket,
-      `## La file garde la branche\n\nLa branche ${entree.branche} reste en file : ${raison}`
-    );
-    dire(`⚠ ${entree.branche} reste en file : ${raison}`);
-  };
-
-  // The branch replaced on main, replayed: { nouveau } (the commit to move main onto), or
-  // { sortie: [titre, détail] } (it leaves the queue), or { garde } (it stays, the reason).
-  const rejouer = (tip, tete, ticketRejoue = null) => {
-    if (existsSync(copie))
-      spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
-    // The keys of the project, before any work: its generated files and its tools.
-    let engendres;
-    let env;
+/**
+ * One reading of the CI of the commit <sha> pushed to <branche>, with the tools <o> (`outilsDeLaFile`),
+ * the run <passage> found by a reading before (null while it is looked for): `{ etat: 'sans-ci' }`
+ * (no workflow runs on a push to the branch), `{ etat: 'cherche' }` (no run yet), `{ etat:
+ * 'en-cours', passage }`, `{ etat: 'finie', passage, conclusion }`, or `{ etat: 'non-lue', raison
+ * }` (gh absent, refusing, or its output unreadable). The run is read at its current attempt
+ * (`gh run view <id>` without `--attempt`). A run found is read at once. It writes nothing to the
+ * ticket: `conclureLaCI` does.
+ */
+export function lireUneFoisLaCI(o, { sha, branche, passage = null }) {
+  const { gh } = o;
+  let id = passage;
+  if (id === null) {
+    if (fluxDuCommit(o.racine, sha, branche).length === 0) return { etat: SANS_CI };
+    const r = gh(['run', 'list', '--commit', sha, '--json', 'databaseId,status,conclusion']);
+    if (r.error) {
+      return { etat: NON_LUE, raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
+    }
+    if (r.status !== 0) {
+      return { etat: NON_LUE, raison: `gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}` };
+    }
+    let passages = [];
     try {
-      engendres = engendresDe(racine);
-      env = avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), process.env));
-    } catch (e) {
-      return { garde: `une clé grillhouse du package.json est refusée :\n${e.message}` };
-    }
-    const ouverte = ouvrirCopie({ racine, copie, ref: tete, dire });
-    if (ouverte.refus) return { garde: ouverte.refus };
-    const { dansCopie, monter, installer, tester } = ouverte;
-    if (dansCopie('checkout', '-q', '--detach', tip).status !== 0)
-      return { garde: `la copie ne prend pas ${tip.slice(0, 7)}` };
-    // A conflict on generated files the project declares only is no conflict: main's version is
-    // taken, and their command writes them again once the branch is replaced (below).
-    let rebase = dansCopie('rebase', tete);
-    let tours = Number(dansCopie('rev-list', '--count', `${tete}..${tip}`).stdout.trim()) || 1;
-    while (rebase.status !== 0) {
-      const conflits = dansCopie('diff', '--name-only', '--diff-filter=U')
-        .stdout.split('\n')
-        .filter(Boolean);
-      const engendresSeuls =
-        tours-- > 0 &&
-        conflits.length > 0 &&
-        conflits.every(f => engendres.some(e => couvertPar(e.entiers, f))) &&
-        dansCopie('checkout', '--ours', '--', ...conflits).status === 0 &&
-        dansCopie('add', '--', ...conflits).status === 0;
-      if (!engendresSeuls) {
-        dansCopie('rebase', '--abort');
-        return {
-          sortie: [
-            'elle ne se replace pas sur main.',
-            conflits.length
-              ? `Fichiers en conflit :\n${conflits.map(f => `  ${f}`).join('\n')}`
-              : `Sortie de git :\n${rebase.stdout}${rebase.stderr}`,
-          ],
-        };
-      }
-      rebase = dansCopie('-c', 'core.editor=true', 'rebase', '--continue');
-    }
-    const installation = installer();
-    if (installation) {
-      return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
-    }
-    const touches = touchesPar(
-      engendres,
-      dansCopie('diff', '--name-only', '--no-renames', '-z', tete, 'HEAD')
-        .stdout.split('\0')
-        .filter(Boolean)
-    );
-    if (touches.length) {
-      const refus = regenerer({
-        refs: touches.map(e => ({ ...e, cadre: false })),
-        dansCopie,
-        lancer: commande =>
-          spawnSync('bash', monter('sh', '-c', commande), {
-            cwd: copie,
-            encoding: 'utf8',
-            maxBuffer: 256 * 1024 * 1024,
-            env,
-          }),
-      });
-      if (refus)
-        return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
-      if (dansCopie('diff', '--cached', '--quiet').status !== 0) {
-        const corrige = dansCopie('commit', '-q', '--amend', '--no-edit', '--no-verify');
-        if (corrige.status !== 0) {
-          return {
-            garde: `ses fichiers régénérés n'entrent pas dans son commit :\n${corrige.stderr}`,
-          };
-        }
-      }
-      dire(`✓ fichiers engendrés régénérés sur main : ${touches.map(e => e.nom).join(', ')}`);
-    }
-    dire('— npm run verifier (construction, gardes, tests)');
-    const t = tester({ sorte: 'File', ticket: ticketRejoue });
-    if (t.status === A_REPASSER) {
+      passages = JSON.parse(r.stdout || '[]');
+    } catch {
       return {
-        garde: `son \`npm run verifier\` est à repasser (code ${A_REPASSER}) une fois replacée : l'attente de la machine a atteint sa borne. Ni vert ni rouge ; la prochaine file la rejoue.`,
+        etat: NON_LUE,
+        raison: `gh run list rend une sortie illisible :\n${r.stdout.trim()}`,
       };
     }
-    if (t.status !== 0) {
-      const fin = `${t.stdout}${t.stderr}`.trim().split('\n').slice(-40).join('\n');
-      return { sortie: ['ses tests sont rouges une fois la branche replacée.', fin] };
-    }
-    return { nouveau: dansCopie('rev-parse', 'HEAD').stdout.trim() };
-  };
+    const trouve = passages.find(x => x?.databaseId);
+    if (!trouve) return { etat: 'cherche' };
+    id = String(trouve.databaseId);
+  }
+  const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
+    timeout: 60_000,
+    killSignal: 'SIGKILL',
+  });
+  if (v.error) {
+    return { etat: NON_LUE, raison: `gh ne se lance pas (${v.error.code ?? v.error.message}).` };
+  }
+  if (v.status !== 0) {
+    return { etat: NON_LUE, raison: `gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}` };
+  }
+  let vue;
+  try {
+    vue = JSON.parse(v.stdout || '{}');
+  } catch {
+    return { etat: NON_LUE, raison: `gh run view rend une sortie illisible :\n${v.stdout.trim()}` };
+  }
+  ecrireLesEtapes(o.avancement, vue);
+  if (vue?.status === 'completed') {
+    return { etat: 'finie', passage: id, conclusion: vue.conclusion ?? null };
+  }
+  return { etat: 'en-cours', passage: id };
+}
 
-  // Main is at <nouveau>: the ticket closes, the branch is deleted, main is pushed.
-  const entrer = (entree, nouveau) => {
-    const court = nouveau.slice(0, 7);
-    bd('update', entree.ticket, '--remove-label', 'en-file');
-    bd('close', entree.ticket, '--reason', `${INTEGRE}${court}`);
-    rmSync(path.join(racine, '.claude', 'worktrees', `${entree.ticket}.travail`), {
-      recursive: true,
-      force: true,
+/**
+ * The working directory of the circuit of <ticket> in the main tree of <o> removed, once the queue
+ * is done with the ticket closed: as the workspace of a pipeline, it lives as long as the ticket.
+ */
+export function retirerLeTravail(o, ticket) {
+  rmSync(path.join(o.racine, '.claude', 'worktrees', `${ticket}.travail`), {
+    recursive: true,
+    force: true,
+  });
+}
+
+/**
+ * The CI of the commit <sha> of the ticket <ticket> concluded with the tools <o>, its verdict
+ * <verdict> (VERTE, `rouge`, SANS_CI or NON_LUE), its run <passage> and the reason <raison> of a CI
+ * not read, after the queue's entry, or read again (<relue>, on `--reprendre`): what is said to the
+ * ticket and what becomes of it. No CI, the ticket is told so in one line; not read, it is told
+ * why; red, its comment gives the address of the run and the end of its failed log, and the
+ * queue's entry reopens it (read again, it stays open). Green or no CI read again, the ticket
+ * closes « intégré : <commit> », its run named. `{ etat, raison }`: `ferme` or `rouvert`, as the
+ * circuit reads the issue of the queue (src/temporal/file/deroule.ts); `ferme`, the working
+ * directory of its circuit is removed (`retirerLeTravail`).
+ */
+export function conclureLaCI(
+  o,
+  { ticket, sha, branche, verdict, passage = null, raison = null, relue = false }
+) {
+  const court = sha.slice(0, 7);
+  const commenter = texte => commenterAu(o, ticket, texte);
+  if (verdict === SANS_CI) {
+    const texte = `Aucune CI pour origin/${branche} : aucun flux de ${DOSSIER_DES_FLUX} de ${court} ne se lance sur la branche ${branche}, la file n'en attend pas.`;
+    commenter(texte);
+    o.dire(`✓ ${texte}`);
+  } else if (verdict === NON_LUE) {
+    commenter(`## CI non lue\n\nLa CI de ${court} n'a pas été lue : ${raison}`);
+    o.dire(`⚠ CI de ${court} non lue : ${raison}`);
+  } else if (verdict === VERTE) {
+    o.dire(`✓ CI de ${court} verte (passage ${passage})`);
+  } else {
+    const { gh } = o;
+    const url =
+      gh(['run', 'view', passage, '--json', 'url', '--jq', '.url']).stdout?.trim() || passage;
+    const journal = `${gh(['run', 'view', passage, '--log-failed']).stdout ?? ''}`
+      .trim()
+      .split('\n')
+      .slice(-60)
+      .join('\n');
+    commenter(
+      `## CI rouge\n\nLa CI de ${court} sur ${o.principale} est rouge : ${url}\n\nLa fin de gh run view ${passage} --log-failed :\n\n${journal}\n\nLe ticket est rouvert : sa correction entre sous son numéro. Un rejeu vert de la même CI (\`gh run rerun ${passage} --failed\`), puis \`--reprendre\` du circuit, le ferme ; un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`
+    );
+    o.dire(`✗ CI de ${court} rouge (passage ${passage}) : ${ticket} rouvert`);
+    if (!relue) o.bd('reopen', ticket);
+    return { etat: 'rouvert', raison: `La CI de ${court} est rouge : ${url}` };
+  }
+  if (!relue) {
+    retirerLeTravail(o, ticket);
+    return {
+      etat: 'ferme',
+      raison:
+        verdict === NON_LUE ? `${INTEGRE}${court} ; CI non lue : ${raison}` : `${INTEGRE}${court}`,
+    };
+  }
+  if (verdict === NON_LUE) return { etat: 'rouvert', raison: `CI non relue : ${raison}` };
+  o.bd('close', ticket, '--reason', `${INTEGRE}${court}`);
+  if (passage) {
+    commenter(
+      `## CI relue\n\nLa CI de ${court} sur ${o.principale} est verte au dernier essai du passage ${passage} : le ticket se ferme.`
+    );
+  }
+  o.dire(`✓ ${ticket} fermé : ${court} est sur ${o.principale}`);
+  retirerLeTravail(o, ticket);
+  return { etat: 'ferme', raison: `${INTEGRE}${court}` };
+}
+
+/**
+ * Where the lot of the ticket <ticket> stands, with the tools <o>: `{ statut, raison, aEntrer,
+ * commit, branche, surOrigin, raisonOrigin, faute }`, its status in Beads and its reason of
+ * closure, whether its branch `agent/<ticket>` holds a lot ahead of main (which enters by the
+ * queue), the commit of main that delivers it (`lotSurMain`, null without one), the branch it was
+ * pushed to (`grillhouse.poussee.commit`), whether that commit is on that branch of origin
+ * (`surOrigin`: « oui », « non » for a closure that failed before its push, or « inconnu » when
+ * origin does not answer, `raisonOrigin` its reason), and the fault of that key (null when it
+ * reads).
+ */
+export function situerLeLot(o, ticket) {
+  const show = o.bd('show', ticket, '--json');
+  const t = show.status === 0 ? (JSON.parse(show.stdout)[0] ?? {}) : {};
+  const git = (...a) => spawnSync('git', ['-C', o.racine, ...a], { encoding: 'utf8' });
+  const paquet = git('show', `refs/heads/${o.principale}:package.json`);
+  const { commit: branche, faute } = lireCommit(
+    paquet.status === 0 ? JSON.parse(paquet.stdout) : null
+  );
+  const enAvance = git(
+    'rev-list',
+    '--count',
+    `refs/heads/${o.principale}..refs/heads/agent/${ticket}`
+  );
+  const commit = lotSurMain(o, ticket);
+  const origine =
+    commit && !faute ? surOrigin(o, commit, branche) : { surOrigin: 'non', raison: null };
+  return {
+    statut: t.status ?? null,
+    raison: t.close_reason ?? null,
+    aEntrer: enAvance.status === 0 && Number(enAvance.stdout.trim()) > 0,
+    commit,
+    branche: faute ? null : branche,
+    surOrigin: origine.surOrigin,
+    raisonOrigin: origine.raison,
+    faute: faute ?? null,
+  };
+}
+
+// Whether the commit <commit> is on the branch <branche> of origin, with the tools <o>: « oui »,
+// « non », or « inconnu » when origin does not answer (`git ls-remote`, without a prompt, as the
+// push) or its tip is not known here (`merge-base --is-ancestor` neither 0 nor 1), its reason
+// named: a place that does not read is never « not pushed ».
+function surOrigin(o, commit, branche) {
+  const ls = spawnSync(
+    'git',
+    ['-C', o.racine, 'ls-remote', '--heads', 'origin', `refs/heads/${branche}`],
+    {
+      encoding: 'utf8',
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    }
+  );
+  if (ls.status !== 0) {
+    const raison =
+      `${ls.stderr ?? ''}`.trim().split('\n')[0] || ls.error?.message || `code ${ls.status}`;
+    return { surOrigin: 'inconnu', raison: `git ls-remote origin ${branche} : ${raison}` };
+  }
+  const pointe = ls.stdout.split(/\s/)[0] ?? '';
+  if (!pointe) return { surOrigin: 'non', raison: null };
+  // `--is-ancestor` answers 0 (an ancestor) or 1 (not one); any other code (the tip of origin
+  // unknown here, 128) does not say: « inconnu », its reason named.
+  const git = (...a) => spawnSync('git', ['-C', o.racine, ...a], { encoding: 'utf8' });
+  const ancetre = git('merge-base', '--is-ancestor', commit, pointe);
+  if (ancetre.status === 0) return { surOrigin: 'oui', raison: null };
+  if (ancetre.status === 1) return { surOrigin: 'non', raison: null };
+  const raison =
+    `${ancetre.stderr ?? ''}`.trim().split('\n')[0] ||
+    ancetre.error?.message ||
+    `code ${ancetre.status}`;
+  return {
+    surOrigin: 'inconnu',
+    raison: `git merge-base --is-ancestor ${commit.slice(0, 7)} origin/${branche} : ${raison}`,
+  };
+}
+
+// The commit of main that delivers the ticket <ticket> (its title line names it,
+// `commitsDelivering` of ../un-commit-par-ticket.mjs, the prefix read from bd), the last one, in
+// full; null without one.
+function lotSurMain(o, ticket) {
+  const git = (...a) => spawnSync('git', ['-C', o.racine, ...a], { encoding: 'utf8' });
+  const prefixe = o.bd('config', 'get', 'issue_prefix').stdout?.trim() ?? '';
+  return (
+    commitsDelivering(ticket, prefixe, gitLog(o.racine))
+      .map(c => git('rev-parse', '--verify', '-q', `${c}^{commit}`).stdout.trim())
+      .find(
+        c => c && git('merge-base', '--is-ancestor', c, `refs/heads/${o.principale}`).status === 0
+      ) ?? null
+  );
+}
+
+// The branch of <entree> replaced on the main <tete> in the queue's own copy, replayed, with the
+// tools <o>: { nouveau } (the commit to move main onto), or { sortie: [titre, détail] } (it leaves
+// the queue), or { garde } (it stays, the reason).
+function rejouer(o, tip, tete, ticketRejoue = null) {
+  const { racine, dire } = o;
+  const copie = path.join(racine, '.claude', 'worktrees', 'file');
+  if (existsSync(copie)) spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
+  // The keys of the project, before any work: its generated files and its tools.
+  let engendres;
+  let env;
+  try {
+    engendres = engendresDe(racine);
+    env = avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), process.env));
+  } catch (e) {
+    return { garde: `une clé grillhouse du package.json est refusée :\n${e.message}` };
+  }
+  const ouverte = ouvrirCopie({ racine, copie, ref: tete, dire });
+  if (ouverte.refus) return { garde: ouverte.refus };
+  const { dansCopie, monter, installer, tester } = ouverte;
+  if (dansCopie('checkout', '-q', '--detach', tip).status !== 0)
+    return { garde: `la copie ne prend pas ${tip.slice(0, 7)}` };
+  // A conflict on generated files the project declares only is no conflict: main's version is
+  // taken, and their command writes them again once the branch is replaced (below).
+  let rebase = dansCopie('rebase', tete);
+  let tours = Number(dansCopie('rev-list', '--count', `${tete}..${tip}`).stdout.trim()) || 1;
+  while (rebase.status !== 0) {
+    const conflits = dansCopie('diff', '--name-only', '--diff-filter=U')
+      .stdout.split('\n')
+      .filter(Boolean);
+    const engendresSeuls =
+      tours-- > 0 &&
+      conflits.length > 0 &&
+      conflits.every(f => engendres.some(e => couvertPar(e.entiers, f))) &&
+      dansCopie('checkout', '--ours', '--', ...conflits).status === 0 &&
+      dansCopie('add', '--', ...conflits).status === 0;
+    if (!engendresSeuls) {
+      dansCopie('rebase', '--abort');
+      return {
+        sortie: [
+          'elle ne se replace pas sur main.',
+          conflits.length
+            ? `Fichiers en conflit :\n${conflits.map(f => `  ${f}`).join('\n')}`
+            : `Sortie de git :\n${rebase.stdout}${rebase.stderr}`,
+        ],
+      };
+    }
+    rebase = dansCopie('-c', 'core.editor=true', 'rebase', '--continue');
+  }
+  const installation = installer();
+  if (installation) {
+    return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
+  }
+  const touches = touchesPar(
+    engendres,
+    dansCopie('diff', '--name-only', '--no-renames', '-z', tete, 'HEAD')
+      .stdout.split('\0')
+      .filter(Boolean)
+  );
+  if (touches.length) {
+    const refus = regenerer({
+      refs: touches.map(e => ({ ...e, cadre: false })),
+      dansCopie,
+      lancer: commande =>
+        spawnSync('bash', monter('sh', '-c', commande), {
+          cwd: copie,
+          encoding: 'utf8',
+          maxBuffer: 256 * 1024 * 1024,
+          env,
+        }),
     });
-    retirerEntree(entree);
-    dire(`✓ ${entree.branche} entre sur ${principale} : ${court}`);
+    if (refus) return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
+    if (dansCopie('diff', '--cached', '--quiet').status !== 0) {
+      const corrige = dansCopie('commit', '-q', '--amend', '--no-edit', '--no-verify');
+      if (corrige.status !== 0) {
+        return {
+          garde: `ses fichiers régénérés n'entrent pas dans son commit :\n${corrige.stderr}`,
+        };
+      }
+    }
+    dire(`✓ fichiers engendrés régénérés sur main : ${touches.map(e => e.nom).join(', ')}`);
+  }
+  dire('— npm run verifier (construction, gardes, tests)');
+  const t = tester({ sorte: 'File', ticket: ticketRejoue });
+  if (t.status === A_REPASSER) {
+    return {
+      garde: `son \`npm run verifier\` est à repasser (code ${A_REPASSER}) une fois replacée : l'attente de la machine a atteint sa borne. Ni vert ni rouge ; la prochaine file la rejoue.`,
+    };
+  }
+  if (t.status !== 0) {
+    const fin = `${t.stdout}${t.stderr}`.trim().split('\n').slice(-40).join('\n');
+    return { sortie: ['ses tests sont rouges une fois la branche replacée.', fin] };
+  }
+  return { nouveau: dansCopie('rev-parse', 'HEAD').stdout.trim() };
+}
+
+/**
+ * Main moved onto the branch of <entree> (`{ ticket, branche }`) with the tools <o>, against the
+ * main of the moment, without a word to the ticket: `{ entre: { commit } }`, main at <commit>;
+ * `{ sortie: [titre, détail] }` (it leaves the queue: gone, not replaced, red once replaced);
+ * `{ garde }` (it stays in the queue, the reason); `{ ecartee: true }` (nothing ahead of main). A
+ * lot already on main (the branch points at the commit of main that delivers its ticket, or each
+ * of its commits has its equivalent on main, or the branch is gone), as an attempt played again
+ * after its worker died finds it, is entered: main does not move again.
+ */
+export function avancerMain(o, entree) {
+  const git = (...args) => spawnSync('git', ['-C', o.racine, ...args], { encoding: 'utf8' });
+  const refPrincipale = `refs/heads/${o.principale}`;
+  const tip = git('rev-parse', '--verify', '-q', `refs/heads/${entree.branche}`).stdout.trim();
+  const livre = lotSurMain(o, entree.ticket);
+  // A lot on main whose branch is gone (a closure that failed after its deletion) is entered.
+  if (!tip)
+    return livre ? { entre: { commit: livre } } : { sortie: ["la branche n'existe plus.", ''] };
+  const enAvance = Number(git('rev-list', '--count', `${refPrincipale}..${tip}`).stdout.trim());
+  // The lot is on main when the branch points at the commit of main that delivers the ticket
+  // (main moved onto it by fast-forward), or when each commit of the branch has its equivalent on
+  // main (the same patch, git cherry), the replay a rebase wrote: a lot of before of a ticket
+  // reopened is neither, its branch at main's or ahead of it by new commits.
+  if (livre) {
+    const cerise = git('cherry', refPrincipale, tip).stdout.split('\n').filter(Boolean);
+    const rejeu = enAvance > 0 && cerise.length > 0 && cerise.every(l => l.startsWith('- '));
+    if (tip === livre || rejeu) return { entre: { commit: livre } };
+  }
+  if (enAvance === 0) return { ecartee: true };
+  for (let essai = 0; essai < ESSAIS_PAR_BRANCHE; essai++) {
+    const tete = git('rev-parse', refPrincipale).stdout.trim();
+    let nouveau = tip;
+    if (git('merge-base', '--is-ancestor', tete, tip).status !== 0) {
+      const r = rejouer(o, tip, tete, entree.ticket);
+      if (!r.nouveau) return r;
+      nouveau = r.nouveau;
+    }
+    if (nouveau !== tete) {
+      const avance = git('merge', '-q', '--ff-only', nouveau);
+      if (avance.status !== 0) {
+        if (git('rev-parse', refPrincipale).stdout.trim() !== tete) continue;
+        return {
+          garde:
+            `${o.principale} n'avance pas sur ${nouveau.slice(0, 7)} :\n${avance.stdout}${avance.stderr}`.trim(),
+        };
+      }
+    }
+    return { entre: { commit: nouveau } };
+  }
+  return { garde: `${o.principale} bouge sans cesse : cinq essais n'ont pas suffi.` };
+}
+
+/**
+ * The ticket of <entree> (`{ ticket, branche, commit }`) entered on main at <commit>, with the
+ * tools <o>: it closes « intégré : <commit> » and loses `en-file` (a ticket already closed is left
+ * as it is), <apresLaFermeture> runs (the queue on its file removes its entry there), the branch is
+ * deleted, then main is pushed to origin on the branch `grillhouse.poussee.commit` of main's
+ * package.json; a push not made ends the queue's work on the ticket, and removes the working
+ * directory of its circuit (`retirerLeTravail`), which the conclusion of its CI removes otherwise. Each of its gestures replays without
+ * harm (a ticket closed is left closed, a branch gone stays gone, a commit pushed is pushed again
+ * as it is), and never reopens the ticket; its comments are effects (`commenterAu`), which the
+ * workflow of the queue writes once each. `{ poussee, raison }`: the branch pushed to, or null and
+ * why, in one line (`enUneLigne`), its comment at the ticket whole.
+ */
+export function fermerLEntree(o, entree, apresLaFermeture = () => {}) {
+  const { racine } = o;
+  const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
+  const court = entree.commit.slice(0, 7);
+  const commenter = texte => commenterAu(o, entree.ticket, texte);
+  const show = o.bd('show', entree.ticket, '--json');
+  const statut = show.status === 0 ? (JSON.parse(show.stdout)[0]?.status ?? null) : null;
+  if (statut !== 'closed') {
+    o.bd('update', entree.ticket, '--remove-label', 'en-file');
+    o.bd('close', entree.ticket, '--reason', `${INTEGRE}${court}`);
+  }
+  apresLaFermeture();
+  o.dire(`✓ ${entree.branche} entre sur ${o.principale} : ${court}`);
+  if (git('rev-parse', '--verify', '-q', `refs/heads/${entree.branche}`).status === 0) {
     const efface = git('branch', '-D', entree.branche);
     if (efface.status !== 0) {
       commenter(
-        entree.ticket,
-        `La branche ${entree.branche} reste en place après son entrée sur ${principale} (${efface.stderr.trim()}) : sa copie est encore en place. Le ticket est fermé.`
+        `La branche ${entree.branche} reste en place après son entrée sur ${o.principale} (${efface.stderr.trim()}) : sa copie est encore en place. Le ticket est fermé.`
       );
-      dire(`⚠ ${entree.branche} n'est pas effacée`);
+      o.dire(`⚠ ${entree.branche} n'est pas effacée`);
     }
-    const paquet = git('show', `${refPrincipale}:package.json`);
-    const { commit, faute } = lireCommit(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
-    if (faute) {
-      commenter(
-        entree.ticket,
-        `Poussée non faite : grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`
-      );
-      return;
-    }
-    const pousse = spawnSync(
-      'git',
-      ['-C', racine, 'push', 'origin', `${nouveau}:refs/heads/${commit}`],
-      { encoding: 'utf8', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
-    );
-    if (pousse.status !== 0) {
-      commenter(
-        entree.ticket,
-        `La poussée de ${court} vers origin/${commit} (grillhouse.poussee.commit) est refusée :\n${pousse.stderr.trim()}`
-      );
-      dire(`⚠ poussée de ${court} refusée`);
-    } else {
-      dire(`✓ poussée : ${court} est sur origin/${commit}`);
-      const ci = lireCI(lecture, entree.ticket, nouveau, commit);
-      if (ci.verdict === ROUGE) bd('reopen', entree.ticket);
-    }
-  };
-
-  // One branch of the queue, against the main of the moment.
-  const traiter = entree => {
-    const tip = git('rev-parse', '--verify', '-q', `refs/heads/${entree.branche}`).stdout.trim();
-    if (!tip) return sortir(entree, "la branche n'existe plus.", '');
-    if (Number(git('rev-list', '--count', `${refPrincipale}..${tip}`).stdout.trim()) === 0)
-      return ecarter(entree);
-    for (let essai = 0; essai < ESSAIS_PAR_BRANCHE; essai++) {
-      const tete = git('rev-parse', refPrincipale).stdout.trim();
-      let nouveau = tip;
-      if (git('merge-base', '--is-ancestor', tete, tip).status !== 0) {
-        const r = rejouer(tip, tete, entree.ticket);
-        if (r.sortie) return sortir(entree, ...r.sortie);
-        if (r.garde) return garder(entree, r.garde);
-        nouveau = r.nouveau;
-      }
-      if (nouveau !== tete) {
-        const avance = git('merge', '-q', '--ff-only', nouveau);
-        if (avance.status !== 0) {
-          if (git('rev-parse', refPrincipale).stdout.trim() !== tete) continue;
-          return garder(
-            entree,
-            `${principale} n'avance pas sur ${nouveau.slice(0, 7)} :\n${avance.stdout}${avance.stderr}`.trim()
-          );
-        }
-      }
-      return entrer(entree, nouveau);
-    }
-    return garder(entree, `${principale} bouge sans cesse : cinq essais n'ont pas suffi.`);
-  };
-
-  const vues = new Set();
-  for (;;) {
-    if (!prendreVerrou(verrou, { attendre: false })) return 0;
-    try {
-      for (;;) {
-        const entree = lireEntrees(racine).find(e => !vues.has(e.fichier));
-        if (!entree) break;
-        vues.add(entree.fichier);
-        traiter(entree);
-      }
-    } finally {
-      lacherVerrou(verrou);
-    }
-    // An entry written while the lock was let go has no queue running to take it.
-    if (!lireEntrees(racine).some(e => !vues.has(e.fichier))) return 0;
   }
+  const paquet = git('show', `refs/heads/${o.principale}:package.json`);
+  const { commit, faute } = lireCommit(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
+  if (faute) {
+    const raison = `Poussée non faite : grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`;
+    commenter(raison);
+    retirerLeTravail(o, entree.ticket);
+    return { poussee: null, raison: enUneLigne(raison) };
+  }
+  const pousse = spawnSync(
+    'git',
+    ['-C', racine, 'push', 'origin', `${entree.commit}:refs/heads/${commit}`],
+    { encoding: 'utf8', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
+  );
+  if (pousse.status !== 0) {
+    const raison = `La poussée de ${court} vers origin/${commit} (grillhouse.poussee.commit) est refusée :\n${pousse.stderr.trim()}`;
+    commenter(raison);
+    o.dire(`⚠ poussée de ${court} refusée`);
+    retirerLeTravail(o, entree.ticket);
+    return { poussee: null, raison: enUneLigne(raison) };
+  }
+  o.dire(`✓ poussée : ${court} est sur origin/${commit}`);
+  return { poussee: commit, raison: null };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exitCode = main(process.argv.slice(2));
+/**
+ * What the outcome <r> of `avancerMain` for <entree> says to its ticket, with the tools <o>: a
+ * branch out of the queue reopens it, its files or its red named; a branch set aside loses
+ * `en-file`, the ticket left open; a branch kept, the reason. `{ etat, raison }`: `rouvert` or
+ * `en-file`, as the circuit reads the queue.
+ */
+export function direLIssue(o, entree, r) {
+  const commenter = texte => commenterAu(o, entree.ticket, texte);
+  if (r.sortie) {
+    const [titre, detail] = r.sortie;
+    const texte = `## Sortie de la file\n\nLa branche ${entree.branche} ne peut pas entrer sur ${o.principale} : ${titre}\n${detail}\n\nLa branche reste en place ; la relance du ticket remet son lot en travail local sur ${o.principale}.`;
+    o.bd('update', entree.ticket, '--status', 'open', '--remove-label', 'en-file');
+    commenter(texte);
+    o.dire(`✗ ${entree.branche} sort de la file : ${titre}`);
+    return { etat: 'rouvert', raison: texte };
+  }
+  if (r.ecartee) {
+    const texte = `## Sortie de la file\n\nLa branche ${entree.branche} n'a rien en avance sur ${o.principale} : elle n'entre pas, et le ticket reste ouvert.`;
+    o.bd('update', entree.ticket, '--remove-label', 'en-file');
+    commenter(texte);
+    o.dire(`⚠ ${entree.branche} n'a rien en avance sur ${o.principale} : elle sort de la file`);
+    return { etat: 'rouvert', raison: texte };
+  }
+  const texte = `## La file garde la branche\n\nLa branche ${entree.branche} reste en file : ${r.garde}`;
+  commenter(texte);
+  o.dire(`⚠ ${entree.branche} reste en file : ${r.garde}`);
+  return { etat: 'en-file', raison: texte };
 }

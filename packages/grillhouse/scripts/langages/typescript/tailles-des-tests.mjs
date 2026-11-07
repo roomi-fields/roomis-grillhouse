@@ -29,7 +29,7 @@
 //     imports several modules of the repository;
 //   - small (`petit`): it imports one module of the repository at most, and starts no process.
 // - A large test of the day is a finding, `{ fichier, regle: 'grand-de-jour', message }`; a night
-//   test or a time budget bench (HORS_DU_JOUR, ./vitest-config/cibles.mjs) is never one. A finding
+//   test or a time budget bench (`deNuitOuBanc`, ./vitest-config/cibles.mjs) is never one. A finding
 //   inscribed in the project's debt (`grillhouse-dette.json`, ./dette.mjs) passes: the large tests
 //   of the day that exist when the rule arrives are inscribed there by the update
 //   (./migrations/0.25.0-tailles-des-tests.mjs), the count never rises, and a new one is refused.
@@ -40,7 +40,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { trancher } from '../../dette.mjs';
 import { matieres } from './composants.mjs';
-import { HORS_DU_JOUR } from './vitest-config/cibles.mjs';
+import { deNuitOuBanc } from './vitest-config/cibles.mjs';
 import {
   IMPORT,
   lireLeDisque,
@@ -70,9 +70,7 @@ const DOSSIER_TEMPORAIRE = /\bmkdtemp(?:Sync)?\b|\btmpdir\b/;
 // An option of a call that carries the directory the process runs in.
 const OPTION_DE_DOSSIER = /\bcwd\b|['"`](?:-C|--prefix)['"`]/;
 // A heavy tool named by a literal in a call: a name, or the end of a path to its binary.
-const OUTIL_LITTERAL = new RegExp(
-  `(?:^|[\\s'"\`/])(?:${OUTILS_LOURDS.join('|')})(?=$|[\\s'"\`])`
-);
+const OUTIL_LITTERAL = new RegExp(`(?:^|[\\s'"\`/])(?:${OUTILS_LOURDS.join('|')})(?=$|[\\s'"\`])`);
 // The text of the call whose `(` is at <debut> in <texte>, to its closing parenthesis.
 function appelComplet(texte, debut) {
   let profondeur = 0;
@@ -194,9 +192,6 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
   return { taille, modules: [...modules] };
 }
 
-// Whether <r>, a path from the root, is a night test or a time budget bench.
-const horsDuJour = r => HORS_DU_JOUR.some(p => path.matchesGlob(r, p));
-
 // The directories a listing out of git leaves out.
 const HORS = /(?:^|\/)(?:node_modules|dist|\.git|\.turbo|\.claude)$/;
 
@@ -222,7 +217,7 @@ export function tailles(racine) {
   return testsDuDepot(racine).map(fichier => ({
     fichier,
     taille: classer(path.join(racine, fichier), lireLeDisque, racine, m).taille,
-    nuit: horsDuJour(fichier),
+    nuit: deNuitOuBanc(fichier),
   }));
 }
 

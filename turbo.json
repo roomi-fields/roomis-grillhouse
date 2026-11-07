@@ -5,7 +5,8 @@
     "GRILLHOUSE_RESULTATS",
     "GRILLHOUSE_CHANGEMENTS",
     "GRILLHOUSE_AVANCEMENT",
-    "TMPDIR"
+    "TMPDIR",
+    "TEMPORAL"
   ],
   "tasks": {
     "build": {
@@ -18,11 +19,15 @@
       "outputs": []
     },
     "//#grillhouse:gardes": {
-      "dependsOn": [],
+      "dependsOn": [
+        "@roomi-fields/grillhouse#build"
+      ],
       "outputs": []
     },
     "//#gardes": {
-      "dependsOn": [],
+      "dependsOn": [
+        "@roomi-fields/grillhouse#build"
+      ],
       "outputs": []
     },
     "typecheck": {

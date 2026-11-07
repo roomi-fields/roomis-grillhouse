@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantier, type Chantier } from './integration-essai.js';
+import { chantier, serveurDeLaFileDIntegration, type Chantier } from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
 import { enProcessus } from './cadre.js';
 
@@ -16,6 +16,7 @@ const fluxDeLaBranche = enProcessus<string[]>('scripts/integration/file.mjs', 'f
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+serveurDeLaFileDIntegration(ESSAIS);
 
 // grillhouse-3uv.56 critères 11 and 21: a failed installation of the replay copy comes up in one
 // form, the refusals of the replay module; the queue judges `npm run verifier`, the guards included, as
@@ -137,14 +138,17 @@ describe('the queue reads the CI of the commit it pushes', () => {
   );
 
   // 2026-10-21 (Romain): the queue of a circuit (5.2) writes the steps of the CI done over planned
-  // to the progress directory the circuit names (GRILLHOUSE_AVANCEMENT, scripts/avancement.mjs),
-  // which the board reads; it reads the run again until it completes, as `gh run watch` does.
+  // to the working directory of the ticket (`<ticket>.travail/avancement-ci`,
+  // scripts/avancement.mjs `avancementDeLaCI`), which the board reads; it reads the run again
+  // until it completes, as `gh run watch` does.
   it(
     'while it waits for the CI, the steps done over planned of the run go to the progress directory',
     () => {
       const m = chantier(ESSAIS);
       const etape = (status: string) => ({ status });
-      const dossier = mkdtempSync(path.join(ESSAIS, 'avancement-'));
+      const travail = path.join(m.repo, '.claude', 'worktrees', 'demo-1.travail');
+      mkdirSync(travail, { recursive: true });
+      const dossier = path.join(travail, 'avancement-ci');
       ci(m, {
         avancement: dossier,
         runs: [{ databaseId: 43, status: 'queued', conclusion: '' }],
@@ -177,7 +181,7 @@ describe('the queue reads the CI of the commit it pushes', () => {
       avecCI(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
-      const r = m.fileSous({ GRILLHOUSE_AVANCEMENT: dossier });
+      const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(
         appelsGh(m).filter(a => a === 'run view 43 --json status,conclusion,jobs')
@@ -188,11 +192,18 @@ describe('the queue reads the CI of the commit it pushes', () => {
         .split('\n')
         .map(l => JSON.parse(l) as { faits: number; prevus: number });
       expect(vus).toContainEqual(expect.objectContaining({ faits: 3, prevus: 5 }));
-      const fin = JSON.parse(
-        readFileSync(path.join(dossier, 'taches', 'etapes-de-la-ci.json'), 'utf8')
-      ) as { faits: number; prevus: number };
-      expect(fin).toMatchObject({ faits: 5, prevus: 5 });
-      expect(m.bd('demo-1').status).toBe('closed');
+      // The CI concluded green, the queue is done with the ticket: its working directory leaves, the
+      // progress of the CI with it (`retirerLeTravail` of scripts/integration/file.mjs). Its final
+      // state is read where the queue leaves it (`conclureLaCI`): the ticket closed « intégré :
+      // <commit> », no comment of a red CI or of a CI not read at it, and the run named green in the
+      // queue's output.
+      expect(existsSync(travail)).toBe(false);
+      const t = m.bd('demo-1') as { status: string; close_reason?: string };
+      expect(t.status).toBe('closed');
+      expect(t.close_reason).toMatch(/^intégré : [0-9a-f]{7}$/);
+      const court = String(t.close_reason).slice('intégré : '.length);
+      expect(textes(m, 'demo-1').filter(x => /CI rouge|CI non lue/.test(x))).toEqual([]);
+      expect(r.stdout + r.stderr).toContain(`CI de ${court} verte (passage 43)`);
     },
     LONG
   );
@@ -222,6 +233,8 @@ describe('the queue reads the CI of the commit it pushes', () => {
 // commit it pushes, the workflows that run on a push to the branch it pushes to
 // (`grillhouse.poussee.commit`), and says in one line that there are none.
 describe('L7 — a project without a CI for the branch pushed does not wait for it', () => {
+  // A comment without the line that carries the key of its writing.
+  const sansCle = (texte: string) => texte.replace(/\s*<!-- grillhouse : [^>]*-->\s*$/, '').trim();
   const appelsGh = (m: Chantier) => {
     const f = path.join(m.bin, 'gh-appels');
     return existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [];
@@ -239,7 +252,9 @@ describe('L7 — a project without a CI for the branch pushed does not wait for 
       const t = m.bd('demo-1');
       expect(t.status).toBe('closed');
       const mot = t.comments.at(-1)!.text;
-      expect(mot.trim().split('\n')).toHaveLength(1);
+      // The comment carries the key of its writing on a line of HTML comment, which GitHub and
+      // the board do not show (`marqueDeCle` of scripts/effets.mjs): the line read is the text.
+      expect(sansCle(mot).split('\n')).toHaveLength(1);
       expect(mot).toContain('Aucune CI');
       expect(mot).toContain('travail');
       expect(mot).not.toContain('non lue');
@@ -265,7 +280,7 @@ describe('L7 — a project without a CI for the branch pushed does not wait for 
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(appelsGh(m)).toEqual([]);
       const mot = m.bd('demo-1').comments.at(-1)!.text;
-      expect(mot.trim().split('\n')).toHaveLength(1);
+      expect(sansCle(mot).split('\n')).toHaveLength(1);
       expect(mot).toContain('Aucune CI');
     },
     LONG

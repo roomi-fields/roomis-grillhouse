@@ -165,7 +165,7 @@ export function configuration(racine) {
       severity: 'warn',
       from: {
         orphan: true,
-        pathNot: [`${TESTS}|(^|/)index[.][a-z]+$|[.]d[.]ts$|[.]config[.][a-z]+$`, ...bin].join('|'),
+        pathNot: [`${TESTS}|(^|/)index[.][a-z]+$|[.]d[.][mc]?ts$|[.]config[.][a-z]+$`, ...bin].join('|'),
       },
       to: {},
     },

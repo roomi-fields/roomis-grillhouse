@@ -2,9 +2,9 @@
 // The mechanical steps of one integration, run by the circuit of the ticket (scripts/circuit.mjs)
 // once the reviewer has accepted the lot, which the circuit builds from the ticket's copy. It
 // commits the lot on the branch of the ticket, or refuses it with the full output of the step that
-// refused. The branch then waits for the queue (scripts/integration/file.mjs), which brings it onto
-// main. Run from any working tree of the repository, it works on the main tree, found from git's
-// common directory.
+// refused. The circuit of the ticket then sends the branch to the queue of the project (the
+// workflow `file:<racine>`, src/temporal/file/deroule.ts), which brings it onto main. Run from any
+// working tree of the repository, it works on the main tree, found from git's common directory.
 //
 //   npx grillhouse integrer --ticket <id>
 //        [--tests <patch>] [--code <patch>] --message <file> [--references <file>]
@@ -56,8 +56,7 @@
 //     directory of the ticket's circuit, `<copie>.travail`, stays for the circuit that still runs,
 //     and the queue removes it at the ticket's closure): a refusal, a locked copy for
 //     example, is written to the ticket, the commit stands. The ticket is labelled
-//     `en-file` and the branch takes its place at the end of the queue
-//     (scripts/integration/file-attente.mjs). main does not move here.
+//     `en-file`, which the queue removes. main does not move here.
 //
 // The references written in full are the generated files the project declares
 // (`grillhouse.engendres`), then the frame's the circuit hands over (`--references`, a JSON file the
@@ -96,10 +95,9 @@ import { langageDe } from '../langages.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
-import { dossierCommun, inscrireEntree } from './file-attente.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 import { verdictDe } from './verdict.mjs';
-import { A_REPASSER } from '../mesure/pression.mjs';
+import { A_REPASSER } from '../codes-de-sortie.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
@@ -251,11 +249,10 @@ function main(argv) {
     return 2;
   }
   // The main tree, from git's common directory: run from a copy, the integration still works on it.
-  const racine = path.dirname(
-    spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
-      encoding: 'utf8',
-    }).stdout.trim()
-  );
+  const commun = spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+    encoding: 'utf8',
+  }).stdout.trim();
+  const racine = path.dirname(commun);
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
   const bd = (...a) =>
     spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
@@ -268,7 +265,7 @@ function main(argv) {
 
   // One integration at a time: a second waits for the end of the first; a lock whose process is
   // gone is taken over.
-  const verrou = path.join(dossierCommun(racine), 'integration.lock');
+  const verrou = path.join(commun, 'integration.lock');
   prendreVerrou(verrou, { attendre: true });
   const debut = Date.now();
   // The working directory of the integration: a base of its own, removed at its end, swept by the
@@ -431,7 +428,7 @@ function main(argv) {
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 
     // 8. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
-    // lot, which the commit now holds) and is removed; the ticket waits in the queue.
+    // lot, which the commit now holds) and is removed; the ticket is labelled `en-file`.
     const pose = git('update-ref', `refs/heads/${branche}`, commit);
     if (pose.status !== 0) {
       return refuser(`La branche ${branche} ne prend pas ${commit.slice(0, 7)} :\n${pose.stderr}`);
@@ -448,12 +445,10 @@ function main(argv) {
         })
       : { status: 0, stderr: '' };
     if (retrait.status !== 0) {
-      const raison = `La copie ${copieTicket} n'est pas retirée après le commit de ${branche} : ${retrait.stderr.trim()}\nLa branche reste en file.`;
+      const raison = `La copie ${copieTicket} n'est pas retirée après le commit de ${branche} : ${retrait.stderr.trim()}`;
       bd('comments', 'add', o.ticket, raison);
       dire(`⚠ ${raison}`);
     }
-    inscrireEntree(racine, branche, o.ticket);
-    dire('✓ en file');
     const duree = Math.round((Date.now() - debut) / 100) / 10;
     dire(`⏱ ${duree} s`);
     return 0;

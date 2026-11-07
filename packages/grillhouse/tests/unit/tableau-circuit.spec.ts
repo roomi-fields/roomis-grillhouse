@@ -1,22 +1,15 @@
-// The circuit of a ticket on the board (scripts/circuit.mjs): its state
-// `.claude/worktrees/<ticket>.circuit.json` and the process it names (`processus`, `depart`).
-// A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
+// The circuit of a ticket on the board (scripts/circuit.mjs), as the Temporal server gives it
+// (scripts/circuits-du-serveur.mjs; here a reading made of the states each test names, the server's
+// own reading proved by tests/temporal/circuit.spec.ts). A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
 // (scripts/etapes.mjs); one that stopped on a question for the supervisor stands under its step,
 // after the line « ⤷ Question · <qui> », who must answer it (grillhouse-3uv.95.4), its card opening
 // on that question; one stopped without a question's text (« à repasser » among them) stands there
 // too (grillhouse-pq6: one rule of the questions that wait for the supervisor), its card opening
 // on where it stopped, its stop's name and code and the first line of its reason; one the
 // supervisor stopped (« arrete ») stands at its step.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
-import { assembler, fiches, lignes, lireCircuits } from '../../scripts/tableau.mjs';
-import { departDe } from '../../scripts/mesure/base-de-passe.mjs';
-import { rendreVivant } from './tableau-essai.js';
-
-const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-circuit-'));
-afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+import { describe, expect, it } from 'vitest';
+import { assembler, fiches, lignes } from '../../scripts/tableau.mjs';
+import { circuitLu } from './tableau-essai.js';
 
 const MIN = 60_000;
 const at = (hm: string) => `2026-10-18T${hm}:00Z`;
@@ -33,40 +26,52 @@ interface Board {
   agents: { roles: string[]; enCours: { id: string }[]; attend: { id: string }[] }[];
 }
 
-// A repository with the state of each circuit `etats` names, written as scripts/circuit.mjs
-// writes it.
-const depot = (etats: Record<string, object>) => {
-  const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
-  const dossier = path.join(racine, '.claude', 'worktrees');
-  mkdirSync(dossier, { recursive: true });
-  for (const [ticket, e] of Object.entries(etats)) {
-    const etat = {
-      etape: 'testwriter',
-      tentative: 1,
-      code: null,
-      raison: null,
-      rapport: null,
-      finale: false,
-      seance: null,
-      paquets: ['packages/demo'],
-      constats: [],
-      journal: path.join(dossier, `${ticket}.log`),
-      ...e,
-    };
-    writeFileSync(
-      path.join(dossier, `${ticket}.circuit.json`),
-      `${JSON.stringify(etat, null, 2)}\n`
-    );
-  }
-  return racine;
-};
-// The circuits of <racine>, those of <vivants> running.
-const circuits = (racine: string, ...vivants: string[]) => {
-  for (const ticket of vivants) {
-    rendreVivant(racine, ticket);
-  }
-  return lireCircuits({ racine });
-};
+// The states of the circuits <etats> names, by ticket, in the words of the circuit's state.
+interface Etat {
+  etape?: string;
+  tentative?: number;
+  code?: number | null;
+  raison?: string | null;
+  rapport?: string | null;
+  finale?: boolean;
+  question?: Record<string, string> | null;
+  questionnement?: Record<string, string> | null;
+  boucles?: Record<string, number>;
+  mene?: string;
+}
+const depot = (etats: Record<string, Etat>) => etats;
+// The circuits <etats> as the server gives them, those of <vivants> running: a workflow ended with
+// neither a code nor a stop ended without its issue (`interrompu`), its question the resumption.
+const circuits = (etats: Record<string, Etat>, ...vivants: string[]) =>
+  Object.entries(etats).map(([ticket, e]) => {
+    const vivant = vivants.includes(ticket);
+    const interrompu = !vivant && (e.code ?? null) === null && !e.raison;
+    return circuitLu(ticket, {
+      etape: e.etape ?? 'testwriter',
+      tentative: e.tentative ?? 1,
+      finale: e.finale === true,
+      code: e.code ?? null,
+      arret: e.raison ?? null,
+      raison:
+        String(e.rapport ?? '')
+          .split('\n')
+          .map(x => x.trim())
+          .find(Boolean) ?? null,
+      question: interrompu
+        ? 'Le déroulé du circuit a fini sans son issue (TERMINATED), aucun arrêt écrit.'
+        : (e.question?.question ?? null),
+      qui: interrompu ? 'superviseur' : (e.question?.qui ?? null),
+      questionnement: e.questionnement?.objet ?? null,
+      boucles: e.boucles ?? {},
+      mene: e.mene ? Date.parse(e.mene) : null,
+      vivant,
+      interrompu,
+      sansIssue: interrompu,
+      reponse: interrompu
+        ? `npx grillhouse circuit ${ticket} --reprendre\` ou \`--depuis <testwriter|developpeur> --contexte <texte>`
+        : `npx grillhouse circuit ${ticket} --reprendre`,
+    });
+  });
 
 const T = (id: string, o: object = {}) => ({
   id,
@@ -209,44 +214,17 @@ describe('a circuit that runs: its step and its attempt', () => {
     expect(a[i - 1]).toBe('▾ 4 · Passe finale et relecture');
   });
 
-  // grillhouse-ybq.4: a circuit is a daemon, whose command line is no longer the one the
-  // supervisor typed; the board judges it by the process its state names.
-  it('a circuit whose caller is gone runs while the process of its state runs, the same one by its start', () => {
-    const depart = departDe(process.pid) as string;
-    const racine = depot({
-      'demo-12': { etape: 'preuve', processus: process.pid, depart },
-      // Its number taken again by another process: another start.
-      'demo-13': { etape: 'preuve', processus: process.pid, depart: `${Number(depart) + 1}` },
-      'demo-14': { etape: 'preuve', processus: 2 ** 22 + 1, depart },
-      'demo-15': { etape: 'preuve', processus: process.pid },
-    });
-    const vivant = (t: string) => circuits(racine).find(c => c.ticket === t)?.vivant;
-    expect(vivant('demo-12')).toBe(true);
-    expect(vivant('demo-13')).toBe(false);
-    expect(vivant('demo-14')).toBe(false);
-    expect(vivant('demo-15')).toBe(false);
-  });
-
-  it('the start of the step the circuit leads itself (`mene`) is read from its state, null between two', () => {
+  it('the start of the step the circuit leads itself (`mene`) counts on its ticket', () => {
     const racine = depot({
       'demo-12': { etape: 'controles', mene: at('11:50') },
       'demo-13': { etape: 'developpeur' },
     });
     const lus = circuits(racine, 'demo-12', 'demo-13');
-    expect(lus.find(c => c.ticket === 'demo-12')).toMatchObject({
-      mene: Date.parse(at('11:50')),
-    });
-    expect(lus.find(c => c.ticket === 'demo-13')).toMatchObject({ mene: null });
     // Running since 11:50, its step counts 10 min at noon on its ticket.
     const t = plateau([T('demo-12')], [], [], lus) as Board & {
       parTicket: Record<string, { travail: number }>;
     };
     expect(t.parTicket['demo-12']).toEqual({ travail: 10 * MIN, jetons: 0 });
-  });
-
-  it('a circuit integrated (« integre ») is no circuit of the board', () => {
-    const racine = depot({ 'demo-12': { etape: 'integre', code: 0 } });
-    expect(circuits(racine)).toEqual([]);
   });
 });
 
@@ -318,14 +296,15 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
         qui: 'superviseur',
       }),
     ]);
-    expect(lus[0]?.question).toContain('`npx grillhouse circuit demo-13 --reprendre`');
+    // Its question names no command: the board names the answers once, beside it.
+    expect(lus[0]?.question).not.toContain('npx grillhouse circuit');
     const t = plateau([T('demo-13')], [], [], lus);
     const a = agents(t);
     const i = a.indexOf(QUESTION);
     expect(a[i - 1]).toBe('  2.1 · Preuve du rouge · auto');
     expect(a[i + 1]).toBe('⏸ 13  Le sujet de demo-13');
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
-      /^Question · superviseur : Le circuit est mort sans état final .*`npx grillhouse circuit demo-13 --reprendre`/
+      /^Question · superviseur : Le déroulé du circuit a fini sans son issue \(TERMINATED\), aucun arrêt écrit\. `npx grillhouse circuit demo-13 --reprendre` ou `--depuis <testwriter\|developpeur> --contexte <texte>` le reprend\./
     );
   });
 
@@ -440,5 +419,83 @@ describe('a ticket in progress with no circuit and no agent: the alert', () => {
       circuits(racine, 'demo-15')
     );
     expect(alerte(t)).not.toContain('15 en cours sans rien qui tourne');
+  });
+});
+
+// The Temporal server on the board: a server that does not answer is the first alert, the
+// tickets shown without their circuits; the card of a ticket with a circuit ends on the page of
+// its workflow on the web UI of the server.
+describe('the Temporal server on the board', () => {
+  const NUIT = T('demo-30', {
+    title: '30 — La nuit est rouge — packages/demo',
+    status: 'open',
+    labels: ['nuit'],
+    created_at: at('01:00'),
+  });
+  const avec = (muet: boolean) =>
+    assembler({
+      tous: [NUIT],
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      maintenant: MAINTENANT,
+      jour: MAINTENANT - 24 * 60 * MIN,
+      muet,
+    }) as Board;
+
+  it('a server that does not answer is the first alert, before a red night, its line in the head', () => {
+    const t = avec(true);
+    expect(t.alertes.map(x => x.texte)).toEqual([
+      'Temporal ne répond pas en 5 s · temporal etat',
+      'Nuit rouge depuis le 18/10 30',
+    ]);
+    const l = (lignes(t, 'depot') as Ligne[]).find(x => x.texte.includes('Temporal'));
+    expect(l?.texte.trimEnd()).toBe('⚠ Temporal ne répond pas en 5 s · temporal etat');
+    expect(l?.ton).toBe('alerte');
+  });
+
+  it('another fault of the reading is the first alert, as it is', () => {
+    const t = assembler({
+      tous: [NUIT],
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      maintenant: MAINTENANT,
+      jour: MAINTENANT - 24 * 60 * MIN,
+      faute: 'mémo illisible',
+    }) as Board;
+    expect(t.alertes[0]?.texte).toBe('Circuits illisibles : mémo illisible');
+  });
+
+  it('a server that answers raises no alert of its own', () => {
+    expect(avec(false).alertes.map(x => x.texte)).not.toContain(
+      'Temporal ne répond pas en 5 s · temporal etat'
+    );
+  });
+
+  const LIEN = 'http://127.0.0.1:8233/namespaces/default/workflows/circuit%3A%2Fdepot%3Ademo-31';
+
+  it('the card of a ticket with a circuit ends on its link, whole, after a long description', () => {
+    const tous = [T('demo-31', { description: 'mot '.repeat(200) })];
+    const t = plateau(tous, [], [], [circuitLu('demo-31', { lien: LIEN, vivant: true })]);
+    const c = carte(t, tous, 'demo-31');
+    expect(c.endsWith(`…\nTemporal : ${LIEN}`)).toBe(true);
+  });
+
+  it('the card of a stopped circuit ends on its link too, after its question', () => {
+    const tous = [T('demo-31', { description: 'Le sujet.' })];
+    const t = plateau(
+      tous,
+      [],
+      [],
+      [circuitLu('demo-31', { lien: LIEN, question: 'Que faire ?' })]
+    );
+    expect(carte(t, tous, 'demo-31')).toMatch(/^Question · .*Le sujet\.\nTemporal : http:\/\/127/);
+  });
+
+  it('the card of a ticket without a circuit has no link', () => {
+    const tous = [T('demo-32', { description: 'Le sujet.' })];
+    const t = plateau(tous, [], [], []);
+    expect(carte(t, tous, 'demo-32')).not.toContain('Temporal');
   });
 });

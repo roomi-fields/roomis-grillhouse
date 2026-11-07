@@ -11,7 +11,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
+import * as transitions from '../../scripts/transitions.mjs';
 
 interface Constat {
   titre: string;
@@ -32,10 +33,16 @@ interface Arret {
   piece: string | null;
   question: string | null;
 }
-const arretDuTestwriterSaute = circuit.arretDuTestwriterSaute as (
-  ctx: Ctx,
-  texte: string
-) => Arret | null;
+// The stop of the decisions of the circuit (scripts/transitions.mjs), on the facts the circuit
+// reads in <ctx>: its findings, whether its plan plays tests (`sansTests`), its packages.
+const sansTests = activites.sansTests as (ctx: Ctx) => boolean;
+const arretDuTestwriterSaute = (ctx: Ctx, texte: string) =>
+  (
+    transitions.arretDuTestwriterSaute as (
+      f: { constats: Constat[]; sansTests: boolean; paquets: string[] },
+      texte: string
+    ) => Arret | null
+  )({ constats: ctx.constats, sansTests: sansTests(ctx), paquets: ctx.paquets }, texte);
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-testwriter-saute-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

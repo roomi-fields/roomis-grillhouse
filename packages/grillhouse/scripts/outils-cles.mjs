@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The reading of the `grillhouse.outils` key of a package.json, the tools of the project, as Bazel
 // declares what an action sees out of its sandbox (--sandbox_add_mount_pair) and the environment
 // it gets (--action_env): `{ "<VARIABLE>": "<chemin>" }`, each path absolute or under `~`. The

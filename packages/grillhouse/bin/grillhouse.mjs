@@ -31,6 +31,8 @@
 //   and its cause, exit code 2. The code of the copy is loaded only once the subcommand is known to
 //   run here, so a module of the copy that no longer loads never stops a subcommand that the
 //   published version runs (the write lock).
+// - A subcommand whose script is missing (the package's TypeScript unbuilt, `dist/`) says so with
+//   the command that builds it on the error stream, and the exit code is 1.
 // - A subcommand missing or unknown writes the usage and the list of the subcommands on the error
 //   stream, and the exit code is 2.
 // - A script finds its neighbours by its own directory, and the project by the working directory
@@ -154,6 +156,7 @@ async function lancer([nom, ...args]) {
     donneesDuPaquet,
     environnementDe,
     fournisseursDuPaquet,
+    scriptAbsent,
     SOUS_COMMANDES,
   } = code;
   let commande;
@@ -172,6 +175,12 @@ async function lancer([nom, ...args]) {
     return;
   }
   const script = commande.script;
+  const absent = scriptAbsent(nom, script);
+  if (absent !== null) {
+    process.stderr.write(`${absent}\n`);
+    process.exitCode = 1;
+    return;
+  }
   args = [...commande.args, ...args];
   const duNoyau = typeof SOUS_COMMANDES[nom] === 'string';
   if (duNoyau && script.endsWith('.mjs')) {

@@ -18,7 +18,7 @@ import {
   lireVivant,
   tableau,
 } from '../../scripts/tableau.mjs';
-import { ligneEnveloppe } from './tableau-essai.js';
+import { aucunCircuit, ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-sous-agents-'));
@@ -467,7 +467,7 @@ describe("3uv.49 critère 9 : a manager's passage leaves the ticket to the flow"
     expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
   });
 
-  it('3uv.49 critère 9 : a review accepted then a manager finished last, the board reads the verdict: the ticket waits for no agent, the circuit integrates it', () => {
+  it('3uv.49 critère 9 : a review accepted then a manager finished last, the board reads the verdict: the ticket waits for no agent, the circuit integrates it', async () => {
     const racine = depotFactice(
       [T('demo-9')],
       [
@@ -486,7 +486,10 @@ describe("3uv.49 critère 9 : a manager's passage leaves the ticket to the flow"
         fin('c0', 'demo-9', MENEUR, '11:00'),
       ]
     );
-    const t = tableau(racine, { home: nouveauHome() }) as unknown as Board;
+    const t = (await tableau(racine, {
+      home: nouveauHome(),
+      circuitsDe: aucunCircuit,
+    })) as unknown as Board;
     expect(t.agents.flatMap(b => b.attend.map(x => x.id))).toEqual([]);
   });
 });

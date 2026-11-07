@@ -49,11 +49,16 @@
 //   error of cargo that cannot run its wrapper.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { accessSync, constants, readFileSync, readlinkSync, realpathSync } from 'node:fs';
+import { readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { cacheDeCompilation, cacheDeLaRacine, dansLeTemporaire } from '../../services-du-noyau.mjs';
+import {
+  cacheDeCompilation,
+  cacheDeLaRacine,
+  dansLeTemporaire,
+  trouverDansLePath,
+} from '../../services-du-noyau.mjs';
 
 // The loader of smol-toml, an optional peer of the package, a tool of this module.
 const require = createRequire(import.meta.url);
@@ -140,18 +145,7 @@ export function sccacheAbsent(racine, env) {
   if (lanceurDuProjet(racine, env)) {
     return null;
   }
-  const present = (env.PATH ?? '')
-    .split(path.delimiter)
-    .filter(Boolean)
-    .some(d => {
-      try {
-        accessSync(path.join(d, 'sccache'), constants.X_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    });
-  return present
+  return trouverDansLePath('sccache', env)
     ? null
     : "⛔ sccache absent du PATH : cargo compile à travers lui (RUSTC_WRAPPER=sccache) ; `npx grillhouse maj` l'installe avec les autres binaires du module cargo.";
 }

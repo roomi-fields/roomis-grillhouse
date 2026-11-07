@@ -23,6 +23,7 @@ describe('the environment of the session', () => {
     ANTHROPIC_API_KEY: 'cle',
     CLAUDE_CODE_OAUTH_TOKEN: 'jeton',
     BEADS_ACTOR: 'testwriter',
+    GRILLHOUSE_PLACE_TENUE: 'la-place',
     NODE_EXTRA_CA_CERTS: '/etc/ca.pem',
     GH_TOKEN: 'secret-gh',
     NPM_TOKEN: 'secret-npm',
@@ -70,6 +71,10 @@ describe('the environment of the session', () => {
       GRILLHOUSE_ENVELOPPE: 'packages/a',
     });
   });
+  // The place the session holds covers its commands: none of them takes a second one.
+  it('passes on the mark of the place the session holds', () => {
+    expect(env.GRILLHOUSE_PLACE_TENUE).toBe('la-place');
+  });
   it('holds nothing else', () => {
     expect(Object.keys(env).sort()).toEqual(
       [
@@ -82,6 +87,7 @@ describe('the environment of the session', () => {
         'ANTHROPIC_API_KEY',
         'CLAUDE_CODE_OAUTH_TOKEN',
         'BEADS_ACTOR',
+        'GRILLHOUSE_PLACE_TENUE',
         'NODE_EXTRA_CA_CERTS',
         'npm_config_cache',
         'npm_config_ignore_scripts',

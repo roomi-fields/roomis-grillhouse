@@ -10,11 +10,13 @@
 export * from './langages.mjs';
 
 // The services of the core to a module of language: the plan of an envelope, the progress of a
-// pass and its measure, the tasks of the graph of the packages, the base of a pass, the pressure of the machine and its lock, the last
-// green, the arbitrages of a ticket, the source files of a project.
+// pass and its measure, the tasks of the graph of the packages, the base of a pass, the pressure of the machine, its place and its lock, the last
+// green, the arbitrages of a ticket, the source files of a project, the search of a command in the
+// PATH.
 export { arbitrageTranche, estArbitrage } from './arbitrages.mjs';
 export { garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mjs';
 export { sources } from './sources.mjs';
+export { trouverDansLePath } from './commandes-du-path.mjs';
 export { paquetsSansPackageJson } from './paquet-npm.mjs';
 export {
   cheminsDeLaTache,
@@ -41,11 +43,12 @@ export {
   ouvrirBase,
   retirerALInterruption,
 } from './mesure/base-de-passe.mjs';
-export { A_REPASSER, ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
-export { travailleursDeLaSeance } from './places-de-la-machine.mjs';
+export { A_REPASSER } from './codes-de-sortie.mjs';
+export { ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
 export {
-  attendreDeLaPlace,
-  AttenteDeLaMachine,
-  avecLaMachine,
-  nommerLAvancement,
-} from './verrou-de-machine.mjs';
+  avecLaMachineEtUnePlace,
+  surUnePlace,
+  travailleursDeLaSeance,
+} from './places-de-la-machine.mjs';
+export { attendreDeLaPlace, AttenteDeLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
+export { CONFIG_BEADS, ecrireLePrefixe, prefixe } from './prefixe-des-tickets.mjs';

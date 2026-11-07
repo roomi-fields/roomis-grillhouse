@@ -29,6 +29,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FICHIER, lire as lireDette, trancher } from '../../dette.mjs';
 import { A_ELAGUER, ecrireSarif } from '../../resultats.mjs';
+import { prefixe } from '../../services-du-noyau.mjs';
 import { testsDuDepot } from './tailles-des-tests.mjs';
 import { TEST } from './vitest-config/lances.mjs';
 
@@ -232,30 +233,6 @@ export function jugerLesTitres(dette, constats, renommes = {}) {
     });
   }
   return refus.sort((a, b) => (a.fichier < b.fichier ? -1 : a.fichier > b.fichier ? 1 : 0));
-}
-
-const CONFIG_BEADS = '.beads/config.yaml';
-
-// The prefix of the tickets, read from the key `issue-prefix` of the committed file of Beads, never
-// from `bd` (absent in a CI). Throws an error that names the file or the key when it is missing, so
-// that nothing is counted by halves.
-export function prefixe(racine) {
-  let texte;
-  try {
-    texte = readFileSync(path.join(racine, CONFIG_BEADS), 'utf8');
-  } catch {
-    throw new Error(
-      `${CONFIG_BEADS} manque : le préfixe des tickets s'y lit (clé \`issue-prefix\`), jamais par bd.`
-    );
-  }
-  const m = /^issue-prefix:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/m.exec(texte);
-  const valeur = m ? (m[1] ?? m[2] ?? m[3] ?? '') : '';
-  if (!valeur) {
-    throw new Error(
-      `${CONFIG_BEADS} n'a pas la clé \`issue-prefix\` (une ligne commentée n'est pas la clé) : le préfixe des tickets s'y lit.`
-    );
-  }
-  return valeur;
 }
 
 function main() {

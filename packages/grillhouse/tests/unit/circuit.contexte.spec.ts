@@ -9,6 +9,7 @@
 // 16 sessions, 11,70 $, 84 % of the time lost.
 import { describe, expect, it } from 'vitest';
 import * as circuit from '../../scripts/circuit.mjs';
+import * as seances from '../../scripts/seances.mjs';
 
 interface Constat {
   titre: string;
@@ -26,13 +27,13 @@ interface DeLaSeance {
   valider: (fiche: object) => string | null;
   repondre: (tous: Constat[], fiche: object) => Constat[];
 }
-const constatsDeLaSeance = circuit.constatsDeLaSeance as (
+const constatsDeLaSeance = seances.constatsDeLaSeance as (
   contexte: string | null,
   constats: Constat[],
   role: string
 ) => DeLaSeance;
-const consigne = circuit.consigne as (valeurs: Record<string, unknown>, rang: number) => string;
-const auLancement = circuit.auLancement as (
+const consigne = seances.consigne as (valeurs: Record<string, unknown>, rang: number) => string;
+const auLancement = seances.auLancement as (
   contexte: string | null,
   constats: Constat[]
 ) => Constat[];

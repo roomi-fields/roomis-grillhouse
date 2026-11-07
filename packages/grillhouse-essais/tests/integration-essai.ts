@@ -7,28 +7,58 @@ import {
 } from 'node:child_process';
 import {
   chmodSync,
+  closeSync,
   cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { CADRE, RACINE, enProcessus } from './cadre.js';
+import { afterAll, beforeAll } from 'vitest';
+import { CADRE, RACINE } from './cadre.js';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { ouvrirLeBanc, type Banc } from './temporal-essai.js';
 
 // The trial harness of the integration and of its queue (grillhouse-3uv.63): a repository with
 // a fake Beads that keeps the state of its tickets, a bare remote `origin`, the frame's real
 // scripts, and the tickets' copies made as the launcher makes them (branch agent/<ticket> from
 // main's HEAD, the lot as local work in it).
 
-const inscrireEntree = enProcessus<void>('scripts/integration/file-attente.mjs', 'inscrireEntree');
-
 export const INTEGRER_SCRIPT = path.join(CADRE, 'scripts/integration/integrer.mjs');
 const INTEGRER = INTEGRER_SCRIPT;
-export const FILE = path.join(CADRE, 'scripts/integration/file.mjs');
+// The frame's worker, and the play of the queue of a trial on the server of the file.
+const TRAVAILLEUR = path.join(CADRE, 'dist/temporal/travailleur.js');
+const JOUER_LA_FILE = path.join(__dirname, 'jouer-la-file.mjs');
+
+// The server of Temporal the queues of the file's trials play on (`serveurDeLaFile`), and the
+// workers of their trials, each its own, stopped at the file's end.
+let serveurDeLaFile: Banc | null = null;
+const travailleurs: ChildProcess[] = [];
+
+/**
+ * Opens, before the tests of the file that calls it, the server of Temporal its trials' queues
+ * play on (./temporal-essai.ts), and closes it at its end, the workers of the trials with it.
+ */
+export function serveurDeLaFileDIntegration(ESSAIS: string) {
+  beforeAll(async () => {
+    const vide = mkdtempSync(path.join(ESSAIS, 'serveur-'));
+    serveurDeLaFile = await ouvrirLeBanc(
+      ESSAIS,
+      { REPO: vide, ENV: { ...process.env }, journal: () => '' },
+      'file'
+    );
+  }, 120_000);
+  afterAll(async () => {
+    for (const t of travailleurs) {
+      t.kill('SIGKILL');
+    }
+    await serveurDeLaFile?.fermer([]);
+  }, 120_000);
+}
 const RETIRER = path.join(CADRE, 'scripts/retirer-copie.sh');
 const LANCER = path.join(CADRE, 'scripts/enveloppe/lancer.sh');
 
@@ -226,7 +256,7 @@ export interface Resultat {
 // view` gives), no run without the file; every call is appended to <bin>/gh-appels, one per line,
 // and, with a progress directory (`avancement`), the record of the CI it holds then to
 // <bin>/gh-avancement.
-const FAUX_GH = `#!/usr/bin/env node
+export const FAUX_GH = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
 const ici = path.dirname(fs.realpathSync(process.argv[1]));
@@ -514,10 +544,31 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     ];
   };
   // The integration of <id>'s lots, as the circuit runs it from the main tree.
-  const integrer = (id: string, ...extra: string[]): SpawnSyncReturns<string> =>
-    spawnSync('node', [INTEGRER, ...argsIntegrer(id, extra)], { cwd: repo, encoding: 'utf8', env });
+  // The tickets in their order of arrival in the queue: as the circuit sends its branch once the
+  // integration committed it.
+  const arrivees: string[] = [];
+  const arriver = (id: string) => {
+    arrivees.splice(0, arrivees.length, ...arrivees.filter(a => a !== id), id);
+  };
+  const integrer = (id: string, ...extra: string[]): SpawnSyncReturns<string> => {
+    const r = spawnSync('node', [INTEGRER, ...argsIntegrer(id, extra)], {
+      cwd: repo,
+      encoding: 'utf8',
+      env,
+    });
+    if (r.status === 0) {
+      arriver(id);
+    }
+    return r;
+  };
   // The same, without waiting: two integrations run side by side.
-  const integrerEnFond = (id: string) => lancerEnFond('node', [INTEGRER, ...argsIntegrer(id)]);
+  const integrerEnFond = (id: string) =>
+    lancerEnFond('node', [INTEGRER, ...argsIntegrer(id)]).then(r => {
+      if (r.status === 0) {
+        arriver(id);
+      }
+      return r;
+    });
   const lancerEnFond = (cmd: string, args: string[]) =>
     new Promise<Resultat>(resolve => {
       const p = spawn(cmd, args, { cwd: repo, env });
@@ -535,7 +586,12 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     p.stdout.on('data', d => (stdout += d));
     p.stderr.on('data', d => (stderr += d));
     const fin = new Promise<Resultat>(resolve =>
-      p.on('close', status => resolve({ status, stdout, stderr }))
+      p.on('close', status => {
+        if (status === 0) {
+          arriver(id);
+        }
+        resolve({ status, stdout, stderr });
+      })
     );
     return { p, fin };
   };
@@ -554,16 +610,58 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     }
     return r;
   };
-  // The queue, as the circuit launches it from the main tree.
-  const file = (...args: string[]): SpawnSyncReturns<string> => fileSous({}, ...args);
-  // The same, <ajout> added to its environment.
-  const fileSous = (ajout: Record<string, string>, ...args: string[]): SpawnSyncReturns<string> =>
-    spawnSync('node', [FILE, ...args], {
-      cwd: repo,
-      encoding: 'utf8',
-      env: { ...env, ...ajout },
-      timeout: 120_000,
+  // The worker of the trial, on a task queue of its own, its output in its log; started once.
+  const tache = `essai-${path.basename(repo)}`;
+  const journalDuTravailleur = path.join(bin, 'travailleur.log');
+  let travailleur: ChildProcess | null = null;
+  const leTravailleur = () => {
+    if (!serveurDeLaFile) {
+      throw new Error(
+        "le serveur de la file n'est pas ouvert : le fichier appelle serveurDeLaFileDIntegration."
+      );
+    }
+    if (travailleur) {
+      return serveurDeLaFile.env;
+    }
+    writeFileSync(journalDuTravailleur, '');
+    const sortie = openSync(journalDuTravailleur, 'a');
+    const p = spawn(process.execPath, [TRAVAILLEUR, '--file', tache], {
+      env: { ...env, TEMPORAL_ADDRESS: serveurDeLaFile.adresse },
+      stdio: ['ignore', sortie, sortie],
     });
+    closeSync(sortie);
+    travailleurs.push(p);
+    travailleur = p;
+    return serveurDeLaFile.env;
+  };
+  // The queue played as the circuits of its tickets send it their branches: each ticket the
+  // integration left labelled `en-file` enters, in its order of arrival, and the call returns once
+  // the queue gave each its issue and stands idle; what the worker wrote meanwhile is its output.
+  const file = (): SpawnSyncReturns<string> => {
+    const envServeur = leTravailleur();
+    const etat = JSON.parse(readFileSync(path.join(bin, 'etat.json'), 'utf8')) as Record<
+      string,
+      Ticket
+    >;
+    const enFile = Object.values(etat)
+      .filter(t => t.labels?.includes('en-file'))
+      .map(t => t.id);
+    const ordre = [
+      ...arrivees.filter(a => enFile.includes(a)),
+      ...enFile.filter(e => !arrivees.includes(e)),
+    ];
+    const avant = lireF(journalDuTravailleur).length;
+    const r = spawnSync(
+      process.execPath,
+      [JOUER_LA_FILE, CADRE, repo, tache, journalDuTravailleur, ...ordre],
+      {
+        encoding: 'utf8',
+        env: { ...env, TEMPORAL_ADDRESS: envServeur.TEMPORAL_ADDRESS },
+        timeout: 660_000,
+      }
+    );
+    return { ...r, stdout: `${lireF(journalDuTravailleur).slice(avant)}${r.stdout}` };
+  };
 
   const lireF = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
   const bd = (id: string): Ticket =>
@@ -604,8 +702,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     lancerEnFond,
     retirer,
     livrer,
+    arriver,
     file,
-    fileSous,
     bd,
     sujets,
     sha,
@@ -902,7 +1000,7 @@ export function chantierDependances(
       throw new Error(`retirer ${id} : ${x.stderr}`);
     }
     execFileSync('bd', ['update', id, '--add-label', 'en-file'], { env: m.env });
-    inscrireEntree(m.repo, `agent/${id}`, id);
+    m.arriver(id);
   };
   return {
     ...m,

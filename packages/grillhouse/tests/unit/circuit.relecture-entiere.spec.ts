@@ -5,7 +5,8 @@
 // Witness: the reviewer of grillhouse-527.1 (2026-11-02): a whole review received « aucune : tu
 // relis le lot entier » and no finding, and its ACCEPTÉ closed them all unchecked.
 import { describe, expect, it } from 'vitest';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
+import * as seances from '../../scripts/seances.mjs';
 import { suiviDesConstats } from '../../scripts/resultats.mjs';
 
 interface Constat {
@@ -16,8 +17,8 @@ interface Constat {
   piece?: string;
   reponse?: { etat: string; raison?: string; piece: string };
 }
-const relectureEntiere = circuit.relectureEntiere as (constats: Constat[]) => string;
-const consigne = circuit.consigne as (valeurs: Record<string, unknown>, rang: number) => string;
+const relectureEntiere = activites.relectureEntiere as (constats: Constat[]) => string;
+const consigne = seances.consigne as (valeurs: Record<string, unknown>, rang: number) => string;
 
 const OUVERT: Constat = {
   titre: 'packages/a/src/x.ts:12',

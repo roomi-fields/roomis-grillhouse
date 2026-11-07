@@ -60,8 +60,17 @@ export const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
 export const HORS_DU_JOUR = [NUIT, BUDGET];
 /** The variable that chooses the tests of a run of the night's configuration: `nuit` or `mesures`. */
 export const NUIT_VARIABLE = 'GRILLHOUSE_TESTS_DE_NUIT';
-// Whether <r>, a path relative to the configuration's directory, is a night test or a bench.
-const horsDuJour = r => HORS_DU_JOUR.some(p => path.matchesGlob(r, p));
+// Whether the file at <fichier> bears the name of <motif>, a globstar then a name: by the name of
+// the file, since a globstar passes no directory whose name starts with a dot, and a ticket's copy
+// lives under `.claude/worktrees/`.
+const parSonNom = (fichier, motif) =>
+  path.matchesGlob(path.basename(fichier), motif.replace(/^\*\*\//, ''));
+/** Whether the file at <fichier> is a night test, by its name: the one rule of the frame. */
+export const estUnTestDeNuit = fichier => parSonNom(fichier, NUIT);
+/** Whether the file at <fichier> is a time budget bench, by its name. */
+export const estUnBanc = fichier => parSonNom(fichier, BUDGET);
+/** Whether the file at <fichier> is a night test or a time budget bench, by its name. */
+export const deNuitOuBanc = fichier => HORS_DU_JOUR.some(p => parSonNom(fichier, p));
 // Vitest's default `include` (its configDefaults).
 const INCLUDE = ['**/*.{test,spec}.?(c|m)[jt]s?(x)'];
 // The mark of a time witness: the import of `mesurerAuRepos`, on a line of its own, from the
@@ -80,11 +89,10 @@ const lireTexte = f => {
 
 /**
  * Whether the test file at <fichier> is out of the day: a night test, a time budget bench or a
- * time witness.
+ * time witness; the night and the bench by its name (`deNuitOuBanc`).
  * @param {string} fichier the path of the file
  */
-export const estHorsDuJour = fichier =>
-  HORS_DU_JOUR.some(p => path.matchesGlob(fichier, p)) || estTemoin(lireTexte(fichier));
+export const estHorsDuJour = fichier => deNuitOuBanc(fichier) || estTemoin(lireTexte(fichier));
 // The directories a search of the witnesses leaves out.
 const HORS_TEMOINS = new Set(['node_modules', 'dist', '.git', '.turbo', '.claude']);
 
@@ -99,7 +107,7 @@ export function fichiersTemoins(dir, include = INCLUDE) {
       )
     ),
   ]
-    .filter(f => !horsDuJour(f) && estTemoin(lire(f)))
+    .filter(f => !deNuitOuBanc(f) && estTemoin(lire(f)))
     .sort();
 }
 // The directories a walk under a named directory leaves out, whose files no test configuration
@@ -188,7 +196,7 @@ async function cibler(config, test, valeur, temoins) {
     // The files named themselves, not through a directory.
     const seuls = new Set(chemins.filter(f => fichiers(f)[0] === f));
     // A night test plays at night alone (./tests-de-nuit.mjs): a targeted run refuses it, named.
-    const deNuit = [...seuls].filter(f => path.matchesGlob(relatif(f), NUIT));
+    const deNuit = [...seuls].filter(estUnTestDeNuit);
     if (deNuit.length) {
       throw new Error(
         deNuit
@@ -206,7 +214,7 @@ async function cibler(config, test, valeur, temoins) {
         if (r.startsWith('../')) {
           return false;
         }
-        return horsDuJour(r) || temoins.has(r.replace(SPECIAUX, '\\$&'))
+        return deNuitOuBanc(r) || temoins.has(r.replace(SPECIAUX, '\\$&'))
           ? seuls.has(f)
           : include.some(p => path.matchesGlob(r, p));
       })
@@ -214,7 +222,7 @@ async function cibler(config, test, valeur, temoins) {
       .sort();
     // A bench named itself plays: the day's exclusions lift, and the
     // files under a directory named stay out by the filter above (a witness, by the plugin).
-    if (joues.some(horsDuJour) && Array.isArray(test.exclude)) {
+    if (joues.some(deNuitOuBanc) && Array.isArray(test.exclude)) {
       test.exclude = test.exclude.filter(p => !HORS_DU_JOUR.includes(p));
     }
     // No file named: a pattern that matches none, Vitest's « No test files found ».

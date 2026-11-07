@@ -9,7 +9,7 @@ import {
 import { sortie, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
-const commitIntegre = enProcessus<string | null>('scripts/circuit.mjs', 'commitIntegre');
+const commitIntegre = enProcessus<string | null>('scripts/activites.mjs', 'commitIntegre');
 const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');
 
 // grillhouse-0yu.5: the tri of the discoveries at the end of a ticket, as Chromium and Mozilla give

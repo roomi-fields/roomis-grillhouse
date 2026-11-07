@@ -90,6 +90,7 @@ import {
   paquetsDeLEnveloppe,
   retirerALInterruption,
   SCRIPT_DES_TESTS,
+  surUnePlace,
   TESTS_CIBLES,
   testsCibles,
   tracesDuPlan,
@@ -242,7 +243,12 @@ const lancer = () => {
 };
 
 try {
-  process.exitCode = lancer();
+  // The run takes a place of the machine (scripts/places-de-la-machine.mjs), whose mark every run
+  // of Turborepo carries to its tasks.
+  process.exitCode = surUnePlace(env => {
+    Object.assign(process.env, env);
+    return lancer();
+  });
 } finally {
   lacher();
   depuis?.retirer();

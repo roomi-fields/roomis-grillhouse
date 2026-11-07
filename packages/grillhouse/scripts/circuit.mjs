@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The circuit of one ticket, as a merge request: one author, a series of tests and of code, a CI
 // on the whole, a review (grillhouse-3uv.95.6). The plan; one testwriter for the whole ticket, in
 // the envelope of every package of its plan, and the proof of the red; one developpeur on the
@@ -6,46 +5,31 @@
 // integration, which commits the lot on the ticket's branch and puts that branch in the queue;
 // then the queue, which brings it onto main, pushes and reads the CI, and the circuit ends on the
 // state of the ticket the queue leaves. No component is a unit of the circuit: every step is one
-// for the whole ticket. The supervisor runs it once, in the background, and its end wakes him: at
-// 0 the ticket is closed; at 75 he runs `--reprendre` again once the machine is at rest; at any
-// other code, a question of the circuit waits for him. As a CI applies its rules (retry,
-// regenerate, skip a job without object) without asking anyone and calls a person only for what
-// no rule settles (the approval of a review), the circuit makes the mechanical gestures itself,
-// with no session (GESTES of scripts/etapes.mjs), and every other stop goes up to the supervisor:
-// its state carries the question (`question`: the fact, its piece, file:line or command and
-// output, the question, and who must answer it, MONTEES of scripts/etapes.mjs). He answers by a
-// command of the circuit, `--reprendre` (with `--contexte`) or `--depuis`, `--etendre <paquet>`,
-// or `--arreter`, and carries to the owner what is his (`qui` responsable). So the supervisor is
-// woken only by the end of the lot or by a question no rule settles. Witness: BP 320.9, sixteen
-// components played one after the other, 118 min of green steps played again, and a finding of
-// the reviewer on `exemplar` lost six times.
+// for the whole ticket. As a CI applies its rules (retry, regenerate, skip a job without object)
+// without asking anyone and calls a person only for what no rule settles (the approval of a
+// review), the circuit makes the mechanical gestures itself, with no session (GESTES of
+// scripts/etapes.mjs), and every other stop goes up to the supervisor: its state carries the
+// question (`question`: the fact, its piece, file:line or command and output, the question, and
+// who must answer it, MONTEES of scripts/etapes.mjs). He answers by a command of the circuit,
+// `--reprendre` (with `--contexte`) or `--depuis`, `--etendre <paquet>`, or `--arreter`, and
+// carries to the owner what is his (`qui` responsable). So the supervisor is woken only by a
+// question no rule settles. Witness: BP 320.9, sixteen components played one after the other,
+// 118 min of green steps played again, and a finding of the reviewer on `exemplar` lost six times.
 //
-//   npx grillhouse circuit <ticket> [--reprendre] [--contexte <texte>]
-//   npx grillhouse circuit <ticket> --depuis <testwriter|developpeur> --contexte <texte>
-//   npx grillhouse circuit <ticket> --etendre <paquet>[,<paquet>…] [--contexte <texte>]
-//   npx grillhouse circuit <ticket> --arreter [--contexte <motif>]
-//   npx grillhouse circuit <ticket> --rattacher
+// This module is the code of the circuit's acts: the workflow of a ticket under Temporal
+// (src/temporal/circuit/deroule.ts) leads the run, and plays each act in a process of its own
+// (scripts/faits-du-circuit.mjs), which calls the functions below (the opening, a step of the plan,
+// the preparation of a pass, a fact, a stop, the end). The command `npx grillhouse circuit` is the
+// client of that workflow (src/temporal/circuit/commande.ts): it puts a ticket in the queue of the
+// tickets of the project, answers a stop, or stops the circuit. A question wakes the supervisor by
+// the wait of the questions (`npx grillhouse superviseur --attendre`, scripts/superviseur.mjs),
+// which reads the server, and the normal end of a circuit wakes no one: the board shows it.
 //
-// The run is a daemon (scripts/demon.mjs), as daemon(3) and `setsid --fork` make one, in a unit of
-// its own (`grillhouse-circuit-<ticket>-<pid>.scope`) when the user's systemd answers, as
-// `systemd-run --user` starts one: the command launches a relay, which launches the run in a
-// session of its own and ends at once, so that the run is neither in the caller's process group,
-// nor under it in the tree of processes, nor in its group of control, and goes on to its end when
-// its caller dies or when the scope of its caller's terminal is killed (BP 320.8: the circuit, a
-// background command of the supervisor's session, died with it; grillhouse-mwz: systemd-oomd
-// killed the scope of the tmux pane of BPScript's supervisor, two circuits with it). The caller
-// relays the run's output to its own streams until the run's first state names it, then ends at 0
-// on the line that says so (`rendreLaMain` of scripts/demon.mjs, as `systemctl start` returns once
-// its unit has started); a run that ends before (a usage, a second run refused, `--arreter`, a
-// stop before any session) ends it on its code, the line of its question with the question; a
-// resumption that finds the session of the stop before still running names itself in the state
-// first, so gives the hand back, then waits for that session as a daemon. The question of a run wakes the supervisor by the wait of the questions
-// (`npx grillhouse superviseur --attendre`, scripts/superviseur.mjs), and its normal end wakes no
-// one, the board shows it (grillhouse-pq6: a launch that waited for its end woke the supervisor a
-// second time on its question, and a queue of launches woke no one before its end). The state
-// names the run (`processus` and its start `depart`), which the board reads, and a second run of
-// the ticket while it lives is refused (exit 2), `--arreter` stopping it, `--rattacher` waiting
-// for its end.
+// The decisions of each step (the step that follows, its attempt, its report, its stop) are the
+// functions without input nor output of scripts/transitions.mjs (`transition`, `apresLaPreuve`,
+// `arretDuTestwriterSaute`, `arretDuGesteMecanique`…), as a workflow of Temporal decides on the
+// results of its activities: the circuit reads the facts they ask for (a session, a pass, a reading
+// of the copy) and plays the effects they return (grillhouse-4nr.5).
 //
 // The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
 // formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
@@ -55,14 +39,10 @@
 // for the next session of their author, the log for the human. Each header of the log, a step's or
 // a session's, dates it in local time with its offset (ISO 8601), one time for the whole log.
 //
-// - The plan is read in the ticket's title (`bd show <ticket> --json`), after its last « — »,
-//   separated by commas: each one a path (`packages/<nom>`, or `.`), or the name of a package,
-//   which becomes its directory (scripts/paquets.mjs), read in the ticket's copy when it exists,
-//   else in the main tree. A name that names neither stops the call, exit 2, named.
-// - A ticket whose description holds no « ## Architecture » section stops the call, exit 2, before
-//   step 1, with the reason of the developer's lock (`sansArchitecture`, scripts/verrous/
-//   verrou.mjs), the one rule both read: the code waits for the architecture, and the steps before
-//   it would be sessions lost. `--arreter` passes, the stop not depending on the ticket's content.
+// - The plan is read in the ticket's title, after its last « — », and the ticket holds its
+//   « ## Architecture » section, as the launch reads them (scripts/depart-du-ticket.mjs): the launch
+//   refuses a ticket that does not, by its name, before any work (`npx grillhouse circuit`), and
+//   the opening of each act reads its plan the same way.
 // - Before the testwriter (a run that starts there), the plan (step 1 of scripts/etapes.mjs), as
 //   an RFC: its author writes it after surveying what exists, a review reads it once, the author
 //   answers once, and what stays open goes to who decides. One session of the explorateur out of
@@ -147,7 +127,8 @@
 //   files (`lesReferences`), so that no session stops on what the circuit writes itself (BP
 //   320.8: a developpeur, code and tests green, stopped on a ceiling, the debt and the index).
 //   The session's own exit code is the one lancer.sh
-//   writes to `.claude/worktrees/<ticket>.fin`; a launch that leaves none stopped before its
+//   writes to `.claude/worktrees/<ticket>.travail/seances/<id>/fin`, under the session's id
+//   (`rangDeLaSeance` of scripts/seances.mjs); a launch that leaves none stopped before its
 //   session.
 // - Each session of the explorateur, the questionneur, the testwriter, the developpeur and the
 //   reviewer ends on its sheet (« la fiche »): claude runs with `--output-format json --json-schema
@@ -155,15 +136,16 @@
 //   `structured_output`, which the circuit reads (`lireFiche`), each file piece of it checked in
 //   the copy (a piece not found refuses the sheet, asked again once like any other lack):
 //   lancer.sh writes that result to
-//   `.claude/worktrees/<ticket>.resultat.json`, and a session out of the envelope prints it. Each
+//   `.claude/worktrees/<ticket>.travail/seances/<id>/resultat.json`, and a session out of the
+//   envelope prints it there, its exit code beside. Each
 //   sheet read is kept with the ticket's sheets, `.claude/worktrees/<ticket>.fiches.jsonl` (`{
 //   date, role, fiche }`, the lot a review read joined to its sheet, `lot`), beside the circuit's
 //   own results: the report of each proof and check, which the reviewer receives, with its outcome
 //   (`resultat`), each stop (`arret`), each developpeur session that changed no file of the plan
 //   and goes to the checks or stops at « sans-livraison » (`inchange`), each session launched
 //   (`lancement`, its role and its session id), each end of a run on a question (`montee`: its
-//   code, its stop and the supervisor's session that ran it, `superviseur`, the
-//   `CLAUDE_CODE_SESSION_ID` Claude Code gives the run), which the bilan reads; and each
+//   code, its stop and the supervisor's session that ran it, `superviseur`, the session the
+//   entry of the workflow carries, `ctx.superviseur`), which the bilan reads; and each
 //   of its discoveries (`decouvertes`) filed closed under the ticket (scripts/ticket.sh, label
 //   `decouverte`). A session that ends without a sheet that conforms (none, one out of its schema,
 //   a code other than 0) is resumed once, the same session, with the third template, which names
@@ -188,7 +170,7 @@
 //   session runs with the author of its role (`testwriter`, `developpeur`, `explorateur`,
 //   `questionneur`, `relecteur`), which the envelope passes on; the circuit writes its own lines
 //   under `circuit` and the reviewer's verdict under `relecteur`, and the queue writes under `file`
-//   (scripts/integration/file.mjs), whose last word the circuit names. The rights of every session
+//   (`AUTEUR_DE_LA_FILE` of scripts/integration/file.mjs), whose last word the circuit names. The rights of every session
 //   refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE of
 //   scripts/droits.mjs, in the settings of every role's session), so that no agent changes its
 //   author.
@@ -219,8 +201,8 @@
 //   it reaches.
 // - Each automatic pass (each command of the proof and of the checks, the final pass, the
 //   integration and the queue) plays under a progress directory of its own
-//   (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), which its state names while it plays
-//   (`avancement`: `{ dossier }`, null between two), as Bazel counts its actions: Vitest writes
+//   (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), in its working directory while it plays
+//   (`<copie>.travail/avancement-*`), as Bazel counts its actions: Vitest writes
 //   there the files done and planned of each task, the queue the steps of its CI; the board shows
 //   them on the ticket's line (scripts/tableau.mjs). Its total is kept at its end under its kind
 //   (the step and the command), which the next pass of that kind takes while all its tasks have
@@ -483,19 +465,17 @@
 //   the integration reads itself), which the integration regenerates on
 //   main of the moment instead of applying their files from the lot. It runs
 //   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
-//   commit on agent/<ticket> (which the circuit names from git), the copy removed, the branch in
-//   the queue; 75 (« à repasser ») plays it once more (`rejeu`), then stops at « a-repasser »; any
-//   other code is its refusal, which stops at « integration ».
-// - Then the queue: scripts/integration/file.mjs from the main tree, waited for, its output added
-//   to the log (it brings the branch onto main, pushes it and reads the CI of the commit pushed).
-//   A queue already running exits 0 at once: the circuit waits while the branch is in the queue
-//   and the queue's lock names a live process. Then the state of the ticket: closed, the circuit
+//   commit on agent/<ticket> (which the circuit names from git), the copy removed, the ticket
+//   labelled `en-file`; 75 (« à repasser ») plays it once more (`rejeu`), then stops at
+//   « a-repasser »; any other code is its refusal, which stops at « integration ».
+// - Then the queue: the workflow of the ticket sends its branch to the queue of the project (the
+//   workflow `file:<racine>`, src/temporal/file/deroule.ts, whose gestures are those of
+//   scripts/integration/file.mjs) and awaits its issue (it brings the branch onto main, pushes it
+//   and reads the CI of the commit pushed). Then the state of the ticket: closed, the circuit
 //   sorts the discoveries (below), then ends at « integre », exit 0 (the queue's last word at the
-//   ticket named with it, a CI it could not read); reopened (out of the queue, or a red CI), it stops at « integration », the queue's
-//   last word as its reason; still in the queue, it stops at « a-repasser », the queue's reason.
-//   The branch out of the queue and its ticket open, as `--reprendre` finds it after a red CI, the
-//   queue reads the CI of the ticket's commit on main again (`file.mjs --ci <ticket>`): a rerun
-//   green (`gh run rerun <id> --failed`) closes the ticket, as an entry does.
+//   ticket named with it, a CI it could not read); reopened (out of the queue, or a red CI), it
+//   stops at « integration », the queue's last word as its reason; still in the queue, it stops at
+//   « a-repasser », the queue's reason.
 // - Then the tri of the discoveries (step 5.3, `trier`), as Chromium and Mozilla give each new
 //   report a verdict before it is filed: each discovery a sheet filed is kept with the circuit's
 //   results (`decouverte`: its id, its subject); without one, no session. Else one session of the
@@ -515,35 +495,33 @@
 //   sweep touches it, the queue removes it at the ticket's closure, and scripts/retirer-copie.sh
 //   with the copy of a ticket closed without integration. The results and progress of the passes
 //   live in the base of the run (scripts/mesure/base-de-passe.mjs), removed at its end.
-// - The state is `.claude/worktrees/<ticket>.circuit.json`, written again at each step and at the
-//   start and end of each session: `{ etape, tentative, code, raison, rapport, finale, boucles,
-//   seance, question, questionnement, processus, depart, paquets, constats, verifie, mene, reprise,
-//   refus, journal }`; `processus` the process of the circuit that writes it, `depart` its start (field
-//   22 of /proc/<pid>/stat), which together name it, a number alone being reused; `questionnement` the work
-//   on the plan under way (`{ objet, role, seance }`: the plan, the explorateur or the
-//   questionneur, its session), null otherwise; `etape` is the state's name of a numbered step of
-//   the process (scripts/etapes.mjs: geste 1.1, testwriter 2, preuve 2.1, developpeur 3, controles 3.1, or 4.1
-//   the final pass once `finale`, references 4.2, relecture 4.3, integration 5.1, file 5.2, tri
-//   5.3), or
-//   integre at the end; `raison` names the stop (« arrete » once the supervisor stopped the
-//   circuit); `question` the question of a stop for the supervisor (`{ arret, fait, piece,
-//   question, qui }`), null otherwise; `paquets` the plan of the ticket, in its order; `constats`
-//   the findings of the reviewer still open, each with its agent; `boucles` the counts of the
-//   bounded loops of the step under way, by their key (`tests`, the testwriter's sessions with
-//   their proofs; `code`, the developpeur's with their checks; `relecture`, the reviews), null at
-//   a step without one; `finale` whether the final pass has begun; `seance` the process group of
-//   the session that runs, null between two; `verifie` the tree of the lot the last whole final
-//   pass green played, null before; `mene` the start (an ISO date) of the step the circuit leads
-//   itself while it runs, null otherwise; `reprise` the session of the testwriter or developpeur
-//   its relaunches resume, `{ agent, seance }`, null before any; `refus` the integration's refusal
-//   of the lot (`{ rapport, piece, empreinte, lance, relance }`: its output, its piece, the
-//   fingerprint of the plan refused, whether `--depuis developpeur` launched the developpeur on it,
-//   whether a session so launched left it unchanged once), null before any, once the integration
-//   accepts the lot, and on a run from the testwriter.
+// - The state, which the workflow of the ticket holds (the effect `etat`, scripts/effets.mjs), is
+//   written again at each step and at each stop: `{ etape, tentative, code, raison, rapport,
+//   finale, relanceSurLeRefus, boucles, question, questionnement, paquets, constats, verifie, mene,
+//   reprise, refus, aRegenerer, controlesRouges, rang, journal }`; `relanceSurLeRefus` whether the
+//   developpeur's next session is the one relaunched once on the lot the integration refuses;
+//   `questionnement` the work on the plan under way (`{ objet, role, seance }`: the plan, the
+//   explorateur or the questionneur, its session), null otherwise; `etape` is the
+//   state's name of a numbered step of the process (scripts/etapes.mjs: geste 1.1, testwriter 2,
+//   preuve 2.1, developpeur 3, controles 3.1, or 4.1 the final pass once `finale`, references 4.2,
+//   relecture 4.3, integration 5.1, file 5.2, tri 5.3), or integre at the end; `raison` names the
+//   stop (« arrete » once the supervisor stopped the circuit); `question` the question of a stop for
+//   the supervisor (`{ arret, fait, piece, question, qui }`), null otherwise; `paquets` the plan of
+//   the ticket, in its order; `constats` the findings of the reviewer still open, each with its
+//   agent; `boucles` the counts of the bounded loops of the step under way, by their key (`tests`,
+//   the testwriter's sessions with their proofs; `code`, the developpeur's with their checks;
+//   `relecture`, the reviews), null at a step without one; `finale` whether the final pass has
+//   begun; `verifie` the tree of the lot the last whole final pass green played, null before;
+//   `mene` the start (an ISO date) of the step the circuit leads itself while it runs, null
+//   otherwise; `reprise` the session of the testwriter or developpeur its relaunches resume,
+//   `{ agent, seance }`, null before any; `refus` the integration's refusal of the lot (`{ rapport,
+//   piece, empreinte, lance, relance }`: its output, its piece, the fingerprint of the plan refused,
+//   whether `--depuis developpeur` launched the developpeur on it, whether a session so launched
+//   left it unchanged once), null before any, once the integration accepts the lot, and on a run
+//   from the testwriter; `rang` the rank of the circuit's arrival among the machine's waits for a
+//   place.
 // - `--reprendre` starts again at the step of the state, its report given to the next session,
-//   after any stop, the death of the circuit included. A session the state names
-//   that still runs is waited for first, and stopped when it stands still as long as a motionless
-//   session. On a stop « integration », it plays the integration (or the queue) again on the same
+//   after any stop. On a stop « integration », it plays the integration (or the queue) again on the same
 //   lot, as bors retries: a refusal can come from the load or from main (BP 320.16, 320.16.2). On
 //   a stop « questionnement », it lets the plan pass as it is then (the supervisor
 //   changed it or kept it), from the testwriter.
@@ -569,18 +547,11 @@
 //   resumes at the testwriter, the role it names. The plan so extended has passed (`plan`, its
 //   fingerprint): neither the explorateur nor the questionneur works on it again. A package the
 //   repository does not hold is refused, exit 2.
-// - `--arreter` stops the circuit on the supervisor's word, as a pipeline cancelled: a circuit
-//   running on the ticket (the state's `processus`, alive) stops, SIGTERM then SIGKILL, and so does
-//   the session it led (`seance`); the state keeps its step, its stop « arrete », its question
-//   lifted, its motive (`--contexte`) as its report, said at the ticket (`Circuit · arret : le
-//   superviseur arrête le circuit : <motif>`), exit 0. Without a state, the call is refused.
-// - `--rattacher`, alone, is a client of the circuit of the ticket, as Bazel's client of its
-//   server (`rattacher`): run in its caller's process, not as a daemon, it waits while the process
-//   the state names lives, then ends as the circuit's own end does: 0 at « integre », the line of
-//   the question and its code on a stop, and 1 for a circuit dead without a final state, with the
-//   command that resumes it (`--reprendre`). Killed, it leaves the circuit going. It is the command
-//   the supervisor launches, in the background, on each circuit the opening of his session names
-//   running (scripts/superviseur.mjs). Without a state, the call is refused.
+// - `--arreter` stops the circuit on the supervisor's word, as a pipeline cancelled: the workflow
+//   cancels the act under way, its session with it, then the state keeps its step, its stop
+//   « arrete », its question lifted, its motive (`--contexte`) as its report, said at the ticket
+//   (`Circuit · arret : le superviseur arrête le circuit : <motif>`), and the workflow ends, giving
+//   that state back, which an answer reopens from.
 // - On a stop other than 0, the circuit applies its gesture when one settles it (`a-repasser`:
 //   it ends at 75), the gesture written at the ticket and in the log; every other stop goes up to
 //   the supervisor (`monter`): its question (MONTEES of scripts/etapes.mjs, or the agent's own
@@ -603,7 +574,7 @@
 //   its results and its state, kept in `.claude/worktrees/<ticket>.bilan.json` and written at the
 //   ticket in one short comment, `Circuit · bilan : …`, compared with the bilan before it in the
 //   project.
-// - Exit codes: 0 at « integre »; 2 a malformed call; a stop, by its name (ARRETS):
+// - The codes of the stops, by their name (ARRETS), 0 at « integre »:
 //   10 lancement (lancer.sh stopped before the session, or the tools of the project,
 //   `grillhouse.outils`, refused at the launch or a resumption, before any session, or the copy
 //   that does not move forward to the tip of main before the checks or the final pass, its
@@ -625,233 +596,122 @@
 //   before any session), 22 questionnement (questions of the plan left open
 //   after the explorateur's answer), 23 references (a regeneration of 4.2 that changes a file
 //   no reference writes, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
-//   stops on a write out of the plan, `<ticket>.hors-plan` that lancer.sh writes), each a question
-//   for the supervisor; 75 a-repasser (a check or the integration still at 75 once played again,
+//   stops on a write out of the plan, `hors-plan` that lancer.sh ranges under the session's id), 25 inattendu
+//   (an act that fails, an exception no rule of the circuit settles: its message, its stack and its
+//   step in its question, `arretInattendu`), each a question for the supervisor; 75 a-repasser (a check or the integration still at 75 once played again,
 //   or the branch still in the queue), the gesture `a-repasser`.
-import { spawn, spawnSync } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   closeSync,
-  copyFileSync,
-  cpSync,
   existsSync,
   openSync,
   mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  statSync,
-  symlinkSync,
   appendFileSync,
-  utimesSync,
+  readFileSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { stripVTControlCharacters } from 'node:util';
-import { ecrireLeBilan } from './bilan.mjs';
-import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
-import { avecLesDonnees, donneesDe } from './donnees-cles.mjs';
-import { avecLesOutils, outilsDe } from './outils-cles.mjs';
-import { couvertPar, engendresDe } from './engendres.mjs';
-import { consigneDesFlux, fluxDe } from './flux-des-paquets.mjs';
-import { commandesPermises, optionsDuRole } from './droits.mjs';
-import {
-  ecrireLaListe,
-  paquetsDuLangage,
-  VARIABLE as VARIABLE_ENVELOPPE,
-} from './enveloppe/paquets-du-plan.mjs';
+import { outilsDe } from './outils-cles.mjs';
+import { donneesDe } from './donnees-cles.mjs';
+import { engendresDe } from './engendres.mjs';
+import { fluxDe } from './flux-des-paquets.mjs';
 import {
   AGENTS_DU_LOT,
   ARRETS,
   AUTO,
-  boucle,
   bouclesDe,
   etapeDuCircuit,
   EXPLORATEUR,
-  gesteDe,
   libelle,
   monteeDe,
   nomDuRole,
   QUESTIONNEUR,
-  RESPONSABLE,
   SUITE,
 } from './etapes.mjs';
-import { releve } from './composants-affectes.mjs';
-import { ecrire as ecrireAuRegistre, ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
-import { FICHIER as DETTE } from './dette.mjs';
 import {
-  A_ELAGUER,
+  CODE,
+  CONTROLES,
+  ouvertesDuPlan,
+  pasDuPlan,
+  questionsPosees,
+  rapportDuRefus,
+  TESTS,
+} from './transitions.mjs';
+import {
+  arbreDeLaCopie,
+  balayerLesSoeurs,
+  controles,
+  empreinte,
+  environnementDeLaPasse,
+  horsDeLEnveloppe,
+  integrer,
+  laPasseFinale,
+  leLotAccepte,
+  leLotGarde,
+  lesReferences,
+  livre,
+  preuve,
+  referencesDesRouges,
+  regenerer,
+  relire,
+  sansTests,
+  testsDuLot,
+  trier,
+} from './activites.mjs';
+import {
+  ACTEUR,
+  Arret,
+  AUTEUR_DU_CIRCUIT,
+  commenter,
+  composantsDe,
+  derniereDe,
+  entete,
+  fichesDe,
+  fin,
+  geste,
+  inscrire,
+  lesCommentaires,
+  lesFiches,
+  leTicket,
+  lire,
+  nomsDe,
+  passations,
+  PREFIXE,
+  premiereLigne,
+  sansCouleurs,
+} from './ticket-du-circuit.mjs';
+import { emettre } from './effets.mjs';
+import { consigne, auLancement, idDeSeance, jusquALaFiche, seance } from './seances.mjs';
+import { releve } from './composants-affectes.mjs';
+import { ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
+import {
   bloquantsDeLaFiche,
   cleDuConstat,
-  conformiteDuLot,
-  conformiteDuTri,
-  lireFiche,
-  lireSarif,
-  regleDeLaLigne,
-  reponsesAuxConstats,
   reponsesAuxQuestions,
-  RESULTATS,
-  schemaDeFiche,
   sorteDuPlan,
-  suiviDesConstats,
-  VERDICTS_DU_TRI,
-  VERDICTS_ROUVERTS,
 } from './resultats.mjs';
 import { preparer } from './enveloppe/travail-de-la-copie.mjs';
-import { AUTEUR_DE_LA_FILE, INTEGRE } from './integration/file.mjs';
-import { dossierCommun, lireEntrees } from './integration/file-attente.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
-import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
-import { attendreUnPeu } from './verrou-de-fichier.mjs';
-import { lancerLaFile } from './file-des-tickets.mjs';
-import { prendreUnePlace, prendreUnRang } from './places-de-la-machine.mjs';
-import { avecLaPasse, lancementDeLaPasse, passeLourde } from './passe-de-la-machine.mjs';
-import { AttenteDeLaMachine, avecLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
-import { garderLeTotal, ouvrirAvancement } from './avancement.mjs';
-import { AVANCEMENT } from './mesure/avancement.mjs';
-import { nomsDesGardes } from './gardes-du-cadre.mjs';
+import { prendreUnRang } from './places-de-la-machine.mjs';
 import { langageDe } from './langages.mjs';
-import { avecUneLecture } from './lecture-unique.mjs';
-import { sansArchitecture } from './verrous/verrou.mjs';
-import { A_REPASSER } from './mesure/pression.mjs';
-import { departDe, leMemeVivant, ouvrirBase, vivant } from './mesure/base-de-passe.mjs';
+import { leTitre, ticketAuLancement } from './depart-du-ticket.mjs';
+import { ouvrirBase } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
-import { estLeDemon, executerEnDemon, rendreLaMain, sortieLue } from './demon.mjs';
-import { inscrireLaQuestionLue } from './superviseur.mjs';
 import { retirerLesCopiesDuDepot } from './copies-finies.mjs';
+import { lesReponses } from './reponses-du-circuit.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
 // The exit code of each stop, from the list of the steps and stops.
 export { ARRETS };
-const CODE_USAGE = 2;
-// The start of this process (departDe), which the state writes beside its number: a number alone
-// may name another process once reused.
-const DEPART = departDe(process.pid);
-// The bounded loops, each declared with its step (scripts/etapes.mjs, `boucles`): the testwriter is
-// relaunched twice at most after a failed proof (three sessions); the developpeur has three
-// sessions, the last on the strong model; the third RENDU of one ticket stops the circuit.
-const RELANCES_TESTWRITER = boucle('tests').max - 1;
-const SEANCES_DEVELOPPEUR = boucle('code').max;
-const RELECTURES = boucle('relecture').max;
-// The steps of the circuit's state, read from the list of the steps.
-const etatDe = n => SUITE.find(e => e.numero === n).etat;
-const [GESTE, TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FILE, TRI] = [
-  '1.1',
-  '2',
-  '2.1',
-  '3',
-  '3.1',
-  '4.2',
-  '4.3',
-  '5.1',
-  '5.2',
-  '5.3',
-].map(etatDe);
-// The variable in which bd reads the author of a comment (`bd --help`: « default: $BEADS_ACTOR,
-// git user.name, $USER »), each session's its role; the author of the circuit's own lines.
-const ACTEUR = 'BEADS_ACTOR';
-const AUTEUR_DU_CIRCUIT = 'circuit';
-// The sessions out of the envelope (the reviewer on Opus, the explorateur and the questionneur on
-// Sonnet), each in the
-// ticket's copy, the main tree once the integration removed it, under the rights and the context
-// of its role (scripts/droits.mjs: the commands its skill names, the refusal of a change of its
-// author at the ticket), without a prompt: any call its rights do not permit is refused.
-const horsDeLEnveloppe = (ctx, role, modele) => [
-  '--model',
-  modele,
-  '--permission-mode',
-  'dontAsk',
-  ...optionsDuRole(role, {
-    racine: ctx.racine,
-    copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
-    ticket: ctx.ticket,
-  }),
-];
-const FORT = ['--modele', 'opus', '--effort', 'high'];
-const PREFIXE = 'Circuit · ';
-const TICKET_SH = path.join(import.meta.dirname, 'ticket.sh');
 // The steps the circuit leads itself, with no agent: each one counts in the ticket's working time.
 const MENEES = new Set(SUITE.filter(e => e.qui.includes(AUTO) && e.etat).map(e => e.etat));
 
 const ici = import.meta.dirname;
-const LANCEUR = path.join(ici, 'enveloppe', 'lancer.sh');
-const INTEGRER = path.join(ici, 'integration', 'integrer.mjs');
 const PREPARER = path.join(ici, 'enveloppe', 'travail-de-la-copie.mjs');
-const FILE = path.join(ici, 'integration', 'file.mjs');
-const REGISTRE = path.join(ici, 'registre.mjs');
-// A generator of the frame, beside this script, as the command of a reference.
-const generateur = (script, ...args) =>
-  [`node ${JSON.stringify(path.join(ici, script))}`, ...args].join(' ');
-// The references of the circuit that no project declares (4.2), as Bazel's genrules: the files the
-// module of the project's language generates (`fichiersEngendres`, scripts/jointure.d.ts), each
-// judged by a guard of the frame and written again by its generator, whose
-// code the circuit does not read (a real failure aside): what it writes, then the pass that
-// follows, judge it; and the known debt of the guards, lowered from the notes of the final pass (`dette.mjs --abaisser`,
-// `abaisser`: its command names the file of those notes). Each `{ nom, commande, fichiers, lit,
-// gardes }`, `lit` the files of the copy it reads that another reference writes (as the
-// prerequisites of a rule of make: the index reads the interfaces, whose generated part the API
-// reports write), `gardes` the names the findings its regeneration lifts carry (their guard or
-// their rule), `entiers` the files of `fichiers` its command writes in full, which the integration
-// does not apply from the lot but regenerates on main of the moment
-// (scripts/integration/integrer.mjs), as the module says of each of its own; not the debt, which
-// reads the notes of a pass.
-const referencesDuCadre = racine => [
-  ...langageDe(racine)
-    .fichiersEngendres(racine)
-    .map(({ verifier: _verifier, ...reference }) => reference),
-  {
-    nom: 'la dette des gardes',
-    commande: generateur('dette.mjs', '--abaisser', '<notes>'),
-    fichiers: [DETTE],
-    lit: [],
-    gardes: [],
-    entiers: [],
-    abaisser: true,
-  },
-];
-// The templates of the instructions, in the skill of the supervisor, which the frame's plugin
-// carries, read at the plugin's root (scripts/cadre.mjs).
-const GABARIT = path.join(GREFFON, 'skills', 'pitmaster', 'references', 'consigne-agent.md');
-
-// A stop of the circuit: its name (a key of ARRETS) and its report; for a stop of the checks, its
-// reds read in the structured results (`{ paquet, texte, detail }`) and its motive, the report
-// without their list; the outcome of the step it stops, when it has one (a proof's, the checks'
-// with their reds), which the bilan reads; and what its montée carries beyond the question of its kind (scripts/etapes.mjs,
-// MONTEES): its `piece` (file:line, or command and output), its own `question`, and who must
-// answer it (`qui`, the owner for the reviewer's question).
-class Arret extends Error {
-  constructor(
-    nom,
-    rapport,
-    {
-      rouges = null,
-      motif = null,
-      resultat = null,
-      piece = null,
-      question = null,
-      qui = null,
-      etape = null,
-    } = {}
-  ) {
-    super(nom);
-    this.nom = nom;
-    this.rapport = rapport;
-    this.rouges = rouges;
-    this.motif = motif;
-    this.resultat = resultat;
-    this.piece = piece;
-    this.question = question;
-    this.qui = qui;
-    // The step the stop stands at, when it is not the step that throws it.
-    this.etape = etape;
-  }
-}
-
 // A malformed call: its message.
 class Usage extends Error {}
 
@@ -889,76 +749,6 @@ export function rougeDeLecture(ctx) {
   }
 }
 
-// What follows that red after the session <tentative> of <role>: the agent again, one attempt
-// used as a red build uses it, or, the attempts used up, the stop « controles » as the red checks.
-export function suiteDuRougeDeLecture(role, tentative) {
-  const max = boucle(role === 'testwriter' ? 'tests' : 'code').max;
-  return tentative < max ? { etape: role, tentative: tentative + 1 } : { arret: 'controles' };
-}
-
-const sansCouleurs = t => stripVTControlCharacters(String(t ?? ''));
-const premiereLigne = t => sansCouleurs(t).trim().split('\n')[0].slice(0, 300);
-const fin = (t, n) => sansCouleurs(t).split('\n').slice(-n).join('\n');
-const enUneLigne = t =>
-  sansCouleurs(t)
-    .split('\n')
-    .map(l => l.trim())
-    .filter(Boolean)
-    .join(' ')
-    .slice(0, 300);
-
-// The options of the command line, or a Usage.
-function lireArguments(argv) {
-  const o = {
-    ticket: null,
-    reprendre: false,
-    contexte: null,
-    depuis: null,
-    etendre: null,
-    arreter: false,
-    rattacher: false,
-  };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--reprendre') o.reprendre = true;
-    else if (a === '--arreter') o.arreter = true;
-    else if (a === '--rattacher') o.rattacher = true;
-    else if (a === '--etendre') {
-      const liste = String(argv[i + 1] ?? '')
-        .split(',')
-        .map(c => c.trim())
-        .filter(Boolean);
-      if (!liste.length || argv[i + 1].startsWith('-'))
-        throw new Usage('--etendre attend les paquets que le plan gagne.');
-      o.etendre = liste;
-      i++;
-    } else if (a === '--depuis') {
-      // The step the run starts from, for the whole ticket: the testwriter's or the developpeur's.
-      const etape = argv[i + 1];
-      if (!AGENTS_DU_LOT.includes(etape))
-        throw new Usage(`--depuis attend une étape du ticket : ${AGENTS_DU_LOT.join(' ou ')}.`);
-      o.depuis = etape;
-      i++;
-    } else if (a === '--contexte') {
-      if (i + 1 >= argv.length) throw new Usage('--contexte attend son texte.');
-      o.contexte = argv[++i];
-    } else if (a.startsWith('-')) throw new Usage(`option inconnue : ${a}`);
-    else if (o.ticket) throw new Usage(`un seul ticket : ${o.ticket}, puis ${a}.`);
-    else o.ticket = a;
-  }
-  if (!o.ticket) throw new Usage('le ticket manque.');
-  if (o.depuis && o.reprendre) throw new Usage('--depuis et --reprendre ne vont pas ensemble.');
-  if (o.etendre && (o.reprendre || o.depuis || o.arreter))
-    throw new Usage(
-      '--etendre va seule, avec son --contexte : le circuit reprend sur le plan étendu.'
-    );
-  if (o.arreter && (o.reprendre || o.depuis))
-    throw new Usage('--arreter va seule, son motif en --contexte.');
-  if (o.rattacher && (o.reprendre || o.depuis || o.etendre || o.arreter || o.contexte !== null))
-    throw new Usage('--rattacher va seule.');
-  return o;
-}
-
 // The main tree, from git's common directory: run from a copy, the circuit still finds the others.
 function arbrePrincipal() {
   const r = spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
@@ -968,41 +758,8 @@ function arbrePrincipal() {
   return path.dirname(r.stdout.trim());
 }
 
-// The components of the repository at <racine> as the module of its language gives them, and the
-// packages out of the frame a plan may name (`paquetsDuLangage`, as the envelope reads them):
-// `{ dossier, pkg: { name }, hors }`, `dossier` relative to <racine>, `.` for a component at its
-// root (a crate whose workspace is its own, as OSC Bridge's).
-export const composantsDe = racine => paquetsDuLangage(langageDe(racine), racine);
-
-// The directory of the component <nom> of a title among <liste> (`composantsDe` of the repository
-// at <base>): `.` itself; a component by its path or its name; else a path of the repository; or a
-// Usage.
-export function resoudreComposant(liste, base, nom) {
-  const brut = path.normalize(nom);
-  const norme = brut.endsWith('/') ? brut.slice(0, -1) : brut;
-  if (norme === '.') return '.';
-  if (liste.some(p => p.dossier === norme)) return norme;
-  const parNom = liste.find(p => p.pkg.name === nom);
-  if (parNom) return parNom.dossier;
-  if (!norme.startsWith('..') && existsSync(path.join(base, norme))) return norme;
-  throw new Usage(`le composant « ${nom} » du titre ne nomme ni un paquet ni un chemin du dépôt.`);
-}
-
-// The ticket <id> as `bd show --json` gives it in <sortie>, refused by a Usage when its description
-// holds no « ## Architecture » section, by the rule of the developer's lock (`sansArchitecture`):
-// the code waits for the architecture, so the circuit stops before its first session, as a CI
-// validates its configuration before it runs its jobs. The supervisor's stop (<arreter>,
-// `--arreter`) passes: it does not depend on the ticket's content, as GitLab cancels a pipeline
-// whatever its configuration; `--reprendre` and `--etendre` keep the check.
-export function ticketAuDepart(id, sortie, { arreter = false } = {}) {
-  const t = JSON.parse(sortie)[0];
-  const refus = arreter ? null : sansArchitecture(id, t?.description);
-  if (refus) throw new Usage(refus);
-  return t;
-}
-
 // The context of one run: the paths of the ticket, its plan, how the circuit speaks to bd.
-function contexte(o) {
+export function contexte(o) {
   const racine = arbrePrincipal();
   const copie = path.join(racine, '.claude', 'worktrees', o.ticket);
   // The comments of a long ticket pass the 1 MiB that a child process returns by default. bd runs
@@ -1015,43 +772,30 @@ function contexte(o) {
       env: { ...process.env, [ACTEUR]: qui },
     });
   const bd = (...a) => bdSous(AUTEUR_DU_CIRCUIT, ...a);
-  const show = bd('show', o.ticket, '--json');
-  if (show.status !== 0) throw new Usage(`ticket ${o.ticket} illisible : ${show.stderr}`);
-  const t = ticketAuDepart(o.ticket, show.stdout, { arreter: Boolean(o.arreter) });
-  const base = existsSync(copie) ? copie : racine;
-  const liste = composantsDe(base);
-  const resoudre = nom => resoudreComposant(liste, base, nom);
-  // The subject of the title <titre>, « numéro — sujet — composants », and the packages of its
-  // plan, its components, each a directory of the repository; or a Usage.
-  const duTitre = titre => {
-    const parts = String(titre ?? '').split(' — ');
-    if (parts.length < 2) throw new Usage(`le titre de ${o.ticket} ne nomme pas ses composants.`);
-    return {
-      sujet: parts.length > 2 ? parts.slice(1, -1).join(' — ') : parts[0],
-      plan: parts
-        .at(-1)
-        .split(',')
-        .map(c => c.trim())
-        .filter(Boolean)
-        .map(resoudre),
-    };
-  };
-  const { sujet, plan } = duTitre(t?.title);
+  // The ticket, its architecture and its plan, read as the launch reads them
+  // (scripts/depart-du-ticket.mjs); the plan of a title written again read by `duTitre`.
+  const {
+    ticket: t,
+    resoudre,
+    sujet,
+    plan,
+  } = ticketAuLancement(racine, o.ticket, {
+    arreter: Boolean(o.arreter),
+    bd,
+    plan: o.paquets ?? null,
+  });
+  const duTitre = titre => leTitre(o.ticket, titre, resoudre);
   // The working directory of the circuit is the ticket's, `<copie>.travail` beside its copy: what
   // the circuit hands its sessions (their instructions, results and errors, the reviewer's
   // statements, the integration's patches and message), which a session out of the envelope reads
   // even when its circuit is killed. As the workspace of a pipeline (Jenkins, GitLab), it lives as
-  // long as the ticket: no sweep touches it, a circuit relaunched takes it up again, numbering its
-  // files after those it finds, and the queue removes it at the ticket's closure, or the removal of
+  // long as the ticket: no sweep touches it, a circuit relaunched takes it up again, each session
+  // numbering its files after those it finds (`prochainNumero` of scripts/seances.mjs), and the queue removes it at the ticket's closure, or the removal of
   // the copy of a ticket closed without integration (scripts/retirer-copie.sh). The results and
   // the progress of the circuit's passes live in the base of its run
   // (scripts/mesure/base-de-passe.mjs), removed at its end, swept when the run is killed.
   const tmp = `${copie}.travail`;
   mkdirSync(tmp, { recursive: true });
-  const numero = Math.max(
-    0,
-    ...readdirSync(tmp).map(n => Number(/-(\d+)(?:\.[a-z]+)?$/.exec(n)?.[1] ?? 0))
-  );
   const baseDuRun = ouvrirBase('circuit');
   return {
     ...o,
@@ -1065,89 +809,15 @@ function contexte(o) {
     sujet,
     // The packages of the plan, the components of the title, which every session writes.
     paquets: plan,
-    etat: `${copie}.circuit.json`,
     journal: `${copie}.log`,
-    fin: `${copie}.fin`,
-    resultat: `${copie}.resultat.json`,
-    horsPlan: `${copie}.hors-plan`,
     fiches: `${copie}.fiches.jsonl`,
     transcriptions: transcriptionsDeLaCopie(copie, os.homedir()),
     immobileMs: Number(process.env.GRILLHOUSE_CIRCUIT_IMMOBILE_MS) || IMMOBILE_MS,
     base: baseDuRun,
     tmp,
-    numero,
+    ports: null,
   };
 }
-
-// Every comment at the ticket, in their order, `{ author, text }` as Beads gives them; a failed
-// read throws.
-function lesCommentaires(ctx) {
-  const r = ctx.bd('comments', ctx.ticket, '--json');
-  if (r.status !== 0) {
-    throw new Error(
-      `commentaires de ${ctx.ticket} illisibles : ${r.error?.message ?? r.stderr ?? ''}`.trim()
-    );
-  }
-  return (JSON.parse(r.stdout || '[]') ?? []).map(c => ({
-    author: String(c.author ?? ''),
-    text: String(c.text ?? ''),
-  }));
-}
-
-// The ticket's description (its criteria), notes, title and labels as Beads holds them at this
-// moment, read at the launch of each session: `{ description, notes, titre, labels }`; a failed
-// read throws.
-function leTicket(ctx) {
-  const r = ctx.bd('show', ctx.ticket, '--json');
-  if (r.status !== 0) {
-    throw new Error(
-      `ticket ${ctx.ticket} illisible : ${r.error?.message ?? r.stderr ?? ''}`.trim()
-    );
-  }
-  const t = JSON.parse(r.stdout || '[]')[0] ?? {};
-  return {
-    description: String(t.description ?? ''),
-    notes: String(t.notes ?? ''),
-    titre: String(t.title ?? ''),
-    labels: Array.isArray(t.labels) ? t.labels.map(String) : [],
-  };
-}
-
-// The comments of the agents at the ticket, `{ author, text }`: every comment but the circuit's
-// own. The circuit reads none of them: it hands an agent's last one to the next session of its
-// author, and names it in a stop.
-const passations = ctx => lesCommentaires(ctx).filter(c => c.author !== AUTEUR_DU_CIRCUIT);
-
-// The last handover at the ticket of the author <qui>, or null.
-const derniereDe = (ctx, qui) =>
-  passations(ctx)
-    .filter(c => c.author === qui)
-    .at(-1) ?? null;
-
-// The sheets of the ticket's sessions and the circuit's reports, in their order
-// (`<ticket>.fiches.jsonl`, beside the copy): `{ date, role, fiche }` for the sheet of a session,
-// `{ date, role: 'circuit', etape, rapport }` for the report of a proof or of checks, which the
-// reviewer receives.
-function lesFiches(ctx) {
-  return lire(ctx.fiches)
-    .split('\n')
-    .filter(Boolean)
-    .flatMap(l => {
-      try {
-        return [JSON.parse(l)];
-      } catch {
-        return [];
-      }
-    });
-}
-const inscrire = (ctx, entree) =>
-  appendFileSync(ctx.fiches, `${JSON.stringify({ date: new Date().toISOString(), ...entree })}\n`);
-
-// The sheets of <role>, in their order.
-const fichesDe = (ctx, role) =>
-  lesFiches(ctx)
-    .filter(e => e.role === role)
-    .map(e => e.fiche);
 
 // The step of the circuit's state <etat> in words, « 3 Code » (scripts/etapes.mjs), or its
 // `etape` when the list holds none.
@@ -1155,12 +825,6 @@ const ouDansLeCircuit = etat => {
   const e = etapeDuCircuit(etat);
   return e ? libelle(e) : etat.etape;
 };
-
-// One line of the circuit's history at the ticket: `Circuit · <étape> : <texte>`.
-function commenter(ctx, etape, texte) {
-  const r = ctx.bd('comments', 'add', ctx.ticket, `${PREFIXE}${etape} : ${texte}`);
-  if (r.status !== 0) process.stderr.write(`⚠️  commentaire non écrit au ticket : ${r.stderr}\n`);
-}
 
 // The report of a proof or of checks: its line at the ticket, and its report kept for the
 // reviewer, <rapport> when the comment carries only its summary, beside its outcome <resultat>,
@@ -1176,21 +840,21 @@ function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
   });
 }
 
-// The state of the run, written whole (`seance` and `question` null and `finale` false unless <etat>
-// sets them, `processus`, `paquets`, `constats`, `verifie`, `reprise`, `aRegenerer`, `refus` and
-// `controlesRouges` the run's), kept as the run's current state. Its first write in a daemon gives
-// the hand back to the caller (`rendreLaMain`): the state names the run from then on.
-function ecrireEtat(ctx, etat) {
+// The state of the run, written whole (`raison`, `boucles` and `question` null, `finale` and
+// `relanceSurLeRefus` false unless <etat> sets them, `paquets`, `constats`, `verifie`, `reprise`,
+// `aRegenerer`, `refus`, `controlesRouges` and `rang` the run's), kept as the run's current
+// state and emitted (the effect `etat`), which the workflow of the ticket holds
+// (src/temporal/circuit/deroule.ts).
+export function ecrireEtat(ctx, etat) {
   ctx.courant = {
+    raison: null,
     finale: false,
-    seance: null,
+    relanceSurLeRefus: false,
+    boucles: null,
     question: null,
     questionnement: null,
     mene: null,
-    avancement: null,
     ...etat,
-    processus: process.pid,
-    depart: DEPART,
     paquets: ctx.paquets,
     constats: ctx.constats ?? [],
     verifie: ctx.verifie ?? null,
@@ -1200,1148 +864,23 @@ function ecrireEtat(ctx, etat) {
     controlesRouges: ctx.controlesRouges ?? null,
     rang: ctx.rang ?? null,
   };
-  const provisoire = `${ctx.etat}.${process.pid}`;
-  writeFileSync(
-    provisoire,
-    `${JSON.stringify({ ...ctx.courant, journal: ctx.journal }, null, 2)}\n`
-  );
-  renameSync(provisoire, ctx.etat);
-  // The supervisor's « --arreter » is no launch, and a run whose first state is already a stop (a
-  // refusal before any session: the arbitrage, the tools, the generated files) ends at once: their
-  // caller waits for their end, and says the stop and its question (`monter`) with its code.
-  if (ctx.arreter || ctx.courant.raison) {
-    return;
-  }
-  rendreLaMain(
-    `▶ Circuit de ${ctx.ticket} lancé (processus ${process.pid}), détaché : sa question réveille l'attente des questions (\`npx grillhouse superviseur --attendre\`), sa fin se lit au panneau ; \`--rattacher\` attend sa fin.\n`
-  );
+  emettre(ctx, { genre: 'etat', etat: { ...ctx.courant, journal: ctx.journal } });
 }
 
 // The register's line of the step <etape> the circuit led itself from <debut> (an ISO date) to
-// now; a register it cannot write leaves the circuit going.
+// now; a register it cannot write leaves the circuit going (`ecrireLEffet`).
 function inscrireEtape(ctx, { etape, debut }) {
-  try {
-    ecrireAuRegistre(
-      ligneDEtape({
-        projet: ctx.racine,
-        ticket: ctx.ticket,
-        etape,
-        debut,
-        fin: new Date().toISOString(),
-      })
-    );
-  } catch (e) {
-    process.stderr.write(`⚠️  étape ${etape} non écrite au registre : ${e.message}\n`);
-  }
-}
-
-// The time <d> in local time with its offset, to the second, as ISO 8601 writes it and as the
-// envelope dates the header of a session (`date -Iseconds`): « 2026-10-25T12:42:11+01:00 ».
-function heureLocale(d = new Date()) {
-  const deux = n => String(n).padStart(2, '0');
-  const decalage = -d.getTimezoneOffset();
-  const a = Math.abs(decalage);
-  return `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}T${deux(d.getHours())}:${deux(d.getMinutes())}:${deux(d.getSeconds())}${decalage < 0 ? '-' : '+'}${deux(Math.floor(a / 60))}:${deux(a % 60)}`;
-}
-
-// The header line of a step or a session in the ticket's log, in local time, as the envelope
-// dates a session's.
-const entete = (ctx, etape) =>
-  appendFileSync(ctx.journal, `=== ${heureLocale()} · circuit · ${etape} ===\n`);
-
-// The latest moment a transcript of the copy moved, or 0.
-function derniereTrace(dossier) {
-  if (!existsSync(dossier)) return 0;
-  let m = 0;
-  for (const f of readdirSync(dossier, { recursive: true })) {
-    if (!String(f).endsWith('.jsonl')) continue;
-    try {
-      m = Math.max(m, statSync(path.join(dossier, String(f))).mtimeMs);
-    } catch {
-      // A transcript removed meanwhile does not move.
-    }
-  }
-  return m;
-}
-
-const mtime = f => {
-  try {
-    return statSync(f).mtimeMs;
-  } catch {
-    return 0;
-  }
-};
-
-// One launch of a session: `{ code, seance, bloque, erreur, sortie }`, `seance` the session's
-// exit code (from lancer.sh's end file for a session in the envelope), null when the launch
-// stopped before it, `sortie` claude's JSON result, its sheet in `structured_output`. Every
-// session runs with the author of its role (BEADS_ACTOR). A session in the envelope, on the whole
-// ticket (`.` its component, the plan its `--paquets`), opens under the id <ouvre> (lancer.sh
-// --seance), or resumes the session <reprend> (lancer.sh --reprise); its result is the file
-// lancer.sh writes (`<ticket>.resultat.json`).
-// A session <horsEnveloppe> (the explorateur's, the questionneur's, the reviewer's) is claude
-// itself, in the ticket's
-// copy (the main tree once the copy is gone), under <droits> (`horsDeLEnveloppe`), the
-// schema of its role's sheet and the options <session> names (its id, or the session it
-// resumes), its instruction on its standard input and its result on its standard output, added
-// to the log under its header line, then its line written to the register, as lancer.sh does.
-// Its launch is kept with the circuit's results (`lancement`: its role, its session id, and the
-// <objet> of a session that is not its role's own work, `tri`), which the bilan reads to count the
-// sessions the circuit launched (scripts/bilan.mjs). Its sheet is the schema <fiche>, by default
-// its role's.
-function lancer(
-  ctx,
-  role,
-  consigne,
-  { fort, horsEnveloppe, droits = [], session = [], ouvre, reprend, fiche: sorte, objet } = {}
-) {
-  rmSync(ctx.fin, { force: true });
-  rmSync(ctx.resultat, { force: true });
-  rmSync(ctx.horsPlan, { force: true });
-  const id = ouvre ?? reprend ?? session[1] ?? null;
-  if (id) {
-    inscrire(ctx, {
-      role: AUTEUR_DU_CIRCUIT,
-      lancement: { role, seance: id, ...(objet ? { objet } : {}) },
-    });
-  }
-  const fichier = path.join(ctx.tmp, `consigne-${++ctx.numero}.md`);
-  writeFileSync(fichier, consigne);
-  // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
-  const erreurs = path.join(ctx.tmp, `erreurs-${ctx.numero}.txt`);
-  let commande;
-  let fds;
-  // The result of a session out of the envelope.
-  const reponse = path.join(ctx.tmp, `reponse-${ctx.numero}.json`);
-  if (horsEnveloppe) {
-    entete(ctx, role);
-    fds = [openSync(fichier, 'r'), openSync(reponse, 'w'), openSync(ctx.journal, 'a')];
-    const fiche = [
-      '--output-format',
-      'json',
-      '--json-schema',
-      JSON.stringify(schemaDeFiche(sorte ?? role)),
-    ];
-    commande = {
-      cmd: process.env.CLAUDE_BIN || 'claude',
-      args: ['-p', '--agent', role, ...fiche, ...droits, '--add-dir', ctx.tmp, ...session],
-      cwd: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
-    };
-  } else {
-    fds = ['ignore', 'ignore', openSync(erreurs, 'w')];
-    commande = {
-      cmd: 'bash',
-      args: [
-        LANCEUR,
-        ...(fort ? FORT : []),
-        ...(ouvre ? ['--seance', ouvre] : []),
-        ...(reprend ? ['--reprise', reprend] : []),
-        // The schema of its sheet when it is not its role's (the explorateur's gesture).
-        ...(sorte ? ['--fiche', sorte] : []),
-        // The plan of the session: the packages of the title, which it writes; its component the
-        // whole copy, which it reads.
-        '--paquets',
-        ecrireLaListe(ctx.paquets),
-        ctx.ticket,
-        role,
-        '.',
-        fichier,
-      ],
-      cwd: ctx.racine,
-    };
-  }
-  // Each session of an agent takes a place of the machine (scripts/places-de-la-machine.mjs) at
-  // its start and gives it back at its end: the circuit holds none between two sessions, nor on a
-  // question. The wait keeps the rank of the circuit's arrival, says its reason in the log, and is
-  // bounded as the lock of the machine's: « à repasser » (75).
-  let place;
-  try {
-    place = prendreUnePlace({
+  emettre(ctx, {
+    genre: 'registre',
+    ligne: ligneDEtape({
+      projet: ctx.racine,
       ticket: ctx.ticket,
-      rang: ctx.rang ?? undefined,
-      dire: l => appendFileSync(ctx.journal, `${l}\n`),
-    });
-  } catch (e) {
-    for (const fd of new Set(fds.filter(f => typeof f === 'number'))) closeSync(fd);
-    if (!(e instanceof AttenteDeLaMachine)) throw e;
-    throw new Arret('a-repasser', e.message);
-  }
-  return new Promise(resolve => {
-    // The session writes at the ticket under the author of its role.
-    // A session out of the envelope (the relecteur, which plays tests) plays them on its share of
-    // the cores, under nice and ionice; the launcher of an enveloped one does it in the envelope.
-    const lancement = horsEnveloppe
-      ? lancementDeLaPasse({
-          lourde: false,
-          cmd: commande.cmd,
-          args: commande.args,
-          env: { ...process.env, [ACTEUR]: role },
-        })
-      : { cmd: commande.cmd, args: commande.args, env: { ...process.env, [ACTEUR]: role } };
-    const enfant = spawn(lancement.cmd, lancement.args, {
-      cwd: commande.cwd,
-      detached: true,
-      stdio: fds,
-      env: lancement.env,
-    });
-    for (const fd of new Set(fds.filter(f => typeof f === 'number'))) closeSync(fd);
-    // The place is the session's own from now on: its process and its start, so that it is freed
-    // with the session, even if the circuit dies before.
-    if (enfant.pid) place.rattacher({ pid: enfant.pid, depart: departDe(enfant.pid) });
-    let erreurDeLancement = null;
-    ecrireEtat(ctx, { ...ctx.courant, seance: enfant.pid ?? null });
-    let bloque = false;
-    let fini = false;
-    const veille = surveiller(ctx, enfant.pid, () => (bloque = true));
-    // A command that does not start (claude absent) ends with its error, whether or not its
-    // `close` follows.
-    enfant.on('error', e => {
-      erreurDeLancement = e.message;
-      if (!enfant.pid) enfant.emit('close', null);
-    });
-    enfant.on('close', code => {
-      if (fini) return;
-      fini = true;
-      clearInterval(veille);
-      // What remains of the group goes with its launcher.
-      if (bloque) signalerGroupe(enfant.pid, 'SIGKILL');
-      place.rendre();
-      ecrireEtat(ctx, { ...ctx.courant, seance: null });
-      let seance;
-      let sortie;
-      let horsPlan = null;
-      if (horsEnveloppe) {
-        seance = erreurDeLancement === null ? code : null;
-        sortie = lire(reponse).trim();
-        appendFileSync(ctx.journal, `${sortie}\n`);
-        spawnSync(process.execPath, [REGISTRE, '--copie', ctx.copie], {
-          cwd: ctx.racine,
-          stdio: ['ignore', 'ignore', 'ignore'],
-        });
-      } else {
-        seance = existsSync(ctx.fin) ? Number(readFileSync(ctx.fin, 'utf8').trim()) : null;
-        sortie = lire(ctx.resultat).trim();
-        horsPlan = existsSync(ctx.horsPlan) ? lire(ctx.horsPlan).trim() : null;
-      }
-      resolve({
-        code,
-        seance,
-        bloque,
-        horsPlan,
-        erreur: erreurDeLancement ?? lire(erreurs),
-        sortie,
-      });
-    });
+      etape,
+      debut,
+      fin: new Date().toISOString(),
+    }),
   });
 }
-
-// <signal> to the process group <groupe>; false when the group is gone (or not the circuit's).
-function signalerGroupe(groupe, signal) {
-  try {
-    process.kill(-groupe, signal);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// The watch of the session whose launcher leads the group <groupe>: its transcripts and the log
-// standing still for the delay, SIGTERM, then SIGKILL, to the group, and <bloque> called. Its
-// interval, which the caller clears.
-function surveiller(ctx, groupe, bloque) {
-  let bouge = Date.now();
-  let arrete = false;
-  const pas = Math.max(100, Math.min(30_000, Math.floor(ctx.immobileMs / 4)));
-  return setInterval(() => {
-    bouge = Math.max(bouge, derniereTrace(ctx.transcriptions), mtime(ctx.journal));
-    if (!arrete && Date.now() - bouge >= ctx.immobileMs) {
-      arrete = true;
-      bloque();
-      signalerGroupe(groupe, 'SIGTERM');
-      setTimeout(() => signalerGroupe(groupe, 'SIGKILL'), 5_000).unref();
-    }
-  }, pas);
-}
-
-// The wait for the session of group <groupe> that a dead circuit left running, under the same
-// watch as a session: a resumption starts once it has ended, so that two sessions never write
-// together in the copy.
-async function attendreLaSeance(ctx, groupe) {
-  if (!groupe || !signalerGroupe(groupe, 0)) return;
-  process.stderr.write(
-    `… la séance du groupe ${groupe}, laissée par l'arrêt d'avant, tourne encore : le circuit attend sa fin.\n`
-  );
-  const veille = surveiller(ctx, groupe, () => {});
-  while (signalerGroupe(groupe, 0)) await new Promise(r => setTimeout(r, 500));
-  clearInterval(veille);
-}
-
-// The template of the instruction at <rang> (0 the testwriter's and the developpeur's, 1 the
-// reviewer's, 2 any session's on a sheet absent or out of its schema, 3 the testwriter's and the
-// developpeur's on a resumption, 4 the questionneur's on the plan, 5 the explorateur's on the plan,
-// 6 the explorateur's on the questions of the plan, 7 the explorateur's on the tri of the
-// discoveries, 8 the explorateur's on the gesture of a mechanical ticket), filled with <valeurs>.
-export function consigne(valeurs, rang = 0) {
-  const texte = readFileSync(GABARIT, 'utf8');
-  const bloc = [...texte.matchAll(/```text\n([\s\S]*?)\n```/g)][rang];
-  if (!bloc) throw new Error(`gabarit sans bloc de consigne n° ${rang + 1} : ${GABARIT}`);
-  return `${bloc[1].replace(/\{\{(\w+)\}\}/g, (m, k) => (k in valeurs ? valeurs[k] : m))}\n`;
-}
-
-// One session of <role> on the whole ticket: its sheet. A relaunch on its step (<tentative> past
-// 1) that is not the last (<derniere>) resumes the agent's session the circuit keeps
-// (`ctx.reprise`, its author and id) with the short instruction (the fourth template); its sheet
-// refused is asked again once of that same session, as of a fresh one (`jusquALaFiche`), so the
-// question it carries goes up (BP 320.3.9); a resumption that ends in error (a code other than 0:
-// the session not found) falls back on a fresh and whole session, under a new id, which the
-// circuit keeps. A fresh session's instruction (the first
-// template) carries the ticket's description and notes as they are at its launch, the packages of
-// the plan, and the last handover of its author at the ticket. Every instruction, fresh or resumed,
-// carries the supervisor's context of the run at its head, as its task, and the findings of the
-// reviewer still open for its role (`ctx.constats`), all of them, whatever the relaunch: a proof
-// refused, red checks, a sending, a RENDU, a resumption of the supervisor (`constatsDeLaSeance`);
-// <change> says what changed on a resumption, when it is not the proof or the checks (the
-// integration's refusal of the lot, `refus`).
-// Throws an Arret for a launch that stops before its session, a motionless session, or
-// a session that ends twice without a sheet that conforms.
-async function seance(ctx, role, { tentative, rapport, fort, derniere, change }) {
-  const nom = nomDuRole(role);
-  const reprise = tentative > 1 && !derniere && ctx.reprise?.agent === role ? ctx.reprise : null;
-  const { tache, ouverts, constats, valider, repondre } = constatsDeLaSeance(
-    ctx.contexte,
-    ctx.constats,
-    role
-  );
-  const plan = ctx.paquets.join(', ');
-  const repondu = fiche => {
-    if (fiche) ctx.constats = repondre(ctx.constats, fiche);
-    return fiche;
-  };
-  if (reprise) {
-    const courte = {
-      role: nom,
-      ticket: ctx.ticket,
-      sujet: ctx.sujet,
-      paquets: plan,
-      tentative,
-      change:
-        change ??
-        (role === 'testwriter'
-          ? 'la preuve du rouge, jouée après ta séance, refuse ton lot'
-          : 'les contrôles, joués après ta séance, sont rouges'),
-      rapport: rapport ?? 'aucun',
-      tache,
-      ouverts,
-      constats,
-    };
-    const fiche = await jusquALaFiche(ctx, role, consigne(courte, 3), {
-      fort,
-      premiere: 'reprend',
-      id: reprise.seance,
-      repli: true,
-      valider,
-    });
-    if (fiche) return repondu(fiche);
-    commenter(
-      ctx,
-      role,
-      `reprise de la séance ${reprise.seance} finie en erreur : séance neuve et entière.`
-    );
-  }
-  const lots = testsDuLot(ctx);
-  const { description, notes } = leTicket(ctx);
-  // The last handover of this agent; for a developpeur without one yet, the testwriter's last.
-  const passation =
-    derniereDe(ctx, role) ?? (role === 'developpeur' ? derniereDe(ctx, 'testwriter') : null);
-  const valeurs = {
-    role: nom,
-    depot: ctx.racine,
-    ticket: ctx.ticket,
-    sujet: ctx.sujet,
-    paquets: plan,
-    reprise:
-      tentative > 1 || ctx.reprendre || ctx.depuis || fichesDe(ctx, role).length
-        ? "oui : une séance d'avant a travaillé ce ticket ; ta copie garde son travail, le rapport ci-dessous dit ce qui reste"
-        : 'non',
-    lots: lots.length
-      ? `${role === 'developpeur' ? 'le lot de tests' : 'tes tests'}, déjà dans la copie : ${lots.join(', ')}`
-      : 'aucun',
-    tache,
-    description: description.trim() || 'aucune',
-    // The section of the ticket's notes, absent without notes.
-    notes: notes.trim()
-      ? `\nLES NOTES DU TICKET, l'état qu'un agent d'avant y a écrit :\n\n${notes.trim()}\n`
-      : '',
-    rapport: rapport ?? 'aucun',
-    ouverts,
-    constats,
-    passation: passation?.text ?? 'aucune',
-    references: lesReferences(ctx)
-      .map(r => `- ${r.nom} : ${r.fichiers.map(f => `\`${f}\``).join(', ')}`)
-      .join('\n'),
-  };
-  return repondu(await jusquALaFiche(ctx, role, consigne(valeurs), { fort, neuve: role, valider }));
-}
-
-// The findings of the reviewer open for <role> among <constats>, as a session of the run whose
-// supervisor's context is <contexte> (`--contexte`, with `--depuis`, `--reprendre` or
-// `--etendre`) receives them, as a review its author relaunches on a change he frames keeps its
-// open threads in sight without blocking on them (BP 320.14.2.3: the context after the rule of
-// the answers, a session that worked an old finding only, its sheet refused, « sans-livraison »
-// twice). With a context, the context heads the instruction as its task (`tache`); the findings
-// open at the launch of the run (`enContexte`, `auLancement`) are its context, after the others
-// under their own heading, and a developpeur's sheet FAIT is not refused for want of an answer to
-// one of them; every other finding, without a context or stated by a RENDU within the run, is its
-// task, and his sheet FAIT answers each by its title, refused without one (`valider`,
-// `reponsesAuxConstats`). Either way, each answer a developpeur's sheet gives is kept with its
-// finding (`repondre`, `avecLesReponses`).
-export function constatsDeLaSeance(contexte, constats, role) {
-  const siens = (constats ?? []).filter(c => c.role === role);
-  const anciens = siens.filter(c => c.enContexte);
-  const neufs = siens.filter(c => !c.enContexte);
-  const titres = role === 'developpeur' ? neufs.map(c => c.titre) : [];
-  const enContexte = `les constats ouverts au lancement de la passe du superviseur, donnés en contexte : ta tâche est celle du superviseur, ci-dessus ; chacun reste ouvert jusqu'à la relecture qui le juge levé, et ta fiche n'a pas à répondre à chacun`;
-  const titre =
-    'LES CONSTATS DU RELECTEUR QUI RESTENT OUVERTS pour ton rôle, ' +
-    (anciens.length && !neufs.length ? enContexte : "chacun jusqu'à la relecture qui le juge levé");
-  const texte =
-    anciens.length && neufs.length
-      ? `${texteDesOuverts(neufs)}\n\nPUIS ${enContexte} :\n\n${texteDesOuverts(anciens, neufs.length)}`
-      : texteDesOuverts(siens);
-  return {
-    tache: contexte
-      ? `TA TÂCHE, que le superviseur te donne ; elle passe avant le ticket, le rapport${anciens.length ? ' et les constats donnés en contexte' : ''} ci-dessous :\n\n${contexte}\n\n`
-      : '',
-    ouverts: titre,
-    constats: texte,
-    valider: f => reponsesAuxConstats(f, titres),
-    repondre: (tous, fiche) =>
-      role === 'developpeur' && siens.length ? avecLesReponses(tous, fiche) : tous,
-  };
-}
-
-// The findings <constats> as a run launched with the supervisor's context <contexte> holds them:
-// each one open at its launch marked `enContexte`, as the threads already open when the author
-// relaunches a review on a change he frames; without a context, none. A finding a RENDU states
-// within the run comes without the mark (`constatsOuverts`), and is the session's task again.
-export const auLancement = (contexte, constats) =>
-  (constats ?? []).map(c => {
-    const { enContexte, ...reste } = c;
-    return contexte ? { ...reste, enContexte: true } : reste;
-  });
-
-// The findings <constats>, each finding of the developpeur that his sheet <fiche> answers (by its
-// title, numbered or not: `cleDuConstat`) with its answer `{ etat, raison, piece }`, as a thread
-// of a review keeps the author's reply under its comment.
-function avecLesReponses(constats, fiche) {
-  const parTitre = new Map((fiche.reponses ?? []).map(r => [cleDuConstat(r.titre), r]));
-  return (constats ?? []).map(c => {
-    const r = c.role === 'developpeur' ? parTitre.get(c.titre) : undefined;
-    if (!r) return c;
-    return {
-      ...c,
-      reponse: { etat: r.etat, ...(r.raison ? { raison: r.raison } : {}), piece: r.piece },
-    };
-  });
-}
-
-// The line CONTEXTE of a reviewer's session: the text of `--contexte` of the run; « aucun »
-// without it.
-const contexteDe = ctx => ctx.contexte || 'aucun';
-
-// The launch <r> of a session of <role>, or the Arret it is: a session its lock stopped on a
-// write out of the plan (« hors-plan », the write as its piece), a motionless session
-// (« bloqué »), a launch that stops before its session (« lancement »).
-function seanceLancee(ctx, role, r) {
-  if (r.horsPlan) {
-    throw new Arret(
-      'hors-plan',
-      `Le crochet de la séance du ${nomDuRole(role)} l'arrête sur une écriture hors du plan du ticket (ses paquets : ${ctx.paquets.join(', ')}) :\n\n${r.horsPlan}`,
-      { piece: r.horsPlan }
-    );
-  }
-  if (r.bloque) {
-    const minutes = Math.round(ctx.immobileMs / 60_000);
-    throw new Arret(
-      'bloqué',
-      `La transcription de la séance du ${role} n'a pas bougé en ${minutes ? `${minutes} min` : `${ctx.immobileMs} ms`} : la séance est arrêtée. Les dernières lignes du journal :\n\n${fin(lire(ctx.journal), 40)}`
-    );
-  }
-  if (r.seance === null) {
-    throw new Arret(
-      'lancement',
-      `Le lanceur s'arrête avant la séance du ${role} (code ${r.code}).\n${r.erreur.trim()}\n\n${fin(lire(ctx.journal), 20)}`
-    );
-  }
-}
-
-// The session of <role> with the instruction <texte>, its sheet read in its result
-// (scripts/resultats.mjs): the sheet, kept with the ticket's sheets, its discoveries filed. A
-// session that ends without a sheet that conforms (none, one out of its schema, a code other than
-// 0) is resumed once, the same session, with the short instruction that names what lacks (the
-// third template). The session opens under the id <id> (a new one by default), or resumes it with
-// <premiere> « reprend »; with <neuve> (the testwriter or the developpeur), the circuit keeps that
-// id for that author (`ctx.reprise`); with <repli> (a resumption), a session that ends in error
-// returns null, for a fresh session in its place. Throws an Arret for a launch that stops before its session,
-// a motionless session, or twice no sheet that conforms (« sans-fiche »). <avec> joins its fields
-// to the sheet's entry (the lot a review read); <valider>(sheet, attempt) names what makes a sheet
-// out of conformity beyond its schema at that attempt (an unknown package of a plan, an answer
-// without a line for a question put, a discovery without its verdict), or null. <fiche> names its
-// sheet's schema when it is not its role's (`tri`), and <objet> its launch (`lancer`).
-async function jusquALaFiche(ctx, role, texte, options = {}) {
-  const {
-    neuve,
-    premiere = 'ouvre',
-    id = randomUUID(),
-    avec = {},
-    valider = () => null,
-    repli = false,
-    ...reste
-  } = options;
-  if (neuve) ctx.reprise = { agent: neuve, seance: id };
-  const ouvrir = mode =>
-    reste.horsEnveloppe
-      ? { session: [mode === 'ouvre' ? '--session-id' : '--resume', id] }
-      : { [mode]: id };
-  let lu = null;
-  for (let essai = 1; essai <= 2; essai++) {
-    const courte = () => consigne({ ticket: ctx.ticket, sujet: ctx.sujet, erreur: lu.erreur }, 2);
-    const r = await lancer(ctx, role, essai === 1 ? texte : courte(), {
-      ...reste,
-      ...ouvrir(essai === 1 ? premiere : 'reprend'),
-    });
-    seanceLancee(ctx, role, r);
-    if (repli && r.seance !== 0) return null;
-    lu =
-      r.seance === 0
-        ? lireSaFiche(ctx, reste.fiche ?? role, r.sortie)
-        : { erreur: `la séance finit en erreur (code ${r.seance})` };
-    const faute = lu.fiche ? valider(lu.fiche, essai) : null;
-    if (faute) lu = { erreur: `fiche non conforme : ${faute}` };
-    if (lu.fiche) return garder(ctx, role, lu.fiche, avec);
-    if (essai === 1) {
-      commenter(ctx, role, `séance finie sans fiche conforme : ${lu.erreur} ; reprise une fois.`);
-    }
-  }
-  throw new Arret(
-    'sans-fiche',
-    `Deux fois, la séance du ${nomDuRole(role)} finit sans fiche conforme : ${lu.erreur}. Le journal du ticket : ${ctx.journal}`
-  );
-}
-
-// The sheet of schema <sorte> (a role's, or the tri's) in the output <sortie> of its session
-// (`lireFiche`), each file piece of it checked in the ticket's copy, or in the main tree before the
-// copy exists and once the integration removed it, and each piece of the ticket in its description.
-const lireSaFiche = (ctx, sorte, sortie) =>
-  lireFiche(sorte, sortie, {
-    copie: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
-    ticket: leTicket(ctx).description,
-  });
-
-// The name of each package of <dossiers> as a title writes it: its component's name, or its path.
-function nomsDe(ctx, dossiers) {
-  const liste = composantsDe(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
-  return dossiers.map(d => liste.find(p => p.dossier === d)?.pkg.name ?? d);
-}
-
-// The sheet <fiche> of <role>, kept with the ticket's sheets, <avec> joined to its entry, each of
-// its discoveries filed closed under the ticket (scripts/ticket.sh, label `decouverte`), its
-// components the packages of the plan, and kept with the circuit's results (`decouverte`: its id
-// and its subject), which the tri reads; returns it.
-function garder(ctx, role, fiche, avec = {}) {
-  inscrire(ctx, { role, fiche, ...avec });
-  const composants = nomsDe(ctx, ctx.paquets).join(', ');
-  for (const d of fiche.decouvertes ?? []) {
-    const r = spawnSync(
-      'bash',
-      [TICKET_SH, ctx.ticket, d.sujet, composants, d.corps, 'decouverte'],
-      {
-        cwd: ctx.racine,
-        encoding: 'utf8',
-        env: { ...process.env, [ACTEUR]: AUTEUR_DU_CIRCUIT },
-      }
-    );
-    const id = r.status === 0 ? r.stdout.trim().split('\n').at(-1) : '';
-    if (id) inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, decouverte: { id, sujet: d.sujet } });
-    else process.stderr.write(`⚠️  découverte « ${d.sujet} » non consignée : ${r.stderr}\n`);
-  }
-  return fiche;
-}
-
-// The discoveries the sheets of the ticket filed, `{ id, sujet }`, in their order.
-const decouvertesDuTicket = ctx =>
-  lesFiches(ctx)
-    .filter(e => e.role === AUTEUR_DU_CIRCUIT && e.decouverte)
-    .map(e => e.decouverte);
-
-const lire = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
-
-// The circuit's reports since the reviewer's last sheet: those of its proofs and checks (the final
-// pass among them), as it wrote them at the ticket.
-function rapportsDuCircuit(ctx) {
-  const tous = lesFiches(ctx);
-  const depuis = tous.findLastIndex(e => e.role === 'relecteur') + 1;
-  return tous
-    .slice(depuis)
-    .filter(e => e.role === AUTEUR_DU_CIRCUIT && e.rapport)
-    .map(e => e.rapport);
-}
-
-// The files of the lot, as the copy holds them against its HEAD: `{ tests, code }`, the
-// testwriter's files (`estUnTest`: test files and the shared test material) and the others.
-function fichiersDuLot(ctx) {
-  const tests = [];
-  const code = [];
-  for (const { fichier } of changements(ctx)) {
-    (duTestwriter(ctx, fichier) ? tests : code).push(fichier);
-  }
-  return { tests: tests.sort(), code: code.sort() };
-}
-
-// The blocking findings of a reviewer's sheet <fiche>, the ones that send the lot back: its
-// blocking findings and each element it judges not conforming (scripts/resultats.mjs).
-const bloquants = bloquantsDeLaFiche;
-
-// The blocking findings <constats>, each under its heading, the criterion or rule it holds, its
-// recipient (or the criterion in question), its body and its piece (an element judged not
-// conforming carries it in its body), then the developpeur's answer to it, when he gave one: lines.
-const lignesDesConstats = constats =>
-  constats.flatMap((c, i) => [
-    `### Constat ${i + 1} — ${c.titre}`,
-    `Bloquant : ${c.regle}`,
-    c.critere_en_cause ? `Critère en cause : ${c.critere_en_cause}` : `Agent : ${c.role ?? '?'}`,
-    c.corps,
-    ...(c.piece ? [`Pièce : ${c.piece}`] : []),
-    ...(c.reponse
-      ? [
-          `Réponse du développeur : ${c.reponse.etat}${c.reponse.raison ? ` — ${c.reponse.raison}` : ''}`,
-          `Pièce de la réponse : ${c.reponse.piece}`,
-        ]
-      : []),
-    '',
-  ]);
-
-// The verdict the reviewer's sheet <fiche> carries, as the circuit writes it at the ticket for the
-// human, its first word ACCEPTÉ or RENDU: after a bounded review, each finding before it lifted or
-// not, with its proof; each blocking finding under its heading, what it holds, its recipient (or
-// the criterion in question) and its body (an element judged not conforming among them); then the
-// conformity of each element of the lot, its rule and its piece, the remarks (its findings of
-// `genre` remarque), the question for the owner and the deviations to name at the commit.
-export function texteDuVerdict(fiche) {
-  const section = (titre, l) => (l?.length ? [`## ${titre}`, '', ...l.map(x => `- ${x}`), ''] : []);
-  const suivi = (fiche.suivi ?? []).map(
-    x => `${x.titre} : ${x.etat}${x.preuve ? ` — ${x.preuve}` : ''}`
-  );
-  return [
-    fiche.verdict,
-    '',
-    ...section("Constats d'avant", suivi),
-    ...lignesDesConstats(bloquants(fiche)),
-    ...section(
-      'Conformité',
-      (fiche.conformite ?? []).map(
-        l => `${l.element} : ${l.conforme} — ${regleDeLaLigne(l)} — ${l.piece}`
-      )
-    ),
-    ...section(
-      'Remarques',
-      (fiche.constats ?? [])
-        .filter(c => c.genre === 'remarque')
-        .map(c => `${c.titre} — ${c.corps} (${c.piece})`)
-    ),
-    ...section(
-      'Question au responsable',
-      fiche.question ? [`${fiche.question} (${fiche.piece})`] : []
-    ),
-    ...section(
-      'Écarts à nommer au commit',
-      fiche.ecarts?.map(e => `${e.sujet} : ${e.texte}`)
-    ),
-  ]
-    .join('\n')
-    .trim();
-}
-
-// The review of the lot, the reviewer's session out of the envelope, from the second template:
-// `{ verdict, fiche, texte, arbre }`, its sheet, the verdict the circuit writes at the ticket from
-// it, under the reviewer's author, and the tree of the lot it read. The lot it reads is kept as a
-// patch set (`leLotGarde`), on the lot the review before read set on the copy's HEAD, joined to
-// its sheet's entry (`lot: { commit, arbre, base, fichiers }`); after a review sent back, the
-// review reads the difference between the two and the findings before it (the bounded review), as
-// Gerrit has the next review read the difference between two patch sets, each against its own
-// base: the files of the lot that changed since, the command of the difference, the findings
-// still open with their recipients.
-async function relire(ctx) {
-  const { tests, code } = fichiersDuLot(ctx);
-  const rapports = rapportsDuCircuit(ctx);
-  const precedents = fichesDe(ctx, 'relecteur').length;
-  const { avant, depuis, lot } = leLotGarde(ctx);
-  let lus = { tests, code };
-  // The findings still open go to every review, bounded or whole.
-  const ouvertsALaRelecture = (ctx.constats ?? []).map(c => c.titre);
-  let precedente = relectureEntiere(ctx.constats ?? []);
-  if (avant && depuis && lot) {
-    const dansLeLot = new Set([...tests, ...code, ...(avant.lot.fichiers ?? [])]);
-    const changes = differenceDesLots(ctx, depuis, lot.commit).filter(f => dansLeLot.has(f));
-    lus = {
-      tests: changes.filter(f => duTestwriter(ctx, f)),
-      code: changes.filter(f => !duTestwriter(ctx, f)),
-    };
-    precedente = [
-      `la relecture ${precedents}, ${avant.fiche.verdict} : tu relis la différence du lot depuis elle et ses constats, selon ta compétence (« La relecture bornée »).`,
-      '',
-      `- La différence : \`git diff ${depuis} ${lot.commit}\`, dans la copie du ticket ; ses fichiers : ${changes.join(', ') || 'aucun'}.`,
-      '- Les constats bloquants qui restent ouverts, chacun avec son destinataire :',
-      '',
-      ...lignesDesConstats(ctx.constats ?? []),
-    ]
-      .join('\n')
-      .trim();
-  }
-  const affirmations = path.join(ctx.tmp, 'affirmations.md');
-  writeFileSync(affirmations, leTicket(ctx).description);
-  const liste = lot
-    ? langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: 'HEAD', apres: lot.commit })
-    : { etat: 'impossible', raison: 'le lot n’a pas pu être gardé', elements: [] };
-  // A bounded review: the lines of the review before, and the elements the difference touches
-  // (every one when it cannot be computed), as a review unticks « viewed » on the files changed
-  // since.
-  const touches =
-    avant &&
-    depuis &&
-    lot &&
-    langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: depuis, apres: lot.commit });
-  const bornee = touches
-    ? {
-        touches: touches.etat === 'fait' ? new Set(touches.elements.map(e => e.id)) : null,
-        lignes: new Map((avant.fiche.conformite ?? []).map(l => [l.element, l])),
-      }
-    : null;
-  const valeurs = {
-    depot: ctx.racine,
-    ticket: ctx.ticket,
-    sujet: ctx.sujet,
-    paquets: ctx.paquets.join(', '),
-    reprise: precedents
-      ? `oui : ${precedents} relecture(s) d'avant ont rendu le lot, et le lot a repassé le circuit depuis`
-      : 'non',
-    lots: [
-      ...(avant && depuis && lot ? ["ce que le lot change depuis la relecture d'avant"] : []),
-      `le lot de tests : ${lus.tests.join(', ') || 'aucun fichier'}`,
-      `le lot de code : ${lus.code.join(', ') || 'aucun fichier'}`,
-    ].join(' ; '),
-    precedente,
-    affirmations,
-    elements: texteDesElements(liste, bornee),
-    flux: consigneDesFlux(ctx.racine, [...tests, ...code]),
-    rapports: rapports.join('\n\n') || 'aucun',
-    // The supervisor's context of a resumption, his answer to a question of the reviewer among them.
-    contexte: contexteDe(ctx),
-  };
-  const fiche = await jusquALaFiche(ctx, 'relecteur', consigne(valeurs, 1), {
-    horsEnveloppe: true,
-    droits: horsDeLEnveloppe(ctx, 'relecteur', 'opus'),
-    avec: lot ? { lot: { ...lot, fichiers: [...tests, ...code] } } : {},
-    // Every review judges the findings still open, bounded or whole (`suiviDesConstats`).
-    valider: f =>
-      [conformiteDuLot(f, liste), suiviDesConstats(f, ouvertsALaRelecture)]
-        .filter(Boolean)
-        .join(' ; ') || null,
-  });
-  const texte = texteDuVerdict(fiche);
-  const r = ctx.bdSous(AUTEUR_DU_VERDICT, 'comments', 'add', ctx.ticket, texte);
-  if (r.status !== 0) process.stderr.write(`⚠️  verdict non écrit au ticket : ${r.stderr}\n`);
-  return { verdict: fiche.verdict, fiche, texte, arbre: lot?.arbre ?? null };
-}
-
-// The line « LA RELECTURE D'AVANT » of a whole review (no review before, the replay of the lot in
-// conflict, or a review before without its base): with the findings <constats> still open, each
-// with its recipient and the developpeur's answer under it, which it judges lifted or not in
-// `suivi`, as Gerrit carries the unresolved comments to each new patch set whatever the form of
-// the review.
-export function relectureEntiere(constats) {
-  if (!constats.length) return 'aucune : tu relis le lot entier';
-  return [
-    'aucune différence à lire : tu relis le lot entier, et tu juges chaque constat bloquant qui reste ouvert, levé ou non levé, dans `suivi`, selon ta compétence (« La relecture entière ») ; chacun, avec son destinataire :',
-    '',
-    ...lignesDesConstats(constats),
-  ]
-    .join('\n')
-    .trim();
-}
-
-// The elements of the lot <liste> (`elementsDuLot` of the module of language) as the reviewer's instruction
-// lists them: one line each, its id, its kind, its status, its export, its package and its place;
-// in a bounded review (<bornee>: `{ touches, lignes }`, the ids the difference touches, null for
-// every one, and the lines of the review before by element), each marked to judge again, or to
-// take up with its line before; then the changed sources the language service does not read,
-// whose elements he surveys himself, one line of conformity each as `<fichier>#<nom>`, and why.
-function texteDesElements(liste, bornee = null) {
-  if (liste.etat !== 'fait') {
-    return `aucun : la liste n'a pas pu être calculée (${liste.raison}) ; tu relèves toi-même chaque élément du lot.`;
-  }
-  const marque = e => {
-    if (!bornee) return '';
-    const ligne = bornee.lignes.get(e.id);
-    if (bornee.touches && !bornee.touches.has(e.id) && ligne) {
-      return ` — reprise, la différence ne le touche pas : ${ligne.conforme} — ${regleDeLaLigne(ligne)} — ${ligne.piece}`;
-    }
-    return ligne ? ' — à rejuger : la différence le touche' : " — à rejuger : aucune ligne d'avant";
-  };
-  const lignes = liste.elements.map(
-    e =>
-      `- \`${e.id}\` : ${e.genre}, ${e.statut}, ${e.exporte ? 'exporté' : 'non exporté'}, paquet ${e.paquet}, ${e.fichier}:${e.ligne}${marque(e)}`
-  );
-  if (liste.horsDuService.length) {
-    const pourquoi = liste.service
-      ? `le service de langage n'a pas pu tourner : ${liste.service}`
-      : 'aucun tsconfig.json ne les lit';
-    lignes.push(
-      `- Hors du service de langage (${pourquoi}), tu relèves toi-même leurs éléments, une ligne de conformité chacun, son élément \`<fichier>#<nom>\` : ${liste.horsDuService.join(', ')}.`
-    );
-  }
-  return lignes.join('\n') || 'aucun : le lot ne change aucun élément du code.';
-}
-
-// The last review of the ticket and the lot it read: its sheet's entry (`{ fiche, lot: { commit,
-// arbre, base, fichiers } }`), or null before any, without a copy, or when the lot or its base is
-// not kept (the repository no longer holds one of them).
-function relectureDAvant(ctx) {
-  const e = lesFiches(ctx).findLast(x => x.role === 'relecteur');
-  if (!e?.lot?.commit || !e.lot.base || !existsSync(ctx.copie)) return null;
-  const tient = c =>
-    spawnSync('git', ['-C', ctx.copie, 'cat-file', '-e', `${c}^{commit}`]).status === 0;
-  return tient(e.lot.commit) && tient(e.lot.base) ? e : null;
-}
-
-// The tree of the copy as it stands, the copy's HEAD and index untouched: its index copied to a
-// file of the circuit's, every file of the copy added to that one (`git add -A`, the ignored files
-// left out), written as a tree. Its id, or null when git fails.
-function arbreDeLaCopie(ctx) {
-  const index = path.join(ctx.tmp, `index-${++ctx.numero}`);
-  const reel = spawnSync(
-    'git',
-    ['-C', ctx.copie, 'rev-parse', '--path-format=absolute', '--git-path', 'index'],
-    { encoding: 'utf8' }
-  ).stdout?.trim();
-  const env = { ...process.env, GIT_INDEX_FILE: index };
-  const git = (...a) => spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', env });
-  try {
-    if (reel && existsSync(reel)) copyFileSync(reel, index);
-    else if (git('read-tree', 'HEAD').status !== 0) return null;
-    if (git('add', '-A').status !== 0) return null;
-    const r = git('write-tree');
-    return r.status === 0 ? r.stdout.trim() : null;
-  } finally {
-    rmSync(index, { force: true });
-  }
-}
-
-// The copy's HEAD, the base of the lot as it stands (the tip of main of its time), or null.
-function laBase(ctx) {
-  const r = spawnSync('git', ['-C', ctx.copie, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  return r.status === 0 ? r.stdout.trim() : null;
-}
-
-// The tree <arbre> kept as a commit on <parent> in the copy, under the circuit's author, with the
-// message <message>: its id, or null when git fails.
-function unCommit(ctx, arbre, parent, message) {
-  const qui = { name: AUTEUR_DU_CIRCUIT, email: 'circuit@grillhouse.invalid' };
-  const r = spawnSync('git', ['-C', ctx.copie, 'commit-tree', arbre, '-p', parent, '-m', message], {
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: qui.name,
-      GIT_AUTHOR_EMAIL: qui.email,
-      GIT_COMMITTER_NAME: qui.name,
-      GIT_COMMITTER_EMAIL: qui.email,
-    },
-  });
-  return r.status === 0 ? r.stdout.trim() : null;
-}
-
-// The lot of the copy kept as a commit on <parent> (a lot kept before, or HEAD), as Gerrit keeps
-// each patch set of a change: `{ commit, arbre, base }`, its base the copy's HEAD, or null when git
-// fails. Turborepo compares two of them (`--filter=...[<avant>...<après>]`, the merge base of the
-// range being the first), and the reviewer reads their difference.
-function garderLeLot(ctx, parent) {
-  const arbre = arbreDeLaCopie(ctx);
-  const base = laBase(ctx);
-  if (!arbre || !base) return null;
-  const commit = unCommit(ctx, arbre, parent ?? base, `lot de ${ctx.ticket}`);
-  return commit ? { commit, arbre, base } : null;
-}
-
-// The lot <lot> kept before (`{ commit, base }`) as it reads on the copy's HEAD, as Gerrit compares
-// two patch sets each against its own base: the lot itself while HEAD is its base; after an
-// advance of the copy, what it changed since its base replayed on HEAD (`git merge-tree
-// --write-tree --merge-base=<base> HEAD <lot>`), kept as a commit on HEAD, so that its difference
-// with the next lot holds what the lot changed, never the commits of main. Null when the replay
-// conflicts with what main changed, or git fails: nothing bounds the next review.
-function leLotSurLaBase(ctx, lot) {
-  const base = laBase(ctx);
-  if (!base) return null;
-  if (lot.base === base) return lot.commit;
-  const r = spawnSync(
-    'git',
-    ['-C', ctx.copie, 'merge-tree', '--write-tree', `--merge-base=${lot.base}`, base, lot.commit],
-    { encoding: 'utf8' }
-  );
-  if (r.status !== 0) return null;
-  const arbre = r.stdout.split('\n')[0].trim();
-  return unCommit(ctx, arbre, base, `lot relu de ${ctx.ticket} sur ${base}`);
-}
-
-// The lot of the copy kept against the review before: `{ avant, depuis, lot }`, that review
-// (`relectureDAvant`, null before any), the lot it read set on the copy's HEAD (`leLotSurLaBase`,
-// null when nothing bounds), and the copy kept as a lot on it (on HEAD without it). The bounded
-// review, its elements to judge again and the restricted final pass read the difference from
-// `depuis` to `lot`.
-export function leLotGarde(ctx) {
-  const avant = relectureDAvant(ctx);
-  const depuis = avant ? leLotSurLaBase(ctx, avant.lot) : null;
-  return { avant, depuis, lot: garderLeLot(ctx, depuis) };
-}
-
-// The tree of the commit <commit> in the copy, or null.
-function arbreDuCommit(ctx, commit) {
-  const r = spawnSync('git', ['-C', ctx.copie, 'rev-parse', `${commit}^{tree}`], {
-    encoding: 'utf8',
-  });
-  return r.status === 0 ? r.stdout.trim() : null;
-}
-
-// Whether the last review accepted the lot whose tree is <arbre>: its lot, set on the copy's HEAD
-// (`leLotSurLaBase`), is that tree, as Gerrit keeps the votes of a patch set across a trivial
-// rebase; an advance of the copy that leaves the lot as it was sends it to no other review.
-export function leLotAccepte(ctx, arbre) {
-  const r = relectureDAvant(ctx);
-  if (r?.fiche.verdict !== 'ACCEPTÉ' || !arbre) return false;
-  if (r.lot.arbre === arbre) return true;
-  const surLaBase = leLotSurLaBase(ctx, r.lot);
-  return Boolean(surLaBase) && arbreDuCommit(ctx, surLaBase) === arbre;
-}
-
-// The files that differ between the lots kept <avant> and <apres>, relative to the copy, sorted.
-function differenceDesLots(ctx, avant, apres) {
-  const r = spawnSync('git', ['-C', ctx.copie, 'diff', '--name-only', '-z', avant, apres], {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  return r.status === 0 ? r.stdout.split('\0').filter(Boolean).sort() : [];
-}
-
-// The final pass the lot calls for: `{ arbre, restreinte }`, the tree of the copy, and, after a
-// review whose lot it no longer is the accepted one, the range Turborepo plays (`{ avant, apres }`:
-// the lot that review read set on the copy's HEAD, and the copy kept on it, `leLotGarde`), null
-// for the whole pass: before any review, on the lot the last review accepted (`leLotAccepte`, an
-// advance of the copy included), or when that lot does not replay on HEAD.
-export function laPasseFinale(ctx) {
-  const arbre = arbreDeLaCopie(ctx);
-  if (!arbre || leLotAccepte(ctx, arbre)) return { arbre, restreinte: null };
-  const { depuis, lot } = leLotGarde(ctx);
-  return {
-    arbre,
-    restreinte: depuis && lot ? { avant: depuis, apres: lot.commit } : null,
-  };
-}
-
-// The references of the circuit: those the project declares in the package.json of the copy
-// (`grillhouse.references`), each `{ nom, commande, fichiers, tests, lit, gardes }` with a name, a
-// command and files, `tests`, `lit` and `gardes` arrays when given, empty when not, `entiers` empty;
-// then its generated files (`grillhouse.engendres`, read at the launch, `ctx.engendres`), each
-// written in full (`entiers`), which the integration regenerates itself; then the frame's
-// (`referencesDuCadre`, `cadre`), each but one whose first file a reference of the project covers,
-// which replaces it.
-function lesReferences(ctx) {
-  const l = lireJson(path.join(existsSync(ctx.copie) ? ctx.copie : ctx.racine, 'package.json'))
-    ?.grillhouse?.references;
-  const duProjet = (Array.isArray(l) ? l : [])
-    .filter(
-      r =>
-        typeof r?.nom === 'string' &&
-        typeof r.commande === 'string' &&
-        Array.isArray(r.fichiers) &&
-        r.fichiers.length > 0 &&
-        (r.tests === undefined || Array.isArray(r.tests)) &&
-        (r.lit === undefined || Array.isArray(r.lit)) &&
-        (r.gardes === undefined || Array.isArray(r.gardes))
-    )
-    .map(r => ({
-      ...r,
-      tests: r.tests ?? [],
-      lit: r.lit ?? [],
-      gardes: r.gardes ?? [],
-      entiers: [],
-      cadre: false,
-    }))
-    .concat((ctx.engendres ?? []).map(e => ({ ...e, tests: [], cadre: false })));
-  const duCadre = referencesDuCadre(existsSync(ctx.copie) ? ctx.copie : ctx.racine)
-    .filter(c => !duProjet.some(r => couvertPar(r.fichiers, c.fichiers[0])))
-    .map(c => ({ ...c, tests: [], cadre: true }));
-  return [...duProjet, ...duCadre];
-}
-
-// The references a red of <lieux> is one of (each `{ fichier, gardes, dansLePlan }`, its file, the
-// names its finding carries, and whether a path of the plan holds it), however many other reds
-// stand beside it, as `--update-snapshots` updates the snapshots that fail and leaves the other
-// failures: a finding of one of their `gardes`, a file of their `tests`, or a file their
-// `fichiers` cover, the frame's by their `gardes` alone; with <aElaguer> (a guard wrote a key of
-// the debt inscribed above what it finds), the reference that covers the debt's file too. A
-// finding of a guard of a reference of the project on a file of the plan its `fichiers` do not
-// cover is no output it generates, but the code of the lot: the developpeur's (BPScript 320.10,
-// a word of library in the code of 030-binder).
-function referencesDesRouges(ctx, lieux, aElaguer = false) {
-  const sien = (r, { fichier: f, gardes, dansLePlan: plan = false }) =>
-    (gardes.some(g => r.gardes.includes(g)) &&
-      (r.cadre || !f || !plan || couvertPar(r.fichiers, f))) ||
-    (!r.cadre && Boolean(f) && (r.tests.includes(f) || couvertPar(r.fichiers, f)));
-  return lesReferences(ctx).filter(
-    r => lieux.some(l => sien(r, l)) || (aElaguer && couvertPar(r.fichiers, DETTE))
-  );
-}
-
-// The regeneration of the references named <noms> (4.2), as make remakes a target and then the
-// targets that depend on its outputs: the copy kept as a lot on the one the last review read (or
-// HEAD), each command run on the whole copy, in their order; a reference that reads (`lit`) a file
-// another one has just written runs after it, once for each reference whose writing calls for it;
-// then the copy kept again on that lot. `{ texte, regenerees, fichiers, restreinte }`: the report,
-// the names of the references changed, the files changed, and the range of the final pass that
-// follows (null when nothing changed: no pass plays again, and the reds stand); <suite>, the
-// regeneration the checks of the plan call for: `controles`, beside other reds, the checks of the
-// plan follow, on the regenerated tree; `passe`, without, the final pass that is due follows,
-// whole or since the last review; null after a final pass. A file a reference writes follows from the lot, as
-// the output of a genrule, without a word of the plan, and the reviewer reads its difference; a
-// file changed that none of the references run declares, or a command that fails (a reference of
-// the project at another code than 0, one of the frame on a real failure alone) restores the copy
-// as it was and stops at « references », each deviation in its question. With <refusAuLot>, the
-// pass that called for it (the checks of the plan or the final pass) carries reds of the plan: a command of the project that refuses
-// (another code than 0, no real failure), its only deviation, judges the lot, as a ceiling that
-// never rises refuses a lot beyond it; the copy restored, `{ refus }` gives the report of each
-// refusal with the end of its output, for the developpeur (BPScript 320.10).
-function regenerer(ctx, noms, notes = [], suite = null, refusAuLot = false) {
-  // The notes of the debt, in a file of the run, which the command that lowers it reads.
-  const fichierDesNotes = path.join(ctx.base.dossier, 'dette-a-abaisser.json');
-  const toutes = lesReferences(ctx).map(r =>
-    r.abaisser
-      ? { ...r, commande: generateur('dette.mjs', '--abaisser', JSON.stringify(fichierDesNotes)) }
-      : r
-  );
-  const aJouer = toutes.filter(r => noms.includes(r.nom));
-  if (aJouer.some(r => r.abaisser)) writeFileSync(fichierDesNotes, `${JSON.stringify(notes)}\n`);
-  const { lot: avant } = leLotGarde(ctx);
-  if (!avant) {
-    throw new Arret(
-      'references',
-      'Le circuit ne garde pas la copie avant la régénération des références (git échoue).'
-    );
-  }
-  // The command of a reference of the frame is judged by what it writes, then by the pass that
-  // follows, never by its code, which also judges the reds it leaves (`npm run api` refuses beside
-  // them): a real failure alone counts; a reference of the project, by its code.
-  const refs = [];
-  const echecs = [];
-  // The refusals of the commands of the project, each its line and the end of its output.
-  const refus = [];
-  const appelees = new Set();
-  let arbre = avant.arbre;
-  while (aJouer.length) {
-    const r = aJouer.shift();
-    const x = commandeDeReference(ctx, r.commande);
-    if (!refs.includes(r)) refs.push(r);
-    if (x.panne || (!r.cadre && x.code !== 0)) {
-      const ligne = `- ${r.nom} : \`${r.commande}\` rend le code ${x.code}${x.panne ? ' (une panne)' : ''}.`;
-      echecs.push(ligne);
-      if (!x.panne) refus.push([ligne, '', fin(x.sortie.trimEnd(), 30)].join('\n'));
-    }
-    // The references that read a file this command wrote run after it.
-    const suivant = arbreDeLaCopie(ctx);
-    const ecrits = suivant ? differenceDesLots(ctx, arbre, suivant) : [];
-    arbre = suivant ?? arbre;
-    for (const s of toutes) {
-      const appel = `${r.nom}\0${s.nom}`;
-      if (s === r || appelees.has(appel) || !ecrits.some(f => couvertPar(s.lit, f))) continue;
-      appelees.add(appel);
-      if (!aJouer.includes(s)) aJouer.push(s);
-    }
-  }
-  const apres = garderLeLot(ctx, avant.commit);
-  const fichiers = apres ? differenceDesLots(ctx, avant.commit, apres.commit) : [];
-  const siens = r => fichiers.filter(f => couvertPar(r.fichiers, f));
-  const regenerees = refs.filter(r => siens(r).length);
-  const horsDeclaration = fichiers.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));
-  const ecarts = [
-    ...echecs,
-    ...(!apres ? ['- Le circuit ne garde pas la copie après la régénération (git échoue).'] : []),
-    ...horsDeclaration.map(f => `- ${f} change, et aucune référence régénérée ne l'écrit.`),
-  ];
-  if (ecarts.length) {
-    restaurer(ctx, avant.commit, fichiers);
-    if (refusAuLot && refus.length === ecarts.length) return { refus };
-    const difference =
-      apres && fichiers.length
-        ? [
-            `La différence, avant d'être rendue : \`git diff ${avant.commit} ${apres.commit}\`, dans la copie du ticket.`,
-          ]
-        : [];
-    throw new Arret(
-      'references',
-      [
-        `La régénération des références, sur la copie entière, s'arrête ; la copie est rendue telle qu'avant elle. Le superviseur fait corriger la référence ou le lot qui cause l'écart (\`--depuis developpeur\`), ou \`--reprendre\` une fois la cause levée.`,
-        '',
-        ...ecarts,
-        '',
-        ...difference,
-        `Le journal du ticket : ${ctx.journal}`,
-      ].join('\n'),
-      {
-        piece: [...ecarts, ...difference].join('\n'),
-        question: `Les écarts de la régénération :\n${ecarts.join('\n')}`,
-      }
-    );
-  }
-  if (!fichiers.length) {
-    return {
-      texte: `La régénération (${refs.map(r => `${r.nom}, \`${r.commande}\``).join(' ; ')}) ne change aucun fichier : ${
-        suite === 'passe'
-          ? 'la passe finale juge le lot tel quel'
-          : suite === 'controles'
-            ? 'les contrôles ne rejouent pas, et leurs rouges restent, chacun à son propriétaire'
-            : 'aucune passe ne rejoue, et les rouges de la passe finale restent, chacun à son propriétaire'
-      }.`,
-      regenerees: [],
-      fichiers,
-      restreinte: null,
-    };
-  }
-  return {
-    texte: [
-      `Les références régénérées sur la copie entière : ${regenerees.map(r => r.nom).join(', ')} ; le lot porte leurs fichiers, puis ${
-        suite === 'controles'
-          ? "les contrôles du plan, sur l'arbre régénéré"
-          : suite === 'passe'
-            ? 'la passe finale'
-            : "la passe finale restreinte à ce qu'elles changent"
-      }.`,
-      '',
-      ...regenerees.map(r => `- ${r.nom} (\`${r.commande}\`) : ${siens(r).join(', ')}`),
-      '',
-      `La différence : \`git diff ${avant.commit} ${apres.commit}\`, dans la copie du ticket.`,
-    ].join('\n'),
-    regenerees: regenerees.map(r => r.nom),
-    fichiers,
-    restreinte: { avant: avant.commit, apres: apres.commit },
-  };
-}
-
-// The environment of a pass of the circuit (the proof, the checks, the final pass, a command of a
-// reference): <base>, the launcher's under the lock of the machine, with the tools of the project
-// (`ctx.outils`, `grillhouse.outils`) and its data (`ctx.donnees`, `grillhouse.donnees`), read at
-// the launch, whatever <base> holds, then <env>.
-export const environnementDeLaPasse = (ctx, base, env = {}) => ({
-  ...avecLesDonnees(ctx.donnees ?? {}, avecLesOutils(ctx.outils ?? {}, base)),
-  ...env,
-});
 
 // The steps whose pass judges the lot, 3.1 and 4.1 (one state, `finale` apart): the copy is
 // prepared on the tip of main before each of them.
@@ -2478,62 +1017,6 @@ export function fluxAuLancement(racine) {
   }
 }
 
-// One command of a reference, run by the shell at the root of the copy, out of the envelope,
-// under the lock of the machine, its output added to the log: `{ code, panne, sortie }`, its exit
-// code, whether it failed for real, whatever it judges (the command not found or not executable,
-// 126, 127, as the shell says it; killed by a signal, the shell's 128 + its number; or the lock of
-// the machine not taken), and what it wrote to the log. It runs in the environment of a pass
-// (`environnementDeLaPasse`).
-function commandeDeReference(ctx, commande) {
-  entete(ctx, 'references');
-  appendFileSync(ctx.journal, `$ ${commande}\n`);
-  const debut = statSync(ctx.journal).size;
-  const sortie = () => readFileSync(ctx.journal).subarray(debut).toString('utf8');
-  const fd = openSync(ctx.journal, 'a');
-  try {
-    const r = avecLaMachine(
-      env =>
-        spawnSync('sh', ['-c', commande], {
-          cwd: ctx.copie,
-          stdio: ['ignore', fd, fd],
-          env: environnementDeLaPasse(ctx, env),
-        }),
-      {
-        racine: ctx.copie,
-        dire: l => appendFileSync(ctx.journal, `${l}\n`),
-        ticket: ctx.ticket,
-        sorte: etapeDuCircuit({ etape: 'references' }).titre,
-      }
-    );
-    const code = r.status ?? 1;
-    return {
-      code,
-      panne:
-        r.signal !== null || r.error !== undefined || code === 126 || code === 127 || code > 128,
-      sortie: sortie(),
-    };
-  } catch (e) {
-    if (!(e instanceof AttenteDeLaMachine)) throw e;
-    appendFileSync(ctx.journal, `${e.message}\n`);
-    return { code: e.code, panne: true, sortie: sortie() };
-  } finally {
-    closeSync(fd);
-  }
-}
-
-// The files <fichiers> of the copy as the lot kept <commit> holds them, a file it does not hold
-// removed; the copy's index untouched.
-function restaurer(ctx, commit, fichiers) {
-  for (const f of fichiers) {
-    const tient = spawnSync('git', ['-C', ctx.copie, 'cat-file', '-e', `${commit}:${f}`]);
-    if (tient.status === 0) {
-      spawnSync('git', ['-C', ctx.copie, 'restore', `--source=${commit}`, '--worktree', '--', f]);
-    } else {
-      rmSync(path.join(ctx.copie, f), { force: true });
-    }
-  }
-}
-
 // The stop for the sheet <fiche> of the session <tentative> of <role>, BLOQUÉ (« hors-portee »)
 // or BESOIN (« besoin »): its reason or question first, then its handover; the sheet's piece as
 // its own, and the agent's question as its own.
@@ -2587,21 +1070,6 @@ function renvoiDe(ctx, fiche) {
   return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.\n\nSa passation :\n\n${passation}${controles}`;
 }
 
-// The findings of the reviewer still open for <role> (`ctx.constats`), in their order.
-const ouverts = (ctx, role) => (ctx.constats ?? []).filter(c => c.role === role);
-
-// The findings <constats> as an agent's instruction carries them, each under its heading, with
-// what it holds, its body and its piece, numbered after <avant>; « aucun » without one.
-const texteDesOuverts = (constats, avant = 0) =>
-  constats.length
-    ? constats
-        .map(
-          (c, i) =>
-            `### Constat ${avant + i + 1} — ${c.titre}\nBloquant : ${c.regle}\n${c.corps}${c.piece ? `\nPièce : ${c.piece}` : ''}`
-        )
-        .join('\n\n')
-    : 'aucun';
-
 // The findings still open once the reviewer's sheet RENDU <fiche> is read, as the issues of a
 // review stay open until the review that resolves them: each blocking finding of the sheet (a
 // remark reaches the ticket, no agent; the sheet's schema gives a RENDU at least one), after each
@@ -2614,7 +1082,7 @@ const texteDesOuverts = (constats, avant = 0) =>
 export function constatsOuverts(ctx, fiche, texte) {
   const arret = raison =>
     new Arret('relecture-arret', `${raison}\n\nLe verdict :\n\n${texte}`, { piece: raison });
-  const neufs = bloquants(fiche).map(c => {
+  const neufs = bloquantsDeLaFiche(fiche).map(c => {
     if (c.critere_en_cause)
       throw arret(`Le constat « ${c.titre} » met en cause un critère du ticket.`);
     if (!AGENTS_DU_LOT.includes(c.role)) {
@@ -2631,26 +1099,6 @@ export function constatsOuverts(ctx, fiche, texte) {
     .filter(c => !leves.has(c.titre) && !neufs.some(n => n.titre === c.titre))
     .map(c => Object.fromEntries(Object.entries(c).filter(([k]) => k !== 'reponse')));
   return [...restes, ...neufs];
-}
-
-// The stop for the findings open in <ctx> that go to the testwriter when the plan skips him
-// (`sansTests`), or null: no new pass treats them, as a CI fails fast on a step it cannot run
-// (grillhouse-26x). An Arret `relecture-arret` whose report names each finding, the role skipped
-// and why, then the verdict <texte>; its piece, the findings' pieces; its question, declare the
-// tests of the package or settle the finding.
-export function arretDuTestwriterSaute(ctx, texte) {
-  const auTestwriter = ouverts(ctx, 'testwriter');
-  if (!auTestwriter.length || !sansTests(ctx)) return null;
-  const titres = auTestwriter.map(c => `« ${c.titre} »`).join(', ');
-  const plan = ctx.paquets.join(', ');
-  return new Arret(
-    'relecture-arret',
-    `Le relecteur adresse au testwriter ${titres}, quand le plan saute le testwriter : aucun paquet du plan ne joue de tests (${plan}).\n\nLe verdict :\n\n${texte}`,
-    {
-      piece: auTestwriter.map(c => c.piece ?? c.titre).join('\n'),
-      question: `Le constat ${titres} va au testwriter, que le plan (${plan}) saute : déclarer les tests du paquet au cadre, puis \`--reprendre\`, ou trancher le constat (\`--depuis developpeur --contexte\`, ou \`--arreter\`).`,
-    }
-  );
 }
 
 // The sheet of the plan that says its field <champ> (`sorte`, `noms_publies`) among the
@@ -2690,1368 +1138,6 @@ function lotTravaille(ctx) {
 export const cheminMecanique = ctx =>
   ctx.sorte?.genre === 'mécanique' && !ctx.depuis && !lotTravaille(ctx);
 
-// The step after the plan of sort <sorte> (null when the path is not mechanical): the gesture of
-// a mechanical ticket (1.1), in place of the testwriter, the proof and the developpeur; the
-// developpeur of a plan without tests (<sansTests>); else the testwriter.
-export const etapeApresLePlan = ({ sorte, sansTests }) =>
-  sorte?.genre === 'mécanique' ? GESTE : sansTests ? CODE : TESTS;
-
-// The step after a proof that passes: the developpeur on a red (<rouges>), on a finding of the
-// reviewer still open for him (<pourLeDeveloppeur>), or under a plan « comportement inchangé »
-// (<inchange>), whose lot has code to write though nothing turns red, as a reorganisation does
-// (decision 3, amended by the owner on 2026-11-01); else the checks, a lot of tests alone, with
-// no session of the developpeur.
-export const apresLaPreuve = ({ rouges, pourLeDeveloppeur, inchange }) =>
-  rouges > 0 || pourLeDeveloppeur || inchange ? CODE : CONTROLES;
-
-// Whether a proof of the counts <compte> passes: no file of the lot that does not load, no green
-// the sheet names in `portent_le_travail` (`nommes`), and at least one red (of the lot, existing
-// or of a build); the greens the sheet does not name and the ones HEAD holds are accepted but prove
-// nothing. Under a plan « comportement inchangé » (<inchange>), nothing has to turn red and every
-// green passes: a proof passes with no file of the lot that does not load, its reds going to the
-// developpeur.
-// The files of the lot that only the night plays (<misDeCote>, `separerLesFichiersDuJour`) are no
-// part of the proof: the red proves the behaviour the ticket develops, and a bench or a night test
-// is neither required red nor a cause of refusal. A lot whose only test files are those passes.
-export function preuveReussie({ fichiers, rouges, casses, nommes, misDeCote = 0 }, { inchange }) {
-  if (casses > 0) return false;
-  if (inchange) return true;
-  if (nommes > 0) return false;
-  if (fichiers === 0 && rouges === 0 && misDeCote > 0) return true;
-  return rouges > 0;
-}
-
-// The files <fichiers> of the lot, in the copy, split into the ones the day plays (`jour`) and the
-// ones only the night plays (`misDeCote`: a night test, a bench, a time witness), by each module's
-// own definition (`horsDuJour` of the join); the order of the lot kept.
-export function separerLesFichiersDuJour(ctx, fichiers) {
-  const langage = langageDe(ctx.copie);
-  const jour = [];
-  const misDeCote = [];
-  for (const f of fichiers) {
-    (langage.horsDuJour(f, ctx.copie) ? misDeCote : jour).push(f);
-  }
-  return { jour, misDeCote };
-}
-
-// The lines of the section of the report of the proof that names the files <fichiers> put aside;
-// none for none.
-export const sectionMisDeCote = fichiers =>
-  fichiers.length
-    ? [
-        `Mis de côté (joués par la nuit seule) (${fichiers.length}) :`,
-        ...fichiers.map(f => `- ${f}`),
-        '',
-      ]
-    : [];
-
-// The stop for a RENDU of a mechanical lot (`cheminMecanique`), or null: no testwriter nor
-// developpeur wrote it, so no relaunch treats its findings. An Arret `relecture-arret`, the
-// verdict <texte> in its report, the findings' pieces as its piece; its question, have the lot
-// corrected by the developpeur or stop the circuit.
-export function arretDuGesteMecanique(ctx, texte) {
-  if (!cheminMecanique(ctx)) return null;
-  const pieces = (ctx.constats ?? []).map(c => c.piece ?? c.titre).join('\n');
-  return new Arret(
-    'relecture-arret',
-    `Le relecteur rend un lot mécanique (${ctx.sorte.raison}), que la commande du plan a fait sans testwriter ni développeur : le circuit ne relance personne.\n\nLe verdict :\n\n${texte}`,
-    {
-      piece: pieces || null,
-      question: `Le lot mécanique est rendu : le faire corriger par le développeur (\`--depuis developpeur --contexte\`), ou arrêter le circuit (\`--arreter\`) et changer le plan.`,
-    }
-  );
-}
-
-// The integration of the lot: its two patches, its message and the references that write files in
-// full (`--references`, from `lesReferences`, the one list), written from the copy, then
-// scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
-// repasser » (75) plays once more, the gesture `rejeu`. `{ code, sortie, args }`.
-function integrer(ctx) {
-  const { tests, code } = fichiersDuLot(ctx);
-  const dansCopie = (...a) =>
-    spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-  // Each file against HEAD, a new one against nothing: the index of the copy is not written.
-  const patch = fichiers =>
-    fichiers
-      .map(f =>
-        dansCopie('cat-file', '-e', `HEAD:${f}`).status === 0
-          ? dansCopie('diff', '--binary', 'HEAD', '--', f).stdout
-          : dansCopie('diff', '--no-index', '--binary', '/dev/null', f).stdout
-      )
-      .join('');
-  const args = ['--ticket', ctx.ticket];
-  for (const [option, fichiers] of [
-    ['--tests', tests],
-    ['--code', code],
-  ]) {
-    if (!fichiers.length) continue;
-    const f = path.join(ctx.tmp, `${option.slice(2)}.patch`);
-    writeFileSync(f, patch(fichiers));
-    args.push(option, f);
-  }
-  const message = path.join(ctx.tmp, 'message');
-  writeFileSync(message, messageDeCommit(ctx));
-  args.push('--message', message);
-  // The project's generated files, the integration reads from the main tree itself.
-  const entieres = lesReferences(ctx)
-    .filter(r => r.cadre && r.entiers.length)
-    .map(({ nom, commande, fichiers, lit, entiers, cadre }) => ({
-      nom,
-      commande,
-      fichiers,
-      lit,
-      entiers,
-      cadre,
-    }));
-  if (entieres.length) {
-    const f = path.join(ctx.tmp, 'references.json');
-    writeFileSync(f, `${JSON.stringify(entieres)}\n`);
-    args.push('--references', f);
-  }
-  let r;
-  for (let essai = 1; essai <= 2; essai++) {
-    entete(ctx, 'integration');
-    appendFileSync(ctx.journal, `$ node ${INTEGRER} ${args.join(' ')}\n`);
-    const x = avecAvancement(ctx, 'integration', avancement =>
-      spawnSync(process.execPath, [INTEGRER, ...args], {
-        cwd: ctx.racine,
-        encoding: 'utf8',
-        maxBuffer: 256 * 1024 * 1024,
-        env: { ...process.env, [AVANCEMENT]: avancement },
-      })
-    );
-    r = { code: x.status ?? 1, sortie: `${x.stdout ?? ''}${x.stderr ?? ''}`, args };
-    appendFileSync(ctx.journal, r.sortie);
-    if (r.code !== A_REPASSER) break;
-    if (essai === 1) geste(ctx, 'rejeu');
-  }
-  return r;
-}
-
-// The arguments of the queue at 5.2 for the ticket <ticket>, whether its branch is in the queue
-// (<enFile>) and its status in Beads (<statut>): none, the queue as it is, while the branch waits
-// in it or once the ticket is closed; `--ci <ticket>` for a branch out of the queue and a ticket
-// open, a red CI reopened it, which the queue reads again (`relireCI` of
-// scripts/integration/file.mjs), as a merge queue judges the last attempt of the checks.
-export const argumentsDeLaFile = ({ ticket, enFile, statut }) =>
-  enFile || statut === 'closed' ? [] : ['--ci', ticket];
-
-// The queue (scripts/integration/file.mjs), launched from the main tree and waited for, its output
-// added to the log; then the state it leaves to the ticket: `{ etat, raison }`, `etat` ferme (the
-// ticket closed, its branch on main and its CI read), en-file (the branch still in the queue, the
-// queue's reason) or rouvert (out of the queue, or a red CI, the queue's last comment). A queue
-// already running exits 0 at once: it takes the branch, and the state is read at its end too. A
-// branch out of the queue with its ticket open (a red CI reopened it, then `--reprendre`) runs the
-// queue's reading of the CI again instead (`argumentsDeLaFile`).
-function file(ctx) {
-  const motsDeLaFile = () => passations(ctx).filter(c => c.author === AUTEUR_DE_LA_FILE);
-  const avant = motsDeLaFile().length;
-  const branche = `agent/${ctx.ticket}`;
-  const avantLaFile = ctx.bd('show', ctx.ticket, '--json');
-  const args = argumentsDeLaFile({
-    ticket: ctx.ticket,
-    enFile: lireEntrees(ctx.racine).some(e => e.branche === branche),
-    statut: avantLaFile.status === 0 ? (JSON.parse(avantLaFile.stdout)[0]?.status ?? null) : null,
-  });
-  entete(ctx, 'file');
-  appendFileSync(ctx.journal, `$ node ${[FILE, ...args].join(' ')}\n`);
-  const x = avecAvancement(ctx, null, avancement =>
-    spawnSync(process.execPath, [FILE, ...args], {
-      cwd: ctx.racine,
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-      env: { ...process.env, [AVANCEMENT]: avancement },
-    })
-  );
-  appendFileSync(ctx.journal, `${x.stdout ?? ''}${x.stderr ?? ''}`);
-  // Another queue that runs takes the branch: the circuit waits for its end.
-  while (lireEntrees(ctx.racine).some(e => e.branche === branche) && fileEnCours(ctx)) {
-    attendreUnPeu(5_000);
-  }
-  const show = ctx.bd('show', ctx.ticket, '--json');
-  const t = show.status === 0 ? (JSON.parse(show.stdout)[0] ?? {}) : {};
-  // The queue's last word at the ticket, under its author, since this queue began.
-  const mot = motsDeLaFile().slice(avant).at(-1)?.text ?? null;
-  const raison = mot ?? 'aucun commentaire de la file';
-  if (lireEntrees(ctx.racine).some(e => e.branche === branche)) return { etat: 'en-file', raison };
-  if (t.status === 'closed') {
-    // A CI the queue could not read is its last word at a ticket it closes.
-    const motif = t.close_reason || 'ticket fermé';
-    return { etat: 'ferme', raison: mot ? `${motif} ; ${enUneLigne(mot)}` : motif };
-  }
-  return { etat: 'rouvert', raison };
-}
-
-// True while a queue holds its lock (`.git/file-integration.lock`), its process alive.
-function fileEnCours(ctx) {
-  const verrou = path.join(dossierCommun(ctx.racine), 'file-integration.lock');
-  const pid = Number.parseInt(lire(verrou), 10);
-  return Number.isInteger(pid) && vivant(pid);
-}
-
-// The tri of the discoveries of the ticket (step 5.3 of scripts/etapes.mjs), once the queue has
-// brought its lot onto main, as Chromium and Mozilla give each new report a verdict before it is
-// filed. Without a discovery, no session. Else one session of the explorateur out of the
-// envelope, on Sonnet, in the main tree, under the rights of its role (reading, the build of a
-// package, no pass), its instruction from the eighth template (the ticket, its commit on main, the
-// one the queue names in the reason it closes the ticket with, `commitIntegre`, its discoveries,
-// one per line, the commands its rights permit, `commandesPermises`), its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
-// (`conformiteDuTri`), asked again once of the same session. Each verdict is written at the ticket
-// of its discovery (`Circuit · tri : <verdict> — <texte> (<piece>)`), its label set there; an
-// a-porter or a non-confirmee reopens under `a-valider`, the pane's list « à valider »; the others
-// stay closed. The line of the tri at the ticket names each writing that failed (the verdict, the
-// label, the reopening), with its error, and counts as reopened only what reopened. A tri that ends
-// without a sheet that conforms leaves the discoveries as
-// they are and says so at the ticket. Either way, its end is kept with the circuit's results
-// (`tri`: the discoveries read, whether its sheet conformed, its verdicts by kind), which the bilan
-// reads, and the working directory the queue removed at the closure, recreated for the session, is
-// removed again.
-async function trier(ctx) {
-  const decouvertes = decouvertesDuTicket(ctx);
-  if (!decouvertes.length) return;
-  const ids = decouvertes.map(d => d.id);
-  const n = `${decouvertes.length} découverte${decouvertes.length > 1 ? 's' : ''}`;
-  // The commit the queue brought onto main for this ticket, not main's last, another ticket's
-  // once several circuits run.
-  const show = ctx.bd('show', ctx.ticket, '--json');
-  const fermeture = show.status === 0 ? (JSON.parse(show.stdout)[0]?.close_reason ?? null) : null;
-  const integre = commitIntegre(fermeture);
-  const commit = integre
-    ? spawnSync('git', ['-C', ctx.racine, 'log', '-1', '--format=%h %s', integre], {
-        encoding: 'utf8',
-      }).stdout.trim()
-    : '';
-  mkdirSync(ctx.tmp, { recursive: true });
-  let fiche = null;
-  let faute = null;
-  try {
-    fiche = await jusquALaFiche(
-      ctx,
-      EXPLORATEUR,
-      consigne(
-        {
-          depot: ctx.racine,
-          ticket: ctx.ticket,
-          sujet: ctx.sujet,
-          commit: commit || 'inconnu',
-          decouvertes: decouvertes.map(d => `- ${d.id} — ${d.sujet}`).join('\n'),
-          commandes: commandesPermises(EXPLORATEUR),
-        },
-        7
-      ),
-      {
-        horsEnveloppe: true,
-        droits: horsDeLEnveloppe(ctx, EXPLORATEUR, 'sonnet'),
-        id: randomUUID(),
-        fiche: 'tri',
-        objet: 'tri',
-        valider: f => conformiteDuTri(f, ids),
-      }
-    );
-  } catch (x) {
-    if (!(x instanceof Arret)) throw x;
-    faute = premiereLigne(x.rapport);
-  } finally {
-    rmSync(ctx.tmp, { recursive: true, force: true });
-  }
-  if (!fiche) {
-    inscrire(ctx, {
-      role: AUTEUR_DU_CIRCUIT,
-      etape: TRI,
-      tri: { decouvertes: ids.length, conforme: false, verdicts: {} },
-    });
-    commenter(
-      ctx,
-      TRI,
-      `le tri ne rend pas de fiche conforme (${faute}) : les ${n} restent telles quelles ; l'intégration tient.`
-    );
-    return;
-  }
-  // Each writing at a discovery's ticket, by its name; one that fails is named at the ticket.
-  const echecs = [];
-  const rouvertes = [];
-  for (const l of fiche.verdicts) {
-    const rouvre = VERDICTS_ROUVERTS.includes(l.verdict);
-    const ecritures = [
-      [
-        'verdict',
-        [
-          'comments',
-          'add',
-          l.decouverte,
-          `${PREFIXE}${TRI} : ${l.verdict} — ${l.texte.trim()}${l.piece ? ` (${l.piece.trim()})` : ''}${rouvre ? ' ; rouverte sous a-valider, pour le responsable.' : ''}`,
-        ],
-      ],
-      [
-        'étiquette',
-        [
-          'update',
-          l.decouverte,
-          '--add-label',
-          l.verdict,
-          ...(rouvre ? ['--add-label', 'a-valider'] : []),
-        ],
-      ],
-      ...(rouvre ? [['réouverture', ['reopen', l.decouverte]]] : []),
-    ];
-    const ratees = ecritures.flatMap(([quoi, args]) => {
-      const r = ctx.bd(...args);
-      return r.status === 0 ? [] : [`${quoi} (${premiereLigne(r.stderr) || `code ${r.status}`})`];
-    });
-    if (ratees.length) echecs.push(`${l.decouverte} : ${ratees.join(', ')}`);
-    if (rouvre && !ratees.some(x => x.startsWith('réouverture'))) rouvertes.push(l.decouverte);
-  }
-  const verdicts = Object.fromEntries(
-    VERDICTS_DU_TRI.map(v => [v, fiche.verdicts.filter(l => l.verdict === v).length]).filter(
-      ([, k]) => k
-    )
-  );
-  inscrire(ctx, {
-    role: AUTEUR_DU_CIRCUIT,
-    etape: TRI,
-    tri: { decouvertes: ids.length, conforme: true, verdicts },
-  });
-  commenter(
-    ctx,
-    TRI,
-    `${n} triée${decouvertes.length > 1 ? 's' : ''} — ${Object.entries(verdicts)
-      .map(([v, k]) => `${k} ${v}`)
-      .join(
-        ', '
-      )} ; ${rouvertes.length ? `rouvertes sous a-valider : ${rouvertes.join(', ')}` : 'aucune rouverte'}${echecs.length ? ` ; écritures en échec : ${echecs.join(' ; ')}` : ''}.`
-  );
-}
-
-// The commit the queue names in the reason of a ticket it closes (`intégré : <commit>`,
-// scripts/integration/file.mjs), or null for another reason.
-export function commitIntegre(raison) {
-  const r = String(raison ?? '');
-  return r.startsWith(INTEGRE) ? r.slice(INTEGRE.length).trim().split(' ')[0] || null : null;
-}
-
-// The type of a conventional commit for the ticket's type in Beads; `feat` for any other.
-const TYPES_DE_COMMIT = { bug: 'fix', chore: 'chore', docs: 'docs' };
-
-// The commit message of the lot: `<type>(<paquets>): <sujet> (<ticket>)`, the packages of the
-// plan by their name; then the message the sheets of the developpeur and of the reviewer give, in
-// their order, written once from the final state (`messageDuLot`).
-function messageDeCommit(ctx) {
-  const liste = composantsDe(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
-  const noms = ctx.paquets.flatMap(c => {
-    const nom = liste.find(p => p.dossier === c)?.pkg.name;
-    return nom ? [nom] : c === '.' ? [] : [path.basename(c)];
-  });
-  const type = TYPES_DE_COMMIT[ctx.type] ?? 'feat';
-  const portee = noms.length ? `(${noms.join(',')})` : '';
-  return messageDuLot({
-    entete: `${type}${portee}: ${ctx.sujet} (${ctx.ticket})`,
-    description: leTicket(ctx).description,
-    fiches: lesFiches(ctx)
-      .filter(e => e.role === 'developpeur' || e.role === 'relecteur')
-      .map(e => e.fiche),
-  });
-}
-
-// The commit message of a lot, written once from its final state, as a change merged on Gerrit
-// carries the one description of its last patch set: <entete>, the title of the ticket; the
-// section of the criteria of the plan <description> (its heading begins with « Critères »), what
-// the lot changes; a paragraph per deviation the sheets <fiches> carry (`ecarts`), each subject
-// once, in the order it first appears, with the value of the last sheet that carries it (a
-// subject known again whatever its case and spacing); then the trailer.
-export function messageDuLot({ entete, description, fiches }) {
-  const criteres = [];
-  let dedans = false;
-  for (const ligne of String(description ?? '').split('\n')) {
-    const m = /^##\s+(.*)$/.exec(ligne);
-    if (m) {
-      dedans = /^Critères\b/.test(m[1].trim());
-    } else if (dedans) {
-      criteres.push(ligne);
-    }
-  }
-  const cle = sujet => sujet.toLocaleLowerCase('fr').replace(/\s+/g, ' ').trim();
-  const ecarts = new Map();
-  for (const e of fiches.flatMap(f => f.ecarts ?? [])) {
-    const sujet = ecarts.get(cle(e.sujet))?.sujet ?? e.sujet.trim();
-    ecarts.set(cle(e.sujet), { sujet, texte: e.texte.trim() });
-  }
-  return [
-    entete,
-    criteres.join('\n').trim(),
-    ...[...ecarts.values()].map(e => `${e.sujet} : ${e.texte}`),
-    'Co-Authored-By: Claude <noreply@anthropic.com>',
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-    .concat('\n');
-}
-
-// The files the copy changes against its HEAD: [{ fichier, supprime }], relative to the copy.
-function changements(ctx) {
-  const r = spawnSync(
-    'git',
-    ['-C', ctx.copie, 'status', '--porcelain', '-z', '--untracked-files=all'],
-    { encoding: 'utf8' }
-  );
-  if (r.status !== 0) return [];
-  const entrees = r.stdout.split('\0');
-  const out = [];
-  for (let i = 0; i < entrees.length; i++) {
-    const e = entrees[i];
-    if (e.length < 4) continue;
-    const xy = e.slice(0, 2);
-    out.push({ fichier: e.slice(3), supprime: xy.includes('D') });
-    // A rename or a copy names its source next.
-    if (xy.includes('R') || xy.includes('C')) i++;
-  }
-  return out;
-}
-
-// Whether the testwriter writes <fichier> of the copy: the rule of a test file of the module of its
-// language (`estUnTest`, scripts/jointure.d.ts).
-const duTestwriter = (ctx, fichier) => langageDe(ctx.copie).estUnTest(fichier, ctx.copie) !== null;
-
-// The test files of the lot that the testwriter writes, present in the copy: in the packages of
-// the plan and in the shared test material.
-function testsDuLot(ctx) {
-  return changements(ctx)
-    .filter(c => !c.supprime)
-    .map(c => c.fichier)
-    .filter(f => langageDe(ctx.copie).estUnTest(f, ctx.copie)?.joue)
-    .sort();
-}
-
-// The package directory of the copy that holds <fichier>, or « . ».
-function paquetDe(liste, fichier) {
-  const p = liste.find(({ dossier }) => `${fichier}`.startsWith(`${dossier}${path.sep}`));
-  return p ? p.dossier : '.';
-}
-
-// One npm command in the copy, under <env> added to the circuit's environment, its results written
-// to a directory of its own (RESULTATS, scripts/resultats.mjs: the summaries of Turborepo, the
-// JSON reports of Vitest, the SARIF of the guards), its output added to the log for the human:
-// `{ code, dossier }`. The circuit reads its results, never its output. A heavy pass (the final
-// pass, `npm run verifier`) holds the lock of the machine (scripts/verrou-de-machine.mjs) and
-// passes it to the `npm run verifier` it runs; a targeted one (the proof of the red, the checks on
-// the tests of the ticket) takes a place like a session of an agent
-// (scripts/passe-de-la-machine.mjs); its wait is written to the log. A wait that stops (its bound, 75; a lock held by an ancestor, 1) is
-// the command's code, its message in the log. Once it holds the lock, the pass plays under a
-// progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names. It plays in
-// the environment of a pass (`environnementDeLaPasse`).
-function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
-  entete(ctx, etape);
-  const dossier = mkdtempSync(path.join(ctx.base.dossier, 'resultats-'));
-  const prefixe = Object.entries(env).map(([k, v]) => `${k}=${v} `);
-  appendFileSync(ctx.journal, `$ ${prefixe.join('')}npm ${args.join(' ')}\n`);
-  const fd = openSync(ctx.journal, 'a');
-  try {
-    const finale = etape === 'controles' && args[1] === 'verifier';
-    const lourde = passeLourde({ etape, args });
-    const r = avecLaPasse(
-      envMachine =>
-        avecAvancement(ctx, genreDeLaPasse(ctx, etape, args), avancement => {
-          const oublier = nommerLAvancement({ env: envMachine, dossier: avancement });
-          try {
-            // A targeted pass plays on its share of the cores under nice and ionice; a heavy one
-            // keeps every core.
-            const lancement = lancementDeLaPasse({
-              lourde,
-              cmd: 'npm',
-              args,
-              env: environnementDeLaPasse(ctx, envMachine, {
-                ...env,
-                [RESULTATS]: dossier,
-                [AVANCEMENT]: avancement,
-                ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
-              }),
-            });
-            return spawnSync(lancement.cmd, lancement.args, {
-              cwd,
-              stdio: ['ignore', fd, fd],
-              env: lancement.env,
-            });
-          } finally {
-            oublier();
-          }
-        }),
-      {
-        lourde,
-        env: process.env,
-        racine: ctx.copie,
-        dire: l => appendFileSync(ctx.journal, `${l}\n`),
-        ticket: ctx.ticket,
-        rang: ctx.rang ?? undefined,
-        sorte: etapeDuCircuit({ etape, finale })?.titre ?? etape,
-      }
-    );
-    return { code: r.status ?? 1, dossier };
-  } catch (e) {
-    if (!(e instanceof AttenteDeLaMachine)) throw e;
-    appendFileSync(ctx.journal, `${e.message}\n`);
-    return { code: e.code, dossier };
-  } finally {
-    closeSync(fd);
-  }
-}
-
-// The kind of an automatic pass, by which its total is kept from one pass to the next
-// (scripts/avancement.mjs): its step (the checks once final, the final pass) and its command
-// without the test files and the filters, which move from one lot to the next.
-function genreDeLaPasse(ctx, etape, args) {
-  const commande = args.filter(
-    a => !langageDe(ctx.copie).estUnTest(a, ctx.copie)?.joue && !a.startsWith('--filter=')
-  );
-  return etape === 'controles' && args[1] === 'verifier'
-    ? ['passe finale', ...commande].join(' ')
-    : [etape, ...commande].join(' ');
-}
-
-// Runs <passe> under a progress directory of the kind <genre> (null: none kept), named in the
-// state while it plays (`avancement`), as the board reads it; then keeps its total, takes it out
-// of the state and removes it. Returns what <passe> returns.
-function avecAvancement(ctx, genre, passe) {
-  const avancement = ouvrirAvancement({ racine: ctx.copie, genre, dans: ctx.base.dossier });
-  if (ctx.courant) ecrireEtat(ctx, { ...ctx.courant, avancement: { dossier: avancement } });
-  try {
-    return passe(avancement);
-  } finally {
-    garderLeTotal(avancement, ctx.copie);
-    if (ctx.courant) ecrireEtat(ctx, { ...ctx.courant, avancement: null });
-    rmSync(avancement, { recursive: true, force: true });
-  }
-}
-
-// Removes from the copy each sibling of HEAD's version a killed process left there, between its
-// writing and its removal (`avecLesVersionsDAvant`): a file git does not track, the sibling, by
-// the name the module of its language gives (`soeurDAvant` of the join, a file beside its own:
-// TypeScript's alone, Rust and Python play HEAD's version in a tree), of a file of its folder that
-// git tracks and that exists, each named in the ticket's log. A file git tracks, or whose file is
-// absent, is left. What the module reads at a cost is read once for the sweep (`avecUneLecture`,
-// ./lecture-unique.mjs), whatever the number of files. Returns the siblings removed, from the
-// copy, sorted.
-export function balayerLesSoeurs(ctx) {
-  return avecUneLecture(() => balayer(ctx));
-}
-
-// The sibling of HEAD's version of <f> by the module of its language, null for a module that
-// names none (Rust, Python).
-function soeurDe(langage, f, racine) {
-  return typeof langage.soeurDAvant === 'function' ? langage.soeurDAvant(f, racine) : null;
-}
-
-// Whether HEAD's version of <f> plays in a tree of its own, by the module of its language.
-function arbreDe(langage, f, racine) {
-  return typeof langage.arbreDAvant === 'function' && langage.arbreDAvant(f, racine) === true;
-}
-
-// The sweep of `balayerLesSoeurs`, in its scope of readings done once.
-function balayer(ctx) {
-  const git = (...a) =>
-    spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const r = git('ls-files', '-z', '--others', '--exclude-standard');
-  if (r.status !== 0) return [];
-  const parDossier = new Map();
-  for (const f of r.stdout.split('\0').filter(Boolean)) {
-    const d = path.posix.dirname(f);
-    parDossier.set(d, [...(parDossier.get(d) ?? []), f]);
-  }
-  const langage = langageDe(ctx.copie);
-  const retirees = [];
-  for (const [dossier, nonSuivis] of parDossier) {
-    const suivis = git('ls-files', '-z', ...(dossier === '.' ? [] : ['--', `${dossier}/`]));
-    const soeurs = new Set(
-      suivis.stdout
-        .split('\0')
-        .filter(f => f && path.posix.dirname(f) === dossier)
-        .filter(f => existsSync(path.join(ctx.copie, f)))
-        .map(f => soeurDe(langage, f, ctx.copie))
-        .filter(n => n !== null)
-    );
-    for (const f of nonSuivis.filter(n => soeurs.has(n))) {
-      rmSync(path.join(ctx.copie, f), { force: true });
-      retirees.push(f);
-      if (ctx.journal) {
-        appendFileSync(ctx.journal, `sœur de la version de HEAD laissée, retirée : ${f}\n`);
-      }
-    }
-  }
-  return retirees.sort();
-}
-
-// What a tree of HEAD's version leaves out of the copy: the history, the builds, the installed
-// dependencies, none of which a test reads as its own file.
-const HORS_DE_L_ARBRE = new Set(['.git', 'target', 'node_modules', '.venv']);
-
-// Removes from the temporary directory of the ticket each tree of HEAD's version (`avant-<pid>-*`)
-// whose owner, the process that built it, no longer lives: a circuit killed between the building
-// and the removal (`avecLesVersionsDAvant`) leaves one, no `finally` having played. A tree of a
-// live process is left.
-function balayerLesArbres(ctx) {
-  if (!existsSync(ctx.tmp)) return;
-  for (const nom of readdirSync(ctx.tmp)) {
-    // The name is written by `batirLArbre`: `avant-`, the pid, `-`, the suffix of mkdtemp.
-    const [prefixe, pid] = nom.split('-');
-    if (prefixe !== 'avant' || !Number.isInteger(Number(pid)) || Number(pid) <= 0) continue;
-    try {
-      process.kill(Number(pid), 0);
-      continue;
-    } catch (e) {
-      if (e.code === 'EPERM') continue;
-    }
-    rmSync(path.join(ctx.tmp, nom), { recursive: true, force: true });
-  }
-}
-
-// Builds under the temporary directory of the ticket the tree of HEAD's version of <f>: the copy
-// (the code of the lot included), without `.git`, `target`, `node_modules` and `.venv`, where <f>
-// alone holds <texte>, HEAD's text, under its own name. Returns its root.
-function batirLArbre(ctx, f, texte) {
-  const racine = mkdtempSync(path.join(ctx.tmp, `avant-${process.pid}-`));
-  try {
-    cpSync(ctx.copie, racine, {
-      recursive: true,
-      filter: src =>
-        src === ctx.copie ||
-        (!HORS_DE_L_ARBRE.has(path.basename(src)) && path.resolve(src) !== path.resolve(ctx.tmp)),
-    });
-    writeFileSync(path.join(racine, f), texte);
-  } catch (e) {
-    rmSync(racine, { recursive: true, force: true });
-    throw e;
-  }
-  return racine;
-}
-
-// Runs <jouer> with HEAD's version of each file of <fichiers> that HEAD holds, where the module
-// of its language puts it: a sibling written beside the file in the copy (`soeurDAvant` of the
-// join: TypeScript, whose tool plays it in the same run), swept first (`balayerLesSoeurs`) and
-// removed after the run, a red included; or a tree of its own (`arbreDAvant` of the join: Rust,
-// Python), the copy's with that file alone replaced by its version of HEAD, under its own name, in
-// the temporary directory of the ticket (`batirLArbre`), removed after the run, a red included,
-// the copy getting no file. <jouer> gets the Map file → sibling (from the copy), the Map file →
-// names of the tests of HEAD's version, read without playing them, of each file its tool cannot
-// play twice (`testsDeHead` of the join), and the Map file → `{ racine, env }`, the root of its
-// tree and the environment it plays under (`envDArbre` of the join). With <sansArbres>, no tree
-// is built: the names of HEAD's tests of each file that would have one are read too. Returns
-// what <jouer> returns.
-export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansArbres = false } = {}) {
-  balayerLesSoeurs(ctx);
-  balayerLesArbres(ctx);
-  return avecUneLecture(() => {
-    const avant = new Map();
-    const lus = new Map();
-    const arbres = new Map();
-    const deHead = f => {
-      const r = spawnSync('git', ['-C', ctx.copie, 'show', `HEAD:${f}`], {
-        encoding: 'utf8',
-        maxBuffer: 64 * 1024 * 1024,
-      });
-      return r.status === 0 ? r.stdout : null;
-    };
-    try {
-      const langage = langageDe(ctx.copie);
-      for (const f of fichiers) {
-        const soeur = soeurDe(langage, f, ctx.copie);
-        if (soeur !== null) {
-          const texte = deHead(f);
-          if (texte === null) continue;
-          writeFileSync(path.join(ctx.copie, soeur), texte);
-          avant.set(f, soeur);
-          continue;
-        }
-        if (arbreDe(langage, f, ctx.copie) && !sansArbres) {
-          const texte = deHead(f);
-          if (texte === null) continue;
-          const env =
-            typeof langage.envDArbre === 'function' ? langage.envDArbre(f, ctx.copie) : {};
-          arbres.set(f, { racine: batirLArbre(ctx, f, texte), env });
-          continue;
-        }
-        const noms = langage.testsDeHead(f, ctx.copie, deHead);
-        if (noms !== null) lus.set(f, noms);
-      }
-      return jouer(avant, lus, arbres);
-    } finally {
-      for (const soeur of avant.values()) rmSync(path.join(ctx.copie, soeur), { force: true });
-      for (const { racine } of arbres.values()) rmSync(racine, { recursive: true, force: true });
-    }
-  });
-}
-
-// The run of the files <groupe> of one package of the proof, HEAD's version of each beside it or
-// in a tree (`avecLesVersionsDAvant`): `{ avant, lus, arbres, code, resultats, constructions }`,
-// <jouer> given the files to play in the copy and the trees to play, and returning `{ code,
-// resultats, constructions }`. A tree that does not compile is not a red of the lot (the owner's
-// decision on grillhouse-3e2.2): when the build fails with trees, the package plays again without
-// them, and when the lot alone builds, that run is kept, the names of HEAD's tests of those files
-// read without playing them; a build the lot alone breaks stays a red, the first run kept.
-export function jouerAvecLesVersionsDAvant(ctx, groupe, jouer) {
-  const avecArbres = avecLesVersionsDAvant(ctx, groupe, (avant, lus, arbres) => ({
-    avant,
-    lus,
-    arbres,
-    ...jouer([...groupe, ...avant.values()], arbres),
-  }));
-  if (avecArbres.arbres.size === 0 || avecArbres.constructions.length === 0) return avecArbres;
-  const sansArbres = avecLesVersionsDAvant(
-    ctx,
-    groupe,
-    (avant, lus, arbres) => ({
-      avant,
-      lus,
-      arbres,
-      ...jouer([...groupe, ...avant.values()], arbres),
-    }),
-    { sansArbres: true }
-  );
-  return sansArbres.constructions.length === 0 ? sansArbres : avecArbres;
-}
-
-// The log of the task <t> of a summary of Turborepo, its file from the root of the copy: its path,
-// and its first lines, the task's own output.
-function journalDeTache(ctx, t) {
-  if (!t.journal) return { chemin: null, debut: '' };
-  const chemin = path.join(ctx.copie, t.journal);
-  return { chemin, debut: sansCouleurs(lire(chemin)).trim().split('\n').slice(0, 80).join('\n') };
-}
-
-// Runs <jouer> with the installed dependencies of the copy (`node_modules` of its root) linked in
-// the tree <racine>, which carries none, so that its tool (npm) starts there; the link goes after
-// the run, a red included.
-function avecLesDependancesDeLaCopie(ctx, racine, jouer) {
-  const source = path.join(ctx.copie, 'node_modules');
-  const lien = path.join(racine, 'node_modules');
-  if (!existsSync(source) || existsSync(lien)) return jouer();
-  symlinkSync(source, lien);
-  try {
-    return jouer();
-  } finally {
-    rmSync(lien, { force: true });
-  }
-}
-
-// The measure of the proof of the red: one run per package, `npm test -- --force <files>` of the
-// lot that lie in it, HEAD's version of each beside it or in a tree of its own, played again
-// without the trees when they alone break the build (`jouerAvecLesVersionsDAvant`), or, with no
-// file of the lot, `npm test -- <package>` for each package of the plan, played whole. Each run
-// `{ groupe, entier, avant, lus, arbres, code, resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
-// not played again, as Turborepo replays a task whose inputs did not move: the last one is kept
-// in `ctx.mesureDeLaPreuve`.
-function mesureDeLaPreuve(ctx, liste, fichiers) {
-  const cle = empreinte(ctx, ['.']);
-  if (ctx.mesureDeLaPreuve?.cle === cle) return ctx.mesureDeLaPreuve.runs;
-  const entiers = fichiers.length ? [] : paquetsDuPlan(ctx, liste);
-  const groupes = new Map(entiers.map(d => [d, []]));
-  for (const f of fichiers) {
-    const p = paquetDe(liste, f);
-    groupes.set(p, [...(groupes.get(p) ?? []), f]);
-  }
-  const runs = [];
-  for (const [dossier, groupe] of groupes) {
-    const entier = entiers.includes(dossier);
-    // The files of the lot play for real (`--force`): a run replayed from Turborepo's cache, the
-    // checks' same command on the same inputs, writes no report of Vitest.
-    const run = jouerAvecLesVersionsDAvant(ctx, groupe, (aJouer, arbres) => {
-      // The copy plays the files of the lot; each tree plays its one file, HEAD's version, in its
-      // own root, under its own environment, as the copy's tool plays it.
-      const passes = [
-        npm(ctx, 'preuve', ['test', '--', ...(entier ? [dossier] : ['--force']), ...aJouer]),
-        ...[...arbres].map(([f, arbre]) =>
-          avecLesDependancesDeLaCopie(ctx, arbre.racine, () =>
-            npm(ctx, 'preuve', ['test', '--', '--force', f], arbre.env, arbre.racine)
-          )
-        ),
-      ];
-      return {
-        code: passes.find(r => r.code !== 0)?.code ?? 0,
-        resultats: passes.flatMap(r => langageDe(ctx.copie).verdict(r.dossier).rapports),
-        // The builds of the plan's packages that failed: each one a red, not compiling is failing.
-        constructions: passes.flatMap(r => constructionsEchouees(ctx, liste, r.dossier)),
-      };
-    });
-    runs.push({ groupe, entier, ...run });
-  }
-  ctx.mesureDeLaPreuve = { cle, runs };
-  return runs;
-}
-
-// The green tests of HEAD's version of the file <f> of the lot, by their full name: those of the
-// report of its sibling (`avant`, file → sibling, from the copy <copie>) or of its tree (`arbres`,
-// file → `{ racine }`, the file there at the same path: the copy's by the change of root alone)
-// in the results <resultats> of the run (`verdict` of the join), or, for a file played in neither,
-// the names of its tests read in HEAD's version (`lus`, file → names), each held green, as main
-// stays green; empty for a file HEAD does not hold.
-export function vertsDeHead(resultats, copie, f, avant, lus = new Map(), arbres = new Map()) {
-  if (lus.has(f)) return new Set(lus.get(f));
-  const soeur = avant.has(f)
-    ? path.join(copie, avant.get(f))
-    : arbres.has(f)
-      ? path.join(arbres.get(f).racine, f)
-      : null;
-  return new Set(
-    (resultats.find(t => soeur !== null && t.fichier === soeur)?.tests ?? [])
-      .filter(a => a.etat === 'passed')
-      .map(a => a.nom)
-  );
-}
-
-// The full name of a test <nom> with each separator between a group and what it holds, « > » or
-// « › » between blanks, read as the blank that Vitest's full name puts there.
-const sansSeparateur = nom =>
-  String(nom ?? '')
-    .replace(/\s+[>›]\s+/g, ' ')
-    .trim();
-
-// The tests that carry the ticket's work, from the testwriter's sheets in their order: the list is
-// replaced, not added. A sheet without the field keeps the list of the sheet before, a given list
-// replaces it, and `[]` empties it (a rerun testwriter withdraws a name that way).
-export const portentLeTravail = fiches =>
-  fiches.filter(f => Array.isArray(f.portent_le_travail)).at(-1)?.portent_le_travail ?? [];
-
-// The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` the
-// report, written whole to its file beside the copy. A
-// green test is a defect when the testwriter's sheets name it (`portent_le_travail`), read at
-// each proof, and accepted when they do not; a test's full name is read whatever the
-// separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
-// Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
-// the copy changed (`mesureDeLaPreuve`).
-function preuve(ctx) {
-  // Only the files of the day are proved; the ones only the night plays are put aside, named.
-  const { jour: fichiers, misDeCote } = separerLesFichiersDuJour(ctx, testsDuLot(ctx));
-  const portent = portentLeTravail(fichesDe(ctx, 'testwriter'));
-  // Whether the sheet names the test <a> of the file <f>, by its full name or by its whole file.
-  const nomme = (f, a) =>
-    portent.some(
-      v =>
-        v.fichier === f &&
-        (!v.test || [a.nom, a.titre].some(n => sansSeparateur(v.test) === sansSeparateur(n)))
-    );
-  const rouges = [];
-  // The reds of the files of the lot, apart from the existing ones and the builds.
-  let rougesDuLot = 0;
-  const nonNommes = [];
-  const nommes = [];
-  const casses = [];
-  const liste = composantsDe(ctx.copie).filter(p => !p.hors);
-  let anciens = 0;
-  const reportes = [];
-  // A lot of files put aside alone plays nothing, not the packages whole.
-  const mesure = fichiers.length || !misDeCote.length ? mesureDeLaPreuve(ctx, liste, fichiers) : [];
-  // A plan « comportement inchangé »: every green of the lot is expected.
-  const inchange = Boolean(ctx.sorte?.inchange);
-  for (const { groupe, entier, avant, lus, arbres, code, resultats, constructions } of mesure) {
-    for (const { nom, erreur } of constructions) {
-      if (reportes.includes(nom)) continue;
-      rouges.push(`construction de ${nom} — ${erreur}`);
-      reportes.push(nom);
-    }
-    // The files of a package played whole, out of the lot, which HEAD holds green: a red of theirs
-    // is a regression of the lot.
-    if (entier) {
-      for (const res of resultats) {
-        const f = path.relative(ctx.copie, res.fichier);
-        if (res.tests.length === 0 && res.etat === 'failed' && !constructions.length) {
-          rouges.push(
-            `rouge existant : ${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`
-          );
-        }
-        for (const a of res.tests.filter(x => x.etat === 'failed')) {
-          rouges.push(`rouge existant : ${f} › ${a.nom} — ${premiereLigne(a.message)}`);
-        }
-      }
-    }
-    for (const f of groupe) {
-      const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
-      const tests = res?.tests ?? [];
-      const deHead = vertsDeHead(resultats, ctx.copie, f, avant, lus, arbres);
-      // Whether HEAD holds the file: its sibling or its tree played, or the names of its tests read.
-      const tenu = avant.has(f) || arbres.has(f) || lus.has(f);
-      if (constructions.length && (!res || tests.length === 0)) {
-        // It cannot load before the build: it plays at the checks.
-      } else if (!res) {
-        casses.push(
-          `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal}`
-        );
-      } else if (tests.length === 0) {
-        casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);
-      }
-      for (const a of tests) {
-        if (a.etat === 'failed') {
-          rouges.push(`${f} › ${a.nom} — ${premiereLigne(a.message)}`);
-          rougesDuLot++;
-        } else if (a.etat === 'passed' && deHead.has(a.nom)) {
-          anciens++;
-        } else if (a.etat === 'passed') {
-          (nomme(f, a) ? nommes : nonNommes).push(`${f} › ${a.nom}`);
-        }
-      }
-    }
-  }
-  const section = (titre, l) =>
-    l.length ? [`${titre} (${l.length}) :`, ...l.map(x => `- ${x}`), ''] : [];
-  const ok = preuveReussie(
-    {
-      fichiers: fichiers.length,
-      rouges: rouges.length,
-      casses: casses.length,
-      nommes: nommes.length,
-      nonNommes: nonNommes.length,
-      anciens,
-      misDeCote: misDeCote.length,
-    },
-    { inchange }
-  );
-  const resume = `${rouges.length} rouge(s), ${nommes.length} vert(s) nommé(s) qui portent le travail, ${nonNommes.length} vert(s) non nommé(s), ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
-  const ecrit = (...sections) =>
-    [
-      `${SUITE.find(e => e.etat === PREUVE).titre} : ${resume}.`,
-      ...[...new Set(reportes)].map(
-        nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
-      ),
-      '',
-      ...(fichiers.length || rouges.length || misDeCote.length
-        ? []
-        : inchange
-          ? [
-              'Aucun fichier de test du lot : le plan dit « comportement inchangé », rien à prouver.',
-              '',
-            ]
-          : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
-      ...section('Rouges', rouges),
-      ...sections,
-      ...(nommes.length
-        ? [
-            `Tests qui portent le travail, verts avant le code (${nommes.length}) :`,
-            'Ta fiche les nomme dans `portent_le_travail` : un test qui porte le travail du ticket rougit d’abord ; nomme seulement ceux-là, ou écris-les pour qu’ils échouent sur le code présent.',
-            ...nommes.map(x => `- ${x}`),
-            '',
-          ]
-        : []),
-      ...section('Fichiers qui ne prouvent rien', casses),
-      ...sectionMisDeCote(misDeCote),
-    ]
-      .join('\n')
-      .trim();
-  let n = 1;
-  while (existsSync(`${ctx.copie}.preuve-${n}.md`)) n++;
-  const complet = `${ctx.copie}.preuve-${n}.md`;
-  const texte = ecrit(
-    `Le rapport entier : ${complet}`,
-    '',
-    ...section('Verts non nommés (acceptés sans justification)', nonNommes)
-  );
-  writeFileSync(complet, `${texte}\n`);
-  return {
-    ok,
-    rouges: rouges.length,
-    texte,
-    resume,
-    resultat: {
-      ok,
-      rouges: rouges.length,
-      justifies: nonNommes.length,
-      sans: nommes.length,
-      casses: casses.length,
-      anciens,
-      vide: rougesDuLot + nonNommes.length + nommes.length + casses.length === 0,
-    },
-  };
-}
-
-// The builds that failed in the run whose results are under <dossier> (the summary of Turborepo,
-// task `<package>#build`) of a package of the plan: `{ nom, erreur }`, `erreur` its log file and
-// the beginning of its own output.
-function constructionsEchouees(ctx, liste, dossier) {
-  return langageDe(ctx.copie)
-    .verdict(dossier)
-    .taches.filter(t => t.script === 'build' && t.code !== null && t.code !== 0)
-    .flatMap(t => {
-      const p = liste.find(x => x.pkg.name === t.paquet);
-      if (!p || !dansLePlan(ctx, p.dossier)) return [];
-      const j = journalDeTache(ctx, t);
-      return [{ nom: t.paquet, erreur: `son journal : ${j.chemin}\n\n${j.debut}\n` }];
-    });
-}
-
-// The tasks of style, played per package (`<package>#lint`, `<package>#format:check`).
-const STYLE = new Set(['lint', 'format:check']);
-
-// Where <chemin> (from the root of the copy) lies: `{ dansLePlan, paquet, horsTitre }`, whether
-// a path of the plan holds it, the name of the package of <liste> that holds it, and that name
-// again when the plan does not hold it.
-function situer(ctx, liste, chemin) {
-  const dedans = Boolean(chemin) && dansLePlan(ctx, chemin);
-  const p = chemin ? liste.find(x => chemin.startsWith(`${x.dossier}/`)) : null;
-  const paquet = p ? p.pkg.name : null;
-  return { dansLePlan: dedans, paquet, horsTitre: dedans ? null : paquet };
-}
-
-// The reds of the check <c> (`{ args, env, code, dossier }`), read in its results: each failed
-// test of the reports of Vitest, each finding of the guards' SARIF, each failed build, and each
-// failed task none of those situates; a red check with none of them is one red of the command.
-// Each red `{ texte, fichier, gardes, detail, dansLePlan, paquet, horsTitre, arbitrer, joue }`: the
-// line that names it (test or finding, file, message), its file (null for a red of a task), the
-// names its finding carries (its guard and its rule), the beginning of its task's log for a build,
-// whether a path of the plan holds it (none for a red without a file), the package that holds it
-// and that package again when it is out of the plan, whether it is a finding to settle
-// (`a-arbitrer`), and the package whose task gave it, as Turborepo names it (« // » for the
-// root's guards; null for a red of the command).
-// As SARIF 2.1.0 and GitHub code scanning, a finding of level error fails, a warning or a note
-// shows without failing: `{ rouges, avertissements }`, `avertissements` the lines of the findings
-// of another level, which the report lists apart. A guards' task red without a finding of level
-// error keeps its line of a red task, with its log.
-function rougesDe(ctx, liste, c) {
-  const lus = lireSarif(c.dossier).constats.filter(k => k.genre !== A_ELAGUER);
-  const vert = c.code === 0 || c.code === A_REPASSER;
-  const gardesDuCadre = nomsDesGardes(ctx.copie);
-  const duCadre = k => gardesDuCadre.includes(k.garde);
-  const rouge = k => k.niveau === 'error';
-  const ligneDe = k => {
-    const ou = k.fichier ? ` ${k.fichier}${k.ligne ? `:${k.ligne}` : ''}` : '';
-    return `${k.garde}${ou} — ${k.message}${k.genre === 'a-arbitrer' ? ' (à arbitrer)' : ''}`;
-  };
-  const avertissements = lus.filter(k => !rouge(k)).map(k => `${k.niveau} ${ligneDe(k)}`);
-  if (vert) return { rouges: [], avertissements };
-  const out = [];
-  const testes = new Set();
-  for (const res of langageDe(ctx.copie).verdict(c.dossier).rapports) {
-    const f = path.relative(ctx.copie, res.fichier);
-    const lieu = situer(ctx, liste, f);
-    if (res.tests.length === 0 && res.etat === 'failed') {
-      out.push({
-        texte: `test ${f} — ne se charge pas : ${premiereLigne(res.message)}`,
-        fichier: f,
-        ...lieu,
-        joue: lieu.paquet,
-      });
-      testes.add(paquetDe(liste, f));
-    }
-    for (const a of res.tests.filter(x => x.etat === 'failed')) {
-      out.push({
-        texte: `test ${f} › ${a.nom} — ${premiereLigne(a.message)}`,
-        fichier: f,
-        ...lieu,
-        joue: lieu.paquet,
-      });
-      testes.add(paquetDe(liste, f));
-    }
-  }
-  // A key of the debt to lower (`a-elaguer`, scripts/dette.mjs) is a note, not a red.
-  const constats = lus.filter(rouge);
-  for (const k of constats) {
-    out.push({
-      texte: `constat ${ligneDe(k)}`,
-      fichier: k.fichier ?? null,
-      gardes: [k.garde, k.regle].filter(Boolean),
-      ...situer(ctx, liste, k.fichier),
-      arbitrer: k.genre === 'a-arbitrer',
-      joue: '//',
-    });
-  }
-  // The guards of the project wrote findings when one comes from a guard out of the frame's.
-  const duProjet = constats.some(k => !duCadre(k));
-  for (const t of langageDe(ctx.copie).verdict(c.dossier).taches) {
-    if (t.code === null || t.code === 0 || t.code === A_REPASSER) continue;
-    if (t.tests && testes.has(t.dossier)) continue;
-    if (t.script === 'grillhouse:gardes' && constats.length) continue;
-    if (t.script === 'gardes' && duProjet) continue;
-    const p = liste.find(x => x.pkg.name === t.paquet);
-    const lieu = p
-      ? situer(ctx, liste, `${p.dossier}/`)
-      : { dansLePlan: false, paquet: null, horsTitre: null };
-    const j = journalDeTache(ctx, t);
-    out.push({
-      texte:
-        t.script === 'build'
-          ? `construction de ${t.paquet} — son journal : ${j.chemin}`
-          : `tâche ${t.tache} rouge (code ${t.code}) — son journal : ${j.chemin}`,
-      detail: t.script === 'build' ? j.debut : '',
-      ...lieu,
-      // A red task of style (`<package>#lint`, `<package>#format:check`) is named by its task, as
-      // the plan's package that holds it: the one out of the plan reads `<package>#lint`.
-      horsTitre: lieu.horsTitre && STYLE.has(t.script) ? t.tache : lieu.horsTitre,
-      joue: t.paquet,
-    });
-  }
-  if (out.length === 0) {
-    out.push({
-      texte: `${ligneDeCommande(c)} rouge (code ${c.code}), sans résultat qui situe son rouge — le journal du ticket : ${ctx.journal}`,
-      dansLePlan: false,
-      paquet: null,
-      horsTitre: null,
-    });
-  }
-  return { rouges: out, avertissements };
-}
-
-const ligneDeCommande = c =>
-  `${Object.entries(c.env ?? {})
-    .map(([k, v]) => `${k}=${v} `)
-    .join('')}npm ${c.args.join(' ')}`;
-
-// The checks after the developpeur: those of the plan (3.1), or, when <finale>, `npm run
-// verifier`, what the integration plays (4.1), restricted by <restreinte> (`{ avant, apres }`, two
-// lots kept) to the packages that changed from one to the other and their dependents, with the
-// root's tasks, the guards (`--filter=...[<avant>...<apres>] --filter=//`). After a regeneration,
-// <reportes> (`{ rouges, rejouee }`) carries the reds of the pass before it, the final pass or the
-// checks of the plan: each one in a package the pass after the regeneration does not play again
-// stands, as a CI keeps the verdict of a job it does not run again; when the regeneration changes
-// nothing (`rejouee` false), no command plays, and they all stand. `{ rouge, aRepasser, arbitrer, auDeveloppeur,
-// texte, complet, resume, horsTitre, lieux, tous, notes, avertissements }`: `texte` the report for
-// the developpeur, his reds first; `complet` every red, for a stop, and the warnings;
-// `avertissements` the section of the warnings and notes of the guards, which are no reds, for the
-// report of the checks (empty without one); `auDeveloppeur` whether a red lies
-// in a package of the plan; `horsTitre` the packages out of the plan that hold a red; `arbitrer`
-// when every red of the plan is a finding to settle; `lieux` the place of each red, `{ fichier,
-// gardes, dansLePlan }`, its file (null for a red without one), the names its finding carries
-// (none for a test or a task), and whether a path of the plan holds it; `references`, out of the final pass, the references whose reds the checks saw,
-// which their regeneration lifts before the checks judge the lot again, or before the final pass; `tous` every red as it was read; `notes`,
-// at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
-// fichier, regle, trouve }`.
-function controles(ctx, finale, restreinte = null, reportes = null) {
-  const liste = composantsDe(ctx.copie).filter(p => !p.hors);
-  const filtres = restreinte
-    ? ['--', `--filter=...[${restreinte.avant}...${restreinte.apres}]`, '--filter=//']
-    : [];
-  const commandes =
-    reportes && !reportes.rejouee
-      ? []
-      : finale
-        ? [{ args: ['run', 'verifier', ...filtres] }]
-        : commandesDuPlan(ctx, liste);
-  const resultats = commandes.map(({ args, env }) => {
-    let r = npm(ctx, 'controles', args, env);
-    // The 75 of verifier is final (its wait for the lock reached its bound); a command of the
-    // checks plays once more, the gesture `rejeu`.
-    if (r.code === A_REPASSER && !finale) {
-      geste(ctx, 'rejeu');
-      r = npm(ctx, 'controles', args, env);
-    }
-    const c = { args, env, ...r };
-    return { ...c, ...rougesDe(ctx, liste, c) };
-  });
-  // The packages the commands played (the root's tasks under « // »), whose reds are read again.
-  const joues = new Set(
-    resultats.flatMap(r =>
-      langageDe(ctx.copie)
-        .verdict(r.dossier)
-        .taches.map(t => t.paquet)
-    )
-  );
-  const tous = [
-    ...resultats.flatMap(r => r.rouges),
-    ...(reportes?.rouges ?? []).filter(
-      r => !reportes.rejouee || (Boolean(r.joue) && !joues.has(r.joue))
-    ),
-  ];
-  // Out of the final pass, the reds of the plan are the developpeur's; a red of a reference goes to
-  // its regeneration (4.2), before any red goes to him; the others (the root, a red no file situates, a
-  // package out of the plan) wait for the final pass.
-  const lieu = r => ({
-    fichier: r.fichier ?? null,
-    gardes: r.gardes ?? [],
-    dansLePlan: Boolean(r.dansLePlan),
-  });
-  const deReference = r => referencesDesRouges(ctx, [lieu(r)]).length > 0;
-  const siens = r => finale || (r.dansLePlan && !deReference(r));
-  const rouges = tous.filter(siens);
-  const references = finale
-    ? []
-    : referencesDesRouges(ctx, tous.filter(r => !siens(r) && deReference(r)).map(lieu));
-  const laisses = tous.filter(r => !siens(r) && (finale || !deReference(r)));
-  const aRepasser = resultats.filter(r => r.code === A_REPASSER);
-  const nommer = r => `${ligneDeCommande(r)} (code ${r.code})`;
-  const enEchec = resultats.filter(r => r.code !== 0 && r.code !== A_REPASSER);
-  const a = rouges.filter(r => r.dansLePlan);
-  const autres = rouges.filter(r => !r.dansLePlan);
-  const resume = rouges.length
-    ? `rouge : ${rouges.length} rouge(s) — ${
-        commandes.length
-          ? enEchec.map(nommer).join(' ; ')
-          : `ceux ${finale ? "de la passe finale d'avant" : "des contrôles d'avant"}, que la régénération ne change pas`
-      }`
-    : aRepasser.length
-      ? `à repasser : ${aRepasser.map(nommer).join(' ; ')}`
-      : `verts : ${commandes.length ? resultats.map(ligneDeCommande).join(' ; ') : finale ? "la passe finale d'avant" : "les contrôles d'avant"}${
-          laisses.length
-            ? ` ; laissés à la passe finale, ${laisses.length} rouge(s) hors du plan`
-            : ''
-        }`;
-  // Where the checks played: the final pass out of the envelope, on the whole copy or restricted
-  // to what changed since the last review; the checks of the plan, its tests and packages, its
-  // guards in its envelope.
-  const ou = !finale
-    ? 'Contrôles du plan, ses tests et ses paquets, ses gardes dans son enveloppe'
-    : restreinte
-      ? "Contrôles de la passe finale, hors enveloppe, restreinte à ce que le lot change depuis la relecture d'avant et à ses dépendants"
-      : 'Contrôles de la passe finale, hors enveloppe, sur la copie entière';
-  const ligne = r => [`- ${r.texte}`, ...(r.detail ? ['', r.detail, ''] : [])];
-  const nomDuPaquet = r => r.paquet ?? 'hors des paquets';
-  const journal = `Le journal du ticket, pour le détail des commandes : ${ctx.journal}`;
-  // The warnings and notes of the guards, apart from the reds: shown, given to no one to correct.
-  const signales = resultats.flatMap(r => r.avertissements);
-  const avertissements = signales.length
-    ? [
-        `Les avertissements (${signales.length}), qui ne sont pas des rouges :`,
-        ...signales.map(l => `- ${l}`),
-        '',
-      ]
-    : [];
-  const texte = [
-    `${ou} : ${resume}.`,
-    '',
-    ...(a.length ? [`Tes rouges (${a.length}) :`, ...a.flatMap(ligne), ''] : []),
-    ...(aRepasser.length && !rouges.length
-      ? [`À repasser (${aRepasser.length}) : ${aRepasser.map(nommer).join(' ; ')}`, '']
-      : []),
-    ...(autres.length
-      ? [`Les autres rouges (${autres.length}), hors du plan, montent au superviseur.`, '']
-      : []),
-    ...(laisses.length && !finale
-      ? [`Laissés à la passe finale (${laisses.length}) :`, ...laisses.map(r => `- ${r.texte}`), '']
-      : []),
-    journal,
-  ].join('\n');
-  const sansListe = [`${ou} : ${resume}.`, '', journal].join('\n');
-  const complet = [
-    `${ou} : ${resume}.`,
-    '',
-    ...(rouges.length
-      ? [
-          `Les rouges (${rouges.length}) :`,
-          ...rouges.flatMap(r => ligne({ ...r, texte: `${nomDuPaquet(r)} : ${r.texte}` })),
-          '',
-        ]
-      : []),
-    ...avertissements,
-    journal,
-  ].join('\n');
-  return {
-    rouge: rouges.length > 0,
-    aRepasser: aRepasser.length > 0,
-    arbitrer: a.length > 0 && a.every(r => r.arbitrer),
-    auDeveloppeur: a.length > 0,
-    texte,
-    complet,
-    sansListe,
-    avertissements: avertissements.length ? `\n\n${avertissements.join('\n').trimEnd()}` : '',
-    // The reds of the stop, each with where it lies: the plan's, or at the final pass all of them;
-    // never those left to the final pass.
-    rouges: rouges.map(r => ({ paquet: nomDuPaquet(r), texte: r.texte, detail: r.detail })),
-    resume,
-    horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
-    lieux: rouges.map(lieu),
-    references,
-    tous,
-    notes: finale
-      ? resultats.flatMap(r =>
-          lireSarif(r.dossier)
-            .constats.filter(k => k.genre === A_ELAGUER)
-            .map(({ garde, fichier, regle, trouve }) => ({ garde, fichier, regle, trouve }))
-        )
-      : [],
-  };
-}
-
-// The checks of the plan, out of the final pass: `npm test -- <package>` for each package of the
-// plan and each the lot touches in it, `npm test -- <test files of the lot>` that none of them
-// holds (the shared test material's out of the plan), each test played once, then the guards in
-// the envelope of the plan, whose findings on its files alone count.
-function commandesDuPlan(ctx, liste) {
-  const lot = changements(ctx);
-  const touches = liste.length
-    ? [...new Set(lot.map(c => paquetDe(liste, c.fichier)).filter(d => d !== '.'))].sort()
-    : ['.'];
-  const entiers = [
-    ...new Set([...touches.filter(d => dansLePlan(ctx, d)), ...paquetsDuPlan(ctx, liste)]),
-  ].sort();
-  const tests = testsDuLot(ctx).filter(f => !entiers.some(d => d === '.' || f.startsWith(`${d}/`)));
-  const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
-  const enveloppe = { [VARIABLE_ENVELOPPE]: ecrireLaListe(ctx.paquets) };
-  return [
-    ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
-    ...entiers.map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
-    ...['grillhouse:gardes', 'gardes']
-      .filter(s => s in scripts)
-      .map(s => ({ args: ['run', s], env: enveloppe })),
-  ];
-}
-
-// Whether the package <p> of the repository at <racine> (an entry of `paquets`) plays tests, as the
-// module of its language answers.
-const joueDesTests = (racine, p) =>
-  langageDe(racine).joueDesTests(racine, {
-    dossier: path.join(racine, p.dossier),
-    nom: path.basename(p.dossier),
-    paquet: p.pkg.name ?? null,
-  });
-
-// The directories of the packages of <liste> that play tests (`joueDesTests`) and that the plan
-// holds; sorted.
-function paquetsDuPlan(ctx, liste) {
-  return liste
-    .filter(p => dansLePlan(ctx, p.dossier) && joueDesTests(ctx.copie, p))
-    .map(p => p.dossier)
-    .sort();
-}
-
-// Whether the plan carries no test: in a repository of packages, no package of the frame that
-// plays tests (`joueDesTests`) lies in a path of the plan or holds it, as `npm test -- <chemin>`
-// refuses a path out of every package or in a package without tests. A repository without
-// packages plays its tests at its root: each plan has them.
-function sansTests(ctx) {
-  const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
-  const liste = composantsDe(racine).filter(p => !p.hors);
-  if (liste.length === 0) return false;
-  const touche = (c, d) => c === '.' || d === c || d.startsWith(`${c}/`) || c.startsWith(`${d}/`);
-  return !liste.some(p => ctx.paquets.some(c => touche(c, p.dossier)) && joueDesTests(racine, p));
-}
-
-// Whether the copy holds a change of the plan against its HEAD.
-function livre(ctx) {
-  const r = spawnSync(
-    'git',
-    ['-C', ctx.copie, 'status', '--porcelain', '--untracked-files=all', '--', ...ctx.paquets],
-    { encoding: 'utf8' }
-  );
-  return String(r.stdout ?? '').trim() !== '';
-}
-
-// The fingerprint of the files of <chemins> in the copy (the plan by default): `git status
-// --porcelain` of them and the content of each file it lists.
-function empreinte(ctx, chemins = ctx.paquets) {
-  const r = spawnSync(
-    'git',
-    ['-C', ctx.copie, 'status', '--porcelain', '-z', '--untracked-files=all', '--', ...chemins],
-    { encoding: 'utf8' }
-  );
-  const statut = String(r.stdout ?? '');
-  const h = createHash('sha256').update(statut);
-  for (const e of statut.split('\0')) {
-    if (e.length < 4) continue;
-    const f = path.join(ctx.copie, e.slice(3));
-    try {
-      if (statSync(f).isFile()) h.update(e).update(readFileSync(f));
-    } catch {
-      // A file removed: its line in the status is its trace.
-    }
-  }
-  return h.digest('hex');
-}
-
-// Whether a path of the plan holds <chemin> (relative to the copy), `.` holding every path.
-function dansLePlan(ctx, chemin) {
-  return ctx.paquets.some(c => c === '.' || chemin === c || chemin.startsWith(`${c}/`));
-}
-
-const lireJson = f => {
-  try {
-    return JSON.parse(readFileSync(f, 'utf8'));
-  } catch {
-    return null;
-  }
-};
-
 // The RENDU verdicts since the ticket's last ACCEPTÉ: a lot the queue sent back starts a new count.
 function rendusDepuisAccepte(ctx) {
   const verdicts = fichesDe(ctx, 'relecteur').map(f => f.verdict);
@@ -4073,684 +1159,230 @@ function boucles(ctx, etape, tentative, finale) {
 }
 
 // The circuit from <debut> (where `depart` starts it) to the entry of the lot in the queue: each
-// step once for the whole ticket, its plan the packages of the title.
-async function derouler(ctx, debut) {
-  let { etape, tentative, rapport, finale } = debut;
-  // The step a `--reprendre` starts at, the first of the loop.
-  let reprise = Boolean(ctx.reprendre);
-  // A developpeur relaunched on the integration's refusal of the lot he left unchanged.
-  let relanceSurLeRefus = false;
-  // A sibling of HEAD's version a killed circuit left in the copy never enters the lot.
-  if (existsSync(ctx.copie)) balayerLesSoeurs(ctx);
-  for (;;) {
-    const reprend = reprise;
-    reprise = false;
-    const etat = {
-      etape,
-      tentative,
-      code: null,
-      raison: null,
-      rapport,
-      finale,
-      boucles: boucles(ctx, etape, tentative, finale),
-    };
-    // A step the circuit leads itself names its start in the state while it runs, and writes its
-    // line to the register at its end, whatever its outcome.
-    const menee = MENEES.has(etape) ? { etape, debut: new Date().toISOString() } : null;
-    ecrireEtat(ctx, { ...etat, mene: menee?.debut ?? null });
-    try {
-      // A pass that judges the lot, a resumption included, plays on the copy prepared on the tip
-      // of main; a preparation that fails goes up.
-      const pointe = avantLaPasse(ctx, etape, ctx.regeneration ?? null);
-      if (pointe.arret) {
-        const { nom, rapport: motif, piece, question } = pointe.arret;
-        throw new Arret(nom, motif, { piece, question });
-      }
-      if (pointe.avancee) {
-        appendFileSync(ctx.journal, 'la copie avance sur la pointe de main avant la passe.\n');
-      }
-      ctx.regeneration = pointe.regeneration;
-      // After the plan: the gesture of a mechanical ticket, the developpeur of a plan without
-      // tests, else the testwriter.
-      const route =
-        etape === TESTS
-          ? etapeApresLePlan({
-              sorte: cheminMecanique(ctx) ? ctx.sorte : null,
-              sansTests: sansTests(ctx),
-            })
-          : null;
-      if (route === GESTE) {
-        geste(ctx, 'mecanique');
-        etape = GESTE;
-        tentative = 1;
-      } else if (etape === GESTE) {
-        if (reprend && livre(ctx)) {
-          // The copy already carries the gesture (the supervisor played the command himself).
-          commenter(
-            ctx,
-            'mecanique',
-            'la copie porte déjà un changement du plan : le geste ne rejoue pas, aux contrôles.'
-          );
-        } else {
-          const { description } = leTicket(ctx);
-          const fiche = await jusquALaFiche(
-            ctx,
-            EXPLORATEUR,
-            consigne(
-              {
-                depot: ctx.racine,
-                ticket: ctx.ticket,
-                sujet: ctx.sujet,
-                paquets: ctx.paquets.join(', '),
-                raison: ctx.sorte.raison,
-                commande: ctx.sorte.commande,
-                description: description.trim() || 'aucune',
-              },
-              8
-            ),
-            { fiche: 'geste', objet: 'geste' }
-          );
-          if (fiche.statut !== 'FAIT') throw arretDuStatut(ctx, EXPLORATEUR, tentative, fiche);
-          if (!livre(ctx)) {
-            throw new Arret(
-              'sans-livraison',
-              `Le geste mécanique ne change aucun fichier du plan (${ctx.paquets.join(', ')}) : la commande du plan, \`${ctx.sorte.commande}\`, n'a rien changé dans la copie.`,
-              { piece: `$ ${ctx.sorte.commande}\naucun fichier du plan changé dans ${ctx.copie}` }
-            );
-          }
-          commenter(ctx, 'mecanique', 'la commande du plan a joué dans la copie : aux contrôles.');
-        }
-        etape = CONTROLES;
-        tentative = 0;
-      } else if (route === CODE) {
-        commenter(
-          ctx,
-          'testwriter',
-          'aucun test dans le plan (aucun paquet qui joue des tests ne le tient) : ni testwriter ni preuve, le développeur directement.'
-        );
-        rapport = [
-          `Le plan (${ctx.paquets.join(', ')}) ne porte aucun test (aucun paquet qui joue des tests ne le tient) : le circuit te lance sans testwriter ni preuve. Tu écris le ticket d'après ses critères ; les contrôles suivent ta séance.`,
-          rapport,
-        ]
-          .filter(Boolean)
-          .join('\n\n');
-        etape = CODE;
-        tentative = 1;
-      } else if (etape === TESTS) {
-        const fiche = await seance(ctx, 'testwriter', {
-          tentative,
-          rapport,
-          derniere: tentative > RELANCES_TESTWRITER,
-        });
-        // A testwriter who declares himself blocked or in need of an answer goes up to the supervisor.
-        if (fiche.statut !== 'FAIT') throw arretDuStatut(ctx, 'testwriter', tentative, fiche);
-        // No checks have run since this session.
-        ctx.controlesRouges = null;
-        commenter(ctx, 'testwriter', `séance ${tentative} finie, sa fiche lue.`);
-        // A copy the module of the language no longer reads is a red of the testwriter.
-        const illisible = rougeDeLecture(ctx);
-        if (illisible) {
-          const suite = suiteDuRougeDeLecture('testwriter', tentative);
-          if (suite.arret) throw new Arret(suite.arret, illisible.rapport);
-          commenter(
-            ctx,
-            'testwriter',
-            `la copie ne se lit plus ; testwriter relancé (séance ${suite.tentative}).\n\n${illisible.rapport}`
-          );
-          etape = TESTS;
-          tentative = suite.tentative;
-          rapport = illisible.rapport;
-          continue;
-        }
-        etape = PREUVE;
-      } else if (etape === PREUVE) {
-        const p = preuve(ctx);
-        rapport = p.texte;
-        if (p.ok) {
-          // A finding of the reviewer still open for the developpeur launches him, red or not.
-          const pourLui = ouverts(ctx, 'developpeur').length > 0;
-          const auDeveloppeur =
-            apresLaPreuve({
-              rouges: p.rouges,
-              pourLeDeveloppeur: pourLui,
-              inchange: Boolean(ctx.sorte?.inchange),
-            }) === CODE;
-          const suite = p.rouges
-            ? 'au développeur'
-            : pourLui
-              ? 'aucun rouge ; au développeur, que nomme un constat du relecteur'
-              : ctx.sorte?.inchange
-                ? 'aucun rouge : le plan dit « comportement inchangé », au développeur'
-                : 'aucun rouge : un lot de tests seul, aux contrôles';
-          ecrireRapport(ctx, 'preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`, p.resultat);
-          etape = auDeveloppeur ? CODE : CONTROLES;
-          tentative = auDeveloppeur ? 1 : 0;
-        } else if (tentative <= RELANCES_TESTWRITER) {
-          ecrireRapport(
-            ctx,
-            'preuve',
-            `${p.resume} ; testwriter relancé (séance ${tentative + 1}).\n\n${p.texte}`,
-            p.resultat
-          );
-          etape = TESTS;
-          tentative++;
-        } else {
-          throw new Arret('preuve', p.texte, { resultat: p.resultat });
-        }
-      } else if (etape === CODE) {
-        const fort = tentative >= SEANCES_DEVELOPPEUR;
-        const avant = empreinte(ctx);
-        const fiche = await seance(ctx, 'developpeur', {
-          tentative,
-          rapport,
-          fort,
-          derniere: fort,
-          change: relanceSurLeRefus ? CHANGE_DU_REFUS : undefined,
-        });
-        relanceSurLeRefus = false;
-        // A question goes up to the supervisor; a red out of reach, to the testwriter its sheet sends
-        // it to, else up to the supervisor.
-        if (fiche.statut === 'BESOIN') {
-          throw arretDuStatut(ctx, 'developpeur', tentative, fiche);
-        }
-        const renvoi = renvoiDe(ctx, fiche);
-        if (renvoi) {
-          // The red that remains lies in the tests of the lot: the gesture `renvoi-au-testwriter`,
-          // the testwriter, the sending and the handover as its report, then the proof and the
-          // developpeur. `renvoiAuTestwriter` keeps the red output of the checks the sending before
-          // carried ('' for none), null after green checks: the same output twice in a row is a
-          // round trip without a new fact.
-          const sortie = ctx.controlesRouges ?? '';
-          if (ctx.renvoiAuTestwriter === sortie) {
-            if (empreinte(ctx) === avant) {
-              inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
-            }
-            throw new Arret(
-              'sans-livraison',
-              `La fiche de la séance ${tentative} du développeur renvoie une deuxième fois de suite au testwriter, sur la même sortie rouge des contrôles que le premier renvoi (aucune, ou la même), sans contrôles verts entre eux : le testwriter n'a pas levé ce rouge.\n\n${renvoi}`
-            );
-          }
-          ctx.renvoiAuTestwriter = sortie;
-          commenter(
-            ctx,
-            'developpeur',
-            `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie ; sa fiche renvoie le rouge au testwriter : le circuit relance le testwriter, puis la preuve et le développeur.`
-          );
-          geste(ctx, 'renvoi-au-testwriter');
-          etape = TESTS;
-          tentative = 1;
-          rapport = renvoi;
-          finale = false;
-          continue;
-        }
-        if (fiche.statut === 'BLOQUÉ') {
-          throw arretDuStatut(ctx, 'developpeur', tentative, fiche);
-        }
-        if (fiche.hors_plan?.length) throw arretHorsDuPlan(ctx, tentative, fiche);
-        // A copy the module of the language no longer reads is a red of the developpeur.
-        const illisible = rougeDeLecture(ctx);
-        if (illisible) {
-          const suite = suiteDuRougeDeLecture('developpeur', tentative);
-          if (suite.arret) throw new Arret(suite.arret, illisible.rapport);
-          commenter(
-            ctx,
-            'developpeur',
-            `séance ${tentative} finie ; la copie ne se lit plus, développeur relancé (séance ${suite.tentative}).\n\n${illisible.rapport}`
-          );
-          tentative = suite.tentative;
-          rapport = illisible.rapport;
-          continue;
-        }
-        const inchangee = empreinte(ctx) === avant;
-        if (inchangee && ctx.refus?.lance && ctx.refus.empreinte === avant) {
-          // The lot the integration refused, unchanged: as a merge queue lets a lot pass again only
-          // with a change, neither the gesture `rien-a-livrer` nor the checks of the copy, which
-          // the refusal does not see; the developpeur relaunched once with the refusal, then the
-          // stop goes up.
-          inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
-          if (ctx.refus.relance) {
-            throw new Arret(
-              'sans-livraison',
-              `La séance ${tentative} du développeur ne change aucun fichier du plan (${ctx.paquets.join(', ')}), une seconde fois sur le lot que l'intégration refuse.\n\n${ctx.refus.rapport}`,
-              { piece: ctx.refus.piece }
-            );
-          }
-          ctx.refus = { ...ctx.refus, relance: true };
-          commenter(
-            ctx,
-            'developpeur',
-            `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie sans changement, sur le lot que l'intégration refuse : le circuit le relance une fois, le refus comme rapport.`
-          );
-          tentative++;
-          rapport = rapportDuRefus(ctx.refus);
-          relanceSurLeRefus = true;
-          continue;
-        }
-        if (inchangee && reprend && livre(ctx)) {
-          // A resumed developpeur that finds the lot delivered: the checks judge it.
-          commenter(
-            ctx,
-            'developpeur',
-            `séance ${tentative} reprise sans changement, le plan garde la livraison d'avant : aux contrôles.`
-          );
-          inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
-        } else if (inchangee) {
-          // Nothing to deliver: the gesture `rien-a-livrer`, the checks judge the lot; red, the
-          // stop goes up.
-          geste(ctx, 'rien-a-livrer');
-          inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: CODE, inchange: true });
-          ctx.rienALivrer = `La séance ${tentative} du développeur ne change aucun fichier du plan (${ctx.paquets.join(', ')}), et les contrôles restent rouges. Sa passation au ticket dit pourquoi :\n\n${passations(ctx).at(-1)?.text ?? 'aucune'}`;
-        }
-        commenter(
-          ctx,
-          'developpeur',
-          `séance ${tentative}${fort ? ' (opus, effort high)' : ''} finie, sa fiche lue.`
-        );
-        etape = CONTROLES;
-      } else if (etape === CONTROLES) {
-        const passeFinale = finale;
-        // The final pass: after a regeneration of the references, restricted to what it changed,
-        // the reds of the pass before it carried (none plays when it changed nothing); else whole,
-        // or restricted to what changed since the last review. The checks of the plan after a
-        // regeneration that changed nothing: none plays, the reds of the checks before standing.
-        const regeneration = ctx.regeneration ?? null;
-        ctx.regeneration = null;
-        const passe = !passeFinale
-          ? { arbre: null, restreinte: null }
-          : regeneration
-            ? { arbre: arbreDeLaCopie(ctx), restreinte: regeneration.restreinte }
-            : laPasseFinale(ctx);
-        const k = controles(ctx, passeFinale, passe.restreinte, regeneration?.reportes ?? null);
-        // The output of these checks, red, which a sending to the testwriter carries.
-        ctx.controlesRouges = k.rouge ? k.texte : null;
-        // The outcome the bilan reads (scripts/bilan.mjs): with the reds, each its place and its
-        // text, by which it knows two checks that measured the same thing.
-        const resultat = issue => ({
-          issue,
-          finale: passeFinale,
-          rouges: k.rouges.map(r => `${r.paquet} : ${r.texte}`),
-        });
-        rapport = k.texte;
-        // A developpeur who had nothing to deliver before these checks.
-        const rien = ctx.rienALivrer ?? null;
-        ctx.rienALivrer = null;
-        // A stop of the checks: <phrase>, then the report, its reds also kept apart, as its piece;
-        // the stop kept at the checks keeps their outcome.
-        const arreter = (nom, phrase, lieu = null) => {
-          const avant = phrase ? `${phrase}\n\n` : '';
-          throw new Arret(nom, `${avant}${k.complet}`, {
-            rouges: k.rouges,
-            motif: `${avant}${k.sansListe}`,
-            etape: lieu,
-            resultat: lieu ? null : resultat(nom === 'a-repasser' ? 'a-repasser' : 'rouge'),
-          });
-        };
-        const suivante = tentative + 1;
-        // A final pass with a red of a reference, mixed with others or not, or a debt the lot
-        // lowers: their regeneration, once for this pass, but for a reference the checks had
-        // regenerated on this same tree, whose inputs have not changed since; the reds that remain
-        // then go each to its owner.
-        const dejaRegenerees =
-          ctx.regenereSur && ctx.regenereSur.arbre === passe.arbre ? ctx.regenereSur.noms : [];
-        const aRegenerer =
-          passeFinale && !regeneration && (k.rouge || k.notes.length > 0)
-            ? referencesDesRouges(ctx, k.lieux, k.notes.length > 0).filter(
-                r => !dejaRegenerees.includes(r.nom)
-              )
-            : [];
-        // The checks of the plan with a red of a reference, mixed with others or not: its
-        // regeneration before any red goes to the developpeur, as Bazel builds a genrule before the
-        // tests that read it, but for a reference regenerated on this same tree; mixed with other
-        // reds, the checks of the plan play again on the regenerated tree, which judges a test
-        // that reads the reference; alone, the final pass that is due (BPScript 320.6.5: a test
-        // that reads the turbo.json, red beside their guard, sent to the developpeur, who could not
-        // write them).
-        const regenereesAuxControles =
-          !passeFinale && k.references.length && ctx.regenereSur?.arbre === arbreDeLaCopie(ctx)
-            ? ctx.regenereSur.noms
-            : [];
-        const avantLesControles = passeFinale
-          ? []
-          : k.references.filter(r => !regenereesAuxControles.includes(r.nom));
-        if (avantLesControles.length) {
-          const noms = avantLesControles.map(r => r.nom);
-          const meles = k.rouge || k.aRepasser;
-          geste(ctx, 'regeneration');
-          const phrase = `${k.resume} ; des rouges sont ceux de références (${noms.join(', ')}) : à leur régénération, puis ${meles ? 'les contrôles du plan' : 'la passe finale'}.`;
-          ecrireRapport(
-            ctx,
-            'controles',
-            phrase,
-            resultat(meles ? 'rouge' : 'vert'),
-            meles ? `${k.texte}${k.avertissements}` : `${phrase}${k.avertissements}`
-          );
-          // Mixed, the developpeur who had nothing to deliver, for the checks of the plan that
-          // follow; green, the final pass, its sessions counted apart, which a developpeur with
-          // nothing to deliver before green checks does not concern.
-          if (meles) {
-            ctx.rienALivrer = rien;
-          } else {
-            ctx.renvoiAuTestwriter = null;
-            tentative = 0;
-          }
-          // The report of the reds of the plan, which go to the developpeur when a command of the
-          // project refuses the lot, as at the final pass (BPScript 320.10).
-          ctx.aRegenerer = {
-            noms,
-            notes: [],
-            suite: meles ? 'controles' : 'passe',
-            rouges: meles ? k.tous : [],
-            auDeveloppeur: meles && k.auDeveloppeur && !k.arbitrer ? k.texte : null,
-          };
-          etape = REFERENCES;
-          finale = true;
-        } else if (aRegenerer.length) {
-          const noms = aRegenerer.map(r => r.nom);
-          geste(ctx, 'regeneration');
-          ecrireRapport(
-            ctx,
-            'controles',
-            `${k.resume} ; ${k.rouge ? 'des rouges sont ceux de références' : 'la dette des gardes baisse'} (${noms.join(', ')}) : à leur régénération.`,
-            resultat(k.rouge ? 'rouge' : 'vert'),
-            `${k.texte}${k.avertissements}`
-          );
-          // The report of the reds of the plan, which go to the developpeur when a command of the
-          // project refuses the lot.
-          ctx.aRegenerer = {
-            noms,
-            rouges: k.tous,
-            notes: k.notes,
-            entiere: !passe.restreinte,
-            auDeveloppeur: k.auDeveloppeur && !k.arbitrer ? k.texte : null,
-          };
-          etape = REFERENCES;
-          finale = true;
-        } else if (k.rouge && passeFinale && k.horsTitre.length) {
-          arreter(
-            'controles',
-            `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors du plan du ticket (${ctx.paquets.join(', ')}) : le développeur n'est pas relancé. Le superviseur étend le plan à ce paquet (\`--etendre\`), le rouge allant ensuite au développeur, ou fait corriger le lot (\`--depuis developpeur\`, le rouge en \`--contexte\`).`
-          );
-        } else if (k.rouge && !k.auDeveloppeur) {
-          arreter(
-            'controles',
-            `Aucun paquet du plan (${ctx.paquets.join(', ')}) ne tient ce rouge de la passe finale (un rouge de la racine, ou que rien ne situe).`
-          );
-        } else if (k.rouge && k.arbitrer) {
-          arreter(
-            'controles',
-            'Les rouges du plan sont des constats à arbitrer : aucun développeur ne les tranche.'
-          );
-        } else if (k.rouge && cheminMecanique(ctx)) {
-          // A mechanical lot: no testwriter nor developpeur lifts the red of its command.
-          arreter(
-            'controles',
-            `Le ticket est mécanique (${ctx.sorte.raison}) : ni testwriter ni développeur ne lève ce rouge du lot de sa commande. Le superviseur fait corriger le lot (\`--depuis developpeur\`, le rouge en \`--contexte\`), corrige le geste dans la copie puis \`--reprendre\`, ou arrête le circuit (\`--arreter\`).`
-          );
-        } else if (k.rouge && rien) {
-          // The stop stands at the developpeur's step, which a resumption plays again.
-          arreter('sans-livraison', rien, CODE);
-        } else if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
-          ecrireRapport(
-            ctx,
-            'controles',
-            `${k.resume} ; développeur relancé (séance ${suivante}).`,
-            resultat('rouge'),
-            `${k.texte}${k.avertissements}`
-          );
-          etape = CODE;
-          tentative = suivante;
-        } else if (k.rouge) {
-          arreter('controles', null);
-        } else if (k.aRepasser) {
-          arreter('a-repasser', null);
-        } else {
-          ecrireRapport(
-            ctx,
-            'controles',
-            `${k.resume}.`,
-            resultat('vert'),
-            `${k.resume}.${k.avertissements}`
-          );
-          // Green checks: a sending of the developpeur to the testwriter may come again.
-          ctx.renvoiAuTestwriter = null;
-          if (!passeFinale) {
-            // The checks green: the final pass, its sessions counted apart.
-            etape = CONTROLES;
-            tentative = 0;
-            finale = true;
-          } else {
-            // The whole pass green on this lot; the lot the last review accepted goes to the
-            // integration, any other to the review.
-            // A pass after a regeneration counts as whole after a whole one: restricted to what
-            // the regeneration changed, or not played when it changed nothing.
-            if (passe.arbre && (regeneration ? regeneration.entiere : !passe.restreinte)) {
-              ctx.verifie = passe.arbre;
-            }
-            etape = leLotAccepte(ctx, passe.arbre) ? INTEGRATION : RELECTURE;
-          }
-        }
-      } else if (etape === REFERENCES) {
-        // The references to regenerate and the reds of the pass before, kept in the state from
-        // the pass that called for them (the checks of the plan, `suite`, or the final pass), so
-        // that a regeneration resumed knows them.
-        const a = ctx.aRegenerer;
-        if (!a) {
-          throw new Arret(
-            'references',
-            "L'état du circuit ne garde pas les références à régénérer : la passe finale les redonne (`--depuis developpeur`)."
-          );
-        }
-        // A command of the project that refuses beside reds of the plan, within the developpeur's
-        // sessions: the copy restored, those reds go to him with its output, then the pass that
-        // called for the regeneration, the checks of the plan or the final pass.
-        const suivante = tentative + 1;
-        const auLot = Boolean(a.auDeveloppeur) && suivante <= SEANCES_DEVELOPPEUR;
-        const g = regenerer(ctx, a.noms, a.notes, a.suite ?? null, auLot);
-        if (g.refus) {
-          const texte = [
-            `La régénération des références refuse le lot ; la copie est rendue telle qu'avant elle, et les rouges du plan vont au développeur (séance ${suivante}).`,
-            '',
-            ...g.refus,
-          ].join('\n');
-          ecrireRapport(ctx, 'references', texte, { regenerees: [], fichiers: [] });
-          rapport = `${texte}\n\n${a.auDeveloppeur}`;
-          ctx.aRegenerer = null;
-          ctx.rienALivrer = null;
-          etape = CODE;
-          tentative = suivante;
-          finale = a.suite !== 'controles';
-          continue;
-        }
-        ecrireRapport(ctx, 'references', g.texte, {
-          regenerees: g.regenerees,
-          fichiers: g.fichiers,
-        });
-        // After the checks, the pass that judges the regenerated tree, which does not regenerate
-        // again the references just regenerated on it: beside other reds, the checks of the plan
-        // again (none plays when the regeneration changed nothing, the reds of the checks before
-        // standing); without, the final pass that is due. After a final pass, the pass restricted
-        // to what the regeneration changed, with the reds of the pass before.
-        ctx.regenereSur = a.suite ? { arbre: arbreDeLaCopie(ctx), noms: a.noms } : null;
-        ctx.regeneration =
-          a.suite === 'passe'
-            ? null
-            : a.suite === 'controles'
-              ? g.fichiers.length
-                ? null
-                : { reportes: { rouges: a.rouges, rejouee: false } }
-              : {
-                  restreinte: g.restreinte,
-                  entiere: a.entiere,
-                  reportes: { rouges: a.rouges, rejouee: g.fichiers.length > 0 },
-                };
-        ctx.aRegenerer = null;
-        etape = CONTROLES;
-        finale = a.suite !== 'controles';
-      } else if (etape === RELECTURE) {
-        const v = await relire(ctx);
-        // A question for the owner: nothing is committed nor relaunched before his answer.
-        if (v.fiche.question) {
-          throw new Arret(
-            'besoin',
-            `Le relecteur attend une réponse : ${v.fiche.question}\n\nLe verdict :\n\n${v.texte}`,
-            {
-              piece: v.fiche.piece,
-              question: `Le relecteur demande : ${v.fiche.question}`,
-              qui: RESPONSABLE,
-            }
-          );
-        }
-        if (v.verdict === 'ACCEPTÉ') {
-          // The review that accepts the lot closes every finding, each one it judged lifted
-          // (`suiviDesConstats`).
-          ctx.constats = [];
-        }
-        if (v.verdict === 'ACCEPTÉ' && (!v.arbre || ctx.verifie === v.arbre)) {
-          commenter(ctx, 'relecture', 'ACCEPTÉ ; le lot va à l’intégration.');
-          etape = INTEGRATION;
-        } else if (v.verdict === 'ACCEPTÉ') {
-          // The whole final pass has not played on the lot accepted: it plays once, then the
-          // integration.
-          commenter(
-            ctx,
-            'relecture',
-            'ACCEPTÉ ; la passe finale entière, qui n’a pas joué sur ce lot, puis l’intégration.'
-          );
-          etape = CONTROLES;
-          tentative = 0;
-          finale = true;
-        } else {
-          // The reviews since the last ACCEPTÉ: a lot the queue sent back starts a new count.
-          const rendus = rendusDepuisAccepte(ctx);
-          if (rendus >= RELECTURES) {
-            throw new Arret(
-              'relecture-arret',
-              `${rendus} relectures ont rendu le lot : le circuit s'arrête à la troisième.\n\nLe dernier verdict :\n\n${v.texte}`
-            );
-          }
-          ctx.constats = constatsOuverts(ctx, v.fiche, v.texte);
-          const saute = arretDuTestwriterSaute(ctx, v.texte) ?? arretDuGesteMecanique(ctx, v.texte);
-          if (saute) throw saute;
-          const auTestwriter = ouverts(ctx, 'testwriter').length > 0;
-          etape = auTestwriter ? TESTS : CODE;
-          tentative = 1;
-          rapport = null;
-          finale = false;
-          commenter(
-            ctx,
-            'relecture',
-            `RENDU (relecture ${rendus}) ; le circuit relance ${auTestwriter ? 'le testwriter' : 'le développeur'}, ses ${ctx.constats.length} constat(s) ouvert(s) dans la consigne de chaque séance, puis la passe finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur sur la différence.`
-          );
-        }
-      } else if (etape === INTEGRATION) {
-        const r = integrer(ctx);
-        if (r.code === A_REPASSER) throw new Arret('a-repasser', fin(r.sortie, 40));
-        if (r.code !== 0) {
-          throw refuser(
-            ctx,
-            `Le script d'intégration refuse le lot (code ${r.code}).\n\n${fin(r.sortie, 60)}`,
-            `$ node ${INTEGRER} ${r.args.join(' ')}\n${fin(r.sortie, 30)}`
-          );
-        }
-        ctx.refus = null;
-        const branche = `agent/${ctx.ticket}`;
-        const commit = spawnSync('git', ['-C', ctx.racine, 'rev-parse', '--short', branche], {
-          encoding: 'utf8',
-        }).stdout.trim();
-        commenter(
-          ctx,
-          'integration',
-          `${commit ? `commit ${commit} sur ${branche}` : 'lot commité'} ; la branche est en file.`
-        );
-        etape = EN_FILE;
-      } else if (etape === EN_FILE) {
-        const f = file(ctx);
-        if (f.etat === 'ferme') {
-          commenter(ctx, 'file', `${f.raison}.`);
-          etape = TRI;
-          continue;
-        }
-        if (f.etat === 'en-file') throw new Arret('a-repasser', f.raison);
-        throw refuser(ctx, `La file rouvre le ticket.\n\n${f.raison}`, f.raison);
-      } else if (etape === TRI) {
-        // The lot is on main: the tri of its discoveries, which neither stops nor undoes it.
-        await trier(ctx);
-        ecrireEtat(ctx, { ...etat, etape: 'integre', code: 0 });
-        return { code: 0 };
-      } else {
-        throw new Usage(`étape inconnue dans l'état : ${etape}`);
-      }
-    } catch (erreur) {
-      // Any exception but a malformed call ends on the stop « inattendu », at the step it fell.
-      if (erreur instanceof Usage) throw erreur;
-      let e = erreur;
-      if (!(e instanceof Arret)) {
-        const a = arretInattendu(ctx, e, etape);
-        e = new Arret(a.nom, a.rapport, { piece: a.piece, question: a.question });
-      }
-      const code = ARRETS[e.nom];
-      const lieu = e.etape ?? etape;
-      const arrete = { ...etat, etape: lieu };
-      ecrireEtat(ctx, { ...arrete, code, raison: e.nom, rapport: e.rapport });
-      // The stop kept with the circuit's results, which the bilan counts.
-      inscrire(ctx, {
-        role: AUTEUR_DU_CIRCUIT,
-        etape: lieu,
-        arret: e.nom,
-        ...(lieu === CONTROLES && finale ? { finale: true } : {}),
-        ...(e.resultat ? { resultat: e.resultat } : {}),
-      });
-      const ou = ouDansLeCircuit({ etape: lieu, finale: finale && lieu === CONTROLES });
-      commenter(
+// step once for the whole ticket, its plan the packages of the title. Its decisions are those of
+// scripts/transitions.mjs: at each step the circuit reads the facts it asks for (`lireLeFait`) and
+// interprets the decision (`appliquer`), its memory changed, its effects played, then its stop,
+// its end, or the step that follows.
+// The start of the step <debut> of the run of <ctx>: its state, its loops counted, written; a step
+// the circuit leads itself names its start in the state while it runs (`menee`), and writes its
+// line to the register at its end (`finirLEtape`), whatever its outcome. `{ etat, menee }`.
+export function commencerLEtape(ctx, { etape, tentative, rapport, finale }) {
+  const etat = {
+    etape,
+    tentative,
+    code: null,
+    raison: null,
+    rapport,
+    finale,
+    boucles: boucles(ctx, etape, tentative, finale),
+  };
+  const menee = MENEES.has(etape) ? { etape, debut: new Date().toISOString() } : null;
+  ecrireEtat(ctx, { ...etat, mene: menee?.debut ?? null });
+  return { etat, menee };
+}
+
+// The end of a step of the run of <ctx> the circuit led itself (<menee>, null for another): its
+// line to the register.
+export function finirLEtape(ctx, menee) {
+  if (menee) inscrireEtape(ctx, menee);
+}
+
+// The stop <erreur> of the run of <ctx> at the step <etat>, written: any exception but an Arret is
+// the stop « inattendu », at the step it fell. Its state, its result kept for the bilan, its line
+// at the ticket and on the error output: the stop as `monter` takes it,
+// `{ code, nom, rapport, rouges, motif, piece, question, qui, etat }`.
+export function publierLArret(ctx, erreur, etat) {
+  let e = erreur;
+  if (!(e instanceof Arret)) {
+    const a = arretInattendu(ctx, e, etat.etape);
+    e = new Arret(a.nom, a.rapport, { piece: a.piece, question: a.question });
+  }
+  const code = ARRETS[e.nom];
+  const lieu = e.etape ?? etat.etape;
+  const arrete = { ...etat, etape: lieu };
+  ecrireEtat(ctx, { ...arrete, code, raison: e.nom, rapport: e.rapport });
+  // The stop kept with the circuit's results, which the bilan counts.
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    etape: lieu,
+    arret: e.nom,
+    ...(lieu === CONTROLES && etat.finale ? { finale: true } : {}),
+    ...(e.resultat ? { resultat: e.resultat } : {}),
+  });
+  const ou = ouDansLeCircuit({ etape: lieu, finale: etat.finale && lieu === CONTROLES });
+  commenter(
+    ctx,
+    lieu,
+    `arrêt ${e.nom} à ${ou} — ${premiereLigne(e.rapport)} — journal ${ctx.journal}`
+  );
+  process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : ${e.nom}, à ${ou}.\n`);
+  return {
+    code,
+    nom: e.nom,
+    rapport: e.rapport,
+    rouges: e.rouges,
+    motif: e.motif,
+    piece: e.piece,
+    question: e.question,
+    qui: e.qui,
+    etat: arrete,
+  };
+}
+
+// What the circuit keeps between steps, which the decisions read and change (scripts/transitions.mjs).
+export const MEMOIRE = [
+  'controlesRouges',
+  'renvoiAuTestwriter',
+  'refus',
+  'rienALivrer',
+  'regeneration',
+  'regenereSur',
+  'aRegenerer',
+  'verifie',
+  'constats',
+];
+
+// The fact <fait> of the circuit of <ctx>, with its <parametres>, the facts <faits> of the step
+// read before it: a session, a pass, a reading of the copy or of the ticket.
+export async function lireLeFait(ctx, fait, parametres, faits) {
+  switch (fait) {
+    case 'mecanique':
+      return cheminMecanique(ctx);
+    case 'sansTests':
+      return sansTests(ctx);
+    case 'livreAvant':
+    case 'livre':
+      return livre(ctx);
+    case 'seanceDuGeste': {
+      const { description } = leTicket(ctx);
+      return jusquALaFiche(
         ctx,
-        lieu,
-        `arrêt ${e.nom} à ${ou} — ${premiereLigne(e.rapport)} — journal ${ctx.journal}`
+        EXPLORATEUR,
+        consigne(
+          {
+            depot: ctx.racine,
+            ticket: ctx.ticket,
+            sujet: ctx.sujet,
+            paquets: ctx.paquets.join(', '),
+            raison: ctx.sorte.raison,
+            commande: ctx.sorte.commande,
+            description: description.trim() || 'aucune',
+          },
+          8
+        ),
+        {
+          signeDeVie: ctx.ports?.signeDeVie,
+          id: idDeSeance(ctx, 'geste'),
+          evenement: 'geste',
+          fiche: 'geste',
+          objet: 'geste',
+        }
       );
-      process.stderr.write(`⛔ Circuit de ${ctx.ticket} arrêté : ${e.nom}, à ${ou}.\n`);
-      return {
-        code,
-        nom: e.nom,
-        rapport: e.rapport,
-        rouges: e.rouges,
-        motif: e.motif,
-        piece: e.piece,
-        question: e.question,
-        qui: e.qui,
-        etat: arrete,
-      };
-    } finally {
-      if (menee) inscrireEtape(ctx, menee);
     }
+    case 'seance': {
+      const { role, ...options } = parametres;
+      // The session reads the findings and the session to resume the circuit keeps, and gives back
+      // what the circuit keeps of them.
+      const { fiche, constats } = await seance(ctx, role, {
+        ...options,
+        constats: ctx.constats ?? [],
+        reprise: ctx.reprise ?? null,
+        retenir: reprise => {
+          ctx.reprise = reprise;
+        },
+        signeDeVie: ctx.ports?.signeDeVie,
+        seanceId: idDeSeance(ctx, `neuve:${role}`),
+        lectures: { lots: () => testsDuLot(ctx), references: () => lesReferences(ctx) },
+      });
+      ctx.constats = constats;
+      return fiche;
+    }
+    case 'lecture':
+      return rougeDeLecture(ctx);
+    case 'preuve': {
+      // The measure of the last proof, kept in the working directory of the ticket, which the next
+      // proof on the same tree judges again without playing it: each act plays in a process of its
+      // own, and a measure is too large for the memory of the workflow.
+      const fichier = path.join(ctx.tmp, 'mesure-de-la-preuve.json');
+      const derniere = existsSync(fichier) ? JSON.parse(readFileSync(fichier, 'utf8')) : null;
+      const { mesure, ...p } = preuve(ctx, { mesure: derniere });
+      if (mesure) {
+        writeFileSync(fichier, JSON.stringify(mesure));
+      } else {
+        rmSync(fichier, { force: true });
+      }
+      return p;
+    }
+    case 'empreinteAvant':
+    case 'empreinte':
+      return empreinte(ctx);
+    case 'renvoi':
+      return renvoiDe(ctx, faits.seance);
+    case 'passation':
+      return passations(ctx).at(-1)?.text ?? null;
+    case 'arbreAvant':
+    case 'arbreApres':
+      return arbreDeLaCopie(ctx);
+    case 'passeFinale':
+      return laPasseFinale(ctx);
+    case 'controles':
+      return controles(ctx, parametres.finale, parametres.restreinte, parametres.reportes);
+    case 'referencesDesRouges':
+      return referencesDesRouges(ctx, parametres.lieux, parametres.aElaguer);
+    case 'lotAccepte':
+      return leLotAccepte(ctx, parametres.arbre);
+    case 'regeneration':
+      // The copy kept before it, which the regeneration restores first.
+      return regenerer(ctx, { ...parametres, avant: leLotGarde(ctx).lot });
+    case 'relecture':
+      return relire(ctx, { constats: ctx.constats ?? [] });
+    case 'rendus':
+      return rendusDepuisAccepte(ctx);
+    case 'constats':
+      try {
+        return { constats: constatsOuverts(ctx, faits.relecture.fiche, faits.relecture.texte) };
+      } catch (e) {
+        if (!(e instanceof Arret)) throw e;
+        return { arret: { nom: e.nom, rapport: e.rapport, piece: e.piece } };
+      }
+    case 'integration': {
+      const r = integrer(ctx);
+      return {
+        code: r.code,
+        sortie: sansCouleurs(r.sortie),
+        commande: r.commande,
+      };
+    }
+    case 'commit':
+      return spawnSync('git', ['-C', ctx.racine, 'rev-parse', '--short', `agent/${ctx.ticket}`], {
+        encoding: 'utf8',
+      }).stdout.trim();
+    case 'tri':
+      await trier(ctx);
+      return true;
+    default:
+      throw new Error(`fait inconnu des décisions du circuit : ${fait}`);
   }
 }
 
-// What changed for a developpeur relaunched on the integration's refusal of the lot he left as it was.
-const CHANGE_DU_REFUS =
-  'l’intégration refuse ton lot, et ta séance n’a changé aucun fichier du plan : son refus, dans le rapport ci-dessous, est le rouge à lever';
-
-// The stop « integration » of the motive <rapport> and the piece <piece>, the refusal of the lot
-// kept in the state (`refus`: `{ rapport, piece, empreinte, lance, relance }`, the fingerprint of
-// the plan refused, whether a --depuis developpeur launched the developpeur on it, and whether a
-// session so launched already left it unchanged once), which --depuis developpeur gives the
-// developpeur.
-function refuser(ctx, rapport, piece) {
-  ctx.refus = { rapport, piece, empreinte: empreinte(ctx), lance: false, relance: false };
-  return new Arret('integration', rapport, { piece });
+// The effect <e> of a decision of the circuit of <ctx>: a line at the ticket, a gesture, a report,
+// a result kept.
+export function appliquer(ctx, e) {
+  if (e.genre === 'commenter') commenter(ctx, e.etape, e.texte);
+  else if (e.genre === 'geste') geste(ctx, e.nom);
+  else if (e.genre === 'rapport') ecrireRapport(ctx, e.etape, e.texte, e.resultat, e.rapport);
+  else if (e.genre === 'inscrire') inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, ...e.entree });
+  else throw new Error(`effet inconnu des décisions du circuit : ${e.genre}`);
 }
 
-// The developpeur's report on the integration's refusal <refus>: the red to lift, which the checks
-// of the copy, green, do not see.
-const rapportDuRefus = refus =>
-  `L’intégration refuse ce lot : son refus, ci-dessous, est le rouge à lever ; les contrôles de ta copie, verts, ne le voient pas, et le lot ne repasse à l’intégration qu’avec un changement.\n\n${refus.rapport}`;
-
-// The gesture <genre> of the circuit (scripts/etapes.mjs, GESTES), with no session: its line at
-// the ticket and in the log, with its rule.
-function geste(ctx, genre) {
-  const g = gesteDe(genre);
-  const texte = `${genre} → ${g.geste} (règle : ${g.regle})`;
-  commenter(ctx, 'geste', texte);
-  entete(ctx, 'geste');
-  appendFileSync(ctx.journal, `geste : ${texte}\n`);
+// The Arret of the stop <a> a decision of the circuit of <ctx> returns: an agent's sheet that is
+// not FAIT (`statut`) or that does not hold criteria out of the plan (`horsDuPlan`), with its
+// handover; else its name, its report and its options.
+export function arretDe(ctx, a) {
+  if (a.statut) return arretDuStatut(ctx, a.statut.role, a.statut.tentative, a.statut.fiche);
+  if (a.horsDuPlan) return arretHorsDuPlan(ctx, a.horsDuPlan.tentative, a.horsDuPlan.fiche);
+  const { nom, rapport, ...options } = a;
+  return new Arret(nom, rapport, options);
 }
 
 // The stop <a> (`{ code, nom, rapport, motif, rouges, piece, question, qui, etat }`, `etat` the
@@ -4760,7 +1392,7 @@ function geste(ctx, genre) {
 // else the end of the log; the question of its kind, scripts/etapes.mjs MONTEES, after the agent's
 // own; who must answer it) kept in the state, written at the ticket and on the error output. Its
 // exit code.
-function monter(ctx, a) {
+export function monter(ctx, a) {
   const m = monteeDe(a.nom);
   const fait = premiereLigne(a.motif ?? a.rapport) || a.nom;
   const rouges = (a.rouges ?? [])
@@ -4781,74 +1413,14 @@ function monter(ctx, a) {
   });
   const ou = ouDansLeCircuit({ ...a.etat, raison: a.nom });
   commenter(ctx, 'question', `${a.nom} à ${ou} — ${fait} — au ${qui} : ${question}`);
-  process.stderr.write(laQuestion(ctx.ticket, ctx.etat, { arret: a.nom, qui, ou, question }));
-  // A question its caller reads here (a launch in the foreground that stops before any session)
-  // is gone up: the wait of the questions does not wake on it (grillhouse-pq6.1).
-  if (sortieLue()) {
-    inscrireLaQuestionLue(ctx.racine, {
-      ticket: ctx.ticket,
-      processus: process.pid,
-      depart: DEPART,
-      arret: a.nom,
-    });
-  }
+  process.stderr.write(laQuestion(ctx.ticket, { arret: a.nom, qui, ou, question }));
   return a.code;
 }
 
 // The line that says the question <question> of the circuit of <ticket> stopped at <ou> on
-// <arret>, kept in its state <fichier>, to <qui>, with the commands that answer it.
-const laQuestion = (ticket, fichier, { arret, qui, ou, question }) =>
-  `⛔ Circuit de ${ticket} : question au ${qui} (${arret}, à ${ou}) : ${String(question ?? '').trim()}\n\nDans ${fichier} ; la réponse : \`npx grillhouse circuit ${ticket} --reprendre\`, \`--depuis <testwriter|developpeur>\`, \`--etendre <paquet>\` ou \`--arreter\`.\n`;
-
-// The client of the circuit of <ticket> whose state is <fichier> (`--rattacher`), as Bazel's
-// client attaches to its server: it waits, reading the state every <pas> ms, while the process the
-// state names lives (`processus`, the same one by its start `depart`), then ends on what the state
-// says, as the circuit's own end says it on <erreurs>: 0 at « integre »; on a stop, its question
-// (laQuestion) or its name, and its code (0 for the supervisor's « arrete »); a circuit dead
-// without a final state (its process gone, no stop written), 1, with the command that resumes it.
-// It holds nothing of the circuit: killed, it leaves the circuit going.
-export async function rattacher({ ticket, etat: fichier, pas = 2000, erreurs = process.stderr }) {
-  let e = lireJson(fichier);
-  if (!e) throw new Usage(`--rattacher : ${fichier} n'existe pas, aucun circuit à attendre.`);
-  while (leMemeVivant(e.processus, e.depart)) {
-    await new Promise(r => setTimeout(r, pas));
-    e = lireJson(fichier) ?? e;
-  }
-  const ou = ouDansLeCircuit(e);
-  if (e.etape === 'integre') return 0;
-  if (e.question) {
-    erreurs.write(
-      laQuestion(ticket, fichier, {
-        arret: e.question.arret,
-        qui: e.question.qui,
-        ou,
-        question: e.question.question,
-      })
-    );
-    return e.code;
-  }
-  if (e.raison) {
-    erreurs.write(`⛔ Circuit de ${ticket} arrêté : ${e.raison}, à ${ou}.\n`);
-    return e.code ?? 0;
-  }
-  erreurs.write(
-    `⛔ Circuit de ${ticket} mort sans état final (processus ${e.processus ?? '?'} parti, aucun arrêt écrit, à ${ou}) ; la reprise : \`npx grillhouse circuit ${ticket} --reprendre\`.\n`
-  );
-  return 1;
-}
-
-// The run from <d> (where `depart` starts it) to its end: 0 at « integre »; a stop the gesture
-// `a-repasser` settles ends at 75, said at the ticket; every other stop goes up to the supervisor
-// (monter). Its exit code.
-async function conduire(ctx, d) {
-  const a = await derouler(ctx, d);
-  if (a.code === 0) return 0;
-  if (a.nom === 'a-repasser') {
-    geste(ctx, 'a-repasser');
-    return a.code;
-  }
-  return monter(ctx, a);
-}
+// <arret>, to <qui>, with the answers its running workflow accepts (`lesReponses`).
+const laQuestion = (ticket, { arret, qui, ou, question }) =>
+  `⛔ Circuit de ${ticket} : question au ${qui} (${arret}, à ${ou}) : ${String(question ?? '').trim()}\n\nLa réponse : \`${lesReponses(ticket, 'RUNNING', true)}\`.\n`;
 
 // Where the run starts: after a stop « integration », on --depuis developpeur, the developpeur,
 // the refusal (`refus`) as his report, the session so launched marked (`lance`), as a merge queue
@@ -4878,7 +1450,7 @@ function depart(ctx, e) {
     ctx.controlesRouges = null;
     return { etape: TESTS, tentative: 1, rapport: null, finale: false };
   }
-  if (!e) throw new Usage(`rien à reprendre : ${ctx.etat} n'existe pas.`);
+  if (!e) throw new Usage(`rien à reprendre : le circuit de ${ctx.ticket} n'a aucun état d'arrêt.`);
   if (e.etape === 'integre')
     throw new Usage(`rien à reprendre : le lot de ${ctx.ticket} est intégré.`);
   return {
@@ -4890,8 +1462,8 @@ function depart(ctx, e) {
 }
 
 // The end of the run, its exit code <code>: an end on a stop kept with the circuit's results
-// (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`, when
-// Claude Code names it), from which the bilan measures the wait to the run that answers it, the
+// (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`, the one
+// the entry of the workflow carries, `ctx.superviseur`, when Claude Code named it to the command), from which the bilan measures the wait to the run that answers it, the
 // owner's when he writes in that session meanwhile, then the ticket's bilan at the ticket
 // (scripts/bilan.mjs); a bilan it cannot write leaves the code as it is. Then the removal of the
 // finished copies of the repository (scripts/copies-finies.mjs), as a CI cleans its workspaces at
@@ -4907,20 +1479,10 @@ function tirerLeRang() {
   }
 }
 
-function aLaFin(ctx, code) {
-  // The queue of the project (scripts/file-des-tickets.mjs): the tickets `circuit` whose
-  // dependencies are all closed now start, each waiting for a place. A queue that cannot read
-  // leaves the end of this circuit as it is.
-  try {
-    const partis = lancerLaFile(ctx.racine);
-    if (partis.length)
-      process.stderr.write(`▶ La file lance ${partis.join(', ')} (dépendances fermées).\n`);
-  } catch (e) {
-    process.stderr.write(`⚠️  file des tickets non lancée : ${e.message}\n`);
-  }
+export function aLaFin(ctx, code) {
   try {
     if (code !== 0) {
-      const superviseur = process.env.CLAUDE_CODE_SESSION_ID;
+      const superviseur = ctx.superviseur ?? null;
       inscrire(ctx, {
         role: AUTEUR_DU_CIRCUIT,
         montee: {
@@ -4930,8 +1492,17 @@ function aLaFin(ctx, code) {
         },
       });
     }
-    const texte = ecrireLeBilan(ctx.racine, ctx.ticket);
-    commenter(ctx, 'bilan', texte);
+    // The bilan is computed when it is written, once the effects before it are; one not written
+    // is said, and the circuit ends (`ecrireLEffet`).
+    emettre(ctx, {
+      genre: 'bilan',
+      ticket: ctx.ticket,
+      fin: {
+        etape: ctx.courant?.etape ?? null,
+        raison: ctx.courant?.raison ?? null,
+        code: ctx.courant?.code ?? null,
+      },
+    });
   } catch (e) {
     process.stderr.write(`⚠️  bilan non écrit au ticket : ${e.message}\n`);
   }
@@ -5101,20 +1672,19 @@ export function decrireLePlan(description, criteres, questions, sorte = null, no
 
 // The plan written at the ticket by the circuit: the packages <plan> (each a directory of the
 // copy, `ctx.resoudre`) in its title, after its last « — », as a title names its components, and
-// the description <description> when given, by one call of bd when either changes; the packages
+// the description <description> when given, by one effect `plan` when either changes; the packages
 // become the run's plan (`ctx.paquets`), the list the envelope of every later session writes. The
 // title.
 function ecrireLePlan(ctx, plan, description = null) {
   const t = leTicket(ctx);
   const parts = t.titre.split(' — ');
   const titre = [...parts.slice(0, -1), nomsDe(ctx, plan).join(', ')].join(' — ');
-  const options = [
-    ...(titre === t.titre ? [] : ['--title', titre]),
-    ...(description === null || description === t.description ? [] : ['-d', description]),
-  ];
-  if (options.length) {
-    const r = ctx.bd('update', ctx.ticket, ...options);
-    if (r.status !== 0) throw new Error(`plan de ${ctx.ticket} non écrit : ${r.stderr}`);
+  const change = {
+    titre: titre === t.titre ? null : titre,
+    description: description === null || description === t.description ? null : description,
+  };
+  if (change.titre !== null || change.description !== null) {
+    emettre(ctx, { genre: 'plan', ...change });
   }
   ctx.paquets = plan;
   return titre;
@@ -5177,39 +1747,93 @@ const ecartsDe = fiche =>
 // still leaves without an answer stays open with its own. Each session's work is named in
 // the state while it runs (`questionnement`); the exchange is written at the ticket and its end
 // kept with the circuit's results (`questionnement`, which the bilan counts). A plan that has
-// passed, its title and criteria unchanged since (`empreinteDuPlan`), passes. Null when nothing
-// stays open (the plan passes, kept as `plan`); else the exit code of the question it goes up with,
-// « questionnement », the open questions as its piece, or the stop of a session that cannot end.
-async function lePlan(ctx) {
-  if (planPasse(ctx, empreinteDuPlan(leTicket(ctx)))) return null;
-  const etat = () => ({
-    etape: TESTS,
-    tentative: 1,
-    code: null,
-    raison: null,
-    rapport: null,
+// passed, its title and criteria unchanged since (`empreinteDuPlan`), passes. The workflow of a
+// ticket plays each step of the plan in an activity of its own (grillhouse-4nr.6.3): one of
+// `PAS_DU_PLAN` (`unPasDuPlan`), the one that follows decided by `pasDuPlan` of
+// scripts/transitions.mjs, on the state of the plan (`{ avant, plan, premier, seance, lu, posees,
+// reponse }`), which `planAuDebut` starts.
+
+/** The state of the plan of <ctx> before its first session: the description it starts from. */
+export const planAuDebut = ctx => ({
+  avant: leTicket(ctx).description,
+  plan: null,
+  premier: null,
+  seance: null,
+  lu: null,
+  posees: [],
+  reponse: null,
+});
+
+// The state of the run while the plan is written: the step of the testwriter, its first attempt.
+const etatDuPlan = () => ({
+  etape: TESTS,
+  tentative: 1,
+  code: null,
+  raison: null,
+  rapport: null,
+});
+
+// The session of <role> on the plan of <ctx>, its work named in the state while it runs: its
+// sheet, and the session it ran (`seance`), which the answer resumes.
+async function sessionDuPlan(ctx, role, texte, options) {
+  ecrireEtat(ctx, {
+    ...etatDuPlan(),
+    questionnement: { objet: 'plan', role, seance: options.id },
   });
-  const dire = (etape, texte) => commenter(ctx, etape, texte);
-  // The session of <role> on the plan, its work named in the state while it runs: its sheet.
-  const session = async (role, texte, options) => {
-    ecrireEtat(ctx, { ...etat(), questionnement: { objet: 'plan', role, seance: options.id } });
-    const fiche = await jusquALaFiche(ctx, role, texte, {
-      horsEnveloppe: true,
-      ...options,
-    });
-    ecrireEtat(ctx, etat());
-    return fiche;
-  };
-  // The description before the plan, from which each sheet's plan is written.
-  const avant = leTicket(ctx).description;
-  const explorateur = {
-    droits: horsDeLEnveloppe(ctx, EXPLORATEUR, 'sonnet'),
-    id: randomUUID(),
-    valider: f => fautesDesPaquets(ctx, f, decrireLePlan(avant, f.criteres, f.questions)),
-  };
+  let seance = options.id;
+  const fiche = await jusquALaFiche(ctx, role, texte, {
+    signeDeVie: ctx.ports?.signeDeVie,
+    horsEnveloppe: true,
+    surLaSeance: id => {
+      seance = id;
+    },
+    ...options,
+  });
+  ecrireEtat(ctx, etatDuPlan());
+  return { fiche, seance };
+}
+
+// The explorateur's options on the plan of <ctx> whose description before it is <avant>.
+const optionsDeLExplorateur = (ctx, avant) => ({
+  droits: horsDeLEnveloppe(ctx, EXPLORATEUR, 'sonnet'),
+  valider: f => fautesDesPaquets(ctx, f, decrireLePlan(avant, f.criteres, f.questions)),
+});
+
+/**
+ * The step <pas> of the plan of <ctx> on its state <e> (`pasDuPlan`): `{ plan }` the state that
+ * follows, `{ passe: true }` the plan passed, or `{ code }` the exit code of the question it goes
+ * up with. After a session, the conclusion plays at once when it follows (`conclure`), so that the
+ * plan is three sessions at most, the last ending it.
+ */
+export async function unPasDuPlan(ctx, pas, e) {
   try {
+    const r = await PAS_DU_PLAN[pas](ctx, e);
+    if (pas !== 'conclure' && r.plan && pasDuPlan(r.plan) === 'conclure') {
+      return await PAS_DU_PLAN.conclure(ctx, r.plan);
+    }
+    return r;
+  } catch (x) {
+    // A session of the plan that cannot end goes up, before any testwriter.
+    if (!(x instanceof Arret)) throw x;
+    return {
+      code: monter(ctx, {
+        code: ARRETS[x.nom],
+        nom: x.nom,
+        rapport: x.rapport,
+        piece: x.piece,
+        etat: etatDuPlan(),
+      }),
+    };
+  }
+}
+
+// The steps of the plan, each on <ctx> and the state of the plan <e>.
+const PAS_DU_PLAN = {
+  // The explorateur writes the plan, which the circuit writes at the ticket.
+  async explorateur(ctx, e) {
     const t = leTicket(ctx);
-    let plan = await session(
+    const { fiche: plan, seance } = await sessionDuPlan(
+      ctx,
       EXPLORATEUR,
       consigne(
         {
@@ -5223,26 +1847,26 @@ async function lePlan(ctx) {
         },
         5
       ),
-      explorateur
+      { ...optionsDeLExplorateur(ctx, e.avant), id: idDeSeance(ctx, 'plan'), evenement: 'plan' }
     );
     ecrireLePlan(
       ctx,
       plan.paquets.map(ctx.resoudre),
-      decrireLePlan(
-        t.description,
-        plan.criteres,
-        plan.questions,
-        sorteEcrite(plan),
-        plan.noms_publies
-      )
+      decrireLePlan(e.avant, plan.criteres, plan.questions, sorteEcrite(plan), plan.noms_publies)
     );
-    const ouvertesDuPlan = plan.questions.length ? `\n${lignesOuvertes(plan.questions)}` : 'aucune';
-    dire(
+    const ouvertes = plan.questions.length ? `\n${lignesOuvertes(plan.questions)}` : 'aucune';
+    commenter(
+      ctx,
       'plan',
-      `l'explorateur écrit le plan — paquets : ${plan.paquets.join(', ')}${ecartsDe(plan)} ; sorte : ${texteDeLaSorte(sorteDuPlan(plan))} ; ${plan.criteres.length} critère(s) ajouté(s) ; questions ouvertes : ${ouvertesDuPlan}`
+      `l'explorateur écrit le plan — paquets : ${plan.paquets.join(', ')}${ecartsDe(plan)} ; sorte : ${texteDeLaSorte(sorteDuPlan(plan))} ; ${plan.criteres.length} critère(s) ajouté(s) ; questions ouvertes : ${ouvertes}`
     );
+    return { plan: { ...e, plan, premier: plan, seance } };
+  },
+  // The questionneur reads the plan once; its questions, or its disagreement as one.
+  async questionneur(ctx, e) {
     const ecrit = leTicket(ctx);
-    const lu = await session(
+    const { fiche: lu } = await sessionDuPlan(
+      ctx,
       QUESTIONNEUR,
       consigne(
         {
@@ -5258,16 +1882,14 @@ async function lePlan(ctx) {
         },
         4
       ),
-      { droits: horsDeLEnveloppe(ctx, QUESTIONNEUR, 'sonnet'), id: randomUUID() }
+      {
+        droits: horsDeLEnveloppe(ctx, QUESTIONNEUR, 'sonnet'),
+        id: idDeSeance(ctx, 'questionnement'),
+        evenement: 'questionnement',
+      }
     );
-    // The questions the explorateur answers: the questionneur's, or its disagreement as one.
-    const posees =
-      lu.issue === 'AUCUNE'
-        ? []
-        : lu.issue === 'DÉSACCORD'
-          ? [lu.desaccord]
-          : lu.questions.map(q => q.question);
-    dire(
+    commenter(
+      ctx,
       'questionnement',
       lu.issue === 'AUCUNE'
         ? 'le plan — aucune question du questionneur.'
@@ -5275,52 +1897,57 @@ async function lePlan(ctx) {
           ? `le plan — Le désaccord du questionneur : ${lu.desaccord}`
           : `le plan — Les questions du questionneur :\n${lignesDesQuestions(lu.questions)}`
     );
-    let reponses = [];
-    // The plan the answer answers, whose sort the answer keeps when it says none.
-    const premier = plan;
-    if (posees.length) {
-      plan = await session(
-        EXPLORATEUR,
-        consigne(
-          {
-            ticket: ctx.ticket,
-            sujet: ctx.sujet,
-            questions: posees.map((q, i) => `${i + 1}. ${q}`).join('\n'),
-          },
-          6
-        ),
+    return { plan: { ...e, lu, posees: questionsPosees(lu) } };
+  },
+  // The explorateur's session, resumed, answers the questions put once.
+  async reponse(ctx, e) {
+    const explorateur = optionsDeLExplorateur(ctx, e.avant);
+    const { fiche: plan } = await sessionDuPlan(
+      ctx,
+      EXPLORATEUR,
+      consigne(
         {
-          ...explorateur,
-          premiere: 'reprend',
-          // The answer, apart from the plan it answers (`ficheDuPlan`).
-          avec: { reponse: true },
-          // A line of `reponses` by question put, asked again once; after it, a question without
-          // its line stays open.
-          valider: (f, essai) =>
-            explorateur.valider(f) ?? (essai === 1 ? reponsesAuxQuestions(f, posees.length) : null),
-        }
-      );
-      reponses = plan.reponses ?? [];
-      const lignes = reponses.map(r => `${r.numero}. ${r.reponse} — ${r.texte}`).join('\n');
-      dire(
-        'questionnement',
-        `la réponse de l'explorateur${ecartsDe(plan)} :\n${lignes || 'aucune'}`
-      );
-    }
-    // What stays open: the plan's own questions, then each question left without an answer.
-    const ouvertes = [
-      ...plan.questions,
-      ...posees
-        .filter((q, i) => !reponses.some(r => Number(r.numero) === i + 1))
-        .map(question => ({ question, piece: 'question du questionneur, sans réponse' })),
-    ];
+          ticket: ctx.ticket,
+          sujet: ctx.sujet,
+          questions: e.posees.map((q, i) => `${i + 1}. ${q}`).join('\n'),
+        },
+        6
+      ),
+      {
+        ...explorateur,
+        id: e.seance,
+        premiere: 'reprend',
+        evenement: 'reponse',
+        // The answer, apart from the plan it answers (`ficheDuPlan`).
+        avec: { reponse: true },
+        // A line of `reponses` by question put, asked again once; after it, a question without
+        // its line stays open.
+        valider: (f, essai) =>
+          explorateur.valider(f) ?? (essai === 1 ? reponsesAuxQuestions(f, e.posees.length) : null),
+      }
+    );
+    const lignes = (plan.reponses ?? [])
+      .map(r => `${r.numero}. ${r.reponse} — ${r.texte}`)
+      .join('\n');
+    commenter(
+      ctx,
+      'questionnement',
+      `la réponse de l'explorateur${ecartsDe(plan)} :\n${lignes || 'aucune'}`
+    );
+    return { plan: { ...e, plan, reponse: plan } };
+  },
+  // What stays open: the plan passes, or its question goes up.
+  async conclure(ctx, e) {
+    const { plan, premier, lu, posees } = e;
+    const reponses = e.reponse?.reponses ?? [];
+    const ouvertes = ouvertesDuPlan(plan, posees, reponses);
     if (posees.length) {
       const plans = [{ fiche: premier }, { fiche: plan, reponse: true }];
       ecrireLePlan(
         ctx,
         plan.paquets.map(ctx.resoudre),
         decrireLePlan(
-          t.description,
+          e.avant,
           plan.criteres,
           ouvertes,
           sorteEcrite(ficheDuPlan(plans, 'sorte')),
@@ -5341,85 +1968,29 @@ async function lePlan(ctx) {
       },
     });
     if (!ouvertes.length) {
-      dire('questionnement', 'le plan passe : aucune question ouverte.');
+      commenter(ctx, 'questionnement', 'le plan passe : aucune question ouverte.');
       inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte } });
-      return null;
+      return { passe: true };
     }
     const liste = lignesOuvertes(ouvertes);
     inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, etape: TESTS, arret: 'questionnement' });
-    return monter(ctx, {
-      code: ARRETS.questionnement,
-      nom: 'questionnement',
-      rapport: `Des questions du plan restent ouvertes après la réponse de l'explorateur.\n\n${liste}\n\nL'échange est au ticket (\`Circuit · … · questionnement\`).`,
-      piece: liste,
-      etat: etat(),
-    });
-  } catch (x) {
-    // A session of the plan that cannot end goes up, before any testwriter.
-    if (!(x instanceof Arret)) throw x;
-    return monter(ctx, {
-      code: ARRETS[x.nom],
-      nom: x.nom,
-      rapport: x.rapport,
-      piece: x.piece,
-      etat: etat(),
-    });
-  }
-}
+    return {
+      code: monter(ctx, {
+        code: ARRETS.questionnement,
+        nom: 'questionnement',
+        rapport: `Des questions du plan restent ouvertes après la réponse de l'explorateur.\n\n${liste}\n\nL'échange est au ticket (\`Circuit · … · questionnement\`).`,
+        piece: liste,
+        etat: etatDuPlan(),
+      }),
+    };
+  },
+};
 
-// The process <cible> (a process group as -<groupe>) stopped, as a cancelled job of GitLab CI:
-// SIGTERM, then SIGKILL when it still lives after ARRET_MS; true once it is gone.
-const ARRET_MS = 10_000;
-async function terminer(cible) {
-  const vit = () => {
-    try {
-      process.kill(cible, 0);
-      return true;
-    } catch (x) {
-      return x.code === 'EPERM';
-    }
-  };
-  for (const signal of ['SIGTERM', 'SIGKILL']) {
-    if (!vit()) return true;
-    try {
-      process.kill(cible, signal);
-    } catch {
-      return true;
-    }
-    const limite = Date.now() + ARRET_MS;
-    while (vit() && Date.now() < limite) await new Promise(r => setTimeout(r, 200));
-  }
-  return !vit();
-}
-
-// The circuit running on the ticket, the process its state <e> names (`processus`), stopped on
-// the supervisor's word, as GitLab CI cancels a pipeline, said at the ticket; then the session it
-// led (`seance`, its process group), which outlives it. The state as the stopped circuit leaves
-// it, its session gone.
-async function arreterLeCircuit(ctx, e) {
-  const pid = e.processus;
-  if (pid !== process.pid && leMemeVivant(pid, e.depart)) {
-    commenter(
-      ctx,
-      'arret',
-      `le circuit en cours (processus ${pid}) s'arrête, sa séance avec lui, sur le mot du superviseur.`
-    );
-    if (!(await terminer(pid))) {
-      throw new Error(`le circuit en cours (processus ${pid}) ne s'arrête pas.`);
-    }
-  }
-  const lu = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : e;
-  if (lu.seance && signalerGroupe(lu.seance, 0)) await terminer(-lu.seance);
-  return { ...lu, seance: null };
-}
-
-// The circuit stopped on the supervisor's word (`--arreter`): a circuit running on the ticket
-// stops first, its session with it; the state keeps its step, its stop « arrete », its question
-// lifted, said at the ticket. Its exit code, 0.
-async function arreter(ctx, e) {
-  if (!e) throw new Usage(`--arreter : ${ctx.etat} n'existe pas, aucun circuit à arrêter.`);
-  if (e.etape === 'integre') throw new Usage(`--arreter : le lot de ${ctx.ticket} est intégré.`);
-  const lu = await arreterLeCircuit(ctx, e);
+// The circuit stopped on the supervisor's word (`--arreter`) at its state <e>, which the workflow
+// holds, its session ended with the act the workflow cancelled: the state keeps its step, its stop
+// « arrete », its question lifted, said at the ticket. Its exit code, 0.
+export async function arreter(ctx, e) {
+  const lu = e;
   ctx.constats = [...(lu.constats ?? [])];
   ctx.verifie = lu.verifie ?? null;
   ctx.reprise = lu.reprise ?? null;
@@ -5482,10 +2053,7 @@ function etendre(ctx, e) {
   const plan = ordonnerLePlan(base, ctx.paquets, gagnes);
   const titre = ecrireLePlan(ctx, plan);
   // The plan the supervisor extends has passed: it is written, questioned no more.
-  inscrire(ctx, {
-    role: AUTEUR_DU_CIRCUIT,
-    plan: { empreinte: empreinteDuPlan(leTicket(ctx)) },
-  });
+  inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte: empreinteDuPlan(leTicket(ctx)) } });
   commenter(
     ctx,
     'plan',
@@ -5504,221 +2072,80 @@ function etendre(ctx, e) {
   return renvoi?.role === 'testwriter' ? { ...e, etape: TESTS } : e;
 }
 
-export async function main(argv) {
-  let ctx = null;
-  let o = null;
-  // The state of the step the run was at when an exception falls before `derouler` takes over.
-  let avantLeDepart = null;
-  try {
-    o = lireArguments(argv);
-    if (o.rattacher) {
-      const dossier = path.join(arbrePrincipal(), '.claude', 'worktrees');
-      return await rattacher({
-        ticket: o.ticket,
-        etat: path.join(dossier, `${o.ticket}.circuit.json`),
-      });
-    }
-    ctx = contexte(o);
-    mkdirSync(path.dirname(ctx.copie), { recursive: true });
-    let e = existsSync(ctx.etat) ? JSON.parse(readFileSync(ctx.etat, 'utf8')) : null;
-    avantLeDepart = e;
-    // The findings of the reviewer still open, the lot the whole final pass verified, the session a
-    // relaunch resumes, the references a regeneration has to run, the integration's refusal of
-    // the lot, and the red output of the last checks, kept from one run to the next.
-    ctx.constats = [...(e?.constats ?? [])];
-    ctx.verifie = e?.verifie ?? null;
-    ctx.reprise = e?.reprise ?? null;
-    ctx.aRegenerer = e?.aRegenerer ?? null;
-    ctx.refus = e?.refus ?? null;
-    ctx.controlesRouges = e?.controlesRouges ?? null;
-    // The supervisor's answers to a question: stop the circuit, or extend its plan and resume.
-    if (ctx.arreter) return await arreter(ctx, e);
-    // A circuit that outlives its caller is still the ticket's: no second run beside it.
-    if (e && e.processus !== process.pid && leMemeVivant(e.processus, e.depart)) {
-      throw new Usage(
-        `un circuit tourne déjà sur ${ctx.ticket} (processus ${e.processus}) : il mène le ticket à sa fin, \`--arreter\` l'arrête.`
-      );
-    }
-    if (ctx.etendre) {
-      if (e?.etape === 'integre')
-        throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
-      e = etendre(ctx, e);
-    }
-    // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
-    // question `--etendre` gives it) are its sessions' context; without one, their task.
-    ctx.constats = auLancement(ctx.contexte, ctx.constats);
-    // The rank of the circuit's arrival among the machine's waits for a place: drawn at its
-    // launch, kept by its state from one session to the next and across a resumption, so that a
-    // circuit well advanced is not passed by a ticket that arrived after it.
-    ctx.rang = e?.rang ?? tirerLeRang();
-    // The supervisor's resumption of the questioning lets the plan pass as it is now.
-    if (ctx.reprendre && e?.raison === 'questionnement') {
-      commenter(
-        ctx,
-        'questionnement',
-        'le plan passe tel qu’il est, sur la reprise du superviseur.'
-      );
-      inscrire(ctx, {
-        role: AUTEUR_DU_CIRCUIT,
-        plan: { empreinte: empreinteDuPlan(leTicket(ctx)) },
-      });
-    }
-    const d = depart(ctx, e);
-    // A session a dead circuit left running ends before this run launches its own. The run first
-    // names itself in the state, at the step it found, the session kept: the launch gives the hand
-    // back at once (`ecrireEtat`), and the run waits for the session alone, as a daemon.
-    if (e?.seance && signalerGroupe(e.seance, 0)) {
-      ecrireEtat(ctx, { ...e, code: null, raison: null, question: null, rapport: null });
-    }
-    await attendreLaSeance(ctx, e?.seance);
-    // A ticket labelled arbitrage starts and resumes only on the arbitrage its integration will
-    // ask for: the integration's rule, before any session.
-    const arbitrage = refusArbitrage({ id: ctx.ticket, ...leTicket(ctx) }, lesCommentaires(ctx));
-    if (arbitrage) {
-      return aLaFin(
-        ctx,
-        monter(ctx, {
-          code: ARRETS.besoin,
-          nom: 'besoin',
-          rapport: arbitrage,
-          piece: `$ bd show ${ctx.ticket} --json ; bd comments ${ctx.ticket} --json\n${arbitrage}`,
-          question: `${arbitrage} L'arbitrage s'écrit au ticket (« ## Arbitrage — … », tranché ou répondu par le responsable), puis \`--reprendre\`.`,
-          // From the testwriter, the plan comes first: the stop is at « 1 Plan ».
-          etat: d.etape === TESTS ? { ...d, questionnement: { objet: 'plan' } } : d,
-        })
-      );
-    }
-    // The tools of the project, which every pass of the circuit plays with: a faulty key stops the
-    // run before any session, by its name.
-    const lancement = outilsAuLancement(ctx.racine);
-    if (lancement.arret) return aLaFin(ctx, monter(ctx, { ...lancement.arret, etat: d }));
-    ctx.outils = lancement.outils;
-    const donnees = donneesAuLancement(ctx.racine);
-    if (donnees.arret) return aLaFin(ctx, monter(ctx, { ...donnees.arret, etat: d }));
-    ctx.donnees = donnees.donnees;
-    // The generated files the project declares: references of the circuit, which 4.2 regenerates
-    // only when a red of a pass lies in their files (`referencesDesRouges`); the integration
-    // regenerates them whenever the lot touches their files or what they read.
-    const engendres = engendresAuLancement(ctx.racine);
-    if (engendres.arret) return aLaFin(ctx, monter(ctx, { ...engendres.arret, etat: d }));
-    ctx.engendres = engendres.engendres;
-    // The flows of the CI: the reviewer's instruction names those the lot touches.
-    const flux = fluxAuLancement(ctx.racine);
-    if (flux.arret) return aLaFin(ctx, monter(ctx, { ...flux.arret, etat: d }));
-    ctx.flux = flux.flux;
-    // From the testwriter: the plan, which the explorateur writes and the questionneur reads once.
-    if (d.etape === TESTS) {
-      const arret = await lePlan(ctx);
-      if (arret !== null) return aLaFin(ctx, arret);
-    }
-    // The sort of the ticket its plan says, which the run reads at each step.
-    ctx.sorte = sorteDuTicket(ctx);
-    return aLaFin(ctx, await conduire(ctx, d));
-  } catch (e) {
-    if (!(e instanceof Usage)) return arreterSurLInattendu(ctx, o, e, avantLeDepart);
-    process.stderr.write(
-      `usage: npx grillhouse circuit <ticket> [--reprendre | --depuis <testwriter|developpeur>] [--contexte <texte>] | --etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>] | --rattacher\n⛔ ${e.message}\n`
-    );
-    return CODE_USAGE;
-  } finally {
-    ctx?.base.fermer();
+// The opening of <ctx> on <e> before its plan: `{ debut }`, or `{ code }`, a stop gone up.
+async function avantLePlan(ctx, e) {
+  if (ctx.etendre) {
+    if (e?.etape === 'integre') throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
+    e = etendre(ctx, e);
   }
-}
-
-// The unexpected exception <erreur> of a run (a reading of the copy before the first session, a
-// state or a comment unreadable, any bug) ended on the stop « inattendu », written to the state at
-// the step the run was at (<etat> before the start, else the step it had reached), its question
-// to the supervisor, said at the ticket. A run whose context could not be built (the reading of
-// the copy that fails is the very cause) writes the stop to the ticket's state all the same. The
-// circuit never resumes alone: the stop stands until the supervisor's `--reprendre`. Its exit code.
-function arreterSurLInattendu(ctx, o, erreur, etat) {
-  let c = ctx;
-  if (!c) {
-    if (!o?.ticket) throw erreur;
-    const racine = arbrePrincipal();
-    const copie = path.join(racine, '.claude', 'worktrees', o.ticket);
-    mkdirSync(path.dirname(copie), { recursive: true });
-    const bd = (...a) =>
-      spawnSync('bd', a, {
-        cwd: racine,
-        encoding: 'utf8',
-        maxBuffer: 256 * 1024 * 1024,
-        env: { ...process.env, [ACTEUR]: AUTEUR_DU_CIRCUIT },
-      });
-    const fichier = `${copie}.circuit.json`;
-    // The state on disk is read first: the stop keeps what the state carries from one run to the
-    // next (the open findings, the verified lot, the refusal, the red checks).
-    if (!etat && existsSync(fichier)) {
-      try {
-        etat = JSON.parse(readFileSync(fichier, 'utf8'));
-      } catch {
-        // an unreadable state: the stop below replaces it
-      }
-    }
-    c = {
-      ...o,
-      racine,
-      copie,
-      bd,
-      etat: fichier,
-      journal: `${copie}.log`,
-      fiches: `${copie}.fiches.jsonl`,
-      paquets: etat?.paquets ?? [],
-      constats: [...(etat?.constats ?? [])],
-      verifie: etat?.verifie ?? null,
-      reprise: etat?.reprise ?? null,
-      aRegenerer: etat?.aRegenerer ?? null,
-      refus: etat?.refus ?? null,
-      controlesRouges: etat?.controlesRouges ?? null,
+  // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
+  // question `--etendre` gives it) are its sessions' context; without one, their task.
+  ctx.constats = auLancement(ctx.contexte, ctx.constats);
+  // The rank of the circuit's arrival among the machine's waits for a place: drawn at its
+  // launch, kept by its state from one session to the next and across a resumption, so that a
+  // circuit well advanced is not passed by a ticket that arrived after it.
+  ctx.rang = e?.rang ?? tirerLeRang();
+  // The supervisor's resumption of the questioning lets the plan pass as it is now.
+  if (ctx.reprendre && e?.raison === 'questionnement') {
+    commenter(ctx, 'questionnement', 'le plan passe tel qu’il est, sur la reprise du superviseur.');
+    inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte: empreinteDuPlan(leTicket(ctx)) } });
+  }
+  const d = depart(ctx, e);
+  // A ticket labelled arbitrage starts and resumes only on the arbitrage its integration will
+  // ask for: the integration's rule, before any session.
+  const arbitrage = refusArbitrage({ id: ctx.ticket, ...leTicket(ctx) }, lesCommentaires(ctx));
+  if (arbitrage) {
+    return {
+      code: monter(ctx, {
+        code: ARRETS.besoin,
+        nom: 'besoin',
+        rapport: arbitrage,
+        piece: `$ bd show ${ctx.ticket} --json ; bd comments ${ctx.ticket} --json\n${arbitrage}`,
+        question: `${arbitrage} L'arbitrage s'écrit au ticket (« ## Arbitrage — … », tranché ou répondu par le responsable), puis \`--reprendre\`.`,
+        // From the testwriter, the plan comes first: the stop is at « 1 Plan ».
+        etat: d.etape === TESTS ? { ...d, questionnement: { objet: 'plan' } } : d,
+      }),
     };
   }
-  const lieu = c.courant ?? etat ?? { etape: TESTS, tentative: 1, rapport: null, finale: false };
-  const a = arretInattendu(c, erreur, lieu.etape);
-  const arrete = {
-    etape: lieu.etape,
-    tentative: lieu.tentative ?? 1,
-    finale: lieu.finale === true,
-    rapport: lieu.rapport ?? null,
-    seance: null,
-  };
-  return aLaFin(c, monter(c, { ...a, etat: arrete }));
+  // The tools of the project, which every pass of the circuit plays with: a faulty key stops the
+  // run before any session, by its name.
+  const lancement = outilsAuLancement(ctx.racine);
+  if (lancement.arret) return { code: monter(ctx, { ...lancement.arret, etat: d }) };
+  ctx.outils = lancement.outils;
+  const donnees = donneesAuLancement(ctx.racine);
+  if (donnees.arret) return { code: monter(ctx, { ...donnees.arret, etat: d }) };
+  ctx.donnees = donnees.donnees;
+  // The generated files the project declares: references of the circuit, which 4.2 regenerates
+  // only when a red of a pass lies in their files (`referencesDesRouges`); the integration
+  // regenerates them whenever the lot touches their files or what they read.
+  const engendres = engendresAuLancement(ctx.racine);
+  if (engendres.arret) return { code: monter(ctx, { ...engendres.arret, etat: d }) };
+  ctx.engendres = engendres.engendres;
+  // The flows of the CI, refused at the launch when their key is faulty: the reviewer's instruction
+  // reads those the lot touches (`consigneDesFlux`).
+  const flux = fluxAuLancement(ctx.racine);
+  if (flux.arret) return { code: monter(ctx, { ...flux.arret, etat: d }) };
+  return { debut: d };
 }
 
-// The entry: the run as a daemon (scripts/demon.mjs), apart from its caller, in a unit named after
-// its ticket; `--rattacher`, a client, in the caller's own process, which dies with its session.
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const argv = process.argv.slice(2);
-  let o = null;
-  try {
-    o = lireArguments(argv);
-  } catch {
-    // a malformed call: the run says its usage
-  }
-  // The run's last mark at its exit, whatever ends it but a kill: its state touched, so that the
-  // wait of the questions, which watches the directory of the states (scripts/superviseur.mjs),
-  // reads it at once, the process gone, rather than at its next reading.
-  let etat = null;
-  try {
-    etat =
-      o?.ticket && !o.rattacher && estLeDemon()
-        ? path.join(arbrePrincipal(), '.claude', 'worktrees', `${o.ticket}.circuit.json`)
-        : null;
-  } catch {
-    // out of a repository: the run says so
-  }
-  if (etat) {
-    process.on('exit', () => {
-      try {
-        const maintenant = new Date();
-        utimesSync(etat, maintenant, maintenant);
-      } catch {
-        // no state written: nothing to mark
-      }
-    });
-  }
-  process.exitCode = o?.rattacher
-    ? await main(argv)
-    : await executerEnDemon(import.meta.filename, argv, main, {
-        unite: `grillhouse-circuit-${o?.ticket ?? 'usage'}`,
-      });
+/**
+ * The opening of a run of <ctx> on its state <e> up to its plan (`ouvrir` without its plan), as
+ * the workflow of a ticket plays the plan's steps itself: `{ code }`, a stop gone up; or
+ * `{ debut, plan }`, the step it starts at and the state of the plan still to write
+ * (`planAuDebut`), null when none is.
+ */
+export async function ouvrirJusquAuPlan(ctx, e) {
+  const o = await avantLePlan(ctx, e);
+  if ('code' in o) return o;
+  const aEcrire = o.debut.etape === TESTS && !planPasse(ctx, empreinteDuPlan(leTicket(ctx)));
+  return { debut: o.debut, plan: aEcrire ? planAuDebut(ctx) : null };
+}
+
+/** The end of the opening of <ctx> at the step <d>: the sort of the ticket, the siblings swept. `{ debut }`. */
+export function finirLOuverture(ctx, d) {
+  // The sort of the ticket its plan says, which the run reads at each step.
+  ctx.sorte = sorteDuTicket(ctx);
+  // A sibling of HEAD's version a killed circuit left in the copy never enters the lot.
+  if (existsSync(ctx.copie)) balayerLesSoeurs(ctx);
+  return { debut: d };
 }

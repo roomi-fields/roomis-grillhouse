@@ -396,7 +396,7 @@ lancée qui ne change aucun fichier du lot refusé ne va pas aux contrôles de l
 voient pas ce rouge : le circuit la relance une fois avec le refus, puis s'arrête en
 `sans-livraison`. `--reprendre` rejoue l'intégration (ou la file) sur le même lot, comme bors
 rejoue un lot : un refus peut venir de la charge ou de main (BP 320.16, 320.16.2) ; après une CI
-rouge, le lot déjà sur main, la file relit la CI de son commit (`file.mjs --ci <ticket>`), comme une
+rouge, le lot déjà sur main, le circuit relit la CI de son commit (`laFile`, `situerLeLot`), comme une
 file de fusion juge le dernier essai des vérifications : un rejeu vert (`gh run rerun <id>
 --failed`) ferme le ticket, un rouge le laisse ouvert sur le rouge nommé (OSC Bridge OB-20q.3) ; `--depuis
 testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » sans un fichier changé, les contrôles de la copie
@@ -583,11 +583,14 @@ le 2026-11-01 : trois circuits tués sans un mot).
 
 **Le dossier du circuit appartient au ticket** : `.claude/worktrees/<ticket>.travail` vit autant
 que le ticket, comme l'espace de travail d'un pipeline ; aucun balayage n'y touche, la file
-l'efface à la clôture, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
+l'efface quand elle en a fini avec le ticket fermé (sa CI conclue, ou sa poussée non faite), car
+il porte l'avancement que le panneau lit, celui de la CI compris, `npx grillhouse retirer-copie` avec la copie d'un ticket fermé sans
 intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a remis.
 
 **La nuit et la fin de chaque circuit retirent les copies finies**
-(`packages/grillhouse/scripts/copies-finies.mjs`) : après ses étapes, quel que soit son verdict,
+(`packages/grillhouse/scripts/copies-finies.mjs`, que la nuit lance par sa commande
+`retirer-les-copies-finies.mjs` ; le module n'importe rien du `dist/` construit, car le verrou
+de la machine et la configuration de base des tests l'importent) : après ses étapes, quel que soit son verdict,
 la nuit passe chaque copie que `git worktree list` nomme, hors
 l'arbre principal et sa propre copie, par `retirer-copie.sh` sans `--jetable`, comme une CI
 nettoie ses espaces de travail à la fin d'un pipeline et comme `git worktree prune`, qu'elle joue
@@ -604,9 +607,10 @@ autre copie que la sienne n'appelle pas Beads. Une copie gardée dont le ticket 
 ce que les outils de ses langages y écrivent, hors du suivi de git : les dossiers que le module
 du langage nomme (`ignorer` : `target`, `.turbo`) et `node_modules` ; son travail suivi reste.
 Chaque ligne d'une copie gardée nomme la place qu'elle tient. Une copie dont le circuit ne tourne
-plus (son `.travail` là, l'état `<copie>.circuit.json` nommant un processus parti), son ticket
-ouvert, reste, son code et ses commits intacts, et sa ligne le dit avec la place de chaque sortie
-de ses outils (« son circuit ne tourne plus (son processus 4242 est parti) ; target y tient
+plus (son `.travail` là, son ticket hors des circuits que le serveur Temporal fait tourner, que
+l'appelant lui donne : la commande les lit, la fin d'un circuit, dont l'acte ne lit aucun serveur,
+ne les donne pas), son ticket ouvert, reste, son code et ses commits intacts, et sa ligne le dit
+avec la place de chaque sortie de ses outils (« son circuit ne tourne plus ; target y tient
 5,1 Go »). Les copies qui durent perdent les sorties de leurs outils une fois leur passe jouée,
 leur `node_modules` gardé, puisque leur préparation suivante les efface (`git clean -x`) : la
 nuit nomme sa propre copie au retrait après ses étapes, et la copie de l'intégration ou de la
@@ -617,39 +621,51 @@ ne change ni le verdict de la nuit, ni le code du circuit. Ainsi aucune copie ne
 l'entrée de son contenu sur main, ni un dossier de compilation à son ticket (Grillhouse, 79
 copies d'agents, 5,7 Go ; OSC Bridge, 4,4 Go ; synthhub, 34 Go de `target/`).
 
-**Le circuit est un démon** (`packages/grillhouse/scripts/demon.mjs`) : comme daemon(3) et
-`setsid --fork`, `npx grillhouse circuit` lance
-un relais, qui lance le circuit dans une session à lui puis finit aussitôt ; le circuit n'est ni
-dans le groupe de son appelant ni sous lui dans l'arbre des processus. Quand le systemd de
-l'utilisateur répond, le circuit part aussi dans une unité à lui, comme `systemd-run --user` en
-lance une (`grillhouse-circuit-<ticket>-<pid>.scope`, sous `app.slice`) : il sort du groupe de
-contrôle du terminal ou du volet tmux de la séance, que systemd tue en entier (le 2026-11-01,
-systemd-oomd a tué le volet du superviseur de BPScript, 94 processus, deux circuits avec lui).
-Comme `systemctl start` rend la main une fois son unité partie, l'appelant relaie la sortie du
-circuit jusqu'à ce que son premier état le nomme, puis finit à 0 sur la ligne qui le dit
-(« ▶ Circuit de <ticket> lancé », `rendreLaMain` de `demon.mjs`) ; un circuit qui finit avant
-(un usage, une seconde course refusée, `--arreter`, un arrêt avant toute séance comme le refus d'un
-arbitrage) le fait finir sur son code, la ligne de sa question avec la question. Une reprise qui
-trouve encore la séance de l'arrêt d'avant se nomme d'abord dans l'état, rend la main, puis
-attend cette séance en démon. La question d'un
-circuit réveille le superviseur par la seule attente des questions (ci-dessous), et sa fin
-normale ne réveille personne : le panneau la montre (décision du responsable, grillhouse-pq6).
-Comme le client de Bazel se rattache à son serveur,
-`npx grillhouse circuit <ticket> --rattacher` est un client du circuit qui tourne, pour qui veut
-l'attendre : il attend que son processus finisse, puis rend ce que dit son état (0 à « integre »,
-la ligne de sa question et son code sur un arrêt, 1 avec la commande qui le reprend pour un
-circuit mort sans état final).
+**La commande du circuit est le client de son déroulé** (`src/temporal/circuit/commande.ts`,
+grillhouse-4nr.12) : comme `gh workflow run` ou le client de Temporal, `npx grillhouse circuit`
+écrit une ligne et rend la main aussitôt ; le circuit tourne sur le serveur Temporal, dans le
+déroulé de son ticket, que le travailleur du projet mène, hors du groupe, de l'arbre et du groupe
+de contrôle de son appelant. Seul, le ticket entre dans la file des tickets du projet ;
+`--reprendre`, `--depuis` et `--etendre` répondent à son arrêt, `--arreter` l'arrête. Un ticket
+que le circuit ne pourrait pas mener (illisible, sans section « ## Architecture », un titre sans
+composants, un composant inconnu, `scripts/depart-du-ticket.mjs`) est refusé à la porte, par son
+nom ; `--arreter` ne lit ni le titre ni l'architecture, et refuse un lot intégré (« le lot de
+<ticket> est intégré »). Un déroulé fini sans son issue (terminé de force, en échec), pendant une
+question ou en plein travail, se rouvre par `--reprendre`, depuis l'état que son dernier mémo
+garde entier, ou par `--depuis` ; `--etendre` et `--arreter` y sont refusés, et `--depuis` seul le
+rouvre quand aucun état n'est écrit. Les réponses que le client accepte, selon le statut du
+déroulé et l'état écrit, ont une seule règle (`lesReponses` de
+`scripts/reponses-du-circuit.mjs`), que le client, l'ouverture, l'attente et le panneau
+reprennent : ils ne proposent que ce qui marche. La question d'un circuit
+réveille le superviseur par la seule attente des questions (ci-dessous), et sa fin normale ne
+réveille personne : le panneau la montre (décision du responsable, grillhouse-pq6).
 L'ouverture d'une séance de supervision (`packages/grillhouse/scripts/superviseur.mjs`, joué par le
 crochet de démarrage), quand cette ouverture prend le verrou du dépôt (non quand la même séance le
 garde déjà, après un compactage ou un `/clear`), demande de lancer l'attente des questions, puis
 nomme les circuits du dépôt dont le ticket est ouvert : chaque circuit qui tourne ; chaque circuit
 arrêté sur une question (hors l’arrêt `arrete` du superviseur), avec sa question et la commande qui
-répond ; chaque circuit mort sans état final (son processus parti, ni arrêt ni code écrit), avec
-sa commande `--reprendre`, que le superviseur lance sans attendre le mot du responsable. Le panneau range sous
+répond ; chaque circuit dont le déroulé a fini sans son issue, avec la commande qui le rouvre
+(`--reprendre` depuis son dernier état écrit, `--depuis` sans état écrit), que le superviseur
+lance sans attendre le mot du responsable. Le panneau range sous
 « ⤷ Question · superviseur » tout circuit qui attend le superviseur, par la même règle que
-l'ouverture et l'attente : un circuit mort sans état final, la commande qui le reprend en tête de
+l'ouverture et l'attente : un circuit fini sans son issue, la commande qui le reprend en tête de
 sa fiche, et un circuit arrêté sans texte de question, « à repasser » (75) compris, que le
-superviseur reprend une fois la machine libre.
+superviseur reprend une fois la machine libre. Le panneau, l'ouverture et l'attente lisent les
+circuits du dépôt sur le serveur Temporal, en un appel (`circuits-du-serveur.mjs`, sur
+`lireLesCircuits` du client du circuit : une liste des déroulés, leur mémo et leur statut, sans
+travailleur), comme l'interface de Temporal liste ses déroulés : le déroulé publie dans son mémo
+le résumé du dernier état qu'il écrit (étape, tentative, arrêt et première ligne du rapport,
+objet du questionnement, boucles, début de l'étape menée) et sa question, numérotée dans son run ;
+un circuit tourne quand son déroulé tourne sans question en attente, et finit sans son issue
+quand il est terminé, en échec ou expiré sans question. L'avancement d'une passe se lit dans le
+dossier de travail du ticket (`<copie>.travail/avancement-*`), où chaque passe du circuit ouvre le
+sien, une à la fois, le rejeu de sa branche par la file (l’acte `avancer`) et la lecture de sa CI
+compris ; un lot entré sur main garde celui de la file jusqu’à ce que la file en ait fini avec le ticket fermé, comme le circuit le
+gardait toute son étape de la file. Une lecture attend le serveur 5 s au plus : un serveur absent se dit à
+l'ouverture et en première alerte du panneau (« Temporal ne répond pas en 5 s »), qui montre ses tickets
+sans circuits, et l'attente le relit au pas suivant ; une autre faute de la lecture, un client non
+construit compris, est la première alerte telle qu'elle est (« Circuits illisibles : … »). La fiche d'un ticket qui a un circuit finit sur la page de son déroulé au tableau web du
+serveur (`lienDuTableauWeb` du client : le port du serveur plus 1000), qui montre son histoire.
 Comme la demande de revue de GitHub et l'ensemble d'attention de Gerrit appellent celui qu'un
 changement attend, quel que soit son chemin, `npx grillhouse superviseur --attendre` est l'attente
 que la séance de supervision garde en arrière-plan, seule voie par laquelle une question la
@@ -657,25 +673,24 @@ réveille, une seule à la fois par dépôt
 (`.claude/worktrees/attente-des-questions.lock`) : elle se termine seulement quand paraît une
 question neuve d'un circuit (lancé seul, dans une file ou par une autre séance), et sa sortie
 donne, par question, le ticket, l'étape, la question et la commande qui répond ; la fin de sa tâche
-réveille la séance, qui ne dépense rien pendant qu'elle attend. Les questions en attente ont une
-seule règle, `attendLeSuperviseur` de `tableau.mjs`, à côté de `lireCircuits` (un circuit parti,
-arrêté hors l'`arrete` du superviseur, « à repasser » compris, ou mort sans état final) : le
-panneau la lit, et `questionsEnAttente` de `superviseur.mjs`, que lisent l'ouverture et l'attente.
-L'attente surveille le dossier des états des circuits (`fs.watch`, inotify sous Linux) ; un
-circuit marque sa sortie en touchant son état, et la relecture toutes les 30 s ne sert qu'au
-circuit tué, seul à partir sans marque. Une question remontée (par l'attente, nommée à l'ouverture, ou rendue par le circuit dans la sortie que lit encore son appelant, comme un arrêt avant toute séance au premier plan) s'inscrit dans
-`.claude/worktrees/questions-remontees.json`, par son ticket, la course de son circuit
-(`processus`, `depart`) et son arrêt : elle ne réveille plus la séance, et elle en sort une fois
-répondue, le circuit reparti ou fini (grillhouse-pq6 : SH-ae6.5.2, SH-ae6.5.6 et SH-br0.1.5 de
-SyntHub, lancés par une file en arrière-plan, ont attendu des heures leur réponse ;
-grillhouse-pq6.1 : un arrêt avant toute séance réveillait l'attente sur une question déjà lue).
-L'inscription se fait sous le verrou du fichier, et une question lue reste inscrite tant que son
-circuit, arrêté, finit de sortir.
+réveille la séance, qui ne dépense rien pendant qu'elle attend, et la fin normale d'un circuit
+ne la termine jamais. Les questions en attente ont une seule règle, `attendLeSuperviseur` de
+`tableau.mjs` (un circuit arrêté hors l'`arrete` du superviseur, « à repasser » compris, ou fini
+sans son issue) : le panneau la lit, et `questionsEnAttente` de `superviseur.mjs`, que lisent
+l'ouverture et l'attente. L'attente relit les circuits sur le serveur toutes les 5 s, comme
+l'interface de Temporal rafraîchit sa liste. Une question remontée (par l'attente, ou nommée à
+l'ouverture) s'inscrit dans `.claude/worktrees/questions-remontees.json`, par son ticket, le run
+de son déroulé, le rang de sa question dans ce run et son arrêt : elle ne réveille plus la
+séance, et elle en sort une fois répondue, le circuit reparti ou fini (grillhouse-pq6 :
+SH-ae6.5.2, SH-ae6.5.6 et SH-br0.1.5 de SyntHub, lancés par une file en arrière-plan, ont
+attendu des heures leur réponse). L'ouverture nomme toutes les questions en attente, remontées
+ou non : une séance fermée puis rouverte les retrouve. L'inscription se fait sous le verrou du
+fichier.
 L'état du circuit le nomme par son numéro et son heure de départ (`processus`, `depart`, le champ
 22 de `/proc/<pid>/stat`), comme un gestionnaire de services vérifie qu'un numéro réutilisé ne
-désigne pas un autre processus : le panneau tient un circuit pour vivant sur ce seul processus,
-jamais sur la ligne de commande de l'appelant, une seconde course du ticket est refusée tant
-qu'il vit, et `--arreter` ne vise que lui. Ainsi un circuit survit à la séance qui le lance, et
+désigne pas un autre processus : une seconde course du ticket est refusée tant qu'il vit, et
+`--arreter` ne vise que lui ; le panneau tient un circuit pour vivant sur le serveur Temporal
+seul, son déroulé en marche sans question en attente. Ainsi un circuit survit à la séance qui le lance, et
 son arrêt monte à la séance de supervision ouverte (BP 320.8 : un circuit mort avec la séance du
 superviseur, repris à la main ; SyntHub SH-br0.1 : un arrêt 27 s après la relance de la séance,
 lu sur un mot du responsable).
@@ -748,6 +763,13 @@ au-dessus de sa dette, ou absent de la dette avec un titre compté, est refusé 
 dette plus haute que le compte l'est aussi, et le lot qui renomme des titres l'abaisse par
 `npm run grillhouse:dette:elaguer`, jamais à la main. Un fichier de tests que le lot déplace ou
 renomme, son contenu gardé à moitié au moins (`renommesDuLot`), reprend la dette de son ancien nom.
+`bd init` laisse cette clé en commentaire : le cadre l'écrit par une seule fonction
+(`ecrireLePrefixe` de `packages/grillhouse/scripts/prefixe-des-tickets.mjs`, qui la lit aussi),
+que la préparation d'un projet neuf (`npx grillhouse init`) appelle après `bd init`, avec le
+préfixe donné. La mise à jour qui apporte la garde (`npx grillhouse maj`) écrit la clé depuis
+`bd config get issue_prefix` (migration 0.30.0 `préfixe des tickets`, un projet sans `.beads/`
+n'écrivant rien), puis inscrit dans sa dette les titres d'un projet qui nomment déjà un ticket
+(migration 0.30.0 `titres nommant un ticket`), sans qu'un test se réécrive.
 Ainsi le compte des titres qui nomment un ticket ne fait que baisser.
 
 **Les chemins des tests** (`packages/grillhouse/scripts/langages/typescript/chemins-des-tests.mjs`, une
@@ -760,27 +782,32 @@ chemin entier, ou son paquet le déclare. Les constats d'un projet s'inscrivent 
 mise à jour qui apporte la garde (migration 0.25.0). Ainsi aucun script lancé par un test ne se
 perd en silence, et un changement d'un script ne rejoue que les tests qui le lisent.
 
-**Des places bornées pour les séances** (grillhouse-9kq ; modèles : les agents de Buildkite, le
-serveur de tâches de GNU make, l'admission de `make -l`) : chaque séance d'agent, et chaque passe
-ciblée du circuit (preuve du rouge, contrôles, qui ne jouent que les tests du ticket), prend une
-place à son départ et la rend à sa fin ; un circuit qui attend une question ou une séance n'en tient
-aucune. Les places se comptent dans un état commun à la machine (`~/.cache/grillhouse/places.json`,
-sous verrou de fichier), 3 par défaut (`GRILLHOUSE_PLACES`) ; une place porte le processus de la
-séance et son début (pid et heure de départ), et le prochain lecteur la libère quand ce processus
-n'existe plus, sans bail. Un départ n'est admis que si la charge sur 1 min est sous le nombre de
-cœurs et si 4 Go au moins sont libres, mesurées et prises sous le même verrou, deux départs étant
-espacés de 10 s (`GRILLHOUSE_ESPACEMENT_MS`) ; l'attente dit sa raison (place, charge, mémoire,
+**Des places bornées pour les séances et les passes** (grillhouse-9kq, grillhouse-4nr.12 ; modèles :
+les agents de Buildkite, le serveur de tâches de GNU make, l'admission de `make -l`) : chaque séance
+d'agent, et chaque passe (preuve du rouge, contrôles, passe finale, vérification, références),
+prend une place à son départ et la rend à sa fin ; un circuit qui attend une question ou une séance
+n'en tient aucune, et une passe jouée sous une place tenue (`GRILLHOUSE_PLACE_TENUE`) n'en prend pas
+une seconde. Les places vivent sur le serveur Temporal, dans le déroulé de la machine (ci-dessous),
+que `scripts/places-de-la-machine.mjs` lit et prend par un processus à lui
+(`scripts/places-du-serveur.mjs`) ; le serveur est requis sur le poste, et la CI n'en prend aucune.
+Une machine d'essai des tests ne prend que les places du serveur d'essai que nomme
+`GRILLHOUSE_PLACES_D_ESSAI`. 3 places par défaut (`GRILLHOUSE_PLACES`) ; une place porte le
+processus de la séance et son début (pid et heure de départ), et le déroulé la libère quand ce
+processus n'existe plus, sans bail. Un départ n'est admis que si la charge sur 1 min est sous le
+nombre de cœurs et si 4 Go au moins sont libres, deux départs étant espacés de 10 s
+(`GRILLHOUSE_ESPACEMENT_MS`) ; l'attente dit sa raison (place, charge, mémoire,
 espacement), garde le rang d'arrivée du circuit (pris à son lancement) et s'arrête à la borne de
 l'attente du verrou, 75. Chaque séance joue ses tests sur max(1, cœurs ÷ places) travailleurs
 (`GRILLHOUSE_TRAVAILLEURS`, lu par le module de chaque langage : `maxWorkers` de Vitest, `-j` de
 cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; une passe lourde garde tous les cœurs.
-Les places et le verrou sont indépendants : une passe ciblée part pendant qu'une passe lourde tient
-le verrou, et une passe lourde part sans attendre les séances.
+Une passe lourde prend sa place, puis le verrou exclusif de la machine ; une passe ciblée part
+pendant qu'une passe lourde tient le verrou.
 
-**La file des tickets** (`scripts/file-des-tickets.mjs`) : chaque projet garde la sienne, ses
-tickets `circuit` ; à la fin d'un circuit et à l'ouverture du superviseur, ceux dont toutes les
-dépendances `blocks` sont fermées sont lancés par priorité Beads, et attendent une place dans
-l'ordre d'arrivée, commun aux projets ; ceux dont une dépendance est ouverte restent. Aucun démon.
+**La file des tickets** : chaque projet garde la sienne, ses tickets `circuit` ; ceux dont toutes
+les dépendances `blocks` sont fermées partent par priorité Beads (la règle, `ticketsAPartir` de
+`scripts/file-des-tickets.mjs`), et attendent une place dans l'ordre d'arrivée, commun aux
+projets ; ceux dont une dépendance est ouverte restent. Le déroulé de la file des tickets sous
+Temporal la mène (ci-dessous).
 
 **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
 lourde du circuit (la passe finale, la vérification, la nuit) prennent le verrou de la machine,
@@ -824,7 +851,8 @@ projet illisible, un agent silencieux). Un signe large se cale comme les autres,
 espace, et la largeur d'une ligne compte ses colonnes. Ainsi chaque signe garde un seul sens.
 
 **Une passe automatique montre son avancement** : chaque passe automatique écrit ses fichiers
-de tests faits sur prévus (la file, les étapes de sa CI), que le panneau affiche avec le temps
+de tests faits sur prévus (la file, les étapes de sa CI), dans le dossier de travail de son
+ticket pour une passe du circuit, que le panneau affiche avec le temps
 depuis son dernier signe, « ⚠ figée » au-delà de 5 min, comme le compteur d'actions de Bazel.
 Ainsi une passe qui fige se voit.
 
@@ -904,7 +932,7 @@ sous-commande du noyau a sa place, qu'un test tient :
   `dependances-internes`, `flux-des-paquets`, `temporaire`, `style-a-l-ecriture`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
   `composants-affectes`, et les commandes des modules de langage ;
 - les outils du dépôt, qui tournent par son code : `init`, `maj`, `paquet`, `sortie`, `outil`,
-  `greffons`, `sous-modules`, `pression`, `ticket`.
+  `greffons`, `sous-modules`, `pression`, `temporal`, `ticket`.
 
 Une version non installable (le réseau absent) se dit en une ligne sur la sortie d'erreur, et le
 code du dépôt la remplace. L'échec s'écrit dans le fichier d'état de l'outil
@@ -921,6 +949,322 @@ l'installation lie son propre `packages/grillhouse` ; la nuit joue sa passe de m
 Les crochets du greffon installé, les droits des séances et le panneau appellent la commande du
 projet, donc l'aiguillage. Un projet ordinaire n'a pas la clé : rien ne change, sa commande est
 déjà la version qu'il installe. Ainsi un défaut du jour ne casse jamais le circuit qui le corrige.
+
+**Le service Temporal du compte porte les déroulés du cadre** (grillhouse-4nr, décisions D1, D2,
+D8) : un serveur de développement de Temporal tourne en service durable du compte, en local, et des
+travailleurs en TypeScript y servent les déroulés, comme une application Temporal se déploie (un
+serveur, des travailleurs par file de tâches, des clients). Le code vit sous `src/temporal/`, le
+seul TypeScript du paquet : `tsc -p tsconfig.build.json` (son script `build`) le construit dans
+`dist/temporal/`, que git ignore. Trois gestes le construisent : `npm ci` (le script `prepare` du
+paquet, que npm joue pour un paquet de l'espace de travail), la tâche `build` de Turborepo avant les
+tests et le typage, et le `prepack` avant toute archive, si bien que le paquet publié porte `dist/`
+(le champ `files`) même quand la publication suit `npm ci` seul. Une sous-commande dont le script
+construit manque (une copie dont `dist/` est absent) le dit, nommée avec `npm run build --workspace
+@roomi-fields/grillhouse`, et sort en 1 (`scriptAbsent` de `scripts/sous-commandes.mjs`). Les
+dépendances `@temporalio/*` sont épinglées à une version exacte.
+
+- **La bibliothèque cliente commune** (`src/temporal/client.ts`) est le seul module qui ouvre le
+  client Temporal et la connexion d'un travailleur ; le travailleur et `grillhouse temporal etat` la
+  lisent. L'adresse et l'espace de noms viennent des variables de Temporal (`TEMPORAL_ADDRESS`,
+  `TEMPORAL_NAMESPACE`), le serveur du compte, `127.0.0.1:7233`, par défaut. Le client s'ouvre
+  paresseux : aucune connexion avant son premier appel. `lireLeDeroule` lit d'un déroulé, au serveur
+  seul, sans travailleur vivant, son statut, son mémo, ses attributs de recherche et le dernier
+  signe de vie de son activité en cours.
+- **Les attributs de recherche du cadre** (`src/temporal/attributs.ts`) sont `GrillhouseTicket` et
+  `GrillhouseEtape`, deux mots-clés ; le serveur les enregistre à son démarrage, et un déroulé les
+  met à jour à chaque étape, si bien que le tableau et `temporal workflow list` les lisent au
+  serveur.
+- **Le travailleur** (`dist/temporal/travailleur.js --file <file>`) sert les déroulés du cadre et
+  leurs activités sur une file de tâches, et écrit `prêt <file>` une fois à l'écoute ; SIGTERM
+  l'arrête proprement. Il sert tous les déroulés du cadre (`src/temporal/deroules.ts` : la sonde,
+  les places de la machine, le circuit d'un ticket, la file d'un projet et la CI d'un commit, la
+  file des tickets d'un projet). La sonde (`src/temporal/sonde/`) est un déroulé dont
+  l'activité lance un processus, envoie un signe de vie à chaque pas (`heartbeat`), et reprend au
+  dernier signe de vie que le serveur garde quand son travailleur meurt ; le déroulé attend au
+  besoin le signal `finir`. Le serveur tué par SIGKILL et relancé sur le même fichier, le déroulé
+  reprend avec son histoire (`tests/temporal/sonde.spec.ts`).
+- **`grillhouse temporal installer`** pose le programme `temporal` à sa version épinglée (`EPINGLE`
+  de `src/temporal/installation.ts` : la version et la somme SHA-256 de l'archive de chaque
+  plateforme, celles du `checksums.txt` de la publication), téléchargé depuis la publication de
+  temporalio/cli, sous `~/.cache/grillhouse/temporal/<version>/temporal`, comme rustup et le stage0
+  de rustc posent un binaire vérifié dans un cache. Une archive dont la somme diffère est refusée
+  avant tout dépôt, les deux sommes nommées. Il écrit ensuite trois unités systemd du compte,
+  chacune relancée par systemd (`Restart=always`) : `grillhouse-temporal.service`, le serveur
+  (`temporal server start-dev`, sur `127.0.0.1` seulement, son état dans
+  `~/.local/share/grillhouse/temporal/temporal.db`, les attributs du cadre enregistrés, le tableau
+  web sur le port 8233, son espace `default` réglé à chaque départ, une fois le serveur prêt, pour
+  garder un déroulé fermé 30 jours, `temporal operator namespace update --retention 720h`, là où
+  start-dev donne 24 h) ; `grillhouse-travailleur-<projet>.service`, le travailleur du projet sur
+  la file `grillhouse-projet-<projet>` ; `grillhouse-travailleur-machine.service`, le travailleur
+  de la machine sur la file `grillhouse-machine`. Chaque travailleur joue la version publiée que le
+  projet nomme (`grillhouse.outil`), posée sous `~/.cache/grillhouse/outil/<version>/` quand elle
+  manque, comme la commande du circuit, une version sans travailleur refusée par son nom (la
+  version se pose dans son cache avant ce refus, qui l'y lit : seule écriture avant un refus) ; sans clé,
+  la version du cadre que le projet installe. Une unité de systemd part d'un PATH nu : celle de
+  chaque travailleur nomme le PATH des outils du compte qu'un circuit lance (node, npm, claude, bd,
+  gh, trouvés dans le PATH de l'installation, un outil absent refusé par son nom avant toute
+  écriture) et chaque outil du projet (`grillhouse.outils`), sa variable. Il déclare enfin la variable `TEMPORAL` dans `grillhouse.outils` du
+  `package.json` du projet, sous `~` quand le programme est sous la maison. Ce que systemd a
+  appliqué se tient à part de ce qui est écrit : la somme du texte de chaque unité, une fois
+  `systemctl --user daemon-reload`, `enable` des trois unités et `restart` des unités en attente
+  réussis (`~/.local/state/grillhouse/temporal/unites-appliquees.json`). Une unité écrite que
+  systemd n'a pas appliquée (un `systemctl` en échec) l'est au passage suivant. Rejouée sur une
+  installation à jour et appliquée, l'installation ne change rien : rien ne se télécharge, aucun
+  fichier ne s'écrit, systemd n'est pas appelé.
+- **`grillhouse temporal installer --programme-seul`** pose le programme seul, vérifié de même, et
+  écrit son chemin sur la sortie standard : aucune unité, aucun `package.json`, aucun `systemctl`.
+  La CI obtient ainsi le programme épinglé comme un utilisateur, et l'exporte en `TEMPORAL` avant
+  `npm run verifier` (`.github/workflows/ci.yml`).
+- **`grillhouse temporal etat`** dit, pour le serveur, le travailleur du projet et le travailleur de
+  la machine, s'ils tournent (`systemctl --user is-active`), la version du programme posé et si le
+  serveur répond ; sans installation, il dit ce qui manque et sort en 1.
+- La maison, le dossier des unités, le projet et le programme `systemctl` sont des options
+  (`--maison`, `--unites`, `--racine`, `--systemctl`) : les tests installent sous une maison
+  d'essai, avec un faux `systemctl`, et jamais dans le systemd du compte. Les tests qui jouent un
+  déroulé lancent le programme de `TEMPORAL` (la clé `grillhouse.outils` du `package.json` racine,
+  que la vérification passe ; `globalEnv` du turbo.json racine, si bien qu'un autre programme rejoue
+  les tests) sur un port libre et un fichier de base temporaire ; sans la variable, ils échouent en
+  la nommant. Le fichier de base de référence (`tests/temporal/base-de-reference/temporal.db`,
+  commité par une exception du `.gitignore`), enregistré par la version épinglée, se relit sous le
+  serveur courant avec son histoire ; à la prochaine montée d'épingle, il reste celui de la version
+  d'avant, et le même test mesure la relecture d'une vraie version précédente. Son espace `default`
+  garde un déroulé fermé un siècle : les 24 h que lui donne start-dev purgeaient le déroulé du
+  fichier un jour après son enregistrement. Il se réenregistre (`tests/temporal/
+enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand son déroulé de
+  sonde change de forme au point que la relecture ne le reconnaît plus, jamais à une montée
+  d'épingle. Le serveur du compte, lui, garde un déroulé fermé 30 jours (`RETENTION` de
+  `installation.ts`) : un circuit arrêté sur le mot du superviseur se rouvre de son état dans ce
+  délai, et au-delà par `--depuis` ; ce qui doit durer plus vit au ticket. Les tests démarrent leur serveur d'essai quand son
+  frontal se dit en service et décrit son espace, non quand son port s'ouvre.
+
+- **Le déroulé de la machine tient ses places** (grillhouse-4nr.7, décision D2), comme le serveur
+  de tâches de GNU make partage ses places entre tous les make d'une construction, et comme le
+  sémaphore des exemples de Temporal (samples-typescript « mutex ») accorde ses baux : un seul déroulé
+  pour la machine (`src/temporal/places/`), le seul état des places. Un circuit tire son rang
+  d'arrivée à son lancement par la mise à jour `tirerUnRang` ; une séance demande une place par la mise à jour `prendre`, qui inscrit la demande et rend aussitôt ;
+  la boucle du déroulé accorde les places, et la séance apprend la sienne par la requête
+  `laDemande`. Aucun gestionnaire ne reste ouvert pendant une attente, si bien qu'une demande vit
+  dans l'état que porte la continuation. Le signal `rendre` rend la place ou retire la demande,
+  `rattacher` nomme le processus qui la tient ; la requête `lesPlaces` donne au tableau les places
+  et les attentes. Un accord passe par la règle des places
+  (`refusDeLaPlace` de `scripts/regles-des-places.mjs`, sans entrée-sortie, que le déroulé importe) :
+  une place libre sous le plafond, le tour de son rang d'arrivée entre projets, l'admission à la
+  charge et à la mémoire (mesurée par une activité, `scripts/mesure-de-la-machine.mjs`, une fois par
+  jugement et seulement quand la place et le tour passent), l'espacement des départs. Les demandes
+  se rejugent à chaque changement et à chaque veille ; une place ou une demande dont le processus a
+  disparu (une seule activité pour toutes) part alors pour de bon. Passé sa longueur d'histoire, le
+  déroulé se continue (Continue-As-New) avec son état. Le travailleur sert ses activités avec celles de la sonde
+  (`src/temporal/deroules.ts`). Les séances, les passes et le tableau le lisent par
+  `scripts/places-de-la-machine.mjs`, qui le démarre quand aucun ne tourne.
+- **Le déroulé d'un ticket mène son circuit** (grillhouse-4nr.6, décision Q3), comme un pipeline de
+  GitLab qui attend un job manuel : un déroulé par ticket, `circuit:<racine>:<ticket>`
+  (`src/temporal/circuit/`). Il décide par les fonctions pures du circuit (`transition` de
+  `scripts/transitions.mjs`, qu'il importe) et joue chaque acte en activité : l'ouverture d'un run
+  et son plan (`ouvrir` de `scripts/circuit.mjs`), le début d'une étape et la préparation de sa
+  passe, chaque fait qu'une décision demande (`lireLeFait`), les effets, un arrêt écrit
+  (`publierLArret`, puis `monter`), la fin. Chaque acte joue dans un processus à lui
+  (`scripts/faits-du-circuit.mjs`), dans l'arbre principal du dépôt, comme un runner de CI joue
+  chaque job, si bien que le travailleur, que les passes synchrones du circuit ne bloquent pas, bat
+  son cœur toutes les 5 s, le dernier signe de vie de la séance dans ses détails. Une tentative
+  rejouée après la mort de son travailleur tue le groupe de la tentative morte, son meneur mort ou
+  non (`groupeVivant`, `signalerGroupe` de `scripts/mesure-de-la-machine.mjs`, seuls), et sa séance
+  attend le groupe que celle-ci a laissé (`precedent` de `lancer`) : jamais deux séances vivantes.
+  Une activité est livrée au moins une fois, et le déroulé suit donc le modèle documenté de
+  Temporal : **une activité, un effet extérieur qui ne se rejoue pas sans dommage, une clé**, et
+  le « functional core, imperative shell » pour le code de ses actes.
+  - Le code partagé (`scripts/circuit.mjs`, `scripts/seances.mjs`, `scripts/activites.mjs`) rend
+    ses écritures extérieures en données, des effets (`scripts/effets.mjs`, seul à les écrire) : un
+    commentaire au ticket, une fiche gardée, une découverte consignée, l'état du circuit, le bilan,
+    le plan écrit au ticket, une ligne du registre. Un acte du déroulé les
+    rassemble et les rend avec son résultat, ses propres lectures voyant ceux qu'il a déjà rendus.
+    Le déroulé joue ensuite chaque effet en activité, l'un après l'autre (`jouerUnEffet`), jusqu'au
+    dernier même sous un `--arreter`, qui arrête le run à l'acte suivant. Une activité qui
+    écrirait plusieurs de ces effets n'existe pas ; le journal du ticket et la sortie d'erreur, qui
+    se relisent sans dommage, restent écrits en place. L'état d'une séance en cours
+    s'écrit à son début, sous un acte aussi (`ecrireAussitot`), que `--arreter` et une reprise
+    lisent ;
+    le port du signe de vie relit l'état que le dépôt tient quand l'acte n'en tient aucun
+    (`portsDe`), si bien que cet état garde son étape.
+  - Un effet raté a sa suite (`ecrireLEffet`) : un commentaire, une découverte non créée, une ligne du registre, le bilan,
+    la ligne du tri, des étiquettes ou une réouverture non écrits se disent sur la sortie
+    d'erreur et le circuit continue ; l'état, une fiche (la ligne d'une découverte créée
+    comprise) ou le plan non écrits l'arrêtent ; une réponse de bd illisible
+    vaut une panne. Sous le déroulé, un effet qui se dit reste une panne que Temporal rejoue
+    (`EffetNonEcrit`, rejouable pour acte.ts) jusqu'à la dernière tentative de son activité,
+    et ne se dit qu'à elle. La ligne du tri s'écrit après ses écritures et lit alors chaque
+    découverte (`resume-du-tri` : son verdict parmi ses commentaires, ses étiquettes, son état
+    quand il la rouvre) : une écriture absente est nommée parmi les écritures en échec, avec la
+    cause que bd a donnée quand elle a raté (gardée parmi les fiches du ticket), une
+    découverte restée fermée n'est pas comptée rouverte.
+  - La clé d'un effet est celle de son activité : le déroulé, son run et l'identifiant d'activité
+    que le déroulé fixe de façon déterministe (le rang de l'effet dans le run, puis sa sorte :
+    `effet:<rang>:<sorte>`), que Temporal garde identique d'un essai à
+    l'autre ; le run en fait partie, comme Temporal le recommande, parce qu'un même déroulé repart
+    sous un run neuf (Continue-As-New, un circuit relancé) avec des pas comptés de nouveau. Elle
+    n'est jamais calculée dans l'activité à partir de l'état, du texte ni d'un événement nommé.
+    Deux effets d'un même acte sont deux activités, donc deux clés.
+  - Un effet qui se rejoue sans dommage (réécrire l'état entier, écrire le plan, poser des
+    étiquettes) n'a pas de clé. Un effet qui ne l'est pas se lit avant de s'écrire sous sa clé : un
+    commentaire la porte dans une ligne de commentaire HTML et se cherche d'abord, le bilan dans son
+    commentaire, une fiche ou une ligne du registre la porte dans sa ligne, une découverte dans son
+    corps.
+  - Une séance d'agent est une activité. Son identifiant porte l'essai de l'activité
+    (`<séance>-e<essai>`), si bien que deux essais ne se disputent jamais un `--session-id`.
+    lancer.sh range le résultat de chaque séance sous son identifiant
+    (`<copie>.travail/seances/<id>/` : `fin`, `resultat.json`, `hors-plan` ; `rangDeLaSeance` de
+    `scripts/seances.mjs`), une séance hors de l'enveloppe le sien au même lieu. À l'essai 2 et plus, l'activité cherche d'abord l'essai mort par le signe de
+    vie de son groupe : un groupe encore vivant s'attend, puis son résultat se lit ; un résultat
+    rangé se rend, sans seconde séance, au dernier lancement de l'essai mort quel que soit son
+    rang (la séance ou sa reprise), avec la ligne de lancement morte avec lui, que le bilan
+    compte ; seul un essai mort sans résultat se relance, par une séance neuve : jamais deux
+    séances vivantes, et une séance presque finie n'est jamais jetée.
+  - Le plan et les arrêts sont ordonnés par le déroulé, leurs décisions dans des fonctions pures
+    (`scripts/transitions.mjs`), les reprises de `scripts/circuit.mjs` inchangées. L'ouverture
+    s'arrête avant le plan (`ouvrirJusquAuPlan`) et rend le plan à écrire ; le déroulé joue
+    chacun de ses pas dans une activité à lui (`jouerUnPasDuPlan` : l'explorateur, le
+    questionneur, la réponse de l'explorateur), le suivant décidé par `pasDuPlan`, la conclusion
+    jouée avec le dernier (`unPasDuPlan`), si bien que le plan tient en trois séances au plus. Un arrêt se publie en effets
+    ordonnés, un par activité, sa question une seule fois.
+  - Un circuit arrêté sur le mot du superviseur a fini son déroulé : sa réponse (`--reprendre`,
+    `--depuis`, `--etendre`) démarre un déroulé neuf sur le même identifiant et la même file,
+    avec les bornes de l'entrée qu'il suit (`repasserMs`, `repassesMax`, `ci`), qui s'ouvre sur
+    elle depuis l'état que le déroulé arrêté a rendu (`reprise` et `etatDArret` de son entrée),
+    et non comme un premier lancement ; un déroulé fini sans son issue se rouvre de même depuis
+    l'état que son mémo garde entier (`ecrit`). Au-delà de la rétention du serveur (30 jours),
+    seul `--depuis` rouvre un circuit, sur la file du travailleur du projet. Le client refuse,
+    avant tout déroulé, `--reprendre` sur un état absent ou intégré, `--etendre` sur un état
+    intégré ou un déroulé fini sans son issue, jamais `--depuis`. Ces refus, le refus
+    d'un validateur d'un déroulé qui tourne (son échec de type `RefusDuValidateur`, seul nommé
+    ainsi ; tout autre échec d'une mise à jour reste celui de Temporal), un déroulé fini sans son
+    issue (terminé de force, en échec) et une réponse qu'une autre a devancée lèvent une erreur
+    nommée (`ReponseRefusee`), que la commande rend en code 2.
+  - Les tests mordent là où la clé se construit : une mutation de chaque sorte d'identité (le
+    déroulé, le run, l'identifiant d'activité) rougit, et un test de nuit sous Temporal tue le
+    travailleur pendant une séance.
+    Un fait se relit sur une tentative rejouée : une lecture, une mesure, une passe des contrôles,
+    une régénération se rejouent sans dommage. La file d'un projet suit le même modèle : chacun de ses gestes se rejoue sans
+    dommage (main avancé sur un lot déjà sur main l'entre, un ticket fermé reste fermé, un commit
+    poussé se repousse tel quel), et ses commentaires sont des effets que ses actes rendent, que le
+    déroulé de la file écrit un par activité (`jouerUnEffetDeLaFile`, d'identifiant
+    `<lieu>:effet:<rang>:<sorte>`). Un arrêt ne finit pas le déroulé : il écrit sa
+    question, puis attend la réponse du superviseur, les mises à jour `reprendre`, `depuis` et
+    `etendre`, dont le validateur refuse une réponse hors d'une attente, ou une seconde réponse à la
+    même question, sans rien écrire dans l'histoire, et le signal `arreter` ; une réponse dit ce
+    que le tour a tranché (« repris », ou l'arrêt qu'un `arreter` du même tour impose) ; la réponse rouvre le
+    run sur l'état arrêté (`ouvrir`). `arreter` pendant une
+    étape annule son activité, sa séance tuée ; pendant l'écriture d'un arrêt, il arrête le circuit
+    une fois l'arrêt écrit. Un acte qui échoue (l'ouverture, la préparation d'une passe, un fait, les
+    effets, la fin, l'arrêt sur le mot du superviseur) est l'arrêt « inattendu » à l'étape où il est
+    tombé, sa réponse attendue ; quand l'acte de l'arrêt
+    échoue lui aussi, l'arrêt tient dans le seul mémo (`arretSansActe` de `scripts/transitions.mjs`). Un « a-repasser » (75) se rejoue seul après
+    10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Les effets qu'une étape a
+    décidés avant un fait qui échoue s'écrivent avant son arrêt : `transition` les rend avec chaque
+    fait qu'elle demande. L'étape et la question sont un attribut de recherche et le mémo. Une
+    histoire enregistrée (`tests/temporal/histoires/`) se rejoue sur le code courant (décision D7).
+    `npx grillhouse circuit` en est le client.
+- **La file d'un projet fait entrer ses lots un à un, et suit la CI de chacun** (grillhouse-4nr.8),
+  comme une merge queue qui attend ses vérifications : un déroulé par projet, `file:<racine>`
+  (`src/temporal/file/`), que le déroulé d'un ticket démarre quand aucun ne tourne (un enfant
+  détaché, que ni la fin ni l'annulation de son parent n'atteignent) et où il entre à son étape 5.2.
+  La file prend une entrée à la fois, dans son ordre d'arrivée : main avance sur la branche, le
+  ticket se ferme et main se pousse, puis la CI du commit se suit jusqu'à sa conclusion avant
+  l'entrée suivante, si bien que rien ne se pousse sur un main rouge ; son issue revient au déroulé
+  du ticket, le fait `file` de ses décisions. La CI d'un commit (`ciDuCommit`, un déroulé enfant)
+  se lit une lecture à la fois, un minuteur durable entre deux (10 s), sa recherche (2 min) et son
+  attente (30 min) comptées sur l'horloge du déroulé : la mort du travailleur n'en perd pas
+  l'attente. Les gestes sont ceux de `scripts/integration/file.mjs`, que
+  ses actes appellent ; un lot déjà sur main est entré, pas écarté (la branche pointe sur le
+  commit de main qui livre son ticket, ou chacun de ses commits a son équivalent sur main, même
+  patch selon `git cherry`, le rejeu qu'écrit un rebase, ou la branche n'est plus ; l'ancien lot
+  d'un ticket rouvert n'est ni l'un ni l'autre), si bien qu'une tentative rejouée après la mort de
+  son travailleur finit le ticket sans le rouvrir. Un acte de la file qui échoue rend à l'entrée
+  l'issue `echec`, sa raison, sur laquelle le circuit du ticket pose son arrêt « inattendu », et la
+  file continue avec les entrées suivantes ; une fermeture qui échoue une fois main avancé le dit
+  (le main local porte le lot, non poussé), et `--reprendre` repasse par la file un lot sur le main
+  local qu'origin n'a pas (`situerLeLot`, `surOrigin` « non »), qui le ferme et le pousse avant sa
+  CI ; un origin qui ne répond pas (`git ls-remote` sans invite) ou dont la pointe est inconnue ici
+  (`merge-base --is-ancestor` ni 0 ni 1), `surOrigin` « inconnu », ne vaut jamais « non poussé » : le lot ne retourne pas en file, et sa raison monte, l'arrêt
+  « inattendu ». Une
+  lecture de la CI qui échoue après la poussée conclut la CI non lue, l'échec pour raison, son
+  commentaire au ticket. Un acte arrêté (`--arreter`, le délai d'une activité) finit son groupe de
+  processus, les commandes qu'il lance comprises, avant que son activité échoue. Les histoires enregistrées de la
+  file et de la CI d'un commit se rejouent sur le code courant. Une CI rouge rouvre le ticket, et sa question monte ; `--reprendre` après un rejeu
+  vert relit la CI du commit et finit le ticket, sans rebouger main. Le déroulé est le seul
+  registre de la file : l'intégration n'inscrit aucune entrée, elle pose l'étiquette `en-file`, que
+  la file retire ; la copie de la file (`.claude/worktrees/file`) se garde toujours, sans verrou.
+- **La file des tickets d'un projet lance ses circuits, pas plus que son réglage** (grillhouse-4nr.9,
+  décision D9), comme Zuul et les merge queues lancent un changement dès que ce dont il dépend est
+  fusionné : un déroulé par projet, `tickets:<racine>` (`src/temporal/tickets/`), réveillé toutes
+  les 60 s et à la fin de chacun de ses circuits. À chaque réveil, il
+  compte les circuits vivants du projet (ceux que le serveur fait tourner, et ceux qu'il vient de
+  lancer, que la visibilité du serveur peut ne pas montrer encore), puis lance le circuit de chaque
+  ticket qui part (`ticketsAPartir` de `scripts/file-des-tickets.mjs`, inchangé : ouvert, étiqueté
+  `circuit`, ses dépendances fermées, par priorité), pas plus de vivants à la fois que le réglage
+  du projet (`grillhouse.circuits` du `package.json`, `scripts/circuits-cles.mjs`, 1 quand il
+  manque). Un circuit qui attend la réponse du superviseur est vivant : son déroulé tourne, en
+  attente durable de la réponse, et le serveur ne le purge jamais ; à 1, le suivant part quand le
+  précédent finit. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
+  mot du superviseur (`--arreter`, l'étiquette `circuit` retirée) : Beads, le registre durable,
+  le garde de repartir. Les circuits que le serveur tient sans les avoir intégrés
+  (`circuitsNonIntegres`, sur `lireLesCircuits`, un appel) tiennent aussi leur ticket, un circuit
+  fini sans son issue compris. Chaque circuit est un enfant détaché ; un ticket dont le circuit tourne
+  déjà, visible ou pas encore, ne repart pas. Une faute (le réglage, un `package.json` qui ne se
+  lit pas, une Beads qui échoue) ne lance rien, nommée dans la requête. Après une reprise à neuf
+  (Continue-As-New), la fin d'un circuit lancé avant se lit au réveil suivant.
+  `npx grillhouse circuit <ticket>` y met un ticket.
+
+Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition
+s'inscrit dans l'histoire du serveur.
+
+**Les décisions du circuit ne lisent pas la machine** (grillhouse-4nr.5, décision D3) : comme un
+déroulé de Temporal décide sur les résultats de ses activités et un réducteur de Redux sur ses
+actions, les décisions de chaque étape du circuit vivent dans `scripts/transitions.mjs`, sans
+entrée-sortie. `transition` reçoit l'état de l'étape (son numéro, sa tentative, son rapport, le
+drapeau de la passe finale), la mémoire du circuit (les contrôles rouges, le renvoi au testwriter,
+le refus de l'intégration, la régénération à faire et celle faite, le lot vérifié, les constats
+ouverts) et les faits lus jusque-là ; elle rend le prochain fait à lire (une séance, une passe,
+une lecture de la copie ou du ticket, avec ses paramètres), ou la décision : l'étape suivante, la
+mémoire changée, les effets en données (une ligne au ticket, un geste, un rapport, un résultat
+gardé), puis l'arrêt par son nom, la fin ou un usage fautif. Chaque appel se rejoue depuis le
+début de l'étape sur les faits déjà lus, comme Temporal rejoue un déroulé sur son histoire. La
+boucle de `derouler` (`scripts/circuit.mjs`) lit les faits demandés et joue les effets, sans
+décider elle-même. Le code de sortie « à repasser », 75, vit dans `scripts/codes-de-sortie.mjs`,
+que la liste des étapes importe. Une garde (`tests/unit/transitions.spec.ts`) refuse `node:fs` et
+`node:child_process` dans ces trois modules et dans ce qu'ils importent, et la table des
+transitions de chaque étape y est testée. Ainsi le déroulé d'un ticket sous Temporal (4nr.6)
+reprend ces décisions telles quelles.
+
+**Les séances d'agent sont des activités** (grillhouse-4nr.3, décision D3) : comme une activité
+de Temporal, chaque séance (`scripts/seances.mjs` : `lancer`, `jusquALaFiche`, `seance`) joue un
+groupe de processus (`jouerLeGroupe`) qui envoie un signe de vie `{ pid, depart, seanceId }` à son
+lancement et à chaque pas de sa veille, puis null à sa fin ; le circuit l'écrit dans son état
+(`seance`), que le tableau, `--arreter` et une reprise lisent. Une transcription immobile arrête le
+groupe ; une annulation (un `AbortSignal`) le tue et la séance finit sur `SeanceAnnulee` ; un
+lancement qui trouve vivant le groupe d'un lancement d'avant (son dernier signe de vie : le même
+processus, par son départ) l'attend, sous la même veille, avant de prendre sa place (`lancer`) :
+le second essai de `jusquALaFiche`, et la séance neuve qui suit une reprise en échec. L'identifiant
+de chaque séance vient de son appelant, qui en donne un neuf à chaque séance qu'il lance ; sans
+lui, la séance est refusée avant tout lancement. Les lectures et écritures du ticket que le circuit et ses activités
+partagent (commentaires, fiches, journal, l'arrêt `Arret`, les gestes `geste`) vivent dans
+`scripts/ticket-du-circuit.mjs`.
+
+**Les passes, les références, l'intégration, la relecture et le tri sont des activités**
+(grillhouse-4nr.4, décision D3) : `scripts/activites.mjs` porte la preuve du rouge (`preuve`), les
+contrôles et la passe finale (`controles`), la régénération des références (`regenerer`),
+l'intégration (`integrer`), la relecture (`relire`), le tri (`trier`) et les lectures de la copie
+(son arbre, son lot gardé, son empreinte, ce qu'elle livre). Chacune reçoit ses entrées et rend
+son issue, sans lire ni écrire la mémoire du circuit : la relecture reçoit les constats ouverts, la
+preuve sa dernière mesure et rend la nouvelle (la même pour un lot de seuls fichiers mis de côté,
+qui ne mesure rien), une séance les constats ouverts et la séance à reprendre, et rend ses
+constats et nomme sa séance neuve, que le circuit garde ; la garde suit chaque module que les
+activités importent, `scripts/seances.mjs` compris ; le signe de vie passe par le port du
+circuit (`ctx.ports`), le dossier d'avancement d'une passe s'ouvre dans le dossier de travail du
+ticket (`ctx.tmp`), et les fichiers d'une séance se
+numérotent sur ceux du dossier de travail (`prochainNumero`), sans compteur partagé. La
+régénération commence par restaurer la copie au lot gardé avant elle, si bien qu'un essai rejoué
+après un essai coupé part de la même copie. L'intégration d'un lot déjà commité, sa branche en
+file, ne fait pas de second commit : elle rend vert sans jouer le script, comme une CI ne rejoue
+pas une tâche indexée par son commit.
 
 **Le verrou d'écriture charge son code de la version publiée, jamais de la copie qu'il garde** :
 celui qui juge un changement ne tourne pas sur ce qu'il juge (`pull_request_target` joue le flux de
@@ -1157,7 +1501,8 @@ vrai à la nuit ; les entrées publiées (`./consommateurs`,
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
 enveloppe, l'avancement et la mesure d'une passe, la pression et le verrou de la machine, le
-dernier vert, les arbitrages d'un ticket, les fichiers sources d'un projet).
+dernier vert, les arbitrages d'un ticket, le préfixe des tickets, lu et écrit dans le fichier
+commité de Beads, les fichiers sources d'un projet).
 La garde des frontières tient les deux sens, par les
 règles propres au dépôt (`.dependency-cruiser.projet.cjs`), comme `enforce-module-boundaries` de
 Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) refuse tout mot d'un outil dans le

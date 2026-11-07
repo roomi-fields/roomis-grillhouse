@@ -11,7 +11,8 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { A_REPASSER, SEUIL_PRESSION } from '../../scripts/mesure/pression.mjs';
+import { A_REPASSER } from '../../scripts/codes-de-sortie.mjs';
+import { SEUIL_PRESSION } from '../../scripts/mesure/pression.mjs';
 
 // The module loads at the call of a case, so a module that is missing fails each case, not the file.
 const MODULE = path.resolve(
@@ -100,13 +101,15 @@ function passe(
     code?: number;
     errors?: unknown[];
     horsDuJour?: string[];
+    bancs?: string[];
   } = {}
 ) {
   const hors = new Set(o.horsDuJour ?? []);
+  const bancs = new Set(o.bancs ?? []);
   const fichiers: Record<string, ReturnType<typeof infos>> = {};
   for (const f of files) {
     const chemin = f.filepath ?? '';
-    fichiers[chemin] = infos(hors.has(chemin));
+    fichiers[chemin] = { ...infos(hors.has(chemin)), banc: bancs.has(chemin) };
   }
   return classer({
     files,
@@ -138,7 +141,7 @@ describe('the classification of the duration reporter, without a process', () =>
 
   it('critère 2: a time budget bench that fails is a « banc de temps », whatever its error', () => {
     const { fichier } = fichierAvec(BANC, 'borne', ['expected 50 to be less than 10']);
-    const r = passe([fichier]);
+    const r = passe([fichier], { bancs: [BANC] });
     expect(r.echecs[0]).toMatchObject({ cause: 'banc de temps', delai: null });
     expect(r.verdict).toBe('a-repasser');
   });

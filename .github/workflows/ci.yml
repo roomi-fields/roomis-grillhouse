@@ -29,6 +29,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The pinned program temporal, got as a user gets it: downloaded, checked against the sum
+      # pinned in the code, laid under ~/.cache/grillhouse/temporal/<version>/, no unit of systemd;
+      # the tests that play a workflow run it (TEMPORAL, grillhouse.outils of the root package.json).
+      # `npm ci` built the command (the package's `prepare`).
+      - name: Install the pinned temporal
+        run: echo "TEMPORAL=$(npx grillhouse temporal installer --programme-seul)" >> "$GITHUB_ENV"
+
       # uv, which the module python plays: its skeleton reads the standard library of Python
       # through it, and its passes run pytest through it.
       - name: Install uv

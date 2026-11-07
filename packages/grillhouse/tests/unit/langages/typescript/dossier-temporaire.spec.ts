@@ -263,7 +263,13 @@ describe('grillhouse-nt4, 1js a et c — npm test sous le dossier temporaire de 
       chmodSync(path.join(bin, 'turbo'), 0o755);
       const p = spawn(process.execPath, [TESTS], {
         cwd: depot,
-        env: { ...ENV, TMPDIR: dans, PATH: `${bin}${path.delimiter}${ENV.PATH ?? ''}` },
+        // The trial machine of the file, so that the run takes no place of the user's machine.
+        env: {
+          ...ENV,
+          GRILLHOUSE_VERROU_MACHINE: process.env.GRILLHOUSE_VERROU_MACHINE ?? '',
+          TMPDIR: dans,
+          PATH: `${bin}${path.delimiter}${ENV.PATH ?? ''}`,
+        },
         detached: true,
         stdio: 'ignore',
       });

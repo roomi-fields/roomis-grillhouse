@@ -91,7 +91,7 @@ import { pathToFileURL } from 'node:url';
 import {
   AttenteDeLaMachine,
   AVANCEMENT,
-  avecLaMachine,
+  avecLaMachineEtUnePlace,
   CHANGEMENTS,
   garderLeTotal,
   garderLeVert,
@@ -141,7 +141,7 @@ export function verifier({
   const base = ouvrirBase('verification', { dans: env.TMPDIR || tmpdir() });
   const lacher = retirerALInterruption(base.fermer);
   try {
-    return avecLaMachine(
+    return avecLaMachineEtUnePlace(
       envMachine => {
         // The progress of the pass: the directory its caller names (the circuit's), else its own,
         // named beside the lock of the machine, which it holds, while it plays.
@@ -160,7 +160,7 @@ export function verifier({
         } finally {
           effacer();
           if (propre) {
-            garderLeTotal(dossier, racine);
+            garderLeTotal(dossier);
             rmSync(dossier, { recursive: true, force: true });
           }
         }

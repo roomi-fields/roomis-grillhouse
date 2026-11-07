@@ -16,6 +16,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
+import * as transitions from '../../scripts/transitions.mjs';
 import { gesteDe, SUITE } from '../../scripts/etapes.mjs';
 import { lireFiche, schemaDeFiche, sorteDuPlan } from '../../scripts/resultats.mjs';
 
@@ -44,17 +46,17 @@ interface Ctx {
   depuis?: string | null;
   paquets: string[];
 }
-const etapeApresLePlan = circuit.etapeApresLePlan as (o: {
+const etapeApresLePlan = transitions.etapeApresLePlan as (o: {
   sorte: Sorte;
   depuis?: string | null;
   sansTests: boolean;
 }) => string;
-const apresLaPreuve = circuit.apresLaPreuve as (o: {
+const apresLaPreuve = transitions.apresLaPreuve as (o: {
   rouges: number;
   pourLeDeveloppeur: boolean;
   inchange: boolean;
 }) => string;
-const preuveReussie = circuit.preuveReussie as (
+const preuveReussie = activites.preuveReussie as (
   compte: {
     fichiers: number;
     rouges: number;
@@ -66,10 +68,15 @@ const preuveReussie = circuit.preuveReussie as (
   options: { inchange: boolean }
 ) => boolean;
 const cheminMecanique = circuit.cheminMecanique as (ctx: Ctx) => boolean;
-const arretDuGesteMecanique = circuit.arretDuGesteMecanique as (
-  ctx: Ctx,
-  texte: string
-) => Arret | null;
+// The stop of the decisions of the circuit (scripts/transitions.mjs), on the facts the circuit
+// reads in <ctx>: its findings, whether its path is mechanical (`cheminMecanique`), its sort.
+const arretDuGesteMecanique = (ctx: Ctx, texte: string) =>
+  (
+    transitions.arretDuGesteMecanique as (
+      f: { constats: unknown[]; mecanique: boolean; sorte: Sorte },
+      texte: string
+    ) => Arret | null
+  )({ constats: [], mecanique: cheminMecanique(ctx), sorte: ctx.sorte }, texte);
 const decrireLePlan = circuit.decrireLePlan as (
   description: string,
   criteres: string[],
@@ -127,7 +134,7 @@ describe('critère 1 — la fiche de l’explorateur porte une sorte, mécanique
     );
   });
 
-  it('a comportement ticket follows the circuit of today: the testwriter, or the developpeur when the plan carries no test', () => {
+  it('a comportement ticket follows the circuit of code: the testwriter, or the developpeur when the plan carries no test', () => {
     const comportement = sorte({
       ...PLAN,
       sorte: { genre: 'comportement', raison: 'un calcul neuf' },

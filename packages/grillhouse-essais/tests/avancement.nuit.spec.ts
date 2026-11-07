@@ -167,7 +167,7 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
       const premier = ouvrirAvancement({ racine, genre: 'verification', dans: ESSAIS });
       planifier(premier, { racine, args: ['test:unit'], env: ENV });
       expect(turbo(racine, premier).status).toBe(0);
-      garderLeTotal(premier, racine);
+      garderLeTotal(premier);
       expect(lireAvancement(premier)).toMatchObject({ faits: 5, prevus: 5 });
 
       // The same pass again: both tasks replay from the cache, every file counts as done before
@@ -225,7 +225,7 @@ describe('a measure out of a ticket names itself and its progress beside the loc
       });
       expect(r.status, r.stdout + r.stderr).toBe(0);
       const vu = JSON.parse(readFileSync(trace, 'utf8')) as Record<string, unknown>;
-      expect(vu).toMatchObject({ depot: projet, ticket: null, sorte: 'Mesure' });
+      expect(vu).toMatchObject({ depot: projet, ticket: null, sorte: 'Vérification' });
       expect(typeof vu.dossier).toBe('string');
       expect(existsSync(`${verrou}.detenteur.json`)).toBe(false);
       expect(existsSync(vu.dossier as string)).toBe(false);

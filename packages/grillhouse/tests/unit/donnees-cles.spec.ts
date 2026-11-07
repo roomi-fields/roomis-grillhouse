@@ -24,7 +24,8 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { environnementDeLaPasse, donneesAuLancement, ARRETS } from '../../scripts/circuit.mjs';
+import { donneesAuLancement, ARRETS } from '../../scripts/circuit.mjs';
+import { environnementDeLaPasse } from '../../scripts/activites.mjs';
 import { environnementDe } from '../../scripts/sous-commandes.mjs';
 
 // Le module se charge à la demande de chaque test : son absence rougit chaque test, pas le fichier.

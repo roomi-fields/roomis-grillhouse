@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { composantsDe, resoudreComposant } from '../../scripts/circuit.mjs';
+import { resoudreComposant, ticketAuLancement } from '../../scripts/depart-du-ticket.mjs';
+import { composantsDe } from '../../scripts/ticket-du-circuit.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-composants-'));
@@ -95,5 +96,35 @@ describe('grillhouse-x7c, critère 2 — un projet typescript résout ses compos
     expect(resoudreComposant(liste, projet, '@essai/h')).toBe('packages/h');
     expect(resoudreComposant(liste, projet, 'scripts')).toBe('scripts');
     expect(resoudreComposant(liste, projet, '.')).toBe('.');
+  });
+});
+
+describe('an act after the opening reads the plan its workflow holds', () => {
+  // The integration removes the ticket's copy while the circuit still runs (step 8 of
+  // scripts/integration/integrer.mjs), and main does not move there: a component the lot
+  // creates (« spec ») is then in neither tree.
+  const projet = depot('apres-l-integration', {
+    'package.json': JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }),
+    'docs/ARCHITECTURE.md': architecture(),
+    'packages/a/package.json': JSON.stringify({ name: '@essai/a' }),
+  });
+  const bd = () => ({
+    status: 0,
+    stdout: JSON.stringify([
+      { title: '012 — La mesure — @essai/a, spec', description: '## Architecture\n\nLa mesure.\n' },
+    ]),
+    stderr: '',
+  });
+
+  it('the plan given is kept as it is, and the subject is read from the title', () => {
+    const lu = ticketAuLancement(projet, 'demo-1', { bd, plan: ['packages/a', 'spec'] });
+    expect(lu.plan).toEqual(['packages/a', 'spec']);
+    expect(lu.sujet).toBe('La mesure');
+  });
+
+  it('the opening, given no plan, still refuses the component that is in neither tree', () => {
+    expect(() => ticketAuLancement(projet, 'demo-1', { bd })).toThrow(
+      'le composant « spec » du titre ne nomme ni un paquet ni un chemin du dépôt.'
+    );
   });
 });

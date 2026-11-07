@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
 import { lancer } from '../../scripts/langages/cargo/commandes.mjs';
 import moduleCargo from '../../scripts/langages/cargo/index.mjs';
 import { RESULTATS } from '../../scripts/resultats.mjs';
@@ -26,7 +26,7 @@ import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.j
 
 type Arbre = { racine: string; env: Record<string, string> };
 type Ctx = { copie: string; tmp: string };
-const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
+const avecLesVersionsDAvant = activites.avecLesVersionsDAvant as (
   ctx: Ctx,
   fichiers: string[],
   jouer: (

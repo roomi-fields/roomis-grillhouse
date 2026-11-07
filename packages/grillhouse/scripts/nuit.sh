@@ -73,7 +73,7 @@
 #   the commit accepts the push.
 # - The copies whose content is on main: once its steps are played, whatever their verdict, the
 #   night passes each copy `git worktree list` names, the main tree and its own left out, through
-#   scripts/retirer-copie.sh without `--jetable` (scripts/copies-finies.mjs), as a CI cleans its
+#   scripts/retirer-copie.sh without `--jetable` (scripts/retirer-les-copies-finies.mjs), as a CI cleans its
 #   workspaces at the end of a pipeline: a copy whose commits and local work have all entered
 #   main by their content goes, and its branch (main and a branch another copy holds stay); a copy
 #   refused (commits or work not entered, a lock) or held by a running circuit (its ticket in progress, its
@@ -303,7 +303,7 @@ jouer >> "$journal" 2>&1
 verdict=$?
 # The copies whose content is on main go once the steps are played, the night's own kept and
 # pruned of its tools' outputs; their removal never changes the verdict.
-(cd "$racine" && node "$ici/copies-finies.mjs" "$copie") >> "$journal" 2>&1 || true
+(cd "$racine" && node "$ici/retirer-les-copies-finies.mjs" "$copie") >> "$journal" 2>&1 || true
 
 if [ "$verdict" -eq 75 ]; then
   echo "⏱ à repasser : ${tete:0:7} n'est ni vert ni rouge, la machine est restée chargée ; le dernier vert reste, aucun ticket, la nuit suivante rejoue." >> "$journal"

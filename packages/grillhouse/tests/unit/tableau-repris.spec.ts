@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { assembler, lireVivant, tableau } from '../../scripts/tableau.mjs';
-import { ligneEnveloppe } from './tableau-essai.js';
+import { ClientNonConstruit, ServeurMuet } from '../../scripts/circuits-du-serveur.mjs';
+import { aucunCircuit, circuitLu, ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-repris-'));
@@ -325,7 +326,7 @@ describe('3uv.40 critère 5 : an agent resumed then finished again counts each o
     expect(ligne).toMatchObject({ travail: 41 * MIN, jetons: 20 });
   });
 
-  it('3uv.40 critère 5 : the card of its ticket counts its latest reading only, another agent on it added', () => {
+  it('3uv.40 critère 5 : the card of its ticket counts its latest reading only, another agent on it added', async () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const racine = depotFactice(
       [T('demo-1', { issue_type: 'epic' }), T('demo-5', { parent: 'demo-1' })],
@@ -335,7 +336,9 @@ describe('3uv.40 critère 5 : an agent resumed then finished again counts each o
         fin('a9', 'demo-5', 'relecteur', '08:41', 2),
       ]
     );
-    const t = tableau(racine, { home }) as unknown as { fiches: Record<string, Fiche> };
+    const t = (await tableau(racine, { home, circuitsDe: aucunCircuit })) as unknown as {
+      fiches: Record<string, Fiche>;
+    };
     expect(t.fiches['demo-5']).toBeDefined();
     expect(t.fiches['demo-5'].jetons).toBe(50);
   });
@@ -532,11 +535,15 @@ describe('the board of several projects, read in their folders', () => {
   });
 
   // Quarantaine : rouge sous charge, corrigé par grillhouse-3uv.97.
-  it.skip("critère 4 : a project that does not read is named in the head with its fault, the session's shown", () => {
+  it.skip("critère 4 : a project that does not read is named in the head with its fault, the session's shown", async () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const racine = depotFactice([T('demo-5', { status: 'open' })], []);
     const absent = path.join(ESSAIS, 'absent');
-    const t = tableau(racine, { home, projets: [absent] }) as unknown as {
+    const t = (await tableau(racine, {
+      home,
+      projets: [absent],
+      circuitsDe: aucunCircuit,
+    })) as unknown as {
       lignes: { texte: string; ton?: string }[];
       dossiers: Record<string, string>;
     };
@@ -550,15 +557,59 @@ describe('the board of several projects, read in their folders', () => {
     expect(t.dossiers['demo-5']).toBe(racine);
   });
 
-  it("critère 5 : with the session's project alone, the board names no project and no folder", () => {
+  it("critère 5 : with the session's project alone, the board names no project and no folder", async () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const racine = depotFactice([T('demo-5')], []);
-    const t = tableau(racine, { home }) as unknown as {
+    const t = (await tableau(racine, { home, circuitsDe: aucunCircuit })) as unknown as {
       lignes: { texte: string }[];
       dossiers?: object;
     };
     expect(t.lignes[0]?.texte).toBe(path.basename(racine).toUpperCase());
     expect(t.lignes.some(x => x.texte.includes('[demo]'))).toBe(false);
     expect(t).not.toHaveProperty('dossiers');
+  });
+});
+
+// The board reads the circuits of the Temporal server: a server that does not answer is the first
+// alert; any other fault of the reading, a client not built among them, is said as it is; a
+// circuit read gives its ticket's card the link of its workflow.
+describe('the board and the reading of the Temporal server', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+  const TEMPORAL = 'Temporal ne répond pas en 5 s · temporal etat';
+  const lu = async (circuitsDe: () => Promise<object[]>) => {
+    const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
+    const racine = depotFactice([T('demo-5', { description: 'Le sujet.' })], []);
+    return (await tableau(racine, { home, circuitsDe })) as unknown as {
+      alertes: { texte: string }[];
+      fiches: Record<string, { resume: string }>;
+    };
+  };
+
+  it('a server that does not answer is the first alert', async () => {
+    const t = await lu(() => Promise.reject(new ServeurMuet('127.0.0.1:7233', null)));
+    expect(t.alertes[0]?.texte).toBe(TEMPORAL);
+  });
+
+  it('another fault of the reading is the first alert, said as it is, not as a silent server', async () => {
+    const t = await lu(() => Promise.reject(new Error('mémo illisible\nla suite')));
+    expect(t.alertes[0]?.texte).toBe('Circuits illisibles : mémo illisible');
+    expect(t.alertes.map(x => x.texte)).not.toContain(TEMPORAL);
+  });
+
+  it('a client not built is said by its message, not as a silent server', async () => {
+    const t = await lu(() => Promise.reject(new ClientNonConstruit()));
+    expect(t.alertes[0]?.texte).toMatch(
+      /^Circuits illisibles : le client Temporal n'est pas construit/
+    );
+    expect(t.alertes.map(x => x.texte)).not.toContain(TEMPORAL);
+  });
+
+  it('a server that answers raises no alert, and the card ends on the link of the circuit', async () => {
+    const lien = 'http://127.0.0.1:8233/namespaces/default/workflows/w';
+    const t = await lu(() => Promise.resolve([circuitLu('demo-5', { lien, vivant: true })]));
+    expect(t.alertes.map(x => x.texte)).not.toContain(TEMPORAL);
+    expect(t.fiches['demo-5']?.resume).toBe(`Le sujet.\nTemporal : ${lien}`);
   });
 });

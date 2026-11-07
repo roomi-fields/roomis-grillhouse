@@ -34,7 +34,7 @@
     },
     "packages/grillhouse-essais/tests/base-de-passe.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 15
+        "count": 13
       }
     },
     "packages/grillhouse-essais/tests/circuit.arbitrage.nuit.spec.ts": {
@@ -99,7 +99,7 @@
     },
     "packages/grillhouse-essais/tests/circuit.sessions.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 6
+        "count": 4
       }
     },
     "packages/grillhouse-essais/tests/circuit.statut.nuit.spec.ts": {
@@ -119,7 +119,7 @@
     },
     "packages/grillhouse-essais/tests/circuit.ticket.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 8
+        "count": 7
       }
     },
     "packages/grillhouse-essais/tests/circuit.tri.nuit.spec.ts": {
@@ -169,12 +169,12 @@
     },
     "packages/grillhouse-essais/tests/file-integration.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 20
+        "count": 16
       }
     },
     "packages/grillhouse-essais/tests/file-integration.renvois.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 17
+        "count": 15
       }
     },
     "packages/grillhouse-essais/tests/git-des-tests.nuit.spec.ts": {
@@ -324,7 +324,7 @@
     },
     "packages/grillhouse/tests/unit/attente-des-questions.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 13
+        "count": 12
       }
     },
     "packages/grillhouse/tests/unit/bilan.cas-reel-320.3.9.spec.ts": {
@@ -360,11 +360,6 @@
     "packages/grillhouse/tests/unit/ci-appelle-la-verification.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 7
-      }
-    },
-    "packages/grillhouse/tests/unit/circuit-detache.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 3
       }
     },
     "packages/grillhouse/tests/unit/circuit.arbre-d-avant-joue.spec.ts": {
@@ -410,11 +405,6 @@
     "packages/grillhouse/tests/unit/circuit.hors-du-jour.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 21
-      }
-    },
-    "packages/grillhouse/tests/unit/circuit.inattendu.nuit.test.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 5
       }
     },
     "packages/grillhouse/tests/unit/circuit.inattendu.spec.ts": {
@@ -490,11 +480,6 @@
     "packages/grillhouse/tests/unit/copies-finies.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 6
-      }
-    },
-    "packages/grillhouse/tests/unit/demon.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 3
       }
     },
     "packages/grillhouse/tests/unit/dependances-internes.spec.ts": {
@@ -579,12 +564,12 @@
     },
     "packages/grillhouse/tests/unit/file-des-tickets.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 3
+        "count": 1
       }
     },
     "packages/grillhouse/tests/unit/file-relecture-ci.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 5
+        "count": 4
       }
     },
     "packages/grillhouse/tests/unit/flux-des-paquets.spec.ts": {
@@ -1002,11 +987,6 @@
         "count": 2
       }
     },
-    "packages/grillhouse/tests/unit/ouverture-des-circuits.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 3
-      }
-    },
     "packages/grillhouse/tests/unit/paquet-dans-le-graphe.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 3
@@ -1029,7 +1009,7 @@
     },
     "packages/grillhouse/tests/unit/passes-ciblees-sur-une-place.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 3
+        "count": 1
       }
     },
     "packages/grillhouse/tests/unit/place-des-copies.spec.ts": {
@@ -1039,7 +1019,7 @@
     },
     "packages/grillhouse/tests/unit/places-de-la-machine.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 8
+        "count": 3
       }
     },
     "packages/grillhouse/tests/unit/plusieurs-langages.spec.ts": {

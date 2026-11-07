@@ -9,7 +9,7 @@ import {
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { projetDuLanceur } from './enveloppe-essai.js';
 import { temporaireDuFichier } from './temporaire-du-fichier.js';
-import { RACINE, enProcessus, valeursDe } from './cadre.js';
+import { RACINE, copierLesScripts, enProcessus, valeursDe } from './cadre.js';
 
 const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) as {
   CODE_USAGE: number;
@@ -584,28 +584,8 @@ describe.runIf(canWrap)('the launcher and the register line of a session that fa
   const REGISTRE = path.join(ESSAIS, 'registre.jsonl');
   const ECHEC = path.join(REPO, 'faux-claude-echec.sh');
   it('writes the line of a session whose envelope exits in error, and keeps its exit code', () => {
-    // registre.mjs and what it imports, as the test repository holds them.
-    mkdirSync(path.join(REPO, 'scripts', 'integration'), { recursive: true });
-    mkdirSync(path.join(REPO, 'scripts', 'mesure'), { recursive: true });
-    mkdirSync(path.join(REPO, 'scripts', 'enveloppe'), { recursive: true });
-    for (const f of [
-      'registre.mjs',
-      'tableau.mjs',
-      'bilan.mjs',
-      'etapes.mjs',
-      'avancement.mjs',
-      'mesure/avancement.mjs',
-      'mesure/pression.mjs',
-      'verrou-de-machine.mjs',
-      'enveloppe/paquets-du-plan.mjs',
-      'verrou-de-fichier.mjs',
-      'integration/verdict.mjs',
-    ]) {
-      execFileSync('cp', [
-        path.join(RACINE, 'packages/grillhouse/scripts', f),
-        path.join(REPO, 'scripts', f),
-      ]);
-    }
+    // registre.mjs and all it imports, as the test repository holds them.
+    copierLesScripts(['registre.mjs'], path.join(REPO, 'scripts'));
     // A stand-in for claude that leaves a transcript in its project directory, then fails.
     writeFileSync(
       ECHEC,
@@ -757,7 +737,9 @@ describe('the launcher refuses a component that is not a path before preparing t
 
 // The circuit (scripts/circuit.mjs) launches every session of a ticket in its copy and reads each
 // end: the log of the ticket keeps every session, each under a header line (role, component,
-// time), and the session's exit code lands in `<copie>.fin`, apart from the launcher's own codes.
+// time), and the session's exit code lands in the folder of the session
+// (`<copie>.travail/seances/<id>/fin`, `courante` without an id), apart from the launcher's own
+// codes.
 describe.runIf(canWrap)('the launcher and the log and end of each session', () => {
   const ENTETE = /^=== \S+ · developpeur · packages\/a ===$/gm;
   const lancerSur = (ticket: string, claude: string) => {
@@ -779,23 +761,25 @@ describe.runIf(canWrap)('the launcher and the log and end of each session', () =
     expect(journal.match(ENTETE)?.length, journal).toBe(2);
     expect(journal.match(/^séance \d+$/gm)?.length, journal).toBe(2);
   }, 120_000);
-  it("writes the session's exit code to <copie>.fin", () => {
+  it("writes the session's exit code to the folder of the session", () => {
     const ticket = 'demo-fin';
     const sort = path.join(REPO, 'faux-claude-sort.sh');
     writeFileSync(sort, '#!/bin/bash\nexit 7\n', { mode: 0o755 });
-    const fin = path.join(REPO, '.claude/worktrees', `${ticket}.fin`);
+    const fin = path.join(REPO, '.claude/worktrees', `${ticket}.travail/seances/courante/fin`);
     expect(lancerSur(ticket, sort).status).toBe(7);
     expect(readFileSync(fin, 'utf8').trim()).toBe('7');
     expect(lancerSur(ticket, FAUX).status).toBe(0);
     expect(readFileSync(fin, 'utf8').trim()).toBe('0');
   }, 120_000);
-  it('leaves no <copie>.fin when the launcher refuses before the session', () => {
+  it('leaves no end file when the launcher refuses before the session', () => {
     const ticket = 'demo-fin-refus';
     const r = spawnSync('bash', [LAUNCHER, ticket, 'developpeur', 'packages/z', '/dev/null'], {
       cwd: REPO,
       encoding: 'utf8',
     });
     expect(r.status).toBe(CODE_USAGE);
-    expect(existsSync(path.join(REPO, '.claude/worktrees', `${ticket}.fin`))).toBe(false);
+    expect(
+      existsSync(path.join(REPO, '.claude/worktrees', `${ticket}.travail/seances/courante/fin`))
+    ).toBe(false);
   });
 });

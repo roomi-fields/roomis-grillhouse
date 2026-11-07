@@ -6,7 +6,7 @@ import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/te
 import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
-const texteDuVerdict = enProcessus<string>('scripts/circuit.mjs', 'texteDuVerdict');
+const texteDuVerdict = enProcessus<string>('scripts/activites.mjs', 'texteDuVerdict');
 
 // The conformity of everything the lot changes (grillhouse-3uv.95.7), decision 2 of
 // grillhouse-3uv.95, Romain (2026-10-23): « il faut que le relecteur valide vraiment la conformité

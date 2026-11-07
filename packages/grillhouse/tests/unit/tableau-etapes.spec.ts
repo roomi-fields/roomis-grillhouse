@@ -91,7 +91,7 @@ const vivant = (agent: string, ticket: string, role: string) => ({
   travail: 20 * MIN,
   tours: [[MAINTENANT - 20 * MIN, MAINTENANT]],
 });
-// A circuit as lireCircuits reads it from its state.
+// A circuit as the server gives it (scripts/circuits-du-serveur.mjs).
 const circuit = (ticket: string, o: object = {}) => ({
   ticket,
   etape: 'developpeur',

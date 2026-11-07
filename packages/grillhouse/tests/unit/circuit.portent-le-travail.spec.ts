@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as circuit from '../../scripts/activites.mjs';
 
 // grillhouse-3e2.5 — la preuve du rouge n'exige le rouge que des tests que la fiche du testwriter
 // dit porter le travail du ticket (`portent_le_travail`). Le compte de la preuve : `nommes` (verts

@@ -47,8 +47,8 @@
 //   `GRILLHOUSE_TESTS`). It keeps no green: the one pass of the verification keeps it
 //   (scripts/dernier-vert.mjs, scripts/langages/typescript/verifier.mjs). Beside the module of
 //   package.json, whose pass plays every task of the graph, the composed command sets
-//   `GRAPHE_JOUE` and `verifier` plays nothing again. It plays under the lock of
-//   the machine (`avecLaMachine` of ./jointure), as the module cargo's. `verifier --gardes` plays
+//   `GRAPHE_JOUE` and `verifier` plays nothing again. It plays on a place of
+//   the machine and under its lock (`avecLaMachineEtUnePlace` of ./jointure), as the module cargo's. `verifier --gardes` plays
 //   the guards alone: the project's root scripts `grillhouse:gardes` then `gardes` the package.json
 //   holds.
 // - `typer`: `uv run --locked python -m compileall`, the folders whose name begins with a dot (the
@@ -88,7 +88,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
-  avecLaMachine,
+  surUnePlace,
+  avecLaMachineEtUnePlace,
   cacheDeCompilation,
   cheminsDeLaTache,
   construireDepuisLesArguments,
@@ -482,7 +483,7 @@ function sousLaBase(genre, env, jouer) {
  */
 export function lancer(nom, args, { racine = process.cwd(), env = process.env } = {}) {
   if (nom === 'tester') {
-    return tester(racine, args, env);
+    return surUnePlace(e => tester(racine, args, e), { env });
   }
   if (nom === 'tests-du-paquet') {
     return sousLaBase('tests', env, e => testsDuPaquet(racine, args, e));
@@ -506,7 +507,7 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     const dire = l => process.stdout.write(`${l}\n`);
     try {
       return sousLaBase('verification', env, envBase =>
-        avecLaMachine(envMachine => verifier(racine, args, envMachine), {
+        avecLaMachineEtUnePlace(envMachine => verifier(racine, args, envMachine), {
           env: envBase,
           racine,
           dire,

@@ -26,7 +26,8 @@
 //   conformed, `conforme`, its verdicts by kind, `verdicts`; its sessions, the launches of object
 //   `tri`), each end of a run on
 //   a stop (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`);
-//   the circuit's state, `.claude/worktrees/<ticket>.circuit.json`, for where the circuit ended;
+//   where the circuit ended (`{ etape, raison, code }`), which the end of the circuit gives its
+//   bilan (the effect `bilan`, scripts/effets.mjs) and the command reads from the Temporal server;
 //   the night the project declares in its package.json (`grillhouse.plageDeNuit`); the transcript
 //   of each supervisor's session a stop names (`~/.claude/projects/<projet>/<séance>.jsonl`), of
 //   which the origin and the time of each message, as ccusage measures from the transcripts. It
@@ -628,9 +629,9 @@ function messagesDeLaSeance(seance) {
 }
 
 // The bilan of <ticket> computed from the main tree <racine>: its register, the results its
-// circuit kept, its circuit's state, and the owner's messages in the supervisor's sessions its
-// stops name unless <responsable> is false.
-function calculer(racine, ticket, { responsable = true } = {}) {
+// circuit kept, where its circuit ended (<fin>, `{ etape, raison, code }`, null while it runs), and
+// the owner's messages in the supervisor's sessions its stops name unless <responsable> is false.
+function calculer(racine, ticket, fin, { responsable = true } = {}) {
   const registre =
     process.env.GRILLHOUSE_REGISTRE ??
     path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
@@ -645,31 +646,46 @@ function calculer(racine, ticket, { responsable = true } = {}) {
         return [];
       }
     });
-  const f = path.join(dossier(racine), `${ticket}.circuit.json`);
-  let etat = null;
-  try {
-    etat = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
-  } catch {
-    etat = null;
-  }
   const seances = new Set(entrees.map(e => e.montee?.superviseur).filter(Boolean));
   return bilan({
     ticket,
     lignes,
     entrees,
-    etat,
+    etat: fin,
     nuit: plageDeNuit(racine),
     duResponsable: responsable ? [...seances].flatMap(s => messagesDeLaSeance(String(s))) : [],
   });
 }
 
-// The bilan of <ticket> computed, kept in the main tree <racine>, and its text, compared with the
-// bilan before it: what the circuit writes at the ticket.
-export function ecrireLeBilan(racine, ticket) {
-  const b = calculer(racine, ticket);
+// The bilan of <ticket> computed, where its circuit ended <fin> (`calculer`), kept in the main tree
+// <racine>, and its text, compared with the bilan before it: what the circuit writes at the ticket.
+export function ecrireLeBilan(racine, ticket, fin) {
+  const b = calculer(racine, ticket, fin);
   const avant = precedent(racine, ticket);
   garder(racine, b);
   return texteDuBilan(b, avant);
+}
+
+// Where the circuit of <ticket> in the repository at <racine> ended, as its workflow's memo on the
+// Temporal server gives it (the summary of its last state, src/temporal/circuit/deroule.ts); null
+// while it runs on its own (no question awaited), or when the server does not give it within 5 s.
+async function finSurLeServeur(racine, ticket) {
+  const { lireLeDeroule, ouvrirLeClient } = await import('../dist/temporal/client.js');
+  const { idDuCircuit } = await import('../dist/temporal/circuit/contrat.js');
+  const c = ouvrirLeClient();
+  try {
+    const d = await c.client.connection.withDeadline(Date.now() + 5_000, () =>
+      lireLeDeroule(c.client, idDuCircuit(racine, ticket))
+    );
+    const e = d.memo?.etat;
+    return !e || (d.statut === 'RUNNING' && !d.memo?.question)
+      ? null
+      : { etape: e.etape ?? null, raison: e.raison ?? null, code: e.code ?? null };
+  } catch {
+    return null;
+  } finally {
+    await c.fermer();
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
@@ -682,8 +698,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       encoding: 'utf8',
     });
     const racine = commun.status === 0 ? path.dirname(commun.stdout.trim()) : process.cwd();
-    const b = calculer(racine, ticket);
-    process.stdout.write(`${texteDuBilan(b, precedent(racine, ticket))}\n`);
-    if (options.includes('--garder')) garder(racine, b);
+    void finSurLeServeur(racine, ticket).then(fin => {
+      const b = calculer(racine, ticket, fin);
+      process.stdout.write(`${texteDuBilan(b, precedent(racine, ticket))}\n`);
+      if (options.includes('--garder')) garder(racine, b);
+    });
   }
 }

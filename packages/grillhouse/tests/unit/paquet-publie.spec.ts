@@ -131,17 +131,19 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
 
 describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from the package installed', () => {
   // grillhouse-3uv.84.8: docs/, the package's architecture, which the common charter names.
-  it('the package publishes bin/, scripts/, cadre/, docs/ and the plugin’s entries, which its prepack writes and its postpack removes', () => {
+  it('the package publishes CHANGELOG.md, bin/, scripts/, cadre/, dist/, docs/ and the plugin’s entries, which its prepack writes and its postpack removes', () => {
     expect(PROPRES_DU_PAQUET).toEqual([
       'CHANGELOG.md',
       'bin',
       'cadre',
+      'dist',
       'docs',
       'scripts',
       'tsdoc-base.json',
     ]);
     expect([...pkg.files].sort()).toEqual([...PROPRES_DU_PAQUET, ...ELEMENTS_DU_GREFFON].sort());
-    expect(pkg.scripts.prepack).toBe('node scripts/cadre.mjs --empaqueter');
+    // The build of src/ into dist/ first (grillhouse-4nr.2): the package publishes dist/.
+    expect(pkg.scripts.prepack).toBe('npm run build && node scripts/cadre.mjs --empaqueter');
     expect(pkg.scripts.postpack).toBe('node scripts/cadre.mjs --nettoyer');
   });
 
@@ -212,8 +214,11 @@ describe('grillhouse-3uv.84.4 critère 7 — what the frame reads resolves from 
     const texte = readFileSync(path.join(PAQUET, 'scripts/circuit.mjs'), 'utf8');
     expect(texte).toContain("import { GREFFON } from './cadre.mjs';");
     expect(texte).toMatch(/const METACADRE = path\.join\(GREFFON, 'METACADRE\.md'\);/);
-    expect(texte).toMatch(/const GABARIT = path\.join\(\s*GREFFON,/);
     expect(texte).not.toMatch(/path\.join\(ici, '\.\.', '\.\.', '\.\.'\)/);
+    // The templates of the instructions, which the sessions read (grillhouse-4nr.3).
+    const seances = readFileSync(path.join(PAQUET, 'scripts/seances.mjs'), 'utf8');
+    expect(seances).toContain("import { GREFFON } from './cadre.mjs';");
+    expect(seances).toMatch(/const GABARIT = path\.join\(\s*GREFFON,/);
   });
 
   it('init and the update read the template under CADRE', () => {

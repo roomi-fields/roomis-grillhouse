@@ -21,7 +21,7 @@ import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtu
 import { CADRE, enProcessus } from './cadre.js';
 
 const LANCER = path.join(CADRE, 'scripts/enveloppe/lancer.sh');
-const COPIES = path.join(CADRE, 'scripts/copies-finies.mjs');
+const COPIES = path.join(CADRE, 'scripts/retirer-les-copies-finies.mjs');
 const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
   'scripts/mesure/base-de-passe.mjs',
   'ouvrirBaseDuTicket'

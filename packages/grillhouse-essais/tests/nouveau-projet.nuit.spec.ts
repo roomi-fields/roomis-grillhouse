@@ -17,7 +17,7 @@ import {
   claudeSubstitut,
   configGit,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CADRE } from './cadre.js';
+import { CADRE, DE_BD_INIT } from './cadre.js';
 
 // grillhouse-3uv.84.4 critère 1: `grillhouse init <dossier> [préfixe]` creates a project from the
 // template of a project (templates/projet/), as create-turbo creates one from its example: each file
@@ -72,14 +72,18 @@ function fichiers(racine: string, dossier: string): string[] {
   return out.sort();
 }
 
-// The tools the preparation calls, stood in: Beads, CodeGraph, npm, whose install links this
-// repository's node_modules (what `npm install` would give the project).
+// The tools the preparation calls, stood in: Beads (its `bd init` writes the key of bd 1.2.2),
+// CodeGraph, npm, whose install links this repository's node_modules (what `npm install` would
+// give the project).
 function outilsDeLaPreparation() {
   const bin = path.join(ESSAIS, 'outils');
   mkdirSync(bin);
   const outil = (nom: string, corps: string) =>
     writeFileSync(path.join(bin, nom), `#!/bin/sh\n${corps}\n`, { mode: 0o755 });
-  outil('bd', 'case "$1" in\n  config) echo essai;;\n  init) mkdir -p .beads;;\nesac\nexit 0');
+  outil(
+    'bd',
+    `case "$1" in\n  config) echo essai;;\n  init) mkdir -p .beads; [ -f .beads/config.yaml ] || printf '%s' '${DE_BD_INIT}' > .beads/config.yaml;;\nesac\nexit 0`
+  );
   outil('codegraph', '[ "$1" = init ] && mkdir -p "$2/.codegraph"\nexit 0');
   outil(
     'npm',

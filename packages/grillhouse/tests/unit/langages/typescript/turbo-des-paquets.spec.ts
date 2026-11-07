@@ -928,6 +928,9 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'copies-finies.mjs',
       // What services-du-noyau.mjs imports for the workers of a session (grillhouse-9kq).
       'places-de-la-machine.mjs',
+      // What places-de-la-machine.mjs imports: its rule and its measure (grillhouse-4nr.7).
+      'regles-des-places.mjs',
+      'mesure-de-la-machine.mjs',
       'fusion-du-changelog.mjs',
       'verrou-de-fichier.mjs',
       'enveloppe/paquets-du-plan.mjs',
@@ -936,6 +939,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'paquet-npm.mjs',
       // What services-du-noyau.mjs imports to run the tasks of the graph (grillhouse-44b.5).
       'taches-du-graphe.mjs',
+      // What services-du-noyau.mjs gives of the search in the PATH (grillhouse-4nr.12).
+      'commandes-du-path.mjs',
       'langages/typescript/consommateurs.mjs',
       // The walk of the guards (grillhouse-rm7).
       'langages/typescript/parcours.mjs',
@@ -945,6 +950,10 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'mesure/avancement.mjs',
       'mesure/base-de-passe.mjs',
       'mesure/pression.mjs',
+      // What pression.mjs imports: the exit codes (grillhouse-4nr.5).
+      'codes-de-sortie.mjs',
+      // What services-du-noyau.mjs re-exports: the prefix of the tickets (grillhouse-4nr.12).
+      'prefixe-des-tickets.mjs',
       'langages/typescript/vitest-config/cibles.mjs',
       'langages/typescript/vitest-config/changements.mjs',
       'langages/typescript/vitest-config/lances.mjs',
@@ -969,6 +978,10 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
           return [`scripts/${f}`, existsSync(source) ? readFileSync(source, 'utf8') : null];
         })
       ),
+      // The build the package installed publishes beside its scripts (dist/), which
+      // copies-finies.mjs imports: here the names it reads, as the installed package holds them.
+      'dist/temporal/client.js': 'export const ouvrirLeClient = null;\n',
+      'dist/temporal/circuit/client.js': 'export const lireLesCircuits = null;\n',
     });
     expect(r.sortie).not.toContain('jsonc-parser');
     expect(r.status, r.sortie).toBe(0);

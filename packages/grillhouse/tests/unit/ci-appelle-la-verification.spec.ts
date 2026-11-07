@@ -20,8 +20,13 @@ const CIS = [
 ] as const;
 
 // What a step of the test job may run besides the verification: the installation of the project
-// and of the tools the verification plays (uv, the command claude).
-const INSTALLATION = [/^npm ci$/, /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/];
+// and of the tools the verification plays (uv, the command claude, the pinned program temporal of
+// grillhouse-4nr.2, laid down alone and exported as TEMPORAL).
+const INSTALLATION = [
+  /^npm ci$/,
+  /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/,
+  /^echo "TEMPORAL=\$\(npx grillhouse temporal installer --programme-seul\)" >> "\$GITHUB_ENV"$/,
+];
 const CONTROLES = /format:check|lint|typecheck|\bbuild\b|\bnpm test\b|\bvitest\b|\btsc\b/;
 
 describe('critère 2: the CI calls the verification alone', () => {

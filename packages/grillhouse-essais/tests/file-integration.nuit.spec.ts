@@ -1,9 +1,8 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantier, FILE, INTEGRER_SCRIPT, type Chantier } from './integration-essai.js';
+import { chantier, serveurDeLaFileDIntegration } from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
 import { RACINE } from './cadre.js';
 
@@ -11,15 +10,12 @@ import { RACINE } from './cadre.js';
 // queue brings the branches onto main, one at a time, in their order of arrival (a merge queue:
 // GitHub merge queue, bors, Gerrit's submit).
 //
-// The queue's interface, fixed by these tests:
-//   node scripts/integration/file.mjs
-// run from the main tree, without argument. It takes every branch waiting, one at a time, until
-// none is left, then exits 0, whatever became of each branch (entered, or out of the queue with
-// its ticket reopened). A queue launched while another runs exits 0 at once, refusing nothing:
-// the running queue takes the branch. Any argument is a usage error: exit 2, the usage on stderr.
+// The queue is the workflow of the queue of the project (`file:<racine>`,
+// src/temporal/file/deroule.ts), played on a server of trial: each ticket the integration
+// committed enters it as its circuit sends it, one at a time, in their order of arrival, and the
+// harness waits for the issue of each (`file` of ./integration-essai.ts).
 //
-// This file: the queue brings the branches onto main, launched from a copy too, and the texts say
-// it. A copy still in place, a ticket sent back and an empty branch: file-integration.renvois; the
+// This file: the queue brings the branches onto main, and the texts say it. A copy still in place, a ticket sent back and an empty branch: file-integration.renvois; the
 // dependencies of the queue copy: file-integration.dependances; the status of the tests and the
 // CI: file-integration.ci.
 // The trial harness: ./integration-essai.ts.
@@ -27,6 +23,7 @@ import { RACINE } from './cadre.js';
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+serveurDeLaFileDIntegration(ESSAIS);
 const lire = (rel: string) => readFileSync(path.join(RACINE, rel), 'utf8');
 
 describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => {
@@ -338,122 +335,12 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     },
     LONG
   );
-  it(
-    'critère 8: a queue launched while another runs refuses nothing, and the running queue takes the branch that arrived',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
-      m.livrer('demo-1');
-      // During the push of demo-1's entry, demo-2 is integrated (its copy removed by the
-      // integration, critère 15) and a second queue launched; the remote's hook does it once,
-      // out of git's environment, and records the exit codes.
-      const pendant = path.join(m.bin, 'pendant.mjs');
-      const sorties = path.join(m.bin, 'sorties');
-      writeFileSync(
-        pendant,
-        `import { spawnSync } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
-if (!existsSync(${JSON.stringify(sorties)})) {
-  writeFileSync(${JSON.stringify(sorties)}, '');
-  const env = ${JSON.stringify(m.env)};
-  const lancer = a => spawnSync('node', a, { cwd: ${JSON.stringify(m.repo)}, env, encoding: 'utf8', timeout: 60000 });
-  const i = lancer(${JSON.stringify([INTEGRER_SCRIPT, ...m.argsIntegrer('demo-2')])});
-  const f = lancer([${JSON.stringify(FILE)}]);
-  writeFileSync(${JSON.stringify(sorties)}, JSON.stringify({ integrer: i.status, file: f.status, sortie: i.stdout + i.stderr + f.stdout + f.stderr }));
-}
-`
-      );
-      writeFileSync(
-        path.join(m.distant, 'hooks', 'pre-receive'),
-        `#!/bin/sh\ncat > /dev/null\nenv -i PATH="$PATH" HOME="$HOME" node ${pendant}\nexit 0\n`,
-        { mode: 0o755 }
-      );
-      const r = m.file();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      const s = JSON.parse(readFileSync(sorties, 'utf8')) as {
-        integrer: number;
-        file: number;
-        sortie: string;
-      };
-      expect(s.integrer, s.sortie).toBe(0);
-      expect(s.file, s.sortie).toBe(0);
-      expect(m.sujets()).toEqual(['feat: lot (demo-2)', 'feat: lot (demo-1)', 'base']);
-      expect(m.bd('demo-2').status).toBe('closed');
-      expect(m.distantSha('main')).toBe(m.sha('main'));
-      expect(
-        m
-          .bd('demo-1')
-          .comments.map((c: { text: string }) => c.text)
-          .join('\n')
-      ).not.toMatch(/pouss/i);
-    },
-    LONG
-  );
-  it('the queue takes no argument: exit 2, the usage on stderr', () => {
-    const m = chantier(ESSAIS);
-    const r = m.file('--ticket', 'demo-1');
-    expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/usage/i);
-  });
   it('an empty queue exits 0 and leaves main as it is', () => {
     const m = chantier(ESSAIS);
     const r = m.file();
     expect(r.status, r.stdout + r.stderr).toBe(0);
     expect(m.sujets()).toEqual(['base']);
   });
-});
-
-// grillhouse-3uv.63 critère 24: the queue, launched from a copy, works on the main tree (found by
-// git's common directory, as the launcher finds it).
-describe('grillhouse-3uv.63 — the queue launched from a copy works on the main tree', () => {
-  const fileDepuis = (m: Chantier, dir: string) =>
-    spawnSync('node', [FILE], { cwd: dir, encoding: 'utf8', env: m.env, timeout: LONG });
-  // A copy of another ticket, made as the launcher makes it, without local work.
-  const autreCopie = (m: Chantier) => {
-    const copie = m.copieDe('demo-9');
-    m.git('worktree', 'add', '-q', '-b', 'agent/demo-9', copie, 'HEAD');
-    return copie;
-  };
-  it(
-    'critère 24: launched from a copy on agent/<ticket>, the queue moves main forward and leaves that branch where it is',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      const copie = autreCopie(m);
-      m.livrer('demo-1');
-      const commit = m.sha('agent/demo-1');
-      const neuf = m.sha('agent/demo-9');
-      const r = fileDepuis(m, copie);
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sha('main')).toBe(commit);
-      expect(m.sha('agent/demo-9')).toBe(neuf);
-      expect(m.gitDans(copie, 'rev-parse', 'HEAD').trim()).toBe(neuf);
-      expect(m.bd('demo-1').status).toBe('closed');
-      expect(m.distantSha('main')).toBe(commit);
-    },
-    LONG
-  );
-  it(
-    'critère 24: launched from a directory deep in a copy, with main moved: the branches are replaced on main, the copy and its branch untouched',
-    () => {
-      const m = chantier(ESSAIS);
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
-      const copie = autreCopie(m);
-      m.livrer('demo-1');
-      m.livrer('demo-2');
-      const neuf = m.sha('agent/demo-9');
-      const r = fileDepuis(m, path.join(copie, 'src/a'));
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets()).toEqual(['feat: lot (demo-2)', 'feat: lot (demo-1)', 'base']);
-      expect(m.sha('agent/demo-9')).toBe(neuf);
-      expect(m.gitDans(copie, 'status', '--porcelain').trim()).toBe('');
-      expect(existsSync(path.join(copie, '.claude/worktrees/file'))).toBe(false);
-      expect(m.bd('demo-2').status).toBe('closed');
-    },
-    LONG
-  );
 });
 
 // grillhouse-3uv.63 critères 11 et 12: the old way disappears, and the texts say the new one.

@@ -886,6 +886,31 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
     expect(min(declaree.categories.superviseur.ms)).toBe(17 + 605 - 360);
   });
 
+  // Where the circuit ended is what its end gives the bilan (grillhouse-4nr.10, criterion 4).
+  it('its status is where its circuit ended, as the end gives it', () => {
+    const racine = path.join(ESSAIS, 'projet-fin-donnee');
+    const dossier = path.join(racine, '.claude', 'worktrees');
+    mkdirSync(dossier, { recursive: true });
+    writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'projet-fin-donnee' }));
+    const registre = path.join(racine, 'registre.jsonl');
+    writeFileSync(registre, '');
+    const avant = process.env.GRILLHOUSE_REGISTRE;
+    process.env.GRILLHOUSE_REGISTRE = registre;
+    try {
+      ecrireLeBilan(racine, TICKET, { etape: 'controles', raison: 'controles', code: 14 });
+      const f = path.join(dossier, `${TICKET}.bilan.json`);
+      expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).statut).toBe('arrêt controles (14)');
+      ecrireLeBilan(racine, TICKET, null);
+      expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).statut).toBe('en cours');
+    } finally {
+      if (avant === undefined) {
+        delete process.env.GRILLHOUSE_REGISTRE;
+      } else {
+        process.env.GRILLHOUSE_REGISTRE = avant;
+      }
+    }
+  });
+
   it('reads the range from the key grillhouse.plageDeNuit of the project’s package.json, 23 h – 8 h without it', () => {
     const racine = (nom: string, grillhouse?: object) => {
       const d = path.join(ESSAIS, nom);

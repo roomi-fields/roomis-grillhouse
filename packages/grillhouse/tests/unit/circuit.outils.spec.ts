@@ -7,7 +7,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { ARRETS, environnementDeLaPasse, outilsAuLancement } from '../../scripts/circuit.mjs';
+import { environnementDeLaPasse } from '../../scripts/activites.mjs';
+import { ARRETS, outilsAuLancement } from '../../scripts/circuit.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-outils-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

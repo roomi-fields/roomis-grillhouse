@@ -20,7 +20,19 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const CIRCUIT = path.resolve(__dirname, '../../scripts/circuit.mjs');
-const source = readFileSync(CIRCUIT, 'utf8');
+// The decisions of the circuit (scripts/transitions.mjs, grillhouse-4nr.5) hold to the same rule.
+const TRANSITIONS = path.resolve(__dirname, '../../scripts/transitions.mjs');
+// So do its sessions and the reads of its ticket (scripts/seances.mjs, scripts/ticket-du-circuit.mjs,
+// grillhouse-4nr.3).
+const SEANCES = path.resolve(__dirname, '../../scripts/seances.mjs');
+const TICKET = path.resolve(__dirname, '../../scripts/ticket-du-circuit.mjs');
+// So do its activities (scripts/activites.mjs, grillhouse-4nr.4).
+const ACTIVITES = path.resolve(__dirname, '../../scripts/activites.mjs');
+// So does the one writer of its effects (scripts/effets.mjs, grillhouse-4nr.6.1).
+const EFFETS = path.resolve(__dirname, '../../scripts/effets.mjs');
+const source = [CIRCUIT, TRANSITIONS, SEANCES, TICKET, ACTIVITES, EFFETS]
+  .map(f => readFileSync(f, 'utf8'))
+  .join('\n');
 const BILAN = path.resolve(__dirname, '../../scripts/bilan.mjs');
 const bilan = readFileSync(BILAN, 'utf8');
 
@@ -37,6 +49,10 @@ const PERMISES: Record<string, string> = {
   '/\\s+/g': 'les blancs du sujet d’un écart d’une fiche, pour le reconnaître une seule fois',
   '/\\s+[>›]\\s+/g':
     'le séparateur « > » ou « › » du nom complet d’un vert attendu d’une fiche et d’un test du rapport de Vitest (grillhouse-j2m)',
+  ['RegExp(String.raw`' +
+  String.raw`\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[@-Z\\-_])` +
+  "`, 'g')"]:
+    'les séquences du terminal (couleurs, liens) retirées de la cause d’un arrêt sans acte, qui ne décide rien',
 };
 
 // Every regular expression of <texte>: its literals, and each `RegExp(…)` construction.

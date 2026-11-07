@@ -25,12 +25,8 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  A_REPASSER,
-  attendreLeRepos,
-  lirePression,
-  SEUIL_PRESSION,
-} from '../../scripts/mesure/pression.mjs';
+import { A_REPASSER } from '../../scripts/codes-de-sortie.mjs';
+import { attendreLeRepos, lirePression, SEUIL_PRESSION } from '../../scripts/mesure/pression.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/vitest-config');
@@ -44,14 +40,17 @@ const CHARGE = 90;
 const REPOS = 1;
 
 // A project of trial: the frame's base configuration (or the night's, `nuit`), its tests
-// <fichiers>, the pressure file at <some> (absent when null), <env> added to the environment.
+// <fichiers>, the pressure file at <some> (absent when null), <env> added to the environment, the
+// project made under the directory <sous> of the trials when given.
 // `{{trace}}` in a file is the path of the trace, read by `joues`.
 function projet(
   fichiers: Record<string, string>,
   some: number | null,
-  o: { nuit?: boolean; env?: (repo: string) => Record<string, string> } = {}
+  o: { nuit?: boolean; env?: (repo: string) => Record<string, string>; sous?: string } = {}
 ) {
-  const repo = mkdtempSync(path.join(ESSAIS, 'projet-'));
+  const dans = path.join(ESSAIS, o.sous ?? '');
+  mkdirSync(dans, { recursive: true });
+  const repo = mkdtempSync(path.join(dans, 'projet-'));
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(repo, 'node_modules'), 'dir');
   const fichierPression = path.join(repo, 'pression');
   const trace = path.join(repo, 'joues.txt');
@@ -113,6 +112,16 @@ describe('the duration reporter of the base configuration', { timeout: 120_000 }
     expect(p.status, p.sortie).toBe(A_REPASSER);
     expect(p.sortie).toContain('90.0 %');
     expect(p.sortie).toContain(`seuil ${SEUIL_PRESSION} %`);
+    expect(p.sortie).toMatch(/à repasser/);
+  });
+  // A globstar passes no directory whose name starts with a dot, and every
+  // ticket's copy lives under `.claude/worktrees/`; the night test is known by its name.
+  it('a delay past under load in a night test of a copy of a ticket, under .claude/worktrees/, gives 75', () => {
+    const p = projet({ 'tests/a.nuit.test.mjs': DELAI }, CHARGE, {
+      nuit: true,
+      sous: path.join('.claude', 'worktrees', 'demo-1'),
+    });
+    expect(p.status, p.sortie).toBe(A_REPASSER);
     expect(p.sortie).toMatch(/à repasser/);
   });
   it('critère 3: a pressure at the threshold at the start of the test only is a load: 75', () => {

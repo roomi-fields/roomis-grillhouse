@@ -1,0 +1,15 @@
+{
+  // The build of the package's TypeScript: src/ into dist/, published with the package
+  // (`npm run build`, which Turborepo runs before the tests).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "sourceMap": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.{test,spec}.{ts,js,mjs}"]
+}

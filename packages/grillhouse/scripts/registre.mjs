@@ -225,7 +225,8 @@ export function aRattraper(racine, home, connus, maintenant = Date.now()) {
 // time of one read and one append.
 const PERIME = 30_000;
 
-// Appends `l` to the register unless it already holds the line of this agent's end. Returns whether
+// Appends `l` to the register unless it already holds the line of this agent's end, or the line of
+// its key (`cle`, a gesture of an act of the circuit under Temporal played again). Returns whether
 // it wrote. The check and the append happen under the register's lock.
 export function ecrire(l) {
   mkdirSync(path.dirname(REGISTRE), { recursive: true });
@@ -236,7 +237,7 @@ export function ecrire(l) {
     for (const x of deja.split('\n')) {
       try {
         const e = JSON.parse(x);
-        if (e.agent === l.agent && e.fin === l.fin) {
+        if ((l.cle && e.cle === l.cle) || (e.agent === l.agent && e.fin === l.fin)) {
           return false;
         }
       } catch {

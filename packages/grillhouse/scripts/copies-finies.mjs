@@ -4,7 +4,9 @@
 // CI pipeline (Jenkins « Workspace Cleanup »): no copy outlives the entry of its content on main,
 // and no target directory its ticket (grillhouse-cyr: 34 GB of target/ under synthhub's copies).
 //
-//   node scripts/copies-finies.mjs [<copie finie de jouer>…]   from the main tree of the repository
+// Its command is ./retirer-les-copies-finies.mjs, which reads the circuits that run on the Temporal
+// server; this module imports nothing of the built `dist/`, since the lock of the machine and the
+// base configuration of the tests import it.
 //
 // - The night's copy (`.claude/worktrees/nuit`) is always left out: the night prepares and
 //   removes its own.
@@ -26,18 +28,21 @@
 //   progress (the copy's folder bears the ticket's id, `.claude/worktrees/<ticket>`, as the
 //   circuit and the launcher name it; read by `bd list --status in_progress`), the working
 //   directory of its circuit (`<copie>.travail`, which lives as long as the ticket,
-//   scripts/circuit.mjs), or, for the integration copy and the queue copy
-//   (`.claude/worktrees/integration`, `.claude/worktrees/file`), their lock in git's common
-//   directory (`integration.lock`, `file-integration.lock`, scripts/integration/). Tickets in
+//   scripts/circuit.mjs), or, for the integration copy (`.claude/worktrees/integration`), its
+//   lock in git's common directory (`integration.lock`, scripts/integration/integrer.mjs). The
+//   queue copy (`.claude/worktrees/file`) always stays: the workflow of the queue plays in it
+//   without a lock, one entry at a time, and prepares it again before each replay. Tickets in
 //   progress that do not read, or not within a minute, hold every copy: none is removed. They are
 //   read only when a copy is left to judge: a repository with no copy but the night's calls no bd.
 //   A locked copy (`git worktree lock`, as Claude Code locks the copy of a live agent) stays too.
-//   A copy whose circuit no longer runs (its `<copie>.travail` there, the state
-//   `<copie>.circuit.json` naming a process gone, `leMemeVivant`), its ticket still open, stays,
-//   its code and commits untouched, and its line says so with the place it holds and that of each
-//   of its tools' outputs (« son circuit ne tourne plus (son processus 4242 est parti) ; target y
-//   tient 5,1 Go ; son code et ses commits restent »): 5.2 GB of SyntHub's SH-cgi.8.2 were kept
-//   so under the words of a running circuit (grillhouse-k5y).
+//   A copy whose circuit no longer runs (its `<copie>.travail` there, its ticket out of the
+//   circuits the Temporal server runs, which its caller gives, `vivants`), its ticket still open,
+//   stays, its code and commits untouched, and its line says so with the place it holds and that
+//   of each of its tools' outputs (« son circuit ne tourne plus ; target y tient 5,1 Go ; son code
+//   et ses commits restent »): 5.2 GB of SyntHub's SH-cgi.8.2 were kept so under the words of a
+//   running circuit (grillhouse-k5y). Without the circuits that run (the server unread, or the end
+//   of a circuit, whose act reads no server), its line says only that its circuit has its
+//   working directory.
 // - The count of what holds the disk of a copy (`occupantsDesCopies`), which the wait for room of
 //   a heavy pass names (scripts/verrou-de-machine.mjs): the copies of its repository, the five
 //   largest first, each with its ticket (the copy's folder, but the frame's copies that last and
@@ -72,17 +77,18 @@
 //   output, which the night adds to its log. The exit is
 //   0 whatever is removed or kept: the removal never changes the night's verdict.
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { PILOTE } from './fusion-du-changelog.mjs';
 import { langageDe } from './langages.mjs';
-import { balayerLesTickets, leMemeVivant } from './mesure/base-de-passe.mjs';
+import { balayerLesTickets } from './mesure/base-de-passe.mjs';
 
 const RETIRER = path.join(import.meta.dirname, 'retirer-copie.sh');
 const PRINCIPALE = 'main';
 // The copies of the integration and of the queue, each held while its lock stands.
-const VERROUS = { integration: 'integration.lock', file: 'file-integration.lock' };
+const VERROUS = { integration: 'integration.lock' };
+// The queue copy, which the workflow of the queue holds without a lock (src/temporal/file/).
+const DE_LA_FILE = 'file';
 // The install of a copy: a link to the main tree's, or its own directory.
 const INSTALLATION = 'node_modules';
 // The folder of the copies of a repository, from its main tree.
@@ -92,7 +98,7 @@ const NUIT = path.join(COPIES, 'nuit');
 // The frame's copies that last, each prepared again before its pass, every untracked file removed
 // (`git clean -x`, scripts/nuit.sh and scripts/integration/rejeu.mjs): the night's, the
 // integration's, the queue's. Their folder bears no ticket.
-const DURABLES = new Set(['nuit', ...Object.keys(VERROUS)]);
+const DURABLES = new Set(['nuit', DE_LA_FILE, ...Object.keys(VERROUS)]);
 
 const lancer = (dossier, cmd, args) =>
   spawnSync(cmd, args, { cwd: dossier, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -121,25 +127,16 @@ function lesCopies(racine) {
     }));
 }
 
-const lireJson = f => {
-  try {
-    return JSON.parse(readFileSync(f, 'utf8'));
-  } catch {
-    return null;
-  }
-};
-
 // What holds the copy <chemin> for a running circuit or a live process (its lock), or null. A
-// copy whose circuit no longer runs (the state `<copie>.circuit.json` beside its `.travail` names
-// a process gone, scripts/circuit.mjs) stays held, and its line names the place its tools'
-// outputs (<ignorer>) hold there.
-function tenue({ chemin, verrou: raison }, enCours, commun, ignorer) {
+// copy whose circuit no longer runs (its ticket out of <vivants>, the tickets whose circuit the
+// server runs, null when unread) stays held beside its `.travail`, and its line names the place
+// its tools' outputs (<ignorer>) hold there.
+function tenue({ chemin, verrou: raison }, enCours, commun, ignorer, vivants) {
   const nom = path.basename(chemin);
   if (existsSync(`${chemin}.travail`)) {
-    const etat = lireJson(`${chemin}.circuit.json`);
-    if (etat && !leMemeVivant(etat.processus, etat.depart)) {
+    if (vivants && !vivants.has(nom)) {
       const sorties = placeDesSorties(chemin, ignorer).map(s => ` ; ${s}`);
-      return `son circuit ne tourne plus (son processus ${etat.processus} est parti)${sorties.join('')} ; son code et ses commits restent`;
+      return `son circuit ne tourne plus${sorties.join('')} ; son code et ses commits restent`;
     }
     return `son circuit a son dossier ${nom}.travail`;
   }
@@ -150,8 +147,11 @@ function tenue({ chemin, verrou: raison }, enCours, commun, ignorer) {
     return `elle est verrouillée${raison ? ` (${raison})` : ''}`;
   }
   const verrou = VERROUS[nom];
-  if (verrou && path.dirname(chemin).endsWith(path.join('.claude', 'worktrees'))) {
-    if (existsSync(path.join(commun, verrou))) {
+  if (path.dirname(chemin).endsWith(path.join('.claude', 'worktrees'))) {
+    if (nom === DE_LA_FILE) {
+      return 'la file y rejoue ses entrées';
+    }
+    if (verrou && existsSync(path.join(commun, verrou))) {
       return `le verrou ${verrou} est posé`;
     }
   }
@@ -335,11 +335,17 @@ function elaguer(chemin, ignorer) {
  * wrote there (<ignorer>, the directories the module of the language names, and `node_modules`).
  * <elaguer> names copies left out too, whose owner has played its pass (the night's own): each
  * loses its tools' outputs, its install kept; so does a copy of the integration or of the queue
- * kept that no lock holds.
+ * kept that no lock holds. <vivants> names the tickets whose circuit the Temporal server runs
+ * (null when its caller does not read them): a copy beside its `.travail` whose ticket is out of
+ * them stays, its line saying its circuit no longer runs, with the place of its tools' outputs.
+ * @param {string} racine
+ * @param {{ garder?: string[], elaguer?: string[], lireEnCours: () => Set<string> | null,
+ *   lireFermes: () => Set<string> | null, ignorer: string[], vivants?: Set<string> | null }} o
+ * @returns {string[]}
  */
 export function retirerLesCopiesFinies(
   racine,
-  { garder = [], elaguer: aElaguer = [], lireEnCours, lireFermes, ignorer }
+  { garder = [], elaguer: aElaguer = [], lireEnCours, lireFermes, ignorer, vivants = null }
 ) {
   const [principale, ...listees] = lesCopies(racine);
   const ici = reel(racine);
@@ -379,7 +385,10 @@ export function retirerLesCopiesFinies(
   // preparation removes; then the place it holds.
   const gardee = (chemin, raison) => {
     const nom = path.basename(chemin);
-    if (Object.hasOwn(VERROUS, nom) && path.dirname(chemin).endsWith(COPIES)) {
+    if (
+      (Object.hasOwn(VERROUS, nom) || nom === DE_LA_FILE) &&
+      path.dirname(chemin).endsWith(COPIES)
+    ) {
       const retirees = elaguer(chemin, ignorer);
       const perte = retirees.length
         ? ` ; sa prochaine préparation l'efface : ${retirees.join(', ')}`
@@ -396,7 +405,7 @@ export function retirerLesCopiesFinies(
     if (ecartees.has(reel(chemin))) {
       continue;
     }
-    const raison = tenue(copie, enCours, commun, ignorer);
+    const raison = tenue(copie, enCours, commun, ignorer, vivants);
     if (raison) {
       lignes.push(`· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}.`);
       continue;
@@ -470,15 +479,18 @@ function ignoresDuLangage(racine) {
 /**
  * The removal of the copies of the repository at <racine> (`retirerLesCopiesFinies`), the copy of
  * the night left out, the copies <finies> left out and pruned, their owner having played its pass
- * in them (the night's own, which scripts/nuit.sh names), the tickets read by bd, then of the
- * temporary directories of its closed tickets (`balayerLesTickets`): what the night and the end
- * of each circuit (scripts/circuit.mjs) run. Its lines.
+ * in them (the night's own, which scripts/nuit.sh names), the tickets read by bd, the tickets
+ * whose circuit runs <vivants> (null when unread), then of the temporary directories of its closed
+ * tickets (`balayerLesTickets`): what the night and the end of each circuit (scripts/circuit.mjs)
+ * run. Its lines.
  * @param {string} racine the main tree
  * @param {string[]} [finies]
+ * @param {Set<string> | null} [vivants]
  * @returns {string[]}
  */
-export function retirerLesCopiesDuDepot(racine, finies = []) {
+export function retirerLesCopiesDuDepot(racine, finies = [], vivants = null) {
   const lignes = retirerLesCopiesFinies(racine, {
+    vivants,
     garder: [path.join(racine, NUIT)],
     elaguer: finies,
     lireEnCours: () => tickets(racine, 'in_progress'),
@@ -487,11 +499,4 @@ export function retirerLesCopiesDuDepot(racine, finies = []) {
   });
   const retires = balayerLesTickets(() => tickets(racine, 'closed'));
   return [...lignes, ...retires.map(t => `✓ dossier temporaire du ticket ${t} retiré.`)];
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const lignes = retirerLesCopiesDuDepot(process.cwd(), process.argv.slice(2));
-  if (lignes.length) {
-    process.stdout.write(`${lignes.join('\n')}\n`);
-  }
 }

@@ -5,7 +5,7 @@
 // fingerprint of the v2 changes, gave two contrary ceilings (548 → 547 and 547 → 546) and phrases
 // out of date (« l'intégrateur la met à jour »).
 import { describe, expect, it } from 'vitest';
-import { messageDuLot } from '../../scripts/circuit.mjs';
+import { messageDuLot } from '../../scripts/activites.mjs';
 
 const ENTETE =
   'feat(000-forms,spec,900-driver,995-tools): Une redéclaration ne peut que resserrer (bp-mono-vbwf.320.4)';

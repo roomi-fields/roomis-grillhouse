@@ -2,7 +2,7 @@ import { appendFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, LANCE, circuitEssai } from './circuit-essai.js';
+import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs), grillhouse-5m1.2 critère 2: a ticket labelled
 // `arbitrage` whose arbitrage the integration would refuse (`refusArbitrage` of
@@ -15,7 +15,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, LANCE, circuitEssai } from './
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { BEADS, revenirAuDebut, ticket, scenario, circuit, lancer, sessions, etat, commentaires } =
+const { BEADS, revenirAuDebut, ticket, scenario, circuit, sessions, etat, commentaires } =
   circuitEssai(ESSAIS);
 
 // The ticket <id> of the stand-in bd, labelled `arbitrage`.
@@ -42,11 +42,9 @@ describe.runIf(canWrap)(
       const id = 'demo-arbitrage-lancement';
       ticket(id, '000-forms');
       etiqueter(id);
-      // grillhouse-pq6: the launch of a run stopped before any session does not say it launched:
-      // it ends on the stop's code, with its question.
-      const r = lancer([id]);
+      // The circuit stops at its opening, on the stop's code, with its question.
+      const r = circuit([id]);
       expect(r.status, sortie(r)).toBe(ARRETS.besoin);
-      expect(r.stderr).not.toMatch(LANCE);
       expect(r.stderr).toContain(
         `⛔ Circuit de ${id} : question au superviseur (besoin, à 1 Plan) : `
       );

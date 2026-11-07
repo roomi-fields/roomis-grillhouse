@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantier } from './integration-essai.js';
+import { chantier, serveurDeLaFileDIntegration } from './integration-essai.js';
 
 // grillhouse-8o9 — the generated files a project declares (`grillhouse.engendres` of its
 // package.json, scripts/engendres.mjs) are written again at the integration, not merged: the
@@ -15,6 +15,7 @@ import { chantier } from './integration-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'integrer-engendres-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+serveurDeLaFileDIntegration(ESSAIS);
 
 const LONG = 90_000;
 

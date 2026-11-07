@@ -22,7 +22,7 @@ import {
   claudeSubstitut,
   declarerLesLangages,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { RACINE, enProcessus, valeursDe } from './cadre.js';
+import { DE_BD_INIT, RACINE, enProcessus, valeursDe } from './cadre.js';
 
 const mettreAJourLeProjet = enProcessus<Record<string, unknown>>(
   'scripts/grillhouse-maj.mjs',
@@ -101,6 +101,10 @@ const etapesDesGardes = () =>
 const CONTROLES: [string, RegExp][] = [
   // grillhouse-ca7: the core's guard first, whatever the languages.
   ['langages des paquets', /^grillhouse langages-des-paquets$/],
+  // grillhouse-44b.4 and 44b.8: the internal packages a manifest links, the packages each flow of the
+  // CI exercises.
+  ['dépendances internes', /^grillhouse dependances-internes$/],
+  ['flux des paquets', /^grillhouse flux-des-paquets$/],
   ['turbo.json des paquets', /^grillhouse turbo-des-paquets$/],
   ['index des interfaces', /^grillhouse index-interfaces --verifier$/],
   ['consommateurs', /^grillhouse consommateurs$/],
@@ -109,6 +113,8 @@ const CONTROLES: [string, RegExp][] = [
   ['interfaces contre code', /^grillhouse interfaces-contre-code$/],
   ['code mort', /^grillhouse code-mort$/],
   ['tailles des tests', /^grillhouse tailles-des-tests$/],
+  // grillhouse-44b.10.8: no title of a test names a ticket.
+  ['titres des tests', /^grillhouse titres-de-tests$/],
   ['chemins des tests', /^grillhouse chemins-des-tests$/],
   ['résumés courts', /^grillhouse resumes$/],
 ];
@@ -423,8 +429,25 @@ describe('the update installs Turborepo', () => {
       typecheck: { dependsOn: ['build', '^build'], outputs: [] },
     });
   });
+  // What the generator writes in the root turbo.json beyond the template (`npx grillhouse
+  // turbo-des-paquets --ecrire`: the guards' dependsOn, the root's format:check and lint, the
+  // variables of the project's tools) is its own; every other task of the template stands as it is.
   it('Grillhouse’s own turbo.json follows the template with packages: its tests do not wait for its guards', () => {
-    expect(json(DEPOT, 'turbo.json')).toEqual(json(DEPOT, PAQUETS));
+    type Turbo = { ui?: string; globalPassThroughEnv: string[]; tasks: Record<string, unknown> };
+    const racine = json(DEPOT, 'turbo.json') as Turbo;
+    const gabarit = json(DEPOT, PAQUETS) as Turbo;
+    const gardes = ['//#grillhouse:gardes', '//#gardes'];
+    for (const [tache, valeur] of Object.entries(gabarit.tasks)) {
+      if (gardes.includes(tache)) {
+        expect(racine.tasks, tache).toHaveProperty([tache]);
+      } else {
+        expect(racine.tasks[tache], tache).toEqual(valeur);
+      }
+    }
+    expect(racine.globalPassThroughEnv).toEqual(
+      expect.arrayContaining(gabarit.globalPassThroughEnv)
+    );
+    expect(racine.ui).toBe(gabarit.ui);
   });
   it('a project without workspaces and without turbo.json receives the template without packages', () => {
     const { projet } = installe({ name: 'p' });
@@ -1906,6 +1929,9 @@ describe('grillhouse-3uv.95.11.1 — what stays to the project is reported after
       '.beads/hooks/commit-msg',
       '#!/bin/sh\nexec node "$(git rev-parse --show-toplevel)/scripts/un-commit-par-ticket.mjs" "$@"\n'
     );
+    // The project holds its tickets in Beads: its .beads/config.yaml holds the key issue-prefix as
+    // `bd init` of bd 1.2.2 writes it, commented out, the prefix in the database of Beads.
+    ecrire(projet, '.beads/config.yaml', DE_BD_INIT);
     ecrire(projet, 'outils/nuit.sh', '#!/bin/sh\nnode scripts/code-mort.mjs\n');
     git(projet, 'init', '-q');
     git(projet, 'config', 'core.hooksPath', '.beads/hooks');
@@ -1914,10 +1940,20 @@ describe('grillhouse-3uv.95.11.1 — what stays to the project is reported after
     symlinkSync(path.join(DEPOT, 'node_modules'), path.join(projet, 'node_modules'), 'dir');
     return projet;
   }
-  const bin = () =>
-    claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
+  // The PATH of the poste: Claude and Beads, whose `bd config get issue_prefix` gives the prefix.
+  const bin = () => {
+    const dossier = claudeSubstitut(mkdtempSync(path.join(ESSAIS, 'claude-')), {
       marches: ['claude-plugins-official', 'roomi-fields'],
     }).bin;
+    writeFileSync(
+      path.join(dossier, 'bd'),
+      '#!/bin/sh\n[ "$1 $2 $3" = "config get issue_prefix" ] && echo p\n',
+      {
+        mode: 0o755,
+      }
+    );
+    return dossier;
+  };
 
   it('names the project’s script alone, after the update rewrote its turbo.json and its hook', () => {
     const projet = projetDe022();

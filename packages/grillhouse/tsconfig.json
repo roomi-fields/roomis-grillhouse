@@ -1,0 +1,10 @@
+{
+  // The typing of the package's TypeScript, src/temporal/ and its tests, nothing emitted (`npm run
+  // typecheck`, which `npm run verifier` plays); tsconfig.build.json builds src/ into dist/.
+  "extends": "../../templates/projet/tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*", "tests/temporal/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -29,7 +29,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parse } from 'smol-toml';
 import { afterAll, describe, expect, it } from 'vitest';
-import { composantsDe, resoudreComposant } from '../../scripts/circuit.mjs';
+import { resoudreComposant } from '../../scripts/depart-du-ticket.mjs';
+import { composantsDe } from '../../scripts/ticket-du-circuit.mjs';
 import { creerPaquet, ecrireLePaquet, planDuPaquet, Refus } from '../../scripts/paquet.mjs';
 
 const PAQUET = path.resolve(__dirname, '../..');

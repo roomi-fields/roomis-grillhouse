@@ -11,8 +11,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ouvrirAvancement } from '../../scripts/avancement.mjs';
-import { assembler, FIGEE, LARGEUR, lignes, lireCircuits } from '../../scripts/tableau.mjs';
-import { rendreVivant } from './tableau-essai.js';
+import { avecLeurAvancement } from '../../scripts/circuits-du-serveur.mjs';
+import { assembler, FIGEE, LARGEUR, lignes } from '../../scripts/tableau.mjs';
+import { circuitLu } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-avancement-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -30,52 +31,43 @@ interface Ligne {
   avancement?: boolean;
 }
 
-// A progress directory of a pass begun 20 min ago, one record per task: `[faits, prevus, il y a]`.
-const avancement = (taches: [number, number, number][], ci?: [number, number, number]) => {
-  const dossier = ouvrirAvancement({
-    racine: ESSAIS,
-    genre: null,
-    dans: ESSAIS,
-    debut: MAINTENANT - 20 * MIN,
-  });
-  mkdirSync(path.join(dossier, 'taches'), { recursive: true });
-  taches.forEach(([faits, prevus, age], i) =>
-    writeFileSync(
-      path.join(dossier, 'taches', `t${i}.json`),
-      JSON.stringify({ hash: `h${i}`, faits, prevus, a: MAINTENANT - age })
-    )
-  );
-  if (ci) {
-    const [faits, prevus, age] = ci;
-    writeFileSync(
-      path.join(dossier, 'taches', 'etapes-de-la-ci.json'),
-      JSON.stringify({ hash: null, faits, prevus, a: MAINTENANT - age })
+// A progress directory of a pass begun 20 min ago, one record per task: `[faits, prevus, il y a]`,
+// opened in the working directory <travail> of a circuit, as scripts/activites.mjs opens it.
+const avancement =
+  (taches: [number, number, number][], ci?: [number, number, number]) => (travail: string) => {
+    const dossier = ouvrirAvancement({
+      racine: ESSAIS,
+      genre: null,
+      dans: travail,
+      debut: MAINTENANT - 20 * MIN,
+    });
+    mkdirSync(path.join(dossier, 'taches'), { recursive: true });
+    taches.forEach(([faits, prevus, age], i) =>
+      writeFileSync(
+        path.join(dossier, 'taches', `t${i}.json`),
+        JSON.stringify({ hash: `h${i}`, faits, prevus, a: MAINTENANT - age })
+      )
     );
-  }
-  return { dossier };
-};
+    if (ci) {
+      const [faits, prevus, age] = ci;
+      writeFileSync(
+        path.join(dossier, 'taches', 'etapes-de-la-ci.json'),
+        JSON.stringify({ hash: null, faits, prevus, a: MAINTENANT - age })
+      );
+    }
+  };
 
-// A repository with the state of the circuit of demo-12, as scripts/circuit.mjs writes it.
-const depot = (e: object) => {
+// A repository with the circuit of demo-12 as the server gives it (<e>), the pass of its
+// <avancement> under way in its working directory.
+const depot = ({
+  avancement: passe,
+  ...e
+}: { avancement?: (travail: string) => void } & Record<string, unknown>) => {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
-  const dossier = path.join(racine, '.claude', 'worktrees');
-  mkdirSync(dossier, { recursive: true });
-  writeFileSync(
-    path.join(dossier, 'demo-12.circuit.json'),
-    JSON.stringify({
-      etape: 'preuve',
-      paquets: ['packages/binder'],
-      constats: [],
-      tentative: 1,
-      code: null,
-      raison: null,
-      rapport: null,
-      finale: false,
-      seance: null,
-      ...e,
-    })
-  );
-  return racine;
+  const travail = path.join(racine, '.claude', 'worktrees', 'demo-12.travail');
+  mkdirSync(travail, { recursive: true });
+  passe?.(travail);
+  return { racine, circuit: e };
 };
 const T = {
   id: 'demo-12',
@@ -98,11 +90,9 @@ const fin = {
   cache: 0,
   cout: null,
 };
-// The lines of AGENTS of the board of <racine>, its circuit running unless <vivant> is false.
-const agents = (racine: string, { vivant = true, registre = [] as object[] } = {}) => {
-  if (vivant) {
-    rendreVivant(racine, 'demo-12');
-  }
+// The lines of AGENTS of the board of the repository <d>, its circuit running unless <vivant> is
+// false.
+const agents = (d: ReturnType<typeof depot>, { vivant = true, registre = [] as object[] } = {}) => {
   return (
     lignes(
       assembler({
@@ -110,7 +100,9 @@ const agents = (racine: string, { vivant = true, registre = [] as object[] } = {
         prefix: 'demo',
         registre,
         vivants: [],
-        circuits: lireCircuits({ racine }),
+        circuits: avecLeurAvancement(d.racine, [
+          circuitLu('demo-12', { etape: 'preuve', ...d.circuit, vivant }),
+        ]),
         maintenant: MAINTENANT,
         jour: MAINTENANT - 24 * 60 * MIN,
       }),

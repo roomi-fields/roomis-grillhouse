@@ -1,22 +1,16 @@
-import { spawn } from 'node:child_process';
-import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import {
   sortie,
-  CIRCUIT,
   ARRETS,
   CODE_JUSTE,
   ECRIT_ROUGE,
   TA_TACHE,
   LANCE,
   circuitEssai,
-  circuitJusquALaFin,
 } from './circuit-essai.js';
-import { enProcessus } from './cadre.js';
-
-const departDe = enProcessus<string | null>('scripts/mesure/base-de-passe.mjs', 'departDe');
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the sessions of the
 // agents, relaunched, stopped (« controles », « sans-livraison », « sans-fiche », « bloqué »)
@@ -28,13 +22,13 @@ const departDe = enProcessus<string | null>('scripts/mesure/base-de-passe.mjs', 
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const {
-  REPO,
   BEADS,
   revenirAuDebut,
   ticket,
   scenario,
-  ENV,
   circuit,
+  circuitJusquALaFin,
+  travailleurAvec,
   lancer,
   essai,
   sessions,
@@ -220,8 +214,12 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
       expect(e?.rapport).toContain('même sortie rouge des contrôles');
     });
 
-    // grillhouse-kgx.1: the output lived in the run alone; a resumption lost it.
-    for (const reprise of [['--reprendre'], ['--depuis', 'developpeur']]) {
+    // grillhouse-kgx.1: the output lived in the run alone; a resumption lost it. `--depuis` carries
+    // the task of the agents of the lot, its `--contexte`.
+    for (const reprise of [
+      ['--reprendre'],
+      ['--depuis', 'developpeur', '--contexte', 'Corrige le lot.'],
+    ]) {
       it(`kgx.1 critère 4 — the red output of the last checks, written in the state, survives ${reprise[0]}`, () => {
         const id = `demo-renvoi-reprise${reprise[0].replace(/^--/, '-')}`;
         ticket(id, '000-forms');
@@ -348,14 +346,21 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
     expect(etat(id)).toMatchObject({ etape: 'developpeur' });
   });
 
-  it('stops a session whose transcript stands still past the delay, at « bloqué »', () => {
+  it('stops a session whose transcript stands still past the delay, at « bloqué »', async () => {
     const id = 'demo-bloque';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}echo 'le testwriter réfléchit'\nsleep 301\n`);
     const debut = Date.now();
     // A delay well past what the session's preparation takes on a loaded machine, well short of
     // the session's own sleep.
-    const r = circuit([id], { GRILLHOUSE_CIRCUIT_IMMOBILE_MS: '15000' });
+    await travailleurAvec({ GRILLHOUSE_CIRCUIT_IMMOBILE_MS: '15000' });
+    const r = await (async () => {
+      try {
+        return circuit([id]);
+      } finally {
+        await travailleurAvec({});
+      }
+    })();
     expect(r.status, sortie(r)).toBe(ARRETS['bloqué']);
     expect(Date.now() - debut).toBeLessThan(120_000);
     const e = etat(id);
@@ -382,190 +387,43 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
   });
 });
 
-// The frame's one command, `npx grillhouse`, which runs the circuit.
-const BIN = path.resolve(path.dirname(CIRCUIT), '../bin/grillhouse.mjs');
-
-// The pid of every process under <pid>, its children and theirs, read in /proc as a kill of a
-// process tree reads them (Claude Code ends a background command with its group and its tree).
-function sousArbre(pid: number): number[] {
-  const parents = new Map<number, number>();
-  for (const p of readdirSync('/proc').filter(x => /^\d+$/.test(x))) {
-    try {
-      const stat = readFileSync(`/proc/${p}/stat`, 'utf8');
-      parents.set(Number(p), Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]));
-    } catch {
-      // A process gone since the listing.
-    }
-  }
-  const arbre: number[] = [];
-  const suivre = (p: number) => {
-    for (const [enfant, parent] of parents) {
-      if (parent === p) {
-        arbre.push(enfant);
-        suivre(enfant);
-      }
-    }
-  };
-  suivre(pid);
-  return arbre;
-}
-
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
-const vivant = (pid: number) => {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-};
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
   // grillhouse-ybq.4, critère 2. Witness: BPScript 320.8 (17:10:43), the circuit, a background
   // command of the supervisor's session, died with it (« Background shell command didn't finish
-  // before the previous session ended »), and was resumed by hand.
-  it('critère 2 — launched by `npx grillhouse circuit`, goes on to its end when its caller dies, its group and its tree with it', async () => {
+  // before the previous session ended »), and was resumed by hand. Its workflow runs in the worker
+  // of the project: the command gives the hand back at once, and nothing of the run lives in it.
+  // The death of the worker itself: tests/circuit.temporal.nuit.spec.ts.
+  it('`npx grillhouse circuit` gives the hand back at once, and the circuit goes on to its end without it', () => {
     const id = 'demo-appelant-mort';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}sleep 4\npassation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const appelant = spawn('node', [BIN, 'circuit', id], {
-      cwd: REPO,
-      env: ENV,
-      detached: true,
-      stdio: 'ignore',
-    });
-    const pid = appelant.pid as number;
-    for (let i = 0; i < 600 && sessions(id, 'testwriter') < 1; i++) {
-      await attendre(100);
-    }
-    expect(sessions(id, 'testwriter')).toBe(1);
-    // The caller's death, as the end of a session takes its background commands: its group,
-    // then every process under it.
-    const arbre = sousArbre(pid);
-    try {
-      process.kill(-pid, 'SIGKILL');
-    } catch {
-      // The group is already gone.
-    }
-    for (const p of arbre) {
-      try {
-        process.kill(p, 'SIGKILL');
-      } catch {
-        // Gone with the group.
-      }
-    }
-    for (let i = 0; i < 50 && vivant(pid); i++) {
-      await attendre(100);
-    }
-    expect(vivant(pid)).toBe(false);
-    // The circuit is not the caller, and goes on alone.
-    const enCours = etat(id);
-    expect(enCours?.processus).not.toBe(pid);
-    expect(vivant(enCours?.processus as number)).toBe(true);
-    for (let i = 0; i < 2_400 && etat(id)?.etape !== 'integre'; i++) {
-      await attendre(100);
-    }
-    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, seance: null });
+    const r = circuit([id]);
+    expect(r.stdout, sortie(r)).toMatch(LANCE);
+    expect(r.status, sortie(r)).toBe(0);
+    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     expect(sessions(id, 'testwriter')).toBe(1);
     expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
   });
 
-  it('critère 2 — refuses a second run of the ticket while its circuit runs, the first going on', async () => {
+  it('refuses a second run of the ticket while its circuit runs, the first going on', async () => {
     const id = 'demo-deux-circuits';
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}sleep 4\npassation 'Tests écrits.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const { fin } = circuitJusquALaFin([id], { cwd: REPO, env: ENV });
+    const { fin } = circuitJusquALaFin([id]);
     for (let i = 0; i < 600 && sessions(id, 'testwriter') < 1; i++) {
       await attendre(100);
     }
-    const r = circuit([id, '--reprendre']);
+    const r = lancer([id]);
     expect(r.status, sortie(r)).toBe(2);
-    expect(r.stderr).toContain(
-      `un circuit tourne déjà sur ${id} (processus ${etat(id)?.processus})`
-    );
+    expect(r.stderr).toContain(`un circuit tourne déjà sur ${id}`);
     expect(await fin).toBe(0);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     expect(sessions(id, 'testwriter')).toBe(1);
-  });
-
-  it('resumes after the death of the circuit, once the session it left has ended', async () => {
-    const id = 'demo-mort';
-    ticket(id, '000-forms');
-    scenario(
-      id,
-      'testwriter-1',
-      `${ECRIT_ROUGE}sleep 8\npassation 'Tests écrits.'\ndate +%s%N > "$e/testwriter-1.fin"\n`
-    );
-    scenario(id, 'testwriter-2', `date +%s%N > "$e/testwriter-2.debut"\npassation 'Reprise.'\n`);
-    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const appelant = spawn('node', [CIRCUIT, id], { cwd: REPO, env: ENV, stdio: 'ignore' });
-    const fin = new Promise(r => appelant.on('close', r));
-    for (let i = 0; i < 600 && sessions(id, 'testwriter') < 1; i++) {
-      await attendre(100);
-    }
-    await attendre(1_000);
-    // The circuit itself killed, the state it leaves names the session that still runs.
-    process.kill(etat(id)?.processus as number, 'SIGKILL');
-    await fin;
-    const laisse = etat(id);
-    expect(laisse).toMatchObject({ etape: 'testwriter', code: null });
-    expect(typeof laisse?.seance).toBe('number');
-    // grillhouse-pq6: the launch, in the foreground, gives the hand back at once; the run waits
-    // for the session alone, as a daemon.
-    const l = lancer([id, '--reprendre']);
-    expect(l.status, sortie(l)).toBe(0);
-    expect(l.stderr).toMatch(LANCE);
-    expect(essai(id, 'testwriter-1.fin')).toBe('');
-    expect(etat(id)).toMatchObject({ etape: 'testwriter', code: null, raison: null });
-    const r = circuit([id, '--rattacher']);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'testwriter')).toBe(2);
-    expect(BigInt(essai(id, 'testwriter-2.debut').trim())).toBeGreaterThan(
-      BigInt(essai(id, 'testwriter-1.fin').trim())
-    );
-    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0, seance: null });
-  });
-});
-
-describe.runIf(canWrap)('the process a circuit state names', { timeout: 300_000 }, () => {
-  afterEach(revenirAuDebut);
-
-  // A process that lives, whose number a state names: the circuit's when its start is the state's,
-  // another's when it is not (its number reused).
-  it('is the circuit only at its start: a number reused neither refuses a run nor is stopped by --arreter', () => {
-    const id = 'demo-numero-repris';
-    ticket(id, '000-forms');
-    const etranger = spawn('sleep', ['60'], { stdio: 'ignore' });
-    const pid = etranger.pid as number;
-    try {
-      const fichier = path.join(REPO, '.claude/worktrees', `${id}.circuit.json`);
-      const ecrireEtat = (o: object) =>
-        writeFileSync(
-          fichier,
-          `${JSON.stringify({ etape: 'testwriter', tentative: 1, code: null, ...o }, null, 2)}\n`
-        );
-      // Its number and its own start: the circuit runs, a second run is refused.
-      ecrireEtat({ etape: 'integre', processus: pid, depart: departDe(pid) });
-      let r = circuit([id, '--reprendre']);
-      expect(r.status, sortie(r)).toBe(2);
-      expect(r.stderr).toContain(`un circuit tourne déjà sur ${id} (processus ${pid})`);
-      // Its number, another start: not the circuit; the run goes on to its own refusal.
-      ecrireEtat({ etape: 'integre', processus: pid, depart: '1' });
-      r = circuit([id, '--reprendre']);
-      expect(r.status, sortie(r)).toBe(2);
-      expect(r.stderr).not.toContain('un circuit tourne déjà');
-      expect(r.stderr).toContain('rien à reprendre');
-      // --arreter leaves alone the process that took the number.
-      ecrireEtat({ processus: pid, depart: '1' });
-      r = circuit([id, '--arreter']);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(vivant(pid)).toBe(true);
-    } finally {
-      etranger.kill('SIGKILL');
-    }
   });
 });

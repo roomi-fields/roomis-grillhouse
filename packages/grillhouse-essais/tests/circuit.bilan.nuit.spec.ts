@@ -1,10 +1,10 @@
 import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs) writes the ticket's bilan at each of its ends
+// The circuit of a ticket (scripts/circuit.mjs, its workflow under Temporal) writes the ticket's bilan at each of its ends
 // (grillhouse-3uv.89, L8): at « integre », and on a stop it hands to the supervisor, one short line
 // of figures at the ticket, `Circuit · bilan : …` (scripts/bilan.mjs), and the bilan
 // kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, which the next ticket's bilan
@@ -17,9 +17,22 @@ import { ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-bilan-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { REPO, revenirAuDebut, ticket, scenario, circuit, bilans, commentaires, entrees } =
-  circuitEssai(ESSAIS);
+const {
+  REPO,
+  revenirAuDebut,
+  ticket,
+  scenario,
+  circuit,
+  travailleurAvec,
+  bilans,
+  commentaires,
+  entrees,
+} = circuitEssai(ESSAIS);
+// The register of the trial, which the acts of the worker read (scripts/bilan.mjs).
 const REGISTRE = path.join(ESSAIS, 'registre.jsonl');
+if (canWrap) {
+  beforeAll(() => travailleurAvec({ GRILLHOUSE_REGISTRE: REGISTRE }), 120_000);
+}
 const garde = (id: string) =>
   JSON.parse(readFileSync(path.join(REPO, '.claude/worktrees', `${id}.bilan.json`), 'utf8')) as {
     ticket: string;
@@ -36,7 +49,7 @@ describe.runIf(canWrap)('the bilan at the end of the circuit', { timeout: 300_00
     ticket(id, '000-forms');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
     scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const r = circuit([id], { GRILLHOUSE_REGISTRE: REGISTRE });
+    const r = circuit([id]);
     expect(r.status, sortie(r)).toBe(0);
     const b = bilans(id);
     expect(b).toHaveLength(1);

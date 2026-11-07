@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
@@ -13,7 +13,7 @@ import {
 } from './circuit-essai.js';
 import { enProcessus } from './cadre.js';
 
-const texteDuVerdict = enProcessus<string>('scripts/circuit.mjs', 'texteDuVerdict');
+const texteDuVerdict = enProcessus<string>('scripts/activites.mjs', 'texteDuVerdict');
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the review, its
 // verdicts ACCEPTÉ and RENDU, and the integration.
@@ -39,6 +39,7 @@ const {
   auteurs,
   commentaires,
   historique,
+  banc,
 } = circuitEssai(ESSAIS);
 
 // The rules that refuse an agent the change of its author at the ticket: bd's `--actor`,
@@ -60,17 +61,8 @@ const permissions = (a: string[]) =>
 // The rules that refuse the session a call.
 const refusees = (a: string[]) => permissions(a).deny;
 
-// The entries of the integration's queue: the branches in their order of arrival.
-const enFile = () => {
-  const d = path.join(REPO, '.git/file-integration');
-  return existsSync(d)
-    ? readdirSync(d)
-        .sort()
-        .map(
-          f => (JSON.parse(readFileSync(path.join(d, f), 'utf8')) as { branche: string }).branche
-        )
-    : [];
-};
+// The tickets in the queue of integration, as its workflow gives them (`file:<racine>`).
+const enFile = () => banc().laFile();
 const ticketDe = (id: string) =>
   (JSON.parse(lire(path.join(BEADS, `${id}.json`))) as { status?: string }[])[0];
 
@@ -455,7 +447,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(e?.rapport).toContain(faute);
     expect(e?.question).toMatchObject({ arret: 'sans-fiche', qui: 'superviseur' });
     expect(e?.constats.map(c => c.titre)).toEqual([TITRE]);
-    expect(enFile()).not.toContain(`agent/${id}`);
+    expect(enFile()).not.toContain(id);
     // The lot the review before read leaves the repository (a review before without its base):
     // the next review reads the whole lot, and receives the finding still open with the answer
     // under it; the stand-in's sheet judges it lifted, and the lot goes to the queue.
@@ -590,7 +582,7 @@ fiche '{"statut":"FAIT"}'
     expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
     expect(e?.rapport).toContain("n'a pas de destinataire valide");
     expect(e?.question).toMatchObject({ arret: 'relecture-arret', qui: 'superviseur' });
-    expect(enFile()).not.toContain(`agent/${id}`);
+    expect(enFile()).not.toContain(id);
     // Resumed, the reviewer puts a criterion itself in question: a stop again.
     scenario(id, 'relecteur-2', rendu('developpeur', 'le double contredit la spec.', '1'));
     const r2 = circuit([id, '--reprendre']);
@@ -621,7 +613,7 @@ fiche '{"statut":"FAIT"}'
     expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
     expect(e?.rapport).toContain('quand le plan saute le testwriter');
     expect(e?.question).toMatchObject({ arret: 'relecture-arret', qui: 'superviseur' });
-    expect(enFile()).not.toContain(`agent/${id}`);
+    expect(enFile()).not.toContain(id);
   });
 
   it('stops at « relecture-arret » at the third RENDU', () => {
@@ -647,6 +639,6 @@ fiche '{"statut":"FAIT"}'
     const e = etat(id);
     expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
     expect(e?.rapport).toContain('3 relectures ont rendu le lot');
-    expect(enFile()).not.toContain(`agent/${id}`);
+    expect(enFile()).not.toContain(id);
   });
 });

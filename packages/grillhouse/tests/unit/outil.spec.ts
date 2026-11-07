@@ -49,7 +49,7 @@ describe('the key grillhouse.outil', () => {
 });
 
 describe('each subcommand has its side, so that a new one never falls on one by default', () => {
-  it('the orchestration runs by the published version: circuit, supervisor, night, board, hooks of Claude Code, locks and rights of the sessions, integration and queue', () => {
+  it('the orchestration runs by the published version: circuit, supervisor, night, board, hooks of Claude Code, locks and rights of the sessions, integration', () => {
     expect([...REDIRIGEES].sort()).toEqual(
       [
         'bilan',
@@ -57,7 +57,6 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'commande',
         'droits',
         'enveloppe',
-        'file',
         'integrer',
         'lancer',
         'ligne-etat',
@@ -96,7 +95,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
 
   it('the tools of the repository run the code of the repository', () => {
     expect([...OUTILS_DU_DEPOT].sort()).toEqual(
-      'greffons init maj outil paquet pression sortie sous-modules ticket'.split(' ')
+      'greffons init maj outil paquet pression sortie sous-modules temporal ticket'.split(' ')
     );
   });
 

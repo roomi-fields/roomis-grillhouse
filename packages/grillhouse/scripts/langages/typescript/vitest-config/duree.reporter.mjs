@@ -26,7 +26,7 @@ import {
   lirePression,
   SEUIL_PRESSION,
 } from '../../../services-du-noyau.mjs';
-import { estHorsDuJour } from './cibles.mjs';
+import { estHorsDuJour, estUnBanc } from './cibles.mjs';
 import { classer } from './duree.classement.mjs';
 import { delaisSurLeDisque, libelleDuDelai } from './delais.mjs';
 
@@ -68,6 +68,7 @@ export default class DureeReporter {
       if (!aUnEchec(f) || f.filepath in fichiers) continue;
       fichiers[f.filepath] = {
         horsDuJour: estHorsDuJour(f.filepath),
+        banc: estUnBanc(f.filepath),
         libelleDelai: libelleDuDelai(delaisSurLeDisque(f.filepath).taille),
       };
     }

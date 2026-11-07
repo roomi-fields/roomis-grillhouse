@@ -1,4 +1,5 @@
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-essai.js';
@@ -25,7 +26,7 @@ import { sortie, CIRCUIT, IMMOBILE_MS, ARRETS, circuitEssai } from './circuit-es
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { ticket, circuit, sessions } = circuitEssai(ESSAIS);
+const { BEADS, ticket, circuit, sessions } = circuitEssai(ESSAIS);
 
 describe('the stops of the circuit and their codes', () => {
   it('names a distinct code, not 0 nor 2, for each stop', () => {
@@ -44,6 +45,7 @@ describe('the stops of the circuit and their codes', () => {
       'questionnement',
       'references',
       'hors-plan',
+      'inattendu',
     ];
     expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
     const codes = Object.values(ARRETS);
@@ -99,12 +101,32 @@ describe.runIf(canWrap)('the circuit refuses a malformed call', () => {
   it('without a ticket, exit 2', () => {
     expect(circuit([]).status).toBe(2);
   });
-  it('--reprendre without a state, exit 2', () => {
+  // grillhouse-4nr.12: the server holds no circuit of the ticket; --depuis alone reopens one.
+  it('--reprendre a circuit the server does not hold, exit 2', () => {
     const id = 'demo-sans-etat';
     ticket(id, '000-forms');
     const r = circuit([id, '--reprendre']);
     expect(r.status).toBe(2);
-    expect(r.stderr).toContain(`${id}.circuit.json`);
+    expect(r.stderr).toContain(`le serveur ne tient plus le circuit de ${id}`);
+  });
+  it('--arreter a ticket whose circuit does not run, exit 2', () => {
+    const id = 'demo-arreter-sans-circuit';
+    ticket(id, '000-forms');
+    const r = circuit([id, '--arreter']);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain(`--arreter : aucun circuit ne tourne sur ${id}`);
+  });
+  it('a ticket without its section Architecture, exit 2, named, before it goes in the queue', () => {
+    const id = 'demo-sans-architecture';
+    ticket(id, '000-forms');
+    const f = path.join(BEADS, `${id}.json`);
+    const [t] = JSON.parse(readFileSync(f, 'utf8')) as Record<string, unknown>[];
+    writeFileSync(f, JSON.stringify([{ ...t, description: 'Aucune section.' }]));
+    const r = circuit([id]);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("n'a pas sa section « ## Architecture »");
+    const [apres] = JSON.parse(readFileSync(f, 'utf8')) as { labels?: string[] }[];
+    expect(apres.labels ?? []).not.toContain('circuit');
   });
   it('a component of the title that names no package nor path, exit 2, named', () => {
     const id = 'demo-inconnu';

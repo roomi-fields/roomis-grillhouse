@@ -2,33 +2,30 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai, circuitJusquALaFin } from './circuit-essai.js';
-import { enProcessus } from './cadre.js';
+import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
-const lireAvancement = enProcessus<{ faits: number; prevus: number; dernier: number } | null>(
-  'scripts/avancement.mjs',
-  'lireAvancement'
-);
-
-// 2026-10-21 (Romain): the circuit names in its state the progress directory of each automatic
-// pass it runs (`avancement`: the proof of the red, the checks, the final pass, the verification
-// of the integration, the queue and its CI), where the passes write their files done and planned
-// (scripts/avancement.mjs), which the board reads; between two passes, the state names none.
-// The final pass, after the checks of the plan, says `finale` in the state from its start.
+// 2026-10-21 (Romain): each automatic pass the circuit runs (the proof of the red, the checks, the
+// final pass, the verification of the integration, the queue and its CI) writes its files done and
+// planned in the working directory of the ticket (scripts/avancement.mjs), which the board reads
+// with the step of the circuit from the server (scripts/circuits-du-serveur.mjs); between two
+// passes, none.
+// Each pass is proven by the trace it leaves at its end, the totals of the repository
+// (`<git common dir>/grillhouse/avancement.json`, `garderLeTotal` of scripts/avancement.mjs), never
+// by a sampling of the board, which can miss a window; the board reads none once the circuit ends.
+// How the board reads a progress directory of the working directory: tests/unit of the package
+// grillhouse (avancement-de-la-file.spec.ts, file-relecture-ci.spec.ts).
 // Witness: a pass frozen 40 min, the machine at rest, that nothing showed.
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-avancement-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { REPO, ENV, revenirAuDebut, ticket, scenario } = circuitEssai(ESSAIS);
+const { REPO, revenirAuDebut, ticket, scenario, circuitJusquALaFin, banc } = circuitEssai(ESSAIS);
 
-const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-interface Etat {
-  etape?: string;
-  finale?: boolean;
-  avancement?: { dossier?: string } | null;
+// A circuit as the board reads it: the progress of its pass under way.
+interface Lu {
+  ticket: string;
+  avancement: { prevus: number } | null;
 }
 
 describe.runIf(canWrap)(
@@ -36,52 +33,38 @@ describe.runIf(canWrap)(
   { timeout: 300_000 },
   () => {
     afterEach(revenirAuDebut);
-    it('each automatic pass names its progress directory in the state while it plays, where its tasks count their files', async () => {
+    it('each automatic pass counts its files and keeps its total at its end; the circuit ended, the board reads no progress', async () => {
       const id = 'demo-avancement';
+      const totaux = path.join(REPO, '.git', 'grillhouse', 'avancement.json');
+      rmSync(totaux, { force: true });
       ticket(id, '000-forms');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      const fichier = path.join(REPO, '.claude/worktrees', `${id}.circuit.json`);
-      const lire = (): Etat | null => {
-        try {
-          return JSON.parse(readFileSync(fichier, 'utf8')) as Etat;
-        } catch {
-          return null;
-        }
-      };
-      let fini = false;
-      const fin = circuitJusquALaFin([id], { cwd: REPO, env: ENV }).fin.then(c => {
-        fini = true;
-        return c;
-      });
-      // Each step seen with a progress directory, and the greatest number of files planned read there.
-      const vus = new Map<string, number>();
-      while (!fini) {
-        const e = lire();
-        const dossier = e?.avancement?.dossier;
-        if (e && dossier) {
-          const cle = `${e.etape}${e.finale ? ' finale' : ''}`;
-          const a = lireAvancement(dossier);
-          vus.set(cle, Math.max(vus.get(cle) ?? 0, a?.prevus ?? 0));
-        }
-        await attendre(50);
-      }
+      const lire = () => (banc().circuits() as unknown as Lu[]).find(c => c.ticket === id) ?? null;
+      const fin = circuitJusquALaFin([id]).fin;
       const journal = path.join(REPO, '.claude/worktrees', `${id}.log`);
       expect(await fin, existsSync(journal) ? readFileSync(journal, 'utf8').slice(-4000) : '').toBe(
         0
       );
-      // The checks of the plan, then the final pass (`npm run verifier`): the state says `finale`
-      // from its start, as the board reads step 4.1 there, and keeps it to the end.
-      expect([...vus.keys()].sort()).toEqual([
-        'controles',
-        'controles finale',
-        'file finale',
-        'integration finale',
-        'preuve',
-      ]);
-      expect(vus.get('preuve')).toBeGreaterThan(0);
-      expect(vus.get('controles finale')).toBeGreaterThan(0);
-      expect(vus.get('integration finale')).toBeGreaterThan(0);
+      // The total each pass kept at its end, under its kind: the proof, the checks of the plan and
+      // the final pass each counted their files. The verification of the integration plays on the
+      // tree the final pass just played: a task Turborepo serves from its cache counts the number
+      // its hash knows (`inscrireLePlan`), 0 when none is known; its total is kept under its kind
+      // all the same (`garderLeTotal`), so the kind is what the trace proves.
+      const { passes } = JSON.parse(readFileSync(totaux, 'utf8')) as {
+        passes: Record<string, number>;
+      };
+      const total = (debut: string) =>
+        Math.max(
+          0,
+          ...Object.entries(passes)
+            .filter(([k]) => k.startsWith(debut))
+            .map(([, n]) => n)
+        );
+      expect(total('preuve ')).toBeGreaterThan(0);
+      expect(total('controles ')).toBeGreaterThan(0);
+      expect(total('passe finale ')).toBeGreaterThan(0);
+      expect(passes).toHaveProperty('integration');
       expect(lire()?.avancement ?? null).toBeNull();
     });
   }

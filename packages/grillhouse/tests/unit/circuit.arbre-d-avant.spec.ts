@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
 import moduleCargo from '../../scripts/langages/cargo/index.mjs';
 import modulePython from '../../scripts/langages/python/index.mjs';
 import { cibleDeCompilation } from '../../scripts/langages/cargo/sccache.mjs';
@@ -34,7 +34,7 @@ import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.j
 
 type Arbre = { racine: string; env: Record<string, string> };
 type Ctx = { copie: string; tmp: string };
-const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
+const avecLesVersionsDAvant = activites.avecLesVersionsDAvant as (
   ctx: Ctx,
   fichiers: string[],
   jouer: (
@@ -397,7 +397,7 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
       'crates/service/tests/neuf.rs'
     );
     ecrire(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs', 'du testwriter\n');
-    const balayer = circuit.balayerLesSoeurs as (c: { copie: string }) => string[];
+    const balayer = activites.balayerLesSoeurs as (c: { copie: string }) => string[];
     expect(balayer({ copie: racine })).toEqual([]);
     expect(
       existsSync(path.join(racine, 'crates/service/tests/electra_reimport_circuit_avant.rs'))
@@ -437,7 +437,7 @@ describe('grillhouse-3e2.3 — the tree of HEAD’s version, in Rust and in Pyth
 // The names of HEAD's greens are read in the report of the tree, its file at the same relative
 // path under the root of the tree: the report of a run is the copy's by the change of root alone.
 type Rapports = { fichier: string; tests: { nom: string; etat: string }[] }[];
-const vertsDeHead = circuit.vertsDeHead as (
+const vertsDeHead = activites.vertsDeHead as (
   resultats: Rapports,
   copie: string,
   f: string,
@@ -574,7 +574,7 @@ describe('grillhouse-3e2.3 — the greens HEAD holds, read in the report of the 
 // red of the lot), kept, adapted: no sibling, the tree played, then the group alone and HEAD's
 // names read.
 type Jeu = { code: number; resultats: unknown[]; constructions: { nom: string; erreur: string }[] };
-const jouerAvecLesVersionsDAvant = circuit.jouerAvecLesVersionsDAvant as (
+const jouerAvecLesVersionsDAvant = activites.jouerAvecLesVersionsDAvant as (
   ctx: Ctx,
   groupe: string[],
   jouer: (fichiers: string[], arbres: Map<string, Arbre>) => Jeu
@@ -681,7 +681,7 @@ describe('grillhouse-3e2.3 — the fallback without the version of before, no si
 
 describe('grillhouse-3e2.3, criterion 8 — what the replaced leaves', () => {
   it('the circuit still asks the module of TypeScript for its sibling, and holds no name of Rust or Python for it', () => {
-    const source = readFileSync(path.resolve(__dirname, '../../scripts/circuit.mjs'), 'utf8');
+    const source = readFileSync(path.resolve(__dirname, '../../scripts/activites.mjs'), 'utf8');
     expect(source).toContain('soeurDAvant(');
     expect(source).toContain('arbreDAvant(');
     expect(source).not.toContain('circuit_avant');

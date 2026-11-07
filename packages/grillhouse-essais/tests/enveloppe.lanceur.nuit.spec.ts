@@ -292,7 +292,7 @@ describe('the launcher and the dependencies of the copy', () => {
     });
     expect(r.status, r.stderr).toBe(CODE_COPIE);
     expect(r.stderr).toContain("n'a pas pu être préparée");
-    expect(existsSync(`${copie}.fin`)).toBe(false);
+    expect(existsSync(`${copie}.travail/seances/courante/fin`)).toBe(false);
   });
   // grillhouse-6q1: Turborepo absent from the copy is a preparation that fails, not a build: the
   // session could not repair it, so the launch stops before any session.
@@ -311,7 +311,7 @@ describe('the launcher and the dependencies of the copy', () => {
     });
     expect(r.status, r.stderr).toBe(CODE_COPIE);
     expect(r.stderr).toContain("n'a pas pu être préparée");
-    expect(existsSync(`${copie}.fin`)).toBe(false);
+    expect(existsSync(`${copie}.travail/seances/courante/fin`)).toBe(false);
   });
 });
 
@@ -530,7 +530,7 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
 // grillhouse-3uv.95.3 — the launcher gives the envelope the packages of the plan (`--paquets`, the
 // list in the envelope's form), its component alone without them; a session its lock stops out of
 // the plan leaves its mark in its working directory, which the launcher hands to the circuit as
-// `<copie>.hors-plan`, a launch removing it first, and writes to the log.
+// `hors-plan` in the folder of the session, a launch removing it first, and writes to the log.
 describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du plan', () => {
   const repo = essai('lancer-plan-');
   const ecrire = (rel: string, contenu: string, mode?: number) => {
@@ -601,7 +601,9 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
   it('critère 2 — rend au circuit la marque d’une séance arrêtée hors du plan, et l’écrit au journal', () => {
     const { r, copie } = lancer('demo-h', ['--paquets', 'packages/a'], '\nHORS-PLAN');
     expect(r.status, r.stderr).toBe(0);
-    expect(readFileSync(`${copie}.hors-plan`, 'utf8')).toContain('packages/c');
+    expect(readFileSync(`${copie}.travail/seances/courante/hors-plan`, 'utf8')).toContain(
+      'packages/c'
+    );
     // The working directory lies in the temporary directory of the ticket (grillhouse-xv9), which
     // the mark leaves.
     const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
@@ -610,6 +612,6 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     expect(readFileSync(`${copie}.log`, 'utf8')).toContain('⛔ hors-plan — packages/c');
     // The next launch starts without it.
     lancer('demo-h', ['--paquets', 'packages/a']);
-    expect(existsSync(`${copie}.hors-plan`)).toBe(false);
+    expect(existsSync(`${copie}.travail/seances/courante/hors-plan`)).toBe(false);
   });
 });

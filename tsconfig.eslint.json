@@ -8,6 +8,7 @@
     "templates/projet/src/**/*",
     "templates/projet/tests/**/*",
     "templates/projet/*.ts",
+    "packages/grillhouse/src/**/*",
     "packages/grillhouse/tests/**/*",
     "packages/grillhouse/*.ts",
     "packages/grillhouse-essais/tests/**/*",

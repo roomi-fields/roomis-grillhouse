@@ -152,11 +152,15 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
     expect(cles(a('4.3'))).toEqual(['relecture']);
   });
 
-  it('the circuit reads the maxima of its loops in the list, none spelled again', () => {
-    const c = lire('packages/grillhouse/scripts/circuit.mjs');
-    expect(c).not.toMatch(
-      /(RELANCES_TESTWRITER|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
-    );
+  // grillhouse-4nr.5: the decisions of the circuit, its loops with them, live in scripts/transitions.mjs.
+  it('the decisions of the circuit read the maxima of its loops in the list, none spelled again', () => {
+    const c = lire('packages/grillhouse/scripts/transitions.mjs');
+    const circuit = lire('packages/grillhouse/scripts/circuit.mjs');
+    for (const texte of [c, circuit]) {
+      expect(texte).not.toMatch(
+        /(RELANCES_TESTWRITER|SEANCES_DEVELOPPEUR|RELECTURES|RELANCES_DU_REGULATEUR|TOURS) = \d/
+      );
+    }
     for (const cle of ['tests', 'code', 'relecture']) {
       expect(c, cle).toContain(`boucle('${cle}').max`);
     }
@@ -368,9 +372,13 @@ describe('the gestures of the circuit and the questions of its stops, in the lis
     expect([SUPERVISEUR, RESPONSABLE]).toEqual(['superviseur', 'responsable']);
   });
 
+  // grillhouse-4nr.4: the gesture lives with the reads and writes of the ticket.
   it('the circuit reads its gestures and its questions in the list', () => {
     expect(lire('packages/grillhouse/scripts/circuit.mjs')).toMatch(
-      /import \{[^}]*\bgesteDe\b[^}]*\bmonteeDe\b[^}]*\} from '\.\/etapes\.mjs'/
+      /import \{[^}]*\bmonteeDe\b[^}]*\} from '\.\/etapes\.mjs'/
+    );
+    expect(lire('packages/grillhouse/scripts/ticket-du-circuit.mjs')).toMatch(
+      /import \{[^}]*\bgesteDe\b[^}]*\} from '\.\/etapes\.mjs'/
     );
   });
 });

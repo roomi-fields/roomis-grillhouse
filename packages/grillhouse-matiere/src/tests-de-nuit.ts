@@ -59,7 +59,9 @@ export function testsDeNuitEssai(
   // its day configuration of Vitest; `pkg` replaces that package.json and `fichiers` adds or replaces files.
   // `nuits: false` leaves the night tests out. The project of trial proves the night, not the
   // controls of the frame (grillhouse-3uv.55, critère 8): the update installs `grillhouse:gardes`,
-  // which projet() takes away, and Turborepo skips a task without script.
+  // which projet() takes away, and Turborepo skips a task without script. Nor does it prove the
+  // lint and the format of the root, which the verification plays when their scripts exist
+  // (grillhouse-61z): the template's `lint` and `format:check` go too, its trial holding no `src/`.
   function projet(
     enPlus: Record<string, string> = {},
     o: {
@@ -113,7 +115,9 @@ export function testsDeNuitEssai(
       scripts?: Record<string, string>;
     };
     if (installe.scripts) {
-      delete installe.scripts['grillhouse:gardes'];
+      for (const s of ['grillhouse:gardes', 'lint', 'format:check']) {
+        delete installe.scripts[s];
+      }
       writeFileSync(path.join(repo, 'package.json'), JSON.stringify(installe, null, 2));
     }
     writeFileSync(path.join(repo, '.gitignore'), 'node_modules\n.claude/worktrees/\n.turbo/\n');

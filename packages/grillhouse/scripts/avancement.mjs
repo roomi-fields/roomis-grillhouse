@@ -4,12 +4,19 @@
 //
 // - A pass has its progress directory, which the variable GRILLHOUSE_AVANCEMENT (AVANCEMENT of
 //   scripts/mesure/avancement.mjs) names to its commands: the circuit opens one for each
-//   automatic pass and names it in its state (scripts/circuit.mjs), `npm run verifier` opens its own when it
-//   receives none (scripts/langages/typescript/verifier.mjs). The directory holds `passe.json` (`{ genre, debut,
-//   precedent }`: its kind, its start, the total of the previous pass of that kind), the records
-//   of its tasks (`taches/`, written by the reporter of progress of the base configuration, one
+//   automatic pass in its working directory, `<copie>.travail`, where the board reads it
+//   (`avancementDuTravail`), `npm run verifier` opens its own when it receives none
+//   (scripts/langages/typescript/verifier.mjs). The directory holds `passe.json` (`{ genre, debut,
+//   precedent, totaux }`: its kind, its start, the total of the previous pass of that kind, and
+//   the file of the totals where its end keeps its own), the records of its tasks (`taches/`, written by the reporter of progress of the base configuration, one
 //   per run of Vitest, and by the queue for the steps of its CI, scripts/integration/file.mjs),
 //   and the plans of its runs of Turborepo (`plan/`).
+// - The CI of a ticket's commit is read by one act at a time, each a process of its own: its
+//   readings share one progress directory in the working directory of the ticket,
+//   `avancement-ci` (`avancementDeLaCI`), opened by the first and emptied when a reading looks
+//   for a run again (another CI, after a reopening), where the board reads the steps
+//   of the run done over planned while the circuit waits for it; the next pass of the circuit
+//   removes it with the others (`avecLAvancementDuTravail`).
 // - The reading adds the records: the files done, and the files planned of the tasks started;
 //   while every task the plans name has not started, the total of the previous pass of the same
 //   kind stands when it is greater (a pass without a plan never knows all its tasks started).
@@ -28,14 +35,16 @@
 //   board reads the holder with its progress, and the waits for the lock or for room
 //   (`lireLaMesure`).
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { ecrireAtomique, TACHES } from './mesure/avancement.mjs';
+import { AVANCEMENT, ecrireAtomique, TACHES } from './mesure/avancement.mjs';
 import { lireLeVerrou } from './verrou-de-machine.mjs';
 
 const PASSE = 'passe.json';
 const PLAN = 'plan';
+// The name of a progress directory starts so (`ouvrirAvancement`).
+const PREFIXE = 'avancement-';
 const TACHES_GARDEES = 2_000;
 
 const lireJson = f => {
@@ -64,21 +73,26 @@ function fichierDesTotaux(racine) {
   );
   return r.status === 0 ? path.join(r.stdout.trim(), 'grillhouse', 'avancement.json') : null;
 }
-const lireLesTotaux = racine => {
-  const f = fichierDesTotaux(racine);
+// The totals read in the file <f>, empty without one.
+const totauxDe = f => {
   const t = f ? lireJson(f) : null;
   return { fichier: f, passes: t?.passes ?? {}, taches: t?.taches ?? {} };
 };
+// The totals of the repository at <racine>.
+const lireLesTotaux = racine => totauxDe(fichierDesTotaux(racine));
 
 /**
  * Opens the progress directory of a pass of kind <genre> (null: a pass whose total is not kept)
- * in the repository at <racine>, made under <dans>, its start <debut>; its path.
+ * in the repository at <racine>, made under <dans>, its start <debut>; its path. The file of the
+ * totals is resolved now and kept in `passe.json` (`totaux`): the integration removes the ticket's
+ * copy before its pass ends, and its total goes to the same repository.
  * @param {{ racine: string, genre?: string | null, dans?: string, debut?: number }} o
  */
 export function ouvrirAvancement({ racine, genre = null, dans = tmpdir(), debut = Date.now() }) {
-  const dossier = mkdtempSync(path.join(dans, 'avancement-'));
-  const precedent = genre ? (lireLesTotaux(racine).passes[genre] ?? null) : null;
-  ecrireAtomique(path.join(dossier, PASSE), { genre, debut, precedent });
+  const dossier = mkdtempSync(path.join(dans, PREFIXE));
+  const totaux = lireLesTotaux(racine);
+  const precedent = genre ? (totaux.passes[genre] ?? null) : null;
+  ecrireAtomique(path.join(dossier, PASSE), { genre, debut, precedent, totaux: totaux.fichier });
   return dossier;
 }
 
@@ -155,15 +169,113 @@ export function lireAvancement(dossier) {
 }
 
 /**
- * Keeps, at the end of the pass whose directory is <dossier>, its total under its kind and the
- * files planned of each task it played, in the totals of the repository at <racine>.
- * @param {string} dossier
- * @param {string} racine
+ * The progress of the pass under way in the working directory <travail> of a circuit, where each
+ * automatic pass of the circuit opens its progress directory (`avecLAvancementDuTravail`, one
+ * pass at a time): the latest started that reads, null without one.
+ * @param {string} travail
+ * @returns {{ faits: number, prevus: number, debut: number, dernier: number } | null}
  */
-export function garderLeTotal(dossier, racine) {
+export function avancementDuTravail(travail) {
+  let noms = [];
+  try {
+    noms = readdirSync(travail).filter(f => f.startsWith(PREFIXE));
+  } catch {
+    return null;
+  }
+  return (
+    noms
+      .map(f => lireAvancement(path.join(travail, f)))
+      .filter(Boolean)
+      .sort((a, b) => b.debut - a.debut)[0] ?? null
+  );
+}
+
+/**
+ * The progress directory of the readings of the CI of a ticket's commit, in the working directory
+ * <travail> of its circuit, where the board reads it (`avancementDuTravail`): one for all its
+ * readings, opened by the first, emptied when <nouvelle> (a reading that looks for its run, the
+ * records of another run gone); null when the circuit has no working directory.
+ * @param {string} travail
+ * @param {{ nouvelle?: boolean, debut?: number }} [o]
+ * @returns {string | null}
+ */
+export function avancementDeLaCI(travail, { nouvelle = false, debut = Date.now() } = {}) {
+  if (!existsSync(travail)) {
+    return null;
+  }
+  const dossier = path.join(travail, `${PREFIXE}ci`);
+  try {
+    if (nouvelle) {
+      rmSync(dossier, { recursive: true, force: true });
+    }
+    if (!existsSync(path.join(dossier, PASSE))) {
+      mkdirSync(dossier, { recursive: true });
+      ecrireAtomique(path.join(dossier, PASSE), { genre: null, debut, precedent: null });
+    }
+  } catch {
+    // A directory that does not write leaves the queue going, without its progress.
+    return null;
+  }
+  return dossier;
+}
+
+/**
+ * Runs <passe> under a progress directory of the kind <genre> (null: none kept) opened in the
+ * working directory <travail> of a ticket's circuit, where the board reads it
+ * (`avancementDuTravail`): each automatic pass of the circuit (scripts/activites.mjs) and the
+ * replay of the ticket's branch by the queue (scripts/faits-du-circuit.mjs `avancer`), one pass at
+ * a time. The directories a killed pass left there go first, a lot that goes through the queue
+ * again included. The directory is given to <passe> and named to it and its children by
+ * GRILLHOUSE_AVANCEMENT (`AVANCEMENT`); then its total is kept in the repository at <racine> and
+ * it is removed, unless <garder> holds for what <passe> returns: a lot entered on main keeps it
+ * until the queue is done with the ticket closed, which removes the working directory whole
+ * (`retirerLeTravail` of scripts/integration/file.mjs), as the circuit kept its progress for its
+ * whole step of the queue. Without the working directory, <passe> runs without one (null).
+ * Returns what <passe> returns.
+ * @template T
+ * @param {string} travail
+ * @param {{ racine: string, genre: string | null, garder?: (valeur: T) => boolean }} o
+ * @param {(dossier: string | null) => T} passe
+ * @returns {T}
+ */
+export function avecLAvancementDuTravail(travail, { racine, genre, garder = () => false }, passe) {
+  if (!existsSync(travail)) {
+    return passe(null);
+  }
+  for (const f of readdirSync(travail).filter(n => n.startsWith(PREFIXE))) {
+    rmSync(path.join(travail, f), { recursive: true, force: true });
+  }
+  const dossier = ouvrirAvancement({ racine, genre, dans: travail });
+  const avant = process.env[AVANCEMENT];
+  process.env[AVANCEMENT] = dossier;
+  let garde = false;
+  try {
+    const valeur = passe(dossier);
+    garde = garder(valeur);
+    return valeur;
+  } finally {
+    if (avant === undefined) {
+      delete process.env[AVANCEMENT];
+    } else {
+      process.env[AVANCEMENT] = avant;
+    }
+    garderLeTotal(dossier);
+    if (!garde) {
+      rmSync(dossier, { recursive: true, force: true });
+    }
+  }
+}
+
+/**
+ * Keeps, at the end of the pass whose directory is <dossier>, its total under its kind and the
+ * files planned of each task it played, in the totals its opening named (`totaux` of its
+ * `passe.json`); none out of git.
+ * @param {string} dossier
+ */
+export function garderLeTotal(dossier) {
   const passe = lireJson(path.join(dossier, PASSE));
   if (!passe) return;
-  const t = lireLesTotaux(racine);
+  const t = totauxDe(passe.totaux ?? null);
   if (!t.fichier) return;
   const liste = enregistrements(dossier);
   if (passe.genre && liste.length) t.passes[passe.genre] = liste.reduce((s, e) => s + e.prevus, 0);

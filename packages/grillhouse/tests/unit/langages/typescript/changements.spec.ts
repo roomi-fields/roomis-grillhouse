@@ -169,3 +169,20 @@ describe('a pass measured against the last green, in each package', () => {
     expect(p.variables).toEqual([]);
   });
 });
+
+// A night test plays at night alone: a targeted run that names one is refused by its name, in a
+// ticket's copy under `.claude/worktrees/` as anywhere else (the one rule `estUnTestDeNuit`).
+describe('a targeted run that names a night test', () => {
+  it('is refused by its name, the file under a copy of a ticket included', async () => {
+    const r = realpathSync(mkdtempSync(path.join(ESSAIS, 'refus-')));
+    const paquet = path.join(r, '.claude', 'worktrees', 'demo-1', 'packages', 'a');
+    mkdirSync(path.join(paquet, 'tests'), { recursive: true });
+    writeFileSync(path.join(paquet, 'tests', 'lourd.nuit.spec.ts'), '\n');
+    const env: Record<string, string> = {
+      [VARIABLE]: JSON.stringify({ arguments: [path.join(paquet, 'tests', 'lourd.nuit.spec.ts')] }),
+    };
+    await expect(ciblage(env, () => {}).config({ root: paquet })).rejects.toThrow(
+      '⛔ tests/lourd.nuit.spec.ts : un test de nuit se joue la nuit seulement'
+    );
+  });
+});

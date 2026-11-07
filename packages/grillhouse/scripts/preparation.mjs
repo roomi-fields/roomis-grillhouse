@@ -4,7 +4,10 @@
 // - git: the directory becomes a repository when it is none.
 // - Beads, the ticket store the skills work from: the tool (`bd`, installed by
 //   `npm install -g @beads/bd` when absent), then the store, under the prefix given, else the
-//   store's own, else the directory's name; the repository's `beads.role` is `maintainer`.
+//   store's own, else the directory's name; the repository's `beads.role` is `maintainer`. That
+//   prefix is written in the key `issue-prefix` of `.beads/config.yaml`, which `bd init` leaves
+//   commented out and the guard of the titles of the tests reads (`ecrireLePrefixe` of
+//   ./prefixe-des-tickets.mjs, as the update writes it).
 // - CodeGraph, the code knowledge graph the skills query (the MCP server of `.mcp.json`): the tool
 //   (installed by `npm install -g @colbymchenry/codegraph` when absent) and the index of the code.
 // - The folder git reads the hooks from: `core.hooksPath` set to Beads' (`.beads/hooks`) when the
@@ -17,7 +20,9 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { trouverDansLePath } from './commandes-du-path.mjs';
 import { installerGreffons } from './greffons.mjs';
+import { ecrireLePrefixe } from './prefixe-des-tickets.mjs';
 
 // The prefix of the tickets: the one given, else the store's own, else the directory's name.
 function prefixeDe(projet, donne) {
@@ -40,7 +45,7 @@ function prefixeDe(projet, donne) {
 // Runs <commande> in <projet>, its output this process's; throws on a failure.
 const lancer = (projet, commande, args) =>
   execFileSync(commande, args, { cwd: projet, stdio: 'inherit' });
-const present = commande => spawnSync('sh', ['-c', `command -v ${commande}`]).status === 0;
+const present = commande => trouverDansLePath(commande) !== null;
 
 // A global tool of the preparation, installed by npm when absent.
 function outil(commande, paquet) {
@@ -65,6 +70,7 @@ export function preparer(projet, prefixe) {
   outil('bd', '@beads/bd');
   outil('codegraph', '@colbymchenry/codegraph');
   if (!existsSync(path.join(projet, '.codegraph'))) lancer(projet, 'codegraph', ['init', projet]);
+  const lePrefixe = prefixeDe(projet, prefixe);
   lancer(projet, 'bd', [
     'init',
     '--init-if-missing',
@@ -72,8 +78,9 @@ export function preparer(projet, prefixe) {
     '--skip-agents',
     '--quiet',
     '--prefix',
-    prefixeDe(projet, prefixe),
+    lePrefixe,
   ]);
+  ecrireLePrefixe(projet, lePrefixe);
   lancer(projet, 'git', ['config', 'beads.role', 'maintainer']);
   const r = spawnSync('git', ['-C', projet, 'config', 'core.hooksPath'], { encoding: 'utf8' });
   if ((r.stdout ?? '').trim() === '') {

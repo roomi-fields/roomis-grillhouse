@@ -7,6 +7,7 @@ import {
   chantierDependances,
   construireParLiens,
   poserLies,
+  serveurDeLaFileDIntegration,
 } from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
 
@@ -19,6 +20,7 @@ import { LONG } from './file-integration-essai.js';
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+serveurDeLaFileDIntegration(ESSAIS);
 
 // grillhouse-3uv.73 critère 3: in the queue, the build that `npm run verifier` plays hard-links tracked
 // files (./integration-essai.ts, `construireParLiens`), which leaves the index of the queue's copy

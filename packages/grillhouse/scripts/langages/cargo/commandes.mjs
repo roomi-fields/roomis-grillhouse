@@ -66,8 +66,8 @@
 //   green: the one pass of the verification keeps it (scripts/dernier-vert.mjs,
 //   scripts/langages/typescript/verifier.mjs). Beside the module of package.json, whose pass plays
 //   every task of the graph, the composed command sets `GRAPHE_JOUE` and `verifier` plays `cargo
-//   deny check` alone (scripts/commandes-composees.mjs). It plays under the lock of the machine, one heavy
-//   measure at a time (`avecLaMachine` of ./jointure, as the module typescript's verifier): a
+//   deny check` alone (scripts/commandes-composees.mjs). It plays on a place of the machine and under its lock,
+//   one heavy measure at a time (`avecLaMachineEtUnePlace` of ./jointure, as the module typescript's verifier): a
 //   measure that holds it makes it wait, and the bound of the wait reached, it stops at 75 without
 //   running cargo.
 // - `verifier --gardes` plays the guards alone, the same verdict as the module typescript's: the
@@ -129,7 +129,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
-  avecLaMachine,
+  surUnePlace,
+  avecLaMachineEtUnePlace,
   cheminsDeLaTache,
   construireDepuisLesArguments,
   ecrirePression,
@@ -685,7 +686,7 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     const dire = l => process.stdout.write(`${l}\n`);
     try {
       return sousLaBase('verification', env, envBase =>
-        avecLaMachine(envMachine => verifier(racine, args, envMachine), {
+        avecLaMachineEtUnePlace(envMachine => verifier(racine, args, envMachine), {
           env: envBase,
           racine,
           dire,
@@ -701,7 +702,7 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   }
   const tous = crates(racine);
   if (nom === 'tester') {
-    return tester(racine, tous, args, env);
+    return surUnePlace(e => tester(racine, tous, args, e), { env });
   }
   if (nom === 'tests-du-paquet') {
     return sousLaBase('tests', env, envBase => testsDuPaquet(racine, tous, args, envBase));

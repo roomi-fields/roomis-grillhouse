@@ -7,18 +7,20 @@
 // when the module of the language no longer reads its components (cargo metadata red), is a red
 // handed back to that agent, as a red build, not a stop.
 // Witness: SyntHub SH-13y.6.8 under 0.29.0 (2026-11-02): `pyo3-build-config.workspace = true`
-// without the root entry; the process died, circuit.json stayed at `etape=developpeur,
-// raison=null, code=null`, and `--reprendre` died at once in the same reading.
+// without the root entry; the process died, the state of the circuit stayed at
+// `etape=developpeur, raison=null, code=null`, and `--reprendre` died at once in the same reading.
 //
 // The cases use the fake cargo of ./langages/cargo/faux-cargo.ts, which refuses a dependency
-// `.workspace = true` that the root does not declare, as cargo does (code 101). The run of the
-// entry (`main`) in its own process is the night test circuit.inattendu.nuit.test.ts.
+// `.workspace = true` that the root does not declare, as cargo does (code 101). An act that fails
+// on the workflow of the ticket, its stop « inattendu » and its question awaited, is
+// tests/temporal/circuit.spec.ts.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as circuit from '../../scripts/circuit.mjs';
+import * as transitions from '../../scripts/transitions.mjs';
 import { ARRETS, MONTEES, boucle as boucleDeLEtape, monteeDe } from '../../scripts/etapes.mjs';
 import module from '../../scripts/langages/cargo/index.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
@@ -43,7 +45,7 @@ interface Suite {
   arret?: string;
 }
 const rougeDeLecture = circuit.rougeDeLecture as (ctx: Ctx) => Rouge | null;
-const suiteDuRougeDeLecture = circuit.suiteDuRougeDeLecture as (
+const suiteDuRougeDeLecture = transitions.suiteDuRougeDeLecture as (
   role: string,
   tentative: number
 ) => Suite;

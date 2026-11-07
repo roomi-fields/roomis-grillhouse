@@ -1,6 +1,6 @@
 // The lock of a file shared between processes: the file `<verrou>` stands while someone holds it.
-// Taken by the integration (`.git/integration.lock`, `.git/file-integration.lock`) and by the
-// register (`registre.jsonl.verrou`).
+// Taken by the integration (`.git/integration.lock`) and by the register
+// (`registre.jsonl.verrou`).
 //
 // - A lock is created whole and exclusively: its mark (the owner's process number, then a token
 //   unique to the taking) is written to a private file that is linked to `<verrou>`; the link

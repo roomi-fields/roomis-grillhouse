@@ -41,12 +41,14 @@ export const FICHIERS_DU_CADRE = ['templates'];
 
 /**
  * The entries the package publishes of its own; `docs/` holds the architecture the charter names,
- * `tsdoc-base.json` the TSDoc base a project's tsdoc.json extends.
+ * `dist/` the build of src/ (the account's Temporal, src/temporal/), `tsdoc-base.json` the TSDoc
+ * base a project's tsdoc.json extends.
  */
 export const PROPRES_DU_PAQUET = [
   'CHANGELOG.md',
   'bin',
   'cadre',
+  'dist',
   'docs',
   'scripts',
   'tsdoc-base.json',

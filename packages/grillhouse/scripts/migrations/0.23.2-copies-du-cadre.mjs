@@ -80,9 +80,15 @@ function formesAnterieures(texte) {
 const hacher = octets => createHash('sha256').update(octets).digest('hex');
 const lireJson = f => JSON.parse(readFileSync(f, 'utf8'));
 
-// The subcommand that runs each script of the package, by the path of its former copy.
+// The subcommand that runs each script of the package, by the path of its former copy; a former
+// copy whose subcommand runs another script since (`circuit`, the client of the workflow of a
+// ticket since 0.30.0, src/temporal/circuit/commande.ts) keeps its subcommand.
+const DEPLACEES = [['scripts/circuit.mjs', 'circuit']];
 const parCopie = projet =>
-  new Map(Object.entries(scriptsDesSousCommandes(projet)).map(([n, s]) => [`scripts/${s}`, n]));
+  new Map([
+    ...Object.entries(scriptsDesSousCommandes(projet)).map(([n, s]) => [`scripts/${s}`, n]),
+    ...DEPLACEES,
+  ]);
 
 // The lines of the list that keep a path: a file, or a directory « …/ ».
 const gardees = texte =>

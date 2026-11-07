@@ -16,13 +16,13 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // The frame's package, in the same tree.
 const CADRE = path.resolve(__dirname, '../../grillhouse');
-const CIRCUIT = path.join(CADRE, 'scripts/circuit.mjs');
+// The acts of the circuit, each in a process of its own, as the worker of a project plays them.
+const ACTES = path.join(CADRE, 'scripts/faits-du-circuit.mjs');
 const NUIT = path.join(CADRE, 'scripts/nuit.sh');
 const SCRIPT = path.join(CADRE, 'scripts/outils-cles.mjs');
 const COMMANDE = path.join(CADRE, 'bin/grillhouse.mjs');
@@ -86,38 +86,31 @@ describe('critère 3 — a faulty key stops the circuit at its launch, by its na
         },
       ])
     );
-    const r = spawnSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        `const { main } = await import(${JSON.stringify(pathToFileURL(CIRCUIT).href)});
-process.exitCode = await main(['t-1']);`,
-      ],
-      {
-        cwd: racine,
-        encoding: 'utf8',
-        timeout: 60_000,
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CLAUDE_BIN: '/bin/false' },
-      }
-    );
-    expect(r.status, `${r.stdout}\n${r.stderr}`).toBe(10);
-    expect(r.stderr).toContain('lancement');
-    const etat = JSON.parse(
-      readFileSync(path.join(racine, '.claude/worktrees/t-1.circuit.json'), 'utf8')
-    ) as { raison: string; rapport: string; seance: unknown; processus: number; depart: string };
-    expect(etat.raison).toBe('lancement');
-    // grillhouse-pq6.1: its question, said on the output its caller reads, is gone up, so that
-    // the wait of the questions does not wake on it.
-    const remontees = JSON.parse(
-      readFileSync(path.join(racine, '.claude/worktrees/questions-remontees.json'), 'utf8')
-    ) as { remontees: string[] };
-    expect(remontees.remontees).toEqual([`t-1:${etat.processus}:${etat.depart}:lancement`]);
-    expect(etat.rapport).toContain('grillhouse.outils.X_OUTIL');
-    expect(etat.seance).toBeNull();
-    expect(readFileSync(path.join(bin, 'bd.journal'), 'utf8')).toContain(
-      'grillhouse.outils.X_OUTIL'
-    );
+    // The opening of the circuit, the act its workflow plays first: its outcome is the last line.
+    const r = spawnSync(process.execPath, [ACTES, 'ouvrir'], {
+      cwd: racine,
+      encoding: 'utf8',
+      timeout: 60_000,
+      input: JSON.stringify({ ticket: 't-1', memoire: {}, reponse: null, arrete: null }),
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CLAUDE_BIN: '/bin/false' },
+    });
+    expect(r.status, `${r.stdout}\n${r.stderr}`).toBe(0);
+    const ligne = r.stdout.split('\n').find(l => l.startsWith('resultat '));
+    const { arret, effets } = JSON.parse(ligne?.slice('resultat '.length) ?? 'null') as {
+      arret: { code: number; nom: string };
+      effets: { genre: string; etat?: { raison: string; rapport: string }; texte?: string }[];
+    };
+    expect(arret).toMatchObject({ code: 10, nom: 'lancement' });
+    // Its state and its comment at the ticket, which the workflow writes, name the fault.
+    const etat = effets.filter(x => x.genre === 'etat').at(-1)?.etat;
+    expect(etat?.raison).toBe('lancement');
+    expect(etat?.rapport).toContain('grillhouse.outils.X_OUTIL');
+    expect(
+      effets
+        .filter(x => x.genre === 'commentaire')
+        .map(x => x.texte)
+        .join('\n')
+    ).toContain('grillhouse.outils.X_OUTIL');
     expect(existsSync(path.join(racine, '.claude/worktrees/t-1'))).toBe(false);
   });
 });

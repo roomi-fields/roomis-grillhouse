@@ -1,11 +1,15 @@
-// A pass of the circuit on the machine: a heavy pass (the final pass, `npm run verifier`) holds the
-// exclusive lock of the machine (scripts/verrou-de-machine.mjs); a targeted pass (the proof of the
-// red and the checks, which play the tests of the ticket only) takes a place like a session of an
-// agent (scripts/places-de-la-machine.mjs). Locks and places are independent: a targeted pass
-// starts while a heavy one holds the lock, and a heavy one starts without waiting for the places.
+// A pass of the circuit on the machine: each takes a place of the machine, like a session of an
+// agent (scripts/places-de-la-machine.mjs); a heavy pass (the final pass, `npm run verifier`)
+// holds besides the exclusive lock of the machine (scripts/verrou-de-machine.mjs), once its place
+// is given (`avecLaMachineEtUnePlace`). A targeted pass (the proof of the red and the checks,
+// which play the tests of the ticket only) starts while a heavy one holds the lock.
 import { sousNiceEtIonice } from './enveloppe/enveloppe.mjs';
-import { VARIABLE_TRAVAILLEURS, avecUnePlace, travailleursDe } from './places-de-la-machine.mjs';
-import { avecLaMachine } from './verrou-de-machine.mjs';
+import {
+  VARIABLE_TRAVAILLEURS,
+  avecLaMachineEtUnePlace,
+  avecUnePlace,
+  travailleursDe,
+} from './places-de-la-machine.mjs';
 
 /**
  * Whether the npm command of a step is a heavy pass: `npm run verifier`, whatever its step.
@@ -34,7 +38,7 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
 }
 
 /**
- * Plays <mesure> under the lock of the machine (<lourde>) or on a place (otherwise), the
+ * Plays <mesure> on a place of the machine, and under its lock besides when it is <lourde>, the
  * environment it receives being the pass's own. The wait of either says its reason and stops at
  * the bound (75).
  * @template T
@@ -46,16 +50,17 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
  */
 export function avecLaPasse(mesure, { lourde, env = process.env, racine, ticket, sorte, ...options }) {
   if (lourde) {
-    const { dire, borneMs, rappelMs } = options;
-    return avecLaMachine(mesure, {
+    const { dire, borneMs, rappelMs, rang } = options;
+    return avecLaMachineEtUnePlace(mesure, {
       env,
       racine,
       ticket,
       sorte,
+      ...(rang !== undefined ? { rang } : {}),
       ...(dire ? { dire } : {}),
       ...(borneMs !== undefined ? { borneMs } : {}),
       ...(rappelMs !== undefined ? { rappelMs } : {}),
     });
   }
-  return avecUnePlace(() => mesure(env), { ...options, env, ticket });
+  return avecUnePlace(place => mesure(place.env), { ...options, env, ticket });
 }

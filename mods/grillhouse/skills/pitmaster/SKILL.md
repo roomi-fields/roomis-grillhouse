@@ -35,8 +35,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
    première réponse et sans attendre le mot du responsable,
    `npx grillhouse superviseur --attendre` (« L'attente des questions me réveille »). Si elle
    liste « Les circuits du
-   dépôt », je relance chaque circuit mort sans état final par la commande qu'elle donne
-   (`--reprendre`), et je réponds à chaque question qu'elle nomme, ou je la porte au
+   dépôt », je relance chaque circuit fini sans son issue par la commande qu'elle donne
+   (`--reprendre` depuis son dernier état écrit, `--depuis` sans état écrit), et je réponds à chaque question qu'elle nomme, ou je la porte au
    responsable ; un circuit qui tourne n'appelle rien. Ainsi la relance de ma séance ne perd
    ni un circuit, ni son arrêt.
 2. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
@@ -84,14 +84,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 ## Un agent, un ticket
 
 - **Je lance le circuit d'un ticket** : un ticket tranché part au circuit,
-  `npx grillhouse circuit <ticket>`, que je lance une fois, au premier plan. Le circuit tourne en démon, détaché
-  de ma séance comme par `setsid`, et dans une unité de systemd à lui comme par
-  `systemd-run --user`, hors du terminal de ma séance : la commande rend la main dès que l'état
-  du circuit le nomme (« ▶ Circuit de <ticket> lancé »), comme `systemctl start`. Sa question me
-  réveille par l'attente des questions, seule voie, et sa fin normale ne me réveille pas : le
-  panneau la montre. Je ne me sers pas de `--rattacher`, qui attend la fin d'un circuit, pour être
-  réveillé ; je ne dis jamais « les circuits continuent » sans que l'attente des questions
-  tourne. Lancé en arrière-plan, son lancement me réveillerait pour rien en rendant la main :
+  `npx grillhouse circuit <ticket>`, que je lance une fois, au premier plan. La commande est la
+  cliente du serveur Temporal : elle met le ticket dans la file des tickets du projet et rend la
+  main aussitôt (« ▶ <ticket> est dans la file des tickets du projet »), et son circuit tourne sur
+  le serveur, hors de ma séance. Sa question me réveille par l'attente des questions, seule voie,
+  et sa fin normale ne me réveille pas : le panneau la montre. Je ne dis jamais « les circuits
+  continuent » sans que l'attente des questions tourne. Lancé en arrière-plan, son lancement me réveillerait pour rien en rendant la main :
   seule l'attente des questions tourne en arrière-plan. Une file de lancements part d'un coup,
   au premier plan, chaque lancement rendant la main en quelques secondes ; les questions de ses
   circuits me parviennent par l'attente. Le circuit mène l'arbre de ses étapes
@@ -257,8 +255,7 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   (`uptime`) ; machine chargée, les agents attendent. Ainsi un test rend le résultat du code, et non
   celui d'une machine saturée.
 - **Mes commits** : l'intégration travaille dans sa propre copie et ne touche pas l'arbre
-  principal ; seule la file y avance main. Je commite mes propres fichiers quand je veux. Un ticket
-  resté `en-file` sans file lancée se vide à la main : `npx grillhouse file`. Ainsi un
+  principal ; seule la file y avance main. Je commite mes propres fichiers quand je veux. Ainsi un
   changement du cadre n'attend aucune livraison.
 - **La nuit se lit le matin** : la passe complète tourne pour de vrai une fois la nuit
   (`packages/grillhouse/scripts/nuit.sh`, `npm run verifier -- --force`), suivie des tests de nuit (`*.nuit.test.*`,
@@ -271,11 +268,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   le lis en ouvrant la séance, et il passe avant tout autre ticket. Ainsi un défaut que les
   intégrations du jour n'ont pas vu se corrige le lendemain.
 - **Un « en cours » est un processus vivant** : un « en cours » se vérifie par un processus vivant
-  ou un journal qui bouge, jamais par une phrase ; un circuit dont l'état nomme un processus
-  vivant (`processus`, le même par son départ `depart`) tourne encore, ma séance d'appel fermée comprise, et une seconde course sur
-  son ticket est refusée, et `--rattacher` en attend la fin pour qui veut l'attendre ; un circuit mort sans état final (ni
-  arrêt ni code écrit), que le panneau range sous « ⤷ Question · superviseur », est relancé par
-  moi, `--reprendre`, sur son ticket, sans attendre un mot du responsable. Ainsi la file ne s'arrête
+  ou un journal qui bouge, jamais par une phrase ; un circuit dont le serveur dit le déroulé
+  en cours tourne encore, ma séance d'appel fermée comprise, et une seconde course sur son ticket
+  est refusée ; un circuit dont le déroulé a fini sans son issue, que le panneau range sous
+  « ⤷ Question · superviseur », est relancé par moi, sur son ticket, par la commande que le panneau
+  et l'ouverture donnent (`--reprendre` depuis son dernier état écrit, `--depuis` sans état
+  écrit), sans attendre un mot du responsable. Ainsi la file ne s'arrête
   jamais sur une promesse.
 
 ## Le circuit d'un ticket

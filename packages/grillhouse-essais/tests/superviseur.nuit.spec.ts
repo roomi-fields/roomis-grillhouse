@@ -9,7 +9,6 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
-  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -22,7 +21,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { RACINE } from './cadre.js';
+import { copierLesScripts, RACINE, valeursDe } from './cadre.js';
 
 const SUPERVISEUR = path.join(RACINE, 'packages/grillhouse/scripts/superviseur.mjs');
 const OUVERTURE = path.join(RACINE, 'packages/grillhouse/scripts/session-start.sh');
@@ -69,16 +68,22 @@ const ouvrir = (dir: string, ajouts: Record<string, string> = {}) =>
     encoding: 'utf8',
     env: environnement(ajouts),
   });
+// What the opening says of a server that does not answer within the delay of its reading.
+const { SANS_REPONSE_EN } = valeursDe('scripts/circuits-du-serveur.mjs', ['SANS_REPONSE_EN']) as {
+  SANS_REPONSE_EN: string;
+};
 const pid = (verrou: string) => readFileSync(verrou, 'utf8').split(':')[0];
 
 describe('grillhouse-3uv.89 — un seul superviseur par projet', () => {
   it('la première séance prend le verrou du dépôt, et dit seulement de lancer l’attente des questions', () => {
     const p = projet();
-    const r = ouvrir(p.racine);
+    // No server answers (port 1): the opening says so, and names no circuit (grillhouse-4nr.10).
+    const r = ouvrir(p.racine, { TEMPORAL_ADDRESS: '127.0.0.1:1' });
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toMatch(/^## L'attente des questions\n/);
     expect(r.stdout).toContain('`npx grillhouse superviseur --attendre`');
-    expect(r.stdout).not.toContain('## Les circuits du dépôt');
+    expect(r.stdout).toContain(SANS_REPONSE_EN);
+    expect(r.stdout).not.toMatch(/^- /m);
     expect(pid(p.verrou)).toBe(String(process.pid));
   });
 
@@ -162,14 +167,8 @@ describe('grillhouse-3uv.89 — l’ouverture de séance du cadre dit le supervi
 
   it('une seconde séance reçoit la section qui le dit, et la première rien de tel', () => {
     const p = projet();
-    // The frame's scripts the check reads, as a project holds them.
-    mkdirSync(path.join(p.racine, 'scripts/mesure'), { recursive: true });
-    for (const f of ['superviseur.mjs', 'verrou-de-fichier.mjs', 'mesure/base-de-passe.mjs']) {
-      copyFileSync(
-        path.join(RACINE, 'packages/grillhouse/scripts', f),
-        path.join(p.racine, 'scripts', f)
-      );
-    }
+    // The frame's scripts the check reads, with all they import, as a project holds them.
+    copierLesScripts(['superviseur.mjs'], path.join(p.racine, 'scripts'));
     const demarrer = () =>
       spawnSync(BASH, [OUVERTURE], {
         encoding: 'utf8',

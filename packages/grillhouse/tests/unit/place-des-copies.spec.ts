@@ -20,7 +20,6 @@ import {
   retirerLesCopiesDuDepot,
   retirerLesCopiesFinies,
 } from '../../scripts/copies-finies.mjs';
-import { departDe } from '../../scripts/mesure/base-de-passe.mjs';
 import { attendreDeLaPlace, avecLaMachine } from '../../scripts/verrou-de-machine.mjs';
 
 const DEPOT = path.resolve(import.meta.dirname, '../../../..');
@@ -285,11 +284,15 @@ describe('grillhouse-k5y, critère 3 — une passe lourde attend la place sur le
   });
 });
 
-const balayer = (racine: string, o: { enCours?: Set<string>; fermes?: Set<string> } = {}) =>
+const balayer = (
+  racine: string,
+  o: { enCours?: Set<string>; fermes?: Set<string>; vivants?: Set<string> | null } = {}
+) =>
   retirerLesCopiesFinies(racine, {
     lireEnCours: () => o.enCours ?? new Set<string>(),
     lireFermes: () => o.fermes ?? new Set<string>(),
     ignorer: ['target'],
+    vivants: o.vivants ?? null,
   }).join('\n');
 
 describe('grillhouse-k5y, critère 4 — les copies qui durent élaguent leur target/', () => {
@@ -359,18 +362,13 @@ describe('grillhouse-k5y, critère 4 — les copies qui durent élaguent leur ta
 
   it('the night names its own copy to the removal once its steps are played', () => {
     const nuit = readFileSync(path.join(DEPOT, 'packages/grillhouse/scripts/nuit.sh'), 'utf8');
-    expect(nuit).toMatch(/node "\$ici\/copies-finies\.mjs" "\$copie"/);
+    expect(nuit).toMatch(/node "\$ici\/retirer-les-copies-finies\.mjs" "\$copie"/);
   });
 });
 
+// grillhouse-4nr.10, criterion 4: whether a circuit runs is what the Temporal server says, which
+// the caller gives (`vivants`); no state of the circuit is read.
 describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plus est nommée avec sa place', () => {
-  // The state of the circuit of the copy <c>, its process <processus>.
-  const etat = (c: string, processus: number, depart: string | null) =>
-    writeFileSync(
-      `${c}.circuit.json`,
-      JSON.stringify({ etape: 'controles', processus, depart, finale: true })
-    );
-
   it(
     'its circuit gone, the line names it with the place of the copy and of its target/; its code and its commits stay',
     () => {
@@ -379,11 +377,13 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
       engager(c, 'travail du ticket\n');
       cible(c, 1024);
       mkdirSync(`${c}.travail`);
-      // A process gone: a number past the kernel's largest (pid_max, 2^22 at most).
-      etat(c, 2 ** 22 + 1, '1');
-      const journal = balayer(racine, { enCours: new Set(['demo-20']) });
+      // The server runs another ticket's circuit.
+      const journal = balayer(racine, {
+        enCours: new Set(['demo-20']),
+        vivants: new Set(['demo-99']),
+      });
       expect(journal).toMatch(
-        /copie gardée : \.claude\/worktrees\/demo-20 \(\d+(,\d)? Mo\) : son circuit ne tourne plus \(son processus \d+ est parti\) ; target y tient 1,\d Mo/
+        /copie gardée : \.claude\/worktrees\/demo-20 \(\d+(,\d)? Mo\) : son circuit ne tourne plus ; target y tient 1,\d Mo/
       );
       expect(existsSync(path.join(c, 'target', 'debug', 'deps', 'gros'))).toBe(true);
       expect(readFileSync(path.join(c, 'a.txt'), 'utf8')).toBe('travail du ticket\n');
@@ -398,8 +398,7 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
       const racine = depot();
       const c = copie(racine, 'demo-21');
       mkdirSync(`${c}.travail`);
-      etat(c, process.pid, departDe(process.pid));
-      const journal = balayer(racine);
+      const journal = balayer(racine, { vivants: new Set(['demo-21']) });
       expect(journal).toMatch(
         /copie gardée : \.claude\/worktrees\/demo-21 \(.*\) : son circuit a son dossier demo-21\.travail/
       );
@@ -408,7 +407,7 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
   );
 
   it(
-    'a copy whose working directory has no state of its circuit keeps its line, as before',
+    'a copy whose circuits running are not read keeps its line, as before',
     () => {
       const racine = depot();
       const c = copie(racine, 'demo-22');

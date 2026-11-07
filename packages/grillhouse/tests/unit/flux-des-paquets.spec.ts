@@ -12,7 +12,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { declarerLeLangage } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { afterAll, describe, expect, it } from 'vitest';
-import { ARRETS, consigne, fluxAuLancement } from '../../scripts/circuit.mjs';
+import { ARRETS, fluxAuLancement } from '../../scripts/circuit.mjs';
+import { consigne } from '../../scripts/seances.mjs';
 import {
   consigneDesFlux,
   constats,

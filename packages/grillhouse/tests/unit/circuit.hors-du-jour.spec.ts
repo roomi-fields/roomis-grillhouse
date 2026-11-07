@@ -11,7 +11,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
+import * as transitions from '../../scripts/transitions.mjs';
 import type { Langage } from '../../scripts/jointure.js';
 import moduleCargo from '../../scripts/langages/cargo/index.mjs';
 import modulePython from '../../scripts/langages/python/index.mjs';
@@ -19,16 +20,16 @@ import moduleTypescript from '../../scripts/langages/typescript/index.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
 type Separation = { jour: string[]; misDeCote: string[] };
-const separer = circuit.separerLesFichiersDuJour as (
+const separer = activites.separerLesFichiersDuJour as (
   ctx: { copie: string },
   fichiers: string[]
 ) => Separation;
-const sectionMisDeCote = circuit.sectionMisDeCote as (fichiers: string[]) => string[];
-const preuveReussie = circuit.preuveReussie as (
+const sectionMisDeCote = activites.sectionMisDeCote as (fichiers: string[]) => string[];
+const preuveReussie = activites.preuveReussie as (
   compte: Record<string, number>,
   o: { inchange: boolean }
 ) => boolean;
-const apresLaPreuve = circuit.apresLaPreuve as (o: {
+const apresLaPreuve = transitions.apresLaPreuve as (o: {
   rouges: number;
   pourLeDeveloppeur: boolean;
   inchange: boolean;
@@ -118,6 +119,24 @@ describe('grillhouse-3e2.4, critère 6 — chaque module dit, pour un fichier de
     expect(typescript.horsDuJour('test/lourd.nuit.test.ts', racine)).toBe(true);
     expect(typescript.horsDuJour('test/temoin.test.ts', racine)).toBe(true);
     expect(typescript.horsDuJour('test/jour.test.ts', racine)).toBe(false);
+  });
+
+  // Une copie de ticket vit sous `.claude/worktrees/`, et `**` ne traverse pas un dossier caché :
+  // un test de nuit et un banc s'y reconnaissent à leur nom.
+  it('sous un dossier caché, comme une copie de ticket, un test de nuit et un banc restent hors du jour (typescript)', () => {
+    const copie = path.join(ESSAIS, '.claude', 'worktrees', 'demo-1');
+    mkdirSync(copie, { recursive: true });
+    declarerLesLangages(copie, { '.': 'typescript' });
+    for (const [f, texte] of Object.entries(TYPESCRIPT)) {
+      ecrire(copie, f, texte);
+    }
+    expect(typescript.horsDuJour('test/lourd.nuit.test.ts', copie)).toBe(true);
+    expect(typescript.horsDuJour('test/vitesse.budget.test.ts', copie)).toBe(true);
+    expect(typescript.horsDuJour('test/jour.test.ts', copie)).toBe(false);
+    expect(separer({ copie }, ['test/lourd.nuit.test.ts', 'test/jour.test.ts'])).toEqual({
+      jour: ['test/jour.test.ts'],
+      misDeCote: ['test/lourd.nuit.test.ts'],
+    });
   });
 
   it('critère 6 : un fichier dont le nom ne suit pas ces définitions est du jour, un fichier absent aussi', () => {

@@ -12,13 +12,19 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canWrap, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { afterAll } from 'vitest';
+import { afterAll, beforeAll } from 'vitest';
 import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
+import { FAUX_GH } from './integration-essai.js';
+import { ouvrirLeBanc, type Banc } from './temporal-essai.js';
 
-// The trial harness of the circuit of a ticket (scripts/circuit.mjs), shared by its tests
-// (tests/circuit*.nuit.spec.ts): the frame's paths, the stand-ins of claude and bd, the scenarios a
-// test writes for each role, and the trial repository, which circuitEssai builds in the trial
-// directory of the file that calls it.
+// The trial harness of the circuit of a ticket, shared by its tests (tests/circuit*.nuit.spec.ts):
+// the frame's paths, the stand-ins of claude and bd, the scenarios a test writes for each role, and
+// the trial repository, which circuitEssai builds in the trial directory of the file that calls it,
+// with the bench of Temporal its circuits run on (./temporal-essai.ts: a server and the frame's
+// worker of their own). A test drives a circuit by the frame's command (`npx grillhouse circuit`,
+// the client of the workflow of a ticket) and waits, synchronously, for where it stops: the watch
+// of the circuit (./guetter-le-circuit.mjs) reads the server in a process of its own, while the
+// worker runs apart.
 //
 // The frame's package is the one of the same tree (./cadre.ts).
 //
@@ -33,7 +39,13 @@ import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
 // proof and the checks are real runs of the frame's commands (npm test, npm run verifier), and the
 // integration the frame's script (scripts/integration/integrer.mjs).
 
+// The code of the circuit's acts (scripts/circuit.mjs), which a test reads.
 export const CIRCUIT = path.join(CADRE, 'scripts/circuit.mjs');
+// The frame's command, and the watch of a circuit on the server of the trial.
+const COMMANDE = path.join(CADRE, 'bin/grillhouse.mjs');
+const GUETTEUR = path.join(__dirname, 'guetter-le-circuit.mjs');
+// How long a circuit has to stop, watched on the server of the trial.
+const ARRET_MS = 280_000;
 const ENVELOPPE = path.join(CADRE, 'scripts/enveloppe/enveloppe.mjs');
 export const BASE = path.join(CADRE, 'scripts/langages/typescript/vitest-config/base.mjs');
 const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
@@ -216,8 +228,9 @@ exit 0
 // (`t`), with its time to the second, as bd writes it; `update` (--status, --add-label repeatable,
 // --remove-label, -d/--description, --notes, --title), `close` (--reason, -r) and `reopen` write
 // its state, as the integration, the queue and the circuit change it; `create` (--parent, -l,
-// -d) makes a child `<parent>.<n>`, and prints its id, and `config get issue_prefix` is `demo`,
-// as scripts/ticket.sh uses them.
+// -d) makes a child `<parent>.<n>`, and prints its id, `list` gives every ticket (its status
+// `open` when it names none), as the queue of the tickets reads them, and `config get
+// issue_prefix` is `demo`, as scripts/ticket.sh uses them.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -234,6 +247,12 @@ if (cmd === 'config') {
   const id = parent + '.' + n;
   fs.writeFileSync(path.join(b, id + '.json'), JSON.stringify([{ id, title: r[0], parent, labels: [v('-l')], description: v('-d') ?? '', status: 'open' }]));
   process.stdout.write(id + '\\n');
+} else if (cmd === 'list') {
+  // As bd filters them: by their parent (--parent), by a text of their description (--desc-contains).
+  const v = o => (r.includes(o) ? r[r.indexOf(o) + 1] : null);
+  const tous = fs.readdirSync(b).filter(f => f.endsWith('.json')).flatMap(f => JSON.parse(fs.readFileSync(path.join(b, f), 'utf8')));
+  const choisis = tous.filter(t => (!v('--parent') || t.parent === v('--parent')) && (!v('--desc-contains') || String(t.description ?? '').includes(v('--desc-contains'))));
+  process.stdout.write(JSON.stringify(choisis.map(t => ({ status: 'open', ...t }))));
 } else if (cmd === 'show') {
   process.stdout.write(fs.readFileSync(path.join(b, r[0] + '.json'), 'utf8'));
 } else if (cmd === 'comments' && r[0] === 'add') {
@@ -375,45 +394,11 @@ export const TA_TACHE =
 export const lire = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
 export const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`;
 
-// The line a launch of the circuit ends on once the run is detached (scripts/circuit.mjs,
-// `rendreLaMain`): the run goes on alone, and `--rattacher` waits for its end (grillhouse-pq6).
-export const LANCE = /^▶ Circuit de \S+ lancé /m;
+// The line a launch of the circuit puts the ticket in the queue of the tickets with.
+export const LANCE = /^▶ \S+ est dans la file des tickets du projet/m;
 
 // The ticket a run of the circuit with <args> names: its first argument that is no option.
 const ticketDe = (args: string[]) => args.find(a => !a.startsWith('--')) ?? '';
-
-/**
- * The circuit run with <args> to its end, as a test waits for it: its launch, which returns once
- * the run is detached, then `--rattacher`, which ends on what the run's state says; its code, and
- * the outputs of both, the launch's first. <lance> is the launch, to read or kill.
- */
-export function circuitJusquALaFin(
-  args: string[],
-  options: { cwd: string; env: NodeJS.ProcessEnv }
-): { lance: ReturnType<typeof spawn>; fin: Promise<number | null> } {
-  const lance = spawn('node', [CIRCUIT, ...args], {
-    ...options,
-    stdio: ['ignore', 'ignore', 'pipe'],
-  });
-  let erreurs = '';
-  lance.stderr?.on('data', d => {
-    erreurs += String(d);
-  });
-  const fin = new Promise<number | null>(ok => {
-    lance.on('close', code => {
-      if (code !== 0 || !LANCE.test(erreurs)) {
-        ok(code);
-        return;
-      }
-      const attache = spawn('node', [CIRCUIT, ticketDe(args), '--rattacher'], {
-        ...options,
-        stdio: 'ignore',
-      });
-      attache.on('close', ok);
-    });
-  });
-  return { lance, fin };
-}
 
 // The circuit's named values, read once in a process; a circuit that does not load leaves them
 // empty, and the tests that read them fail on their own assertion.
@@ -424,12 +409,20 @@ export const IMMOBILE_MS = (valeurs.IMMOBILE_MS ?? 0) as number;
 // The trial repository of one test file under <ESSAIS>, built when this machine can wrap an
 // envelope, and what reads and drives it; <feuille> adds the third package; <gardesSansCache> keeps
 // the project's guard out of Turborepo's cache, so that the integration copy plays it again, where
-// the checks of the ticket's copy played it green (the guard red in the integration copy alone).
-export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache = false } = {}) {
+// the checks of the ticket's copy played it green (the guard red in the integration copy alone);
+// <origine> pushes its main to a bare remote `origin`, with a CI on each push
+// (`.github/workflows/ci.yml`) that a fake gh answers (`ci`).
+// <banc>: the bench of Temporal the circuits of the file run on, opened before its tests; the tests
+// that open their own (./temporal-essai.ts) leave it out.
+export function circuitEssai(
+  ESSAIS: string,
+  { feuille = false, gardesSansCache = false, origine = false, banc: avecBanc = true } = {}
+) {
   const REPO = path.join(ESSAIS, 'depot');
   const HOME = path.join(ESSAIS, 'home');
   const BIN = path.join(ESSAIS, 'bin');
   const BEADS = path.join(REPO, '.beads');
+  const DISTANT = path.join(ESSAIS, 'distant.git');
 
   // The envelope as the trial repository holds it: enveloppe.mjs and every module it imports.
   function installerEnveloppe() {
@@ -460,6 +453,8 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
         type: 'module',
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
+        // The circuits of the trial run side by side: each test leaves its own stopped.
+        grillhouse: { circuits: 100 },
         scripts: {
           test: `node ${path.join(CADRE, 'scripts/langages/typescript/tests.mjs')}`,
           verifier: `node ${path.join(CADRE, 'scripts/langages/typescript/verifier.mjs')}`,
@@ -496,6 +491,10 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
       ecrire(path.join(REPO, `packages/${dossier}/test/ancien.test.mjs`), ANCIEN);
     }
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
+    if (origine) {
+      ecrire(path.join(REPO, '.github/workflows/ci.yml'), 'on: push\n');
+      ecrire(path.join(BIN, 'gh'), FAUX_GH, 0o755);
+    }
     ecrire(path.join(REPO, 'CLAUDE.md'), CHARTE);
     ecrireTurbo(REPO);
     if (gardesSansCache) {
@@ -520,6 +519,11 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
     git('init', '-q', '-b', 'main');
     git('add', '.');
     git('commit', '-qm', 'init');
+    if (origine) {
+      execFileSync('git', ['init', '-q', '--bare', '-b', 'main', DISTANT]);
+      git('remote', 'add', 'origin', DISTANT);
+      git('push', '-q', 'origin', 'main');
+    }
     // The integration's copy made ahead, with this repository's dependencies, as a project holds them.
     const integration = path.join(REPO, '.claude/worktrees/integration');
     git('worktree', 'add', '-q', '--detach', integration);
@@ -533,8 +537,31 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
   const INITIAL = canWrap
     ? execFileSync('git', ['-C', REPO, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
     : '';
-  const revenirAuDebut = () =>
+  const revenirAuDebut = () => {
     execFileSync('git', ['-C', REPO, 'reset', '-q', '--hard', INITIAL], { encoding: 'utf8' });
+    if (origine) {
+      execFileSync('git', ['-C', REPO, 'push', '-q', '--force', 'origin', 'main'], {
+        encoding: 'utf8',
+      });
+    }
+  };
+  // The CI the fake gh gives for every commit pushed: one run, completed on <conclusion>.
+  const ci = (conclusion: 'success' | 'failure') =>
+    ecrire(
+      path.join(BIN, 'gh.json'),
+      json({
+        runs: [{ databaseId: 41, status: 'completed', conclusion }],
+        vues: [
+          {
+            status: 'completed',
+            conclusion,
+            jobs: [{ status: 'completed', steps: [{ status: 'completed' }] }],
+          },
+        ],
+        url: 'https://ci.essai/41',
+        log: conclusion === 'failure' ? 'un test rouge en CI' : '',
+      })
+    );
 
   // A ticket of the stand-in bd, whose title names <composants>; its copy made ahead, with this
   // repository's dependencies as its own (the launcher then installs nothing), as a project holds them.
@@ -548,11 +575,18 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
       rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
     }
   });
-  function ticket(id: string, composants: string) {
+  function ticket(id: string, composants: string, { labels = [] as string[] } = {}) {
     tickets.add(id);
     ecrire(
       path.join(BEADS, `${id}.json`),
-      json([{ id, title: `${id} — La mesure — ${composants}`, description: DESCRIPTION }])
+      json([
+        {
+          id,
+          title: `${id} — La mesure — ${composants}`,
+          description: DESCRIPTION,
+          ...(labels.length ? { status: 'open', labels } : {}),
+        },
+      ])
     );
     const copie = path.join(REPO, '.claude/worktrees', id);
     execFileSync('git', ['-C', REPO, 'worktree', 'add', '-q', '-b', `agent/${id}`, copie]);
@@ -585,32 +619,139 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
     DO_NOT_TRACK: '1',
   };
 
-  // The circuit run with <args> to its end: its launch, then, once the run is detached (`LANCE`),
-  // `--rattacher`, whose code is the run's; the outputs of both, the launch's first.
-  const options = (env: Record<string, string>) => ({
-    cwd: REPO,
-    encoding: 'utf8' as const,
-    env: { ...ENV, ...env },
-    timeout: 280_000,
-  });
-  // The launch of the circuit with <args> alone, as the supervisor runs it in the foreground: it
-  // returns once the run is detached (`LANCE`), or on the run's code when it ends before.
-  const lancer = (args: string[], env: Record<string, string> = {}) =>
-    spawnSync('node', [CIRCUIT, ...args], options(env));
-  const circuit = (args: string[], env: Record<string, string> = {}) => {
-    const r = lancer(args, env);
-    if (r.status !== 0 || !LANCE.test(r.stderr)) {
+  // The bench of the file, opened before its tests, and the queue of its tickets started: a
+  // « a-repasser » sleeps for an hour, so that the test answers it.
+  let banc: Banc | null = null;
+  if (avecBanc && canWrap) {
+    beforeAll(async () => {
+      banc = await ouvrirLeBanc(ESSAIS, { REPO, ENV, journal }, 'circuits');
+      banc.demarrerLesTickets({ repasserMs: 3_600_000 });
+    }, 120_000);
+    afterAll(async () => {
+      await banc?.fermer([...tickets]);
+    }, 600_000);
+  }
+  const leBanc = () => {
+    if (!banc) {
+      throw new Error("le banc de Temporal du fichier n'est pas ouvert.");
+    }
+    return banc;
+  };
+  // The watch of the circuit of <id>: <mode> with <args> (./guetter-le-circuit.mjs).
+  const guetter = (mode: 'lire' | 'attendre', id: string, ...a: string[]) => {
+    const g = spawnSync(process.execPath, [GUETTEUR, CADRE, mode, REPO, id, ...a], {
+      encoding: 'utf8',
+      env: leBanc().env,
+      timeout: ARRET_MS + 60_000,
+    });
+    if (g.status !== 0) {
+      throw new Error(
+        `le guet du circuit de ${id} échoue : ${g.stderr}\nLa fin de la sortie du travailleur :\n${leBanc().sortieDuTravailleur().slice(-6000)}`
+      );
+    }
+    return JSON.parse(g.stdout || 'null') as {
+      code?: number;
+      signe: string;
+      etat: Record<string, unknown> | null;
+      ou?: string | null;
+      fin?: unknown;
+      question?: unknown;
+    } | null;
+  };
+  // The line of the question a stop of the circuit of <id> puts, as the circuit writes it.
+  const laQuestion = (
+    id: string,
+    e: Record<string, unknown> | null,
+    ou: string | null,
+    attendue: unknown = null
+  ) => {
+    const q = (attendue ?? e?.question) as
+      { arret?: string; qui?: string; question?: string } | null | undefined;
+    // An act that fails says its error with its question, as the state keeps it.
+    const erreur = q?.arret === 'inattendu' ? `${String(e?.rapport ?? '')}\n` : '';
+    return q
+      ? `⛔ Circuit de ${id} : question au ${q.qui} (${q.arret}, à ${ou}) : ${String(q.question ?? '').trim()}\n${erreur}`
+      : '';
+  };
+  // The launch of the circuit with <args> alone, as the supervisor runs it: the frame's command,
+  // which puts the ticket in the queue, or answers the circuit, and returns at once.
+  const lancer = (args: string[], plus: Record<string, string> = {}) =>
+    spawnSync(process.execPath, [COMMANDE, 'circuit', ...args], {
+      cwd: REPO,
+      encoding: 'utf8' as const,
+      env: { ...leBanc().env, ...plus },
+      timeout: 60_000,
+    });
+  // The circuit run with <args> to where it stops: the command,
+  // then the wait for the circuit to stand elsewhere and stop (a question, its code; a
+  // « a-repasser », 75; its end, 0); the outputs of both, what the worker wrote meanwhile and the
+  // line of the question with them. A refused command ends on its own code. <plus> joins the
+  // environment of the command (the supervisor's session, CLAUDE_CODE_SESSION_ID, that a test names).
+  const circuit = (args: string[], plus: Record<string, string> = {}) => {
+    const id = ticketDe(args);
+    const avant = guetter('lire', id)?.signe ?? '';
+    const ecrit = leBanc().sortieDuTravailleur().length;
+    const r = lancer(args, plus);
+    if (r.status !== 0) {
       return r;
     }
-    const a = spawnSync('node', [CIRCUIT, ticketDe(args), '--rattacher'], options(env));
-    return { ...a, stdout: r.stdout + a.stdout, stderr: r.stderr + a.stderr };
+    const g = guetter('attendre', id, avant, String(ARRET_MS));
+    const duTravailleur = leBanc().sortieDuTravailleur().slice(ecrit);
+    // A workflow that ended without its issue says why.
+    const echec = (g?.fin as { echec?: string } | null | undefined)?.echec;
+    return {
+      ...r,
+      status: g?.code ?? 1,
+      stderr: `${r.stderr}${duTravailleur}${laQuestion(id, g?.etat ?? null, g?.ou ?? null, g?.question)}${echec ? `⛔ le déroulé de ${id} échoue : ${echec}\n` : ''}`,
+    };
   };
+  // The circuit run with <args> to where it stops, without blocking: its launch, then the wait, in a
+  // process of their own; `fin`, the code where it stops.
+  const circuitJusquALaFin = (args: string[]) => {
+    const id = ticketDe(args);
+    const avant = guetter('lire', id)?.signe ?? '';
+    const lance = spawn(process.execPath, [COMMANDE, 'circuit', ...args], {
+      cwd: REPO,
+      env: leBanc().env,
+      stdio: 'ignore',
+    });
+    const fin = new Promise<number | null>(ok => {
+      lance.on('close', code => {
+        if (code !== 0) {
+          ok(code);
+          return;
+        }
+        const g = spawn(
+          process.execPath,
+          [GUETTEUR, CADRE, 'attendre', REPO, id, avant, String(ARRET_MS)],
+          { env: leBanc().env, stdio: ['ignore', 'pipe', 'ignore'] }
+        );
+        let lu = '';
+        g.stdout?.on('data', d => {
+          lu += String(d);
+        });
+        g.on('close', () => {
+          try {
+            ok((JSON.parse(lu) as { code: number }).code);
+          } catch {
+            ok(null);
+          }
+        });
+      });
+    });
+    return { lance, fin };
+  };
+  // The worker of the bench started again with <env> besides the bench's, for the circuits that
+  // follow (a variable an act reads: the register, the time zone, the motionless delay).
+  const travailleurAvec = (env: Record<string, string>) => leBanc().travailleurAvec(env);
   const essai = (id: string, f: string) => lire(path.join(BEADS, 'essai', id, f));
   const sessions = (id: string, role: string) => Number(essai(id, `${role}.n`) || 0);
   const args = (id: string, role: string, n: number) =>
     essai(id, `${role}-${n}.args`).split('\0').slice(0, -1);
+  // The state of the circuit of <id> as it wrote it last, read from the server (the query of its
+  // workflow, or its end); null when the server holds none.
   const etat = (id: string) =>
-    JSON.parse(lire(path.join(REPO, '.claude/worktrees', `${id}.circuit.json`)) || 'null') as {
+    (guetter('lire', id)?.etat ?? null) as {
       etape: string;
       tentative: number;
       code: number | null;
@@ -618,8 +759,6 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
       rapport: string | null;
       journal: string;
       finale: boolean;
-      seance: number | null;
-      processus: number;
       paquets: string[];
       constats: { titre: string; role: string; regle: string; corps: string; piece?: string }[];
       verifie: string | null;
@@ -653,12 +792,15 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
       .filter(Boolean)
       .map(l => JSON.parse(l) as Record<string, unknown>);
   const gitRepo = (...a: string[]) => execFileSync('git', ['-C', REPO, ...a], { encoding: 'utf8' });
-  // Every comment at the ticket, each with its author and its time.
+  // Every comment at the ticket, each with its author and its time, its text as a reader sees it:
+  // without the key a comment of the circuit carries on its last line (`marqueDeCle` of
+  // scripts/effets.mjs).
   const tous = (id: string) =>
     lire(path.join(BEADS, `${id}.comments.jsonl`))
       .split('\n')
       .filter(Boolean)
-      .map(l => JSON.parse(l) as { author: string; text: string; created_at: string });
+      .map(l => JSON.parse(l) as { author: string; text: string; created_at: string })
+      .map(c => ({ ...c, text: c.text.replace(/\n\n<!-- grillhouse : [^\n]* -->$/, '') }));
   // The bilan the circuit writes at each of its ends (scripts/bilan.mjs), a line `Circuit · bilan :
   // …`, read apart from its history.
   const BILAN = /^Circuit · bilan :/;
@@ -678,12 +820,16 @@ export function circuitEssai(ESSAIS: string, { feuille = false, gardesSansCache 
   return {
     REPO,
     BEADS,
+    ci,
     revenirAuDebut,
     ticket,
     scenario,
     ENV,
     circuit,
     lancer,
+    circuitJusquALaFin,
+    travailleurAvec,
+    banc: leBanc,
     essai,
     sessions,
     args,

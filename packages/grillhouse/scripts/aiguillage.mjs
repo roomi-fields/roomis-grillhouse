@@ -54,7 +54,7 @@ const PAQUET_QUI_TOURNE = path.resolve(import.meta.dirname, '..');
 /**
  * The subcommands of the orchestration, which the published version runs: the circuit, the
  * supervisor, the night, the board and the status line, the hooks of Claude Code, the locks and
- * the rights of the sessions, the envelope and its launcher, the integration and the queue, the
+ * the rights of the sessions, the envelope and its launcher, the integration, the
  * results, the removal of a copy and the balance, even when the supervisor runs one by hand.
  */
 export const REDIRIGEES = new Set([
@@ -63,7 +63,6 @@ export const REDIRIGEES = new Set([
   'commande',
   'droits',
   'enveloppe',
-  'file',
   'integrer',
   'lancer',
   'ligne-etat',
@@ -109,6 +108,7 @@ export const OUTILS_DU_DEPOT = new Set([
   'pression',
   'sortie',
   'sous-modules',
+  'temporal',
   'ticket',
 ]);
 
@@ -116,7 +116,8 @@ export const OUTILS_DU_DEPOT = new Set([
 const RETENUE_MS = 5 * 60 * 1000;
 
 // The cache of the published versions: ~/.cache/grillhouse/outil.
-export const cacheDesOutils = () => path.join(os.homedir(), '.cache', 'grillhouse', 'outil');
+export const cacheDesOutils = (maison = os.homedir()) =>
+  path.join(maison, '.cache', 'grillhouse', 'outil');
 
 /** The folder of the version <version> under <cache>. */
 export const dossierDeLOutil = (version, cache = cacheDesOutils()) => path.join(cache, version);

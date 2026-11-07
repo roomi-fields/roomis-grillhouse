@@ -14,11 +14,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import * as circuit from '../../scripts/circuit.mjs';
+import * as activites from '../../scripts/activites.mjs';
 import moduleCargo from '../../scripts/langages/cargo/index.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
-const avecLesVersionsDAvant = circuit.avecLesVersionsDAvant as (
+const avecLesVersionsDAvant = activites.avecLesVersionsDAvant as (
   ctx: { copie: string },
   fichiers: string[],
   jouer: (avant: Map<string, string>, lus: Map<string, string[]>) => unknown
@@ -147,7 +147,7 @@ describe('grillhouse-3e2 — HEAD’s version of a test file plays beside it, in
   });
 
   it('the circuit builds no name of a language of its own: it asks the module (soeurDAvant)', () => {
-    const source = readFileSync(path.resolve(__dirname, '../../scripts/circuit.mjs'), 'utf8');
+    const source = readFileSync(path.resolve(__dirname, '../../scripts/activites.mjs'), 'utf8');
     expect(source).not.toContain('circuit-avant');
     expect(source).toContain('soeurDAvant(');
   });
@@ -159,7 +159,7 @@ describe('grillhouse-3e2 — HEAD’s version of a test file plays beside it, in
 // 2026-11-02, cargo-nextest and pytest): nextest names a test without its target
 // (`ancien`, `groupe::interne`), pytest by its function, so both versions name it alike.
 type Rapports = { fichier: string; tests: { nom: string; etat: string }[] }[];
-const vertsDeHead = circuit.vertsDeHead as (
+const vertsDeHead = activites.vertsDeHead as (
   resultats: Rapports,
   copie: string,
   f: string,
@@ -263,7 +263,7 @@ describe('grillhouse-3e2, criterion 5 — the names of HEAD’s tests of a file 
 // removal, is swept before the next measure and never enters the lot nor the commit
 // (`balayerLesSoeurs`): a file git does not track, the sibling (`soeurDAvant` of the module) of a
 // file of its folder that git tracks and that exists. The reviewer of grillhouse-3e2 found it.
-const balayerLesSoeurs = circuit.balayerLesSoeurs as (ctx: { copie: string }) => string[];
+const balayerLesSoeurs = activites.balayerLesSoeurs as (ctx: { copie: string }) => string[];
 const nonSuivis = (racine: string) =>
   spawnSync('git', ['-C', racine, 'ls-files', '--others', '--exclude-standard'], {
     encoding: 'utf8',
@@ -320,8 +320,20 @@ describe('grillhouse-3e2.1 — a sibling of HEAD’s version left in the copy is
   // sessions): a test of its behaviour would be a large test. The sweep's behaviour is proved
   // above; this test holds only its place, before the loop's first reading of the lot.
   it('the circuit sweeps at its start, before any reading of the lot', () => {
+    // The end of the opening of a run (`finirLOuverture`), which the circuit and its workflow
+    // under Temporal play before their first step, its plan written, sweeps before it hands the
+    // run its start (grillhouse-4nr.6.3: the opening and its plan are steps apart).
     const source = readFileSync(path.resolve(__dirname, '../../scripts/circuit.mjs'), 'utf8');
-    const derouler = source.slice(source.indexOf('async function derouler('));
-    expect(derouler.slice(0, derouler.indexOf('for (;;)'))).toContain('balayerLesSoeurs(ctx)');
+    const fin = source.slice(source.indexOf('export function finirLOuverture('));
+    expect(fin.slice(0, fin.indexOf('return { debut: d }'))).toContain('balayerLesSoeurs(ctx)');
+    // The act of the opening ends it so (scripts/faits-du-circuit.mjs, grillhouse-4nr.12).
+    const actes = readFileSync(
+      path.resolve(__dirname, '../../scripts/faits-du-circuit.mjs'),
+      'utf8'
+    );
+    const ouvrirSur = actes.slice(actes.indexOf('async function ouvrirSur('));
+    expect(ouvrirSur.slice(0, ouvrirSur.indexOf('\n}\n'))).toContain(
+      'finirLOuverture(ctx, o.debut)'
+    );
   });
 });

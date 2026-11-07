@@ -375,7 +375,7 @@ export function ouvrirAvancement(o: {
 /** Writes the plan of the tasks of a pass in its progress. */
 export function inscrireLePlan(dossier: string, o: { racine: string; taches: unknown[] }): void;
 /** Keeps the total of a pass that ended, for the next one's measure. */
-export function garderLeTotal(dossier: string, racine: string): void;
+export function garderLeTotal(dossier: string): void;
 /** Names the progress directory of the measure that holds the lock of the machine under `env`,
  * beside the lock (scripts/verrou-de-machine.mjs); the function that takes it out. */
 export function nommerLAvancement(o: { env?: NodeJS.ProcessEnv; dossier: string }): () => void;
@@ -386,6 +386,8 @@ export function dansLeTemporaire(chemin: string, env?: NodeJS.ProcessEnv): boole
 /** The cache of compilation of `outil`, under `~/.cache/grillhouse/`, never in the temporary
  * directory. */
 export function cacheDeCompilation(outil: string, env?: NodeJS.ProcessEnv): string;
+/** The path of the command <nom> in the PATH of <env>, or null (scripts/commandes-du-path.mjs). */
+export function trouverDansLePath(nom: string, env?: NodeJS.ProcessEnv): string | null;
 /** The cache of `outil` for the build rooted at `racine`, swept once `racine` is gone. */
 export function cacheDeLaRacine(
   outil: string,
@@ -401,8 +403,14 @@ export function ligneDesRestes(restes: string[]): string | null;
 export function retirerALInterruption(retirer: () => void): () => void;
 /** The pressure of the processor above which a pass is « à repasser » (scripts/mesure/pression.mjs). */
 export const SEUIL_PRESSION: number;
-/** The exit code of a pass « à repasser ». */
+/** The exit code of a pass « à repasser » (scripts/codes-de-sortie.mjs). */
 export const A_REPASSER: number;
+/** The file of Beads that holds the prefix of the tickets (scripts/prefixe-des-tickets.mjs). */
+export const CONFIG_BEADS: string;
+/** The prefix of the tickets, read from the key `issue-prefix`; throws when it is missing. */
+export function prefixe(racine: string): string;
+/** Writes the key `issue-prefix`, unless it holds a value; the line written, or null. */
+export function ecrireLePrefixe(racine: string, valeur: string): string | null;
 /** The pressure of the processor, in percent, or null when it cannot be read. */
 export function lirePression(fichier?: string): number | null;
 /** The pressure `p` as a line says it. */
@@ -425,8 +433,13 @@ export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): u
 export function travailleursDeLaSeance(env?: NodeJS.ProcessEnv): number | null;
 /** The wait for the lock of the machine, ended without it (scripts/verrou-de-machine.mjs). */
 export class AttenteDeLaMachine extends Error {}
-/** Runs `faire` under the lock of the machine. */
-export function avecLaMachine(...args: unknown[]): unknown;
+/** Runs `faire` on a place of the machine, then under its lock (scripts/places-de-la-machine.mjs). */
+export function avecLaMachineEtUnePlace(...args: unknown[]): unknown;
+/** Plays a pass on a place of the machine: its exit code, or the code of the wait that stops. */
+export function surUnePlace(
+  passe: (env: NodeJS.ProcessEnv) => number,
+  o?: { env?: NodeJS.ProcessEnv; dire?: (l: string) => void }
+): number;
 /** Waits for room in the temporary directory, as a heavy pass does before it plays. */
 export function attendreDeLaPlace(o?: Record<string, unknown>): void;
 /** The source files of the project at `racine` under `dossier`, as paths from `racine`, what the
@@ -489,7 +502,11 @@ export function tracesDuPlan(
 /** The command `construire --echec <fichier> <plan>` of a module, run from the root of the copy:
  * builds the plan and its providers with the task runner `outil`, `run build --filter=<paquet>…`
  * (the whole copy for a plan with a path that is no package); its exit code. */
-export function construireDepuisLesArguments(outil: string, args: string[], racine?: string): number;
+export function construireDepuisLesArguments(
+  outil: string,
+  args: string[],
+  racine?: string
+): number;
 /** What `lire` returns, read once under `cle` while the core holds a scope of readings done once
  * (a sweep that asks many questions of a tree that does not move), at each call otherwise
  * (scripts/lecture-unique.mjs). */

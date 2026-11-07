@@ -161,7 +161,7 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
     });
     jouer(premier, 'a', 2);
     jouer(premier, 'b', 3);
-    garderLeTotal(premier, racine);
+    garderLeTotal(premier);
     expect(lireAvancement(premier)).toMatchObject({ faits: 5, prevus: 5 });
 
     // The same pass again: both tasks replay from the cache, every file counts as done before

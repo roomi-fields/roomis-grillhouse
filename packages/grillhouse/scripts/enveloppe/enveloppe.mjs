@@ -127,7 +127,7 @@ import {
 export { paquetsDuLangage };
 import { cacheDesOutils, installer, versionDeLOutil } from '../aiguillage.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
-import { travailleursDe } from '../places-de-la-machine.mjs';
+import { travailleursDe, VARIABLE_TENUE } from '../places-de-la-machine.mjs';
 import { donneesDe } from '../donnees-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
@@ -182,7 +182,9 @@ const MAISON_EN_LECTURE = [
 
 // The variables of a login session that the envelope passes on, as sudo's env_reset keeps them,
 // claude's OAuth credential, the author of the session's comments at the ticket (`BEADS_ACTOR`,
-// which the circuit sets to the session's role), and the prefixes of the families it passes on:
+// which the circuit sets to the session's role), the mark of the place the session holds
+// (`GRILLHOUSE_PLACE_TENUE`, scripts/places-de-la-machine.mjs), which covers its commands, and
+// the prefixes of the families it passes on:
 // the locale, and the configuration and credentials of claude's API. The state of a launching claude session
 // (`CLAUDE_CODE_SESSION_ID`, its messaging socket and token…) stays out.
 const ENVIRONNEMENT_DECLARE = [
@@ -198,6 +200,7 @@ const ENVIRONNEMENT_DECLARE = [
   'COLORTERM',
   'CLAUDE_CODE_OAUTH_TOKEN',
   'BEADS_ACTOR',
+  VARIABLE_TENUE,
 ];
 const FAMILLES_DECLAREES = ['LC_', 'ANTHROPIC_'];
 // The declared variables that name a path: each enters only when its path is in sight inside the
