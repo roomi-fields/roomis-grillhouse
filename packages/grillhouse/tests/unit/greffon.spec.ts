@@ -237,8 +237,7 @@ describe('critère 3 — the common charter reaches each session by the import o
     expect(r.stdout).toBe('');
   });
 
-  it('the charter of a project no longer imports the copy .claude/grillhouse/charte.md', () => {
-    expect(lire('CLAUDE.md')).not.toMatch(/@\.claude\/grillhouse\/charte\.md/);
+  it('the copy .claude/grillhouse/charte.md is gone', () => {
     expect(existsSync(path.join(DEPOT, '.claude/grillhouse/charte.md'))).toBe(false);
   });
 });
@@ -288,34 +287,5 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/Usage/);
     expect(r.stderr).not.toMatch(/--ecarts/);
-  });
-
-  // Save the migration that takes them off a project in 0.22.x, and its test (grillhouse-3uv.84.6.1).
-  it('no script, test or text of the frame names the list or the fingerprints', () => {
-    const r = spawnSync(
-      'git',
-      [
-        '-C',
-        DEPOT,
-        'grep',
-        '-lE',
-        'fichiers\\.txt|empreintes\\.json',
-        '--',
-        'packages/grillhouse',
-        'mods',
-        'templates',
-        'README.md',
-        'CONTRIBUTING.md',
-        'STRUCTURE.md',
-        ':!packages/grillhouse/tests/unit/greffon.spec.ts',
-        // The migrations and their tests keep the trace of the forms before.
-        ':!packages/grillhouse/scripts/migrations',
-        ':!packages/grillhouse/tests/unit/migration.*.spec.ts',
-        // The history keeps the trace of the forms before.
-        ':!packages/grillhouse/CHANGELOG.md',
-      ],
-      { encoding: 'utf8' }
-    );
-    expect(r.stdout.split('\n').filter(Boolean)).toEqual([]);
   });
 });

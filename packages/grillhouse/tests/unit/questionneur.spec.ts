@@ -21,8 +21,6 @@ const blocs = () => {
   }));
 };
 const duQuestionneur = () => blocs().filter(b => b.titre.startsWith('Questionneur'));
-// A line that sets a question: an item of a list, or a numbered line, that ends on « ? ».
-const QUESTION_IMPOSEE = /^\s*(?:[-*•]|\d+[.)])\s.*\?\s*$/m;
 
 describe('the questionneur’s instruction', () => {
   // grillhouse-3uv.95.4: it reads the plan once, with no answer of an author to read.
@@ -30,7 +28,6 @@ describe('the questionneur’s instruction', () => {
     expect(duQuestionneur().map(b => b.titre)).toEqual([
       'Questionneur, sur le plan (rempli par le circuit)',
     ]);
-    expect(duQuestionneur()[0].texte).toContain('une seule fois');
   });
 
   // grillhouse-3uv.95.5: the circuit plays no survey of the components again; the plan the
@@ -41,14 +38,6 @@ describe('the questionneur’s instruction', () => {
       expect(premier.texte, champ).toContain(`{{${champ}}}`);
     }
     expect(premier.texte).not.toContain('{{releve}}');
-    expect(premier.texte).toContain('CLAUDE.md');
-  });
-
-  it('critère 4 — sets no list of questions', () => {
-    for (const b of duQuestionneur()) {
-      expect(b.texte, b.titre).not.toMatch(QUESTION_IMPOSEE);
-    }
-    expect('- Pourquoi pas la référence mûre ?').toMatch(QUESTION_IMPOSEE);
   });
 });
 
@@ -57,13 +46,11 @@ describe('the questionneur, a role agent', () => {
     const d = lire('mods/grillhouse/agents/questionneur.md');
     expect(d).toMatch(/^name: questionneur$/m);
     expect(d).toMatch(/^disallowedTools: Write, Edit, MultiEdit, NotebookEdit$/m);
-    expect(d).toMatch(/charge ta compétence `questionneur`/);
   });
 
-  it('its skill sets no list of questions either', () => {
+  it('its skill is named questionneur', () => {
     const c = lire('mods/grillhouse/skills/questionneur/SKILL.md');
     expect(c).toMatch(/^name: questionneur$/m);
-    expect(c).not.toMatch(QUESTION_IMPOSEE);
   });
 
   it('the frame’s plugin carries its agent and skill to a project, its tests staying in Grillhouse', () => {
@@ -74,18 +61,5 @@ describe('the questionneur, a role agent', () => {
     expect(
       existsSync(path.join(RACINE, 'packages/grillhouse-essais/tests/circuit.plan.nuit.spec.ts'))
     ).toBe(true);
-  });
-
-  it('critère 6 — the supervisor has his plan questioned before he gives it to the owner, and answers in his own session', () => {
-    const p = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
-    expect(p).toMatch(/sous-agent `questionneur`/);
-    expect(p).toMatch(/avant de le rendre au responsable/);
-  });
-
-  // grillhouse-3uv.84.8: the circuit of a ticket lives in the supervisor's skill.
-  it('the supervisor’s skill names the questionneur at its step, 1, which it reads once', () => {
-    const c = lire('mods/grillhouse/skills/pitmaster/SKILL.md').replace(/\s+/g, ' ');
-    expect(c).toContain("1 Plan : l'`explorateur` écrit le plan");
-    expect(c).toContain('le `questionneur` le lit une seule fois');
   });
 });

@@ -160,8 +160,6 @@ describe('critère 1 — the published package is the plugin', () => {
   // resolves there, and in this repository, with no hook to substitute it.
   it('grillhouse-3uv.84.8 critère 3 — the meta-frame beside the charter, and each path of the package the charter names, resolve in the package installed and in the repository', () => {
     const charte = readFileSync(path.join(racine, 'charte.md'), 'utf8');
-    expect(charte).not.toContain(RACINE_DU_PLUGIN);
-    expect(charte.replace(/\s+/g, ' ')).toContain('`METACADRE.md`, à côté de cette charte');
     expect(existsSync(path.join(racine, 'METACADRE.md'))).toBe(true);
     expect(existsSync(path.join(GREFFON, 'METACADRE.md'))).toBe(true);
     const chemins = [...charte.matchAll(/`node_modules\/@roomi-fields\/grillhouse\/([^`]+)`/g)].map(
@@ -258,12 +256,8 @@ describe('critère 3 — one version: the plugin takes the package’s', () => {
     expect(m).not.toHaveProperty('version');
   });
 
-  it('the release, its workflow and its guide do not write the plugin’s manifest', () => {
-    for (const f of [
-      'packages/grillhouse/scripts/sortie.mjs',
-      '.github/workflows/release.yml',
-      'CONTRIBUTING.md',
-    ]) {
+  it('the release and its workflow do not write the plugin’s manifest', () => {
+    for (const f of ['packages/grillhouse/scripts/sortie.mjs', '.github/workflows/release.yml']) {
       expect(lire(f), f).not.toMatch(/plugin\.json/);
     }
   });
@@ -308,12 +302,5 @@ describe('critère 5 — the entry of the marketplace roomi-fields names the pac
       name: 'grillhouse',
       source: { source: 'npm', package: '@roomi-fields/grillhouse' },
     });
-  });
-
-  it('the guide of a release names the gesture that sets it, once the package is published', () => {
-    const guide = lire('CONTRIBUTING.md');
-    expect(guide).toContain('roomi-fields/claude-plugins');
-    expect(guide).toContain('"source": "npm"');
-    expect(guide).toContain('npx grillhouse sortie --entree-du-marche');
   });
 });

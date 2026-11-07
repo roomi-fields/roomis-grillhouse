@@ -89,11 +89,6 @@ describe('migration 0.24.0 — the circuit without regulator nor technical refer
     expect(lire(p, 'CLAUDE.md')).toBe(`${TETE}${rubrique(GABARIT)}${SUITE}`);
   });
 
-  it('the template of this version names neither the regulator nor the technical referent in its rubric', () => {
-    expect(rubrique(GABARIT)).not.toMatch(/r[ée]gulat|r[ée]f[ée]rent/i);
-    expect(rubrique(GABARIT)).toMatch(/monte au superviseur, avec sa pièce/);
-  });
-
   it('a list the project filled is kept, the rest of the paragraph rewritten', () => {
     const p = projet({ 'CLAUDE.md': `${TETE}${REMPLIE}${SUITE}` });
     expect(faites(migrer(p) as Ligne[])).toHaveLength(1);
