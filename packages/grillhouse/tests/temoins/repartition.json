@@ -142,6 +142,7 @@
     "scripts/langages/typescript/vitest-config/cibles.mjs",
     "scripts/langages/typescript/vitest-config/delais.mjs",
     "scripts/langages/typescript/vitest-config/delais.setup.mjs",
+    "scripts/langages/typescript/vitest-config/duree.classement.mjs",
     "scripts/langages/typescript/vitest-config/duree.reporter.d.ts",
     "scripts/langages/typescript/vitest-config/duree.reporter.mjs",
     "scripts/langages/typescript/vitest-config/lances.mjs",

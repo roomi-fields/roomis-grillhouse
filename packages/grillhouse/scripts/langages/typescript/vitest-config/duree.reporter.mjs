@@ -27,25 +27,14 @@ import {
   SEUIL_PRESSION,
 } from '../../../services-du-noyau.mjs';
 import { estHorsDuJour } from './cibles.mjs';
+import { classer } from './duree.classement.mjs';
 import { delaisSurLeDisque, libelleDuDelai } from './delais.mjs';
 
-const DELAI = /^(Test|Hook) timed out in \d+ms\./;
-const BANC = /\.budget\.(test|spec)\.(c|m)?[jt]sx?$/;
-
-function* taches(t) {
-  yield t;
-  for (const c of t.tasks ?? []) yield* taches(c);
+function aUnEchec(t) {
+  if (t.type === 'test' ? t.result?.state === 'fail' : (t.result?.errors ?? []).length > 0)
+    return true;
+  return (t.tasks ?? []).some(aUnEchec);
 }
-const fichierDe = t => {
-  let x = t;
-  while (x && !x.filepath) x = x.suite ?? x.file;
-  return x?.filepath ?? '';
-};
-const nomDe = t => {
-  const noms = [];
-  for (let x = t; x && !x.filepath; x = x.suite) noms.unshift(x.name);
-  return noms.join(' › ');
-};
 
 // The 20 slowest files of the run, slowest first, each with its share of the total time.
 const PLUS_LENTS = 20;
@@ -72,68 +61,36 @@ export default class DureeReporter {
 
   onFinished(files = [], errors = []) {
     const fin = lirePression();
-    const echecs = [];
-    for (const f of files) {
-      for (const t of taches(f)) {
-        const erreurs = t.result?.errors ?? [];
-        if (t.type === 'test' ? t.result?.state === 'fail' : erreurs.length > 0) echecs.push(t);
-      }
-    }
     const dire = l => process.stdout.write(`⏱ ${l}\n`);
     plusLents(files, dire);
-    if (echecs.length === 0) return;
-    let reels = 0;
-    const pressions = [];
-    for (const t of echecs) {
-      const fichier = fichierDe(t);
-      const erreurs = t.result?.errors ?? [];
-      const delaiDepasse = erreurs.length > 0 && erreurs.every(e => DELAI.test(e.message ?? ''));
-      const cause =
-        t.type === 'test' && t.meta?.mesureDeTemps
-          ? 'mesure de temps'
-          : BANC.test(fichier)
-            ? 'banc de temps'
-            : delaiDepasse && estHorsDuJour(fichier)
-              ? 'délai dépassé'
-              : null;
-      // A delay past names the size of its file and its delay (« petit, 60 s »), whether it is
-      // a red of the day or a failure of duration.
-      const delai = delaiDepasse ? ` (${libelleDuDelai(delaisSurLeDisque(fichier).taille)})` : '';
-      if (!cause) {
-        reels++;
-        if (delaiDepasse) {
-          const n = nomDe(t);
-          dire(
-            `${path.relative(process.cwd(), fichier)}${n ? ` › ${n}` : ''} : délai dépassé${delai}.`
-          );
-        }
+    const fichiers = {};
+    for (const f of files) {
+      if (!aUnEchec(f) || f.filepath in fichiers) continue;
+      fichiers[f.filepath] = {
+        horsDuJour: estHorsDuJour(f.filepath),
+        libelleDelai: libelleDuDelai(delaisSurLeDisque(f.filepath).taille),
+      };
+    }
+    const { echecs, verdict, conclusion } = classer({
+      files,
+      errors,
+      debut: this.debut,
+      fin,
+      codeDeSortie: process.exitCode,
+      fichiers,
+    });
+    for (const e of echecs) {
+      const nom = path.relative(process.cwd(), e.fichier) + (e.nom ? ` › ${e.nom}` : '');
+      const delai = e.delai ? ` (${e.delai})` : '';
+      if (e.cause === 'réel') {
+        if (e.delai) dire(`${nom} : délai dépassé${delai}.`);
         continue;
       }
-      const debut = t.type === 'test' ? (t.meta?.pressionDebut ?? this.debut) : this.debut;
-      const finT = t.type === 'test' ? (t.meta?.pressionFin ?? fin) : fin;
-      pressions.push(debut, finT);
-      const nom = nomDe(t);
       dire(
-        `${path.relative(process.cwd(), fichier)}${nom ? ` › ${nom}` : ''} : ${cause}${delai}, pression CPU ${ecrirePression(debut)} au début, ${ecrirePression(finT)} à la fin (seuil ${SEUIL_PRESSION} %).`
+        `${nom} : ${e.cause}${delai}, pression CPU ${ecrirePression(e.pressionDebut)} au début, ${ecrirePression(e.pressionFin)} à la fin (seuil ${SEUIL_PRESSION} %).`
       );
     }
-    if (pressions.length === 0) return;
-    if (reels > 0 || errors.length > 0 || process.exitCode !== 1) {
-      dire('un échec ne dépend pas d’une durée : verdict de Vitest.');
-      return;
-    }
-    const lues = pressions.filter(p => p !== null);
-    if (lues.length === 0) {
-      dire('pression CPU illisible (/proc/pressure/cpu) : verdict de Vitest.');
-      return;
-    }
-    if (lues.some(p => p >= SEUIL_PRESSION)) {
-      dire(
-        `à repasser (code ${A_REPASSER}) : chaque échec dépend d’une durée, et au moins un a eu lieu sous charge ; ni vert ni rouge, la mesure se rejoue au repos.`
-      );
-      process.exitCode = A_REPASSER;
-      return;
-    }
-    dire(`échecs de durée au repos (pression CPU sous ${SEUIL_PRESSION} %) : rouge.`);
+    if (conclusion) dire(conclusion);
+    if (verdict === 'a-repasser') process.exitCode = A_REPASSER;
   }
 }
