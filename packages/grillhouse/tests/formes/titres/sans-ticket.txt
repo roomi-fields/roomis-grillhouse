@@ -1,0 +1,4 @@
+import { describe, it } from 'vitest';
+describe('le module', () => {
+  it('refuse un lot qui fait monter le compte', () => {});
+});

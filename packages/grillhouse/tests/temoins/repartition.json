@@ -131,6 +131,7 @@
     "scripts/langages/typescript/tailles-des-tests.mjs",
     "scripts/langages/typescript/tests-de-nuit.mjs",
     "scripts/langages/typescript/tests.mjs",
+    "scripts/langages/typescript/titres-de-tests.mjs",
     "scripts/langages/typescript/turbo-des-paquets.mjs",
     "scripts/langages/typescript/verdict.mjs",
     "scripts/langages/typescript/verifier.mjs",

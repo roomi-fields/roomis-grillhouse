@@ -83,6 +83,7 @@ const OUTILS = [
   'interfaces-contre-code',
   'resumes',
   'tailles-des-tests',
+  'titres-de-tests',
   'turbo-des-paquets',
 ];
 
@@ -298,6 +299,7 @@ export default {
     [ici('interfaces-contre-code.mjs')],
     [ici('code-mort.mjs')],
     [ici('tailles-des-tests.mjs')],
+    [ici('titres-de-tests.mjs')],
     [ici('chemins-des-tests.mjs')],
     [ici('resumes.mjs')],
   ],

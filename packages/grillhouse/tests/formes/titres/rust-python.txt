@@ -1,0 +1,2 @@
+fn tck_1_refuse_un_lot() { assert!(true); }
+def test_tck_1_refuse_un_lot(): assert "tck-1 critère 2"

@@ -71,8 +71,15 @@ avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
 `INTERFACE.md`, `CADRE.md`), et son nom la cite. L'exemple du ticket en est un cas parmi d'autres.
 Ainsi le code qui les fait passer traite la règle, pas l'exemple.
 
+**Le titre d'un test dit le comportement qu'il prouve** : tu écris le titre d'un test (`describe`,
+`it`, `test`, le nom d'une fonction de test) par le comportement qu'il prouve, jamais par un numéro
+de ticket ou de critère ; le ticket va au message du commit (Software Engineering at Google,
+chap. 12 : un test par comportement). Une garde refuse un lot qui fait monter le compte des titres
+qui nomment un ticket ou un « critère N ». Ainsi un test vit autant que son comportement, pas que
+son ticket.
+
 **Un critère, ses tests** : chaque critère d'acceptation du ticket reçoit au moins un test, dont
-le nom cite son numéro, sauf un critère qui se juge à la relecture (le CHANGELOG, plus bas). Un cas que les critères ne tranchent pas, tu le tranches quand tu as la
+le titre dit le comportement que le critère demande, sans son numéro, sauf un critère qui se juge à la relecture (le CHANGELOG, plus bas). Un cas que les critères ne tranchent pas, tu le tranches quand tu as la
 réponse (un nom, une signature) et tu l'écris dans ta fiche ; il revient au superviseur seulement
 si tu ne l'as pas ou s'il revient au responsable. Ainsi le code se mesure à ce que le ticket attend, et rien d'autre.
 

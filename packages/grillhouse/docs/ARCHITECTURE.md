@@ -731,6 +731,24 @@ réel, une passe réelle de Turborepo et de Vitest, un crochet ou une commande l
 git) se déplacent tels quels en tests de nuit dans `packages/grillhouse-essais`. Ainsi le jour ne
 joue que des tests courts, et la dette des grands ne fait que baisser.
 
+**Le titre d'un test** (`packages/grillhouse/scripts/langages/typescript/titres-de-tests.mjs`, une
+garde du cadre) : comme Software Engineering at Google (chap. 12, un test par comportement), un
+test porte le nom du comportement qu'il prouve, jamais celui de son ticket, qui va au message du
+commit. La garde lit les tests Vitest que liste la garde des tailles (`*.test.*`, `*.spec.*`, les
+tests de nuit compris) : chaque titre de `describe`, `it`, `test` et de leurs variantes (`skip`,
+`only`, `each`, `todo`…) qui nomme un ticket du projet (son préfixe, lu dans Beads comme le
+crochet des commits le lit, suivi d'un identifiant) ou un « critère N » est un constat
+(`titre-nommant-un-ticket`), compté une fois s'il nomme les deux. Elle voit le texte statique d'un
+titre : un littéral, les parties fixes d'un gabarit, le format d'un `each` ; un titre porté par une
+variable ou écrit dans un commentaire lui échappe. Les tests Rust et Python sont hors du compte :
+leurs titres sont des noms de fonction, sans `describe` ni `it`, écart que la garde et son refus
+écrivent. La dette compte les constats fichier par fichier : un fichier dont le compte monte
+au-dessus de sa dette, ou absent de la dette avec un titre compté, est refusé par son nom ; une
+dette plus haute que le compte l'est aussi, et le lot qui renomme des titres l'abaisse par
+`npm run grillhouse:dette:elaguer`, jamais à la main. Un fichier de tests que le lot déplace ou
+renomme, son contenu gardé à moitié au moins (`renommesDuLot`), reprend la dette de son ancien nom.
+Ainsi le compte des titres qui nomment un ticket ne fait que baisser.
+
 **Les chemins des tests** (`packages/grillhouse/scripts/langages/typescript/chemins-des-tests.mjs`, une
 garde du cadre) : comme le bac à sable de Bazel, qui fait échouer un test qui lit une entrée non
 déclarée, un test qui nomme un module de son paquet par un chemin que le cadre ne lit pas (un

@@ -10,5 +10,1222 @@
         "count": 1
       }
     }
+  },
+  "titres-de-tests": {
+    "mods/grillhouse/tests/grillhouse.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "mods/grillhouse/tests/pane.test.tsx": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "mods/grillhouse/tests/projets.test.tsx": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "mods/grillhouse/tests/sections.test.tsx": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse-essais/tests/base-de-passe.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.arbitrage.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.consigne.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.mecanique.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.passe-finale.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.plan.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 17
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.pointe.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.preuve.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 9
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.references.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 30
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.rejeu.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.relance.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.relecture.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.reprise.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.sessions.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.statut.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.style.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.tests-de-head.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.ticket.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.tri.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/circuit.vert-par-fichier.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse-essais/tests/crochet-worktree.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/crochets-du-cadre.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 29
+      }
+    },
+    "packages/grillhouse-essais/tests/enveloppe.enceinte.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 10
+      }
+    },
+    "packages/grillhouse-essais/tests/enveloppe.lanceur.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/enveloppe.paquet.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/file-integration.ci.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse-essais/tests/file-integration.dependances.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 9
+      }
+    },
+    "packages/grillhouse-essais/tests/file-integration.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 20
+      }
+    },
+    "packages/grillhouse-essais/tests/file-integration.renvois.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 17
+      }
+    },
+    "packages/grillhouse-essais/tests/git-des-tests.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse-essais/tests/greffons-du-cadre.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 83
+      }
+    },
+    "packages/grillhouse-essais/tests/grillhouse-maj.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 103
+      }
+    },
+    "packages/grillhouse-essais/tests/integrer.commandes.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 21
+      }
+    },
+    "packages/grillhouse-essais/tests/integrer.dependances.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse-essais/tests/integrer.engendres.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse-essais/tests/integrer.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 32
+      }
+    },
+    "packages/grillhouse-essais/tests/integrer.references.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse-essais/tests/lancer-modele.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 27
+      }
+    },
+    "packages/grillhouse-essais/tests/lancer-modele.seance.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse-essais/tests/nouveau-projet.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse-essais/tests/nuit.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 29
+      }
+    },
+    "packages/grillhouse-essais/tests/outils.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse-essais/tests/paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse-essais/tests/pre-push-nuit.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 26
+      }
+    },
+    "packages/grillhouse-essais/tests/premier-paquet.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse-essais/tests/retirer-copie.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 61
+      }
+    },
+    "packages/grillhouse-essais/tests/sccache-en-enveloppe.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse-essais/tests/session-start.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 31
+      }
+    },
+    "packages/grillhouse-essais/tests/sous-modules.adresses.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 38
+      }
+    },
+    "packages/grillhouse-essais/tests/sous-modules.montage.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 21
+      }
+    },
+    "packages/grillhouse-essais/tests/sous-modules.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 32
+      }
+    },
+    "packages/grillhouse-essais/tests/sous-modules.partage.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 35
+      }
+    },
+    "packages/grillhouse-essais/tests/superviseur.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse-essais/tests/temporaire-du-fichier.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse-essais/tests/temporaire.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse-essais/tests/tests-de-nuit.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 18
+      }
+    },
+    "packages/grillhouse-essais/tests/tests-de-nuit.script-de-nuit.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 20
+      }
+    },
+    "packages/grillhouse-essais/tests/un-commit-par-ticket.nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/attente-des-questions.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 13
+      }
+    },
+    "packages/grillhouse/tests/unit/bilan.cas-reel-320.3.9.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/bilan.cas-reel.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/bilan.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/changelog-a-la-relecture.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/changelog-du-paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/charte-importee.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/ci-appelle-la-verification.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit-detache.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.arbre-d-avant-joue.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.arbre-d-avant-tue.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.arbre-d-avant.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.architecture.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.avance.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.composants.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.contexte.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.etendre.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.hors-du-jour.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 21
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.inattendu.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.inattendu.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.lot-sur-la-base.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.message.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.noms-publies.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.outils.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.portent-le-travail.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 14
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.relecture-entiere.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.sorte.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.testwriter-saute.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/circuit.versions-d-avant.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/commandes-composees.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/composants-affectes.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/conformite.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/construire-du-plan.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/copies-finies.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/demon.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/dependances-internes.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/dernier-vert.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse/tests/unit/donnees-cles.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/dossier-temporaire.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/dossiers-d-essai.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/dossiers-d-essai.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 18
+      }
+    },
+    "packages/grillhouse/tests/unit/droits.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 11
+      }
+    },
+    "packages/grillhouse/tests/unit/droits.verrou-racine-absente.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/droits.verrou-racine.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/duree-classement.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 20
+      }
+    },
+    "packages/grillhouse/tests/unit/engendres.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.cache-publie.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.enceinte.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 11
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.outils.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/enveloppe.sorties.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/file-des-tickets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/file-relecture-ci.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/flux-des-paquets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/fusion-du-changelog.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/git-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 12
+      }
+    },
+    "packages/grillhouse/tests/unit/greffon-du-paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/greffon.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/greffons-ouverture.budget.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/grillhouse-maj.cargo.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse/tests/unit/grillhouse-maj.langages.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/grillhouse-maj.plage-du-cadre.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/hors-cadre.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 36
+      }
+    },
+    "packages/grillhouse/tests/unit/identite-de-verification.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/index-interfaces.composee.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/jointure.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/journal-des-tickets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/langages-des-paquets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/cargo.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/clippy.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/commande-du-langage.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/commandes-par-paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/commandes.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 19
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/composants.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/conformite.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/elements-du-lot.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/frontieres.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/index-interfaces.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/migration.tailles-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/preparer.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/src-et-bancs.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 11
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/tailles-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/cargo/tests-par-turbo.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/python/commandes-par-paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/python/conformite.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/python/python.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/python/python.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/python/tests-par-turbo.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 14
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/chemins-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-espaces.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 30
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-hors-cadre.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 32
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-knip.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-tests-bancs.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 43
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/consommateurs.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/delais-par-taille.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 30
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/dossier-temporaire.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.dependances-de-developpement.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 16
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.entrees.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 11
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.options.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 11
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/index-interfaces.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 20
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.index.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 14
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.membres-et-fautes.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 33
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.partie-generee.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 19
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.rapport.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 26
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.signatures.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 20
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.tsdoc.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 20
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/lances.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/migration.lignes-mal-formees.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/migration.matiere-dans-les-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/migration.noms-declares-inutilises.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/migration.tailles-des-outils-lourds.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/migration.tailles-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/tailles-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 47
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.cargo-python.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.controles.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.donnees.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.langages.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.style.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.lint.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 12
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.passe-rouge.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.plusieurs-langages.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.temoins.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/machine.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 15
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.api-extractor-du-paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.ci-appelle-la-verification.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.copies-du-cadre.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.langages-dans-l-architecture.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.paquets-dans-le-graphe.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/migrations.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/nom-du-script-de-test.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/outils-cles.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/ouverture-des-circuits.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/ouverture-des-circuits.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/paquet-dans-le-graphe.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/paquet-publie.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/paquet-publie.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 9
+      }
+    },
+    "packages/grillhouse/tests/unit/paquet.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 9
+      }
+    },
+    "packages/grillhouse/tests/unit/passes-ciblees-sur-une-place.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/place-des-copies.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/places-de-la-machine.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse/tests/unit/plusieurs-langages.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 6
+      }
+    },
+    "packages/grillhouse/tests/unit/questionneur.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/registre-fin.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/registre-fin.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 19
+      }
+    },
+    "packages/grillhouse/tests/unit/registre.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/resultats.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 23
+      }
+    },
+    "packages/grillhouse/tests/unit/structure-guard.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/style-a-l-ecriture.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 7
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-circuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-corrections.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 42
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-fin-inscrite.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 46
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-lecture.budget.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-places.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-projets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-repris.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 25
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-sections.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 45
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-sous-agents.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 46
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-verrou.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 13
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/temoins-de-la-jointure.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/temps-au-repos.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 8
+      }
+    },
+    "packages/grillhouse/tests/unit/temps-de-travail.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 53
+      }
+    },
+    "packages/grillhouse/tests/unit/tests-de-nuit.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 14
+      }
+    },
+    "packages/grillhouse/tests/unit/titre-des-tickets.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/touches-supprimees.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/travail-de-la-copie.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/travailleurs-des-tests.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 5
+      }
+    },
+    "packages/grillhouse/tests/unit/un-commit-par-ticket.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 14
+      }
+    },
+    "packages/grillhouse/tests/unit/verdicts-de-la-jointure.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-de-fichier.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-de-machine-cargo.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 3
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-de-machine.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 22
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-publie.nuit.test.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-publie.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 13
+      }
+    },
+    "packages/grillhouse/tests/unit/verrous.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 2
+      }
+    },
+    "packages/grillhouse/tests/unit/version.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 4
+      }
+    },
+    "packages/grillhouse/tests/unit/vitest-config-delais.spec.ts": {
+      "titre-nommant-un-ticket": {
+        "count": 12
+      }
+    }
   }
 }

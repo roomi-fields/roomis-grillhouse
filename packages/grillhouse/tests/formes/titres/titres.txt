@@ -1,0 +1,22 @@
+import { describe, it, test } from 'vitest';
+describe('tck-1a.2 groupe nommant un ticket', () => { // compté
+  it('critère 3 : refuse un lot', () => {}); // compté
+  it('tck-9z et critère 2 les deux', () => {}); // compté
+  it('refuse un lot qui fait monter le compte', () => {});
+  it.skip('tck-5 passé', () => {}); // compté
+  it.only('tck-6 isolé', () => {}); // compté
+  test.todo('tck-7 à faire'); // compté
+  it.each([1, 2])('tck-8 chaque %s', () => {}); // compté
+  it(`tck-10 gabarit ${x}`, () => {}); // compté
+  it(`gabarit ${x} sans ticket`, () => {});
+  it(`gabarit ${x} avec critère 4 fixe`, () => {}); // compté
+  it(nom, () => {});
+  it(`${porte}`, () => {});
+  it("critères 3 et 4 entre guillemets", () => {}); // compté
+  describe.skip('critère 7 groupe passé', () => {}); // compté
+  it('xtck-1 collé à un mot', () => {});
+  it('tck- sans identifiant', () => {});
+  it('un critère sans numéro', () => {});
+  it('Critère 12 en majuscule', () => {}); // compté
+  // it('tck-3 en commentaire', () => {});
+});

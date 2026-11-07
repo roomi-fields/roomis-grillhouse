@@ -1,0 +1,6 @@
+import { describe, it } from 'vitest';
+describe('le module', () => {
+  it('tck-1 premier', () => {});
+  it('critère 2 second', () => {});
+  it('sans ticket', () => {});
+});
