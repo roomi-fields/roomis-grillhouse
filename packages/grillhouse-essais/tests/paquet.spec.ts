@@ -51,7 +51,8 @@ const importsDe = (t: string) =>
 const AVANT: Record<string, [number, number]> = {
   // grillhouse-nt4: one more expect, the guard that names the trial directory the test leaves.
   // grillhouse-1eq: one more expect, the killed circuit gone before the sweep (pq6).
-  'base-de-passe': [10, 58],
+  // grillhouse-1ls: one more expect, the progress folder read after the Temporal switch.
+  'base-de-passe': [10, 59],
   // grillhouse-pq6: three more expects, an immediate stop gives its code and its question.
   'circuit.arbitrage': [2, 17], // grillhouse-4nr.12: driven by the command, the client of the workflow.
   'circuit.avancement': [1, 6],
