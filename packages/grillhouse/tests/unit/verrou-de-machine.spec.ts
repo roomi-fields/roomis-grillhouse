@@ -37,13 +37,27 @@ const unDossier = () => {
 };
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
 // Waits for <condition>, up to <ms>: a child started under the load of a full pass can take a while to begin.
-async function jusqua(condition: () => boolean, ms = 60_000) {
+async function jusqua(condition: () => boolean, nom = 'la condition', ms = 60_000) {
   const fin = Date.now() + ms;
   while (!condition()) {
     if (Date.now() > fin) {
-      throw new Error('la condition ne vient pas');
+      throw new Error(`${nom} ne vient pas`);
     }
     await attendre(50);
+  }
+}
+// Waits for <promesse>, up to <ms>, and fails naming <nom> when it does not come.
+async function avant<T>(promesse: Promise<T>, nom: string, ms: number): Promise<T> {
+  let minuteur: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promesse,
+      new Promise<never>((_, rejette) => {
+        minuteur = setTimeout(() => rejette(new Error(`${nom} ne vient pas`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(minuteur);
   }
 }
 
@@ -577,8 +591,24 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     expect((await a.fini).code).toBe(0);
   });
 
-  // En quarantaine : délai dépassé sur la CI, au repos (grillhouse-3uv.95.2.2).
-  it.skip('la borne de l’attente reste la même pour une mesure de second rang : à 75, le détenteur nommé', async () => {
+  it('une mesure de premier rang lancée avant que le détenteur ne tienne le verrou le prend, sans attendre', async () => {
+    const d = unDossier();
+    const cadre = depotDuCadre(path.join(d, 'cadre'));
+    const env = environnement({ GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock') });
+    const trace = path.join(d, 'trace');
+    const libere = path.join(d, 'libere');
+    const premier = lancerDans(preneur('P', trace), env, cadre);
+    const fP = await avant(premier.fini, 'fin de P', 20_000);
+    expect(fP.code, fP.sortie).toBe(0);
+    expect(premier.sortie()).not.toContain('⏳');
+    const a = lancerDans(preneur('A', trace, tenir(libere)), env, cadre);
+    await jusqua(() => lignes(trace).includes('A début'), 'A début', 20_000);
+    writeFileSync(libere, '');
+    expect((await avant(a.fini, 'fin de A', 20_000)).code).toBe(0);
+    expect(lignes(trace)).toEqual(['P début', 'P fin', 'A début', 'A fin']);
+  });
+
+  it('la borne de l’attente reste la même pour une mesure de second rang : à 75, le détenteur nommé', async () => {
     const d = unDossier();
     const cadre = depotDuCadre(path.join(d, 'cadre'));
     const projet = unProjet(path.join(d, 'projet'));
@@ -586,16 +616,19 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
     const trace = path.join(d, 'trace');
     const libere = path.join(d, 'libere');
     const a = lancerDans(preneur('A', trace, tenir(libere)), env, cadre);
-    const premier = lancerDans(preneur('P', trace), env, cadre);
+    let premier: ReturnType<typeof lancerDans> | undefined;
     try {
-      await jusqua(() => lignes(trace).includes('A début'));
-      await jusqua(() => premier.sortie().includes('⏳'));
+      await jusqua(() => lignes(trace).includes('A début'), 'A début', 20_000);
+      const p = lancerDans(preneur('P', trace), env, cadre);
+      premier = p;
+      await jusqua(() => p.sortie().includes('⏳'), '⏳ de P', 20_000);
       const debut = Date.now();
-      const s = await lancerDans(
-        preneur('S', trace),
-        { ...env, GRILLHOUSE_ATTENTE_MACHINE_MS: '1500' },
-        projet
-      ).fini;
+      const s = await avant(
+        lancerDans(preneur('S', trace), { ...env, GRILLHOUSE_ATTENTE_MACHINE_MS: '1500' }, projet)
+          .fini,
+        'sortie de S',
+        20_000
+      );
       expect(s.code, s.sortie).toBe(75);
       expect(Date.now() - debut).toBeGreaterThanOrEqual(1_500);
       expect(Date.now() - debut).toBeLessThan(10_000);
@@ -604,7 +637,11 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
       expect(lignes(trace)).toEqual(['A début']);
     } finally {
       writeFileSync(libere, '');
-      await Promise.all([a.fini, premier.fini]);
+      await avant(
+        Promise.all(premier ? [a.fini, premier.fini] : [a.fini]),
+        'fin de A et P',
+        20_000
+      );
     }
   });
 });
