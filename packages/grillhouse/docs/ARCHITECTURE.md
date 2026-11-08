@@ -457,11 +457,14 @@ deux jeux de modifications chacun contre sa base, le circuit garde chaque lot av
 tête de la copie quand il le garde (`garderLeLot`, `lot: { commit, arbre, base }`). Après une
 avance entre deux relectures, le lot relu se rejoue sur la nouvelle tête (`leLotSurLaBase`,
 `git merge-tree --write-tree --merge-base=<base>`), et le lot d'aujourd'hui se garde sur ce rejeu
-(`leLotGarde`) : la relecture bornée, les éléments à rejuger et la passe finale restreinte lisent
-la différence entre les deux, ce que le lot a changé, jamais les commits de main. Un lot accepté
-que l'avance laisse tel quel reste accepté (`leLotAccepte`), comme Gerrit garde les votes d'un
-rebasage trivial : la passe finale joue entière, puis l'intégration, sans relecture de plus. Un
-rejeu en conflit avec main ne borne rien : la relecture et la passe suivantes sont entières.
+(`leLotGarde`) : la relecture bornée et les éléments à rejuger lisent la différence entre les
+deux, ce que le lot a changé, jamais les commits de main. La passe finale ne lit pas cette
+différence : elle joue toujours la bande du lot, de sa base à son sommet (`laPasseFinale`), et ses
+dépendants, jamais la copie entière, que la nuit et l'intégration jouent. Un lot accepté que
+l'avance laisse tel quel reste accepté (`leLotAccepte`), comme Gerrit garde les votes d'un
+rebasage trivial : la passe finale joue sa bande, puis l'intégration, sans relecture de plus. Un
+rejeu en conflit avec main ne borne rien : la relecture et les éléments à rejuger sont entiers, la
+passe finale garde sa bande.
 Un fichier engendré que l'avance réécrit peut écarter l'arbre du rejeu : le lot repasse alors
 la relecture. Ainsi un mouvement de main sur lequel le lot se rejoue tel quel ne coûte ni
 relecture ni constat (grillhouse-527 : la différence bornée portait les changements de main sur les

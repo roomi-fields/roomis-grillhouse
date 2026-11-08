@@ -123,7 +123,7 @@ describe.runIf(canWrap)(
       const consigne = essai(id, 'developpeur-2.prompt');
       expect(consigne).toContain('packages/forms/src/index.mjs:1');
       expect(consigne).toContain(
-        'Contrôles de la passe finale, hors enveloppe, sur la copie entière'
+        'Contrôles de la passe finale, hors enveloppe, sur la bande du lot'
       );
       const fort = args(id, 'developpeur', 4);
       expect(fort[fort.indexOf('--model') + 1]).toBe('opus');

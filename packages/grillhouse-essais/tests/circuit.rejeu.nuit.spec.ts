@@ -76,7 +76,7 @@ const RESTREINTE =
 describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  it('after a RENDU, plays the developpeur its finding names, then the final pass restricted to what the fix touches and its dependents, and the whole pass once before the integration', () => {
+  it('after a RENDU, plays the developpeur its finding names, then each final pass on the band of the lot, from its base, never the whole repository', () => {
     const id = 'demo-rejeu-rendu';
     ticket(id, TROIS);
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -117,18 +117,23 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
         p
       ).toHaveLength(2);
     }
-    // The final pass whole, then restricted to what changed since the lot the first review read,
-    // then whole once, on the lot accepted, before the integration.
+    // Each final pass plays the band of the lot, from its base (the head of the copy) to its top,
+    // never the whole repository, and never from the review before.
     const passes = c.filter(x => VERIFIER.test(x));
     expect(passes).toHaveLength(3);
-    expect(passes[0]).toBe('npm run verifier');
-    expect(passes[2]).toBe('npm run verifier');
-    const [, avant, apres] = RESTREINTE.exec(passes[1]) ?? [];
+    const bandes = passes.map(p => RESTREINTE.exec(p));
+    for (const b of bandes) {
+      expect(b).not.toBeNull();
+    }
     const [lot1, lot2] = lotsRelus(id);
-    expect(avant).toBe(lot1);
-    // The state of the copy at the pass, a commit on the lot the review read: Turborepo compares
-    // the two.
-    expect(gitRepo('rev-parse', `${apres}^`).trim()).toBe(lot1);
+    const [, base] = bandes[0] ?? [];
+    for (const b of bandes) {
+      expect(b?.[1]).toBe(base);
+    }
+    expect(base).not.toBe(lot1);
+    // The base is the head of the copy, an ancestor of the lot the first review read.
+    gitRepo('merge-base', '--is-ancestor', base, lot1);
+    const apres = bandes[1]?.[2] ?? '';
     expect(gitRepo('show', `${apres}:packages/forms/src/index.mjs`)).toContain('// rendu');
     // Turborepo plays forms and binder, which depends on it, and leaves sheet out.
     const restreinte = sortieDe(id, passes[1]);
@@ -149,7 +154,7 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
     expect(gitRepo('show', `${lot1}:packages/forms/src/index.mjs`)).not.toContain('// rendu');
     expect(gitRepo('show', `${lot2}:packages/forms/src/index.mjs`)).toContain('// rendu');
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(/^Circuit · relecture : ACCEPTÉ ; la passe finale entière/)
+      expect.stringMatching(/^Circuit · relecture : ACCEPTÉ ; la passe finale sur la bande du lot/)
     );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });

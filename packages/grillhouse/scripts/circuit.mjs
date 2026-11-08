@@ -309,14 +309,12 @@
 //   changed since the last green of the copy (scripts/dernier-vert.mjs, main's while the copy has
 //   none); what the lot reaches plays again, by the dependencies, the inputs of the tasks and
 //   `grillhouse.lit` (a reader out of the plan whose tests read a directory the lot changes
-//   included). After a review, save on the lot it accepted, the final pass is restricted to what
-//   changed since the lot it read and to its dependents, as Turborepo selects them
-//   (`laPasseFinale`): the circuit keeps the copy as it stands as a commit on that lot, replayed
-//   on the copy's HEAD when the copy advanced since, as Gerrit compares two patch sets each
-//   against its own base (`leLotGarde`), and plays `npm run verifier --
-//   --filter=...[<lot relu>...<copie>] --filter=//`, the root's tasks (the guards) with them; Turborepo reads a range from its merge
-//   base, the lot read, where a single `[<commit>]` would be read against HEAD. The whole final
-//   pass green keeps the tree of its lot (`verifie`). A red of a package of the plan goes to the
+//   included). The final pass always plays the band of the lot, never the whole repository, as
+//   Bazel and Nx `affected` play the reverse-dependency closure of a change
+//   (`laPasseFinale`): the circuit keeps the copy as it stands as a commit on the copy's HEAD,
+//   the base of the lot, and plays `npm run verifier --
+//   --filter=...[<base>...<copie>] --filter=//`, the root's tasks (the guards) with them; the
+//   complete one is the night's and the integration's. The final pass green on the band keeps the tree of its lot (`verifie`). A red of a package of the plan goes to the
 //   developpeur, three sessions for the final pass, counted apart from those of the checks, the
 //   third on the strong model. A red in a package out of the plan, or that no package of the plan
 //   holds, stops at « controles », a question for the supervisor: he extends the plan to that
@@ -368,7 +366,7 @@
 //   package that pass does not play again stands, and a regeneration that changes nothing plays no
 //   pass, every red of the pass before standing. What remains goes each to its owner, as any red
 //   of the final pass; a ceiling never rises (its command lowers it), so a lot beyond it stays red.
-//   That pass green after a whole one keeps its tree as verified. The files regenerated stay in
+//   That pass green keeps its tree as verified. The files regenerated stay in
 //   the copy: the lot carries them, without a word of the plan, as a genrule writes its output,
 //   and the reviewer reads them with the rest of the lot, the step's report among the circuit's. A
 //   file changed that the files of no reference run cover, or a command that fails stops at
@@ -451,7 +449,7 @@
 //   (`arretDuTestwriterSaute`; OSC Bridge SH-13y.1: three RENDU « Agent : testwriter » on a
 //   package whose tests no command of the frame plays, the developpeur relaunched on an empty
 //   diff each time); its question, declare the tests of the package or settle the finding.
-// - ACCEPTÉ: the integration, once the whole final pass has played on the lot accepted (its tree
+// - ACCEPTÉ: the integration, once the final pass has played its band on the lot accepted (its tree
 //   is `verifie`); else that pass first, once, its red going to the developpeur and the lot then
 //   to the reviewer again. The circuit builds the lot from the copy: the files the copy changes
 //   against its HEAD, the testwriter's (`estUnTest`: test files and the shared test material)
@@ -511,7 +509,7 @@
 //   agent; `boucles` the counts of the bounded loops of the step under way, by their key (`tests`,
 //   the testwriter's sessions with their proofs; `code`, the developpeur's with their checks;
 //   `relecture`, the reviews), null at a step without one; `finale` whether the final pass has
-//   begun; `verifie` the tree of the lot the last whole final pass green played, null before;
+//   begun; `verifie` the tree of the lot the last final pass green played, null before;
 //   `mene` the start (an ISO date) of the step the circuit leads itself while it runs, null
 //   otherwise; `reprise` the session of the testwriter or developpeur its relaunches resume,
 //   `{ agent, seance }`, null before any; `refus` the integration's refusal of the lot (`{ rapport,

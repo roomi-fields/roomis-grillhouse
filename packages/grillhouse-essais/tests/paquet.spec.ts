@@ -67,7 +67,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.mecanique': [6, 24],
   'circuit.montee': [5, 35], // grillhouse-4nr.12: driven by the command, the client of the workflow.
   circuit: [9, 27], // grillhouse-4nr.12: driven by the command, the client of the workflow.
-  'circuit.passe-finale': [3, 19],
+  'circuit.passe-finale': [3, 20],
   // grillhouse-1eq: one more expect, the explorateur's template of the mechanical gesture (sos).
   'circuit.plan': [18, 125],
   // grillhouse-3e2.5: three more tests, the report names the tests that carry the work.
@@ -76,7 +76,7 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.references': [30, 202],
   'circuit.refus': [3, 22],
   'circuit.registre': [1, 9],
-  'circuit.rejeu': [7, 51],
+  'circuit.rejeu': [7, 50],
   'circuit.relance': [3, 10],
   'circuit.relecture': [14, 130],
   'circuit.reprise': [5, 58],

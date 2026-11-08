@@ -439,7 +439,7 @@ describe('un tableau de transitions par étape', () => {
       };
       const { d } = jouer({ etat: etat(CONTROLES, { finale: true }) }, faits);
       expect(d.suivant.etape).toBe(REFERENCES);
-      expect(d.memoire.aRegenerer).toMatchObject({ noms: ['ref'], entiere: true });
+      expect(d.memoire.aRegenerer).toMatchObject({ noms: ['ref'] });
       const deja = jouer(
         {
           etat: etat(CONTROLES, { finale: true }),
@@ -452,7 +452,6 @@ describe('un tableau de transitions par étape', () => {
     it('la passe après une régénération : restreinte, ses rouges reportés', () => {
       const regeneration = {
         restreinte: { avant: 'a', apres: 'b' },
-        entiere: true,
         reportes: { rouges: [] },
       };
       const { d, demandes } = jouer(
@@ -500,10 +499,10 @@ describe('un tableau de transitions par étape', () => {
         undefined,
         ['f'],
         true,
-        { restreinte: 'R', entiere: true, reportes: { rouges: [], rejouee: true } },
+        { restreinte: 'R', reportes: { rouges: [], rejouee: true } },
       ],
     ])('%s', (_nom, suite, fichiers, finale, regeneration) => {
-      const a = { noms: ['ref'], notes: [], suite, rouges: [], entiere: true };
+      const a = { noms: ['ref'], notes: [], suite, rouges: [] };
       const { d } = jouer(
         { etat: etat(REFERENCES, { finale: true }), memoire: { aRegenerer: a } },
         {

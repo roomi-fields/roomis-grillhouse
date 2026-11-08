@@ -568,8 +568,8 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
   function controles() {
     const passeFinale = finale;
     // The final pass: after a regeneration of the references, restricted to what it changed,
-    // the reds of the pass before it carried (none plays when it changed nothing); else whole,
-    // or restricted to what changed since the last review. The checks of the plan after a
+    // the reds of the pass before it carried (none plays when it changed nothing); else the band
+    // of the lot, its base and its dependents. The checks of the plan after a
     // regeneration that changed nothing: none plays, the reds of the checks before standing.
     const regeneration = m('regeneration');
     maj.regeneration = null;
@@ -682,7 +682,6 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
         noms,
         rouges: k.tous,
         notes: k.notes,
-        entiere: !passe.restreinte,
         auDeveloppeur: k.auDeveloppeur && !k.arbitrer ? k.texte : null,
       };
       etape = REFERENCES;
@@ -747,9 +746,10 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     }
     // The whole pass green on this lot; the lot the last review accepted goes to the
     // integration, any other to the review.
-    // A pass after a regeneration counts as whole after a whole one: restricted to what
-    // the regeneration changed, or not played when it changed nothing.
-    if (passe.arbre && (regeneration ? regeneration.entiere : !passe.restreinte)) {
+    // A final pass green on the band of the lot (after a regeneration, on what it changed, or not
+    // played when it changed nothing) verifies its tree: the lot accepted on it goes to the
+    // integration.
+    if (passe.arbre) {
       maj.verifie = passe.arbre;
     }
     etape = lire('lotAccepte', { arbre: passe.arbre }) ? INTEGRATION : RELECTURE;
@@ -809,7 +809,6 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
             : { reportes: { rouges: a.rouges, rejouee: false } }
           : {
               restreinte: g.restreinte,
-              entiere: a.entiere,
               reportes: { rouges: a.rouges, rejouee: g.fichiers.length > 0 },
             };
     maj.aRegenerer = null;
@@ -841,11 +840,11 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
         etape = INTEGRATION;
         return decision();
       }
-      // The whole final pass has not played on the lot accepted: it plays once, then the
+      // The final pass has not played on the lot accepted: its band plays once, then the
       // integration.
       commenter(
         'relecture',
-        'ACCEPTÉ ; la passe finale entière, qui n’a pas joué sur ce lot, puis l’intégration.'
+        'ACCEPTÉ ; la passe finale sur la bande du lot (sa base et ses dépendants), qui n’a pas joué sur ce lot, puis l’intégration.'
       );
       etape = CONTROLES;
       tentative = 0;
@@ -890,7 +889,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     finale = false;
     commenter(
       'relecture',
-      `RENDU (relecture ${rendus}) ; le circuit relance ${auTestwriter ? 'le testwriter' : 'le développeur'}, ses ${lus.constats.length} constat(s) ouvert(s) dans la consigne de chaque séance, puis la passe finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur sur la différence.`
+      `RENDU (relecture ${rendus}) ; le circuit relance ${auTestwriter ? 'le testwriter' : 'le développeur'}, ses ${lus.constats.length} constat(s) ouvert(s) dans la consigne de chaque séance, puis la passe finale sur la bande du lot (sa base et ses dépendants), et le relecteur sur la différence.`
     );
     return decision();
   }

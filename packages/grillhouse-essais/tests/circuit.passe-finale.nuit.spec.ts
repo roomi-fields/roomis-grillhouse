@@ -89,10 +89,11 @@ it('critère 1 — mesure rend le double', () => { expect(mesure(2)).toBe(4); })
       '- 020-loader : test packages/loader/test/bibliotheques.test.mjs › '
     );
     expect(e?.rapport).not.toContain('$ npm run verifier\n');
-    // The report names where the final pass played: out of the envelope, on the whole copy.
+    // The report names where the final pass played: out of the envelope, on the band of the lot.
     expect(e?.rapport).toContain(
-      'Contrôles de la passe finale, hors enveloppe, sur la copie entière'
+      'Contrôles de la passe finale, hors enveloppe, sur la bande du lot'
     );
+    expect(e?.rapport).not.toContain('sur la copie entière');
     expect(e?.rapport).not.toContain('Contrôles du plan');
     expect(e?.rapport).toContain('020-loader');
     expect(e?.rapport).toContain('chaque fichier est une bibliothèque .bp');

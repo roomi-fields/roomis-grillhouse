@@ -137,7 +137,9 @@ describe('grillhouse-527.1 critère 1 — after an advance, the bounded differen
     expect(avant).not.toBeNull();
     expect(depuis).toBeNull();
     expect(lot).not.toBeNull();
-    expect(laPasseFinale(d.ctx).restreinte).toBeNull();
+    const { restreinte } = laPasseFinale(d.ctx);
+    expect(restreinte).not.toBeNull();
+    expect(restreinte!.avant).toBe(git(d.copie, 'rev-parse', 'HEAD'));
   });
 
   it('a review of before kept without its base is no review to bound from', () => {
@@ -153,7 +155,7 @@ describe('grillhouse-527.1 critère 1 — after an advance, the bounded differen
 });
 
 describe('grillhouse-527.1 critère 2 — the restricted final pass follows the same difference', () => {
-  it('after an advance, the range of the final pass holds only what the lot changed', () => {
+  it('after an advance, the range of the final pass holds only the work of the ticket', () => {
     const d = depot();
     d.ecrire('a.txt', lignes('COPIE'));
     d.relu('RENDU', ['a.txt']);
@@ -161,7 +163,8 @@ describe('grillhouse-527.1 critère 2 — the restricted final pass follows the 
     d.ecrire('c.txt', 'c\n');
     const { restreinte } = laPasseFinale(d.ctx);
     expect(restreinte).not.toBeNull();
-    expect(d.difference(restreinte!.avant, restreinte!.apres, '--name-only')).toBe('c.txt');
+    expect(d.difference(restreinte!.avant, restreinte!.apres, '--name-only')).toBe('a.txt\nc.txt');
+    expect(d.difference(restreinte!.avant, restreinte!.apres)).not.toContain('MAIN');
     // Turborepo reads the range from its merge base: the replayed lot itself.
     expect(git(d.copie, 'merge-base', restreinte!.avant, restreinte!.apres)).toBe(
       restreinte!.avant
@@ -178,28 +181,30 @@ describe('grillhouse-527.1 critère 3 — without an advance, unchanged', () => 
     const { depuis, lot } = leLotGarde(d.ctx);
     expect(depuis).toBe(avant!.commit);
     expect(git(d.copie, 'rev-parse', `${lot!.commit}^`)).toBe(avant!.commit);
-    const { restreinte } = laPasseFinale(d.ctx);
-    expect(restreinte!.avant).toBe(avant!.commit);
   });
 
-  it('the lot accepted, unchanged and without an advance, plays the whole pass and goes on', () => {
+  it('the lot accepted, unchanged and without an advance, plays the band of its base and goes on', () => {
     const d = depot();
     d.ecrire('a.txt', lignes('COPIE'));
     d.relu('ACCEPTÉ', ['a.txt']);
     const passe = laPasseFinale(d.ctx);
-    expect(passe.restreinte).toBeNull();
+    expect(passe.restreinte).not.toBeNull();
+    expect(passe.restreinte!.avant).toBe(git(d.copie, 'rev-parse', 'HEAD'));
     expect(leLotAccepte(d.ctx, passe.arbre)).toBe(true);
   });
 });
 
 describe('grillhouse-527.1 critère 4 — an advance out of the files of the lot sends nothing back', () => {
-  it('the lot accepted, main moved elsewhere: the whole pass, then the integration', () => {
+  it('the lot accepted, main moved elsewhere: the band of the lot, then the integration', () => {
     const d = depot();
     d.ecrire('a.txt', lignes('COPIE'));
     d.relu('ACCEPTÉ', ['a.txt']);
     d.avance('b.txt', 'b\nMAIN\n');
     const passe = laPasseFinale(d.ctx);
-    expect(passe.restreinte).toBeNull();
+    expect(passe.restreinte).not.toBeNull();
+    expect(d.difference(passe.restreinte!.avant, passe.restreinte!.apres, '--name-only')).toBe(
+      'a.txt'
+    );
     expect(leLotAccepte(d.ctx, passe.arbre)).toBe(true);
   });
 

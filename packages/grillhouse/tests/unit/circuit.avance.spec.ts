@@ -89,7 +89,7 @@ function npmDEssai() {
   return { env, appels };
 }
 
-const REGENERATION = { restreinte: { avant: 'a', apres: 'b' }, entiere: false, reportes: null };
+const REGENERATION = { restreinte: { avant: 'a', apres: 'b' }, reportes: null };
 
 describe('grillhouse-527 critère 2 — the passes that judge the lot are those of 3.1 and 4.1', () => {
   it('the steps prepared on the tip of main are 3.1 Contrôles and 4.1 Passe finale, and no other', () => {

@@ -14,7 +14,6 @@ import { createHash, randomUUID } from 'node:crypto';
 import {
   appendFileSync,
   closeSync,
-  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -392,22 +391,16 @@ function relectureDAvant(ctx) {
   return tient(e.lot.commit) && tient(e.lot.base) ? e : null;
 }
 
-// The tree of the copy as it stands, the copy's HEAD and index untouched: its index copied to a
-// file of the circuit's, every file of the copy added to that one (`git add -A`, the ignored files
-// left out), written as a tree. Its id, or null when git fails.
+// The tree of the copy as it stands, the copy's HEAD and index untouched: a fresh index of the
+// circuit's, read from HEAD (no stat cache, so git hashes every file's content and a file changed
+// within the second of the index, the racy case, is never missed), every file of the copy added to
+// it (`git add -A`, the ignored files left out), written as a tree. Its id, or null when git fails.
 export function arbreDeLaCopie(ctx) {
   const index = path.join(ctx.tmp, `index-${randomUUID().replaceAll('-', '')}`);
-  const reel = spawnSync(
-    'git',
-    ['-C', ctx.copie, 'rev-parse', '--path-format=absolute', '--git-path', 'index'],
-    { encoding: 'utf8' }
-  ).stdout?.trim();
   const env = { ...process.env, GIT_INDEX_FILE: index };
   const git = (...a) => spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', env });
   try {
-    if (reel && existsSync(reel)) {
-      copyFileSync(reel, index);
-    } else if (git('read-tree', 'HEAD').status !== 0) {
+    if (git('read-tree', 'HEAD').status !== 0) {
       return null;
     }
     if (git('add', '-A').status !== 0) {
@@ -486,8 +479,8 @@ function leLotSurLaBase(ctx, lot) {
 // The lot of the copy kept against the review before: `{ avant, depuis, lot }`, that review
 // (`relectureDAvant`, null before any), the lot it read set on the copy's HEAD (`leLotSurLaBase`,
 // null when nothing bounds), and the copy kept as a lot on it (on HEAD without it). The bounded
-// review, its elements to judge again and the restricted final pass read the difference from
-// `depuis` to `lot`.
+// review and its elements to judge again read the difference from `depuis` to `lot`; the final
+// pass does not read it, it plays the band of the lot (`laPasseFinale`).
 export function leLotGarde(ctx) {
   const avant = relectureDAvant(ctx);
   const depuis = avant ? leLotSurLaBase(ctx, avant.lot) : null;
@@ -526,21 +519,19 @@ function differenceDesLots(ctx, avant, apres) {
   return r.status === 0 ? r.stdout.split('\0').filter(Boolean).sort() : [];
 }
 
-// The final pass the lot calls for: `{ arbre, restreinte }`, the tree of the copy, and, after a
-// review whose lot it no longer is the accepted one, the range Turborepo plays (`{ avant, apres }`:
-// the lot that review read set on the copy's HEAD, and the copy kept on it, `leLotGarde`), null
-// for the whole pass: before any review, on the lot the last review accepted (`leLotAccepte`, an
-// advance of the copy included), or when that lot does not replay on HEAD.
+// The final pass the lot calls for: `{ arbre, restreinte }`, the tree of the copy and the band
+// Turborepo plays (`{ avant, apres }`: the copy's HEAD, the base of the lot, and the copy kept as a
+// commit on it), as Bazel and Nx `affected` play the reverse-dependency closure of a change: always
+// the band of the lot, before any review, after one, on an accepted lot, main advanced or not,
+// never the whole repository, which the night and the integration play. It throws, naming git,
+// when git cannot keep the lot: a null band would be the whole repository.
 export function laPasseFinale(ctx) {
   const arbre = arbreDeLaCopie(ctx);
-  if (!arbre || leLotAccepte(ctx, arbre)) {
-    return { arbre, restreinte: null };
+  const lot = arbre ? garderLeLot(ctx, null) : null;
+  if (!arbre || !lot) {
+    throw new Error(`la passe finale ne peut borner le lot de ${ctx.ticket} : git ne le garde pas`);
   }
-  const { depuis, lot } = leLotGarde(ctx);
-  return {
-    arbre,
-    restreinte: depuis && lot ? { avant: depuis, apres: lot.commit } : null,
-  };
+  return { arbre, restreinte: { avant: lot.base, apres: lot.commit } };
 }
 
 // The references of the circuit: those the project declares in the package.json of the copy
@@ -607,7 +598,7 @@ export function referencesDesRouges(ctx, lieux, aElaguer = false) {
 // follows (null when nothing changed: no pass plays again, and the reds stand); <suite>, the
 // regeneration the checks of the plan call for: `controles`, beside other reds, the checks of the
 // plan follow, on the regenerated tree; `passe`, without, the final pass that is due follows,
-// whole or since the last review; null after a final pass. A file a reference writes follows from the lot, as
+// on the band of the lot; null after a final pass. A file a reference writes follows from the lot, as
 // the output of a genrule, without a word of the plan, and the reviewer reads its difference; a
 // file changed that none of the references run declares, or a command that fails (a reference of
 // the project at another code than 0, one of the frame on a real failure alone) restores the copy
@@ -2008,14 +1999,12 @@ export function controles(ctx, finale, restreinte = null, reportes = null) {
             ? ` ; laissés à la passe finale, ${laisses.length} rouge(s) hors du plan`
             : ''
         }`;
-  // Where the checks played: the final pass out of the envelope, on the whole copy or restricted
-  // to what changed since the last review; the checks of the plan, its tests and packages, its
-  // guards in its envelope.
+  // Where the checks played: the final pass out of the envelope, on the band of the lot (its base
+  // and its dependents); the checks of the plan, its tests and packages, its guards in its
+  // envelope.
   const ou = !finale
     ? 'Contrôles du plan, ses tests et ses paquets, ses gardes dans son enveloppe'
-    : restreinte
-      ? "Contrôles de la passe finale, hors enveloppe, restreinte à ce que le lot change depuis la relecture d'avant et à ses dépendants"
-      : 'Contrôles de la passe finale, hors enveloppe, sur la copie entière';
+    : 'Contrôles de la passe finale, hors enveloppe, sur la bande du lot (sa base et ses dépendants)';
   const ligne = r => [`- ${r.texte}`, ...(r.detail ? ['', r.detail, ''] : [])];
   const nomDuPaquet = r => r.paquet ?? 'hors des paquets';
   const journal = `Le journal du ticket, pour le détail des commandes : ${ctx.journal}`;
