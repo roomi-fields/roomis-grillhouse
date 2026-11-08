@@ -4,7 +4,7 @@
 // make ; une admission à la charge, comme `make -l` (un départ seulement sous la charge des cœurs,
 // avec 4 Go de mémoire libres). Les places vivent sur le serveur Temporal (grillhouse-4nr.12) :
 // leur prise, leur attente et leur rang se jouent avec un serveur d'essai
-// (tests/temporal/places-de-la-machine.spec.ts) ; ce fichier joue ce qui se juge sans serveur : le
+// (tests/temporal/places-de-la-machine.nuit.spec.ts) ; ce fichier joue ce qui se juge sans serveur : le
 // plafond, les travailleurs, l'admission, et les lieux où aucune place ne se prend.
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

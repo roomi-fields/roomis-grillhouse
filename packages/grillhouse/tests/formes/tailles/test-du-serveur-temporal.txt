@@ -1,0 +1,5 @@
+import { demarrerLeServeur } from './aide.js';
+import { it } from 'vitest';
+it('un serveur de développement répond', () => {
+  demarrerLeServeur('temporal', '/tmp/base.db', 7233);
+});

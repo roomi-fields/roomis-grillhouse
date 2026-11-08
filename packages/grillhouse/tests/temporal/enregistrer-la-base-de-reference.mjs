@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The recording of the database file of reference (base-de-reference/temporal.db), which
-// base-de-reference.spec.ts reads under the current server: run once by the pinned program, the
+// base-de-reference.nuit.spec.ts reads under the current server: run once by the pinned program, the
 // file committed, and kept as it is at the next raise of the pin, so that the test then reads a
 // file of the version before.
 //

@@ -2,7 +2,7 @@
 // (src/temporal/tickets/activites.ts), on a project of trial: its package.json and Beads, a
 // stand-in on the PATH. The tickets that start and the setting of the project are read as written:
 // a package.json that does not parse, or a Beads that fails, is a fault named by its name, never a
-// key absent nor an empty list. The circuits the server holds are ./tickets.spec.ts's.
+// key absent nor an empty list. The circuits the server holds are ./tickets.nuit.spec.ts's.
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';

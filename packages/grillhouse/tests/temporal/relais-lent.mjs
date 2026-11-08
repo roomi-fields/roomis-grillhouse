@@ -1,4 +1,4 @@
-// The stand-in of a slow server of trial (./essai.spec.ts): `node relais-lent.mjs <cible> <the
+// The stand-in of a slow server of trial (./essai.nuit.spec.ts): `node relais-lent.mjs <cible> <the
 // arguments of temporal server start-dev>`. It listens at once on the port of its arguments
 // (`--port`) and forwards each connection to the port <cible> of the loopback, where the real
 // server starts later; a connection that finds no server there is closed.

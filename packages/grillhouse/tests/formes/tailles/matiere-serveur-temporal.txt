@@ -1,0 +1,5 @@
+import { spawn } from 'node:child_process';
+export function demarrerLeServeur(programme, base, port) {
+  const args = ['server', 'start-dev', '--headless', '--port', String(port), '--db-filename', base];
+  return spawn(programme, args, { stdio: 'ignore' });
+}

@@ -723,8 +723,10 @@ importe, par un chemin relatif ou par le nom d'un paquet de la matière partagé
 autre chose que git, ou il monte un dossier temporaire (`mkdtemp`, `tmpdir`) et y lance, dans un
 appel de processus à option `cwd:` (ou `-C`, `--prefix`), un outil lourd du produit (turbo,
 vitest, knip, depcruise, api-extractor : la constante `OUTILS_LOURDS`, nom littéral ou chemin
-littéral de son binaire ; un outil nommé par variable ou par script npm échappe à la lecture) ;
-moyen, il lance un processus ou importe plusieurs modules du dépôt ;
+littéral de son binaire ; un outil nommé par variable ou par script npm échappe à la lecture), ou
+il démarre un serveur Temporal de développement (les arguments littéraux `'server', 'start-dev'`,
+dans son texte ou dans la matière qu'il importe : constante `SERVEUR_TEMPORAL`) ; un tel test de
+jour est refusé, il s'écrit en `*.nuit.spec.ts` ; moyen, il lance un processus ou importe plusieurs modules du dépôt ;
 petit, sinon. Un grand test de jour est un constat (`grand-de-jour`), un test de nuit ou un banc
 jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la mise à jour qui
 apporte la garde (`npx grillhouse maj`, migration 0.25.0), et celles que l'outil lourd fait grandes à la migration
@@ -982,7 +984,7 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   l'activité lance un processus, envoie un signe de vie à chaque pas (`heartbeat`), et reprend au
   dernier signe de vie que le serveur garde quand son travailleur meurt ; le déroulé attend au
   besoin le signal `finir`. Le serveur tué par SIGKILL et relancé sur le même fichier, le déroulé
-  reprend avec son histoire (`tests/temporal/sonde.spec.ts`).
+  reprend avec son histoire (`tests/temporal/sonde.nuit.spec.ts`).
 - **`grillhouse temporal installer`** pose le programme `temporal` à sa version épinglée (`EPINGLE`
   de `src/temporal/installation.ts` : la version et la somme SHA-256 de l'archive de chaque
   plateforme, celles du `checksums.txt` de la publication), téléchargé depuis la publication de

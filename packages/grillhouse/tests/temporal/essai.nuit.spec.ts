@@ -1,7 +1,7 @@
 // The development server of trial (./essai.ts, `demarrerLeServeur`) resolves once its frontend
 // answers, not once its port accepts a connection: a server whose port opens before its frontend
 // serves (« Frontend is not healthy yet » under load) would fail the first call of a test.
-// Witness: tests/temporal/file.spec.ts red under load on 2026-11-04 (grillhouse-4nr.8).
+// Witness: tests/temporal/file.nuit.spec.ts red under load on 2026-11-04 (grillhouse-4nr.8).
 // The stand-in of a slow server: a relay (./relais-lent.mjs) that opens the port at once and
 // forwards each connection to the real server, which starts on another port only seconds later.
 import { chmodSync, writeFileSync } from 'node:fs';

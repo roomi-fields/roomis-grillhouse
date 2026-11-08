@@ -1,5 +1,5 @@
 // The program of the acts of a machine of trial (GRILLHOUSE_ACTE_DU_CIRCUIT), for the test of the
-// death of the worker during a session (./circuit.spec.ts, criterion 6): it answers each act of
+// death of the worker during a session (./circuit.nuit.spec.ts, criterion 6): it answers each act of
 // the circuit (scripts/faits-du-circuit.mjs, its same protocol) with a ticket of trial whose only
 // session is a true one (`jusquALaFiche` of scripts/seances.mjs, out of the envelope), its agent a
 // fake claude that ends at once without a sheet and leaves in its group, at its first launch, a

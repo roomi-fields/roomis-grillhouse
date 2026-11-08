@@ -2,7 +2,7 @@
 // scripts/superviseur.mjs launched on a repository of trial): only a real launch proves that the
 // session start of the supervisor that takes the lock says the wait of the questions to launch,
 // and what it reads of the circuits (grillhouse-pq6, grillhouse-4nr.10): here a server that does
-// not answer, said; the circuits a server gives are tests/temporal/circuit.spec.ts's.
+// not answer, said; the circuits a server gives are tests/temporal/circuit.nuit.spec.ts's.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

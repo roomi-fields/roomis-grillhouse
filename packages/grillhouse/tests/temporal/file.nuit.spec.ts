@@ -675,7 +675,7 @@ describe('un acte de la file qui échoue', () => {
 });
 
 // The class of the protobuf message of a history, which writes it as plain JSON and reads it
-// back, its integers and its enums as text (as ./circuit.spec.ts records the circuit's).
+// back, its integers and its enums as text (as ./circuit.nuit.spec.ts records the circuit's).
 type ClasseDHistoire = {
   toObject(h: unknown, o: object): unknown;
   fromObject(o: unknown): Parameters<typeof Worker.runReplayHistory>[1];

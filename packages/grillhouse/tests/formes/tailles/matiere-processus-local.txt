@@ -1,0 +1,4 @@
+import { spawnSync } from 'node:child_process';
+export function lancerLaCommande(commande) {
+  return spawnSync(process.execPath, [commande, '--version'], { encoding: 'utf8' });
+}

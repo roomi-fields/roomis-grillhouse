@@ -1,7 +1,7 @@
 // grillhouse-9kq, critère 6 (décision 6) : quelle commande du circuit est une passe lourde
 // (`passeLourde({ etape, args })` de scripts/passe-de-la-machine.mjs), que le verrou exclusif de la
 // machine tient en plus de sa place ; les places et le verrou des passes se jouent avec un serveur
-// d'essai (tests/temporal/passes-de-la-machine.spec.ts).
+// d'essai (tests/temporal/passes-de-la-machine.nuit.spec.ts).
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';

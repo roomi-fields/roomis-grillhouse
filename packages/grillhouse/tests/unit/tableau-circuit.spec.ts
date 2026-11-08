@@ -1,6 +1,6 @@
 // The circuit of a ticket on the board (scripts/circuit.mjs), as the Temporal server gives it
 // (scripts/circuits-du-serveur.mjs; here a reading made of the states each test names, the server's
-// own reading proved by tests/temporal/circuit.spec.ts). A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
+// own reading proved by tests/temporal/circuit.nuit.spec.ts). A circuit's ticket stands on one line, the only one of it in AGENTS, at the step of its state
 // (scripts/etapes.mjs); one that stopped on a question for the supervisor stands under its step,
 // after the line « ⤷ Question · <qui> », who must answer it (grillhouse-3uv.95.4), its card opening
 // on that question; one stopped without a question's text (« à repasser » among them) stands there

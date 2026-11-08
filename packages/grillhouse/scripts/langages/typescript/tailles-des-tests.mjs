@@ -22,7 +22,10 @@
 //     `cwd:` (or `-C`, `--prefix`), starts one of the heavy tools of OUTILS_LOURDS (turbo,
 //     vitest, knip, depcruise, api-extractor), named by a literal argument or a literal path to
 //     its binary, with no `git init` (grillhouse-44b.10.4, Bazel's test-encyclopedia: a test
-//     that runs the product in a trial project is large). A tool named by a variable, or run by
+//     that runs the product in a trial project is large);
+//     or it starts a Temporal development server (the literal arguments `'server', 'start-dev'`
+//     in a process call of its text or of its test material): a test that mounts a real server
+//     is large (grillhouse-4nr.16). A tool named by a variable, or run by
 //     an npm script (`npm run verifier`), escapes the reading and the test stays medium; so
 //     does a call without `cwd` (on the repository);
 //   - medium (`moyen`): it starts a process (it imports `child_process`, `execa` or `zx`), or it
@@ -65,6 +68,8 @@ const APPEL =
 const GIT = /^['"`]git(?:['"`]|\s)/;
 /** The heavy tools of the product: a test that starts one in a trial project is large. */
 export const OUTILS_LOURDS = ['turbo', 'vitest', 'knip', 'depcruise', 'api-extractor'];
+// A Temporal development server started: the literal arguments `'server', 'start-dev'`.
+const SERVEUR_TEMPORAL = /['"`]server['"`]\s*,\s*['"`]start-dev['"`]/;
 // A temporary directory mounted.
 const DOSSIER_TEMPORAIRE = /\bmkdtemp(?:Sync)?\b|\btmpdir\b/;
 // An option of a call that carries the directory the process runs in.
@@ -155,12 +160,24 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
   const vus = new Set();
   // <f> followed; with <noms>, the names a test imports of it, its re-exports of a whole module
   // (`export * from`) are followed only to a module that declares one of them.
-  const suivre = (f, noms = null) => {
-    const cle = noms ? `${f}#${noms.join(',')}` : f;
+  const lus = new Set();
+  let serveur = false;
+  const suivre = (f, noms = null, pris = noms) => {
+    const cle = noms || pris ? `${f}#${(noms ?? []).join(',')}#${(pris ?? []).join(',')}` : f;
     if (vus.has(f) || vus.has(cle)) return;
     vus.add(cle);
     const texte = lire(f) ?? '';
-    textes.push(texte);
+    if (!lus.has(f)) textes.push(texte);
+    lus.add(f);
+    // The server counts when the part of the file the test takes starts it: the whole file for
+    // the test itself or an import without braces, the exports it names otherwise.
+    const partie = pris
+      ? texte
+          .split(/(?=^export\s)/m)
+          .filter(c => pris.some(n => declare(c, n)))
+          .join('\n')
+      : texte;
+    if (SERVEUR_TEMPORAL.test(partie)) serveur = true;
     for (const m of texte.matchAll(IMPORT)) {
       const spec = m[1] ?? m[2] ?? m[3] ?? m[4];
       const parSonNom = lesMatieres.find(x => spec === `${x.nom}/test-fixtures`);
@@ -175,7 +192,7 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
         continue;
       }
       const rel = path.relative(racine, cible).split(path.sep).join('/');
-      if ((MATIERE.test(rel) || dansUneMatiere(cible)) && !TEST.test(rel)) suivre(cible);
+      if ((MATIERE.test(rel) || dansUneMatiere(cible)) && !TEST.test(rel)) suivre(cible, null, nomsImportes(m[0]));
       else modules.add(cible);
     }
   };
@@ -184,7 +201,10 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
   const processus = PROCESSUS.test(tout);
   const autreQueGit = [...tout.matchAll(APPEL)].some(m => !GIT.test(m[1].trim()));
   const taille =
-    processus && ((autreQueGit && DEPOT_D_ESSAI.test(tout)) || outilLourdEnProjetDEssai(tout))
+    processus &&
+    ((autreQueGit && DEPOT_D_ESSAI.test(tout)) ||
+      outilLourdEnProjetDEssai(tout) ||
+      serveur)
       ? 'grand'
       : processus || modules.size > 1
         ? 'moyen'

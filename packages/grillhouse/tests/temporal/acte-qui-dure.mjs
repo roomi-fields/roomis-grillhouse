@@ -1,5 +1,5 @@
 // The program of the acts of a machine of trial (GRILLHOUSE_ACTE_DU_CIRCUIT), for the test of an
-// act stopped while its command runs (./circuit.spec.ts): it answers each act of the circuit
+// act stopped while its command runs (./circuit.nuit.spec.ts): it answers each act of the circuit
 // (scripts/faits-du-circuit.mjs, its same protocol) with a ticket of trial, and its first fact
 // launches a command in its own process group, as a rebase or a verification runs under an act,
 // which ignores SIGTERM and writes its pid in GRILLHOUSE_TRACE_D_ESSAI; the fact never answers.

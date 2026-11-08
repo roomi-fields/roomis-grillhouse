@@ -13,7 +13,7 @@
 // The cases use the fake cargo of ./langages/cargo/faux-cargo.ts, which refuses a dependency
 // `.workspace = true` that the root does not declare, as cargo does (code 101). An act that fails
 // on the workflow of the ticket, its stop « inattendu » and its question awaited, is
-// tests/temporal/circuit.spec.ts.
+// tests/temporal/circuit.nuit.spec.ts.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

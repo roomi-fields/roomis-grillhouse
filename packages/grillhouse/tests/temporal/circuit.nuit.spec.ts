@@ -7,7 +7,7 @@
 // nothing), 5 (a history replays on the current code) and 7 (a « a-repasser » plays again, then
 // goes up); the effects a step decided before a fact that fails are written before its stop, and an
 // act that fails is the stop « inattendu », its question awaited.
-// The step 5.2 finds the lot closed (the queue has its own test, ./file.spec.ts). Criterion 6 (the
+// The step 5.2 finds the lot closed (the queue has its own test, ./file.nuit.spec.ts). Criterion 6 (the
 // death of the worker during a session) plays the built worker, its acts a
 // program of trial (./acte-d-essai.mjs): the attempt played again waits for the dead attempt's
 // group, and carries the same key, which the acts of the circuit play once.
@@ -253,7 +253,7 @@ function actes(
       return [k, autre ? (e: unknown) => autre(e, (f as (e: unknown) => unknown).bind(a)) : f];
     })
   ) as unknown as Activites;
-  // The step 5.2: the lot already closed, as the queue leaves it (its own test: ./file.spec.ts).
+  // The step 5.2: the lot already closed, as the queue leaves it (its own test: ./file.nuit.spec.ts).
   const laFile: Pick<ActivitesDeLaFile, 'situerLeLot'> = {
     situerLeLot() {
       journal.faits.push('file');

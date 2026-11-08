@@ -1,5 +1,5 @@
 // The program of the acts of a machine of trial (GRILLHOUSE_ACTE_DU_CIRCUIT), for the test of an
-// effect whose writing fails (./circuit.spec.ts, renvoi de 92dead5): it answers each act of the
+// effect whose writing fails (./circuit.nuit.spec.ts, renvoi de 92dead5): it answers each act of the
 // circuit (scripts/faits-du-circuit.mjs, its same protocol and its same errors, `erreurDeLActe`)
 // with a ticket of trial whose opening gives back one comment; the act `effet` writes it by the
 // circuit's own writer (`ecrireLEffet` of scripts/effets.mjs) under a bd that fails at the

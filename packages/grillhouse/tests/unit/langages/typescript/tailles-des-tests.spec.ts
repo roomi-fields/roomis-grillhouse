@@ -289,6 +289,51 @@ describe('grillhouse-44b.10.4 critère 2 — what stays medium or small', () => 
   });
 });
 
+describe('a test that starts a Temporal server is large: it belongs to the night', () => {
+  const SERVEUR = forme('test-du-serveur-temporal.txt');
+  const MATIERE_SERVEUR = forme('matiere-serveur-temporal.txt');
+  const MATIERE_LOCALE = forme('matiere-processus-local.txt');
+
+  it('large, the test material it imports starts a Temporal development server', () => {
+    const fichiers = { 'tests/t/serveur.spec.ts': SERVEUR, 'tests/t/aide.ts': MATIERE_SERVEUR };
+    expect(tailleDe(fichiers, 'tests/t/serveur.spec.ts')).toBe('grand');
+  });
+
+  it('a day test that starts a Temporal server is a finding, a night one is none', () => {
+    const r = depot({
+      'tests/t/aide.ts': MATIERE_SERVEUR,
+      'tests/t/jour.spec.ts': SERVEUR,
+      'tests/t/nuit.nuit.spec.ts': SERVEUR,
+    });
+    const constats = verifier(r) as { fichier: string; regle: string }[];
+    expect(constats.map(c => [c.fichier, c.regle])).toEqual([
+      ['tests/t/jour.spec.ts', GRAND_DE_JOUR],
+    ]);
+  });
+
+  it('a test whose material starts a local process but no server stays medium', () => {
+    const fichiers = {
+      'tests/t/local.spec.ts': SERVEUR.replace('demarrerLeServeur', 'lancerLaCommande'),
+      'tests/t/aide.ts': MATIERE_LOCALE,
+    };
+    expect(tailleDe(fichiers, 'tests/t/local.spec.ts')).toBe('moyen');
+  });
+
+  it('in Grillhouse, the Temporal tests that start a server are night tests and the others stay of the day', () => {
+    const dossier = 'packages/grillhouse/tests/temporal/';
+    const toutes = tailles(DEPOT) as { fichier: string; taille: string; nuit: boolean }[];
+    const delaDossier = toutes.filter(
+      t => t.fichier.startsWith(dossier) && /\.spec\.ts$/.test(t.fichier)
+    );
+    const grands = delaDossier.filter(t => t.taille === 'grand');
+    expect(grands.length).toBeGreaterThan(0);
+    expect(grands.filter(t => !t.nuit).map(t => t.fichier)).toEqual([]);
+    const nuit = delaDossier.filter(t => t.nuit);
+    expect(nuit.filter(t => t.taille !== 'grand').map(t => t.fichier)).toEqual([]);
+    expect(delaDossier.filter(t => !t.nuit).length).toBeGreaterThan(0);
+  });
+});
+
 describe('grillhouse-44b.10.4 critère 3 — a night test or a bench is never a finding', () => {
   it('critère 3: a night test or a time bench with the pattern is large but no finding', () => {
     const r = depot({
