@@ -394,10 +394,10 @@
 //   the 75 of verifier, the final pass's, is final (its wait for the lock of the machine reached
 //   its bound). A check still at 75 ends the circuit at 75, the gesture `a-repasser`. A red relaunches the developpeur
 //   with its report, twice at most, the third session on the strong model (`lancer.sh --modele
-//   opus --effort high`): three sessions for the checks, and three for the final pass.
+//   opus`; the other sessions name `sonnet`, and none fixes the effort): three sessions for the checks, and three for the final pass.
 // - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
 //   repository with its index, claude itself (`claude -p --agent relecteur --session-id <uuid>`,
-//   CLAUDE_BIN replaces claude) in the ticket's copy, on Opus, under the rights and the
+//   CLAUDE_BIN replaces claude) in the ticket's copy, on Sonnet, under the rights and the
 //   context of its role (scripts/droits.mjs: the commands its skill names, its index), its instruction from the second template of
 //   consigne-agent.md: the ticket, its plan, the path of the claims file (the ticket's
 //   description as `bd show` gives it at the session's launch, written by the circuit in its

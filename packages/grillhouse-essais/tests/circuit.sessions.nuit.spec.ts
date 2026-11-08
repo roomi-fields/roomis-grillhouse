@@ -57,11 +57,16 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       expect(r.status, sortie(r)).toBe(ARRETS.controles);
       expect(sessions(id, 'developpeur')).toBe(3);
       for (const n of [1, 2]) {
-        expect(args(id, 'developpeur', n)).not.toContain('--model');
+        const a = args(id, 'developpeur', n);
+        expect(a[a.indexOf('--model') + 1]).toBe('sonnet');
+        expect(a).not.toContain('--effort');
       }
       const fort = args(id, 'developpeur', 3);
       expect(fort[fort.indexOf('--model') + 1]).toBe('opus');
-      expect(fort[fort.indexOf('--effort') + 1]).toBe('high');
+      expect(fort).not.toContain('--effort');
+      const testwriter = args(id, 'testwriter', 1);
+      expect(testwriter[testwriter.indexOf('--model') + 1]).toBe('sonnet');
+      expect(testwriter).not.toContain('--effort');
       // The relaunched developpeur receives the output of the red check.
       expect(essai(id, 'developpeur-2.prompt')).toContain('critère 1 — mesure rend le double');
       expect(etat(id)).toMatchObject({
@@ -81,7 +86,8 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
       expect(essai(id, 'developpeur-4.prompt')).toContain(
         `${TA_TACHE}Le superviseur a tranché : le double.`
       );
-      expect(args(id, 'developpeur', 4)).not.toContain('--model');
+      const quatrieme = args(id, 'developpeur', 4);
+      expect(quatrieme[quatrieme.indexOf('--model') + 1]).toBe('sonnet');
       expect(etat(id)?.etape).toBe('integre');
     });
   });

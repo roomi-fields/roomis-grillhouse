@@ -60,7 +60,7 @@ describe.runIf(canWrap)(
       // The second session resumes the first, with the short template and the red checks.
       expect(valeur(a2, '--resume')).toBe(premiere);
       expect(a2).not.toContain('--session-id');
-      expect(a2).not.toContain('--model');
+      expect(valeur(a2, '--model')).toBe('sonnet');
       const courte = essai(id, 'developpeur-2.prompt');
       expect(courte).toContain(COURTE);
       expect(courte).not.toContain(ENTIERE);
@@ -100,7 +100,7 @@ describe.runIf(canWrap)(
       expect(valeur(a3, '--session-id')).toMatch(UUID);
       expect(valeur(a3, '--session-id')).not.toBe(premiere);
       expect(a3).not.toContain('--resume');
-      expect(a3).not.toContain('--model');
+      expect(valeur(a3, '--model')).toBe('sonnet');
       expect(essai(id, 'developpeur-3.prompt')).toContain(ENTIERE);
       expect(essai(id, 'developpeur-3.prompt')).toContain('critère 1 — mesure rend le double');
       expect(commentaires(id)).toContainEqual(

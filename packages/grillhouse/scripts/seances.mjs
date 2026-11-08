@@ -82,7 +82,10 @@ export class SeanceAnnulee extends Error {
   }
 }
 
-const FORT = ['--modele', 'opus', '--effort', 'high'];
+// The model of each session under the envelope is named by the circuit, never taken from the
+// account; no session fixes the effort, which stays adaptive.
+const SONNET = ['--modele', 'sonnet'];
+const FORT = ['--modele', 'opus'];
 
 const LANCEUR = path.join(import.meta.dirname, 'enveloppe', 'lancer.sh');
 
@@ -281,7 +284,7 @@ export async function lancer(
       args: [
         // GRILLHOUSE_LANCEUR names a launcher of trial in place of lancer.sh, as CLAUDE_BIN does claude.
         process.env.GRILLHOUSE_LANCEUR || LANCEUR,
-        ...(fort ? FORT : []),
+        ...(fort ? FORT : SONNET),
         ...(ouvre ? ['--seance', ouvre] : []),
         ...(reprend ? ['--reprise', reprend] : []),
         // The schema of its sheet when it is not its role's (the explorateur's gesture).

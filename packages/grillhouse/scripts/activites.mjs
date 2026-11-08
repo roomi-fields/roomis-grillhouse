@@ -83,7 +83,7 @@ import { AttenteDeLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
 import { avecLaMachineEtUnePlace } from './places-de-la-machine.mjs';
 
 const ici = import.meta.dirname;
-// The sessions out of the envelope (the reviewer on Opus, the explorateur and the questionneur on
+// The sessions out of the envelope (the reviewer, the explorateur and the questionneur, all on
 // Sonnet), each in the
 // ticket's copy, the main tree once the integration removed it, under the rights and the context
 // of its role (scripts/droits.mjs: the commands its skill names, the refusal of a change of its
@@ -308,7 +308,7 @@ export async function relire(ctx, { constats = [] } = {}) {
     id: idDeSeance(ctx, 'relecture'),
     evenement: 'relecture',
     horsEnveloppe: true,
-    droits: horsDeLEnveloppe(ctx, 'relecteur', 'opus'),
+    droits: horsDeLEnveloppe(ctx, 'relecteur', 'sonnet'),
     avec: lot ? { lot: { ...lot, fichiers: [...tests, ...code] } } : {},
     // Every review judges the findings still open, bounded or whole (`suiviDesConstats`).
     valider: f =>

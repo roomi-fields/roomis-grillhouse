@@ -4,7 +4,6 @@ description: "Écrit le plan d'un ticket à l'étape 1 de son circuit (ses crit�
 skills:
   - grillhouse:explorateur
 model: sonnet
-effort: medium
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
 ---
 

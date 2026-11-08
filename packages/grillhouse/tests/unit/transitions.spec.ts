@@ -259,6 +259,17 @@ describe('un tableau de transitions par étape', () => {
       expect(demandes[1].change).toBe(transitions.CHANGE_DU_REFUS);
       expect(d.suivant.relanceSurLeRefus).toBe(false);
     });
+    it('le commentaire d’une séance forte nomme opus sans effort, celui des autres ne nomme aucun modèle', () => {
+      const texteDuCommentaire = (tentative: number) => {
+        const { d } = jouer({ etat: etat(CODE, { tentative }) }, faits());
+        return d.effets.filter(e => e.genre === 'commenter').map(e => e.texte ?? '');
+      };
+      const forte = texteDuCommentaire(T.SEANCES_DEVELOPPEUR).join('\n');
+      expect(forte).toContain('opus');
+      expect(forte).not.toMatch(/effort|high/);
+      const premiere = texteDuCommentaire(1).join('\n');
+      expect(premiere).not.toMatch(/opus|effort|high/);
+    });
     it('BESOIN : besoin ; BLOQUÉ : hors-portee ; hors du plan : hors-portee', () => {
       expect(
         jouer({ etat: etat(CODE) }, faits({ seance: { statut: 'BESOIN' } })).d.arret?.nom

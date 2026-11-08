@@ -4,7 +4,6 @@ description: Questionne une proposition qu'il n'a pas écrite (le plan d'un tick
 skills:
   - grillhouse:questionneur
 model: sonnet
-effort: medium
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
 ---
 

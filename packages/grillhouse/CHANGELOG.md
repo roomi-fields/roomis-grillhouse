@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **The Temporal tests that mount a server are night tests** (grillhouse-4nr.16): under load, the day's setup of a real Temporal server failed (« Channel has been shut down », « serveur sorti (2) ») and held back the pass of every ticket. Nine files of `tests/temporal/` that start a server are now `*.nuit.spec.ts` (sonde, essai, base-de-reference, file, tickets, passes-de-la-machine, places, circuit, places-de-la-machine), played at night alone; those that mount none (client, commande, etat, installation, acte-mort, tickets-activites) stay of the day. The guard of the sizes (`tailles-des-tests`) classes large a test whose text or test material starts a Temporal development server (`'server', 'start-dev'`), so a day `*.spec.ts` that does is refused. The quarantine of 2026-11-08 is lifted: the tests run at night, without `skip`. **Action for projects**: none.
 
+### Changed
+
+- **Every role of the circuit names its model, Sonnet but the developpeur's last session, and no session fixes the effort** (grillhouse-3uv.98): the testwriter and the developpeur's first two sessions took the account's default (`~/.claude/settings.json`), so the supervisor's model; they now receive `--modele sonnet`, as the explorateur, the questionneur and the reviewer (now on Sonnet, no longer Opus) do. The developpeur's last session (the third) takes `--modele opus`, the testwriter never; `FORT` no longer carries `--effort high` and no session passes `--effort`, so the effort stays adaptive. The comment the circuit writes after a strong session names opus without an effort. **Action for projects**: none.
+
 ## [0.30.0] - 2026-11-07
 
 ### Changed

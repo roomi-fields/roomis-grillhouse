@@ -80,12 +80,12 @@ const AVANT: Record<string, [number, number]> = {
   'circuit.relecture': [14, 130],
   'circuit.reprise': [5, 58],
   // grillhouse-pq6: four more expects, a resumption gives the hand back before the session left.
-  'circuit.sessions': [16, 92], // grillhouse-4nr.12: driven by the command, the client of the workflow; the cases of the circuit's process gone with it.
+  'circuit.sessions': [16, 95], // grillhouse-4nr.12: driven by the command, the client of the workflow; the cases of the circuit's process gone with it.
   'circuit.statut': [10, 66],
   'circuit.tests-de-head': [5, 22],
   // main 23dd5ba [9, 68], plus the test grillhouse-pkl.2 added (a7cb14d); grillhouse-3e2.5: one
   // more it and expect, the testwriter's red test written in a scenario.
-  'circuit.ticket': [10, 67], // grillhouse-4nr.12: driven by the command, the client of the workflow; a run that starts over is refused, a stopped circuit reopens.
+  'circuit.ticket': [10, 68], // grillhouse-4nr.12: driven by the command, the client of the workflow; a run that starts over is refused, a stopped circuit reopens.
   'circuit.tri': [8, 78],
   // grillhouse-3e2.5: fewer expects, the file-wide green gives way to the unnamed greens.
   'circuit.vert-par-fichier': [8, 20],

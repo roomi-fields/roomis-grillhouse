@@ -127,7 +127,9 @@ describe.runIf(canWrap)(
       );
       const fort = args(id, 'developpeur', 4);
       expect(fort[fort.indexOf('--model') + 1]).toBe('opus');
-      expect(args(id, 'developpeur', 3)).not.toContain('--model');
+      const troisieme = args(id, 'developpeur', 3);
+      expect(troisieme[troisieme.indexOf('--model') + 1]).toBe('sonnet');
+      expect(fort).not.toContain('--effort');
       expect(etat(id)).toMatchObject({ etape: 'controles', raison: 'controles', finale: true });
       expect(etat(id)?.question).toMatchObject({ arret: 'controles', qui: 'superviseur' });
       // grillhouse-5m1.1, criterion 2: each red final pass keeps its reds with its outcome, its

@@ -461,7 +461,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       change: relanceSurLeRefus ? CHANGE_DU_REFUS : undefined,
     });
     relanceSurLeRefus = false;
-    const fortement = fort ? ' (opus, effort high)' : '';
+    const fortement = fort ? ' (opus)' : '';
     // A question goes up to the supervisor; a red out of reach, to the testwriter its sheet sends
     // it to, else up to the supervisor.
     if (fiche.statut === 'BESOIN') {

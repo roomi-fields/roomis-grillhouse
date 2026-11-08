@@ -204,7 +204,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(essai(id, 'relecteur-1.pwd').trim()).toBe(copie);
     const a = args(id, 'relecteur', 1);
     expect(a[a.indexOf('--agent') + 1]).toBe('relecteur');
-    expect(a[a.indexOf('--model') + 1]).toBe('opus');
+    expect(a[a.indexOf('--model') + 1]).toBe('sonnet');
     // Without a prompt, it may run every command its skill runs: a refused one leaves no verdict.
     expect(a[a.indexOf('--permission-mode') + 1]).toBe('dontAsk');
     // Its rights are the commands its skill names (scripts/droits.mjs, tests/unit/droits.spec.ts):
@@ -634,7 +634,8 @@ fiche '{"statut":"FAIT"}'
     expect(sessions(id, 'developpeur')).toBe(3);
     // Each round is a first developpeur session: none on the strong model.
     for (const n of [2, 3]) {
-      expect(args(id, 'developpeur', n)).not.toContain('--model');
+      const a = args(id, 'developpeur', n);
+      expect(a[a.indexOf('--model') + 1]).toBe('sonnet');
     }
     const e = etat(id);
     expect(e).toMatchObject({ etape: 'relecture', raison: 'relecture-arret', code: 16 });
