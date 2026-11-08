@@ -742,8 +742,11 @@ export function assembler({
   for (const l of enfants.values()) {
     l.sort(ordre);
   }
-  // The circuits of the open tickets; a ticket whose circuit runs is in progress.
-  const parCircuit = new Map(circuits.filter(c => ouvert(c.ticket)).map(c => [c.ticket, c]));
+  // The circuits of the open tickets, and the running ones of the closed tickets (the queue closes
+  // a ticket before it reads the CI); a ticket whose circuit runs is in progress.
+  const parCircuit = new Map(
+    circuits.filter(c => ouvert(c.ticket) || (c.vivant && parId.has(c.ticket))).map(c => [c.ticket, c]),
+  );
   const actifs = new Set([
     ...enCoursMesures.map(v => v.ticket).filter(Boolean),
     ...[...parCircuit.values()].filter(c => c.vivant).map(c => c.ticket),
@@ -762,11 +765,11 @@ export function assembler({
   // A ticket's state: done, in progress, deferred, awaiting validation; else, with the owner's go,
   // waiting (ready) or blocked (an open ticket it depends on); without it, awaiting his go.
   const etat = t => {
-    if (t.status === 'closed') {
-      return 'fermes';
-    }
     if (t.status === 'in_progress' || actifs.has(t.id)) {
       return 'enCours';
+    }
+    if (t.status === 'closed') {
+      return 'fermes';
     }
     if (t.status === 'deferred') {
       return 'reportes';
@@ -990,7 +993,10 @@ export function assembler({
   }
   const debutJour = jour;
   const faitsDuJour = tous
-    .filter(t => travail(t) && t.closed_at && Date.parse(t.closed_at) >= debutJour)
+    .filter(
+      t =>
+        travail(t) && !actifs.has(t.id) && t.closed_at && Date.parse(t.closed_at) >= debutJour,
+    )
     .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))
     .map(t => ({
       id: t.id,
