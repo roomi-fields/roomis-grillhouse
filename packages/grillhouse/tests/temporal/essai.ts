@@ -6,11 +6,12 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { Connection } from '@temporalio/client';
 import { afterAll } from 'vitest';
+import { EPINGLE } from '../../src/temporal/installation.js';
 
 export const PAQUET = path.resolve(__dirname, '../..');
 const TRAVAILLEUR = path.join(PAQUET, 'dist/temporal/travailleur.js');
@@ -34,18 +35,24 @@ export function dossier(nom: string): string {
 }
 
 /**
- * The pinned program `temporal`, which the variable TEMPORAL names: the tests that play a
- * workflow need it, and fail naming the variable without it, never skipped.
+ * The pinned program `temporal`: the variable TEMPORAL when it names an existing program, else the
+ * pinned program already laid down under ~/.cache/grillhouse/temporal/<version>/temporal, else a
+ * failure naming the variable and the command that lays it down; never skipped.
  */
 export function programmeTemporal(): string {
   const p = process.env.TEMPORAL;
-  if (!p || !existsSync(p)) {
-    throw new Error(
-      `La variable TEMPORAL ne nomme pas le programme temporal (${p ?? 'absente'}) : ` +
-        'grillhouse.outils du package.json racine la déclare, après `npx grillhouse temporal installer`.'
-    );
+  if (p && existsSync(p)) {
+    return p;
   }
-  return p;
+  const maison = process.env.HOME || homedir();
+  const pose = path.join(maison, '.cache/grillhouse/temporal', EPINGLE.version, 'temporal');
+  if (existsSync(pose)) {
+    return pose;
+  }
+  throw new Error(
+    `La variable TEMPORAL ne nomme pas le programme temporal (${p ?? 'absente'}) : ` +
+      'posez-le par `npx grillhouse temporal installer --programme-seul`.'
+  );
 }
 
 /** A free TCP port of the loopback. */

@@ -49,9 +49,6 @@
   "packageManager": "npm@10.9.8",
   "grillhouse": {
     "outil": "0.30.0",
-    "outils": {
-      "TEMPORAL": "~/.cache/grillhouse/temporal/1.9.1/temporal"
-    },
     "flux": {
       ".github/workflows/ci.yml": [
         "@roomi-fields/grillhouse",

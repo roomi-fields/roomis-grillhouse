@@ -20,13 +20,9 @@ const CIS = [
 ] as const;
 
 // What a step of the test job may run besides the verification: the installation of the project
-// and of the tools the verification plays (uv, the command claude, the pinned program temporal of
-// grillhouse-4nr.2, laid down alone and exported as TEMPORAL).
-const INSTALLATION = [
-  /^npm ci$/,
-  /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/,
-  /^echo "TEMPORAL=\$\(npx grillhouse temporal installer --programme-seul\)" >> "\$GITHUB_ENV"$/,
-];
+// and of the tools the verification plays (uv, the command claude); no test of the day plays the
+// program temporal, which the night lays down.
+const INSTALLATION = [/^npm ci$/, /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/];
 const CONTROLES = /format:check|lint|typecheck|\bbuild\b|\bnpm test\b|\bvitest\b|\btsc\b/;
 
 describe('critère 2: the CI calls the verification alone', () => {
@@ -43,6 +39,12 @@ describe('critère 2: the CI calls the verification alone', () => {
           INSTALLATION.some(re => re.test(r)),
           `étape de test hors installation : ${r}`
         ).toBe(true);
+      }
+    });
+
+    it(`${titre} does not install the program temporal, which no test of the day plays`, () => {
+      for (const r of lancees) {
+        expect(r, r).not.toMatch(/temporal|TEMPORAL/);
       }
     });
 

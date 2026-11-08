@@ -1005,8 +1005,9 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   la version du cadre que le projet installe. Une unité de systemd part d'un PATH nu : celle de
   chaque travailleur nomme le PATH des outils du compte qu'un circuit lance (node, npm, claude, bd,
   gh, trouvés dans le PATH de l'installation, un outil absent refusé par son nom avant toute
-  écriture) et chaque outil du projet (`grillhouse.outils`), sa variable. Il déclare enfin la variable `TEMPORAL` dans `grillhouse.outils` du
-  `package.json` du projet, sous `~` quand le programme est sous la maison. Ce que systemd a
+  écriture) et chaque outil du projet (`grillhouse.outils`), sa variable. L'unité de chaque travailleur reçoit enfin `Environment=TEMPORAL=<programme posé>`, tiré du
+  programme posé et non d'une clé `grillhouse.outils.TEMPORAL` que le `package.json` porterait ; l'installation
+  n'écrit jamais ce `package.json`. Ce que systemd a
   appliqué se tient à part de ce qui est écrit : la somme du texte de chaque unité, une fois
   `systemctl --user daemon-reload`, `enable` des trois unités et `restart` des unités en attente
   réussis (`~/.local/state/grillhouse/temporal/unites-appliquees.json`). Une unité écrite que
@@ -1015,18 +1016,20 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   fichier ne s'écrit, systemd n'est pas appelé.
 - **`grillhouse temporal installer --programme-seul`** pose le programme seul, vérifié de même, et
   écrit son chemin sur la sortie standard : aucune unité, aucun `package.json`, aucun `systemctl`.
-  La CI obtient ainsi le programme épinglé comme un utilisateur, et l'exporte en `TEMPORAL` avant
-  `npm run verifier` (`.github/workflows/ci.yml`).
+  La nuit obtient ainsi le programme épinglé (idempotent), par la commande construite de la version
+  qui la joue, non celle de sa copie, pas encore construite, et l'exporte en `TEMPORAL` avant ses
+  commandes (`scripts/nuit.sh`), par-dessus toute clé restée dans un `package.json` ; la CI, dont aucun
+  test de jour ne lance Temporal, ne l'installe pas.
 - **`grillhouse temporal etat`** dit, pour le serveur, le travailleur du projet et le travailleur de
   la machine, s'ils tournent (`systemctl --user is-active`), la version du programme posé et si le
   serveur répond ; sans installation, il dit ce qui manque et sort en 1.
 - La maison, le dossier des unités, le projet et le programme `systemctl` sont des options
   (`--maison`, `--unites`, `--racine`, `--systemctl`) : les tests installent sous une maison
   d'essai, avec un faux `systemctl`, et jamais dans le systemd du compte. Les tests qui jouent un
-  déroulé lancent le programme de `TEMPORAL` (la clé `grillhouse.outils` du `package.json` racine,
-  que la vérification passe ; `globalEnv` du turbo.json racine, si bien qu'un autre programme rejoue
-  les tests) sur un port libre et un fichier de base temporaire ; sans la variable, ils échouent en
-  la nommant. Le fichier de base de référence (`tests/temporal/base-de-reference/temporal.db`,
+  déroulé lancent le programme de `TEMPORAL` s'il nomme un programme existant, sinon le programme épinglé déjà
+  posé sous `~/.cache/grillhouse/temporal/<version>/temporal`, sur un port libre et un fichier de base
+  temporaire ; sans l'un ni l'autre, ils échouent en nommant la variable et la commande de pose
+  (`npx grillhouse temporal installer --programme-seul`). Ce sont des tests de nuit. Le fichier de base de référence (`tests/temporal/base-de-reference/temporal.db`,
   commité par une exception du `.gitignore`), enregistré par la version épinglée, se relit sous le
   serveur courant avec son histoire ; à la prochaine montée d'épingle, il reste celui de la version
   d'avant, et le même test mesure la relecture d'une vraie version précédente. Son espace `default`

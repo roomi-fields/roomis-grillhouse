@@ -10,12 +10,13 @@
 // does. At its end, green or red, every workflow still running stops, then the worker, then the
 // server: nothing outlives the test.
 import { spawn, spawnSync, type ChildProcess, type SpawnSyncReturns } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, expect } from 'vitest';
-import { CADRE, enProcessus } from './cadre.js';
+import { CADRE, enProcessus, valeursDe } from './cadre.js';
 
 const TRAVAILLEUR = path.join(CADRE, 'dist/temporal/travailleur.js');
 const SUPERVISEUR = path.join(CADRE, 'scripts/superviseur.mjs');
@@ -56,14 +57,30 @@ const finirLEnfant = async (enfant: ChildProcess) => {
 };
 export const dormir = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-// The pinned program of Temporal, which TEMPORAL names; the test fails naming it without it.
-function temporal(): string {
+// The pinned program of Temporal: TEMPORAL when it names an existing program, else the pinned
+// program already laid down under ~/.cache/grillhouse/temporal/<version>/temporal, else the test
+// fails naming the variable and the command that lays it down.
+function programmeTemporal(): string {
   const p = process.env.TEMPORAL;
-  if (!p) {
-    throw new Error('TEMPORAL ne nomme pas le programme épinglé de Temporal.');
+  if (p && existsSync(p)) {
+    return p;
   }
-  return p;
+  const version = (
+    valeursDe('dist/temporal/installation.js', ['EPINGLE']).EPINGLE as
+      { version: string } | undefined
+  )?.version;
+  const pose = version
+    ? path.join(process.env.HOME || homedir(), '.cache/grillhouse/temporal', version, 'temporal')
+    : null;
+  if (pose && existsSync(pose)) {
+    return pose;
+  }
+  throw new Error(
+    `La variable TEMPORAL ne nomme pas le programme temporal (${p ?? 'absente'}) : ` +
+      'posez-le par `npx grillhouse temporal installer --programme-seul`.'
+  );
 }
+const temporal = programmeTemporal;
 const portLibre = () =>
   new Promise<number>((ok, ko) => {
     const s = createServer();

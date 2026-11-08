@@ -2,7 +2,7 @@
 // `temporal` at its pinned version, its archive checked against its pinned sum, laid down under
 // ~/.cache/grillhouse/temporal/<version>/temporal; the units of the account's systemd (the server,
 // the worker of the project, the worker of the machine), each started again by systemd; the
-// variable TEMPORAL declared in `grillhouse.outils` of the project's package.json.
+// worker's unit gets `Environment=TEMPORAL=<the program laid down>`, the package.json untouched.
 //
 // - The pin (EPINGLE) is the version of the program and the SHA-256 of the archive of each
 //   platform, as its release publishes them (checksums.txt); an archive whose sum differs is
@@ -33,7 +33,7 @@
 //   each unit's text once systemctl succeeded (~/.local/state/grillhouse/temporal/
 //   unites-appliquees.json), so that a systemctl that failed is played again at the next run.
 // - `poserLeProgramme` lays down the program alone, no unit, no package.json, no systemd: the mode
-//   `--programme-seul` of the command, by which the CI gets the pinned program as a user does.
+//   `--programme-seul` of the command, by which the night gets the pinned program as a user does.
 // - The home, the directory of the units and the project are parameters (`lieuxDe`), as systemctl,
 //   the download, the published version and the account's tools are: a test installs under a
 //   trial home, never in the account's systemd.
@@ -376,8 +376,6 @@ export interface RapportDInstallation {
   unites: string[];
   /** The units systemd was told of (written now, or written before and never applied). */
   appliquees: string[];
-  /** Whether it wrote the variable TEMPORAL in the project's package.json. */
-  outil: boolean;
   /** Whether anything changed. */
   change: boolean;
 }
@@ -403,27 +401,6 @@ function poser(contenu: Buffer, programme: string) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-}
-
-/** The value of TEMPORAL for <programme>: under `~` when it lies under the home <maison>. */
-export function valeurDeLOutil(programme: string, maison: string): string {
-  const rel = path.relative(maison, programme);
-  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? `~/${rel}` : programme;
-}
-
-// Declares TEMPORAL in `grillhouse.outils` of the package.json of <racine>; whether it wrote it.
-function declarerLOutil(racine: string, programme: string, maison: string): boolean {
-  const f = path.join(racine, 'package.json');
-  const pkg = JSON.parse(readFileSync(f, 'utf8')) as {
-    grillhouse?: { outils?: Record<string, string> };
-  };
-  const valeur = valeurDeLOutil(programme, maison);
-  if (pkg.grillhouse?.outils?.TEMPORAL === valeur) {
-    return false;
-  }
-  pkg.grillhouse = { ...pkg.grillhouse, outils: { ...pkg.grillhouse?.outils, TEMPORAL: valeur } };
-  writeFileSync(f, `${JSON.stringify(pkg, null, 2)}\n`);
-  return true;
 }
 
 // systemctl <args>, refused by its output when it fails.
@@ -501,33 +478,30 @@ export async function installer({
   trouver = nom => trouverDansLePath(nom),
 }: OptionsDInstallation): Promise<RapportDInstallation> {
   const { donnees, appliquees: fichierDesAppliquees } = cheminsDe(lieux, epingle.version);
-  // Every refusal before any writing: the archive, the account's tools, the project's tools (with
-  // TEMPORAL as it will be declared), then the worker of the published version, which lays that
+  // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
   // version down in its cache first.
   const { programme, contenu } = await obtenirLeProgramme({ lieux, epingle, plateforme, obtenir });
   const chemin = cheminDesUnites(node, trouver);
   const pkg = JSON.parse(readFileSync(path.join(lieux.racine, 'package.json'), 'utf8')) as {
     grillhouse?: { outils?: unknown };
   };
-  // The tools as written; TEMPORAL joins them only when they are an object (or absent), so that a
-  // faulty value is refused as it is written.
+  // The tools as written, without a TEMPORAL key left in the package.json: the worker's unit takes
+  // the program laid down. A faulty value is refused as it is written.
   const brut = pkg.grillhouse?.outils;
-  const temporal = { TEMPORAL: valeurDeLOutil(programme, lieux.maison) };
-  const { outils, fautes } = lireOutils(
+  const { outils: lus, fautes } = lireOutils(
     {
       ...pkg,
       grillhouse: {
         ...pkg.grillhouse,
         outils:
-          brut === undefined || brut === null
-            ? temporal
-            : typeof brut === 'object' && !Array.isArray(brut)
-              ? { ...brut, ...temporal }
-              : brut,
+          brut !== null && typeof brut === 'object' && !Array.isArray(brut)
+            ? Object.fromEntries(Object.entries(brut).filter(([k]) => k !== 'TEMPORAL'))
+            : brut,
       },
     },
-    { maison: lieux.maison, existe: p => p === programme || existsSync(p) }
+    { maison: lieux.maison, existe: p => existsSync(p) }
   );
+  const outils = { ...lus, TEMPORAL: programme };
   if (fautes.length) {
     throw new Error(`temporal : ${fautes.join(' ; ')}`);
   }
@@ -537,7 +511,6 @@ export async function installer({
     poser(contenu, programme);
   }
   mkdirSync(path.dirname(donnees), { recursive: true });
-  const outilEcrit = declarerLOutil(lieux.racine, programme, lieux.maison);
   const textes = textesDesUnites(lieux, {
     version: epingle.version,
     node,
@@ -571,7 +544,6 @@ export async function installer({
     pose,
     unites,
     appliquees,
-    outil: outilEcrit,
-    change: pose || unites.length > 0 || outilEcrit || appliquees.length > 0,
+    change: pose || unites.length > 0 || appliquees.length > 0,
   };
 }

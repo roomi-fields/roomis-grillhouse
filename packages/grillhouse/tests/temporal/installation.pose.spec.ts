@@ -68,7 +68,7 @@ describe('the installation from an archive whose sum is the pinned one', () => {
   };
   const unites = [UNITE_DU_SERVEUR, uniteDuProjet(racine), UNITE_DE_LA_MACHINE];
 
-  it('lays the program down, executable, writes the units, tells systemd and declares TEMPORAL', async () => {
+  it('lays the program down, executable, writes the units, tells systemd and declares nothing in the package.json', async () => {
     const r = await installer(options);
     const { programme, donnees } = cheminsDe(l, '0.0.1');
     expect(r.change).toBe(true);
@@ -80,14 +80,12 @@ describe('the installation from an archive whose sum is the pinned one', () => {
     }
     expect(statSync(path.dirname(donnees)).isDirectory()).toBe(true);
     expect(appels).toEqual([['daemon-reload'], ['enable', ...unites], ['restart', ...unites]]);
-    const pkg = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')) as {
-      name: string;
-      grillhouse: { outils: Record<string, string> };
-    };
-    // Under the trial home, as the tools read it: one home, that of the places.
-    expect(pkg.grillhouse.outils.TEMPORAL).toBe('~/.cache/grillhouse/temporal/0.0.1/temporal');
-    expect(pkg.name).toBe('essai');
-    // The worker's unit names the PATH of the account's tools and TEMPORAL, the tool declared.
+    // The package.json is not written: TEMPORAL is not declared there, and the report has no tool.
+    expect(readFileSync(path.join(racine, 'package.json'), 'utf8')).toBe(
+      '{\n  "name": "essai"\n}\n'
+    );
+    expect(r).not.toHaveProperty('outil');
+    // The worker's unit names the PATH of the account's tools and TEMPORAL, the program laid down.
     const travail = readFileSync(path.join(l.unites, uniteDuProjet(racine)), 'utf8');
     expect(travail).toContain('Environment=PATH=/usr/bin:/compte/bin:/usr/local/bin:/bin\n');
     expect(travail).toContain(`Environment=TEMPORAL=${programme}\n`);
@@ -278,6 +276,58 @@ describe('the published version of the frame under --maison', () => {
     expect(readFileSync(path.join(l.unites, uniteDuProjet(racine)), 'utf8')).toContain(
       `ExecStart=/usr/bin/node ${travailleur} --file`
     );
+  });
+});
+
+describe('a package.json that already carries grillhouse.outils.TEMPORAL', () => {
+  it('is not rewritten, and the worker’s unit takes the program laid down, not the key’s value', async () => {
+    const contenu = archive('0.0.7');
+    const racine = dossier('projet');
+    const avant = `${JSON.stringify(
+      { name: 'garde', grillhouse: { outils: { TEMPORAL: '/ailleurs/temporal' } } },
+      null,
+      2
+    )}\n`;
+    writeFileSync(path.join(racine, 'package.json'), avant);
+    const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
+    const r = await installer({
+      lieux: l,
+      epingle: { version: '0.0.7', sommes: { linux_amd64: somme(contenu) } },
+      plateforme: 'linux_amd64',
+      obtenir: () => Promise.resolve(contenu),
+      systemctl: () => ({ status: 0, stdout: '', stderr: '' }),
+      node: '/usr/bin/node',
+      travailleur: '/paquet/dist/temporal/travailleur.js',
+      trouver: nom => `/compte/bin/${nom}`,
+    });
+    expect(readFileSync(path.join(racine, 'package.json'), 'utf8')).toBe(avant);
+    const travail = readFileSync(path.join(l.unites, uniteDuProjet(racine)), 'utf8');
+    expect(travail).toContain(`Environment=TEMPORAL=${r.programme}\n`);
+    expect(travail).not.toContain('/ailleurs/temporal');
+  });
+
+  it('keeps the other tools of the project in the unit', async () => {
+    const contenu = archive('0.0.8');
+    const racine = dossier('projet');
+    const outil = dossier('outil');
+    writeFileSync(
+      path.join(racine, 'package.json'),
+      JSON.stringify({ name: 'autres', grillhouse: { outils: { AUTRE: outil } } })
+    );
+    const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
+    await installer({
+      lieux: l,
+      epingle: { version: '0.0.8', sommes: { linux_amd64: somme(contenu) } },
+      plateforme: 'linux_amd64',
+      obtenir: () => Promise.resolve(contenu),
+      systemctl: () => ({ status: 0, stdout: '', stderr: '' }),
+      node: '/usr/bin/node',
+      travailleur: '/paquet/dist/temporal/travailleur.js',
+      trouver: nom => `/compte/bin/${nom}`,
+    });
+    const travail = readFileSync(path.join(l.unites, uniteDuProjet(racine)), 'utf8');
+    expect(travail).toContain(`Environment=AUTRE=${outil}\n`);
+    expect(travail).toContain(`Environment=TEMPORAL=${cheminsDe(l, '0.0.8').programme}\n`);
   });
 });
 

@@ -23,7 +23,6 @@ import {
   UNITE_DU_SERVEUR,
   uniteDuProjet,
   urlDeLArchive,
-  valeurDeLOutil,
 } from '../../src/temporal/installation.js';
 import { dossier } from './essai.js';
 
@@ -72,19 +71,6 @@ describe('the pin of the program temporal (criterion 1)', () => {
     expect(cheminsDe(l, '1.9.1').programme).toBe(
       path.join(l.maison, '.cache/grillhouse/temporal/1.9.1/temporal')
     );
-  });
-});
-
-describe('the value of TEMPORAL in grillhouse.outils', () => {
-  it('is written under ~ when the program lies under the home, so that it holds on every machine', () => {
-    expect(valeurDeLOutil('/home/x/.cache/grillhouse/temporal/1.9.1/temporal', '/home/x')).toBe(
-      '~/.cache/grillhouse/temporal/1.9.1/temporal'
-    );
-  });
-
-  it('is the absolute path when the program lies out of the home', () => {
-    expect(valeurDeLOutil('/opt/temporal/temporal', '/home/x')).toBe('/opt/temporal/temporal');
-    expect(valeurDeLOutil('/home/xy/temporal', '/home/x')).toBe('/home/xy/temporal');
   });
 });
 

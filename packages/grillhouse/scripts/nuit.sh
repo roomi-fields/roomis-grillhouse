@@ -39,6 +39,12 @@
 #   (scripts/outils-cles.mjs) gives each command of the project its variables, each set to its
 #   path, whatever the environment of the night's launcher; a faulty key turns the night red, the
 #   log naming it, and nothing runs.
+# - TEMPORAL: after the tools of the project, before any command, the night lays the pinned program of
+#   Temporal down (`grillhouse temporal installer --programme-seul`, by the built command of the
+#   version playing the night, not the copy's: the copy has no build yet; idempotent: a program
+#   already laid down is not downloaded again) and exports its path as TEMPORAL, over any key left
+#   in a package.json; a laying that fails turns the night red, the log naming its cause, and
+#   nothing runs.
 # - The night tests: after the full pass, the night tests, then the measures of time alone (the
 #   time budget benches and the time witnesses), which `npm test` and the integration leave out
 #   (grillhouse-bd7), played by the command `tests-de-nuit` of the module of the copy's language
@@ -226,6 +232,15 @@ jouer() {
     return 1
   fi
   eval "$outils"
+  # The pinned program of Temporal, laid down and exported for every command. The command is that
+  # of the version playing the night (already built), not the copy's: the copy is cleaned of its
+  # build and has no node_modules before the `npm ci` below.
+  local temporal
+  if ! temporal=$(env -C "$copie" node "$ici/../bin/grillhouse.mjs" temporal installer --programme-seul); then
+    echo "✗ la pose du programme temporal échoue : rien n'est joué."
+    return 1
+  fi
+  export TEMPORAL="$temporal"
   # The data of the project (donnees-cles.mjs), exported the same way.
   local donnees
   if ! donnees=$(node "$ici/donnees-cles.mjs" "$copie"); then

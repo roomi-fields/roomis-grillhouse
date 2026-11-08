@@ -150,7 +150,7 @@ const SCINDES: Record<string, [number, number]> = {
   version: [1, 6],
   // grillhouse-4id: the runs of the circuit, the night, the command of the key and `grillhouse
   // verifier` with the tools of the project; the day proves them by the exported functions.
-  outils: [6, 22], // grillhouse-4nr.12: driven by the command, the client of the workflow.
+  outils: [9, 32], // grillhouse-4nr.12: driven by the command, the client of the workflow.
   // grillhouse-8o9: the integration of a generated file a project declares, on a real repository.
   'integrer.engendres': [5, 25],
   // grillhouse-qmk: a real envelope with a fake sccache, and the cause replayed with the real one.

@@ -5,8 +5,7 @@
     "GRILLHOUSE_RESULTATS",
     "GRILLHOUSE_CHANGEMENTS",
     "GRILLHOUSE_AVANCEMENT",
-    "TMPDIR",
-    "TEMPORAL"
+    "TMPDIR"
   ],
   "tasks": {
     "build": {

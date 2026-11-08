@@ -185,3 +185,68 @@ describe('the command of the key and `grillhouse verifier`', () => {
     expect(r.stderr).toContain('/nulle/part/outil');
   });
 });
+
+// The night in a repository of trial whose package.json declares <outils>, node a script that answers
+// the pinned program laid down alone by the command of the night (or fails with <echec>) and runs
+// the real node otherwise, npm a script that writes the value of TEMPORAL at each call to `vu`,
+// TEMPORAL absent from the environment.
+function nuitDeTemporal(outils: unknown, echec?: string) {
+  const racine = depotGit(outils);
+  const vu = `${racine}-vu`;
+  const appels = `${racine}-pose`;
+  const pose = path.join(ESSAIS, 'pose', 'temporal');
+  const bin = commandes(racine, {
+    node: [
+      'if [ "${1##*/}" = "grillhouse.mjs" ] && [ "$*" != "${1} temporal installer --programme-seul" ]; then exit 0; fi',
+      'if [ "${1##*/}" = "grillhouse.mjs" ]; then',
+      `  printf '%s\\n' "$*" >> '${appels}'`,
+      echec ? `  echo '${echec}' >&2; exit 1` : `  echo '${pose}'; exit 0`,
+      'fi',
+      `exec '${process.execPath}' "$@"`,
+    ],
+    npm: [`printf '%s\\n' "TEMPORAL=\${TEMPORAL-absent} $*" >> '${vu}'`, 'exit 0'],
+    bd: ['echo "[]"'],
+  });
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    PATH: `${bin}:${process.env.PATH}`,
+  };
+  delete env.TEMPORAL;
+  const r = spawnSync('bash', [NUIT], { cwd: racine, encoding: 'utf8', timeout: 120_000, env });
+  const dossier = path.join(racine, '.git', 'nuit');
+  const journal = readdirSync(dossier)
+    .filter(f => f.endsWith('.log'))
+    .map(f => readFileSync(path.join(dossier, f), 'utf8'))
+    .join('\n');
+  return { code: r.status, journal: `${journal}\n${r.stdout}\n${r.stderr}`, vu, appels, pose };
+}
+
+describe('the night lays the pinned program of Temporal down and exports it', () => {
+  it('plays its commands with TEMPORAL set to the program laid down, a project without the key', () => {
+    const { code, journal, vu, appels, pose } = nuitDeTemporal({});
+    expect(code, journal).toBe(0);
+    expect(readFileSync(appels, 'utf8')).toContain(
+      'grillhouse.mjs temporal installer --programme-seul'
+    );
+    const vus = readFileSync(vu, 'utf8');
+    expect(vus).toContain(`TEMPORAL=${pose} --prefix`);
+    expect(vus).not.toContain('TEMPORAL=absent');
+  });
+
+  it('exports the program laid down over a TEMPORAL left in the package.json', () => {
+    const outil = path.join(ESSAIS, 'reste');
+    mkdirSync(outil, { recursive: true });
+    const { code, journal, vu, pose } = nuitDeTemporal({ TEMPORAL: outil });
+    expect(code, journal).toBe(0);
+    const vus = readFileSync(vu, 'utf8');
+    expect(vus).toContain(`TEMPORAL=${pose} --prefix`);
+    expect(vus).not.toContain(outil);
+  });
+
+  it('a laying that fails stops the night, naming its cause, and nothing runs', () => {
+    const { code, journal, vu } = nuitDeTemporal({}, 'somme refusée : archive corrompue');
+    expect(code).toBe(1);
+    expect(journal).toContain('somme refusée : archive corrompue');
+    expect(existsSync(vu)).toBe(false);
+  });
+});

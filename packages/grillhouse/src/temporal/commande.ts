@@ -10,14 +10,13 @@
 //
 // - `installer` lays down the program `temporal` at its pinned version, its archive downloaded
 //   from its release (or read from <fichier>) and checked against its pinned sum, writes the units
-//   of the account, tells systemd, and declares TEMPORAL in `grillhouse.outils` of the project's
-//   package.json (./installation.ts). An archive refused, or systemd failing: its line on the error
+//   of the account and tells systemd (./installation.ts); the worker's unit takes TEMPORAL from the
+//   program laid down, the package.json is not written. An archive refused, or systemd failing: its line on the error
 //   stream, exit 1. Systemd failing, the units stay written and not applied: the next run applies
 //   them.
 // - `installer --programme-seul` lays down the program alone, checked as above, and writes its
-//   path, one line, on the standard output: no unit, no package.json, no systemctl. The CI gets the
-//   pinned program so, as a user does (`TEMPORAL=$(npx grillhouse temporal installer
-//   --programme-seul)`).
+//   path, one line, on the standard output: no unit, no package.json, no systemctl. The night gets the
+//   pinned program so (`TEMPORAL=$(npx grillhouse temporal installer --programme-seul)`).
 // - `etat` writes the state of each service on the standard output (./etat.ts); exit 0 when
 //   installed, 1 when not.
 // - The places: the home ($HOME), the directory of the units (<home>/.config/systemd/user), the
@@ -88,7 +87,7 @@ async function principal(args: string[]): Promise<number> {
     r.change
       ? `temporal : ${r.pose ? 'programme posé' : 'programme à jour'} (${r.programme}) ; ` +
           `unités écrites : ${r.unites.join(', ') || 'aucune'} ; ` +
-          `appliquées : ${r.appliquees.join(', ') || 'aucune'} ; TEMPORAL ${r.outil ? 'déclarée' : 'à jour'}.\n`
+          `appliquées : ${r.appliquees.join(', ') || 'aucune'}.\n`
       : 'temporal : l’installation est à jour, rien ne change.\n'
   );
   return 0;
