@@ -30,6 +30,7 @@
 // same decision.
 import { A_REPASSER } from './codes-de-sortie.mjs';
 import { ARRETS, boucle, RESPONSABLE, SUITE } from './etapes.mjs';
+import { attribuerLeRouge } from './reprise.mjs';
 
 // The steps of the circuit's state, read from the list of the steps.
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
@@ -247,6 +248,28 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
   const ecrireRapport = (lieu, texte, resultat, r = texte) =>
     effets.push({ genre: 'rapport', etape: lieu, texte, resultat, rapport: r });
   const inscrire = (entree, evenement) => effets.push({ genre: 'inscrire', entree, evenement });
+  // The last green of a step (`verts`: the fingerprint of its inputs, its duration, what it
+  // needs to be read back) kept in the memory, or dropped (<vert> null): only a step green keeps
+  // one, as a task of Turborepo caches only its success.
+  const garderLeVert = (nom, vert) => {
+    const verts = { ...(m('verts') ?? {}) };
+    if (vert) {
+      verts[nom] = vert;
+    } else {
+      delete verts[nom];
+    }
+    maj.verts = verts;
+  };
+  // A step whose inputs are those of its last green: its result is read back, its duration
+  // (<ms>) the one the bilan counts as not replayed (scripts/bilan.mjs).
+  const releve = (nom, ms) => {
+    const lieu = nom === 'passe-finale' ? 'controles' : nom;
+    commenter(
+      lieu,
+      `${nom} relue sans se rejouer : ses entrées (fichiers, commande) sont celles de son dernier vert.`
+    );
+    inscrire({ etape: nom, relue: { ms: ms ?? 0 } }, 'relue');
+  };
   const decision = (extra = {}) => ({
     suivant: { etape, tentative, rapport, finale, relanceSurLeRefus },
     memoire: maj,
@@ -314,11 +337,13 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     return decision();
   }
   if (etape === TESTS) {
+    const reprise = m('reprise');
     const fiche = lire('seance', {
       role: 'testwriter',
       tentative,
       rapport,
       derniere: tentative > RELANCES_TESTWRITER,
+      ...(reprise ? { fichiers: reprise.fichiers } : {}),
     });
     // A testwriter who declares himself blocked or in need of an answer goes up to the supervisor.
     if (fiche.statut !== 'FAIT') {
@@ -349,26 +374,51 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     return decision();
   }
   if (etape === PREUVE) {
-    const p = lire('preuve');
-    rapport = p.texte;
-    if (p.ok) {
-      // A finding of the reviewer still open for the developpeur launches him, red or not.
-      const pourLui = ouverts(m('constats'), 'developpeur').length > 0;
-      const inchange = Boolean(ticket.sorte?.inchange);
+    const reprise = m('reprise');
+    // A finding of the reviewer still open for the developpeur launches him, red or not.
+    const pourLui = ouverts(m('constats'), 'developpeur').length > 0;
+    const inchange = Boolean(ticket.sorte?.inchange);
+    const vert = m('verts')?.preuve;
+    if (vert && !reprise && lire('empreinteEtape', { etape: 'preuve' }) === vert.empreinte) {
+      // The proof's inputs are those of its last green: its result is read back, not played.
+      releve('preuve', vert.ms);
+      rapport = vert.texte ?? null;
       const auDeveloppeur =
-        apresLaPreuve({ rouges: p.rouges, pourLeDeveloppeur: pourLui, inchange }) === CODE;
-      const suite = p.rouges
-        ? 'au développeur'
-        : pourLui
-          ? 'aucun rouge ; au développeur, que nomme un constat du relecteur'
-          : inchange
-            ? 'aucun rouge : le plan dit « comportement inchangé », au développeur'
-            : 'aucun rouge : un lot de tests seul, aux contrôles';
-      ecrireRapport('preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`, p.resultat);
+        apresLaPreuve({ rouges: vert.rouges, pourLeDeveloppeur: pourLui, inchange }) === CODE;
       etape = auDeveloppeur ? CODE : CONTROLES;
       tentative = auDeveloppeur ? 1 : 0;
       return decision();
     }
+    const p = lire('preuve', reprise ? { fichiers: reprise.fichiers } : {});
+    rapport = p.texte;
+    if (p.ok) {
+      // Resumed at a red, a proof restricted to the file the red names goes to the checks.
+      const auDeveloppeur = reprise
+        ? false
+        : apresLaPreuve({ rouges: p.rouges, pourLeDeveloppeur: pourLui, inchange }) === CODE;
+      const suite = reprise
+        ? 'reprise à un rouge : aux contrôles'
+        : p.rouges
+          ? 'au développeur'
+          : pourLui
+            ? 'aucun rouge ; au développeur, que nomme un constat du relecteur'
+            : inchange
+              ? 'aucun rouge : le plan dit « comportement inchangé », au développeur'
+              : 'aucun rouge : un lot de tests seul, aux contrôles';
+      ecrireRapport('preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`, p.resultat);
+      if (!reprise && p.empreinte) {
+        garderLeVert('preuve', {
+          empreinte: p.empreinte,
+          rouges: p.rouges,
+          ms: p.ms,
+          texte: p.texte,
+        });
+      }
+      etape = auDeveloppeur ? CODE : CONTROLES;
+      tentative = auDeveloppeur ? 1 : 0;
+      return decision();
+    }
+    garderLeVert('preuve', null);
     if (tentative <= RELANCES_TESTWRITER) {
       ecrireRapport(
         'preuve',
@@ -573,6 +623,28 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     // regeneration that changed nothing: none plays, the reds of the checks before standing.
     const regeneration = m('regeneration');
     maj.regeneration = null;
+    const nomEtape = passeFinale ? 'passe-finale' : 'controles';
+    const reprise = m('reprise');
+    const vert = m('verts')?.[nomEtape];
+    if (
+      vert &&
+      !reprise &&
+      !regeneration &&
+      lire('empreinteEtape', { etape: nomEtape }) === vert.empreinte
+    ) {
+      // The step's inputs are those of its last green: its result is read back, not played.
+      releve(nomEtape, vert.ms);
+      maj.controlesRouges = null;
+      if (!passeFinale) {
+        etape = CONTROLES;
+        tentative = 0;
+        finale = true;
+        return decision();
+      }
+      maj.verifie = vert.arbre;
+      etape = lire('lotAccepte', { arbre: vert.arbre }) ? INTEGRATION : RELECTURE;
+      return decision();
+    }
     const passe = !passeFinale
       ? { arbre: null, restreinte: null }
       : regeneration
@@ -582,7 +654,11 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       finale: passeFinale,
       restreinte: passe.restreinte,
       reportes: regeneration?.reportes ?? null,
+      ...(reprise ? { fichiers: reprise.fichiers } : {}),
     });
+    if (k.rouge || k.aRepasser) {
+      garderLeVert(nomEtape, null);
+    }
     // The output of these checks, red, which a sending to the testwriter carries.
     maj.controlesRouges = k.rouge ? k.texte : null;
     // The outcome the bilan reads (scripts/bilan.mjs): with the reds, each its place and its
@@ -718,6 +794,36 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       return arret('sans-livraison', rien, CODE);
     }
     if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
+      // The red goes back to the step that carries it, by the files it names (scripts/reprise.mjs).
+      const portes = lire('portes', { lieux: k.lieux });
+      const a = attribuerLeRouge({ lieux: k.lieux, portes });
+      if (!a.etape) {
+        return arret('controles', `Le rouge n'est attribué à aucune étape : ${a.motif}.`);
+      }
+      if (a.etape === 'testwriter') {
+        const relances = (m('relancesTestwriter') ?? 0) + 1;
+        if (relances > RELANCES_TESTWRITER + 1) {
+          return arret('controles', null);
+        }
+        maj.relancesTestwriter = relances;
+        // The final pass red in one test file alone: that file is replayed, then the checks and
+        // the final pass restricted to what it reaches, with no session for the rest of the lot.
+        maj.reprise =
+          passeFinale && a.fichiers.length === 1 && portes.tests.includes(a.fichiers[0])
+            ? { fichiers: a.fichiers }
+            : null;
+        ecrireRapport(
+          'controles',
+          `${k.resume} ; le rouge nomme ${a.fichiers.join(', ')} : testwriter relancé (séance 1).`,
+          resultat('rouge'),
+          `${k.texte}${k.avertissements}`
+        );
+        etape = TESTS;
+        tentative = 1;
+        finale = false;
+        return decision();
+      }
+      maj.reprise = null;
       ecrireRapport(
         'controles',
         `${k.resume} ; développeur relancé (séance ${suivante}).`,
@@ -737,7 +843,12 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     ecrireRapport('controles', `${k.resume}.`, resultat('vert'), `${k.resume}.${k.avertissements}`);
     // Green checks: a sending of the developpeur to the testwriter may come again.
     maj.renvoiAuTestwriter = null;
+    maj.relancesTestwriter = 0;
+    const entierement = !reprise && !regeneration;
     if (!passeFinale) {
+      if (entierement && k.empreinte) {
+        garderLeVert('controles', { empreinte: k.empreinte, ms: k.ms });
+      }
       // The checks green: the final pass, its sessions counted apart.
       etape = CONTROLES;
       tentative = 0;
@@ -751,6 +862,13 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     // integration.
     if (passe.arbre) {
       maj.verifie = passe.arbre;
+    }
+    if (entierement && k.empreinte) {
+      garderLeVert('passe-finale', { empreinte: k.empreinte, arbre: passe.arbre, ms: k.ms });
+    }
+    if (reprise) {
+      // The restricted pass is green: the resumption ends.
+      maj.reprise = null;
     }
     etape = lire('lotAccepte', { arbre: passe.arbre }) ? INTEGRATION : RELECTURE;
     return decision();

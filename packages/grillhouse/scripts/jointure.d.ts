@@ -226,6 +226,11 @@ export interface Composition {
   matieres(racine: string): Composant[];
   /** Whether the component plays tests: the runner of the language has tests to play in it. */
   joueDesTests(racine: string, composant: Composant): boolean;
+  /** The hashes of the inputs of the tests tasks of the components `noms` (their package names)
+   * and of their dependents, `{ <paquet>: <hash> }`, as the task runner plans them (the hash of a
+   * task covers the content of the files it reads and of what it waits for); null when the runner
+   * gives no plan. The fingerprint of a step of the circuit reads them. */
+  empreintes(racine: string, noms: string[]): Record<string, string> | null;
   lecteurs(
     racine: string,
     o: { composants: Composant[]; noms: string[]; texte: string; nommes: Composant[] }

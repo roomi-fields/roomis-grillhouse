@@ -25,8 +25,14 @@ export const REFUS_DU_VALIDATEUR = 'RefusDuValidateur';
 /** The query of the circuit as it stands. */
 export const L_ETAT = 'etatDuCircuit';
 
-/** The agents a `--depuis` names. */
-export const AGENTS_DU_LOT = ['testwriter', 'developpeur'] as const;
+/** The steps a `--depuis` names: it replays that step and the ones after it, no result read back. */
+export const ETAPES_DE_REPRISE = [
+  'testwriter',
+  'preuve',
+  'developpeur',
+  'controles',
+  'passe-finale',
+] as const;
 
 /** The run at its step, as scripts/transitions.mjs reads it. */
 export interface EtatDeLEtape {
@@ -95,7 +101,7 @@ export interface ArretPublie {
 /** The supervisor's answer to a stop. */
 export type Reponse =
   | { genre: 'reprendre'; contexte?: string | null }
-  | { genre: 'depuis'; role: (typeof AGENTS_DU_LOT)[number]; contexte?: string | null }
+  | { genre: 'depuis'; role: (typeof ETAPES_DE_REPRISE)[number]; contexte?: string | null }
   | { genre: 'etendre'; paquets: string[]; contexte?: string | null }
   | { genre: 'arreter'; contexte?: string | null };
 

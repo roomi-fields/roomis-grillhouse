@@ -47,9 +47,9 @@ import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
 import type { ActivitesDeLaFile, IssueDeLaFile } from '../file/contrat.js';
 import { entrerDansLaFile, issueDeLaFile, lireEtConclureLaCI } from '../file/deroule.js';
 import {
-  AGENTS_DU_LOT,
   ARRETER,
   DEPUIS,
+  ETAPES_DE_REPRISE,
   ETENDRE,
   L_ETAT,
   REFUS_DU_VALIDATEUR,
@@ -106,7 +106,7 @@ const depuis = defineUpdate<
   string,
   [
     {
-      role: (typeof AGENTS_DU_LOT)[number];
+      role: (typeof ETAPES_DE_REPRISE)[number];
       contexte?: string | null;
       superviseur?: string | null;
     },
@@ -262,10 +262,10 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       return repondreEtDire({ genre: 'depuis', ...r }, `depuis ${r.role}`);
     },
     {
-      validator: (r: { role: (typeof AGENTS_DU_LOT)[number] }) => {
+      validator: (r: { role: (typeof ETAPES_DE_REPRISE)[number] }) => {
         uneQuestionAttend();
-        if (!AGENTS_DU_LOT.includes(r?.role)) {
-          refuser(`--depuis attend une étape du ticket : ${AGENTS_DU_LOT.join(' ou ')}.`);
+        if (!ETAPES_DE_REPRISE.includes(r?.role)) {
+          refuser(`--depuis attend une étape du ticket : ${ETAPES_DE_REPRISE.join(', ')}.`);
         }
       },
     }

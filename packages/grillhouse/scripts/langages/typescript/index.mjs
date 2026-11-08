@@ -51,7 +51,7 @@ import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest, manifestes, soeurDAvant } from './regle-des-tests.mjs';
-import { SCRIPT_DES_TESTS } from '../../services-du-noyau.mjs';
+import { empreintesDesTaches, SCRIPT_DES_TESTS } from '../../services-du-noyau.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
@@ -227,6 +227,9 @@ export default {
   joueDesTests,
   lecteurs,
   elementsDuLot,
+  // The hashes of the inputs of the tests tasks of the packages and their dependents, as
+  // Turborepo plans them.
+  empreintes: (racine, noms) => empreintesDesTaches('turbo', racine, noms),
   commandes: racine => ({
     tester: { script: ici('tests.mjs'), args: [] },
     verifier: { script: ici('verifier.mjs'), args: [] },

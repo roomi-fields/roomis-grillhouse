@@ -39,6 +39,16 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   fournisseur en `devDependencies` : la construction l'attend, même hors du plan, et la variable
   porte le chemin absolu de la sortie (pour un crate, un binaire de `cargo metadata`). Une
   déclaration fautive est refusée par son nom avant tout travail.
+- **R2.3.** Aux tickets, la reprise à l'étape qui porte le rouge et la relecture d'une étape
+  inchangée (`scripts/reprise.mjs`). Un rouge de contrôles ou de passe finale s'attribue par la
+  sortie de l'étape rouge (le paquet et le fichier nommés) : un fichier de code va au développeur,
+  un test du lot qui échoue au développeur, un fichier de test du lot que refuse une garde ou le
+  style au testwriter, un rouge sans fichier nommé monte au superviseur, jamais deviné. Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier, puis les
+  contrôles et la passe finale restreints à sa portée. Une étape (preuve, contrôles, passe
+  finale) dont l'empreinte (le hachage de sa commande et du contenu de ce qu'elle lit, par le
+  hachage d'entrées de Turborepo) est celle de son dernier vert ne se rejoue pas : son résultat
+  se relit et le ticket le dit. `--depuis <étape>` rejoue cette étape et les suivantes sans rien
+  relire. Le bilan compte à part le temps rejoué après un rouge et le temps relu.
 
 ## Ce qu'il refuse
 

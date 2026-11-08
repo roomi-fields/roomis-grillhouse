@@ -210,6 +210,33 @@ function plan(outil, racine, args) {
   return JSON.parse(r.stdout);
 }
 
+/**
+ * The hashes of the inputs of the tests tasks of the packages <noms> (by their package name) and
+ * of their dependents, as the runner <outil> plans them in <racine> (the hash of a task covers the
+ * content of the files it reads and of the tasks it waits for): `{ <paquet>: <hash> }`; null when
+ * the runner gives no plan. The fingerprint of a step of the circuit reads it
+ * (scripts/reprise.mjs).
+ * @param {string} outil the task runner
+ * @param {string} racine
+ * @param {string[]} noms
+ * @returns {Record<string, string> | null}
+ */
+export function empreintesDesTaches(outil, racine, noms) {
+  if (!noms.length) {
+    return {};
+  }
+  try {
+    const graphe = plan(outil, racine, [
+      'run',
+      SCRIPT_DES_TESTS,
+      ...noms.map(n => `--filter=...${n}`),
+    ]);
+    return Object.fromEntries((graphe.tasks ?? []).map(t => [t.package, t.hash]));
+  } catch {
+    return null;
+  }
+}
+
 // The build <args> in <racine>, its output in <echec> then on this process's: when it fails,
 // <echec> holds <ligne> then that output, and the warning <alerte> follows it.
 function construireJusquOuIlConstruit(outil, racine, args, echec, ligne, alerte) {

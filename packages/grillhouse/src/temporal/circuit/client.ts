@@ -26,8 +26,8 @@ import {
   L_ETAT,
   REFUS_DU_VALIDATEUR,
   REPRENDRE,
-  type AGENTS_DU_LOT,
   type EntreeDuCircuit,
+  type ETAPES_DE_REPRISE,
   type FinDuCircuit,
   type Question,
   type Reponse,
@@ -261,7 +261,7 @@ export async function reprendreDepuis(
   client: Client,
   racine: string,
   ticket: string,
-  role: (typeof AGENTS_DU_LOT)[number],
+  role: (typeof ETAPES_DE_REPRISE)[number],
   contexte: string | null = null,
   ou: OuReprendre = {}
 ): Promise<string> {
@@ -276,7 +276,7 @@ export async function reprendreDepuis(
         string,
         [
           {
-            role: (typeof AGENTS_DU_LOT)[number];
+            role: (typeof ETAPES_DE_REPRISE)[number];
             contexte: string | null;
             superviseur?: string | null;
           },

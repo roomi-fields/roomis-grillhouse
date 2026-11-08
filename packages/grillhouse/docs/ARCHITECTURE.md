@@ -386,8 +386,24 @@ développeur pour tout le ticket, chacun dans l'enveloppe de tous les paquets du
 passe finale et le relecteur sur l'ensemble ; aucun composant n'est une unité du circuit. Les
 étapes (`packages/grillhouse/scripts/etapes.mjs`) : 1 Plan (1.1 Geste mécanique) · 2 Tests · 2.1 Preuve du rouge ·
 3 Code · 3.1 Contrôles · 4 Passe finale et relecture (4.1 Passe finale, 4.2 Régénération des
-références, 4.3 Relecture) · 5 Intégration (5.1 Commit, 5.2 File, 5.3 Tri des découvertes). `--depuis <testwriter|developpeur>` rejoue le
-ticket entier depuis cette étape ; `--etendre <paquet>` ajoute un paquet au plan, puis reprend
+références, 4.3 Relecture) · 5 Intégration (5.1 Commit, 5.2 File, 5.3 Tri des découvertes). `--depuis <testwriter|preuve|developpeur|controles|passe-finale>` rejoue
+cette étape et les suivantes, sans rien relire (aucune empreinte gardée). **La reprise à l'étape qui porte le rouge**
+(`scripts/reprise.mjs`, 4nr.14) : comme « Re-run failed jobs » de GitHub Actions, un rouge de contrôles ou de passe finale
+se reprend à son étape, sans `--depuis`. Le circuit attribue le rouge par la sortie de l'étape rouge (`attribuerLeRouge` :
+le paquet et le fichier que chaque rouge nomme, contre les fichiers de test du lot que porte le testwriter et les autres
+fichiers du plan que porte le développeur) : un fichier de code ou un test qui échoue va au développeur, un fichier de test que refuse une garde ou le style au testwriter (l'étape
+la plus tôt, le développeur rejouant après), un rouge sans fichier nommé ou un fichier que personne ne porte monte au
+superviseur, jamais deviné. Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier (séance du testwriter
+bornée à lui, preuve de lui seul), puis les contrôles et la passe finale restreints à sa portée (le paquet du fichier dans
+le graphe de Turborepo, les tests que Vitest relie à lui), sans séance du développeur ni du testwriter pour le reste du lot.
+**Une étape inchangée se relit** comme une tâche de Turborepo dont les entrées n'ont pas bougé (`scripts/empreinte-d-etape.mjs`, hachage de node) : l'empreinte d'une étape
+(preuve, contrôles, passe finale) est le hachage de sa commande et du contenu de ce qu'elle lit (les paquets du plan et leurs
+dépendants par le hachage d'entrées des tâches de tests de Turborepo, les fichiers du plan, la configuration de la racine) ;
+le circuit la garde, avec la durée du vert, par étape finie verte dans son mémoire (`verts`, que le Continue-As-New et
+une reprise conservent) ; une étape à l'empreinte de son dernier vert ne se rejoue pas, son résultat se relit et le ticket le
+dit, une entrée changée, même dans un dépendant ou la configuration, la rejoue, et un rouge ne laisse pas son étape en
+dernier vert. La preuve du rouge ne se relit que si ni ses tests ni le code qu'ils exercent n'ont changé. Le bilan compte
+à part, par étape, la durée rejouée après un rouge et celle relue sans rejouer. `--etendre <paquet>` ajoute un paquet au plan, puis reprend
 l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Comme
 une file de fusion (GitHub merge queue, bors, Zuul) renvoie le lot à son auteur avec le journal de
 sa vérification, et ne le laisse repasser qu'avec un changement, `--depuis developpeur` après un

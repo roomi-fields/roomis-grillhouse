@@ -350,6 +350,10 @@ describe('un tableau de transitions par étape', () => {
       expect(d.suivant).toMatchObject({ etape: CONTROLES, tentative: 0, finale: true });
       expect(d.memoire).toMatchObject({ renvoiAuTestwriter: null, controlesRouges: null });
     });
+    it('des contrôles sans vert gardé se jouent sans comparer d’empreinte', () => {
+      const { demandes } = jouer({ etat: etat(CONTROLES, { tentative: 0 }) }, { controles: VERT });
+      expect(demandes.map(b => b.fait)).not.toContain('empreinteEtape');
+    });
     it('la passe finale verte : l’intégration sur le lot accepté, sinon la relecture', () => {
       const passe = { passeFinale: { arbre: 'T', restreinte: null }, controles: VERT };
       const acceptee = jouer(
@@ -365,7 +369,14 @@ describe('un tableau de transitions par étape', () => {
       expect(neuve.suivant.etape).toBe(RELECTURE);
     });
     it('un rouge : le développeur relancé, puis l’arrêt controles au bout', () => {
-      const { d } = jouer({ etat: etat(CONTROLES) }, { controles: ROUGE, mecanique: false });
+      const { d } = jouer(
+        { etat: etat(CONTROLES) },
+        {
+          controles: ROUGE,
+          mecanique: false,
+          portes: { tests: [], code: ['packages/a/x.ts'] },
+        }
+      );
       expect(d.suivant).toMatchObject({ etape: CODE, tentative: 2, rapport: 'texte' });
       expect(d.memoire.controlesRouges).toBe('texte');
       const fin = jouer(
@@ -427,7 +438,12 @@ describe('un tableau de transitions par étape', () => {
       expect(seule.memoire.aRegenerer).toMatchObject({ suite: 'passe' });
       const deja = jouer(
         { etat: etat(CONTROLES), memoire: { regenereSur: { arbre: 'T', noms: ['ref'] } } },
-        { controles: k, arbreApres: 'T', mecanique: false }
+        {
+          controles: k,
+          arbreApres: 'T',
+          mecanique: false,
+          portes: { tests: [], code: ['packages/a/x.ts'] },
+        }
       ).d;
       expect(deja.suivant.etape).toBe(CODE);
     });
@@ -445,7 +461,7 @@ describe('un tableau de transitions par étape', () => {
           etat: etat(CONTROLES, { finale: true }),
           memoire: { regenereSur: { arbre: 'T', noms: ['ref'] } },
         },
-        { ...faits, mecanique: false }
+        { ...faits, mecanique: false, portes: { tests: [], code: ['packages/a/x.ts'] } }
       ).d;
       expect(deja.suivant.etape).toBe(CODE);
     });

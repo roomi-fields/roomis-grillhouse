@@ -422,6 +422,28 @@ export function bilan({
         verdicts: finDuTri.verdicts ?? {},
       }
     : null;
+  // The time replayed after a red and the time read back without replaying, apart, by step
+  // (« passe-finale » for the checks once final): a step that plays again after a pass of its own
+  // that ended red adds its duration to the first; a step the circuit read back (the result
+  // `relue`) adds the duration of its last green, which the reading spared, to the second. A
+  // ticket without a red replays nothing.
+  const nomDeLEtape = (etape, finale) => (etape === 'controles' && finale ? 'passe-finale' : etape);
+  const reprise = { rejoue: { ms: 0, parEtape: {} }, relu: { ms: 0, parEtape: {} } };
+  const ajouter = (c, nom, ms) => {
+    c.ms += ms;
+    c.parEtape[nom] = (c.parEtape[nom] ?? 0) + ms;
+  };
+  for (const s of etapes) {
+    const memes = x => x.etape === s.etape && Boolean(x.finale) === Boolean(s.finale);
+    const avant = etapes.findLast(x => memes(x) && x.f <= s.d);
+    if (!avant?.entree || issue(avant.entree) === 'vert') continue;
+    const [d, f] = fenetre(s);
+    if (f > d)
+      ajouter(reprise.rejoue, nomDeLEtape(s.etape, s.finale), f - d - commun([d, f], attentes));
+  }
+  for (const e of duCircuit.filter(x => x.relue)) {
+    ajouter(reprise.relu, nomDeLEtape(e.etape, e.finale), e.relue.ms ?? 0);
+  }
   const somme = k => sessions.reduce((m, l) => m + (l[k] ?? 0), 0);
   const perdu = CATEGORIES.filter(([k]) => !GARDE.has(k)).reduce(
     (m, [k]) => m + categories[k].ms,
@@ -438,6 +460,7 @@ export function bilan({
     perdu,
     perduHorsAttentes: perdu - ATTENTES.reduce((m, k) => m + categories[k].ms, 0),
     categories,
+    reprise,
     seances: {
       total: sessions.length,
       parRole: parRoleDe(sessions),
@@ -519,7 +542,12 @@ export function texteDuBilan(b, avant) {
   const base = avant
     ? `Face au bilan de ${avant.ticket}, recalculé : mur ${minutes(avant.mur)} → ${minutes(b.mur)} min, perte ${pourcent(avant.perdu, avant.mur)} → ${pourcent(b.perdu, b.mur)} %, séances ${avant.seances.total} → ${b.seances.total}, coût ${dollars(avant.cout)} → ${dollars(b.cout)} $.`
     : "Aucun bilan d'avant dans ce projet : pas de base.";
-  return [tete, ...lignes, ...tri, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
+  const parEtape = c =>
+    Object.entries(c.parEtape)
+      .map(([nom, ms]) => `${nom} ${minutes(ms)} min`)
+      .join(', ');
+  const reprise = `Reprise après un rouge : ${minutes(b.reprise.rejoue.ms)} min rejouées${b.reprise.rejoue.ms ? ` (${parEtape(b.reprise.rejoue)})` : ''}, ${minutes(b.reprise.relu.ms)} min relues sans rejouer${b.reprise.relu.ms ? ` (${parEtape(b.reprise.relu)})` : ''}.`;
+  return [tete, ...lignes, ...tri, reprise, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
 }
 
 const dossier = racine => path.join(racine, '.claude', 'worktrees');

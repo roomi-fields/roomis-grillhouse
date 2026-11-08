@@ -523,7 +523,12 @@
 //   lot, as bors retries: a refusal can come from the load or from main (BP 320.16, 320.16.2). On
 //   a stop « questionnement », it lets the plan pass as it is then (the supervisor
 //   changed it or kept it), from the testwriter.
-// - `--depuis <testwriter|developpeur>` has the lot corrected: it plays the whole ticket from
+// - `--depuis <testwriter|preuve|developpeur|controles|passe-finale>` (`departDepuis` of
+//   scripts/reprise.mjs) plays that step and the ones after it, no fingerprint kept (`verts`
+//   emptied, no resumption at a red): nothing is read back. Without it, a red of the checks or
+//   of the final pass resumes at the step that carries it, and a step whose inputs did not
+//   change since its last green is read back (scripts/transitions.mjs). With the developpeur's
+//   or the testwriter's step, it has the lot corrected: the whole ticket from
 //   that step, the text of `--contexte` the task at the head of each agent's instruction in the
 //   run, the reviewer's line CONTEXTE (after a stop
 //   « integration », from the developpeur, the refusal as his report, the red to lift, as a merge
@@ -638,11 +643,13 @@ import {
   rapportDuRefus,
   TESTS,
 } from './transitions.mjs';
+import { departDepuis } from './reprise.mjs';
 import {
   arbreDeLaCopie,
   balayerLesSoeurs,
   controles,
   empreinte,
+  empreinteDeLEtape,
   environnementDeLaPasse,
   horsDeLEnveloppe,
   integrer,
@@ -651,6 +658,7 @@ import {
   leLotGarde,
   lesReferences,
   livre,
+  portesDuRouge,
   preuve,
   referencesDesRouges,
   regenerer,
@@ -856,6 +864,8 @@ export function ecrireEtat(ctx, etat) {
     paquets: ctx.paquets,
     constats: ctx.constats ?? [],
     verifie: ctx.verifie ?? null,
+    seanceReprise: ctx.seanceReprise ?? null,
+    verts: ctx.verts ?? null,
     reprise: ctx.reprise ?? null,
     aRegenerer: ctx.aRegenerer ?? null,
     refus: ctx.refus ?? null,
@@ -1238,6 +1248,9 @@ export const MEMOIRE = [
   'aRegenerer',
   'verifie',
   'constats',
+  'verts',
+  'reprise',
+  'relancesTestwriter',
 ];
 
 // The fact <fait> of the circuit of <ctx>, with its <parametres>, the facts <faits> of the step
@@ -1284,9 +1297,9 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
       const { fiche, constats } = await seance(ctx, role, {
         ...options,
         constats: ctx.constats ?? [],
-        reprise: ctx.reprise ?? null,
+        reprise: ctx.seanceReprise ?? null,
         retenir: reprise => {
-          ctx.reprise = reprise;
+          ctx.seanceReprise = reprise;
         },
         signeDeVie: ctx.ports?.signeDeVie,
         seanceId: idDeSeance(ctx, `neuve:${role}`),
@@ -1303,14 +1316,19 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
       // own, and a measure is too large for the memory of the workflow.
       const fichier = path.join(ctx.tmp, 'mesure-de-la-preuve.json');
       const derniere = existsSync(fichier) ? JSON.parse(readFileSync(fichier, 'utf8')) : null;
-      const { mesure, ...p } = preuve(ctx, { mesure: derniere });
+      const debut = Date.now();
+      const { mesure, ...p } = preuve(ctx, { mesure: derniere, fichiers: parametres.fichiers });
       if (mesure) {
         writeFileSync(fichier, JSON.stringify(mesure));
       } else {
         rmSync(fichier, { force: true });
       }
-      return p;
+      return { ...p, empreinte: empreinteDeLEtape(ctx, 'preuve'), ms: Date.now() - debut };
     }
+    case 'empreinteEtape':
+      return empreinteDeLEtape(ctx, parametres.etape);
+    case 'portes':
+      return portesDuRouge(ctx, parametres.lieux);
     case 'empreinteAvant':
     case 'empreinte':
       return empreinte(ctx);
@@ -1323,8 +1341,26 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
       return arbreDeLaCopie(ctx);
     case 'passeFinale':
       return laPasseFinale(ctx);
-    case 'controles':
-      return controles(ctx, parametres.finale, parametres.restreinte, parametres.reportes);
+    case 'controles': {
+      const debut = Date.now();
+      const k = controles(
+        ctx,
+        parametres.finale,
+        parametres.restreinte,
+        parametres.reportes,
+        parametres.fichiers
+      );
+      const ms = Date.now() - debut;
+      // The fingerprint of a green step, which its next pass on the same inputs reads back.
+      return {
+        ...k,
+        empreinte:
+          k.rouge || k.aRepasser
+            ? null
+            : empreinteDeLEtape(ctx, parametres.finale ? 'passe-finale' : 'controles'),
+        ms,
+      };
+    }
     case 'referencesDesRouges':
       return referencesDesRouges(ctx, parametres.lieux, parametres.aElaguer);
     case 'lotAccepte':
@@ -1427,21 +1463,27 @@ const laQuestion = (ticket, { arret, qui, ou, question }) =>
 // the state <e> (null without one) on --reprendre, the integration or the queue played again on
 // the same lot after their stop, as bors retries, else the testwriter, the run starting over.
 function depart(ctx, e) {
+  // A --depuis plays its step and the ones after it, no result read back: no fingerprint kept, no
+  // resumption at a red, no attribution counted.
+  if (ctx.depuis) {
+    ctx.verts = {};
+    ctx.reprise = null;
+    ctx.relancesTestwriter = null;
+  }
   if (ctx.depuis === 'developpeur' && e?.raison === 'integration' && ctx.refus) {
     ctx.refus = { ...ctx.refus, lance: true, relance: false };
     return { etape: CODE, tentative: 1, rapport: rapportDuRefus(ctx.refus), finale: false };
   }
   if (ctx.depuis === 'testwriter') ctx.refus = null;
   if (ctx.depuis) {
-    return {
-      etape: ctx.depuis === 'testwriter' ? TESTS : CODE,
-      tentative: 1,
-      rapport: null,
-      finale: false,
-    };
+    const { etape, tentative, rapport, finale } = departDepuis(ctx.depuis);
+    return { etape, tentative, rapport, finale };
   }
   if (!ctx.reprendre) {
     // The run starts over: no lot verified, no finding of a review open, no refusal, no checks played.
+    ctx.verts = null;
+    ctx.reprise = null;
+    ctx.relancesTestwriter = null;
     ctx.verifie = null;
     ctx.constats = [];
     ctx.refus = null;
@@ -1991,6 +2033,8 @@ export async function arreter(ctx, e) {
   const lu = e;
   ctx.constats = [...(lu.constats ?? [])];
   ctx.verifie = lu.verifie ?? null;
+  ctx.seanceReprise = lu.seanceReprise ?? null;
+  ctx.verts = lu.verts ?? null;
   ctx.reprise = lu.reprise ?? null;
   ctx.refus = lu.refus ?? null;
   ecrireEtat(ctx, {

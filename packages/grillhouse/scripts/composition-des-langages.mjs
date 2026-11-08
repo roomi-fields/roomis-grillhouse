@@ -196,6 +196,10 @@ export function composer(modules) {
     matieres: racine => modules.flatMap(m => m.matieres(racine)),
     joueDesTests: (racine, composant) =>
       moduleDuComposant(racine, composant)?.joueDesTests(racine, composant) ?? false,
+    empreintes(racine, noms) {
+      const parts = modules.map(m => m.empreintes(racine, noms));
+      return parts.some(p => p === null) ? null : Object.assign({}, ...parts);
+    },
     lecteurs(racine, o) {
       const composants = leurs(racine, o.composants);
       const nommes = leurs(racine, o.nommes);

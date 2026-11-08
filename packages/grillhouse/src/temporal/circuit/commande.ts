@@ -43,11 +43,11 @@ import {
   reprendreLeCircuit,
   ReponseRefusee,
 } from './client.js';
-import { AGENTS_DU_LOT, idDuCircuit } from './contrat.js';
+import { ETAPES_DE_REPRISE, idDuCircuit } from './contrat.js';
 
 const USAGE =
   'usage: npx grillhouse circuit <ticket> [--reprendre [--contexte <texte>] | ' +
-  '--depuis <testwriter|developpeur> --contexte <texte> | ' +
+  '--depuis <testwriter|preuve|developpeur|controles|passe-finale> --contexte <texte> | ' +
   '--etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>]]\n';
 
 /** A malformed call, by its reason. */
@@ -57,7 +57,7 @@ class Usage extends Error {}
 interface Appel {
   ticket: string;
   reprendre: boolean;
-  depuis: (typeof AGENTS_DU_LOT)[number] | null;
+  depuis: (typeof ETAPES_DE_REPRISE)[number] | null;
   etendre: string[] | null;
   arreter: boolean;
   contexte: string | null;
@@ -91,10 +91,10 @@ function lireLAppel(argv: string[]): Appel {
       o.etendre = liste;
       i++;
     } else if (a === '--depuis') {
-      if (!AGENTS_DU_LOT.includes(suivant as (typeof AGENTS_DU_LOT)[number])) {
-        throw new Usage(`--depuis attend une étape du ticket : ${AGENTS_DU_LOT.join(' ou ')}.`);
+      if (!ETAPES_DE_REPRISE.includes(suivant as (typeof ETAPES_DE_REPRISE)[number])) {
+        throw new Usage(`--depuis attend une étape du ticket : ${ETAPES_DE_REPRISE.join(', ')}.`);
       }
-      o.depuis = suivant as (typeof AGENTS_DU_LOT)[number];
+      o.depuis = suivant as (typeof ETAPES_DE_REPRISE)[number];
       i++;
     } else if (a === '--contexte') {
       if (suivant === undefined) {

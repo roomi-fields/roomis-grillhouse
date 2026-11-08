@@ -33,6 +33,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { empreintesDesTaches } from '../../services-du-noyau.mjs';
 import { commandes, GARDES, PYCACHE } from './commandes.mjs';
 import {
   composantDans,
@@ -88,6 +89,9 @@ export default {
   joueDesTests,
   lecteurs,
   elementsDuLot,
+  // The hashes of the inputs of the tests tasks of the projects and their dependents, as
+  // Turborepo plans them.
+  empreintes: (racine, noms) => empreintesDesTaches('turbo', racine, noms),
   commandes,
   verdict,
   estUnTest,

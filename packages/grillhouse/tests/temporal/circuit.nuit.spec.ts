@@ -1697,3 +1697,69 @@ describe('the command `grillhouse circuit` reads its call and asks the server fi
     );
   }, 120_000);
 });
+
+// La reprise à l'étape qui porte le rouge : un rouge de passe finale ne rejoue ni les tests, ni la
+// preuve, ni le code. Modèle mûr : « Re-run failed jobs » de GitHub Actions.
+describe('un rouge de passe finale se reprend sans rejouer les tests, la preuve ni le code', () => {
+  const TEST_X = 'packages/a/tests/x.spec.ts';
+  const ROUGE = {
+    ...VERT,
+    rouge: true,
+    auDeveloppeur: true,
+    rouges: [{ paquet: 'packages/a', texte: 'rouge' }],
+    tous: [{ paquet: 'packages/a', texte: 'rouge' }],
+  };
+  const PORTES = { tests: [TEST_X], code: ['packages/a/src/x.ts'] };
+
+  it('un rouge sans fichier nommé monte ; la réponse reprend à la passe finale, qui seule se rejoue', async () => {
+    const { activites, journal } = actes(
+      {
+        referencesDesRouges: [],
+        portes: PORTES,
+        controles: (_p: unknown, n: number) => (n === 2 ? ROUGE : VERT),
+      },
+      o => (o.arrete && o.arrete.etape !== 'plan' ? { ...o.arrete } : TESTS)
+    );
+    const client = await circuit(activites);
+    await enAttente(client);
+    const avant = [...journal.faits];
+    expect(avant.filter(f => f === 'seance')).toHaveLength(2);
+    await reprendreLeCircuit(client, RACINE, TICKET, null);
+    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+    const apres = journal.faits.slice(avant.length);
+    for (const rejoue of ['mecanique', 'sansTests', 'seance', 'preuve', 'empreinteAvant']) {
+      expect(apres, rejoue).not.toContain(rejoue);
+    }
+    expect(apres).toContain('controles');
+  }, 120_000);
+
+  it('un rouge d’un seul fichier de test : ce fichier seul rejoue sa séance et sa preuve, aucune séance du développeur de plus', async () => {
+    const seances: Record<string, unknown>[] = [];
+    const preuves: Record<string, unknown>[] = [];
+    const controles: Record<string, unknown>[] = [];
+    const { activites, journal } = actes({
+      referencesDesRouges: [],
+      portes: PORTES,
+      seance: (p: Record<string, unknown>) => {
+        seances.push(p);
+        return { statut: 'FAIT' };
+      },
+      preuve: (p: Record<string, unknown>) => {
+        preuves.push(p);
+        return FAITS.preuve;
+      },
+      controles: (p: Record<string, unknown>, n: number) => {
+        controles.push(p);
+        return n === 2 ? { ...ROUGE, lieux: [{ fichier: TEST_X, gardes: [] }] } : VERT;
+      },
+    });
+    const client = await circuit(activites);
+    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+    expect(seances.map(s => s.role)).toEqual(['testwriter', 'developpeur', 'testwriter']);
+    expect(seances[2]).toMatchObject({ fichiers: [TEST_X] });
+    expect(preuves).toHaveLength(2);
+    expect(preuves[1]).toMatchObject({ fichiers: [TEST_X] });
+    expect(controles.slice(2).every(c => (c.fichiers as string[])?.[0] === TEST_X)).toBe(true);
+    expect(journal.arrets).toEqual([]);
+  }, 120_000);
+});

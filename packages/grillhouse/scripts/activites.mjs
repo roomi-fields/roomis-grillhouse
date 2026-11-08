@@ -30,6 +30,7 @@ import path from 'node:path';
 import { avecLAvancementDuTravail } from './avancement.mjs';
 import { A_REPASSER } from './codes-de-sortie.mjs';
 import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
+import { empreinteDEtape } from './empreinte-d-etape.mjs';
 import { FICHIER as DETTE } from './dette.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import { couvertPar } from './engendres.mjs';
@@ -1614,9 +1615,11 @@ export const portentLeTravail = fiches =>
 // separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
 // Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
 // the copy changed (`mesureDeLaPreuve`).
-export function preuve(ctx, { mesure: derniere = null } = {}) {
+export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } = {}) {
   // Only the files of the day are proved; the ones only the night plays are put aside, named.
-  const { jour: fichiers, misDeCote } = separerLesFichiersDuJour(ctx, testsDuLot(ctx));
+  // Resumed at a red (<seuls>, the files it names), the proof plays these files alone and passes
+  // when they load: a test fixed is green, not red.
+  const { jour: fichiers, misDeCote } = separerLesFichiersDuJour(ctx, seuls ?? testsDuLot(ctx));
   const portent = portentLeTravail(fichesDe(ctx, 'testwriter'));
   // Whether the sheet names the test <a> of the file <f>, by its full name or by its whole file.
   const nomme = (f, a) =>
@@ -1695,18 +1698,20 @@ export function preuve(ctx, { mesure: derniere = null } = {}) {
   }
   const section = (titre, l) =>
     l.length ? [`${titre} (${l.length}) :`, ...l.map(x => `- ${x}`), ''] : [];
-  const ok = preuveReussie(
-    {
-      fichiers: fichiers.length,
-      rouges: rouges.length,
-      casses: casses.length,
-      nommes: nommes.length,
-      nonNommes: nonNommes.length,
-      anciens,
-      misDeCote: misDeCote.length,
-    },
-    { inchange }
-  );
+  const ok = seuls
+    ? casses.length === 0
+    : preuveReussie(
+        {
+          fichiers: fichiers.length,
+          rouges: rouges.length,
+          casses: casses.length,
+          nommes: nommes.length,
+          nonNommes: nonNommes.length,
+          anciens,
+          misDeCote: misDeCote.length,
+        },
+        { inchange }
+      );
   const resume = `${rouges.length} rouge(s), ${nommes.length} vert(s) nommé(s) qui portent le travail, ${nonNommes.length} vert(s) non nommé(s), ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const ecrit = (...sections) =>
     [
@@ -1930,17 +1935,27 @@ const ligneDeCommande = c =>
 // which their regeneration lifts before the checks judge the lot again, or before the final pass; `tous` every red as it was read; `notes`,
 // at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
 // fichier, regle, trouve }`.
-export function controles(ctx, finale, restreinte = null, reportes = null) {
+export function controles(ctx, finale, restreinte = null, reportes = null, fichiers = null) {
   const liste = composantsDe(ctx.copie).filter(p => !p.hors);
-  const filtres = restreinte
-    ? ['--', `--filter=...[${restreinte.avant}...${restreinte.apres}]`, '--filter=//']
-    : [];
+  // Resumed at a red in the test files <fichiers>: the final pass plays their packages alone (the
+  // graph of packages of Turborepo, the root's tasks beside), the checks of the plan their tests
+  // alone (Vitest plays what the files import) and the guards.
+  const duReprise = fichiers
+    ? [...new Set(fichiers.map(f => liste.find(p => f.startsWith(`${p.dossier}/`))?.pkg.name))]
+        .filter(Boolean)
+        .sort()
+    : null;
+  const filtres = duReprise
+    ? ['--', ...duReprise.map(n => `--filter=${n}`), '--filter=//']
+    : restreinte
+      ? ['--', `--filter=...[${restreinte.avant}...${restreinte.apres}]`, '--filter=//']
+      : [];
   const commandes =
     reportes && !reportes.rejouee
       ? []
       : finale
         ? [{ args: ['run', 'verifier', ...filtres] }]
-        : commandesDuPlan(ctx, liste);
+        : commandesDuPlan(ctx, liste, fichiers);
   const resultats = commandes.map(({ args, env }) => {
     let r = npm(ctx, 'controles', args, env);
     // The 75 of verifier is final (its wait for the lock reached its bound); a command of the
@@ -2077,15 +2092,20 @@ export function controles(ctx, finale, restreinte = null, reportes = null) {
 // plan and each the lot touches in it, `npm test -- <test files of the lot>` that none of them
 // holds (the shared test material's out of the plan), each test played once, then the guards in
 // the envelope of the plan, whose findings on its files alone count.
-function commandesDuPlan(ctx, liste) {
+function commandesDuPlan(ctx, liste, seuls = null) {
   const lot = changements(ctx);
   const touches = liste.length
     ? [...new Set(lot.map(c => paquetDe(liste, c.fichier)).filter(d => d !== '.'))].sort()
     : ['.'];
-  const entiers = [
-    ...new Set([...touches.filter(d => dansLePlan(ctx, d)), ...paquetsDuPlan(ctx, liste)]),
-  ].sort();
-  const tests = testsDuLot(ctx).filter(f => !entiers.some(d => d === '.' || f.startsWith(`${d}/`)));
+  // Resumed at a red (<seuls>, the test files it names): these tests alone, no package whole.
+  const entiers = seuls
+    ? []
+    : [
+        ...new Set([...touches.filter(d => dansLePlan(ctx, d)), ...paquetsDuPlan(ctx, liste)]),
+      ].sort();
+  const tests = (seuls ?? testsDuLot(ctx)).filter(
+    f => !entiers.some(d => d === '.' || f.startsWith(`${d}/`))
+  );
   const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
   const enveloppe = { [VARIABLE_ENVELOPPE]: ecrireLaListe(ctx.paquets) };
   return [
@@ -2163,6 +2183,58 @@ export function empreinte(ctx, chemins = ctx.paquets) {
     }
   }
   return h.digest('hex');
+}
+
+// The fingerprint of the step <etape> (`preuve`, `controles`, `passe-finale`) on the copy
+// (scripts/reprise.mjs `empreinteDEtape`): its command and the hashes of what it reads, each
+// package of the plan and its dependents by the hash of its test task in the plan of Turborepo
+// (`turbo run test:unit --filter=...<package> --dry=json`: the hash of the inputs of a task), the
+// files of the plan in the copy (`empreinte`), and the configuration at the root of the copy by
+// its content. Null when Turborepo does not give its plan: nothing is then read back.
+export function empreinteDeLEtape(ctx, etape) {
+  const liste = composantsDe(ctx.copie).filter(p => !p.hors);
+  const commande =
+    etape === 'preuve'
+      ? `preuve ${testsDuLot(ctx).join(' ')}`
+      : etape === 'controles'
+        ? JSON.stringify(commandesDuPlan(ctx, liste))
+        : 'npm run verifier';
+  const noms = liste
+    .filter(p => dansLePlan(ctx, p.dossier))
+    .map(p => p.pkg.name)
+    .filter(Boolean)
+    .sort();
+  const empreintes = langageDe(ctx.copie).empreintes(ctx.copie, noms);
+  if (!empreintes) {
+    return null;
+  }
+  const hashes = { plan: empreinte(ctx), ...empreintes };
+  const racine = createHash('sha256');
+  for (const f of readdirSync(ctx.copie).sort()) {
+    const chemin = path.join(ctx.copie, f);
+    if (statSync(chemin, { throwIfNoEntry: false })?.isFile()) {
+      racine.update(f).update(readFileSync(chemin));
+    }
+  }
+  hashes['//'] = racine.digest('hex');
+  return empreinteDEtape({ commande, hashes });
+}
+
+// The test files and the files of code a red lies in (<lieux>, the places of the red as the
+// checks name them) that the testwriter and the developpeur carry (scripts/reprise.mjs
+// `attribuerLeRouge`): `{ tests, code }`. The testwriter carries the test files of the lot; the
+// developpeur, every other file of a path of the plan.
+export function portesDuRouge(ctx, lieux) {
+  const dulot = new Set(
+    changements(ctx)
+      .filter(c => !c.supprime && duTestwriter(ctx, c.fichier))
+      .map(c => c.fichier)
+  );
+  const nommes = [...new Set((lieux ?? []).map(l => l.fichier).filter(Boolean))];
+  return {
+    tests: nommes.filter(f => dulot.has(f)),
+    code: nommes.filter(f => !dulot.has(f) && dansLePlan(ctx, f)),
+  };
 }
 
 // Whether a path of the plan holds <chemin> (relative to the copy), `.` holding every path.

@@ -563,7 +563,8 @@ export async function seance(
   role,
   {
     tentative,
-    rapport,
+    rapport: rapportBrut,
+    fichiers = null,
     fort,
     derniere,
     change,
@@ -575,6 +576,11 @@ export async function seance(
     ...activite
   }
 ) {
+  // A resumption at the step that carries a red (`fichiers`, the files the red names): the session
+  // carries these files alone, the rest of the lot being green.
+  const rapport = fichiers?.length
+    ? `${rapportBrut ?? ''}\n\nCette séance ne porte que ${fichiers.join(', ')} : le reste du lot est vert et ne se touche pas.`.trim()
+    : rapportBrut;
   const nom = nomDuRole(role);
   const reprise = tentative > 1 && !derniere && gardee?.agent === role ? gardee : null;
   const { tache, ouverts, constats, valider, repondre } = constatsDeLaSeance(
@@ -631,7 +637,7 @@ export async function seance(
       `reprise de la séance ${reprise.seance} finie en erreur : séance neuve et entière.`
     );
   }
-  const lots = lectures.lots();
+  const lots = fichiers?.length ? fichiers : lectures.lots();
   const { description, notes } = leTicket(ctx);
   // The last handover of this agent; for a developpeur without one yet, the testwriter's last.
   const passation =

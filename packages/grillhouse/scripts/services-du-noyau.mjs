@@ -21,6 +21,7 @@ export { paquetsSansPackageJson } from './paquet-npm.mjs';
 export {
   cheminsDeLaTache,
   construireDepuisLesArguments,
+  empreintesDesTaches,
   GRAPHE_JOUE,
   lancerLesTaches,
   nomDuPaquet,

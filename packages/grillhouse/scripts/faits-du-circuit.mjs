@@ -98,7 +98,7 @@ import { Arret, geste } from './ticket-du-circuit.mjs';
 // the act is given (an answer's, a motive) is kept over it.
 const GARDEE = [
   ...MEMOIRE,
-  'reprise',
+  'seanceReprise',
   'rang',
   'sorte',
   'outils',
