@@ -431,8 +431,10 @@ describe('critère 9 — a script of the frame that makes a temporary directory 
     expect(circuit).toContain("mkdtempSync(path.join(ctx.base.dossier, 'resultats-'))");
     // The progress directory of a pass of the circuit lives in the working directory of the
     // ticket, where the board reads it, removed at the end of the pass.
-    expect(circuit).toContain('ouvrirAvancement({ racine: ctx.copie, genre, dans: ctx.tmp })');
-    expect(circuit).toContain('rmSync(avancement, { recursive: true, force: true })');
+    expect(circuit).toMatch(/avecLAvancementDuTravail\(\s*ctx\.tmp,/);
+    const avancement = readFileSync(path.join(DEPOT, 'scripts/avancement.mjs'), 'utf8');
+    expect(avancement).toContain('ouvrirAvancement({ racine, genre, dans: travail })');
+    expect(avancement).toContain('rmSync(dossier, { recursive: true, force: true })');
     expect(circuit).toContain('ctx.base.fermer();');
     // The progress directory of a pass of its own goes at the end of the pass.
     expect(

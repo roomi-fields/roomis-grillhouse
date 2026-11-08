@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { configGit } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CADRE, RACINE } from './cadre.js';
+import { CADRE, DE_BD_INIT, RACINE } from './cadre.js';
 
 // grillhouse-b32, criterion 3 — the first package of a language in a project receives the tools of
 // that language, as `nx add` installs a plugin before its first generator: a project of Rust, as
@@ -139,6 +139,7 @@ beforeAll(() => {
       2
     )}\n`
   );
+  ecrire('.beads/config.yaml', DE_BD_INIT);
   ecrire('.gitignore', 'node_modules/\ntarget/\n.turbo/\n');
   ecrire('docs/ARCHITECTURE.md', TABLE([SERVICE]));
   lierLesDependances();
