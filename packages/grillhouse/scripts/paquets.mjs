@@ -32,11 +32,15 @@ const HORS_CADRE = 'docs/agents/hors-cadre.txt';
 // The names listed in <racine>'s `docs/agents/hors-cadre.txt`: a Set, empty without the file.
 export function horsCadre(racine) {
   const liste = path.join(racine, HORS_CADRE);
-  if (!existsSync(liste)) return new Set();
+  if (!existsSync(liste)) {
+    return new Set();
+  }
   const noms = new Set();
   for (const ligne of readFileSync(liste, 'utf8').split('\n')) {
     const mot = ligne.trim().split(/\s+/)[0];
-    if (mot && !mot.startsWith('#')) noms.add(mot);
+    if (mot && !mot.startsWith('#')) {
+      noms.add(mot);
+    }
   }
   return noms;
 }
@@ -118,8 +122,12 @@ export function paquets(racine) {
   for (const motif of motifs) {
     for (const f of globSync(`${motif}/package.json`, { cwd: racine })) {
       const dossier = path.dirname(f);
-      if (f.split(path.sep).includes('node_modules')) continue;
-      if (nies.some(n => path.matchesGlob(dossier, n))) continue;
+      if (f.split(path.sep).includes('node_modules')) {
+        continue;
+      }
+      if (nies.some(n => path.matchesGlob(dossier, n))) {
+        continue;
+      }
       dossiers.add(dossier);
     }
   }

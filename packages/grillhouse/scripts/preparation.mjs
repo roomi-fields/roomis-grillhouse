@@ -26,7 +26,9 @@ import { ecrireLePrefixe } from './prefixe-des-tickets.mjs';
 
 // The prefix of the tickets: the one given, else the store's own, else the directory's name.
 function prefixeDe(projet, donne) {
-  if (donne) return donne;
+  if (donne) {
+    return donne;
+  }
   if (existsSync(path.join(projet, '.beads'))) {
     const r = spawnSync('bd', ['config', 'get', 'issue_prefix'], {
       cwd: projet,
@@ -34,7 +36,9 @@ function prefixeDe(projet, donne) {
       maxBuffer: 256 * 1024 * 1024,
     });
     const existant = (r.stdout ?? '').trim();
-    if (r.status === 0 && existant !== '' && !existant.includes('(')) return existant;
+    if (r.status === 0 && existant !== '' && !existant.includes('(')) {
+      return existant;
+    }
   }
   return path
     .basename(projet)
@@ -49,7 +53,9 @@ const present = commande => trouverDansLePath(commande) !== null;
 
 // A global tool of the preparation, installed by npm when absent.
 function outil(commande, paquet) {
-  if (present(commande)) return;
+  if (present(commande)) {
+    return;
+  }
   try {
     execFileSync('npm', ['install', '-g', paquet], { stdio: 'inherit' });
   } catch {
@@ -69,7 +75,9 @@ export function preparer(projet, prefixe) {
   }
   outil('bd', '@beads/bd');
   outil('codegraph', '@colbymchenry/codegraph');
-  if (!existsSync(path.join(projet, '.codegraph'))) lancer(projet, 'codegraph', ['init', projet]);
+  if (!existsSync(path.join(projet, '.codegraph'))) {
+    lancer(projet, 'codegraph', ['init', projet]);
+  }
   const lePrefixe = prefixeDe(projet, prefixe);
   lancer(projet, 'bd', [
     'init',
@@ -86,6 +94,8 @@ export function preparer(projet, prefixe) {
   if ((r.stdout ?? '').trim() === '') {
     lancer(projet, 'git', ['config', 'core.hooksPath', '.beads/hooks']);
   }
-  if (existsSync(path.join(projet, 'package.json'))) lancer(projet, 'npm', ['install']);
+  if (existsSync(path.join(projet, 'package.json'))) {
+    lancer(projet, 'npm', ['install']);
+  }
   return installerGreffons(projet);
 }

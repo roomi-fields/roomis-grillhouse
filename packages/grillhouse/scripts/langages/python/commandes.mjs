@@ -263,7 +263,9 @@ function jouerLesTests(p, choix, options) {
     // The workers of a session of an agent (GRILLHOUSE_TRAVAILLEURS): `-n` of pytest-xdist, for a
     // package whose test group declares it; a heavy pass, without the variable, plays alone.
     const travailleurs = travailleursDeLaSeance(process.env);
-    if (travailleurs !== null && declareXdist(c.dossier)) args.push('-n', String(travailleurs));
+    if (travailleurs !== null && declareXdist(c.dossier)) {
+      args.push('-n', String(travailleurs));
+    }
     const entier = chemins.every(ch => ch === '.');
     p.jouer(
       p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection(chemins), ...options]),

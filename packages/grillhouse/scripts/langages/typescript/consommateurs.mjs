@@ -71,7 +71,9 @@ const NOM = /^(?:\*|[\p{ID_Start}$_][\p{ID_Continue}$‌‍]*)$/u;
 // « : » is not a name (`NOM`), a bullet of prose; null for a line that is no bullet (a paragraph).
 // The one reading of such a line, for this guard and for scripts/langages/typescript/consommateurs-arbitres.mjs.
 export function lireLigne(ligne) {
-  if (!/^[-*]\s+\S/.test(ligne)) return null;
+  if (!/^[-*]\s+\S/.test(ligne)) {
+    return null;
+  }
   const m = /^[-*]\s+`?([^`:\s]+)`?\s*:\s*(.+)$/.exec(ligne);
   const noms = m
     ? m[2]
@@ -97,7 +99,9 @@ function lignesDeConsommateurs(texte) {
       continue;
     }
     const lue = dedans ? lireLigne(l.trim()) : null;
-    if (lue) out.push({ texte: l.trim(), ...lue });
+    if (lue) {
+      out.push({ texte: l.trim(), ...lue });
+    }
   }
   return out;
 }
@@ -147,7 +151,9 @@ export function imports(source) {
           .replace(/^\s*type\s+/, '')
           .split(/\s+as\s+/)[0]
           .trim();
-        if (nom) noms.push(nom);
+        if (nom) {
+          noms.push(nom);
+        }
       }
     }
     if (
@@ -155,8 +161,9 @@ export function imports(source) {
         .replace(/\{[^}]*\}/, '')
         .replace(/,/g, '')
         .trim()
-    )
+    ) {
       noms.push('*');
+    }
     out.push({ spec: m[2], noms });
   }
   return out;
@@ -208,11 +215,19 @@ export function utilise(racine, tous = composants(racine), parLesTests = null) {
           }
           parLesTests.get(c).add(p);
         }
-        if (!p || (test && !matiere.has(p.nom))) continue;
-        if (!out.has(p.nom)) out.set(p.nom, new Map());
+        if (!p || (test && !matiere.has(p.nom))) {
+          continue;
+        }
+        if (!out.has(p.nom)) {
+          out.set(p.nom, new Map());
+        }
         const parConsommateur = out.get(p.nom);
-        if (!parConsommateur.has(c.nom)) parConsommateur.set(c.nom, new Set());
-        for (const n of noms) parConsommateur.get(c.nom).add(n);
+        if (!parConsommateur.has(c.nom)) {
+          parConsommateur.set(c.nom, new Set());
+        }
+        for (const n of noms) {
+          parConsommateur.get(c.nom).add(n);
+        }
       }
     }
   }
@@ -269,19 +284,22 @@ export function verifier(racine) {
     for (const [consommateur, noms] of utilises) {
       const permis = declare.get(consommateur) ?? new Set();
       for (const n of noms) {
-        if (!permis.has(n))
+        if (!permis.has(n)) {
           refus.push({
             fichier: rel,
             regle: 'usage-non-declare',
             message: `${consommateur} utilise « ${n} » de ${p.nom}, que ${rel} ne déclare pas.`,
           });
+        }
       }
     }
     for (const [consommateur, noms] of declare) {
-      if (hors.has(consommateur)) continue;
+      if (hors.has(consommateur)) {
+        continue;
+      }
       const faits = utilises.get(consommateur) ?? new Set();
       for (const n of noms) {
-        if (!faits.has(n))
+        if (!faits.has(n)) {
           refus.push({
             fichier: rel,
             regle: DECLARE_NON_UTILISE,
@@ -289,6 +307,7 @@ export function verifier(racine) {
             nom: n,
             message: `${rel} déclare « ${n} » pour ${consommateur}, qu'aucun code de ${consommateur} n'utilise.`,
           });
+        }
       }
     }
   }
@@ -299,8 +318,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const verdict = verifier(racine);
   const { refus, lignes } = trancher(racine, 'consommateurs', verdict.refus);
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   if (refus.some(r => r.regle !== DECLARE_NON_UTILISE && r.regle !== LIGNE_MAL_FORMEE)) {
     process.stderr.write(
       "Une consommation nouvelle se décide (le titre du ticket, sa section « Architecture » ou sa section « Noms publiés » qui la nomment, sinon l'arbitrage du superviseur), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
@@ -311,5 +334,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       "Un nom que son consommateur n'utilise plus sort de sa ligne dans la section « Consommateurs » de l'interface du fournisseur.\n"
     );
   }
-  if (refus.length) process.exitCode = 1;
+  if (refus.length) {
+    process.exitCode = 1;
+  }
 }

@@ -68,7 +68,9 @@ const ANCIENS_CHEMINS = [
 // back to the former package's, or each name of the base back to one former path; none when it
 // wrote nothing.
 function formesAnterieures(texte) {
-  if (texte.search(ECRIT) < 0) return [];
+  if (texte.search(ECRIT) < 0) {
+    return [];
+  }
   return [
     texte.replace(ECRIT, (_, q, mesure) => `${q}${ANCIEN}${mesure ?? ''}${q}`),
     ...ANCIENS_CHEMINS.map(c =>
@@ -101,17 +103,23 @@ const couvert = (lignes, f) => lignes.some(l => (l.endsWith('/') ? f.startsWith(
 // Whether the file at <absolu> has the fingerprint <attendue>, as copied or as 0.23.0 rewrote it.
 function intacte(absolu, attendue) {
   const octets = readFileSync(absolu);
-  if (hacher(octets) === attendue) return true;
+  if (hacher(octets) === attendue) {
+    return true;
+  }
   return formesAnterieures(octets.toString('utf8')).some(t => hacher(t) === attendue);
 }
 
 // The files under the directory <rel> of <projet>, as paths from it.
 function fichiersSous(projet, rel) {
   const absolu = path.join(projet, rel);
-  if (!existsSync(absolu)) return [];
+  if (!existsSync(absolu)) {
+    return [];
+  }
   return readdirSync(absolu, { withFileTypes: true }).flatMap(e => {
     const r = `${rel}/${e.name}`;
-    if (e.isDirectory()) return fichiersSous(projet, r);
+    if (e.isDirectory()) {
+      return fichiersSous(projet, r);
+    }
     return e.isFile() ? [r] : [];
   });
 }
@@ -120,7 +128,9 @@ function fichiersSous(projet, rel) {
 function viderDossiers(projet, f) {
   for (let d = path.dirname(f); d !== '.'; d = path.dirname(d)) {
     const absolu = path.join(projet, d);
-    if (!existsSync(absolu) || readdirSync(absolu).length > 0) return;
+    if (!existsSync(absolu) || readdirSync(absolu).length > 0) {
+      return;
+    }
     rmSync(absolu, { recursive: true });
   }
 }
@@ -129,7 +139,9 @@ function viderDossiers(projet, f) {
 export function migrer(projet) {
   const liste = path.join(projet, LISTE);
   const fEmpreintes = path.join(projet, EMPREINTES);
-  if (!existsSync(liste) || !existsSync(fEmpreintes)) return [];
+  if (!existsSync(liste) || !existsSync(fEmpreintes)) {
+    return [];
+  }
   const lignes = gardees(readFileSync(liste, 'utf8'));
   const enregistres = Object.entries(lireJson(fEmpreintes).fichiers ?? {}).filter(
     ([f]) =>
@@ -148,7 +160,9 @@ export function migrer(projet) {
     sortie.push(ligne);
   };
   for (const [f, attendue] of enregistres) {
-    if (!existsSync(path.join(projet, f))) continue;
+    if (!existsSync(path.join(projet, f))) {
+      continue;
+    }
     if (intacte(path.join(projet, f), attendue)) {
       retirer(f, `${f} : copie du cadre retirée, que le paquet porte`);
     } else if (!deRoleSupprime(f)) {
@@ -161,9 +175,13 @@ export function migrer(projet) {
   const espaces = new Set(paquets(projet).map(p => p.dossier));
   for (const d of lignes.filter(l => l.endsWith('/') && !l.startsWith(`${DOSSIER}/`))) {
     const dossier = d.replace(/\/$/, '');
-    if (espaces.has(dossier)) continue;
+    if (espaces.has(dossier)) {
+      continue;
+    }
     for (const f of fichiersSous(projet, dossier)) {
-      if (!GENERE.test(readFileSync(path.join(projet, f), 'utf8'))) continue;
+      if (!GENERE.test(readFileSync(path.join(projet, f), 'utf8'))) {
+        continue;
+      }
       retirer(f, `${f} : fichier engendré pour l'ancien espace de travail ${dossier}, retiré`);
     }
   }
@@ -180,12 +198,16 @@ export function migrer(projet) {
   }
 
   const fPkg = path.join(projet, 'package.json');
-  if (!existsSync(fPkg)) return sortie;
+  if (!existsSync(fPkg)) {
+    return sortie;
+  }
   const pkg = lireJson(fPkg);
   const par = parCopie(projet);
   let reecrit = false;
   for (const [n, script] of Object.entries(pkg.scripts ?? {})) {
-    if (typeof script !== 'string') continue;
+    if (typeof script !== 'string') {
+      continue;
+    }
     const neuf = script.replace(APPEL, (tout, avant, f) =>
       retires.has(f) && par.has(f) ? `${avant}grillhouse ${par.get(f)}` : tout
     );
@@ -208,16 +230,26 @@ export function migrer(projet) {
       });
     }
   }
-  if (reecrit) writeFileSync(fPkg, `${JSON.stringify(pkg, null, 2)}\n`);
+  if (reecrit) {
+    writeFileSync(fPkg, `${JSON.stringify(pkg, null, 2)}\n`);
+  }
 
   const duPaquet = Object.keys(lireJson(path.join(PAQUET, 'package.json')).dependencies ?? {});
   const gabarit = lireJson(path.join(CADRE, GABARIT, 'package.json'));
   const textes = sources(projet).map(f => readFileSync(path.join(projet, f), 'utf8'));
   for (const dep of duPaquet.filter(d => d !== DU_PAQUET)) {
-    if (!CHAMPS.some(c => pkg[c]?.[dep] !== undefined)) continue;
-    if (CHAMPS.some(c => gabarit[c]?.[dep] !== undefined)) continue;
-    if (![...retires.values()].some(t => importe(t, dep))) continue;
-    if (textes.some(t => importe(t, dep))) continue;
+    if (!CHAMPS.some(c => pkg[c]?.[dep] !== undefined)) {
+      continue;
+    }
+    if (CHAMPS.some(c => gabarit[c]?.[dep] !== undefined)) {
+      continue;
+    }
+    if (![...retires.values()].some(t => importe(t, dep))) {
+      continue;
+    }
+    if (textes.some(t => importe(t, dep))) {
+      continue;
+    }
     sortie.push(dependanceDuPaquet(dep));
   }
   return sortie;

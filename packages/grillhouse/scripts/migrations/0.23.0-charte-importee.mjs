@@ -30,10 +30,14 @@ const PARAGRAPHE_DU_GREFFON =
 /** Brings the import of the common charter to the project's CLAUDE.md; returns what it did. */
 export function migrer(projet) {
   const fichier = path.join(projet, 'CLAUDE.md');
-  if (!existsSync(fichier)) return [];
+  if (!existsSync(fichier)) {
+    return [];
+  }
   const texte = readFileSync(fichier, 'utf8');
   const imports = [...texte.matchAll(IMPORT_D_UNE_CHARTE)].map(m => `@${m[1]}`);
-  if (imports.some(i => i !== ANCIENNE_COPIE)) return [];
+  if (imports.some(i => i !== ANCIENNE_COPIE)) {
+    return [];
+  }
   let neuf;
   if (imports.length > 0) {
     neuf = texte.replaceAll(ANCIENNE_COPIE, IMPORT);

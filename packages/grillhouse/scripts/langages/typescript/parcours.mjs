@@ -15,7 +15,9 @@ function siPresent(lire, f, absent) {
   try {
     return lire(f);
   } catch (e) {
-    if (e?.code === 'ENOENT') return absent;
+    if (e?.code === 'ENOENT') {
+      return absent;
+    }
     throw e;
   }
 }
@@ -32,16 +34,22 @@ export function parcourir(chemin, sauter = () => false) {
   const out = [];
   const walk = (p, dossier) => {
     if (!dossier) {
-      if (!TEMPORAIRE_DE_VITE.test(p)) out.push(p);
+      if (!TEMPORAIRE_DE_VITE.test(p)) {
+        out.push(p);
+      }
       return;
     }
     for (const e of siPresent(d => readdirSync(d, { withFileTypes: true }), p, [])) {
       const q = path.join(p, e.name);
-      if (!sauter(q)) walk(q, e.isDirectory());
+      if (!sauter(q)) {
+        walk(q, e.isDirectory());
+      }
     }
   };
   const racine = siPresent(statSync, chemin, null);
-  if (racine) walk(chemin, racine.isDirectory());
+  if (racine) {
+    walk(chemin, racine.isDirectory());
+  }
   return out;
 }
 

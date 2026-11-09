@@ -68,7 +68,9 @@ import { langageDe } from './langages.mjs';
  */
 export function cheminsLus(dir) {
   const manifeste = path.join(dir, 'package.json');
-  if (!existsSync(manifeste)) return [];
+  if (!existsSync(manifeste)) {
+    return [];
+  }
   const { grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
   const liste = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
   return [
@@ -83,8 +85,11 @@ function lesSections(description) {
   let dedans = false;
   for (const l of String(description ?? '').split('\n')) {
     const m = /^## (.+)$/.exec(l);
-    if (m) dedans = /^(Architecture|Critères)\b/.test(m[1].trim());
-    else if (dedans) out.push(l);
+    if (m) {
+      dedans = /^(Architecture|Critères)\b/.test(m[1].trim());
+    } else if (dedans) {
+      out.push(l);
+    }
   }
   return out.join('\n');
 }
@@ -112,7 +117,9 @@ function elementsNommes(texte) {
   const vus = new Set();
   for (const [, brut] of texte.matchAll(/`([^`\n]+)`/g)) {
     const m = /^([A-Za-z_$][\w$]*)((?:\.[A-Za-z_$][\w$]*|\([^)]*\))*)$/.exec(brut.trim());
-    if (m) vus.add(m[1]);
+    if (m) {
+      vus.add(m[1]);
+    }
   }
   return [...vus];
 }
@@ -123,10 +130,16 @@ function cheminsEcrits(racine, texte) {
   const out = new Set();
   for (const [brut] of texte.matchAll(/[\w.@-]+(?:\/[\w.@-]+)*/g)) {
     const p = brut.replace(/\.+$/, '');
-    if (!p.includes('/') && !/\.\w+$/.test(p)) continue;
+    if (!p.includes('/') && !/\.\w+$/.test(p)) {
+      continue;
+    }
     const net = path.normalize(p);
-    if (net.startsWith('..') || path.isAbsolute(net)) continue;
-    if (existsSync(path.join(racine, net))) out.add(net.split(path.sep).join('/'));
+    if (net.startsWith('..') || path.isAbsolute(net)) {
+      continue;
+    }
+    if (existsSync(path.join(racine, net))) {
+      out.add(net.split(path.sep).join('/'));
+    }
   }
   return [...out];
 }
@@ -144,9 +157,13 @@ function lecteursDesChemins(racine, tous, changes) {
     for (const brut of new Set(cheminsLus(c.dossier))) {
       const lu = brut.replace(/^\.\//, '').replace(/\/+$/, '');
       const atteints = changes.filter(ch => !recouvre(propre, ch) && recouvre(lu, ch)).sort();
-      if (atteints.length) par.add(`lit ${lu} (${atteints.join(', ')})`);
+      if (atteints.length) {
+        par.add(`lit ${lu} (${atteints.join(', ')})`);
+      }
     }
-    if (par.size) out.set(c, par);
+    if (par.size) {
+      out.set(c, par);
+    }
   }
   return out;
 }
@@ -184,18 +201,28 @@ export function releve(racine, description) {
   const trouves = new Set(ceuxNommes);
   for (const e of code.elements) {
     trouves.add(e.fournisseur);
-    for (const l of e.lecteurs) trouves.add(l.composant);
+    for (const l of e.lecteurs) {
+      trouves.add(l.composant);
+    }
   }
   for (const e of code.types.elements) {
-    for (const d of e.declarations) if (d.publie) trouves.add(d.composant);
-    for (const c of e.lecteurs.keys()) trouves.add(c);
+    for (const d of e.declarations) {
+      if (d.publie) {
+        trouves.add(d.composant);
+      }
+    }
+    for (const c of e.lecteurs.keys()) {
+      trouves.add(c);
+    }
   }
   // By the paths read: the components whose tests declare they read a path the ticket changes.
   const parChemins = lecteursDesChemins(racine, tous, [
     ...cheminsEcrits(racine, texte),
     ...ceuxNommes.map(c => path.relative(racine, c.dossier).split(path.sep).join('/')),
   ]);
-  for (const c of parChemins.keys()) trouves.add(c);
+  for (const c of parChemins.keys()) {
+    trouves.add(c);
+  }
   // By the architecture: the Rend of the CADRE.md of each component that publishes an element.
   const declarants = new Set([
     ...code.elements.map(e => e.fournisseur),
@@ -205,8 +232,12 @@ export function releve(racine, description) {
   for (const p of declarants) {
     for (const { regle, texte: ligne } of rendus(p)) {
       for (const c of nommes(racine, tous, ligne)) {
-        if (c === p) continue;
-        if (!architecture.has(c)) architecture.set(c, new Set());
+        if (c === p) {
+          continue;
+        }
+        if (!architecture.has(c)) {
+          architecture.set(c, new Set());
+        }
         architecture.get(c).add(`CADRE de ${nomAuTitre(racine, p)}, Rend ${regle}`);
         trouves.add(c);
       }
@@ -251,7 +282,9 @@ export function releve(racine, description) {
 // lines included.
 function rendus(c) {
   const f = path.join(c.dossier, 'docs', 'CADRE.md');
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const texte = readFileSync(f, 'utf8');
   const out = [];
   let dedans = false;
@@ -261,11 +294,15 @@ function rendus(c) {
       dedans = /Rend\s*$/.test(h[1].trim());
       continue;
     }
-    if (!dedans) continue;
+    if (!dedans) {
+      continue;
+    }
     if (/^[-*] /.test(l)) {
       const regle = /^[-*] \*\*(R\d+)\.?\*\*/.exec(l)?.[1] ?? `l.${i + 1}`;
       out.push({ regle, texte: l });
-    } else if (/^\s+\S/.test(l) && out.length) out.at(-1).texte += ` ${l.trim()}`;
+    } else if (/^\s+\S/.test(l) && out.length) {
+      out.at(-1).texte += ` ${l.trim()}`;
+    }
   }
   return out;
 }
@@ -273,7 +310,9 @@ function rendus(c) {
 // The components of the survey <r> the title <titre> does not name (its components as written,
 // package names or paths, or `.`), in the survey's order.
 export function manquants(racine, r, titre) {
-  if (titre.includes('.')) return [];
+  if (titre.includes('.')) {
+    return [];
+  }
   const tous = langageDe(racine).composants(racine);
   const couvre = c => {
     const rel = path.relative(racine, c.dossier).split(path.sep).join('/');
@@ -323,7 +362,9 @@ export function texteDuReleve(r) {
       const cle = `${ou} ; lu par ${lus || 'aucun autre'}.`;
       lignes.set(cle, [...(lignes.get(cle) ?? []), `\`${e.nom}\``]);
     }
-    for (const [cle, noms] of lignes) out.push(`  - ${noms.join(', ')} : ${cle}`);
+    for (const [cle, noms] of lignes) {
+      out.push(`  - ${noms.join(', ')} : ${cle}`);
+    }
   }
   if (r.lit.length) {
     const lus = r.lit.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');
@@ -333,7 +374,9 @@ export function texteDuReleve(r) {
     const lus = r.architecture.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');
     out.push(`- Par l'architecture : ${lus}.`);
   }
-  if (r.nommes.length) out.push(`- Nommés au ticket : ${r.nommes.join(', ')}.`);
+  if (r.nommes.length) {
+    out.push(`- Nommés au ticket : ${r.nommes.join(', ')}.`);
+  }
   if (r.sansFournisseur.length) {
     out.push(
       `- Sans interface qui les publie : ${r.sansFournisseur.map(n => `\`${n}\``).join(', ')}.`

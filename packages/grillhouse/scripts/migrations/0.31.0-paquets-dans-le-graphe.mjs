@@ -19,11 +19,7 @@
 //   pass changes nothing and returns no line.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import {
-  inscrireAuxEspaces,
-  packageJsonDuPaquet,
-  paquetsSansPackageJson,
-} from '../paquet-npm.mjs';
+import { inscrireAuxEspaces, packageJsonDuPaquet, paquetsSansPackageJson } from '../paquet-npm.mjs';
 import { paquets } from '../paquets.mjs';
 
 export const version = '0.31.0';
@@ -31,7 +27,9 @@ export const nom = 'paquets dans le graphe';
 
 export function migrer(projet) {
   const racinePj = path.join(projet, 'package.json');
-  if (!existsSync(racinePj)) return [];
+  if (!existsSync(racinePj)) {
+    return [];
+  }
   const lignes = [];
   const inscrire = [];
   for (const { chemin, nom: nomNpm } of paquetsSansPackageJson(projet)) {
@@ -42,7 +40,9 @@ export function migrer(projet) {
       try {
         present = JSON.parse(readFileSync(abs, 'utf8')).name;
       } catch (e) {
-        lignes.push({ aFaire: `${f} : ${e.message} ; le nom du paquet est ${JSON.stringify(nomNpm)}.` });
+        lignes.push({
+          aFaire: `${f} : ${e.message} ; le nom du paquet est ${JSON.stringify(nomNpm)}.`,
+        });
         continue;
       }
       if (present !== nomNpm) {

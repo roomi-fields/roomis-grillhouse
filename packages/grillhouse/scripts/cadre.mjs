@@ -96,15 +96,18 @@ function empaqueter() {
   );
   for (const f of FICHIERS_DU_CADRE) {
     const source = path.join(DEPOT, f);
-    if (!existsSync(source)) throw new Error(`${f} manque au dépôt du cadre (${DEPOT})`);
+    if (!existsSync(source)) {
+      throw new Error(`${f} manque au dépôt du cadre (${DEPOT})`);
+    }
     cpSync(source, path.join(COPIE, f), { recursive: true });
   }
 }
 
 // Removes the copies of the plugin and cadre/.
 function nettoyer() {
-  for (const e of ELEMENTS_DU_GREFFON)
+  for (const e of ELEMENTS_DU_GREFFON) {
     rmSync(path.join(PAQUET, e), { recursive: true, force: true });
+  }
   rmSync(COPIE, { recursive: true, force: true });
 }
 

@@ -59,7 +59,9 @@ function empreinteDesDependances(copie, verrou, dansCopie) {
     .filter(Boolean)
     .sort();
   const h = createHash('sha256').update(readFileSync(verrou));
-  for (const f of suivis) h.update(`\0${f}\0`).update(readFileSync(path.join(copie, f)));
+  for (const f of suivis) {
+    h.update(`\0${f}\0`).update(readFileSync(path.join(copie, f)));
+  }
   return h.digest('hex');
 }
 
@@ -91,9 +93,13 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
       ? dansCopie('checkout', '-q', '--detach', '--force', tete).status === 0 &&
         dansCopie('clean', '-q', '-f', '-d', '-x', '-e', 'node_modules').status === 0
       : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
-    if (!prete) return `La copie ${copie} ne se prépare pas.`;
+    if (!prete) {
+      return `La copie ${copie} ne se prépare pas.`;
+    }
     const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
-    if (poses.status !== 0) return `La copie ne pose pas ses sous-modules : ${poses.stderr.trim()}`;
+    if (poses.status !== 0) {
+      return `La copie ne pose pas ses sous-modules : ${poses.stderr.trim()}`;
+    }
     partages = poses.stdout;
     return null;
   };
@@ -109,7 +115,9 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
     }
     refus = preparer();
   }
-  if (refus) return { refus };
+  if (refus) {
+    return { refus };
+  }
   const monter = (...commande) => [
     SOUS_MODULES,
     'monter',
@@ -119,7 +127,9 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
     ...commande,
   ];
   const montage = spawnSync('bash', monter('true'), { encoding: 'utf8' });
-  if (montage.status !== 0) return { refus: montage.stderr.trim() };
+  if (montage.status !== 0) {
+    return { refus: montage.stderr.trim() };
+  }
   const lancer = (commande, args, envPlus = null) => {
     const r = spawnSync('bash', monter(commande, ...args), {
       cwd: copie,
@@ -140,17 +150,24 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
   // differ, the key is written again. Null when they agree, else the refusal.
   const accorder = () => {
     const verrouNpm = path.join(copie, VERROU);
-    if (!existsSync(verrouNpm)) return null;
+    if (!existsSync(verrouNpm)) {
+      return null;
+    }
     const cle = path.join(copie, 'node_modules', '.integration-lock');
     const empreinte = empreinteDesDependances(copie, verrouNpm, dansCopie);
-    if (existsSync(cle) && readFileSync(cle, 'utf8') === empreinte) return null;
-    if (npm(['ci', '--no-audit', '--no-fund', '--silent']).status !== 0)
+    if (existsSync(cle) && readFileSync(cle, 'utf8') === empreinte) {
+      return null;
+    }
+    if (npm(['ci', '--no-audit', '--no-fund', '--silent']).status !== 0) {
       return DEPENDANCES_REFUSEES;
+    }
     writeFileSync(cle, empreinte);
     return null;
   };
   const refusOuverture = accorder();
-  if (refusOuverture) return { refus: refusOuverture };
+  if (refusOuverture) {
+    return { refus: refusOuverture };
+  }
   dire(`✓ copie propre sur ${tete.slice(0, 7)}`);
 
   // The checks of the copy: its preparation, then its verification; the first that is not green

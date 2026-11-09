@@ -97,7 +97,9 @@ export function sousCommandes(racine = process.cwd()) {
  */
 export function commandeDe(nom, racine = process.cwd()) {
   const s = Object.hasOwn(SOUS_COMMANDES, nom) ? SOUS_COMMANDES[nom] : null;
-  if (typeof s === 'string') return { script: path.join(SCRIPTS, s), args: [] };
+  if (typeof s === 'string') {
+    return { script: path.join(SCRIPTS, s), args: [] };
+  }
   const commandes = langageDe(racine).commandes(racine);
   const n = s?.langage ?? (DU_NOYAU.has(nom) ? null : nom);
   return n !== null && Object.hasOwn(commandes, n) ? commandes[n] : null;

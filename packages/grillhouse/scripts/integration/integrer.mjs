@@ -104,7 +104,9 @@ import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 // backslash or a control character comes between quotes with C escapes (`\303\251` for `é`).
 // Returns the name itself.
 function nomDeGit(ecrit) {
-  if (!ecrit.startsWith('"')) return ecrit;
+  if (!ecrit.startsWith('"')) {
+    return ecrit;
+  }
   const octets = [];
   const echappes = { n: 10, t: 9, r: 13, a: 7, b: 8, f: 12, v: 11 };
   const corps = Buffer.from(ecrit.slice(1, -1), 'utf8');
@@ -142,11 +144,14 @@ export function refusVerdicts(ticket, comments) {
 // resumption (scripts/circuit.mjs), as a CI refuses a pull request without its required label
 // before it runs a job. `ticket` and `comments` are Beads' JSON.
 export function refusArbitrage(ticket, comments) {
-  if (!(ticket.labels ?? []).includes('arbitrage')) return null;
+  if (!(ticket.labels ?? []).includes('arbitrage')) {
+    return null;
+  }
   const id = ticket.id;
   const arbitrages = comments.filter(c => estArbitrage(c.text));
-  if (arbitrages.length === 0)
+  if (arbitrages.length === 0) {
     return `${id} est étiqueté arbitrage sans commentaire « Arbitrage ».`;
+  }
   for (const a of arbitrages) {
     if (!arbitrageTranche(comments, a)) {
       const titre = a.text.trim().split('\n')[0];
@@ -162,10 +167,13 @@ export function refusLots(tests, code, racine) {
   const langage = langageDe(racine);
   const testwriter = f => langage.estUnTest(f, racine) !== null;
   const horsTests = tests.filter(f => !testwriter(f));
-  if (horsTests.length) return `Le lot de tests touche du code : ${horsTests.join(', ')}.`;
+  if (horsTests.length) {
+    return `Le lot de tests touche du code : ${horsTests.join(', ')}.`;
+  }
   const duTestwriter = code.filter(testwriter);
-  if (duTestwriter.length)
+  if (duTestwriter.length) {
     return `Le lot de code touche des fichiers du testwriter (tests ou matière de test partagée) : ${duTestwriter.join(', ')}.`;
+  }
   return null;
 }
 
@@ -176,10 +184,11 @@ function lire(argv) {
     const v = argv[i + 1];
     switch (argv[i]) {
       case '--ticket':
-        if (o.ticket !== null)
+        if (o.ticket !== null) {
           return {
             faute: `un seul --ticket : ${v} en est un second, et une livraison est un ticket.`,
           };
+        }
         o.ticket = v;
         i++;
         break;
@@ -203,7 +212,9 @@ function lire(argv) {
         return { faute: null };
     }
   }
-  if (!o.ticket || !o.message || !(o.tests || o.code)) return { faute: null };
+  if (!o.ticket || !o.message || !(o.tests || o.code)) {
+    return { faute: null };
+  }
   return o;
 }
 
@@ -215,7 +226,9 @@ function horsLot(copieTicket, fichiers) {
     ['-C', copieTicket, 'status', '--porcelain=v1', '-z', '-uall', '--no-renames'],
     { encoding: 'utf8' }
   );
-  if (r.status !== 0) return null;
+  if (r.status !== 0) {
+    return null;
+  }
   const dans = new Set(fichiers);
   return r.stdout
     .split('\0')
@@ -232,10 +245,18 @@ function differents(copieTicket, lots, fichiers, tmp) {
   const env = { ...process.env, GIT_INDEX_FILE: index };
   const dansCopie = (...args) =>
     spawnSync('git', ['-C', copieTicket, ...args], { encoding: 'utf8', env });
-  if (dansCopie('read-tree', 'HEAD').status !== 0) return fichiers;
-  for (const p of lots) if (dansCopie('apply', '--cached', p).status !== 0) return fichiers;
+  if (dansCopie('read-tree', 'HEAD').status !== 0) {
+    return fichiers;
+  }
+  for (const p of lots) {
+    if (dansCopie('apply', '--cached', p).status !== 0) {
+      return fichiers;
+    }
+  }
   const r = dansCopie('diff', '--name-only', '--no-renames', '-z', '--', ...fichiers);
-  if (r.status !== 0) return fichiers;
+  if (r.status !== 0) {
+    return fichiers;
+  }
   return r.stdout.split('\0').filter(Boolean);
 }
 
@@ -288,17 +309,22 @@ function main(argv) {
     // 1. The verdict.
     const show = bd('show', o.ticket, '--json');
     const comments = bd('comments', o.ticket, '--json');
-    if (show.status !== 0 || comments.status !== 0)
+    if (show.status !== 0 || comments.status !== 0) {
       return refuser(`Ticket ${o.ticket} illisible : ${show.stderr}${comments.stderr}`);
+    }
     const r1 = refusVerdicts(JSON.parse(show.stdout)[0], JSON.parse(comments.stdout || '[]'));
-    if (r1) return refuser(r1);
+    if (r1) {
+      return refuser(r1);
+    }
     dire('✓ verdicts');
 
     // 2. The lots.
     const lots = [o.tests, o.code].filter(Boolean).map(absolu);
     const fichiersDe = p => {
       const r = git('apply', '--numstat', '-z', p);
-      if (r.status !== 0) return null;
+      if (r.status !== 0) {
+        return null;
+      }
       const destinations = r.stdout
         .split('\0')
         .map(l => l.split('\t')[2])
@@ -312,9 +338,13 @@ function main(argv) {
     };
     const tests = o.tests ? fichiersDe(absolu(o.tests)) : [];
     const code = o.code ? fichiersDe(absolu(o.code)) : [];
-    if (!tests || !code) return refuser('Un patch du lot est illisible.');
+    if (!tests || !code) {
+      return refuser('Un patch du lot est illisible.');
+    }
     const r2 = refusLots(tests, code, racine);
-    if (r2) return refuser(r2);
+    if (r2) {
+      return refuser(r2);
+    }
     const fichiers = [...new Set([...tests, ...code])];
     dire(`✓ lots : ${fichiers.length} fichiers`);
     let duCircuit = [];
@@ -336,7 +366,9 @@ function main(argv) {
     // 3. The main tree: the lots' files are free there, so the queue can bring them. The ticket's
     // copy holds the lot and nothing else.
     const tenus = git('status', '--porcelain', '--', ...fichiers).stdout.trim();
-    if (tenus) return refuser(`Des fichiers du lot sont modifiés dans l'arbre :\n${tenus}`);
+    if (tenus) {
+      return refuser(`Des fichiers du lot sont modifiés dans l'arbre :\n${tenus}`);
+    }
     dire('✓ arbre principal libre');
     const branche = `agent/${o.ticket}`;
     const copieTicket = path.join(racine, '.claude', 'worktrees', o.ticket);
@@ -352,7 +384,9 @@ function main(argv) {
         return refuser(`La copie du ticket ${copieTicket} n'est pas sur la branche ${branche}.`);
       }
       const autres = horsLot(copieTicket, fichiers);
-      if (autres === null) return refuser(`L'état de la copie ${copieTicket} ne se lit pas.`);
+      if (autres === null) {
+        return refuser(`L'état de la copie ${copieTicket} ne se lit pas.`);
+      }
       if (autres.length) {
         return refuser(
           `La copie du ticket porte autre chose que le lot :\n${autres.map(f => `  ${f}`).join('\n')}`
@@ -365,7 +399,9 @@ function main(argv) {
     // are kept only while the lock file and the manifests are the same (a CI cache keyed by them).
     const copie = path.join(racine, '.claude', 'worktrees', 'integration');
     const ouverte = ouvrirCopie({ racine, copie, ref: 'HEAD', dire });
-    if (ouverte.refus) return refuser(ouverte.refus);
+    if (ouverte.refus) {
+      return refuser(ouverte.refus);
+    }
     const { dansCopie, monter, installer, tester } = ouverte;
 
     // 5. The lots, applied in the copy without the files a reference writes in full, then
@@ -373,7 +409,9 @@ function main(argv) {
     const sansEntiers = entiers.map(f => `--exclude=${f}`);
     for (const p of lots) {
       const r = dansCopie('apply', '--3way', '--index', ...sansEntiers, p);
-      if (r.status !== 0) return refuser(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
+      if (r.status !== 0) {
+        return refuser(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
+      }
     }
     const divergents = avecCopie ? differents(copieTicket, lots, fichiers, tmp) : [];
     if (divergents.length) {
@@ -383,7 +421,9 @@ function main(argv) {
     }
     dire('✓ lots appliqués');
     const installation = installer();
-    if (installation) return refuser(installation);
+    if (installation) {
+      return refuser(installation);
+    }
     if (aRegenerer.length) {
       const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env));
       const refus = regenerer({
@@ -397,7 +437,9 @@ function main(argv) {
             env,
           }),
       });
-      if (refus) return refuser(refus);
+      if (refus) {
+        return refuser(refus);
+      }
       dire(`✓ références régénérées sur main à jour : ${aRegenerer.map(r => r.nom).join(', ')}`);
     }
 
@@ -410,7 +452,9 @@ function main(argv) {
       );
       return A_REPASSER;
     }
-    if (verdict !== 0) return refuser('Les tests refusent le lot (sortie ci-dessus).');
+    if (verdict !== 0) {
+      return refuser('Les tests refusent le lot (sortie ci-dessus).');
+    }
     dire('✓ tests');
 
     // 7. The commit, in the copy: the commit validated is the commit that enters.
@@ -424,7 +468,9 @@ function main(argv) {
         env: { ...process.env, GRILLHOUSE_INTEGRATION: '1' },
       }
     );
-    if (c.status !== 0) return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
+    if (c.status !== 0) {
+      return refuser(`Le commit est refusé :\n${c.stdout}${c.stderr}`);
+    }
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 
     // 8. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the

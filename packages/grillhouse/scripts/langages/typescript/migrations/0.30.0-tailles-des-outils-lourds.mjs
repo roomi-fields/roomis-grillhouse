@@ -22,7 +22,9 @@ export function migrer(projet) {
   const inscrite = lire(projet)[GARDE] ?? {};
   const constats = verifier(projet);
   const neufs = constats.filter(c => !inscrite[c.fichier]?.[c.regle]);
-  if (neufs.length === 0) return [];
+  if (neufs.length === 0) {
+    return [];
+  }
   // Inscribed counts stay; a finding without key is added at its count.
   trancher(projet, GARDE, constats, 'inscrire', {});
   return [

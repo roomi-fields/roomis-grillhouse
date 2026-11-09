@@ -30,10 +30,14 @@ const REMPLACEMENTS = [
 /** Brings the rule of the tri to the project's issue-tracker.md; returns what it did. */
 export function migrer(projet) {
   const fichier = path.join(projet, FICHIER);
-  if (!existsSync(fichier)) return [];
+  if (!existsSync(fichier)) {
+    return [];
+  }
   const texte = readFileSync(fichier, 'utf8');
   const neuf = REMPLACEMENTS.reduce((t, [ancien, nouveau]) => t.replace(ancien, nouveau), texte);
-  if (neuf === texte) return [];
+  if (neuf === texte) {
+    return [];
+  }
   writeFileSync(fichier, neuf);
   return [
     `${FICHIER} : une découverte reçoit son verdict au tri des découvertes, en fin de ticket, au lieu de se rouvrir sur le mot du responsable`,

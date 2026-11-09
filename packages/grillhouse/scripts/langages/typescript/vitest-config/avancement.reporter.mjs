@@ -10,7 +10,9 @@ import { AVANCEMENT, ecrireTache } from '../../../services-du-noyau.mjs';
 // The reporter of progress under <env>'s progress directory, as Vitest's `reporters` take it; an
 // empty list without the variable.
 export function rapportAvancement(env = process.env) {
-  if (!env[AVANCEMENT]) return [];
+  if (!env[AVANCEMENT]) {
+    return [];
+  }
   return [fileURLToPath(import.meta.url)];
 }
 
@@ -49,16 +51,24 @@ export default class AvancementReporter {
     let change = false;
     for (const [id, resultat] of paquets) {
       const t = this.ctx?.state?.idMap?.get(id);
-      if (!t?.filepath || t.file !== t || !FINIS.has(resultat?.state)) continue;
-      if (this.faits.has(id)) continue;
+      if (!t?.filepath || t.file !== t || !FINIS.has(resultat?.state)) {
+        continue;
+      }
+      if (this.faits.has(id)) {
+        continue;
+      }
       this.faits.add(id);
       change = true;
     }
-    if (change) this.ecrire();
+    if (change) {
+      this.ecrire();
+    }
   }
 
   onFinished(fichiers = []) {
-    for (const f of fichiers) this.faits.add(f.id);
+    for (const f of fichiers) {
+      this.faits.add(f.id);
+    }
     this.ecrire();
   }
 }

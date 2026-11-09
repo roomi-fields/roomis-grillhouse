@@ -148,7 +148,9 @@ export function versionDeLOutil(racine = process.cwd()) {
     return null;
   }
   const v = pkg?.grillhouse?.outil;
-  if (v === undefined || v === null) return null;
+  if (v === undefined || v === null) {
+    return null;
+  }
   if (typeof v !== 'string' || !X_Y_Z.test(v)) {
     throw new Error(`la clé ${CLE} vaut ${JSON.stringify(v)}, pas une version x.y.z.`);
   }
@@ -167,12 +169,18 @@ export function aiguillage(
   nom,
   { racine = process.cwd(), cache = cacheDesOutils(), paquet = PAQUET_QUI_TOURNE } = {}
 ) {
-  if (!REDIRIGEES.has(nom)) return null;
+  if (!REDIRIGEES.has(nom)) {
+    return null;
+  }
   const version = versionDeLOutil(racine);
-  if (version === null) return null;
+  if (version === null) {
+    return null;
+  }
   const dossier = dossierDeLOutil(version, cache);
   const commande = commandeDans(dossier);
-  if (realpath(paquet) === realpath(path.resolve(path.dirname(commande), '..'))) return null;
+  if (realpath(paquet) === realpath(path.resolve(path.dirname(commande), '..'))) {
+    return null;
+  }
   return { version, dossier, commande };
 }
 
@@ -206,7 +214,9 @@ export function echecDeLOutil(racine = process.cwd(), { cache = cacheDesOutils()
   } catch {
     return null;
   }
-  if (version === null) return null;
+  if (version === null) {
+    return null;
+  }
   const f = fichierDEchec(version, cache);
   // A failure written after another launch installed the version: the version stands.
   if (existsSync(commandeDans(dossierDeLOutil(version, cache)))) {
@@ -228,7 +238,9 @@ function balayer(cache) {
   }
   for (const e of entrees) {
     const pid = Number(/\.installation-(\d+)$/.exec(e)?.[1]);
-    if (pid && !vivant(pid)) rmSync(path.join(cache, e), { recursive: true, force: true });
+    if (pid && !vivant(pid)) {
+      rmSync(path.join(cache, e), { recursive: true, force: true });
+    }
   }
 }
 
@@ -250,7 +262,9 @@ function npmInstall(npm, prefixe, specs) {
     { stdio: ['ignore', 2, 'pipe'], encoding: 'utf8' }
   );
   process.stderr.write(r.stderr ?? '');
-  if (r.status === 0) return;
+  if (r.status === 0) {
+    return;
+  }
   const ligne = String(r.stderr ?? '')
     .trim()
     .split('\n')
@@ -275,10 +289,14 @@ export function installer(
   { cache = cacheDesOutils(), npm = 'npm', retenue = RETENUE_MS } = {}
 ) {
   const dossier = dossierDeLOutil(version, cache);
-  if (existsSync(commandeDans(dossier))) return { dossier, installe: false };
+  if (existsSync(commandeDans(dossier))) {
+    return { dossier, installe: false };
+  }
   const echec = fichierDEchec(version, cache);
   const garde = lireLEchec(echec);
-  if (garde && Date.now() - Date.parse(garde.date) < retenue) throw new Error(garde.raison);
+  if (garde && Date.now() - Date.parse(garde.date) < retenue) {
+    throw new Error(garde.raison);
+  }
   mkdirSync(cache, { recursive: true });
   balayer(cache);
   const chantier = `${dossier}.installation-${process.pid}`;
@@ -291,7 +309,9 @@ export function installer(
         readFileSync(path.join(chantier, 'node_modules', NOM_DU_PAQUET, 'package.json'), 'utf8')
       );
       const pairs = Object.entries(pkg.peerDependencies ?? {}).map(([n, r]) => `${n}@${r}`);
-      if (pairs.length) npmInstall(npm, chantier, pairs);
+      if (pairs.length) {
+        npmInstall(npm, chantier, pairs);
+      }
       if (!existsSync(commandeDans(chantier))) {
         throw new Error(`npm n'a pas posé la commande de ${NOM_DU_PAQUET}@${version}`);
       }
@@ -305,7 +325,9 @@ export function installer(
       renameSync(chantier, dossier);
     } catch (e) {
       // Another launch installed it meanwhile: its folder stands.
-      if (!existsSync(commandeDans(dossier))) throw e;
+      if (!existsSync(commandeDans(dossier))) {
+        throw e;
+      }
     }
     return { dossier, installe: true };
   } finally {

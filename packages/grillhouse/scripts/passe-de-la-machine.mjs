@@ -28,7 +28,9 @@ export function passeLourde({ args }) {
  */
 export function lancementDeLaPasse({ lourde, cmd, args, env }) {
   const { [VARIABLE_TRAVAILLEURS]: _herite, ...sansTravailleurs } = env;
-  if (lourde) return { cmd, args, env: sansTravailleurs };
+  if (lourde) {
+    return { cmd, args, env: sansTravailleurs };
+  }
   const [commande, ...arguments_] = sousNiceEtIonice([cmd, ...args]);
   return {
     cmd: commande,
@@ -48,7 +50,10 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
  *   borneMs?: number, rappelMs?: number } & Record<string, unknown>} options
  * @returns {T}
  */
-export function avecLaPasse(mesure, { lourde, env = process.env, racine, ticket, sorte, ...options }) {
+export function avecLaPasse(
+  mesure,
+  { lourde, env = process.env, racine, ticket, sorte, ...options }
+) {
   if (lourde) {
     const { dire, borneMs, rappelMs, rang } = options;
     return avecLaMachineEtUnePlace(mesure, {

@@ -286,7 +286,10 @@ function passe(racine, env) {
       ecrire();
       return { t, args };
     },
-    jouer({ t, args }, { junit = null, journal = null, programme = 'cargo', temporaire = {} } = {}) {
+    jouer(
+      { t, args },
+      { junit = null, journal = null, programme = 'cargo', temporaire = {} } = {}
+    ) {
       // A report of an earlier run is no report of this one, which may write none.
       if (junit) {
         rmSync(junit, { force: true });
@@ -437,7 +440,13 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
       }
       if (desBancs.length) {
         const args = [...nextestDuBanc, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
-        bancs.push({ nom, d, temporaire: temporaire(nom), args: [...args, '--test-threads', '1', ...options], etat });
+        bancs.push({
+          nom,
+          d,
+          temporaire: temporaire(nom),
+          args: [...args, '--test-threads', '1', ...options],
+          etat,
+        });
       }
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
@@ -752,7 +761,9 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     return surUnePlace(e => tester(racine, tous, args, e), { env });
   }
   if (nom === 'tests-du-paquet') {
-    return sousLaBase('tests', env, (envBase, pp) => testsDuPaquet(racine, tous, args, envBase, pp));
+    return sousLaBase('tests', env, (envBase, pp) =>
+      testsDuPaquet(racine, tous, args, envBase, pp)
+    );
   }
   if (nom === 'tests-de-nuit') {
     return sousLaBase('tests', env, (envBase, pp) => testsDeNuit(racine, tous, envBase, pp));

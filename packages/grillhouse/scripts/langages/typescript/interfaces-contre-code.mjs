@@ -76,11 +76,17 @@ const lireJson = p => JSON.parse(readFileSync(p, 'utf8'));
 // has none.
 export function sansApi(c) {
   const pj = path.join(c.dir, 'package.json');
-  if (!existsSync(pj)) return false;
+  if (!existsSync(pj)) {
+    return false;
+  }
   const p = lireJson(pj);
   const exp = p.exports;
-  if (exp === undefined) return [p.main, p.types, p.typings].every(e => e === undefined);
-  if (!exp || typeof exp !== 'object' || Array.isArray(exp)) return false;
+  if (exp === undefined) {
+    return [p.main, p.types, p.typings].every(e => e === undefined);
+  }
+  if (!exp || typeof exp !== 'object' || Array.isArray(exp)) {
+    return false;
+  }
   const cles = Object.keys(exp);
   return cles.length > 0 && cles.every(k => k.startsWith('.')) && !cles.includes('.');
 }
@@ -97,7 +103,9 @@ export function entree(racine, c) {
   }
   const racinePj = path.join(racine, 'package.json');
   const types = existsSync(racinePj) ? lireJson(racinePj).types : null;
-  if (!types) return null;
+  if (!types) {
+    return null;
+  }
   return path.join(racine, path.dirname(types), path.basename(c.dir), 'index.d.ts');
 }
 
@@ -108,14 +116,22 @@ export function declare(texte) {
   let section = null;
   let bloc = false;
   for (const l of ecrite(texte)) {
-    if (/^\s*(```|~~~)/.test(l)) bloc = !bloc;
+    if (/^\s*(```|~~~)/.test(l)) {
+      bloc = !bloc;
+    }
     const titre = !bloc && /^(#{2,3}) (.+)$/.exec(l);
     if (titre) {
       section = titre[1] === '##' ? titre[2].trim() : section;
-      if (section === 'Les fautes' && fautes === null) fautes = new Set();
+      if (section === 'Les fautes' && fautes === null) {
+        fautes = new Set();
+      }
       continue;
     }
-    if (section === 'Les fautes') for (const m of l.matchAll(CODE)) fautes.add(m[0]);
+    if (section === 'Les fautes') {
+      for (const m of l.matchAll(CODE)) {
+        fautes.add(m[0]);
+      }
+    }
   }
   return { fautes };
 }
@@ -131,7 +147,9 @@ function codesDuCode(dir, racine, prefixes) {
   ).filter(p => SOURCE.test(nom(p)) && !isTest(path.relative(racine, p)));
   for (const p of sources) {
     for (const m of (lireSiPresent(p) ?? '').matchAll(CODE)) {
-      if (prefixes.some(pr => m[0].startsWith(pr))) trouves.add(m[0]);
+      if (prefixes.some(pr => m[0].startsWith(pr))) {
+        trouves.add(m[0]);
+      }
     }
   }
   return trouves;
@@ -214,7 +232,9 @@ const CODE_SEUL = new RegExp(`^${CODE.source}$`);
 
 // The text of a TSDoc node, its paragraphs apart by a blank line, each on one line.
 function texteDoc(noeud) {
-  if (!noeud) return '';
+  if (!noeud) {
+    return '';
+  }
   const feuilles = n =>
     n.kind === 'Excerpt' ? n.content.toString() : n.getChildNodes().map(feuilles).join('');
   const paragraphes = noeud.kind === 'Section' ? noeud.getChildNodes() : [noeud];
@@ -287,7 +307,9 @@ function fautesJugees(nom, textes, fautes, refus, codes) {
         regle: 'faute-hors-catalogue',
         texte: `${nom} : le @faute ${code} n'est pas au catalogue « ## Les fautes ».`,
       });
-    } else codes.add(code);
+    } else {
+      codes.add(code);
+    }
   }
 }
 
@@ -297,35 +319,42 @@ export function jugerExport(item, fautes) {
   const refus = [];
   const nom = `\`${item.displayName}\``;
   const k = contratDe(item);
-  if (!k.resume) refus.push({ regle: 'resume', texte: `${nom} n'a pas de résumé TSDoc.` });
+  if (!k.resume) {
+    refus.push({ regle: 'resume', texte: `${nom} n'a pas de résumé TSDoc.` });
+  }
   const codes = new Set();
   if (estFonction(item)) {
     const noms = new Set(k.parametres.filter(p => !p.destructure).map(p => p.name));
     const prises = new Set();
     k.parametres.forEach((p, i) => {
       const parNom = p.destructure ? -1 : k.params.findIndex(b => b.nom === p.name);
-      if (parNom >= 0) prises.add(parNom);
-      else if (!p.destructure)
+      if (parNom >= 0) {
+        prises.add(parNom);
+      } else if (!p.destructure) {
         refus.push({
           regle: 'param',
           texte: `${nom} : le paramètre « ${p.name} » n'a pas de @param.`,
         });
-      else if (!k.params[i] || noms.has(k.params[i].nom))
+      } else if (!k.params[i] || noms.has(k.params[i].nom)) {
         refus.push({
           regle: 'param',
           texte: `${nom} : le paramètre déstructuré en position ${i + 1} n'a pas son @param à cette position.`,
         });
-      else prises.add(i);
+      } else {
+        prises.add(i);
+      }
     });
     k.params.forEach((b, i) => {
-      if (!prises.has(i))
+      if (!prises.has(i)) {
         refus.push({
           regle: 'param-orphelin',
           texte: `${nom} : le @param « ${b.nom} » ne nomme aucun paramètre.`,
         });
+      }
     });
-    if (k.rendUneValeur && k.retour === null)
+    if (k.rendUneValeur && k.retour === null) {
       refus.push({ regle: 'returns', texte: `${nom} rend une valeur mais n'a pas de @returns.` });
+    }
   }
   fautesJugees(nom, k.fautes, fautes, refus, codes);
   for (const m of item.members ?? []) {
@@ -350,19 +379,28 @@ export function marques(texte) {
   lignes.forEach((l, i) => {
     const f = /^\s*(```|~~~)/.exec(l);
     if (cloture) {
-      if (f && f[1] === cloture) cloture = null;
+      if (f && f[1] === cloture) {
+        cloture = null;
+      }
       return;
     }
     if (f) {
       cloture = f[1];
       return;
     }
-    if (l.trim() === DEBUT) debuts.push(i);
-    if (l.trim() === FIN) fins.push(i);
+    if (l.trim() === DEBUT) {
+      debuts.push(i);
+    }
+    if (l.trim() === FIN) {
+      fins.push(i);
+    }
   });
-  if (!debuts.length && !fins.length) return { etat: 'absentes', lignes };
-  if (debuts.length === 1 && fins.length === 1 && debuts[0] < fins[0])
+  if (!debuts.length && !fins.length) {
+    return { etat: 'absentes', lignes };
+  }
+  if (debuts.length === 1 && fins.length === 1 && debuts[0] < fins[0]) {
     return { etat: 'ok', lignes, debut: debuts[0], fin: fins[0] };
+  }
   return { etat: 'invalides', lignes };
 }
 
@@ -379,10 +417,12 @@ const signature = item => {
     /^(?:(?:export|declare|default|async)\s+)*(?:function|class|interface|type|enum|namespace|const|let|var)\b/.test(
       texte
     )
-  )
+  ) {
     return texte;
-  if (item.kind === 'Variable')
+  }
+  if (item.kind === 'Variable') {
     return `export declare ${item.isReadonly ? 'const' : 'let'} ${texte}`;
+  }
   return item.kind === 'Function' ? `const ${texte}` : texte;
 };
 
@@ -391,15 +431,21 @@ const signature = item => {
 function entreeDe(item) {
   const k = contratDe(item);
   const out = [`### \`${item.displayName}\``, ''];
-  if (k.resume) out.push(k.resume, '');
+  if (k.resume) {
+    out.push(k.resume, '');
+  }
   out.push('```ts', `${signature(item)};`, '```');
   const params = k.params.filter(b => b.texte);
-  if (params.length)
+  if (params.length) {
     out.push('', '**Paramètres**', '', ...params.map(b => `- \`${b.nom}\` — ${b.texte}`));
-  if (k.retour) out.push('', `**Retour** — ${k.retour}`);
+  }
+  if (k.retour) {
+    out.push('', `**Retour** — ${k.retour}`);
+  }
   const codes = [...new Set(k.fautes.map(f => f.replace(/\s+/g, ' ')))];
-  if (codes.length)
+  if (codes.length) {
     out.push('', '**Fautes**', '', ...codes.map(f => `- ${f.replace(/^(\S+)/, '`$1`')}`));
+  }
   const membres = [...(item.members ?? [])];
   if (membres.length) {
     out.push('', '**Membres**', '');
@@ -418,8 +464,9 @@ export const partieGeneree = exports =>
 // The text of an interface with its generated part replaced; the marks are added at the end of a
 // text that has none.
 export function avecPartie(m, texte, partie) {
-  if (m.etat === 'absentes')
+  if (m.etat === 'absentes') {
     return `${texte}${texte.endsWith('\n') ? '' : '\n'}\n${DEBUT}${partie}${FIN}\n`;
+  }
   const avant = m.lignes.slice(0, m.debut).join('\n');
   const apres = m.lignes.slice(m.fin + 1).join('\n');
   return `${avant}${m.debut ? '\n' : ''}${DEBUT}${partie}${FIN}\n${apres}`;
@@ -456,7 +503,9 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
   const { fautes } = declare(texte);
   const m = marques(texte);
   if (sansApi(c)) {
-    if (fautes) codesContreCatalogue(c, racine, fautes, refuser);
+    if (fautes) {
+      codesContreCatalogue(c, racine, fautes, refuser);
+    }
     return { refus, signaux };
   }
   if (m.etat === 'invalides') {
@@ -474,7 +523,9 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
     const { TSDocConfigFile } = require('@microsoft/tsdoc-config');
     const config = TSDocConfigFile.loadFile(fichierTsdoc);
     const api = rapportApi(racine, c, dts, ecrire, config);
-    for (const msg of api.messages) signaux.push(`${rel} : ${msg}`);
+    for (const msg of api.messages) {
+      signaux.push(`${rel} : ${msg}`);
+    }
     for (const t of api.tsdoc) {
       refuser(`TSDoc : ${t.texte}`, t.regle, t.fichier ?? relIface, t.ligne);
     }
@@ -493,17 +544,24 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
     const nommees = new Set();
     for (const item of api.exports) {
       const j = jugerExport(item, fautes);
-      for (const r of j.refus) refuser(r.texte, r.regle);
-      for (const code of j.codes) nommees.add(code);
+      for (const r of j.refus) {
+        refuser(r.texte, r.regle);
+      }
+      for (const code of j.codes) {
+        nommees.add(code);
+      }
     }
     for (const f of fautes ?? []) {
-      if (!nommees.has(f))
+      if (!nommees.has(f)) {
         refuser(`la faute ${f} du catalogue n'est nommée par aucun @faute.`, 'faute-non-nommee');
+      }
     }
     if (m.etat !== 'invalides') {
       const attendu = avecPartie(m, texte, partieGeneree(api.exports));
       if (ecrire) {
-        if (attendu !== texte) writeFileSync(iface, attendu);
+        if (attendu !== texte) {
+          writeFileSync(iface, attendu);
+        }
       } else if (attendu !== texte) {
         aRegenerer(
           `la part générée de docs/INTERFACE.md (entre ${DEBUT} et ${FIN}) n'est pas celle du code ; npm run api la refait.`,
@@ -512,7 +570,9 @@ export function verifierComposant(racine, c, { ecrire = false } = {}) {
       }
     }
   }
-  if (fautes) codesContreCatalogue(c, racine, fautes, refuser);
+  if (fautes) {
+    codesContreCatalogue(c, racine, fautes, refuser);
+  }
   return { refus, signaux };
 }
 
@@ -522,12 +582,14 @@ function codesContreCatalogue(c, racine, fautes, refuser) {
   const prefixes = [...new Set([...fautes].map(f => f.slice(0, f.indexOf('_') + 1)))];
   const dansLeCode = codesDuCode(c.dir, racine, prefixes);
   for (const f of fautes) {
-    if (!dansLeCode.has(f))
+    if (!dansLeCode.has(f)) {
       refuser(`la faute ${f} est listée, mais le code ne la produit pas.`, 'faute-non-produite');
+    }
   }
   for (const f of dansLeCode) {
-    if (!fautes.has(f))
+    if (!fautes.has(f)) {
       refuser(`le code produit ${f}, que « Les fautes » ne liste pas.`, 'faute-non-listee');
+    }
   }
 }
 
@@ -546,11 +608,17 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const constats = [];
   for (const c of aVerifier(racine)) {
     const { refus, signaux } = verifierComposant(racine, c, { ecrire });
-    for (const s of signaux) process.stderr.write(`⚠️  ${s}\n`);
+    for (const s of signaux) {
+      process.stderr.write(`⚠️  ${s}\n`);
+    }
     constats.push(...refus);
   }
   const { refus, lignes } = trancher(racine, 'interfaces-contre-code', constats);
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   process.exitCode = refus.length ? 1 : 0;
 }

@@ -42,9 +42,13 @@ import { isDeepStrictEqual } from 'node:util';
 const preparees = new WeakMap();
 // The entries of <exemples> under <dans>, prepared once.
 function entrees(exemples, dans) {
-  if (!preparees.has(exemples)) preparees.set(exemples, new Map());
+  if (!preparees.has(exemples)) {
+    preparees.set(exemples, new Map());
+  }
   const parDossier = preparees.get(exemples);
-  if (!parDossier.has(dans)) parDossier.set(dans, exemples.preparer(dans));
+  if (!parDossier.has(dans)) {
+    parDossier.set(dans, exemples.preparer(dans));
+  }
   return parDossier.get(dans);
 }
 
@@ -53,11 +57,16 @@ function etat(racine) {
   const out = new Map();
   const parcourir = d => {
     for (const n of readdirSync(d)) {
-      if (n === '.git') continue;
+      if (n === '.git') {
+        continue;
+      }
       const f = path.join(d, n);
       const s = statSync(f);
-      if (s.isDirectory()) parcourir(f);
-      else out.set(f, s.mtimeMs);
+      if (s.isDirectory()) {
+        parcourir(f);
+      } else {
+        out.set(f, s.mtimeMs);
+      }
     }
   };
   parcourir(racine);
@@ -99,9 +108,13 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
       liste.flatMap(({ fichier, composant }) => {
         const c = langage.composantDe(e.racine, fichier);
         const rel = path.isAbsolute(fichier) ? path.relative(e.racine, fichier) : fichier;
-        if (!c) return [`${rel} : hors de tout composant`];
+        if (!c) {
+          return [`${rel} : hors de tout composant`];
+        }
         const connu = langage.composants(e.racine).some(k => k.dossier === c.dossier);
-        if (!connu) return [`${rel} : dans ${c.nom}, qui n'est pas un composant`];
+        if (!connu) {
+          return [`${rel} : dans ${c.nom}, qui n'est pas un composant`];
+        }
         return c.nom === composant ? [] : [`${rel} : dans ${c.nom}, attendu ${composant}`];
       }),
     lecteurs: ({ racine, noms }) => {
@@ -120,10 +133,14 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
       const avant = etat(e.racine);
       const c = langage.commandes(e.racine);
       const out = noms.flatMap(n => {
-        if (!Object.hasOwn(c, n)) return [`${n} : absente`];
+        if (!Object.hasOwn(c, n)) {
+          return [`${n} : absente`];
+        }
         return decrite(c[n]) ? [] : [`${n} : pas une commande décrite`];
       });
-      if (!isDeepStrictEqual(etat(e.racine), avant)) out.push('commandes écrit dans le dépôt');
+      if (!isDeepStrictEqual(etat(e.racine), avant)) {
+        out.push('commandes écrit dans le dépôt');
+      }
       return out;
     },
     verdict: dossier => {
@@ -146,20 +163,34 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
     estUnTest: chemins =>
       chemins.flatMap(chemin => {
         const c = langage.estUnTest(chemin, e.racine);
-        if (c === null) return [];
+        if (c === null) {
+          return [];
+        }
         return [`${chemin} : ${['joue', 'test', 'matiere'].filter(k => c[k]).join(', ')}`];
       }),
     versionDeHead: entrees =>
       entrees.flatMap(x => {
         const { chemin, textes = {} } = typeof x === 'string' ? { chemin: x } : x;
-        const s = typeof langage.soeurDAvant === 'function' ? langage.soeurDAvant(chemin, e.racine) : null;
-        const arbre = typeof langage.arbreDAvant === 'function' && langage.arbreDAvant(chemin, e.racine);
+        const s =
+          typeof langage.soeurDAvant === 'function' ? langage.soeurDAvant(chemin, e.racine) : null;
+        const arbre =
+          typeof langage.arbreDAvant === 'function' && langage.arbreDAvant(chemin, e.racine);
         const noms = langage.testsDeHead(chemin, e.racine, f => textes[f] ?? null);
-        if (s !== null && arbre) return [`${chemin} : une sœur et un arbre`];
-        if (arbre) return [`${chemin} → un arbre`];
-        if (s !== null && noms !== null) return [`${chemin} : une sœur et des noms lus`];
-        if (noms !== null) return [`${chemin} : ${noms.join(', ') || 'aucun test'}`];
-        if (s === null) return [];
+        if (s !== null && arbre) {
+          return [`${chemin} : une sœur et un arbre`];
+        }
+        if (arbre) {
+          return [`${chemin} → un arbre`];
+        }
+        if (s !== null && noms !== null) {
+          return [`${chemin} : une sœur et des noms lus`];
+        }
+        if (noms !== null) {
+          return [`${chemin} : ${noms.join(', ') || 'aucun test'}`];
+        }
+        if (s === null) {
+          return [];
+        }
         const aCote = s !== chemin && path.dirname(s) === path.dirname(chemin);
         return [aCote ? `${chemin} → ${s}` : `${chemin} → ${s} : pas à côté du fichier`];
       }),
@@ -178,7 +209,9 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
     },
     elementsDuLot: ({ racine, avant, apres }) => {
       const l = langage.elementsDuLot(racine, { avant, apres });
-      if (l.etat !== 'fait') return [`impossible : ${l.raison}`];
+      if (l.etat !== 'fait') {
+        return [`impossible : ${l.raison}`];
+      }
       return [
         ...l.fichiers.map(f => `fichier ${f}`),
         ...l.horsDuService.map(f => `hors du service ${f}`),
@@ -215,7 +248,9 @@ export function echecs(langage, exemples, options) {
   return cas(langage, exemples, options).flatMap(c => {
     try {
       const v = c.valide();
-      if (v.length) return [{ nom: c.nom, raison: `entrée valide : ${v.join(' ; ')}` }];
+      if (v.length) {
+        return [{ nom: c.nom, raison: `entrée valide : ${v.join(' ; ')}` }];
+      }
       const i = c.invalide();
       if (!isDeepStrictEqual(i, c.attendu)) {
         return [

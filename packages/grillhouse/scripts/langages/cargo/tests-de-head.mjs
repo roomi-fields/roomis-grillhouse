@@ -55,7 +55,9 @@ export function sansLitteraux(t) {
     }
     if (t[i] === '"') {
       i++;
-      while (i < t.length && t[i] !== '"') i += t[i] === '\\' ? 2 : 1;
+      while (i < t.length && t[i] !== '"') {
+        i += t[i] === '\\' ? 2 : 1;
+      }
       i++;
       out += ' ';
       continue;
@@ -93,19 +95,29 @@ export function lireLeFichier(texte) {
       let profondeur = 1;
       let k = jeton.lastIndex;
       while (k < t.length && profondeur > 0) {
-        if (t[k] === '[') profondeur++;
-        else if (t[k] === ']') profondeur--;
+        if (t[k] === '[') {
+          profondeur++;
+        } else if (t[k] === ']') {
+          profondeur--;
+        }
         k++;
       }
       const attribut = t.slice(jeton.lastIndex, k - 1).trim();
-      if (/^(?:\w+\s*::\s*)*test$/.test(attribut)) marque = true;
+      if (/^(?:\w+\s*::\s*)*test$/.test(attribut)) {
+        marque = true;
+      }
       jeton.lastIndex = k;
     } else if (m[1]) {
-      if (m[2] === '{') pile.push(m[1]);
-      else externes.push([...ici(), m[1]]);
+      if (m[2] === '{') {
+        pile.push(m[1]);
+      } else {
+        externes.push([...ici(), m[1]]);
+      }
       marque = false;
     } else if (m[3]) {
-      if (marque) tests.push([...ici(), m[3]]);
+      if (marque) {
+        tests.push([...ici(), m[3]]);
+      }
       marque = false;
     } else if (j === '{') {
       pile.push(null);
@@ -128,7 +140,9 @@ export function lireLeFichier(texte) {
  */
 export function nomsDeHead(chemin, module, lire) {
   const texte = lire(chemin);
-  if (texte === null) return null;
+  if (texte === null) {
+    return null;
+  }
   if (module) {
     return lireLeFichier(texte).tests.map(t => [...module, ...t].join('::'));
   }
@@ -136,7 +150,9 @@ export function nomsDeHead(chemin, module, lire) {
   const vus = new Set();
   // The file <f> of text <tx>, its modules under <dossier>, its tests under <prefixe>.
   const parcourir = (f, tx, dossier, prefixe) => {
-    if (vus.has(f)) return;
+    if (vus.has(f)) {
+      return;
+    }
     vus.add(f);
     const { tests, externes } = lireLeFichier(tx);
     noms.push(...tests.map(t => [...prefixe, ...t].join('::')));

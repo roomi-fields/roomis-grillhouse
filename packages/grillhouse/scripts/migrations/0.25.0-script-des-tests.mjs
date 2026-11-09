@@ -40,10 +40,14 @@ const dossiers = projet => [
 // The script of the package.json <rel> of <projet>; what it did, or what it leaves.
 function renommerLeScript(projet, rel) {
   const f = path.join(projet, rel);
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const pkg = lireJson(f);
   const scripts = pkg.scripts;
-  if (!scripts || !Object.hasOwn(scripts, ANCIEN)) return [];
+  if (!scripts || !Object.hasOwn(scripts, ANCIEN)) {
+    return [];
+  }
   if (Object.hasOwn(scripts, NOUVEAU) && scripts[NOUVEAU] !== scripts[ANCIEN]) {
     return [
       {
@@ -54,7 +58,9 @@ function renommerLeScript(projet, rel) {
   const double = Object.hasOwn(scripts, NOUVEAU);
   pkg.scripts = Object.fromEntries(
     Object.entries(scripts).flatMap(([k, v]) => {
-      if (k !== ANCIEN) return [[k, v]];
+      if (k !== ANCIEN) {
+        return [[k, v]];
+      }
       return double ? [] : [[NOUVEAU, v]];
     })
   );
@@ -65,9 +71,13 @@ function renommerLeScript(projet, rel) {
 // The task of the turbo.json <rel> of <projet>; what it did, or what it leaves.
 function renommerLaTache(projet, rel) {
   const f = path.join(projet, rel);
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const texte = readFileSync(f, 'utf8');
-  if (texte.search(TACHE) < 0) return [];
+  if (texte.search(TACHE) < 0) {
+    return [];
+  }
   if (TACHE_NEUVE.test(texte)) {
     return [
       {

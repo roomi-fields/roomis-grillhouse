@@ -47,11 +47,15 @@ export const nomDuManifeste = (langageNom, texte) => langage(langageNom).nomDuMa
 function avecManifeste(dossier, manifeste, langageNom, exclus) {
   const out = [];
   for (const e of readdirSync(dossier, { withFileTypes: true })) {
-    if (!e.isDirectory() || e.name.startsWith('.') || exclus.has(e.name)) continue;
+    if (!e.isDirectory() || e.name.startsWith('.') || exclus.has(e.name)) {
+      continue;
+    }
     const d = path.join(dossier, e.name);
     const f = path.join(d, manifeste);
     const paquet = existsSync(f) ? nomDuManifeste(langageNom, readFileSync(f, 'utf8')) : null;
-    if (paquet !== null) out.push({ dossier: d, nom: e.name, paquet });
+    if (paquet !== null) {
+      out.push({ dossier: d, nom: e.name, paquet });
+    }
     out.push(...avecManifeste(d, manifeste, langageNom, exclus));
   }
   return out;
@@ -79,11 +83,17 @@ export function paquetsSansPackageJson(racine) {
     const trouves = new Set();
     for (const t of tableauxDesComposants(racine)) {
       const colonne = colonneDesNoms(t.lignes, candidats, racine, t.colonne);
-      if (colonne < 0) continue;
+      if (colonne < 0) {
+        continue;
+      }
       for (const l of t.lignes) {
-        if (langageDeLaCellule(l.cellules[t.colonne]) !== langageNom) continue;
+        if (langageDeLaCellule(l.cellules[t.colonne]) !== langageNom) {
+          continue;
+        }
         for (const c of candidats) {
-          if (nomme(nomsDe(l.cellules[colonne]), c, racine)) trouves.add(c);
+          if (nomme(nomsDe(l.cellules[colonne]), c, racine)) {
+            trouves.add(c);
+          }
         }
       }
     }

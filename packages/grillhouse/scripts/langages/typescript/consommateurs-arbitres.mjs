@@ -55,8 +55,11 @@ function lignesConsommateurs(texte) {
   const out = [];
   let dedans = false;
   for (const l of ecrites) {
-    if (/^##\s/.test(l)) dedans = /^##\s+Consommateurs\s*$/.test(l);
-    else if (dedans && /^\s*-\s+\S/.test(l)) out.push(l.trim());
+    if (/^##\s/.test(l)) {
+      dedans = /^##\s+Consommateurs\s*$/.test(l);
+    } else if (dedans && /^\s*-\s+\S/.test(l)) {
+      out.push(l.trim());
+    }
   }
   return out;
 }
@@ -68,9 +71,14 @@ function section(description, titre) {
   let niveau = 0;
   for (const l of String(description ?? '').split('\n')) {
     const t = /^(#{1,6})\s+(.*)$/.exec(l);
-    if (niveau && t && t[1].length <= niveau) break;
-    if (niveau) out.push(l);
-    else if (t && titre.test(t[2].trim())) niveau = t[1].length;
+    if (niveau && t && t[1].length <= niveau) {
+      break;
+    }
+    if (niveau) {
+      out.push(l);
+    } else if (t && titre.test(t[2].trim())) {
+      niveau = t[1].length;
+    }
   }
   return out.join('\n');
 }
@@ -108,7 +116,9 @@ function bdJson(principal, args) {
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
   });
-  if (r.status !== 0) throw new Error(r.stderr || r.error?.message || `code ${r.status}`);
+  if (r.status !== 0) {
+    throw new Error(r.stderr || r.error?.message || `code ${r.status}`);
+  }
   return JSON.parse(r.stdout || '[]');
 }
 
@@ -117,11 +127,15 @@ function bdJson(principal, args) {
 // and plan read by bd from the main tree, judged by `juger`.
 export function verifier(racine, env = process.env) {
   const ticket = ticketDeLaCopie(racine);
-  if (!ticket) return [];
+  if (!ticket) {
+    return [];
+  }
   const interfaces = [];
   for (const c of aVerifier(racine, env)) {
     const iface = path.join(c.dir, 'docs', 'INTERFACE.md');
-    if (!existsSync(iface)) continue;
+    if (!existsSync(iface)) {
+      continue;
+    }
     const rel = path.relative(racine, iface);
     const head = git(racine, 'show', `HEAD:${rel}`);
     interfaces.push({
@@ -161,7 +175,9 @@ export function juger(ticket, interfaces, commentaires, ticketLu) {
       nomsAvant.set(l.consommateur, new Set([...(nomsAvant.get(l.consommateur) ?? []), ...l.noms]));
     }
     for (const ligne of lignesConsommateurs(apres)) {
-      if (avant.has(ligne)) continue;
+      if (avant.has(ligne)) {
+        continue;
+      }
       const l = lireLigne(ligne);
       const lue = l?.noms ? l : null;
       const deja = lue && nomsAvant.get(lue.consommateur);
@@ -169,7 +185,9 @@ export function juger(ticket, interfaces, commentaires, ticketLu) {
       changees.push({ rel, ligne, lue, ajoutes });
     }
   }
-  if (changees.length === 0) return [];
+  if (changees.length === 0) {
+    return [];
+  }
   let comments;
   try {
     comments = (commentaires() ?? []).map(x => ({ text: String(x.text ?? '') }));
@@ -185,7 +203,9 @@ export function juger(ticket, interfaces, commentaires, ticketLu) {
   const restantes = changees.filter(
     ({ ligne }) => !arbitrages.some(a => a.text.includes(consommateurDe(ligne)))
   );
-  if (restantes.length === 0) return [];
+  if (restantes.length === 0) {
+    return [];
+  }
   // The lines no arbitrage settles: the ticket's plan, its title and its sections « Architecture »
   // and « Noms publiés ».
   let plan;
@@ -206,7 +226,9 @@ export function juger(ticket, interfaces, commentaires, ticketLu) {
   const constats = [];
   for (const { rel, ligne, lue, ajoutes } of restantes) {
     const manquants = lue ? nonNommes(plan, [lue.consommateur, ...ajoutes]) : null;
-    if (manquants?.length === 0) continue;
+    if (manquants?.length === 0) {
+      continue;
+    }
     const consommateur = consommateurDe(ligne);
     const dit = manquants
       ? ` ; le plan ne nomme pas ${manquants.map(n => `\`${n}\``).join(', ')}`
@@ -223,7 +245,11 @@ export function juger(ticket, interfaces, commentaires, ticketLu) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const { refus, lignes } = trancher(racine, 'consommateurs-arbitres', verifier(racine));
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   process.exitCode = refus.length ? 1 : 0;
 }

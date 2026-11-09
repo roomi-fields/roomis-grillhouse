@@ -48,21 +48,32 @@ const AVEC_VALEUR = new Set([
 // The patterns and the extensions the script <script> names for the tool <outil> (`prettier` or
 // `eslint`), or null when the script does not run it.
 function motifsDuScript(script, outil) {
-  if (typeof script !== 'string') return null;
+  if (typeof script !== 'string') {
+    return null;
+  }
   const mots = (script.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map(m =>
     m.replace(/^(["'])(.*)\1$/, '$2')
   );
   const i = mots.findIndex(m => m === outil || m.endsWith(`/${outil}`));
-  if (i < 0) return null;
+  if (i < 0) {
+    return null;
+  }
   const motifs = [];
   const ext = [];
   for (let j = i + 1; j < mots.length; j++) {
     const m = mots[j];
-    if (['&&', '||', ';', '|'].includes(m)) break;
-    if (m === '--ext') ext.push(...String(mots[++j] ?? '').split(','));
-    else if (m.startsWith('--ext=')) ext.push(...m.slice(6).split(','));
-    else if (AVEC_VALEUR.has(m)) j++;
-    else if (!m.startsWith('-')) motifs.push(m.replace(/^\.\//, ''));
+    if (['&&', '||', ';', '|'].includes(m)) {
+      break;
+    }
+    if (m === '--ext') {
+      ext.push(...String(mots[++j] ?? '').split(','));
+    } else if (m.startsWith('--ext=')) {
+      ext.push(...m.slice(6).split(','));
+    } else if (AVEC_VALEUR.has(m)) {
+      j++;
+    } else if (!m.startsWith('-')) {
+      motifs.push(m.replace(/^\.\//, ''));
+    }
   }
   return { motifs, ext: ext.filter(Boolean).map(e => (e.startsWith('.') ? e : `.${e}`)) };
 }
@@ -72,9 +83,13 @@ function motifsDuScript(script, outil) {
 // decides, when given, which files of a folder count).
 function couvre(rel, motifs, extension) {
   return motifs.some(m => {
-    if (/[*?[\]{}]/.test(m)) return path.matchesGlob(rel, m);
+    if (/[*?[\]{}]/.test(m)) {
+      return path.matchesGlob(rel, m);
+    }
     const net = m.replace(/\/+$/, '');
-    if (net === '.' || net === '') return extension(rel);
+    if (net === '.' || net === '') {
+      return extension(rel);
+    }
     return rel === net || (rel.startsWith(`${net}/`) && extension(rel));
   });
 }
@@ -91,7 +106,9 @@ function paquetDe(projet, fichier) {
         return null;
       }
     }
-    if (dossier === projet || path.dirname(dossier) === dossier) return null;
+    if (dossier === projet || path.dirname(dossier) === dossier) {
+      return null;
+    }
     dossier = path.dirname(dossier);
   }
 }
@@ -106,9 +123,13 @@ async function main() {
   } catch {
     return [];
   }
-  if (!['Write', 'Edit', 'MultiEdit'].includes(entree?.tool_name)) return [];
+  if (!['Write', 'Edit', 'MultiEdit'].includes(entree?.tool_name)) {
+    return [];
+  }
   const brut = entree.tool_input?.file_path;
-  if (typeof brut !== 'string') return [];
+  if (typeof brut !== 'string') {
+    return [];
+  }
   const projet = realpathSync(process.env.CLAUDE_PROJECT_DIR || process.cwd());
   let fichier;
   try {
@@ -116,9 +137,13 @@ async function main() {
   } catch {
     return [];
   }
-  if (!fichier.startsWith(`${projet}${path.sep}`)) return [];
+  if (!fichier.startsWith(`${projet}${path.sep}`)) {
+    return [];
+  }
   const paquet = paquetDe(projet, fichier);
-  if (!paquet) return [];
+  if (!paquet) {
+    return [];
+  }
   const rel = path.relative(paquet.dossier, fichier).split(path.sep).join('/');
   const depuisRacine = path.relative(projet, fichier).split(path.sep).join('/');
 
@@ -149,9 +174,13 @@ async function main() {
   const eslint = fix => new ESLint({ cwd: paquet.dossier, fix });
   const juger = async fix => {
     const moteur = eslint(fix);
-    if (await moteur.isPathIgnored(fichier)) return null;
+    if (await moteur.isPathIgnored(fichier)) {
+      return null;
+    }
     const [resultat] = await moteur.lintFiles([fichier]);
-    if (fix) await ESLint.outputFixes([resultat]);
+    if (fix) {
+      await ESLint.outputFixes([resultat]);
+    }
     return resultat;
   };
   let dernier = null;
@@ -196,7 +225,9 @@ async function main() {
       for (const m of resultat?.messages ?? []) {
         if (m.severity === 2) {
           dit(m.line ?? 1, m.column ?? 1, m.ruleId ?? 'erreur', m.message);
-          if (m.fatal) fatale = true;
+          if (m.fatal) {
+            fatale = true;
+          }
         }
       }
     } catch (e) {

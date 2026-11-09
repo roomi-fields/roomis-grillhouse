@@ -56,7 +56,9 @@ export function garderLesResumes(racine, avant, env = process.env) {
       // The results directory may lie on another file system: a copy, then the removal.
       copyFileSync(path.join(runs, f), path.join(dossier, TURBO, f));
       rmSync(path.join(runs, f), { force: true });
-    } else rmSync(path.join(runs, f), { force: true });
+    } else {
+      rmSync(path.join(runs, f), { force: true });
+    }
   }
   if (neufs.length && !avant.size && existsSync(runs) && readdirSync(runs).length === 0) {
     rmdirSync(runs);

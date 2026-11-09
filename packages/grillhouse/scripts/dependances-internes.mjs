@@ -47,7 +47,9 @@ function nomA(langageNom, dossier) {
   for (const l of [langageNom, ...sansPackageJson()]) {
     const texte = lire(path.join(dossier, langage(l).manifeste));
     const nom = texte === null ? null : nomDuManifeste(l, texte);
-    if (nom !== null) return nom;
+    if (nom !== null) {
+      return nom;
+    }
   }
   return null;
 }
@@ -64,7 +66,9 @@ export function constats(racine) {
   for (const p of sans) {
     const f = `${p.chemin}/package.json`;
     const texte = lire(path.join(racine, f));
-    if (texte === null) continue;
+    if (texte === null) {
+      continue;
+    }
     let pkg;
     try {
       pkg = JSON.parse(texte);
@@ -80,7 +84,9 @@ export function constats(racine) {
     );
     const manquantes = [...duManifeste].filter(n => !duPackage.has(n)).sort();
     const enTrop = [...duPackage].filter(n => !duManifeste.has(n)).sort();
-    if (!manquantes.length && !enTrop.length) continue;
+    if (!manquantes.length && !enTrop.length) {
+      continue;
+    }
     const dits = [
       ...(manquantes.length
         ? [

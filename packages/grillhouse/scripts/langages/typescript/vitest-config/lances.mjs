@@ -109,7 +109,9 @@ export function resoudreRelatif(de, spec, lireUn) {
   const base = path.resolve(path.dirname(de), spec);
   const sansJs = base.replace(/\.([cm]?)js$/, '.$1ts');
   for (const c of [...SUFFIXES.map(s => base + s), sansJs]) {
-    if (lireUn(c) !== null) return c;
+    if (lireUn(c) !== null) {
+      return c;
+    }
   }
   return null;
 }
@@ -141,7 +143,9 @@ function sansCommentaires(texte) {
     const c = texte[i];
     const suivant = texte[i + 1];
     if (c === '/' && suivant === '/') {
-      while (i < texte.length && texte[i] !== '\n') i++;
+      while (i < texte.length && texte[i] !== '\n') {
+        i++;
+      }
     } else if (c === '/' && suivant === '*') {
       const fin = texte.indexOf('*/', i + 2);
       i = fin < 0 ? texte.length : fin + 2;
@@ -181,7 +185,9 @@ function chainesDe(texte) {
       j += texte[j] === '\\' ? 2 : 1;
     }
     const contenu = texte.slice(i + 1, j);
-    if (!(c === '`' && contenu.includes('${'))) out.push(contenu);
+    if (!(c === '`' && contenu.includes('${'))) {
+      out.push(contenu);
+    }
     i = j + 1;
   }
   return out;
@@ -200,7 +206,9 @@ function chaines(texte) {
 // The value of <calcul>, kept in <memo> under <cle>: each reading of a directory, a resolution or a
 // file's strings is made once per pass.
 function memoise(memo, cle, calcul) {
-  if (!memo.has(cle)) memo.set(cle, calcul());
+  if (!memo.has(cle)) {
+    memo.set(cle, calcul());
+  }
   return memo.get(cle);
 }
 
@@ -215,7 +223,9 @@ function resoudre(de, spec, racine) {
     const f = resoudreRelatif(de, spec, lireLeDisque);
     return f && reel(f);
   }
-  if (spec.startsWith('node:') || path.isAbsolute(spec)) return null;
+  if (spec.startsWith('node:') || path.isAbsolute(spec)) {
+    return null;
+  }
   try {
     const f = reel(createRequire(de).resolve(spec));
     return f && sous(f, racine) && horsModules(f) ? f : null;
@@ -227,7 +237,9 @@ function resoudre(de, spec, racine) {
 // Whether the file <f> of the repository at <racine> is test material: under a directory of
 // tests, or in a package of the shared material (`matieres` of ../composants.mjs).
 function estMatiere(f, racine, memo) {
-  if (MATIERE.test(du(racine, f))) return true;
+  if (MATIERE.test(du(racine, f))) {
+    return true;
+  }
   return memoise(memo, 'matieres', () => matieres(racine)).some(m => sous(f, m.dir));
 }
 
@@ -242,7 +254,9 @@ function commandes(racine, memo) {
           ? { [pkg.name.split('/').at(-1)]: pkg.bin }
           : (pkg?.bin ?? {});
       for (const [nom, f] of Object.entries(bin)) {
-        if (typeof f === 'string') out.set(nom, path.join(racine, dossier, f));
+        if (typeof f === 'string') {
+          out.set(nom, path.join(racine, dossier, f));
+        }
       }
     }
     return out;
@@ -255,8 +269,12 @@ function commandes(racine, memo) {
 function commandeLancee(chaine, racine, memo, ligne) {
   const liste = commandes(racine, memo);
   const parLien = /(?:^|\/)\.bin\/([\w@.-]+)$/.exec(chaine);
-  if (parLien) return liste.get(parLien[1]) ?? null;
-  if (!ligne) return null;
+  if (parLien) {
+    return liste.get(parLien[1]) ?? null;
+  }
+  if (!ligne) {
+    return null;
+  }
   for (const [nom, f] of liste) {
     if (new RegExp(`(?:^|[\\s/"'])${nom.replace(/[.-]/g, '\\$&')}["']?\\s+[a-z]`).test(chaine)) {
       return f;
@@ -270,9 +288,13 @@ function commandeLancee(chaine, racine, memo, ligne) {
 // for a pattern that starts with a wildcard.
 function couverts(motif, bases, racine) {
   const fixe = motif.split('/').filter((s, i, l) => !l.slice(0, i + 1).some(x => MOTIF.test(x)));
-  if (fixe.length === 0) return [];
+  if (fixe.length === 0) {
+    return [];
+  }
   for (const b of bases) {
-    if (!existsSync(path.resolve(b, ...fixe))) continue;
+    if (!existsSync(path.resolve(b, ...fixe))) {
+      continue;
+    }
     return globSync(motif, { cwd: b, exclude: d => SAUTES.has(path.basename(d)) })
       .map(f => path.resolve(b, f))
       .filter(f => sous(f, racine) && horsModules(f) && !estDossier(f));
@@ -284,7 +306,9 @@ function couverts(motif, bases, racine) {
 // first that exists): itself, or each file under it; none for a directory that holds the file
 // <de> that writes it, or that is a package.
 function nommes(chaine, bases, racine, de, memo, ligne = false) {
-  if (!/[\w.]/.test(chaine) || /^[a-z]+:/i.test(chaine)) return [];
+  if (!/[\w.]/.test(chaine) || /^[a-z]+:/i.test(chaine)) {
+    return [];
+  }
   return memoise(memo, `nommes:${ligne}\0${bases.join('\0')}\0${path.dirname(de)}\0${chaine}`, () =>
     resoudreNommes(chaine, bases, racine, de, memo, ligne)
   );
@@ -292,16 +316,30 @@ function nommes(chaine, bases, racine, de, memo, ligne = false) {
 
 function resoudreNommes(chaine, bases, racine, de, memo, ligne) {
   const commande = commandeLancee(chaine, racine, memo, ligne);
-  if (commande) return [commande];
-  if (/[\s<>|^$]/.test(chaine)) return [];
-  if (MOTIF.test(chaine)) return couverts(chaine, bases, racine);
+  if (commande) {
+    return [commande];
+  }
+  if (/[\s<>|^$]/.test(chaine)) {
+    return [];
+  }
+  if (MOTIF.test(chaine)) {
+    return couverts(chaine, bases, racine);
+  }
   for (const b of bases) {
     const c = path.resolve(b, chaine);
-    if (!existsSync(c)) continue;
+    if (!existsSync(c)) {
+      continue;
+    }
     const r = reel(c);
-    if (!r || !sous(r, racine) || !horsModules(r)) return [];
-    if (!estDossier(r)) return [r];
-    if (sous(de, r) || existsSync(path.join(r, 'package.json'))) return [];
+    if (!r || !sous(r, racine) || !horsModules(r)) {
+      return [];
+    }
+    if (!estDossier(r)) {
+      return [r];
+    }
+    if (sous(de, r) || existsSync(path.join(r, 'package.json'))) {
+      return [];
+    }
     return memoise(memo, `dossier:${r}`, () => fichiersSous(r));
   }
   return [];
@@ -311,11 +349,15 @@ function resoudreNommes(chaine, bases, racine, de, memo, ligne) {
 function materiel(fichier, racine, memo) {
   const vus = [];
   const suivre = f => {
-    if (vus.includes(f)) return;
+    if (vus.includes(f)) {
+      return;
+    }
     vus.push(f);
     for (const spec of specifiersDe(f, memo)) {
       const cible = resoudreImport(f, spec, racine, memo);
-      if (cible && !TEST.test(cible) && estMatiere(cible, racine, memo)) suivre(cible);
+      if (cible && !TEST.test(cible) && estMatiere(cible, racine, memo)) {
+        suivre(cible);
+      }
     }
   };
   suivre(fichier);
@@ -333,7 +375,9 @@ function nommesPar(fichier, dossier, racine, memo) {
   for (const f of materiel(fichier, racine, memo)) {
     const bases = [path.dirname(f), dossier, racine];
     for (const c of chainesDuFichier(f, memo)) {
-      for (const n of nommes(c, bases, racine, f, memo, true)) out.add(n);
+      for (const n of nommes(c, bases, racine, f, memo, true)) {
+        out.add(n);
+      }
     }
   }
   return out;
@@ -347,7 +391,9 @@ function fermeture(depart, racine, memo) {
   const pile = [...depart];
   while (pile.length) {
     const f = pile.pop();
-    if (vus.has(f)) continue;
+    if (vus.has(f)) {
+      continue;
+    }
     vus.add(f);
     if (SHELL.test(f)) {
       // A script of the shell names the scripts it runs from its own directory, through a
@@ -361,7 +407,9 @@ function fermeture(depart, racine, memo) {
       );
       continue;
     }
-    if (!MODULE.test(f)) continue;
+    if (!MODULE.test(f)) {
+      continue;
+    }
     const suite = memoise(memo, `suite:${f}`, () => [
       ...specifiersDe(f, memo)
         .map(s => resoudreImport(f, s, racine, memo))
@@ -395,10 +443,16 @@ export function testsDuPaquet(dossier) {
  */
 export function testsQuiLancent(dossier, racine, changes) {
   const cibles = new Set(changes.map(f => reel(f) ?? f));
-  if (cibles.size === 0) return [];
+  if (cibles.size === 0) {
+    return [];
+  }
   const memo = new Map();
   return testsDuPaquet(dossier).filter(t => {
-    for (const f of lusPar(t, dossier, racine, memo)) if (cibles.has(f)) return true;
+    for (const f of lusPar(t, dossier, racine, memo)) {
+      if (cibles.has(f)) {
+        return true;
+      }
+    }
     return false;
   });
 }
@@ -420,7 +474,9 @@ export function nonDeclares(dossier, racine, lit = [], memo = new Map()) {
   const modules = [];
   for (const f of fichiersSous(dossier)) {
     const r = du(racine, f);
-    if (!MODULE.test(f) || TEST.test(f) || MATIERE.test(r) || dansLit(r, lit)) continue;
+    if (!MODULE.test(f) || TEST.test(f) || MATIERE.test(r) || dansLit(r, lit)) {
+      continue;
+    }
     modules.push(f);
     const parts = r.split('/');
     for (let i = 0; i < parts.length; i++) {

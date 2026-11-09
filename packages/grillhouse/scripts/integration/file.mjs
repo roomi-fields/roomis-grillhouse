@@ -99,7 +99,9 @@ export const INTEGRE = 'intégré : ';
 // The steps done over planned of the view <vue> of a run (`gh run view --json jobs`), written to
 // the progress directory <avancement> as the record `etapes-de-la-ci`; nothing without one.
 function ecrireLesEtapes(avancement, vue) {
-  if (!avancement) return;
+  if (!avancement) {
+    return;
+  }
   const etapes = (Array.isArray(vue?.jobs) ? vue.jobs : []).flatMap(j =>
     Array.isArray(j?.steps) ? j.steps : []
   );
@@ -137,7 +139,9 @@ function motifDeGitHub(motif) {
       re += c;
     } else if (c === '[') {
       const fin = motif.indexOf(']', i + 1);
-      if (fin < 0) throw new Error(`motif sans fin : ${motif}`);
+      if (fin < 0) {
+        throw new Error(`motif sans fin : ${motif}`);
+      }
       re += motif.slice(i, fin + 1);
       i = fin;
     } else {
@@ -153,23 +157,35 @@ function motifDeGitHub(motif) {
 // `tags` or `tags-ignore` alone run on no branch. A filter on the paths, or a form the queue does
 // not judge, counts as one that runs.
 function pousseeSurLaBranche(push, branche) {
-  if (push === null || push === undefined) return true;
-  if (typeof push !== 'object' || Array.isArray(push)) return true;
-  if (push.paths || push['paths-ignore']) return true;
+  if (push === null || push === undefined) {
+    return true;
+  }
+  if (typeof push !== 'object' || Array.isArray(push)) {
+    return true;
+  }
+  if (push.paths || push['paths-ignore']) {
+    return true;
+  }
   const { branches, 'branches-ignore': ignorees } = push;
-  if (branches && ignorees) return true;
+  if (branches && ignorees) {
+    return true;
+  }
   const motifs = l => (Array.isArray(l) ? l : [l]).map(String);
   if (branches) {
     let dedans = false;
     for (const m of motifs(branches)) {
       const negatif = m.startsWith('!');
-      if (motifDeGitHub(negatif ? m.slice(1) : m).test(branche)) dedans = !negatif;
+      if (motifDeGitHub(negatif ? m.slice(1) : m).test(branche)) {
+        dedans = !negatif;
+      }
     }
     return dedans;
   }
   if (ignorees) {
     const l = motifs(ignorees);
-    if (l.some(m => m.startsWith('!'))) return true;
+    if (l.some(m => m.startsWith('!'))) {
+      return true;
+    }
     return !l.some(m => motifDeGitHub(m).test(branche));
   }
   return !(push.tags || push['tags-ignore']);
@@ -181,16 +197,23 @@ function pousseeSurLaBranche(push, branche) {
 export function fluxDeLaBranche(fichiers, branche) {
   return fichiers
     .filter(({ texte }) => {
-      if (texte === null) return true;
+      if (texte === null) {
+        return true;
+      }
       try {
         // Loaded only for a workflow to read: a project without one, or before its `npm install`,
         // runs its queue without the library (which, absent, counts the workflow as one that runs).
         const require = createRequire(import.meta.url);
         const on = require('yaml').parse(texte)?.on;
-        if (typeof on === 'string') return on === 'push';
-        if (Array.isArray(on)) return on.includes('push');
-        if (on && typeof on === 'object')
+        if (typeof on === 'string') {
+          return on === 'push';
+        }
+        if (Array.isArray(on)) {
+          return on.includes('push');
+        }
+        if (on && typeof on === 'object') {
           return 'push' in on && pousseeSurLaBranche(on.push, branche);
+        }
         return false;
       } catch {
         return true;
@@ -242,7 +265,9 @@ export function outilsDeLaFile(racine, dire, avancement = null) {
       maxBuffer: 256 * 1024 * 1024,
       env: { ...process.env, [ACTEUR]: AUTEUR_DE_LA_FILE },
     });
-    if (r.status !== 0) process.stderr.write(`bd ${a[0]} ${a[1] ?? ''} : ${r.stderr}`);
+    if (r.status !== 0) {
+      process.stderr.write(`bd ${a[0]} ${a[1] ?? ''} : ${r.stderr}`);
+    }
     return r;
   };
   const principale =
@@ -265,7 +290,9 @@ export function lireUneFoisLaCI(o, { sha, branche, passage = null }) {
   const { gh } = o;
   let id = passage;
   if (id === null) {
-    if (fluxDuCommit(o.racine, sha, branche).length === 0) return { etat: SANS_CI };
+    if (fluxDuCommit(o.racine, sha, branche).length === 0) {
+      return { etat: SANS_CI };
+    }
     const r = gh(['run', 'list', '--commit', sha, '--json', 'databaseId,status,conclusion']);
     if (r.error) {
       return { etat: NON_LUE, raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
@@ -283,7 +310,9 @@ export function lireUneFoisLaCI(o, { sha, branche, passage = null }) {
       };
     }
     const trouve = passages.find(x => x?.databaseId);
-    if (!trouve) return { etat: 'cherche' };
+    if (!trouve) {
+      return { etat: 'cherche' };
+    }
     id = String(trouve.databaseId);
   }
   const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
@@ -359,7 +388,9 @@ export function conclureLaCI(
       `## CI rouge\n\nLa CI de ${court} sur ${o.principale} est rouge : ${url}\n\nLa fin de gh run view ${passage} --log-failed :\n\n${journal}\n\nLe ticket est rouvert : sa correction entre sous son numéro. Un rejeu vert de la même CI (\`gh run rerun ${passage} --failed\`), puis \`--reprendre\` du circuit, le ferme ; un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`
     );
     o.dire(`✗ CI de ${court} rouge (passage ${passage}) : ${ticket} rouvert`);
-    if (!relue) o.bd('reopen', ticket);
+    if (!relue) {
+      o.bd('reopen', ticket);
+    }
     return { etat: 'rouvert', raison: `La CI de ${court} est rouge : ${url}` };
   }
   if (!relue) {
@@ -370,7 +401,9 @@ export function conclureLaCI(
         verdict === NON_LUE ? `${INTEGRE}${court} ; CI non lue : ${raison}` : `${INTEGRE}${court}`,
     };
   }
-  if (verdict === NON_LUE) return { etat: 'rouvert', raison: `CI non relue : ${raison}` };
+  if (verdict === NON_LUE) {
+    return { etat: 'rouvert', raison: `CI non relue : ${raison}` };
+  }
   o.bd('close', ticket, '--reason', `${INTEGRE}${court}`);
   if (passage) {
     commenter(
@@ -439,13 +472,19 @@ function surOrigin(o, commit, branche) {
     return { surOrigin: 'inconnu', raison: `git ls-remote origin ${branche} : ${raison}` };
   }
   const pointe = ls.stdout.split(/\s/)[0] ?? '';
-  if (!pointe) return { surOrigin: 'non', raison: null };
+  if (!pointe) {
+    return { surOrigin: 'non', raison: null };
+  }
   // `--is-ancestor` answers 0 (an ancestor) or 1 (not one); any other code (the tip of origin
   // unknown here, 128) does not say: « inconnu », its reason named.
   const git = (...a) => spawnSync('git', ['-C', o.racine, ...a], { encoding: 'utf8' });
   const ancetre = git('merge-base', '--is-ancestor', commit, pointe);
-  if (ancetre.status === 0) return { surOrigin: 'oui', raison: null };
-  if (ancetre.status === 1) return { surOrigin: 'non', raison: null };
+  if (ancetre.status === 0) {
+    return { surOrigin: 'oui', raison: null };
+  }
+  if (ancetre.status === 1) {
+    return { surOrigin: 'non', raison: null };
+  }
   const raison =
     `${ancetre.stderr ?? ''}`.trim().split('\n')[0] ||
     ancetre.error?.message ||
@@ -477,7 +516,9 @@ function lotSurMain(o, ticket) {
 function rejouer(o, tip, tete, ticketRejoue = null) {
   const { racine, dire } = o;
   const copie = path.join(racine, '.claude', 'worktrees', 'file');
-  if (existsSync(copie)) spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
+  if (existsSync(copie)) {
+    spawnSync('git', ['-C', copie, 'rebase', '--abort'], { encoding: 'utf8' });
+  }
   // The keys of the project, before any work: its generated files and its tools.
   let engendres;
   let env;
@@ -488,10 +529,13 @@ function rejouer(o, tip, tete, ticketRejoue = null) {
     return { garde: `une clé grillhouse du package.json est refusée :\n${e.message}` };
   }
   const ouverte = ouvrirCopie({ racine, copie, ref: tete, dire });
-  if (ouverte.refus) return { garde: ouverte.refus };
+  if (ouverte.refus) {
+    return { garde: ouverte.refus };
+  }
   const { dansCopie, monter, installer, tester } = ouverte;
-  if (dansCopie('checkout', '-q', '--detach', tip).status !== 0)
+  if (dansCopie('checkout', '-q', '--detach', tip).status !== 0) {
     return { garde: `la copie ne prend pas ${tip.slice(0, 7)}` };
+  }
   // A conflict on generated files the project declares only is no conflict: main's version is
   // taken, and their command writes them again once the branch is replaced (below).
   let rebase = dansCopie('rebase', tete);
@@ -541,7 +585,9 @@ function rejouer(o, tip, tete, ticketRejoue = null) {
           env,
         }),
     });
-    if (refus) return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
+    if (refus) {
+      return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
+    }
     if (dansCopie('diff', '--cached', '--quiet').status !== 0) {
       const corrige = dansCopie('commit', '-q', '--amend', '--no-edit', '--no-verify');
       if (corrige.status !== 0) {
@@ -581,8 +627,9 @@ export function avancerMain(o, entree) {
   const tip = git('rev-parse', '--verify', '-q', `refs/heads/${entree.branche}`).stdout.trim();
   const livre = lotSurMain(o, entree.ticket);
   // A lot on main whose branch is gone (a closure that failed after its deletion) is entered.
-  if (!tip)
+  if (!tip) {
     return livre ? { entre: { commit: livre } } : { sortie: ["la branche n'existe plus.", ''] };
+  }
   const enAvance = Number(git('rev-list', '--count', `${refPrincipale}..${tip}`).stdout.trim());
   // The lot is on main when the branch points at the commit of main that delivers the ticket
   // (main moved onto it by fast-forward), or when each commit of the branch has its equivalent on
@@ -591,21 +638,29 @@ export function avancerMain(o, entree) {
   if (livre) {
     const cerise = git('cherry', refPrincipale, tip).stdout.split('\n').filter(Boolean);
     const rejeu = enAvance > 0 && cerise.length > 0 && cerise.every(l => l.startsWith('- '));
-    if (tip === livre || rejeu) return { entre: { commit: livre } };
+    if (tip === livre || rejeu) {
+      return { entre: { commit: livre } };
+    }
   }
-  if (enAvance === 0) return { ecartee: true };
+  if (enAvance === 0) {
+    return { ecartee: true };
+  }
   for (let essai = 0; essai < ESSAIS_PAR_BRANCHE; essai++) {
     const tete = git('rev-parse', refPrincipale).stdout.trim();
     let nouveau = tip;
     if (git('merge-base', '--is-ancestor', tete, tip).status !== 0) {
       const r = rejouer(o, tip, tete, entree.ticket);
-      if (!r.nouveau) return r;
+      if (!r.nouveau) {
+        return r;
+      }
       nouveau = r.nouveau;
     }
     if (nouveau !== tete) {
       const avance = git('merge', '-q', '--ff-only', nouveau);
       if (avance.status !== 0) {
-        if (git('rev-parse', refPrincipale).stdout.trim() !== tete) continue;
+        if (git('rev-parse', refPrincipale).stdout.trim() !== tete) {
+          continue;
+        }
         return {
           garde:
             `${o.principale} n'avance pas sur ${nouveau.slice(0, 7)} :\n${avance.stdout}${avance.stderr}`.trim(),

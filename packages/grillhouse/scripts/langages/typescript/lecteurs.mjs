@@ -41,7 +41,9 @@ function sourcesDe(tous) {
   return tous.flatMap(c =>
     parcourir(c.dir, p => SAUTES.has(path.basename(p)))
       .filter(f => {
-        if (!SOURCE.test(f) || NOM_DE_TEST.test(path.basename(f))) return false;
+        if (!SOURCE.test(f) || NOM_DE_TEST.test(path.basename(f))) {
+          return false;
+        }
         return !path
           .relative(c.dir, f)
           .split(path.sep)
@@ -56,7 +58,9 @@ function interfacesDe(racine, tous) {
   const out = new Map();
   for (const c of tous) {
     const f = path.join(c.dir, 'docs', 'INTERFACE.md');
-    if (!existsSync(f)) continue;
+    if (!existsSync(f)) {
+      continue;
+    }
     const i = lire(path.relative(racine, f).split(path.sep).join('/'), readFileSync(f, 'utf8'));
     const publies = new Set(
       i.parties.filter(p => !p.consommateurs).map(p => p.titre.replace(/`/g, '').trim())
@@ -71,7 +75,9 @@ function interfacesDe(racine, tous) {
 // files left out.
 function testsDe(c) {
   return parcourir(c.dir, p => SAUTES.has(path.basename(p))).filter(f => {
-    if (!SOURCE.test(f)) return false;
+    if (!SOURCE.test(f)) {
+      return false;
+    }
     const rel = path.relative(c.dir, f).split(path.sep);
     return NOM_DE_TEST.test(path.basename(f)) || rel.some(d => DOSSIERS_DE_TEST.has(d));
   });
@@ -102,11 +108,12 @@ export function lecteurs(racine, { composants, noms, texte, nommes }) {
   const ifaces = interfacesDe(racine, tous);
   const tests = new Map();
   const testsDuComposant = c => {
-    if (!tests.has(c))
+    if (!tests.has(c)) {
       tests.set(
         c,
         testsDe(c).map(f => ({ f, texte: lireSiPresent(f) ?? '' }))
       );
+    }
     return tests.get(c);
   };
   const elements = [];
@@ -114,25 +121,35 @@ export function lecteurs(racine, { composants, noms, texte, nommes }) {
   for (const nom of noms) {
     const fournisseurs = tous.filter(c => ifaces.get(c)?.publies.has(nom));
     if (fournisseurs.length === 0) {
-      if (!tous.some(c => c.paquet === nom)) sansFournisseur.push(nom);
+      if (!tous.some(c => c.paquet === nom)) {
+        sansFournisseur.push(nom);
+      }
       continue;
     }
     for (const p of fournisseurs) {
       const lus = [];
       for (const c of tous) {
-        if (c === p) continue;
+        if (c === p) {
+          continue;
+        }
         const par = [];
         const declare =
           ifaces.get(p).consommateurs.get(c.nom) ?? ifaces.get(p).consommateurs.get(c.paquet);
-        if (declare && (declare.has(nom) || declare.has('*'))) par.push('consommateurs');
+        if (declare && (declare.has(nom) || declare.has('*'))) {
+          par.push('consommateurs');
+        }
         const n = reel.get(p.nom)?.get(c.nom);
-        if (n && (n.has(nom) || n.has('*'))) par.push('import');
+        if (n && (n.has(nom) || n.has('*'))) {
+          par.push('import');
+        }
         for (const t of testsDuComposant(c)) {
           if (identifiant(nom).test(t.texte) && importe(t.texte, t.f, p)) {
             par.push(path.relative(racine, t.f).split(path.sep).join('/'));
           }
         }
-        if (par.length) lus.push({ composant: exterieur(c), par });
+        if (par.length) {
+          lus.push({ composant: exterieur(c), par });
+        }
       }
       elements.push({ nom, fournisseur: exterieur(p), lecteurs: lus });
     }
@@ -149,10 +166,18 @@ export function lecteurs(racine, { composants, noms, texte, nommes }) {
   const lit = new Map(composants.map(c => [c, new Set()]));
   for (const p of tous) {
     for (const nomLecteur of reel.get(p.nom)?.keys() ?? []) {
-      for (const c of tous) if (c.nom === nomLecteur) lit.get(c.c).add(p.c);
+      for (const c of tous) {
+        if (c.nom === nomLecteur) {
+          lit.get(c.c).add(p.c);
+        }
+      }
     }
   }
-  for (const e of elements) for (const l of e.lecteurs) lit.get(l.composant).add(e.fournisseur);
+  for (const e of elements) {
+    for (const l of e.lecteurs) {
+      lit.get(l.composant).add(e.fournisseur);
+    }
+  }
   const parLesTests = new Map(composants.map(c => [c, new Set()]));
   for (const [c, lus] of testsLisent) {
     for (const p of lus) {

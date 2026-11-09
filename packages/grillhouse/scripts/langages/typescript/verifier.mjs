@@ -168,7 +168,9 @@ export function verifier({
       { env, racine, dire }
     );
   } catch (e) {
-    if (!(e instanceof AttenteDeLaMachine)) throw e;
+    if (!(e instanceof AttenteDeLaMachine)) {
+      throw e;
+    }
     dire(e.message);
     return e.code;
   } finally {
@@ -200,7 +202,9 @@ const filtre = args => args.some(a => a.startsWith('--filter=') || a === '--filt
 // A pass green on every package keeps its tree as the last green (`garder`): not when it is
 // restricted by a filter, measured against nothing, or run after a red module (PASSE_ROUGE).
 export function poserLeVert({ code, etat, args, env, garder }) {
-  if (code === 0 && etat && !filtre(args) && !env[PASSE_ROUGE]) garder(etat);
+  if (code === 0 && etat && !filtre(args) && !env[PASSE_ROUGE]) {
+    garder(etat);
+  }
 }
 
 function passe({ racine, demandes, env, dire, coeurs }) {
@@ -209,7 +213,9 @@ function passe({ racine, demandes, env, dire, coeurs }) {
   const args = demandes.filter(a => a !== '--gardes' && a !== '--tout');
   // The measure against the last green: the guards alone need none.
   const m = gardesSeules ? null : mesure(racine, { tout, dans: env.TMPDIR });
-  if (m) dire(m.ligne);
+  if (m) {
+    dire(m.ligne);
+  }
   const taches = new Set();
   try {
     const code = jouerLaPasse({
@@ -223,8 +229,9 @@ function passe({ racine, demandes, env, dire, coeurs }) {
       coeurs,
       taches,
     });
-    if (env[ROUGES])
+    if (env[ROUGES]) {
       writeFileSync(env[ROUGES], [...taches].map(t => `${t}\t${rejeu(t)}\n`).join(''));
+    }
     // A pass green on every package keeps its tree as the last green.
     poserLeVert({ code, etat: m?.etat, args, env, garder: garderLeVert });
     return code;
@@ -277,8 +284,12 @@ function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coe
     }
   }
   garderLesResumes(racine, avant, e);
-  if (!existait && existsSync(runs) && lister(runs).length === 0) rmdirSync(runs);
-  if (r.status === 0) return 0;
+  if (!existait && existsSync(runs) && lister(runs).length === 0) {
+    rmdirSync(runs);
+  }
+  if (r.status === 0) {
+    return 0;
+  }
 
   // The verdict of each task: any code but 0 is a red, named.
   const rouges = [];
@@ -289,14 +300,21 @@ function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coe
   } else {
     for (const t of resume.tasks) {
       const code = t.execution?.exitCode;
-      if (code === 0) continue;
+      if (code === 0) {
+        continue;
+      }
       rouges.push(`${t.taskId} (code ${code ?? 'absent'})`);
-      if (typeof code === 'number') taches.add(t.taskId);
+      if (typeof code === 'number') {
+        taches.add(t.taskId);
+      }
     }
-    if (rouges.length === 0)
+    if (rouges.length === 0) {
       rouges.push(`Turborepo sort en ${r.status ?? r.signal} sans tâche en échec`);
+    }
   }
-  for (const l of rouges) dire(`⛔ ${l}`);
+  for (const l of rouges) {
+    dire(`⛔ ${l}`);
+  }
   dire('⛔ rouge.');
   return 1;
 }

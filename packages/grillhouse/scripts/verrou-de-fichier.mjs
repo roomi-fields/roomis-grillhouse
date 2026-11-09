@@ -64,7 +64,9 @@ function creer(verrou, marque) {
     linkSync(prive, verrou);
     return true;
   } catch (e) {
-    if (e.code !== 'EEXIST') throw e;
+    if (e.code !== 'EEXIST') {
+      throw e;
+    }
     return false;
   } finally {
     rmSync(prive, { force: true });
@@ -112,7 +114,9 @@ export function prendreVerrou(verrou, { attendre, perime = null, pid = process.p
       reprendre(verrou, perime);
       continue;
     }
-    if (!attendre) return false;
+    if (!attendre) {
+      return false;
+    }
     attendreUnPeu(perime === null ? 200 : 20);
   }
 }

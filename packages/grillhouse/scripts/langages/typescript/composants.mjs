@@ -12,9 +12,13 @@ function tousDossiers(racine) {
   const found = [];
   for (const parent of ['packages', 'src']) {
     const base = path.join(racine, parent);
-    if (!existsSync(base)) continue;
+    if (!existsSync(base)) {
+      continue;
+    }
     for (const e of readdirSync(base, { withFileTypes: true })) {
-      if (e.isDirectory()) found.push({ nom: e.name, dir: path.join(base, e.name) });
+      if (e.isDirectory()) {
+        found.push({ nom: e.name, dir: path.join(base, e.name) });
+      }
     }
   }
   return found;
@@ -48,7 +52,9 @@ export function matieres(racine) {
   const found = [];
   for (const { nom, dir } of dossiers(racine)) {
     const pj = path.join(dir, 'package.json');
-    if (!existsSync(pj)) continue;
+    if (!existsSync(pj)) {
+      continue;
+    }
     let paquet;
     try {
       paquet = JSON.parse(readFileSync(pj, 'utf8'));

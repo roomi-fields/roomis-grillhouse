@@ -40,7 +40,9 @@ const RELEASE = /(^|\s)--release(\s|$)/;
 // package.json when the tables declare it so, else the language of the package.json.
 function langageDuPaquet(racine, chemin) {
   const hors = paquetsSansPackageJson(racine).find(p => p.chemin === chemin);
-  if (hors) return hors.langage;
+  if (hors) {
+    return hors.langage;
+  }
   return Object.keys(LANGAGES).find(n => langage(n).manifeste === 'package.json') ?? 'typescript';
 }
 
@@ -64,12 +66,16 @@ function lire(dir) {
   /** @type {Map<string, string[]>} */
   const fournisseurs = new Map();
   const racinePkg = lireJson(path.join(racine, 'package.json'));
-  if (racinePkg === null) return { donnees, parPaquet, fournisseurs, fautes };
+  if (racinePkg === null) {
+    return { donnees, parPaquet, fournisseurs, fautes };
+  }
   const liste = paquets(racine);
   const consommateurs = [{ dossier: '.', pkg: racinePkg }, ...liste];
   for (const { dossier, pkg } of consommateurs) {
     const d = pkg?.grillhouse?.donnees;
-    if (d === undefined || d === null) continue;
+    if (d === undefined || d === null) {
+      continue;
+    }
     const ou = dossier === '.' ? 'package.json' : `${dossier}/package.json`;
     if (typeof d !== 'object' || Array.isArray(d)) {
       fautes.push(
@@ -132,7 +138,9 @@ function lire(dir) {
  */
 export function donneesDe(dir) {
   const { donnees, fautes } = lire(dir);
-  if (fautes.length) throw new Error(fautes.join('\n'));
+  if (fautes.length) {
+    throw new Error(fautes.join('\n'));
+  }
   return donnees;
 }
 
@@ -146,7 +154,9 @@ export function donneesDe(dir) {
  */
 export function donneesDuPaquet(dir, chemin) {
   const { donnees, parPaquet, fautes } = lire(dir);
-  if (fautes.length) throw new Error(fautes.join('\n'));
+  if (fautes.length) {
+    throw new Error(fautes.join('\n'));
+  }
   return Object.fromEntries(
     [...parPaquet]
       .filter(([d]) => contient(d, chemin))
@@ -168,7 +178,9 @@ const contient = (dossier, chemin) =>
  */
 export function fournisseursDuPaquet(dir, chemin) {
   const { fautes, fournisseurs } = lire(dir);
-  if (fautes.length) throw new Error(fautes.join('\n'));
+  if (fautes.length) {
+    throw new Error(fautes.join('\n'));
+  }
   return [
     ...new Set([...fournisseurs].filter(([d]) => contient(d, chemin)).flatMap(([, ns]) => ns)),
   ];
@@ -180,7 +192,9 @@ export function fournisseursDuPaquet(dir, chemin) {
  * @throws {Error} a build that fails
  */
 export function construireLesFournisseurs(noms) {
-  if (!noms.length) return;
+  if (!noms.length) {
+    return;
+  }
   const nom = Object.keys(LANGAGES).find(n => langage(n).manifeste === 'package.json');
   const module = nom ? langage(nom) : null;
   if (!module?.construireLesPaquets) {
@@ -200,7 +214,9 @@ export function controlerLesDonnees(donnees) {
     .map(
       ([n, c]) => `la variable ${n} nomme ${c}, que la construction du fournisseur n'a pas produit.`
     );
-  if (absents.length) throw new Error(absents.join('\n'));
+  if (absents.length) {
+    throw new Error(absents.join('\n'));
+  }
 }
 
 /**

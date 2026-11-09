@@ -365,7 +365,9 @@ function partiesHors(a, b) {
   const cles = (x, y) => [...new Set([...Object.keys(x), ...Object.keys(y)])].sort();
   const out = [];
   for (const k of cles(a, b)) {
-    if (k === DES_TESTS || isDeepStrictEqual(a[k], b[k])) continue;
+    if (k === DES_TESTS || isDeepStrictEqual(a[k], b[k])) {
+      continue;
+    }
     if (k !== 'target') {
       const tableau = [a[k], b[k]].some(v => v !== null && typeof v === 'object');
       out.push(tableau ? `[${k}]` : k);
@@ -375,7 +377,9 @@ function partiesHors(a, b) {
     for (const c of cles(ta, tb)) {
       const [ca, cb] = [table(ta[c]), table(tb[c])];
       for (const s of cles(ca, cb)) {
-        if (s !== DES_TESTS && !isDeepStrictEqual(ca[s], cb[s])) out.push(`[target.${c}.${s}]`);
+        if (s !== DES_TESTS && !isDeepStrictEqual(ca[s], cb[s])) {
+          out.push(`[target.${c}.${s}]`);
+        }
       }
     }
   }
@@ -415,7 +419,9 @@ function finDuLexeme(texte, i) {
         j++;
       } else if (texte.startsWith('*/', j)) {
         j++;
-        if (--profondeur === 0) return j + 1;
+        if (--profondeur === 0) {
+          return j + 1;
+        }
       }
     }
     return texte.length;
@@ -423,8 +429,12 @@ function finDuLexeme(texte, i) {
   for (const re of [BRUTE, CHAINE, CARACTERE]) {
     re.lastIndex = i;
     const m = re.exec(texte);
-    if (!m) continue;
-    if (re !== BRUTE) return m.index + m[0].length;
+    if (!m) {
+      continue;
+    }
+    if (re !== BRUTE) {
+      return m.index + m[0].length;
+    }
     const fin = texte.indexOf(`"${m[1]}`, i + m[0].length);
     return fin < 0 ? texte.length : fin + 1 + m[1].length;
   }
@@ -506,8 +516,12 @@ function horsDesTests(chemin, racine, avant, apres) {
     const parts = c ? path.relative(c.dossier, abs).split(path.sep) : [];
     return parts[0] === 'src' && !unitaire(parts) ? codeHorsDuModuleDeTest(avant, apres) : null;
   }
-  if (path.basename(abs) !== 'Cargo.toml') return null;
-  if (!tous.some(c => path.join(c.composant.dossier, 'Cargo.toml') === abs)) return null;
+  if (path.basename(abs) !== 'Cargo.toml') {
+    return null;
+  }
+  if (!tous.some(c => path.join(c.composant.dossier, 'Cargo.toml') === abs)) {
+    return null;
+  }
   const { parse } = require('smol-toml');
   const lire = texte => {
     try {
@@ -517,7 +531,9 @@ function horsDesTests(chemin, racine, avant, apres) {
     }
   };
   const [a, b] = [lire(avant), lire(apres)];
-  if (a.faute || b.faute) return [a.faute ?? b.faute];
+  if (a.faute || b.faute) {
+    return [a.faute ?? b.faute];
+  }
   return partiesHors(a.valeur, b.valeur);
 }
 

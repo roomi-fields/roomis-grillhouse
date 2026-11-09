@@ -53,14 +53,18 @@ export function migrer(projet) {
     }
   }
   const fracine = path.join(projet, 'package.json');
-  if (!existsSync(fracine)) return lignes;
+  if (!existsSync(fracine)) {
+    return lignes;
+  }
   const racine = lireJson(fracine);
   const plage =
     CHAMPS.map(c => racine[c]?.[PAQUET]).find(v => v !== undefined) ?? `^${versionDuCadre()}`;
   const declarer = pkg => {
     let change = false;
     for (const c of CHAMPS) {
-      if (pkg[c]?.[ANCIEN] === undefined) continue;
+      if (pkg[c]?.[ANCIEN] === undefined) {
+        continue;
+      }
       const { [ANCIEN]: _ancien, ...reste } = pkg[c];
       const deja = CHAMPS.some(d => pkg[d]?.[PAQUET] !== undefined);
       pkg[c] = Object.fromEntries(
@@ -73,12 +77,16 @@ export function migrer(projet) {
     return change;
   };
   for (const { dossier, pkg } of paquets(projet)) {
-    if (ANCIENS_ESPACES.includes(dossier) || !declarer(pkg)) continue;
+    if (ANCIENS_ESPACES.includes(dossier) || !declarer(pkg)) {
+      continue;
+    }
     ecrireJson(path.join(projet, dossier, 'package.json'), pkg);
     lignes.push(`${dossier}/package.json : déclare ${PAQUET} à la place de ${ANCIEN}`);
   }
   const declare = declarer(racine);
-  if (declare) lignes.push(`package.json : déclare ${PAQUET} à la place de ${ANCIEN}`);
+  if (declare) {
+    lignes.push(`package.json : déclare ${PAQUET} à la place de ${ANCIEN}`);
+  }
   const liste = Array.isArray(racine.workspaces) ? racine.workspaces : racine.workspaces?.packages;
   const restants = Array.isArray(liste) ? liste.filter(e => !ANCIENS_ESPACES.includes(e)) : liste;
   const espaces = Array.isArray(liste) && restants.length !== liste.length;
@@ -88,6 +96,8 @@ export function migrer(projet) {
       : { ...racine.workspaces, packages: restants };
     lignes.push(`package.json : l'ancien dossier de ${ANCIEN} quitte les workspaces`);
   }
-  if (declare || espaces) ecrireJson(fracine, racine);
+  if (declare || espaces) {
+    ecrireJson(fracine, racine);
+  }
   return lignes;
 }

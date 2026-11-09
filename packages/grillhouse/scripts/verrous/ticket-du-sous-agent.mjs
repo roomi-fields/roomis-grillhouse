@@ -15,10 +15,16 @@ const TICKET = /TON TICKET\s*:\s*[A-Za-z0-9_.-]+/;
 
 // The refusal for this launch, or null. `isRole(name)` says whether the frame defines that agent.
 export function refusal(input, isRole) {
-  if (input.tool_name !== 'Agent' && input.tool_name !== 'Task') return null;
+  if (input.tool_name !== 'Agent' && input.tool_name !== 'Task') {
+    return null;
+  }
   const role = input.tool_input?.subagent_type;
-  if (!role || !isRole(role)) return null;
-  if (TICKET.test(input.tool_input?.prompt ?? '')) return null;
+  if (!role || !isRole(role)) {
+    return null;
+  }
+  if (TICKET.test(input.tool_input?.prompt ?? '')) {
+    return null;
+  }
   return `L'agent ${role} part sans son ticket : sa consigne porte la ligne « TON TICKET : <id> ». Ainsi le tableau rattache l'agent, son temps et ses jetons à son ticket.`;
 }
 

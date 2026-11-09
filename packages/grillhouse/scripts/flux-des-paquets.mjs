@@ -43,7 +43,9 @@ const CLE = 'grillhouse.flux';
  */
 export function lireFlux(pkg) {
   const f = pkg?.grillhouse?.flux;
-  if (f === undefined || f === null) return { flux: [], fautes: [] };
+  if (f === undefined || f === null) {
+    return { flux: [], fautes: [] };
+  }
   if (typeof f !== 'object' || Array.isArray(f)) {
     return {
       flux: [],
@@ -86,16 +88,22 @@ const lireJson = f => {
  */
 export function fluxDe(dir) {
   const f = path.join(arbrePrincipal(dir), 'package.json');
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const { flux, fautes } = lireFlux(lireJson(f));
-  if (fautes.length) throw new Error(fautes.join('\n'));
+  if (fautes.length) {
+    throw new Error(fautes.join('\n'));
+  }
   return flux;
 }
 
 // The workflow files of <racine>: the .yml and .yaml under .github/workflows, from the root.
 function fichiersDeFlux(racine) {
   const d = path.join(racine, DOSSIER);
-  if (!existsSync(d)) return [];
+  if (!existsSync(d)) {
+    return [];
+  }
   return readdirSync(d, { withFileTypes: true })
     .filter(e => e.isFile() && /\.ya?ml$/.test(e.name))
     .map(e => `${DOSSIER}/${e.name}`)
@@ -111,7 +119,9 @@ export function constats(racine) {
   const pkg = lireJson(path.join(racine, 'package.json'));
   const { flux, fautes } = lireFlux(pkg);
   const out = fautes.map(message => ({ fichier: 'package.json', message }));
-  if (fautes.length) return out;
+  if (fautes.length) {
+    return out;
+  }
   const connus = new Set(paquets(racine).map(p => p.pkg.name));
   const declares = new Set(flux.map(f => f.fichier));
   for (const f of fichiersDeFlux(racine)) {
@@ -159,14 +169,18 @@ export function consigneDesFlux(racine, fichiers) {
   const lignes = [];
   for (const { fichier, paquets: noms } of flux) {
     const raisons = [];
-    if (fichiers.includes(fichier)) raisons.push('le lot change le flux');
+    if (fichiers.includes(fichier)) {
+      raisons.push('le lot change le flux');
+    }
     for (const n of noms) {
       const d = dossiers.get(n);
       if (d !== undefined && fichiers.some(f => sous(f, d))) {
         raisons.push(`le lot touche le paquet ${n}`);
       }
     }
-    if (raisons.length) lignes.push(`- lis ${fichier} : ${raisons.join(' ; ')}`);
+    if (raisons.length) {
+      lignes.push(`- lis ${fichier} : ${raisons.join(' ; ')}`);
+    }
   }
   return lignes.length ? lignes.join('\n') : 'aucun : le lot ne touche aucun flux de la CI.';
 }

@@ -31,8 +31,9 @@ import { classer } from './duree.classement.mjs';
 import { delaisSurLeDisque, libelleDuDelai } from './delais.mjs';
 
 function aUnEchec(t) {
-  if (t.type === 'test' ? t.result?.state === 'fail' : (t.result?.errors ?? []).length > 0)
+  if (t.type === 'test' ? t.result?.state === 'fail' : (t.result?.errors ?? []).length > 0) {
     return true;
+  }
   return (t.tasks ?? []).some(aUnEchec);
 }
 
@@ -41,7 +42,9 @@ const PLUS_LENTS = 20;
 function plusLents(files, dire) {
   const duree = f => f.result?.duration ?? 0;
   const total = files.reduce((s, f) => s + duree(f), 0);
-  if (total <= 0) return;
+  if (total <= 0) {
+    return;
+  }
   const lents = [...files].sort((a, b) => duree(b) - duree(a)).slice(0, PLUS_LENTS);
   dire(
     `${lents.length === 1 ? '1 fichier le plus lent' : `${lents.length} fichiers les plus lents`} (part du temps total, ${Math.round(total)} ms) :`
@@ -65,7 +68,9 @@ export default class DureeReporter {
     plusLents(files, dire);
     const fichiers = {};
     for (const f of files) {
-      if (!aUnEchec(f) || f.filepath in fichiers) continue;
+      if (!aUnEchec(f) || f.filepath in fichiers) {
+        continue;
+      }
       fichiers[f.filepath] = {
         horsDuJour: estHorsDuJour(f.filepath),
         banc: estUnBanc(f.filepath),
@@ -84,14 +89,20 @@ export default class DureeReporter {
       const nom = path.relative(process.cwd(), e.fichier) + (e.nom ? ` › ${e.nom}` : '');
       const delai = e.delai ? ` (${e.delai})` : '';
       if (e.cause === 'réel') {
-        if (e.delai) dire(`${nom} : délai dépassé${delai}.`);
+        if (e.delai) {
+          dire(`${nom} : délai dépassé${delai}.`);
+        }
         continue;
       }
       dire(
         `${nom} : ${e.cause}${delai}, pression CPU ${ecrirePression(e.pressionDebut)} au début, ${ecrirePression(e.pressionFin)} à la fin (seuil ${SEUIL_PRESSION} %).`
       );
     }
-    if (conclusion) dire(conclusion);
-    if (verdict === 'a-repasser') process.exitCode = A_REPASSER;
+    if (conclusion) {
+      dire(conclusion);
+    }
+    if (verdict === 'a-repasser') {
+      process.exitCode = A_REPASSER;
+    }
   }
 }

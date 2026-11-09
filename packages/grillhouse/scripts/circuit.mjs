@@ -760,7 +760,9 @@ function arbrePrincipal() {
   const r = spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
     encoding: 'utf8',
   });
-  if (r.status !== 0) throw new Usage("le dossier courant n'est pas dans un dépôt git.");
+  if (r.status !== 0) {
+    throw new Usage("le dossier courant n'est pas dans un dépôt git.");
+  }
   return path.dirname(r.stdout.trim());
 }
 
@@ -910,7 +912,9 @@ export function avantLaPasse(
   regeneration,
   env = environnementDeLaPasse(ctx, process.env)
 ) {
-  if (!SUR_LA_POINTE.has(etape)) return { avancee: false, regeneration };
+  if (!SUR_LA_POINTE.has(etape)) {
+    return { avancee: false, regeneration };
+  }
   const tete = dossier =>
     spawnSync('git', ['-C', dossier, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
   const cible = tete(ctx.racine);
@@ -1069,7 +1073,9 @@ function arretHorsDuPlan(ctx, tentative, fiche) {
 // checks when checks ran since the testwriter's session (`ctx.controlesRouges`); null without a
 // sending.
 function renvoiDe(ctx, fiche) {
-  if (!fiche.renvoi) return null;
+  if (!fiche.renvoi) {
+    return null;
+  }
   const passation = derniereDe(ctx, 'developpeur')?.text ?? 'aucune';
   const raison = fiche.raison ? ` : ${fiche.raison}` : '';
   const controles = ctx.controlesRouges
@@ -1091,8 +1097,9 @@ export function constatsOuverts(ctx, fiche, texte) {
   const arret = raison =>
     new Arret('relecture-arret', `${raison}\n\nLe verdict :\n\n${texte}`, { piece: raison });
   const neufs = bloquantsDeLaFiche(fiche).map(c => {
-    if (c.critere_en_cause)
+    if (c.critere_en_cause) {
       throw arret(`Le constat « ${c.titre} » met en cause un critère du ticket.`);
+    }
     if (!AGENTS_DU_LOT.includes(c.role)) {
       throw arret(
         `Le constat « ${c.titre} » n'a pas de destinataire valide : il nomme ${c.role ? `« ${c.role} »` : 'personne'}, quand le rôle est ${AGENTS_DU_LOT.join(' ou ')}.`
@@ -1115,7 +1122,9 @@ export function constatsOuverts(ctx, fiche, texte) {
 // answers, so that the field survives the answer; null without a sheet of the plan.
 export function ficheDuPlan(plans, champ) {
   const derniere = plans.at(-1);
-  if (!derniere) return null;
+  if (!derniere) {
+    return null;
+  }
   if (derniere.reponse && !(champ in derniere.fiche) && plans.length > 1) {
     return plans.at(-2).fiche;
   }
@@ -1192,7 +1201,9 @@ export function commencerLEtape(ctx, { etape, tentative, rapport, finale }) {
 // The end of a step of the run of <ctx> the circuit led itself (<menee>, null for another): its
 // line to the register.
 export function finirLEtape(ctx, menee) {
-  if (menee) inscrireEtape(ctx, menee);
+  if (menee) {
+    inscrireEtape(ctx, menee);
+  }
 }
 
 // The stop <erreur> of the run of <ctx> at the step <etat>, written: any exception but an Arret is
@@ -1376,7 +1387,9 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
       try {
         return { constats: constatsOuverts(ctx, faits.relecture.fiche, faits.relecture.texte) };
       } catch (e) {
-        if (!(e instanceof Arret)) throw e;
+        if (!(e instanceof Arret)) {
+          throw e;
+        }
         return { arret: { nom: e.nom, rapport: e.rapport, piece: e.piece } };
       }
     case 'integration': {
@@ -1402,19 +1415,29 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
 // The effect <e> of a decision of the circuit of <ctx>: a line at the ticket, a gesture, a report,
 // a result kept.
 export function appliquer(ctx, e) {
-  if (e.genre === 'commenter') commenter(ctx, e.etape, e.texte);
-  else if (e.genre === 'geste') geste(ctx, e.nom);
-  else if (e.genre === 'rapport') ecrireRapport(ctx, e.etape, e.texte, e.resultat, e.rapport);
-  else if (e.genre === 'inscrire') inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, ...e.entree });
-  else throw new Error(`effet inconnu des décisions du circuit : ${e.genre}`);
+  if (e.genre === 'commenter') {
+    commenter(ctx, e.etape, e.texte);
+  } else if (e.genre === 'geste') {
+    geste(ctx, e.nom);
+  } else if (e.genre === 'rapport') {
+    ecrireRapport(ctx, e.etape, e.texte, e.resultat, e.rapport);
+  } else if (e.genre === 'inscrire') {
+    inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, ...e.entree });
+  } else {
+    throw new Error(`effet inconnu des décisions du circuit : ${e.genre}`);
+  }
 }
 
 // The Arret of the stop <a> a decision of the circuit of <ctx> returns: an agent's sheet that is
 // not FAIT (`statut`) or that does not hold criteria out of the plan (`horsDuPlan`), with its
 // handover; else its name, its report and its options.
 export function arretDe(ctx, a) {
-  if (a.statut) return arretDuStatut(ctx, a.statut.role, a.statut.tentative, a.statut.fiche);
-  if (a.horsDuPlan) return arretHorsDuPlan(ctx, a.horsDuPlan.tentative, a.horsDuPlan.fiche);
+  if (a.statut) {
+    return arretDuStatut(ctx, a.statut.role, a.statut.tentative, a.statut.fiche);
+  }
+  if (a.horsDuPlan) {
+    return arretHorsDuPlan(ctx, a.horsDuPlan.tentative, a.horsDuPlan.fiche);
+  }
   const { nom, rapport, ...options } = a;
   return new Arret(nom, rapport, options);
 }
@@ -1474,7 +1497,9 @@ function depart(ctx, e) {
     ctx.refus = { ...ctx.refus, lance: true, relance: false };
     return { etape: CODE, tentative: 1, rapport: rapportDuRefus(ctx.refus), finale: false };
   }
-  if (ctx.depuis === 'testwriter') ctx.refus = null;
+  if (ctx.depuis === 'testwriter') {
+    ctx.refus = null;
+  }
   if (ctx.depuis) {
     const { etape, tentative, rapport, finale } = departDepuis(ctx.depuis);
     return { etape, tentative, rapport, finale };
@@ -1490,9 +1515,12 @@ function depart(ctx, e) {
     ctx.controlesRouges = null;
     return { etape: TESTS, tentative: 1, rapport: null, finale: false };
   }
-  if (!e) throw new Usage(`rien à reprendre : le circuit de ${ctx.ticket} n'a aucun état d'arrêt.`);
-  if (e.etape === 'integre')
+  if (!e) {
+    throw new Usage(`rien à reprendre : le circuit de ${ctx.ticket} n'a aucun état d'arrêt.`);
+  }
+  if (e.etape === 'integre') {
     throw new Usage(`rien à reprendre : le lot de ${ctx.ticket} est intégré.`);
+  }
   return {
     etape: e.etape,
     tentative: e.etape === CONTROLES ? 0 : 1,
@@ -1574,7 +1602,9 @@ const lignesOuvertes = questions =>
 function rubrique(ctx, titre) {
   const lignes = lire(path.join(ctx.racine, 'CLAUDE.md')).split('\n');
   const i = lignes.findIndex(l => l.trim() === `## ${titre}`);
-  if (i < 0) return 'absente de la charte du projet (CLAUDE.md)';
+  if (i < 0) {
+    return 'absente de la charte du projet (CLAUDE.md)';
+  }
   const fin = lignes.findIndex((l, j) => j > i && l.startsWith('## '));
   return (
     lignes
@@ -1635,8 +1665,11 @@ const texteDeLaSorte = sorte =>
 function sectionsDe(description) {
   const sections = [{ tete: null, lignes: [] }];
   for (const l of description.trimEnd().split('\n')) {
-    if (l.startsWith('## ')) sections.push({ tete: l, lignes: [] });
-    else sections.at(-1).lignes.push(l);
+    if (l.startsWith('## ')) {
+      sections.push({ tete: l, lignes: [] });
+    } else {
+      sections.at(-1).lignes.push(l);
+    }
   }
   return sections;
 }
@@ -1678,7 +1711,9 @@ export function decrireLePlan(description, criteres, questions, sorte = null, no
   const ecrits = gardees[i].lignes.map(numerotee).filter(c => c !== null);
   const ajouts = criteres.map(c => c.trim());
   const avant = [...gardees[i].lignes];
-  while (avant.length && avant.at(-1).trim() === '') avant.pop();
+  while (avant.length && avant.at(-1).trim() === '') {
+    avant.pop();
+  }
   const liste = ajouts.map((c, n) => `${ecrits.length + n + 1}. ${c}`);
   gardees[i] = {
     tete: gardees[i].tete,
@@ -1854,7 +1889,9 @@ export async function unPasDuPlan(ctx, pas, e) {
     return r;
   } catch (x) {
     // A session of the plan that cannot end goes up, before any testwriter.
-    if (!(x instanceof Arret)) throw x;
+    if (!(x instanceof Arret)) {
+      throw x;
+    }
     return {
       code: monter(ctx, {
         code: ARRETS[x.nom],
@@ -2101,7 +2138,9 @@ function etendre(ctx, e) {
     'plan',
     `le superviseur étend le plan à ${ctx.etendre.join(', ')} : ${titre.split(' — ').at(-1)}.`
   );
-  if (!e) return e;
+  if (!e) {
+    return e;
+  }
   ctx.contexte =
     [e.question ? `${e.question.fait}\n\n${e.question.piece}` : null, ctx.contexte]
       .filter(Boolean)
@@ -2117,7 +2156,9 @@ function etendre(ctx, e) {
 // The opening of <ctx> on <e> before its plan: `{ debut }`, or `{ code }`, a stop gone up.
 async function avantLePlan(ctx, e) {
   if (ctx.etendre) {
-    if (e?.etape === 'integre') throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
+    if (e?.etape === 'integre') {
+      throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
+    }
     e = etendre(ctx, e);
   }
   // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
@@ -2152,21 +2193,29 @@ async function avantLePlan(ctx, e) {
   // The tools of the project, which every pass of the circuit plays with: a faulty key stops the
   // run before any session, by its name.
   const lancement = outilsAuLancement(ctx.racine);
-  if (lancement.arret) return { code: monter(ctx, { ...lancement.arret, etat: d }) };
+  if (lancement.arret) {
+    return { code: monter(ctx, { ...lancement.arret, etat: d }) };
+  }
   ctx.outils = lancement.outils;
   const donnees = donneesAuLancement(ctx.racine);
-  if (donnees.arret) return { code: monter(ctx, { ...donnees.arret, etat: d }) };
+  if (donnees.arret) {
+    return { code: monter(ctx, { ...donnees.arret, etat: d }) };
+  }
   ctx.donnees = donnees.donnees;
   // The generated files the project declares: references of the circuit, which 4.2 regenerates
   // only when a red of a pass lies in their files (`referencesDesRouges`); the integration
   // regenerates them whenever the lot touches their files or what they read.
   const engendres = engendresAuLancement(ctx.racine);
-  if (engendres.arret) return { code: monter(ctx, { ...engendres.arret, etat: d }) };
+  if (engendres.arret) {
+    return { code: monter(ctx, { ...engendres.arret, etat: d }) };
+  }
   ctx.engendres = engendres.engendres;
   // The flows of the CI, refused at the launch when their key is faulty: the reviewer's instruction
   // reads those the lot touches (`consigneDesFlux`).
   const flux = fluxAuLancement(ctx.racine);
-  if (flux.arret) return { code: monter(ctx, { ...flux.arret, etat: d }) };
+  if (flux.arret) {
+    return { code: monter(ctx, { ...flux.arret, etat: d }) };
+  }
   return { debut: d };
 }
 
@@ -2178,7 +2227,9 @@ async function avantLePlan(ctx, e) {
  */
 export async function ouvrirJusquAuPlan(ctx, e) {
   const o = await avantLePlan(ctx, e);
-  if ('code' in o) return o;
+  if ('code' in o) {
+    return o;
+  }
   const aEcrire = o.debut.etape === TESTS && !planPasse(ctx, empreinteDuPlan(leTicket(ctx)));
   return { debut: o.debut, plan: aEcrire ? planAuDebut(ctx) : null };
 }
@@ -2188,6 +2239,8 @@ export function finirLOuverture(ctx, d) {
   // The sort of the ticket its plan says, which the run reads at each step.
   ctx.sorte = sorteDuTicket(ctx);
   // A sibling of HEAD's version a killed circuit left in the copy never enters the lot.
-  if (existsSync(ctx.copie)) balayerLesSoeurs(ctx);
+  if (existsSync(ctx.copie)) {
+    balayerLesSoeurs(ctx);
+  }
   return { debut: d };
 }

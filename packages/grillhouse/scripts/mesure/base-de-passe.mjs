@@ -59,7 +59,8 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';import path from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // The prefix of a base's name, and the file of its owner.
@@ -121,8 +122,12 @@ function proprietaire(base) {
 function orpheline(base) {
   const p = proprietaire(base);
   const ici = espace();
-  if (p === null || ici === null || p.espace !== ici) return false;
-  if (typeof p.racine === 'string') return !existsSync(p.racine);
+  if (p === null || ici === null || p.espace !== ici) {
+    return false;
+  }
+  if (typeof p.racine === 'string') {
+    return !existsSync(p.racine);
+  }
   return Number.isInteger(p.pid) && !vivant(p.pid);
 }
 
@@ -138,8 +143,9 @@ function balayer(dans, { vieilles = false } = {}) {
   }
   for (const nom of noms) {
     const base = path.join(dans, nom);
-    if (nom.startsWith(PREFIXE) && (orpheline(base) || (vieilles && vieille(base))))
+    if (nom.startsWith(PREFIXE) && (orpheline(base) || (vieilles && vieille(base)))) {
       rmSync(base, { recursive: true, force: true });
+    }
   }
 }
 
@@ -149,7 +155,9 @@ export const AGE_DU_CACHE_MS = 7 * 24 * 3600 * 1000;
 // Whether <base> is a base of a cache of a root untouched (its directory's mtime) for
 // AGE_DU_CACHE_MS.
 function vieille(base) {
-  if (typeof proprietaire(base)?.racine !== 'string') return false;
+  if (typeof proprietaire(base)?.racine !== 'string') {
+    return false;
+  }
   try {
     return Date.now() - statSync(base).mtimeMs > AGE_DU_CACHE_MS;
   } catch {
@@ -163,9 +171,13 @@ const enEnveloppe = env => Boolean(env.GRILLHOUSE_ENVELOPPE);
 // The sweep of the caches of the roots under <env> (`cacheDeLaRacine`, in each tool's directory of
 // the frame's caches), from the host only: the orphans and the old ones.
 function balayerLesCaches(env) {
-  if (enEnveloppe(env)) return;
+  if (enEnveloppe(env)) {
+    return;
+  }
   const racine = path.dirname(cacheDeCompilation('-', env));
-  for (const outil of contenu(racine)) balayer(path.join(racine, outil), { vieilles: true });
+  for (const outil of contenu(racine)) {
+    balayer(path.join(racine, outil), { vieilles: true });
+  }
 }
 
 // The variables that name the temporary directory: TMPDIR (POSIX, Node, Rust), TMP and TEMP
@@ -190,7 +202,9 @@ function contenu(dossier) {
  * @returns {string | null}
  */
 export function ligneDesRestes(restes, paquet) {
-  if (restes.length === 0) return null;
+  if (restes.length === 0) {
+    return null;
+  }
   const de = paquet ? `Les tests de ${paquet} ont` : 'Les tests ont';
   return `⛔ ${de} laissé dans leur dossier temporaire : ${restes.join(', ')}. Un test retire ce qu'il y crée, rouge compris.`;
 }
@@ -207,14 +221,18 @@ const INTERRUPTIONS = ['SIGINT', 'SIGTERM', 'SIGHUP'];
  */
 export function retirerALInterruption(retirer) {
   const lacher = () => {
-    for (const s of INTERRUPTIONS) process.removeListener(s, surSignal);
+    for (const s of INTERRUPTIONS) {
+      process.removeListener(s, surSignal);
+    }
   };
   function surSignal(signal) {
     lacher();
     retirer();
     process.kill(process.pid, signal);
   }
-  for (const s of INTERRUPTIONS) process.on(s, surSignal);
+  for (const s of INTERRUPTIONS) {
+    process.on(s, surSignal);
+  }
   return lacher;
 }
 
@@ -231,7 +249,9 @@ const cacheDeLaMaison = () => path.join(process.env.HOME || homedir(), '.cache')
 // is free, or reused by a process that started at another time.
 function passeMorte(p) {
   const ici = espace();
-  if (p === null || ici === null || p.espace !== ici || !Number.isInteger(p.pid)) return false;
+  if (p === null || ici === null || p.espace !== ici || !Number.isInteger(p.pid)) {
+    return false;
+  }
   return typeof p.depart === 'string' ? !leMemeVivant(p.pid, p.depart) : !vivant(p.pid);
 }
 
@@ -239,10 +259,14 @@ function passeMorte(p) {
 // only (the home is read-only in an envelope, whose namespace is its own), the ones without a
 // readable owner file older than a day.
 function balayerLesEssais(env) {
-  if (enEnveloppe(env)) return;
+  if (enEnveloppe(env)) {
+    return;
+  }
   const cache = cacheDeLaMaison();
   for (const nom of contenu(cache)) {
-    if (!nom.startsWith(ESSAIS)) continue;
+    if (!nom.startsWith(ESSAIS)) {
+      continue;
+    }
     const dossier = path.join(cache, nom);
     const p = proprietaire(dossier);
     let retirer = false;
@@ -255,7 +279,9 @@ function balayerLesEssais(env) {
     } else {
       retirer = passeMorte(p);
     }
-    if (retirer) rmSync(dossier, { recursive: true, force: true });
+    if (retirer) {
+      rmSync(dossier, { recursive: true, force: true });
+    }
   }
 }
 
@@ -287,7 +313,9 @@ export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
     restes: () => contenu(dossier),
     essais: () =>
       contenu(cacheDeLaMaison()).filter(nom => {
-        if (!nom.startsWith(ESSAIS)) return false;
+        if (!nom.startsWith(ESSAIS)) {
+          return false;
+        }
         const p = proprietaire(path.join(cacheDeLaMaison(), nom));
         return p?.pid === moi.pid && p.depart === moi.depart && p.espace === moi.espace;
       }),
@@ -308,7 +336,9 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
  * @returns {{ base: string, dossier: string }} the base, and the directory its agents write in
  */
 export function ouvrirBaseDuTicket(ticket, { dans = tmpdir() } = {}) {
-  if (!ID.test(ticket)) throw new Error(`⛔ « ${ticket} » n'est pas l'identifiant d'un ticket.`);
+  if (!ID.test(ticket)) {
+    throw new Error(`⛔ « ${ticket} » n'est pas l'identifiant d'un ticket.`);
+  }
   const base = path.join(dans, `${DU_TICKET}${ticket}`);
   const dossier = path.join(base, 't');
   mkdirSync(dossier, { recursive: true });
@@ -332,11 +362,17 @@ export function balayerLesTickets(fermes, { dans = tmpdir() } = {}) {
     .filter(n => n.startsWith(DU_TICKET))
     .map(n => ({ base: path.join(dans, n), ticket: proprietaire(path.join(dans, n))?.ticket }))
     .filter(b => typeof b.ticket === 'string');
-  if (tickets.length === 0) return [];
+  if (tickets.length === 0) {
+    return [];
+  }
   const clos = fermes();
-  if (clos === null) return [];
+  if (clos === null) {
+    return [];
+  }
   const retires = tickets.filter(b => clos.has(b.ticket));
-  for (const b of retires) rmSync(b.base, { recursive: true, force: true });
+  for (const b of retires) {
+    rmSync(b.base, { recursive: true, force: true });
+  }
   return retires.map(b => b.ticket);
 }
 
@@ -393,9 +429,14 @@ export function cacheDeLaRacine(outil, racine, env = process.env, { creer = true
   const reelle = path.resolve(racine);
   const empreinte = createHash('sha256').update(reelle).digest('hex').slice(0, 16);
   const cache = path.join(dans, `${PREFIXE}${empreinte}`);
-  if (!creer) return cache;
-  if (enEnveloppe(env)) balayer(dans);
-  else balayerLesCaches(env);
+  if (!creer) {
+    return cache;
+  }
+  if (enEnveloppe(env)) {
+    balayer(dans);
+  } else {
+    balayerLesCaches(env);
+  }
   mkdirSync(cache, { recursive: true });
   // A use renews it: its age counts from the last.
   const maintenant = new Date();

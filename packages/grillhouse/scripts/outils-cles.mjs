@@ -89,7 +89,9 @@ export function lireOutils(
   { maison = os.homedir(), existe = existsSync, reel = realpath, montages = [] } = {}
 ) {
   const o = pkg?.grillhouse?.outils;
-  if (o === undefined || o === null) return { outils: {}, fautes: [] };
+  if (o === undefined || o === null) {
+    return { outils: {}, fautes: [] };
+  }
   if (typeof o !== 'object' || Array.isArray(o)) {
     return {
       outils: {},
@@ -117,10 +119,15 @@ export function lireOutils(
       const cible = !refus && existe(chemin) ? reel(chemin) : chemin;
       const refusDeLaCible =
         cible !== chemin ? refusDuChemin(cle, cible, path.resolve(maison), montages) : null;
-      if (refus) fautes.push(refus);
-      else if (refusDeLaCible) fautes.push(`${refusDeLaCible} (la cible du lien ${chemin})`);
-      else if (existe(chemin)) outils[nom] = chemin;
-      else fautes.push(`la clé ${cle} nomme ${chemin}, qui n'existe pas.`);
+      if (refus) {
+        fautes.push(refus);
+      } else if (refusDeLaCible) {
+        fautes.push(`${refusDeLaCible} (la cible du lien ${chemin})`);
+      } else if (existe(chemin)) {
+        outils[nom] = chemin;
+      } else {
+        fautes.push(`la clé ${cle} nomme ${chemin}, qui n'existe pas.`);
+      }
     }
   }
   return { outils: fautes.length ? {} : outils, fautes };
@@ -151,12 +158,16 @@ export function arbrePrincipal(dir) {
 export function outilsDe(dir, { montages = [] } = {}) {
   const racine = arbrePrincipal(dir);
   const f = path.join(racine, 'package.json');
-  if (!existsSync(f)) return {};
+  if (!existsSync(f)) {
+    return {};
+  }
   const temporaires = [process.env.CLAUDE_CODE_TMPDIR, os.tmpdir(), '/tmp'].filter(Boolean);
   const { outils, fautes } = lireOutils(JSON.parse(readFileSync(f, 'utf8')), {
     montages: [racine, ...temporaires, ...montages],
   });
-  if (fautes.length) throw new Error(fautes.join('\n'));
+  if (fautes.length) {
+    throw new Error(fautes.join('\n'));
+  }
   return outils;
 }
 

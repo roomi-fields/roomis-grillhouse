@@ -114,7 +114,9 @@ const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
 // Under the circuit's mark, the tests measured against the last green; `--force` plays them all.
 const depuis = process.env[DEPUIS_LE_VERT] ? mesure(racine, { tout: force }) : null;
-if (depuis) process.stdout.write(`${depuis.ligne}\n`);
+if (depuis) {
+  process.stdout.write(`${depuis.ligne}\n`);
+}
 
 // One Turborepo run of <args>, VARIABLE set to <tests> (unset without), each task whose
 // dependencies succeed played to its end; its exit code. While the run names a results directory
@@ -124,7 +126,9 @@ const turbo = (args, tests) => {
   delete env[TESTS_CIBLES];
   delete env[CHANGEMENTS];
   Object.assign(env, depuis?.env ?? {});
-  if (tests) env[TESTS_CIBLES] = JSON.stringify(tests);
+  if (tests) {
+    env[TESTS_CIBLES] = JSON.stringify(tests);
+  }
   const resume = env[RESULTATS] ? ['--summarize'] : [];
   const runs = path.join(racine, '.turbo', 'runs');
   const avant = new Set(existsSync(runs) ? readdirSync(runs) : []);
@@ -142,7 +146,9 @@ const turbo = (args, tests) => {
       stdio: 'inherit',
       env,
     }).status ?? 1;
-  if (resume.length) garderLesResumes(racine, avant, env);
+  if (resume.length) {
+    garderLesResumes(racine, avant, env);
+  }
   return code;
 };
 
@@ -167,16 +173,22 @@ const traces = (filtres, noms) => {
 const cibles = (filtres, passes) => {
   // `testsCibles` is undefined with no path and no `--force`: the variable then stays unset.
   const tests = testsCibles({ arguments: passes, force });
-  if (!enveloppe) return turbo([SCRIPT_DES_TESTS, ...filtres], tests);
+  if (!enveloppe) {
+    return turbo([SCRIPT_DES_TESTS, ...filtres], tests);
+  }
   // A package the envelope shows read-only arrives built: only the packages it shows in writing
   // build, as the envelope mounts them (`inscriptible`).
   const construits = filtres.filter(f => inscriptible(dossiers.get(f.slice('--filter='.length))));
   if (filtres.length === 0 || construits.length > 0) {
     const noms = new Set(construits.map(f => f.slice('--filter='.length)));
     const propres = construits.length ? traces(construits, noms) : { ids: [] };
-    if (propres.code !== undefined) return propres.code;
+    if (propres.code !== undefined) {
+      return propres.code;
+    }
     const construction = turbo(['build', ...propres.ids, '--only', ...construits]);
-    if (construction !== 0) return construction;
+    if (construction !== 0) {
+      return construction;
+    }
   }
   return turbo([SCRIPT_DES_TESTS, '--only', ...filtres], tests);
 };
@@ -203,7 +215,9 @@ const lancer = () => {
       options.length ? { arguments: options } : undefined
     );
   }
-  if (liste.length === 0) return cibles([], [...chemins, ...options]);
+  if (liste.length === 0) {
+    return cibles([], [...chemins, ...options]);
+  }
 
   // The package of the frame that holds each path, the paths made absolute; the refusals.
   const refus = [];
@@ -233,7 +247,9 @@ const lancer = () => {
     }
   }
   if (refus.length) {
-    for (const l of refus) process.stderr.write(`${l}\n`);
+    for (const l of refus) {
+      process.stderr.write(`${l}\n`);
+    }
     return 2;
   }
   return cibles(

@@ -55,7 +55,9 @@ export function estUnTest(chemin, racine) {
 // of its file's kind (`.nuit` or `.budget` kept before `.test`);
 // null for a file Vitest does not play.
 export function soeurDAvant(chemin, racine) {
-  if (!estUnTest(chemin, racine)?.joue) return null;
+  if (!estUnTest(chemin, racine)?.joue) {
+    return null;
+  }
   return chemin.replace(/((?:\.nuit|\.budget)?\.(?:test|spec)\.[cm]?[jt]sx?)$/, '.circuit-avant$1');
 }
 
@@ -67,7 +69,9 @@ const DES_TESTS = 'devDependencies';
 // manifest of no package.
 function horsDesTests(chemin, racine, avant, apres) {
   const abs = path.resolve(racine, chemin);
-  if (!dossiers(racine).some(d => path.join(d.dir, 'package.json') === abs)) return null;
+  if (!dossiers(racine).some(d => path.join(d.dir, 'package.json') === abs)) {
+    return null;
+  }
   const lire = texte => {
     try {
       const v = texte === null ? {} : JSON.parse(texte);
@@ -79,7 +83,9 @@ function horsDesTests(chemin, racine, avant, apres) {
     }
   };
   const [a, b] = [lire(avant), lire(apres)];
-  if (a.faute || b.faute) return [a.faute ?? b.faute];
+  if (a.faute || b.faute) {
+    return [a.faute ?? b.faute];
+  }
   return [...new Set([...Object.keys(a.valeur), ...Object.keys(b.valeur)])]
     .filter(k => k !== DES_TESTS && !isDeepStrictEqual(a.valeur[k], b.valeur[k]))
     .sort();

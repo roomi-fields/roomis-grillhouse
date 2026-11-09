@@ -81,15 +81,20 @@ function appelComplet(texte, debut) {
   let profondeur = 0;
   const fin = Math.min(texte.length, debut + 2000);
   for (let i = debut; i < fin; i++) {
-    if (texte[i] === '(') profondeur++;
-    else if (texte[i] === ')' && --profondeur === 0) return texte.slice(debut, i + 1);
+    if (texte[i] === '(') {
+      profondeur++;
+    } else if (texte[i] === ')' && --profondeur === 0) {
+      return texte.slice(debut, i + 1);
+    }
   }
   return texte.slice(debut, fin);
 }
 // Whether <texte> mounts a temporary directory and, in a process call carrying `cwd`, `-C` or
 // `--prefix`, starts a heavy tool named by a literal.
 function outilLourdEnProjetDEssai(texte) {
-  if (!DOSSIER_TEMPORAIRE.test(texte)) return false;
+  if (!DOSSIER_TEMPORAIRE.test(texte)) {
+    return false;
+  }
   return [...texte.matchAll(APPEL)].some(m => {
     const appel = appelComplet(texte, m.index + m[0].indexOf('('));
     return OPTION_DE_DOSSIER.test(appel) && OUTIL_LITTERAL.test(appel);
@@ -101,7 +106,9 @@ const TOUT_REEXPORTE = /\bexport\s*\*\s*from\b/;
 // null for a clause without braces (a namespace, a default), which takes the whole module.
 function nomsImportes(clause) {
   const b = /\{([^}]*)\}/.exec(clause);
-  if (!b) return null;
+  if (!b) {
+    return null;
+  }
   return b[1]
     .split(',')
     .map(p =>
@@ -164,10 +171,14 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
   let serveur = false;
   const suivre = (f, noms = null, pris = noms) => {
     const cle = noms || pris ? `${f}#${(noms ?? []).join(',')}#${(pris ?? []).join(',')}` : f;
-    if (vus.has(f) || vus.has(cle)) return;
+    if (vus.has(f) || vus.has(cle)) {
+      return;
+    }
     vus.add(cle);
     const texte = lire(f) ?? '';
-    if (!lus.has(f)) textes.push(texte);
+    if (!lus.has(f)) {
+      textes.push(texte);
+    }
     lus.add(f);
     // The server counts when the part of the file the test takes starts it: the whole file for
     // the test itself or an import without braces, the exports it names otherwise.
@@ -177,7 +188,9 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
           .filter(c => pris.some(n => declare(c, n)))
           .join('\n')
       : texte;
-    if (SERVEUR_TEMPORAL.test(partie)) serveur = true;
+    if (SERVEUR_TEMPORAL.test(partie)) {
+      serveur = true;
+    }
     for (const m of texte.matchAll(IMPORT)) {
       const spec = m[1] ?? m[2] ?? m[3] ?? m[4];
       const parSonNom = lesMatieres.find(x => spec === `${x.nom}/test-fixtures`);
@@ -185,15 +198,22 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
         suivre(parSonNom.entree, nomsImportes(m[0]));
         continue;
       }
-      if (!spec?.startsWith('.')) continue;
+      if (!spec?.startsWith('.')) {
+        continue;
+      }
       const cible = resoudre(f, spec, lire);
-      if (!cible) continue;
+      if (!cible) {
+        continue;
+      }
       if (noms && TOUT_REEXPORTE.test(m[0]) && !noms.some(n => declare(lire(cible) ?? '', n))) {
         continue;
       }
       const rel = path.relative(racine, cible).split(path.sep).join('/');
-      if ((MATIERE.test(rel) || dansUneMatiere(cible)) && !TEST.test(rel)) suivre(cible, null, nomsImportes(m[0]));
-      else modules.add(cible);
+      if ((MATIERE.test(rel) || dansUneMatiere(cible)) && !TEST.test(rel)) {
+        suivre(cible, null, nomsImportes(m[0]));
+      } else {
+        modules.add(cible);
+      }
     }
   };
   suivre(fichier);
@@ -202,9 +222,7 @@ export function classer(fichier, lire, racine = path.parse(fichier).root, lesMat
   const autreQueGit = [...tout.matchAll(APPEL)].some(m => !GIT.test(m[1].trim()));
   const taille =
     processus &&
-    ((autreQueGit && DEPOT_D_ESSAI.test(tout)) ||
-      outilLourdEnProjetDEssai(tout) ||
-      serveur)
+    ((autreQueGit && DEPOT_D_ESSAI.test(tout)) || outilLourdEnProjetDEssai(tout) || serveur)
       ? 'grand'
       : processus || modules.size > 1
         ? 'moyen'
@@ -261,8 +279,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const compte = t => toutes.filter(x => x.taille === t).length;
   const nuit = toutes.filter(x => x.nuit).length;
   const { refus, lignes } = trancher(racine, GARDE, verifier(racine));
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   process.stderr.write(
     `ℹ️  ${GARDE} : ${toutes.length} fichier(s) de tests, ${compte('petit')} petit(s), ${compte('moyen')} moyen(s), ${compte('grand')} grand(s) ; ${nuit} de nuit ou de banc.\n`
   );

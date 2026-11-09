@@ -82,25 +82,18 @@ export function nomDuPaquet(racine, dossier) {
  *   tests?: { arguments: string[], rejouer?: string }, env?: NodeJS.ProcessEnv }} o
  * @returns {number}
  */
-export function lancerLesTaches({
-  outil,
-  racine,
-  taches,
-  noms = [],
-  tests,
-  env = process.env,
-}) {
+export function lancerLesTaches({ outil, racine, taches, noms = [], tests, env = process.env }) {
   const e = { ...env };
   delete e[TESTS_CIBLES];
   if (tests) {
     e[TESTS_CIBLES] = JSON.stringify(tests);
   }
   const filtres = [...new Set(noms)].sort().map(n => `--filter=${n}`);
-  const r = spawnSync(
-    outil,
-    ['run', ...taches, ...filtres, '--continue=dependencies-successful'],
-    { cwd: racine, stdio: 'inherit', env: e }
-  );
+  const r = spawnSync(outil, ['run', ...taches, ...filtres, '--continue=dependencies-successful'], {
+    cwd: racine,
+    stdio: 'inherit',
+    env: e,
+  });
   return r.status ?? 1;
 }
 

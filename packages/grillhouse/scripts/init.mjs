@@ -55,8 +55,11 @@ function copierLeGabarit(projet) {
   const renommer = dossier => {
     for (const e of readdirSync(dossier, { withFileTypes: true })) {
       const f = path.join(dossier, e.name);
-      if (e.isDirectory()) renommer(f);
-      else if (Object.hasOwn(RENOMMES, e.name)) renameSync(f, path.join(dossier, RENOMMES[e.name]));
+      if (e.isDirectory()) {
+        renommer(f);
+      } else if (Object.hasOwn(RENOMMES, e.name)) {
+        renameSync(f, path.join(dossier, RENOMMES[e.name]));
+      }
     }
   };
   renommer(projet);
@@ -105,11 +108,15 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   } else {
     try {
       const lignes = initialiser(dossier, prefixe);
-      for (const l of lignes) process.stderr.write(`${l}\n`);
+      for (const l of lignes) {
+        process.stderr.write(`${l}\n`);
+      }
       process.stdout.write(
         `Projet créé dans ${dossier}. Ouvre Claude Code dans ce dossier : la première séance propose le grill d'initialisation.\n`
       );
-      if (lignes.length > 0) process.exitCode = 1;
+      if (lignes.length > 0) {
+        process.exitCode = 1;
+      }
     } catch (e) {
       process.stderr.write(`⛔ ${e.message}\n`);
       process.exitCode = 1;

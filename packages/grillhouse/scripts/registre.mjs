@@ -349,10 +349,14 @@ if (direct && process.argv.includes('--rattraper')) {
 } else if (direct) {
   try {
     const input = JSON.parse(readFileSync(0, 'utf8'));
-    const retenu = Object.fromEntries(CHAMPS.filter(c => input[c] != null).map(c => [c, input[c]]));
+    const retenu = Object.fromEntries(
+      CHAMPS.filter(c => input[c] !== null && input[c] !== undefined).map(c => [c, input[c]])
+    );
     // The directory the session opened in: the last directory of its shell (`cwd`) may lie where
     // git finds no repository, a mount of the envelope, where git stops at the boundary.
-    if (process.env.CLAUDE_PROJECT_DIR) retenu.projet_dir = process.env.CLAUDE_PROJECT_DIR;
+    if (process.env.CLAUDE_PROJECT_DIR) {
+      retenu.projet_dir = process.env.CLAUDE_PROJECT_DIR;
+    }
     spawn(process.execPath, [process.argv[1], '--ecrire', JSON.stringify(retenu)], {
       detached: true,
       stdio: 'ignore',

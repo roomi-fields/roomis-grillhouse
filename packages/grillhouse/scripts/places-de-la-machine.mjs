@@ -68,11 +68,14 @@ const PONT = path.join(import.meta.dirname, 'places-du-serveur.mjs');
  */
 export function plafondDe(env = process.env) {
   const v = env[VARIABLE_PLACES];
-  if (v === undefined || v === '') return PLAFOND_PAR_DEFAUT;
-  if (!/^[1-9]\d*$/.test(v))
+  if (v === undefined || v === '') {
+    return PLAFOND_PAR_DEFAUT;
+  }
+  if (!/^[1-9]\d*$/.test(v)) {
     throw new Error(
       `${VARIABLE_PLACES} vaut « ${v} » : un entier positif est attendu (3 par défaut).`
     );
+  }
   return Number(v);
 }
 
@@ -84,11 +87,14 @@ export function plafondDe(env = process.env) {
  */
 export function espacementDe(env = process.env) {
   const v = env[VARIABLE_ESPACEMENT];
-  if (v === undefined || v === '') return ESPACEMENT_MS;
-  if (!/^\d+$/.test(v))
+  if (v === undefined || v === '') {
+    return ESPACEMENT_MS;
+  }
+  if (!/^\d+$/.test(v)) {
     throw new Error(
       `${VARIABLE_ESPACEMENT} vaut « ${v} » : un nombre de millisecondes est attendu.`
     );
+  }
   return Number(v);
 }
 
@@ -115,9 +121,12 @@ export function travailleursDe({
  */
 export function travailleursDeLaSeance(env = process.env) {
   const v = env[VARIABLE_TRAVAILLEURS];
-  if (v === undefined || v === '') return null;
-  if (!/^[1-9]\d*$/.test(v))
+  if (v === undefined || v === '') {
+    return null;
+  }
+  if (!/^[1-9]\d*$/.test(v)) {
     throw new Error(`${VARIABLE_TRAVAILLEURS} vaut « ${v} » : un entier positif est attendu.`);
+  }
   return Number(v);
 }
 
@@ -129,7 +138,9 @@ export function travailleursDeLaSeance(env = process.env) {
  * @returns {Record<string, string | undefined> | null}
  */
 function surLeServeur(env) {
-  if (env.CI || paquetsDeLEnveloppe(env)) return null;
+  if (env.CI || paquetsDeLEnveloppe(env)) {
+    return null;
+  }
   if (env.GRILLHOUSE_VERROU_MACHINE) {
     return env[VARIABLE_ESSAI] ? { ...env, TEMPORAL_ADDRESS: env[VARIABLE_ESSAI] } : null;
   }
@@ -210,7 +221,9 @@ export function prendreUnePlace({
   };
   const { code, lignes } = auServeur(e, ['prendre', JSON.stringify(demande)], borneMs + 60_000);
   for (const l of lignes) {
-    if (l.dire) dire(l.dire);
+    if (l.dire) {
+      dire(l.dire);
+    }
   }
   if (code === A_REPASSER) {
     throw new AttenteDeLaMachine(lignes.at(-1)?.dire ?? 'attente de place bornée', A_REPASSER);
@@ -226,7 +239,9 @@ export function prendreUnePlace({
       try {
         auServeur(e, ['rendre', place.id]);
       } catch (x) {
-        if (!(x instanceof AttenteDeLaMachine)) throw x;
+        if (!(x instanceof AttenteDeLaMachine)) {
+          throw x;
+        }
         dire(
           `⚠ la place ${place.id} ne se rend pas (${x.message}) : le déroulé de la machine la libère à la fin de son processus.`
         );
@@ -288,7 +303,9 @@ export function surUnePlace(
   try {
     return avecUnePlace(place => passe(place.env), { env, dire });
   } catch (e) {
-    if (!(e instanceof AttenteDeLaMachine)) throw e;
+    if (!(e instanceof AttenteDeLaMachine)) {
+      throw e;
+    }
     dire(e.message);
     return e.code;
   }
@@ -351,7 +368,9 @@ export function lirePlaces({ env = process.env } = {}) {
  */
 function mesureDEssai(env) {
   const v = env[VARIABLE_MESURE_D_ESSAI];
-  if (v === undefined || v === '') return null;
+  if (v === undefined || v === '') {
+    return null;
+  }
   let m;
   try {
     m = JSON.parse(v);
@@ -361,7 +380,9 @@ function mesureDEssai(env) {
   if (
     !m ||
     typeof m !== 'object' ||
-    ['coeurs', 'charge', 'memoireLibre'].some(c => typeof m[c] !== 'number' || !Number.isFinite(m[c]))
+    ['coeurs', 'charge', 'memoireLibre'].some(
+      c => typeof m[c] !== 'number' || !Number.isFinite(m[c])
+    )
   ) {
     throw new Error(
       `${VARIABLE_MESURE_D_ESSAI} vaut « ${v} » : un JSON { coeurs, charge, memoireLibre } de nombres est attendu.`

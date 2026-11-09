@@ -48,7 +48,9 @@ export function interfaces(racine) {
   const found = composants(racine)
     .map(c => path.relative(racine, path.join(c.dir, 'docs', 'INTERFACE.md')))
     .filter(rel => existsSync(path.join(racine, rel)));
-  if (existsSync(path.join(racine, 'docs', 'INTERFACE.md'))) found.push('docs/INTERFACE.md');
+  if (existsSync(path.join(racine, 'docs', 'INTERFACE.md'))) {
+    found.push('docs/INTERFACE.md');
+  }
   return found.sort();
 }
 
@@ -85,7 +87,9 @@ export function lire(rel, contenu) {
     // A code block is skipped whole: a `## …` written inside it is code, not a heading.
     const f = /^\s*(```|~~~)/.exec(l);
     if (cloture) {
-      if (f && f[1] === cloture) cloture = null;
+      if (f && f[1] === cloture) {
+        cloture = null;
+      }
       continue;
     }
     if (f) {
@@ -100,7 +104,9 @@ export function lire(rel, contenu) {
     }
     const m = /^(#{1,3}) (.+)$/.exec(l);
     if (m) {
-      if (m[1].length === 1) continue;
+      if (m[1].length === 1) {
+        continue;
+      }
       fermer();
       courante = { niveau: m[1].length, titre: m[2].trim(), corps: [], generee };
     } else if (courante.generee && (courante.fermee || /^\*\*[^*]+\*\*/.test(l))) {
@@ -108,17 +114,22 @@ export function lire(rel, contenu) {
       // `**Paramètres**`…) are read at its address.
       courante.fermee = true;
     } else if (!l.trim()) {
-      if (courante.generee && courante.corps.length) courante.fermee = true;
+      if (courante.generee && courante.corps.length) {
+        courante.fermee = true;
+      }
     } else if (!l.startsWith('|')) {
-      if (courante.corps.length < 6 || courante.titre === 'Consommateurs')
+      if (courante.corps.length < 6 || courante.titre === 'Consommateurs') {
         courante.corps.push(l.replace(/^[-*]\s+/, ''));
+      }
     }
   }
   fermer();
   const [tete, ...reste] = sections;
   const parties = [];
   for (const s of reste) {
-    if (s.ignoree) continue;
+    if (s.ignoree) {
+      continue;
+    }
     if (s.niveau === 2 && s.titre === 'Consommateurs') {
       parties.push({
         consommateurs: declares(`## Consommateurs\n${s.corps.map(l => `- ${l}`).join('\n')}`),
@@ -161,17 +172,23 @@ const TITRE_PUBLIE = "## Ce que les composants d'avant publient";
 // `{ absent: true }` without the file, null without the rubric.
 function rend(racine, rel) {
   const fichier = path.join(racine, rel);
-  if (!existsSync(fichier)) return { absent: true };
+  if (!existsSync(fichier)) {
+    return { absent: true };
+  }
   let cloture = null;
   for (const l of readFileSync(fichier, 'utf8').split('\n')) {
     const f = /^\s*(```|~~~)/.exec(l);
     if (cloture) {
-      if (f && f[1] === cloture) cloture = null;
+      if (f && f[1] === cloture) {
+        cloture = null;
+      }
     } else if (f) {
       cloture = f[1];
     } else {
       const m = /^## ((?:\d+\.\s*)?Rend)\s*$/.exec(l);
-      if (m) return { titre: m[1] };
+      if (m) {
+        return { titre: m[1] };
+      }
     }
   }
   return null;
@@ -254,9 +271,13 @@ export function publie(racine, composant) {
     }
     const cadre = path.join(path.dirname(f.rel), 'CADRE.md');
     const r = rend(racine, cadre);
-    if (r?.absent) out.push(`Son cadre manque : \`${cadre}\` n’existe pas.`);
-    else if (!r) out.push(`Son cadre n’a pas de rubrique « Rend » (\`${cadre}\`).`);
-    else out.push(`Son cadre rend : \`${cadre}\` § ${r.titre}.`);
+    if (r?.absent) {
+      out.push(`Son cadre manque : \`${cadre}\` n’existe pas.`);
+    } else if (!r) {
+      out.push(`Son cadre n’a pas de rubrique « Rend » (\`${cadre}\`).`);
+    } else {
+      out.push(`Son cadre rend : \`${cadre}\` § ${r.titre}.`);
+    }
   }
   return out.join('\n');
 }
@@ -310,7 +331,9 @@ function commande(racine, args) {
             message: `${SORTIE} n'est pas à jour avec les interfaces : npx grillhouse index-interfaces le régénère.`,
           },
         ];
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
   ecrireSarif({ garde: 'index-interfaces', racine, constats: refus });
   return refus.length ? 1 : 0;
 }

@@ -109,7 +109,9 @@ function baseDeVitest() {
   return {
     name: 'grillhouse:base-de-passe',
     config() {
-      if (process.env[MARQUE]?.startsWith(`${process.pid}:`)) return;
+      if (process.env[MARQUE]?.startsWith(`${process.pid}:`)) {
+        return;
+      }
       const b = ouvrirBase('vitest');
       process.env[MARQUE] = `${process.pid}:${b.base}`;
       Object.assign(process.env, b.env);

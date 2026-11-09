@@ -265,9 +265,7 @@ export function composer(modules) {
     estUnTest: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m => m.estUnTest(chemin, racine)),
     horsDuJour: (chemin, racine) =>
-      Boolean(
-        premiereReponse(modules, racine, chemin, m => m.horsDuJour(chemin, racine))
-      ),
+      Boolean(premiereReponse(modules, racine, chemin, m => m.horsDuJour(chemin, racine))),
     soeurDAvant: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m =>
         typeof m.soeurDAvant === 'function' ? m.soeurDAvant(chemin, racine) : null

@@ -164,12 +164,16 @@ export default {
   // directory, through the graph of the project's packages, the cache reading what did not move;
   // inside the graph's own run (`TURBO_HASH`) the providers are built already, nothing plays.
   construireLesPaquets: noms => {
-    if (process.env.TURBO_HASH) return;
+    if (process.env.TURBO_HASH) {
+      return;
+    }
     for (const nom of noms) {
       const r = spawnSync('npx', ['--no-install', 'turbo', 'run', 'build', `--filter=${nom}`], {
         stdio: 'inherit',
       });
-      if (r.status !== 0) throw new Error(`la construction du fournisseur ${nom} échoue.`);
+      if (r.status !== 0) {
+        throw new Error(`la construction du fournisseur ${nom} échoue.`);
+      }
     }
   },
   // No output of a package of TypeScript is a datum of another package's tests.

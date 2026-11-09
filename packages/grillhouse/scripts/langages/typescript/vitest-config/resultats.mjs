@@ -17,7 +17,9 @@ export const VITEST = 'vitest';
 // it; an empty list without the variable.
 export function rapportJson(env = process.env, dossier = process.cwd()) {
   const resultats = env[RESULTATS];
-  if (!resultats) return [];
+  if (!resultats) {
+    return [];
+  }
   const nom = `${dossier.split(path.sep).filter(Boolean).join('-') || 'racine'}-${process.pid}.json`;
   return [['json', { outputFile: path.join(resultats, VITEST, nom) }]];
 }

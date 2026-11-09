@@ -35,7 +35,9 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
   const mot = j => {
     let texte = '';
     let inconnu = false;
-    while (j < n && /\s/.test(commande[j]) && commande[j] !== '\n') j++;
+    while (j < n && /\s/.test(commande[j]) && commande[j] !== '\n') {
+      j++;
+    }
     while (j < n && !/[\s;&|<>()]/.test(commande[j])) {
       const c = commande[j];
       if (c === "'") {
@@ -45,8 +47,11 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
       } else if (c === '"') {
         let k = j + 1;
         while (k < n && commande[k] !== '"') {
-          if (commande[k] === '\\') k++;
-          else if (commande[k] === '$' || commande[k] === '`') inconnu = true;
+          if (commande[k] === '\\') {
+            k++;
+          } else if (commande[k] === '$' || commande[k] === '`') {
+            inconnu = true;
+          }
           texte += commande[k] ?? '';
           k++;
         }
@@ -55,7 +60,9 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
         texte += commande[j + 1] ?? '';
         j += 2;
       } else {
-        if (c === '$' || c === '`') inconnu = true;
+        if (c === '$' || c === '`') {
+          inconnu = true;
+        }
         texte += c;
         j++;
       }
@@ -64,7 +71,9 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
   };
   const cible = w => {
     const variable = /^\$(\{TMPDIR\}|TMPDIR)(\/.*)?$/.exec(w.texte);
-    if (variable) return { cible: path.join(tmp, variable[2] ?? ''), brute: w.texte };
+    if (variable) {
+      return { cible: path.join(tmp, variable[2] ?? ''), brute: w.texte };
+    }
     return { cible: w.inconnu ? null : w.texte, brute: w.texte };
   };
   while (i < n) {
@@ -77,7 +86,9 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
           const e = commande.indexOf('\n', j);
           const ligne = commande.slice(j, e < 0 ? n : e);
           j = e < 0 ? n : e + 1;
-          if (ligne.replace(/^\t+/, '') === fin) break;
+          if (ligne.replace(/^\t+/, '') === fin) {
+            break;
+          }
         }
       }
       documents = [];
@@ -91,7 +102,9 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
     }
     if (c === '"') {
       let k = i + 1;
-      while (k < n && commande[k] !== '"') k += commande[k] === '\\' ? 2 : 1;
+      while (k < n && commande[k] !== '"') {
+        k += commande[k] === '\\' ? 2 : 1;
+      }
       i = k + 1;
       continue;
     }
@@ -101,26 +114,34 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
     }
     if (c === '<' && commande[i + 1] === '<' && commande[i + 2] !== '<') {
       const w = mot(i + (commande[i + 2] === '-' ? 3 : 2));
-      if (w.texte) documents.push(w.texte);
+      if (w.texte) {
+        documents.push(w.texte);
+      }
       i = w.fin;
       continue;
     }
     if (c === '>') {
       let j = i + 1;
-      if (commande[j] === '>' || commande[j] === '|') j++;
+      if (commande[j] === '>' || commande[j] === '|') {
+        j++;
+      }
       // A duplication of a descriptor, `>&2`, writes no file.
       if (commande[j] === '&') {
         i = j + 1;
         continue;
       }
       const w = mot(j);
-      if (w.texte) out.push(cible(w));
+      if (w.texte) {
+        out.push(cible(w));
+      }
       i = w.fin;
       continue;
     }
     if (c === '&' && commande[i + 1] === '>') {
       const w = mot(i + (commande[i + 2] === '>' ? 3 : 2));
-      if (w.texte) out.push(cible(w));
+      if (w.texte) {
+        out.push(cible(w));
+      }
       i = w.fin;
       continue;
     }
@@ -131,8 +152,12 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
         let j = w.fin;
         for (;;) {
           const a = mot(j);
-          if (!a.texte) break;
-          if (!a.texte.startsWith('-')) out.push(cible(a));
+          if (!a.texte) {
+            break;
+          }
+          if (!a.texte.startsWith('-')) {
+            out.push(cible(a));
+          }
           j = a.fin;
         }
         i = j;
@@ -148,7 +173,9 @@ function ecrituresDuShell(commande, tmp = tmpdir()) {
 
 // The reason the command of this hook input is refused, or null when it passes.
 export function refusDeCommande(input, { tmp = tmpdir() } = {}) {
-  if (input?.tool_name !== 'Bash') return null;
+  if (input?.tool_name !== 'Bash') {
+    return null;
+  }
   const commande = String(input.tool_input?.command ?? '');
   const cwd = input.cwd ?? process.cwd();
   const interieur = f => {
@@ -156,12 +183,18 @@ export function refusDeCommande(input, { tmp = tmpdir() } = {}) {
     return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
   };
   const enTrop = ecrituresDuShell(commande, tmp).filter(({ cible }) => {
-    if (cible === null) return true;
-    if (PERIPHERIQUES.test(cible)) return false;
+    if (cible === null) {
+      return true;
+    }
+    if (PERIPHERIQUES.test(cible)) {
+      return false;
+    }
     const absolu = path.resolve(cwd, cible);
     return !interieur(absolu);
   });
-  if (!enTrop.length) return null;
+  if (!enTrop.length) {
+    return null;
+  }
   return `Le shell n'écrit pas les fichiers du dépôt (${enTrop.map(e => e.brute).join(', ')}) : un fichier s'écrit par l'outil Write ou Edit, que le verrou de ton rôle juge ; un fichier temporaire va dans ${tmp}.`;
 }
 

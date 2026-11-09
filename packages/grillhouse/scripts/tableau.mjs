@@ -748,7 +748,9 @@ export function assembler({
   // The circuits of the open tickets, and the running ones of the closed tickets (the queue closes
   // a ticket before it reads the CI); a ticket whose circuit runs is in progress.
   const parCircuit = new Map(
-    circuits.filter(c => ouvert(c.ticket) || (c.vivant && parId.has(c.ticket))).map(c => [c.ticket, c]),
+    circuits
+      .filter(c => ouvert(c.ticket) || (c.vivant && parId.has(c.ticket)))
+      .map(c => [c.ticket, c])
   );
   const actifs = new Set([
     ...enCoursMesures.map(v => v.ticket).filter(Boolean),
@@ -997,8 +999,7 @@ export function assembler({
   const debutJour = jour;
   const faitsDuJour = tous
     .filter(
-      t =>
-        travail(t) && !actifs.has(t.id) && t.closed_at && Date.parse(t.closed_at) >= debutJour,
+      t => travail(t) && !actifs.has(t.id) && t.closed_at && Date.parse(t.closed_at) >= debutJour
     )
     .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))
     .map(t => ({

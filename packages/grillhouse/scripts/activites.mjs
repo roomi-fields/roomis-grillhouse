@@ -1884,9 +1884,7 @@ function rougesDe(ctx, liste, c) {
       continue;
     }
     const p = liste.find(x => x.pkg.name === t.paquet);
-    const lieu = p
-      ? situer(ctx, liste, `${p.dossier}/`)
-      : situer(ctx, liste, null);
+    const lieu = p ? situer(ctx, liste, `${p.dossier}/`) : situer(ctx, liste, null);
     const j = journalDeTache(ctx, t);
     out.push({
       texte:

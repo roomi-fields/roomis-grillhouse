@@ -83,7 +83,9 @@ function ecrire(regle, retrait) {
     .map(l => {
       const ligne = retrait + l;
       const m = /^(\s*(?:"[^"]*": )?)"(.*)"(,?)$/.exec(ligne);
-      if (ligne.length <= LARGEUR || !m) return ligne;
+      if (ligne.length <= LARGEUR || !m) {
+        return ligne;
+      }
       const [, tete, valeur, virgule] = m;
       const pieces = [];
       let reste = valeur;
@@ -91,8 +93,12 @@ function ecrire(regle, retrait) {
       while (reste.length > place) {
         const dans = reste.slice(0, place);
         let coupe = Math.max(dans.lastIndexOf(' '), dans.lastIndexOf('|')) + 1;
-        if (coupe === 0) coupe = place;
-        while (reste[coupe - 1] === '\\') coupe -= 1;
+        if (coupe === 0) {
+          coupe = place;
+        }
+        while (reste[coupe - 1] === '\\') {
+          coupe -= 1;
+        }
         pieces.push(reste.slice(0, coupe));
         reste = reste.slice(coupe);
       }
@@ -108,7 +114,9 @@ function ecrire(regle, retrait) {
 function entreesBin(racine) {
   return composants(racine).flatMap(({ dir }) => {
     const fichier = path.join(dir, 'package.json');
-    if (!existsSync(fichier)) return [];
+    if (!existsSync(fichier)) {
+      return [];
+    }
     const { bin } = JSON.parse(readFileSync(fichier, 'utf8'));
     const cibles = typeof bin === 'string' ? [bin] : Object.values(bin ?? {});
     return cibles
@@ -165,7 +173,9 @@ export function configuration(racine) {
       severity: 'warn',
       from: {
         orphan: true,
-        pathNot: [`${TESTS}|(^|/)index[.][a-z]+$|[.]d[.][mc]?ts$|[.]config[.][a-z]+$`, ...bin].join('|'),
+        pathNot: [`${TESTS}|(^|/)index[.][a-z]+$|[.]d[.][mc]?ts$|[.]config[.][a-z]+$`, ...bin].join(
+          '|'
+        ),
       },
       to: {},
     },
@@ -263,15 +273,23 @@ export function sorties(dir) {
   const hote = { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} };
   const table = new Map();
   for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (!e.isFile() || !/^tsconfig.*[.]json$/.test(e.name)) continue;
+    if (!e.isFile() || !/^tsconfig.*[.]json$/.test(e.name)) {
+      continue;
+    }
     const analyse = ts.getParsedCommandLineOfConfigFile(path.join(dir, e.name), {}, hote);
-    if (!analyse || analyse.options.noEmit) continue;
+    if (!analyse || analyse.options.noEmit) {
+      continue;
+    }
     for (const source of analyse.fileNames.map(f => path.resolve(f))) {
-      if (DECLARATION.test(source) || !existsSync(source)) continue;
+      if (DECLARATION.test(source) || !existsSync(source)) {
+        continue;
+      }
       const emises = ts.getOutputFileNames(analyse, source, ts.sys.useCaseSensitiveFileNames);
       for (const sortie of emises) {
         const chemin = path.resolve(sortie);
-        if (chemin !== source) table.set(chemin, new Set([...(table.get(chemin) ?? []), source]));
+        if (chemin !== source) {
+          table.set(chemin, new Set([...(table.get(chemin) ?? []), source]));
+        }
       }
     }
   }
@@ -281,7 +299,9 @@ export function sorties(dir) {
 // The targets of an `exports` value: the string itself, or the targets of each value of an object
 // (its subpaths and its conditions).
 function cibles(valeur) {
-  if (typeof valeur === 'string') return [valeur];
+  if (typeof valeur === 'string') {
+    return [valeur];
+  }
   return valeur && typeof valeur === 'object' ? Object.values(valeur).flatMap(cibles) : [];
 }
 
@@ -293,13 +313,19 @@ function sourcesDuPaquet(racine, dir) {
   const sources = new Set();
   const refus = [];
   const fichier = path.join(dir, 'package.json');
-  if (!existsSync(fichier)) return { sources, refus };
+  if (!existsSync(fichier)) {
+    return { sources, refus };
+  }
   const entrees = cibles(JSON.parse(readFileSync(fichier, 'utf8')).exports);
-  if (entrees.length === 0) return { sources, refus };
+  if (entrees.length === 0) {
+    return { sources, refus };
+  }
   const emis = sorties(dir);
   for (const cible of entrees) {
     const abs = path.resolve(dir, cible);
-    if (DECLARATION.test(abs) || abs.endsWith('.json')) continue;
+    if (DECLARATION.test(abs) || abs.endsWith('.json')) {
+      continue;
+    }
     const source =
       SOURCE_TS.test(abs) || (SOURCE_JS.test(abs) && !emis.has(abs) && existsSync(abs));
     const trouvees = source ? [abs].filter(f => existsSync(f)) : [...(emis.get(abs) ?? [])];
@@ -309,7 +335,9 @@ function sourcesDuPaquet(racine, dir) {
           'ni fichier source, ni configuration TypeScript du paquet qui la produise.'
       );
     }
-    for (const f of trouvees) sources.add(f);
+    for (const f of trouvees) {
+      sources.add(f);
+    }
   }
   return { sources, refus };
 }
@@ -321,7 +349,9 @@ export function publiees(racine) {
   const refus = [];
   for (const { dir } of composants(racine)) {
     const trouve = sourcesDuPaquet(racine, dir);
-    for (const f of trouve.sources) sources.add(posix(path.relative(racine, f)));
+    for (const f of trouve.sources) {
+      sources.add(posix(path.relative(racine, f)));
+    }
     refus.push(...trouve.refus);
   }
   return { sources, refus };
@@ -367,11 +397,15 @@ function aJuger(graphe, sources) {
   const pile = [...sources];
   while (pile.length) {
     const f = pile.pop();
-    if (atteints.has(f)) continue;
+    if (atteints.has(f)) {
+      continue;
+    }
     atteints.add(f);
     juges.add(f);
     for (const d of modules.get(f)?.dependencies ?? []) {
-      if (d.couldNotResolve || d.coreModule || /(^|\/)node_modules\//.test(d.resolved)) continue;
+      if (d.couldNotResolve || d.coreModule || /(^|\/)node_modules\//.test(d.resolved)) {
+        continue;
+      }
       pile.push(d.resolved);
     }
   }
@@ -420,21 +454,27 @@ function frontieres(racine, args) {
     return 1;
   }
   const racines = RACINES.filter(r => existsSync(path.join(racine, r)));
-  if (racines.length === 0) return 0;
+  if (racines.length === 0) {
+    return 0;
+  }
   const environnement = { ...process.env };
   delete environnement[JUGES];
   let dossier = null;
   try {
     if (sources.size > 0) {
       const graphe = depcruise(racine, racines, 'json', environnement);
-      if (!graphe.stdout) return graphe.status || 1;
+      if (!graphe.stdout) {
+        return graphe.status || 1;
+      }
       dossier = mkdtempSync(path.join(tmpdir(), 'frontieres-'));
       const fichier = path.join(dossier, 'juges.txt');
       writeFileSync(fichier, motifDes(aJuger(JSON.parse(graphe.stdout), sources)));
       environnement[JUGES] = fichier;
     }
     const r = depcruise(racine, racines, 'json', environnement);
-    if (!r.stdout) return r.status || 1;
+    if (!r.stdout) {
+      return r.status || 1;
+    }
     const resultat = JSON.parse(r.stdout);
     const { refus, lignes } = trancher(racine, 'frontieres', constats(resultat));
     // The report is dependency-cruiser's own (`err-long`): the result formatted as it is when the
@@ -457,10 +497,14 @@ function frontieres(racine, args) {
         stdio: 'inherit',
       });
     }
-    for (const l of lignes) process.stderr.write(`${l}\n`);
+    for (const l of lignes) {
+      process.stderr.write(`${l}\n`);
+    }
     return refus.length ? 1 : 0;
   } finally {
-    if (dossier) rmSync(dossier, { recursive: true, force: true });
+    if (dossier) {
+      rmSync(dossier, { recursive: true, force: true });
+    }
   }
 }
 

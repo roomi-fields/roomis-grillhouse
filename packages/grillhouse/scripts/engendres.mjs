@@ -54,7 +54,9 @@ const motifs = v => Array.isArray(v) && v.every(m => typeof m === 'string' && m 
  */
 export function lireEngendres(pkg) {
   const e = pkg?.grillhouse?.engendres;
-  if (e === undefined || e === null) return { engendres: [], fautes: [] };
+  if (e === undefined || e === null) {
+    return { engendres: [], fautes: [] };
+  }
   if (typeof e !== 'object' || Array.isArray(e)) {
     return {
       engendres: [],
@@ -112,9 +114,13 @@ export function lireEngendres(pkg) {
  */
 export function engendresDe(dir) {
   const f = path.join(arbrePrincipal(dir), 'package.json');
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const { engendres, fautes } = lireEngendres(JSON.parse(readFileSync(f, 'utf8')));
-  if (fautes.length) throw new Error(fautes.join('\n'));
+  if (fautes.length) {
+    throw new Error(fautes.join('\n'));
+  }
   return engendres;
 }
 
@@ -143,7 +149,9 @@ export function regenerer({ refs, lancer, dansCopie, ecrire = s => process.stdou
     return r.status === 0 ? r.stdout.split('\0').filter(Boolean) : null;
   };
   const avant = etat();
-  if (avant === null) return "L'état de l'arbre ne se lit pas.";
+  if (avant === null) {
+    return "L'état de l'arbre ne se lit pas.";
+  }
   for (const r of refs) {
     const x = lancer(r.commande);
     const sortie = `${x.stdout ?? ''}${x.stderr ?? ''}`;
@@ -156,7 +164,9 @@ export function regenerer({ refs, lancer, dansCopie, ecrire = s => process.stdou
     ecrire(sortie);
   }
   const apres = etat();
-  if (apres === null) return "L'état de l'arbre ne se lit pas.";
+  if (apres === null) {
+    return "L'état de l'arbre ne se lit pas.";
+  }
   const deja = new Set(avant);
   const ecrits = apres.filter(l => !deja.has(l)).map(l => l.slice(3));
   const horsDeclaration = ecrits.filter(f => !refs.some(r => couvertPar(r.fichiers, f)));

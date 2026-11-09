@@ -62,7 +62,11 @@ export function verifier(racine) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const { refus, lignes } = trancher(racine, GARDE, verifier(racine));
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   process.exitCode = refus.length ? 1 : 0;
 }

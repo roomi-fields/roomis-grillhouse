@@ -70,7 +70,9 @@ function racineDe(file) {
   let dir = path.dirname(file);
   while (!existsSync(dir)) {
     const parent = path.dirname(dir);
-    if (parent === dir) return null;
+    if (parent === dir) {
+      return null;
+    }
     dir = parent;
   }
   try {
@@ -91,20 +93,34 @@ const TESTWRITER = 'testwriter';
 // the shared test material and, for the testwriter, out of the lock files of the versions.
 export function horsDuPlan(input, { tmp = tmpdir(), env = process.env, role = null } = {}) {
   const plan = paquetsDeLEnveloppe(env);
-  if (!plan || !WRITE_TOOLS.has(input.tool_name)) return null;
+  if (!plan || !WRITE_TOOLS.has(input.tool_name)) {
+    return null;
+  }
   const raw = input.tool_input?.file_path ?? input.tool_input?.notebook_path;
-  if (!raw) return null;
+  if (!raw) {
+    return null;
+  }
   const file = path.resolve(input.cwd ?? process.cwd(), raw);
-  if (isScratch(file, tmp)) return null;
+  if (isScratch(file, tmp)) {
+    return null;
+  }
   const copie = racineDe(file);
-  if (!copie) return null;
+  if (!copie) {
+    return null;
+  }
   const langage = langageDe(copie);
   const liste = paquetsDuLangage(langage, copie);
   const ecrits = ecritsDuPlan(plan, liste);
   const rel = path.relative(copie, file);
-  if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) return null;
-  if (langage.estUnTest(file, copie)?.matiere) return null;
-  if (role === TESTWRITER && langage.manifestes.verrous.includes(rel)) return null;
+  if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) {
+    return null;
+  }
+  if (langage.estUnTest(file, copie)?.matiere) {
+    return null;
+  }
+  if (role === TESTWRITER && langage.manifestes.verrous.includes(rel)) {
+    return null;
+  }
   const tenant = paquetQuiTient(rel, liste);
   const paquet = tenant === '.' ? 'la racine du dépôt' : tenant;
   return {
@@ -124,9 +140,15 @@ function texteApres(input, file) {
     e.replace_all
       ? texte.split(e.old_string ?? '').join(e.new_string ?? '')
       : texte.replace(e.old_string ?? '', () => e.new_string ?? '');
-  if (input.tool_name === 'Write') return t.content ?? '';
-  if (input.tool_name === 'Edit') return remplacer(lu(file) ?? '', t);
-  if (input.tool_name === 'MultiEdit') return (t.edits ?? []).reduce(remplacer, lu(file) ?? '');
+  if (input.tool_name === 'Write') {
+    return t.content ?? '';
+  }
+  if (input.tool_name === 'Edit') {
+    return remplacer(lu(file) ?? '', t);
+  }
+  if (input.tool_name === 'MultiEdit') {
+    return (t.edits ?? []).reduce(remplacer, lu(file) ?? '');
+  }
   return null;
 }
 
@@ -193,11 +215,15 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
   const testwriter = classe !== null;
 
   if (role === TESTWRITER) {
-    if (testwriter || langage.manifestes.verrous.includes(path.relative(racine, file))) return null;
+    if (testwriter || langage.manifestes.verrous.includes(path.relative(racine, file))) {
+      return null;
+    }
     const apres = texteApres(input, file);
     const hors =
       apres === null ? null : langage.manifestes.horsDesTests(file, racine, lu(file), apres);
-    if (hors?.length === 0) return null;
+    if (hors?.length === 0) {
+      return null;
+    }
     const regle =
       "Le testwriter écrit seulement des fichiers de test, la matière de test partagée et, d'un manifeste ou d'un fichier de code, la part de ses tests";
     return hors
@@ -231,7 +257,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   let reason = null;
   try {
     stop = horsDuPlan(input, { role: process.argv[2] });
-    if (!stop) reason = refusal(process.argv[2], input);
+    if (!stop) {
+      reason = refusal(process.argv[2], input);
+    }
   } catch (e) {
     reason = e.message;
   }

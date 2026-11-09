@@ -66,7 +66,9 @@ export function testsDeNuit(racine) {
   try {
     attendreDeLaPlace();
   } catch (e) {
-    if (e?.name !== 'AttenteDeLaMachine') throw e;
+    if (e?.name !== 'AttenteDeLaMachine') {
+      throw e;
+    }
     process.stdout.write(`${e.message}\n`);
     return e.code;
   }

@@ -83,12 +83,16 @@ function declarationsDe(ts, sf) {
     } else if (ts.isVariableStatement(st)) {
       const decls = st.declarationList.declarations;
       for (const d of decls) {
-        for (const n of noms(d.name)) ajouter(n.text, 'constante', n, decls.length > 1 ? d : st);
+        for (const n of noms(d.name)) {
+          ajouter(n.text, 'constante', n, decls.length > 1 ? d : st);
+        }
       }
     } else if (ts.isExportDeclaration(st)) {
       const clause = st.exportClause;
       if (clause && ts.isNamedExports(clause)) {
-        for (const s of clause.elements) ajouter(s.name.text, 'export', s.name, st);
+        for (const s of clause.elements) {
+          ajouter(s.name.text, 'export', s.name, st);
+        }
       } else if (clause) {
         ajouter(clause.name.text, 'export', clause.name, st);
       } else {
@@ -104,10 +108,14 @@ function declarationsDe(ts, sf) {
 // The declarations of an API report's text <texte>, as declarationsDe gives them, each line that
 // of the report file; an empty Map without a report.
 function declarationsDuRapport(ts, texte) {
-  if (texte === null) return new Map();
+  if (texte === null) {
+    return new Map();
+  }
   const lignes = texte.split('\n');
   const debut = lignes.indexOf(`${CLOTURE}ts`);
-  if (debut < 0) return new Map();
+  if (debut < 0) {
+    return new Map();
+  }
   const fin = lignes.indexOf(CLOTURE, debut + 1);
   const code = lignes.slice(debut + 1, fin < 0 ? undefined : fin).join('\n');
   const sf = ts.createSourceFile('rapport.d.ts', code, ts.ScriptTarget.Latest, true);
@@ -180,7 +188,9 @@ function calculer(copie, avant, apres) {
   for (const { fichier, supprime } of changes) {
     const c = composantDe(fichier);
     const abs = path.resolve(copie, fichier);
-    if (!c || !SOURCE.test(fichier) || estTest(c, abs)) continue;
+    if (!c || !SOURCE.test(fichier) || estTest(c, abs)) {
+      continue;
+    }
     const lu = supprime ? null : lus.get(abs);
     const lisible = supprime
       ? !s.raison && existsSync(path.join(c.dir, 'tsconfig.json'))
@@ -211,11 +221,16 @@ function calculer(copie, avant, apres) {
       rapportApres.has(d.nom) || (d.noeud ? s.publie(c, d.noeud) : abs === s.entree(c));
     for (const d of decApres.values()) {
       const avantLui = decAvant.get(d.nom);
-      if (!avantLui) element(d, 'neuf', exporteApres(d));
-      else if (avantLui.texte !== d.texte) element(d, 'changé', exporteApres(d));
+      if (!avantLui) {
+        element(d, 'neuf', exporteApres(d));
+      } else if (avantLui.texte !== d.texte) {
+        element(d, 'changé', exporteApres(d));
+      }
     }
     for (const d of decAvant.values()) {
-      if (!decApres.has(d.nom)) element(d, 'supprimé', rapportAvant.has(d.nom));
+      if (!decApres.has(d.nom)) {
+        element(d, 'supprimé', rapportAvant.has(d.nom));
+      }
     }
   }
 
@@ -223,7 +238,9 @@ function calculer(copie, avant, apres) {
   const changesEnSet = new Set(changes.map(x => enPosix(x.fichier)));
   for (const c of tous) {
     const { fichier, avant: a, apres: p } = rapportsDe(c);
-    if (!changesEnSet.has(fichier)) continue;
+    if (!changesEnSet.has(fichier)) {
+      continue;
+    }
     const nommes = new Set(elements.filter(e => e.paquet === nomDe(c)).map(e => e.nom));
     const ajouter = (d, statut) =>
       nommes.has(d.nom) ||
@@ -239,10 +256,17 @@ function calculer(copie, avant, apres) {
       });
     for (const d of p.values()) {
       const avantLui = a.get(d.nom);
-      if (!avantLui) ajouter(d, 'neuf');
-      else if (avantLui.texte !== d.texte) ajouter(d, 'changé');
+      if (!avantLui) {
+        ajouter(d, 'neuf');
+      } else if (avantLui.texte !== d.texte) {
+        ajouter(d, 'changé');
+      }
     }
-    for (const d of a.values()) if (!p.has(d.nom)) ajouter(d, 'supprimé');
+    for (const d of a.values()) {
+      if (!p.has(d.nom)) {
+        ajouter(d, 'supprimé');
+      }
+    }
   }
 
   elements.sort(

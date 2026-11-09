@@ -229,7 +229,11 @@ function greffonsDuProjet(racine) {
   const actifs = new Set();
   for (const f of ['settings.json', 'settings.local.json']) {
     const p = lireJson(path.join(racine, '.claude', f))?.enabledPlugins ?? {};
-    for (const [nom, actif] of Object.entries(p)) if (actif) actifs.add(nom);
+    for (const [nom, actif] of Object.entries(p)) {
+      if (actif) {
+        actifs.add(nom);
+      }
+    }
   }
   return [...actifs].sort();
 }
@@ -268,16 +272,24 @@ function lireSaCompetence(role, { racine, copie, home }) {
 function serveursDeLIndex(racine, home) {
   const out = {};
   const projet = lireJson(path.join(racine, '.mcp.json'))?.mcpServers ?? {};
-  for (const n of INDEX) if (projet[n]) out[n] = projet[n];
+  for (const n of INDEX) {
+    if (projet[n]) {
+      out[n] = projet[n];
+    }
+  }
   for (const greffon of greffonsDuProjet(racine)) {
     const dossier = cheminDuGreffon(greffon, [racine], home);
-    if (!dossier) continue;
+    if (!dossier) {
+      continue;
+    }
     const serveurs =
       lireJson(path.join(dossier, '.claude-plugin', 'plugin.json'))?.mcpServers ??
       lireJson(path.join(dossier, '.mcp.json'))?.mcpServers ??
       {};
     for (const n of INDEX) {
-      if (out[n] || !serveurs[n]) continue;
+      if (out[n] || !serveurs[n]) {
+        continue;
+      }
       out[n] = JSON.parse(JSON.stringify(serveurs[n]).replaceAll('${CLAUDE_PLUGIN_ROOT}', dossier));
     }
   }
@@ -288,7 +300,9 @@ function serveursDeLIndex(racine, home) {
 // project's own skills are read) and the main tree <racine>; <home> holds the plugins installed.
 function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
   const r = ROLES[role];
-  if (!r) throw new Error(`rôle sans droits : ${role}`);
+  if (!r) {
+    throw new Error(`rôle sans droits : ${role}`);
+  }
   const deny = [...AUTEUR_FIXE, ...(r.ecritAuTicket === false ? ECRIRE_AU_TICKET : [])];
   if (r.ecrit) {
     // The test tool run directly (charter, « Aucun agent ne lance l'outil de test directement »),

@@ -153,7 +153,9 @@ export class AttenteDeLaMachine extends Error {
 // The lock file of the machine under <env>, beside which its holder and its waits name
 // themselves.
 export function verrouDeMachine(env = process.env) {
-  if (env[VARIABLE_VERROU]) return env[VARIABLE_VERROU];
+  if (env[VARIABLE_VERROU]) {
+    return env[VARIABLE_VERROU];
+  }
   const cache = env.XDG_CACHE_HOME || path.join(env.HOME || homedir(), '.cache');
   return path.join(cache, 'grillhouse', 'mesure-lourde.lock');
 }
@@ -200,7 +202,9 @@ function processus(pid) {
 // (« le processus 12 (dans /d) : node x, depuis 10:04:31 (3 min) »).
 function qui(verrou) {
   const pid = detenteur(verrou);
-  if (pid === null) return 'une autre mesure';
+  if (pid === null) {
+    return 'une autre mesure';
+  }
   let depuis = '';
   try {
     const t = statSync(verrou).mtimeMs;
@@ -295,7 +299,9 @@ function attentesDe(verrou) {
       continue;
     }
     const a = nom.endsWith('.json') ? lireJson(path.join(dossier, nom)) : null;
-    if (a?.pid === pid) out.push(a);
+    if (a?.pid === pid) {
+      out.push(a);
+    }
   }
   return out.sort((a, b) => (a.depuis ?? 0) - (b.depuis ?? 0));
 }
@@ -325,7 +331,9 @@ function nommerLeDetenteur(verrou, id) {
     return () => {};
   }
   return () => {
-    if (lireJson(f)?.marque === marque) rmSync(f, { force: true });
+    if (lireJson(f)?.marque === marque) {
+      rmSync(f, { force: true });
+    }
   };
 }
 
@@ -342,7 +350,9 @@ export function nommerLAvancement({ env = process.env, dossier }) {
   const marque = env[VARIABLE_TENUE];
   const ecrire = d => {
     const n = lireJson(f);
-    if (!marque || n?.marque !== marque) return false;
+    if (!marque || n?.marque !== marque) {
+      return false;
+    }
     try {
       ecrireAtomique(f, { ...n, dossier: d });
       return true;
@@ -376,7 +386,9 @@ export function lireLeVerrou(env = process.env) {
   }));
   const marque = lire(verrou);
   const pid = detenteur(verrou);
-  if (marque === null || pid === null || !vivant(pid)) return { detenteur: null, attentes };
+  if (marque === null || pid === null || !vivant(pid)) {
+    return { detenteur: null, attentes };
+  }
   const n = lireJson(fichierDuDetenteur(verrou));
   if (n?.marque === marque) {
     const { depot, ticket, sorte, depuis, dossier } = n;
@@ -433,7 +445,11 @@ function parent(pid) {
 
 // Whether <pid> is this process or one of its ancestors.
 function ancetre(pid) {
-  for (let p = process.pid; p !== null; p = parent(p)) if (p === pid) return true;
+  for (let p = process.pid; p !== null; p = parent(p)) {
+    if (p === pid) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -468,7 +484,9 @@ function occupants(dossier) {
   } catch {
     return 'illisible';
   }
-  if (noms.length === 0) return 'rien';
+  if (noms.length === 0) {
+    return 'rien';
+  }
   let budget = ENTREES_LUES;
   const taille = racine => {
     let octets = 0;
@@ -484,7 +502,9 @@ function occupants(dossier) {
       octets += e.blocks * 512;
       if (e.isDirectory()) {
         try {
-          for (const n of readdirSync(p)) pile.push(path.join(p, n));
+          for (const n of readdirSync(p)) {
+            pile.push(path.join(p, n));
+          }
         } catch {
           // an unreadable directory counts for itself alone
         }
@@ -545,22 +565,29 @@ function attendreLaPlaceEnNommant(
   for (;;) {
     const l = libre(dossier);
     if (l >= plancher) {
-      if (dit !== null) dire(`✓ place ${disque.ou} après ${duree(Date.now() - debut)}.`);
+      if (dit !== null) {
+        dire(`✓ place ${disque.ou} après ${duree(Date.now() - debut)}.`);
+      }
       return;
     }
     nommer();
     const t = Date.now();
     const etat = () =>
       `${disque.nom} (${dossier}) n'a que ${go(l)} libres, moins des ${go(plancher)} qu'une passe lourde demande (${disque.variable}) ; l'occupent : ${occupe(dossier)}`;
-    if (t - debut >= borneMs)
+    if (t - debut >= borneMs) {
       throw new AttenteDeLaMachine(
         `⏱ attente de place bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}) : ${etat()} ; à repasser (code ${A_REPASSER}).`,
         A_REPASSER
       );
-    if (dit === null) dire(`⏳ ${etat()} ; attente de place, ${duree(borneMs)} au plus.`);
-    else if (t - dit >= rappelMs)
+    }
+    if (dit === null) {
+      dire(`⏳ ${etat()} ; attente de place, ${duree(borneMs)} au plus.`);
+    } else if (t - dit >= rappelMs) {
       dire(`⏳ attente de place depuis ${duree(t - debut)} : ${etat()}.`);
-    if (dit === null || t - dit >= rappelMs) dit = t;
+    }
+    if (dit === null || t - dit >= rappelMs) {
+      dit = t;
+    }
     attendreUnPeu(Math.max(1, Math.min(200, borneMs - (Date.now() - debut))));
   }
 }
@@ -638,28 +665,34 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
   let dit = null;
   for (;;) {
     const pid = detenteur(verrou);
-    if (pid !== null && ancetre(pid))
+    if (pid !== null && ancetre(pid)) {
       throw new AttenteDeLaMachine(
         `✗ blocage : le verrou de la mesure lourde (${verrou}) est tenu par un ancêtre de ce processus (${process.pid}), ${qui(verrou)} ; il attend la fin de ce processus, qui attendrait la sienne. L'environnement a perdu la marque de la prise (${VARIABLE_TENUE}) ; un essai nomme son propre verrou (${VARIABLE_VERROU}).`,
         1
       );
+    }
     const t = Date.now();
-    if (t - debut >= borneMs)
+    if (t - debut >= borneMs) {
       throw new AttenteDeLaMachine(
         `⏱ attente du verrou de la machine bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}), ${RANGS[rang]} : ${attendus(verrou, rang)} ; à repasser (code ${A_REPASSER}).`,
         A_REPASSER
       );
-    if (dit === null)
+    }
+    if (dit === null) {
       dire(
         `⏳ ${RANGS[rang]}, la machine mesure déjà : ${attendus(verrou, rang)} ; attente de son tour, ${duree(borneMs)} au plus.`
       );
-    else if (t - dit >= rappelMs)
+    } else if (t - dit >= rappelMs) {
       dire(
         `⏳ ${RANGS[rang]}, attente du verrou de la machine depuis ${duree(t - debut)} : ${attendus(verrou, rang)}.`
       );
-    if (dit === null || t - dit >= rappelMs) dit = t;
-    if (peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))
+    }
+    if (dit === null || t - dit >= rappelMs) {
+      dit = t;
+    }
+    if (peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false })) {
       return Date.now() - debut;
+    }
     attendreUnPeu(Math.max(1, Math.min(200, borneMs - (Date.now() - debut))));
   }
 }
@@ -699,9 +732,13 @@ export function avecLaMachine(
     sorte,
   } = {}
 ) {
-  if (paquetsDeLEnveloppe(env)) return mesure(env);
+  if (paquetsDeLEnveloppe(env)) {
+    return mesure(env);
+  }
   const verrou = verrouDeMachine(env);
-  if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) return mesure(env);
+  if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) {
+    return mesure(env);
+  }
   attendreDeLaPlace({ env, libre, occupe, dire, borneMs, rappelMs, racine, ticket, sorte });
   const id = identite({ racine, env, ticket, sorte });
   mkdirSync(path.dirname(verrou), { recursive: true });
@@ -713,7 +750,11 @@ export function avecLaMachine(
   let oublier = () => {};
   try {
     oublier = nommerLeDetenteur(verrou, id);
-    const { [VARIABLE_VERIFICATION_SORTE]: _s, [VARIABLE_VERIFICATION_TICKET]: _t, ...enfant } = env;
+    const {
+      [VARIABLE_VERIFICATION_SORTE]: _s,
+      [VARIABLE_VERIFICATION_TICKET]: _t,
+      ...enfant
+    } = env;
     return mesure({ ...enfant, [VARIABLE_TENUE]: lire(verrou) ?? '' });
   } finally {
     oublier();

@@ -217,7 +217,9 @@ export function controlesDuDepot(racine) {
 // The tasks of the controls of the root at <racine> its root turbo.json lacks: [{ cle }].
 function controlesAbsents(racine) {
   const r = confRacine(racine);
-  if (!r) return [];
+  if (!r) {
+    return [];
+  }
   const liste = paquets(racine);
   const prefixe = liste.length ? '//#' : '';
   // Format and lint play per package (Turborepo's advice: each red carries its package, the cache
@@ -240,8 +242,11 @@ function cheminsDuScript(script) {
   const chemins = [];
   for (let i = 1; i < mots.length; i++) {
     const m = mots[i];
-    if (['--cache-location', '--ext', '--config', '--ignore-path', '-c'].includes(m)) i++;
-    else if (!m.startsWith('-') && !['&&', '||', ';', '|'].includes(m)) chemins.push(m);
+    if (['--cache-location', '--ext', '--config', '--ignore-path', '-c'].includes(m)) {
+      i++;
+    } else if (!m.startsWith('-') && !['&&', '||', ';', '|'].includes(m)) {
+      chemins.push(m);
+    }
   }
   return chemins.map(m => m.replace(/^\.\//, ''));
 }
@@ -254,7 +259,9 @@ function controlesDeRacineRefuses(racine) {
     .map(p => p.dossier);
   /** @type {string[]} */
   const refus = [];
-  if (dossiers.length === 0) return refus;
+  if (dossiers.length === 0) {
+    return refus;
+  }
   let scripts;
   try {
     scripts = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts;
@@ -330,7 +337,9 @@ function variablesDeDonnees(racine) {
     }
   };
   lire(path.join(racine, 'package.json'));
-  for (const p of paquets(racine)) lire(path.join(racine, p.dossier, 'package.json'));
+  for (const p of paquets(racine)) {
+    lire(path.join(racine, p.dossier, 'package.json'));
+  }
   return [...new Set(noms)];
 }
 // The prefix of a trace task.
@@ -366,7 +375,9 @@ function confRacine(racine) {
 function tachesRacine(racine) {
   const taches = new Map();
   for (const [nom, t] of Object.entries(confRacine(racine)?.conf.tasks ?? {})) {
-    if (nom.includes('#')) continue;
+    if (nom.includes('#')) {
+      continue;
+    }
     taches.set(nom, {
       dependsOn: Array.isArray(t?.dependsOn) ? t.dependsOn : [],
       inputs: Array.isArray(t?.inputs) ? t.inputs : null,
@@ -384,7 +395,9 @@ function tachesRacine(racine) {
  * @param {{ racine: string, args: string[], env?: Record<string, string | undefined> }} o
  */
 export function planifier(dossier, { racine, args, env = process.env }) {
-  if (!dossier) return;
+  if (!dossier) {
+    return;
+  }
   const r = spawnSync('turbo', ['run', ...args.filter(a => a !== '--summarize'), '--dry=json'], {
     cwd: racine,
     env,
@@ -420,7 +433,9 @@ const recouvre = (a, b) => sous(a, b) || sous(b, a);
 
 // The paths of the submodules the .gitmodules of <racine> declares, sorted; none without one.
 function sousModules(racine) {
-  if (!existsSync(path.join(racine, '.gitmodules'))) return [];
+  if (!existsSync(path.join(racine, '.gitmodules'))) {
+    return [];
+  }
   const r = gitSort(racine, [
     'config',
     '-f',
@@ -467,21 +482,35 @@ function baseTs(base, dir) {
 // last base that sets them, `dir` the directory of the file that writes them), undefined when no
 // file sets them; null when one of them cannot be read.
 function configTs(f, vus = []) {
-  if (vus.includes(f) || !existsSync(f)) return null;
+  if (vus.includes(f) || !existsSync(f)) {
+    return null;
+  }
   const conf = lireJsonc(readFileSync(f, 'utf8'));
-  if (conf === null || typeof conf !== 'object' || Array.isArray(conf)) return null;
+  if (conf === null || typeof conf !== 'object' || Array.isArray(conf)) {
+    return null;
+  }
   const dir = path.dirname(f);
   const lu = { configs: [f], files: undefined, include: undefined };
   for (const base of conf.extends === undefined ? [] : [conf.extends].flat()) {
     const fb = typeof base === 'string' ? baseTs(base, dir) : null;
     const r = fb === null ? null : configTs(fb, [...vus, f]);
-    if (r === null) return null;
+    if (r === null) {
+      return null;
+    }
     lu.configs.push(...r.configs);
-    for (const cle of ['files', 'include']) if (r[cle] !== undefined) lu[cle] = r[cle];
+    for (const cle of ['files', 'include']) {
+      if (r[cle] !== undefined) {
+        lu[cle] = r[cle];
+      }
+    }
   }
   for (const cle of ['files', 'include']) {
-    if (conf[cle] === undefined) continue;
-    if (!Array.isArray(conf[cle])) return null;
+    if (conf[cle] === undefined) {
+      continue;
+    }
+    if (!Array.isArray(conf[cle])) {
+      return null;
+    }
     lu[cle] = conf[cle].map(chemin => ({ chemin: String(chemin), dir }));
   }
   return lu;
@@ -495,7 +524,9 @@ function configTs(f, vus = []) {
 // neighbours most often.
 function luParTsc(abs, projet) {
   const lu = configTs(projet);
-  if (lu === null || (lu.files === undefined && lu.include === undefined)) return null;
+  if (lu === null || (lu.files === undefined && lu.include === undefined)) {
+    return null;
+  }
   const dedans = p => {
     const r = path.relative(abs, p).split(path.sep).join('/');
     return r === '' || r === '..' || r.startsWith('../') || path.isAbsolute(r) ? null : r;
@@ -511,11 +542,15 @@ function luParTsc(abs, projet) {
         ? path.join(path.dirname(projet), chemin.slice(CONFIG_DIR.length))
         : path.resolve(dir, chemin);
       const r = dedans(f);
-      if (r === null) return null;
+      if (r === null) {
+        return null;
+      }
       const { fixe, glob } = partieFixe(r);
       const fichier = cle === 'files' || (existsSync(f) && statSync(f).isFile());
       const d = glob ? fixe : fichier ? path.posix.dirname(r) : r;
-      if (d === '' || d === '.') return null;
+      if (d === '' || d === '.') {
+        return null;
+      }
       dossiers.push(d);
     }
   }
@@ -536,7 +571,9 @@ function luParTsc(abs, projet) {
 function entreesBuild(racine, dossier, pkg, sm) {
   const abs = path.join(racine, dossier);
   const projets = [path.join(abs, TSCONFIG_BUILD)];
-  if (!existsSync(projets[0])) return null;
+  if (!existsSync(projets[0])) {
+    return null;
+  }
   const fichiers = new Set(['package.json']);
   const versProjet = m => {
     const f = path.resolve(abs, m);
@@ -548,9 +585,13 @@ function entreesBuild(racine, dossier, pkg, sm) {
       .split(/\s+/)
       .filter(Boolean)
       .map(m => m.replace(/^['"]|['"]$/g, ''));
-    if (mots.length === 0) continue;
+    if (mots.length === 0) {
+      continue;
+    }
     const tsc = mots[0] === 'npx' ? 1 : 0;
-    if (mots[tsc] !== 'tsc') return null;
+    if (mots[tsc] !== 'tsc') {
+      return null;
+    }
     const options = mots.slice(tsc + 1);
     const p = options.findIndex(m => m === '-p' || m === '--project');
     const b = options.findIndex(m => m === '-b' || m === '--build');
@@ -568,9 +609,15 @@ function entreesBuild(racine, dossier, pkg, sm) {
   const dossiers = new Set();
   for (const projet of new Set(projets)) {
     const lu = luParTsc(abs, projet);
-    if (lu === null) return null;
-    for (const f of lu.fichiers) fichiers.add(f);
-    for (const d of lu.dossiers) dossiers.add(d);
+    if (lu === null) {
+      return null;
+    }
+    for (const f of lu.fichiers) {
+      fichiers.add(f);
+    }
+    for (const d of lu.dossiers) {
+      dossiers.add(d);
+    }
   }
   const lus = [...dossiers];
   return [
@@ -677,7 +724,9 @@ export function attendus(racine) {
   for (const { dossier, pkg, hors: exclu } of liste) {
     const taches = {};
     if (exclu) {
-      for (const [nom] of racineTaches) taches[nom] = { extends: false };
+      for (const [nom] of racineTaches) {
+        taches[nom] = { extends: false };
+      }
     } else {
       taches.build = {
         dependsOn: internes(pkg, EXECUTION, construits).map(n => `${n}#build`),
@@ -698,9 +747,13 @@ export function attendus(racine) {
         .filter(d => !lusParBuild(d))
         .sort();
       const sansDonnees = dedans.map(d => `!${d}/**`);
-      if (langageDuPaquet) taches.build.inputs = [...propres, ...sansDonnees];
-      else if (propres) taches.build.inputs = [...racineBuild, ...propres, ...sansDonnees];
-      else if (dedans.length) taches.build.inputs = [base('build'), ...sansDonnees];
+      if (langageDuPaquet) {
+        taches.build.inputs = [...propres, ...sansDonnees];
+      } else if (propres) {
+        taches.build.inputs = [...racineBuild, ...propres, ...sansDonnees];
+      } else if (dedans.length) {
+        taches.build.inputs = [base('build'), ...sansDonnees];
+      }
       const horsVoisin = TOPOLOGIE.some(c => Object.keys(pkg[c] ?? {}).some(n => hors.has(n)));
       const voisins = internes(pkg, TOPOLOGIE, duCadre);
       // <dependances> with each `^<task>` written out when a neighbour is out of the frame.
@@ -716,7 +769,9 @@ export function attendus(racine) {
           : dependances;
       if (horsVoisin) {
         for (const [nom, { dependsOn }] of racineTaches) {
-          if (nom === 'build' || !dependsOn.some(d => d.startsWith('^'))) continue;
+          if (nom === 'build' || !dependsOn.some(d => d.startsWith('^'))) {
+            continue;
+          }
           taches[nom] = { dependsOn: deplier(dependsOn) };
         }
       }
@@ -753,7 +808,9 @@ export function attendus(racine) {
 // The `dependsOn` each guard task of the root of <racine> must hold: Map<task key, dependsOn>.
 export function gardesAttendues(racine) {
   const liste = paquets(racine);
-  if (liste.length === 0) return new Map(GARDES.map(g => [g, ['build']]));
+  if (liste.length === 0) {
+    return new Map(GARDES.map(g => [g, ['build']]));
+  }
   const builds = liste
     .filter(({ pkg, hors }) => !hors && typeof pkg.scripts?.build === 'string')
     .map(({ pkg }) => `${pkg.name}#build`)
@@ -766,10 +823,14 @@ export function gardesAttendues(racine) {
 // null without a root configuration, or when it is no JSON.
 function gardesEcartees(racine) {
   const f = fichierRacine(racine);
-  if (f === null) return null;
+  if (f === null) {
+    return null;
+  }
   const texte = readFileSync(path.join(racine, f), 'utf8');
   const conf = lireJsonc(texte);
-  if (conf === null) return null;
+  if (conf === null) {
+    return null;
+  }
   const ecarts = [];
   for (const [cle, attendu] of gardesAttendues(racine)) {
     const tache = conf.tasks?.[cle];
@@ -788,7 +849,9 @@ function gardesEcartees(racine) {
 // task absent; null when it holds them, without a root configuration, and when it is no JSON.
 function typageEcarte(racine) {
   const r = confRacine(racine);
-  if (!r) return null;
+  if (!r) {
+    return null;
+  }
   const attendu = attenteDuTypage(racine);
   const tache = r.conf.tasks?.[TYPAGE];
   if (!tache || typeof tache !== 'object') {
@@ -797,7 +860,9 @@ function typageEcarte(racine) {
   }
   const actuel = Array.isArray(tache.dependsOn) ? tache.dependsOn : [];
   const manques = attendu.filter(d => !actuel.includes(d));
-  if (!manques.length) return null;
+  if (!manques.length) {
+    return null;
+  }
   const chemin = ['tasks', TYPAGE, 'dependsOn'];
   return { f: r.f, chemin, valeur: [...actuel, ...manques], manques };
 }
@@ -808,7 +873,9 @@ function typageEcarte(racine) {
 function testsSansVariable(racine) {
   const r = confRacine(racine);
   const tache = r?.conf.tasks?.[TESTS];
-  if (!tache || typeof tache !== 'object') return null;
+  if (!tache || typeof tache !== 'object') {
+    return null;
+  }
   const actuel = Array.isArray(tache.env) ? tache.env : [];
   return actuel.includes(TESTS_CIBLES) ? null : { f: r.f, attendu: [...actuel, TESTS_CIBLES] };
 }
@@ -818,7 +885,9 @@ function testsSansVariable(racine) {
 // configuration, and when it is no JSON.
 function passagesManquants(racine) {
   const r = confRacine(racine);
-  if (!r) return null;
+  if (!r) {
+    return null;
+  }
   const actuel = Array.isArray(r.conf.globalPassThroughEnv) ? r.conf.globalPassThroughEnv : [];
   const manques = [
     ...new Set([...PASSAGES, ...variablesDOutils(racine), ...variablesDeDonnees(racine)]),
@@ -835,23 +904,33 @@ function passagesManquants(racine) {
 function gitsAbsents(racine) {
   const r = confRacine(racine);
   const sm = r === null ? [] : sousModules(racine);
-  if (sm.length === 0) return null;
+  if (sm.length === 0) {
+    return null;
+  }
   const listes = [];
   const examiner = (chemin, entrees, prefixe, ou) => {
-    if (!Array.isArray(entrees)) return;
+    if (!Array.isArray(entrees)) {
+      return;
+    }
     const attendu = entrees.map(String);
     const manques = [];
     for (const e of entrees.map(String)) {
-      if (e.startsWith('!') || !e.startsWith(prefixe)) continue;
+      if (e.startsWith('!') || !e.startsWith(prefixe)) {
+        continue;
+      }
       const { fixe, glob } = partieFixe(e.slice(prefixe.length));
       for (const m of sm) {
         const ligne = `!${prefixe}${m}/.git`;
-        if (!glob || !(fixe === '' || sous(m, fixe)) || attendu.includes(ligne)) continue;
+        if (!glob || !(fixe === '' || sous(m, fixe)) || attendu.includes(ligne)) {
+          continue;
+        }
         attendu.splice(attendu.indexOf(e) + 1, 0, ligne);
         manques.push({ ou, e, m, ligne });
       }
     }
-    if (manques.length) listes.push({ chemin, attendu, manques });
+    if (manques.length) {
+      listes.push({ chemin, attendu, manques });
+    }
   };
   for (const [nom, t] of Object.entries(r.conf.tasks ?? {})) {
     examiner(['tasks', nom, 'inputs'], t?.inputs, '$TURBO_ROOT$/', `l'entrée de \`${nom}\``);
@@ -886,7 +965,9 @@ export function ecrire(racine) {
       abs,
       applyEdits(texte, modify(texte, typage.chemin, typage.valeur, MISE_EN_FORME))
     );
-    if (!ecrits.includes(typage.f)) ecrits.push(typage.f);
+    if (!ecrits.includes(typage.f)) {
+      ecrits.push(typage.f);
+    }
   }
   const controles = controlesAbsents(racine);
   if (controles.length) {
@@ -896,7 +977,9 @@ export function ecrire(racine) {
       texte = applyEdits(texte, modify(texte, ['tasks', cle], { outputs: [] }, MISE_EN_FORME));
     }
     writeFileSync(abs, texte);
-    if (!ecrits.includes(controles[0].f)) ecrits.push(controles[0].f);
+    if (!ecrits.includes(controles[0].f)) {
+      ecrits.push(controles[0].f);
+    }
   }
   const tests = testsSansVariable(racine);
   if (tests) {
@@ -904,7 +987,9 @@ export function ecrire(racine) {
     const texte = readFileSync(abs, 'utf8');
     const chemin = ['tasks', TESTS, 'env'];
     writeFileSync(abs, applyEdits(texte, modify(texte, chemin, tests.attendu, MISE_EN_FORME)));
-    if (!ecrits.includes(tests.f)) ecrits.push(tests.f);
+    if (!ecrits.includes(tests.f)) {
+      ecrits.push(tests.f);
+    }
   }
   const passage = passagesManquants(racine);
   if (passage) {
@@ -912,7 +997,9 @@ export function ecrire(racine) {
     const texte = readFileSync(abs, 'utf8');
     const chemin = ['globalPassThroughEnv'];
     writeFileSync(abs, applyEdits(texte, modify(texte, chemin, passage.attendu, MISE_EN_FORME)));
-    if (!ecrits.includes(passage.f)) ecrits.push(passage.f);
+    if (!ecrits.includes(passage.f)) {
+      ecrits.push(passage.f);
+    }
   }
   const gits = gitsAbsents(racine);
   if (gits) {
@@ -922,11 +1009,15 @@ export function ecrire(racine) {
       texte = applyEdits(texte, modify(texte, chemin, attendu, MISE_EN_FORME));
     }
     writeFileSync(abs, texte);
-    if (!ecrits.includes(gits.f)) ecrits.push(gits.f);
+    if (!ecrits.includes(gits.f)) {
+      ecrits.push(gits.f);
+    }
   }
   for (const [f, t] of attendus(racine)) {
     const abs = path.join(racine, f);
-    if (existsSync(abs) && readFileSync(abs, 'utf8') === t) continue;
+    if (existsSync(abs) && readFileSync(abs, 'utf8') === t) {
+      continue;
+    }
     writeFileSync(abs, t);
     ecrits.push(f);
   }
@@ -936,7 +1027,9 @@ export function ecrire(racine) {
 // Whether <chemin> of <racine> (a directory, or a file, from the root) holds a file of code; what
 // lies under one of <exclus> left out, as `parcourir` walks it.
 function contientCode(racine, chemin, exclus) {
-  if (exclus.some(e => sous(chemin, e))) return false;
+  if (exclus.some(e => sous(chemin, e))) {
+    return false;
+  }
   const rel = p => path.relative(racine, p).split(path.sep).join('/');
   return parcourir(path.join(racine, chemin), p => exclus.some(e => sous(rel(p), e))).some(f =>
     CODE.test(f)
@@ -1006,7 +1099,9 @@ function configsMatiereRefusees(racine) {
     const { type } = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
     for (const ext of ['mjs', 'mts', ...(type === 'module' ? ['js', 'ts'] : [])]) {
       const f = path.relative(racine, path.join(dir, `vitest.config.${ext}`));
-      if (!existsSync(path.join(racine, f))) continue;
+      if (!existsSync(path.join(racine, f))) {
+        continue;
+      }
       refus.push(
         `⛔ ${f} : la configuration de Vitest du paquet de la matière s'écrit en CommonJS, \`vitest.config.cjs\` ; Vite écrit un fichier à côté d'une configuration ESM pour la charger, et la matière est en lecture seule chez tout rôle autre que le testwriter.`
       );
@@ -1027,7 +1122,9 @@ function visePaquet(motif, dossiers) {
 // package directory.
 function racineRefusee(racine) {
   const r = confRacine(racine);
-  if (r === null) return [];
+  if (r === null) {
+    return [];
+  }
   const { f, conf } = r;
   const dossiers = paquets(racine).map(p => p.dossier);
   const refus = [];
@@ -1054,7 +1151,9 @@ function racineRefusee(racine) {
     }
   }
   for (const e of Array.isArray(conf.globalDependencies) ? conf.globalDependencies : []) {
-    if (visePaquet(String(e).replace(/^!/, ''), dossiers)) entree(e, 'la dépendance globale');
+    if (visePaquet(String(e).replace(/^!/, ''), dossiers)) {
+      entree(e, 'la dépendance globale');
+    }
   }
   return refus;
 }
@@ -1140,7 +1239,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         ecrire(racine);
       } else {
         const refus = verifier(racine);
-        for (const l of refus) process.stderr.write(`${l}\n`);
+        for (const l of refus) {
+          process.stderr.write(`${l}\n`);
+        }
         // Each refusal judges the root's configuration: a finding without a file of a component.
         ecrireSarif({
           garde: 'turbo-des-paquets',

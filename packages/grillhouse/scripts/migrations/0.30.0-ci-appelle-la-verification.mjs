@@ -101,10 +101,14 @@ const normaliser = t =>
 /** Replaces the CI of the project by the template's when it is a former one; returns what it did. */
 export function migrer(projet) {
   const f = path.join(projet, CI);
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const actuel = normaliser(readFileSync(f, 'utf8'));
   const neuf = readFileSync(path.join(GABARIT, CI), 'utf8');
-  if (actuel === normaliser(neuf)) return [];
+  if (actuel === normaliser(neuf)) {
+    return [];
+  }
   if (ANCIENNES.some(a => normaliser(a) === actuel)) {
     writeFileSync(f, neuf);
     return [`${CI} : remplacé par celui du gabarit, qui n'appelle que \`npm run verifier\``];

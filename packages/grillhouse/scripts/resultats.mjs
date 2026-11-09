@@ -504,25 +504,35 @@ export function sorteDuPlan(fiche) {
 function erreurs(schema, valeur, ou) {
   const nom = ou || 'la fiche';
   if (schema.type === 'object') {
-    if (!valeur || typeof valeur !== 'object' || Array.isArray(valeur))
+    if (!valeur || typeof valeur !== 'object' || Array.isArray(valeur)) {
       return [`${nom} : un objet`];
+    }
     const out = [];
     for (const k of schema.required ?? []) {
-      if (!(k in valeur)) out.push(`${ou ? `${ou}.` : ''}${k} : manque`);
+      if (!(k in valeur)) {
+        out.push(`${ou ? `${ou}.` : ''}${k} : manque`);
+      }
     }
     for (const [k, v] of Object.entries(valeur)) {
       const sous = schema.properties[k];
       const chemin = `${ou ? `${ou}.` : ''}${k}`;
-      if (!sous) out.push(`${chemin} : hors du schéma`);
-      else out.push(...erreurs(sous, v, chemin));
+      if (!sous) {
+        out.push(`${chemin} : hors du schéma`);
+      } else {
+        out.push(...erreurs(sous, v, chemin));
+      }
     }
     return out;
   }
   if (schema.type === 'array') {
-    if (!Array.isArray(valeur)) return [`${nom} : une liste`];
+    if (!Array.isArray(valeur)) {
+      return [`${nom} : une liste`];
+    }
     return valeur.flatMap((v, i) => erreurs(schema.items, v, `${ou}[${i}]`));
   }
-  if (typeof valeur !== 'string') return [`${nom} : un texte`];
+  if (typeof valeur !== 'string') {
+    return [`${nom} : un texte`];
+  }
   if (schema.enum && !schema.enum.includes(valeur)) {
     return [`${nom} : « ${valeur} » n'est pas l'un de ${schema.enum.join(', ')}`];
   }
@@ -561,13 +571,17 @@ export function conformiteDuLot(fiche, { elements, fichiers }) {
   const ids = new Set(elements.map(e => e.id));
   const hors = new Set(fichiers ?? []);
   const duLot = element => {
-    if (ids.has(element) || hors.has(element)) return true;
+    if (ids.has(element) || hors.has(element)) {
+      return true;
+    }
     const diese = element.lastIndexOf('#');
     return diese > 0 && diese < element.length - 1 && hors.has(element.slice(0, diese));
   };
   const fautes = [];
   const sans = elements.filter(e => !lignes.some(l => l.element === e.id)).map(e => e.id);
-  if (sans.length) fautes.push(`conformite : sans ligne pour ${sans.join(', ')}`);
+  if (sans.length) {
+    fautes.push(`conformite : sans ligne pour ${sans.join(', ')}`);
+  }
   for (const [i, l] of lignes.entries()) {
     if (!duLot(l.element)) {
       fautes.push(`conformite[${i}].element : ${l.element} n'est pas un élément du lot`);
@@ -610,10 +624,14 @@ export function cleDuConstat(titre) {
 // (<titres>), as the author answers in each thread of a review: a FAIT without the answer to one,
 // by its title (a BLOQUÉ or a BESOIN stops the circuit before any review). The fault, or null.
 export function reponsesAuxConstats(fiche, titres) {
-  if (fiche.statut !== 'FAIT') return null;
+  if (fiche.statut !== 'FAIT') {
+    return null;
+  }
   const repondus = new Set((fiche.reponses ?? []).map(r => cleDuConstat(r.titre)));
   const sans = titres.filter(t => !repondus.has(t)).map(t => `« ${t} »`);
-  if (!sans.length) return null;
+  if (!sans.length) {
+    return null;
+  }
   return `reponses : sans réponse ${sans.length > 1 ? 'aux constats' : 'au constat'} ${sans.join(', ')}`;
 }
 
@@ -629,7 +647,9 @@ export function suiviDesConstats(fiche, titres) {
     return `suivi : sans ligne pour ${sans.length > 1 ? 'les constats' : 'le constat'} ${liste(sans)}`;
   }
   const tenus = fiche.verdict === 'ACCEPTÉ' ? titres.filter(t => etats.get(t) !== 'levé') : [];
-  if (!tenus.length) return null;
+  if (!tenus.length) {
+    return null;
+  }
   return `suivi : un ACCEPTÉ tient ${tenus.length > 1 ? 'les constats' : 'le constat'} ${liste(tenus)} non levé${tenus.length > 1 ? 's' : ''}`;
 }
 
@@ -641,10 +661,15 @@ export function conformiteDuTri(fiche, decouvertes) {
   const lignes = (fiche.verdicts ?? []).map(l => l.decouverte);
   const fautes = [];
   const sans = decouvertes.filter(d => !lignes.includes(d));
-  if (sans.length) fautes.push(`verdicts : sans ligne pour ${sans.join(', ')}`);
+  if (sans.length) {
+    fautes.push(`verdicts : sans ligne pour ${sans.join(', ')}`);
+  }
   for (const d of new Set(lignes)) {
-    if (!decouvertes.includes(d)) fautes.push(`verdicts : ${d} n'est pas une découverte du ticket`);
-    else if (lignes.filter(x => x === d).length > 1) fautes.push(`verdicts : ${d} a deux lignes`);
+    if (!decouvertes.includes(d)) {
+      fautes.push(`verdicts : ${d} n'est pas une découverte du ticket`);
+    } else if (lignes.filter(x => x === d).length > 1) {
+      fautes.push(`verdicts : ${d} a deux lignes`);
+    }
   }
   return fautes.length ? fautes.join(' ; ') : null;
 }
@@ -661,7 +686,9 @@ export function conformiteDuTri(fiche, decouvertes) {
 export function lirePiece(texte) {
   const t = String(texte ?? '').trim();
   const ticket = /^ticket\s*,\s*/i.exec(t);
-  if (ticket) return pieceDuTicket(t.slice(ticket[0].length));
+  if (ticket) {
+    return pieceDuTicket(t.slice(ticket[0].length));
+  }
   if (t.startsWith('$ ')) {
     const vrai = t.indexOf('\n');
     const saut = vrai < 0 ? t.indexOf('\\n') : vrai;
@@ -670,15 +697,25 @@ export function lirePiece(texte) {
     return commande && sortie ? { commande, sortie } : null;
   }
   let lieu = t.split(/\s/)[0];
-  while (lieu && '`.,;:)'.includes(lieu.at(-1))) lieu = lieu.slice(0, -1);
-  while (lieu.startsWith('`')) lieu = lieu.slice(1);
+  while (lieu && '`.,;:)'.includes(lieu.at(-1))) {
+    lieu = lieu.slice(0, -1);
+  }
+  while (lieu.startsWith('`')) {
+    lieu = lieu.slice(1);
+  }
   const deux = lieu.lastIndexOf(':');
   const [debut, fin, ...reste] = lieu.slice(deux + 1).split('-');
   const nombre = n => (/^\d+$/.test(n ?? '') && Number(n) >= 1 ? Number(n) : null);
   const ligne = nombre(debut);
-  if (deux < 1 || !ligne || reste.length) return null;
-  if (fin === undefined) return { fichier: lieu.slice(0, deux), ligne };
-  if (!nombre(fin) || nombre(fin) < ligne) return null;
+  if (deux < 1 || !ligne || reste.length) {
+    return null;
+  }
+  if (fin === undefined) {
+    return { fichier: lieu.slice(0, deux), ligne };
+  }
+  if (!nombre(fin) || nombre(fin) < ligne) {
+    return null;
+  }
   return { fichier: lieu.slice(0, deux), ligne, fin: nombre(fin) };
 }
 
@@ -687,8 +724,12 @@ export function lirePiece(texte) {
 // piece cites one criterion: « critère 1 et 7 » is none.
 function pieceDuTicket(reste) {
   const critere = /^critère\s+([1-9]\d*)(?!\d)(?!\s*(?:et|,)\s*\d)(?:$|[\s.,;:])/i.exec(reste);
-  if (critere) return { critere: Number(critere[1]) };
-  if (!reste.startsWith('§')) return null;
+  if (critere) {
+    return { critere: Number(critere[1]) };
+  }
+  if (!reste.startsWith('§')) {
+    return null;
+  }
   const apres = reste.slice(1).trim();
   const cite = /^«\s*([^»]*?)\s*»/.exec(apres);
   const section = (cite ? cite[1] : apres.split(/\s:(?:\s|$)|:$/)[0]).trim();
@@ -712,7 +753,9 @@ function introuvables(f, copie) {
   const racine = path.resolve(copie);
   for (const [ou, p] of piecesDe(f)) {
     const lu = lirePiece(p);
-    if (!lu?.fichier) continue;
+    if (!lu?.fichier) {
+      continue;
+    }
     const abs = path.resolve(racine, lu.fichier);
     const lieu = `${lu.fichier}:${lu.ligne}${lu.fin ? `-${lu.fin}` : ''}`;
     if (!abs.startsWith(`${racine}${path.sep}`) || !existsSync(abs) || !statSync(abs).isFile()) {
@@ -746,7 +789,9 @@ function horsDuTicket(f, description) {
       continue;
     }
     const numero = /^\s*(\d+)[.)]\s/.exec(ligne);
-    if (dedans && numero) criteres.add(Number(numero[1]));
+    if (dedans && numero) {
+      criteres.add(Number(numero[1]));
+    }
   }
   const out = [];
   for (const [ou, p] of piecesDe(f)) {
@@ -776,8 +821,12 @@ function horsDuTicket(f, description) {
 function manques(role, f) {
   const out = [];
   const plein = k => typeof f[k] === 'string' && f[k].trim() !== '';
-  if (f.statut === 'BLOQUÉ' && !plein('raison')) out.push('raison : manque, pour BLOQUÉ');
-  if (f.statut === 'BESOIN' && !plein('question')) out.push('question : manque, pour BESOIN');
+  if (f.statut === 'BLOQUÉ' && !plein('raison')) {
+    out.push('raison : manque, pour BLOQUÉ');
+  }
+  if (f.statut === 'BESOIN' && !plein('question')) {
+    out.push('question : manque, pour BESOIN');
+  }
   if (['BLOQUÉ', 'BESOIN'].includes(f.statut) && !('piece' in f)) {
     out.push(`piece : manque, pour ${f.statut}`);
   }
@@ -829,7 +878,9 @@ function manques(role, f) {
     }
   }
   if (role === 'explorateur') {
-    if (!(f.paquets ?? []).length) out.push('paquets : manque, pour un plan');
+    if (!(f.paquets ?? []).length) {
+      out.push('paquets : manque, pour un plan');
+    }
     for (const [i, r] of (f.reponses ?? []).entries()) {
       if (!/^[1-9]\d*$/.test(r.numero)) {
         out.push(`reponses[${i}].numero : « ${r.numero} » n'est pas le numéro d'une question`);
@@ -838,7 +889,9 @@ function manques(role, f) {
   }
   if (role === 'tri') {
     for (const [i, l] of (f.verdicts ?? []).entries()) {
-      if (!l.texte.trim()) out.push(`verdicts[${i}].texte : manque, pour ${l.verdict}`);
+      if (!l.texte.trim()) {
+        out.push(`verdicts[${i}].texte : manque, pour ${l.verdict}`);
+      }
       if (VERDICTS_PROUVES.includes(l.verdict) && !('piece' in l)) {
         out.push(
           `verdicts[${i}].piece : manque, pour ${l.verdict} : « $ <commande> » rejouée sur main et sa sortie, ou fichier:ligne ; sans elle, le verdict est non-confirmee`
@@ -861,7 +914,9 @@ function manques(role, f) {
 // the description of the ticket, each piece of the ticket names a criterion or a section of it.
 export function lireFiche(role, sortie, { copie, ticket } = {}) {
   const schema = schemaDeFiche(role);
-  if (!schema) return { erreur: `le rôle ${role} n'a pas de fiche` };
+  if (!schema) {
+    return { erreur: `le rôle ${role} n'a pas de fiche` };
+  }
   let resultat;
   try {
     resultat = JSON.parse(String(sortie ?? ''));
@@ -873,16 +928,26 @@ export function lireFiche(role, sortie, { copie, ticket } = {}) {
   }
   const fiche = resultat.structured_output;
   const fautes = erreurs(schema, fiche, '');
-  if (!fautes.length) fautes.push(...manques(role, fiche));
-  if (!fautes.length && copie) fautes.push(...introuvables(fiche, copie));
-  if (!fautes.length && typeof ticket === 'string') fautes.push(...horsDuTicket(fiche, ticket));
-  if (fautes.length) return { erreur: `fiche non conforme : ${fautes.join(' ; ')}` };
+  if (!fautes.length) {
+    fautes.push(...manques(role, fiche));
+  }
+  if (!fautes.length && copie) {
+    fautes.push(...introuvables(fiche, copie));
+  }
+  if (!fautes.length && typeof ticket === 'string') {
+    fautes.push(...horsDuTicket(fiche, ticket));
+  }
+  if (fautes.length) {
+    return { erreur: `fiche non conforme : ${fautes.join(' ; ')}` };
+  }
   return { fiche, seance: resultat.session_id ?? null };
 }
 
 // The directory of the package of <racine> that holds <fichier> (from the root), null for none.
 function paquetDe(racine, fichier) {
-  if (!fichier) return null;
+  if (!fichier) {
+    return null;
+  }
   const p = paquets(racine)
     .filter(({ dossier }) => fichier === dossier || fichier.startsWith(`${dossier}/`))
     .sort((a, b) => b.dossier.length - a.dossier.length)[0];
@@ -932,7 +997,9 @@ let numero = 0;
 // its path, or null without the variable.
 export function ecrireSarif({ garde, constats, racine = process.cwd(), env = process.env }) {
   const dossier = env[RESULTATS];
-  if (!dossier) return null;
+  if (!dossier) {
+    return null;
+  }
   const f = path.join(dossier, SARIF, `${garde}-${process.pid}-${++numero}.sarif`);
   mkdirSync(path.dirname(f), { recursive: true });
   writeFileSync(f, `${JSON.stringify(sarif({ garde, constats, racine }), null, 2)}\n`);
@@ -987,8 +1054,9 @@ export function lireSarif(dossier) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const [option, role] = process.argv.slice(2);
   const schema = option === '--schema' ? schemaDeFiche(role) : null;
-  if (schema) process.stdout.write(`${JSON.stringify(schema)}\n`);
-  else {
+  if (schema) {
+    process.stdout.write(`${JSON.stringify(schema)}\n`);
+  } else {
     process.stderr.write(
       option === '--schema'
         ? `⛔ le rôle ${role} n'a pas de fiche.\n`

@@ -105,7 +105,9 @@ export function ouvrirAvancement({ racine, genre = null, dans = tmpdir(), debut 
  * @param {{ racine: string, taches: { hash: string, cache: boolean }[] }} o
  */
 export function inscrireLePlan(dossier, { racine, taches }) {
-  if (!dossier || !taches.length) return;
+  if (!dossier || !taches.length) {
+    return;
+  }
   const { taches: connues } = lireLesTotaux(racine);
   try {
     for (const t of taches.filter(x => x.cache)) {
@@ -133,11 +135,16 @@ function enregistrements(dossier) {
   const sans = [];
   for (const f of lister(path.join(dossier, TACHES))) {
     const e = lireJson(path.join(dossier, TACHES, f));
-    if (!e || !Number.isFinite(e.faits) || !Number.isFinite(e.prevus)) continue;
-    if (!e.hash) sans.push(e);
-    else {
+    if (!e || !Number.isFinite(e.faits) || !Number.isFinite(e.prevus)) {
+      continue;
+    }
+    if (!e.hash) {
+      sans.push(e);
+    } else {
       const avant = parHash.get(e.hash);
-      if (!avant || (!e.cache && (avant.cache || e.a > avant.a))) parHash.set(e.hash, e);
+      if (!avant || (!e.cache && (avant.cache || e.a > avant.a))) {
+        parHash.set(e.hash, e);
+      }
     }
   }
   return [...parHash.values(), ...sans];
@@ -151,7 +158,9 @@ function enregistrements(dossier) {
  */
 export function lireAvancement(dossier) {
   const passe = lireJson(path.join(dossier, PASSE));
-  if (!passe) return null;
+  if (!passe) {
+    return null;
+  }
   const liste = enregistrements(dossier);
   const faits = liste.reduce((s, e) => s + e.faits, 0);
   const demarres = liste.reduce((s, e) => s + e.prevus, 0);
@@ -274,17 +283,25 @@ export function avecLAvancementDuTravail(travail, { racine, genre, garder = () =
  */
 export function garderLeTotal(dossier) {
   const passe = lireJson(path.join(dossier, PASSE));
-  if (!passe) return;
+  if (!passe) {
+    return;
+  }
   const t = totauxDe(passe.totaux ?? null);
-  if (!t.fichier) return;
+  if (!t.fichier) {
+    return;
+  }
   const liste = enregistrements(dossier);
-  if (passe.genre && liste.length) t.passes[passe.genre] = liste.reduce((s, e) => s + e.prevus, 0);
+  if (passe.genre && liste.length) {
+    t.passes[passe.genre] = liste.reduce((s, e) => s + e.prevus, 0);
+  }
   for (const e of liste.filter(x => x.hash && !x.cache)) {
     delete t.taches[e.hash];
     t.taches[e.hash] = e.prevus;
   }
   const cles = Object.keys(t.taches);
-  for (const c of cles.slice(0, Math.max(0, cles.length - TACHES_GARDEES))) delete t.taches[c];
+  for (const c of cles.slice(0, Math.max(0, cles.length - TACHES_GARDEES))) {
+    delete t.taches[c];
+  }
   try {
     ecrireAtomique(t.fichier, { passes: t.passes, taches: t.taches });
   } catch {

@@ -42,7 +42,9 @@ const inscriptible = c => Boolean(c.fichier && c.regle);
 function compter(constats) {
   const out = new Map();
   for (const c of constats.filter(inscriptible)) {
-    if (!out.has(c.fichier)) out.set(c.fichier, new Map());
+    if (!out.has(c.fichier)) {
+      out.set(c.fichier, new Map());
+    }
     const parRegle = out.get(c.fichier);
     parRegle.set(c.regle, (parRegle.get(c.regle) ?? 0) + 1);
   }
@@ -65,7 +67,9 @@ function section(comptes) {
 // The debt written at <racine>: {} without the file. Throws, naming the file, when it is not JSON.
 export function lire(racine) {
   const f = path.join(racine, FICHIER);
-  if (!existsSync(f)) return {};
+  if (!existsSync(f)) {
+    return {};
+  }
   try {
     return JSON.parse(readFileSync(f, 'utf8'));
   } catch (e) {
@@ -91,8 +95,12 @@ export function elaguer(dette, garde, constats) {
   for (const [fichier, regles] of Object.entries(ancienne)) {
     for (const [regle, { count }] of Object.entries(regles)) {
       const n = Math.min(count, comptes.get(fichier)?.get(regle) ?? 0);
-      if (n === 0) continue;
-      if (!garde2.has(fichier)) garde2.set(fichier, new Map());
+      if (n === 0) {
+        continue;
+      }
+      if (!garde2.has(fichier)) {
+        garde2.set(fichier, new Map());
+      }
       garde2.get(fichier).set(regle, n);
     }
   }
@@ -114,14 +122,18 @@ export function juger(dette, garde, constats) {
   for (const [fichier, regles] of comptes) {
     for (const [regle, trouve] of regles) {
       const inscrit = permis(fichier, regle);
-      if (inscrit > 0 && trouve > inscrit) depasses.push({ fichier, regle, trouve, inscrit });
+      if (inscrit > 0 && trouve > inscrit) {
+        depasses.push({ fichier, regle, trouve, inscrit });
+      }
     }
   }
   const corriges = [];
   for (const [fichier, regles] of Object.entries(inscrite)) {
     for (const [regle, { count }] of Object.entries(regles)) {
       const trouve = comptes.get(fichier)?.get(regle) ?? 0;
-      if (trouve < count) corriges.push({ fichier, regle, trouve, inscrit: count });
+      if (trouve < count) {
+        corriges.push({ fichier, regle, trouve, inscrit: count });
+      }
     }
   }
   return { refus, depasses, corriges, tus: constats.length - refus.length };
@@ -170,17 +182,25 @@ function abaisser(racine, notes) {
   for (const { garde, fichier, regle, trouve } of notes) {
     const parRegle = dette[garde]?.[fichier];
     const cle = parRegle?.[regle];
-    if (!cle || !Number.isInteger(trouve) || trouve >= cle.count) continue;
+    if (!cle || !Number.isInteger(trouve) || trouve >= cle.count) {
+      continue;
+    }
     if (trouve > 0) {
       cle.count = trouve;
       continue;
     }
     delete parRegle[regle];
-    if (!Object.keys(parRegle).length) delete dette[garde][fichier];
-    if (!Object.keys(dette[garde]).length) delete dette[garde];
+    if (!Object.keys(parRegle).length) {
+      delete dette[garde][fichier];
+    }
+    if (!Object.keys(dette[garde]).length) {
+      delete dette[garde];
+    }
   }
   const change = JSON.stringify(dette) !== JSON.stringify(avant);
-  if (change) ecrire(racine, dette);
+  if (change) {
+    ecrire(racine, dette);
+  }
   return change;
 }
 
@@ -217,8 +237,9 @@ function juge(racine, garde, constats, mode) {
       `⚠️  ${garde} : ${c.fichier} · ${c.regle} — ${c.trouve} constat(s) pour ${c.inscrit} inscrit(s) dans ${FICHIER} : npm run grillhouse:dette:elaguer retire ce qui est corrigé.`
     );
   }
-  if (tus > 0)
+  if (tus > 0) {
     lignes.push(`ℹ️  ${garde} : ${tus} constat(s) connu(s), inscrit(s) dans ${FICHIER}.`);
+  }
   return { refus, lignes, corriges };
 }
 

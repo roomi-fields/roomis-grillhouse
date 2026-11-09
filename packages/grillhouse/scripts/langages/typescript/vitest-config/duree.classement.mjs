@@ -21,16 +21,22 @@ const DELAI = /^(Test|Hook) timed out in \d+ms\./;
 
 function* taches(t) {
   yield t;
-  for (const c of t.tasks ?? []) yield* taches(c);
+  for (const c of t.tasks ?? []) {
+    yield* taches(c);
+  }
 }
 const fichierDe = t => {
   let x = t;
-  while (x && !x.filepath) x = x.suite ?? x.file;
+  while (x && !x.filepath) {
+    x = x.suite ?? x.file;
+  }
   return x?.filepath ?? '';
 };
 const nomDe = t => {
   const noms = [];
-  for (let x = t; x && !x.filepath; x = x.suite) noms.unshift(x.name);
+  for (let x = t; x && !x.filepath; x = x.suite) {
+    noms.unshift(x.name);
+  }
   return noms.join(' › ');
 };
 
@@ -43,7 +49,9 @@ export function classer({ files = [], errors = [], debut, fin, codeDeSortie, fic
   for (const f of files) {
     for (const t of taches(f)) {
       const erreurs = t.result?.errors ?? [];
-      if (t.type === 'test' ? t.result?.state !== 'fail' : erreurs.length === 0) continue;
+      if (t.type === 'test' ? t.result?.state !== 'fail' : erreurs.length === 0) {
+        continue;
+      }
       const fichier = fichierDe(t);
       const info = fichiers[fichier];
       const delaiDepasse = erreurs.length > 0 && erreurs.every(e => DELAI.test(e.message ?? ''));

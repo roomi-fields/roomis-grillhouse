@@ -85,7 +85,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build && node scripts/cadre.mjs --empaqueter",
     "postpack": "node scripts/cadre.mjs --nettoyer",
-    "lint": "eslint src tests --ext .ts,.js,.mjs",
+    "lint": "eslint src tests --ext .ts,.js,.mjs && node scripts/lint-des-scripts.mjs ../..",
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.{ts,js,mjs}\"",
     "test:unit": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",

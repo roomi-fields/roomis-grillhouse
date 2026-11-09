@@ -64,9 +64,13 @@ export function attendreLeRepos({
       dire('⏳ pression CPU illisible : la relance part sans attendre, verdict des tests.');
       return true;
     }
-    if (p < SEUIL_PRESSION) return true;
+    if (p < SEUIL_PRESSION) {
+      return true;
+    }
     const t = maintenant();
-    if (t >= limite) return false;
+    if (t >= limite) {
+      return false;
+    }
     if (t - derniere >= ECART_LIGNES_MS) {
       const reste = Math.ceil((limite - t) / 60_000);
       dire(
@@ -85,7 +89,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   } else {
     const dire = l => process.stdout.write(`${l}\n`);
     const repos = attendreLeRepos({ limite: Date.now() + BORNE_ATTENTE_MS, dire });
-    if (!repos) dire(`⏳ pas de repos en ${BORNE_ATTENTE_MS / 60_000} min.`);
+    if (!repos) {
+      dire(`⏳ pas de repos en ${BORNE_ATTENTE_MS / 60_000} min.`);
+    }
     process.exitCode = repos ? 0 : A_REPASSER;
   }
 }

@@ -60,7 +60,6 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHANGEMENTS } from '../../../services-du-noyau.mjs';
 import { testsQuiLancent } from './lances.mjs';
 
 // This directory, the frame's base configuration.
@@ -93,7 +92,9 @@ const sous = (f, dir) => {
 export function lireChangements(chemin) {
   const c = lireJson(chemin);
   const liste = l => Array.isArray(l) && l.every(x => typeof x === 'string');
-  if (!c || typeof c.racine !== 'string' || !liste(c.fichiers) || !liste(c.supprimes)) return null;
+  if (!c || typeof c.racine !== 'string' || !liste(c.fichiers) || !liste(c.supprimes)) {
+    return null;
+  }
   return c;
 }
 
@@ -104,7 +105,9 @@ const DU_HAUT = '$TURBO_ROOT$/';
 // present): the patterns, an empty list when it names none or does not read.
 function entreesDuBuild(dir, noms) {
   const f = noms.map(n => path.join(dir, n)).find(n => existsSync(n));
-  if (!f) return [];
+  if (!f) {
+    return [];
+  }
   try {
     const { parse } = createRequire(import.meta.url)('jsonc-parser');
     const inputs = parse(readFileSync(f, 'utf8'), [], { allowTrailingComma: true })?.tasks?.build
@@ -119,7 +122,9 @@ function entreesDuBuild(dir, noms) {
 // absolute path <a>, which lies in it (6 above).
 function construit(racine, d, a) {
   const r = path.relative(d, a);
-  if (TEST.test(r)) return false;
+  if (TEST.test(r)) {
+    return false;
+  }
   const motifs = entreesDuBuild(d, ['turbo.json']).flatMap(m =>
     m === '$TURBO_EXTENDS$' ? entreesDuBuild(racine, ['turbo.json', 'turbo.jsonc']) : [m]
   );
@@ -131,9 +136,13 @@ function construit(racine, d, a) {
     (m.startsWith(DU_HAUT)
       ? couvre(path.relative(racine, a), m.slice(DU_HAUT.length))
       : couvre(r, m));
-  if (motifs.some(m => m.startsWith('!') && lu(m.slice(1)))) return false;
+  if (motifs.some(m => m.startsWith('!') && lu(m.slice(1)))) {
+    return false;
+  }
   const positifs = motifs.filter(m => !m.startsWith('!'));
-  if (positifs.length) return positifs.some(lu);
+  if (positifs.length) {
+    return positifs.some(lu);
+  }
   return MODULE.test(r) && r.split(path.sep)[0] !== 'docs';
 }
 
@@ -149,7 +158,9 @@ function dependances(racine, dossier) {
       for (let ici = d; sous(ici, racine); ici = path.dirname(ici)) {
         const lien = path.join(ici, 'node_modules', nom);
         if (!existsSync(lien)) {
-          if (ici === racine) break;
+          if (ici === racine) {
+            break;
+          }
           continue;
         }
         let reel;
@@ -209,7 +220,9 @@ function paquetEntier(ch, dossier, test = {}) {
                 : sous(a, dossier) && !MODULE.test(f)
                   ? 'un fichier qu’aucun module n’importe, qu’un test lit sans l’importer'
                   : null;
-    if (raison) return { raison, fichier: f };
+    if (raison) {
+      return { raison, fichier: f };
+    }
   }
   return null;
 }

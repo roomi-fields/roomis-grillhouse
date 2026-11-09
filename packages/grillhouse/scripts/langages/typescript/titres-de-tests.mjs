@@ -88,8 +88,11 @@ function litteral(texte, debut) {
     } else if (guillemet === '`' && texte[i] === '$' && texte[i + 1] === '{') {
       let profondeur = 0;
       do {
-        if (texte[i] === '{') profondeur++;
-        else if (texte[i] === '}') profondeur--;
+        if (texte[i] === '{') {
+          profondeur++;
+        } else if (texte[i] === '}') {
+          profondeur--;
+        }
         i++;
       } while (i < texte.length && profondeur > 0);
       titre += ' ';
@@ -153,7 +156,11 @@ function ressemblance(a, b) {
   const la = new Set(a.split('\n'));
   const lb = new Set(b.split('\n'));
   let commun = 0;
-  for (const l of la) if (lb.has(l)) commun++;
+  for (const l of la) {
+    if (lb.has(l)) {
+      commun++;
+    }
+  }
   return commun / (la.size + lb.size - commun || 1);
 }
 
@@ -165,7 +172,9 @@ function ressemblance(a, b) {
 export function renommesDuLot(racine) {
   const supprimes = git(racine, ['diff', 'HEAD', '--name-only', '--diff-filter=D', '-z']);
   const connus = git(racine, ['ls-tree', '-r', '--name-only', 'HEAD', '-z']);
-  if (supprimes.status !== 0 || connus.status !== 0) return {};
+  if (supprimes.status !== 0 || connus.status !== 0) {
+    return {};
+  }
   const anciens = supprimes.stdout.split('\0').filter(f => f && TEST.test(f));
   const avant = new Set(connus.stdout.split('\0'));
   const nouveaux = testsDuDepot(racine).filter(f => !avant.has(f));
@@ -183,8 +192,10 @@ export function renommesDuLot(racine) {
     }
     return anciens.map(a => ({ n, a, s: ressemblance(texte, textesAnciens.get(a)) }));
   });
-  for (const { n, a, s } of paires.filter(p => p.s >= 0.5).sort((x, y) => y.s - x.s)) {
-    if (out[n] || pris.has(a)) continue;
+  for (const { n, a } of paires.filter(p => p.s >= 0.5).sort((x, y) => y.s - x.s)) {
+    if (out[n] || pris.has(a)) {
+      continue;
+    }
     out[n] = a;
     pris.add(a);
   }
@@ -201,7 +212,9 @@ export function jugerLesTitres(dette, constats, renommes = {}) {
   const inscrite = dette?.[GARDE] ?? {};
   const permis = f => inscrite[f]?.[REGLE]?.count ?? 0;
   const comptes = new Map();
-  for (const c of constats) comptes.set(c.fichier, (comptes.get(c.fichier) ?? 0) + 1);
+  for (const c of constats) {
+    comptes.set(c.fichier, (comptes.get(c.fichier) ?? 0) + 1);
+  }
   const reprises = new Set(Object.values(renommes));
   const refus = [];
   for (const [fichier, trouve] of comptes) {
@@ -223,7 +236,9 @@ export function jugerLesTitres(dette, constats, renommes = {}) {
     }
   }
   for (const fichier of Object.keys(inscrite)) {
-    if (comptes.has(fichier) || reprises.has(fichier) || !permis(fichier)) continue;
+    if (comptes.has(fichier) || reprises.has(fichier) || !permis(fichier)) {
+      continue;
+    }
     refus.push({
       fichier,
       regle: REGLE,
@@ -256,7 +271,9 @@ function main() {
     const section = dette[GARDE];
     if (section) {
       for (const [nouveau, ancien] of Object.entries(renommes)) {
-        if (section[ancien] && !section[nouveau]) section[nouveau] = section[ancien];
+        if (section[ancien] && !section[nouveau]) {
+          section[nouveau] = section[ancien];
+        }
         delete section[ancien];
       }
       writeFileSync(path.join(racine, FICHIER), `${JSON.stringify(dette, null, 2)}\n`);
@@ -286,12 +303,18 @@ function main() {
       ],
     });
   }
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   process.stderr.write(
     `ℹ️  ${GARDE} : ${constats.length} titre(s) nommant un ticket ou un « critère N » ; les tests Rust et Python sont hors du compte.\n`
   );
   process.exitCode = refus.length ? 1 : 0;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main();
+}

@@ -49,17 +49,25 @@ const declareDuCadre = (n, e) =>
 // Takes the project's marketplace off the settings file <rel> of the project at <projet>.
 function retirerDesReglages(projet, rel) {
   const f = path.join(projet, rel);
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const reglages = JSON.parse(readFileSync(f, 'utf8'));
   const marches = reglages.extraKnownMarketplaces;
-  if (!marches || typeof marches !== 'object') return [];
+  if (!marches || typeof marches !== 'object') {
+    return [];
+  }
   const noms = Object.keys(marches).filter(n => declareDuCadre(n, marches[n]));
-  if (noms.length === 0) return [];
+  if (noms.length === 0) {
+    return [];
+  }
   for (const n of noms) {
     delete marches[n];
     delete reglages.enabledPlugins?.[`grillhouse@${n}`];
   }
-  if (Object.keys(marches).length === 0) delete reglages.extraKnownMarketplaces;
+  if (Object.keys(marches).length === 0) {
+    delete reglages.extraKnownMarketplaces;
+  }
   if (reglages.enabledPlugins && Object.keys(reglages.enabledPlugins).length === 0) {
     delete reglages.enabledPlugins;
   }
@@ -74,9 +82,13 @@ export function migrer(projet) {
   const manifeste = path.join(dossier, 'marketplace.json');
   if (existsSync(manifeste) && duCadre(lireJson(manifeste))) {
     rmSync(manifeste);
-    if (readdirSync(dossier).length === 0) rmSync(dossier, { recursive: true });
+    if (readdirSync(dossier).length === 0) {
+      rmSync(dossier, { recursive: true });
+    }
     lignes.push('.claude-plugin/marketplace.json : place de marché du projet retirée');
   }
-  for (const rel of REGLAGES) lignes.push(...retirerDesReglages(projet, rel));
+  for (const rel of REGLAGES) {
+    lignes.push(...retirerDesReglages(projet, rel));
+  }
   return lignes;
 }

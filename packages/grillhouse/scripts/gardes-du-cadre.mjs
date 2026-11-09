@@ -59,7 +59,9 @@ export function jouerLesGardes({
   for (const garde of gardes) {
     const avant = env[RESULTATS] ? nombre() : 0;
     const r = spawnSync(process.execPath, garde, { cwd: racine, env, stdio: 'inherit' });
-    if (r.status === 0) continue;
+    if (r.status === 0) {
+      continue;
+    }
     const code = `code ${r.status ?? r.signal}`;
     rouges.push(`${libelle(garde)} (${code})`);
     if (env[RESULTATS] && nombre() === avant) {
@@ -71,8 +73,12 @@ export function jouerLesGardes({
       });
     }
   }
-  if (rouges.length === 0) return 0;
-  for (const r of rouges) dire(`⛔ garde rouge : ${r}`);
+  if (rouges.length === 0) {
+    return 0;
+  }
+  for (const r of rouges) {
+    dire(`⛔ garde rouge : ${r}`);
+  }
   return 1;
 }
 

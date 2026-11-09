@@ -17,9 +17,13 @@ export const nom = 'chemins des tests';
 
 /** Inscribes the paths the tests of the project at <projet> name undeclared; what it did. */
 export function migrer(projet) {
-  if (lire(projet)[GARDE]) return [];
+  if (lire(projet)[GARDE]) {
+    return [];
+  }
   const constats = verifier(projet);
-  if (constats.length === 0) return [];
+  if (constats.length === 0) {
+    return [];
+  }
   trancher(projet, GARDE, constats, 'inscrire', {});
   return [
     `${FICHIER} : ${constats.length} chemin(s) qu'un test nomme sans que le cadre le lise, inscrit(s) dans la dette de ${GARDE}, gelée ; un neuf est refusé, et chaque test écrit le chemin entier`,

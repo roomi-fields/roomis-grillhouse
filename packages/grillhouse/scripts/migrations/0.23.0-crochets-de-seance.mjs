@@ -27,9 +27,13 @@ const duCadre = crochet =>
 /** Removes the frame's former session hooks from the project's settings; returns what it did. */
 export function migrer(projet) {
   const f = path.join(projet, '.claude', 'settings.json');
-  if (!existsSync(f)) return [];
+  if (!existsSync(f)) {
+    return [];
+  }
   const reglages = JSON.parse(readFileSync(f, 'utf8'));
-  if (reglages.hooks === null || typeof reglages.hooks !== 'object') return [];
+  if (reglages.hooks === null || typeof reglages.hooks !== 'object') {
+    return [];
+  }
   const retires = [];
   const hooks = {};
   for (const [evenement, groupes] of Object.entries(reglages.hooks)) {
@@ -39,17 +43,30 @@ export function migrer(projet) {
     }
     const restants = groupes
       .map(g => {
-        if (!Array.isArray(g?.hooks)) return g;
+        if (!Array.isArray(g?.hooks)) {
+          return g;
+        }
         const gardes = g.hooks.filter(c => !duCadre(c));
-        for (const c of g.hooks) if (duCadre(c)) retires.push(`${evenement} : ${c.command}`);
+        for (const c of g.hooks) {
+          if (duCadre(c)) {
+            retires.push(`${evenement} : ${c.command}`);
+          }
+        }
         return gardes.length > 0 ? { ...g, hooks: gardes } : null;
       })
       .filter(g => g !== null);
-    if (restants.length > 0) hooks[evenement] = restants;
+    if (restants.length > 0) {
+      hooks[evenement] = restants;
+    }
   }
-  if (retires.length === 0) return [];
-  if (Object.keys(hooks).length > 0) reglages.hooks = hooks;
-  else delete reglages.hooks;
+  if (retires.length === 0) {
+    return [];
+  }
+  if (Object.keys(hooks).length > 0) {
+    reglages.hooks = hooks;
+  } else {
+    delete reglages.hooks;
+  }
   writeFileSync(f, `${JSON.stringify(reglages, null, 2)}\n`);
   return retires.map(r => `.claude/settings.json : crochet retiré, que le greffon porte (${r})`);
 }

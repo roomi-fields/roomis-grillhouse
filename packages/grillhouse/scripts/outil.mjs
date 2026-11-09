@@ -39,7 +39,9 @@ function versionAInstaller(racine, args) {
       refus: `⛔ grillhouse outil : aucun package.json dans ${racine} ; la clé ${CLE} s'écrit au package.json racine du dépôt.\n`,
     };
   }
-  if (args[0] !== undefined) ecrireLaCle(racine, args[0]);
+  if (args[0] !== undefined) {
+    ecrireLaCle(racine, args[0]);
+  }
   try {
     const version = versionDeLOutil(racine);
     return version === null

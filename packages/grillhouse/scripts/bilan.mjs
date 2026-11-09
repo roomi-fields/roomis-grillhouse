@@ -162,11 +162,15 @@ function nuits([d, f], nuit) {
     const a = new Date(jour);
     a.setHours(nuit.debut);
     const b = new Date(jour);
-    if (nuit.fin < nuit.debut) b.setDate(b.getDate() + 1);
+    if (nuit.fin < nuit.debut) {
+      b.setDate(b.getDate() + 1);
+    }
     b.setHours(nuit.fin);
     const x = Math.max(a.getTime(), d);
     const y = Math.min(b.getTime(), f);
-    if (y > x) out.push([x, y]);
+    if (y > x) {
+      out.push([x, y]);
+    }
     jour.setDate(jour.getDate() + 1);
   }
   return out;
@@ -201,7 +205,9 @@ function longueur(l) {
   let total = 0;
   let fin = -Infinity;
   for (const [d, f] of [...l].sort((x, y) => x[0] - y[0])) {
-    if (f <= fin) continue;
+    if (f <= fin) {
+      continue;
+    }
     total += f - Math.max(d, fin);
     fin = f;
   }
@@ -232,9 +238,13 @@ export function bilan({
   const derniere = new Map();
   for (const x of lignes) {
     const l = { ...x, role: roleDeLAgent(x.role) };
-    if (l.ticket !== ticket || (l.role !== CIRCUIT && !ROLES.has(l.role))) continue;
+    if (l.ticket !== ticket || (l.role !== CIRCUIT && !ROLES.has(l.role))) {
+      continue;
+    }
     const avant = derniere.get(l.agent);
-    if (!avant || Date.parse(l.fin) > Date.parse(avant.fin)) derniere.set(l.agent, l);
+    if (!avant || Date.parse(l.fin) > Date.parse(avant.fin)) {
+      derniere.set(l.agent, l);
+    }
   }
   const hors = [...derniere.values()].filter(l => l.role !== CIRCUIT && !lancees.has(l.agent));
   const agents = [...derniere.values()].filter(l => !hors.includes(l));
@@ -281,13 +291,17 @@ export function bilan({
   }
   const etapes = segments.filter(s => s.role === CIRCUIT);
   const preuves = etapes.filter(s => s.etape === 'preuve');
-  for (const p of preuves) p.preuve = p.entree?.resultat ?? null;
+  for (const p of preuves) {
+    p.preuve = p.entree?.resultat ?? null;
+  }
   // A proof and the category it gives the testwriter before it: the lot unchanged since the proof
   // before, or none.
   const avantLa = p => preuves.findLast(x => x.f <= p.d);
   const parLaPreuve = p => {
     const avant = avantLa(p);
-    if (!p.preuve) return null;
+    if (!p.preuve) {
+      return null;
+    }
     if (avant?.preuve && signature(avant.preuve) === signature(p.preuve)) {
       return avant.preuve.ok ? 'rejeu' : 'sansEffet';
     }
@@ -301,13 +315,16 @@ export function bilan({
 
   // The sessions first: the checks read what they delivered.
   for (const s of segments.filter(x => x.role !== CIRCUIT)) {
-    if (s.role === QUESTIONNEUR) s.categorie = 'questionnement';
-    else if (s.role === 'developpeur') {
+    if (s.role === QUESTIONNEUR) {
+      s.categorie = 'questionnement';
+    } else if (s.role === 'developpeur') {
       s.categorie = inchangee(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testwriter') {
       const p = preuves.find(x => x.d >= s.f - JEU);
       s.categorie = p ? (parLaPreuve(p) ?? (p.preuve?.vide ? 'sansEffet' : 'travail')) : 'travail';
-    } else s.categorie = 'travail';
+    } else {
+      s.categorie = 'travail';
+    }
   }
   // A session that changed the lot: the testwriter's or the developpeur's, that delivered.
   const livre = s => AGENTS_DU_LOT.includes(s.role) && s.categorie === 'travail';
@@ -332,7 +349,9 @@ export function bilan({
           : i === 'vert'
             ? 'rejeu'
             : 'sansEffet';
-    } else s.categorie = 'automatique';
+    } else {
+      s.categorie = 'automatique';
+    }
   }
 
   // The waits: from each end of a run on a stop to the answer, the run after; the owner's when he
@@ -344,7 +363,9 @@ export function bilan({
     const f = Math.min(tour, suivant, fin);
     const ecrit = duResponsable.some(t => t > e.t && t <= f);
     const qui = ecrit ? RESPONSABLE : SUPERVISEUR;
-    if (f > e.t) lesAttentes.push({ i: [e.t, f], qui, nuit: nuits([e.t, f], nuit) });
+    if (f > e.t) {
+      lesAttentes.push({ i: [e.t, f], qui, nuit: nuits([e.t, f], nuit) });
+    }
   }
   const attentes = lesAttentes.map(a => a.i);
 
@@ -360,7 +381,9 @@ export function bilan({
   const fenetre = s => [Math.max(s.d, debut), Math.min(s.f, fin)];
   for (const s of segments) {
     const [d, f] = fenetre(s);
-    if (f <= d) continue;
+    if (f <= d) {
+      continue;
+    }
     const ms = f - d - commun([d, f], attentes);
     const c = categories[s.categorie];
     c.ms += ms;
@@ -389,7 +412,9 @@ export function bilan({
     const out = {};
     for (const role of new Set(SUITE.flatMap(e => e.qui))) {
       const n = l.filter(x => x.role === role).length;
-      if (n) out[role] = n;
+      if (n) {
+        out[role] = n;
+      }
     }
     return out;
   };
@@ -400,7 +425,9 @@ export function bilan({
     parEtape[titre] = (parEtape[titre] ?? 0) + 1;
   }
   const arrets = {};
-  for (const e of duCircuit.filter(x => x.arret)) arrets[e.arret] = (arrets[e.arret] ?? 0) + 1;
+  for (const e of duCircuit.filter(x => x.arret)) {
+    arrets[e.arret] = (arrets[e.arret] ?? 0) + 1;
+  }
   // The ends of the questionings of the plan: the questions asked, the plans an answer changed, the
   // questions left open.
   const fins = duCircuit.map(e => e.questionnement).filter(Boolean);
@@ -436,10 +463,13 @@ export function bilan({
   for (const s of etapes) {
     const memes = x => x.etape === s.etape && Boolean(x.finale) === Boolean(s.finale);
     const avant = etapes.findLast(x => memes(x) && x.f <= s.d);
-    if (!avant?.entree || issue(avant.entree) === 'vert') continue;
+    if (!avant?.entree || issue(avant.entree) === 'vert') {
+      continue;
+    }
     const [d, f] = fenetre(s);
-    if (f > d)
+    if (f > d) {
       ajouter(reprise.rejoue, nomDeLEtape(s.etape, s.finale), f - d - commun([d, f], attentes));
+    }
   }
   for (const e of duCircuit.filter(x => x.relue)) {
     ajouter(reprise.relu, nomDeLEtape(e.etape, e.finale), e.relue.ms ?? 0);
@@ -482,8 +512,12 @@ export function bilan({
 
 // Where the circuit of the state <etat> ended, in words.
 function statutDe(etat) {
-  if (etat?.etape === 'integre') return 'intégré';
-  if (etat?.raison) return `arrêt ${etat.raison}${etat.code != null ? ` (${etat.code})` : ''}`;
+  if (etat?.etape === 'integre') {
+    return 'intégré';
+  }
+  if (etat?.raison) {
+    return `arrêt ${etat.raison}${etat.code !== null && etat.code !== undefined ? ` (${etat.code})` : ''}`;
+  }
   return 'en cours';
 }
 
@@ -565,11 +599,15 @@ export function garder(racine, b) {
 export function bilansGardes(racine) {
   const d = dossier(racine);
   const out = {};
-  if (!existsSync(d)) return out;
+  if (!existsSync(d)) {
+    return out;
+  }
   for (const n of readdirSync(d).filter(x => x.endsWith(SUFFIXE))) {
     try {
       const b = JSON.parse(readFileSync(path.join(d, n), 'utf8'));
-      if (b?.ticket) out[b.ticket] = b;
+      if (b?.ticket) {
+        out[b.ticket] = b;
+      }
     } catch {
       // A torn bilan counts nothing.
     }
@@ -586,7 +624,9 @@ export function precedent(racine, ticket) {
   const avant = Object.values(bilansGardes(racine))
     .filter(b => b.ticket !== ticket)
     .sort((x, y) => Date.parse(y.calcule ?? 0) - Date.parse(x.calcule ?? 0))[0];
-  if (!avant) return null;
+  if (!avant) {
+    return null;
+  }
   const b = calculer(racine, avant.ticket, { responsable: false });
   return b.mur > 0 ? b : null;
 }
@@ -611,11 +651,15 @@ export function messagesDuResponsable(texte) {
   const out = [];
   for (const l of texte.split('\n')) {
     // Only a line that names the person can be his message: the others are not parsed.
-    if (!l.includes('"human"')) continue;
+    if (!l.includes('"human"')) {
+      continue;
+    }
     try {
       const e = JSON.parse(l);
       const t = Date.parse(e.timestamp ?? '');
-      if (e.type === 'user' && e.origin?.kind === 'human' && !Number.isNaN(t)) out.push(t);
+      if (e.type === 'user' && e.origin?.kind === 'human' && !Number.isNaN(t)) {
+        out.push(t);
+      }
     } catch {
       // A torn line holds no message.
     }
@@ -636,7 +680,9 @@ function messagesDeLaSeance(seance) {
         .map(d => path.join(projets, d, `${seance}.jsonl`))
         .find(g => existsSync(g))
     : null;
-  if (!f) return [];
+  if (!f) {
+    return [];
+  }
   const out = [];
   const decodeur = new StringDecoder('utf8');
   const tampon = Buffer.alloc(MORCEAU);
@@ -729,7 +775,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     void finSurLeServeur(racine, ticket).then(fin => {
       const b = calculer(racine, ticket, fin);
       process.stdout.write(`${texteDuBilan(b, precedent(racine, ticket))}\n`);
-      if (options.includes('--garder')) garder(racine, b);
+      if (options.includes('--garder')) {
+        garder(racine, b);
+      }
     });
   }
 }

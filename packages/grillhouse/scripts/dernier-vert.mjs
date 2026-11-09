@@ -88,7 +88,9 @@ function brancheDeMain(racine) {
 // Whether a submodule of the repository at <racine> differs from the commit its parent records.
 function sousModuleModifie(racine) {
   const r = git(racine, ['status', '--porcelain=v2', '-z', '--ignore-submodules=none']);
-  if (r.status !== 0) return true;
+  if (r.status !== 0) {
+    return true;
+  }
   // An entry of a changed path: `1 <XY> <sub> …` (or `2` for a rename), <sub> `S<c><m><u>` for a
   // submodule whose commit, tracked files or untracked files changed, `N...` for any other path.
   return r.stdout.split('\0').some(e => /^[12] \S+ S/.test(e));
@@ -99,21 +101,34 @@ function sousModuleModifie(racine) {
 // detached) and main (brancheDeMain); `{ raison }` when no last green can count.
 function etatDuDepot(racine) {
   const haut = sortie(racine, ['rev-parse', '--show-toplevel']);
-  if (!haut) return { raison: 'hors de git' };
+  if (!haut) {
+    return { raison: 'hors de git' };
+  }
   const top = realpathSync(haut);
   const commit = sortie(top, ['rev-parse', '--verify', '-q', 'HEAD^{commit}']);
-  if (!commit) return { raison: 'aucun commit' };
-  if (sousModuleModifie(top)) return { raison: 'un sous-module diffère de son commit' };
+  if (!commit) {
+    return { raison: 'aucun commit' };
+  }
+  if (sousModuleModifie(top)) {
+    return { raison: 'un sous-module diffère de son commit' };
+  }
   const dir = mkdtempSync(path.join(os.tmpdir(), 'grillhouse-vert-'));
   try {
     const index = path.join(dir, 'index');
     const reel = sortie(top, ['rev-parse', '--path-format=absolute', '--git-path', 'index']);
     const env = { ...process.env, GIT_INDEX_FILE: index };
-    if (reel && existsSync(reel)) copyFileSync(reel, index);
-    else if (git(top, ['read-tree', 'HEAD'], env).status !== 0) return { raison: 'git échoue' };
-    if (git(top, ['add', '-A'], env).status !== 0) return { raison: 'git échoue' };
+    if (reel && existsSync(reel)) {
+      copyFileSync(reel, index);
+    } else if (git(top, ['read-tree', 'HEAD'], env).status !== 0) {
+      return { raison: 'git échoue' };
+    }
+    if (git(top, ['add', '-A'], env).status !== 0) {
+      return { raison: 'git échoue' };
+    }
     const arbre = sortie(top, ['write-tree'], env);
-    if (!arbre) return { raison: 'git échoue' };
+    if (!arbre) {
+      return { raison: 'git échoue' };
+    }
     const branche = sortie(top, ['symbolic-ref', '--short', '-q', 'HEAD']);
     return { racine: top, commit, arbre, branche, main: brancheDeMain(top) };
   } finally {
@@ -129,7 +144,9 @@ function lireLeVert(etat) {
   let vert = { raison: 'aucun vert connu' };
   for (const branche of branches) {
     vert = lireLeVertDe(etat, branche);
-    if (!vert.raison) return vert;
+    if (!vert.raison) {
+      return vert;
+    }
   }
   return vert;
 }
@@ -160,7 +177,9 @@ function lireLeVertDe(etat, branche) {
 export function garderLeVert(etat) {
   const branche = etat.branche ?? etat.main;
   const f = branche ? fichierDuVert(etat.racine, branche) : null;
-  if (!f) return;
+  if (!f) {
+    return;
+  }
   mkdirSync(path.dirname(f), { recursive: true });
   writeFileSync(f, `${JSON.stringify({ commit: etat.commit, arbre: etat.arbre }, null, 2)}\n`);
 }
@@ -169,15 +188,21 @@ export function garderLeVert(etat) {
 // `{ fichiers, supprimes, sousModules }`, each path from its top; null when git fails.
 function difference(racine, avant, apres) {
   const r = git(racine, ['diff', '--raw', '--no-renames', '-z', avant, apres]);
-  if (r.status !== 0) return null;
+  if (r.status !== 0) {
+    return null;
+  }
   const champs = r.stdout.split('\0');
   const out = { fichiers: [], supprimes: [], sousModules: [] };
   for (let i = 0; i + 1 < champs.length; i += 2) {
     const [modeAvant, modeApres, , , statut] = champs[i].replace(/^:/, '').split(' ');
     const f = champs[i + 1];
-    if (modeAvant === '160000' || modeApres === '160000') out.sousModules.push(f);
-    else if (statut === 'D') out.supprimes.push(f);
-    else out.fichiers.push(f);
+    if (modeAvant === '160000' || modeApres === '160000') {
+      out.sousModules.push(f);
+    } else if (statut === 'D') {
+      out.supprimes.push(f);
+    } else {
+      out.fichiers.push(f);
+    }
   }
   return out;
 }
@@ -211,18 +236,28 @@ export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
     ligne: `↳ passe complète : ${raison}.`,
     retirer: () => {},
   });
-  if (etat.raison) return complete(etat.raison);
-  if (tout) return complete('demandée');
+  if (etat.raison) {
+    return complete(etat.raison);
+  }
+  if (tout) {
+    return complete('demandée');
+  }
   const vert = lireLeVert(etat);
-  if (vert.raison) return complete(vert.raison);
+  if (vert.raison) {
+    return complete(vert.raison);
+  }
   const ch = difference(etat.racine, vert.arbre, etat.arbre);
-  if (!ch) return complete('git échoue');
+  if (!ch) {
+    return complete('git échoue');
+  }
   if (ch.sousModules.length) {
     return { ...complete(`un sous-module a changé (${ch.sousModules[0]})`), etat: null };
   }
   if (vert.branche !== etat.branche) {
     const suivis = supprimesDuCommit(etat.racine, vert.commit, etat.arbre);
-    if (!suivis) return complete('git échoue');
+    if (!suivis) {
+      return complete('git échoue');
+    }
     ch.supprimes = ch.supprimes.filter(f => suivis.has(f));
   }
   const dir = mkdtempSync(path.join(dans, 'grillhouse-changements-'));

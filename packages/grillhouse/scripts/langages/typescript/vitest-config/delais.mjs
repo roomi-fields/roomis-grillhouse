@@ -19,7 +19,9 @@ export { DELAI_NUIT_MS, DELAIS_MS, libelleDuDelai };
 
 const memoMatieres = new Map();
 const matieresDe = racine => {
-  if (!memoMatieres.has(racine)) memoMatieres.set(racine, lesMatieres(racine));
+  if (!memoMatieres.has(racine)) {
+    memoMatieres.set(racine, lesMatieres(racine));
+  }
   return memoMatieres.get(racine);
 };
 
@@ -43,8 +45,12 @@ export function reglagesDuFichier(fichier, options) {
 /** The root of the repository that holds <fichier>: the first directory above with a `.git`. */
 export function racineDuDepot(fichier) {
   for (let d = path.dirname(fichier); ; d = path.dirname(d)) {
-    if (existsSync(path.join(d, '.git'))) return d;
-    if (path.dirname(d) === d) return process.cwd();
+    if (existsSync(path.join(d, '.git'))) {
+      return d;
+    }
+    if (path.dirname(d) === d) {
+      return process.cwd();
+    }
   }
 }
 

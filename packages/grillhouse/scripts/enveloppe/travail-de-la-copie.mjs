@@ -122,8 +122,12 @@ function appliquer(copie, lot, cles = null, autres = []) {
     lot
   );
   const conflits = enConflit(copie);
-  if (r.status !== 0 && !conflits.length) return { conflits: null };
-  if (conflits.length || !touches.length || !cles) return { conflits };
+  if (r.status !== 0 && !conflits.length) {
+    return { conflits: null };
+  }
+  if (conflits.length || !touches.length || !cles) {
+    return { conflits };
+  }
   const refus = regenerer({
     refs: touches.map(e => ({ ...e, cadre: false })),
     lancer: commande =>
@@ -149,13 +153,17 @@ export function reporter(copie, { base, pointe }) {
     return { ok: false, message: `⛔ Le lot de ${base} à ${pointe} ne se lit pas : ${texte(d)}` };
   }
   const cles = lesCles(copie);
-  if (cles.refus !== undefined) return { ok: false, message: cles.refus };
+  if (cles.refus !== undefined) {
+    return { ok: false, message: cles.refus };
+  }
   const a = appliquer(copie, d.stdout, cles);
   if (a.conflits === null) {
     return { ok: false, message: `⛔ Le lot ne s'applique pas à la copie ${copie}.` };
   }
   const r = git(copie, ['reset', '-q']);
-  if (a.refus) return { ok: false, message: `⛔ ${a.refus}` };
+  if (a.refus) {
+    return { ok: false, message: `⛔ ${a.refus}` };
+  }
   return r.status === 0 ? { ok: true, message: '' } : { ok: false, message: texte(r) };
 }
 
@@ -190,7 +198,9 @@ export function avancer(copie, cible) {
     };
   }
   const cles = lesCles(copie);
-  if (cles.refus !== undefined) return { ok: false, message: cles.refus };
+  if (cles.refus !== undefined) {
+    return { ok: false, message: cles.refus };
+  }
   const tete = String(git(copie, ['rev-parse', 'HEAD']).stdout).trim();
   const vise = git(copie, ['rev-parse', '--verify', `${cible}^{commit}`]);
   if (vise.status !== 0) {
@@ -286,7 +296,9 @@ export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
       stdio,
       maxBuffer: 64 * 1024 * 1024,
     });
-    if (r.status === 0 && r.stderr?.length) writeSync(sortie, r.stderr);
+    if (r.status === 0 && r.stderr?.length) {
+      writeSync(sortie, r.stderr);
+    }
     return r;
   };
   const echec = (r, quoi) => ({
@@ -296,18 +308,26 @@ export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
   });
   if (cible !== null) {
     const g = bash(['garde', copie], ['ignore', sortie, 'pipe']);
-    if (g.status !== 0) return echec(g, 'La garde des sous-modules');
+    if (g.status !== 0) {
+      return echec(g, 'La garde des sous-modules');
+    }
     const a = avancer(copie, cible);
-    if (!a.ok) return { ...a, partages: '' };
+    if (!a.ok) {
+      return { ...a, partages: '' };
+    }
   }
   const p = bash(['pose', copie], ['ignore', 'pipe', 'pipe']);
-  if (p.status !== 0) return echec(p, 'La pose des sous-modules');
+  if (p.status !== 0) {
+    return echec(p, 'La pose des sous-modules');
+  }
   // As `$(…)` reads it: the final newlines dropped.
   const partages = String(p.stdout).replace(/\n+$/, '');
   const monter = (...commande) =>
     bash(['monter', copie, '--partages', partages, ...commande], ['ignore', sortie, 'pipe']);
   const m = monter('true');
-  if (m.status !== 0) return echec(m, 'Le montage des sous-modules partagés');
+  if (m.status !== 0) {
+    return echec(m, 'Le montage des sous-modules partagés');
+  }
   if (existsSync(path.join(copie, 'package.json'))) {
     // As `[ lock -nt installed ]`: the lock newer than the installation, or no installation.
     const verrou = path.join(copie, 'package-lock.json');
@@ -327,7 +347,9 @@ export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
         '--no-fund',
         '--silent'
       );
-      if (i.status !== 0) return echec(i, "L'installation");
+      if (i.status !== 0) {
+        return echec(i, "L'installation");
+      }
     }
   }
   return { ok: true, message: '', partages };
@@ -347,7 +369,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
           };
   // `preparer` prints the list its pose fixes on stdout, its messages on stderr.
   if (geste === 'preparer') {
-    if (r.message) process.stderr.write(`${r.message}\n`);
+    if (r.message) {
+      process.stderr.write(`${r.message}\n`);
+    }
     process.stdout.write(r.partages ?? '');
   } else if (r.message) {
     process.stdout.write(`${r.message}\n`);

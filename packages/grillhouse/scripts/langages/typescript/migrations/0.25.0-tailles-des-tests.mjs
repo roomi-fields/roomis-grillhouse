@@ -21,9 +21,13 @@ export const nom = 'tailles des tests';
 
 /** Inscribes the large tests of the day of the project at <projet> in its debt; what it did. */
 export function migrer(projet) {
-  if (lire(projet)[GARDE]) return [];
+  if (lire(projet)[GARDE]) {
+    return [];
+  }
   const constats = verifier(projet);
-  if (constats.length === 0) return [];
+  if (constats.length === 0) {
+    return [];
+  }
   trancher(projet, GARDE, constats, 'inscrire', {});
   return [
     `${FICHIER} : ${constats.length} grand(s) test(s) de jour inscrit(s) dans la dette de ${GARDE}, gelée ; un grand test de jour neuf est refusé, et chacun passe à la nuit (*.nuit.test.*) ou se réduit`,

@@ -367,7 +367,9 @@ function avecLiens(montages, lien, existe = () => true, contexte = []) {
   const declares = [...montages, ...contexte].filter(m => !m.vide && !m.lien).map(m => m.chemin);
   const decouper = p => p.split('/').filter(Boolean);
   return montages.flatMap(m => {
-    if (m.vide || m.lien || (m.source ?? m.chemin) !== m.chemin) return [m];
+    if (m.vide || m.lien || (m.source ?? m.chemin) !== m.chemin) {
+      return [m];
+    }
     const chaine = [];
     let courant = '/';
     let restants = decouper(m.chemin);
@@ -380,13 +382,19 @@ function avecLiens(montages, lien, existe = () => true, contexte = []) {
         restants = reste;
         continue;
       }
-      if (chaine.length >= 40) return [];
+      if (chaine.length >= 40) {
+        return [];
+      }
       chaine.push({ chemin: suivant, lien: texte });
       restants = [...decouper(path.resolve(courant, texte)), ...reste];
       courant = '/';
     }
-    if (chaine.length === 0) return [m];
-    if (!existe(courant)) return [];
+    if (chaine.length === 0) {
+      return [m];
+    }
+    if (!existe(courant)) {
+      return [];
+    }
     const liens = chaine
       .filter(
         ({ chemin }) =>
@@ -488,7 +496,9 @@ const inside = (child, parent) => {
 // in the copy.
 export function jugerComposant({ depot, composant, paquets = [] }, fs) {
   const propre = path.join(depot, composant);
-  if (fs.existe(propre)) return null;
+  if (fs.existe(propre)) {
+    return null;
+  }
   const nomme =
     paquets.find(p => p.pkg?.name === composant) ??
     paquets.find(p => path.basename(p.dossier) === composant);
@@ -562,7 +572,9 @@ export function plan(
   }
   for (const p of paquets) {
     const refus = jugerComposant({ depot: copie, composant: p, paquets: paquetsDeLaCopie }, fs);
-    if (refus) return { refus };
+    if (refus) {
+      return { refus };
+    }
   }
   const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie);
   const toute = ecrits.includes('.');
@@ -582,9 +594,13 @@ export function plan(
     '/proc',
   ];
   for (const { chemin, source = chemin, ecriture, vide, lien } of montages) {
-    if (vide) args.push('--tmpfs', chemin);
-    else if (lien !== undefined) args.push('--symlink', lien, chemin);
-    else if (fs.existe(source)) args.push(ecriture ? '--bind' : '--ro-bind', source, chemin);
+    if (vide) {
+      args.push('--tmpfs', chemin);
+    } else if (lien !== undefined) {
+      args.push('--symlink', lien, chemin);
+    } else if (fs.existe(source)) {
+      args.push(ecriture ? '--bind' : '--ro-bind', source, chemin);
+    }
   }
   // A declared path (read, store, written output) is mounted at its real path, never at a link,
   // by the one mechanism the session's mounts use (`avecLiens`): the links of its chain that an
@@ -611,10 +627,14 @@ export function plan(
     );
   const reelsLus = reels('lu');
   const reelsEcrits = [...reels('ecrit'), ...reels('sortie').filter(c => !inside(c, copie))];
-  for (const { chemin, lien } of refaits) args.push('--symlink', lien, chemin);
+  for (const { chemin, lien } of refaits) {
+    args.push('--symlink', lien, chemin);
+  }
   // A worktree that an emptied directory covers comes back read-only, before the copy is written.
   for (const t of trees) {
-    if (videes.some(v => inside(t, v)) && fs.existe(t)) args.push('--ro-bind', t, t);
+    if (videes.some(v => inside(t, v)) && fs.existe(t)) {
+      args.push('--ro-bind', t, t);
+    }
   }
   // The copy is mounted after them: an emptied /tmp does not hide it. It is read-only, and the
   // packages of the plan come back in writing below, as a sandbox of Bazel opens only what the
@@ -623,20 +643,34 @@ export function plan(
   // root writes the whole copy. Its .git stays read-only.
   args.push(toute ? '--bind' : '--ro-bind', copie, copie);
   if (!toute) {
-    for (const s of sortiesDe(copie, sorties.propres, fs.lien))
-      if (fs.existe(s)) args.push('--tmpfs', s);
-    for (const s of sortiesDe(copie, sorties.ecrites, fs.lien))
-      if (fs.existe(s)) args.push('--bind', s, s);
+    for (const s of sortiesDe(copie, sorties.propres, fs.lien)) {
+      if (fs.existe(s)) {
+        args.push('--tmpfs', s);
+      }
+    }
+    for (const s of sortiesDe(copie, sorties.ecrites, fs.lien)) {
+      if (fs.existe(s)) {
+        args.push('--bind', s, s);
+      }
+    }
   }
   const gitDeLaCopie = path.join(copie, '.git');
-  if (fs.existe(gitDeLaCopie)) args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
+  if (fs.existe(gitDeLaCopie)) {
+    args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
+  }
   // What the language's tools read (cargo's home) comes back read-only; then the stores inside it
   // or beside it (Turborepo's cache, cargo's registry and locks) are written by the agent's runs,
   // as by every copy's.
-  for (const l of reelsLus) args.push('--ro-bind', l, l);
-  for (const m of reelsEcrits) args.push('--bind', m, m);
+  for (const l of reelsLus) {
+    args.push('--ro-bind', l, l);
+  }
+  for (const m of reelsEcrits) {
+    args.push('--bind', m, m);
+  }
   const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
-  if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
+  if (tickets && fs.existe(tickets)) {
+    args.push('--bind', tickets, tickets);
+  }
   if (!toute) {
     for (const e of ecrits) {
       const d = path.join(copie, e);
@@ -645,19 +679,28 @@ export function plan(
     // The lock files of the versions, which a run of the testwriter's tests brings in line with
     // the dependencies of his tests, are written by him alone.
     for (const v of verrous.map(v => path.join(copie, v))) {
-      if (role === ROLE_MATIERE && fs.existe(v)) args.push('--bind', v, v);
+      if (role === ROLE_MATIERE && fs.existe(v)) {
+        args.push('--bind', v, v);
+      }
     }
   }
   for (const m of matieres.map(m => path.join(copie, m))) {
     args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
     // What a run of its tests writes goes, for a role that does not write it, to an empty
     // directory proper to the session, as Bazel writes a test's logs out of its source.
-    if (role === ROLE_MATIERE) continue;
-    for (const s of sortiesDe(m, sorties.propres, fs.lien))
-      if (fs.existe(s)) args.push('--tmpfs', s);
+    if (role === ROLE_MATIERE) {
+      continue;
+    }
+    for (const s of sortiesDe(m, sorties.propres, fs.lien)) {
+      if (fs.existe(s)) {
+        args.push('--tmpfs', s);
+      }
+    }
   }
   // The emptied directories close behind the mounts: nothing new is written there.
-  for (const { chemin } of montages.filter(m => m.scelle)) args.push('--remount-ro', chemin);
+  for (const { chemin } of montages.filter(m => m.scelle)) {
+    args.push('--remount-ro', chemin);
+  }
   args.push('--chdir', copie);
   return { args };
 }
@@ -680,7 +723,9 @@ function cacheDeLaVersionPubliee(copie) {
   } catch {
     return null;
   }
-  if (version === null) return null;
+  if (version === null) {
+    return null;
+  }
   try {
     installer(version);
   } catch (e) {
@@ -748,7 +793,9 @@ function envelopper(argv) {
   // killed (../mesure/base-de-passe.mjs).
   const temporaire = ouvrirBase('enveloppe');
   const etatJetable = path.join(temporaire.dossier, 'claude.json');
-  if (existsSync(`${claude}.json`)) copyFileSync(`${claude}.json`, etatJetable);
+  if (existsSync(`${claude}.json`)) {
+    copyFileSync(`${claude}.json`, etatJetable);
+  }
   const montages = avecLiens(
     montagesDeLaSeance({
       cacheNpm,
@@ -831,7 +878,9 @@ function envelopper(argv) {
       donnees,
     });
     const r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
-    if (r.error) process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
+    if (r.error) {
+      process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
+    }
     code = r.error ? CODE_REFUS : (r.status ?? 1);
   }
   temporaire.fermer();

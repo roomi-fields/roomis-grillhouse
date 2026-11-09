@@ -32,7 +32,9 @@ export function verifier(racine, env = process.env) {
   const constats = [];
   for (const c of aVerifier(racine, env)) {
     const iface = path.join(c.dir, 'docs', 'INTERFACE.md');
-    if (!existsSync(iface)) continue;
+    if (!existsSync(iface)) {
+      continue;
+    }
     const relIface = path.relative(racine, iface);
     const longs = lire(relIface, readFileSync(iface, 'utf8')).parties.filter(
       p => p.titre && [...p.phrase].length > LONGUEUR_MAX
@@ -51,7 +53,11 @@ export function verifier(racine, env = process.env) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const { refus, lignes } = trancher(racine, 'resumes', verifier(racine));
-  for (const r of refus) process.stderr.write(`⛔ ${r.message}\n`);
-  for (const l of lignes) process.stderr.write(`${l}\n`);
+  for (const r of refus) {
+    process.stderr.write(`⛔ ${r.message}\n`);
+  }
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
   process.exitCode = refus.length ? 1 : 0;
 }
