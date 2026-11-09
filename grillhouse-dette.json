@@ -1,16 +1,4 @@
 {
-  "tailles-des-tests": {
-    "packages/grillhouse/tests/unit/temps-au-repos.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/tests-de-nuit.spec.ts": {
-      "grand-de-jour": {
-        "count": 1
-      }
-    }
-  },
   "titres-de-tests": {
     "mods/grillhouse/tests/grillhouse.test.ts": {
       "titre-nommant-un-ticket": {
@@ -1122,11 +1110,6 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/temps-au-repos.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 8
-      }
-    },
     "packages/grillhouse/tests/unit/temps-de-travail.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 53
@@ -1134,7 +1117,7 @@
     },
     "packages/grillhouse/tests/unit/tests-de-nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 14
+        "count": 12
       }
     },
     "packages/grillhouse/tests/unit/titre-des-tickets.spec.ts": {

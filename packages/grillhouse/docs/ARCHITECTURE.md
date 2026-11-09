@@ -770,8 +770,10 @@ en argument ce qu'il lit au dehors (la lecture de l'historique et les réponses 
 d'un commit par ticket, le git qui pose l'étiquette d'une sortie, les textes des interfaces et les
 lecteurs du ticket de la garde des consommateurs), et ses cas que seul un grand test prouve (bwrap
 réel, une passe réelle de Turborepo et de Vitest, un crochet ou une commande lancés dans un dépôt
-git) se déplacent tels quels en tests de nuit dans `packages/grillhouse-essais`. Ainsi le jour ne
-joue que des tests courts, et la dette des grands ne fait que baisser.
+git) se déplacent tels quels en tests de nuit dans `packages/grillhouse-essais`. Grillhouse
+n'a plus aucun grand test de jour : sa dette des tailles ne garde aucun constat `grand-de-jour`,
+et aucun constat neuf n'y entre. Ainsi le jour ne joue que des tests courts, et la dette des
+grands ne fait que baisser.
 
 **Le titre d'un test** (`packages/grillhouse/scripts/langages/typescript/titres-de-tests.mjs`, une
 garde du cadre) : comme Software Engineering at Google (chap. 12, un test par comportement), un

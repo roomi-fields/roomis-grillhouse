@@ -75,6 +75,9 @@ import {
 import { ciblage, HORS_DU_JOUR } from './cibles.mjs';
 import { rapportAvancement } from './avancement.reporter.mjs';
 import { rapportJson } from './resultats.mjs';
+// The mark of a measure of time, published as `./vitest-config/mesure` and imported by the tests of
+// other packages: the import attaches it to the configuration that decides what such a mark does.
+import './mesure.mjs';
 
 const ici = f => fileURLToPath(new URL(f, import.meta.url));
 
