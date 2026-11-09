@@ -65,8 +65,9 @@
 //   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope, tested there
 //   before the command runs. The session has its own process space: it reads the environment of
 //   no process of the machine.
-// - A declared path that is a symbolic link comes back as that link, and its target with it
-//   (`avecLiens`).
+// - A declared path that is a symbolic link, or that holds one among its components, comes back as
+//   that link, and its target with it (`avecLiens`); a store, a read or a written output is mounted
+//   at its real path, never at a link, by that same mechanism.
 // - A worktree of the repository under an emptied directory (the home, `/tmp`) comes back
 //   read-only, `.git` included; the copy's packages of the plan and the tickets base are then
 //   written as above.
@@ -353,26 +354,48 @@ export function montagesDeLaSeance({
 // an emptied directory and under no other declared path comes back with the link's rights, so a
 // launcher finds its package beside its real path. A target the root shows needs no mount.
 // `lien(path)` gives the text of the link at <path>, or null when <path> is not a link.
-function avecLiens(montages, lien) {
-  const videes = montages.filter(m => m.vide).map(m => m.chemin);
-  const declares = montages.filter(m => !m.vide && !m.lien).map(m => m.chemin);
+// A declared path whose chain breaks (a target that does not exist, a link broken along the way, a
+// loop of links) is not mounted, and nothing is raised. A component of the path that is a link is
+// followed as well as the path itself, and the real path is mounted where the path was, never at a
+// link: bwrap cannot mount over one. Each link of the chain that an emptied directory hides, and
+// no other declared path holds, is made again; the real path is mounted when it lies in an emptied
+// directory, is written, or is marked `monter` (a store, a read, a written output). `contexte`
+// lists mounts beyond <montages> that also hold a link; `existe(path)` tells a real path that is
+// there. The steps keep every other property of the mount they come from.
+function avecLiens(montages, lien, existe = () => true, contexte = []) {
+  const videes = [...montages, ...contexte].filter(m => m.vide).map(m => m.chemin);
+  const declares = [...montages, ...contexte].filter(m => !m.vide && !m.lien).map(m => m.chemin);
+  const decouper = p => p.split('/').filter(Boolean);
   return montages.flatMap(m => {
     if (m.vide || m.lien || (m.source ?? m.chemin) !== m.chemin) return [m];
-    const suite = [];
-    const vus = new Set();
-    let chemin = m.chemin;
-    let texte = lien(chemin);
-    if (texte === null) return [m];
-    while (texte !== null && !vus.has(chemin)) {
-      vus.add(chemin);
-      suite.push({ chemin, lien: texte });
-      chemin = path.resolve(path.dirname(chemin), texte);
-      const cachee = videes.some(v => inside(chemin, v));
-      const tenue = declares.some(d => d !== m.chemin && inside(chemin, d));
-      if (!cachee || tenue) return suite;
-      texte = lien(chemin);
+    const chaine = [];
+    let courant = '/';
+    let restants = decouper(m.chemin);
+    while (restants.length > 0) {
+      const [nom, ...reste] = restants;
+      const suivant = path.join(courant, nom);
+      const texte = lien(suivant);
+      if (texte === null) {
+        courant = suivant;
+        restants = reste;
+        continue;
+      }
+      if (chaine.length >= 40) return [];
+      chaine.push({ chemin: suivant, lien: texte });
+      restants = [...decouper(path.resolve(courant, texte)), ...reste];
+      courant = '/';
     }
-    return vus.has(chemin) ? suite : [...suite, { chemin, ecriture: m.ecriture }];
+    if (chaine.length === 0) return [m];
+    if (!existe(courant)) return [];
+    const liens = chaine
+      .filter(
+        ({ chemin }) =>
+          videes.some(v => inside(chemin, v)) &&
+          !declares.some(d => d !== m.chemin && d !== chemin && inside(chemin, d))
+      )
+      .map(({ chemin, lien: texte }) => ({ chemin, lien: texte }));
+    const cachee = videes.some(v => inside(courant, v));
+    return cachee || m.ecriture || m.monter ? [...liens, { ...m, chemin: courant }] : liens;
   });
 }
 
@@ -492,8 +515,8 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
 // exist is not mounted. `sorties` lists, from the root of the copy,
 // where a run of the language's tools writes (`sortiesDuLangage`): `ecrites` in writing, `propres`
 // an empty directory proper to the session, there and in each package of the material the role
-// does not write; one that does not exist, or that a symbolic link carries out of the copy, is not
-// mounted. `fs` gives `existe(path)`, and `lien(path)`, the text of a link or null, so the plan is
+// does not write; one that does not exist is not mounted, and one that a symbolic link carries out
+// of the copy is mounted at its real path as a store, whatever the plan writes. `fs` gives `existe(path)`, and `lien(path)`, the text of a link or null, so the plan is
 // testable without disk.
 /**
  * @param {{
@@ -563,8 +586,33 @@ export function plan(
     else if (lien !== undefined) args.push('--symlink', lien, chemin);
     else if (fs.existe(source)) args.push(ecriture ? '--bind' : '--ro-bind', source, chemin);
   }
-  // A worktree that an emptied directory covers comes back read-only, before the copy is written.
+  // A declared path (read, store, written output) is mounted at its real path, never at a link,
+  // by the one mechanism the session's mounts use (`avecLiens`): the links of its chain that an
+  // emptied directory hides, and no declared path holds, are made again before the emptied
+  // directories are sealed. A written output of the copy is mounted as a store when a link carries
+  // it out of the copy, whether the plan writes one package or the whole copy.
+  const lienDe = fs.lien ?? (() => null);
   const videes = montages.filter(m => m.vide).map(m => m.chemin);
+  const declarees = [
+    ...lectures.map(chemin => ({ chemin, ecriture: false, monter: true, genre: 'lu' })),
+    ...magasins.map(chemin => ({ chemin, ecriture: true, monter: true, genre: 'ecrit' })),
+    ...sorties.ecrites.map(s => ({
+      chemin: path.join(copie, s),
+      ecriture: true,
+      monter: true,
+      genre: 'sortie',
+    })),
+  ];
+  const suivis = avecLiens(declarees, lienDe, fs.existe, montages);
+  const refaits = suivis.filter(m => m.lien !== undefined);
+  const reels = genre =>
+    suivis.flatMap(m =>
+      m.lien === undefined && m.genre === genre && fs.existe(m.chemin) ? [m.chemin] : []
+    );
+  const reelsLus = reels('lu');
+  const reelsEcrits = [...reels('ecrit'), ...reels('sortie').filter(c => !inside(c, copie))];
+  for (const { chemin, lien } of refaits) args.push('--symlink', lien, chemin);
+  // A worktree that an emptied directory covers comes back read-only, before the copy is written.
   for (const t of trees) {
     if (videes.some(v => inside(t, v)) && fs.existe(t)) args.push('--ro-bind', t, t);
   }
@@ -585,12 +633,8 @@ export function plan(
   // What the language's tools read (cargo's home) comes back read-only; then the stores inside it
   // or beside it (Turborepo's cache, cargo's registry and locks) are written by the agent's runs,
   // as by every copy's.
-  for (const l of lectures) {
-    if (fs.existe(l)) {
-      args.push('--ro-bind', l, l);
-    }
-  }
-  for (const m of magasins) if (fs.existe(m)) args.push('--bind', m, m);
+  for (const l of reelsLus) args.push('--ro-bind', l, l);
+  for (const m of reelsEcrits) args.push('--bind', m, m);
   const tickets = trees.length > 0 ? path.join(trees[0], '.beads') : null;
   if (tickets && fs.existe(tickets)) args.push('--bind', tickets, tickets);
   if (!toute) {

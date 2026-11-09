@@ -443,6 +443,114 @@ describe('une séance reprend le résultat de l’essai mort, ou repart sous son
   });
 });
 
+// Une séance dont le lancement meurt sur un refus de l'enveloppe (sa sortie d'erreur porte une ligne
+// `bwrap: …`, aucune transcription écrite) est un arrêt « lancement », son message cité, sans
+// reprise ; une séance qui finit en erreur sans cette ligne est reprise une fois, puis « sans-fiche ».
+describe('un refus de l’enveloppe arrête le lancement, une autre erreur est reprise', () => {
+  const MESSAGE =
+    "bwrap: Can't bind mount /oldroot/mnt/ssd/pc2/.cargo/registry on /newroot/home/romi/.cargo/registry: Unable to mount source on destination: No such file or directory";
+  const PLACE = () => ({ rattacher: () => {}, rendre: () => {} });
+
+  // Un lanceur d'essai qui écrit <stderr> sur sa sortie d'erreur, finit en code 1 et, quand
+  // <transcription>, laisse une transcription de la séance.
+  function essai(stderr: string, transcription = false) {
+    const dossier = mkdtempSync(path.join(ESSAIS, 'refus-'));
+    const ctx = {
+      racine: dossier,
+      copie: dossier,
+      ticket: 'demo-1',
+      sujet: 'essai',
+      paquets: ['.'],
+      tmp: dossier,
+      journal: path.join(dossier, 'journal'),
+      fiches: path.join(dossier, 'fiches.jsonl'),
+      transcriptions: path.join(dossier, 'transcriptions'),
+      immobileMs: 60_000,
+      bd: () => ({ status: 0, stdout: '[{}]', stderr: '' }),
+    };
+    const compte = path.join(dossier, 'lancements');
+    const lanceur = path.join(dossier, 'lancer.sh');
+    const message = path.join(dossier, 'message');
+    writeFileSync(message, `${stderr}\n`);
+    writeFileSync(
+      lanceur,
+      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\n${
+        transcription
+          ? `mkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/s.jsonl\n`
+          : ''
+      }cat ${message} >&2\necho '' > $r/resultat.json\necho 1 > $r/fin\nexit 1\n`
+    );
+    chmodSync(lanceur, 0o755);
+    const lancements = () => {
+      try {
+        return readFileSync(compte, 'utf8').split('\n').filter(Boolean);
+      } catch {
+        return [];
+      }
+    };
+    return { ctx, lanceur, lancements };
+  }
+  const jouer = async (ctx: object, lanceur: string) => {
+    const avant = process.env.GRILLHOUSE_LANCEUR;
+    process.env.GRILLHOUSE_LANCEUR = lanceur;
+    try {
+      return await jusquALaFiche(ctx, 'developpeur', 'consigne', {
+        id: 'seance-essai',
+        evenement: 'neuve',
+        prendrePlace: PLACE,
+        signeDeVie: () => {},
+      }).then(
+        () => null,
+        (e: Error & { nom?: string; rapport?: string }) => e
+      );
+    } finally {
+      if (avant === undefined) {
+        delete process.env.GRILLHOUSE_LANCEUR;
+      } else {
+        process.env.GRILLHOUSE_LANCEUR = avant;
+      }
+    }
+  };
+
+  it('le lancement meurt sur « bwrap: » sans transcription: arrêt lancement, message cité, un seul lancement', async () => {
+    const { ctx, lanceur, lancements } = essai(MESSAGE);
+    const e = await jouer(ctx, lanceur);
+    expect(e?.nom).toBe('lancement');
+    expect(e?.rapport).toContain(MESSAGE);
+    expect(lancements()).toHaveLength(1);
+  });
+
+  it('la ligne « bwrap: » n’est pas la première de la sortie d’erreur: elle est reconnue', async () => {
+    const { ctx, lanceur, lancements } = essai(`avertissement\n${MESSAGE}`);
+    const e = await jouer(ctx, lanceur);
+    expect(e?.nom).toBe('lancement');
+    expect(e?.rapport).toContain(MESSAGE);
+    expect(lancements()).toHaveLength(1);
+  });
+
+  it('un code non nul sans ligne « bwrap: »: une reprise, puis sans-fiche', async () => {
+    const { ctx, lanceur, lancements } = essai('un outil a échoué');
+    const e = await jouer(ctx, lanceur);
+    expect(e?.nom).toBe('sans-fiche');
+    expect(lancements()).toHaveLength(2);
+    expect(lancements()[1]).toContain('--reprise seance-essai');
+  });
+
+  it('« bwrap: » au milieu d’une ligne n’est pas un refus de l’enveloppe', async () => {
+    const { ctx, lanceur, lancements } = essai(`le test cite « ${MESSAGE} » sans l'avoir subi`);
+    const e = await jouer(ctx, lanceur);
+    expect(e?.nom).toBe('sans-fiche');
+    expect(lancements()).toHaveLength(2);
+  });
+
+  it('une séance qui a écrit une transcription n’est pas un refus de l’enveloppe: reprise, puis sans-fiche', async () => {
+    const { ctx, lanceur, lancements } = essai(MESSAGE, true);
+    const e = await jouer(ctx, lanceur);
+    expect(e?.nom).toBe('sans-fiche');
+    expect(lancements()).toHaveLength(2);
+  });
+});
+
 describe('l’identifiant de séance vient de l’appelant', () => {
   it('a session without an id is refused before any launch', async () => {
     await expect(

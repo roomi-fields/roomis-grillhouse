@@ -765,6 +765,15 @@ export function seanceLancee(ctx, role, r) {
       `La transcription de la séance du ${role} n'a pas bougé en ${minutes ? `${minutes} min` : `${ctx.immobileMs} ms`} : la séance est arrêtée. Les dernières lignes du journal :\n\n${fin(lire(ctx.journal), 40)}`
     );
   }
+  // The envelope's refusal (a line of the error stream that begins with `bwrap: `) of a session
+  // that wrote no transcript: the launch died before its session, as bwrap says.
+  const refus = (r.erreur ?? '').split('\n').find(l => l.startsWith('bwrap: '));
+  if (refus !== undefined && r.seance !== 0 && derniereTrace(ctx.transcriptions) === 0) {
+    throw new Arret(
+      'lancement',
+      `L'enveloppe refuse le lancement de la séance du ${role} (code ${r.seance ?? r.code}).\n${refus.trim()}\n\n${fin(lire(ctx.journal), 20)}`
+    );
+  }
   if (r.seance === null) {
     throw new Arret(
       'lancement',
