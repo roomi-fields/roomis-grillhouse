@@ -31,10 +31,15 @@ describe('critère 2: the CI calls the verification alone', () => {
     const lancees = (jobs.test.steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
 
     it(`critère 2: ${titre} plays, after the installation, \`npm run verifier\` and nothing else`, () => {
-      const verifs = lancees.filter(r => r === 'npm run verifier');
-      expect(verifs).toHaveLength(1);
-      expect(lancees.at(-1)).toBe('npm run verifier');
-      for (const r of lancees.slice(0, -1)) {
+      // The CI of Grillhouse gives the verification a base for a push (a step of its own, under
+      // its condition): every run of the verification is `npm run verifier`, then its base.
+      const verifs = lancees.filter(r => /^npm run verifier( |$)/.test(r));
+      expect(verifs.length).toBeGreaterThanOrEqual(1);
+      for (const r of verifs) {
+        expect(r).toMatch(/^npm run verifier( -- --base \S+)?$|^npm run verifier \$\{\{.*\}\}$/);
+      }
+      expect(lancees.at(-1)).toMatch(/^npm run verifier/);
+      for (const r of lancees.filter(l => !/^npm run verifier( |$)/.test(l))) {
         expect(
           INSTALLATION.some(re => re.test(r)),
           `étape de test hors installation : ${r}`
@@ -49,7 +54,7 @@ describe('critère 2: the CI calls the verification alone', () => {
     });
 
     it(`critère 2: ${titre} plays no control by itself in its test job`, () => {
-      for (const r of lancees.filter(l => l !== 'npm run verifier')) {
+      for (const r of lancees.filter(l => !/^npm run verifier( |$)/.test(l))) {
         expect(r, r).not.toMatch(CONTROLES);
       }
     });

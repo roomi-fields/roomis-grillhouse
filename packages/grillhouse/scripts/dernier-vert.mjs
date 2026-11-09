@@ -173,6 +173,25 @@ function lireLeVertDe(etat, branche) {
   return { commit: v.commit, arbre: v.arbre, branche };
 }
 
+// The base <base> given to a pass (`verifier --base <commit>`), when it counts for a pass in the
+// state <etat>: `{ commit, arbre, branche: null }`, the tree of the commit; `{ raison }` when it
+// has no value, is not a commit id, is not in the repository (the zeros of a first push, a
+// rewritten history) or is not an ancestor of HEAD.
+function lireLaBase(etat, base) {
+  if (!SHA.test(base)) {
+    return { raison: base ? 'la base n’est pas un commit' : 'la base est sans valeur' };
+  }
+  const arbre = sortie(etat.racine, ['rev-parse', '--verify', '-q', `${base}^{tree}`]);
+  const commit = sortie(etat.racine, ['rev-parse', '--verify', '-q', `${base}^{commit}`]);
+  if (!arbre || !commit) {
+    return { raison: 'la base n’est pas dans le dépôt' };
+  }
+  if (git(etat.racine, ['merge-base', '--is-ancestor', commit, etat.commit]).status !== 0) {
+    return { raison: 'la base n’est pas un ancêtre de HEAD' };
+  }
+  return { commit, arbre, branche: null };
+}
+
 // Keeps <etat> (etatDuDepot) as the last green of its branch, of main when HEAD is detached.
 export function garderLeVert(etat) {
   const branche = etat.branche ?? etat.main;
@@ -228,7 +247,7 @@ function supprimesDuCommit(racine, commit, arbre) {
 // function that removes the file of the changes. <tout> asks for the complete pass; the file lies
 // in <dans>, the base of the pass (scripts/mesure/base-de-passe.mjs), which a killed pass
 // leaves to the next one to sweep.
-export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
+export function mesure(racine, { tout = false, base, dans = os.tmpdir() } = {}) {
   const etat = etatDuDepot(racine);
   const complete = raison => ({
     etat: etat.raison ? null : etat,
@@ -242,7 +261,12 @@ export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
   if (tout) {
     return complete('demandée');
   }
-  const vert = lireLeVert(etat);
+  // A base given takes precedence over the last green: the pass keeps no green of its own.
+  const donnee = base === undefined ? null : lireLaBase(etat, base);
+  if (donnee?.raison) {
+    return complete(donnee.raison);
+  }
+  const vert = donnee ?? lireLeVert(etat);
   if (vert.raison) {
     return complete(vert.raison);
   }
@@ -268,9 +292,11 @@ export function mesure(racine, { tout = false, dans = os.tmpdir() } = {}) {
   );
   const n = ch.fichiers.length + ch.supprimes.length;
   return {
-    etat,
+    etat: donnee ? null : etat,
     env: { [CHANGEMENTS]: fichier },
-    ligne: `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`,
+    ligne: donnee
+      ? `↳ depuis la base ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`
+      : `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`,
     retirer: () => rmSync(dir, { recursive: true, force: true }),
   };
 }

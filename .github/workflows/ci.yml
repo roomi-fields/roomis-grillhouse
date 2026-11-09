@@ -28,8 +28,11 @@ jobs:
         node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["22.x","24.x"]' || '["22.x"]')) }}
 
     steps:
+      # The whole history: the base of a push (github.event.before) must be in the clone.
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v5
@@ -51,7 +54,14 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.1.312
 
       # Formatting, lint, typing, build, guards and tests: the one command of the poste.
+      # A push is measured against the commit before it (the parent of main); a pull request, the
+      # call by the release and the nightly schedule play the complete pass, with no base.
+      - name: Verification (a push, against its parent)
+        if: github.event_name == 'push' && github.event.before != ''
+        run: npm run verifier ${{ format('--base {0}', github.event.before) }}
+
       - name: Verification
+        if: github.event_name != 'push' || github.event.before == ''
         run: npm run verifier
 
   build:

@@ -207,12 +207,41 @@ export function poserLeVert({ code, etat, args, env, garder }) {
   }
 }
 
-function passe({ racine, demandes, env, dire, coeurs }) {
+// The options of the pass in <demandes>: `{ gardesSeules, tout, base, args }`. `--base <commit>`
+// (or `--base=<commit>`) belongs to the verification alone: it never reaches the tasks, `base` is
+// '' when it has no value (alone, or followed by another option), and undefined when it is not
+// given or when the guards alone ask for no measure.
+export function lireLesDemandes(demandes) {
   const gardesSeules = demandes.includes('--gardes');
   const tout = demandes.includes('--tout') || demandes.includes('--force');
-  const args = demandes.filter(a => a !== '--gardes' && a !== '--tout');
-  // The measure against the last green: the guards alone need none.
-  const m = gardesSeules ? null : mesure(racine, { tout, dans: env.TMPDIR });
+  let base;
+  const args = [];
+  for (let i = 0; i < demandes.length; i++) {
+    const a = demandes[i];
+    if (a === '--gardes' || a === '--tout') {
+      continue;
+    }
+    if (a === '--base') {
+      const suite = demandes[i + 1];
+      if (suite !== undefined && !suite.startsWith('-')) {
+        base = suite;
+        i++;
+      } else {
+        base = '';
+      }
+    } else if (a.startsWith('--base=')) {
+      base = a.slice('--base='.length);
+    } else {
+      args.push(a);
+    }
+  }
+  return { gardesSeules, tout, base: gardesSeules ? undefined : base, args };
+}
+
+function passe({ racine, demandes, env, dire, coeurs }) {
+  const { gardesSeules, tout, base, args } = lireLesDemandes(demandes);
+  // The measure against the last green, or the base given: the guards alone need none.
+  const m = gardesSeules ? null : mesure(racine, { tout, base, dans: env.TMPDIR });
   if (m) {
     dire(m.ligne);
   }
