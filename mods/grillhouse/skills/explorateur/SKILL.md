@@ -58,11 +58,12 @@ change, et ceux qu'il peut casser.
 2. **Le plan.** Ma fiche porte le plan, que le circuit écrit au ticket :
    - `criteres` : chacun un comportement que ses tests mesurent, sans son numéro ; un critère
      répond à un besoin réel de l'usage actuel, et se confronte à la spécification. **Je fixe la
-     portée du test au critère** : par défaut il se prouve en unitaire, et je ne dis rien ; je ne
-     nomme que l'exception, avec sa raison (comme un écart à la référence porte la sienne) —
-     `intégration` quand une couture entre deux modules réels échappe à l'unitaire, `bout-en-bout`
-     quand seul le flux entier monté prouve le câblage (un seul par flux, jamais un par feature).
-     Ainsi la portée se décide au plan, et aucun gros test ne s'écrit de lui-même. Ma fiche ne
+     taille du test au critère** (charte, « La taille d'un test suit la pyramide ») : par défaut il
+     se prouve petit, et je ne dis rien ; je ne nomme que l'exception, avec sa raison (comme un
+     écart à la référence porte la sienne) — `moyen` quand une couture entre quelques modules
+     échappe au petit, `grand` quand seul le produit ou le cadre monté prouve le câblage (un seul
+     par flux, jamais un par feature, joué la nuit). Ainsi la taille se décide au plan, et aucun
+     gros test ne s'écrit de lui-même. Ma fiche ne
      porte que les critères que j'ajoute : les critères déjà écrits au ticket sont la décision du
      responsable, que le circuit garde tels quels, les miens après eux. Pour changer ou retirer un
      critère écrit, je pose une question ouverte. Un critère sur le changelog s'écrit

@@ -104,17 +104,18 @@ ne rougit jamais la suite.
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code
 change de forme.
 
-**La plus petite portée qui prouve** : la portée d'un test — unitaire, intégration, bout-en-bout —
-est une décision d'architecture, que le plan du ticket fixe. Par défaut, chaque critère se prouve
-en **unitaire** : un test qui appelle la logique d'un seul module par son interface, en processus,
-sans rien lancer. Le plan ne nomme que l'exception, avec sa raison : **intégration** (une couture
-entre deux modules réels que l'unitaire n'atteint pas) ou **bout-en-bout** (le câblage d'un flux
-entier monté, un seul par flux, jamais un par feature, joué la nuit). Tu écris le test le plus
-petit et le plus simple qui prouve le critère, à la portée que le plan prescrit. Un critère qui te
-pousse à lancer un processus, monter un dépôt ou construire est une logique à extraire et à prouver
-en unitaire ; si le sujet exige vraiment une portée au-dessus que le plan n'a pas prescrite, ta
-fiche finit sur BESOIN (ta question, ta recommandation), sans gros test écrit de ton propre chef.
-Ainsi la portée se décide au plan, et le jour reste rapide quel que soit le nombre de tests.
+**La plus petite taille qui prouve** : la taille d'un test — petit, moyen, grand — est une décision
+d'architecture, que le plan du ticket fixe (charte, « La taille d'un test suit la pyramide »). Par
+défaut, chaque critère se prouve **petit** : un test qui appelle son module par son interface, dans
+son processus, sans rien lancer. Le plan ne nomme que l'exception, avec sa raison : **moyen** (une
+couture entre quelques modules que le petit n'atteint pas, avec des processus locaux) ou **grand**
+(un projet d'essai monté, le produit ou le cadre entier, dans un `*.nuit.test.ts`, joué la nuit).
+Tu écris le test le plus petit et le plus simple qui prouve le critère, à la taille que le plan
+prescrit. Un critère qui te pousse à lancer un processus, monter un dépôt ou construire est une
+logique à extraire et à prouver petit ; si le sujet exige vraiment une taille au-dessus que le plan
+n'a pas prescrite, ta fiche finit sur BESOIN (ta question, ta recommandation), sans gros test écrit
+de ton propre chef. Ainsi la taille se décide au plan, et le jour reste rapide quel que soit le
+nombre de tests.
 
 **Le rouge prouve le travail du ticket** : tu lances tes tests sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt), et ta fiche nomme dans
