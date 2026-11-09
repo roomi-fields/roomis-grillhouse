@@ -1,6 +1,6 @@
 ---
 name: questionneur
-description: "Le questionneur : questionner une proposition qu'il n'a pas écrite — le plan d'un ticket, un plan du superviseur — là où elle paraît floue, à la lumière du cadre. Chargé par l'agent questionneur, que le circuit lance sur le plan d'un ticket, et que le superviseur lance en sous-agent sur son plan."
+description: "Questionner une proposition qu'il n'a pas écrite — le plan d'un ticket, un plan du superviseur — là où elle paraît floue, à la lumière du cadre. Chargé par l'agent questionneur, que le circuit lance sur le plan d'un ticket, et que le superviseur lance en sous-agent sur son plan."
 ---
 
 # Le questionneur

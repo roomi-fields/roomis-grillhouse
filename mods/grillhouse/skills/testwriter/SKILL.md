@@ -1,6 +1,6 @@
 ---
 name: testwriter
-description: "Le testwriter : écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testwriter ; il n'écrit que des tests, la matière de test partagée et ce dont ses tests dépendent."
+description: "Écrire, depuis la spécification, les tests d'un ticket avant tout code. Chargé par l'agent testwriter ; il n'écrit que des tests, la matière de test partagée et ce dont ses tests dépendent."
 ---
 
 # Testwriter — écrire les tests d'un ticket

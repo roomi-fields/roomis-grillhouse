@@ -1,6 +1,6 @@
 ---
 name: pitmaster
-description: "Le superviseur : orchestrer le dépôt courant — tenir les tickets, confier chaque ticket à un sous-agent neuf, relire sa fermeture, garder le cadre. À charger au lancement d'une séance de supervision, pour lancer ou relire un ticket, pour un tour, pour une question sur le cadre (architecture, interface, gardes, documents de référence), ou quand le responsable demande « quel est ton rôle »."
+description: "Orchestrer le dépôt courant — tenir les tickets, confier chaque ticket à un sous-agent neuf, relire sa fermeture, garder le cadre. À charger au lancement d'une séance de supervision, pour lancer ou relire un ticket, pour un tour, pour une question sur le cadre (architecture, interface, gardes, documents de référence), ou quand le responsable demande « quel est ton rôle »."
 ---
 
 # Pitmaster — le superviseur
@@ -98,22 +98,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   commande du plan d'un ticket mécanique), 2 Tests (le testwriter, une séance pour tout le ticket, et
   2.1 la preuve du rouge sur tous les tests du lot), 3 Code (le développeur, une séance pour tout
   le ticket, et 3.1 les contrôles du plan), 4 Passe finale et relecture (4.1 la passe
-  finale, 4.2 la régénération des références : celles que le projet déclare, `grillhouse.references`
-  de son `package.json`, chacune `{ nom, commande, fichiers, tests, lit, gardes }`, ses fichiers en
-  chemins, dossiers ou motifs `*` et `**`, ses tests les fichiers de test qui la jugent, `lit` les
-  fichiers qu'elle lit d'une autre référence, ses gardes les gardes du projet qui la jugent, par le
-  nom que porte leur constat SARIF ; ses fichiers engendrés, `grillhouse.engendres`, que
-  l'intégration régénère au lieu de les fusionner ; celles du cadre, l'index des interfaces, les `turbo.json`, les
-  rapports d'API et la dette des gardes ; sur la copie entière, dès qu'un rouge est le leur, mêlé
-  ou non à d'autres, ou que la dette baisse, chacune suivie de celles qui lisent ce qu'elle écrit
-  (l'index après les rapports d'API), sans que le plan les nomme, puis la passe finale restreinte
-  à ce qu'elles changent, les autres rouges allant chacun à son propriétaire ; aux contrôles du
-  plan verts hors de leurs rouges, avant la passe finale, qui joue alors une fois : je ne les régénère
-  jamais à la main ; un constat de leur garde sur le code du plan, hors de leurs fichiers, va au
-  développeur ; une commande du projet qui refuse à côté de rouges du plan, à la passe finale,
-  les lui envoie avec sa sortie ; toute autre commande en échec ou un fichier qu'aucune référence
-  n'écrit arrête à `references`, code 23, une question pour moi qui porte chaque écart : je fais
-  corriger la référence ou le lot, 4.3 le relecteur), 5 Intégration (5.1
+  finale, 4.2 la régénération des références, 4.3 le relecteur ; le détail de 4.2 est plus bas,
+  « Le circuit d'un ticket »), 5 Intégration (5.1
   le commit, 5.2 la file et la lecture de la CI : une CI rouge rouvre le ticket ; un rejeu vert
   des jobs rouges, `gh run rerun <id> --failed`, puis `--reprendre`, le ferme ; un test instable
   se met en quarantaine dans le test, avec son ticket ; 5.3 le tri des découvertes par l'explorateur, sur

@@ -1,6 +1,6 @@
 ---
 name: relecteur
-description: "Le relecteur : relire en adversaire le lot d'un ticket (tests et code) avant son commit. Chargé par l'agent relecteur, que le circuit du ticket lance après sa passe finale ; rend un verdict, que le circuit écrit au ticket, sans rien écrire dans le code."
+description: "Relire en adversaire le lot d'un ticket (tests et code) avant son commit. Chargé par l'agent relecteur, que le circuit du ticket lance après sa passe finale ; rend un verdict, que le circuit écrit au ticket, sans rien écrire dans le code."
 ---
 
 # Relecteur — relire un lot avant son commit

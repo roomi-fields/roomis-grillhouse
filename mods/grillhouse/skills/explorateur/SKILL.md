@@ -1,6 +1,6 @@
 ---
 name: explorateur
-description: "L'explorateur : écrire le plan d'un ticket à l'étape 1 de son circuit — ses critères, les paquets à toucher, ses questions ouvertes — et répondre une fois au questionneur ; jouer le geste d'un ticket mécanique à l'étape 1.1 ; trier ses découvertes à l'étape 5.3, une fois son lot sur main ; ou mener un ticket d'exploration — relever l'état réel du code, lister les décisions à prendre, proposer les tickets de réalisation. Chargé par l'agent explorateur, que lance le circuit ou le superviseur ; n'écrit aucun code."
+description: "Écrire le plan d'un ticket à l'étape 1 de son circuit — ses critères, les paquets à toucher, ses questions ouvertes — et répondre une fois au questionneur ; jouer le geste d'un ticket mécanique à l'étape 1.1 ; trier ses découvertes à l'étape 5.3, une fois son lot sur main ; ou mener un ticket d'exploration — relever l'état réel du code, lister les décisions à prendre, proposer les tickets de réalisation. Chargé par l'agent explorateur, que lance le circuit ou le superviseur ; n'écrit aucun code."
 ---
 
 # Explorateur — relever avant de réaliser

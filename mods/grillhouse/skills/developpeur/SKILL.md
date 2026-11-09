@@ -1,6 +1,6 @@
 ---
 name: developpeur
-description: "Le développeur : travailler un ticket du dépôt courant en agent de développement. À charger au démarrage de chaque séance d'agent, avant de lire le ticket."
+description: "Travailler le code d'un ticket du dépôt courant, dont les tests existent déjà. À charger au démarrage d'une séance de développement, avant de lire le ticket."
 ---
 
 # Développeur — travailler un ticket
