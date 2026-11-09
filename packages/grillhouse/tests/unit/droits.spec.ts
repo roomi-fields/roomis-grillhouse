@@ -241,7 +241,9 @@ describe('L2 — the rights of each role are drawn from its skill', () => {
     it(`${role}: each permission it holds answers a command its skill names`, () => {
       const { allow } = reglagesDe(options(role)).permissions;
       const demandes = demandees(role).flatMap(appels);
-      const orphelines = allow.filter(r => !demandes.some(c => couvre(r, c)));
+      // A rule `Bash(env -C * X)` answers the command X its skill names in its bare form.
+      const nue = (r: string) => r.replace(/^Bash\(env -C \* /, 'Bash(');
+      const orphelines = allow.filter(r => !demandes.some(c => couvre(nue(r), c)));
       expect(orphelines, `${role} : droits que rien ne demande`).toEqual([]);
     });
   }
@@ -321,6 +323,137 @@ describe('3uv.92.7 — the reviewer reads git in the copy', () => {
       }
     });
   }
+});
+
+// The charter prescribes `env -C <dossier>` in place of `cd`: a command run in the copy by that
+// prefix is judged like its bare form, as git has `git show *` and `git -C * show *`.
+describe('a command run by env -C <copie> passes the rights of its bare form, and no more', () => {
+  const dans = (c: string) => `env -C ${COPIE} ${c}`;
+  const regles = (role: string) => reglagesDe(options(role));
+
+  it('the explorateur surveys the components bare and by env -C, and only that command of grillhouse', () => {
+    const r = regles('explorateur');
+    for (const c of [
+      'npx grillhouse composants-affectes demo-1',
+      'npx grillhouse composants-affectes --description /tmp/d.md',
+    ]) {
+      expect(refusReel(c, r), c).toBeNull();
+      expect(refusReel(dans(c), r), dans(c)).toBeNull();
+    }
+    expect(r.permissions.allow).toContain('Bash(env -C * npx grillhouse composants-affectes *)');
+    expect(r.permissions.allow).toContain('Bash(npx grillhouse composants-affectes *)');
+    for (const c of [
+      'npx grillhouse ticket demo-1',
+      'npx grillhouse verifier',
+      'npx grillhouse tests',
+    ]) {
+      expect(refusReel(c, r), c).not.toBeNull();
+      expect(refusReel(dans(c), r), dans(c)).not.toBeNull();
+    }
+  });
+
+  it('the survey chained to another command stays refused for the explorateur, its simple form passes', () => {
+    const r = regles('explorateur');
+    const releve = 'npx grillhouse composants-affectes demo-1';
+    expect(refusReel(releve, r)).toBeNull();
+    expect(refusReel(dans(releve), r)).toBeNull();
+    for (const c of [
+      `cd /depot; ${releve}`,
+      `${releve} && npx grillhouse verifier`,
+      `${dans(releve)} && npx grillhouse verifier`,
+      `cd /depot; ${dans(releve)}`,
+    ]) {
+      expect(refusReel(c, r), c).not.toBeNull();
+    }
+  });
+
+  it('the prefix opens no other command for the explorateur and the reviewer', () => {
+    for (const role of ['explorateur', 'relecteur']) {
+      const r = regles(role);
+      for (const c of ['npx grillhouse verifier', 'npx grillhouse ticket demo-1', 'rm -rf x']) {
+        expect(refusReel(dans(c), r), `${role} : ${dans(c)}`).not.toBeNull();
+      }
+    }
+    const releve = 'npx grillhouse composants-affectes demo-1';
+    expect(refusReel(dans(releve), regles('explorateur'))).toBeNull();
+    expect(refusReel(dans('npm test -- packages/a'), regles('relecteur'))).toBeNull();
+    expect(
+      refusReel(`${dans(releve)} && npx grillhouse verifier`, regles('explorateur'))
+    ).not.toBeNull();
+    expect(refusReel(`cd /depot; ${dans(releve)}`, regles('explorateur'))).not.toBeNull();
+  });
+
+  it('the questionneur has no rule for the survey, bare or by env -C', () => {
+    const r = regles('questionneur');
+    const releve = 'npx grillhouse composants-affectes demo-1';
+    expect(refusReel(releve, r)).not.toBeNull();
+    expect(refusReel(dans(releve), r)).not.toBeNull();
+    const bash = ROLES.questionneur.commandes.filter(c => c.startsWith('Bash('));
+    expect(bash.filter(c => !/codegraph explore/.test(c))).toEqual([]);
+  });
+
+  it('the reviewer runs the tests and the guards by env -C <copie>', () => {
+    const r = regles('relecteur');
+    for (const c of ['npm test -- packages/a/tests/x.spec.ts', 'npm run verifier -- --gardes']) {
+      expect(refusReel(c, r), c).toBeNull();
+      expect(refusReel(dans(c), r), dans(c)).toBeNull();
+    }
+    expect(refusReel(dans('npm run verifier'), r)).not.toBeNull();
+    expect(refusReel(dans('npm run verifier -- --tout'), r)).not.toBeNull();
+  });
+
+  it('the roles that write run npm test by env -C <copie>', () => {
+    for (const role of ['testwriter', 'developpeur']) {
+      expect(refusReel(dans('npm test -- packages/a'), regles(role)), role).toBeNull();
+    }
+    expect(refusReel(dans('npm run api'), regles('developpeur'))).toBeNull();
+    expect(refusReel(dans('node $TMPDIR/retire.mjs'), regles('testwriter'))).toBeNull();
+  });
+
+  // The census: each rule of a role that is a command, out of bd, git and env -C, has its twin.
+  for (const role of Object.keys(ROLES)) {
+    it(`${role}: each rule of command out of bd and git has its twin by env -C`, () => {
+      const { allow } = regles(role).permissions;
+      const nues = allow
+        .map(r => /^Bash\((.*)\)$/.exec(r)?.[1])
+        .filter((c): c is string => Boolean(c))
+        .filter(c => !/^(bd|git|env -C) /.test(c));
+      expect(nues.length, role).toBeGreaterThan(0);
+      const sansJumelle = nues.filter(c => !allow.includes(`Bash(env -C * ${c})`));
+      expect(sansJumelle, `${role} : règles sans jumelle env -C`).toEqual([]);
+    });
+  }
+
+  it('the census holds the rules the ticket names for each role', () => {
+    const nues = (role: string) =>
+      ROLES[role as keyof typeof ROLES].commandes
+        .map(r => /^Bash\((.*)\)$/.exec(r)?.[1])
+        .filter((c): c is string => Boolean(c))
+        .filter(c => !/^(bd|git|env -C) /.test(c));
+    expect(nues('explorateur')).toEqual([
+      'npx grillhouse composants-affectes *',
+      'npm run build -- --filter=*',
+      'codegraph explore *',
+    ]);
+    expect(nues('relecteur')).toEqual([
+      'npx grillhouse index-interfaces --publie *',
+      'npm test *',
+      'npm run verifier -- --gardes*',
+      'codegraph explore *',
+    ]);
+    expect(nues('testwriter')).toEqual(['npm test *', 'node $TMPDIR/*', 'codegraph explore *']);
+    expect(nues('developpeur')).toEqual(['npm test *', 'npm run api*', 'codegraph explore *']);
+    expect(nues('questionneur')).toEqual(['codegraph explore *']);
+  });
+
+  it('the command lock of the roles that write lets env -C npm test pass and refuses its redirection into the repository', () => {
+    const verdict = (command: string) =>
+      refusDeCommande({ tool_name: 'Bash', tool_input: { command }, cwd: RACINE });
+    expect(verdict(dans('npm test -- packages/a'))).toBeNull();
+    expect(verdict('npm test -- packages/a')).toBeNull();
+    expect(verdict(dans(`npm test > ${RACINE}/sortie.txt`))).not.toBeNull();
+    expect(verdict(`npm test > ${RACINE}/sortie.txt`)).not.toBeNull();
+  });
 });
 
 describe('L2 — what a role that writes may not run', () => {

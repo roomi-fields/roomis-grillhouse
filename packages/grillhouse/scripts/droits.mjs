@@ -114,6 +114,17 @@ const LIRE_L_INDEX = [
 const LIRE = ['Bash', 'Read', 'Skill'];
 const ECRIRE = ['Edit', 'Write'];
 
+// The charter prescribes `env -C <dossier>` in place of `cd`: a command run in the copy carries
+// that prefix, which a bare rule does not match. Each rule of command, out of bd, git and env -C,
+// gets its twin `Bash(env -C * <commande>)`, as git has `git show` and `git -C * show`.
+/** @param {string[]} regles @returns {string[]} */
+function avecJumelles(regles) {
+  return regles.flatMap(r => {
+    const bash = /^Bash\((.*)\)$/.exec(r);
+    return bash && !/^(bd|git|env -C) /.test(bash[1]) ? [r, `Bash(env -C * ${bash[1]})`] : [r];
+  });
+}
+
 // Each role the circuit launches: whether it writes (files, `ecrit`; the ticket, unless
 // `ecritAuTicket` is false), whether it uses the index, whether its skill names the frame's
 // METACADRE.md (`metacadre`, read at the root of the plugin installed), and the commands its skill
@@ -129,7 +140,7 @@ export const ROLES = {
     metacadre: true,
     index: true,
     ecritAuTicket: false,
-    commandes: [
+    commandes: avecJumelles([
       'Bash(bd show *)',
       'Bash(bd comments *)',
       'Bash(git show *)',
@@ -141,7 +152,7 @@ export const ROLES = {
       'Bash(codegraph explore *)',
       'mcp__codegraph__codegraph_explore',
       'mcp__rtfm__rtfm_search',
-    ],
+    ]),
   },
   // It writes the tests of the whole ticket, in the envelope of its plan, and reads the whole copy
   // by the index (charter, « L'index d'abord »).
@@ -149,14 +160,14 @@ export const ROLES = {
     metacadre: true,
     ecrit: true,
     index: true,
-    commandes: [
+    commandes: avecJumelles([
       'Bash(bd update * --claim)',
       'Bash(bd comments add *)',
       'Bash(npm test *)',
       // The removal of a file of its tests, by a script of its temporary directory.
       'Bash(node $TMPDIR/*)',
       ...LIRE_L_INDEX,
-    ],
+    ]),
   },
   // It writes the code of the whole ticket, in the envelope of its plan, and reads the whole copy
   // by the index.
@@ -164,7 +175,7 @@ export const ROLES = {
     metacadre: true,
     ecrit: true,
     index: true,
-    commandes: [
+    commandes: avecJumelles([
       'Bash(bd update * --claim)',
       'Bash(bd update * --notes*)',
       'Bash(bd comments add *)',
@@ -173,12 +184,12 @@ export const ROLES = {
       'Bash(npm test *)',
       'Bash(npm run api*)',
       ...LIRE_L_INDEX,
-    ],
+    ]),
   },
   relecteur: {
     metacadre: true,
     index: true,
-    commandes: [
+    commandes: avecJumelles([
       ...LIRE_GIT,
       'Bash(npx grillhouse index-interfaces --publie *)',
       'Bash(npm test *)',
@@ -186,18 +197,18 @@ export const ROLES = {
       'Bash(codegraph explore *)',
       'mcp__codegraph__codegraph_explore',
       'mcp__rtfm__rtfm_search',
-    ],
+    ]),
   },
   // It asks, and decides nothing: it reads the proposal its instruction carries and the code by
   // the index; the circuit writes its questions at the ticket.
   questionneur: {
     index: true,
     ecritAuTicket: false,
-    commandes: [
+    commandes: avecJumelles([
       'Bash(codegraph explore *)',
       'mcp__codegraph__codegraph_explore',
       'mcp__rtfm__rtfm_search',
-    ],
+    ]),
   },
 };
 
