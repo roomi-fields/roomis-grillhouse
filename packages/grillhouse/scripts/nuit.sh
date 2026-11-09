@@ -252,6 +252,15 @@ jouer() {
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
+  # The frame's package, built once when the copy carries it as a package of the repository: the
+  # copy is cleaned of dist/ and the pass (the taking of its place) and the night tests of Temporal
+  # read dist/temporal. A project that installs the frame builds nothing more.
+  if grep -q '"name": *"@roomi-fields/grillhouse"' "$copie/packages/grillhouse/package.json" 2>/dev/null; then
+    if ! monter npm --prefix "$copie" run build --workspace=@roomi-fields/grillhouse; then
+      echo "✗ la construction du paquet @roomi-fields/grillhouse échoue : rien n'est joué."
+      return 1
+    fi
+  fi
   # The full pass, played for real: the night replays no log of the cache. Each step plays even
   # when one before it is red; a step à repasser ends the night there, red if a step before it is.
   local code tache avant
