@@ -671,6 +671,7 @@ import {
   ACTEUR,
   Arret,
   AUTEUR_DU_CIRCUIT,
+  codeDejaPresent,
   commenter,
   composantsDe,
   derniereDe,
@@ -712,7 +713,7 @@ import { lesReponses } from './reponses-du-circuit.mjs';
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
 // The exit code of each stop, from the list of the steps and stops.
-export { ARRETS };
+export { ARRETS, codeDejaPresent };
 // The steps the circuit leads itself, with no agent: each one counts in the ticket's working time.
 const MENEES = new Set(SUITE.filter(e => e.qui.includes(AUTO) && e.etat).map(e => e.etat));
 

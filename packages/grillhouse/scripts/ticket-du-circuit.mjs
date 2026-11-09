@@ -153,6 +153,16 @@ export const fichesDe = (ctx, role) =>
     .filter(e => e.role === role)
     .map(e => e.fiche);
 
+// Whether the code of the behaviour is already in the copy: a developpeur session ran after the
+// last testwriter session (a resume past the code, a replay after the developpeur worked a red).
+// A testwriter session after his lowers it, and a new lot with no developpeur since never raises it.
+export const codeDejaPresent = ctx => {
+  const roles = lesFiches(ctx)
+    .map(e => e.role)
+    .filter(r => r === 'testwriter' || r === 'developpeur');
+  return roles.at(-1) === 'developpeur';
+};
+
 // One line of the circuit's history at the ticket: `Circuit · <étape> : <texte>`, the effect
 // `commentaire`; one not written is said, and the circuit goes on (`ecrireLEffet`).
 export function commenter(ctx, etape, texte) {

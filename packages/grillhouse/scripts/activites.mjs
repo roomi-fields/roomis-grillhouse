@@ -62,6 +62,7 @@ import { consigne, idDeSeance, jusquALaFiche } from './seances.mjs';
 import {
   Arret,
   AUTEUR_DU_CIRCUIT,
+  codeDejaPresent,
   commenter,
   composantsDe,
   entete,
@@ -831,11 +832,16 @@ function restaurer(ctx, commit, fichiers) {
 // The files of the lot that only the night plays (<misDeCote>, `separerLesFichiersDuJour`) are no
 // part of the proof: the red proves the behaviour the ticket develops, and a bench or a night test
 // is neither required red nor a cause of refusal. A lot whose only test files are those passes.
-export function preuveReussie({ fichiers, rouges, casses, nommes, misDeCote = 0 }, { inchange }) {
+// With the code of the behaviour already in the copy (<codePresent>, `codeDejaPresent`), no test
+// can turn red: the proof abstains the same way, a lot that holds a red keeps its verdict.
+export function preuveReussie(
+  { fichiers, rouges, casses, nommes, misDeCote = 0 },
+  { inchange, codePresent = false }
+) {
   if (casses > 0) {
     return false;
   }
-  if (inchange) {
+  if (inchange || codePresent) {
     return true;
   }
   if (nommes > 0) {
@@ -1648,6 +1654,8 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
   }));
   // A plan « comportement inchangé »: every green of the lot is expected.
   const inchange = Boolean(ctx.sorte?.inchange);
+  // The developpeur already ran after the last testwriter: the code is there, no test can turn red.
+  const codePresent = codeDejaPresent(ctx);
   for (const { groupe, entier, avant, lus, arbres, code, resultats, constructions } of mesure) {
     for (const { nom, erreur } of constructions) {
       if (reportes.includes(nom)) {
@@ -1710,7 +1718,7 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
           anciens,
           misDeCote: misDeCote.length,
         },
-        { inchange }
+        { inchange, codePresent }
       );
   const resume = `${rouges.length} rouge(s), ${nommes.length} vert(s) nommé(s) qui portent le travail, ${nonNommes.length} vert(s) non nommé(s), ${casses.length} fichier(s) qui ne se charge(nt) pas, ${anciens} test(s) vert(s) que HEAD tient déjà, laissé(s) de côté`;
   const ecrit = (...sections) =>
@@ -1720,14 +1728,16 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
         nom => `Les tests de ${nom} se jouent aux contrôles, après le développeur.`
       ),
       '',
-      ...(fichiers.length || rouges.length || misDeCote.length
-        ? []
-        : inchange
-          ? [
-              'Aucun fichier de test du lot : le plan dit « comportement inchangé », rien à prouver.',
-              '',
-            ]
-          : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
+      ...(codePresent && !inchange && ok && rouges.length === 0
+        ? ['Le code du développeur est déjà dans la copie : le rouge n’a rien à prouver.', '']
+        : fichiers.length || rouges.length || misDeCote.length
+          ? []
+          : inchange
+            ? [
+                'Aucun fichier de test du lot : le plan dit « comportement inchangé », rien à prouver.',
+                '',
+              ]
+            : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
       ...section('Rouges', rouges),
       ...sections,
       ...(nommes.length
