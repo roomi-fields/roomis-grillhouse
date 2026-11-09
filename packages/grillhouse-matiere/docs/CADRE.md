@@ -17,6 +17,10 @@
 ## Connaît
 
 - R4. Node et le système : bwrap, bd, git, le dossier personnel.
+- R10. La passe d'un test : le dossier de base que `TMPDIR` désigne porte `.grillhouse-base`, que
+  `racineSousLaMaison` lit pour écrire le propriétaire d'un dossier d'essai ; il crée ce dossier
+  sous la maison parce que l'enveloppe remplace `/tmp` par un dossier vide, où un test d'enveloppe
+  ne peut pas le trouver.
 - R5. Le fichier `packages/grillhouse/package.json`, lu comme un fichier pour sa version.
 
 ## Ne connaît pas

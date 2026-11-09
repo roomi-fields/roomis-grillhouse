@@ -59,8 +59,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import path from 'node:path';
+import { homedir, tmpdir } from 'node:os';import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // The prefix of a base's name, and the file of its owner.
@@ -219,23 +218,66 @@ export function retirerALInterruption(retirer) {
   return lacher;
 }
 
+// The trial directories under the home (`racineSousLaMaison`, grillhouse-matiere): their prefix, and
+// how long one without a readable owner file waits before it goes (the ones the passes before the
+// owner file left, and one being created).
+const ESSAIS = `${PREFIXE}essais-`;
+const AGE_DES_ESSAIS_MS = 24 * 3600 * 1000;
+
+// The cache directory of the home, where the trial directories lie.
+const cacheDeLaMaison = () => path.join(process.env.HOME || homedir(), '.cache');
+
+// Whether the owner <p> of a trial directory is a pass of this namespace that is gone: its number
+// is free, or reused by a process that started at another time.
+function passeMorte(p) {
+  const ici = espace();
+  if (p === null || ici === null || p.espace !== ici || !Number.isInteger(p.pid)) return false;
+  return typeof p.depart === 'string' ? !leMemeVivant(p.pid, p.depart) : !vivant(p.pid);
+}
+
+// Removes from the home's cache every trial directory whose pass is gone, and, from the host
+// only (the home is read-only in an envelope, whose namespace is its own), the ones without a
+// readable owner file older than a day.
+function balayerLesEssais(env) {
+  if (enEnveloppe(env)) return;
+  const cache = cacheDeLaMaison();
+  for (const nom of contenu(cache)) {
+    if (!nom.startsWith(ESSAIS)) continue;
+    const dossier = path.join(cache, nom);
+    const p = proprietaire(dossier);
+    let retirer = false;
+    if (p === null) {
+      try {
+        retirer = Date.now() - statSync(dossier).mtimeMs > AGE_DES_ESSAIS_MS;
+      } catch {
+        retirer = false;
+      }
+    } else {
+      retirer = passeMorte(p);
+    }
+    if (retirer) rmSync(dossier, { recursive: true, force: true });
+  }
+}
+
 /**
- * Opens the base of a pass of <genre> in <dans>, after sweeping the orphan bases there.
+ * Opens the base of a pass of <genre> in <dans>, after sweeping the orphan bases there, and the
+ * orphan trial directories under the home.
  * @param {string} genre what the pass is (`vitest`, `circuit`…), in the base's name
  * @param {{ dans?: string }} options `dans`, the directory of the base (`os.tmpdir()`)
  * @returns {{ base: string, dossier: string, env: Record<string, string>, restes: () => string[],
- *   fermer: () => void }} the base; the directory its pass writes in; the variables that name it
- *   to the pass's children (TMPDIR, TMP, TEMP); what is in it, sorted; and the removal of the base
+ *   essais: () => string[], fermer: () => void }} the base; the directory its pass writes in; the
+ *   variables that name it to the pass's children (TMPDIR, TMP, TEMP); what is in it, sorted; the
+ *   names of the `grillhouse-essais-*` directories of the home's cache whose owner file names this
+ *   pass, read at the call; and the removal of the base
  */
 export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
   balayer(dans);
   balayerLesCaches(process.env);
+  balayerLesEssais(process.env);
   mkdirSync(dans, { recursive: true });
   const base = mkdtempSync(path.join(dans, `${PREFIXE}${genre}-`));
-  writeFileSync(
-    path.join(base, PROPRIETAIRE),
-    `${JSON.stringify({ pid: process.pid, espace: espace() })}\n`
-  );
+  const moi = { pid: process.pid, depart: departDe(process.pid), espace: espace() };
+  writeFileSync(path.join(base, PROPRIETAIRE), `${JSON.stringify(moi)}\n`);
   const dossier = path.join(base, 't');
   mkdirSync(dossier);
   return {
@@ -243,6 +285,12 @@ export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
     dossier,
     env: Object.fromEntries(TEMPORAIRES.map(v => [v, dossier])),
     restes: () => contenu(dossier),
+    essais: () =>
+      contenu(cacheDeLaMaison()).filter(nom => {
+        if (!nom.startsWith(ESSAIS)) return false;
+        const p = proprietaire(path.join(cacheDeLaMaison(), nom));
+        return p?.pid === moi.pid && p.depart === moi.depart && p.espace === moi.espace;
+      }),
     fermer: () => rmSync(base, { recursive: true, force: true }),
   };
 }

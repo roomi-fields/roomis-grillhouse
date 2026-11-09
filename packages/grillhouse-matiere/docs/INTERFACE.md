@@ -5,7 +5,13 @@ La matière de test que partagent les paquets de Grillhouse, par la seule entré
 au sens du cadre : il n'exporte que ce sous-chemin, et seuls des tests le lisent.
 
 - `racineSousLaMaison(prefixe, maison?)` : un dossier d'essai neuf sous `~/.cache`, hors de `/tmp`,
-  que l'enveloppe remplace par un dossier vide.
+  que l'enveloppe remplace par un dossier vide : un test d'enveloppe ne peut pas y trouver son
+  dossier. Le dossier porte son propriétaire, le fichier `.grillhouse-base` (`{ pid, depart,
+  espace }` : le processus de la passe, son départ et son espace de processus), écrit avant que
+  le chemin soit rendu. La passe est celle du dossier de base que `TMPDIR` désigne (celui qui porte
+  `.grillhouse-base`), sinon le processus courant : un processus enfant nomme la passe, non
+  lui-même. La passe suivante retire le dossier dont la passe est morte, et la passe finie
+  échoue sur celui qu'elle laisse.
 - `canWrap`, `hasBd` : la machine sait construire une enceinte bwrap, la machine a bd ; un test qui
   en a besoin se joue sous eux (`it.runIf`).
 - `claudeSubstitut(dossier, etat?)`, `sansClaude(dossier)`, `cheminSysteme(...dossiers)`, et les

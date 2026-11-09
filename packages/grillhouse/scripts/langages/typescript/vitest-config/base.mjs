@@ -115,7 +115,10 @@ function baseDeVitest() {
       Object.assign(process.env, b.env);
       retirerALInterruption(b.fermer);
       process.on('exit', () => {
-        const ligne = ligneDesRestes(b.restes().filter(n => !CACHES_DES_OUTILS.has(n)));
+        const ligne = ligneDesRestes([
+          ...b.restes().filter(n => !CACHES_DES_OUTILS.has(n)),
+          ...b.essais(),
+        ]);
         if (ligne) {
           process.stderr.write(`${ligne}\n`);
           process.exitCode = 1;

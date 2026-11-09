@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -12,7 +12,44 @@ import path from 'node:path';
 export function racineSousLaMaison(prefixe: string, maison = homedir()): string {
   const cache = path.join(maison, '.cache');
   mkdirSync(cache, { recursive: true });
-  return mkdtempSync(path.join(cache, prefixe));
+  const dossier = mkdtempSync(path.join(cache, prefixe));
+  writeFileSync(path.join(dossier, '.grillhouse-base'), `${JSON.stringify(laPasse())}\n`);
+  return dossier;
+}
+
+// The start of a process: field 22 of /proc/<pid>/stat, after the command.
+function departDe(pid: number): string {
+  const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+  return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+}
+
+// The pass that owns a trial directory: the process of the base directory TMPDIR names (the one
+// holding `.grillhouse-base`, TMPDIR itself or its parent), else the current process.
+function laPasse(): { pid: number; depart: string; espace: string } {
+  const tmp = process.env.TMPDIR;
+  for (const base of tmp ? [tmp, path.dirname(tmp)] : []) {
+    try {
+      const lu = JSON.parse(readFileSync(path.join(base, '.grillhouse-base'), 'utf8')) as Partial<{
+        pid: number;
+        depart: string;
+        espace: string;
+      }>;
+      if (
+        Number.isInteger(lu.pid) &&
+        typeof lu.depart === 'string' &&
+        typeof lu.espace === 'string'
+      ) {
+        return { pid: lu.pid, depart: lu.depart, espace: lu.espace };
+      }
+    } catch {
+      // no readable owner file here: next candidate
+    }
+  }
+  return {
+    pid: process.pid,
+    depart: departDe(process.pid),
+    espace: readlinkSync('/proc/self/ns/pid'),
+  };
 }
 
 // True when bwrap builds a sandbox on this machine: installed, and allowed its namespaces. A test
