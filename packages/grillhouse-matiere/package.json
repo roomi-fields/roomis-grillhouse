@@ -11,7 +11,8 @@
     "format:check": "prettier --check \"{src,tests}/**/*.ts\""
   },
   "devDependencies": {
-    "@roomi-fields/grillhouse": "*"
+    "@roomi-fields/grillhouse": "*",
+    "vitest": "^2.0.0"
   },
   "exports": {
     "./test-fixtures": {

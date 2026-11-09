@@ -1541,6 +1541,11 @@ greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses e
 enveloppe, l'avancement et la mesure d'une passe, la pression et le verrou de la machine, le
 dernier vert, les arbitrages d'un ticket, le préfixe des tickets, lu et écrit dans le fichier
 commité de Beads, les fichiers sources d'un projet).
+La garde des frontières refuse aussi un import que le `package.json` du paquet importateur ne
+déclare pas (`pas-d-import-non-declare`, `no-non-package-json` de dependency-cruiser, comme npm et
+pnpm en mode strict) : son refus nomme le fichier et le paquet, puis dit les deux suites, déclarer
+l'usage (et, pour un composant du dépôt, dans la section « Consommateurs » de l'INTERFACE.md du
+fournisseur), sinon ouvrir une question d'architecture au superviseur.
 La garde des frontières tient les deux sens, par les
 règles propres au dépôt (`.dependency-cruiser.projet.cjs`), comme `enforce-module-boundaries` de
 Nx ; le test de la jointure (`tests/unit/jointure.spec.ts`) refuse tout mot d'un outil dans le

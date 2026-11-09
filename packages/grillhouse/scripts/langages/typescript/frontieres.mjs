@@ -59,6 +59,7 @@ export const RACINES = ['src', 'packages'];
 /** The test files, as a pattern of a path from the repository's root. */
 export const TESTS = '(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$';
 const REGLE_OUTILS = 'pas-d-outil-de-developpement-dans-le-code';
+const REGLE_DECLARATION = 'pas-d-import-non-declare';
 // The environment variable naming the file that holds the pattern of the published files.
 const JUGES = 'GRILLHOUSE_JUGES';
 
@@ -159,6 +160,18 @@ export function configuration(racine) {
       severity: 'error',
       from: { path: CODE, pathNot: TESTS },
       to: { dependencyTypes: ['npm-dev'] },
+    },
+    {
+      name: REGLE_DECLARATION,
+      comment:
+        "un import vise un paquet que le package.json du paquet importateur déclare (la règle no-non-package-json de dependency-cruiser) : l'usage se déclare s'il est valide pour l'architecture, sinon une question d'architecture s'ouvre",
+      severity: 'error',
+      // The development imports (the test files and the tools' configuration files) are out of
+      // the published code: the tools they import (vitest, typescript) are the workspace's.
+      from: { pathNot: `${TESTS}|(^|/)[^/]*[.]config[.][cm]?[jt]s$` },
+      // A peer dependency is declared by the package, yet dependency-cruiser types it `npm-no-pkg`
+      // too: the types it carries as peer are not refused.
+      to: { dependencyTypes: ['npm-no-pkg', 'npm-unknown'], dependencyTypesNot: ['npm-peer'] },
     },
     {
       name: 'tout-import-se-resout',
@@ -425,6 +438,36 @@ export function constats(resultat) {
     }));
 }
 
+// The package an import of a violation targets: the name in the `node_modules` path it resolves
+// to (`@scope/name` or `name`), else the module's own name.
+function paquetVise(violation) {
+  const m = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(violation.to);
+  return m ? m[1] : violation.to;
+}
+
+// The refusal of an import the package does not declare, with its two ways on: the file, the
+// package imported, then declaring the usage (and, for a component of the repository, in the
+// provider's "Consommateurs" section), else an architecture question.
+export function suitesDeLUsage(racine, violation) {
+  const importe = paquetVise(violation);
+  const propre = /^(packages\/[^/]+)\//.exec(violation.from);
+  const manifeste = `${propre ? `${propre[1]}/` : ''}package.json`;
+  const fournisseur = composants(racine).find(c => c.paquet === importe);
+  const tete = `⛔ ${violation.from} importe ${importe}, que ${manifeste} ne déclare pas.`;
+  if (fournisseur) {
+    const interfaceDuFournisseur = `${posix(path.relative(racine, fournisseur.dir))}/docs/INTERFACE.md`;
+    return (
+      `${tete}\n  Si l'usage est valide pour l'architecture : le déclarer dans ${manifeste}, et dans ` +
+      `la section « Consommateurs » de ${interfaceDuFournisseur}.\n  Sinon : ouvrir une question ` +
+      "d'architecture (au superviseur)."
+    );
+  }
+  return (
+    `${tete}\n  Si l'usage est valide pour l'architecture : le déclarer dans ${manifeste}.\n` +
+    "  Sinon : ouvrir une question d'architecture (au superviseur)."
+  );
+}
+
 // The pattern of the files to judge, as dependency-cruiser's `path` filter reads it.
 const motifDes = fichiers => `^(${[...fichiers].sort().map(echappe).join('|')})$`;
 
@@ -499,6 +542,9 @@ function frontieres(racine, args) {
     }
     for (const l of lignes) {
       process.stderr.write(`${l}\n`);
+    }
+    for (const c of refus.filter(c => c.regle === REGLE_DECLARATION)) {
+      process.stderr.write(`${suitesDeLUsage(racine, c.violation)}\n`);
     }
     return refus.length ? 1 : 0;
   } finally {

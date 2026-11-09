@@ -93,6 +93,27 @@ module.exports = {
         }
       },
       {
+        "name": "pas-d-import-non-declare",
+        "comment": "un import vise un paquet que le package.json du paquet importateur déclare " +
+          "(la règle no-non-package-json de dependency-cruiser) : l'usage se déclare " +
+          "s'il est valide pour l'architecture, sinon une question d'architecture " +
+          "s'ouvre",
+        "severity": "error",
+        "from": {
+          "pathNot": "(^|/)(test|tests|__tests__)/|[.](test|spec)[.][a-z]+$|(^|" +
+            "/)[^/]*[.]config[.][cm]?[jt]s$"
+        },
+        "to": {
+          "dependencyTypes": [
+            "npm-no-pkg",
+            "npm-unknown"
+          ],
+          "dependencyTypesNot": [
+            "npm-peer"
+          ]
+        }
+      },
+      {
         "name": "tout-import-se-resout",
         "comment": "un import se résout : un chemin qu'un paquet n'exporte pas est refusé",
         "severity": "error",

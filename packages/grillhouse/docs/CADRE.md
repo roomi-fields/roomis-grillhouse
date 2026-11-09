@@ -73,3 +73,13 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   nommé en littéral dans un appel de processus à `cwd:`, `-C` ou `--prefix`. Un outil nommé par
   variable ou par script npm échappe à la lecture. Un grand test de jour est un constat inscrit
   à la dette, qui ne remonte jamais ; la migration 0.30.0 l'inscrit dans un projet.
+- **R8.** Un import que le `package.json` du paquet importateur ne déclare pas est refusé par la
+  garde des frontières (`pas-d-import-non-declare`, la règle `no-non-package-json` de
+  dependency-cruiser : un paquet n'importe que ce qu'il déclare, comme npm et pnpm en mode
+  strict), types seuls compris ; un module de Node, un import déclaré et un pair déclaré passent.
+  Le refus nomme le fichier, le paquet importé, puis deux suites : déclarer l'usage dans le
+  `package.json` du paquet importateur s'il est valide pour l'architecture, sinon ouvrir une
+  question d'architecture (au superviseur). Pour un composant du dépôt, la première
+  suite déclare aussi l'usage dans la section « Consommateurs » de l'INTERFACE.md du fournisseur
+  (que le contrôle des consommateurs exige). Le refus ne corrige rien ; il s'inscrit à la dette
+  comme tout constat de frontières.

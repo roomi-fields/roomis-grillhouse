@@ -209,7 +209,10 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   et chaque autre commande du module, garde, générateur ou préparation, par son nom ; chacune
   `{ script, args }`, le script absolu, jamais lancée. `grillhouse tests` et `grillhouse verifier`
   lancent `tester` et `verifier` ; chaque autre, sauf `typer`, est une sous-commande de son nom
-  (`grillhouse frontieres`), comme un backend de Pants apporte ses buts. Chaque garde du module est
+  (`grillhouse frontieres`, qui refuse aussi un import que le `package.json` du paquet importateur
+  ne déclare pas, et dit les deux suites : déclarer l'usage, sinon une question d'architecture ;
+  pour un composant du dépôt, aussi dans la section « Consommateurs » de l'interface du
+  fournisseur), comme un backend de Pants apporte ses buts. Chaque garde du module est
   une commande de son nom, celui de son script, que la ligne d'une garde rouge nomme (`grillhouse
 clippy`). Le noyau en lance trois
   quand le module les décrit, et passe l'étape sinon :
