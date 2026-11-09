@@ -232,10 +232,10 @@ describe(
       const verrou = path.join(d, 'mesure.lock');
       const trace = path.join(d, 'trace');
       const libere = path.join(d, 'libere');
-      // The holder's command names its script, as `node scripts/langages/typescript/verifier.mjs` does.
-      const script = path.join(d, 'marque-du-detenteur.mjs');
-      writeFileSync(script, preneur('A', trace, tenir(libere)));
-      const detenteur = spawn(process.execPath, [script], {
+      // The holder's command names its script by a relative name, as `node scripts/langages/typescript/verifier.mjs`
+      // does, the working directory being said apart: the command carries no long path, whatever $TMPDIR is.
+      writeFileSync(path.join(d, 'marque-du-detenteur.mjs'), preneur('A', trace, tenir(libere)));
+      const detenteur = spawn(process.execPath, ['marque-du-detenteur.mjs'], {
         env: environnement({ GRILLHOUSE_VERROU_MACHINE: verrou }),
         cwd: d,
         stdio: 'pipe',
@@ -260,7 +260,8 @@ describe(
         expect(lignes(trace)).toEqual(['A début']);
         expect(b.sortie).toContain(String(detenteur.pid));
         expect(b.sortie).toContain(d);
-        expect(b.sortie).toContain('marque-du-detenteur');
+        expect(b.sortie).toContain('marque-du-detenteur.mjs');
+        expect(b.sortie).toContain(`(dans ${d})`);
         expect(b.sortie).toMatch(/depuis \d\d:\d\d:\d\d/);
         expect(b.sortie).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
         expect(readFileSync(verrou, 'utf8')).toBe(marque);
@@ -285,20 +286,78 @@ describe(
       const finDetenteur = fin(detenteur);
       try {
         await jusqua(() => lignes(trace).includes('A début'));
-        const b = await fin(
-          lancer(preneur('B', trace, '', '{ borneMs: 2_600, rappelMs: 500 }'), env)
-        );
-        expect(b.code, b.sortie).toBe(75);
-        const attentes = b.sortie.split('\n').filter(l => l.startsWith('⏳'));
-        expect(attentes.length, b.sortie).toBeGreaterThanOrEqual(4);
+        // A fake clock that moves 10 min at each sleep, in this process: a real sleep or the wall
+        // clock could not tell 60 min in a test's time, so a wait that ignores them never ends here.
+        const { avecLaMachine } = (await import(MODULE)) as {
+          avecLaMachine: (corps: () => void, o: Record<string, unknown>) => void;
+        };
+        let t = 0;
+        let dormis = 0;
+        const dites: string[] = [];
+        let erreur: { code?: number } | undefined;
+        try {
+          avecLaMachine(() => {}, {
+            env,
+            racine: d,
+            libre: () => Number.MAX_SAFE_INTEGER,
+            occupe: () => '',
+            dire: (l: string) => dites.push(l),
+            borneMs: 60 * 60_000,
+            rappelMs: 10 * 60_000,
+            maintenant: () => t,
+            dormir: () => {
+              dormis += 1;
+              t += 10 * 60_000;
+            },
+          });
+        } catch (e) {
+          erreur = e as { code?: number };
+        }
+        expect(erreur?.code, dites.join('\n')).toBe(75);
+        expect(dormis).toBe(6);
+        const attentes = dites.filter(l => l.startsWith('⏳'));
+        expect(attentes.length, dites.join('\n')).toBe(6);
         for (const l of attentes) {
           expect(l).toContain(String(detenteur.pid));
         }
-        expect(attentes.at(-1)).toMatch(/depuis [12] s/);
+        expect(attentes.at(-1)).toContain('depuis 50 min');
       } finally {
         writeFileSync(libere, '');
         await finDetenteur;
       }
+    });
+
+    it('l’attente d’une place nommée dit sa durée sur l’horloge et le sommeil qu’on lui donne', async () => {
+      const d = unDossier();
+      const { attendreDeLaPlace } = (await import(MODULE)) as {
+        attendreDeLaPlace: (o: Record<string, unknown>) => void;
+      };
+      let t = 0;
+      const dites: string[] = [];
+      let erreur: { code?: number; message?: string } | undefined;
+      try {
+        attendreDeLaPlace({
+          env: environnement({
+            GRILLHOUSE_VERROU_MACHINE: path.join(d, 'mesure.lock'),
+            GRILLHOUSE_TEMPORAIRE_LIBRE: undefined,
+          }),
+          libre: () => 0,
+          occupe: () => 'rien',
+          dire: (l: string) => dites.push(l),
+          borneMs: 60 * 60_000,
+          rappelMs: 10 * 60_000,
+          maintenant: () => t,
+          dormir: () => {
+            t += 10 * 60_000;
+          },
+        });
+      } catch (e) {
+        erreur = e as { code?: number; message?: string };
+      }
+      expect(erreur?.code).toBe(75);
+      const attentes = dites.filter(l => l.startsWith('⏳'));
+      expect(attentes.length, dites.join('\n')).toBe(6);
+      expect(attentes.at(-1)).toContain('attente de place depuis 50 min');
     });
 
     // The case of the 40 min: a measure that waits for a lock its own ancestor holds would wait for

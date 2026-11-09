@@ -559,19 +559,31 @@ function attendreLaPlace(dossier, { inscrire, ...o }) {
 
 function attendreLaPlaceEnNommant(
   dossier,
-  { disque, plancher, libre, occupe, dire, borneMs, rappelMs, nommer, debut = Date.now() }
+  {
+    disque,
+    plancher,
+    libre,
+    occupe,
+    dire,
+    borneMs,
+    rappelMs,
+    nommer,
+    maintenant = Date.now,
+    dormir = attendreUnPeu,
+    debut = maintenant(),
+  }
 ) {
   let dit = null;
   for (;;) {
     const l = libre(dossier);
     if (l >= plancher) {
       if (dit !== null) {
-        dire(`✓ place ${disque.ou} après ${duree(Date.now() - debut)}.`);
+        dire(`✓ place ${disque.ou} après ${duree(maintenant() - debut)}.`);
       }
       return;
     }
     nommer();
-    const t = Date.now();
+    const t = maintenant();
     const etat = () =>
       `${disque.nom} (${dossier}) n'a que ${go(l)} libres, moins des ${go(plancher)} qu'une passe lourde demande (${disque.variable}) ; l'occupent : ${occupe(dossier)}`;
     if (t - debut >= borneMs) {
@@ -588,7 +600,7 @@ function attendreLaPlaceEnNommant(
     if (dit === null || t - dit >= rappelMs) {
       dit = t;
     }
-    attendreUnPeu(Math.max(1, Math.min(200, borneMs - (Date.now() - debut))));
+    dormir(Math.max(1, Math.min(200, borneMs - (maintenant() - debut))));
   }
 }
 
@@ -599,7 +611,9 @@ function attendreLaPlaceEnNommant(
  * @param {{ env?: Record<string, string | undefined>, dire?: (l: string) => void, borneMs?: number,
  *   rappelMs?: number, libre?: (dossier: string) => number, occupe?: (dossier: string) => string,
  *   occupeLaCopie?: (racine: string) => string, racine?: string, ticket?: string | null,
- *   sorte?: string }} [o] `libre` reads the room of each disk, `occupe` what holds the temporary
+ *   sorte?: string, maintenant?: () => number, dormir?: (ms: number) => void }} [o]
+ *   `maintenant` and `dormir` are the clock (Date.now) and the sleep of the wait, the real ones
+ *   when left out; `libre` reads the room of each disk, `occupe` what holds the temporary
  *   directory, `occupeLaCopie` the copies that hold the disk of the copy; the wait names its
  *   project <racine>, its ticket and its kind among the waits of the lock of the machine under
  *   <env> while it waits
@@ -616,12 +630,14 @@ export function attendreDeLaPlace({
   racine = process.cwd(),
   ticket,
   sorte,
+  maintenant = Date.now,
+  dormir = attendreUnPeu,
 } = {}) {
   const temporaire = env.TMPDIR || env.TMP || env.TEMP || tmpdir();
   const id = identite({ racine, env, ticket, sorte });
   const inscrire = () => inscrireLAttente(verrouDeMachine(env), id, 'place');
-  const debut = Date.now();
-  const commun = { libre, dire, borneMs, rappelMs, inscrire, debut };
+  const debut = maintenant();
+  const commun = { libre, dire, borneMs, rappelMs, inscrire, debut, maintenant, dormir };
   attendreLaPlace(temporaire, {
     ...commun,
     disque: DISQUES.temporaire,
@@ -651,17 +667,20 @@ export function borneDe(env) {
 // <rappelMs>; returns the time waited, in ms. Throws an AttenteDeLaMachine at once when an ancestor
 // holds the lock, and at the bound <borneMs>. The measure, <id>, names itself among the waits,
 // with its rank, while it waits.
-function attendreLaMachine(verrou, { id, rang, dire, borneMs, rappelMs }) {
+function attendreLaMachine(verrou, { id, rang, dire, borneMs, rappelMs, maintenant, dormir }) {
   const retirer = inscrireLAttente(verrou, id, 'verrou', rang);
   try {
-    return attendreAuRang(verrou, { rang, dire, borneMs, rappelMs });
+    return attendreAuRang(verrou, { rang, dire, borneMs, rappelMs, maintenant, dormir });
   } finally {
     retirer();
   }
 }
 
-function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
-  const debut = Date.now();
+function attendreAuRang(
+  verrou,
+  { rang, dire, borneMs, rappelMs, maintenant = Date.now, dormir = attendreUnPeu }
+) {
+  const debut = maintenant();
   let dit = null;
   for (;;) {
     const pid = detenteur(verrou);
@@ -671,7 +690,7 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
         1
       );
     }
-    const t = Date.now();
+    const t = maintenant();
     if (t - debut >= borneMs) {
       throw new AttenteDeLaMachine(
         `⏱ attente du verrou de la machine bornée à ${duree(borneMs)} (${VARIABLE_ATTENTE}), ${RANGS[rang]} : ${attendus(verrou, rang)} ; à repasser (code ${A_REPASSER}).`,
@@ -691,9 +710,9 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
       dit = t;
     }
     if (peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false })) {
-      return Date.now() - debut;
+      return maintenant() - debut;
     }
-    attendreUnPeu(Math.max(1, Math.min(200, borneMs - (Date.now() - debut))));
+    dormir(Math.max(1, Math.min(200, borneMs - (maintenant() - debut))));
   }
 }
 
@@ -704,7 +723,9 @@ function attendreAuRang(verrou, { rang, dire, borneMs, rappelMs }) {
  * @param {{ env?: Record<string, string | undefined>, racine?: string,
  *   dire?: (ligne: string) => void, borneMs?: number, rappelMs?: number,
  *   libre?: (dossier: string) => number, occupe?: (dossier: string) => string,
- *   ticket?: string | null, sorte?: string }} options `racine`, the
+ *   ticket?: string | null, sorte?: string, maintenant?: () => number,
+ *   dormir?: (ms: number) => void }} options `maintenant` and `dormir`, the clock and the sleep of
+ *   the wait (Date.now and the real sleep when left out); `racine`, the
  *   root of the repository the measure plays in, which gives its rank (`rangDeLaMesure`; the
  *   working directory by default); `borneMs`, the bound of the wait
  *   (GRILLHOUSE_ATTENTE_MACHINE_MS, else ATTENTE_MACHINE_MS); `rappelMs`, the gap between two
@@ -730,6 +751,8 @@ export function avecLaMachine(
     occupe = occupants,
     ticket,
     sorte,
+    maintenant = Date.now,
+    dormir = attendreUnPeu,
   } = {}
 ) {
   if (paquetsDeLEnveloppe(env)) {
@@ -739,12 +762,32 @@ export function avecLaMachine(
   if (env[VARIABLE_TENUE] && lire(verrou) === env[VARIABLE_TENUE]) {
     return mesure(env);
   }
-  attendreDeLaPlace({ env, libre, occupe, dire, borneMs, rappelMs, racine, ticket, sorte });
+  attendreDeLaPlace({
+    env,
+    libre,
+    occupe,
+    dire,
+    borneMs,
+    rappelMs,
+    racine,
+    ticket,
+    sorte,
+    maintenant,
+    dormir,
+  });
   const id = identite({ racine, env, ticket, sorte });
   mkdirSync(path.dirname(verrou), { recursive: true });
   const rang = rangDeLaMesure(racine);
   if (!(peutPrendre(verrou, rang) && prendreVerrou(verrou, { attendre: false }))) {
-    const attendu = attendreLaMachine(verrou, { id, rang, dire, borneMs, rappelMs });
+    const attendu = attendreLaMachine(verrou, {
+      id,
+      rang,
+      dire,
+      borneMs,
+      rappelMs,
+      maintenant,
+      dormir,
+    });
     dire(`✓ verrou de la machine pris après ${Math.round(attendu / 1000)} s.`);
   }
   let oublier = () => {};
