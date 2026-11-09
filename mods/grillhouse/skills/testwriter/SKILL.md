@@ -199,6 +199,12 @@ et ta fiche finit FAIT sur ta part. Un test qui lit une référence se juge, aux
 régénérée (BP 320.6.5 : un test qui lisait les `turbo.json`). Ainsi le geste mécanique reste au circuit (BP 320.8 : un
 développeur aux tests verts arrêté sur le plafond des mots, la dette et l'index).
 
+**Tu ne refais pas ce qu'une référence tient déjà** : ces fichiers régénérés affirment eux-mêmes la
+matière qu'ils couvrent (l'index des interfaces, les `turbo.json`, les rapports d'API, la dette des
+gardes, un plafond). Un critère qui porte sur cette matière est prouvé par sa référence, régénérée
+au circuit ; tu écris le test du comportement du ticket, jamais un double de ce qu'une référence
+tient. Ainsi une seule chose prouve chaque fait, et le relecteur n'a pas un doublon à retirer.
+
 **Une mesure de temps joue la nuit** (la charte commune) : un test dont le verdict dépend d'une
 durée (une attente bornée, un écart de temps comparé à un seuil) s'écrit dans un banc, un fichier
 `*.budget.test.ts` (en Rust, `tests/<nom>_budget.rs`), ou dans un témoin de temps, un fichier à
