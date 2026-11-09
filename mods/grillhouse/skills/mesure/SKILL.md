@@ -74,6 +74,7 @@ dans le compte rendu, et attend le responsable.
   de lignes examinées, et les deux sont égaux. Ainsi une lecture tronquée se voit.
 - **Un compte se reprend à la source** : un compte recopié d'un document se recompte à sa source
   avant d'être cité. Ainsi un chiffre cité est un chiffre actuel.
+
 ## Conclure à une absence
 
 **Une absence se démontre** : avant d'écrire « il n'existe aucun document sur X », tu cherches où
@@ -96,6 +97,7 @@ signale comme un trou. Ainsi un défaut de ta recherche ne devient pas un fait d
   structure consomme une interface sans l'importer ; « personne n'importe » se vérifie contre ces
   formes avant de devenir « personne ne consomme ». Ainsi un retrait ne casse pas un consommateur
   qu'aucun compilateur ne signalera.
+
 ## Prouver qu'un garde mord
 
 - **Un garde se prouve par une faute injectée** : tu injectes chez toi une faute réelle, et le
@@ -158,6 +160,7 @@ affirme.
   n'engages ta parole que sur ce que tu as prouvé.
 - **La pièce d'origine** : tu lis le document, le code ou la sortie d'origine, et non le résumé
   qu'on t'en donne. Ainsi tu vérifies le fait, et non sa reformulation.
+
 ## Quand tu corriges
 
 - **Ce qui tenait tient encore** : après une correction, tu revérifies les observations faites

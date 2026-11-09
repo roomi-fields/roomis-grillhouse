@@ -113,7 +113,7 @@ séance de code.
 
 ## Les six passes
 
-Après la passe d'architecture, chaque passe suit son fichier de `references/` à la lettre, dans
+Après la passe d'architecture, chaque passe suit son fichier de `references/`, quand elle en a un, à la lettre, dans
 cet ordre.
 
 1. **Les cas limites** (`references/edge-case-hunter.md`) : chaque chemin du diff qui manque de

@@ -125,7 +125,7 @@ remplace jamais le grill. Les branches de l'arbre :
 8. **Les composants** — le découpage qui découle des branches 5 à 7, chaque frontière avec ses
    pièces ; pour chacun, les huit rubriques du cadre : rôle, reçoit, rend, connaît, ne connaît pas,
    refuse, invariants, coût. Puis la forme : un paquet ou plusieurs, bibliothèque ou service (un
-   service garde `deployment/`, le démon et `.env`), TypeScript ou JavaScript.
+   service garde `deployment/`, le démon et `.env`), et son langage (la rubrique suivante le déclare).
    **Le langage de chaque paquet** : le tableau des composants de `docs/ARCHITECTURE.md` porte une
    colonne « Langage » (`typescript`, `cargo`, `python`), une ligne par paquet, comme le fichier BUILD de
    Bazel nomme la règle de chaque cible ; le cadre lit là les langages du projet, rien ne se devine
