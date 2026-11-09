@@ -5,16 +5,27 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  # The release (release.yml) plays the CI on the tagged commit before it publishes.
+  # Once a night, on the default branch: Node 22 and 24.
+  schedule:
+    - cron: '0 2 * * *'
+  # The release (release.yml) plays the CI on the tagged commit before it publishes, on the
+  # versions of Node its call names.
   workflow_call:
+    inputs:
+      node-versions:
+        description: 'The versions of Node to play, a JSON array'
+        type: string
+        default: '["22.x"]'
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
+    # The versions come from the input of the call; push and pull request play Node 22 alone,
+    # the nightly schedule plays Node 22 and 24.
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["22.x","24.x"]' || '["22.x"]')) }}
 
     steps:
       - name: Checkout
