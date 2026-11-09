@@ -186,11 +186,14 @@ function contenu(dossier) {
  * The line of the guard of a pass of tests: what its tests left in their temporary directory,
  * named; null when they left nothing.
  * @param {string[]} restes the names left (`restes` of a base)
+ * @param {string} [paquet] the package whose tests played under that directory, when the pass
+ *   gives each package its own; the line names it
  * @returns {string | null}
  */
-export function ligneDesRestes(restes) {
+export function ligneDesRestes(restes, paquet) {
   if (restes.length === 0) return null;
-  return `⛔ Les tests ont laissé dans leur dossier temporaire : ${restes.join(', ')}. Un test retire ce qu'il y crée, rouge compris.`;
+  const de = paquet ? `Les tests de ${paquet} ont` : 'Les tests ont';
+  return `⛔ ${de} laissé dans leur dossier temporaire : ${restes.join(', ')}. Un test retire ce qu'il y crée, rouge compris.`;
 }
 
 // The signals that interrupt a pass: Ctrl-C, a kill, the end of its terminal.

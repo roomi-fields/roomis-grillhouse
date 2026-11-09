@@ -119,6 +119,7 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -285,7 +286,7 @@ function passe(racine, env) {
       ecrire();
       return { t, args };
     },
-    jouer({ t, args }, { junit = null, journal = null, programme = 'cargo' } = {}) {
+    jouer({ t, args }, { junit = null, journal = null, programme = 'cargo', temporaire = {} } = {}) {
       // A report of an earlier run is no report of this one, which may write none.
       if (junit) {
         rmSync(junit, { force: true });
@@ -305,7 +306,7 @@ function passe(racine, env) {
         try {
           r = spawnSync(programme, args, {
             cwd: racine,
-            env: compilation,
+            env: { ...compilation, ...temporaire },
             stdio: ['inherit', fd, fd],
           });
         } finally {
@@ -314,7 +315,11 @@ function passe(racine, env) {
         process.stderr.write(readFileSync(journal, 'utf8'));
         t.journal = path.relative(racine, journal);
       } else {
-        r = spawnSync(programme, args, { cwd: racine, env: compilation, stdio: 'inherit' });
+        r = spawnSync(programme, args, {
+          cwd: racine,
+          env: { ...compilation, ...temporaire },
+          stdio: 'inherit',
+        });
       }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
       if (junit && dossier && existsSync(junit)) {
@@ -327,6 +332,15 @@ function passe(racine, env) {
       }
       ecrire();
       return t.code;
+    },
+    // Turns red the first green task of tests of <paquet>: what its tests left in its temporary
+    // directory fails it.
+    rougir(paquet) {
+      const t = taches.find(x => x.paquet === paquet && x.tests && x.code === 0);
+      if (t) {
+        t.code = 1;
+        ecrire();
+      }
     },
     code() {
       const rouges = taches.filter(t => t.code !== 0);
@@ -363,7 +377,7 @@ function sousCharge(t, pressions) {
 // the build of its test targets first, then nextest, then its doctests; a failed build leaves the
 // crate's other tasks not played. The benches named, each crate's in a task `budget`, are
 // planned with the rest and played by the function this one returns, after the other tests.
-function jouerLesTests(racine, p, choix, options) {
+function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
   const m = metadonnees(racine);
   // Nextest's store is `target/nextest` under the workspace's root (its default `store.dir`),
   // whatever the target directory of the compilations (./sccache.mjs).
@@ -416,21 +430,28 @@ function jouerLesTests(racine, p, choix, options) {
               : []
             : nommes;
         const args = [...nextest, '-p', nom, ...selection, ...options];
-        prevues.push([p.prevoir(nom, d, 'nextest', true, args), { junit }]);
+        prevues.push([
+          p.prevoir(nom, d, 'nextest', true, args),
+          { junit, temporaire: temporaire(nom) },
+        ]);
       }
       if (desBancs.length) {
         const args = [...nextestDuBanc, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
-        bancs.push({ nom, d, args: [...args, '--test-threads', '1', ...options], etat });
+        bancs.push({ nom, d, temporaire: temporaire(nom), args: [...args, '--test-threads', '1', ...options], etat });
       }
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
     if ((cibles.length === 0 || avecLeJour) && doctests) {
       const args = ['test', '--doc', ...j, '-p', nom];
-      prevues.push([p.prevoir(nom, d, 'doctest', true, args), {}]);
+      prevues.push([p.prevoir(nom, d, 'doctest', true, args), { temporaire: temporaire(nom) }]);
     }
     parCrate.push([prevues, etat]);
   }
-  const prevusBancs = bancs.map(b => [p.prevoir(b.nom, b.d, BUDGET, true, b.args), b.etat]);
+  const prevusBancs = bancs.map(b => [
+    p.prevoir(b.nom, b.d, BUDGET, true, b.args),
+    b.etat,
+    b.temporaire,
+  ]);
   for (const [prevues, etat] of parCrate) {
     for (const [t, o] of prevues) {
       if (p.jouer(t, o) !== 0 && t.t.script === 'build') {
@@ -440,9 +461,9 @@ function jouerLesTests(racine, p, choix, options) {
     }
   }
   return () => {
-    for (const [t, etat] of prevusBancs) {
+    for (const [t, etat, temporaire] of prevusBancs) {
       if (etat.construit) {
-        p.jouer(t, { junit });
+        p.jouer(t, { junit, temporaire });
       }
     }
   };
@@ -597,12 +618,38 @@ const CACHE_DE_NODE = 'node-compile-cache';
 // Plays <jouer>(env) under the base of a pass of <genre> in the temporary directory of <env>,
 // named to cargo in TMPDIR, TMP and TEMP: its code, 1 when the tests left something there, named.
 // The base goes at the end, or at an interruption.
+//
+// <jouer>(env, parPaquet) also receives `parPaquet`: `{ temporaire(nom), restes(nom) }`, the
+// sub-directory of the base one package's tests play under (made at the first call, named in
+// TMPDIR, TMP and TEMP) and what is left in it, so a leftover has the package that left it. The
+// base's own line names what lies beside those sub-directories.
 function sousLaBase(genre, env, jouer) {
   const base = ouvrirBase(genre, { dans: env.TMPDIR || tmpdir() });
   const lacher = retirerALInterruption(base.fermer);
+  const dossiers = new Map();
+  const parPaquet = {
+    temporaire(nom) {
+      if (!dossiers.has(nom)) {
+        const d = path.join(base.dossier, nom);
+        mkdirSync(d, { recursive: true });
+        dossiers.set(nom, d);
+      }
+      const d = dossiers.get(nom);
+      return { TMPDIR: d, TMP: d, TEMP: d };
+    },
+    restes(nom) {
+      try {
+        return readdirSync(dossiers.get(nom)).sort();
+      } catch {
+        return [];
+      }
+    },
+  };
   try {
-    const code = jouer({ ...env, ...base.env });
-    const ligne = ligneDesRestes(base.restes().filter(n => n !== CACHE_DE_NODE));
+    const code = jouer({ ...env, ...base.env }, parPaquet);
+    const ligne = ligneDesRestes(
+      base.restes().filter(n => n !== CACHE_DE_NODE && !dossiers.has(n))
+    );
     if (!ligne) {
       return code;
     }
@@ -705,10 +752,10 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     return surUnePlace(e => tester(racine, tous, args, e), { env });
   }
   if (nom === 'tests-du-paquet') {
-    return sousLaBase('tests', env, envBase => testsDuPaquet(racine, tous, args, envBase));
+    return sousLaBase('tests', env, (envBase, pp) => testsDuPaquet(racine, tous, args, envBase, pp));
   }
   if (nom === 'tests-de-nuit') {
-    return sousLaBase('tests', env, envBase => testsDeNuit(racine, tous, envBase));
+    return sousLaBase('tests', env, (envBase, pp) => testsDeNuit(racine, tous, envBase, pp));
   }
   process.stderr.write(`⛔ commande inconnue du module cargo : ${nom} (${NOMS.join(', ')})\n`);
   return 2;
@@ -758,7 +805,7 @@ function tester(racine, tous, args, env) {
 // The pass of `tests-du-paquet` in <racine>, the crates <tous>, its arguments <args>, under <env>:
 // the body of the task `test:unit` of a crate. The paths its script names, completed by those of
 // the variable of the task that lie in the same crate.
-function testsDuPaquet(racine, tous, args, env) {
+function testsDuPaquet(racine, tous, args, env, parPaquet) {
   const donnes = args.filter(a => !a.startsWith('-'));
   if (donnes.length === 0) {
     process.stderr.write(
@@ -781,20 +828,41 @@ function testsDuPaquet(racine, tous, args, env) {
     return 2;
   }
   const p = passe(racine, env);
-  jouerLesTests(racine, p, r.choix, [...args.filter(a => a.startsWith('-')), ...options])();
+  jouerLesTests(
+    racine,
+    p,
+    r.choix,
+    [...args.filter(a => a.startsWith('-')), ...options],
+    parPaquet.temporaire
+  )();
+  restesParPaquet(p, r.choix, parPaquet);
   return p.code();
+}
+
+// The line of the guard of each crate of <choix> whose tests left something in its temporary
+// directory, naming it, and its task of tests turned red in the run <p>.
+function restesParPaquet(p, choix, parPaquet) {
+  for (const { c } of choix) {
+    const nom = c.composant.nom;
+    const ligne = ligneDesRestes(parPaquet.restes(nom), nom);
+    if (ligne) {
+      process.stderr.write(`${ligne}\n`);
+      p.rougir(nom);
+    }
+  }
 }
 
 // The pass of `tests-de-nuit` in <racine>, the crates <tous>, under <env>: the night tests and the
 // benches of each crate that holds some, each named.
-function testsDeNuit(racine, tous, env) {
+function testsDeNuit(racine, tous, env, parPaquet) {
   const p = passe(racine, env);
   const choix = tous
     .filter(c => joueDesTests(racine, c.composant))
     .map(c => ({ c, cibles: c.cibles.filter(horsDuJour).map(t => t.name) }))
     .filter(x => x.cibles.length);
   if (choix.length) {
-    jouerLesTests(racine, p, choix, [])();
+    jouerLesTests(racine, p, choix, [], parPaquet.temporaire)();
+    restesParPaquet(p, choix, parPaquet);
   }
   return p.code();
 }

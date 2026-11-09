@@ -35,7 +35,9 @@ import path from 'node:path';
 // - `cargo nextest …` under `FAUX_CARGO_TEMPORAIRE` writes there its temporary directories
 //   (TMPDIR, TMP, TEMP, JSON); under `FAUX_CARGO_RESTE`, leaves a file of that name in its TMPDIR,
 //   as a test that forgets its file; under `FAUX_CARGO_ATTENDRE`, waits that many ms, as a long
-//   test (grillhouse-nt4).
+//   test (grillhouse-nt4). Under `FAUX_CARGO_TEMPORAIRES`, each nextest adds there a JSON line
+//   `{ crate, TMPDIR, TMP, TEMP }`; `FAUX_CARGO_RESTE_DE=<crate>` limits `FAUX_CARGO_RESTE` to
+//   that crate's runs.
 // - Under `FAUX_CARGO_COMPILATEUR`, each call adds there a line `<sous-commande>
 //   RUSTC_WRAPPER=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur> TMPDIR=<valeur>`:
 //   the wrapper of rustc it was given, the cache of sccache and the socket of its server
@@ -156,7 +158,11 @@ if (sous === 'nextest' && process.env.FAUX_CARGO_TEMPORAIRE) {
   const { TMPDIR, TMP, TEMP } = process.env;
   fs.writeFileSync(process.env.FAUX_CARGO_TEMPORAIRE, JSON.stringify({ TMPDIR, TMP, TEMP }));
 }
-if (sous === 'nextest' && process.env.FAUX_CARGO_RESTE) {
+if (sous === 'nextest' && process.env.FAUX_CARGO_TEMPORAIRES) {
+  const { TMPDIR, TMP, TEMP } = process.env;
+  fs.appendFileSync(process.env.FAUX_CARGO_TEMPORAIRES, JSON.stringify({ crate: nomme, TMPDIR, TMP, TEMP }) + '\\n');
+}
+if (sous === 'nextest' && process.env.FAUX_CARGO_RESTE && (!process.env.FAUX_CARGO_RESTE_DE || process.env.FAUX_CARGO_RESTE_DE === nomme)) {
   fs.writeFileSync(path.join(process.env.TMPDIR, process.env.FAUX_CARGO_RESTE), '');
 }
 if (sous === 'nextest' && process.env.FAUX_CARGO_ATTENDRE) {

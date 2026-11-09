@@ -1795,9 +1795,10 @@ const STYLE = new Set(['lint', 'format:check']);
 
 // Where <chemin> (from the root of the copy) lies: `{ dansLePlan, paquet, horsTitre }`, whether
 // a path of the plan holds it, the name of the package of <liste> that holds it, and that name
-// again when the plan does not hold it.
+// again when the plan does not hold it. A red with no path (null) is in the plan when the plan
+// names « . », which holds the whole copy.
 function situer(ctx, liste, chemin) {
-  const dedans = Boolean(chemin) && dansLePlan(ctx, chemin);
+  const dedans = chemin ? dansLePlan(ctx, chemin) : nommeLaRacine(ctx);
   const p = chemin ? liste.find(x => chemin.startsWith(`${x.dossier}/`)) : null;
   const paquet = p ? p.pkg.name : null;
   return { dansLePlan: dedans, paquet, horsTitre: dedans ? null : paquet };
@@ -1885,7 +1886,7 @@ function rougesDe(ctx, liste, c) {
     const p = liste.find(x => x.pkg.name === t.paquet);
     const lieu = p
       ? situer(ctx, liste, `${p.dossier}/`)
-      : { dansLePlan: false, paquet: null, horsTitre: null };
+      : situer(ctx, liste, null);
     const j = journalDeTache(ctx, t);
     out.push({
       texte:
@@ -1903,9 +1904,7 @@ function rougesDe(ctx, liste, c) {
   if (out.length === 0) {
     out.push({
       texte: `${ligneDeCommande(c)} rouge (code ${c.code}), sans résultat qui situe son rouge — le journal du ticket : ${ctx.journal}`,
-      dansLePlan: false,
-      paquet: null,
-      horsTitre: null,
+      ...situer(ctx, liste, null),
     });
   }
   return { rouges: out, avertissements };
@@ -2235,6 +2234,11 @@ export function portesDuRouge(ctx, lieux) {
     tests: nommes.filter(f => dulot.has(f)),
     code: nommes.filter(f => !dulot.has(f) && dansLePlan(ctx, f)),
   };
+}
+
+// Whether the plan names `.`, which holds the whole copy.
+function nommeLaRacine(ctx) {
+  return ctx.paquets.includes('.');
 }
 
 // Whether a path of the plan holds <chemin> (relative to the copy), `.` holding every path.

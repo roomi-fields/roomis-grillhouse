@@ -402,7 +402,7 @@ export function cacheDeLaRacine(
 ): string;
 /** The line of the guard of a pass of tests, what its tests left in their temporary directory
  * named; null when they left nothing. */
-export function ligneDesRestes(restes: string[]): string | null;
+export function ligneDesRestes(restes: string[], paquet?: string): string | null;
 /** Runs `retirer` when the process is interrupted, then lets the signal end it; the removal of
  * the handlers. */
 export function retirerALInterruption(retirer: () => void): () => void;

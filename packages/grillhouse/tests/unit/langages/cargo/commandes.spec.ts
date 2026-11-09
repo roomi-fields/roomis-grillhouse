@@ -366,7 +366,9 @@ describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un
     return { dans, sonde: path.join(racine, 'sonde.json') };
   };
   const motif = (dans: string, genre: string) =>
-    new RegExp(`^${dans.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/grillhouse-${genre}-[^/]+/t$`);
+    new RegExp(
+      `^${dans.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/grillhouse-${genre}-[^/]+/t/[^/]+$`
+    );
 
   for (const [nom, args, genre] of [['tester', [], 'tests']] as const) {
     it(`${nom}: a red nextest plays under TMPDIR, TMP and TEMP of the pass, then nothing stays and no leftover is named`, () => {
@@ -422,6 +424,89 @@ describe('grillhouse-nt4, critères 2 et 3 — les tests du module cargo sous un
     await fin;
     expect(readdirSync(dans)).toEqual([]);
   }, 30_000);
+});
+
+describe('le module cargo joue les tests de chaque paquet sous un dossier temporaire à lui', () => {
+  const essai = () => {
+    const racine = mkdtempSync(path.join(ESSAIS, 'par-paquet-'));
+    const dans = path.join(racine, 'tmp');
+    mkdirSync(dans);
+    return { dans, sonde: path.join(racine, 'temporaires.jsonl') };
+  };
+  const CRATES = ['crates/core', 'crates/app'];
+  type Ligne = { crate: string; TMPDIR: string; TMP: string; TEMP: string };
+  const lignes = (sonde: string) =>
+    readFileSync(sonde, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l) as Ligne);
+
+  it('chaque paquet joue sous un sous-dossier distinct de la base de la passe, nommé dans TMPDIR, TMP et TEMP', () => {
+    const { dans, sonde } = essai();
+    const r = lancer(
+      d.espace,
+      'tester',
+      CRATES,
+      {},
+      { TMPDIR: dans, FAUX_CARGO_TEMPORAIRES: sonde }
+    );
+    expect(r.code, r.stdout + r.stderr).toBe(0);
+    const l = lignes(sonde);
+    expect(l.map(x => x.crate).sort()).toEqual(['ws-app', 'ws-core']);
+    const [a, b] = l;
+    expect(a!.TMPDIR).not.toBe(b!.TMPDIR);
+    for (const x of l) {
+      expect(x.TMP).toBe(x.TMPDIR);
+      expect(x.TEMP).toBe(x.TMPDIR);
+      const rel = path.relative(dans, x.TMPDIR).split(path.sep);
+      expect(rel[0]).toMatch(/^grillhouse-tests-/);
+      expect(rel.length).toBeGreaterThanOrEqual(3);
+      expect(path.basename(x.TMPDIR)).toContain(x.crate === 'ws-app' ? 'app' : 'core');
+    }
+    expect(readdirSync(dans)).toEqual([]);
+  });
+
+  it('un reste d’un paquet rend rouge la tâche de ce paquet seul, et la ligne de la garde le nomme', () => {
+    const { dans } = essai();
+    const r = lancer(
+      d.espace,
+      'tester',
+      CRATES,
+      {},
+      { TMPDIR: dans, FAUX_CARGO_RESTE: 'oublie.db', FAUX_CARGO_RESTE_DE: 'ws-app' }
+    );
+    expect(r.code, r.stdout + r.stderr).toBe(1);
+    expect(r.stderr).toMatch(/dossier temporaire.*oublie\.db/);
+    expect(r.stderr).toMatch(/ws-app/);
+    expect(r.stderr).not.toMatch(/ws-core/);
+    const rouges = r.verdict.taches.filter(t => t.code !== null && t.code !== 0);
+    expect(rouges.map(t => t.paquet)).toEqual(['ws-app']);
+    expect(readdirSync(dans)).toEqual([]);
+  });
+
+  it('un reste de chaque paquet rend rouge la tâche de chacun, nommé chacun', () => {
+    const { dans } = essai();
+    const r = lancer(
+      d.espace,
+      'tester',
+      CRATES,
+      {},
+      { TMPDIR: dans, FAUX_CARGO_RESTE: 'oublie.db' }
+    );
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/ws-app/);
+    expect(r.stderr).toMatch(/ws-core/);
+    const rouges = r.verdict.taches.filter(t => t.code !== null && t.code !== 0);
+    expect([...new Set(rouges.map(t => t.paquet))].sort()).toEqual(['ws-app', 'ws-core']);
+  });
+
+  it('sans reste, aucune tâche n’est rouge ni aucune ligne de garde écrite', () => {
+    const { dans } = essai();
+    const r = lancer(d.espace, 'tester', CRATES, {}, { TMPDIR: dans });
+    expect(r.code).toBe(0);
+    expect(r.stderr).not.toMatch(/dossier temporaire/);
+    expect(r.verdict.taches.filter(t => t.code !== 0)).toEqual([]);
+  });
 });
 
 // grillhouse-rph: OSC Bridge ignored its Cargo.lock, and the verification, `--locked`, failed in
