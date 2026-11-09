@@ -5,6 +5,7 @@
     "scripts/aiguillage.mjs",
     "scripts/aiguillage.d.mts",
     "scripts/arbitrages.mjs",
+    "scripts/attente-au-tour.mjs",
     "scripts/avancement.mjs",
     "scripts/bilan.mjs",
     "scripts/branche-de-nuit.mjs",

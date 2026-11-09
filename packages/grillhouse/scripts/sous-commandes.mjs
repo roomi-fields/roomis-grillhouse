@@ -27,6 +27,7 @@ const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 // Each subcommand and its script, under `scripts/`, or the command of the module of the language
 // that runs it (`{ langage }`, its name in `commandes`).
 export const SOUS_COMMANDES = {
+  'attente-au-tour': 'attente-au-tour.mjs',
   bilan: 'bilan.mjs',
   circuit: '../dist/temporal/circuit/commande.js',
   commande: 'verrous/commande.mjs',

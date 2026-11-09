@@ -94,7 +94,7 @@ function seance(depart = process.ppid) {
 
 // Of the tickets <ids> of the repository at <racine>, those that bd gives closed; none when bd does
 // not read them.
-function ticketsFermes(racine, ids) {
+export function ticketsFermes(racine, ids) {
   const r = spawnSync('bd', ['show', ...ids, '--json'], {
     cwd: racine,
     encoding: 'utf8',
@@ -127,7 +127,7 @@ const ou = c => {
 // the lock of its one wait, beside the states of the circuits.
 const etatsDe = racine => path.join(racine, '.claude', 'worktrees');
 const remonteesDe = racine => path.join(etatsDe(racine), 'questions-remontees.json');
-const verrouDeLAttente = racine => path.join(etatsDe(racine), 'attente-des-questions.lock');
+export const verrouDeLAttente = racine => path.join(etatsDe(racine), 'attente-des-questions.lock');
 
 // The stops gone up to the session of supervision of the repository at <racine>: their keys.
 function lireRemontees(racine) {

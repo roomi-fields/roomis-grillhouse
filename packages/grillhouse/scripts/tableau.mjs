@@ -1427,7 +1427,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const reste = avec =>
       largeur - (droite ? colonnes(droite) + 1 : 0) - colonnes(tete) - colonnes(avec);
     const place = attendUnePlace.has(c.id) ? ' · attend une place' : '';
-    const suite = `${
+    const tag = enQuestion(c) === SUPERVISEUR ? ' · en attente du superviseur' : '';
+    const suite = `${tag}${
       !temoin
         ? boucles
         : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)

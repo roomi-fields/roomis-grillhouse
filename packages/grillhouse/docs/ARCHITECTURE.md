@@ -693,7 +693,13 @@ réveille, une seule à la fois par dépôt
 question neuve d'un circuit (lancé seul, dans une file ou par une autre séance), et sa sortie
 donne, par question, le ticket, l'étape, la question et la commande qui répond ; la fin de sa tâche
 réveille la séance, qui ne dépense rien pendant qu'elle attend, et la fin normale d'un circuit
-ne la termine jamais. Les questions en attente ont une seule règle, `attendLeSuperviseur` de
+ne la termine jamais. Le plancher ne dépend pas de cette attente, qui peut mourir sans bruit : le
+panneau tague « en attente du superviseur » chaque circuit arrêté sur une question du superviseur,
+et le crochet `UserPromptSubmit` du mod (`npx grillhouse attente-au-tour`) nomme, à chaque tour
+d'une séance de supervision, chaque circuit en attente (ticket, question, commande qui répond,
+relance de l'attente), un circuit fini sans issue compris. Il se tait quand le verrou de l'attente
+nomme un processus vivant (un verrou au processus mort compte pour aucune attente), et hors d'une
+séance de supervision (séance d'agent, copie de travail). Les questions en attente ont une seule règle, `attendLeSuperviseur` de
 `tableau.mjs` (un circuit arrêté hors l'`arrete` du superviseur, « à repasser » compris, ou fini
 sans son issue) : le panneau la lit, et `questionsEnAttente` de `superviseur.mjs`, que lisent
 l'ouverture et l'attente. L'attente relit les circuits sur le serveur toutes les 5 s, comme
@@ -951,7 +957,7 @@ sous-commande du noyau a sa place, qu'un test tient :
 
 - l'orchestration tourne par la version nommée, installée à son premier lancement : `circuit`,
   `superviseur`, `nuit`, `tableau`, `ligne-etat`, les crochets de Claude Code (`session-start`,
-  `structure-guard`, `ticket-du-sous-agent`, `registre`), les verrous et les droits des séances
+  `structure-guard`, `ticket-du-sous-agent`, `registre`, `attente-au-tour`), les verrous et les droits des séances
   (`verrou`, `commande`, `droits`), l'enveloppe et son lanceur (`enveloppe`, `lancer`),
   l'intégration et la file (`integrer`, `file`), `resultats`, `retirer-copie` et `bilan`, même
   lancés à la main par le superviseur ;

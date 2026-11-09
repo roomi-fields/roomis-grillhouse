@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **A question to the supervisor is never mute** (grillhouse-d4n.2, replaces grillhouse-3ax): the wait in the background (`superviseur --attendre`) could die unseen, leaving circuits waiting with nobody told. The board now tags a circuit stopped on a question of the supervisor « en attente du superviseur », and a new `UserPromptSubmit` hook of the mod runs the sub-command `attente-au-tour` at each turn of a supervision session: it names each waiting circuit (ticket, question, the command that answers, and to launch the wait again), a circuit ended without its issue included. It says nothing when a wait lives (live pid in its lock; a lock of a dead process counts as no wait), nor outside a supervision session. The places' semantics do not change. **Action for projects**: none.
+
 ## [0.31.0] - 2026-11-09
 
 ### Changed
