@@ -685,12 +685,14 @@ export function lecture(t, prefix) {
  * repository (scripts/aiguillage.mjs `echecDeLOutil`); `places`, the places of the machine
  * (scripts/places-de-la-machine.mjs `etatDesPlaces`), whose line heads AGENTS; `muet`, the Temporal
  * server did not answer the reading of the circuits, which the first alert says; `faute`, any
- * other fault of that reading, said in the first alert as it is.
+ * other fault of that reading, said in the first alert as it is; `echecPrefixe`, the cause of a
+ * ticket prefix that did not read, named in an alert.
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
  *   verdicts?: Record<string, any>, maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, charge: number, coeurs: number, memoireGo: number,
- *   attentes: { ticket: string, depuis: number }[] } | null, muet?: boolean, faute?: string | null }} lu
+ *   attentes: { ticket: string, depuis: number }[] } | null, muet?: boolean, faute?: string | null,
+ *   echecPrefixe?: string | null }} lu
  */
 export function assembler({
   tous,
@@ -706,6 +708,7 @@ export function assembler({
   places: placesDeLaMachine = null,
   muet = false,
   faute = null,
+  echecPrefixe = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1013,6 +1016,10 @@ export function assembler({
     alertes.push({ niveau: 'rouge', texte: `${SANS_REPONSE_EN} · temporal etat` });
   } else if (faute) {
     alertes.push({ niveau: 'rouge', texte: `Circuits illisibles : ${faute}` });
+  }
+  // The ticket prefix did not read: the project keeps its folder's name, and the alert says why.
+  if (echecPrefixe) {
+    alertes.push({ niveau: 'rouge', texte: `Préfixe des tickets illisible : ${echecPrefixe}` });
   }
   // A red night says the night it turned red, short enough to stand whole on its line: the local
   // day and month its ticket was opened, the night's date (scripts/nuit.sh), whatever its title names, a
@@ -1837,15 +1844,25 @@ function lire(
   racine,
   { home, maintenant, circuits, muet = false, faute = null, machine = null, places = null }
 ) {
+  // The prefix is read once, with no delay of its own; a read that fails leaves it empty (the
+  // project is labelled by its folder) and its cause is named in an alert (`echecPrefixe`).
   let prefix = '';
+  let echecPrefixe = null;
   try {
     prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
       cwd: racine,
       encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
       maxBuffer: 256 * 1024 * 1024,
     }).trim();
-  } catch {
+  } catch (e) {
     prefix = '';
+    const message = String(e?.stderr ?? '').trim() || String(e?.message ?? e);
+    const ligne = message.split('\n')[0];
+    echecPrefixe =
+      e?.status === null || e?.status === undefined
+        ? `${e?.code ?? 'échec'} ${ligne}`.trim()
+        : `code ${e.status} ${ligne}`.trim();
   }
   let ps = '';
   try {
@@ -1926,6 +1943,7 @@ function lire(
     places,
     muet,
     faute,
+    echecPrefixe,
     outil: echecDeLOutil(racine),
   });
   return { t, prefix, tous, vivants, commun };

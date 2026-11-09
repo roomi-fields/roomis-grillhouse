@@ -534,8 +534,7 @@ describe('the board of several projects, read in their folders', () => {
     vi.unstubAllEnvs();
   });
 
-  // Quarantaine : rouge sous charge, corrigé par grillhouse-3uv.97.
-  it.skip("critère 4 : a project that does not read is named in the head with its fault, the session's shown", async () => {
+  it("critère 4 : a project that does not read is named in the head with its fault, the session's shown", async () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const racine = depotFactice([T('demo-5', { status: 'open' })], []);
     const absent = path.join(ESSAIS, 'absent');
