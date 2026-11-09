@@ -198,11 +198,8 @@ roomis-grillhouse/
 │   │   ├── questionneur/          # The questioner's skill
 │   │   ├── explorateur/           # The explorer's skill
 │   │   ├── mesure/                # Measurement: measures without lying, proves a guard bites
-│   │   ├── redacteur/             # The writer: human-read documents
-│   │   │   └── references/           # documents-d-un-composant
-│   │   └── release/               # Release automation
-│   │       ├── SKILL.md
-│   │       └── scripts/update-version.cjs
+│   │   └── redacteur/             # The writer: human-read documents
+│   │       └── references/           # documents-d-un-composant
 │   ├── charte.md                  # The common charter: the rules every agent applies, the same in every project, imported by the project's CLAUDE.md
 │   └── hooks/
 │       ├── hooks.json             # The mod's module and the hooks of Claude Code, each `node crochet.mjs <sous-commande>`
@@ -344,7 +341,7 @@ serve long-running services. A library leaves them out.
 
 - Pre-configured permissions and a SessionStart hook
 - Initialisation grill on the first session
-- Workflow skills: supervision, development, measurement, writing, release
+- Workflow skills: supervision, development, measurement, writing
 - Beads ticket store, set up by `grillhouse init`
 
 ## Customization Guide
@@ -409,14 +406,7 @@ npm install package@latest
 
 ### Version Release
 
-Use the release skill or:
-
-```bash
-npm version patch  # or minor, major
-git push origin main --tags
-```
-
-Grillhouse itself releases with `npx grillhouse sortie`, which no project receives: one version for the package and its mod, the `version` of `packages/grillhouse/package.json`, which the push of its tag publishes on npm (`CONTRIBUTING.md`, §5).
+Grillhouse releases with `npx grillhouse sortie`, which no project receives: one version for the package and its mod, the `version` of `packages/grillhouse/package.json`, which the push of its tag publishes on npm (`CONTRIBUTING.md`, §5).
 
 ## License
 

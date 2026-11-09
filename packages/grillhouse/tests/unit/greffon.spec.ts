@@ -44,7 +44,6 @@ const COMPETENCES = [
   'pitmaster',
   'questionneur',
   'redacteur',
-  'release',
   'relecteur',
   'testwriter',
 ];
