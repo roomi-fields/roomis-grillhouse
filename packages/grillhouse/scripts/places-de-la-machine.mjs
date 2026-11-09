@@ -47,6 +47,8 @@ export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
 /** The mark of a place held, which the children of its holder inherit. */
 export const VARIABLE_TENUE = 'GRILLHOUSE_PLACE_TENUE';
+/** The measure of the machine a trial fixes, in JSON `{ coeurs, charge, memoireLibre }`. */
+export const VARIABLE_MESURE_D_ESSAI = 'GRILLHOUSE_MESURE_D_ESSAI';
 // The server of the places of a trial machine.
 const VARIABLE_ESSAI = 'GRILLHOUSE_PLACES_D_ESSAI';
 
@@ -341,14 +343,45 @@ export function lirePlaces({ env = process.env } = {}) {
 }
 
 /**
+ * The machine a trial fixes under <env> (GRILLHOUSE_MESURE_D_ESSAI, JSON `{ coeurs, charge,
+ * memoireLibre }`), or null without the variable.
+ * @param {Record<string, string | undefined>} env
+ * @returns {{ coeurs: number, charge: number, memoireLibre: number } | null}
+ * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is not that JSON
+ */
+function mesureDEssai(env) {
+  const v = env[VARIABLE_MESURE_D_ESSAI];
+  if (v === undefined || v === '') return null;
+  let m;
+  try {
+    m = JSON.parse(v);
+  } catch {
+    m = null;
+  }
+  if (
+    !m ||
+    typeof m !== 'object' ||
+    ['coeurs', 'charge', 'memoireLibre'].some(c => typeof m[c] !== 'number' || !Number.isFinite(m[c]))
+  ) {
+    throw new Error(
+      `${VARIABLE_MESURE_D_ESSAI} vaut « ${v} » : un JSON { coeurs, charge, memoireLibre } de nombres est attendu.`
+    );
+  }
+  return { coeurs: m.coeurs, charge: m.charge, memoireLibre: m.memoireLibre };
+}
+
+/**
  * The places as the board shows them: taken and ceiling, the load over one minute and the cores,
- * the free memory in whole GB, and the waits (ticket, since when) in the order of arrival.
+ * the free memory in whole GB, and the waits (ticket, since when) in the order of arrival. The
+ * machine is the one GRILLHOUSE_MESURE_D_ESSAI fixes, else the real one (`mesurer`).
  * @param {{ env?: Record<string, string | undefined>, mesurer?: () => { coeurs: number,
  *   charge: number, memoireLibre: number } }} [o]
+ * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is faulty
  */
 export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine } = {}) {
+  const fixee = mesureDEssai(env);
   const { plafond, prises, attentes } = lirePlaces({ env });
-  const m = mesurer();
+  const m = fixee ?? mesurer();
   return {
     prises: prises.length,
     plafond,

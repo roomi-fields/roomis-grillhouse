@@ -18,5 +18,12 @@ process.env.GRILLHOUSE_VERROU_MACHINE ||= path.join(
   tmpdir(),
   `grillhouse-mesure-${process.pid}-${randomUUID()}.lock`
 );
+// The machine a test reads is a fixed one (GRILLHOUSE_MESURE_D_ESSAI, scripts/places-de-la-machine.mjs
+// `etatDesPlaces`): no test reads the real load or memory of the user's machine.
+process.env.GRILLHOUSE_MESURE_D_ESSAI ||= JSON.stringify({
+  coeurs: 12,
+  charge: 1,
+  memoireLibre: 16 * 1024 ** 3,
+});
 process.env.GRILLHOUSE_TEMPORAIRE_LIBRE ||= '0';
 process.env.GRILLHOUSE_COPIE_LIBRE ||= '0';

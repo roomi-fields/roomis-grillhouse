@@ -812,7 +812,13 @@ une seconde. Les places vivent sur le serveur Temporal, dans le déroulé de la 
 que `scripts/places-de-la-machine.mjs` lit et prend par un processus à lui
 (`scripts/places-du-serveur.mjs`) ; le serveur est requis sur le poste, et la CI n'en prend aucune.
 Une machine d'essai des tests ne prend que les places du serveur d'essai que nomme
-`GRILLHOUSE_PLACES_D_ESSAI`. 3 places par défaut (`GRILLHOUSE_PLACES`) ; une place porte le
+`GRILLHOUSE_PLACES_D_ESSAI`. `GRILLHOUSE_MESURE_D_ESSAI` fixe la mesure de la machine en JSON
+`{ coeurs, charge, memoireLibre }` (la forme de `Mesure`) : posée, l'état des places en tire sa
+charge, ses cœurs et sa mémoire, au lieu de lire la machine ; une valeur fautive (JSON illisible,
+champ manquant ou non numérique) est refusée en nommant la variable, et le tableau n'affiche alors
+aucune ligne des places. La configuration de base de Vitest la pose dans les tests de chaque
+projet, de sorte que la ligne des places du texte et celle du JSON ne varient pas avec la charge.
+3 places par défaut (`GRILLHOUSE_PLACES`) ; une place porte le
 processus de la séance et son début (pid et heure de départ), et le déroulé la libère quand ce
 processus n'existe plus, sans bail. Un départ n'est admis que si la charge sur 1 min est sous le
 nombre de cœurs et si 4 Go au moins sont libres, deux départs étant espacés de 10 s
