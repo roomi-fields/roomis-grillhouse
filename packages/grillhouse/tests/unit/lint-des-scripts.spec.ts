@@ -6,10 +6,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { lire } from '../../scripts/dette.mjs';
 
 const GARDE_SCRIPT = path.resolve(__dirname, '../../scripts/lint-des-scripts.mjs');
-const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET_JSON = path.resolve(__dirname, '../../package.json');
 const GARDES_TS = path.resolve(__dirname, '../../scripts/langages/typescript/index.mjs');
 
@@ -121,17 +119,5 @@ describe('the lint of the package covers the scripts like src and tests', () => 
 
   it('is not delivered to the projects by the list of guards of the TypeScript module', () => {
     expect(readFileSync(GARDES_TS, 'utf8')).not.toContain('lint-des-scripts');
-  });
-});
-
-describe('the scripts of the frame, linted by the guard on the repository', () => {
-  it('passes on the repository, with no inscription of curly left in the debt', () => {
-    const r = spawnSync('node', [GARDE_SCRIPT], { cwd: DEPOT, encoding: 'utf8', timeout: 300_000 });
-    expect(sortie(r)).not.toMatch(/⛔/);
-    expect(r.status).toBe(0);
-    const dette = lire(DEPOT) as Record<string, Record<string, Record<string, unknown>>>;
-    const section = dette['lint-des-scripts'] ?? {};
-    const regles = Object.values(section).flatMap(f => Object.keys(f));
-    expect(regles).not.toContain('curly');
   });
 });

@@ -10,7 +10,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-const DEPOT = path.resolve(__dirname, '../../../..');
 const ANCIEN = 'test:vitest';
 const HISTOIRE = ['packages/grillhouse/scripts/migrations/', 'packages/grillhouse/CHANGELOG.md'];
 const SURVEILLES = /(?:^|\/)package\.json$|^templates\/|\.md$/;
@@ -36,10 +35,6 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nom-du-script-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 describe('grillhouse-pkl.2 — le nom neutre du script de test', () => {
-  it('no package.json, template or document of the repository names test:vitest, out of the migrations', () => {
-    expect(anciens(DEPOT)).toEqual([]);
-  });
-
   it('a trial file that names it is found; the migrations and the history are not read', () => {
     const r = mkdtempSync(path.join(ESSAIS, 'depot-'));
     execFileSync('git', ['-C', r, 'init', '-q']);

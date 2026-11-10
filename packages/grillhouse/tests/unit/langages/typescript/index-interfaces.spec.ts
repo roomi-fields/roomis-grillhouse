@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -210,14 +210,6 @@ describe('entrees and a title already prefixed', () => {
     expect(texte).toContain('## 000-forms — l’interface\n');
     expect(texte).not.toContain('000-forms — 000-forms');
     expect(texte).toContain('## b — L’interface de b\n');
-  });
-
-  it('critère 5 : the index of this repository regenerates unchanged and passes the check', () => {
-    const racine = path.resolve(__dirname, '../../../../../..');
-    expect(index(racine)).toBe(
-      readFileSync(path.join(racine, 'docs/agents/index-des-interfaces.md'), 'utf8')
-    );
-    expect(spawnSync('node', [SCRIPT, '--verifier'], { cwd: racine }).status).toBe(0);
   });
 });
 

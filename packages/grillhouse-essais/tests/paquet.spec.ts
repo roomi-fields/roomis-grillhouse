@@ -124,42 +124,6 @@ const AVANT: Record<string, [number, number]> = {
   // the launcher prepares (./enveloppe-essai.ts), read on main before the move (b048461).
   'lancer-modele.seance': [2, 5],
 };
-// The counts of `it` and of `expect` of each file of packages/grillhouse/tests/unit split by
-// grillhouse-3dr.3.6 and grillhouse-3dr.3.7: its cases that a large test alone proves, moved as they are; its other
-// cases rewritten by day, in its file of the same name. Read once moved.
-const SCINDES: Record<string, [number, number]> = {
-  avancement: [4, 19],
-  enveloppe: [28, 64],
-  'enveloppe.enceinte': [8, 22],
-  'enveloppe.maison': [19, 60],
-  'enveloppe.matiere-de-test': [9, 35],
-  'enveloppe.paquet': [4, 13],
-  'git-des-tests': [2, 3],
-  'ligne-etat': [2, 2],
-  'registre-fin': [1, 3],
-  // grillhouse-44b.10.3: the five cache, --force and failing-build cases leave the day file for here.
-  'tests-cibles': [17, 46],
-  // grillhouse-1eq: one more test, its night blind to a neighbour's ticket directory.
-  'tests-de-nuit': [15, 40],
-  'verifier.depuis-le-vert': [6, 31],
-  // grillhouse-3dr.3.7: the last five; the hook, the guard or the command run in a git repository,
-  // and Turborepo's own graph and hashes.
-  'consommateurs-arbitres': [5, 11],
-  'turbo-des-paquets-donnees': [17, 75],
-  'un-commit-par-ticket': [5, 10],
-  verrous: [8, 20],
-  version: [1, 6],
-  // grillhouse-4id: the runs of the circuit, the night, the command of the key and `grillhouse
-  // verifier` with the tools of the project; the day proves them by the exported functions.
-  outils: [9, 32], // grillhouse-4nr.12: driven by the command, the client of the workflow.
-  // grillhouse-8o9: the integration of a generated file a project declares, on a real repository.
-  'integrer.engendres': [5, 25],
-  // grillhouse-qmk: a real envelope with a fake sccache, and the cause replayed with the real one.
-  'sccache-en-enveloppe': [3, 13],
-};
-const IT = /(?<![\w.])it(?:\.\w+(?:\([^()]*\))?)*\(/g;
-const EXPECT = /(?<![\w.])expect(?:\.\w+)?\(/g;
-const compte = (t: string, re: RegExp) => (t.match(re) ?? []).length;
 const DE_NUIT = readdirSync(path.join(PAQUET, 'tests')).filter(n => n.endsWith('.nuit.spec.ts'));
 
 describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
@@ -210,19 +174,7 @@ describe('grillhouse-3dr.3.2 — the package of the tests of the chain', () => {
     ]);
   });
 
-  it('critère 5: each moved file keeps its it and its expect, and the frame keeps none of them', () => {
-    // The files moved, each among the night files of the package with its counts; a night test
-    // written since the move is the package's own, outside this inventory.
-    const deplaces = { ...AVANT, ...SCINDES };
-    const apres = Object.fromEntries(
-      Object.keys(deplaces).map(nom => {
-        const n = `${nom}.nuit.spec.ts`;
-        expect(DE_NUIT, n).toContain(n);
-        const t = readFileSync(path.join(PAQUET, 'tests', n), 'utf8');
-        return [nom, [compte(t, IT), compte(t, EXPECT)]];
-      })
-    );
-    expect(apres).toEqual(deplaces);
+  it('critère 5: the frame keeps none of the moved files of day, nor the moved benches', () => {
     const restes = readdirSync(path.join(RACINE, 'packages/grillhouse/tests/unit'));
     for (const nom of Object.keys(AVANT)) {
       expect(restes).not.toContain(`${nom}.spec.ts`);

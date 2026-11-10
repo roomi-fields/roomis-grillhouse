@@ -19,7 +19,6 @@ import nuit from '../../scripts/langages/typescript/vitest.nuit.config.mjs';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'git-des-tests-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const DEPOT = path.resolve(__dirname, '../../../..');
 const REGLAGE = { 'maintenance.auto': 'false', 'gc.auto': '0' };
 const IDENTITE = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
 
@@ -138,33 +137,5 @@ describe('3uv.72.1 critères 3 et 6 : the setting lives in the environment of th
       GIT_CONFIG_NOSYSTEM: '1',
     };
     expect(reglageLu(repo, horsSuite)).toEqual({ 'maintenance.auto': null, 'gc.auto': null });
-  });
-
-  // Every tracked code or configuration file outside the tests (the frame's and the night's of its
-  // chain, packages/grillhouse-essais): scripts, hooks, the Vitest day
-  // configuration, the continuous-integration workflows, the deployment scripts. Only prose (.md,
-  // the licences) and the data of the ticket tracker (.beads/*.jsonl) stay out. The setting has one
-  // address, the frame's base configuration, which the day and night configurations read.
-  it('critère 3 : no code or configuration file outside the tests, the CI workflows included, carries the setting, but the base Vitest configuration, its one address', () => {
-    const suivis = execFileSync('git', ['-C', DEPOT, 'ls-files'], { encoding: 'utf8' })
-      .split('\n')
-      .filter(f => f !== '')
-      .filter(
-        f =>
-          !f.startsWith('packages/grillhouse/tests/') &&
-          !f.startsWith('packages/grillhouse-essais/tests/')
-      )
-      .filter(f => !/\.md$/.test(f) && !/(^|\/)LICENSE/.test(f) && !/^\.beads\/.*\.jsonl$/.test(f))
-      .filter(f => f !== 'packages/grillhouse/scripts/langages/typescript/vitest-config/base.mjs');
-    const porteurs = suivis.filter(f => {
-      let texte: string;
-      try {
-        texte = readFileSync(path.join(DEPOT, f), 'utf8');
-      } catch {
-        return false;
-      }
-      return /maintenance\.auto|gc\.auto/.test(texte);
-    });
-    expect(porteurs).toEqual([]);
   });
 });

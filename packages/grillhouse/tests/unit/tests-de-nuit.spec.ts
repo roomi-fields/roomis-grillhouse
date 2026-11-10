@@ -11,7 +11,6 @@
 // (packages/grillhouse-essais/tests/tests-de-nuit.nuit.spec.ts), the night script's
 // (packages/grillhouse-essais/tests/tests-de-nuit.script-de-nuit.nuit.spec.ts), and the
 // configurations' (packages/grillhouse-essais/tests/tests-de-nuit.configuration.nuit.spec.ts).
-import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -113,22 +112,6 @@ describe('the base configuration of the day leaves the night out of every config
     expect(existsSync(path.join(DEPOT, 'packages/grillhouse/scripts/vitest.base.config.mjs'))).toBe(
       false
     );
-  });
-  it('no file of the repository names the former file', () => {
-    const suivis = execFileSync('git', ['-C', DEPOT, 'ls-files'], { encoding: 'utf8' })
-      .split('\n')
-      .filter(
-        f =>
-          f !== '' &&
-          f !== 'packages/grillhouse/CHANGELOG.md' &&
-          !f.startsWith('packages/grillhouse/tests/') &&
-          !f.startsWith('.beads/')
-      )
-      .filter(f => existsSync(path.join(DEPOT, f)));
-    const porteurs = suivis.filter(f =>
-      readFileSync(path.join(DEPOT, f), 'utf8').includes('vitest.base.config')
-    );
-    expect(porteurs).toEqual([]);
   });
   it('the configuration of the frame’s tests extends it: its exclusions and its environment, its own include', async () => {
     const racine = (

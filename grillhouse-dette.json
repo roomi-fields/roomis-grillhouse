@@ -62,7 +62,7 @@
     },
     "packages/grillhouse-essais/tests/circuit.references.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 30
+        "count": 28
       }
     },
     "packages/grillhouse-essais/tests/circuit.rejeu.nuit.spec.ts": {
@@ -330,11 +330,6 @@
         "count": 3
       }
     },
-    "packages/grillhouse/tests/unit/changelog-a-la-relecture.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 5
-      }
-    },
     "packages/grillhouse/tests/unit/changelog-du-paquet.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 6
@@ -572,7 +567,7 @@
     },
     "packages/grillhouse/tests/unit/git-des-tests.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 12
+        "count": 11
       }
     },
     "packages/grillhouse/tests/unit/greffon-du-paquet.spec.ts": {
@@ -782,7 +777,7 @@
     },
     "packages/grillhouse/tests/unit/langages/typescript/frontieres.dependances-de-developpement.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 16
+        "count": 14
       }
     },
     "packages/grillhouse/tests/unit/langages/typescript/frontieres.entrees.spec.ts": {
@@ -802,7 +797,7 @@
     },
     "packages/grillhouse/tests/unit/langages/typescript/index-interfaces.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 20
+        "count": 19
       }
     },
     "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.index.spec.ts": {
@@ -867,7 +862,7 @@
     },
     "packages/grillhouse/tests/unit/langages/typescript/tailles-des-tests.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 47
+        "count": 46
       }
     },
     "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.cargo-python.spec.ts": {

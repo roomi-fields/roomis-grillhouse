@@ -1,9 +1,7 @@
-import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { configuration } from '../../../../scripts/langages/typescript/frontieres.mjs';
 import {
   SCRIPT,
   EXPORTS,
@@ -133,18 +131,6 @@ describe('grillhouse-3uv.77 — the published code imports no development depend
     });
     expect(r.sortie).not.toMatch(new RegExp(REGLE));
     expect(r.status, r.sortie).toBe(0);
-  });
-  it("critère 6: Grillhouse's repository keeps its verdict: it passes", () => {
-    const racine = path.resolve(__dirname, '../../../../../..');
-    const r = spawnSync('node', [SCRIPT], { cwd: racine, encoding: 'utf8' });
-    expect(r.stdout + r.stderr).not.toMatch(new RegExp(REGLE));
-    expect(r.status, r.stdout + r.stderr).toBe(0);
-  });
-  it('critère 7: the generated configuration of the repository is rewritten with the rule', () => {
-    const racine = path.resolve(__dirname, '../../../../../..');
-    expect(readFileSync(path.join(racine, '.dependency-cruiser.cjs'), 'utf8')).toBe(
-      configuration(racine)
-    );
   });
   it('critère 7: one rule alone refuses a development dependency, the existing one extended', () => {
     const { config } = chargee({

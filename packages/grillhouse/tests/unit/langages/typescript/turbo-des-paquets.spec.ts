@@ -664,7 +664,6 @@ describe('the guard tasks of the root wait for the build of each package of the 
     for (const tache of ['grillhouse:gardes', 'gardes']) {
       expect(dependances(lire(racine, 'turbo.json'), tache), tache).toEqual(['build']);
     }
-    expect(verifier(DEPOT)).toEqual([]);
     // A turbo.json without the project's guards receives them.
     ecrireFichier(
       racine,

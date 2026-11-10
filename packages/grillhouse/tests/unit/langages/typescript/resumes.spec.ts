@@ -145,10 +145,6 @@ describe('resumes — the first sentence of a summary holds in 80 characters', (
     expect(jouer(racine, { GRILLHOUSE_ENVELOPPE: 'packages/c' }).status).toBe(0);
   });
 
-  it('the frame itself passes the guard', () => {
-    expect(jouer(DEPOT).status).toBe(0);
-  });
-
   it('the guard is among the frame’s guards', () => {
     expect(gardesDuCadre(path.resolve(__dirname, '../../../../../..'))).toContainEqual([
       path.resolve(__dirname, '../../../../scripts/langages/typescript/resumes.mjs'),

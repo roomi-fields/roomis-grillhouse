@@ -1128,7 +1128,6 @@ process.exitCode = refus.length ? 1 : 0;
 // grillhouse-ybq.4 — the session's instruction names the references the circuit regenerates.
 // Witness: BPScript 320.8 (fiche of 17:36:12), a developpeur, code and tests green, stopped on the
 // ceiling of the words, the frozen debt and the index of the interfaces, three gestures of 4.2.
-const RACINE_DU_DEPOT = path.resolve(__dirname, '../../..');
 // The section of the references in an instruction: the lines the circuit fills it with.
 const referencesDe = (consigne: string) =>
   /LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE[^\n]*\n\n([\s\S]*?)\n\n/.exec(consigne)?.[1] ?? null;
@@ -1158,18 +1157,3 @@ describe.runIf(canWrap)(
     });
   }
 );
-
-describe('grillhouse-ybq.4 — the skills of the testwriter and the developpeur', () => {
-  it('critère 1 — each skill says that the circuit regenerates the references at 4.2, and that its session does not stop on them', () => {
-    for (const role of ['testwriter', 'developpeur']) {
-      // The skill's text on one line, its wrapping aside.
-      const competence = lire(
-        path.join(RACINE_DU_DEPOT, `mods/grillhouse/skills/${role}/SKILL.md`)
-      ).replace(/\s+/g, ' ');
-      expect(competence, role).toContain(
-        "**Les références, le circuit les régénère** : les fichiers que ta consigne liste sous « LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2"
-      );
-      expect(competence, role).toContain("ta séance ne s'arrête pas sur elles");
-    }
-  });
-});

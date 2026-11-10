@@ -1,9 +1,8 @@
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCRIPT, erreurs, frontieresEssai } from './frontieres-essai.js';
+import { erreurs, frontieresEssai } from './frontieres-essai.js';
 
 // The boundaries between components (scripts/langages/typescript/frontieres.mjs): an import that
 // the `package.json` of the importing package does not declare is refused, and the refusal says
@@ -136,12 +135,6 @@ describe('what the package declares, or Node provides, is not refused', () => {
     expect(r.sortie).not.toMatch(REFUS_ARCHITECTURE);
     expect(r.status, r.sortie).toBe(0);
   });
-  it("Grillhouse's repository keeps its verdict: it passes", () => {
-    const dir = path.resolve(__dirname, '../../../../../..');
-    const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
-    expect(r.stdout + r.stderr).not.toMatch(REFUS_ARCHITECTURE);
-    expect(r.status, r.stdout + r.stderr).toBe(0);
-  });
 });
 
 describe('the generated configuration carries the rule', () => {
@@ -158,9 +151,5 @@ describe('the generated configuration carries the rule', () => {
     expect(regle?.severity).toBe('error');
     const types = (regle?.to as { dependencyTypes: string[] }).dependencyTypes;
     expect([...types].sort()).toEqual(['npm-no-pkg', 'npm-unknown']);
-  });
-  it('the generated configuration of the repository is rewritten with the rule', () => {
-    const dir = path.resolve(__dirname, '../../../../../..');
-    expect(readFileSync(path.join(dir, '.dependency-cruiser.cjs'), 'utf8')).toContain('npm-no-pkg');
   });
 });

@@ -10,7 +10,7 @@ import { dossier, PAQUET } from './essai.js';
 
 const DEPOT = path.resolve(PAQUET, '../..');
 
-describe('le paquet publie les sources construites de src/temporal/ (critère 10)', () => {
+describe('le paquet publie les sources construites de src/temporal/', () => {
   it('built in a copy of its own, from its sources alone, its archive holds dist/temporal/', () => {
     // A copy of the package's sources and configuration, no dist/, the repository's dependencies
     // linked: what Turborepo built in the package is never read. The scripts are sources too: the
