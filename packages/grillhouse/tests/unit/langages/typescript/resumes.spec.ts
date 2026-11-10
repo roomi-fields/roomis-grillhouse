@@ -2,16 +2,17 @@
 // 80 characters, as Debian's « synopsis-too-long » and clippy's `too_long_first_doc_paragraph`
 // hold it. Witness: the section « Ce que les composants d'avant publient » of an agent's
 // instruction and the index of the interfaces carry that sentence for every element.
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { gardesDuCadre } from '../../../../scripts/gardes-du-cadre.mjs';
-import { LONGUEUR_MAX, verifier } from '../../../../scripts/langages/typescript/resumes.mjs';
+import {
+  LONGUEUR_MAX,
+  rapport,
+  verifier,
+} from '../../../../scripts/langages/typescript/resumes.mjs';
 
-const DEPOT = path.resolve(__dirname, '../../../../../..');
-const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/langages/typescript/resumes.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'resumes-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -70,12 +71,17 @@ function depot(elements: Record<string, string>, autres: Record<string, string> 
   return racine;
 }
 
-const jouer = (racine: string, env: Record<string, string> = {}) =>
-  spawnSync(process.execPath, [SCRIPT], {
-    cwd: racine,
-    encoding: 'utf8',
-    env: { ...process.env, GRILLHOUSE_DETTE: '', GRILLHOUSE_ENVELOPPE: '', ...env },
+// The report of the command (`rapport`, the functional core of `npx grillhouse resumes`), adapted to
+// the command's streams: `status` its exit code, `stderr` its lines as it writes them (each with a
+// newline). An empty env gives the default debt mode and writes no SARIF.
+const jouer = (racine: string, env: Record<string, string> = {}) => {
+  const { lignes, code } = rapport(racine, {
+    GRILLHOUSE_DETTE: '',
+    GRILLHOUSE_ENVELOPPE: '',
+    ...env,
   });
+  return { status: code, stderr: lignes.length ? `${lignes.join('\n')}\n` : '' };
+};
 
 describe('resumes — the first sentence of a summary holds in 80 characters', () => {
   it('one threshold, named: 80', () => {

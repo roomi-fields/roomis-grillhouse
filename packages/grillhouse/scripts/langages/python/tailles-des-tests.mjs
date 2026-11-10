@@ -20,7 +20,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { trancher } from '../../dette.mjs';
+import { MODE, trancher } from '../../dette.mjs';
 import { composants, estDeNuit, fichiersDeTest } from './composants.mjs';
 
 // The name of its findings and of its debt, apart from the module typescript's guard of the same
@@ -84,19 +84,27 @@ export function verifier(racine) {
     }));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const racine = process.cwd();
+// The report of the check at <racine>: `lignes`, what the command writes on stderr (each refusal
+// prefixed with `⛔`, then the debt's lines, then the count of each size), and `code`, its exit code
+// (1 on a refusal). The functional core of the command: it reads the repository and the project's
+// debt and writes nothing to the standard streams; the command below is its shell. The refusals
+// reach SARIF through `trancher` under the results directory <env> names (scripts/resultats.mjs);
+// without it none is written, and the debt's mode is <env>'s `GRILLHOUSE_DETTE`.
+export function rapport(racine, env = process.env) {
   const toutes = tailles(racine);
   const compte = t => toutes.filter(x => x.taille === t).length;
-  const { refus, lignes } = trancher(racine, GARDE, verifier(racine));
-  for (const r of refus) {
-    process.stderr.write(`⛔ ${r.message}\n`);
-  }
+  const { refus, lignes } = trancher(racine, GARDE, verifier(racine), env[MODE] || undefined, env);
+  const resume = `ℹ️  ${GARDE} : ${toutes.length} fichier(s) de tests, ${compte('petit')} petit(s), ${compte('moyen')} moyen(s), ${compte('grand')} grand(s) ; ${toutes.filter(x => x.nuit).length} de nuit.`;
+  return {
+    lignes: [...refus.map(r => `⛔ ${r.message}`), ...lignes, resume],
+    code: refus.length ? 1 : 0,
+  };
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const { lignes, code } = rapport(process.cwd());
   for (const l of lignes) {
     process.stderr.write(`${l}\n`);
   }
-  process.stderr.write(
-    `ℹ️  ${GARDE} : ${toutes.length} fichier(s) de tests, ${compte('petit')} petit(s), ${compte('moyen')} moyen(s), ${compte('grand')} grand(s) ; ${toutes.filter(x => x.nuit).length} de nuit.\n`
-  );
-  process.exitCode = refus.length ? 1 : 0;
+  process.exitCode = code;
 }

@@ -1,13 +1,12 @@
 // The guard `lint-des-scripts`, proper to the grillhouse package (scripts/lint-des-scripts.mjs):
 // it runs ESLint on `packages/grillhouse/scripts` of the working directory and counts each error
 // per file and rule against the debt of `grillhouse-dette.json` (`trancher`, scripts/dette.mjs).
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { rapport } from '../../scripts/lint-des-scripts.mjs';
 
-const GARDE_SCRIPT = path.resolve(__dirname, '../../scripts/lint-des-scripts.mjs');
 const PAQUET_JSON = path.resolve(__dirname, '../../package.json');
 const GARDES_TS = path.resolve(__dirname, '../../scripts/langages/typescript/index.mjs');
 
@@ -50,13 +49,18 @@ const inscrit = (fichier: string, regles: Record<string, number>) => ({
     ),
   },
 });
-const jouer = (racine: string) =>
-  spawnSync('node', [GARDE_SCRIPT], { cwd: racine, encoding: 'utf8', timeout: 120_000 });
-const sortie = (r: { stdout: string; stderr: string }) => `${r.stdout}\n${r.stderr}`;
+// The report of the command (`rapport`, the functional core of `grillhouse lint-des-scripts`),
+// adapted to the command's streams: `status` its exit code, `stderr` its lines (it writes them all
+// there). An empty env gives the default debt mode and writes no SARIF.
+const jouer = async (racine: string) => {
+  const { lignes, code } = await rapport(racine, {});
+  return { status: code, stderr: lignes.join('\n') };
+};
+const sortie = (r: { stderr: string }) => r.stderr;
 
 describe('the guard of the lint of the scripts counts each ESLint error against the debt', () => {
-  it('refuses a file whose errors of a rule exceed the inscribed count, naming file, rule and count', () => {
-    const r = jouer(projet({ 'a.mjs': DEUX_CURLY }, inscrit('a.mjs', { curly: 1 })));
+  it('refuses a file whose errors of a rule exceed the inscribed count, naming file, rule and count', async () => {
+    const r = await jouer(projet({ 'a.mjs': DEUX_CURLY }, inscrit('a.mjs', { curly: 1 })));
     expect(r.status).not.toBe(0);
     const texte = sortie(r);
     expect(texte).toContain('packages/grillhouse/scripts/a.mjs');
@@ -64,44 +68,44 @@ describe('the guard of the lint of the scripts counts each ESLint error against 
     expect(texte).toMatch(/2[^\n]*1 inscrit/);
   });
 
-  it('refuses a file with an error of a rule that has no inscription', () => {
-    const r = jouer(projet({ 'a.mjs': UN_INUTILE }, inscrit('a.mjs', { curly: 3 })));
+  it('refuses a file with an error of a rule that has no inscription', async () => {
+    const r = await jouer(projet({ 'a.mjs': UN_INUTILE }, inscrit('a.mjs', { curly: 3 })));
     expect(r.status).not.toBe(0);
     expect(sortie(r)).toContain('no-unused-vars');
   });
 
-  it('refuses an error in a file absent from the debt, without any debt file', () => {
-    const r = jouer(projet({ 'a.mjs': PROPRE, 'b.mjs': UN_CURLY }));
+  it('refuses an error in a file absent from the debt, without any debt file', async () => {
+    const r = await jouer(projet({ 'a.mjs': PROPRE, 'b.mjs': UN_CURLY }));
     expect(r.status).not.toBe(0);
     expect(sortie(r)).toContain('packages/grillhouse/scripts/b.mjs');
     expect(sortie(r)).not.toContain('scripts/a.mjs');
   });
 
-  it('passes when every count is at most the inscribed one', () => {
+  it('passes when every count is at most the inscribed one', async () => {
     const dette = { 'lint-des-scripts': { ...inscrit('a.mjs', { curly: 2 })['lint-des-scripts'] } };
-    const r = jouer(projet({ 'a.mjs': DEUX_CURLY, 'b.mjs': PROPRE }, dette));
+    const r = await jouer(projet({ 'a.mjs': DEUX_CURLY, 'b.mjs': PROPRE }, dette));
     expect(r.status).toBe(0);
   });
 
-  it('passes on scripts without any error and without debt', () => {
-    expect(jouer(projet({ 'a.mjs': PROPRE })).status).toBe(0);
+  it('passes on scripts without any error and without debt', async () => {
+    expect((await jouer(projet({ 'a.mjs': PROPRE }))).status).toBe(0);
   });
 
-  it('reports without refusing an inscription above what it finds', () => {
-    const r = jouer(projet({ 'a.mjs': UN_CURLY }, inscrit('a.mjs', { curly: 4 })));
+  it('reports without refusing an inscription above what it finds', async () => {
+    const r = await jouer(projet({ 'a.mjs': UN_CURLY }, inscrit('a.mjs', { curly: 4 })));
     expect(r.status).toBe(0);
     const texte = sortie(r);
     expect(texte).toContain('curly');
     expect(texte).toMatch(/1[^\n]*4 inscrit/);
   });
 
-  it('counts the errors of a file whose rules differ separately', () => {
+  it('counts the errors of a file whose rules differ separately', async () => {
     const texte = `${UN_CURLY}const inutile = 1;\n`;
-    const ok = jouer(
+    const ok = await jouer(
       projet({ 'a.mjs': texte }, inscrit('a.mjs', { curly: 1, 'no-unused-vars': 1 }))
     );
     expect(ok.status).toBe(0);
-    const ko = jouer(projet({ 'a.mjs': texte }, inscrit('a.mjs', { curly: 5 })));
+    const ko = await jouer(projet({ 'a.mjs': texte }, inscrit('a.mjs', { curly: 5 })));
     expect(ko.status).not.toBe(0);
   });
 });

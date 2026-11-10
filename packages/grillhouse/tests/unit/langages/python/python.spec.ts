@@ -16,6 +16,7 @@ import type { Langage } from '../../../../scripts/jointure.js';
 import { constats } from '../../../../scripts/langages-des-paquets.mjs';
 import { LANGAGES, langageDe } from '../../../../scripts/langages.mjs';
 import module from '../../../../scripts/langages/python/index.mjs';
+import { rapport as rapportTailles } from '../../../../scripts/langages/python/tailles-des-tests.mjs';
 import { installerFauxUv } from './faux-uv.js';
 
 const python = module as unknown as Langage;
@@ -338,12 +339,12 @@ describe('grillhouse-ziy, critère 5 — les tailles et le dossier temporaire', 
     ecrire(racine, 'site/pages/bout_test.py', grand);
     ecrire(racine, 'site/pages/bout_nuit_test.py', grand);
     ecrire(racine, 'site/pages/moyen_test.py', "import subprocess\nsubprocess.run(['ls'])\n");
-    const script = python.commandes(racine)['tailles-des-tests'].script;
-    const r = spawnSync(process.execPath, [script], { cwd: racine, encoding: 'utf8' });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/site\/pages\/bout_test\.py : un grand test/);
-    expect(r.stderr).not.toMatch(/bout_nuit_test\.py : un grand test/);
-    expect(r.stderr).toMatch(
+    const { lignes, code } = rapportTailles(racine, {});
+    const texte = lignes.join('\n');
+    expect(code).toBe(1);
+    expect(texte).toMatch(/site\/pages\/bout_test\.py : un grand test/);
+    expect(texte).not.toMatch(/bout_nuit_test\.py : un grand test/);
+    expect(texte).toMatch(
       /5 fichier\(s\) de tests, 2 petit\(s\), 1 moyen\(s\), 2 grand\(s\) ; 2 de nuit/
     );
   });

@@ -9,7 +9,6 @@
 // inscribed passes and a new one is refused (critère 3, the update in
 // ./migration.tailles-des-tests.spec.ts). The texts of the cases lie in tests/formes/tailles/cargo/,
 // so that the module typescript's guard, reading this file, sees none of them.
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -21,6 +20,7 @@ import {
   classer,
   GARDE,
   GRAND_DE_JOUR,
+  rapport,
   tailles,
   verifier,
 } from '../../../../scripts/langages/cargo/tailles-des-tests.mjs';
@@ -165,11 +165,12 @@ describe('grillhouse-wbk.1 critères 1 et 2 — a large Rust test of the day is 
     );
     expect(cargo.commandes(r)['tailles-des-tests']).toEqual({ script, args: [] });
     expect(cargo.gardes(r).map(([s]) => s)).toContain(script);
-    const p = spawnSync(process.execPath, [script], { cwd: r, encoding: 'utf8' });
-    expect(p.status).toBe(1);
-    expect(p.stderr).toMatch(/crates\/app\/tests\/bout\.rs : un grand test/);
-    expect(p.stderr).not.toMatch(/bout_nuit\.rs : un grand test/);
-    expect(p.stderr).toMatch(
+    const { lignes, code } = rapport(r, {});
+    const texte = lignes.join('\n');
+    expect(code).toBe(1);
+    expect(texte).toMatch(/crates\/app\/tests\/bout\.rs : un grand test/);
+    expect(texte).not.toMatch(/bout_nuit\.rs : un grand test/);
+    expect(texte).toMatch(
       /4 fichier\(s\) de tests, 1 petit\(s\), 1 moyen\(s\), 2 grand\(s\) ; 1 de nuit ou de banc/
     );
   });

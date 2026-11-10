@@ -6,7 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { trancher } from './dette.mjs';
+import { MODE, trancher } from './dette.mjs';
 
 const DOSSIER = 'packages/grillhouse/scripts';
 // The executable of ESLint in the repository's node_modules, from this file (packages/grillhouse/scripts).
@@ -43,16 +43,33 @@ export async function verifier(racine) {
   return constats;
 }
 
+// The report of the check at <racine>: `lignes`, what the command writes on stderr (each refusal
+// prefixed with `⛔`, then the debt's lines), and `code`, its exit code (1 on a refusal). The
+// functional core of the command: it runs ESLint and reads the project's debt, and writes nothing to
+// the standard streams; the command below is its shell. The refusals reach SARIF through `trancher`
+// under the results directory <env> names (scripts/resultats.mjs); without it none is written, and
+// the debt's mode is <env>'s `GRILLHOUSE_DETTE`.
+export async function rapport(racine, env = process.env) {
+  const { refus, lignes } = trancher(
+    racine,
+    'lint-des-scripts',
+    await verifier(racine),
+    env[MODE] || undefined,
+    env
+  );
+  return {
+    lignes: [...refus.map(r => `⛔ ${r.message}`), ...lignes],
+    code: refus.length ? 1 : 0,
+  };
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // The root of the repository: the first argument (the script `lint` of the package passes it),
   // the working directory otherwise.
   const racine = path.resolve(process.argv[2] ?? process.cwd());
-  const { refus, lignes } = trancher(racine, 'lint-des-scripts', await verifier(racine));
-  for (const r of refus) {
-    process.stderr.write(`⛔ ${r.message}\n`);
-  }
+  const { lignes, code } = await rapport(racine);
   for (const l of lignes) {
     process.stderr.write(`${l}\n`);
   }
-  process.exitCode = refus.length ? 1 : 0;
+  process.exitCode = code;
 }
