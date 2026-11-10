@@ -5,17 +5,15 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   statSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { canWrap, hasBd, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { hasBd, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 
 // Tickets grillhouse-3uv.50 and grillhouse-3uv.50.1: the suite runs on every machine where the
 // project builds. A test that needs a capacity of the machine (a directory under the home, a bwrap
@@ -26,15 +24,6 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 // The package of the frame's tests, whose configuration the child vitest reads.
 const RACINE = path.resolve(__dirname, '../..');
-// The tests of the submodules, a night test of the package of the frame's chain, beside the frame's
-// package: a run in that package plays it when it names it (GRILLHOUSE_TESTS, the targeted run of
-// scripts/langages/typescript/vitest-config/cibles.mjs).
-const ESSAIS_DU_CADRE = path.resolve(RACINE, '../grillhouse-essais');
-const SOUS_MODULES = {
-  GRILLHOUSE_TESTS: JSON.stringify({
-    arguments: [path.join(ESSAIS_DU_CADRE, 'tests/sous-modules.nuit.spec.ts')],
-  }),
-};
 const VITEST = path.resolve(RACINE, '../../node_modules/.bin/vitest');
 const NUIT = path.join(RACINE, 'scripts/langages/typescript/vitest.nuit.config.mjs');
 const LONG = 120_000;
@@ -118,50 +107,11 @@ function nuitDeLArbre(): string {
 // A fresh home, without ~/.cache.
 const maisonNeuve = () => mkdtempSync(path.join(ESSAIS, 'maison-'));
 
-// A PATH that holds every command of this one but <absente>: each directory of this PATH, but a
-// directory that holds <absente> gives way to a directory of links to its other commands. The other
-// directories stay as they are, seen by an envelope as on the machine.
-function cheminSans(absente: string): string {
-  return (process.env.PATH ?? '')
-    .split(':')
-    .map(d => {
-      let noms: string[];
-      try {
-        noms = readdirSync(d);
-      } catch {
-        return d;
-      }
-      if (!noms.includes(absente)) {
-        return d;
-      }
-      const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-      for (const nom of noms) {
-        const f = path.join(d, nom);
-        if (nom === absente) {
-          continue;
-        }
-        try {
-          accessSync(f, constants.X_OK);
-          if (statSync(f).isFile()) {
-            symlinkSync(f, path.join(bin, nom));
-          }
-        } catch {
-          // Not a command.
-        }
-      }
-      return bin;
-    })
-    .join(':');
-}
-
 // The files of a report that failed to load, with their message.
 const nonCharges = (r: Rapport, racine = RACINE) =>
   r.testResults
     .filter(f => f.status === 'failed' && f.assertionResults.length === 0)
     .map(f => `${path.relative(racine, f.name)}: ${f.message.split('\n')[0]}`);
-
-const statut = (r: Rapport, titre: string) =>
-  r.testResults.flatMap(f => f.assertionResults).find(t => t.title === titre)?.status;
 
 describe('critère 1 — on a machine without ~/.cache, no test file fails to load', () => {
   it('critère 1: the root of trial under the home creates ~/.cache when the home lacks it', () => {
@@ -224,64 +174,9 @@ describe('critère 1 — the night run of a tree loads the night tests of that t
 
 // The test of the submodules that launches a real envelope, and the two beside it in its describe
 // that launch none.
-const ENVELOPPE_REELLE = 'critère 4: the agent copy is prepared in a repository without submodules';
-const SANS_ENVELOPPE = [
-  'critère 4: the integration commits a lot in a repository without submodules',
-  'critère 4: the night plays a repository without submodules',
-];
-
-describe('critère 2 — on a machine without bwrap, a test that launches a real envelope skips', () => {
-  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
-  // moves to the night.
-  it.skip(
-    'critère 2: the agent copy of the submodules skips, the other tests of its describe run green',
-    () => {
-      const r = jouer(
-        [],
-        'critère 4',
-        { ...SOUS_MODULES, PATH: cheminSans('bwrap') },
-        { racine: ESSAIS_DU_CADRE }
-      );
-      expect(statut(r, ENVELOPPE_REELLE)).toBe('skipped');
-      for (const titre of SANS_ENVELOPPE) {
-        expect(statut(r, titre), titre).toBe('passed');
-      }
-    },
-    LONG
-  );
-});
-
-describe.runIf(canWrap)('critère 4 — on a machine where bwrap works, nothing skips', () => {
-  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
-  // moves to the night.
-  it.skip(
-    'critère 4: the agent copy of the submodules runs, with the tests beside it',
-    () => {
-      const r = jouer([], 'critère 4', SOUS_MODULES, { racine: ESSAIS_DU_CADRE });
-      expect(statut(r, ENVELOPPE_REELLE)).toBe('passed');
-      for (const titre of SANS_ENVELOPPE) {
-        expect(statut(r, titre), titre).toBe('passed');
-      }
-    },
-    LONG
-  );
-});
-
-// The test of the envelope that needs the real bd, and two beside it in their describe that need
-// none: one writes in the directory of the tickets base, made by hand without bd
-// (grillhouse-3uv.50.1). They are night tests of the package of the frame's chain, which a run in
-// that package plays when it names their file.
-const MAISON = {
-  GRILLHOUSE_TESTS: JSON.stringify({
-    arguments: [path.join(ESSAIS_DU_CADRE, 'tests/enveloppe.maison.nuit.spec.ts')],
-  }),
-};
-const BASE_REELLE = 'lets bd read and write the tickets base of the main tree with its own state';
-const SANS_BD = [
-  'lets the session write the tickets base of the main tree in the home',
-  'leaves whole on disk every index out of the copy',
-];
-const filtreBase = [BASE_REELLE, ...SANS_BD].join('|');
+// The cases that mount a real envelope (bwrap absent/present, bd absent/present) moved to the night
+// of grillhouse-essais (grillhouse-44b.10.10, its tests/machine.enveloppe-reelle): a test of the day
+// never plays a night test of the repository.
 
 // True when a file named bd, executable, lies in a directory of the PATH: read without running bd,
 // apart from the detection of packages/grillhouse-matiere/src/machine.ts that the critère 3 watches.
@@ -294,49 +189,22 @@ const bdSurLeChemin = (process.env.PATH ?? '').split(':').some(d => {
   }
 });
 
-describe('critère 1 (grillhouse-3uv.50.1) — on a machine without bd, no test file fails', () => {
-  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
-  // moves to the night.
-  it.skip(
-    'critère 1 (grillhouse-3uv.50.1): the test that needs the real bd skips, those beside it pass',
-    () => {
-      const r = jouer(
-        [],
-        filtreBase,
-        { ...MAISON, HOME: maisonNeuve(), PATH: cheminSans('bd') },
-        { racine: ESSAIS_DU_CADRE }
-      );
-      expect(statut(r, BASE_REELLE)).toBe('skipped');
-      for (const titre of SANS_BD) {
-        expect(statut(r, titre), titre).toBe('passed');
-      }
-    },
-    LONG
-  );
-});
-
 // Guarded by bd found on the PATH, not by the detection it watches: a detection that misses bd
 // fails here.
 describe.runIf(bdSurLeChemin)('critère 3 (grillhouse-3uv.50.1) — on a machine with bd', () => {
   it('critère 3 (grillhouse-3uv.50.1): the detection of the machine sees bd', () => {
     expect(hasBd).toBe(true);
   });
+});
 
-  // Quarantine (grillhouse-44b.10.10): a test of the day may not play a night test; this case
-  // moves to the night.
-  it.skip(
-    'critère 3 (grillhouse-3uv.50.1): the test that needs the real bd runs, with those beside it',
-    () => {
-      const r = jouer(
-        [],
-        filtreBase,
-        { ...MAISON, HOME: maisonNeuve() },
-        { racine: ESSAIS_DU_CADRE }
-      );
-      for (const titre of [BASE_REELLE, ...SANS_BD]) {
-        expect(statut(r, titre), titre).toBe('passed');
-      }
-    },
-    LONG
-  );
+// grillhouse-44b.10.10: a test of the day never plays a night test of the repository. This file's
+// cases run one file of this package; the cases that mounted a real envelope by playing a night test
+// of grillhouse-essais (through the variable of the targeted runs) moved to that package's night.
+describe('le jour ne fait jouer aucun test de nuit du dépôt', () => {
+  it('ce fichier ne cite ni la variable des lancements ciblés, ni un chemin de nuit d’un autre paquet', () => {
+    const source = readFileSync(path.join(__dirname, 'machine.spec.ts'), 'utf8');
+    // The forbidden tokens are built from fragments, so this guard never names them itself.
+    expect(source).not.toContain(['GRILLHOUSE', 'TESTS'].join('_'));
+    expect(source).not.toMatch(new RegExp('grillhouse-essais' + '[^\\n]*' + '[.]nuit[.]'));
+  });
 });

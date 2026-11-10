@@ -922,7 +922,7 @@
     },
     "packages/grillhouse/tests/unit/machine.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 15
+        "count": 8
       }
     },
     "packages/grillhouse/tests/unit/migration.api-extractor-du-paquet.spec.ts": {
