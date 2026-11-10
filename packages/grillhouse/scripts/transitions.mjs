@@ -703,18 +703,31 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     // that reads the reference; alone, the final pass that is due (BPScript 320.6.5: a test
     // that reads the turbo.json, red beside their guard, sent to the developpeur, who could not
     // write them).
+    // The debt the lot lowers, seen at the checks of the plan by its notes (`a-elaguer`), is the
+    // red of a reference too: regenerated before the checks judge the lot again, whether the
+    // developpeur delivered or not (the regeneration only lowers the keys noted, it hides no
+    // defect).
+    const dette =
+      !passeFinale && k.notes.length > 0
+        ? lire('referencesDesRouges', { lieux: [], aElaguer: true })
+        : [];
     const regenereesAuxControles =
-      !passeFinale && k.references.length && regenereSur?.arbre === lire('arbreApres')
+      !passeFinale &&
+      (k.references.length || k.notes.length) &&
+      regenereSur?.arbre === lire('arbreApres')
         ? regenereSur.noms
         : [];
     const avantLesControles = passeFinale
       ? []
-      : k.references.filter(r => !regenereesAuxControles.includes(r.nom));
+      : [...k.references, ...dette.filter(d => !k.references.some(r => r.nom === d.nom))].filter(
+          r => !regenereesAuxControles.includes(r.nom)
+        );
     if (avantLesControles.length) {
       const noms = avantLesControles.map(r => r.nom);
-      const meles = k.rouge || k.aRepasser;
+      const deLaDette = dette.some(d => noms.includes(d.nom));
+      const meles = k.rouge || k.aRepasser || deLaDette;
       geste('regeneration');
-      const phrase = `${k.resume} ; des rouges sont ceux de références (${noms.join(', ')}) : à leur régénération, puis ${meles ? 'les contrôles du plan' : 'la passe finale'}.`;
+      const phrase = `${k.resume} ; ${deLaDette ? 'la dette des gardes baisse, ou des rouges sont ceux de références' : 'des rouges sont ceux de références'} (${noms.join(', ')}) : à leur régénération, puis ${meles ? 'les contrôles du plan' : 'la passe finale'}.`;
       ecrireRapport(
         'controles',
         phrase,
@@ -734,7 +747,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       // project refuses the lot, as at the final pass (BPScript 320.10).
       maj.aRegenerer = {
         noms,
-        notes: [],
+        notes: k.notes,
         suite: meles ? 'controles' : 'passe',
         rouges: meles ? k.tous : [],
         auDeveloppeur: meles && k.auDeveloppeur && !k.arbitrer ? k.texte : null,

@@ -260,7 +260,10 @@
 //   of its paths and the content of each file it lists, taken before and after the session; the
 //   sheet and the handover do not count) has nothing to deliver, the gesture `rien-a-livrer`, as a
 //   CI skips a job without object: the checks judge the lot; green, the run goes on; red, the
-//   circuit stops at « sans-livraison », its report sending to the developpeur's handover. A
+//   circuit stops at « sans-livraison », its report sending to the developpeur's handover; but the
+//   red of a reference the lot lowers, the debt of the guards (its notes `a-elaguer`), is
+//   regenerated (4.2) instead of stopping, and the checks of the plan play again on the
+//   regenerated tree. A
 //   developpeur that `--depuis developpeur` launches on the lot the integration refused (`refus`,
 //   the fingerprint of its plan), as a merge queue lets a lot it sends back pass again only with a
 //   change, a session that changes nothing does not go to the checks of the copy, which do not see

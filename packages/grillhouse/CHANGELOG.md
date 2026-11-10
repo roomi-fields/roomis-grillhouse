@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The debt that a lot lowers no longer stops a developpeur without delivery** (grillhouse-44b.13.2.2): the checks of the plan (3.1) read the notes of the debt (`a-elaguer`) as the final pass does; a red whose file and guard carry such a note (titles removed, count inscribed too high) is the red of the « debt of the guards » reference, and its regeneration (4.2) lifts it before any return to the developpeur or stop at « sans-livraison », then the checks of the plan play again on the regenerated tree. A real defect mixed with it stays red there and stops as before; a new faulty title (no note) is none. **Action for projects**: none.
+
 - **The PATH of each Temporal worker's unit names the tool of each language the project declares** (grillhouse-4nr.19): `cheminDesUnites` named only the account's five tools, so a project of Rust or Python lost `cargo` or `python3` at each `temporal installer` (ENOENT in the circuit's checks). Each module of language now publishes `executables` (cargo: `cargo`; python: `python3`; typescript: none), the installer reads the modules of the languages `docs/ARCHITECTURE.md` declares (`langagesDe`), finds each program in its own PATH, refuses an absent one by its name, and puts its folder once after the account's tools and before the system's; a project that declares no language, or one out of the frame's list, is refused before any writing.
 
 ### Added

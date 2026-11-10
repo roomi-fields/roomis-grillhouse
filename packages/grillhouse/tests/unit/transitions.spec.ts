@@ -447,6 +447,76 @@ describe('un tableau de transitions par étape', () => {
       ).d;
       expect(deja.suivant.etape).toBe(CODE);
     });
+    describe('la dette des gardes qui baisse, vue aux contrôles du plan', () => {
+      const NOTE = {
+        garde: 'titres-de-tests',
+        fichier: 'grillhouse-dette.json',
+        regle: 'x',
+        trouve: 1,
+      };
+      const DETTE = [{ nom: 'dette' }];
+      const faitsDette = (k: object) => ({
+        controles: k,
+        referencesDesRouges: DETTE,
+        arbreApres: 'T',
+        mecanique: false,
+        portes: { tests: [], code: ['packages/a/x.ts'] },
+      });
+      it('un développeur sans livraison dont le seul rouge est la dette trop haute : la régénération, pas sans-livraison', () => {
+        const { d } = jouer(
+          { etat: etat(CONTROLES), memoire: { rienALivrer: 'RIEN' } },
+          faitsDette({ ...ROUGE, notes: [NOTE] })
+        );
+        expect(d.arret).toBeUndefined();
+        expect(d.suivant).toMatchObject({ etape: REFERENCES, finale: true });
+        expect(d.memoire.aRegenerer).toMatchObject({
+          noms: ['dette'],
+          notes: [NOTE],
+          suite: 'controles',
+        });
+        expect(d.memoire.rienALivrer).toBe('RIEN');
+      });
+      it('des contrôles verts hors la dette trop haute : la régénération, puis les contrôles du plan sur l’arbre régénéré', () => {
+        const { d } = jouer({ etat: etat(CONTROLES) }, faitsDette({ ...VERT, notes: [NOTE] }));
+        expect(d.arret).toBeUndefined();
+        expect(d.suivant).toMatchObject({ etape: REFERENCES, finale: true });
+        expect(d.memoire.aRegenerer).toMatchObject({ noms: ['dette'], suite: 'controles' });
+      });
+      it('un développeur qui a livré, dont le rouge est la dette trop haute : la régénération avant tout renvoi', () => {
+        const { d } = jouer(
+          { etat: etat(CONTROLES, { tentative: 2 }) },
+          faitsDette({ ...ROUGE, notes: [NOTE] })
+        );
+        expect(d.suivant).toMatchObject({ etape: REFERENCES });
+        expect(d.memoire.aRegenerer).toMatchObject({ noms: ['dette'], suite: 'controles' });
+      });
+      it('un vrai défaut mêlé à la dette : la régénération d’abord, puis le défaut reste rouge sur l’arbre régénéré', () => {
+        const k = { ...ROUGE, notes: [NOTE] };
+        const mele = jouer(
+          { etat: etat(CONTROLES), memoire: { rienALivrer: 'RIEN' } },
+          faitsDette(k)
+        ).d;
+        expect(mele.suivant.etape).toBe(REFERENCES);
+        const regenere = { regenereSur: { arbre: 'T', noms: ['dette'] } };
+        const rien = jouer(
+          { etat: etat(CONTROLES), memoire: { rienALivrer: 'RIEN', ...regenere } },
+          faitsDette({ ...ROUGE, notes: [] })
+        ).d;
+        expect(rien.arret).toMatchObject({ nom: 'sans-livraison', etape: CODE });
+        const livre = jouer(
+          { etat: etat(CONTROLES), memoire: regenere },
+          faitsDette({ ...ROUGE, notes: [] })
+        ).d;
+        expect(livre.suivant).toMatchObject({ etape: CODE, tentative: 2 });
+      });
+      it('un rouge sans note de dette (titre fautif neuf, vrai défaut) : sans-livraison comme avant', () => {
+        const { d } = jouer(
+          { etat: etat(CONTROLES), memoire: { rienALivrer: 'RIEN' } },
+          { controles: { ...ROUGE, notes: [] }, mecanique: false }
+        );
+        expect(d.arret).toMatchObject({ nom: 'sans-livraison', etape: CODE });
+      });
+    });
     it('la passe finale rouge d’une référence : sa régénération, une fois sur ce même arbre', () => {
       const faits = {
         passeFinale: { arbre: 'T', restreinte: null },

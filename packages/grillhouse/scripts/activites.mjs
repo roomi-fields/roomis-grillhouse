@@ -2085,13 +2085,11 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
     lieux: rouges.map(lieu),
     references,
     tous,
-    notes: finale
-      ? resultats.flatMap(r =>
-          lireSarif(r.dossier)
-            .constats.filter(k => k.genre === A_ELAGUER)
-            .map(({ garde, fichier, regle, trouve }) => ({ garde, fichier, regle, trouve }))
-        )
-      : [],
+    notes: resultats.flatMap(r =>
+      lireSarif(r.dossier)
+        .constats.filter(k => k.genre === A_ELAGUER)
+        .map(({ garde, fichier, regle, trouve }) => ({ garde, fichier, regle, trouve }))
+    ),
   };
 }
 
