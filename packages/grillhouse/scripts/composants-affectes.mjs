@@ -385,6 +385,12 @@ export function texteDuReleve(r) {
   return out.join('\n');
 }
 
+// The survey of the draft description in the file <fichier> (from <racine>), as text; the command
+// `--description` writes it on its standard output.
+export function rapportDescription(racine, fichier) {
+  return texteDuReleve(releve(racine, readFileSync(path.resolve(racine, fichier), 'utf8')));
+}
+
 // The command: its exit code.
 function commande(racine, args) {
   const i = args.indexOf('--description');
@@ -393,8 +399,7 @@ function commande(racine, args) {
       process.stderr.write('usage: npx grillhouse composants-affectes --description <fichier>\n');
       return 2;
     }
-    const r = releve(racine, readFileSync(path.resolve(racine, args[i + 1]), 'utf8'));
-    process.stdout.write(`${texteDuReleve(r)}\n`);
+    process.stdout.write(`${rapportDescription(racine, args[i + 1])}\n`);
     return 0;
   }
   const [ticket] = args;

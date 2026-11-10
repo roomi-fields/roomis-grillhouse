@@ -43,7 +43,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { horsCadre } from '../../paquets.mjs';
-import { trancher } from '../../dette.mjs';
+import { MODE, trancher } from '../../dette.mjs';
 import { isTestFile } from './regle-des-tests.mjs';
 
 const GENRES = {
@@ -280,9 +280,9 @@ function reglagesDependances(knipLu, racine, config, fichiers, paquets) {
   return { ...r, entry: entryRacine, workspaces: espaces };
 }
 
-// Runs knip on <config> (knip's defaults when null), restricted to <include> when given; the
-// spawn result.
-function knip(config, include) {
+// Runs knip in <racine> on <config> (knip's defaults when null), restricted to <include> when
+// given; the spawn result.
+function knip(racine, config, include) {
   const args = ['--no-install', 'knip', '--reporter', 'json', '--no-progress'];
   if (include) {
     args.push('--include', include);
@@ -295,7 +295,7 @@ function knip(config, include) {
       writeFileSync(f, JSON.stringify(config));
       args.push('--config', f);
     }
-    return spawnSync('npx', args, { encoding: 'utf8' });
+    return spawnSync('npx', args, { cwd: racine, encoding: 'utf8' });
   } finally {
     if (tmp) {
       rmSync(tmp, { recursive: true, force: true });
@@ -303,8 +303,14 @@ function knip(config, include) {
   }
 }
 
-// The command on the repository at <racine>: its exit code.
-async function codeMort(racine) {
+// The report of the dead-code check at <racine>: `lignes`, what the command writes on stderr (each
+// refusal and the debt's lines), and `code`, its exit code (1 on a refusal or a knip it cannot
+// read). The functional core of the command: it runs knip and git and reads the project's debt, and
+// writes nothing to the standard streams; the command below is its shell. The refusals reach SARIF
+// through `trancher` under the results directory <env> names (scripts/resultats.mjs); without it none
+// is written, and the debt's mode is <env>'s `GRILLHOUSE_DETTE`.
+export async function codeMort(racine, env = process.env) {
+  const lignes = [];
   const hors = reglages(racine);
   const fichierKnip = path.join(racine, 'knip.json');
   const config =
@@ -312,20 +318,21 @@ async function codeMort(racine) {
   const DEPS = ['dependencies', 'devDependencies'];
   const { fichiers, dossiers, erreur } = fichiersTests(racine);
   if (erreur) {
-    process.stderr.write(`⛔ CODE MORT — git n'a pas listé les fichiers de test :\n${erreur}\n`);
-    return 1;
+    lignes.push(`⛔ CODE MORT — git n'a pas listé les fichiers de test :\n${erreur}`);
+    return { lignes, code: 1 };
   }
   const knipLu = await knipDuDepot(racine);
   if (!knipLu) {
-    process.stderr.write(
-      '⛔ CODE MORT — knip du dépôt illisible : son matcher (picomatch), son ordre des clés (byPathDepth) ou son schéma des espaces manque.\n'
+    lignes.push(
+      '⛔ CODE MORT — knip du dépôt illisible : son matcher (picomatch), son ordre des clés (byPathDepth) ou son schéma des espaces manque.'
     );
-    return 1;
+    return { lignes, code: 1 };
   }
-  const premier = knip(hors ?? config);
+  const premier = knip(racine, hors ?? config);
   const c1 = constats(premier.stdout ?? '');
   const second = fichiers.length
     ? knip(
+        racine,
         reglagesDependances(
           knipLu,
           racine,
@@ -346,26 +353,36 @@ async function codeMort(racine) {
   }
   if (c === null) {
     const r = c1 ? second : premier;
-    process.stderr.write(
-      `⛔ CODE MORT — knip n'a rien mesuré :\n${(r.stderr || r.stdout || '').slice(0, 1000)}\n`
+    lignes.push(
+      `⛔ CODE MORT — knip n'a rien mesuré :\n${(r.stderr || r.stdout || '').slice(0, 1000)}`
     );
-    return 1;
+    return { lignes, code: 1 };
   }
-  const { refus, lignes } = trancher(racine, 'code-mort', c);
+  const { refus, lignes: lignesDette } = trancher(
+    racine,
+    'code-mort',
+    c,
+    env[MODE] || undefined,
+    env
+  );
   if (refus.length) {
-    process.stderr.write(
-      `⛔ CODE MORT — ${refus.length} constat(s) : chacun se supprime, ou sort par son nom dans knip.json avec sa raison.\n`
+    lignes.push(
+      `⛔ CODE MORT — ${refus.length} constat(s) : chacun se supprime, ou sort par son nom dans knip.json avec sa raison.`
     );
     for (const x of refus) {
-      process.stderr.write(`  ${x.message}\n`);
+      lignes.push(`  ${x.message}`);
     }
   }
-  for (const l of lignes) {
-    process.stderr.write(`${l}\n`);
+  for (const l of lignesDette) {
+    lignes.push(l);
   }
-  return refus.length ? 1 : 0;
+  return { lignes, code: refus.length ? 1 : 0 };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exitCode = await codeMort(process.cwd());
+  const { lignes, code } = await codeMort(process.cwd());
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
+  }
+  process.exitCode = code;
 }

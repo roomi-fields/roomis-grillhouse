@@ -1,10 +1,14 @@
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { manquants, releve, texteDuReleve } from '../../scripts/composants-affectes.mjs';
+import {
+  manquants,
+  rapportDescription,
+  releve,
+  texteDuReleve,
+} from '../../scripts/composants-affectes.mjs';
 
 // The survey of a ticket's components by the types and by the architecture (Romain, 2026-10-21:
 // « l'agent analyste initial doit utiliser codegraph, le service de langage typescript et les
@@ -29,8 +33,6 @@ import { manquants, releve, texteDuReleve } from '../../scripts/composants-affec
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'composants-affectes-types-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-
-const SCRIPT = path.resolve(__dirname, '../../scripts/composants-affectes.mjs');
 
 function depot(files: Record<string, string>) {
   const dir = mkdtempSync(path.join(ESSAIS, 'depot-'));
@@ -290,15 +292,12 @@ describe('the survey by the architecture', () => {
     expect(t).toContain("- Par l'architecture : 040-checker (CADRE de 030-binder, Rend R4).");
   });
 
-  it('runs as a command on a draft, the readers by the types in its output', () => {
+  it('composes the survey of a draft file, the readers by the types in its text', () => {
     const racine = depot(DEPOT);
     writeFileSync(path.join(racine, 'brouillon.md'), description('`bind` change.', '1. Rien.'));
-    const r = spawnSync('node', [SCRIPT, '--description', 'brouillon.md'], {
-      cwd: racine,
-      encoding: 'utf8',
-    });
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain('**Composants relevés** : 030-binder, 040-checker, 900-driver.');
+    expect(rapportDescription(racine, 'brouillon.md')).toContain(
+      '**Composants relevés** : 030-binder, 040-checker, 900-driver.'
+    );
   });
 });
 

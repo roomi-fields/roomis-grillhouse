@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -8,6 +7,7 @@ import * as module from '../../scripts/composants-affectes.mjs';
 import {
   cheminsLus,
   manquants,
+  rapportDescription,
   releve,
   texteDuReleve,
 } from '../../scripts/composants-affectes.mjs';
@@ -257,15 +257,10 @@ describe('the survey of the components a ticket touches', () => {
     expect(t).toContain('- Sans interface qui les publie : `b`.');
   });
 
-  it('runs as a command on a draft description, its survey on the standard output', () => {
+  it('composes the survey of a draft description file for the standard output', () => {
     const racine = depot(DEPOT);
     writeFileSync(path.join(racine, 'brouillon.md'), description('`duree` sort.', '1. Rien.'));
-    const r = spawnSync('node', [SCRIPT, '--description', 'brouillon.md'], {
-      cwd: racine,
-      encoding: 'utf8',
-    });
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain(
+    expect(rapportDescription(racine, 'brouillon.md')).toContain(
       '**Composants relevés** : 000-forms, 030-binder, 040-checker, 050-emitter.'
     );
   });

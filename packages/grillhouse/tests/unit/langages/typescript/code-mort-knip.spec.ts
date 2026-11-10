@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   mkdirSync,
@@ -11,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { codeMort } from '../../../../scripts/langages/typescript/code-mort.mjs';
 
 // grillhouse-3uv.56 critère 18: scripts/langages/typescript/code-mort.mjs reads two internal modules of knip by their
 // path (dist/util/workspace.js, dist/schema/configuration.js). When one is missing, the guard
@@ -18,7 +18,6 @@ import { afterAll, describe, expect, it } from 'vitest';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'code-mort-knip-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-const SCRIPT = path.resolve(__dirname, '../../../../scripts/langages/typescript/code-mort.mjs');
 const MODULES = path.resolve(__dirname, '../../../../../../node_modules');
 const KNIP = path.join(MODULES, 'knip');
 
@@ -45,7 +44,7 @@ function miroir(src: string, dst: string, rel: string, manque: string) {
 
 // A clean repository whose knip is the real one with <manque> (a path under the package) left out;
 // none left out with ''.
-function essai(manque: string) {
+async function essai(manque: string) {
   const dir = mkdtempSync(path.join(ESSAIS, 'essai-'));
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'r', private: true }));
   writeFileSync(
@@ -62,19 +61,19 @@ function essai(manque: string) {
     }
   }
   miroir(KNIP, path.join(nm, 'knip'), '', manque);
-  const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
-  return { status: r.status, sortie: (r.stdout ?? '') + (r.stderr ?? '') };
+  const { lignes, code } = await codeMort(dir, {});
+  return { status: code, sortie: lignes.join('\n') };
 }
 
 describe('grillhouse-3uv.56 critère 18 — the dead-code guard refuses plainly a knip it cannot read', () => {
-  it('critère 18 (témoin): the same knip, nothing left out, is read: a clean repository passes', () => {
-    const r = essai('');
+  it('a clean repository, the same knip with nothing left out, is read and passes', async () => {
+    const r = await essai('');
     expect(r.sortie).not.toMatch(/illisible/);
     expect(r.status, r.sortie).toBe(0);
   });
   for (const manque of ['dist/util/workspace.js', 'dist/schema/configuration.js']) {
-    it(`critère 18: without ${manque}, the guard refuses (exit 1) in plain words naming knip, no stack trace`, () => {
-      const r = essai(manque);
+    it(`without ${manque}, the guard refuses (exit 1) in plain words naming knip, no stack trace`, async () => {
+      const r = await essai(manque);
       expect(r.status, r.sortie).toBe(1);
       expect(r.sortie).toMatch(/⛔ CODE MORT — .*knip/);
       expect(r.sortie).not.toMatch(/^\s+at /m);

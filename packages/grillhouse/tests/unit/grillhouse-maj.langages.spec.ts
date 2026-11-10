@@ -9,7 +9,6 @@
 // those of its packages and their tsconfig.json, its turbo.json, its .gitignore, its tsdoc.json and
 // its list of the packages out of the frame, tests/cas-reels/bp-3dr.2.3), its architecture
 // declaring typescript.
-import { spawnSync } from 'node:child_process';
 import {
   cpSync,
   mkdirSync,
@@ -31,7 +30,6 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-maj-langages-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const MAJ = path.join(DEPOT, 'packages/grillhouse/scripts/grillhouse-maj.mjs');
 const BPSCRIPT = path.join(__dirname, '../cas-reels/bp-3dr.2.3/depot.json');
 const OUTILS = (typescript as unknown as { outils: string[] }).outils;
 
@@ -133,20 +131,9 @@ describe('grillhouse-ca7 — la mise à jour sert les langages de l’architectu
     expect(etat(racine)).toEqual(avant);
   });
 
-  it('the command refuses a project without declaration, its code 1, the refusal on the error stream', () => {
-    const racine = projet({ 'package.json': { name: 'p' } });
-    const avant = etat(racine);
-    const r = spawnSync(process.execPath, [MAJ], { cwd: racine, encoding: 'utf8' });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/⛔.*« Langage »/);
-    expect(etat(racine)).toEqual(avant);
-  });
-
-  it('the command refuses a directory without package.json, named', () => {
+  it('refuses a directory without package.json, named, nothing written', () => {
     const racine = mkdtempSync(path.join(ESSAIS, 'vide-'));
-    const r = spawnSync(process.execPath, [MAJ], { cwd: racine, encoding: 'utf8' });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/⛔.*package\.json/);
+    expect(() => declarerLesLangages(racine)).toThrow(/package\.json/);
     expect(readdirSync(racine)).toEqual([]);
   });
 

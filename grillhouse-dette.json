@@ -752,7 +752,7 @@
     },
     "packages/grillhouse/tests/unit/langages/typescript/code-mort-knip.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 3
+        "count": 1
       }
     },
     "packages/grillhouse/tests/unit/langages/typescript/code-mort-tests-bancs.spec.ts": {
