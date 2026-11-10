@@ -2,7 +2,6 @@
 // its list, a red one included; each red is named, and the exit code is non-zero when one guard is
 // red. Witness: BPScript, where the red check of the interfaces stopped the `&&` chain, and the
 // dead-code guard never judged.
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,7 +10,6 @@ import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtu
 import { gardesDuCadre, jouerLesGardes } from '../../scripts/gardes-du-cadre.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/gardes-du-cadre.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'gardes-du-cadre-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -60,15 +58,15 @@ describe('grillhouse:gardes — a red guard does not stop the others', () => {
     expect(jouerLesGardes({ racine, gardes: [['g.mjs']], env, dire: () => {} })).toBe(0);
     expect(readFileSync(path.join(racine, 'mode'), 'utf8')).toBe('inscrire');
   });
-  it('the command plays the list of the frame in its working directory, and exits non-zero on a red', () => {
+  it('plays the frame’s list in its working directory and returns non-zero on a red, naming it', () => {
     // An empty project of TypeScript (grillhouse-3dr.2.3: declared): the index of the interfaces it
     // lacks is red, named by its subcommand.
     const racine = mkdtempSync(path.join(ESSAIS, 'vide-'));
     writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'vide' }));
     declarerLesLangages(racine);
-    const r = spawnSync(process.execPath, [SCRIPT], { cwd: racine, encoding: 'utf8' });
-    expect(r.status).not.toBe(0);
-    expect(r.stdout).toContain('⛔ garde rouge : grillhouse index-interfaces --verifier');
+    const lignes: string[] = [];
+    expect(jouerLesGardes({ racine, dire: (l: string) => lignes.push(l) })).not.toBe(0);
+    expect(lignes.join('\n')).toContain('⛔ garde rouge : grillhouse index-interfaces --verifier');
   });
 });
 

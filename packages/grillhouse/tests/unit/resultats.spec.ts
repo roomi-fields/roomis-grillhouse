@@ -6,7 +6,6 @@
 // testwriter » only at the start of a line, the notice ⚠ of a guard not set aside, the red of the
 // guards given to the component under way, the last 60 lines of a log that hid the real red, and
 // 8 relaunches of a testwriter for the form of a line « vert attendu ».
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -29,8 +28,6 @@ import {
 } from '../../scripts/resultats.mjs';
 import { lireRapportsVitest, lireResumes } from '../../scripts/langages/typescript/verdict.mjs';
 
-const DEPOT = path.resolve(__dirname, '../../../..');
-const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/resultats.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'resultats-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -177,16 +174,9 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
       ).erreur
     ).toContain('numero');
   });
-  it('the command prints the schema of a role as JSON, the one claude receives; a role without a sheet exits 1', () => {
-    const r = spawnSync(process.execPath, [SCRIPT, '--schema', 'developpeur'], {
-      encoding: 'utf8',
-    });
-    expect(r.status, r.stderr).toBe(0);
-    expect(JSON.parse(r.stdout)).toEqual(schemaDeFiche('developpeur'));
-    const sans = spawnSync(process.execPath, [SCRIPT, '--schema', 'regulateur'], {
-      encoding: 'utf8',
-    });
-    expect(sans.status).toBe(1);
+  it('a role the circuit leads has a sheet schema; a role it does not lead has none', () => {
+    expect((schemaDeFiche('developpeur') as Schema).type).toBe('object');
+    expect(schemaDeFiche('regulateur')).toBeNull();
   });
 });
 

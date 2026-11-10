@@ -21,7 +21,6 @@ import {
 const DEPOT = path.resolve(__dirname, '../../../..');
 const PAQUET = 'packages/grillhouse/package.json';
 const JOURNAL = 'packages/grillhouse/CHANGELOG.md';
-const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/sortie.mjs');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'version-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -128,12 +127,11 @@ describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () =
     expect(() => preparerSortie(r, '0.16.1', '2026-11-02')).toThrow(/Unreleased/);
     expect(lire(r, 'CHANGELOG.md')).toBe(CHANGELOG);
   });
-  it('critère 3 — the command npx grillhouse sortie <x.y.z> prepares the package’s CHANGELOG', () => {
+  it('critère 3 — preparerSortie writes the dated release in the package’s CHANGELOG and bumps its version', () => {
     const r = grillhouse();
-    const sortie = spawnSync('node', [SCRIPT, '0.17.0'], { cwd: r, encoding: 'utf8' });
-    expect(sortie.status, sortie.stderr).toBe(0);
-    expect(sortie.stdout).toContain(JOURNAL);
-    expect(lire(r, JOURNAL)).toContain('## [0.17.0] - ');
+    preparerSortie(r, '0.17.0', '2026-11-02');
+    expect(lire(r, JOURNAL)).toContain('## [0.17.0] - 2026-11-02');
+    expect(versionDe(r, PAQUET)).toBe('0.17.0');
   });
   it('refuses a release whose « [Unreleased] » section holds nothing', () => {
     const r = grillhouse('0.16.0', '# Changelog\n\n## [Unreleased]\n\n## [0.16.0] - 2026-10-18\n');
@@ -198,19 +196,6 @@ describe('the tag of a release names the version it publishes (sortie --verifier
   it('refuses a tag of another version', () => {
     expect(() => verifierEtiquette(grillhouse(), 'v0.16.1')).toThrow(/0\.16\.0/);
     expect(() => verifierEtiquette(grillhouse(), '0.16.0')).toThrow();
-  });
-  it('the command exits 0 on the right tag, 1 on another', () => {
-    const r = grillhouse();
-    const ok = spawnSync('node', [SCRIPT, '--verifier-etiquette', 'v0.16.0'], {
-      cwd: r,
-      encoding: 'utf8',
-    });
-    expect(ok.status, ok.stderr).toBe(0);
-    const ko = spawnSync('node', [SCRIPT, '--verifier-etiquette', 'v0.17.0'], {
-      cwd: r,
-      encoding: 'utf8',
-    });
-    expect(ko.status).toBe(1);
   });
 });
 

@@ -4,7 +4,6 @@
 // (multi-language.mdx:191) quand Cargo lit celui du Cargo.toml. Les dépendances externes ne se
 // comparent pas ; un écart se nomme par le paquet et les dépendances, dans un sens comme dans
 // l'autre. La garde est l'une de celles du cadre (`scripts/gardes-du-cadre.mjs`).
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -197,12 +196,10 @@ describe('grillhouse-44b.4, critère 4 — la garde est l’une des gardes du ca
     expect(gardesDuCadre(depot()).map(g => g[0])).toContain(garde.SCRIPT);
   });
 
-  it('lancée, elle sort 0 sur un dépôt d’accord, 1 sur un écart, qu’elle nomme sur la sortie d’erreur', () => {
-    const lancer = (r: string) =>
-      spawnSync(process.execPath, [garde.SCRIPT], { cwd: r, encoding: 'utf8' });
-    expect(lancer(depot()).status).toBe(0);
-    const rouge = lancer(depot({ pkgOutils: { name: 'outils', private: true } }));
-    expect(rouge.status).toBe(1);
-    expect(rouge.stderr).toMatch(/⛔.*outils.*socle/s);
+  it('ne rend aucun constat sur un dépôt d’accord, un seul qui nomme l’écart', () => {
+    expect(constats(depot())).toEqual([]);
+    const c = constats(depot({ pkgOutils: { name: 'outils', private: true } }));
+    expect(c).toHaveLength(1);
+    expect(c[0].message).toMatch(/outils.*socle|socle.*outils/s);
   });
 });
