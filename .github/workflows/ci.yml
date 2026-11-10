@@ -58,7 +58,7 @@ jobs:
       # call by the release and the nightly schedule play the complete pass, with no base.
       - name: Verification (a push, against its parent)
         if: github.event_name == 'push' && github.event.before != ''
-        run: npm run verifier ${{ format('--base {0}', github.event.before) }}
+        run: npm run verifier -- ${{ format('--base {0}', github.event.before) }}
 
       - name: Verification
         if: github.event_name != 'push' || github.event.before == ''
