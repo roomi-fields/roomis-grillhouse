@@ -32,11 +32,12 @@ describe('critère 2: the CI calls the verification alone', () => {
 
     it(`critère 2: ${titre} plays, after the installation, \`npm run verifier\` and nothing else`, () => {
       // The CI of Grillhouse gives the verification a base for a push (a step of its own, under
-      // its condition): every run of the verification is `npm run verifier`, then its base.
+      // its condition): every run of the verification is `npm run verifier`, then its base after
+      // the `--` separator, so npm hands the base to the script and not to itself.
       const verifs = lancees.filter(r => /^npm run verifier( |$)/.test(r));
       expect(verifs.length).toBeGreaterThanOrEqual(1);
       for (const r of verifs) {
-        expect(r).toMatch(/^npm run verifier( -- --base \S+)?$|^npm run verifier \$\{\{.*\}\}$/);
+        expect(r).toMatch(/^npm run verifier( -- --base \S+)?$|^npm run verifier -- \$\{\{.*\}\}$/);
       }
       expect(lancees.at(-1)).toMatch(/^npm run verifier/);
       for (const r of lancees.filter(l => !/^npm run verifier( |$)/.test(l))) {
