@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-10
+
 ### Fixed
 
 - **The debt that a lot lowers no longer stops a developpeur without delivery** (grillhouse-44b.13.2.2): the checks of the plan (3.1) read the notes of the debt (`a-elaguer`) as the final pass does; a red whose file and guard carry such a note (titles removed, count inscribed too high) is the red of the « debt of the guards » reference, and its regeneration (4.2) lifts it before any return to the developpeur or stop at « sans-livraison », then the checks of the plan play again on the regenerated tree. A real defect mixed with it stays red there and stops as before; a new faulty title (no note) is none. **Action for projects**: none.
