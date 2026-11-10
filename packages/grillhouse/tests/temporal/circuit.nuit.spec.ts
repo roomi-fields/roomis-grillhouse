@@ -574,19 +574,36 @@ describe('le tableau lit les déroulés en un appel', () => {
     await enAttente(client);
     const racine = mkdtempSync(path.join(ESSAIS, 'attente-'));
     try {
-      const attendre = (ms: number) => {
+      type Question = {
+        ticket: string;
+        etape: string;
+        question: string;
+        qui: string;
+        commande: string;
+        cle: string;
+        representee?: boolean;
+      };
+      const attendre = async (ms: number): Promise<Question[]> => {
         const fin = new AbortController();
         const minuteur = setTimeout(() => fin.abort(), ms);
-        return attendreUneQuestion({
-          racine,
-          fermes: () => new Set(),
-          pas: 100,
-          signal: fin.signal,
-          circuitsDe: async () => avecLeurAvancement(racine, await lireLesCircuits(client, RACINE)),
-        }).finally(() => clearTimeout(minuteur));
+        try {
+          for await (const lot of attendreUneQuestion({
+            racine,
+            fermes: () => new Set(),
+            pas: 100,
+            signal: fin.signal,
+            circuitsDe: async () =>
+              avecLeurAvancement(racine, await lireLesCircuits(client, RACINE)),
+          })) {
+            return lot;
+          }
+          return [];
+        } finally {
+          clearTimeout(minuteur);
+        }
       };
       const q = await attendre(30_000);
-      expect(q.map(x => [x.ticket, x.question])).toEqual([[TICKET, 'que faire ?']]);
+      expect(q.map((x: Question) => [x.ticket, x.question])).toEqual([[TICKET, 'que faire ?']]);
       expect(await attendre(500)).toEqual([]);
     } finally {
       rmSync(racine, { recursive: true, force: true });

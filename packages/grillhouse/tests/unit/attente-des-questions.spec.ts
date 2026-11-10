@@ -61,21 +61,28 @@ const serveur = (circuits: Circuit[] = []) => {
 };
 
 // The wait under <racine> on the reading <lire>, a step every <pas> ms, ended after <ms> by its
-// signal when no question comes: its questions.
-const attendre = (
+// signal when no question comes: its first batch of questions, [] when none came.
+const attendre = async (
   racine: string,
   lire: (r: string) => Promise<Circuit[]>,
   { ms = 1500, pas = 50 } = {}
 ) => {
   const fin = new AbortController();
   const minuteur = setTimeout(() => fin.abort(), ms);
-  return attendreUneQuestion({
-    racine,
-    fermes: aucun,
-    pas,
-    signal: fin.signal,
-    circuitsDe: lire,
-  }).finally(() => clearTimeout(minuteur));
+  try {
+    for await (const lot of attendreUneQuestion({
+      racine,
+      fermes: aucun,
+      pas,
+      signal: fin.signal,
+      circuitsDe: lire,
+    })) {
+      return lot;
+    }
+    return [];
+  } finally {
+    clearTimeout(minuteur);
+  }
 };
 
 describe('the questions that wait for the supervisor, one source', () => {
@@ -147,7 +154,9 @@ describe('the questions that wait for the supervisor, one source', () => {
       /- demo-1, à 3\.1 Contrôles, au superviseur : Quel paquet lève ce rouge \?/
     );
     expect(texte).toContain('`npx grillhouse circuit demo-1 --reprendre`');
-    expect(texte).toContain('`npx grillhouse superviseur --attendre`');
+    // The wait keeps listening by itself: the text asks for no relaunch.
+    expect(texte).not.toContain('run_in_background');
+    expect(texte).not.toMatch(/relance l'attente/);
   });
 });
 
@@ -262,7 +271,11 @@ describe('the wait of a new question', () => {
     const s = serveur();
     const premiere = attendre(racine, s.lire, { ms: 500 });
     await expect(
-      attendreUneQuestion({ racine, fermes: aucun, circuitsDe: s.lire })
+      (async () => {
+        for await (const _ of attendreUneQuestion({ racine, fermes: aucun, circuitsDe: s.lire })) {
+          // refused before any batch
+        }
+      })()
     ).rejects.toThrow(/une attente des questions tourne déjà/i);
     expect(await premiere).toEqual([]);
   });

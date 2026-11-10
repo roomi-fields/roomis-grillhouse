@@ -689,11 +689,21 @@ Comme la demande de revue de GitHub et l'ensemble d'attention de Gerrit appellen
 changement attend, quel que soit son chemin, `npx grillhouse superviseur --attendre` est l'attente
 que la séance de supervision garde en arrière-plan, seule voie par laquelle une question la
 réveille, une seule à la fois par dépôt
-(`.claude/worktrees/attente-des-questions.lock`) : elle se termine seulement quand paraît une
-question neuve d'un circuit (lancé seul, dans une file ou par une autre séance), et sa sortie
-donne, par question, le ticket, l'étape, la question et la commande qui répond ; la fin de sa tâche
-réveille la séance, qui ne dépense rien pendant qu'elle attend, et la fin normale d'un circuit
-ne la termine jamais. Le plancher ne dépend pas de cette attente, qui peut mourir sans bruit : le
+(`.claude/worktrees/attente-des-questions.lock`) : un flux qui ne se termine pas (comme un
+travailleur Temporal tient sa file de tâches), qui imprime un lot à chaque question neuve d'un
+circuit (lancé seul, dans une file ou par une autre séance), par question le ticket, l'étape, la
+question et la commande qui répond, et reprend l'écoute seul, sans relance ; la séance le lit en
+continu (l'outil `Monitor`) et chaque ligne la réveille. Une question toujours sans réponse
+(le circuit est arrêté sur la même clé) est re-présentée sur ce flux toutes les 5 min
+(`--rappel <minutes>`), comme SQS redonne un message non acquitté après son délai de visibilité,
+jusqu'à ce que le circuit quitte l'arrêt ; une clé qui change est une question neuve, rendue
+aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
+remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
+clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte orange par
+circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, rouge
+passé deux intervalles de re-présentation, et une alerte rouge « à corriger », distincte, quand un
+tel circuit attend alors qu'aucune attente ne vit (son verrou nomme un processus mort ou
+manque). La fin normale d'un circuit ne termine ni ne réveille rien. Le plancher ne dépend pas de cette attente, qui peut mourir sans bruit : le
 panneau tague « en attente du superviseur » chaque circuit arrêté sur une question du superviseur,
 et le crochet `UserPromptSubmit` du mod (`npx grillhouse attente-au-tour`) nomme, à chaque tour
 d'une séance de supervision, chaque circuit en attente (ticket, question, commande qui répond,

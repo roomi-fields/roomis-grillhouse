@@ -109,17 +109,17 @@ describe.runIf(canWrap)(
         const attente = banc.attendreLesQuestions();
         banc.demarrerLeCircuit(id);
         await banc.attendreLaQuestion(id);
-        const reveil = await attente.fin;
+        const reveil = await attente.lot;
         expect(reveil).toContain(`- ${id}, à `);
         expect(reveil).toContain('Quelle valeur la mesure rend-elle ?');
-        // The question gone up does not wake a second wait.
+        // The wait goes on listening: it did not end, and a second one is refused.
+        expect(attente.finie()).toBe(false);
         const seconde = banc.attendreLesQuestions();
-        await dormir(8000);
-        expect(seconde.finie()).toBe(false);
+        expect(await seconde.fin).toContain('une seule à la fois');
         expect(banc.reprendre(id, 'Le double.')).toBe('repris');
         await banc.attendreLaFin(id);
         expect(sessions(id, 'testwriter')).toBe(2);
-        expect(seconde.finie()).toBe(false);
+        expect(attente.finie()).toBe(false);
       } finally {
         await banc.fermer([id]);
       }
@@ -158,7 +158,7 @@ describe.runIf(canWrap)(
         banc.demarrerLeCircuit(id);
         const v = await banc.attendreLaQuestion(id);
         expect(v.texte, banc.pieces(id)).toMatch(/"etape":\s*"file"/);
-        const reveil = await attente.fin;
+        const reveil = await attente.lot;
         expect(reveil).toContain(`- ${id}, à 5.2`);
         expect(statutDuTicket(id)).toBe('open');
       } finally {

@@ -33,7 +33,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
    ordonnanceur, et aucun ticket ne se mène deux fois.
 1. Si l'ouverture de séance dit « L'attente des questions », je lance en arrière-plan, dès ma
    première réponse et sans attendre le mot du responsable,
-   `npx grillhouse superviseur --attendre` (« L'attente des questions me réveille »). Si elle
+   `npx grillhouse superviseur --attendre`, et je lis son flux continu par l'outil `Monitor`
+   (« L'attente des questions me réveille »). Si elle
    liste « Les circuits du
    dépôt », je relance chaque circuit fini sans son issue par la commande qu'elle donne
    (`--reprendre` depuis son dernier état écrit, `--depuis` sans état écrit), et je réponds à chaque question qu'elle nomme, ou je la porte au
@@ -180,15 +181,17 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   garde, puis `--reprendre` le fait passer tel qu'il est alors ; ce qui revient au responsable lui
   monte d'abord.
 - **L'attente des questions me réveille** : `npx grillhouse superviseur --attendre`, que je
-  garde en arrière-plan (`run_in_background`), une seule à la fois, est la seule voie par
-  laquelle une question me réveille. Elle se termine seulement quand paraît une question neuve
-  d'un circuit, lancé seul, dans une file ou par une autre séance ; sa sortie donne, par
-  question, le ticket, l'étape, la question et la commande qui répond. Une question déjà remontée
-  (par l'attente, nommée à l'ouverture, ou lue dans la sortie d'un circuit au premier plan) ne la
-  termine plus. Je ne sonde jamais les circuits
-  moi-même. Je la relance une fois les questions de sa sortie répondues, ou portées au
-  responsable. Ainsi je ne suis réveillé que par une question neuve, et aucune ne reste sans
-  réponse.
+  garde en arrière-plan (`run_in_background`) et dont je lis le flux continu par l'outil `Monitor`,
+  une seule à la fois, est la seule voie par laquelle une question me réveille. Elle ne se
+  termine pas et reprend l'écoute seule : je ne la relance jamais à la main. Elle imprime un bloc
+  à chaque question neuve d'un circuit, lancé seul, dans une file ou par une autre séance ; ce
+  bloc donne, par question, le ticket, l'étape, la question et la commande qui répond. Une
+  question qu'aucune réponse n'a levée (son circuit est toujours arrêté sur le même arrêt) revient
+  sur ce flux toutes les 5 min (`--rappel <minutes>` règle l'intervalle), marquée « toujours sans
+  réponse », jusqu'à sa réponse : je la réponds, ou je la porte au responsable. Le tableau montre
+  au responsable une alerte horodatée pour chaque question en attente, et une alerte « à
+  corriger » quand aucune attente ne vit ; si le flux s'arrête, je la relance. Je ne sonde jamais
+  les circuits moi-même. Ainsi aucune question ne reste sans réponse par oubli.
 - **J'arrête tout agent que j'ai lancé moi-même** dès son rapport lu (`TaskStop`). Ainsi ma
   séance ne porte pas le détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au

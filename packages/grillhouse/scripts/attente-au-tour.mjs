@@ -87,7 +87,7 @@ export async function attenteAuTour(
             `  La réponse : \`${q.commande}\`.`,
           ].join('\n')
     ),
-    "Aucune attente de fond ne vit : relance-la en arrière-plan (`run_in_background`) : `npx grillhouse superviseur --attendre`.",
+    "Aucune attente de fond ne vit : lance-la en arrière-plan (`run_in_background`) et surveille son flux (l'outil `Monitor`) : `npx grillhouse superviseur --attendre`.",
   ].join('\n');
 }
 

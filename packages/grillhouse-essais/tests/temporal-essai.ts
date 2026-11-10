@@ -345,7 +345,9 @@ process.stdout.write(JSON.stringify(await m.circuitsDuServeur(process.argv[1])))
     },
     /**
      * The wait of the questions of the repository, launched as a session of supervision keeps it:
-     * `fin`, its output once it ends; `finie`, whether it ended.
+     * The wait keeps listening: it never ends by itself. `lot`, the first block it prints (a
+     * batch ends on a blank line), read as it comes; `fin`, its whole output once it ends;
+     * `finie`, whether it ended; `sortie`, what it printed so far.
      */
     attendreLesQuestions: () => {
       const a = spawn(process.execPath, [SUPERVISEUR, '--attendre', REPO], {
@@ -355,20 +357,29 @@ process.stdout.write(JSON.stringify(await m.circuitsDuServeur(process.argv[1])))
       enfants.push(a);
       attentes.push(a);
       let sortie = '';
-      a.stdout?.on('data', d => {
-        sortie += String(d);
+      let premier: ((lot: string) => void) | null = null;
+      const lot = new Promise<string>(ok => {
+        premier = ok;
       });
-      a.stderr?.on('data', d => {
+      const lire = (d: unknown) => {
         sortie += String(d);
-      });
+        const fin = sortie.indexOf('\n\n');
+        if (fin !== -1 && premier) {
+          premier(sortie.slice(0, fin));
+          premier = null;
+        }
+      };
+      a.stdout?.on('data', lire);
+      a.stderr?.on('data', lire);
       let finie = false;
       const fin = new Promise<string>(ok =>
         a.once('exit', () => {
           finie = true;
+          premier?.(sortie);
           ok(sortie);
         })
       );
-      return { fin, finie: () => finie };
+      return { lot, fin, finie: () => finie, sortie: () => sortie };
     },
     /**
      * Waits for the circuit of <id> to stop on a question (its workflow waiting for the answer),

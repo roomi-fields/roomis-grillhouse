@@ -117,6 +117,7 @@ import { verdictDe } from './integration/verdict.mjs';
 import { lireLaMesure } from './avancement.mjs';
 import { SANS_REPONSE_EN, ServeurMuet, circuitsDuServeur } from './circuits-du-serveur.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
+import { vivant } from './mesure/base-de-passe.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
@@ -612,6 +613,70 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 export const attendLeSuperviseur = c =>
   !c.vivant && Boolean(c.interrompu || c.question || (c.arret && c.arret !== 'arrete'));
 
+/**
+ * The key of one stop of the circuit <c>: its ticket, the run of its workflow, the rank of its
+ * question in that run and its stop, so that the next stop of a circuit resumed is another one. The
+ * one key of the file of the stops gone up (scripts/superviseur.mjs) and of the board's alerts.
+ * @param {{ ticket: string, run?: string, numero?: number, arret?: string | null }} c
+ * @returns {string}
+ */
+export const cleDe = c => [c.ticket, c.run, c.numero, c.arret ?? 'interrompu'].join(':');
+
+/** The file of the stops gone up to the supervisor of the repository at <racine>. */
+export const remonteesDe = racine =>
+  path.join(racine, '.claude', 'worktrees', 'questions-remontees.json');
+
+/**
+ * The stops gone up of the repository at <racine>, each with its key, `depuis` (the time of its
+ * first going up) and `presentee` (the time of its last presentation), in ms. An older file, a
+ * list of keys, reads without error: its stops take the time <maintenant> of the reading. A file
+ * that does not read holds none.
+ * @param {string} racine
+ * @param {number} maintenant
+ * @returns {{ cle: string, depuis: number, presentee: number }[]}
+ */
+export function lireLesRemontees(racine, maintenant) {
+  try {
+    const lu = JSON.parse(readFileSync(remonteesDe(racine), 'utf8'));
+    if (!Array.isArray(lu?.remontees)) {
+      return [];
+    }
+    return lu.remontees.map(r =>
+      typeof r === 'string'
+        ? { cle: r, depuis: maintenant, presentee: maintenant }
+        : {
+            cle: String(r.cle),
+            depuis: Number.isFinite(r.depuis) ? r.depuis : maintenant,
+            presentee: Number.isFinite(r.presentee) ? r.presentee : maintenant,
+          }
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** The lock of the one wait of the questions of the repository at <racine>. */
+export const verrouDeLAttente = racine =>
+  path.join(racine, '.claude', 'worktrees', 'attente-des-questions.lock');
+
+/**
+ * Whether a wait of the questions lives for the repository at <racine>: its lock names a process
+ * that lives (the pid is read again; a lock left by a dead process does not count).
+ * @param {string} racine
+ * @returns {boolean}
+ */
+export function attenteVivante(racine) {
+  try {
+    const pid = Number(/^(\d+)/.exec(readFileSync(verrouDeLAttente(racine), 'utf8'))?.[1]);
+    return Number.isInteger(pid) && pid > 0 && vivant(pid);
+  } catch {
+    return false;
+  }
+}
+
+// The minutes between two presentations of a question not answered, by default.
+export const RAPPEL_PAR_DEFAUT = 5;
+
 // The reviewer's last verdict among a ticket's comments (verdictDe: a comment of the reviewer's
 // author), or null.
 export function verdict(commentaires) {
@@ -709,6 +774,9 @@ export function assembler({
   muet = false,
   faute = null,
   echecPrefixe = null,
+  remontees = [],
+  rappel = RAPPEL_PAR_DEFAUT,
+  attenteVivante: attenteQuiVit = true,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1048,6 +1116,33 @@ export function assembler({
       niveau: 'orange',
       signe: '🧰',
       texte: `Outil ${outil.version} non installable : code du dépôt`,
+    });
+  }
+  // A circuit stopped on a question to the supervisor: orange, how long it has waited (from the
+  // `depuis` of its stop in the file of the stops gone up), red past two intervals of
+  // re-presentation (two presentations with no answer); it falls when the circuit leaves the stop.
+  // One red alert « à corriger » when some wait and no wait lives.
+  const depuisDe = new Map(remontees.map(r => [r.cle, r.depuis]));
+  const enAttenteDuSuperviseur = [...parCircuit.values()]
+    .filter(attendLeSuperviseur)
+    .sort((a, b) => ordre({ id: a.ticket }, { id: b.ticket }));
+  for (const c of enAttenteDuSuperviseur) {
+    const depuis = depuisDe.get(cleDe(c));
+    if (depuis === undefined) {
+      continue;
+    }
+    const attendu = Math.max(0, maintenant - depuis);
+    alertes.push({
+      niveau: attendu > 2 * rappel * MINUTE ? 'rouge' : 'orange',
+      signe: '⏳',
+      texte: `${numero(c.ticket)} attend le superviseur depuis ${Math.floor(attendu / MINUTE)} min`,
+    });
+  }
+  if (enAttenteDuSuperviseur.length && !attenteQuiVit) {
+    alertes.push({
+      niveau: 'rouge',
+      signe: '🔕',
+      texte: 'À corriger : une question au superviseur reste sans réponse, aucune attente ne tourne',
     });
   }
   for (const b of blocs) {
@@ -1947,6 +2042,8 @@ function lire(
     faute,
     echecPrefixe,
     outil: echecDeLOutil(racine),
+    remontees: lireLesRemontees(racine, maintenant),
+    attenteVivante: attenteVivante(racine),
   });
   return { t, prefix, tous, vivants, commun };
 }
