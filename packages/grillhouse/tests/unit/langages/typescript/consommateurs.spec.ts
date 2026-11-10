@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -7,14 +6,13 @@ import {
   declares,
   imports,
   lireLigne,
+  rapport,
   verifier,
 } from '../../../../scripts/langages/typescript/consommateurs.mjs';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'consommateurs-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-
-const SCRIPT = path.resolve(__dirname, '../../../../scripts/langages/typescript/consommateurs.mjs');
 
 function repo(files: Record<string, string>) {
   const dir = mkdtempSync(path.join(ESSAIS, 'consommateurs-'));
@@ -333,17 +331,24 @@ describe('verifier', () => {
     const dir = repo({ 'src/lexer/a.ts': "import { b } from './b';", 'src/lexer/b.ts': '' });
     expect(verifier(dir)).toEqual({ refus: [] });
   });
+  it('gives no refusal for a repository without components', () => {
+    expect(verifier(repo({}))).toEqual({ refus: [] });
+  });
 });
 
+// The command's report (`rapport`, the functional core of `npx grillhouse consommateurs`): its lines
+// and its exit code, the refusals of `verifier` passed through the project's debt (`trancher`), each
+// prefixed with `⛔`, with the guidance that fits the kinds of refusal left. An empty env gives the
+// default debt mode and writes no SARIF (no results directory), so each case is deterministic.
 describe('the command', () => {
   it('exits 1 on a refusal and names the supervisor’s arbitrage', () => {
     const dir = repo({
       'packages/b/package.json': '{"name":"@demo/b"}',
       'packages/a/src/index.ts': "import { duree } from '@demo/b';",
     });
-    const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
-    expect(r.status).toBe(1);
-    expect(r.stderr).toMatch(/arbitrage du superviseur/);
+    const r = rapport(dir, {});
+    expect(r.code).toBe(1);
+    expect(r.lignes.join('\n')).toMatch(/arbitrage du superviseur/);
   });
   const perime = {
     'packages/b/package.json': '{"name":"@demo/b"}',
@@ -352,16 +357,17 @@ describe('the command', () => {
     'packages/a/src/index.ts': "import { duree } from '@demo/b';",
   };
   it('critère 1 — exits 1 on a declared name the consumer no longer uses, and says how to lift it', () => {
-    const r = spawnSync('node', [SCRIPT], { cwd: repo(perime), encoding: 'utf8' });
-    expect(r.status, r.stderr).toBe(1);
-    expect(r.stderr).toContain(
+    const r = rapport(repo(perime), {});
+    expect(r.code).toBe(1);
+    expect(r.lignes).toContain(
       "⛔ packages/b/docs/INTERFACE.md déclare « tempo » pour a, qu'aucun code de a n'utilise."
     );
-    expect(r.stderr).toMatch(/sort de sa ligne/);
-    expect(r.stderr).not.toMatch(/⚠️/);
+    const texte = r.lignes.join('\n');
+    expect(texte).toMatch(/sort de sa ligne/);
+    expect(texte).not.toMatch(/⚠️/);
     // In a ticket, the name leaves its line: the debt is inscribed once, at the passage of the rule
     // (the migration of 0.24.4), never offered by the guard.
-    expect(r.stderr).not.toMatch(/dette/);
+    expect(texte).not.toMatch(/dette/);
   });
   it('critère 1 — passes the same name inscribed in the debt of the project', () => {
     const dette = {
@@ -370,11 +376,7 @@ describe('the command', () => {
       },
     };
     const dir = repo({ ...perime, 'grillhouse-dette.json': JSON.stringify(dette) });
-    const r = spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
-    expect(r.status, r.stderr).toBe(0);
-  });
-  it('exits 0 on a repository without components', () => {
-    expect(spawnSync('node', [SCRIPT], { cwd: repo({}), encoding: 'utf8' }).status).toBe(0);
+    expect(rapport(dir, {}).code).toBe(0);
   });
 });
 
@@ -383,17 +385,17 @@ describe('the command', () => {
 // the consumers, which names both paths (the reference: npm workspaces, Nx and Cargo refuse two
 // projects of the same name).
 describe('grillhouse-3uv.56 critère 20 — two components of the same name are refused', () => {
-  const lancer = (dir: string) => spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
-  it('critère 20: packages/a and src/a are refused, exit 1, both paths named', () => {
+  const homonyme = (dir: string, un: string, autre: string) =>
+    verifier(dir).refus.some(
+      l => l.regle === 'homonyme' && l.message.includes(un) && l.message.includes(autre)
+    );
+  it('critère 20: packages/a and src/a are refused, both paths named', () => {
     const dir = repo({
       'packages/a/package.json': '{"name":"@demo/a"}',
       'packages/a/src/index.ts': 'export const a = 1;\n',
       'src/a/index.ts': 'export const a = 2;\n',
     });
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(1);
-    const ligne = r.stderr.split('\n').find(l => l.includes('packages/a') && l.includes('src/a'));
-    expect(ligne, r.stderr).toBeDefined();
+    expect(homonyme(dir, 'packages/a', 'src/a')).toBe(true);
   });
   it('critère 20: another name (parser), among components that are otherwise in order, is refused the same way', () => {
     const dir = repo({
@@ -404,17 +406,7 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       'src/c/index.ts': "import { duree } from '../b';\nexport const c = duree;\n",
       'src/b/docs/INTERFACE.md': INTERFACE_B('## Consommateurs\n\n- `c` : duree\n'),
     });
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(1);
-    const ligne = r.stderr
-      .split('\n')
-      .find(l => l.includes('packages/parser') && l.includes('src/parser'));
-    expect(ligne, r.stderr).toBeDefined();
-    expect(
-      verifier(dir).refus.some(
-        l => l.message.includes('packages/parser') && l.message.includes('src/parser')
-      )
-    ).toBe(true);
+    expect(homonyme(dir, 'packages/parser', 'src/parser')).toBe(true);
   });
   // Arbitrage of the regulator (comment « cas relevés par le testwriter »): a name listed in
   // docs/agents/hors-cadre.txt is not a component, and packages/A and src/a bear two names.
@@ -425,8 +417,6 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       'packages/outils/src/index.ts': 'export const o = 1;\n',
       'src/outils/index.ts': 'export const o = 2;\n',
     });
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(0);
     expect(verifier(dir).refus).toEqual([]);
   });
   it('critère 20: packages/A and src/a, names that differ by case, are not refused', () => {
@@ -435,8 +425,6 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
       'packages/A/src/index.ts': 'export const a = 1;\n',
       'src/a/index.ts': 'export const a = 2;\n',
     });
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(0);
     expect(verifier(dir).refus).toEqual([]);
   });
 });
@@ -444,9 +432,10 @@ describe('grillhouse-3uv.56 critère 20 — two components of the same name are 
 // Witness: BPScript (320.2.4.5.1), whose `npm run verifier` played the guards beside the tests:
 // Vite wrote then removed `vitest.config.ts.timestamp-<n>-<hash>.mjs` beside a configuration, the
 // check listed it, read it once it was gone, and stopped on ENOENT: the final pass was red without
-// a fault. A dangling link is a file listed that no longer exists when it is read.
+// a fault. A dangling link is a file listed that no longer exists when it is read. `verifier` walks
+// the repository (parcours.mjs), so calling it directly proves it passes such a file over without an
+// ENOENT (its `lireSiPresent` returns null) rather than throwing.
 describe('a file that vanishes while the check walks the repository', () => {
-  const lancer = (dir: string) => spawnSync('node', [SCRIPT], { cwd: dir, encoding: 'utf8' });
   const declare = {
     'packages/b/package.json': '{"name":"@demo/b"}',
     'packages/b/src/index.ts': 'export const duree = 1;\n',
@@ -457,9 +446,6 @@ describe('a file that vanishes while the check walks the repository', () => {
   it('gives its verdict when a file listed is gone before it is read', () => {
     const dir = repo(declare);
     symlinkSync(path.join(dir, 'absent.ts'), path.join(dir, 'packages/a/src/disparu.ts'));
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stderr).not.toContain('ENOENT');
     expect(verifier(dir)).toEqual({ refus: [] });
   });
   it('still refuses a use the provider does not declare beside a file gone', () => {
@@ -468,9 +454,13 @@ describe('a file that vanishes while the check walks the repository', () => {
       'packages/a/src/cache.ts': "import { cache } from '@demo/b';\n",
     });
     symlinkSync(path.join(dir, 'absent.ts'), path.join(dir, 'packages/a/src/disparu.ts'));
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(1);
-    expect(r.stderr).toContain('a utilise « cache » de b');
+    expect(verifier(dir).refus).toEqual([
+      {
+        fichier: 'packages/b/docs/INTERFACE.md',
+        regle: 'usage-non-declare',
+        message: 'a utilise « cache » de b, que packages/b/docs/INTERFACE.md ne déclare pas.',
+      },
+    ]);
   });
   it("does not read Vite's temporary file beside a configuration of Vitest", () => {
     const dir = repo({
@@ -478,8 +468,6 @@ describe('a file that vanishes while the check walks the repository', () => {
       'packages/a/src/vitest.config.ts.timestamp-1712345678901-4f2a9c.mjs':
         "import { cache } from '@demo/b';\n",
     });
-    const r = lancer(dir);
-    expect(r.status, r.stderr).toBe(0);
     expect(verifier(dir).refus).toEqual([]);
   });
 });

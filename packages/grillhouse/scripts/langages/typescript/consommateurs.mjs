@@ -46,7 +46,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { trancher } from '../../dette.mjs';
+import { MODE, trancher } from '../../dette.mjs';
 import { horsCadre } from '../../paquets.mjs';
 import { composants, dossiers, matieres } from './composants.mjs';
 import { lireSiPresent, parcourir } from './parcours.mjs';
@@ -314,27 +314,38 @@ export function verifier(racine) {
   return { refus };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const racine = process.cwd();
-  const verdict = verifier(racine);
-  const { refus, lignes } = trancher(racine, 'consommateurs', verdict.refus);
-  for (const r of refus) {
-    process.stderr.write(`⛔ ${r.message}\n`);
-  }
-  for (const l of lignes) {
-    process.stderr.write(`${l}\n`);
-  }
+// The report of the check at <racine>: `lignes`, what the command writes on stderr (each refusal
+// prefixed with `⛔`, the debt's lines, then the guidance that fits the kinds of refusal left), and
+// `code`, its exit code (1 on a refusal). The functional core of the command: it reads the
+// repository and the project's debt and writes nothing to the standard streams; the command below is
+// its shell. The refusals reach SARIF through `trancher` under the results directory <env> names
+// (scripts/resultats.mjs); without it none is written, and the debt's mode is <env>'s `GRILLHOUSE_DETTE`.
+export function rapport(racine, env = process.env) {
+  const { refus, lignes } = trancher(
+    racine,
+    'consommateurs',
+    verifier(racine).refus,
+    env[MODE] || undefined,
+    env
+  );
+  const sorties = [...refus.map(r => `⛔ ${r.message}`), ...lignes];
   if (refus.some(r => r.regle !== DECLARE_NON_UTILISE && r.regle !== LIGNE_MAL_FORMEE)) {
-    process.stderr.write(
-      "Une consommation nouvelle se décide (le titre du ticket, sa section « Architecture » ou sa section « Noms publiés » qui la nomment, sinon l'arbitrage du superviseur), puis entre dans la section « Consommateurs » de l'interface du fournisseur.\n"
+    sorties.push(
+      "Une consommation nouvelle se décide (le titre du ticket, sa section « Architecture » ou sa section « Noms publiés » qui la nomment, sinon l'arbitrage du superviseur), puis entre dans la section « Consommateurs » de l'interface du fournisseur."
     );
   }
   if (refus.some(r => r.regle === DECLARE_NON_UTILISE)) {
-    process.stderr.write(
-      "Un nom que son consommateur n'utilise plus sort de sa ligne dans la section « Consommateurs » de l'interface du fournisseur.\n"
+    sorties.push(
+      "Un nom que son consommateur n'utilise plus sort de sa ligne dans la section « Consommateurs » de l'interface du fournisseur."
     );
   }
-  if (refus.length) {
-    process.exitCode = 1;
+  return { lignes: sorties, code: refus.length ? 1 : 0 };
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const { lignes, code } = rapport(process.cwd());
+  for (const l of lignes) {
+    process.stderr.write(`${l}\n`);
   }
+  process.exitCode = code;
 }
