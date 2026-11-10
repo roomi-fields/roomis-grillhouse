@@ -59,6 +59,7 @@ import {
   versionDeLOutil,
 } from '../../scripts/aiguillage.mjs';
 import { trouverDansLePath } from '../../scripts/commandes-du-path.mjs';
+import { langagesDe } from '../../scripts/langages.mjs';
 import { lireOutils } from '../../scripts/outils-cles.mjs';
 import { ATTRIBUTS_DE_RECHERCHE } from './attributs.js';
 
@@ -291,11 +292,16 @@ export function travailleurDe(racine: string, outil: (version: string) => string
 
 /**
  * The PATH of each worker's unit: the folder of Node <node>, then those of the account's tools
- * <trouver> finds, then the system's; a tool not found refused by its name.
+ * and of the <executables> of the languages <trouver> finds, then the system's; a program not
+ * found refused by its name.
  */
-export function cheminDesUnites(node: string, trouver: (nom: string) => string | null): string {
+export function cheminDesUnites(
+  node: string,
+  trouver: (nom: string) => string | null,
+  executables: readonly string[]
+): string {
   const dossiers = [path.dirname(node)];
-  for (const nom of OUTILS_DU_COMPTE) {
+  for (const nom of [...OUTILS_DU_COMPTE, ...executables]) {
     const f = trouver(nom);
     if (!f) {
       throw new Error(
@@ -481,7 +487,8 @@ export async function installer({
   // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
   // version down in its cache first.
   const { programme, contenu } = await obtenirLeProgramme({ lieux, epingle, plateforme, obtenir });
-  const chemin = cheminDesUnites(node, trouver);
+  const executables = langagesDe(lieux.racine).flatMap(m => m.executables);
+  const chemin = cheminDesUnites(node, trouver, executables);
   const pkg = JSON.parse(readFileSync(path.join(lieux.racine, 'package.json'), 'utf8')) as {
     grillhouse?: { outils?: unknown };
   };

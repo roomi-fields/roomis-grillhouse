@@ -69,6 +69,8 @@ export default {
     throw new Error('sortie non prise en charge pour python');
   },
   outils: ['smol-toml'],
+  // The programs the installer of Temporal requires in the PATH of the workers.
+  executables: ['python3'],
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
   ignorer: ['.venv', '.pytest_cache', PYCACHE],
   sorties: {

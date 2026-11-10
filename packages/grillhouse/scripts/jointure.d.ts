@@ -281,6 +281,10 @@ export interface Composition {
 
 /** A module of language, the default export of `scripts/langages/<nom>/index.mjs`. */
 export interface Langage extends Composition {
+  /** The programs of this language's toolchain (`cargo`, `python3`) that the installer of Temporal
+   * requires in its PATH, each refused by its name when absent; none for TypeScript, Node being a
+   * tool of the account. */
+  executables: string[];
   /** The manifest of a package of this language, in its folder (`package.json`, `Cargo.toml`):
    * the guard of the languages asks it of a package the architecture declares of this language. */
   manifeste: string;

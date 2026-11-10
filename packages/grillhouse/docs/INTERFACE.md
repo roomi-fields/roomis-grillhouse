@@ -112,6 +112,10 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
   sccache (`scripts/langages/cargo/binaires.json`) ; `python`, uv
   (`scripts/langages/python/binaires.json`).
+- `executables` : les programmes de la chaîne d'outils du langage que l'installateur de Temporal
+  exige dans son PATH, dont le dossier entre dans celui des unités des travailleurs, un absent
+  refusé par son nom. `typescript`, aucun (Node est un outil du compte) ; `cargo`, `cargo` ;
+  `python`, `python3`. Un champ en lecture seule : la composition de plusieurs langages ne le porte pas.
 - `ignorer` : les dossiers qu'écrivent les outils du langage dans un projet, par leur nom ; les
   fichiers sources que lisent les migrations les laissent de côté, `maj` les écrit dans le
   `.gitignore` du projet, et le retrait des copies finies les retire d'une copie gardée dont le

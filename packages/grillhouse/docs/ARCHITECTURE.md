@@ -1048,7 +1048,10 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   la version du cadre que le projet installe. Une unité de systemd part d'un PATH nu : celle de
   chaque travailleur nomme le PATH des outils du compte qu'un circuit lance (node, npm, claude, bd,
   gh, trouvés dans le PATH de l'installation, un outil absent refusé par son nom avant toute
-  écriture) et chaque outil du projet (`grillhouse.outils`), sa variable. L'unité de chaque travailleur reçoit enfin `Environment=TEMPORAL=<programme posé>`, tiré du
+  écriture), puis les dossiers des `executables` de chaque langage que l'architecture du projet
+  déclare (`langagesDe` : cargo, python3 ; un absent refusé par son nom, un projet sans langage
+  ou à langage inconnu refusé avant toute écriture ; un dossier une seule fois, après ceux du
+  compte et avant ceux du système), et chaque outil du projet (`grillhouse.outils`), sa variable. L'unité de chaque travailleur reçoit enfin `Environment=TEMPORAL=<programme posé>`, tiré du
   programme posé et non d'une clé `grillhouse.outils.TEMPORAL` que le `package.json` porterait ; l'installation
   n'écrit jamais ce `package.json`. Ce que systemd a
   appliqué se tient à part de ce qui est écrit : la somme du texte de chaque unité, une fois

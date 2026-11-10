@@ -77,6 +77,9 @@ export default {
   },
   // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
   outils: ['smol-toml'],
+  // The programs the installer of Temporal requires in the PATH of the workers: cargo's folder is
+  // also rustc's, nextest's and sccache's (rustup, `cargo install`).
+  executables: ['cargo'],
   // The binaries the module runs, each at an exact version: nextest and cargo-deny at the ones the
   // probe of grillhouse-pkl.1 measured; sccache, the cache of compilation common to the copies
   // (./sccache.mjs), at the last release of mozilla/sccache, v0.19.0 (2026-10-24).

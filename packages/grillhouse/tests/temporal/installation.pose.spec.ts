@@ -18,6 +18,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { describe, expect, it } from 'vitest';
 import {
   cheminsDe,
@@ -50,6 +51,7 @@ describe('the installation from an archive whose sum is the pinned one', () => {
   const contenu = archive('0.0.1');
   const epingle = { version: '0.0.1', sommes: { linux_amd64: somme(contenu) } };
   const racine = dossier('projet');
+  declarerLesLangages(racine);
   writeFileSync(path.join(racine, 'package.json'), '{\n  "name": "essai"\n}\n');
   const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
   const obtenus: string[] = [];
@@ -114,6 +116,7 @@ describe('a systemctl that fails is played again at the next run', () => {
   const contenu = archive('0.0.2');
   const epingle = { version: '0.0.2', sommes: { linux_amd64: somme(contenu) } };
   const racine = dossier('projet');
+  declarerLesLangages(racine);
   writeFileSync(path.join(racine, 'package.json'), '{\n  "name": "reprise"\n}\n');
   const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
   const unites = [UNITE_DU_SERVEUR, uniteDuProjet(racine), UNITE_DE_LA_MACHINE];
@@ -168,6 +171,7 @@ describe('every refusal comes before any writing', () => {
   it('a tool of the account not found is refused by its name: no program, no unit, the package.json as it was', async () => {
     const contenu = archive('0.0.4');
     const racine = dossier('projet');
+    declarerLesLangages(racine);
     const avant = '{\n  "name": "sans-outil"\n}\n';
     writeFileSync(path.join(racine, 'package.json'), avant);
     const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
@@ -198,6 +202,7 @@ describe('the other refusals come before any writing too', () => {
   async function refus(pkg: object, poser?: (dossier: string) => string) {
     const contenu = archive('0.0.6');
     const racine = dossier('projet');
+    declarerLesLangages(racine);
     const avant = `${JSON.stringify(pkg, null, 2)}\n`;
     writeFileSync(path.join(racine, 'package.json'), avant);
     const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
@@ -249,6 +254,7 @@ describe('the published version of the frame under --maison', () => {
   it('runs the worker of the version the project names, from the cache of the trial home', async () => {
     const contenu = archive('0.0.5');
     const racine = dossier('projet');
+    declarerLesLangages(racine);
     writeFileSync(
       path.join(racine, 'package.json'),
       JSON.stringify({ name: 'outille', grillhouse: { outil: '9.9.8' } })
@@ -283,6 +289,7 @@ describe('a package.json that already carries grillhouse.outils.TEMPORAL', () =>
   it('is not rewritten, and the worker’s unit takes the program laid down, not the key’s value', async () => {
     const contenu = archive('0.0.7');
     const racine = dossier('projet');
+    declarerLesLangages(racine);
     const avant = `${JSON.stringify(
       { name: 'garde', grillhouse: { outils: { TEMPORAL: '/ailleurs/temporal' } } },
       null,
@@ -309,6 +316,7 @@ describe('a package.json that already carries grillhouse.outils.TEMPORAL', () =>
   it('keeps the other tools of the project in the unit', async () => {
     const contenu = archive('0.0.8');
     const racine = dossier('projet');
+    declarerLesLangages(racine);
     const outil = dossier('outil');
     writeFileSync(
       path.join(racine, 'package.json'),
@@ -352,5 +360,114 @@ describe('the program laid down alone (the CI’s mode)', () => {
     expect(readdirSync(l.unites)).toEqual([]);
     expect(readdirSync(l.racine)).toEqual([]);
     expect(readdirSync(l.maison)).toEqual(['.cache']);
+  });
+});
+
+describe('the PATH of the workers names the tool of each language the architecture declares', () => {
+  // An installation on a project whose architecture declares <langages>, every tool of the account
+  // at /compte/bin and each tool <ailleurs> names at its path: the units' PATH lines, the refusal,
+  // and what the places hold.
+  async function installerAvec(
+    langages: string[] | null,
+    ailleurs: Record<string, string | null> = {}
+  ) {
+    const contenu = archive('0.1.0');
+    const racine = dossier('projet');
+    writeFileSync(path.join(racine, 'package.json'), '{\n  "name": "polyglotte"\n}\n');
+    if (langages) {
+      declarerLesLangages(racine, langages);
+    }
+    const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
+    const appels: string[][] = [];
+    const e = await installer({
+      lieux: l,
+      epingle: { version: '0.1.0', sommes: { linux_amd64: somme(contenu) } },
+      plateforme: 'linux_amd64',
+      obtenir: () => Promise.resolve(contenu),
+      systemctl: args => (appels.push(args), { status: 0, stdout: '', stderr: '' }),
+      node: '/usr/bin/node',
+      travailleur: '/paquet/dist/temporal/travailleur.js',
+      trouver: nom => (nom in ailleurs ? ailleurs[nom]! : `/compte/bin/${nom}`),
+    }).then(
+      () => null,
+      (x: unknown) => x as Error
+    );
+    const chemins = (u: string) =>
+      /^Environment=PATH=(.*)$/m.exec(readFileSync(path.join(l.unites, u), 'utf8'))?.[1];
+    return { e, l, appels, chemins };
+  }
+  const PATH_TS = '/usr/bin:/compte/bin:/usr/local/bin:/bin';
+
+  it('adds the folder of cargo after the account’s tools and before the system’s, for a project that declares cargo', async () => {
+    const { e, l, chemins } = await installerAvec(['cargo'], { cargo: '/maison/.cargo/bin/cargo' });
+    expect(e).toBeNull();
+    expect(chemins(uniteDuProjet(l.racine))).toBe(
+      '/usr/bin:/compte/bin:/maison/.cargo/bin:/usr/local/bin:/bin'
+    );
+  });
+
+  it('adds the folder of the interpreter of python for a project that declares python', async () => {
+    const { e, l, chemins } = await installerAvec(['python'], {
+      python3: '/maison/.local/share/uv/python/bin/python3',
+    });
+    expect(e).toBeNull();
+    expect(chemins(uniteDuProjet(l.racine))).toBe(
+      '/usr/bin:/compte/bin:/maison/.local/share/uv/python/bin:/usr/local/bin:/bin'
+    );
+  });
+
+  it('adds the folders of several languages, each once, in the order of the architecture', async () => {
+    const { e, l, chemins } = await installerAvec(['python', 'cargo'], {
+      python3: '/py/bin/python3',
+      cargo: '/maison/.cargo/bin/cargo',
+    });
+    expect(e).toBeNull();
+    expect(chemins(uniteDuProjet(l.racine))).toBe(
+      '/usr/bin:/compte/bin:/py/bin:/maison/.cargo/bin:/usr/local/bin:/bin'
+    );
+  });
+
+  it('leaves the PATH unchanged for a project that declares TypeScript only', async () => {
+    const { e, l, chemins } = await installerAvec(['typescript']);
+    expect(e).toBeNull();
+    expect(chemins(uniteDuProjet(l.racine))).toBe(PATH_TS);
+  });
+
+  it('gives the worker of the project and the worker of the machine the same PATH', async () => {
+    const { l, chemins } = await installerAvec(['cargo'], { cargo: '/maison/.cargo/bin/cargo' });
+    const projet = chemins(uniteDuProjet(l.racine));
+    expect(projet).toContain('/maison/.cargo/bin');
+    expect(chemins(UNITE_DE_LA_MACHINE)).toBe(projet);
+  });
+
+  it('refuses a language’s tool absent from the installer’s PATH by its name: nothing written', async () => {
+    const { e, l, appels } = await installerAvec(['cargo'], { cargo: null });
+    expect(e?.message).toContain("temporal : l'outil cargo est introuvable dans PATH");
+    expect(readdirSync(l.maison)).toEqual([]);
+    expect(readdirSync(l.unites)).toEqual([]);
+    expect(appels).toEqual([]);
+  });
+
+  it('does not look for the tool of a language the project does not declare', async () => {
+    const { e, l, chemins } = await installerAvec(['typescript'], { cargo: null, python3: null });
+    expect(e).toBeNull();
+    expect(chemins(uniteDuProjet(l.racine))).toBe(PATH_TS);
+  });
+
+  it('refuses a project whose architecture declares no language, by the column to write: nothing written', async () => {
+    const { e, l, appels } = await installerAvec(null);
+    expect(e?.message).toMatch(/ne déclare aucun langage/);
+    expect(e?.message).toContain('Langage');
+    expect(readdirSync(l.maison)).toEqual([]);
+    expect(readdirSync(l.unites)).toEqual([]);
+    expect(appels).toEqual([]);
+  });
+
+  it('refuses a language out of the frame’s list by its name: nothing written', async () => {
+    const { e, l, appels } = await installerAvec(['fortran']);
+    expect(e?.message).toMatch(/langage inconnu du cadre : fortran/);
+    expect(readdirSync(l.maison)).toEqual([]);
+    expect(readdirSync(l.unites)).toEqual([]);
+    expect(appels).toEqual([]);
   });
 });

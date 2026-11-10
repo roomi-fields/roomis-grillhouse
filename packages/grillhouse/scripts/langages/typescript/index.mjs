@@ -195,6 +195,8 @@ export default {
   ],
   // No binary of the machine: its tools are packages of npm.
   binaires: {},
+  // No program the installer of Temporal looks for: Node is a tool of the account.
+  executables: [],
   // What its tools write in a project: Turborepo's runs and cache.
   ignorer: ['.turbo'],
   // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;

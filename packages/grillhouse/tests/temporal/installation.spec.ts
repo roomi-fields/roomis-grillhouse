@@ -24,6 +24,7 @@ import {
   uniteDuProjet,
   urlDeLArchive,
 } from '../../src/temporal/installation.js';
+import { langage } from '../../scripts/langages.mjs';
 import { dossier } from './essai.js';
 
 // A trial project, its home and its directory of units, all empty.
@@ -155,15 +156,71 @@ describe('the PATH of a worker’s unit', () => {
       bd: '/maison/.local/bin/bd',
       gh: '/usr/bin/gh',
     };
-    expect(cheminDesUnites('/nvm/bin/node', n => outils[n] ?? null)).toBe(
+    expect(cheminDesUnites('/nvm/bin/node', n => outils[n] ?? null, [])).toBe(
       '/nvm/bin:/maison/.local/bin:/usr/bin:/usr/local/bin:/bin'
     );
   });
 
   it('refuses a tool of the account it does not find, by its name', () => {
-    expect(() => cheminDesUnites('/usr/bin/node', n => (n === 'bd' ? null : `/x/${n}`))).toThrow(
-      "temporal : l'outil bd est introuvable dans PATH"
+    expect(() =>
+      cheminDesUnites('/usr/bin/node', n => (n === 'bd' ? null : `/x/${n}`), [])
+    ).toThrow("temporal : l'outil bd est introuvable dans PATH");
+  });
+
+  it('puts the folder of each executable of a language after the account’s tools and before the system’s', () => {
+    expect(cheminDesUnites('/nvm/bin/node', n => `/compte/bin/${n}`, ['cargo']).split(':')).toEqual(
+      ['/nvm/bin', '/compte/bin', '/usr/local/bin', '/usr/bin', '/bin']
     );
+    const trouver = (n: string) =>
+      n === 'cargo' ? '/maison/.cargo/bin/cargo' : `/compte/bin/${n}`;
+    expect(cheminDesUnites('/nvm/bin/node', trouver, ['cargo']).split(':')).toEqual([
+      '/nvm/bin',
+      '/compte/bin',
+      '/maison/.cargo/bin',
+      '/usr/local/bin',
+      '/usr/bin',
+      '/bin',
+    ]);
+  });
+
+  it('names the folder of several executables of a language once', () => {
+    const trouver = (n: string) =>
+      ['cargo', 'rustc', 'sccache'].includes(n) ? `/maison/.cargo/bin/${n}` : `/compte/bin/${n}`;
+    const dossiers = cheminDesUnites('/nvm/bin/node', trouver, ['cargo', 'rustc', 'sccache']).split(
+      ':'
+    );
+    expect(dossiers.filter(d => d === '/maison/.cargo/bin')).toHaveLength(1);
+  });
+
+  it('adds no folder for a language without executable', () => {
+    const trouver = (n: string) => `/compte/bin/${n}`;
+    expect(cheminDesUnites('/nvm/bin/node', trouver, []).split(':')).toEqual([
+      '/nvm/bin',
+      '/compte/bin',
+      '/usr/local/bin',
+      '/usr/bin',
+      '/bin',
+    ]);
+  });
+
+  it('refuses an executable of a language it does not find, by its name', () => {
+    expect(() =>
+      cheminDesUnites('/usr/bin/node', n => (n === 'python3' ? null : `/x/${n}`), ['python3'])
+    ).toThrow("temporal : l'outil python3 est introuvable dans PATH");
+  });
+});
+
+describe('the executables each module of language publishes', () => {
+  it('names cargo for the module of cargo', () => {
+    expect(langage('cargo').executables).toContain('cargo');
+  });
+
+  it('names python3 for the module of python', () => {
+    expect(langage('python').executables).toContain('python3');
+  });
+
+  it('names none for the module of TypeScript, Node being a tool of the account', () => {
+    expect(langage('typescript').executables).toEqual([]);
   });
 });
 

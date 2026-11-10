@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **The PATH of each Temporal worker's unit names the tool of each language the project declares** (grillhouse-4nr.19): `cheminDesUnites` named only the account's five tools, so a project of Rust or Python lost `cargo` or `python3` at each `temporal installer` (ENOENT in the circuit's checks). Each module of language now publishes `executables` (cargo: `cargo`; python: `python3`; typescript: none), the installer reads the modules of the languages `docs/ARCHITECTURE.md` declares (`langagesDe`), finds each program in its own PATH, refuses an absent one by its name, and puts its folder once after the account's tools and before the system's; a project that declares no language, or one out of the frame's list, is refused before any writing.
+
 ### Added
 
 - **An import that the package does not declare is refused, with its two ways on** (grillhouse-3uv.77.1): a dependency declared only at the root of the workspace, or nowhere, and imported by a package escaped `pas-d-outil-de-developpement-dans-le-code` (dependency-cruiser types it `npm-no-pkg` or `npm-unknown`, not `npm-dev`). As npm and pnpm in strict mode, and the `no-non-package-json` rule of dependency-cruiser, the generated configuration of `grillhouse frontieres` now carries the error rule `pas-d-import-non-declare`, types-only imports included; a declared import, a development import out of the published code, a peer dependency and a module of Node (`node:fs`) pass. The refusal names the file and the package, then the two ways on: declare the usage in the `package.json` of the importing package if it is valid for the architecture, else open an architecture question (to the supervisor); for a component of the repository it also names the « Consommateurs » section of the provider's INTERFACE.md. **Action for projects**: run `npx grillhouse frontieres --ecrire`, then declare each usage the guard refuses, or inscribe it to the debt.

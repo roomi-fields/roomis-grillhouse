@@ -3,7 +3,10 @@
   // typecheck`, which `npm run verifier` plays); tsconfig.build.json builds src/ into dist/.
   "extends": "../../templates/projet/tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@roomi-fields/grillhouse-matiere/test-fixtures": ["./scripts/matiere-de-test.d.ts"]
+    }
   },
   "include": ["src/**/*", "tests/temporal/**/*"],
   "exclude": ["node_modules", "dist"]
