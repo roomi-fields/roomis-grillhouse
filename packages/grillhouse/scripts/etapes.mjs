@@ -131,6 +131,11 @@ export const ARRETS = {
   'sans-livraison': 15,
   'relecture-arret': 16,
   integration: 17,
+  // The resumption of the integration of a lot already on main: a lot neither on main nor in the
+  // copy (`lot-absent`), or a copy that does not get removed (`copie-gardee`); both at the code of
+  // the integration stop (grillhouse-bf5.2).
+  'lot-absent': 17,
+  'copie-gardee': 17,
   'hors-portee': 19,
   besoin: 20,
   questionnement: 22,
@@ -268,6 +273,10 @@ export const MONTEES = Object.fromEntries(
       'La relecture ne rend pas le lot à un agent (un constat sans destinataire valide, un constat au testwriter que le plan saute, un lot mécanique rendu, un critère en cause, ou la troisième relecture rendue) : que devient le plan, et qui reprend ?',
     integration:
       'L’intégration refuse le lot, ou la file rouvre le ticket : que corrige le lot, et qui le reprend ?',
+    'lot-absent':
+      'La reprise de l’intégration ne trouve le lot ni sur main ni dans la copie : que devient le lot, et qui le reprend ?',
+    'copie-gardee':
+      'Le lot est sur main, mais la copie ou son dossier de travail ne se retire pas : qu’est-ce qui la retient, et se lève-t-il pour reprendre ?',
     'hors-portee':
       'L’agent se dit bloqué hors de sa portée : le plan s’étend-il au paquet qu’il nomme, ou un autre agent lève-t-il le reste ?',
     besoin: 'Une réponse manque pour avancer : laquelle ?',

@@ -448,6 +448,11 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     if (r.code === A_REPASSER) {
       return arreter('a-repasser', fin(r.sortie, 40));
     }
+    if (r.nom) {
+      // The resumption stops under a name (`lot-absent`, `copie-gardee`), at the code of the
+      // integration stop (17, scripts/etapes.mjs), its piece the output.
+      return arreter(r.nom, fin(r.sortie, 60), { piece: fin(r.sortie, 30) });
+    }
     if (r.code !== 0) {
       return refuser(
         `Le script d'intégration refuse le lot (code ${r.code}).\n\n${fin(r.sortie, 60)}`,
@@ -455,6 +460,13 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       );
     }
     maj.refus = null;
+    if (r.deja && !r.enFile) {
+      // The lot is already on main: nothing waits for the queue, the ticket goes straight to its
+      // tri of discoveries and finishes at integre, as a merge queue closes an entry already merged.
+      commenter('integration', 'le commit est déjà sur main ; la copie et son dossier de travail sont retirés.');
+      lire('tri');
+      return decision({ fin: { code: 0 } });
+    }
     const branche = `agent/${ticket.id}`;
     const commit = lire('commit');
     commenter(

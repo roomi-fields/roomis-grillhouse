@@ -85,6 +85,9 @@
 // One integration runs at a time (`.git/integration.lock`): another waits for the end of the
 // running one; a lock whose process is gone is taken over. Exit code: 0 committed, 1 refused,
 // 2 usage, 75 à repasser.
+// Called without a lot to apply (neither `--tests` nor `--code`), it does not commit: the lot is
+// already on main (`lotSurMain`, exit 0, nothing done) or it is refused by the name `lot-absent`
+// (exit 1), the same rule the circuit's resumption reads (scripts/activites.mjs, grillhouse-bf5.2).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -92,6 +95,7 @@ import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { langageDe } from '../langages.mjs';
+import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
@@ -176,6 +180,52 @@ export function refusLots(tests, code, racine) {
   }
   return null;
 }
+
+/**
+ * The commit of main that holds the lot of <ticket>, or null: the one rule that says a lot is on
+ * main, which the queue (scripts/integration/file.mjs) and the circuit's resumption
+ * (scripts/activites.mjs) import as they import `refusArbitrage`, as a merge queue knows an entry
+ * already merged (Zuul). Two ways name the same commit on main:
+ * (a) the tip of the branch `agent/<ticket>` is an ancestor of main (`git merge-base --is-ancestor`,
+ *     the tip the delivered commit) and that commit names the ticket as `messageDeCommit` writes it,
+ *     `(<ticket>)` — a lot the queue entered by fast-forward; its tip naming the ticket keeps a fresh
+ *     branch sitting at a commit of main (lancer.sh creates it there, no lot yet) from being taken
+ *     for a delivered lot (grillhouse-bf5.2.1);
+ * (b) a commit of main whose message names the ticket (`commitsDelivering`, the prefix read from bd,
+ *     a withdrawn one left out) — a lot the queue rebased or merged in a squash, its branch gone or
+ *     left behind.
+ * <o> is `{ racine, principale, bd }` over the main tree.
+ */
+export function lotSurMain(o, ticket) {
+  const { racine, bd } = o;
+  const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
+  const principale =
+    o.principale ?? (git('symbolic-ref', '--short', '-q', 'HEAD').stdout.trim() || 'main');
+  const refMain = `refs/heads/${principale}`;
+  const surMain = sha =>
+    Boolean(sha) && git('merge-base', '--is-ancestor', sha, refMain).status === 0;
+  // (a) the delivered tip of the branch, on main and naming the ticket.
+  const tip = git('rev-parse', '--verify', '-q', `refs/heads/agent/${ticket}^{commit}`).stdout.trim();
+  if (
+    surMain(tip) &&
+    git('show', '-s', '--format=%s', tip).stdout.includes(`(${ticket})`)
+  ) {
+    return tip;
+  }
+  // (b) a commit of main that names the ticket, the queue's rebase or squash.
+  const prefixe = bd('config', 'get', 'issue_prefix').stdout?.trim() ?? '';
+  return (
+    commitsDelivering(ticket, prefixe, gitLog(racine))
+      .map(c => git('rev-parse', '--verify', '-q', `${c}^{commit}`).stdout.trim())
+      .find(surMain) ?? null
+  );
+}
+
+// The refusal « lot-absent » for <ticket>: no lot to apply (neither --tests nor --code) and no
+// commit of the ticket on main. The one text, which the integrator's direct call and the circuit's
+// resumption both give, the name `lot-absent` first.
+export const refusLotAbsent = ticket =>
+  `lot-absent : ${ticket} n'a aucun lot à appliquer (ni --tests ni --code) et aucun commit de ce ticket n'est sur main.`;
 
 // The options, or { faute } for a usage error.
 function lire(argv) {
@@ -283,6 +333,19 @@ function main(argv) {
     return 1;
   };
   const absolu = p => path.resolve(p);
+
+  // Without a lot to apply (neither --tests nor --code): the lot is already on main, nothing to
+  // commit (exit 0), or it is absent and the call is refused by its name `lot-absent` — the same
+  // rule `lotSurMain` the circuit's resumption reads, not the usage (exit 2), so a resumption that
+  // finds no lot and no commit on main gets the one named refusal.
+  if (!(o.tests || o.code)) {
+    const entre = lotSurMain({ racine, bd }, o.ticket);
+    if (!entre) {
+      return refuser(refusLotAbsent(o.ticket));
+    }
+    dire(`✓ le commit ${entre.slice(0, 7)} de ${o.ticket} est déjà sur main`);
+    return 0;
+  }
 
   // One integration at a time: a second waits for the end of the first; a lock whose process is
   // gone is taken over.

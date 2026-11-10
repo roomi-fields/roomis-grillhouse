@@ -77,8 +77,8 @@ import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
-import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
+import { lotSurMain } from './integrer.mjs';
 import { A_REPASSER } from '../codes-de-sortie.mjs';
 import { ecrireTache } from '../mesure/avancement.mjs';
 import { ACTEUR, emettre } from '../effets.mjs';
@@ -495,20 +495,6 @@ function surOrigin(o, commit, branche) {
   };
 }
 
-// The commit of main that delivers the ticket <ticket> (its title line names it,
-// `commitsDelivering` of ../un-commit-par-ticket.mjs, the prefix read from bd), the last one, in
-// full; null without one.
-function lotSurMain(o, ticket) {
-  const git = (...a) => spawnSync('git', ['-C', o.racine, ...a], { encoding: 'utf8' });
-  const prefixe = o.bd('config', 'get', 'issue_prefix').stdout?.trim() ?? '';
-  return (
-    commitsDelivering(ticket, prefixe, gitLog(o.racine))
-      .map(c => git('rev-parse', '--verify', '-q', `${c}^{commit}`).stdout.trim())
-      .find(
-        c => c && git('merge-base', '--is-ancestor', c, `refs/heads/${o.principale}`).status === 0
-      ) ?? null
-  );
-}
 
 // The branch of <entree> replaced on the main <tete> in the queue's own copy, replayed, with the
 // tools <o>: { nouveau } (the commit to move main onto), or { sortie: [titre, détail] } (it leaves

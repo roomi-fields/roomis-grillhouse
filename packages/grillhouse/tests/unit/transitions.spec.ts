@@ -698,6 +698,50 @@ describe('un tableau de transitions par étape', () => {
         expect(d.suivant.etape).toBe(etape);
       }
     });
+    // grillhouse-bf5.2: a resumption whose lot is already on main finishes at integre without the
+    // queue; its named stops (lot-absent, copie-gardee) stop the integration.
+    it('un lot déjà sur main finit sans attendre la file : aucun fait file, le ticket finit', () => {
+      const { d, demandes } = jouer(
+        { etat: etat(INTEGRATION) },
+        {
+          integration: {
+            code: 0,
+            sortie: 'le commit abc de agent/essai-1 est déjà sur main',
+            deja: true,
+          },
+          tri: true,
+        }
+      );
+      expect(d.fin).toEqual({ code: 0 });
+      expect(demandes.map(x => x.fait)).not.toContain('file');
+      expect(demandes.map(x => x.fait)).toContain('tri');
+      expect(d.memoire.refus).toBeNull();
+      expect(d.effets[0].texte).toContain('déjà sur main');
+    });
+    it('un lot encore en file, pas sur main : la file, comme avant', () => {
+      const { d } = jouer(
+        { etat: etat(INTEGRATION) },
+        { integration: { code: 0, sortie: 'en file', deja: true, enFile: true }, commit: 'abc' }
+      );
+      expect(d.suivant.etape).toBe(EN_FILE);
+    });
+    it('l’arrêt lot-absent de l’intégration porte le code 17, son rapport et sa pièce', () => {
+      const { d } = jouer(
+        { etat: etat(INTEGRATION) },
+        { integration: { code: 1, nom: 'lot-absent', sortie: 'lot-absent : essai-1 absent' } }
+      );
+      expect(d.arret?.nom).toBe('lot-absent');
+      expect(d.arret?.rapport).toContain('lot-absent');
+      expect(d.arret?.piece).toContain('lot-absent');
+    });
+    it('l’arrêt copie-gardee de l’intégration porte le code 17, son rapport et sa pièce', () => {
+      const { d } = jouer(
+        { etat: etat(INTEGRATION) },
+        { integration: { code: 1, nom: 'copie-gardee', sortie: 'copie-gardee : la copie reste' } }
+      );
+      expect(d.arret?.nom).toBe('copie-gardee');
+      expect(d.arret?.piece).toContain('copie-gardee');
+    });
     it('le tri : la fin du circuit', () => {
       expect(jouer({ etat: etat(TRI) }, { tri: true }).d.fin).toEqual({ code: 0 });
     });

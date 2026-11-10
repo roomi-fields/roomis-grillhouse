@@ -1161,3 +1161,67 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
     LONG
   );
 });
+
+// grillhouse-bf5.2: the integrator called directly without a lot to apply (neither --tests nor
+// --code) finds the lot on main by the one rule `lotSurMain` (exit 0), or is refused by the name
+// `lot-absent`, not by its usage — the same rule the circuit's resumption reads.
+describe('l’intégrateur sans lot à appliquer', () => {
+  // A trial repo whose main holds <messages>, a bd stub on PATH giving the prefix `demo`, a message.
+  function depotSansLot(messages: string[]) {
+    const repo = mkdtempSync(path.join(ESSAIS, 'lot-absent-'));
+    const bin = mkdtempSync(path.join(ESSAIS, 'bin-lot-absent-'));
+    writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\ncase "$1" in config) echo demo;; esac\n', {
+      mode: 0o755,
+    });
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
+        encoding: 'utf8',
+      });
+    git('init', '-q', '-b', 'main');
+    messages.forEach((m, i) => {
+      writeFileSync(path.join(repo, `f${i}.txt`), `${m}\n`);
+      git('add', '-A');
+      git('commit', '-q', '-m', m);
+    });
+    const message = path.join(bin, 'msg');
+    writeFileSync(message, 'feat: x (demo-1)\n');
+    const jouer = (...extra: string[]) =>
+      spawnSync('node', [SCRIPT, '--ticket', 'demo-1', '--message', message, ...extra], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      });
+    return { repo, jouer };
+  }
+
+  it('refuse par le nom lot-absent, non par son usage, quand main ne porte pas le lot', () => {
+    const { jouer } = depotSansLot(['base', 'feat: autre chose (demo-2)']);
+    const r = jouer();
+    const sortie = `${r.stdout}${r.stderr}`;
+    expect(r.status).toBe(1);
+    expect(sortie).toContain('lot-absent');
+    expect(sortie).toContain('demo-1');
+    expect(sortie).not.toContain('usage:');
+  });
+
+  it('refuse aussi un appel sans lot dont le ticket est un préfixe d’un autre commit de main', () => {
+    const { jouer } = depotSansLot(['base', 'feat: un autre lot (demo-10)']);
+    const r = jouer();
+    expect(r.status).toBe(1);
+    expect(`${r.stdout}${r.stderr}`).toContain('lot-absent');
+  });
+
+  it('sort à 0, rien fait, quand un commit de main livre le ticket', () => {
+    const { jouer } = depotSansLot(['base', 'feat(outil): le lot (demo-1)']);
+    const r = jouer();
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    expect(r.stdout).toContain('déjà sur main');
+  });
+
+  it('garde son usage pour un appel sans ticket ni message', () => {
+    const { repo } = depotSansLot(['base']);
+    const r = spawnSync('node', [SCRIPT], { cwd: repo, encoding: 'utf8' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('usage:');
+  });
+});

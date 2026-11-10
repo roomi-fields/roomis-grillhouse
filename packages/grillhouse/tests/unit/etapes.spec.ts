@@ -208,6 +208,9 @@ describe('the stops of the circuit, each with its exit code', () => {
       'sans-livraison': 15,
       'relecture-arret': 16,
       integration: 17,
+      // grillhouse-bf5.2: the resumption of the integration of a lot already on main.
+      'lot-absent': 17,
+      'copie-gardee': 17,
       'hors-portee': 19,
       besoin: 20,
       questionnement: 22,

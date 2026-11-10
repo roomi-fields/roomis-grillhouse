@@ -38,6 +38,8 @@ import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paque
 import { etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
 import { nomsDesGardes } from './gardes-du-cadre.mjs';
 import { INTEGRE } from './integration/file.mjs';
+import { lotSurMain, refusLotAbsent } from './integration/integrer.mjs';
+import { RETIRER_COPIE } from './integration/rejeu.mjs';
 import { AUTEUR_DU_VERDICT } from './integration/verdict.mjs';
 import { langageDe } from './langages.mjs';
 import { avecUneLecture } from './lecture-unique.mjs';
@@ -882,18 +884,60 @@ export const sectionMisDeCote = fichiers =>
 // scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
 // repasser » (75) plays once more, the gesture `rejeu`. `{ code, sortie, args }`.
 export function integrer(ctx) {
-  // A lot already committed: its ticket is labelled `en-file` (scripts/integration/integrer.mjs)
-  // until the queue takes it off, as a job of a CI keyed by its commit is not run twice. The
-  // integration plays again without a second commit.
   const branche = `agent/${ctx.ticket}`;
+  const commande = `node ${INTEGRER}`;
   const show = ctx.bd('show', ctx.ticket, '--json');
   const etiquettes = show.status === 0 ? (JSON.parse(show.stdout)[0]?.labels ?? []) : [];
-  if (etiquettes.includes('en-file')) {
-    const sortie = `la branche ${branche} est déjà en file : le lot est déjà commité, aucun second commit.\n`;
-    appendFileSync(ctx.journal, sortie);
-    return { code: 0, sortie, args: [], commande: `node ${INTEGRER}`, deja: true };
-  }
+  const enFile = etiquettes.includes('en-file');
   const { tests, code } = fichiersDuLot(ctx);
+  const finir = (sortie, suite) => {
+    appendFileSync(ctx.journal, sortie);
+    return { args: [], commande, sortie, ...suite };
+  };
+  // The integration is not played when the lot is already on main or the copy holds no file to
+  // commit: one check, as a merge queue closes an entry already merged (Zuul). It is looked for
+  // when the ticket is labelled `en-file` (the queue takes it off) or the copy holds no file of the
+  // lot (a copy that holds one still has a lot to commit — a second commit of a reopened ticket, for
+  // example).
+  if (enFile || !(tests.length || code.length)) {
+    // A lot already on main (`lotSurMain`, the one rule the integrator publishes): the ticket
+    // finishes at integre, and its copy goes with its working directory, as the integrator removes
+    // the copy after a commit (here the ticket is done, so `.travail` goes too — no `--garder-travail`).
+    // A removal that fails stops under its name `copie-gardee`, the copy kept, and a new resumption
+    // plays the removal again.
+    const commit = lotSurMain({ racine: ctx.racine, bd: ctx.bd }, ctx.ticket);
+    if (commit) {
+      let retrait = { status: 0, stderr: '' };
+      if (existsSync(ctx.copie) && ctx.copie !== ctx.racine) {
+        retrait = spawnSync('bash', [RETIRER_COPIE, ctx.copie], {
+          cwd: ctx.racine,
+          encoding: 'utf8',
+        });
+      }
+      if (retrait.status !== 0) {
+        return finir(
+          `copie-gardee : le commit ${commit.slice(0, 7)} de ${branche} est déjà sur main, mais la copie ${ctx.copie} n'est pas retirée : ${retrait.stderr.trim()}\n`,
+          { code: 1, nom: 'copie-gardee' }
+        );
+      }
+      return finir(
+        `le commit ${commit.slice(0, 7)} de ${branche} est déjà sur main : aucun second commit, la copie ${ctx.copie} et son dossier de travail sont retirés.\n`,
+        { code: 0, deja: true }
+      );
+    }
+    // A lot already committed but not yet on main: its ticket is labelled `en-file`
+    // (scripts/integration/integrer.mjs) until the queue takes it off, as a job of a CI keyed by its
+    // commit is not run twice. The integration plays again without a second commit, then the queue.
+    if (enFile) {
+      return finir(
+        `la branche ${branche} est déjà en file : le lot est déjà commité, aucun second commit.\n`,
+        { code: 0, deja: true, enFile: true }
+      );
+    }
+    // No lot to apply and no commit on main: refused by its name, as the integrator refuses a direct
+    // call in the same case (the one rule `lotSurMain` deciding).
+    return finir(`${refusLotAbsent(ctx.ticket)}\n`, { code: 1, nom: 'lot-absent' });
+  }
   const dansCopie = (...a) =>
     spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   // Each file against HEAD, a new one against nothing: the index of the copy is not written.
