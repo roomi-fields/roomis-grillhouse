@@ -121,11 +121,12 @@ const textes = (l: Ligne[]) => l.map(x => x.texte.trimEnd());
 describe('critère 1 : the usual board, each project prefixed', () => {
   it('the head names the projects, then one line of counters per project, then the alerts prefixed', () => {
     const l = textes(lignes(trois(), NOM) as Ligne[]);
-    expect(l.slice(0, 5)).toEqual([
+    expect(l.slice(0, 6)).toEqual([
       'OSC-BRIDGE + SH + OSD',
       '[OB]  ▶ 1 en cours · 0 en attente · 0 faits',
       '[SH]  ▶ 1 en cours · 0 en attente · 0 faits',
       '[OSD] ▶ 0 en cours · 0 en attente · 0 faits',
+      '🔍 0 new · 0 →check · 0 rejetés · 0 validés',
       expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
     ]);
   });
@@ -166,6 +167,32 @@ describe('critère 1 : the usual board, each project prefixed', () => {
   it("the states' view names each ticket's project", () => {
     const vue = textes(lignesEtats(trois()) as Ligne[]);
     expect(vue.some(x => /^ {2}\[OB\] k2 {2}Le pont MIDI/.test(x))).toBe(true);
+  });
+});
+
+describe('les découvertes s’additionnent projet par projet', () => {
+  const AUJ = '2026-11-01T06:00:00Z';
+  const dec = (id: string, o: object) => T(id, 'Une découverte', { labels: ['decouverte'], ...o });
+  const A = plateau('A', [
+    dec('A-d1', { status: 'closed', closed_at: AUJ }), // new
+    dec('A-d2', { status: 'open', labels: ['decouverte', 'a-valider'] }), // →check
+  ]);
+  const B = plateau('B', [
+    dec('B-d1', { status: 'closed', closed_at: AUJ, labels: ['decouverte', 'traitee'] }), // rejetés
+    dec('B-d2', { status: 'open', labels: ['decouverte', 'circuit'], updated_at: AUJ }), // validés
+  ]);
+  const t = ensemble([
+    { etiquette: 'A', t: A },
+    { etiquette: 'B', t: B },
+  ]) as { decouvertes: Record<string, number> };
+
+  it('ensemble somme les quatre cases des deux projets', () => {
+    expect(t.decouvertes).toEqual({ new: 1, check: 1, rejetes: 1, valides: 1 });
+  });
+
+  it('la ligne de tête 🔍 montre la somme des projets', () => {
+    const l = textes(lignes(t, 'A + B') as Ligne[]);
+    expect(l).toContain('🔍 1 new · 1 →check · 1 rejetés · 1 validés');
   });
 });
 

@@ -17,7 +17,8 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 // pane (`/grillhouse ajouter <chemin>`, `/grillhouse retirer <chemin>`), as a multi-root workspace
 // of VS Code lists its folders: the list is kept for the session's folder in the mod's store, and
 // the frame's command measures their board as one (`grillhouse tableau <dossier>…`), which the
-// pane draws as it draws one project's.
+// pane draws as it draws one project's. `/grillhouse newday` sets the day's marker to now
+// (`grillhouse newday`): FAITS AUJOURD'HUI and the « rejetés »/« validés » cases restart from zero.
 const PANE = 'grillhouse'
 // The frame's command, which the project's `npm install` links, and its package.
 const GRILLHOUSE = 'node_modules/.bin/grillhouse'
@@ -444,7 +445,7 @@ async function activer($: EngineInterface) {
   await $.command.register({
     name: 'grillhouse',
     description: 'Ouvre le tableau Grillhouse : le projet, les agents, le chantier en cours',
-    argumentHint: '[ajouter|retirer <chemin>]',
+    argumentHint: '[newday|ajouter|retirer <chemin>]',
   })
   void rafraichir($)
   $.clock.every(PERIODE, () => void rafraichir($))
@@ -485,7 +486,14 @@ export const register: Register = on => {
   on('command.run', { command: 'grillhouse' }, async ($, e) => {
     const [geste = '', ...reste] = (e.args ?? '').trim().split(/\s+/)
     if (geste === 'ajouter' || geste === 'retirer') return { text: await changerLaListe($, geste, reste.join(' ')) }
-    if (geste) return { text: 'Usage : /grillhouse, /grillhouse ajouter <chemin>, /grillhouse retirer <chemin>.' }
+    // newday sets the day's marker to now: FAITS AUJOURD'HUI and the « rejetés »/« validés » cases
+    // of the board restart from zero (grillhouse-3uv.96).
+    if (geste === 'newday') {
+      const r = await $.process.run([GRILLHOUSE, 'newday'], { cwd, timeoutMs: 20_000 })
+      void rafraichir($)
+      return { text: `${r.stdout || ''}${r.stderr || ''}`.trim() || 'Repère de journée posé.' }
+    }
+    if (geste) return { text: 'Usage : /grillhouse, /grillhouse newday, /grillhouse ajouter <chemin>, /grillhouse retirer <chemin>.' }
     void rafraichir($)
     // A narrow column docked beside the transcript; a short block when seated above the prompt.
     await $.ui.open({ id: PANE, title: 'Grillhouse', columns: COLONNES, rows: 12 })

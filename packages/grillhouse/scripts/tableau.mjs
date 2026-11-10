@@ -938,7 +938,39 @@ export function assembler({
   const duJour = mesures
     .filter(m => m.quand >= jour)
     .map(m => (m.tours ? { ...m, travail: partDuJour(m.tours) } : m));
-  const global = { compteurs, jour: somme(duJour), cumul: somme(mesures) };
+  // The discoveries (label `decouverte`, grillhouse-3uv.96): each counts in one case, the first that
+  // applies. « rejetés » and « validés » count only since the day's marker <jour>; « new » and
+  // « →check », states that await the owner, do not filter by it.
+  const aLabel = (t, ...ls) => ls.some(l => (t.labels ?? []).includes(l));
+  const estDecouverte = t => aLabel(t, 'decouverte');
+  const VERDICTS_DU_TRI = ['traitee', 'doublon', 'sans-suite', 'a-porter', 'non-confirmee'];
+  const caseDeLaDecouverte = t => {
+    const ferme = t.status === 'closed';
+    if (aLabel(t, 'circuit') && (Date.parse(t.updated_at ?? '') || 0) >= jour) {
+      return 'valides';
+    }
+    if (!ferme && aLabel(t, 'a-valider')) {
+      return 'check';
+    }
+    const rejete =
+      aLabel(t, 'traitee', 'doublon', 'sans-suite') ||
+      (aLabel(t, 'a-porter', 'non-confirmee') && !aLabel(t, 'circuit'));
+    if (ferme && rejete && (Date.parse(t.closed_at ?? '') || 0) >= jour) {
+      return 'rejetes';
+    }
+    if (ferme && !aLabel(t, ...VERDICTS_DU_TRI)) {
+      return 'new';
+    }
+    return null;
+  };
+  const decouvertes = { new: 0, check: 0, rejetes: 0, valides: 0 };
+  for (const t of tous.filter(estDecouverte)) {
+    const c = caseDeLaDecouverte(t);
+    if (c) {
+      decouvertes[c]++;
+    }
+  }
+  const global = { compteurs, jour: somme(duJour), cumul: somme(mesures), decouvertes };
 
   // Chantiers.
   const sous = t => [t, ...(enfants.get(t.id) ?? []).flatMap(sous)];
@@ -1067,7 +1099,12 @@ export function assembler({
   const debutJour = jour;
   const faitsDuJour = tous
     .filter(
-      t => travail(t) && !actifs.has(t.id) && t.closed_at && Date.parse(t.closed_at) >= debutJour
+      t =>
+        travail(t) &&
+        !actifs.has(t.id) &&
+        !estDecouverte(t) &&
+        t.closed_at &&
+        Date.parse(t.closed_at) >= debutJour
     )
     .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))
     .map(t => ({
@@ -1348,6 +1385,16 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         )
       );
     }
+    // The discoveries of the day, summed across the projects (grillhouse-3uv.96, criterion 14).
+    const d96 = t.decouvertes ?? { new: 0, check: 0, rejetes: 0, valides: 0 };
+    L(
+      cadre(
+        `🔍 ${d96.new} new · ${d96.check} →check · ${d96.rejetes} rejetés · ${d96.valides} validés`,
+        '',
+        largeur
+      ),
+      'discret'
+    );
   } else {
     const g = t.global;
     const c = g.compteurs;
@@ -1362,6 +1409,17 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     L(
       cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
       c.sansGo || c.aValider ? 'attention' : undefined
+    );
+    // The discoveries of the day, one count per case (grillhouse-3uv.96): always shown, at 0 when
+    // nothing counts, like the other head lines.
+    const d = g.decouvertes ?? { new: 0, check: 0, rejetes: 0, valides: 0 };
+    L(
+      cadre(
+        `🔍 ${d.new} new · ${d.check} →check · ${d.rejetes} rejetés · ${d.valides} validés`,
+        '',
+        largeur
+      ),
+      'discret'
     );
     L(
       cadre(
@@ -1934,6 +1992,48 @@ const bdJson = (racine, ...args) => {
   }
 };
 
+// The folder git keeps a repository's shared files in (its common dir), absolute; null when
+// <racine> is no git repository. The board's cache and the day's marker live there.
+export function dossierCommun(racine) {
+  try {
+    return execFileSync(
+      'git',
+      ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { encoding: 'utf8' }
+    ).trim();
+  } catch {
+    return null;
+  }
+}
+
+// The file of the day's marker (grillhouse-3uv.96), beside the board's cache; null without a common
+// dir. Unversioned, out of the worktree: the board does not reset at midnight.
+const fichierDuRepere = commun => commun && path.join(commun, 'tableau-repere.json');
+
+// The day's marker of the project whose common dir is <commun>: the number its file holds, else
+// midnight of <maintenant> (no file, or no number).
+export function lireLeRepere(commun, maintenant) {
+  const minuit = new Date(maintenant);
+  minuit.setHours(0, 0, 0, 0);
+  try {
+    const { repere } = JSON.parse(readFileSync(fichierDuRepere(commun), 'utf8'));
+    return typeof repere === 'number' ? repere : minuit.getTime();
+  } catch {
+    return minuit.getTime();
+  }
+}
+
+// Sets the day's marker of the project at <racine> to <quand> (now by default), purging FAITS
+// AUJOURD'HUI and the « rejetés » and « validés » cases up to it (grillhouse-3uv.96, /newday).
+export function poserLeRepere(racine, quand = Date.now()) {
+  const commun = dossierCommun(racine);
+  if (!commun) {
+    throw new Error('newday : le dossier git commun du projet est introuvable.');
+  }
+  writeFileSync(fichierDuRepere(commun), `${JSON.stringify({ repere: quand })}\n`);
+  return quand;
+}
+
 // What the board reads of the repository at <racine>, its circuits <circuits> read: its tickets,
 // its prefix, its running agents and its assembled board (`t`), with the folder git keeps its
 // shared files in (`commun`).
@@ -1990,16 +2090,7 @@ function lire(
       verdicts[t.id] = v;
     }
   }
-  let commun = null;
-  try {
-    commun = execFileSync(
-      'git',
-      ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
-      { encoding: 'utf8' }
-    ).trim();
-  } catch {
-    commun = null;
-  }
+  const commun = dossierCommun(racine);
   const fichierCache = commun && path.join(commun, 'tableau-cache.json');
   let cache = {};
   try {
@@ -2025,8 +2116,6 @@ function lire(
   } catch {
     // A read-only place keeps the board working, without its cache.
   }
-  const minuit = new Date(maintenant);
-  minuit.setHours(0, 0, 0, 0);
   const t = assembler({
     tous,
     prefix,
@@ -2035,7 +2124,7 @@ function lire(
     circuits,
     verdicts,
     maintenant,
-    jour: minuit.getTime(),
+    jour: lireLeRepere(commun, maintenant),
     machine,
     places,
     muet,
@@ -2092,6 +2181,18 @@ export function ensemble(lus) {
     machine: premier.t.machine,
     places: premier.t.places,
     faitsDuJour: tous('faitsDuJour'),
+    decouvertes: lisibles.reduce(
+      (s, l) => {
+        const d = l.t.global.decouvertes ?? {};
+        return {
+          new: s.new + (d.new ?? 0),
+          check: s.check + (d.check ?? 0),
+          rejetes: s.rejetes + (d.rejetes ?? 0),
+          valides: s.valides + (d.valides ?? 0),
+        };
+      },
+      { new: 0, check: 0, rejetes: 0, valides: 0 }
+    ),
     etats: premier.t.etats.map(e => ({
       ...e,
       tickets: lisibles.flatMap(l =>

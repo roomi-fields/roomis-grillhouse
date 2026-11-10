@@ -893,3 +893,51 @@ describe('the heavy groups fold to their title and count, the pane opens them wh
     expect(l.some(x => x.ticket === 'demo-r.10')).toBe(true);
   });
 });
+
+describe('les faits du jour listent les tickets et comptent les découvertes à part', () => {
+  const D = (id: string, o: object = {}) => T(id, { labels: ['decouverte'], ...o });
+  const avecDecouvertes = [
+    T('demo-e', { issue_type: 'epic', title: 'e — Le chantier' }),
+    T('demo-e.1', { parent: 'demo-e', ...ferme(AUJOURDHUI) }), // a real closed ticket of the day
+    D('demo-e.d1', { parent: 'demo-e', ...ferme(AUJOURDHUI) }), // new: closed without a verdict
+    D('demo-e.d2', { parent: 'demo-e', ...ferme(AVANT) }), // new: no verdict, at any date
+    D('demo-e.d3', { parent: 'demo-e', labels: ['decouverte', 'a-valider'] }), // →check: open, awaiting
+    D('demo-e.d4', { parent: 'demo-e', labels: ['decouverte', 'traitee'], ...ferme(AUJOURDHUI) }), // rejetés
+    D('demo-e.d5', { parent: 'demo-e', labels: ['decouverte', 'doublon'], ...ferme(AVANT) }), // none: closed before the marker
+    D('demo-e.d6', { parent: 'demo-e', labels: ['decouverte', 'circuit'], updated_at: AUJOURDHUI }), // validés
+  ];
+  const board = (tous: object[]) =>
+    assembler({
+      tous,
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      maintenant: MAINTENANT,
+      jour: JOUR,
+    }) as Board & { global: { decouvertes: Record<string, number> } };
+  const T1 = board(avecDecouvertes);
+  const L1 = lignes(T1, 'demo') as Ligne[];
+  const ligne96 = (l: Ligne[]) => l.find(x => x.texte.includes('🔍'))!.texte;
+
+  it('la liste des faits du jour ne garde que les vrais tickets, pas les découvertes', () => {
+    expect(T1.faitsDuJour.map(x => x.id)).toEqual(['demo-e.1']);
+  });
+
+  it('le titre des faits ne compte que les vrais tickets', () => {
+    const titre = L1.find(x => x.texte.startsWith("FAITS AUJOURD'HUI"))!.texte;
+    expect(titre).toMatch(/\b1 ticket\b/);
+  });
+
+  it('chaque découverte compte dans une seule case, la première qui s’applique', () => {
+    expect(T1.global.decouvertes).toEqual({ new: 2, check: 1, rejetes: 1, valides: 1 });
+  });
+
+  it('la ligne de tête 🔍 rend les quatre comptes, nommés, dans l’ordre', () => {
+    expect(ligne96(L1)).toContain('🔍 2 new · 1 →check · 1 rejetés · 1 validés');
+  });
+
+  it('la ligne 🔍 s’affiche à zéro quand aucune découverte', () => {
+    const l0 = lignes(board([T('demo-a', { ...ferme(AUJOURDHUI) })]), 'demo') as Ligne[];
+    expect(ligne96(l0)).toContain('🔍 0 new · 0 →check · 0 rejetés · 0 validés');
+  });
+});

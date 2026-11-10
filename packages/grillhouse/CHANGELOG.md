@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The day's facts separate the real tickets from the discoveries** (grillhouse-3uv.96): FAITS AUJOURD'HUI lists only the day's closed tickets that are not discoveries, and its title counts only them; a new head line, `🔍 N new · N →check · N rejetés · N validés`, counts the day's discoveries by case (new: closed without a verdict of the triage; →check: reopened, awaiting the owner; rejetés: closed traitee/doublon/sans-suite, or a-porter/non-confirmee reclosed without the circuit, since the day's marker; validés: passed to the circuit since the marker). The day's marker is now persistent, read from a file in the project's git common dir, out of the worktree, so the board no longer resets at midnight; `/grillhouse newday` (`grillhouse newday`) sets it to now, which purges FAITS AUJOURD'HUI and the « rejetés » and « validés » cases while « new » and « →check » stay. On a board of several projects, each reads its own marker and the cases sum project by project. **Action for projects**: none — a project's board gains the discoveries line and the persistent marker on its own.
+
 ## [0.32.0] - 2026-11-10
 
 ### Fixed
