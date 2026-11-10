@@ -1,8 +1,10 @@
-// La preuve du rouge s'abstient quand le code du comportement est déjà dans la copie : une reprise
-// après la séance du développeur, dont les tests sont verts parce que le code est là, ne peut
-// rougir. Le signe se lit dans l'ordre des fiches du circuit (`codeDejaPresent`), comme la sorte ;
-// `preuveReussie` le reçoit en option (`codePresent`), juste après `inchange`.
-// Un lot neuf, sans séance du développeur depuis le testwriter, reste refusé sans rouge.
+// La preuve du rouge s'abstient quand le code du comportement est déjà dans la copie : ses tests
+// sont verts parce que le code est là, aucun ne peut rougir. Le signe (`codeDejaPresent`) est la
+// vérité terrain : une séance développeur dans les fiches ET un changement de production présent
+// dans la copie — pas l'ordre des séances. Une séance du testwriter après celle du développeur (un
+// RENDU) ne retire pas le code : le signe tient. `preuveReussie` le reçoit en option
+// (`codePresent`), juste après `inchange`. Un lot dont le code n'est pas dans la copie reste refusé
+// sans rouge.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,6 +31,7 @@ const preuveReussie = activites.preuveReussie as (
 const codeDejaPresent = (circuit as Record<string, unknown>).codeDejaPresent as (ctx: {
   fiches: string;
   paquets: string[];
+  copie: string;
 }) => boolean;
 const apresLaPreuve = transitions.apresLaPreuve as (o: {
   rouges: number;
@@ -101,7 +104,26 @@ describe('la preuve du rouge quand le code du développeur est déjà dans la co
   });
 });
 
-describe('la preuve rejouée sur une copie dont les fiches disent si le code du développeur est là', () => {
+// A copy of the trial language, its initial files committed, with a production file (one the
+// testwriter does not write) left untracked when <production> is set — the developer's code present.
+const copieAvec = (roles: string[], production: boolean) => {
+  const copie = path.join(ESSAIS, `copie-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(copie);
+  const git = (...a: string[]) =>
+    spawnSync('git', ['-C', copie, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
+      encoding: 'utf8',
+    });
+  declarerLeLangage(copie);
+  git('init', '-q');
+  git('add', '-A');
+  git('commit', '-q', '--allow-empty', '-m', 'départ');
+  if (production) {
+    writeFileSync(path.join(copie, 'production.mjs'), 'export const x = 1;\n');
+  }
+  return { ...ctx(roles), copie, journal: path.join(ESSAIS, 'journal') };
+};
+
+describe('la preuve rejouée sur une copie qui porte ou non le code de production du développeur', () => {
   const preuve = activites.preuve as (
     ctx: { copie: string; fiches: string; paquets: string[]; journal: string },
     o: { mesure: { cle: string; runs: unknown[] } }
@@ -111,24 +133,13 @@ describe('la preuve rejouée sur une copie dont les fiches disent si le code du 
     chemins: string[]
   ) => string;
 
-  // A copy with no change and a measure with no red, as a resume whose tests are all green.
-  const rejouer = (roles: string[]) => {
-    const copie = path.join(ESSAIS, `copie-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(copie);
-    const git = (...a: string[]) =>
-      spawnSync('git', ['-C', copie, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
-        encoding: 'utf8',
-      });
-    declarerLeLangage(copie);
-    git('init', '-q');
-    git('add', '-A');
-    git('commit', '-q', '--allow-empty', '-m', 'départ');
-    const c = { ...ctx(roles), copie, journal: path.join(ESSAIS, 'journal') };
+  const rejouer = (roles: string[], production = false) => {
+    const c = copieAvec(roles, production);
     return preuve(c, { mesure: { cle: empreinte(c, ['.']), runs: [] } });
   };
 
-  it('passes and says the code is already there when the developpeur ran after the testwriter and nothing is red', () => {
-    const r = rejouer(['explorateur', 'testwriter', 'developpeur']);
+  it('passes and says the code is there when a developpeur ran and the production code is in the copy', () => {
+    const r = rejouer(['explorateur', 'testwriter', 'developpeur'], true);
     expect(r.ok).toBe(true);
     expect(r.rouges).toBe(0);
     expect(r.texte).toContain('Le code du développeur est déjà dans la copie');
@@ -136,41 +147,44 @@ describe('la preuve rejouée sur une copie dont les fiches disent si le code du 
   });
 
   it('refuses a new lot with no developpeur since the testwriter, and does not say the code is there', () => {
-    const r = rejouer(['explorateur', 'testwriter']);
+    const r = rejouer(['explorateur', 'testwriter'], true);
     expect(r.ok).toBe(false);
     expect(r.texte).not.toContain('Le code du développeur est déjà dans la copie');
   });
 
-  it('applies the proof whole again when a testwriter session follows the developpeur’s', () => {
-    expect(rejouer(['testwriter', 'developpeur', 'testwriter']).ok).toBe(false);
+  it('still recognises the code when a testwriter session follows the developpeur’s (a RENDU)', () => {
+    const r = rejouer(['testwriter', 'developpeur', 'testwriter'], true);
+    expect(r.ok).toBe(true);
+    expect(r.texte).toContain('Le code du développeur est déjà dans la copie');
+  });
+
+  it('does not raise the sign when a developpeur ran but no production code is in the copy', () => {
+    const r = rejouer(['explorateur', 'testwriter', 'developpeur'], false);
+    expect(r.texte).not.toContain('Le code du développeur est déjà dans la copie');
   });
 });
 
-describe('le signe « le code est déjà dans la copie » se lit dans l’ordre des fiches du circuit', () => {
-  it('is raised after a resume past the code: testwriter, developpeur', () => {
-    expect(codeDejaPresent(ctx(['explorateur', 'testwriter', 'developpeur']))).toBe(true);
-  });
-
-  it('is raised on a replay after the developpeur was run again on a red', () => {
-    expect(codeDejaPresent(ctx(['explorateur', 'testwriter', 'developpeur', 'developpeur']))).toBe(
+describe('le signe « le code est déjà dans la copie » = une séance développeur et du code de production présent', () => {
+  it('is raised after a developpeur ran and the production code is in the copy', () => {
+    expect(codeDejaPresent(copieAvec(['explorateur', 'testwriter', 'developpeur'], true))).toBe(
       true
     );
   });
 
-  it('is lowered on a new lot: a testwriter and no developpeur since', () => {
-    expect(codeDejaPresent(ctx(['explorateur', 'testwriter']))).toBe(false);
-    expect(codeDejaPresent(ctx(['explorateur']))).toBe(false);
-    expect(codeDejaPresent(ctx([]))).toBe(false);
-  });
-
-  it('falls as soon as a testwriter session follows the developpeur’s: the proof applies whole', () => {
-    expect(codeDejaPresent(ctx(['testwriter', 'developpeur', 'testwriter']))).toBe(false);
-    expect(codeDejaPresent(ctx(['testwriter', 'developpeur', 'testwriter', 'developpeur']))).toBe(
+  it('stays raised when a testwriter session follows the developpeur’s, the code still in the copy', () => {
+    expect(codeDejaPresent(copieAvec(['testwriter', 'developpeur', 'testwriter'], true))).toBe(
       true
     );
   });
 
-  it('is raised when a developpeur worked and no testwriter session came after him', () => {
-    expect(codeDejaPresent(ctx(['explorateur', 'developpeur']))).toBe(true);
+  it('is not raised without a developpeur session, whatever the copy holds', () => {
+    expect(codeDejaPresent(copieAvec(['explorateur', 'testwriter'], true))).toBe(false);
+    expect(codeDejaPresent(copieAvec([], true))).toBe(false);
+  });
+
+  it('is not raised when a developpeur ran but no production code is in the copy', () => {
+    expect(codeDejaPresent(copieAvec(['explorateur', 'testwriter', 'developpeur'], false))).toBe(
+      false
+    );
   });
 });

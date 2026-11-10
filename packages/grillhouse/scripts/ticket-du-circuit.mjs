@@ -6,6 +6,7 @@
 // `racine`) and holds no state of its own. Its writings at the ticket and among the sheets are
 // effects (scripts/effets.mjs `emettre`), and its readings see those an act of the workflow
 // emitted and has not yet played (`rendusDe`).
+import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { gesteDe } from './etapes.mjs';
 import { paquetsDuLangage } from './enveloppe/paquets-du-plan.mjs';
@@ -153,14 +154,43 @@ export const fichesDe = (ctx, role) =>
     .filter(e => e.role === role)
     .map(e => e.fiche);
 
-// Whether the code of the behaviour is already in the copy: a developpeur session ran after the
-// last testwriter session (a resume past the code, a replay after the developpeur worked a red).
-// A testwriter session after his lowers it, and a new lot with no developpeur since never raises it.
+// Whether the code of the behaviour is already in the copy: a developpeur session has run (the
+// sheets hold one) and the copy still carries a change of production the testwriter does not write
+// (`estUnTest` null: neither a test file nor the shared test material). This is the ground truth,
+// not the order of the sessions: a testwriter session after the developpeur's (a RENDU to fix a
+// test) does not remove the code, so the sign stays raised; a new lot whose code is not in the copy
+// never raises it. With it, no test can turn red, and the proof abstains.
 export const codeDejaPresent = ctx => {
-  const roles = lesFiches(ctx)
-    .map(e => e.role)
-    .filter(r => r === 'testwriter' || r === 'developpeur');
-  return roles.at(-1) === 'developpeur';
+  if (!lesFiches(ctx).some(e => e.role === 'developpeur')) {
+    return false;
+  }
+  const r = spawnSync(
+    'git',
+    ['-C', ctx.copie, 'status', '--porcelain', '-z', '--untracked-files=all'],
+    { encoding: 'utf8' }
+  );
+  if (r.status !== 0) {
+    return false;
+  }
+  const langage = langageDe(ctx.copie);
+  const entrees = r.stdout.split('\0');
+  for (let i = 0; i < entrees.length; i++) {
+    const e = entrees[i];
+    if (e.length < 4) {
+      continue;
+    }
+    const xy = e.slice(0, 2);
+    const fichier = e.slice(3);
+    // A rename or a copy names its source in the next entry, which is not a change of its own.
+    if (xy.includes('R') || xy.includes('C')) {
+      i++;
+    }
+    // A production file the testwriter does not write, present (not deleted): the developer's code.
+    if (!xy.includes('D') && langage.estUnTest(fichier, ctx.copie) === null) {
+      return true;
+    }
+  }
+  return false;
 };
 
 // One line of the circuit's history at the ticket: `Circuit · <étape> : <texte>`, the effect
