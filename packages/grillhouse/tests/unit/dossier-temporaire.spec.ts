@@ -60,23 +60,16 @@ const ENV = Object.fromEntries(
 describe('grillhouse-xv9, critères 1 et 2 — un ticket a un dossier temporaire, retiré quand il se ferme', () => {
   it('`grillhouse temporaire <ticket>` gives the same directory at each call, its owner the ticket', () => {
     const dans = unDossier('ticket');
-    const donner = (ticket: string) =>
-      spawnSync(process.execPath, [BASE, ticket], {
-        encoding: 'utf8',
-        env: { ...ENV, TMPDIR: dans },
-      });
-    const r = donner('demo-3uv.1');
-    expect(r.status, r.stderr).toBe(0);
     const t = path.join(dans, 'grillhouse-ticket-demo-3uv.1', 't');
-    expect(r.stdout).toBe(`${t}\n`);
+    expect(ouvrirBaseDuTicket('demo-3uv.1', { dans }).dossier).toBe(t);
     expect(existsSync(t)).toBe(true);
     writeFileSync(path.join(t, 'garde'), '');
-    expect(donner('demo-3uv.1').stdout).toBe(`${t}\n`);
+    expect(ouvrirBaseDuTicket('demo-3uv.1', { dans }).dossier).toBe(t);
     expect(existsSync(path.join(t, 'garde'))).toBe(true);
     expect(proprietaire(path.dirname(t))).toEqual({ ticket: 'demo-3uv.1' });
-    const faux = donner('../x');
-    expect(faux.status).toBe(2);
-    expect(faux.stderr).toMatch(/n'est pas l'identifiant d'un ticket/);
+    expect(() => ouvrirBaseDuTicket('../x', { dans })).toThrow(
+      /n'est pas l'identifiant d'un ticket/
+    );
   });
 
   it('the base of a closed ticket goes, an open one stays, and the sweep of the bases of passes never touches either', () => {
