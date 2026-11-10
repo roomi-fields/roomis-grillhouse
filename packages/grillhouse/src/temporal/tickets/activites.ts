@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
 import { lireLesTickets, ticketsAPartir as aPartir } from '../../../scripts/file-des-tickets.mjs';
+import { ecrireLaTrace, traceDeLaFile } from '../../../scripts/journal-des-etats.mjs';
 import { ouvrirLeClient } from '../client.js';
 import { lireLesCircuits } from '../circuit/client.js';
 import { idDuCircuit } from '../circuit/contrat.js';
@@ -70,6 +71,11 @@ export async function circuitsVivants(e: Entree<'circuitsVivants'>): Promise<str
   } finally {
     await c.fermer();
   }
+}
+
+export function tracerLaFile(e: Entree<'tracerLaFile'>): Promise<void> {
+  ecrireLaTrace(e.racine, traceDeLaFile({ ticket: e.ticket, evenement: e.evenement }));
+  return Promise.resolve();
 }
 
 export async function circuitsNonIntegres(e: Entree<'circuitsNonIntegres'>): Promise<string[]> {

@@ -82,6 +82,7 @@ import path from 'node:path';
 import { PILOTE } from './fusion-du-changelog.mjs';
 import { langageDe } from './langages.mjs';
 import { balayerLesTickets } from './mesure/base-de-passe.mjs';
+import { nettoyerLeJournal } from './journal-des-etats.mjs';
 
 const RETIRER = path.join(import.meta.dirname, 'retirer-copie.sh');
 const PRINCIPALE = 'main';
@@ -498,5 +499,11 @@ export function retirerLesCopiesDuDepot(racine, finies = [], vivants = null) {
     ignorer: ignoresDuLangage(racine),
   });
   const retires = balayerLesTickets(() => tickets(racine, 'closed'));
-  return [...lignes, ...retires.map(t => `✓ dossier temporaire du ticket ${t} retiré.`)];
+  // The journal of states, bounded as the other working files (scripts/journal-des-etats.mjs).
+  const segments = nettoyerLeJournal(racine).retires;
+  return [
+    ...lignes,
+    ...retires.map(t => `✓ dossier temporaire du ticket ${t} retiré.`),
+    ...segments.map(s => `✓ segment ${s} du journal des états retiré.`),
+  ];
 }

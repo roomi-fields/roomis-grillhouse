@@ -691,6 +691,7 @@ import {
   sansCouleurs,
 } from './ticket-du-circuit.mjs';
 import { emettre } from './effets.mjs';
+import { heureLocale } from './journal-des-etats.mjs';
 import { consigne, auLancement, idDeSeance, jusquALaFiche, seance } from './seances.mjs';
 import { releve } from './composants-affectes.mjs';
 import { ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
@@ -876,6 +877,21 @@ export function ecrireEtat(ctx, etat) {
     rang: ctx.rang ?? null,
   };
   emettre(ctx, { genre: 'etat', etat: { ...ctx.courant, journal: ctx.journal } });
+  // The same transition, dated, in the journal of states (scripts/journal-des-etats.mjs): its
+  // loop the first counted, its reason the stop's name or the cause of the return, empty for a
+  // normal transition.
+  emettre(ctx, {
+    genre: 'trace',
+    ligne: {
+      ts: heureLocale(),
+      genre: 'circuit',
+      ticket: ctx.ticket,
+      etape: etat.etape,
+      boucle: Object.values(etat.boucles ?? {})[0] ?? null,
+      place: null,
+      raison: etat.raison ?? '',
+    },
+  });
 }
 
 // The register's line of the step <etape> the circuit led itself from <debut> (an ISO date) to

@@ -1372,6 +1372,42 @@ ses `dependencies`, comme npm y met ce que le code publié importe : `npx grillh
 place, ses imports lus par TypeScript. Ainsi une version du paquet dit ce qu'un projet peut
 importer, et ce qu'elle lui retire.
 
+## Le journal des états
+
+Le superviseur et le responsable suivent les circuits, la file et les places par des instantanés ;
+entre deux relevés l'état a changé. Le journal des états garde la chronologie, comme le journal
+d'un ordonnanceur : une ligne datée par changement, rejouable (`scripts/journal-des-etats.mjs`).
+
+- **Le but** : reconstruire le séquencement des événements pour voir la concurrence réelle dans le
+  temps, repérer qu'à un instant un seul ticket est en travail alors que le plafond
+  (`grillhouse.circuits`) en permet deux.
+- **La ligne** : `{ ts, genre, ticket, etape, boucle, place, raison }` ; `ts` en ISO 8601 avec le
+  décalage local ; `genre` : `circuit`, `file` ou `places` ; `raison` vide pour une transition
+  normale, le nom de l'arrêt (`ARRETS`) pour un arrêt, la cause du retour pour un bouclage (la
+  boucle comptée), le message d'attente pour une attente de place.
+- **Qui écrit** : les fonctions qui changent l'état, une ligne par changement, jamais un relevé
+  périodique. Le circuit émet l'effet `trace` à chaque `ecrireEtat` (rejouable sans clé, la ligne
+  porte sa date) ; la file l'écrit au lancement et à la fin d'un circuit (activité `tracerLaFile`) ;
+  les places à une place prise, rendue ou mise en attente (`prendreUnePlace`, la raison reprise du
+  message que `dire` dit).
+- **Où** : un segment par date locale, `<dossier git commun>/grillhouse-journal/<AAAA-MM-JJ>.jsonl`,
+  non versionné ; un journal par projet, que partagent ses copies.
+- **Sans attente** : une écriture ajoute une ligne entière d'un seul append (`O_APPEND`), déjà
+  tronquée (la raison) pour tenir sous 4096 octets, sans verrou ni attente ; deux écritures
+  simultanées donnent deux lignes entières. Une écriture qui échoue ne retarde ni n'arrête rien :
+  l'échec se dit une fois sur la sortie d'erreur.
+- **Les bornes** : 14 jours et 50 Mo, décidées par le responsable. La passe de nettoyage
+  (`retirerLesCopiesDuDepot`, celle de la nuit et de la fin de chaque circuit) retire les segments
+  entiers plus vieux que 14 jours puis, au-delà de 50 Mo au total, les plus anciens d'abord ; elle
+  ne réécrit aucun segment, et laisse toujours le plus récent.
+- **La lecture** : `npx grillhouse journal [--depuis <ISO>] [--jusqu-a <ISO>] [--ticket <id>]`
+  (`scripts/journal.mjs`, interface publiée du paquet) rend les lignes de tous les segments dans
+  l'ordre de leur horodatage (bornes comprises, comparées en instants ; une ligne illisible est
+  ignorée), et, après chaque lancement ou fin de circuit de la file, l'ensemble des tickets en
+  travail contre le plafond (`en travail 1/2 : d-1`). Un ticket est en travail de sa ligne `lance`
+  à sa ligne `termine`. Sans journal ou sans ligne dans la plage, elle le dit et sort 0 ; une
+  option inconnue ou une date illisible, 2.
+
 ## La cible : un noyau et un module par langage
 
 Décidée au grill du 2026-10-28 avec le responsable, la forme d'un seul paquet le 2026-10-29 ; les paragraphes ci-dessus décrivent le cadre

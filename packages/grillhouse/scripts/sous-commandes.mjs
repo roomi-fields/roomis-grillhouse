@@ -45,6 +45,7 @@ export const SOUS_COMMANDES = {
   'langages-des-paquets': 'langages-des-paquets.mjs',
   integrer: 'integration/integrer.mjs',
   lancer: 'enveloppe/lancer.sh',
+  journal: 'journal.mjs',
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',
   maj: 'grillhouse-maj.mjs',
   nuit: 'nuit.sh',

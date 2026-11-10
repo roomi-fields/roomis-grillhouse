@@ -39,6 +39,7 @@ import path from 'node:path';
 import { departDe } from './mesure/base-de-passe.mjs';
 import { A_REPASSER } from './codes-de-sortie.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
+import { ecrireLaTrace, traceDesPlaces } from './journal-des-etats.mjs';
 import { mesureDeLaMachine } from './mesure-de-la-machine.mjs';
 import { AttenteDeLaMachine, avecLaMachine, borneDe } from './verrou-de-machine.mjs';
 
@@ -206,6 +207,7 @@ export function prendreUnePlace({
   borneMs = borneDe(env),
   rappelMs = RAPPEL_MS,
   dire = l => process.stdout.write(`${l}\n`),
+  racine = process.cwd(),
 } = {}) {
   const e = env[VARIABLE_TENUE] ? null : surLeServeur(env);
   if (!e) {
@@ -222,6 +224,8 @@ export function prendreUnePlace({
   const { code, lignes } = auServeur(e, ['prendre', JSON.stringify(demande)], borneMs + 60_000);
   for (const l of lignes) {
     if (l.dire) {
+      // The wait, said and dated in the journal of states, its reason the message said.
+      ecrireLaTrace(racine, traceDesPlaces({ evenement: 'attente', ticket, raison: l.dire }));
       dire(l.dire);
     }
   }
@@ -229,6 +233,7 @@ export function prendreUnePlace({
     throw new AttenteDeLaMachine(lignes.at(-1)?.dire ?? 'attente de place bornée', A_REPASSER);
   }
   const place = lignes.find(l => l.id);
+  ecrireLaTrace(racine, traceDesPlaces({ evenement: 'prise', ticket, place: place.id }));
   return {
     id: place.id,
     rang: place.rang,
@@ -238,6 +243,7 @@ export function prendreUnePlace({
     rendre: () => {
       try {
         auServeur(e, ['rendre', place.id]);
+        ecrireLaTrace(racine, traceDesPlaces({ evenement: 'rendue', ticket, place: place.id }));
       } catch (x) {
         if (!(x instanceof AttenteDeLaMachine)) {
           throw x;

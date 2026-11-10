@@ -16,6 +16,8 @@
 // - `decouverte` `{ role, sujet, corps, composants }`: a discovery filed closed under the ticket
 //   (scripts/ticket.sh, label `decouverte`), then its line among the sheets (`{ id, sujet }`);
 // - `registre` `{ ligne }`: a line of the register of the steps (scripts/registre.mjs);
+// - `trace` `{ ligne }`: a line of the journal of states (scripts/journal-des-etats.mjs), whose
+//   failure is said once and never stops the circuit;
 // - `etat` `{ etat }`: the circuit's state, which the workflow of a ticket holds and no player writes
 //   (src/temporal/circuit/deroule.ts);
 // - `plan` `{ titre, description }`: the plan written at the ticket (its title, its description);
@@ -39,6 +41,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
+import { ecrireLaTrace } from './journal-des-etats.mjs';
 import { ecrire as ecrireAuRegistre } from './registre.mjs';
 
 /** The line of HTML comment that carries the key <cle> in a text at a ticket. */
@@ -214,6 +217,12 @@ const JOUEURS = {
     } catch (e) {
       return echec(e.message);
     }
+  },
+  // A line of the journal of states: never an arrest, never a wait (ecrireLaTrace says a failure
+  // once and goes on).
+  trace(ctx, { ligne }) {
+    ecrireLaTrace(ctx.racine, ligne);
+    return ok;
   },
   plan(ctx, { titre, description }) {
     const options = [

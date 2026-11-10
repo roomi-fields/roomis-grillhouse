@@ -52,4 +52,14 @@ export interface ActivitesDesTickets {
    * ended without its issue holds its ticket.
    */
   circuitsNonIntegres(e: { racine: string }): Promise<string[]>;
+  /**
+   * The line of the journal of states for a circuit of the queue launched (`lance`) or ended
+   * (`termine`) (`traceDeLaFile` of scripts/journal-des-etats.mjs); a line that cannot be written
+   * never fails the act.
+   */
+  tracerLaFile(e: {
+    racine: string;
+    ticket: string;
+    evenement: 'lance' | 'termine';
+  }): Promise<void>;
 }

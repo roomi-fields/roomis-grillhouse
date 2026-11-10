@@ -59,6 +59,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'droits',
         'enveloppe',
         'integrer',
+        'journal',
         'lancer',
         'ligne-etat',
         'nuit',

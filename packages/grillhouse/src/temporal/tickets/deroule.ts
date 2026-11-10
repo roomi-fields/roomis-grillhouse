@@ -68,7 +68,11 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
     reveil = true;
   });
 
+  const finis: string[] = [];
   for (;;) {
+    for (const ticket of finis.splice(0)) {
+      await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
+    }
     const surLeServeur = await actes.circuitsVivants({ racine });
     vivants = [...new Set([...surLeServeur, ...lances])].sort();
     // A ticket whose circuit is not integrated, alive or stopped, does not start.
@@ -88,9 +92,12 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
           cancellationType: ChildWorkflowCancellationType.ABANDON,
         });
         lances.add(ticket);
-        // The end of the circuit wakes the queue.
+        await actes.tracerLaFile({ racine, ticket, evenement: 'lance' });
+        // The end of the circuit wakes the queue, and its line to the journal is written at the
+        // next wake (a workflow awaits no activity in a callback).
         const fini = () => {
           lances.delete(ticket);
+          finis.push(ticket);
           reveil = true;
         };
         void enfant.result().then(fini, fini);

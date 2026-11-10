@@ -65,6 +65,7 @@ export const REDIRIGEES = new Set([
   'droits',
   'enveloppe',
   'integrer',
+  'journal',
   'lancer',
   'ligne-etat',
   'nuit',
