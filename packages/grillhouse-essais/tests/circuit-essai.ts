@@ -5,10 +5,11 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statfsSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { freemem, tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canWrap, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
@@ -637,6 +638,28 @@ export function circuitEssai(
     }
     return banc;
   };
+  // What a watch that fails says of the circuit of <id> beside its own words: the sessions
+  // launched, the end of the circuit's log (its last command, its last step), the room left on
+  // the disks of the trial and of the temporary directory and in memory, then the end of the
+  // worker's output.
+  const contexteDuGuet = (id: string) => {
+    const libre = (d: string) => {
+      try {
+        const s = statfsSync(d);
+        return `${Math.floor((s.bavail * s.bsize) / 2 ** 20)} Mo`;
+      } catch {
+        return 'illisible';
+      }
+    };
+    return [
+      `Les séances lancées : ${essai(id, 'ordre').trim().split('\n').join(', ') || 'aucune'}.`,
+      `La place libre : ${libre(ESSAIS)} sous l'essai, ${libre(tmpdir())} sous ${tmpdir()} ; la mémoire libre : ${Math.floor(freemem() / 2 ** 20)} Mo.`,
+      'La fin du journal du circuit :',
+      lire(path.join(REPO, '.claude/worktrees', `${id}.log`)).slice(-4000),
+      'La fin de la sortie du travailleur :',
+      leBanc().sortieDuTravailleur().slice(-3000),
+    ].join('\n');
+  };
   // The watch of the circuit of <id>: <mode> with <args> (./guetter-le-circuit.mjs).
   const guetter = (mode: 'lire' | 'attendre', id: string, ...a: string[]) => {
     const g = spawnSync(process.execPath, [GUETTEUR, CADRE, mode, REPO, id, ...a], {
@@ -645,8 +668,9 @@ export function circuitEssai(
       timeout: ARRET_MS + 60_000,
     });
     if (g.status !== 0) {
+      const tue = g.signal ? `tué par ${g.signal} après ${(ARRET_MS + 60_000) / 1000} s ; ` : '';
       throw new Error(
-        `le guet du circuit de ${id} échoue : ${g.stderr}\nLa fin de la sortie du travailleur :\n${leBanc().sortieDuTravailleur().slice(-6000)}`
+        `le guet du circuit de ${id} échoue : ${tue}${g.stderr}\n${contexteDuGuet(id)}`
       );
     }
     return JSON.parse(g.stdout || 'null') as {
@@ -762,6 +786,7 @@ export function circuitEssai(
       paquets: string[];
       constats: { titre: string; role: string; regle: string; corps: string; piece?: string }[];
       verifie: string | null;
+      seanceReprise: { agent: string; seance: string } | null;
       question: {
         arret: string;
         fait: string;

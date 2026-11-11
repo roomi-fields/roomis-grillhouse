@@ -182,24 +182,19 @@ describe.runIf(canWrap)(
           ],
         })}'\n`
       );
-      // The testwriter relaunched by the RENDU writes nothing: three proofs refused, the stop.
-      scenario(id, 'testwriter', "passation 'Rien écrit.'\n");
+      // The testwriter relaunched by the RENDU declares himself blocked: the stop. (A testwriter
+      // who writes nothing passes the proof, the developpeur's code being in the copy:
+      // grillhouse-44b.13.2.1.)
+      scenario(
+        id,
+        'testwriter-2',
+        `passation 'Bloqué.'\nfiche '${JSON.stringify({ statut: 'BLOQUÉ', piece: 'packages/forms/test/mesure.test.mjs:3', raison: 'le cas de zéro attend une décision.' })}'\n`
+      );
       const r1 = circuit([id]);
-      expect(r1.status, sortie(r1)).toBe(ARRETS.preuve);
-      expect(ordre(id)).toEqual([
-        'testwriter',
-        'developpeur',
-        'relecteur',
-        'testwriter',
-        'testwriter',
-        'testwriter',
-      ]);
-      // Each relaunched testwriter receives its finding; the state keeps both, open.
-      for (const n of [2, 3, 4]) {
-        expect(essai(id, `testwriter-${n}.prompt`), `testwriter-${n}`).toContain(
-          'le cas de zéro manque'
-        );
-      }
+      expect(r1.status, sortie(r1)).toBe(ARRETS['hors-portee']);
+      expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur', 'testwriter']);
+      // The relaunched testwriter receives its finding; the state keeps both, open.
+      expect(essai(id, 'testwriter-2.prompt')).toContain('le cas de zéro manque');
       expect(etat(id)?.constats.map(c => c.role)).toEqual(['developpeur', 'testwriter']);
       // The supervisor's answer: the testwriter again, who writes the case of zero, red until the code.
       scenario(
@@ -240,9 +235,9 @@ fiche '${JSON.stringify({ statut: 'FAIT' })}'
       );
       const r2 = circuit([id, '--depuis', 'testwriter', '--contexte', 'Le zéro est mesuré.']);
       expect(r2.status, sortie(r2)).toBe(0);
-      expect(essai(id, 'testwriter-5.prompt')).toContain('le cas de zéro manque');
+      expect(essai(id, 'testwriter-3.prompt')).toContain('le cas de zéro manque');
       // The proof has its red, and the finding still open launches the developpeur, who receives it.
-      expect(ordre(id).slice(6)).toEqual(['testwriter', 'developpeur', 'relecteur']);
+      expect(ordre(id).slice(4)).toEqual(['testwriter', 'developpeur', 'relecteur']);
       expect(essai(id, 'developpeur-2.prompt')).toContain('exemplar reste dans forms.');
       expect(essai(id, 'developpeur-2.prompt')).not.toContain('le cas de zéro manque');
       // The review that accepts the lot closes the findings.

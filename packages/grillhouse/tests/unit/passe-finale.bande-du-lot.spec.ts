@@ -2,7 +2,7 @@
 // whole repository (Bazel and TAP play the reverse-dependency closure of the change; Nx `affected`).
 // Each case plays the real git in a repository of trial.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -136,6 +136,56 @@ describe('the final pass plays the band of the lot', () => {
     expect(restreinte).not.toBeNull();
     expect(restreinte!.avant).toBe(git(d.copie, 'rev-parse', 'HEAD'));
     expect(d.fichiersDeLaBande(restreinte!)).toBe('a.txt');
+  });
+
+  // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5): a file added to a directory of the root that a
+  // package out of the plan reads, its test red only at the integration.
+  describe('the band plays the packages whose tests read a path it changes', () => {
+    const filtresDeLaBande = activites.filtresDeLaBande as (
+      ctx: object,
+      liste: { dossier: string; pkg: { name?: string } }[],
+      restreinte: { avant: string; apres: string }
+    ) => string[];
+    const lecteur = (d: ReturnType<typeof depot>) => {
+      mkdirSync(path.join(d.copie, 'packages/loader'), { recursive: true });
+      writeFileSync(
+        path.join(d.copie, 'packages/loader/package.json'),
+        JSON.stringify({ name: '020-loader', grillhouse: { lit: ['libraries'] } })
+      );
+      mkdirSync(path.join(d.copie, 'libraries'), { recursive: true });
+      writeFileSync(path.join(d.copie, 'libraries/base.bp'), 'base\n');
+      git(d.copie, 'add', '-A');
+      git(d.copie, 'commit', '-qm', 'loader');
+      return [
+        { dossier: 'packages/loader', pkg: { name: '020-loader' } },
+        { dossier: 'packages/forms', pkg: { name: '000-forms' } },
+      ];
+    };
+
+    it('a lot that adds a file under a path a package declares it reads plays that package and its dependents', () => {
+      const d = depot();
+      const liste = lecteur(d);
+      d.ecrire('libraries/notes.txt', 'notes\n');
+      const { restreinte } = laPasseFinale(d.ctx);
+      expect(filtresDeLaBande(d.ctx, liste, restreinte!)).toEqual([
+        '--',
+        `--filter=...[${restreinte!.avant}...${restreinte!.apres}]`,
+        '--filter=...020-loader',
+        '--filter=//',
+      ]);
+    });
+
+    it('a lot that changes no path a package reads plays the band and the root alone', () => {
+      const d = depot();
+      const liste = lecteur(d);
+      d.ecrire('a.txt', 'COPIE\n');
+      const { restreinte } = laPasseFinale(d.ctx);
+      expect(filtresDeLaBande(d.ctx, liste, restreinte!)).toEqual([
+        '--',
+        `--filter=...[${restreinte!.avant}...${restreinte!.apres}]`,
+        '--filter=//',
+      ]);
+    });
   });
 
   it('when git cannot keep the lot, the pass rejects naming git and never returns a null band', () => {

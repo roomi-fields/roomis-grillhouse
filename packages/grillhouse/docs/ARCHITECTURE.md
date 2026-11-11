@@ -392,7 +392,9 @@ cette étape et les suivantes, sans rien relire (aucune empreinte gardée). **La
 se reprend à son étape, sans `--depuis`. Le circuit attribue le rouge par la sortie de l'étape rouge (`attribuerLeRouge` :
 le paquet et le fichier que chaque rouge nomme, contre les fichiers de test du lot que porte le testwriter et les autres
 fichiers du plan que porte le développeur) : un fichier de code ou un test qui échoue va au développeur, un fichier de test que refuse une garde ou le style au testwriter (l'étape
-la plus tôt, le développeur rejouant après), un rouge sans fichier nommé ou un fichier que personne ne porte monte au
+la plus tôt, le développeur rejouant après), un rouge de tâche d'un paquet du plan sans fichier nommé (lint, mise
+en forme, typage, construction) au développeur, comme un job rouge d'une CI revient à son auteur (décision du responsable
+sur grillhouse-4nr.14.1) ; un autre rouge sans fichier nommé ou un fichier que personne ne porte monte au
 superviseur, jamais deviné. Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier (séance du testwriter
 bornée à lui, preuve de lui seul), puis les contrôles et la passe finale restreints à sa portée (le paquet du fichier dans
 le graphe de Turborepo, les tests que Vitest relie à lui), sans séance du développeur ni du testwriter pour le reste du lot.
@@ -487,7 +489,9 @@ avance entre deux relectures, le lot relu se rejoue sur la nouvelle tête (`leLo
 (`leLotGarde`) : la relecture bornée et les éléments à rejuger lisent la différence entre les
 deux, ce que le lot a changé, jamais les commits de main. La passe finale ne lit pas cette
 différence : elle joue toujours la bande du lot, de sa base à son sommet (`laPasseFinale`), et ses
-dépendants, jamais la copie entière, que la nuit et l'intégration jouent. Un lot accepté que
+dépendants, avec chaque paquet dont les tests déclarent lire un chemin que la bande change
+(`grillhouse.lit`, `filtresDeLaBande`, comme le `data` de Bazel, que le graphe de Turborepo ne
+voit pas), jamais la copie entière, que la nuit et l'intégration jouent. Un lot accepté que
 l'avance laisse tel quel reste accepté (`leLotAccepte`), comme Gerrit garde les votes d'un
 rebasage trivial : la passe finale joue sa bande, puis l'intégration, sans relecture de plus. Un
 rejeu en conflit avec main ne borne rien : la relecture et les éléments à rejuger sont entiers, la

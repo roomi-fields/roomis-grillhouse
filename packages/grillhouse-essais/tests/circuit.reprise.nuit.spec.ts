@@ -6,8 +6,8 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a relaunch of an
 // agent on its step resumes its session. The first session of an agent on a step carries a session
-// id the circuit sets (`--session-id`), kept in the state (`reprise`); its relaunches on the same
-// step (the testwriter after a refused proof, the developpeur after red checks) resume
+// id the circuit sets (`--session-id`), kept in the state (`seanceReprise`); its relaunches on the
+// same step (the testwriter after a refused proof, the developpeur after red checks) resume
 // it (`--resume`) with the short template of consigne-agent.md, save the last attempt, a fresh and
 // whole session. A resumed session's sheet refused is asked again once of that same session; a
 // resumption that ends in error falls back on a fresh and whole session.
@@ -78,7 +78,7 @@ describe.runIf(canWrap)(
       expect(a3).not.toContain('--resume');
       expect(valeur(a3, '--model')).toBe('opus');
       expect(essai(id, 'developpeur-3.prompt')).toContain(ENTIERE);
-      expect(etat(id)?.reprise).toEqual({ agent: 'developpeur', seance: derniere });
+      expect(etat(id)?.seanceReprise).toEqual({ agent: 'developpeur', seance: derniere });
     });
 
     it('a resumption that ends in error falls back on a fresh and whole session', () => {

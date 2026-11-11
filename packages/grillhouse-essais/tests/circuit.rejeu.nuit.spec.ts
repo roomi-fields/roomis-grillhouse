@@ -106,7 +106,6 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
       'controles',
       'controles',
       'relecture',
-      'controles',
       'integration',
       'file',
     ]);
@@ -119,9 +118,10 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
       ).toHaveLength(2);
     }
     // Each final pass plays the band of the lot, from its base (the head of the copy) to its top,
-    // never the whole repository, and never from the review before.
+    // never the whole repository, and never from the review before: the second verifies the lot the
+    // review accepts, which goes to the integration without a third.
     const passes = c.filter(x => VERIFIER.test(x));
-    expect(passes).toHaveLength(3);
+    expect(passes).toHaveLength(2);
     const bandes = passes.map(p => RESTREINTE.exec(p));
     for (const b of bandes) {
       expect(b).not.toBeNull();
@@ -145,17 +145,13 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
     const finales = entrees(id).filter(
       e => e.role === 'circuit' && (e.resultat as { finale?: boolean } | undefined)?.finale
     );
-    expect(finales.map(e => (e.resultat as { issue: string }).issue)).toEqual([
-      'vert',
-      'vert',
-      'vert',
-    ]);
+    expect(finales.map(e => (e.resultat as { issue: string }).issue)).toEqual(['vert', 'vert']);
     // The lot each review read, a patch set the circuit keeps: the second on the first.
     expect(gitRepo('rev-parse', `${lot2}^`).trim()).toBe(lot1);
     expect(gitRepo('show', `${lot1}:packages/forms/src/index.mjs`)).not.toContain('// rendu');
     expect(gitRepo('show', `${lot2}:packages/forms/src/index.mjs`)).toContain('// rendu');
     expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(/^Circuit · relecture : ACCEPTÉ ; la passe finale sur la bande du lot/)
+      expect.stringMatching(/^Circuit · relecture : ACCEPTÉ ; le lot va à l’intégration\./)
     );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });

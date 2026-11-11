@@ -89,6 +89,11 @@ const REGENERER = 'node regenerer.mjs';
 const PREPARATION: unknown = expect.stringMatching(
   /^node \S+\/scripts\/enveloppe\/travail-de-la-copie\.mjs preparer \S+ [0-9a-f]{40}$/
 );
+// The final pass, as the circuit plays it: `npm run verifier` on the band of the lot, from its
+// base to its top, and the root's tasks, never the whole repository (grillhouse-44b.13).
+const BANDE = /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/;
+const PASSE_FINALE: unknown = expect.stringMatching(BANDE);
+const estLaPasse = (x: string) => BANDE.test(x);
 
 // The reference of the trial on main, the project's guard judging it beside the trial's own;
 // <declarer> declares it in the package.json (`grillhouse.references`).
@@ -198,12 +203,9 @@ describe.runIf(canWrap)(
       const regeneration = c.indexOf(REGENERER);
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
       // Before it, the checks of the plan, which see the red (grillhouse-982.2); after it, the
-      // preparation of the copy, then the final pass, whole.
-      expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
-      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
-        PREPARATION,
-        'npm run verifier',
-      ]);
+      // preparation of the copy, then the final pass, on the band of the lot.
+      expect(c.slice(0, regeneration).some(estLaPasse)).toBe(false);
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([PREPARATION, PASSE_FINALE]);
       // The step leaves its result with the circuit's, its report naming the reference and its file.
       const e = entrees(id).find(x => x.etape === 'references') as
         { rapport?: string; resultat?: { regenerees?: string[] } } | undefined;
@@ -235,9 +237,9 @@ describe.runIf(canWrap)(
       // Before it, the checks of the plan alone: no final pass on the tree they judged.
       expect(c.slice(0, regeneration).some(x => x.startsWith('npm test'))).toBe(true);
       expect(c.slice(0, regeneration).some(x => x.startsWith('npm run verifier'))).toBe(false);
-      // After it, the final pass, once, whole: no ticket was reviewed before.
+      // After it, the final pass, once, on the band of the lot: no ticket was reviewed before.
       expect(c.slice(regeneration + 1).filter(x => x.startsWith('npm run verifier'))).toEqual([
-        'npm run verifier',
+        PASSE_FINALE,
       ]);
       expect(c.filter(x => x === REGENERER)).toHaveLength(1);
       // The checks say the red goes to its regeneration, not to the final pass.
@@ -290,11 +292,11 @@ it('la référence suit la mesure', () => {
       expect(c.slice(0, regeneration).some(x => x.startsWith('npm test'))).toBe(true);
       expect(c.slice(0, regeneration).some(x => x.startsWith('npm run verifier'))).toBe(false);
       const apres = c.slice(regeneration + 1);
-      const finale = apres.indexOf('npm run verifier');
+      const finale = apres.findIndex(estLaPasse);
       expect(finale, apres.join('\n')).toBeGreaterThan(0);
       expect(apres.slice(0, finale).some(x => x.startsWith('npm test'))).toBe(true);
       // Criterion 3: the final pass stands, once, and regenerates nothing the checks regenerated.
-      expect(apres.filter(x => x.startsWith('npm run verifier'))).toEqual(['npm run verifier']);
+      expect(apres.filter(x => x.startsWith('npm run verifier'))).toEqual([PASSE_FINALE]);
       expect(c.filter(x => x === REGENERER)).toHaveLength(1);
       // The checks after the regeneration are green, and say so.
       const controles = commentaires(id).filter(t => t.startsWith('Circuit · controles :'));
@@ -376,7 +378,7 @@ if (constats.length) process.exit(1);
       ).toBe(false);
       const c = commandes(id);
       expect(c.indexOf(REGENERER), c.join('\n')).toBeGreaterThan(0);
-      expect(c).toContain('npm run verifier');
+      expect(c.some(estLaPasse), c.join('\n')).toBe(true);
       expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
       expect(essai(id, 'developpeur-2.prompt')).toContain('forms rougit à la passe finale');
     });
@@ -635,11 +637,8 @@ if (refus.length) process.exit(1);
       const c = commandes(id);
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      // The checks see the red: the regeneration, then the final pass, whole (grillhouse-982.2).
-      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
-        PREPARATION,
-        'npm run verifier',
-      ]);
+      // The checks see the red: the regeneration, then the final pass, on the band of the lot (grillhouse-982.2).
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([PREPARATION, PASSE_FINALE]);
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { regenerees?: string[]; fichiers?: string[] } } | undefined;
       expect(e?.resultat?.regenerees).toEqual([PLAFOND]);
@@ -690,7 +689,7 @@ if (refus.length) process.exit(1);
       const r = lancer(id);
       expect(r.status, sortie(r)).toBe(ARRETS['hors-portee']);
       const c = commandes(id);
-      expect(c.filter(x => x.startsWith('npm run verifier'))).toEqual(['npm run verifier']);
+      expect(c.filter(x => x.startsWith('npm run verifier'))).toEqual([PASSE_FINALE]);
       expect(c, c.join('\n')).not.toContain('node abaisser.mjs');
       expect(entrees(id).some(x => x.arret === 'references')).toBe(false);
       expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
@@ -707,7 +706,7 @@ if (refus.length) process.exit(1);
       // The final pass, then the regeneration its line without a file calls for, which refuses.
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(0, regeneration)).toContain('npm run verifier');
+      expect(c.slice(0, regeneration).some(estLaPasse), c.join('\n')).toBe(true);
       expect(c.filter(x => x === 'node abaisser.mjs')).toHaveLength(1);
       expect(entrees(id).some(x => x.arret === 'references')).toBe(false);
       expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
@@ -766,7 +765,7 @@ if (refus.length) process.exit(1);
       const c = commandes(id);
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
+      expect(c.slice(0, regeneration).some(estLaPasse)).toBe(false);
       expect(gitRepo('show', 'main:packages/binder/plafond.txt')).toBe('4\n');
       // The warnings stay visible in the report of the checks, under their own title, apart from
       // the reds, whose count does not hold them.
@@ -786,7 +785,7 @@ if (refus.length) process.exit(1);
       const c = commandes(id);
       const regeneration = c.indexOf('node abaisser.mjs');
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(0, regeneration)).toContain('npm run verifier');
+      expect(c.slice(0, regeneration).some(estLaPasse), c.join('\n')).toBe(true);
       expect(entrees(id).some(x => x.arret === 'references')).toBe(false);
       expect(gitRepo('show', 'main:packages/binder/plafond.txt')).toBe('4\n');
       expect(rapports(id)).toContain('Les avertissements (8)');
@@ -830,13 +829,10 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
       const c = commandes(id);
       const regeneration = c.indexOf(REGENERER);
       // Before it, the checks of the plan, which see the reference's red, not binder's, out of
-      // the plan; after it, the final pass, whole, red on binder (grillhouse-982.2).
+      // the plan; after it, the final pass, on the band of the lot, red on binder (grillhouse-982.2).
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      expect(c.slice(0, regeneration)).not.toContain('npm run verifier');
-      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
-        PREPARATION,
-        'npm run verifier',
-      ]);
+      expect(c.slice(0, regeneration).some(estLaPasse)).toBe(false);
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([PREPARATION, PASSE_FINALE]);
       // The reference regenerated stays in the copy.
       expect(lire(path.join(copie, 'reference.txt'))).toBe('4\n');
       // The stop names the red that stands, binder's, out of the plan; not the reference's.
@@ -873,11 +869,8 @@ it('binder reste rouge', () => { expect(1).toBe(2); });
         x => x.includes('turbo-des-paquets.mjs') && x.includes('--ecrire')
       );
       expect(regeneration, c.join('\n')).toBeGreaterThan(0);
-      // The checks of the plan see the stale turbo.json: the final pass after it, whole.
-      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([
-        PREPARATION,
-        'npm run verifier',
-      ]);
+      // The checks of the plan see the stale turbo.json: the final pass after it, on the band of the lot.
+      expect(c.slice(regeneration + 1, regeneration + 3)).toEqual([PREPARATION, PASSE_FINALE]);
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { fichiers?: string[] } } | undefined;
       expect(e?.resultat?.fichiers).toContain('packages/binder/turbo.json');
@@ -1006,12 +999,7 @@ process.exitCode = refus.length ? 1 : 0;
       // The interface's generated part changes: the index that reads it follows (grillhouse-j2m).
       expect(c[regeneration + 1]).toContain('index-interfaces.mjs');
       // Then the preparation of the copy, which stays on the tip of main, and the restricted pass.
-      expect(c.slice(regeneration + 2, regeneration + 4)).toEqual([
-        PREPARATION,
-        expect.stringMatching(
-          /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-        ),
-      ]);
+      expect(c.slice(regeneration + 2, regeneration + 4)).toEqual([PREPARATION, PASSE_FINALE]);
       // The report regenerated stays in the copy, beside the lot.
       expect(lire(path.join(copie, 'packages/forms/docs/INTERFACE.api.md'))).toContain(
         'y?: number'
@@ -1073,12 +1061,7 @@ process.exitCode = refus.length ? 1 : 0;
       // One regeneration, then the restricted pass, green: no stop, no second regeneration.
       expect(entrees(id).filter(x => x.etape === 'references')).toHaveLength(1);
       expect(entrees(id).some(x => x.arret)).toBe(false);
-      expect(c.slice(index + 1, index + 3)).toEqual([
-        PREPARATION,
-        expect.stringMatching(
-          /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-        ),
-      ]);
+      expect(c.slice(index + 1, index + 3)).toEqual([PREPARATION, PASSE_FINALE]);
       const e = entrees(id).find(x => x.etape === 'references') as
         { resultat?: { regenerees?: string[]; fichiers?: string[] } } | undefined;
       expect(e?.resultat?.regenerees).toEqual(["les rapports d'API", "l'index des interfaces"]);
@@ -1116,9 +1099,7 @@ process.exitCode = refus.length ? 1 : 0;
         suite.slice(0, passe).every(x => x.startsWith('node ')),
         c.join('\n')
       ).toBe(true);
-      expect(suite[passe]).toMatch(
-        /^npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/$/
-      );
+      expect(suite[passe]).toMatch(BANDE);
       expect(JSON.parse(lire(path.join(copie, 'grillhouse-dette.json')))).toEqual(ABAISSEE);
       expect(ordre(id)).toEqual(['developpeur', 'developpeur']);
       expect(essai(id, 'developpeur-2.prompt')).toContain(FAUTE);

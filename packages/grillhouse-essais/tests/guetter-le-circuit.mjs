@@ -14,6 +14,8 @@
 //   ended without its issue is its `fin`. It writes `{ code, fin, signe, etat, ou, question }`, `ou`
 //   the step of the state in words (scripts/etapes.mjs), `question` the one the workflow awaits;
 //   past <ms>, it exits 1 with the last sign it read.
+// Each call to the server is bounded (`DELAI_MS`): a server or a workflow that does not answer
+// exits 1, the call named, instead of a watch that hangs without a word.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -30,6 +32,19 @@ const ouDansLeCircuit = e => {
   return x ? libelle(x) : (e?.etape ?? null);
 };
 
+// <p>, the call <quoi> to the server, bounded by DELAI_MS: past it, an error that names the call.
+const DELAI_MS = 30_000;
+const borne = (p, quoi) =>
+  Promise.race([
+    p,
+    new Promise((_, ko) =>
+      setTimeout(
+        () => ko(new Error(`le serveur ne répond pas à ${quoi} en ${DELAI_MS / 1000} s`)),
+        DELAI_MS
+      ).unref()
+    ),
+  ]);
+
 const c = ouvrirLeClient();
 const h = c.client.workflow.getHandle(idDuCircuit(racine, ticket));
 
@@ -43,7 +58,7 @@ const raisons = e =>
 async function lire() {
   let d;
   try {
-    d = await h.describe();
+    d = await borne(h.describe(), 'la description du déroulé');
   } catch (x) {
     if (x?.name === 'WorkflowNotFoundError') {
       return null;
@@ -52,8 +67,11 @@ async function lire() {
   }
   const memo = d.memo ?? {};
   const statut = d.status.name;
-  const vue = statut === 'RUNNING' ? await h.query(L_ETAT) : null;
-  const fin = statut === 'RUNNING' ? null : await h.result().catch(x => ({ echec: raisons(x) }));
+  const vue = statut === 'RUNNING' ? await borne(h.query(L_ETAT), "la requête de l'état") : null;
+  const fin =
+    statut === 'RUNNING'
+      ? null
+      : await borne(h.result(), 'la lecture de la fin').catch(x => ({ echec: raisons(x) }));
   const signe = [
     d.runId,
     memo.numero ?? 0,
@@ -108,6 +126,9 @@ try {
       await new Promise(r => setTimeout(r, 500));
     }
   }
+} catch (x) {
+  process.stderr.write(`le guet du circuit de ${ticket} échoue : ${raisons(x)}\n`);
+  process.exitCode = 1;
 } finally {
-  await c.fermer();
+  await borne(c.fermer(), 'la fermeture du client').catch(() => {});
 }

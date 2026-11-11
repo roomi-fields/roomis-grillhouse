@@ -116,8 +116,10 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'refus',
         'relanceSurLeRefus',
         'reprise',
+        'seanceReprise',
         'tentative',
         'verifie',
+        'verts',
       ].sort()
     );
     expect(e?.etape).toBe('integre');

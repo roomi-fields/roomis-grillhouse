@@ -33,6 +33,7 @@ import { DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { empreinteDEtape } from './empreinte-d-etape.mjs';
 import { FICHIER as DETTE } from './dette.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
+import { cheminsLus } from './composants-affectes.mjs';
 import { couvertPar } from './engendres.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import { etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
@@ -536,6 +537,29 @@ export function laPasseFinale(ctx) {
     throw new Error(`la passe finale ne peut borner le lot de ${ctx.ticket} : git ne le garde pas`);
   }
   return { arbre, restreinte: { avant: lot.base, apres: lot.commit } };
+}
+
+// The filters of Turborepo the band <restreinte> (`{ avant, apres }`, two lots kept) plays at the
+// final pass: the packages that changed from one to the other and their dependents, each package
+// of <liste> whose tests declare they read a path the band changes (`grillhouse.lit`,
+// `cheminsLus`: the `data` of Bazel, which Turborepo's graph does not see) and its dependents, then
+// the root's tasks, the guards.
+export function filtresDeLaBande(ctx, liste, restreinte) {
+  const fichiers = differenceDesLots(ctx, restreinte.avant, restreinte.apres);
+  const lecteurs = liste
+    .filter(
+      p =>
+        p.pkg?.name &&
+        fichiers.some(f => couvertPar(cheminsLus(path.join(ctx.copie, p.dossier)), f))
+    )
+    .map(p => p.pkg.name)
+    .sort();
+  return [
+    '--',
+    `--filter=...[${restreinte.avant}...${restreinte.apres}]`,
+    ...lecteurs.map(n => `--filter=...${n}`),
+    '--filter=//',
+  ];
 }
 
 // The references of the circuit: those the project declares in the package.json of the copy
@@ -1969,8 +1993,8 @@ const ligneDeCommande = c =>
 
 // The checks after the developpeur: those of the plan (3.1), or, when <finale>, `npm run
 // verifier`, what the integration plays (4.1), restricted by <restreinte> (`{ avant, apres }`, two
-// lots kept) to the packages that changed from one to the other and their dependents, with the
-// root's tasks, the guards (`--filter=...[<avant>...<apres>] --filter=//`). After a regeneration,
+// lots kept) to the packages that changed from one to the other and their dependents, the readers
+// of a path it changes, with the root's tasks, the guards (`filtresDeLaBande`). After a regeneration,
 // <reportes> (`{ rouges, rejouee }`) carries the reds of the pass before it, the final pass or the
 // checks of the plan: each one in a package the pass after the regeneration does not play again
 // stands, as a CI keeps the verdict of a job it does not run again; when the regeneration changes
@@ -1999,7 +2023,7 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
   const filtres = duReprise
     ? ['--', ...duReprise.map(n => `--filter=${n}`), '--filter=//']
     : restreinte
-      ? ['--', `--filter=...[${restreinte.avant}...${restreinte.apres}]`, '--filter=//']
+      ? filtresDeLaBande(ctx, liste, restreinte)
       : [];
   const commandes =
     reportes && !reportes.rejouee

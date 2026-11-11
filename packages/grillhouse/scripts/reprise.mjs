@@ -8,19 +8,23 @@ import { SUITE } from './etapes.mjs';
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
 
 /**
- * The step that carries the red whose places are <lieux> (`{ paquet, fichier, gardes }`), by the
- * files the red names against what the testwriter (`portes.tests`) and the developpeur
- * (`portes.code`) wrote: `{ etape, fichiers, motif? }`. A test file that a guard or the style
- * refuses (`gardes` not empty) is the testwriter's, the earliest step (the developpeur replays
- * after him); a test that fails (no guard) and a file of code are the developpeur's. A red that
- * names no file, or a file nobody wrote, is never attributed (`etape` null, its `motif` said): it
- * goes up.
+ * The step that carries the red whose places are <lieux> (`{ paquet, fichier, gardes,
+ * dansLePlan }`), by the files the red names against what the testwriter (`portes.tests`) and the
+ * developpeur (`portes.code`) wrote: `{ etape, fichiers, motif? }`. A test file that a guard or
+ * the style refuses (`gardes` not empty) is the testwriter's, the earliest step (the developpeur
+ * replays after him); a test that fails (no guard) and a file of code are the developpeur's. A red
+ * that names no file but lies in a package of the plan (a red task: lint, format check, typing,
+ * build) is the developpeur's, no file named, as a red job of a CI goes back to its author (the
+ * owner's decision on grillhouse-4nr.14.1); one out of the plan, or a file nobody wrote, is never
+ * attributed (`etape` null, its `motif` said): it goes up.
  */
 export function attribuerLeRouge({ lieux, portes }) {
   const avecFichier = (lieux ?? []).filter(l => typeof l.fichier === 'string' && l.fichier);
   const nommes = [...new Set(avecFichier.map(l => l.fichier))];
   if (!nommes.length) {
-    return { etape: null, fichiers: [], motif: 'le rouge ne nomme aucun fichier' };
+    return (lieux ?? []).some(l => l.dansLePlan)
+      ? { etape: 'developpeur', fichiers: [] }
+      : { etape: null, fichiers: [], motif: 'le rouge ne nomme aucun fichier du plan' };
   }
   const tests = new Set(portes.tests);
   const code = new Set(portes.code);

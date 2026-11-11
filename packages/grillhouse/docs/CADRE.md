@@ -43,7 +43,7 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   inchangée (`scripts/reprise.mjs`). Un rouge de contrôles ou de passe finale s'attribue par la
   sortie de l'étape rouge (le paquet et le fichier nommés) : un fichier de code va au développeur,
   un test du lot qui échoue au développeur, un fichier de test du lot que refuse une garde ou le
-  style au testwriter, un rouge sans fichier nommé monte au superviseur, jamais deviné. Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier, puis les
+  style au testwriter, un rouge de tâche d'un paquet du plan sans fichier nommé (lint, mise en forme, typage, construction) au développeur, un autre rouge sans fichier nommé monte au superviseur, jamais deviné. Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier, puis les
   contrôles et la passe finale restreints à sa portée. Une étape (preuve, contrôles, passe
   finale) dont l'empreinte (le hachage de sa commande et du contenu de ce qu'elle lit, par le
   hachage d'entrées de Turborepo) est celle de son dernier vert ne se rejoue pas : son résultat

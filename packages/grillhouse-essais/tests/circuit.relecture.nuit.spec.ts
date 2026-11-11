@@ -234,7 +234,10 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(consigne).toContain('le lot de tests : packages/forms/test/mesure.test.mjs');
     expect(consigne).toContain('le lot de code : packages/forms/src/index.mjs');
     expect(consigne).toContain('Circuit · preuve');
-    expect(consigne).toContain('controles : verts : npm run verifier.');
+    // The final pass on the band of the lot, never the whole repository (grillhouse-44b.13).
+    expect(consigne).toMatch(
+      /controles : verts : npm run verifier -- --filter=\.\.\.\[[0-9a-f]+\.\.\.[0-9a-f]+\] --filter=\/\/\./
+    );
     expect(consigne).not.toContain('{{');
     // The claims file: the description, in a folder the session may read.
     const affirmations = /LE FICHIER D'AFFIRMATIONS, [^:]*: (\S+)/.exec(consigne)?.[1] ?? '';
@@ -352,8 +355,8 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(essai(id, 'relecteur-2.prompt')).toMatch(
       /Pièce : packages\/forms\/src\/index\.mjs:1\nRéponse du développeur : levé\nPièce de la réponse : \$ git diff/
     );
-    // Then the final pass restricted to what the fix changes, the review, and the whole final
-    // pass once, on the lot accepted, before the integration.
+    // Then the checks and the final pass on the band of the lot, which verifies the lot the review
+    // accepts: it goes to the integration (grillhouse-44b.13).
     const rendus = historique(id).indexOf('relecture');
     expect(historique(id).slice(rendus)).toEqual([
       'relecture',
@@ -361,7 +364,6 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
       'controles',
       'controles',
       'relecture',
-      'controles',
       'integration',
       'file',
     ]);
@@ -553,7 +555,7 @@ fiche '{"statut":"FAIT"}'
     expect(sessions(id, 'testwriter')).toBe(2);
     expect(sessions(id, 'developpeur')).toBe(2);
     expect(essai(id, 'testwriter-2.prompt')).toContain('echelle manque.');
-    expect(historique(id).slice(-10)).toEqual([
+    expect(historique(id).slice(-9)).toEqual([
       'relecture',
       'testwriter',
       'preuve',
@@ -561,7 +563,6 @@ fiche '{"statut":"FAIT"}'
       'controles',
       'controles',
       'relecture',
-      'controles',
       'integration',
       'file',
     ]);

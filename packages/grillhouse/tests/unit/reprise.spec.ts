@@ -13,6 +13,7 @@ interface Lieu {
   paquet?: string;
   fichier?: string | null;
   gardes?: string[];
+  dansLePlan?: boolean;
 }
 interface Portes {
   tests: string[];
@@ -106,11 +107,36 @@ describe('un rouge s’attribue à l’étape qui le porte, par la sortie de l�
     ['aucun lieu', []],
     ['un lieu sans fichier', [{ paquet: 'packages/a', fichier: null }]],
     ['un lieu au fichier vide', [{ paquet: 'packages/a', fichier: '' }]],
-  ])('un rouge sans fichier nommé (%s) n’est jamais attribué : il monte', (_nom, lieux) => {
-    const r = attribuerLeRouge({ lieux, portes: PORTES });
-    expect(r.etape).toBeNull();
-    expect(r.fichiers).toEqual([]);
-    expect(r.motif).toEqual(expect.any(String));
+    ['un lieu sans fichier hors du plan', [{ fichier: null, dansLePlan: false }]],
+  ])(
+    'un rouge sans fichier nommé hors du plan (%s) n’est jamais attribué : il monte',
+    (_nom, lieux) => {
+      const r = attribuerLeRouge({ lieux, portes: PORTES });
+      expect(r.etape).toBeNull();
+      expect(r.fichiers).toEqual([]);
+      expect(r.motif).toEqual(expect.any(String));
+    }
+  );
+
+  it('un rouge de tâche d’un paquet du plan, sans fichier (lint, typage, construction) : le développeur', () => {
+    expect(
+      attribuerLeRouge({
+        lieux: [{ paquet: '000-forms', fichier: null, gardes: [], dansLePlan: true }],
+        portes: PORTES,
+      })
+    ).toEqual({ etape: 'developpeur', fichiers: [] });
+  });
+
+  it('un rouge de tâche du plan à côté d’un fichier de test refusé par une garde : le testwriter d’abord', () => {
+    expect(
+      attribuerLeRouge({
+        lieux: [
+          { fichier: null, dansLePlan: true },
+          { fichier: 'packages/a/tests/x.spec.ts', gardes: ['tailles'], dansLePlan: true },
+        ],
+        portes: PORTES,
+      })
+    ).toMatchObject({ etape: 'testwriter', fichiers: ['packages/a/tests/x.spec.ts'] });
   });
 
   it('un fichier que ni le testwriter ni le développeur ne portent n’est pas attribué : il monte', () => {
