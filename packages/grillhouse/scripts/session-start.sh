@@ -11,6 +11,10 @@
 # written; the session start goes on. Without the key (or with null), nothing runs; a value that is
 # not a non-blank string runs nothing and adds a line that says so. An agent's copy does not play it.
 #
+# The Node of the dependencies: a project whose dependencies were installed (`npm ci`) under
+# another binary interface of Node than the current one joins « Manque », with `npm ci`
+# (scripts/abi-des-dependances.mjs).
+#
 # The project's languages: a project whose docs/ARCHITECTURE.md declares none (the column
 # « Langage » of its table of the components, scripts/langages.mjs) joins « Manque » as « le
 # langage de chaque paquet », with the grill, which writes it, or with `npx grillhouse maj` for a
@@ -86,6 +90,10 @@ if [ -z "$copie_agent" ]; then
   [ -d "$root/.codegraph" ] || missing+=("l'index CodeGraph du code (\`codegraph init .\`)")
 fi
 [ ! -f "$root/package.json" ] || [ -d "$root/node_modules" ] || missing+=("les dépendances npm (\`npm install\`)")
+# Dependencies installed under another Node (scripts/abi-des-dependances.mjs): a native module
+# refuses the binary interface of the current one.
+abi="$(node "$ici/abi-des-dependances.mjs" --manque "$root" 2>/dev/null)"
+[ -z "$abi" ] || missing+=("$abi")
 # The project's languages (scripts/langages.mjs): a project whose docs/ARCHITECTURE.md declares
 # none (the column « Langage » of its table of the components) is refused by the frame's scripts
 # and locks until the grill writes it, or, for a project that holds the declaration of a former

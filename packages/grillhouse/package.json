@@ -180,5 +180,8 @@
       "tsdoc.json",
       "packages/grillhouse-essais/tests"
     ]
+  },
+  "engines": {
+    "node": ">=24.0.0"
   }
 }

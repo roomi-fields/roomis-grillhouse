@@ -23,10 +23,13 @@
 // - The merge driver of the CHANGELOG (scripts/fusion-du-changelog.mjs) is written in the
 //   repository's configuration by the same function, `poserCrochets`, which each `npm install`
 //   runs, as git asks a driver's command of the configuration, never of a versioned file.
+// - Under `npm ci`, the same `prepare` writes the mark of the Node the dependencies were installed
+//   under (scripts/abi-des-dependances.mjs), which the session start compares with the current one.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { marquerApresInstallation } from './abi-des-dependances.mjs';
 import { poserLePilote } from './fusion-du-changelog.mjs';
 
 // The project's command, which the frame's lines run.
@@ -137,5 +140,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
   } else {
     poserCrochets(projet);
+    marquerApresInstallation(projet);
   }
 }

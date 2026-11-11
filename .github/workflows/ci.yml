@@ -7,7 +7,7 @@ on:
     branches: [main, develop, 'agent/**']
   pull_request:
     branches: [main, develop]
-  # Once a night, on the default branch: Node 22 and 24.
+  # Once a night, on the default branch: Node 24 and 26.
   schedule:
     - cron: '0 2 * * *'
   # The release (release.yml) plays the CI on the tagged commit before it publishes, on the
@@ -17,7 +17,7 @@ on:
       node-versions:
         description: 'The versions of Node to play, a JSON array'
         type: string
-        default: '["22.x"]'
+        default: '["26.x"]'
 
 # The pass of the verification in n + 2 jobs per version of Node, as Vitest shards a run
 # (https://vitest.dev/guide/improving-performance#sharding): `gardes` plays every task but the
@@ -33,11 +33,11 @@ jobs:
     # The machine of the jobs: the variable RUNNER of the repository, GitHub's runner without it.
     runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
 
-    # The versions come from the input of the call; push and pull request play Node 22 alone,
-    # the nightly schedule plays Node 22 and 24.
+    # The versions come from the input of the call; push and pull request play Node 26 alone,
+    # the nightly schedule plays Node 24 and 26.
     strategy:
       matrix:
-        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["22.x","24.x"]' || '["22.x"]')) }}
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
 
     steps:
       - name: Checkout
@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["22.x","24.x"]' || '["22.x"]')) }}
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
         tranche: [1, 2, 3]
 
     steps:
@@ -137,7 +137,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["22.x","24.x"]' || '["22.x"]')) }}
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
 
     steps:
       - name: Checkout
@@ -174,7 +174,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '26'
           cache: 'npm'
 
       - name: Install dependencies

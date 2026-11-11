@@ -986,6 +986,22 @@ deux ajouts au même endroit sont gardés tous deux, ceux de main d'abord, et to
 reste un conflit. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
 recopier.
 
+**Les dépendances notent le Node qui les a installées** : comme le fichier d'intégrité de Yarn
+garde le système pour lequel il a installé, une installation complète (`npm ci`) écrit
+l'interface binaire de son Node (`process.versions.modules`) dans `node_modules/.grillhouse-abi`
+(`scripts/abi-des-dependances.mjs`) : le `prepare` du projet sous `npm ci`, et la nuit après le
+sien ; `npm install` ne reconstruit rien de déjà installé et laisse la marque. La nuit réinstalle
+quand le `package-lock.json` bouge ou quand la marque n'est pas celle de son Node, absente
+comprise ; l'ouverture de séance nomme sous « Manque » une marque d'un autre Node, avec
+`npm ci`. Ainsi un module natif construit pour un autre Node se reconstruit au lieu de refuser
+de charger.
+
+**Le cadre tourne sur le support long actif de Node** (le calendrier de nodejs.org) : le poste et
+la CI de chaque lot sur Node 26, la nuit de GitHub et la sortie sur Node 24 et 26, le plus ancien
+support long encore maintenu ; `engines.node` vaut `>=24.0.0` à la racine, dans le paquet et dans
+le gabarit, dont le `packageManager` nomme le npm livré avec Node 26. Ainsi un projet ne dépend
+jamais d'un Node en fin de vie.
+
 **Le dépôt du cadre se mène avec une version publiée** : comme rustc se construit avec son
 stage0 (un compilateur publié, fixé dans `src/stage0`, téléchargé dans un cache) et Bazel avec un
 Bazel publié, l'outil qui orchestre est une version publiée, et le code construit et testé est

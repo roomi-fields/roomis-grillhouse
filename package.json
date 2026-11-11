@@ -30,7 +30,7 @@
     "grillhouse:dette:elaguer": "turbo run build && GRILLHOUSE_DETTE=elaguer npm run --silent grillhouse:gardes"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "devDependencies": {
     "@roomi-fields/grillhouse": "*",
@@ -46,7 +46,7 @@
     "vitest": "^2.0.0",
     "zod": "^3.22.0"
   },
-  "packageManager": "npm@10.9.8",
+  "packageManager": "npm@11.20.0",
   "grillhouse": {
     "outil": "0.32.0",
     "flux": {
@@ -68,5 +68,10 @@
       ]
     },
     "circuits": 2
+  },
+  "allowScripts": {
+    "@swc/core": false,
+    "protobufjs": false,
+    "esbuild": false
   }
 }

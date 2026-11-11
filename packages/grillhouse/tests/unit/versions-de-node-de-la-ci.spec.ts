@@ -1,6 +1,6 @@
-// The versions of Node the CI plays: Node 22 alone for each batch (push, pull request), Node 22
-// and 24 at night (schedule) and at the release, in each job of the verification (the guards, the
-// tranches, their merge); the build job stays on Node 22.
+// The versions of Node the CI plays: Node 26 alone for each batch (push, pull request), Node 24
+// and 26 at night (schedule) and at the release, in each job of the verification (the guards, the
+// tranches, their merge); the build job plays Node 26.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -53,20 +53,20 @@ function versionsJouees(ctx: Contexte, job = 'tranches'): string[] {
 const nombre = (v: string) => Number.parseInt(v, 10);
 
 describe('the versions of Node the CI plays', () => {
-  it('a push plays Node 22 alone', () => {
-    expect(versionsJouees({ event: 'push' }).map(nombre)).toEqual([22]);
+  it('a push plays Node 26 alone', () => {
+    expect(versionsJouees({ event: 'push' }).map(nombre)).toEqual([26]);
   });
 
-  it('a pull request plays Node 22 alone', () => {
-    expect(versionsJouees({ event: 'pull_request' }).map(nombre)).toEqual([22]);
+  it('a pull request plays Node 26 alone', () => {
+    expect(versionsJouees({ event: 'pull_request' }).map(nombre)).toEqual([26]);
   });
 
   it('the push and pull request triggers stay, on main and develop', () => {
     expect(Object.keys(ci.on)).toEqual(expect.arrayContaining(['push', 'pull_request']));
   });
 
-  it('the scheduled run plays Node 22 and 24', () => {
-    expect(versionsJouees({ event: 'schedule' }).map(nombre)).toEqual([22, 24]);
+  it('the scheduled run plays Node 24 and 26', () => {
+    expect(versionsJouees({ event: 'schedule' }).map(nombre)).toEqual([24, 26]);
   });
 
   it('the schedule trigger runs once a night, on the default branch (no branch filter)', () => {
@@ -78,15 +78,15 @@ describe('the versions of Node the CI plays', () => {
     expect(champs.slice(2)).toEqual(['*', '*', '*']);
   });
 
-  it('the CI declares the input node-versions, default Node 22 alone', () => {
+  it('the CI declares the input node-versions, default Node 26 alone', () => {
     const entree = (ci.on.workflow_call as { inputs: Record<string, { default?: string }> }).inputs[
       'node-versions'
     ];
     expect(entree).toBeDefined();
-    expect(JSON.parse(entree.default ?? 'null')).toEqual(['22.x']);
+    expect(JSON.parse(entree.default ?? 'null')).toEqual(['26.x']);
   });
 
-  it('the matrix reads the versions of the input of the call, with no fixed list of 22 and 24', () => {
+  it('the matrix reads the versions of the input of the call, with no fixed list of versions', () => {
     expect(versionsJouees({ event: 'workflow_call', entree: '["22.x","24.x"]' })).toEqual([
       '22.x',
       '24.x',
@@ -109,17 +109,17 @@ describe('the versions of Node the CI plays', () => {
     }
   });
 
-  it('the build job stays on Node 22 whatever the matrix', () => {
+  it('the build job plays Node 26 whatever the matrix', () => {
     const setup = (ci.jobs.build.steps ?? []).find(e => e.uses?.startsWith('actions/setup-node'));
-    expect(String(setup?.with?.['node-version'])).toBe('22');
+    expect(String(setup?.with?.['node-version'])).toBe('26');
     expect(ci.jobs.build.strategy).toBeUndefined();
   });
 
-  it('the release plays the CI on Node 22 and 24 before it publishes', () => {
+  it('the release plays the CI on Node 24 and 26 before it publishes', () => {
     const appel = sortie.jobs.ci;
     expect(appel.uses).toBe('./.github/workflows/ci.yml');
     const versions = JSON.parse(appel.with?.['node-versions'] ?? 'null') as string[];
-    expect(versions.map(nombre)).toEqual([22, 24]);
+    expect(versions.map(nombre)).toEqual([24, 26]);
     const publication = Object.entries(sortie.jobs).find(([nom]) => nom !== 'ci')![1];
     expect([publication.needs].flat()).toContain('ci');
   });

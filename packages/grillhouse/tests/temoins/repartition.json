@@ -1,6 +1,7 @@
 {
   "noyau": [
     "bin/grillhouse.mjs",
+    "scripts/abi-des-dependances.mjs",
     "scripts/activites.mjs",
     "scripts/aiguillage.mjs",
     "scripts/aiguillage.d.mts",
@@ -89,6 +90,7 @@
     "scripts/migrations/0.30.0-ci-appelle-la-verification.mjs",
     "scripts/migrations/0.31.0-paquets-dans-le-graphe.mjs",
     "scripts/migrations/0.33.0-ci-des-branches-de-ticket.mjs",
+    "scripts/migrations/0.33.0-node-26.mjs",
     "scripts/newday.mjs",
     "scripts/nuit.sh",
     "scripts/outil.mjs",

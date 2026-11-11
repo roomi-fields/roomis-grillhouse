@@ -16,7 +16,9 @@
 #   file removed, its submodules set at the commit of HEAD (scripts/sous-modules.sh, a local
 #   modification overwritten; one that cannot be set turns the night red; a submodule the project
 #   shares, `grillhouse.partage`, is linked to the main repository's instead, not set),
-#   dependencies reinstalled (npm ci) when package-lock.json changes, then
+#   dependencies reinstalled (npm ci) when package-lock.json changes or when the Node that plays
+#   the night is not the one they were installed under (its binary interface, the mark of
+#   scripts/abi-des-dependances.mjs, which the night writes after its `npm ci`), then
 #   `npm run verifier -- --force`: the build, the guards (the frame's and the project's own, its
 #   root script `gardes`) and every test of the day, each task played for real (`--force`, no log
 #   replayed from a cache, no measure against the last green: the complete pass); green, its tree
@@ -255,9 +257,12 @@ jouer() {
     return 1
   fi
   eval "$donnees"
-  if [ -f "$copie/package-lock.json" ] && ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"; then
+  # The dependencies, installed again when the lock moved or when they were installed under
+  # another Node (scripts/abi-des-dependances.mjs: a native module refuses another interface).
+  if [ -f "$copie/package-lock.json" ] && { ! cmp -s "$copie/package-lock.json" "$copie/node_modules/.nuit-lock" || ! node "$ici/abi-des-dependances.mjs" --a-jour "$copie"; }; then
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
+    node "$ici/abi-des-dependances.mjs" --marquer "$copie"
   fi
   # The frame's package, built once when the copy carries it as a package of the repository (one
   # the `workspaces` of its root select, as scripts/paquets.mjs maps them, named

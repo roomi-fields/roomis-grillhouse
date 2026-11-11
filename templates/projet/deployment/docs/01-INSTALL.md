@@ -2,14 +2,14 @@
 
 ## Prerequisites
 
-- **Node.js**: Version 18.0.0 or higher
+- **Node.js**: Version 24.0.0 or higher (26, the active LTS, recommended)
 - **npm**: Comes with Node.js (or use yarn/pnpm)
 - **Git**: For cloning the repository (if installing from source)
 
 ### Verify Prerequisites
 
 ```bash
-node --version   # Should be >= 18.0.0
+node --version   # Should be >= 24.0.0
 npm --version    # Should be >= 8.0.0
 ```
 
@@ -135,8 +135,8 @@ npm install
 
 ```bash
 # Using nvm to switch Node versions
-nvm install 20
-nvm use 20
+nvm install 26
+nvm use 26
 ```
 
 ## Next Steps

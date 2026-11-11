@@ -57,7 +57,7 @@ describe('the night of the frame on GitHub', () => {
 
   it('plays the versions of Node the nightly CI plays', () => {
     for (const j of jobs) {
-      expect(j.strategy?.matrix?.['node-version']).toEqual(['22.x', '24.x']);
+      expect(j.strategy?.matrix?.['node-version']).toEqual(['24.x', '26.x']);
     }
   });
 });
