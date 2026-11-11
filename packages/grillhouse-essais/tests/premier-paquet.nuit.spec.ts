@@ -1,3 +1,4 @@
+// @poste: les binaires du module cargo (cargo-nextest, cargo-deny, sccache), que la création du paquet installe quand la machine ne les a pas
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,

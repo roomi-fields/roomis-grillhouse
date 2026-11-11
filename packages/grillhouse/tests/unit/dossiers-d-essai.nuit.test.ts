@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap (les tests de nuit de l'enveloppe, joués par leur nom)
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

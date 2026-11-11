@@ -211,10 +211,11 @@ fi
 # The nights run under the schedule of the machine (src/temporal/nuits/, `npx grillhouse nuit
 # --planifier`), no longer by the table of tasks: a line of the crontab that still launches a night
 # (`grillhouse nuit`, or a nuit.sh) is named, with the proposal to remove it, so that the table and
-# the schedule never play two nights at once.
+# the schedule never play two nights at once. The lines are joined by « ; », each one as the table
+# writes it, its own semicolons kept.
 nuit_en_table=
 if command -v crontab >/dev/null 2>&1; then
-  nuit_en_table="$(crontab -l 2>/dev/null | grep -v '^[[:space:]]*#' | grep -E 'grillhouse nuit|nuit\.sh' | paste -sd ';' - | sed 's/;/ ; /g')"
+  nuit_en_table="$(crontab -l 2>/dev/null | grep -v '^[[:space:]]*#' | grep -E 'grillhouse nuit|nuit\.sh' | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/ ; /g')"
 fi
 
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.

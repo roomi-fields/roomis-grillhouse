@@ -81,6 +81,21 @@ describe('the marks of the poste a night test shows', () => {
     expect(dependancesDu('/p/f.nuit.spec.ts', lire, '/p')).toEqual(["l'enveloppe bwrap"]);
   });
 
+  it('names the envelope for its night tests played by their name, and the binaries of the module cargo for the template of a project of Rust', () => {
+    const lire = lecteur({
+      'a.nuit.spec.ts':
+        "const L = ['enveloppe.lanceur', 'verrous'].map(f => `tests/${f}.nuit.spec.ts`);\n",
+      'b.nuit.spec.ts':
+        "const G = JSON.parse(readFileSync(path.join(RACINE, 'templates/cargo/package.json'), 'utf8'));\n",
+      'c.nuit.spec.ts': "const S = ['tests/unit/enveloppe.spec.ts', 'templates/typescript'];\n",
+    });
+    expect(dependancesDu('/p/a.nuit.spec.ts', lire, '/p')).toEqual(["l'enveloppe bwrap"]);
+    expect(dependancesDu('/p/b.nuit.spec.ts', lire, '/p')).toEqual([
+      'les binaires du module cargo',
+    ]);
+    expect(dependancesDu('/p/c.nuit.spec.ts', lire, '/p')).toEqual([]);
+  });
+
   it('the command claude started for its plugins or its version, and a mark in a comment, are none', () => {
     const lire = lecteur({
       'a.nuit.spec.ts':

@@ -541,10 +541,10 @@ describe('the update installs Turborepo', () => {
     expect(json(propre, 'package.json').packageManager).toBe('npm@9.0.0');
   });
   // The copies of the tickets, which the frame writes (IGNORES_DU_CADRE, grillhouse-icj), then
-  // what Turborepo writes.
-  it('a project without .gitignore receives one that ignores the copies of the tickets and .turbo/', () => {
+  // what the tools of TypeScript write: Turborepo's .turbo and Vitest's .vitest-reports.
+  it('a project without .gitignore receives one that ignores the copies of the tickets, .turbo/ and .vitest-reports/', () => {
     expect(lire(installe({ name: 'p' }).projet, '.gitignore')).toBe(
-      '.claude/worktrees/\n.turbo/\n'
+      '.claude/worktrees/\n.turbo/\n.vitest-reports/\n'
     );
   });
   it('a .gitignore without .turbo receives the lines once, its own lines kept, even without a final newline', () => {
@@ -552,9 +552,13 @@ describe('the update installs Turborepo', () => {
     ecrire(projet, 'package.json', '{"name":"p"}\n');
     ecrire(projet, '.gitignore', 'node_modules\ndist');
     mettreAJour(projet, DEPOT);
-    expect(lire(projet, '.gitignore')).toBe('node_modules\ndist\n.claude/worktrees/\n.turbo/\n');
+    expect(lire(projet, '.gitignore')).toBe(
+      'node_modules\ndist\n.claude/worktrees/\n.turbo/\n.vitest-reports/\n'
+    );
     mettreAJour(projet, DEPOT);
-    expect(lire(projet, '.gitignore')).toBe('node_modules\ndist\n.claude/worktrees/\n.turbo/\n');
+    expect(lire(projet, '.gitignore')).toBe(
+      'node_modules\ndist\n.claude/worktrees/\n.turbo/\n.vitest-reports/\n'
+    );
   });
   it.each(['.turbo', '/.turbo/'])('a .gitignore that already ignores it (%s) stays as it is', l => {
     const projet = mkdtempSync(path.join(ESSAIS, 'ignore-'));
