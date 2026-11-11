@@ -26,6 +26,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sortiesDuLangage } from '../../../../scripts/enveloppe/enveloppe.mjs';
 import { paquetsDuLangage } from '../../../../scripts/enveloppe/paquets-du-plan.mjs';
 import type { Langage } from '../../../../scripts/jointure.js';
+import { executablesDeTest } from '../../../../scripts/langages/cargo/commandes.mjs';
 import module from '../../../../scripts/langages/cargo/index.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
 import {
@@ -105,7 +106,11 @@ function lu(resultats: string) {
   const appels = readFileSync(JOURNAL, 'utf8')
     .split('\n')
     .filter(l => l && !l.startsWith('metadata '))
-    .map(l => l.replace(/--tool-config-file grillhouse:\S+ --profile grillhouse /, ''));
+    .map(l =>
+      l
+        .replace(/--tool-config-file grillhouse:\S+ --profile grillhouse /, '')
+        .replace(' --message-format=json-render-diagnostics', '')
+    );
   return { appels, verdict: cargo.verdict(resultats) };
 }
 
@@ -1053,5 +1058,62 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
       pression(60)
     );
     expect(charge.code).toBe(75);
+  });
+});
+
+describe('une copie ne garde pas les exécutables de test de sa passe', () => {
+  // The files the fake nextest saw in `<target>/debug/deps` as it started, then the folder after.
+  function vus(racine: string, args: string[] = [], codes: object = {}) {
+    const fichier = path.join(mkdtempSync(path.join(ESSAIS, 'vus-')), 'vus.jsonl');
+    const r = lancer(racine, 'tester', args, codes, { FAUX_CARGO_VUS: fichier });
+    const lignes: { deps: string; fichiers: string[] }[] = existsSync(fichier)
+      ? readFileSync(fichier, 'utf8')
+          .split('\n')
+          .filter(Boolean)
+          .map(l => JSON.parse(l) as { deps: string; fichiers: string[] })
+      : [];
+    return { r, lignes };
+  }
+
+  it('the test executables a run builds are there for nextest, and gone once its tests played', () => {
+    const { r, lignes } = vus(d.seul);
+    expect(r.code, r.stdout + r.stderr).toBe(0);
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0].fichiers).toEqual(
+      expect.arrayContaining(['seul-0000000000000002', 'bout-0000000000000003'])
+    );
+    expect(readdirSync(lignes[0].deps).sort()).toEqual(['libseul-0000000000000001.rlib']);
+  });
+
+  it('the library and the binary of the crate stay: another package’s tests may run the binary', () => {
+    const { r, lignes } = vus(d.seul);
+    expect(r.code).toBe(0);
+    const debug = path.dirname(lignes[0].deps);
+    expect(existsSync(path.join(debug, 'seul'))).toBe(true);
+    expect(existsSync(path.join(lignes[0].deps, 'libseul-0000000000000001.rlib'))).toBe(true);
+  });
+
+  it('a red test still leaves no test executable', () => {
+    const { r, lignes } = vus(d.seul, [], { 'nextest seul': 101 });
+    expect(r.code).toBe(1);
+    expect(readdirSync(lignes[0].deps).filter(f => /-000000000000000[23]$/.test(f))).toEqual([]);
+  });
+
+  it('cargo reads its build in JSON: the test executables of its messages, nothing else', () => {
+    const artefact = (test: boolean, executable: string | null) =>
+      JSON.stringify({ reason: 'compiler-artifact', profile: { test }, executable, filenames: [] });
+    const sortie = [
+      artefact(false, null),
+      artefact(false, '/c/target/debug/outil'),
+      artefact(true, '/c/target/debug/deps/outil-7b'),
+      artefact(true, '/c/target/debug/deps/integ-99'),
+      'warning: not JSON',
+      JSON.stringify({ reason: 'build-finished', success: true }),
+      '',
+    ].join('\n');
+    expect(executablesDeTest(sortie)).toEqual([
+      '/c/target/debug/deps/outil-7b',
+      '/c/target/debug/deps/integ-99',
+    ]);
   });
 });

@@ -66,7 +66,8 @@ function lancer(nom: string, args: string[] = [], env: NodeJS.ProcessEnv = {}) {
   });
   const cargoAppels = readFileSync(JOURNAL, 'utf8')
     .split('\n')
-    .filter(l => l && !l.startsWith('metadata '));
+    .filter(l => l && !l.startsWith('metadata '))
+    .map(l => l.replace(' --message-format=json-render-diagnostics', ''));
   return { code: r.status, stderr: r.stderr, cargoAppels, turbo: appelsDeTurbo(JOURNAL_TURBO) };
 }
 

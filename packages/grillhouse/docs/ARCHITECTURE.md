@@ -1543,7 +1543,15 @@ tests par l'interface sous `tests/` d'un crate, les tests unitaires près de leu
 déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; un test de nuit `tests/<nom>_nuit.rs` et un banc de temps `tests/<nom>_budget.rs`, reconnus au nom de leur cible ; les tests par nextest puis les doctests, après la construction des cibles de
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
-« construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; ces tests sont la
+« construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; une fois ses tests
+et ses bancs joués, la tâche retire les exécutables de test que sa construction a produits, ceux
+que cargo déclare dans ses messages JSON (`--message-format=json-render-diagnostics`, l'`executable`
+d'un artefact d'un profil de test), comme le cache Rust de référence des CI (Swatinem/rust-cache)
+garde les dépendances et retire les artefacts propres à l'espace de travail : ils tenaient 3,4 des
+4,6 Gio d'une copie de synthhub, et cargo reconstruit à la passe suivante l'exécutable qui lui
+manque ; les dépendances, les bibliothèques et les binaires de `cargo build` (la sortie d'un crate
+que les tests d'un autre paquet lancent, `grillhouse.donnees`) restent, et seule la tâche du crate
+joue ses exécutables de test ; ces tests sont la
 tâche `test:unit` de chaque crate, jouée par Turborepo (`tests-du-paquet`, grillhouse-44b.5) ; la
 vérification par cargo-deny, après les tâches de Turborepo des crates, sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
 sans compilation incrémentale (`CARGO_INCREMENTAL=0`, comme la CI de Rust : une copie compile une

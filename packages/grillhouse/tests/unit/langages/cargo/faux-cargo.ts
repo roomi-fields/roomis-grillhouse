@@ -20,7 +20,12 @@ import path from 'node:path';
 // - `cargo test --no-run -p <crate> [--test <nom>]…`: the build of the crate's test targets, its
 //   code under the key `build <crate>` or `build` of `FAUX_CARGO_CODES`; red, it writes on its
 //   error stream the errors of rustc of a test that calls a name the crate does not have yet
-//   (grillhouse-egm, as OSD-b91.2.3's tests calling `osd::convert`).
+//   (grillhouse-egm, as OSD-b91.2.3's tests calling `osd::convert`). Green with
+//   `--message-format=json…`, it writes under `<target>/debug` (`CARGO_TARGET_DIR` or
+//   `<racine>/target`) the crate's library (`deps/lib<nom>-….rlib`) and binary (`<nom>`), outside
+//   a test profile, and the test executable of each target built (`deps/<nom>-…`: the library's
+//   and the binary's, each test target's, or the ones `--test <nom>` names alone), each one a
+//   `compiler-artifact` message on its output stream, as cargo's (grillhouse-pkl.8).
 // - `cargo nextest run -p <crate> [--test <nom>]…`: writes the JUnit report of the profile
 //   `grillhouse` under `target/nextest/grillhouse/junit.xml`, one suite per test binary of the
 //   crate (the library, each test target, or the ones `--lib` and `--test <nom>` name), one test
@@ -37,7 +42,8 @@ import path from 'node:path';
 //   as a test that forgets its file; under `FAUX_CARGO_ATTENDRE`, waits that many ms, as a long
 //   test (grillhouse-nt4). Under `FAUX_CARGO_TEMPORAIRES`, each nextest adds there a JSON line
 //   `{ crate, TMPDIR, TMP, TEMP }`; `FAUX_CARGO_RESTE_DE=<crate>` limits `FAUX_CARGO_RESTE` to
-//   that crate's runs.
+//   that crate's runs. Under `FAUX_CARGO_VUS`, each nextest adds there a JSON line `{ crate, deps,
+//   fichiers }`: the folder `<target>/debug/deps` and the files it holds as nextest starts.
 // - Under `FAUX_CARGO_COMPILATEUR`, each call adds there a line `<sous-commande>
 //   RUSTC_WRAPPER=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur> TMPDIR=<valeur>`:
 //   the wrapper of rustc it was given, the cache of sccache and the socket of its server
@@ -165,6 +171,11 @@ if (sous === 'nextest' && process.env.FAUX_CARGO_TEMPORAIRES) {
 if (sous === 'nextest' && process.env.FAUX_CARGO_RESTE && (!process.env.FAUX_CARGO_RESTE_DE || process.env.FAUX_CARGO_RESTE_DE === nomme)) {
   fs.writeFileSync(path.join(process.env.TMPDIR, process.env.FAUX_CARGO_RESTE), '');
 }
+if (sous === 'nextest' && process.env.FAUX_CARGO_VUS) {
+  const deps = path.resolve(process.env.CARGO_TARGET_DIR || path.join(racine, 'target'), 'debug', 'deps');
+  const fichiers = fs.existsSync(deps) ? fs.readdirSync(deps).sort() : [];
+  fs.appendFileSync(process.env.FAUX_CARGO_VUS, JSON.stringify({ crate: nomme, deps, fichiers }) + '\\n');
+}
 if (sous === 'nextest' && process.env.FAUX_CARGO_ATTENDRE) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(process.env.FAUX_CARGO_ATTENDRE));
 }
@@ -220,6 +231,24 @@ if (sous === 'nextest') {
   const j = path.join(racine, 'target', 'nextest', 'grillhouse');
   fs.mkdirSync(j, { recursive: true });
   fs.writeFileSync(path.join(j, 'junit.xml'), xml);
+}
+if (sous === 'build' && code === 0 && args.some(a => a.startsWith('--message-format=json'))) {
+  const c = dossiers.map(crate).find(p => p.name === nomme);
+  const cible = path.resolve(process.env.CARGO_TARGET_DIR || path.join(racine, 'target'), 'debug');
+  fs.mkdirSync(path.join(cible, 'deps'), { recursive: true });
+  const message = (t, test, executable, filenames) => {
+    for (const f of filenames) fs.writeFileSync(f, '');
+    process.stdout.write(JSON.stringify({ reason: 'compiler-artifact', target: { kind: t.kind, name: t.name }, profile: { test }, executable, filenames, fresh: false }) + '\\n');
+  };
+  for (const t of c.targets) {
+    if (t.kind[0] === 'test' && nommees.length && !nommees.includes(t.name)) continue;
+    if (t.kind[0] === 'lib') message(t, false, null, [path.join(cible, 'deps', 'lib' + t.name + '-0000000000000001.rlib')]);
+    if (t.kind[0] === 'bin') message(t, false, path.join(cible, t.name), [path.join(cible, t.name)]);
+    if (nommees.length && t.kind[0] !== 'test') continue;
+    const exe = path.join(cible, 'deps', t.name.replace(/-/g, '_') + '-000000000000000' + (t.kind[0] === 'test' ? '3' : '2'));
+    message(t, true, exe, [exe]);
+  }
+  process.stdout.write('{"reason":"build-finished","success":true}\\n');
 }
 process.exit(code);
 `;

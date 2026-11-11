@@ -34,7 +34,14 @@
 //   (./composants.mjs, `joueDesTests`): the build of its test targets, `cargo test --no-run -p
 //   <crate>`, a task `build` of its own, as Turborepo's `test` depends on `build` (grillhouse-egm);
 //   then `cargo nextest run -p <crate> --no-fail-fast`, which finds them built. Then `cargo test
-//   --doc -p <crate>` for a crate whose library has doctests, which nextest does not play. A failed
+//   --doc -p <crate>` for a crate whose library has doctests, which nextest does not play. Once
+//   the tests and the benches played, the run removes the test executables its builds made, each
+//   one cargo reports in JSON (`--message-format=json-render-diagnostics`, the `executable` of an
+//   artifact of a test profile), as Swatinem/rust-cache keeps the dependencies and drops the
+//   workspace's own artifacts: they weighed 3.4 of the 4.6 GiB of a copy of SyntHub
+//   (grillhouse-pkl.8), and cargo builds again an executable it misses. The libraries, the
+//   dependencies and the binaries of `cargo build` (`target/debug/<bin>`, a datum another package's
+//   tests run) stay; only the crate's own task runs its test executables. A failed
 //   build leaves the crate's other tasks not played (`code` null): a test that does not compile is
 //   a red of the build, which the proof of the red reads as one (« construction de <crate> »,
 //   scripts/circuit.mjs), and the tests play at the checks. The output of the build goes to its log,
@@ -182,6 +189,9 @@ const VERROU = 'Cargo.lock';
 const VERROUILLEES = ['tests-du-paquet', 'verifier', 'preparer', 'tests-de-nuit'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
 const COMPILENT = ['tests-du-paquet', 'verifier', 'typer', 'construire', 'tests-de-nuit'];
+// The format of the build of the test targets: the messages of cargo in JSON on its output stream,
+// its diagnostics rendered on its error stream, as without it (`executablesDeTest`).
+const MESSAGES = '--message-format=json-render-diagnostics';
 // The kinds of a target that are no library.
 const PAS_UNE_BIBLIOTHEQUE = ['test', 'bin', 'example', 'bench', 'custom-build'];
 
@@ -288,7 +298,13 @@ function passe(racine, env) {
     },
     jouer(
       { t, args },
-      { junit = null, journal = null, programme = 'cargo', temporaire = {} } = {}
+      {
+        junit = null,
+        journal = null,
+        programme = 'cargo',
+        temporaire = {},
+        executables = null,
+      } = {}
     ) {
       // A report of an earlier run is no report of this one, which may write none.
       if (junit) {
@@ -307,13 +323,19 @@ function passe(racine, env) {
         mkdirSync(path.dirname(journal), { recursive: true });
         const fd = openSync(journal, 'w');
         try {
+          // With <executables>, cargo's messages in JSON come on its output stream, read, out of
+          // the log (`executablesDeTest`).
           r = spawnSync(programme, args, {
             cwd: racine,
             env: { ...compilation, ...temporaire },
-            stdio: ['inherit', fd, fd],
+            stdio: ['inherit', executables ? 'pipe' : fd, fd],
+            maxBuffer: 256 * 1024 * 1024,
           });
         } finally {
           closeSync(fd);
+        }
+        if (executables && r.stdout) {
+          executables.push(...executablesDeTest(r.stdout.toString('utf8')));
         }
         process.stderr.write(readFileSync(journal, 'utf8'));
         t.journal = path.relative(racine, journal);
@@ -353,6 +375,29 @@ function passe(racine, env) {
       return rouges.every(t => t.code === A_REPASSER) ? A_REPASSER : 1;
     },
   };
+}
+
+/**
+ * The test executables cargo reports in its messages in JSON <sortie> (`--message-format`, one
+ * message a line): the `executable` of each `compiler-artifact` built under a test profile
+ * (`profile.test`), fresh or rebuilt; a line that is no message is passed over.
+ * @param {string} sortie
+ * @returns {string[]}
+ */
+export function executablesDeTest(sortie) {
+  const vus = [];
+  for (const ligne of sortie.split('\n')) {
+    let m;
+    try {
+      m = JSON.parse(ligne);
+    } catch {
+      continue;
+    }
+    if (m?.reason === 'compiler-artifact' && m.profile?.test && typeof m.executable === 'string') {
+      vus.push(m.executable);
+    }
+  }
+  return vus;
 }
 
 // A red of the time budget benches of the task <t>, the pressures <pressions> measured at its start
@@ -397,6 +442,8 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
   nextest.push(...j);
   const parCrate = [];
   const bancs = [];
+  // The test executables the builds of the run report, removed once its tests played.
+  const executables = [];
   for (const { c, cibles: nommees, jour } of choix) {
     // Targets named beside the day of the crate (`jour`, a unit test of `src/` named): the day
     // builds whole, and plays besides the targets named.
@@ -416,12 +463,13 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
       const construction = [
         'test',
         '--no-run',
+        MESSAGES,
         ...j,
         '-p',
         nom,
         ...(avecLeJour ? [] : cibles.flatMap(n => ['--test', n])),
       ];
-      prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal }]);
+      prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal, executables }]);
       if (cibles.length === 0 || autres.length || avecLeJour) {
         const duC = duJour(c);
         const nommes = autres.flatMap(n => ['--test', n]);
@@ -474,6 +522,10 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
       if (etat.construit) {
         p.jouer(t, { junit, temporaire });
       }
+    }
+    // The copy keeps no test executable between two passes: cargo builds again the one it misses.
+    for (const f of executables) {
+      rmSync(f, { force: true });
     }
   };
 }
