@@ -250,6 +250,18 @@ qui suit, et seule une vraie panne l'arrête (la commande introuvable, ou tuée 
 reste rouge. Ainsi aucun fichier engendré n'attend une main (BP 320.9 : 292 min autour des
 références, dont 163 d'attente).
 
+Une garde à dette neuve du cadre arrive avec sa migration, comme les codemods de `nx migrate` ou les
+baselines d'ESLint : la garde `migrations-des-gardes` (`scripts/migrations-des-gardes.mjs`, jouée
+par `grillhouse:gardes`) lit les textes, sans charger de module, et refuse un script sous `scripts/`
+ou `scripts/langages/*/` qui appelle `trancher(` de `scripts/dette.mjs` sans qu'une migration
+(sous `scripts/migrations/` ou `scripts/langages/*/migrations/`, jouée par `scripts/migrations.mjs`
+ou l'index de son langage) importe son script et inscrive son nom par `trancher(projet, GARDE,
+constats, 'inscrire')`, sur le patron de `0.30.0-tailles-des-outils-lourds.mjs`. Les gardes sans
+migration à l'entrée du lot sont sa propre dette gelée (section `migrations-des-gardes`, règle
+`garde-sans-migration`), qui s'élague quand une garde reçoit la sienne. Elle ne juge que les scripts du dépôt où elle joue,
+c'est-à-dire ceux du cadre chez lui : des scripts installés sous `node_modules` ou hors de la racine
+ne sont jamais refusés, et un projet qui monte le cadre la voit verte.
+
 Comme `--update-snapshots` et `rustc --bless`, la régénération ne réécrit que ses sorties : un
 constat d'une garde d'une référence du projet sur un fichier du plan que ses fichiers ne couvrent
 pas vise le code du lot, et va au développeur, aux contrôles du plan comme à la passe finale ; son

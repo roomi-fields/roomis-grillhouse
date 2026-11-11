@@ -26,6 +26,7 @@ import { pathToFileURL } from 'node:url';
 import { SCRIPT as DEPENDANCES_INTERNES } from './dependances-internes.mjs';
 import { SCRIPT as LANGAGES_DES_PAQUETS } from './langages-des-paquets.mjs';
 import { SCRIPT as FLUX_DES_PAQUETS } from './flux-des-paquets.mjs';
+import { SCRIPT as MIGRATIONS_DES_GARDES } from './migrations-des-gardes.mjs';
 import { langageDe } from './langages.mjs';
 import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
 
@@ -36,6 +37,7 @@ export function gardesDuCadre(racine) {
     [LANGAGES_DES_PAQUETS],
     [DEPENDANCES_INTERNES],
     [FLUX_DES_PAQUETS],
+    [MIGRATIONS_DES_GARDES],
     ...langageDe(racine).gardes(racine),
   ];
 }

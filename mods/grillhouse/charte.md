@@ -194,7 +194,9 @@ dossier.
   un écart passe seulement inscrit, avec sa raison, dans la liste que le superviseur valide.
   Ainsi le cadre ne maintient aucune spécificité par composant.
 - **Une dette connue s'inscrit et se gèle** (`grillhouse-dette.json`) : une garde refuse tout
-  constat neuf, et le compte ne remonte jamais. Ainsi la dette ne fait que baisser.
+  constat neuf, et le compte ne remonte jamais. Une garde à dette neuve du cadre arrive avec sa
+  migration, qui inscrit la dette existante des projets (la garde des migrations des gardes refuse
+  celle qui n'en a pas). Ainsi la dette ne fait que baisser, et un projet monte sans geste à la main.
 - **Un flux de la CI déclare les paquets qu'il exerce, le relecteur le lit** (`grillhouse.flux` du
   `package.json` racine) : une garde refuse un flux sans entrée ou un paquet inconnu, et la
   consigne du relecteur nomme chaque flux que le lot touche. Ainsi un flux qui ne suit pas un

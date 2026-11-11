@@ -1,4 +1,61 @@
 {
+  "migrations-des-gardes": {
+    "packages/grillhouse/scripts/langages/cargo/clippy.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/cargo/frontieres.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/python/tailles-des-tests.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/typescript/code-mort.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/typescript/consommateurs-arbitres.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/typescript/consommateurs.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/typescript/frontieres.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/langages/typescript/resumes.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/lint-des-scripts.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/scripts/migrations-des-gardes.mjs": {
+      "garde-sans-migration": {
+        "count": 1
+      }
+    }
+  },
   "tailles-des-tests": {
     "packages/grillhouse/tests/temporal/commande.spec.ts": {
       "binaire-de-jour": {

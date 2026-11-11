@@ -82,6 +82,7 @@
     "scripts/mesure/avancement.mjs",
     "scripts/mesure/base-de-passe.mjs",
     "scripts/mesure/pression.mjs",
+    "scripts/migrations-des-gardes.mjs",
     "scripts/migrations.mjs",
     "scripts/migrations/0.23.0-charte-importee.mjs",
     "scripts/migrations/0.23.0-crochets-de-seance.mjs",
