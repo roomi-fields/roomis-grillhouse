@@ -127,8 +127,8 @@ import {
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
+import { garderLesResumes } from './resume-du-lanceur.mjs';
 import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
-import { garderLesResumes } from './verdict.mjs';
 
 const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, TYPAGE, SCRIPT_DES_TESTS];

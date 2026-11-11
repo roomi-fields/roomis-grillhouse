@@ -317,6 +317,14 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
   banc, pour qu'elle se joue comme lui (`<nom>.circuit-avant.test.<ext>`,
   `<nom>.circuit-avant.nuit.test.<ext>`, `<nom>.circuit-avant.budget.test.<ext>`), ou null pour un
   fichier que l'outil ne joue pas.
+- `resumesDuLancement`, `garderLesResumes`, `lireLesResumes` (facultatifs, `typescript` seul, qui pilote
+  Turborepo) : le résumé de passe que Turborepo écrit sous `--summarize`. `resumesDuLancement` nomme
+  ceux d'une racine avant un lancement ; `garderLesResumes` range ceux qu'un lancement a écrits dans
+  le dossier de résultats, ou les retire sans lui ; `lireLesResumes` rend chaque tâche du dossier
+  (identifiant, paquet, script, code, statut de cache, journal). Le noyau les sert aux modules
+  `cargo` et `python` : `lancerLesTaches` demande le résumé et le range quand un dossier de résultats
+  est nommé, et `tachesDuVerdict` joint les tâches du résumé à celles qu'un module a écrites (une
+  tâche relue du cache paraît avec le code 0, sans rapport).
 - `arbreDAvant` (`chemin`, `racine`) : vrai quand la version de HEAD d'un fichier de test se joue dans un
   arbre à elle (`cargo` : une cible `tests/<nom>.rs` ; `python` : un fichier que pytest joue), la
   copie où ce seul fichier est remplacé par sa version de HEAD, sous son propre nom, jamais un

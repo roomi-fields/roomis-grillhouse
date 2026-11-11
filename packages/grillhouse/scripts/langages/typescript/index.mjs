@@ -57,6 +57,7 @@ import {
   SCRIPT_DES_TESTS,
 } from '../../services-du-noyau.mjs';
 import { verdict } from './verdict.mjs';
+import { garderLesResumes, lireLesResumes, resumesDuLancement } from './resume-du-lanceur.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
 import { estHorsDuJour } from './vitest-config/cibles.mjs';
@@ -267,6 +268,10 @@ export default {
   // A night test, a bench or a time witness (./vitest-config/cibles.mjs, `estHorsDuJour`).
   horsDuJour: (chemin, racine) => estHorsDuJour(path.resolve(racine, chemin)),
   soeurDAvant,
+  // The summary of a run of Turborepo, which the core serves to the other modules.
+  resumesDuLancement,
+  garderLesResumes,
+  lireLesResumes,
   // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no tree, no name
   // to read.
   arbreDAvant: () => false,

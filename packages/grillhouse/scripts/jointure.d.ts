@@ -256,6 +256,15 @@ export interface Composition {
    * its class (day, night, bench), which the proof of the red writes, plays and removes; null for
    * a file that has none. */
   soeurDAvant?(chemin: string, racine: string): string | null;
+  /** Optional, for the module that drives the task runner (typescript), which the core serves to
+   * the others: the names of the summaries of a run present in `racine` before a run. */
+  resumesDuLancement?(racine: string): Set<string>;
+  /** Optional, typescript's alone: moves the summaries a run in `racine` wrote (absent from
+   * `avant`) into the results directory `env` names, or removes them without one. */
+  garderLesResumes?(racine: string, avant: Set<string>, env?: NodeJS.ProcessEnv): void;
+  /** Optional, typescript's alone: the tasks of the summaries under the results directory
+   * `dossier`, in their order, each with its cache status; `code` null for a task that did not run. */
+  lireLesResumes?(dossier: string): TacheDuResume[];
   /** Whether HEAD's version of the test file `chemin` (from `racine`) plays in a tree of its own,
    * the copy's with that file alone replaced, under the file's own name, which the proof of the
    * red builds, plays and removes (cargo, python); false for a file the tool cannot play so
@@ -502,6 +511,24 @@ export function lancerLesTaches(o: {
   tests?: { arguments: string[]; rejouer?: string };
   env?: NodeJS.ProcessEnv;
 }): number;
+/** A task of the summary of the task runner, or one a module wrote: `code` null for a task that did not run. */
+export interface TacheDuResume {
+  tache: string;
+  paquet: string;
+  dossier: string;
+  script: string;
+  tests: boolean;
+  code: number | null;
+  cache: string | null;
+  journal: string | null;
+}
+/** The tasks of the verdict of a language without a reading of the summary of its own (cargo,
+ * python): those of the summary under `dossier`, read by the module that drives the runner
+ * (`lireLesResumes`), then each of `ecrites` whose id they lack. */
+export function tachesDuVerdict<T extends { tache: string }>(
+  dossier: string,
+  ecrites: T[]
+): (TacheDuResume | T)[];
 /** The content of the variable `TESTS_CIBLES` for a targeted run: the paths and options it names, and
  * the moment of the run when `force` (the task plays for real); undefined when there is nothing to
  * carry. */

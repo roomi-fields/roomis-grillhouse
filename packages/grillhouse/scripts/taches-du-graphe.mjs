@@ -39,6 +39,8 @@ import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { lireLaListe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
+import { RESULTATS } from './resultats.mjs';
+import { langage } from './langages.mjs';
 
 /** The name of the script and of the task of the tests of a package, the same for every language. */
 export const SCRIPT_DES_TESTS = 'test:unit';
@@ -114,11 +116,17 @@ export function lancerLesTaches({ outil, racine, taches, noms = [], tests, env =
     e[TESTS_CIBLES] = JSON.stringify(tests);
   }
   const filtres = [...new Set(noms)].sort().map(n => `--filter=${n}`);
-  const r = spawnSync(outil, ['run', ...taches, ...filtres, '--continue=dependencies-successful'], {
-    cwd: racine,
-    stdio: 'inherit',
-    env: e,
-  });
+  // A named results directory asks the runner for its summary, kept there; the summaries of a run
+  // are never left in the project.
+  const resume = e[RESULTATS] ? ['--summarize'] : [];
+  const lanceur = langage('typescript');
+  const avant = lanceur.resumesDuLancement(racine);
+  const r = spawnSync(
+    outil,
+    ['run', ...taches, ...filtres, '--continue=dependencies-successful', ...resume],
+    { cwd: racine, stdio: 'inherit', env: e }
+  );
+  lanceur.garderLesResumes(racine, avant, e);
   return r.status ?? 1;
 }
 
@@ -378,4 +386,23 @@ export function construireDepuisLesArguments(outil, args, racine = process.cwd()
     return 2;
   }
   return construire(outil, racine, reste[0], echec);
+}
+
+/**
+ * The tasks of the verdict of a language that does not read the summary of the task runner itself
+ * (cargo, python): those of the summary under the results directory <dossier>, read by the module
+ * that drives the runner, then each of <ecrites> (the tasks the module wrote) whose id the summary
+ * lacks. A task of the tests that the cache replayed, with no exit code, is a success without
+ * report (code 0).
+ * @template {{ tache: string }} T
+ * @param {string} dossier
+ * @param {T[]} ecrites
+ * @returns {Array<import('./jointure.js').TacheDuResume | T>}
+ */
+export function tachesDuVerdict(dossier, ecrites) {
+  const resumees = langage('typescript')
+    .lireLesResumes(dossier)
+    .map(t => (t.tests && t.code === null && t.cache === 'HIT' ? { ...t, code: 0 } : t));
+  const ids = new Set(resumees.map(t => t.tache));
+  return [...resumees, ...ecrites.filter(t => !ids.has(t.tache))];
 }

@@ -10,6 +10,8 @@ import path from 'node:path';
 //   arguments, la variable des chemins nommés `GRILLHOUSE_TESTS` (null si absente) et le dossier
 //   temporaire `TMPDIR`.
 // - Avec `--dry=json`, il écrit `{ "tasks": [] }` et sort avec `FAUX_TURBO_CODE_DRY`, 0 sans elle.
+// - Avec `--summarize` et `FAUX_TURBO_RESUME`, il écrit ce texte en résumé `.turbo/runs/faux-resume.json`
+//   du dossier courant, comme Turborepo.
 // - Sinon il écrit `FAUX_TURBO_SORTIE` et sort avec `FAUX_TURBO_CODE`, 0 sans elle.
 const SCRIPT = `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -20,6 +22,10 @@ if (process.env.FAUX_TURBO_JOURNAL) {
 if (args.includes('--dry=json')) {
   process.stdout.write(JSON.stringify({ tasks: [] }));
   process.exit(Number(process.env.FAUX_TURBO_CODE_DRY || 0));
+}
+if (process.env.FAUX_TURBO_RESUME && args.includes('--summarize')) {
+  fs.mkdirSync('.turbo/runs', { recursive: true });
+  fs.writeFileSync('.turbo/runs/faux-resume.json', process.env.FAUX_TURBO_RESUME);
 }
 if (process.env.FAUX_TURBO_SORTIE) process.stdout.write(process.env.FAUX_TURBO_SORTIE);
 process.exit(Number(process.env.FAUX_TURBO_CODE || 0));

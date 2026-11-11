@@ -35,10 +35,13 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
   });
 
   it('it exports every member of the join, as the module typescript does', () => {
-    // grillhouse-3e2.3, criterion 8: soeurDAvant is typescript's alone.
+    // grillhouse-3e2.3, criterion 8: soeurDAvant and the Turborepo summary members are typescript's alone.
     expect(Object.keys(cargo).sort()).toEqual(
       Object.keys(typescript)
-        .filter(m => m !== 'soeurDAvant')
+        .filter(
+          m =>
+            !['soeurDAvant', 'resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m)
+        )
         .sort()
     );
   });

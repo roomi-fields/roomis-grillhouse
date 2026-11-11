@@ -30,6 +30,7 @@ export {
   nomDuPaquet,
   PASSE_ROUGE,
   SCRIPT_DES_TESTS,
+  tachesDuVerdict,
   TESTS_CIBLES,
   testsCibles,
   TRACE,

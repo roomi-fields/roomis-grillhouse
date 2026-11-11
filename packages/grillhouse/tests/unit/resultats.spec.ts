@@ -26,7 +26,12 @@ import {
   schemaDeFiche,
   VERDICTS_DU_TRI,
 } from '../../scripts/resultats.mjs';
-import { lireRapportsVitest, lireResumes } from '../../scripts/langages/typescript/verdict.mjs';
+import typescript from '../../scripts/langages/typescript/index.mjs';
+import { lireRapportsVitest } from '../../scripts/langages/typescript/verdict.mjs';
+
+// Le membre du module typescript, lu à l'appel : son absence rougit les deux tests qui le lisent.
+const lireResumes = (dossier: string) =>
+  (typescript as unknown as { lireLesResumes: (d: string) => unknown[] }).lireLesResumes(dossier);
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'resultats-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));

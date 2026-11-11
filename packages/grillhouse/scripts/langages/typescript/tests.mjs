@@ -99,8 +99,8 @@ import {
   tracesDuPlan,
 } from '../../services-du-noyau.mjs';
 import { paquets } from '../../paquets.mjs';
-import { garderLesResumes } from './verdict.mjs';
 import { RESULTATS } from '../../resultats.mjs';
+import { garderLesResumes } from './resume-du-lanceur.mjs';
 import { horsTypescript, planifier } from './turbo-des-paquets.mjs';
 
 const racine = process.cwd();

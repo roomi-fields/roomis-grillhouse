@@ -2,6 +2,9 @@
 // (scripts/jointure.d.ts): what ./commandes.mjs left in the results directory of a pass
 // (`GRILLHOUSE_RESULTATS`, scripts/resultats.mjs).
 //
+// - The tasks are those of the summary of the task runner (`tachesDuVerdict`, scripts/taches-du-graphe.mjs), a crate or a
+//   project the cache replayed included (`code` 0, no report); a task below that the summary
+//   lacks is added.
 // - `<dossier>/python/<run>.json`, one per run: `{ taches, rapports }`, each task as the join types
 //   it (`code` null for a task planned that did not run; `tests` true for a run of pytest), and the
 //   folder of the package of each JUnit report by its file's name.
@@ -11,6 +14,7 @@
 //   when it holds `skipped`; its message, the failure's.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { tachesDuVerdict } from '../../services-du-noyau.mjs';
 
 export const TACHES = 'python';
 export const JUNIT = 'pytest';
@@ -80,6 +84,9 @@ export function verdict(dossier) {
     rapports: fichiers(path.join(dossier, JUNIT), '.xml')
       .filter(f => dossiers[f])
       .flatMap(f => rapportsDe(readFileSync(path.join(dossier, JUNIT, f), 'utf8'), dossiers[f])),
-    taches: runs.flatMap(r => r.taches ?? []),
+    taches: tachesDuVerdict(
+      dossier,
+      runs.flatMap(r => r.taches ?? [])
+    ),
   };
 }

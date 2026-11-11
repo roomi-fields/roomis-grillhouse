@@ -74,10 +74,13 @@ const taches = (v: ReturnType<typeof lancer>) =>
 
 describe('grillhouse-ziy — le module python passe la suite de conformité', () => {
   it('it exports every member of the join, as the module typescript does', () => {
-    // grillhouse-3e2.3, criterion 8: soeurDAvant is typescript's alone.
+    // grillhouse-3e2.3, criterion 8: soeurDAvant and the Turborepo summary members are typescript's alone.
     expect(Object.keys(python).sort()).toEqual(
       Object.keys(typescript)
-        .filter(m => m !== 'soeurDAvant')
+        .filter(
+          m =>
+            !['soeurDAvant', 'resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m)
+        )
         .sort()
     );
   });
