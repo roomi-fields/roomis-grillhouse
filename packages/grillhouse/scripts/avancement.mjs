@@ -302,10 +302,10 @@ export function garderLeTotal(dossier) {
 /**
  * Who holds the lock of the machine under <env> and who waits for it, as the board shows them
  * (scripts/tableau.mjs): `detenteur`, its repository (`depot`, the root of its main tree, and
- * `projet`, its folder), ticket, kind, since when and progress
+ * `projet`, its folder), its working tree (`copie`, the main tree or a copy), ticket, kind, since when and progress
  * (`avancement`, its files done and planned and its last sign; null while it names no progress
  * directory, or that directory does not read), null when the lock is free or its process gone;
- * `attentes`, each live wait, the oldest first, its project, ticket, kind, what it waits for
+ * `attentes`, each live wait, the oldest first, its project, copy, ticket, kind, what it waits for
  * (`quoi`) and since when (`lireLeVerrou` of scripts/verrou-de-machine.mjs).
  * @param {Record<string, string | undefined>} [env]
  */
@@ -314,14 +314,16 @@ export function lireLaMesure(env = process.env) {
   return {
     detenteur: d && {
       depot: d.depot,
+      copie: d.copie ?? null,
       projet: d.projet,
       ticket: d.ticket,
       sorte: d.sorte,
       depuis: d.depuis,
       avancement: typeof d.dossier === 'string' ? lireAvancement(d.dossier) : null,
     },
-    attentes: attentes.map(({ depot, projet, ticket, sorte, quoi, depuis }) => ({
+    attentes: attentes.map(({ depot, copie, projet, ticket, sorte, quoi, depuis }) => ({
       depot,
+      copie: copie ?? null,
       projet,
       ticket,
       sorte,

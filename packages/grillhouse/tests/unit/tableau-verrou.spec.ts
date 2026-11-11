@@ -237,7 +237,7 @@ describe('critère 2 : each pass that waits has its line ⏳, after the holder',
     };
     const a = agents(machine, [circuit('demo-12'), circuit('demo-13')], tous);
     expect(a.find(l => l.ticket === 'demo-12')?.texte).toMatch(/^⏳ 12 {2}Le sujet de demo-12/);
-    expect(a.find(l => l.ticket === 'demo-13')?.texte).toMatch(/^▶ 13 {2}Le sujet de demo-13/);
+    expect(a.find(l => l.ticket === 'demo-13')?.texte).toMatch(/^▶ 13 {2}Le sujet/);
   });
 });
 
@@ -292,10 +292,11 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
 
   it('the lock at the head of AGENTS, ⏸ a stopped circuit, ⏳ the circuit that waits; ■ is gone', () => {
     const a = tete(deux().filter(x => x.section === 'agents'));
-    expect(a.slice(0, 2).map(x => x.texte)).toEqual([
-      '🔒 Mesure · roomis-grillhouse · 124/190 · 8 min',
-      '⏳ Contrôles · bp-mono · vbwf.3.11 · attend · 2 min',
-    ]);
+    expect(a[0].texte).toBe('🔒 Mesure · roomis-grillhouse · 124/190 · 8 min');
+    expect(a[1].texte).toMatch(/^▸ 1 · Plan/);
+    expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toContain(
+      ' · ⏳ contrôles · 2 min'
+    );
     expect(a.find(x => x.ticket === 'bp-mono-vbwf.320.6.2.1')?.texte).toMatch(/ ⏸$| ⏸ /);
     expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toMatch(/ ⏳$| ⏳ /);
     expect(deux().some(x => x.texte.includes('■'))).toBe(false);
@@ -393,5 +394,128 @@ describe('grillhouse-6ay critères 1, 6 et 11 : la ligne du verrou porte la phas
     expect(
       premiere({ detenteur: inscrit('Preuve du rouge', 'synthhub-cgi.15'), attentes: [] })
     ).toBe('🔒 Preuve du rouge · synthhub · cgi.15 · 34 s');
+  });
+});
+
+// The owner's decision (2026-11-11, grillhouse-bf5.5.1): the holder or a wait of a circuit AGENTS
+// shows stands on that circuit's line, one line per ticket; any other keeps its line, named by its
+// ticket, else by the folder of its copy; its project is named only when it is not the board's.
+describe('the lock on the line of its circuit, and the lines of the lock out of a circuit', () => {
+  const COPIES = '/dev/roomis-grillhouse/.claude/worktrees';
+  const SUJET = 'Le journal du ticket garde chaque étape du circuit et sa reprise';
+  const tous = [T('demo-5hn', SUJET), T('demo-6', 'Le sujet de demo-6')];
+  const PASSE = {
+    projet: 'depot',
+    ticket: 'demo-5hn',
+    sorte: 'Passe finale',
+    depuis: MAINTENANT - 2 * MIN,
+    avancement: {
+      faits: 54,
+      prevus: 311,
+      debut: MAINTENANT - 2 * MIN,
+      dernier: MAINTENANT - 3 * S,
+    },
+  };
+  // The circuit of 5hn at its final pass, whose own progress the lock replaces.
+  const finale = circuit('demo-5hn', {
+    finale: true,
+    avancement: { faits: 65, prevus: 311, debut: MAINTENANT - 2 * MIN, dernier: MAINTENANT - S },
+  });
+  const VERIFICATION = {
+    depot: '/dev/roomis-grillhouse',
+    copie: `${COPIES}/direct-panneau-file`,
+    projet: 'roomis-grillhouse',
+    ticket: null,
+    sorte: 'Vérification',
+    depuis: MAINTENANT - MIN,
+    quoi: 'verrou',
+  };
+  const lesLignes = (machine: Machine, circuits: object[] = [], largeur = LARGEUR) =>
+    (lignes(plateau('demo', tous, { circuits, machine }), 'depot', largeur) as Ligne[]).filter(
+      l => l.section === 'agents'
+    );
+
+  it('the holder of a circuit shown stands on its line: « · 🔒 <sorte> faits/prévus · <durée> », no line of its own', () => {
+    const a = lesLignes({ detenteur: PASSE, attentes: [] }, [finale]);
+    expect(a.filter(l => l.texte.includes('🔒'))).toHaveLength(1);
+    const l = a.find(x => x.ticket === 'demo-5hn')!;
+    expect(l.texte).toMatch(/^▶ 5hn {2}Le journal.*… · 🔒 passe finale 54\/311 · 2 min$/);
+    expect(l.texte).not.toContain('65/311');
+    expect(l).toMatchObject({ ton: 'actif', avancement: true });
+  });
+
+  it('a wait of a circuit shown stands on its line: « · ⏳ <sorte> · <durée> », no line of its own', () => {
+    const attente = { ...ATTENTE, projet: 'depot', ticket: 'demo-6', sorte: 'Contrôles' };
+    const a = lesLignes({ detenteur: null, attentes: [attente] }, [circuit('demo-6')]);
+    expect(a.filter(l => l.texte.includes('attend'))).toEqual([]);
+    expect(a.filter(l => l.ticket === 'demo-6')).toHaveLength(1);
+    expect(a.find(l => l.ticket === 'demo-6')?.texte).toMatch(
+      /^⏳ 6 {2}Le sujet de demo-6 · ⏳ contrôles · 2 min/
+    );
+  });
+
+  it('a pass without a ticket in a copy of the board’s project is named by its copy, without the project, « attend » left out when it does not hold', () => {
+    const a = tete(lesLignes({ detenteur: null, attentes: [{ ...VERIFICATION, ici: true }] }));
+    expect(a[0].texte).toBe('⏳ Vérification · direct-panneau-file · 1 min');
+  });
+
+  it('the same pass in the main tree of the board’s project is named by its folder', () => {
+    const principal = { ...VERIFICATION, copie: VERIFICATION.depot, ici: true };
+    expect(tete(lesLignes({ detenteur: null, attentes: [principal] }))[0].texte).toBe(
+      '⏳ Vérification · roomis-grillhouse · attend · 1 min'
+    );
+  });
+
+  it('the project is named only when it is not the board’s: nommerLesProjets marks the board’s', () => {
+    const autre = {
+      ...VERIFICATION,
+      depot: '/dev/music/BPScript',
+      copie: '/dev/music/BPScript/.claude/worktrees/bp-1',
+      projet: 'BPScript',
+    };
+    const noms = new Map([
+      ['/dev/roomis-grillhouse', 'roomis-grillhouse'],
+      ['/dev/music/BPScript', 'bp-mono'],
+    ]);
+    const machine = nommerLesProjets(
+      { detenteur: null, attentes: [VERIFICATION, autre] },
+      noms,
+      '/dev/roomis-grillhouse'
+    );
+    expect(
+      tete(lesLignes(machine))
+        .slice(0, 2)
+        .map(l => l.texte)
+    ).toEqual([
+      '⏳ Vérification · direct-panneau-file · 1 min',
+      '⏳ Vérification · bp-mono · bp-1 · attend · 1 min',
+    ]);
+  });
+
+  it('a narrow pane cuts the subject, then the project, then the copy last, never the kind, the figures nor the time', () => {
+    const etroit = 44;
+    const l = lesLignes({ detenteur: PASSE, attentes: [] }, [finale], etroit).find(
+      x => x.ticket === 'demo-5hn'
+    )!;
+    expect(colonnes(l.texte)).toBeLessThanOrEqual(etroit);
+    expect(l.texte).toContain('… · 🔒 passe finale 54/311 · 2 min');
+    expect(l.texte).toMatch(/^▶ 5hn {2}L/);
+    const loin = {
+      ...VERIFICATION,
+      projet: 'un-projet-au-nom-tres-long-qui-ne-tient-pas',
+      depuis: MAINTENANT - 8 * MIN,
+      avancement: {
+        faits: 124,
+        prevus: 190,
+        debut: MAINTENANT - 9 * MIN,
+        dernier: MAINTENANT - 3 * S,
+      },
+    };
+    const [d] = tete(lesLignes({ detenteur: loin, attentes: [] }, [], 64));
+    expect(colonnes(d.texte)).toBeLessThanOrEqual(64);
+    expect(d.texte).toMatch(/^🔒 Vérification · un-.*… · direct-panneau-file · 124\/190 · 8 min$/);
+    const [e] = tete(lesLignes({ detenteur: loin, attentes: [] }, [], etroit));
+    expect(colonnes(e.texte)).toBeLessThanOrEqual(etroit);
+    expect(e.texte).toMatch(/^🔒 Vérification · direct-.*… · 124\/190 · 8 min$/);
   });
 });

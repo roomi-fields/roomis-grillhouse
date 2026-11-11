@@ -907,14 +907,21 @@ comme Bazel ordonne ses tests par priorité.
 
 **Le panneau montre qui tient le verrou et qui l'attend** : celui qui prend le verrou de la
 machine, quel qu'il soit (une passe hors ticket, le circuit d'un ticket, de n'importe quel projet
-de la machine), se nomme à côté (la racine de son dépôt, son ticket s'il en a un, sa sorte, depuis quand, puis
-son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
+de la machine), se nomme à côté (la racine de son dépôt, celle de sa copie de travail, son ticket
+s'il en a un, sa sorte, depuis quand, puis son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
 processus. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · charge x/c ·
 mémoire m Go », puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
-dépendance ouverte, « attend <ticket> ». Il les montre en tête des agents : « 🔒 <sorte> · <projet> ·
-<ticket> · faits/prévus · <durée> » pour le détenteur, « ⏳ <sorte> · <projet> · <ticket> ·
-attend · <durée> » pour chaque attente, le projet nommé comme le tableau le nomme (son dossier pour le projet de la séance, son étiquette pour un autre, son dossier hors du tableau) ; un circuit qui attend montre aussi ⏳ sur sa ligne de
-ticket. Une ligne part avec son processus, et un détenteur mort ne s'affiche pas ; un verrou tenu
+dépendance ouverte, « attend <ticket> ». Le détenteur ou l'attente d'un circuit que montrent les
+agents tient sur la ligne de ce circuit, une ligne par ticket, à la place de l'avancement de sa
+passe : « · 🔒 <sorte> faits/prévus · <durée> », « · ⏳ <sorte> · <durée> », la sorte en minuscules.
+Les autres vont en tête des agents : « 🔒 <sorte> · <projet> · <qui> · faits/prévus · <durée> »
+pour le détenteur, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> » pour chaque attente.
+<qui> est son ticket, sinon le dossier de sa copie (sous .claude/worktrees/). Le projet, nommé
+comme le tableau le nomme (son étiquette pour un autre projet du tableau, son dossier hors du
+tableau), s'omet pour le projet du panneau, le verrou valant pour tout le poste. La largeur coupe
+d'abord le sujet, puis le projet, puis omet « attend », puis coupe <qui> en dernier ; jamais la
+sorte, les chiffres ni la durée. Un circuit qui
+attend montre aussi ⏳ en tête de sa ligne. Une ligne part avec son processus, et un détenteur mort ne s'affiche pas ; un verrou tenu
 par un cadre plus ancien, qui ne se nomme pas, se montre « 🔒 Verrou · <projet> ». La ligne d'état
 compte les alertes par leur signe, puis nomme le détenteur et le nombre des attentes. Comme
 lslocks nomme qui tient un verrou et comme cargo dit qui bloque son attente (« Blocking waiting

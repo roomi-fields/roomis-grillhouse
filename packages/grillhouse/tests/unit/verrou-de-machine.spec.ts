@@ -755,8 +755,10 @@ describe(
       );
       await jusqua(() => lignes(trace).includes('A début'));
       const tenu = await lireLeVerrou(env);
+      // Out of git, the copy is the folder the measure plays in.
       expect(tenu.detenteur).toMatchObject({
         depot: projet,
+        copie: projet,
         projet: 'BPScript',
         ticket: 'bp-mono-vbwf.320.11',
         sorte: 'Contrôles',
@@ -771,6 +773,7 @@ describe(
       expect(attendu.attentes).toEqual([
         expect.objectContaining({
           depot: cadre,
+          copie: cadre,
           projet: 'roomis-grillhouse',
           ticket: null,
           sorte: 'Vérification',

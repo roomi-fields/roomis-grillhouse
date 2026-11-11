@@ -66,14 +66,21 @@
 //   without a sign, « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the
 //   tone of an alert.
 // - The lock of the machine (scripts/verrou-de-machine.mjs, read by `lireLaMesure`), as lslocks
-//   names who holds a lock and cargo says what its wait waits for, at the head of AGENTS: its
-//   holder, whoever it is (a pass out of a ticket, the circuit of a ticket, of any project of the
-//   machine), « 🔒 <sorte> · <projet> · <ticket> · faits/prévus · <durée> » since it took the
-//   lock, « ⚠ <sorte> figée <durée> · … » past FIGEE without a sign of its progress; then each
-//   pass that waits for the lock or for room under /tmp, the oldest first, « ⏳ <sorte> ·
-//   <projet> · <ticket> · attend · <durée> ». The ticket shows without its prefix
-//   (`courtDuTicket`). Such a line is marked `avancement`, which the pane measures again more
-//   often. A circuit that waits shows ⏳ on its ticket's line, ▶ while it waits for nothing.
+//   names who holds a lock and cargo says what its wait waits for. A holder or a wait of a circuit
+//   AGENTS shows stands on that circuit's line, one line per ticket, in place of the progress of
+//   its pass: « · 🔒 <sorte> faits/prévus · <durée> » since it took the lock, « · ⚠ <sorte> figée
+//   <durée> · faits/prévus » past FIGEE without a sign, « · ⏳ <sorte> · <durée> » for a wait, the
+//   kind in lower case. Any other stands at the head of AGENTS: its holder, whoever it is (a pass
+//   out of a ticket, the circuit of a ticket of any project of the machine), « 🔒 <sorte> ·
+//   <projet> · <qui> · faits/prévus · <durée> », « ⚠ <sorte> figée <durée> · <projet> · <qui> ·
+//   faits/prévus »; then each pass that waits for the lock or for room under /tmp, the oldest
+//   first, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> ». <qui> is its ticket without its
+//   prefix (`courtDuTicket`), else the folder of its copy (`copie`, under .claude/worktrees/, or
+//   the main tree when the project is not named); <projet> is left out for the project of the
+//   board (`ici`). The width cuts the project first, then leaves out « attend », then cuts <qui>,
+//   never the kind, the figures nor the time. Such a line
+//   is marked `avancement`, which the pane measures again more often. A circuit that waits shows
+//   ⏳ on its ticket's line, ▶ while it waits for nothing.
 // - Signs: each sign keeps one sense (the owner's decision of 2026-11-01): ▶ in progress, ⏸ a
 //   stopped circuit, 🔒 the holder of the lock, ⏳ a wait for it or for room, 💤 a ticket claimed
 //   with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A sign two
@@ -700,9 +707,10 @@ export function lecture(t, prefix) {
 
 /**
  * Who holds the lock of the machine, or waits for it, as the board shows it (`lireLaMesure` of
- * scripts/avancement.mjs, its project named as the board names it, `nommerLesProjets`).
- * @typedef {{ depot?: string | null, projet: string, ticket: string | null, sorte: string,
- *   depuis: number | null, quoi?: string,
+ * scripts/avancement.mjs, its project named as the board names it, `nommerLesProjets`; `copie`,
+ * its working tree; `ici`, it is of the board's project).
+ * @typedef {{ depot?: string | null, copie?: string | null, ici?: boolean, projet: string,
+ *   ticket: string | null, sorte: string, depuis: number | null, quoi?: string,
  *   avancement?: { faits: number, prevus: number, debut?: number, dernier: number } | null }} DuVerrou
  * @typedef {{ detenteur: DuVerrou | null, attentes: DuVerrou[] }} Machine
  */
@@ -1369,12 +1377,12 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
 
   L('', undefined);
   L('AGENTS  ▶ en cours · en attente', 'titre');
-  // The lock of the machine (scripts/avancement.mjs `lireLaMesure`), at the head: its holder,
-  // whoever it is, « 🔒 <sorte> · <projet> · <ticket> · faits/prévus · <durée> », the time since it
-  // took the lock, the ticket and the figures when it has them; past FIGEE without a sign of its
-  // progress « ⚠ <sorte> figée <durée> · <projet> · <ticket> · faits/prévus », in the tone of an
-  // alert. Then each wait, the oldest first, « ⏳ <sorte> · <projet> · <ticket> · attend ·
-  // <durée> ». The project and the ticket are cut, never the figures nor the time.
+  // The lock of the machine (scripts/avancement.mjs `lireLaMesure`): a holder or a wait of a
+  // circuit shown stands on its line (`verrouDe`); any other at the head: its holder, whoever it
+  // is, « 🔒 <sorte> · <projet> · <qui> · faits/prévus · <durée> », the time since it took the
+  // lock, the figures when it has them; past FIGEE without a sign of its progress « ⚠ <sorte>
+  // figée <durée> · <projet> · <qui> · faits/prévus », in the tone of an alert. Then each wait,
+  // the oldest first, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> ».
   const maintenant = t.maintenant ?? Date.now();
   // The places of the machine (scripts/places-de-la-machine.mjs), the first line of AGENTS:
   // « Places 3/3 · charge 11,2/12 · mémoire 9 Go », the places taken of the ceiling, the load over
@@ -1391,38 +1399,76 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ton: p.charge >= p.coeurs ? 'attention' : 'discret',
     });
   }
-  const deQui = x => `${x.sorte} · ${x.projet}${x.ticket ? ` · ${courtDuTicket(x.ticket)}` : ''}`;
+  const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
+  const duCircuit = x => Boolean(x.ticket && enCircuit.has(x.ticket));
+  // The project of a holder or a wait, none for the board's project on one project's board.
+  const projetDe = x => (x.ici && !plusieurs ? null : x.projet);
+  // What names a holder or a wait: its ticket, else the folder of its copy, the main tree's only
+  // when the project is not named (it would say the project twice).
+  const quiDuVerrou = x =>
+    x.ticket
+      ? courtDuTicket(x.ticket)
+      : x.copie && (x.copie !== x.depot || !projetDe(x))
+        ? path.basename(x.copie)
+        : null;
+  // A line of the lock « <tete> · <projet> · <qui><fin> », <fin> the first of <fins> that holds
+  // (« · attend · <durée> », else « · <durée> »: ⏳ already says the wait); the project is cut
+  // first, then left out, then <qui> is cut, never <tete> nor <fin>.
+  const ligneDuVerrou = (tete, x, ...fins) => {
+    const qui = quiDuVerrou(x);
+    const avecQui = `${tete}${qui ? ` · ${qui}` : ''}`;
+    const fin = fins.find(f => colonnes(`${avecQui}${f}`) <= largeur) ?? fins[fins.length - 1];
+    const projet = projetDe(x);
+    const place = largeur - colonnes(`${avecQui}${fin}`) - 3;
+    if (projet && place >= 2) {
+      const p = colonnes(projet) > place ? `${debutDe(projet, place - 1)}…` : projet;
+      return `${tete} · ${p}${qui ? ` · ${qui}` : ''}${fin}`;
+    }
+    return couperAvant(avecQui, fin, '', largeur);
+  };
+  // The lock on the line of each circuit shown that holds it or waits for it, by its ticket.
+  const verrouDe = new Map();
   const tenu = t.machine?.detenteur;
   if (tenu) {
     const a = tenu.avancement;
     const age = a ? maintenant - a.dernier : 0;
     const compte = a && (a.faits || a.prevus) ? `${a.faits}/${a.prevus}` : '';
     const fige = age > FIGEE;
-    poser({
-      texte: fige
-        ? couperAvant(
-            `⚠ ${tenu.sorte} figée ${ilYa(age)} · ${deQui(tenu).slice(tenu.sorte.length + 3)}`,
-            compte ? ` · ${compte}` : '',
-            '',
-            largeur
-          )
-        : couperAvant(
-            `🔒 ${deQui(tenu)}`,
-            ` · ${compte ? `${compte} · ` : ''}${ilYa(maintenant - (tenu.depuis ?? maintenant))}`,
-            '',
-            largeur
-          ),
-      ton: fige ? 'alerte' : 'actif',
-      avancement: true,
-    });
+    const depuis = ilYa(maintenant - (tenu.depuis ?? maintenant));
+    if (duCircuit(tenu)) {
+      const sorte = tenu.sorte.toLocaleLowerCase('fr');
+      verrouDe.set(tenu.ticket, {
+        fige,
+        texte: fige
+          ? ` · ⚠ ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
+          : ` · 🔒 ${sorte}${compte ? ` ${compte}` : ''} · ${depuis}`,
+      });
+    } else {
+      poser({
+        texte: fige
+          ? ligneDuVerrou(`⚠ ${tenu.sorte} figée ${ilYa(age)}`, tenu, compte ? ` · ${compte}` : '')
+          : ligneDuVerrou(`🔒 ${tenu.sorte}`, tenu, ` · ${compte ? `${compte} · ` : ''}${depuis}`),
+        ton: fige ? 'alerte' : 'actif',
+        avancement: true,
+      });
+    }
   }
   for (const w of [...(t.machine?.attentes ?? [])].sort((x, y) => x.depuis - y.depuis)) {
+    if (duCircuit(w)) {
+      if (!verrouDe.has(w.ticket)) {
+        verrouDe.set(w.ticket, {
+          fige: false,
+          texte: ` · ⏳ ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
+        });
+      }
+      continue;
+    }
     poser({
-      texte: couperAvant(
-        `⏳ ${deQui(w)}`,
+      texte: ligneDuVerrou(
+        `⏳ ${w.sorte}`,
+        w,
         ` · attend · ${ilYa(maintenant - w.depuis)}`,
-        '',
-        largeur
+        ` · ${ilYa(maintenant - w.depuis)}`
       ),
       ton: 'actif',
       avancement: true,
@@ -1449,7 +1495,6 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // from their second pass (`boucles` of the step, scripts/etapes.mjs, their counts in the state's
   // `boucles`), whole; then its ticket's working time and tokens. Its card opens on
   // its question, or says where it stopped and why. The tickets' numbers line up in one column.
-  const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   // The block of the step <e>, an empty one when the board holds none.
   const vides = new Map();
   const blocDe = e =>
@@ -1497,7 +1542,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
       .join('');
     const tete = teteDe(signe, c);
-    const temoin = c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null;
+    // The lock it holds or waits for, else the progress of its pass.
+    const temoin =
+      verrouDe.get(c.id) ??
+      (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
     // The progress after the counters of the loops while the subject keeps its room beside them,
     // in their place otherwise.
     const reste = avec =>
@@ -2124,16 +2172,22 @@ async function lesCircuits(circuitsDe, racine) {
 /**
  * The lock of the machine <machine> with each project named as the board names it: <noms> gives
  * the name of each project of the board by the root of its main tree (`depot`); a project out of
- * the board keeps its folder's name.
+ * the board keeps its folder's name. A holder or a wait of the repository whose main tree is <ici>
+ * is marked `ici`, the board's project.
  * @param {Machine | null} machine
  * @param {Map<string, string>} noms
+ * @param {string | null} [ici]
  * @returns {Machine | null}
  */
-export function nommerLesProjets(machine, noms) {
+export function nommerLesProjets(machine, noms, ici = null) {
   if (!machine) {
     return machine;
   }
-  const nommer = x => ({ ...x, projet: (x.depot && noms.get(x.depot)) || x.projet });
+  const nommer = x => ({
+    ...x,
+    projet: (x.depot && noms.get(x.depot)) || x.projet,
+    ici: Boolean(ici && x.depot === ici),
+  });
   return {
     detenteur: machine.detenteur && nommer(machine.detenteur),
     attentes: machine.attentes.map(nommer),
@@ -2185,7 +2239,8 @@ export async function tableau(
       lus
         .filter(l => l.commun)
         .map(l => [path.dirname(l.commun), l === ici ? path.basename(racine) : etiquette(l)])
-    )
+    ),
+    ici.commun ? path.dirname(ici.commun) : null
   );
   const etat = ligneEtat(ici.t);
   try {

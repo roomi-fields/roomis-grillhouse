@@ -48,16 +48,18 @@
 // - The lock names its holder and its waits, as lslocks names who holds a lock and cargo's
 //   « Blocking waiting for file lock » says what a wait waits for. Whoever takes it, a pass out of
 //   a ticket or the circuit of a ticket, of any project of the machine, names itself beside it in
-//   `<lock>.detenteur.json`: its mark, its process, its project, its ticket or null, its kind
+//   `<lock>.detenteur.json`: its mark, its process, its project, its copy, its ticket or null, its kind
 //   (`sorte`: « Vérification » by default, or GRILLHOUSE_VERIFICATION_SORTE and
 //   GRILLHOUSE_VERIFICATION_TICKET from the caller, a step's title for a circuit), since when, and its progress
 //   directory once it names it (`nommerLAvancement`); the name goes with the lock. Each measure
 //   that waits, for the lock or for room in the temporary directory, names itself in the
 //   directory `<lock>.attentes/`, one file per waiting process (its process, its rank, its
-//   project, ticket and kind, what it waits for `quoi`, since when), removed once it stops
+//   project, copy, ticket and kind, what it waits for `quoi`, since when), removed once it stops
 //   waiting. The project is named by the root of the main tree of the repository the measure
 //   plays in, its copies included (`depot`, `racineDuDepot`); the board gives it the name it
-//   gives that project, its folder's for a project out of the board (scripts/tableau.mjs).
+//   gives that project, its folder's for a project out of the board (scripts/tableau.mjs). The copy
+//   is the root of the working tree the measure plays in (`copie`, `racineDeLaCopie`): the main tree
+//   or a copy under .claude/worktrees/, which names a measure without a ticket.
 //   `lireLeVerrou` reads them for the board (through `lireLaMesure` of scripts/avancement.mjs): a
 //   holder or a wait whose process is gone names no one, and the wait's file goes; a lock a live
 //   process holds without naming itself (a frame older than this naming) shows as the repository
@@ -215,6 +217,17 @@ function qui(verrou) {
 }
 
 /**
+ * The root of the working tree at <racine>, the main tree or a copy (git's top level); <racine>
+ * itself out of git.
+ * @param {string} racine
+ * @returns {string}
+ */
+export function racineDeLaCopie(racine) {
+  const r = spawnSync('git', ['-C', racine, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : path.resolve(racine);
+}
+
+/**
  * The root of the repository at <racine>: its main tree, its copies included (the parent of its
  * common directory of git); <racine> itself out of git.
  * @param {string} racine
@@ -241,8 +254,8 @@ const lireJson = f => {
 const fichierDuDetenteur = verrou => `${verrou}.detenteur.json`;
 const dossierDesAttentes = verrou => `${verrou}.attentes`;
 
-// Who a measure is, from its options: `{ depot, ticket, sorte }`, the root of its repository
-// read when first asked.
+// Who a measure is, from its options: `{ depot, copie, ticket, sorte }`, the root of its
+// repository and of its working tree read when first asked.
 // The kind and the ticket come from the option of the caller (the circuit) when it gives one,
 // else from the caller's environment (GRILLHOUSE_VERIFICATION_SORTE, GRILLHOUSE_VERIFICATION_TICKET,
 // empty as absent), else « Vérification » and null.
@@ -250,10 +263,15 @@ function identite({ racine, env = {}, ticket, sorte }) {
   ticket = ticket ?? (env[VARIABLE_VERIFICATION_TICKET] || null);
   sorte = sorte ?? (env[VARIABLE_VERIFICATION_SORTE] || 'Vérification');
   let depot = null;
+  let copie = null;
   return {
     get depot() {
       depot ??= racineDuDepot(racine);
       return depot;
+    },
+    get copie() {
+      copie ??= racineDeLaCopie(racine);
+      return copie;
     },
     ticket,
     sorte,
@@ -269,6 +287,7 @@ function inscrireLAttente(verrou, id, quoi, rang = null) {
       pid: process.pid,
       rang,
       depot: id.depot,
+      copie: id.copie,
       ticket: id.ticket,
       sorte: id.sorte,
       quoi,
@@ -321,6 +340,7 @@ function nommerLeDetenteur(verrou, id) {
       marque,
       pid: process.pid,
       depot: id.depot,
+      copie: id.copie,
       ticket: id.ticket,
       sorte: id.sorte,
       depuis: Date.now(),
@@ -373,16 +393,19 @@ export function nommerLAvancement({ env = process.env, dossier }) {
  */
 export function lireLeVerrou(env = process.env) {
   const verrou = verrouDeMachine(env);
-  const attentes = attentesDe(verrou).map(({ pid, rang, depot, ticket, sorte, quoi, depuis }) => ({
-    pid,
-    rang,
-    depot,
-    projet: path.basename(String(depot)),
-    ticket,
-    sorte,
-    quoi,
-    depuis,
-  }));
+  const attentes = attentesDe(verrou).map(
+    ({ pid, rang, depot, copie, ticket, sorte, quoi, depuis }) => ({
+      pid,
+      rang,
+      depot,
+      copie: copie ?? null,
+      projet: path.basename(String(depot)),
+      ticket,
+      sorte,
+      quoi,
+      depuis,
+    })
+  );
   const marque = lire(verrou);
   const pid = detenteur(verrou);
   if (marque === null || pid === null || !vivant(pid)) {
@@ -390,9 +413,9 @@ export function lireLeVerrou(env = process.env) {
   }
   const n = lireJson(fichierDuDetenteur(verrou));
   if (n?.marque === marque) {
-    const { depot, ticket, sorte, depuis, dossier } = n;
+    const { depot, copie = null, ticket, sorte, depuis, dossier } = n;
     const projet = path.basename(String(depot));
-    return { detenteur: { pid, depot, projet, ticket, sorte, depuis, dossier }, attentes };
+    return { detenteur: { pid, depot, copie, projet, ticket, sorte, depuis, dossier }, attentes };
   }
   let depuis = null;
   let ou = null;
@@ -407,6 +430,7 @@ export function lireLeVerrou(env = process.env) {
     detenteur: {
       pid,
       depot,
+      copie: ou ? racineDeLaCopie(ou) : null,
       projet: depot ? path.basename(depot) : `processus ${pid}`,
       ticket: null,
       sorte: 'Verrou',
