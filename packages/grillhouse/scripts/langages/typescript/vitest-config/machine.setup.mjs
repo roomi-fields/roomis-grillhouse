@@ -27,3 +27,12 @@ process.env.GRILLHOUSE_MESURE_D_ESSAI ||= JSON.stringify({
 });
 process.env.GRILLHOUSE_TEMPORAIRE_LIBRE ||= '0';
 process.env.GRILLHOUSE_COPIE_LIBRE ||= '0';
+// The cache of a test's Turborepo is local alone: the remote cache of the CI or of the poste
+// (scripts/fichier-du-poste.mjs) would serve a repository of trial the tasks another test or run
+// wrote there. `TURBO_CACHE` says local alone; `TURBO_TOKEN`, named empty, keeps the file of the
+// poste unread (`avecLeFichierDuPoste` leaves an environment that names one of its variables).
+for (const nom of ['TURBO_API', 'TURBO_TEAM', 'TURBO_TEAMID', 'TURBO_REMOTE_CACHE_SIGNATURE_KEY']) {
+  delete process.env[nom];
+}
+process.env.TURBO_TOKEN = '';
+process.env.TURBO_CACHE = 'local:rw';
