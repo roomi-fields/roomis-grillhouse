@@ -173,7 +173,7 @@ export function verifier(racine) {
     .map(({ fichier }) => ({
       fichier,
       regle: GRAND_DE_JOUR,
-      message: `${fichier} : un grand test (il monte un dépôt d'essai et y lance le produit ou le cadre) est un test de nuit, jamais joué au fil du travail ; il passe en test de nuit, tests/<nom>_nuit.rs, ou il se réduit à la plus petite taille qui prouve son critère.`,
+      message: `${fichier} : un grand test (il monte un dépôt d'essai et y lance le produit ou le cadre) est un test de nuit, jamais joué au fil du travail ; il passe en test de nuit, un module de tests/it_nuit/, ou il se réduit à la plus petite taille qui prouve son critère.`,
     }));
 }
 

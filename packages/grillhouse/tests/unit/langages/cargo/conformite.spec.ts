@@ -67,12 +67,13 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
 });
 
 describe('grillhouse-pkl.6, critère 1 — les gardes de structure du module cargo', () => {
-  it('it plays tailles-des-tests, clippy, frontieres and index-interfaces, in this order, each script existing', () => {
+  it('it plays tailles-des-tests, executables-de-tests, clippy, frontieres and index-interfaces, in this order, each script existing', () => {
     const gardes = cargo.gardes(ESSAIS);
     // Each script by its whole path from the package, which the frame reads to replay this test
     // when the script changes (grillhouse-3dr.3.4, the guard chemins-des-tests).
     expect(gardes.map(([s, ...args]) => [path.relative(PAQUET, s), ...args])).toEqual([
       ['scripts/langages/cargo/tailles-des-tests.mjs'],
+      ['scripts/langages/cargo/executables-de-tests.mjs'],
       ['scripts/langages/cargo/clippy.mjs'],
       ['scripts/langages/cargo/frontieres.mjs'],
       ['scripts/langages/cargo/index-interfaces.mjs', '--verifier'],

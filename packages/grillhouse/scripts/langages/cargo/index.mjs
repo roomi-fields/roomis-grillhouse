@@ -25,12 +25,14 @@
 //   TMPDIR, TMP and TEMP, and fail naming what the tests left there (./commandes.mjs).
 // - The generated file, the index of the interfaces (./index-interfaces.mjs), its command and its
 //   check; the guards of structure, in the order they play: the sizes of the tests
-//   (./tailles-des-tests.mjs), clippy (./clippy.mjs), the boundaries between crates
+//   (./tailles-des-tests.mjs), one executable of integration tests per crate and per moment
+//   (./executables-de-tests.mjs), clippy (./clippy.mjs), the boundaries between crates
 //   (./frontieres.mjs), the index of the interfaces up to date, each a command by its name too
 //   (./commandes.mjs), which the line of a red guard names; the entries of the index of each
 //   interface (`entreesDeLIndex`), which the core assembles in a project of several languages.
 // - Its migrations (./migrations/): 0.28.4, the large tests of the day a project holds inscribed
-//   in its debt when the guard of the sizes arrives.
+//   in its debt when the guard of the sizes arrives; 0.34.0, the executables of tests too many
+//   inscribed when the guard of the executables arrives.
 // - Its share of the update (./mise-a-jour.mjs, `miseAJour`): the template of a project of cargo
 //   (`templates/cargo/`) and its test scripts.
 // - The skeleton of a new crate (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
@@ -58,6 +60,7 @@ import { elementsDuLot } from './elements-du-lot.mjs';
 import { enRetard, entreesDeLIndex, SORTIE } from './index-interfaces.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import * as taillesDesTests from './migrations/0.28.4-tailles-des-tests.mjs';
+import * as executablesDeTests from './migrations/0.34.0-executables-de-tests.mjs';
 import { squelette } from './squelette.mjs';
 import { CACHE, CIBLES } from './sccache.mjs';
 import { verdict } from './verdict.mjs';
@@ -156,7 +159,7 @@ export default {
   ],
   entreesDeLIndex,
   gardes: () => GARDES.map(({ script, args }) => [script, ...args]),
-  migrations: [taillesDesTests],
+  migrations: [taillesDesTests, executablesDeTests],
   miseAJour,
   squelette,
 };

@@ -121,7 +121,7 @@ describe('grillhouse-wbk.1 critères 1 et 2 — a large Rust test of the day is 
       ['crates/app/tests/bout.rs', GRAND_DE_JOUR],
     ]);
     expect(constats[1]?.message).toMatch(/^crates\/app\/tests\/bout\.rs : un grand test/);
-    expect(constats[1]?.message).toMatch(/_nuit\.rs/);
+    expect(constats[1]?.message).toMatch(/tests\/it_nuit\//);
   });
 
   it('critère 2: a large night test tests/*_nuit.rs, or a time budget bench tests/*_budget.rs, is no finding', () => {

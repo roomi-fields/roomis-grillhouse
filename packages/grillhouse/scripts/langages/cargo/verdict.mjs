@@ -12,7 +12,9 @@
 //   `failure` or an `error`, skipped when it holds `skipped`; its message, the failure's. A unit
 //   test of a module `tests` that lives in a file of its own (`server::tests::relais`, in
 //   `src/server/tests.rs` beside the library's root, grillhouse-agr) gives that file, so that the
-//   proof of the red finds the result of a new tests.rs.
+//   proof of the red finds the result of a new tests.rs; so does a test of a module of a target
+//   `tests/<dossier>/main.rs` (`foo::bar`, in `tests/it/foo.rs`, grillhouse-pkl.9), each test file
+//   of `tests/it/` a module of the crate's one executable.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -49,20 +51,36 @@ const attribut = (balise, nom) => {
   return m ? texte(m[1]) : null;
 };
 
-// The file of the unit test <nom> (its module path, `server::tests::relais`) of the binary whose
-// root is <racine>: the file of its module `tests` that exists, as rustc finds a module's file
-// from its crate root's folder — `server/tests.rs` or `server/tests/mod.rs`, a module under it
-// `server/tests/<m>.rs` or `server/tests/<m>/mod.rs`, the deepest first; <racine> for a test of
-// no such file (an inline module).
+// Whether <racine> is the root of a test target `tests/<dossier>/main.rs`, whose test files are
+// its modules (`tests/it/main.rs`, ./executables-de-tests.mjs).
+const racineDeDossier = racine =>
+  path.basename(racine) === 'main.rs' &&
+  path.basename(path.dirname(path.dirname(racine))) === 'tests';
+
+// The file of the test <nom> (its module path) of the binary whose root is <racine>, as rustc
+// finds a module's file from its crate root's folder, the deepest that exists first: for a target
+// `tests/<dossier>/main.rs`, the file of its module (`foo::bar` in `tests/<dossier>/foo.rs` or
+// `foo/mod.rs`, `foo::sous::bar` in `foo/sous.rs` or `foo/sous/mod.rs`); for a unit test, the file
+// of its module `tests` (`server::tests::relais` in `server/tests.rs` or `server/tests/mod.rs`, a
+// module under it `server/tests/<m>.rs` or `server/tests/<m>/mod.rs`); <racine> for a test of no
+// such file (an inline module, a test of the root).
 function fichierDuTest(racine, nom) {
   const parts = nom.split('::').slice(0, -1);
-  const k = parts.indexOf('tests');
-  if (k < 0) {
-    return racine;
+  // The folder of the module files and the module path under it; the lowest depth that is a file.
+  let dossier;
+  let sous;
+  let min;
+  if (racineDeDossier(racine)) {
+    [dossier, sous, min] = [path.dirname(racine), parts, 1];
+  } else {
+    const k = parts.indexOf('tests');
+    if (k < 0) {
+      return racine;
+    }
+    dossier = path.join(path.dirname(racine), ...parts.slice(0, k + 1));
+    [sous, min] = [parts.slice(k + 1), 0];
   }
-  const dossier = path.join(path.dirname(racine), ...parts.slice(0, k), 'tests');
-  const sous = parts.slice(k + 1);
-  for (let j = sous.length; j >= 0; j--) {
+  for (let j = sous.length; j >= min; j--) {
     const d = path.join(dossier, ...sous.slice(0, j));
     const candidats = [`${d}.rs`, path.join(d, 'mod.rs')];
     const trouve = candidats.find(f => existsSync(f));
@@ -74,7 +92,8 @@ function fichierDuTest(racine, nom) {
 }
 
 // The test files of the JUnit report <xml>, each binary's file read in <cibles>, each unit test
-// under its own file (`fichierDuTest`).
+// and each test of a module of a target `tests/<dossier>/main.rs` under its own file
+// (`fichierDuTest`).
 function rapportsDe(xml, cibles) {
   const out = [];
   for (const s of xml.matchAll(/<testsuite\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testsuite>)/g)) {

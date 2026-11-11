@@ -5,8 +5,10 @@
 // - Its files: its Cargo.toml (its name, the folder's; each field of `[workspace.package]` the
 //   workspace holds inherited, `<champ>.workspace = true`, as `cargo new` inherits them in a
 //   workspace, else its version 0.1.0 and its edition 2021; `[lints] workspace = true` when the
-//   workspace has `[workspace.lints]`); `src/lib.rs`, a library without code; `tests/.gitkeep`, its
-//   folder of tests by the interface. Cargo needs no configuration of its own for the tests
+//   workspace has `[workspace.lints]`); `src/lib.rs`, a library without code; `tests/it/main.rs`,
+//   the one executable of its tests by the interface, each test file a module of `tests/it/`
+//   (./executables-de-tests.mjs), without a test, and none when the folder already holds a test
+//   target (`tests/<nom>.rs`, `tests/<dossier>/main.rs`), which stays its executable. Cargo needs no configuration of its own for the tests
 //   (nextest, the frame's profile) nor for the typing (`cargo check`, clippy).
 // - A name `cargo new` refuses (a keyword of Rust, `test`, a character out of a package's name) or
 //   warns against (a crate of Rust's standard library, `std`, `core`, `alloc`, `proc_macro`, whose
@@ -159,8 +161,11 @@ export function squelette(racine, { chemin, existants }) {
   const fichiers = {
     [`${chemin}/Cargo.toml`]: paquet,
     [`${chemin}/src/lib.rs`]: `//! The crate ${nom}: its interface, docs/INTERFACE.md, says what it offers.\n`,
-    [`${chemin}/tests/.gitkeep`]: '',
   };
+  if (!existants.some(f => /^tests\/(?:[^/]+\.rs|[^/]+\/main\.rs)$/.test(f))) {
+    fichiers[`${chemin}/tests/it/main.rs`] =
+      `//! The integration tests of the crate ${nom}, one executable: each test file a module of\n//! tests/it/, declared here (\`mod <fichier>;\`).\n`;
+  }
   const membres = Array.isArray(espace?.members) ? espace.members : [];
   const couvert = membres.some(m => typeof m === 'string' && path.matchesGlob(chemin, m));
   let entree = null;

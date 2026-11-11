@@ -1,10 +1,10 @@
 // The names of the tests of HEAD's version of a test file of Rust that cargo cannot play twice in
 // one run, read without playing them (the join, `testsDeHead`; the owner's decision on
 // grillhouse-3e2): a unit test file of `src/` (`src/**/tests.rs`, a file of a folder `tests/` under
-// `src/`), compiled as a module of its crate, and a test target `tests/<dossier>/main.rs`, whose
-// modules lie beside it; and a target `tests/<nom>.rs` whose sibling no longer compiles, read as a
-// target `tests/<dossier>/main.rs`, its modules beside it (grillhouse-3e2.2). The proof of the red
-// holds each name for a green HEAD already holds.
+// `src/`), compiled as a module of its crate, and each file of a test target
+// `tests/<dossier>/main.rs`, its root or one of its modules (`tests/it/foo.rs`, grillhouse-pkl.9);
+// and a target `tests/<nom>.rs` whose sibling no longer compiles, read with its modules beside it
+// (grillhouse-3e2.2). The proof of the red holds each name for a green HEAD already holds.
 //
 // - A name is the one the verdict gives (./verdict.mjs), the path nextest reports: the module path
 //   of the test in its binary, `<module>::…::<fn>` (tried on 2026-11-02:
@@ -15,9 +15,11 @@
 //   literals are read as blanks, so that their braces do not count.
 // - A unit test file of `src/`: its module path is its path under `src/` (`mod.rs` its folder's);
 //   the verdict gives each of its out-of-line modules (`mod <nom>;`) to its own file, so they are
-//   not read here. A target `tests/<dossier>/main.rs`: the verdict gives it all its binary's tests,
-//   so its out-of-line modules are read too, as rustc finds them (`<dossier>/<nom>.rs` or
-//   `<dossier>/<nom>/mod.rs`, a module of `<f>.rs` under `<f>/`).
+//   not read here. A file of a target `tests/<dossier>/main.rs` likewise: its module path is its
+//   path under `tests/<dossier>/` (`main.rs` none, `mod.rs` its folder's). A target
+//   `tests/<nom>.rs`: the verdict gives it all its binary's tests, so its out-of-line modules are
+//   read too, as rustc finds them (`<nom>.rs` beside it or `<nom>/mod.rs`, a module of `<f>.rs`
+//   under `<f>/`).
 import path from 'node:path';
 
 // The text <t> with its comments, strings and character literals read as blanks.
@@ -130,8 +132,9 @@ export function lireLeFichier(texte) {
 
 /**
  * The names of the tests of HEAD's version of the test file <chemin> (from the root), as the
- * verdict names them: with <module>, a unit test file of `src/`, its module path under `src/`;
- * without (null), a target `tests/<dossier>/main.rs`, its out-of-line modules read too. <lire>
+ * verdict names them: with <module>, a unit test file of `src/` or a file of a target
+ * `tests/<dossier>/main.rs`, its module path; without (null), a target `tests/<nom>.rs`, its
+ * out-of-line modules read too. <lire>
  * gives HEAD's text of a file from the root, null for none. Null when HEAD does not hold <chemin>.
  * @param {string} chemin
  * @param {string[] | null} module

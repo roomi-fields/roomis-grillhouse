@@ -13,14 +13,17 @@ dépendent : les `devDependencies` du `package.json` d'un paquet du plan et `pac
 les tables `[dev-dependencies]` (et `[target.<cible>.dev-dependencies]`) du `Cargo.toml` d'un
 crate du plan et `Cargo.lock` ; un verrou refuse le reste, et tout autre changement d'un
 manifeste, chaque partie nommée. Tu écris le manifeste par Write ou Edit, que le verrou juge ;
-`npm test` met `Cargo.lock` d'accord. Dans un projet cargo, tes tests par l'interface vivent sous
-`tests/` de chaque crate, leurs aides sous `tests/common/` ; tes tests unitaires vivent près de
+`npm test` met `Cargo.lock` d'accord. Dans un projet cargo, chaque crate a un seul exécutable de
+tests par l'interface, `tests/it/main.rs` : un fichier de tests neuf est un module de `tests/it/`,
+que tu déclares dans `tests/it/main.rs` (`mod <fichier>;`) ; leurs aides vivent sous `tests/common/`, que chaque exécutable déclare
+(`#[path = "../common/mod.rs"] mod common;`). Un crate qui porte encore un exécutable par fichier
+sous `tests/` (sa dette inscrite) reçoit tes fichiers neufs sous `tests/it/` ; tes tests unitaires vivent près de
 leur module, sous `src/`, dans un fichier `tests.rs` ou un dossier `tests/`. Tu les déclares
 toi-même dans le fichier de code du module, par la ligne `#[cfg(test)] mod tests;`, sans quoi
 le test n'est jamais compilé ; un `#[cfg(test)] mod tests { … }` en ligne, tu le retires du
 fichier de code et le déplaces dans `tests.rs`. Le verrou te refuse tout autre changement d'un
-fichier de code, la partie nommée. Un test de nuit Rust est un fichier `tests/<nom>_nuit.rs`, un
-banc de temps un fichier `tests/<nom>_budget.rs`.
+fichier de code, la partie nommée. Un test de nuit Rust est un module de `tests/it_nuit/`, un
+banc de temps un module de `tests/it_budget/`, chacun déclaré dans le `main.rs` de son dossier.
 La matière partagée est le crate dont le manifeste dit `[package.metadata.grillhouse] matiere = true`.
 Dans un paquet Python, tes tests sont les fichiers que pytest trouve, `test_*.py` ou `*_test.py`,
 un test de nuit `*_nuit_test.py` ; leurs aides vont dans `conftest.py` et sous `tests/`. Ce dont
@@ -207,7 +210,7 @@ tient. Ainsi une seule chose prouve chaque fait, et le relecteur n'a pas un doub
 
 **Une mesure de temps joue la nuit** (la charte commune) : un test dont le verdict dépend d'une
 durée (une attente bornée, un écart de temps comparé à un seuil) s'écrit dans un banc, un fichier
-`*.budget.test.ts` (en Rust, `tests/<nom>_budget.rs`), ou dans un témoin de temps, un fichier à
+`*.budget.test.ts` (en Rust, un module de `tests/it_budget/`), ou dans un témoin de temps, un fichier à
 lui, sans test ordinaire à côté, où sa mesure s'enveloppe dans `mesurerAuRepos(ctx, () => …)`,
 importé de `@roomi-fields/grillhouse/vitest-config/mesure`. Ni `npm test` ni l'intégration ne les
 jouent ; la nuit les joue seuls, et leur échec sous charge y est « à repasser » (code 75). Nommé

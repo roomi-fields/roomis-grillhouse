@@ -10,7 +10,7 @@
 // - The migration writes the section of the guard in `grillhouse-dette.json` when the guard finds a
 //   large test of the day and the file holds no section of it yet; the rest of the debt stays.
 // - It rewrites no test of the project: the project moves each one to the night
-//   (`tests/<nom>_nuit.rs`) or reduces it, and the debt comes down with it.
+//   (a module of `tests/it_nuit/`) or reduces it, and the debt comes down with it.
 // - Replayable without effect: once the section is written, nothing (a debt lowered since never
 //   rises again).
 import { FICHIER, lire, trancher } from '../../../dette.mjs';
@@ -30,6 +30,6 @@ export function migrer(projet) {
   }
   trancher(projet, GARDE, constats, 'inscrire', {});
   return [
-    `${FICHIER} : ${constats.length} grand(s) test(s) de jour inscrit(s) dans la dette de ${GARDE}, gelée ; un grand test de jour neuf est refusé, et chacun passe à la nuit (tests/<nom>_nuit.rs) ou se réduit`,
+    `${FICHIER} : ${constats.length} grand(s) test(s) de jour inscrit(s) dans la dette de ${GARDE}, gelée ; un grand test de jour neuf est refusé, et chacun passe à la nuit (un module de tests/it_nuit/) ou se réduit`,
   ];
 }

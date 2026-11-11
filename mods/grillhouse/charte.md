@@ -99,7 +99,7 @@ Ainsi la preuve du rouge mesure le travail, et aucun test ne rougit pour la form
 Bazel) : un test petit vérifie son module par son interface, sans processus ; un test moyen
 assemble quelques modules sur la machine, avec des processus locaux ; un test grand monte un
 projet d'essai et y lance le produit ou le cadre entier : il est un test de nuit (`*.nuit.test.*`,
-`*_nuit_test.py`, `tests/*_nuit.rs` en Rust), jamais joué au fil du travail. Chaque test prend la plus petite taille qui prouve son critère, dans
+`*_nuit_test.py`, un module de `tests/it_nuit/` en Rust), jamais joué au fil du travail. Chaque test prend la plus petite taille qui prouve son critère, dans
 Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-des-tests`) refuse
 un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Un
 test de jour valide le code en l'important : lancer la commande grillhouse (son binaire, un
@@ -132,10 +132,16 @@ l'architecture fixe le langage, et le code le suit.
 **Un test vit dans un fichier à lui**, jamais dans un fichier de code, reconnu au nom ou au
 dossier qu'attend l'outil de son langage : près de son module pour un test unitaire (en Rust, un
 `tests.rs` ou un dossier `tests/` sous `src/`, comme le veut le contrôle tidy de rustc), dans le
-dossier de tests du paquet pour un test par l'interface (en Rust, `tests/` du crate). Les sortes
-de tests, qui les écrit, qui les lit et qui les joue sont les mêmes dans chaque langage ; seule
-l'adresse d'un fichier de test suit l'outil. Ainsi chaque test a un fichier à lui, que le
-testwriter écrit.
+dossier de tests du paquet pour un test par l'interface (en Rust, un module de `tests/it/` du
+crate). Les sortes de tests, qui les écrit, qui les lit et qui les joue sont les mêmes dans chaque
+langage ; seule l'adresse d'un fichier de test suit l'outil. Ainsi chaque test a un fichier à lui,
+que le testwriter écrit.
+
+**Un crate Rust a un seul exécutable de tests d'intégration par moment** (la suite de tests de
+Cargo, `tests/testsuite/main.rs`) : chaque fichier de tests est un module que déclare
+`tests/it/main.rs` le jour, `tests/it_nuit/main.rs` la nuit, `tests/it_budget/main.rs` pour les
+bancs ; la garde `grillhouse executables-de-tests` refuse un exécutable de plus. Ainsi cargo lie
+les dépendances une fois par moment, et une copie garde la place de son disque.
 
 **Un ticket ouvert naît du mot du responsable**, ou d'un défaut qu'un projet du cadre rencontre.
 Une découverte d'agent se consigne dans un ticket fermé, sous le ticket qui l'a trouvée, étiqueté

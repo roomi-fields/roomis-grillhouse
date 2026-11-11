@@ -8,10 +8,10 @@
 //   npx grillhouse verifier [--tout | --gardes]                 verifier
 //   node commandes.mjs typer                                    typer
 //   npx grillhouse tests-de-nuit                                tests-de-nuit
-//   npx grillhouse tailles-des-tests | clippy | frontieres | index-interfaces
+//   npx grillhouse tailles-des-tests | executables-de-tests | clippy | frontieres | index-interfaces
 //                                                               each guard, its own script
 //
-// - Each guard of structure of the module (./tailles-des-tests.mjs, ./clippy.mjs,
+// - Each guard of structure of the module (./tailles-des-tests.mjs, ./executables-de-tests.mjs, ./clippy.mjs,
 //   ./frontieres.mjs, ./index-interfaces.mjs) is a command by its name too, its own script, as the module typescript's: the line of a red
 //   guard (`grillhouse <garde>`, scripts/gardes-du-cadre.mjs) names a command that exists.
 // - `tester` plays the tests of the crates as tasks of Turborepo, the way of the module
@@ -227,6 +227,7 @@ const COMPILATIONS = ['test', 'nextest', 'check', 'build'];
  * this one, and its arguments as a guard. */
 export const GARDES = [
   { nom: 'tailles-des-tests', args: [] },
+  { nom: 'executables-de-tests', args: [] },
   { nom: 'clippy', args: [] },
   { nom: 'frontieres', args: [] },
   { nom: 'index-interfaces', args: ['--verifier'] },

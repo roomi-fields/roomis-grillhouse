@@ -1728,9 +1728,11 @@ circuit et avant chaque mesure, donc n'entre jamais au lot, nommée au journal d
 balayage tient une portée de lecture unique (`scripts/lecture-unique.mjs`), où les composants
 de la composition et ce qu'un module lit à grand coût, les métadonnées de cargo, se lisent une
 fois, quel que soit le nombre de fichiers ; pour un fichier que l'outil ne sait pas jouer en deux
-versions, un test unitaire Rust de `src/` ou une cible `tests/<dossier>/main.rs`, pas d'arbre :
-`testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve tient pour
-des verts que HEAD tient déjà ; un arbre qui ne compile plus n'est pas un rouge du lot : quand la
+versions, un test unitaire Rust de `src/` ou un fichier d'une cible `tests/<dossier>/main.rs`, pas
+d'arbre : `testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve
+tient pour des verts que HEAD tient déjà ; chaque fichier porte ses propres tests, comme le verdict
+les lui donne : un test `foo::bar` de `tests/it/main.rs` va au fichier de son module,
+`tests/it/foo.rs` (ou `foo/mod.rs`), comme un test unitaire va à son `tests.rs` ; un arbre qui ne compile plus n'est pas un rouge du lot : quand la
 construction échoue avec les arbres et que le lot seul construit, la preuve rejoue le paquet sans
 eux et lit de même les noms de HEAD de ces fichiers, `testsDeHead` ; une
 construction que le lot seul casse reste un rouge), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
@@ -1777,9 +1779,14 @@ lance `init`, pose seule, dans un projet neuf comme dans un projet existant. Le 
 `scripts/langages/typescript/` (`tests/temoins/repartition.json` range chaque fichier), ses tests
 sous `tests/unit/langages/typescript/` ; le module cargo sous `scripts/langages/cargo/` (les crates
 de `cargo metadata` ; les fichiers de test que le testwriter écrit, chacun un fichier à lui : les
-tests par l'interface sous `tests/` d'un crate, les tests unitaires près de leur module, un
+tests par l'interface, chacun un module de `tests/it/` d'un crate, un seul exécutable de tests par
+moment, comme la suite de tests de Cargo (`tests/it/main.rs` le jour, `tests/it_nuit/main.rs` la
+nuit, `tests/it_budget/main.rs` les bancs ; chaque fichier de `tests/` est un exécutable que cargo
+lie à part avec toutes ses dépendances, 62 d'environ 90 Mo dans une copie de synthhub), que la
+garde `executables-de-tests` tient, la dette des crates existants inscrite à la migration
+0.34.0, et que le squelette d'un crate neuf porte, sans test ; les tests unitaires près de leur module, un
 `tests.rs` ou un dossier `tests/` sous `src/`, comme le contrôle tidy de rustc, que le module
-déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; un test de nuit `tests/<nom>_nuit.rs` et un banc de temps `tests/<nom>_budget.rs`, reconnus au nom de leur cible ; les tests par nextest puis les doctests, après la construction des cibles de
+déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; un test de nuit et un banc de temps reconnus au nom de leur cible, `<nom>_nuit` et `<nom>_budget` ; les tests par nextest puis les doctests, après la construction des cibles de
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
 « construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; une fois ses tests
@@ -1805,7 +1812,7 @@ et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans l
 pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; ce serveur démarre avant chaque lancement de cargo qui compile, sous `/tmp` (celui de la machine, ou dans une enveloppe celui, vide, de la séance), car sccache 0.19.0 démarre le sien par un socket au chemin sous TMPDIR, refusé au-delà des 108 octets d'un chemin de socket, et le dossier temporaire d'une passe sous le dossier de travail d'une séance les dépasse ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
 vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et
-`maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, la taille des tests, clippy, les frontières entre crates contre la liste
+`maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, la taille des tests, un exécutable de tests par crate et par moment, clippy, les frontières entre crates contre la liste
 permise du manifeste de l'espace de travail, `[workspace.metadata.grillhouse.frontieres]`, comme
 les `depConstraints` de Nx, et l'index des interfaces, qu'il engendre, chacune aussi une
 commande de son nom, que la ligne d'une garde rouge nomme), ses

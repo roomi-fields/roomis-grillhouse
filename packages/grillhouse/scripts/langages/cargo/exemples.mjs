@@ -380,7 +380,8 @@ export default {
           'crates/core/tests/t_budget.rs',
           // A unit test of `src/` and a target `tests/<dossier>/main.rs` have no tree: the
           // names of HEAD's tests are read, as nextest reports them (its module path), the
-          // braces of a comment, a string or a character not counted, a `mod` of main.rs read.
+          // braces of a comment, a string or a character not counted; each file of the target
+          // its own, as the verdict gives them: main.rs its tests, a module of it its own.
           {
             chemin: 'crates/core/src/rendu/tests.rs',
             textes: { 'crates/core/src/rendu/tests.rs': UNITAIRE },
@@ -392,13 +393,18 @@ export default {
               'crates/core/tests/scenario/aide.rs': '#[test]\nfn aidant() {}\n',
             },
           },
+          {
+            chemin: 'crates/core/tests/scenario/aide.rs',
+            textes: { 'crates/core/tests/scenario/aide.rs': '#[test]\nfn aidant() {}\n' },
+          },
         ],
         attendu: [
           'crates/core/tests/t.rs → un arbre',
           'crates/core/tests/t_nuit.rs → un arbre',
           'crates/core/tests/t_budget.rs → un arbre',
           'crates/core/src/rendu/tests.rs : rendu::tests::ancien, rendu::tests::groupe::interne',
-          'crates/core/tests/scenario/main.rs : principal, m::dedans, aide::aidant',
+          'crates/core/tests/scenario/main.rs : principal, m::dedans',
+          'crates/core/tests/scenario/aide.rs : aide::aidant',
         ],
       },
       fichiersEngendres: {
@@ -406,7 +412,15 @@ export default {
         invalide: enRetard,
         attendu: ["l'index des interfaces : en retard"],
       },
-      gardes: { valide: ['tailles-des-tests', 'clippy', 'frontieres', 'index-interfaces'] },
+      gardes: {
+        valide: [
+          'tailles-des-tests',
+          'executables-de-tests',
+          'clippy',
+          'frontieres',
+          'index-interfaces',
+        ],
+      },
       elementsDuLot: {
         valide: { racine: aJour, avant: 'HEAD', apres: 'HEAD' },
         invalide: { racine: lot, avant: avantLeLot, apres: 'HEAD' },

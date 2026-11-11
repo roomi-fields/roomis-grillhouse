@@ -316,8 +316,10 @@ export function envDArbre(_chemin, racine) {
 /**
  * The names of the tests of HEAD's version of the test file <chemin> (from the root <racine>),
  * read without playing them, for a file whose tree the proof does not play: a unit test file of
- * `src/` (`tests.rs`, a file of a folder `tests/` under `src/`, out of `src/bin/`) and a target
- * `tests/<dossier>/main.rs` (./tests-de-head.mjs), and a target `tests/<nom>.rs`, whose tree the
+ * `src/` (`tests.rs`, a file of a folder `tests/` under `src/`, out of `src/bin/`) and each file
+ * of a target `tests/<dossier>/main.rs`, its root and its modules (`tests/it/foo.rs`, the names
+ * `foo::…`), each its own tests as the verdict gives them (./tests-de-head.mjs,
+ * ./verdict.mjs), and a target `tests/<nom>.rs`, whose tree the
  * proof plays unless it no longer compiles (grillhouse-3e2.2): its names as nextest gives them,
  * without the target, its out-of-line modules read (`mod common;`, `common::<fn>`). <lire> gives
  * HEAD's text of a file from the root. Null for any other file, or one HEAD does not hold.
@@ -336,8 +338,14 @@ export function testsDeHead(chemin, racine, lire) {
     return null;
   }
   const parts = path.relative(c.dossier, abs).split(path.sep);
-  if (parts.length === 3 && parts[0] === 'tests' && parts[2] === 'main.rs') {
-    return nomsDeHead(chemin, null, lire);
+  // A file of a target `tests/<dossier>/main.rs`, out of the helpers of `tests/common/`.
+  if (parts.length >= 3 && parts[0] === 'tests' && parts[1] !== 'common') {
+    const module = parts.slice(2);
+    module[module.length - 1] = module[module.length - 1].replace(/\.rs$/, '');
+    if (module.at(-1) === 'mod' || (module.length === 1 && module[0] === 'main')) {
+      module.pop();
+    }
+    return nomsDeHead(chemin, module, lire);
   }
   if (arbreDAvant(chemin, racine)) {
     return nomsDeHead(chemin, null, lire);

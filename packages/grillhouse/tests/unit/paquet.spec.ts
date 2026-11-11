@@ -198,7 +198,7 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
     expect(json(racine, 'packages/interface/package.json').name).toBe('@s/interface');
   });
 
-  it('cargo: its Cargo.toml inheriting the workspace, src/lib.rs, tests/, the member added', () => {
+  it('cargo: its Cargo.toml inheriting the workspace, src/lib.rs, tests/it/main.rs, the member added', () => {
     const racine = synthub();
     const plan = planDuPaquet(racine, 'crates/journal');
     expect(plan.verrouiller).toEqual([
@@ -217,7 +217,7 @@ describe('grillhouse-b32, critère 2 — le squelette du langage de la ligne', (
     });
     expect(crate.lints).toEqual({ workspace: true });
     expect(existsSync(path.join(racine, 'crates/journal/src/lib.rs'))).toBe(true);
-    expect(existsSync(path.join(racine, 'crates/journal/tests/.gitkeep'))).toBe(true);
+    expect(lire(racine, 'crates/journal/tests/it/main.rs')).toMatch(/^\/\/! The integration tests/);
     const espace = parse(lire(racine, 'Cargo.toml')) as {
       workspace: { members: string[]; dependencies: Record<string, unknown> };
     };
@@ -564,6 +564,7 @@ describe('grillhouse-0cy, critère 3 — un dossier que le module ne sait pas re
     ecrireLePaquet(racine, planDuPaquet(racine, 'crates/journal'));
     expect(lire(racine, 'crates/journal/src/lib.rs')).toBe('pub mod ecrire;\n');
     expect(lire(racine, 'crates/journal/tests/journal.rs')).toBe('#[test]\nfn t() {}\n');
+    expect(existsSync(path.join(racine, 'crates/journal/tests/it/main.rs'))).toBe(false);
     expect(existsSync(path.join(racine, 'crates/journal/Cargo.toml'))).toBe(true);
   });
 
