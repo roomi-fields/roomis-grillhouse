@@ -1,6 +1,6 @@
 // The contract of the queue of integration of a project and of the CI of a commit
-// (grillhouse-4nr.8): the id of the queue (the types of both are the names of their functions,
-// ./deroule.ts), its signals and its query by their names, what they receive and give back, and
+// (grillhouse-4nr.8), the CI of a ticket's branch judging it before main moves: the id of the
+// queue (the types of both are the names of their functions, ./deroule.ts), its signals and its query by their names, what they receive and give back, and
 // the activities they call (./activites.ts, each an act of scripts/faits-du-circuit.mjs over
 // scripts/integration/file.mjs). The workflows, their activities and their clients share it.
 
@@ -74,23 +74,10 @@ export interface EntreeDeLaCI {
   ci?: DelaisDeLaCI;
 }
 
-/** Where the lot of a ticket stands. */
+/** Where the lot of a ticket stands: the status of the ticket in Beads, and its reason of closure. */
 interface Lot {
-  /** The status of the ticket in Beads, and its reason of closure. */
   statut: string | null;
   raison: string | null;
-  /** Whether its branch `agent/<ticket>` holds a lot ahead of main, which enters by the queue. */
-  aEntrer: boolean;
-  /** The commit of main that delivers the ticket, null without one. */
-  commit: string | null;
-  /** The branch main is pushed to (`grillhouse.poussee.commit`), null on a fault of the key. */
-  branche: string | null;
-  /**
-   * Whether the commit is on that branch of origin: « non » for a lot on the local main alone,
-   * « inconnu » when origin does not answer, its reason in `raisonOrigin`.
-   */
-  surOrigin: 'oui' | 'non' | 'inconnu';
-  raisonOrigin: string | null;
 }
 
 /** An effect an act of the queue gives back (scripts/effets.mjs): a comment at a ticket. */
@@ -102,17 +89,54 @@ interface Rendus {
 }
 
 export interface ActivitesDeLaFile {
-  /** Where the lot of <ticket> stands: closed, on main with its ticket open, or to enter. */
+  /** Where the lot of <ticket> stands: closed, or to enter by the queue. */
   situerLeLot(e: { racine: string; ticket: string }): Promise<Lot>;
   /**
-   * Main moved onto the branch (scripts/integration/file.mjs `avancerMain`), the ticket told of a
-   * branch out of the queue or kept: `{ entre }`, or the issue for the circuit.
+   * The branch made the candidate its CI judges (scripts/integration/file.mjs
+   * `preparerLaBranche`): on top of main, replaced when main moved, pushed to origin; `{ entre }`,
+   * a lot already on main; or the issue for the circuit, the ticket told of a branch out of the
+   * queue or kept.
+   */
+  preparerLaBranche(e: {
+    racine: string;
+    ticket: string;
+    branche: string;
+  }): Promise<
+    ({ candidat: { commit: string } } | { entre: { commit: string } } | { issue: IssueDeLaFile }) &
+      Rendus
+  >;
+  /** One reading of the CI of <sha> on <branche>, the run <passage> found before (`lireUneFoisLaCI`). */
+  lireLaCI(e: {
+    racine: string;
+    ticket: string;
+    sha: string;
+    branche: string;
+    passage: string | null;
+  }): Promise<LectureDeLaCI>;
+  /**
+   * The CI of the candidate <sha> concluded at the ticket (`conclureLaCI`): `{ avancer: true }`,
+   * green or no CI for the branch; or the issue for the circuit, red or not read.
+   */
+  conclureLaCI(
+    e: {
+      racine: string;
+      ticket: string;
+      sha: string;
+      branche: string;
+    } & VerdictDeLaCI
+  ): Promise<({ avancer: true } | { issue: IssueDeLaFile }) & Rendus>;
+  /**
+   * Main moved forward onto the candidate <commit> its CI judged (`avancerMain`): `{ entre }`;
+   * `{ bouge: true }`, main moved meanwhile; or the issue for the circuit, main kept.
    */
   avancerMain(e: {
     racine: string;
     ticket: string;
     branche: string;
-  }): Promise<({ entre: { commit: string } } | { issue: IssueDeLaFile }) & Rendus>;
+    commit: string;
+  }): Promise<
+    ({ entre: { commit: string } } | { bouge: true } | { issue: IssueDeLaFile }) & Rendus
+  >;
   /**
    * The ticket closed, its branch deleted, main pushed (`fermerLEntree`): the branch pushed to, or
    * null and why, in one line.
@@ -123,24 +147,6 @@ export interface ActivitesDeLaFile {
     branche: string;
     commit: string;
   }): Promise<{ poussee: string | null; raison?: string | null } & Rendus>;
-  /** One reading of the CI of <sha>, the run <passage> found before (`lireUneFoisLaCI`). */
-  lireLaCI(e: {
-    racine: string;
-    ticket: string;
-    sha: string;
-    branche: string;
-    passage: string | null;
-  }): Promise<LectureDeLaCI>;
-  /** The CI of <sha> concluded at the ticket (`conclureLaCI`): the issue for the circuit. */
-  conclureLaCI(
-    e: {
-      racine: string;
-      ticket: string;
-      sha: string;
-      branche: string;
-      relue: boolean;
-    } & VerdictDeLaCI
-  ): Promise<IssueDeLaFile & Rendus>;
   /**
    * One effect <effet> an act of the queue gave back, written under the key of this activity (its
    * workflow, its run, its activity id, which the workflow sets): one that is not written fails.

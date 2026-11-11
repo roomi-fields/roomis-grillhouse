@@ -238,9 +238,10 @@ dossier.
   lourde qui trouve moins de 4 Go libres, sous le dossier temporaire ou sur le disque de sa copie,
   attend la place et dit ce qui l'occupe, le ticket nommé. Ainsi le poste ne sature jamais ses
   disques.
-- **Main reste vert** : l'intégration exige un `npm run verifier` vert. Un test connu rouge se met
-  en quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
-  Ainsi chaque rouge a son ticket.
+- **Main reste vert** : la file n'avance main que sur l'arbre que la CI de la branche du ticket
+  (`agent/<ticket>`) a jugé vert, comme bors et Zuul. Un test connu rouge se met en quarantaine
+  dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige. Ainsi chaque
+  rouge a son ticket.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Ainsi une affirmation sur le code repose sur ce que le code contient.

@@ -61,7 +61,7 @@ describe('grillhouse-ziy, critère 7 — le vrai uv', () => {
     expect(existsSync(path.join(racine, '.pytest_cache/site'))).toBe(true);
     expect(existsSync(path.join(racine, 'site/.venv'))).toBe(false);
     expect(existsSync(path.join(racine, 'site/.pytest_cache'))).toBe(false);
-    for (const nom of ['preparer', 'typer']) {
+    for (const nom of ['typer']) {
       const r = jouer(nom);
       expect(r.r.status, `${nom}\n${r.r.stderr}`).toBe(0);
     }

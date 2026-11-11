@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  # agent/**: the branch of a ticket the queue of the frame pushes, whose run judges the lot.
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'agent/**']
   pull_request:
     branches: [main, develop]
 

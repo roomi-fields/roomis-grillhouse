@@ -13,6 +13,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   symlinkSync,
   writeFileSync,
@@ -250,12 +251,14 @@ export interface Resultat {
   stderr: string;
 }
 
-// The fake GitHub CLI: its answers come from <bin>/gh.json ({ runs, vues, url, log, avancement }: the runs
-// `gh run list` gives, the successive views of the run `gh run view <id> --json
+// The fake GitHub CLI: its answers come from <bin>/gh.json ({ runs, vues, url, log, avancement,
+// bouger }: the runs `gh run list` gives, the successive views of the run `gh run view <id> --json
 // status,conclusion,jobs` gives, the last one repeated, the address and the failed log `gh run
-// view` gives), no run without the file; every call is appended to <bin>/gh-appels, one per line,
+// view` gives); without the file, one run (1) of the commit, completed green: a trial project
+// carries a CI on every push, and the queue judges each branch by it; every call is appended to <bin>/gh-appels, one per line,
 // and, with a progress directory (`avancement`), the record of the CI it holds then to
-// <bin>/gh-avancement.
+// <bin>/gh-avancement. With `bouger` (a repository), its first view of a run commits « main
+// bouge » on the main of that repository, once: main moves while the CI runs.
 export const FAUX_GH = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -263,12 +266,20 @@ const ici = path.dirname(fs.realpathSync(process.argv[1]));
 const a = process.argv.slice(2);
 fs.appendFileSync(path.join(ici, 'gh-appels'), a.join(' ') + '\\n');
 const f = path.join(ici, 'gh.json');
-const s = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+const vert = { status: 'completed', conclusion: 'success', jobs: [] };
+const s = fs.existsSync(f)
+  ? JSON.parse(fs.readFileSync(f, 'utf8'))
+  : { runs: [{ databaseId: 1, status: 'completed', conclusion: 'success' }], vues: [vert] };
 // Under a progress directory, the record of the CI it holds at each call, one per line.
 try {
   const ci = path.join(s.avancement, 'taches', 'etapes-de-la-ci.json');
   fs.appendFileSync(path.join(ici, 'gh-avancement'), fs.readFileSync(ci, 'utf8').trim() + '\\n');
 } catch {}
+const marque = path.join(ici, 'gh-bouge');
+if (s.bouger && a[1] === 'view' && a.includes('status,conclusion,jobs') && !fs.existsSync(marque)) {
+  fs.writeFileSync(marque, '');
+  require('node:child_process').execFileSync('git', ['-C', s.bouger, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'main bouge']);
+}
 if (a[0] === 'run' && a[1] === 'list') process.stdout.write(JSON.stringify(s.runs ?? []));
 else if (a[0] === 'run' && a[1] === 'view' && a.includes('status,conclusion,jobs')) {
   const n = fs.readFileSync(path.join(ici, 'gh-appels'), 'utf8').split('\\n').filter(l => l.includes('status,conclusion,jobs')).length;
@@ -280,7 +291,8 @@ else if (a[0] === 'run' && a[1] === 'view') process.stdout.write((s.url ?? '') +
 else process.exit(1);
 `;
 
-// A project under <essais> whose components are src/a, src/b and src/c, its main pushed to a bare
+// A project under <essais> whose components are src/a, src/b and src/c, a CI on every push
+// (`.github/workflows/ci.yml`, which the fake gh answers green), its main pushed to a bare
 // remote `origin`. <pkg> is merged into its package.json (the `grillhouse` section, for example).
 export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   const repo = mkdtempSync(path.join(essais, 'chantier-'));
@@ -338,6 +350,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     ecrire(repo, `src/${c}/index.ts`, `export const ${c} = 0;\n`);
   }
   ecrire(repo, '.gitignore', '.claude/worktrees/\nnode_modules\n');
+  ecrire(repo, '.github/workflows/ci.yml', 'on: push\n');
   git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-q', '-m', 'base');
@@ -717,28 +730,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
 
 export type Chantier = ReturnType<typeof chantier>;
 
-// The build of grillhouse-3uv.73, as BPScript's: it hard-links each file of LIES that exists into
-// dist/ (fs.linkSync), which changes that tracked file's status-change time (ctime) after the copy
-// wrote its index. It first waits for the clock to pass the second of the last status change of
-// those files, so the change shows whatever precision git compares. It appends « lien » to
-// <PRINCIPAL>.builds, and fails, after linking, while CONSTRUCTION_ROUGE exists.
-const LIES = ['src/a/donnees.txt', 'src/a/tests/fixture.txt'];
-const BUILD_LIENS = `import fs from 'node:fs';
-import path from 'node:path';
-const lies = ${JSON.stringify(LIES)}.filter(f => fs.existsSync(f));
-const dernier = Math.max(0, ...lies.map(f => fs.statSync(f).ctimeMs));
-const reste = (Math.floor(dernier / 1000) + 1) * 1000 + 20 - Date.now();
-if (reste > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, reste);
-for (const f of lies) {
-  const cible = path.join('dist', f);
-  fs.mkdirSync(path.dirname(cible), { recursive: true });
-  fs.linkSync(f, cible);
-}
-fs.appendFileSync(process.env.PRINCIPAL + '.builds', 'lien\\n');
-process.exit(fs.existsSync('CONSTRUCTION_ROUGE') ? 1 : 0);
-`;
-
-// The files the build of grillhouse-3uv.73 links, committed on main of <m> without any build.
+// Tracked files of <m>'s main that a build of the project could hard-link (grillhouse-3uv.73).
 const LIES_CONTENUS = {
   'src/a/donnees.txt': 'un\ndeux\ntrois\n',
   'src/a/tests/fixture.txt': 'f1\nf2\n',
@@ -746,121 +738,6 @@ const LIES_CONTENUS = {
 export function poserLies(m: Chantier) {
   m.poser(LIES_CONTENUS, 'fichiers liés');
 }
-
-// Commits on main of <m> the build of grillhouse-3uv.73 as the root's `build` script (the trial's
-// components have none), the files it links, and dist/ ignored. Returns the builds so far.
-export function construireParLiens(m: Chantier) {
-  const pkg = JSON.parse(readFileSync(path.join(m.repo, 'package.json'), 'utf8')) as {
-    scripts: Record<string, string>;
-  };
-  m.poser(
-    {
-      'package.json': JSON.stringify(
-        { ...pkg, scripts: { ...pkg.scripts, build: 'node build.mjs' } },
-        null,
-        2
-      ),
-      'build.mjs': BUILD_LIENS,
-      '.gitignore': '.claude/worktrees/\nnode_modules\ndist/\n',
-      ...LIES_CONTENUS,
-    },
-    'construction par liens'
-  );
-  const f = `${m.repo}.builds`;
-  return () => (existsSync(f) ? readFileSync(f, 'utf8') : '').split('\n').filter(Boolean);
-}
-
-// The suites of grillhouse-3uv.73 critère 8: the trial's suites (SUITES), which first hard-link
-// each file of LIES that exists to a name of their own and unlink it at once, after waiting for the
-// clock to pass the second of the last status change of those files: the link changes the tracked
-// file's ctime after the copy wrote its index, with no build. They append « lien » to
-// <PRINCIPAL>.suites-liens on each call.
-const SUITES_LIENS = SUITES.replace(
-  "import fs from 'node:fs';\n",
-  `import fs from 'node:fs';
-const lies = ${JSON.stringify(LIES)}.filter(f => fs.existsSync(f));
-const dernier = Math.max(0, ...lies.map(f => fs.statSync(f).ctimeMs));
-const reste = (Math.floor(dernier / 1000) + 1) * 1000 + 20 - Date.now();
-if (reste > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, reste);
-for (const f of lies) {
-  const cible = f + '.lien-' + process.pid;
-  fs.linkSync(f, cible);
-  fs.unlinkSync(cible);
-}
-fs.appendFileSync(process.env.PRINCIPAL + '.suites-liens', 'lien\\n');
-`
-);
-
-// Commits on main of <m> the suites of grillhouse-3uv.73 critère 8 and the files they link, with
-// no build. Returns the runs of those suites so far.
-export function suitesParLiens(m: Chantier) {
-  m.poser({ 'suites.mjs': SUITES_LIENS, ...LIES_CONTENUS }, 'suites par liens');
-  const f = `${m.repo}.suites-liens`;
-  return () => (existsSync(f) ? readFileSync(f, 'utf8') : '').split('\n').filter(Boolean);
-}
-
-// grillhouse-3uv.74: the dependencies of the replay's copy follow its lock file. The project's
-// suites and guards read the dependencies (DEPENDANCES): for each package of package-lock.json,
-// they resolve it by its name from the root and compare its version with the lock's; a package not
-// found or at another version fails the suites (one failing test per package) and the guards. The
-// suites also fail the tests named by ROUGES_FORCES, as the trial's suites (SUITES) do, each
-// failing test written « ✗ <name> » on the output. Each
-// call appends to <PRINCIPAL>.dependances one JSON line: the packages node_modules holds then, name
-// → version (null for a package without one).
-const DEPENDANCES = `import fs from 'node:fs';
-import path from 'node:path';
-import { createRequire } from 'node:module';
-export function desaccords(qui) {
-  const verrou = JSON.parse(fs.readFileSync('package-lock.json', 'utf8')).packages ?? {};
-  const requerir = createRequire(path.resolve('package.json'));
-  const faux = [];
-  for (const [cle, e] of Object.entries(verrou)) {
-    if (!cle.startsWith('node_modules/')) continue;
-    const nom = cle.slice('node_modules/'.length);
-    const attendu = e.link ? verrou[e.resolved]?.version : e.version;
-    let vu = null;
-    try {
-      vu = JSON.parse(fs.readFileSync(requerir.resolve(nom + '/package.json'), 'utf8')).version;
-    } catch {
-      faux.push('dépendance introuvable : ' + nom);
-      continue;
-    }
-    if (vu !== attendu) faux.push('dépendance ' + nom + ' : ' + vu + ' au lieu de ' + attendu);
-  }
-  const presents = {};
-  const dossier = 'node_modules';
-  for (const n of fs.existsSync(dossier) ? fs.readdirSync(dossier) : []) {
-    if (n.startsWith('.')) continue;
-    const pj = path.join(dossier, n, 'package.json');
-    presents[n] = fs.existsSync(pj) ? (JSON.parse(fs.readFileSync(pj, 'utf8')).version ?? null) : null;
-  }
-  fs.appendFileSync(process.env.PRINCIPAL + '.dependances', JSON.stringify({ qui, presents }) + '\\n');
-  return faux;
-}
-`;
-const SUITES_DEPENDANCES = `import fs from 'node:fs';
-import { desaccords } from './dependances.mjs';
-fs.appendFileSync(process.env.PRINCIPAL + '.suites', '[' + process.argv.slice(2).join(' ') + ']');
-let r = fs.existsSync('ROUGES_FORCES') ? fs.readFileSync('ROUGES_FORCES', 'utf8') : '';
-r += desaccords('suites').map(n => n + '\\n').join('');
-for (const n of r.split('\\n').filter(Boolean)) console.log('✗ ' + n);
-process.exit(r ? 1 : 0);
-`;
-const GARDES_DEPENDANCES = `import fs from 'node:fs';
-import { desaccords } from './dependances.mjs';
-fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
-const faux = desaccords('gardes');
-for (const f of faux) console.error(f);
-process.exit(faux.length ? 1 : 0);
-`;
-// The build of the trial project with dependencies (`chantierDependances`, `construction`): it
-// reads the dependencies as the guards do, fails on a package not found or at another version,
-// and leaves no dist/, so every passage builds again.
-const CONSTRUCTION_DEPENDANCES = `import { desaccords } from './dependances.mjs';
-const faux = desaccords('construction');
-for (const f of faux) console.error(f);
-process.exit(faux.length ? 1 : 0);
-`;
 
 // The state of the dependencies of the trial project: its workspaces (directory → package name,
 // version 1.0.0) and the version of its external dependency `ext-lib`, a local archive
@@ -871,18 +748,15 @@ interface EtatDependances {
 }
 
 // The trial project of the integration with dependencies (grillhouse-3uv.74): workspaces src/a and
-// src/b, ext-lib 1.0.0, its lock file, its suites and guards reading the dependencies, committed
-// on main. npm runs offline, on a cache of its own. With `construction`, the root's `build` script
-// reads the dependencies too (CONSTRUCTION_DEPENDANCES), in every manifest of the project.
-// `espaces` replaces the workspaces of the initial state (directory → package name); `motifs` is
+// src/b, ext-lib 1.0.0 and its lock file, committed on main. npm runs offline, on a cache of its
+// own. `espaces` replaces the workspaces of the initial state (directory → package name); `motifs` is
 // the root's `workspaces` field, the patterns npm reads, by default the directories of the state.
 export function chantierDependances(
   essais: string,
   {
-    construction = false,
     espaces: espacesInitiaux = { 'src/a': 'a', 'src/b': 'b' },
     motifs,
-  }: { construction?: boolean; espaces?: Record<string, string>; motifs?: string[] } = {}
+  }: { espaces?: Record<string, string>; motifs?: string[] } = {}
 ) {
   const vendor = mkdtempSync(path.join(essais, 'vendor-'));
   const cache = mkdtempSync(path.join(essais, 'cache-npm-'));
@@ -909,9 +783,6 @@ export function chantierDependances(
       scripts: Record<string, string>;
     }
   ).scripts;
-  if (construction) {
-    scripts.build = 'node construction.mjs';
-  }
   const manifeste = ({ espaces, externe }: EtatDependances) =>
     JSON.stringify(
       {
@@ -949,16 +820,7 @@ export function chantierDependances(
   const initial: EtatDependances = { espaces: espacesInitiaux, externe: '1.0.0' };
   execFileSync('cp', ['-r', vendor, path.join(m.repo, 'vendor')]);
   m.git('add', 'vendor');
-  m.poser(
-    {
-      ...fichiers(initial),
-      'dependances.mjs': DEPENDANCES,
-      'suites.mjs': SUITES_DEPENDANCES,
-      'gardes.mjs': GARDES_DEPENDANCES,
-      ...(construction ? { 'construction.mjs': CONSTRUCTION_DEPENDANCES } : {}),
-    },
-    'dépendances'
-  );
+  m.poser(fichiers(initial), 'dépendances');
   // The files of a lot that installs nowhere: its manifest and lock file name an archive absent
   // from the repository and from npm's cache, so `npm ci` empties node_modules, then fails.
   const introuvable = (): Fichiers => {
@@ -972,16 +834,22 @@ export function chantierDependances(
       'package-lock.json': absent(f['package-lock.json']!),
     };
   };
-  const lireF = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
-  // Each reading of the dependencies so far, in order: who read (construction, suites, gardes) and
-  // the packages node_modules held.
-  const lectures = () =>
-    lireF(`${m.repo}.dependances`)
-      .split('\n')
-      .filter(Boolean)
-      .map(l => JSON.parse(l) as { qui: string; presents: Record<string, string | null> });
-  // The number of suites calls so far.
-  const appelsSuites = () => (m.suites().match(/\[/g) ?? []).length;
+  // The packages the node_modules of the copy <nom> (`integration`, `file`) holds, name → version
+  // (null for a folder without one, a scope such as `@essai`): what its install put there.
+  const installes = (nom: string) => {
+    const dossier = path.join(m.repo, '.claude/worktrees', nom, 'node_modules');
+    const presents: Record<string, string | null> = {};
+    for (const n of existsSync(dossier) ? readdirSync(dossier) : []) {
+      if (n.startsWith('.')) {
+        continue;
+      }
+      const pj = path.join(dossier, n, 'package.json');
+      presents[n] = existsSync(pj)
+        ? ((JSON.parse(readFileSync(pj, 'utf8')) as { version?: string }).version ?? null)
+        : null;
+    }
+    return presents;
+  };
   // A mark in the node_modules of the copy <nom> (`integration`, `file`): `npm ci` empties
   // node_modules, so the mark says whether it ran since it was posed.
   const marque = (nom: string) =>
@@ -1007,8 +875,7 @@ export function chantierDependances(
     initial,
     fichiers,
     introuvable,
-    lectures,
-    appelsSuites,
+    installes,
     poserMarque,
     marquee,
     enFile,

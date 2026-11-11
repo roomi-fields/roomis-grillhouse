@@ -115,7 +115,7 @@ describe('grillhouse-3uv.58.1 critère 15 — every command of the project the f
 
 describe('grillhouse-3uv.58.1 critère 16 — the mount covers each shared submodule the preparation linked, whatever the declaration read afterwards', () => {
   it.runIf(canWrap)(
-    'critère 16: an integration whose lot removes grillhouse.partage, its build writing into the shared submodule — the write fails or the lot is refused, the main repository’s submodule intact',
+    'critère 16: an integration whose lot removes grillhouse.partage, its install writing into the shared submodule — the write fails or the lot is refused, the main repository’s submodule intact',
     () => {
       const m = mondePartage({ ecritures: true });
       // The lot: the package.json of HEAD without grillhouse.partage, the rest unchanged.
@@ -140,9 +140,10 @@ describe('grillhouse-3uv.58.1 critère 16 — the mount covers each shared submo
       const vues = m.ecrituresDe(m.copies.integration);
       expect(m.intrus(), r.stdout + r.stderr + vues.join('\n')).toEqual([]);
       if (r.status === 0) {
-        // Committed: every command, after the lot, failed to write into the shared submodule.
+        // Committed: every command, after the lot (its install), failed to write into the shared
+        // submodule.
         expect(
-          vues.filter(l => l.startsWith('construction ')).length,
+          vues.filter(l => l.startsWith('installation ')).length,
           vues.join('\n')
         ).toBeGreaterThan(0);
         expect(ecrituresFautives(vues), vues.join('\n')).toEqual([]);
@@ -187,9 +188,15 @@ describe('grillhouse-3uv.58.1 critère 17 — the mount covers the git repositor
   };
   const deplacements = (vues: string[]) => vues.filter(l => l.startsWith('deplacer-'));
   it.runIf(canWrap)(
-    'critère 17: in the integration, a build that moves the shared submodule’s HEAD (reset) or commits in its nested submodule fails, and their commits in the main repository stay',
+    'critère 17: in the integration, the commit’s hook that moves the shared submodule’s HEAD (reset) or commits in its nested submodule fails, and their commits in the main repository stay',
     () => {
       const m = mondeDeplace();
+      // The integration plays no build nor test: its commit's hook is the command that moves.
+      writeFileSync(
+        path.join(m.repo, '.git/hooks/pre-commit'),
+        '#!/bin/sh\nnode deplacer.mjs crochet\nexit 0\n',
+        { mode: 0o755 }
+      );
       const natif = git(m.principalNatif, 'rev-parse', 'HEAD').trim();
       const profond = git(m.profond, 'rev-parse', 'HEAD').trim();
       expect(natif).toBe(m.commits[0]);
@@ -284,23 +291,22 @@ describe('grillhouse-3uv.58.1 critère 18 — the mount finds a shared submodule
     );
   }
   it.runIf(canWrap)(
-    'critère 18: in the integration, a build that runs git read-tree HEAD leaves the following commands (tests, guards) unable to write into the shared submodule',
+    'critère 18: in the integration, an install that runs git read-tree HEAD leaves the following command (the commit’s hook) unable to write into the shared submodule',
     () => {
       const m = mondePartage({ ecritures: true });
       const pkgPath = path.join(m.repo, 'package.json');
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Paquet & {
         scripts: Record<string, string>;
       };
-      pkg.scripts.build = `git read-tree HEAD && ${pkg.scripts.build}`;
+      pkg.scripts.postinstall = `git read-tree HEAD && ${pkg.scripts.postinstall}`;
       writeFileSync(pkgPath, JSON.stringify(pkg));
       git(m.repo, 'add', '.');
       git(m.repo, 'commit', '-qm', 'read-tree');
+      poserCrochet(m);
       const r = m.integrer();
       const vues = m.ecrituresDe(m.copies.integration);
       expect(m.intrus(), r.stdout + r.stderr + vues.join('\n')).toEqual([]);
-      for (const e of ['tests', 'gardes']) {
-        expect(vues.filter(l => l.startsWith(`${e} `)).length, vues.join('\n')).toBeGreaterThan(0);
-      }
+      expect(vues.filter(l => l.startsWith('crochet ')).length, vues.join('\n')).toBeGreaterThan(0);
       expect(ecrituresFautives(vues), vues.join('\n')).toEqual([]);
       expect(existsSync(m.nonSuivi)).toBe(true);
     },

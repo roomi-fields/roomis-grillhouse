@@ -3,12 +3,12 @@
 // Temporal, played on a development server of trial (the pinned program TEMPORAL on a free port,
 // a database file of its own), its activities simulated by the test (a worker of this process).
 // The queue of a project (`fileDuProjet`, `file:<racine>`) takes one entry at a time, which the
-// workflow of a ticket sends at its step 5.2 and whose issue it awaits; the CI of a commit
-// (`ciDuCommit`, a child workflow) is read by one reading at a time, durable timers between them.
-// Criteria 1 (one entry on main at a time), 2 (the death of the worker between the entry and the
-// closure ends the ticket without reopening it), 3 (the CI followed by durable timers, which the
-// death of the worker does not lose), 4 (a red CI reopens the ticket and its question goes up) and
-// 5 (`--reprendre` after a green rerun reads the CI of the commit again).
+// workflow of a ticket sends at its step 5.2 and whose issue it awaits: the branch made the
+// candidate and pushed, its CI (`ciDuCommit`, a child workflow, one reading at a time, durable
+// timers between them) judged before main moves onto it; main moved meanwhile, the branch is
+// replaced and judged again. One entry on main at a time; the death of the worker between the
+// entry and the closure ends the ticket without reopening it; a red CI reopens the ticket, main
+// unmoved, and its question goes up; `--reprendre` after a green rerun sends the branch again.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ApplicationFailure } from '@temporalio/common';
@@ -75,17 +75,17 @@ function actes(
   const journal = {
     // Each act of the queue, `<acte> <ticket>`, in its order; `fin <acte> <ticket>` at its end.
     file: [] as string[],
-    lectures: [] as { ticket: string; passage: string | null }[],
+    lectures: [] as { ticket: string; sha: string; passage: string | null }[],
     conclusions: [] as Parameters<ActivitesDeLaFile['conclureLaCI']>[0][],
     arrets: [] as Parameters<Activites['publierLArret']>[0][],
     fins: [] as string[],
     effets: [] as { id: string; cle: string | null; effet: { genre: string } }[],
   };
-  // The lot of each ticket on main once the queue made it enter, the tickets closed, and those
-  // whose main was pushed to origin.
+  // The lot of each ticket on main once the queue made it enter, the tickets closed, and the
+  // candidates of each ticket so far.
   const surMain = new Map<string, string>();
   const fermes = new Set<string>();
-  const pousses = new Set<string>();
+  const candidats = new Map<string, number>();
   const lus = new Map<string, number>();
   const circuit: Activites = {
     ouvrirLeCircuit(o) {
@@ -143,32 +143,35 @@ function actes(
       return Promise.resolve({
         statut: fermes.has(ticket) ? 'closed' : 'open',
         raison: fermes.has(ticket) ? `intégré : ${surMain.get(ticket)}` : null,
-        aEntrer: !surMain.has(ticket),
-        commit: surMain.get(ticket) ?? null,
-        branche: 'main',
-        surOrigin: pousses.has(ticket) ? 'oui' : 'non',
-        raisonOrigin: null,
       });
     },
-    async avancerMain({ ticket }) {
-      journal.file.push(`avancerMain ${ticket}`);
+    async preparerLaBranche({ ticket }) {
+      journal.file.push(`preparerLaBranche ${ticket}`);
       await new Promise(r => setTimeout(r, 300));
-      journal.file.push(`fin avancerMain ${ticket}`);
-      const commit = `c-${ticket}`;
+      journal.file.push(`fin preparerLaBranche ${ticket}`);
+      const deja = surMain.get(ticket);
+      if (deja) {
+        return { entre: { commit: deja }, effets: [] };
+      }
+      const n = (candidats.get(ticket) ?? 0) + 1;
+      candidats.set(ticket, n);
+      return { candidat: { commit: `c-${ticket}-${n}` }, effets: [] };
+    },
+    avancerMain({ ticket, commit }) {
+      journal.file.push(`avancerMain ${ticket}`);
       surMain.set(ticket, commit);
-      return { entre: { commit }, effets: [] };
+      return Promise.resolve({ entre: { commit }, effets: [] });
     },
     fermerLEntree({ ticket }) {
       journal.file.push(`fermerLEntree ${ticket}`);
       fermes.add(ticket);
-      pousses.add(ticket);
       return Promise.resolve({
         poussee: 'main',
         effets: [{ genre: 'commentaire', ticket, texte: `${ticket} fermé` }],
       });
     },
-    lireLaCI({ ticket, passage }) {
-      journal.lectures.push({ ticket, passage });
+    lireLaCI({ ticket, sha, passage }) {
+      journal.lectures.push({ ticket, sha, passage });
       const n = (lus.get(ticket) ?? 0) + 1;
       lus.set(ticket, n);
       const s = ci();
@@ -178,15 +181,15 @@ function actes(
       journal.conclusions.push(e);
       const effets = [{ genre: 'commentaire', ticket: e.ticket, texte: `CI ${e.verdict}` }];
       if (e.verdict === 'rouge') {
-        fermes.delete(e.ticket);
         return Promise.resolve({
-          etat: 'rouvert',
-          raison: `CI rouge (passage ${e.passage})`,
+          issue: { etat: 'rouvert', raison: `CI rouge (passage ${e.passage})` },
           effets,
         });
       }
-      fermes.add(e.ticket);
-      return Promise.resolve({ etat: 'ferme', raison: `intégré : ${e.sha}`, effets });
+      if (e.verdict === 'non-lue') {
+        return Promise.resolve({ issue: { etat: 'en-file', raison: `CI non lue` }, effets });
+      }
+      return Promise.resolve({ avancer: true, effets });
     },
     // Each effect an act gave back, its activity id and its key.
     async jouerUnEffetDeLaFile({ effet }) {
@@ -207,7 +210,7 @@ function actes(
   const oublier = (ticket: string) => {
     surMain.delete(ticket);
     fermes.delete(ticket);
-    pousses.delete(ticket);
+    candidats.delete(ticket);
     lus.delete(ticket);
   };
   return { activites: { ...circuit, ...avec }, journal, lus, oublier };
@@ -266,22 +269,24 @@ describe('une seule entrée sur main à la fois par projet', () => {
     expect([vue.enCours, ...vue.attente].sort()).toEqual(['essai-1', 'essai-2']);
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
     expect(await finDuCircuit(s.client, RACINE, 'essai-2')).toEqual({ code: 0, raison: 'integre' });
-    // Each entry ends (main, the closure) before the next one starts.
+    // Each entry ends (its candidate, its CI, main, the closure) before the next one starts.
     const premier = journal.file[0]!.split(' ')[1]!;
     const second = premier === 'essai-1' ? 'essai-2' : 'essai-1';
     expect(journal.file).toEqual([
+      `preparerLaBranche ${premier}`,
+      `fin preparerLaBranche ${premier}`,
       `avancerMain ${premier}`,
-      `fin avancerMain ${premier}`,
       `fermerLEntree ${premier}`,
+      `preparerLaBranche ${second}`,
+      `fin preparerLaBranche ${second}`,
       `avancerMain ${second}`,
-      `fin avancerMain ${second}`,
       `fermerLEntree ${second}`,
     ]);
     const d = await s.client.workflow.getHandle(idDeLaFile(RACINE)).describe();
     expect(d.status.name).toBe('RUNNING');
   }, 120_000);
 
-  it('a second entry waits while the CI of the first is not concluded', async () => {
+  it('a second entry waits while the CI of the first is not concluded, and main waits for it', async () => {
     let lacher: () => void = () => {};
     const tenue = new Promise<void>(r => (lacher = r));
     let conclue = false;
@@ -311,14 +316,15 @@ describe('une seule entrée sur main à la fois par projet', () => {
     });
     expect(vue.enCours).toBe('essai-1');
     await new Promise(r => setTimeout(r, 1500));
-    // Main does not take essai-2 while the CI of essai-1 runs: nothing is pushed on a red main.
+    // Neither main moves onto essai-1 nor essai-2 is prepared while the CI of essai-1 runs.
     expect(journal.file.filter(l => l.endsWith('essai-2'))).toEqual([]);
+    expect(journal.file).not.toContain('avancerMain essai-1');
     conclue = true;
     lacher();
     expect(await finDuCircuit(s.client, RACINE, 'essai-2')).toEqual({ code: 0, raison: 'integre' });
     const fin1 = journal.conclusions.findIndex(c => c.ticket === 'essai-1');
     expect(fin1).toBe(0);
-    expect(journal.file.indexOf('avancerMain essai-2')).toBeGreaterThan(
+    expect(journal.file.indexOf('preparerLaBranche essai-2')).toBeGreaterThan(
       journal.file.indexOf('fermerLEntree essai-1')
     );
   }, 120_000);
@@ -327,7 +333,7 @@ describe('une seule entrée sur main à la fois par projet', () => {
     let lacher: () => void = () => {};
     const tenue = new Promise<void>(r => (lacher = r));
     const { activites, journal } = actes(undefined, {
-      avancerMain: async (e, simule) => {
+      preparerLaBranche: async (e, simule) => {
         if (e.ticket === 'essai-1') {
           await tenue;
         }
@@ -344,7 +350,7 @@ describe('une seule entrée sur main à la fois par projet', () => {
     expect((await lireLaFile(s.client, RACINE)).attente).toEqual([]);
     lacher();
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    expect(journal.file.filter(l => l === 'avancerMain essai-1')).toHaveLength(1);
+    expect(journal.file.filter(l => l === 'preparerLaBranche essai-1')).toHaveLength(1);
   }, 120_000);
 });
 
@@ -358,12 +364,12 @@ describe('chaque commentaire de la file est une activité, sous une clé que fix
     await s.demarrer('essai-1');
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
     expect(journal.effets.map(e => e.id)).toEqual([
+      'entree:1:1:conclure:effet:1:commentaire',
       'entree:1:fermer:effet:1:commentaire',
-      expect.stringMatching(/^file:.+:ci:.+:1:conclure:effet:1:commentaire$/),
     ]);
     expect(journal.effets.map(e => e.effet)).toMatchObject([
-      { texte: 'essai-1 fermé' },
       { texte: 'CI verte' },
+      { texte: 'essai-1 fermé' },
     ]);
     expect(new Set(journal.effets.map(e => e.cle)).size).toBe(2);
   }, 120_000);
@@ -411,8 +417,8 @@ describe('la mort du travailleur entre l’entrée et la fermeture finit le tick
   it('the attempt played again after main moved closes the ticket, which never reopens', async () => {
     let morte = false;
     const { activites, journal } = actes(undefined, {
-      // Main moves onto the lot, then the worker dies before the attempt ends: the attempt played
-      // again finds the lot on main (scripts/integration/file.mjs gives it as entered).
+      // Main moves onto the candidate, then the worker dies before the attempt ends: the attempt
+      // played again finds main on it (scripts/integration/file.mjs gives it as entered).
       avancerMain: async (e, simule) => {
         const r = await simule(e);
         if (!morte) {
@@ -482,13 +488,16 @@ describe('la CI se suit par minuteurs durables', () => {
     expect(journal.conclusions).toMatchObject([{ verdict: 'verte' }]);
   }, 120_000);
 
-  it('no run past the search, or a run not ended past the wait: the CI is not read', async () => {
+  it('no run past the search, or a run not ended past the wait: the CI is not read, main unmoved', async () => {
     const sans = actes(() => [{ etat: 'cherche' }]);
     const s = await serveur(sans.activites);
     await s.demarrer('essai-1');
-    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
+    await attendre('la conclusion', () =>
+      Promise.resolve(sans.journal.conclusions.length ? true : undefined)
+    );
     expect(sans.journal.conclusions).toMatchObject([{ verdict: 'non-lue' }]);
     expect(sans.journal.conclusions[0]?.raison).toMatch(/aucun passage/);
+    expect(sans.journal.file).not.toContain('avancerMain essai-1');
 
     const longue = actes(() => [{ etat: 'en-cours', passage: '43' }]);
     const s2 = await serveur(longue.activites);
@@ -497,16 +506,16 @@ describe('la CI se suit par minuteurs durables', () => {
       { racine: RACINE, ticket: 'essai-2', ci: { ...CI, attenteMs: 1_000 } },
       FILE
     );
-    expect(await finDuCircuit(s2.client, RACINE, 'essai-2')).toEqual({
-      code: 0,
-      raison: 'integre',
-    });
+    await attendre('la conclusion', () =>
+      Promise.resolve(longue.journal.conclusions.length ? true : undefined)
+    );
     expect(longue.journal.conclusions).toMatchObject([{ verdict: 'non-lue', passage: '43' }]);
+    expect(longue.journal.file).not.toContain('avancerMain essai-2');
   }, 120_000);
 });
 
 describe('une CI rouge rouvre le ticket et pose la question', () => {
-  it('the queue concludes red, the ticket reopens, its question goes up and waits', async () => {
+  it('the queue concludes red, main does not move, the ticket reopens, its question goes up and waits', async () => {
     const { activites, journal } = actes(() => ROUGE);
     const s = await serveur(activites);
     await s.demarrer('essai-1');
@@ -516,16 +525,36 @@ describe('une CI rouge rouvre le ticket et pose la question', () => {
     });
     expect(v).toMatchObject({ etape: 'file', question: { arret: 'integration' } });
     expect(journal.conclusions).toMatchObject([
-      { ticket: 'essai-1', verdict: 'rouge', passage: '42', relue: false },
+      { ticket: 'essai-1', verdict: 'rouge', passage: '42', sha: 'c-essai-1-1' },
     ]);
+    // Main does not move onto a candidate its CI judged red.
+    expect(journal.file).not.toContain('avancerMain essai-1');
     expect(journal.fins).toEqual([]);
     // The queue goes on: it does not wait for the ticket's answer.
     expect((await lireLaFile(s.client, RACINE)).enCours).toBeNull();
   }, 120_000);
 });
 
-describe('--reprendre après un rejeu vert relit la CI du commit', () => {
-  it('the CI of the commit on main read again, green at its last attempt: the ticket ends', async () => {
+describe('main bouge pendant la CI : la branche est rejouée et jugée de nouveau', () => {
+  it('main moved after the green: the branch is replaced, its new candidate judged, then it enters', async () => {
+    let bouges = 0;
+    const { activites, journal } = actes(undefined, {
+      avancerMain: (e, simule) =>
+        ++bouges === 1 ? Promise.resolve({ bouge: true as const, effets: [] }) : simule(e),
+    });
+    const s = await serveur(activites);
+    await s.demarrer('essai-1');
+    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
+    expect(journal.file.filter(l => l === 'preparerLaBranche essai-1')).toHaveLength(2);
+    expect(journal.conclusions.map(c => c.sha)).toEqual(['c-essai-1-1', 'c-essai-1-2']);
+    expect(new Set(journal.lectures.map(l => l.sha))).toEqual(
+      new Set(['c-essai-1-1', 'c-essai-1-2'])
+    );
+  }, 120_000);
+});
+
+describe('--reprendre après un rejeu vert renvoie la branche, jugée au dernier essai', () => {
+  it('the CI of the branch red, then green at its last attempt: --reprendre enters it', async () => {
     let ci: Scenario = ROUGE;
     const { activites, journal, lus } = actes(() => ci);
     const s = await serveur(activites);
@@ -539,12 +568,11 @@ describe('--reprendre après un rejeu vert relit la CI du commit', () => {
     lus.clear();
     await reprendreLeCircuit(s.client, RACINE, 'essai-1', null);
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    // Main is not moved again: the lot is on main, its CI read again.
-    expect(journal.file.filter(l => l.startsWith('avancerMain'))).toHaveLength(1);
     expect(journal.conclusions).toMatchObject([
-      { verdict: 'rouge', sha: 'c-essai-1', relue: false },
-      { verdict: 'verte', sha: 'c-essai-1', passage: '42', relue: true },
+      { verdict: 'rouge', passage: '42' },
+      { verdict: 'verte', passage: '42' },
     ]);
+    expect(journal.file.filter(l => l === 'avancerMain essai-1')).toHaveLength(1);
     expect(journal.fins).toEqual(['essai-1']);
   }, 120_000);
 });
@@ -552,7 +580,7 @@ describe('--reprendre après un rejeu vert relit la CI du commit', () => {
 describe('un acte de la file qui échoue', () => {
   it('fails at the entry of essai-1: its stop « inattendu » goes up, essai-2 behind it enters', async () => {
     const { activites, journal } = actes(undefined, {
-      avancerMain: (e, simule) =>
+      preparerLaBranche: (e, simule) =>
         e.ticket === 'essai-1'
           ? Promise.reject(ApplicationFailure.nonRetryable('bd show illisible', 'Inattendu'))
           : simule(e),
@@ -573,7 +601,7 @@ describe('un acte de la file qui échoue', () => {
     expect(d.status.name).toBe('RUNNING');
   }, 120_000);
 
-  it('the closure fails once main moved: the stop says main holds the lot unpushed; --reprendre closes and pushes it before its CI', async () => {
+  it('the closure fails once main moved: the stop says main holds the lot unpushed; --reprendre closes and pushes it', async () => {
     let fermetures = 0;
     const { activites, journal } = actes(undefined, {
       fermerLEntree: (e, simule) =>
@@ -591,87 +619,36 @@ describe('un acte de la file qui échoue', () => {
       { inattendu?: { message: string } } | undefined;
     expect(arret?.inattendu?.message).toContain('bd close plante');
     expect(arret?.inattendu?.message).toContain('main local');
-    expect(arret?.inattendu?.message).toContain('en c-essai,');
+    expect(arret?.inattendu?.message).toContain('en c-essai');
     expect(arret?.inattendu?.message).toContain('non poussé');
-    expect(journal.lectures).toEqual([]);
     await reprendreLeCircuit(s.client, RACINE, 'essai-1', null);
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    // The lot goes through the queue again, which closes and pushes it; its CI is read after.
+    // The lot goes through the queue again, which finds it on main, closes and pushes it, without
+    // judging it twice.
     expect(fermetures).toBe(2);
-    expect(journal.conclusions).toMatchObject([{ verdict: 'verte', relue: false }]);
+    expect(journal.conclusions).toMatchObject([{ verdict: 'verte' }]);
   }, 120_000);
 
-  it('a lot on main whose place on origin is unknown does not go back to the queue: its reason goes up', async () => {
-    const { activites, journal } = actes(undefined, {
-      situerLeLot: () =>
-        Promise.resolve({
-          statut: 'open',
-          raison: null,
-          aEntrer: false,
-          commit: 'c-essai-1',
-          branche: 'main',
-          surOrigin: 'inconnu',
-          raisonOrigin: 'git ls-remote origin : dépôt injoignable',
-        }),
-    });
-    const s = await serveur(activites);
-    await s.demarrer('essai-1');
-    await attendre('la question de essai-1', async () => {
-      const x = await lireLeCircuit(s.client, RACINE, 'essai-1');
-      return x.attente ? x : undefined;
-    });
-    const arret = journal.arrets.find(a => a.ticket === 'essai-1')?.arret as
-      { inattendu?: { message: string } } | undefined;
-    expect(arret?.inattendu?.message).toContain('dépôt injoignable');
-    expect(journal.file).toEqual([]);
-    expect(journal.lectures).toEqual([]);
-  }, 120_000);
-
-  it('a place on origin unknown for a moment: --reprendre reads it again, on origin, and the ticket ends', async () => {
-    let situations = 0;
-    const { activites, journal } = actes(undefined, {
-      situerLeLot: () =>
-        Promise.resolve({
-          statut: 'open',
-          raison: null,
-          aEntrer: false,
-          commit: 'c-essai-1',
-          branche: 'main',
-          surOrigin: ++situations === 1 ? 'inconnu' : 'oui',
-          raisonOrigin: situations === 1 ? 'git ls-remote origin : dépôt injoignable' : null,
-        }),
-    });
-    const s = await serveur(activites);
-    await s.demarrer('essai-1');
-    await attendre('la question de essai-1', async () => {
-      const x = await lireLeCircuit(s.client, RACINE, 'essai-1');
-      return x.attente ? x : undefined;
-    });
-    await reprendreLeCircuit(s.client, RACINE, 'essai-1', null);
-    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    // The lot does not go back to the queue: its CI is read again.
-    expect(situations).toBe(2);
-    expect(journal.file).toEqual([]);
-    expect(journal.conclusions).toMatchObject([{ sha: 'c-essai-1', relue: true }]);
-  }, 120_000);
-
-  it('the CI of the entry fails to be read after its push: it is concluded not read, its comment written, the queue goes on', async () => {
+  it('the CI of the candidate fails to be read: concluded not read, main unmoved, the queue goes on', async () => {
     const { activites, journal } = actes(undefined, {
       lireLaCI: () => Promise.reject(ApplicationFailure.nonRetryable('gh plante', 'Inattendu')),
     });
     const s = await serveur(activites);
     await s.demarrer('essai-1');
-    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    expect(journal.conclusions).toHaveLength(1);
+    await attendre('la conclusion', () =>
+      Promise.resolve(journal.conclusions.length ? true : undefined)
+    );
     expect(journal.conclusions[0]).toMatchObject({
       ticket: 'essai-1',
-      sha: 'c-essai-1',
+      sha: 'c-essai-1-1',
       verdict: 'non-lue',
-      relue: false,
     });
     expect(journal.conclusions[0]!.raison).toContain('gh plante');
+    expect(journal.file).not.toContain('avancerMain essai-1');
     expect(journal.arrets).toEqual([]);
-    expect((await lireLaFile(s.client, RACINE)).enCours).toBeNull();
+    await attendre('la file libre', async () =>
+      (await lireLaFile(s.client, RACINE)).enCours === null ? true : undefined
+    );
   }, 120_000);
 });
 

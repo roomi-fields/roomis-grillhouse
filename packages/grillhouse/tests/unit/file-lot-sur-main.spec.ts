@@ -1,11 +1,10 @@
 // grillhouse-4nr.8, criterion 2: the acts of the queue that the workflow of the queue of a project
-// plays (scripts/integration/file.mjs, `avancerMain` and `fermerLEntree`), each played again by an
-// attempt after the death of its worker. A lot already on main (a commit of main delivers its
+// plays (scripts/integration/file.mjs, `preparerLaBranche` and `fermerLEntree`), each played again
+// by an attempt after the death of its worker. A lot already on main (a commit of main delivers its
 // ticket, the branch left behind at its tip before the replay) is entered, not set aside: main
 // does not move again, and the ticket is not told that its branch has nothing ahead, its branch
 // gone included. The closure played again on a ticket already closed writes nothing twice and
-// never reopens it. Where the lot stands says whether main carries it to origin: a lot on main
-// whose closure failed before its push is not pushed.
+// never reopens it.
 //
 // The history is a trial repository read by git; Beads is a stand-in in the process.
 import { execFileSync } from 'node:child_process';
@@ -13,12 +12,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  INTEGRE,
-  avancerMain,
-  fermerLEntree,
-  situerLeLot,
-} from '../../scripts/integration/file.mjs';
+import { INTEGRE, fermerLEntree, preparerLaBranche } from '../../scripts/integration/file.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-lot-sur-main-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -88,11 +82,11 @@ const outils = (racine: string, t: Ticket) => {
 };
 
 describe('un lot déjà sur main est entré, sans rouvrir son ticket', () => {
-  it('avancerMain played again after main moved: the lot is entered, main does not move', () => {
+  it('the branch prepared again after main moved onto its lot: the lot is entered, main does not move', () => {
     const d = depot();
     const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
     const { o, appels } = outils(d.racine, t);
-    const r = avancerMain(o, { ticket: 'demo-1', branche: 'agent/demo-1' });
+    const r = preparerLaBranche(o, { ticket: 'demo-1', branche: 'agent/demo-1' });
     expect(r).toEqual({ entre: { commit: d.surMain } });
     expect(d.git('rev-parse', 'main')).toBe(d.surMain);
     expect(
@@ -105,7 +99,7 @@ describe('un lot déjà sur main est entré, sans rouvrir son ticket', () => {
     d.git('branch', '-f', 'agent/demo-3', 'main');
     const t: Ticket = { id: 'demo-3', status: 'open', labels: ['en-file'] };
     const { o } = outils(d.racine, t);
-    const r = avancerMain(o, { ticket: 'demo-3', branche: 'agent/demo-3' });
+    const r = preparerLaBranche(o, { ticket: 'demo-3', branche: 'agent/demo-3' });
     expect(r).toHaveProperty('ecartee');
   });
 
@@ -115,7 +109,7 @@ describe('un lot déjà sur main est entré, sans rouvrir son ticket', () => {
     d.git('branch', '-f', 'agent/demo-1', 'main~1');
     const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
     const { o } = outils(d.racine, t);
-    expect(avancerMain(o, { ticket: 'demo-1', branche: 'agent/demo-1' })).toEqual({
+    expect(preparerLaBranche(o, { ticket: 'demo-1', branche: 'agent/demo-1' })).toEqual({
       ecartee: true,
     });
   });
@@ -125,7 +119,7 @@ describe('un lot déjà sur main est entré, sans rouvrir son ticket', () => {
     d.git('branch', '-f', 'agent/demo-1', 'main');
     const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
     const { o } = outils(d.racine, t);
-    expect(avancerMain(o, { ticket: 'demo-1', branche: 'agent/demo-1' })).toEqual({
+    expect(preparerLaBranche(o, { ticket: 'demo-1', branche: 'agent/demo-1' })).toEqual({
       entre: { commit: d.surMain },
     });
   });
@@ -144,66 +138,13 @@ describe('un lot déjà sur main est entré, sans rouvrir son ticket', () => {
   });
 });
 
-describe('un lot sur main dit s’il est poussé', () => {
-  it('a lot on the local main is not pushed; once main is pushed to origin, it is', () => {
-    const d = depot();
-    const origine = mkdtempSync(path.join(ESSAIS, 'origine-'));
-    execFileSync('git', ['init', '-q', '--bare', origine]);
-    d.git('remote', 'add', 'origin', origine);
-    const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
-    const { o } = outils(d.racine, t);
-    expect(situerLeLot(o, 'demo-1')).toMatchObject({ commit: d.surMain, surOrigin: 'non' });
-    d.git('push', '-q', 'origin', 'main~1:refs/heads/main');
-    expect(situerLeLot(o, 'demo-1')).toMatchObject({ commit: d.surMain, surOrigin: 'non' });
-    d.git('push', '-q', 'origin', 'main:refs/heads/main');
-    expect(situerLeLot(o, 'demo-1')).toMatchObject({ commit: d.surMain, surOrigin: 'oui' });
-  });
-
-  it('origin that does not answer: unknown, its reason named, never « not pushed »', () => {
-    const d = depot();
-    d.git('remote', 'add', 'origin', path.join(ESSAIS, 'origine-absente'));
-    const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
-    const { o } = outils(d.racine, t);
-    const lot = situerLeLot(o, 'demo-1') as { surOrigin: string; raisonOrigin: string };
-    expect(lot.surOrigin).toBe('inconnu');
-    expect(lot.raisonOrigin).toMatch(/ls-remote/);
-  });
-
-  it('the tip of origin unknown here: unknown, its reason named, never « not pushed »', () => {
-    const d = depot();
-    const origine = mkdtempSync(path.join(ESSAIS, 'origine-'));
-    execFileSync('git', ['init', '-q', '--bare', origine]);
-    // Another clone pushes a commit the local tree has never fetched.
-    const autre = mkdtempSync(path.join(ESSAIS, 'autre-'));
-    execFileSync('git', ['init', '-q', autre]);
-    execFileSync('git', [
-      '-C',
-      autre,
-      '-c',
-      'user.name=t',
-      '-c',
-      'user.email=t@t',
-      'commit',
-      '-q',
-      '--allow-empty',
-      '-m',
-      'ailleurs',
-    ]);
-    execFileSync('git', ['-C', autre, 'push', '-q', origine, 'HEAD:refs/heads/main']);
-    d.git('remote', 'add', 'origin', origine);
-    const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
-    const { o } = outils(d.racine, t);
-    const lot = situerLeLot(o, 'demo-1') as { surOrigin: string; raisonOrigin: string };
-    expect(lot.surOrigin).toBe('inconnu');
-    expect(lot.raisonOrigin).toMatch(/merge-base --is-ancestor/);
-  });
-
+describe('un lot sur main dont la branche est partie', () => {
   it('a lot on main whose branch is gone, its ticket open, is entered', () => {
     const d = depot();
     d.git('branch', '-D', 'agent/demo-1');
     const t: Ticket = { id: 'demo-1', status: 'open', labels: ['en-file'] };
     const { o } = outils(d.racine, t);
-    expect(avancerMain(o, { ticket: 'demo-1', branche: 'agent/demo-1' })).toEqual({
+    expect(preparerLaBranche(o, { ticket: 'demo-1', branche: 'agent/demo-1' })).toEqual({
       entre: { commit: d.surMain },
     });
   });

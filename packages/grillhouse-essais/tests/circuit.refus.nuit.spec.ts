@@ -13,10 +13,10 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // (BP 320.37: three times « FAIT » without a file changed, the gesture rien-a-livrer, the checks of
 // the copy green, the integration red again); as bors retries a lot, `--reprendre` plays the
 // integration again on the same lot (BP 320.16, 320.16.2: a refusal of the load or of main).
-// The trial repository and its stand-ins: ./circuit-essai.ts (its project's guard is red in the
-// integration copy alone while the main tree holds `.beads/essai/integration/rouge`, out of
-// Turborepo's cache, so that the integration plays it again); each file of the circuit's tests
-// builds its own, in a trial directory of its own.
+// The trial repository and its stand-ins: ./circuit-essai.ts (the command of one of its project's
+// generated files fails in the integration copy alone while the main tree holds
+// `.beads/essai/integration/rouge`, `refusALIntegration`); each file of the circuit's tests builds
+// its own, in a trial directory of its own.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
@@ -32,9 +32,9 @@ const {
   etat,
   journal,
   commentaires,
-} = circuitEssai(ESSAIS, { gardesSansCache: true });
+} = circuitEssai(ESSAIS, { refusALIntegration: true });
 
-// The red the integration copy alone sees, set and lifted (the trial's guard).
+// The red the integration copy alone sees, set and lifted (the trial's generated file).
 const MARQUE = path.join(BEADS, 'essai', 'integration', 'rouge');
 const rougeALIntegration = () => {
   mkdirSync(path.dirname(MARQUE), { recursive: true });

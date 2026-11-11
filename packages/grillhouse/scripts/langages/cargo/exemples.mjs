@@ -12,7 +12,7 @@
 //   that changes `ws-core`, adds the crate `ws-neuf` and removes `ws-outil`: `lot`; the same, the
 //   interface of `ws-core` then changed, its index late: `enRetard`.
 // - Each workspace commits its Cargo.lock, the one cargo writes (grillhouse-rph): the commands
-//   tester, verifier and preparer refuse a workspace whose Cargo.lock git does not track.
+//   tester, verifier and tests-de-nuit refuse a workspace whose Cargo.lock git does not track.
 // - A crate at the root, its workspace `members = ["."]`, with its tests, as OSC Bridge: `seul`;
 //   a crate at the root holding a second crate, `crates/aide`, none with tests: `imbrique`.
 // - A directory without Cargo.toml: `vide`.
@@ -316,7 +316,7 @@ export default {
         ],
       },
       commandes: {
-        valide: ['tester', 'verifier', 'typer', 'preparer'],
+        valide: ['tester', 'verifier', 'typer', 'tests-de-nuit'],
         invalide: ['tester', 'deployer'],
         attendu: ['deployer : absente'],
       },

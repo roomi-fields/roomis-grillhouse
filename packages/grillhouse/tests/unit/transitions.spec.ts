@@ -665,10 +665,7 @@ describe('un tableau de transitions par étape', () => {
   });
 
   describe('5.1 Intégration, 5.2 File, 5.3 Tri', () => {
-    it('l’intégration à 75 : a-repasser ; refusée : integration, le refus gardé ; commitée : en file', () => {
-      expect(
-        jouer({ etat: etat(INTEGRATION) }, { integration: { code: 75, sortie: 's' } }).d.arret?.nom
-      ).toBe('a-repasser');
+    it('l’intégration refusée : integration, le refus gardé ; commitée : en file', () => {
       const refus = jouer(
         { etat: etat(INTEGRATION) },
         { integration: { code: 1, sortie: 's', commande: 'node integrer.mjs' }, empreinte: 'E' }

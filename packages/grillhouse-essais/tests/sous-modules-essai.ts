@@ -45,8 +45,7 @@ export const git = (dir: string, ...a: string[]) =>
   execFileSync('git', ['-C', dir, ...a], { encoding: 'utf8', env: { ...process.env, ...ENV_GIT } });
 
 // The tests of the trial repository, as the frame's `npm test` plays them (Turborepo: the build,
-// then the tests): its build, then its suites; `verifier`, the integration's and the night's,
-// plays the same.
+// then the tests): its build, then its suites; `verifier`, the night's, plays the same.
 const TEST = 'npm run --silent build && node suites.mjs';
 // The trial's stand-in for Turborepo, the local package `outils/turbo` of the trial repository (its
 // `turbo` binary, which `npm install` links into node_modules/.bin, where the launcher's
@@ -196,7 +195,7 @@ export function sousModulesEssai(ESSAIS: string) {
     }
     const env = { ...ENV_SCRIPTS, PATH: `${bin}:${process.env.PATH}` };
 
-    // A lot that adds a source to the component packages/a; the integration's `npm run verifier` builds the copy.
+    // A lot that adds a source to the component packages/a.
     let n = 0;
     const lot = () => {
       n += 1;
@@ -311,7 +310,7 @@ export function sousModulesEssai(ESSAIS: string) {
       writeFileSync(path.join(m.repo, 'dep/package.json'), '{"name":"dep","version":"1.0.0"}\n');
       pkg.version = '1.0.0';
       pkg.dependencies = { dep: 'file:dep' };
-      // `verifier` as the frame's: the build, the guards, then the tests.
+      // `verifier` as the frame's: the build, the guards, then the tests (the night's).
       pkg.scripts = {
         postinstall: 'node ecrire.mjs installation',
         build: 'node build.mjs && node ecrire.mjs construction',

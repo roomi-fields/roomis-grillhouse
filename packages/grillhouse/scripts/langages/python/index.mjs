@@ -21,7 +21,7 @@
 //   readers, the entries of the index of the interfaces (./composants.mjs); the elements of a lot
 //   (./lot.mjs).
 // - The commands `tester` (the projects' tasks of Turborepo), `tests-du-paquet` (the body of a
-//   project's task), `verifier`, `typer`, `preparer` and `tests-de-nuit` (./commandes.mjs),
+//   project's task), `verifier`, `typer` and `tests-de-nuit` (./commandes.mjs),
 //   each described, never run, and the verdict of a run (./verdict.mjs); the guard of the sizes of
 //   the tests (./tailles-des-tests.mjs) and the index of the interfaces up to date, each a command
 //   by its name too. The generated file, the index of the interfaces (./index-interfaces.mjs), its

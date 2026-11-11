@@ -192,7 +192,7 @@ describe('grillhouse-ziy, critère 2 — ce que le testwriter écrit', () => {
 describe('grillhouse-ziy, critère 3 — les commandes par uv', () => {
   it('each command is its script of the module and its name; each guard its own', () => {
     const c = python.commandes(ESSAIS);
-    for (const nom of ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit']) {
+    for (const nom of ['tester', 'verifier', 'typer', 'tests-de-nuit']) {
       expect(c[nom]).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
     }
     const script = path.join(MODULE, 'tailles-des-tests.mjs');
@@ -242,14 +242,14 @@ describe('grillhouse-ziy, critère 3 — les commandes par uv', () => {
     expect(refus.appels).toEqual([]);
   });
 
-  it('typer: python -m compileall in the package; preparer: uv sync --locked', () => {
+  it('typer: python -m compileall in the package; construire: uv sync --locked of its project', () => {
     const racine = projet();
     const t = lancer(racine, 'typer');
     expect(t.code, t.stderr).toBe(0);
     expect(t.appels.map(a => a.args.slice(0, 5))).toEqual([
       ['run', '--locked', 'python', '-m', 'compileall'],
     ]);
-    const p = lancer(racine, 'preparer');
+    const p = lancer(racine, 'construire', ['site']);
     expect(p.code, p.stderr).toBe(0);
     expect(p.appels.map(a => [a.args, a.cwd])).toEqual([
       [['sync', '--locked', '--group', 'test'], path.join(racine, 'site')],
@@ -282,7 +282,7 @@ describe('grillhouse-ziy, critère 4 — l’enveloppe', () => {
     const r = lancer(racine, 'tester');
     expect(r.appels[0].venv).toBe(path.join(racine, '.venv', 'site'));
     expect(r.appels[0].args).toContain(`cache_dir=${path.join(racine, '.pytest_cache', 'site')}`);
-    const p = lancer(racine, 'preparer');
+    const p = lancer(racine, 'construire', ['site']);
     expect(p.appels[0].venv).toBe(path.join(racine, '.venv', 'site'));
   });
 
@@ -292,7 +292,7 @@ describe('grillhouse-ziy, critère 4 — l’enveloppe', () => {
     const maison = mkdtempSync(path.join(ESSAIS, 'maison-'));
     const r = lancer(racine, 'tester', [], { HOME: maison, XDG_CACHE_HOME: '' });
     expect(r.appels[0].cache).toBe(path.join(maison, '.cache', 'grillhouse', 'uv'));
-    const x = lancer(racine, 'preparer', [], { XDG_CACHE_HOME: path.join(maison, 'xdg') });
+    const x = lancer(racine, 'construire', ['site'], { XDG_CACHE_HOME: path.join(maison, 'xdg') });
     expect(x.appels[0].cache).toBe(path.join(maison, 'xdg', 'grillhouse', 'uv'));
   });
 

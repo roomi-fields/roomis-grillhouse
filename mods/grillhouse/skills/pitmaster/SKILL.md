@@ -101,8 +101,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   le ticket, et 3.1 les contrôles du plan), 4 Passe finale et relecture (4.1 la passe
   finale, 4.2 la régénération des références, 4.3 le relecteur ; le détail de 4.2 est plus bas,
   « Le circuit d'un ticket »), 5 Intégration (5.1
-  le commit, 5.2 la file et la lecture de la CI : une CI rouge rouvre le ticket ; un rejeu vert
-  des jobs rouges, `gh run rerun <id> --failed`, puis `--reprendre`, le ferme ; un test instable
+  le commit, 5.2 la file : la branche poussée, sa CI lue, main avancé sur l'arbre qu'elle a jugé
+  vert ; une CI rouge rouvre le ticket, main intact ; un rejeu vert des jobs rouges,
+  `gh run rerun <id> --failed`, puis `--reprendre`, la fait entrer ; un test instable
   se met en quarantaine dans le test, avec son ticket ; 5.3 le tri des découvertes par l'explorateur, sur
   le lot entré sur main, qui ne retarde pas la file et ne défait pas l'intégration) ; aucun composant n'est une unité du circuit, chaque
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
@@ -129,8 +130,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   coûte ni testwriter ni développeur.
 - **La fin du circuit dit la suite** : à `integre`, le lot est sur main et le ticket fermé ; le
   panneau le montre, et je lis sa fermeture au tour suivant. Un arrêt me parvient par l'attente
-  des questions, son code dans l'état du circuit. 75 (`a-repasser` : un contrôle ou l'intégration
-  encore « à repasser », ou la branche gardée en file) : le jour, un 75 vient de l'attente du
+  des questions, son code dans l'état du circuit. 75 (`a-repasser` : un contrôle encore « à
+  repasser », ou la branche gardée en file, sa CI non lue comprise) : le jour, un 75 vient de l'attente du
   verrou de la machine ou de place sous /tmp, à sa borne, et attend mon `--reprendre`, au
   premier plan, une fois la machine libérée ;
   repris à l'étape `file`, il relit ce qu'une autre file a fait de la branche, et finit à `integre`

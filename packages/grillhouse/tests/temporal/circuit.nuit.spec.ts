@@ -258,15 +258,7 @@ function actes(
   const laFile: Pick<ActivitesDeLaFile, 'situerLeLot'> = {
     situerLeLot() {
       journal.faits.push('file');
-      return Promise.resolve({
-        statut: 'closed',
-        raison: 'fermé',
-        aEntrer: false,
-        commit: null,
-        branche: 'main',
-        surOrigin: 'non',
-        raisonOrigin: null,
-      });
+      return Promise.resolve({ statut: 'closed', raison: 'fermé' });
     },
   };
   return { activites: { ...avec, ...laFile }, journal };

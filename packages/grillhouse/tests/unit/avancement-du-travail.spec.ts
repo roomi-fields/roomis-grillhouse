@@ -1,8 +1,6 @@
-// The replay of a ticket's branch by the queue (scripts/faits-du-circuit.mjs, the act `avancer`)
-// writes the progress of its pass in the working directory of the ticket, where the board reads it
-// while the circuit waits for the queue (scripts/avancement.mjs `avecLAvancementDuTravail`), as
-// each automatic pass of the circuit does: its directory is named to the pass and its children by
-// GRILLHOUSE_AVANCEMENT, and leaves with the pass.
+// An automatic pass of the circuit writes its progress in the working directory of the ticket,
+// where the board reads it (scripts/avancement.mjs `avecLAvancementDuTravail`): its directory is
+// named to the pass and its children by GRILLHOUSE_AVANCEMENT, and leaves with the pass.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,13 +12,13 @@ import { AVANCEMENT } from '../../scripts/mesure/avancement.mjs';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'avancement-de-la-file-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-describe('the progress of the replay of the queue goes to the working directory of the ticket', () => {
+describe('the progress of a pass goes to the working directory of the ticket', () => {
   it('while the pass runs, the board reads its progress there, named by GRILLHOUSE_AVANCEMENT; after it, none', () => {
     const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
     const travail = path.join(racine, '.claude', 'worktrees', 'demo-1.travail');
     mkdirSync(travail, { recursive: true });
     const avant = process.env[AVANCEMENT];
-    const vu = avecLAvancementDuTravail(travail, { racine, genre: 'file' }, () => ({
+    const vu = avecLAvancementDuTravail(travail, { racine, genre: 'controles' }, () => ({
       dossier: process.env[AVANCEMENT] ?? null,
       lu: avancementDuTravail(travail),
     }));
@@ -30,30 +28,18 @@ describe('the progress of the replay of the queue goes to the working directory 
     expect(process.env[AVANCEMENT]).toBe(avant);
   });
 
-  it('a lot entered on main keeps its progress up to its closure; one left out of the queue keeps none', () => {
-    const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
-    const travail = path.join(racine, '.claude', 'worktrees', 'demo-3.travail');
-    mkdirSync(travail, { recursive: true });
-    const garder = (lu: { entre?: object }) => Boolean(lu.entre);
-    avecLAvancementDuTravail(travail, { racine, genre: 'file', garder }, () => ({}));
-    expect(avancementDuTravail(travail)).toBeNull();
-    avecLAvancementDuTravail(travail, { racine, genre: 'file', garder }, () => ({
-      entre: { commit: 'abc' },
-    }));
-    expect(avancementDuTravail(travail)).not.toBeNull();
-  });
-
-  it('the directory a pass left (killed, or a lot kept that goes through the queue again) goes before the next one opens', () => {
+  it('the directory a pass killed left goes before the next one opens', () => {
     const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
     const travail = path.join(racine, '.claude', 'worktrees', 'demo-4.travail');
     mkdirSync(travail, { recursive: true });
-    const garder = () => true;
-    const premier = avecLAvancementDuTravail(travail, { racine, genre: 'file', garder }, d => d);
-    const second = avecLAvancementDuTravail(travail, { racine, genre: 'file', garder }, d => d);
-    expect(premier).not.toBe(second);
-    expect(readdirSync(travail).filter(n => n.startsWith('avancement-'))).toEqual([
-      path.basename(second!),
-    ]);
+    // The pass killed: its directory stays behind it.
+    const laisse = path.join(travail, 'avancement-tue');
+    mkdirSync(laisse);
+    const vus = avecLAvancementDuTravail(travail, { racine, genre: 'controles' }, d => ({
+      dossier: d,
+      la: readdirSync(travail).filter(n => n.startsWith('avancement-')),
+    }));
+    expect(vus.la).toEqual([path.basename(vus.dossier!)]);
   });
 
   it('the pass receives its directory, the one GRILLHOUSE_AVANCEMENT names', () => {
@@ -67,9 +53,7 @@ describe('the progress of the replay of the queue goes to the working directory 
     expect(vu.donne).toBe(vu.nomme);
   });
 
-  it('a pass whose copy goes before its end keeps its total in its repository: the integration', () => {
-    // The integration removes the ticket's copy (scripts/integration/integrer.mjs, step 8) before
-    // its pass ends: the total goes to the repository its opening named.
+  it('a pass whose copy goes before its end keeps its total in the repository its opening named', () => {
     const depot = mkdtempSync(path.join(ESSAIS, 'depot-'));
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', depot, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
@@ -81,7 +65,7 @@ describe('the progress of the replay of the queue goes to the working directory 
     git('worktree', 'add', '-q', '--detach', copie);
     const travail = `${copie}.travail`;
     mkdirSync(travail, { recursive: true });
-    avecLAvancementDuTravail(travail, { racine: copie, genre: 'integration' }, dossier => {
+    avecLAvancementDuTravail(travail, { racine: copie, genre: 'controles' }, dossier => {
       mkdirSync(path.join(dossier!, 'taches'), { recursive: true });
       writeFileSync(
         path.join(dossier!, 'taches', 't.json'),
@@ -92,7 +76,7 @@ describe('the progress of the replay of the queue goes to the working directory 
     const totaux = JSON.parse(
       readFileSync(path.join(depot, '.git', 'grillhouse', 'avancement.json'), 'utf8')
     ) as { passes: Record<string, number> };
-    expect(totaux.passes).toEqual({ integration: 4 });
+    expect(totaux.passes).toEqual({ controles: 4 });
   });
 
   it('without the working directory of the ticket, the pass runs without a progress', () => {
@@ -101,7 +85,7 @@ describe('the progress of the replay of the queue goes to the working directory 
     const avant = process.env[AVANCEMENT];
     const dossier = avecLAvancementDuTravail(
       travail,
-      { racine, genre: 'file' },
+      { racine, genre: 'controles' },
       () => process.env[AVANCEMENT]
     );
     expect(dossier).toBe(avant);

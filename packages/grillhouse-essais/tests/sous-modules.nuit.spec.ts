@@ -32,14 +32,12 @@ const { CONFIG_GLOBALE, gitScripts, monde } = sousModulesEssai(ESSAIS);
 
 describe('critère 1 — each working copy has its submodules set at the referenced commit', () => {
   it(
-    'critère 1: the integration copy sets vendor/natif at the referenced commit before its build',
+    'critère 1: the integration copy sets vendor/natif at the referenced commit',
     () => {
       const m = monde();
       const r = m.integrer();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.natifDe(m.copies.integration)).toBe('v1');
-      // The build, run after the preparation, saw the submodule.
-      expect(m.vus()[0]).toBe('v1');
     },
     LONG
   );
@@ -141,7 +139,6 @@ describe('critère 3 — a reused integration copy puts its submodules back at H
       const r = m.integrer();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.natifDe(m.copies.integration)).toBe('v2');
-      expect(m.vus().at(-1)).toBe('v2');
     },
     LONG
   );
@@ -250,7 +247,7 @@ const modifierNatif = (copie: string, texte: string) =>
 
 describe('critère 10 — a local modification in a submodule: overwritten in the disposable copies, kept in the agent copy', () => {
   it(
-    'critère 10: the reused integration copy overwrites it and builds at the commit of HEAD',
+    'critère 10: the reused integration copy overwrites it with the commit of HEAD',
     () => {
       const m = monde();
       expect(m.integrer().status).toBe(0);
@@ -258,7 +255,6 @@ describe('critère 10 — a local modification in a submodule: overwritten in th
       const r = m.integrer();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.natifDe(m.copies.integration)).toBe('v1');
-      expect(m.vus().at(-1)).toBe('v1');
     },
     LONG
   );

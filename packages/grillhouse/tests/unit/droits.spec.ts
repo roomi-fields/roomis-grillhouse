@@ -550,7 +550,7 @@ describe('L2 — what a role that writes may not run', () => {
           `${role} : ${c}`
         ).toBe(true);
       }
-      for (const c of ['npm test -- crates/a', 'npx grillhouse preparer', 'cargo check']) {
+      for (const c of ['npm test -- crates/a', 'npx grillhouse typer', 'cargo check']) {
         expect(
           deny.some(r => couvre(r, c)),
           `${role} : ${c}`

@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # `agent/**`: the branch of a ticket the queue of the frame pushes; its run judges the lot before
+  # main moves onto it (packages/grillhouse/scripts/integration/file.mjs).
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'agent/**']
   pull_request:
     branches: [main, develop]
   # Once a night, on the default branch: Node 22 and 24.

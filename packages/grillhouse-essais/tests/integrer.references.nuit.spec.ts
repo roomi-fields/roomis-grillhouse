@@ -1,5 +1,5 @@
 // @poste: l'enveloppe bwrap, un serveur Temporal
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import { chantier } from './integration-essai.js';
 // (scripts/integration/integrer.mjs), as a genrule of Bazel writes its output again on the merged
 // tree and package-lock.json is written again by npm install after a merge: a file a reference
 // writes in full is no part of the lot it applies, and its reference, received from the circuit
-// (`--references`), writes it again in the integration copy before the verification.
+// (`--references`), writes it again in the integration copy before the commit.
 // Witness: BPScript bp-mono-vbwf.320.30, refused twice at 5.1, code 17: the only conflict was on
 // docs/agents/index-des-interfaces.md, which 320.26 had regenerated on main in the meantime; the
 // six other files of the lot applied.
@@ -29,20 +29,12 @@ fs.writeFileSync('docs/index.md', l.join(' | ') + '\\n');
 `;
 const index = (a: number, b: number, c: number) =>
   `export const a = ${a}; | export const b = ${b}; | export const c = ${c};\n`;
-// The suites of the trial, which keep what the verification reads of the generated file.
-const SUITES_QUI_LISENT = `import fs from 'node:fs';
-fs.appendFileSync(process.env.PRINCIPAL + '.vu', fs.readFileSync('docs/index.md', 'utf8'));
-process.exit(0);
-`;
 const NOM = "l'index de l'essai";
 
 // The trial project with its generated file on main, and the references the circuit hands over.
 function projet(commande = 'node gen.mjs') {
   const m = chantier(ESSAIS);
-  m.poser(
-    { 'gen.mjs': GENERATEUR, 'docs/index.md': index(0, 0, 0), 'suites.mjs': SUITES_QUI_LISENT },
-    'le générateur'
-  );
+  m.poser({ 'gen.mjs': GENERATEUR, 'docs/index.md': index(0, 0, 0) }, 'le générateur');
   const references = path.join(m.bin, 'references.json');
   writeFileSync(
     references,
@@ -50,21 +42,14 @@ function projet(commande = 'node gen.mjs') {
       { nom: NOM, commande, fichiers: ['docs/index.md'], entiers: ['docs/index.md'], cadre: false },
     ])
   );
-  const vu = () => {
-    try {
-      return readFileSync(`${m.repo}.vu`, 'utf8');
-    } catch {
-      return '';
-    }
-  };
-  return { m, references, vu };
+  return { m, references };
 }
 
 describe('grillhouse-kgx.2 — the integration regenerates the references on main of the moment', () => {
   it(
-    'critère 1 et 2 — a lot whose only conflict is on a file a reference writes in full is integrated, the file regenerated on main of the moment before the verification, and committed',
+    'critère 1 et 2 — a lot whose only conflict is on a file a reference writes in full is integrated, the file regenerated on main of the moment, and committed',
     () => {
-      const { m, references, vu } = projet();
+      const { m, references } = projet();
       m.ticket('demo-1', {
         'src/a/index.ts': 'export const a = 1;\n',
         'docs/index.md': index(1, 0, 0),
@@ -79,8 +64,6 @@ describe('grillhouse-kgx.2 — the integration regenerates the references on mai
       expect(r.stdout).toContain(NOM);
       expect(m.git('show', 'agent/demo-1:docs/index.md')).toBe(index(1, 0, 9));
       expect(m.git('show', 'agent/demo-1:src/a/index.ts')).toBe('export const a = 1;\n');
-      // The verification read the regenerated file.
-      expect(vu()).toBe(index(1, 0, 9));
       expect(m.sujets('main')).toEqual(['un autre ticket', 'le générateur', 'base']);
     },
     LONG
@@ -104,7 +87,7 @@ describe('grillhouse-kgx.2 — the integration regenerates the references on mai
   it(
     'critère 3 — a conflict on any other file refuses the lot, as before',
     () => {
-      const { m, references, vu } = projet();
+      const { m, references } = projet();
       m.ticket('demo-1', {
         'src/a/index.ts': 'export const a = 1;\n',
         'docs/index.md': index(1, 0, 0),
@@ -119,15 +102,14 @@ describe('grillhouse-kgx.2 — the integration regenerates the references on mai
       expect(r.stdout).toContain('src/a/index.ts');
       expect(m.sujets('agent/demo-1')).toEqual(['le générateur', 'base']);
       expect(m.bd('demo-1').labels).not.toContain('en-file');
-      expect(vu()).toBe('');
     },
     LONG
   );
 
   it(
-    'a command of a reference that fails refuses the lot, naming the reference, before the verification',
+    'a command of a reference that fails refuses the lot, naming the reference, before the commit',
     () => {
-      const { m, references, vu } = projet('node -e "process.exit(3)"');
+      const { m, references } = projet('node -e "process.exit(3)"');
       m.ticket('demo-1', {
         'src/a/index.ts': 'export const a = 1;\n',
         'docs/index.md': index(1, 0, 0),
@@ -136,7 +118,6 @@ describe('grillhouse-kgx.2 — the integration regenerates the references on mai
       expect(r.status, r.stdout + r.stderr).toBe(1);
       expect(r.stdout).toContain(NOM);
       expect(m.sujets('agent/demo-1')).toEqual(['le générateur', 'base']);
-      expect(vu()).toBe('');
     },
     LONG
   );

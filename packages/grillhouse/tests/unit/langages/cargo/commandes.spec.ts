@@ -2,7 +2,7 @@
 // with a real script of the module, described without running anything; run against the fake
 // cargo (./faux-cargo.ts), whose journal lists the calls: tester (the build of the test targets
 // and nextest for each crate with tests, then its doctests), typer (cargo check --all-targets), verifier (the tests, then cargo
-// deny check), preparer (cargo fetch --locked); the verdict of a run reads the JUnit report of
+// deny check); the verdict of a run reads the JUnit report of
 // nextest and the code of each task, and a red makes verifier's code 1. Verifier plays under the
 // lock of the machine: a lock held makes it wait, and the bound of the wait reached it stops at 75
 // without running cargo; it plays the crates the changes since the last green touch and their
@@ -123,7 +123,6 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'verifier',
       'typer',
       'construire',
-      'preparer',
       'tests-de-nuit',
       'tailles-des-tests',
       'clippy',
@@ -136,7 +135,6 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
       'verifier',
       'typer',
       'construire',
-      'preparer',
       'tests-de-nuit',
     ]) {
       expect(c[nom]).toEqual({ script: path.join(MODULE, 'commandes.mjs'), args: [nom] });
@@ -192,9 +190,8 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     expect(refus.appels).toEqual([]);
   });
 
-  it('typer, preparer: cargo check --all-targets, cargo fetch --locked', () => {
+  it('typer: cargo check --all-targets', () => {
     expect(lancer(d.seul, 'typer').appels).toEqual(['check --all-targets']);
-    expect(lancer(d.seul, 'preparer').appels).toEqual(['fetch --locked']);
   });
 
   it('verifier plays cargo deny check, the tests being tasks of Turborepo (tests-par-turbo.spec.ts)', () => {
@@ -516,7 +513,7 @@ describe('le module cargo joue les tests de chaque paquet sous un dossier tempor
 
 // grillhouse-rph: OSC Bridge ignored its Cargo.lock, and the verification, `--locked`, failed in
 // the integration's copy alone (« cannot create the lock file … because --locked was passed »).
-// As `npm ci` refuses a project without package-lock.json, tester, verifier and preparer refuse,
+// As `npm ci` refuses a project without package-lock.json, tester, verifier and tests-de-nuit refuse,
 // before any run of cargo, a workspace whose Cargo.lock git does not track, in one line that names
 // the file and the gesture.
 describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale', () => {
@@ -543,7 +540,7 @@ describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale
   for (const [nom, args] of [
     ['tester', []],
     ['verifier', ['--tout']],
-    ['preparer', []],
+    ['tests-de-nuit', []],
   ] as const) {
     it(`${nom}: a Cargo.lock ignored by git is refused in one line, cargo never run`, () => {
       const racine = ignore();
@@ -557,7 +554,7 @@ describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale
   it('a Cargo.lock absent is refused, the gesture that writes it named', () => {
     const racine = ignore();
     rmSync(path.join(racine, 'Cargo.lock'));
-    const r = lancer(racine, 'preparer');
+    const r = lancer(racine, 'tests-de-nuit');
     expect(r.code).toBe(2);
     expect(r.stderr).toBe(
       '⛔ Cargo.lock absent : cargo generate-lockfile, puis git add Cargo.lock\n'
@@ -566,10 +563,9 @@ describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale
   });
 
   it('a Cargo.lock tracked: nothing changes, cargo runs', () => {
-    const r = lancer(d.seul, 'preparer');
-    expect(r.code).toBe(0);
-    expect(r.stderr).toBe('');
-    expect(r.appels).toEqual(['fetch --locked']);
+    const r = lancer(d.seul, 'tests-de-nuit');
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stderr).not.toContain('Cargo.lock');
   });
 });
 

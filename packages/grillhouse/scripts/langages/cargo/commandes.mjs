@@ -7,7 +7,6 @@
 //   npx grillhouse tests-du-paquet <chemin>… [--<option>…]      tests-du-paquet
 //   npx grillhouse verifier [--tout | --gardes]                 verifier
 //   node commandes.mjs typer                                    typer
-//   npx grillhouse preparer                                     preparer
 //   npx grillhouse tests-de-nuit                                tests-de-nuit
 //   npx grillhouse tailles-des-tests | clippy | frontieres | index-interfaces
 //                                                               each guard, its own script
@@ -92,7 +91,7 @@
 // - `tests-de-nuit`: the night tests then the benches of each crate that holds some; none, nothing
 //   plays and the code is 0. The night (scripts/nuit.sh) runs it after the full pass, and plays it
 //   again at rest after a 75.
-// - `typer`: `cargo check --all-targets`. `preparer`: `cargo fetch --locked`.
+// - `typer`: `cargo check --all-targets`.
 // - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
 //   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr), its server started
 //   under the machine's /tmp before each run of cargo that compiles (grillhouse-qmk).
@@ -106,7 +105,7 @@
 //   there what ./verdict.mjs reads: its tasks, each planned before it plays (`code` null until it
 //   ran), and the JUnit report of each run of nextest. A task of the workspace is named after its
 //   root, `//`, as Turborepo names the root's tasks.
-// - `tests-du-paquet`, `verifier` and `preparer` refuse, before any run of cargo, a workspace whose
+// - `tests-du-paquet` and `verifier` refuse, before any run of cargo, a workspace whose
 //   Cargo.lock git does not track (grillhouse-rph), in one line that names the file and the
 //   gesture: `git add Cargo.lock`, or `cargo generate-lockfile` first when it is absent. Cargo
 //   recommends committing it for every project, and the verification plays the exact versions of
@@ -175,7 +174,6 @@ export const NOMS = [
   'verifier',
   'typer',
   'construire',
-  'preparer',
   'tests-de-nuit',
 ];
 // The task runner of the graph of the packages.
@@ -186,7 +184,7 @@ const RACINE = '//';
 const BUDGET = 'budget';
 const VERROU = 'Cargo.lock';
 // The commands that play the exact versions of the repository, refused without its Cargo.lock.
-const VERROUILLEES = ['tests-du-paquet', 'verifier', 'preparer', 'tests-de-nuit'];
+const VERROUILLEES = ['tests-du-paquet', 'verifier', 'tests-de-nuit'];
 // The commands that compile, refused without sccache on the PATH (./sccache.mjs).
 const COMPILENT = ['tests-du-paquet', 'verifier', 'typer', 'construire', 'tests-de-nuit'];
 // The format of the build of the test targets: the messages of cargo in JSON on its output stream,
@@ -784,10 +782,6 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   }
   if (nom === 'typer') {
     p.jouer(p.prevoir(RACINE, racine, 'check', false, ['check', '--all-targets']));
-    return p.code();
-  }
-  if (nom === 'preparer') {
-    p.jouer(p.prevoir(RACINE, racine, 'fetch', false, ['fetch', '--locked']));
     return p.code();
   }
   if (nom === 'verifier') {

@@ -259,14 +259,20 @@ describe('grillhouse-3uv.58.1 critère 5 — removing a copy never touches the m
 
 describe('grillhouse-3uv.58.1 critère 8 — the integration and the night play the project’s commands with the shared submodule read-only', () => {
   it.runIf(canWrap)(
-    'critère 8: in the integration, installation, build, tests and guards fail to write into the shared submodule and write into their copy',
+    'critère 8: in the integration, the installation and the commit’s hook fail to write into the shared submodule and write into their copy',
     () => {
       const m = mondePartage({ ecritures: true });
+      // The integration plays no build nor test: its commands are the install and the commit.
+      writeFileSync(
+        path.join(m.repo, '.git/hooks/pre-commit'),
+        '#!/bin/sh\nnode ecrire.mjs crochet\nexit 0\n',
+        { mode: 0o755 }
+      );
       const r = m.integrer();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.lit(m.copies.integration)).toBe(true);
       const vues = m.ecrituresDe(m.copies.integration);
-      for (const e of ['installation', 'construction', 'tests', 'gardes']) {
+      for (const e of ['installation', 'crochet']) {
         expect(vues.filter(l => l.startsWith(`${e} `)).length, vues.join('\n')).toBeGreaterThan(0);
       }
       expect(ecrituresFautives(vues), vues.join('\n')).toEqual([]);

@@ -21,7 +21,7 @@ import { dormir, ouvrirLeBanc } from './temporal-essai.js';
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-repetition-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const essai = circuitEssai(ESSAIS, { origine: true, banc: false });
+const essai = circuitEssai(ESSAIS, { banc: false });
 const { BEADS, revenirAuDebut, ticket, scenario, ordre, ci, sessions, journal } = essai;
 
 // The status of the ticket <id> in the stand-in Beads.

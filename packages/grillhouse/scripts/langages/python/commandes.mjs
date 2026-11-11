@@ -7,7 +7,6 @@
 //   npx grillhouse tests-du-paquet <chemin>… [--<option>…]      tests-du-paquet
 //   npx grillhouse verifier [--tout | --gardes]                 verifier
 //   node commandes.mjs typer                                    typer
-//   npx grillhouse preparer                                     preparer
 //   npx grillhouse tests-de-nuit                                tests-de-nuit
 //   npx grillhouse tailles-des-tests | index-interfaces         each guard, its own script
 //
@@ -52,7 +51,7 @@
 //   the guards alone: the project's root scripts `grillhouse:gardes` then `gardes` the package.json
 //   holds.
 // - `typer`: `uv run --locked python -m compileall`, the folders whose name begins with a dot (the
-//   `.venv`) left out. `preparer`: `uv sync --locked --group test`.
+//   `.venv`) left out.
 // - `tests-de-nuit`: pytest on the night tests of each package that holds some; none, nothing
 //   plays and the code is 0. The night (scripts/nuit.sh) runs it.
 // - `construire --echec <fichier> <plan>` is the launcher's build of the copy
@@ -60,7 +59,7 @@
 //   (`construireDepuisLesArguments` of scripts/taches-du-graphe.mjs): the plan and its providers by
 //   `turbo run build --filter=<paquet>…`. `construire <chemin>` syncs one project, as the script
 //   `build` of its package.
-// - `tests-du-paquet`, `tests-de-nuit`, `verifier`, `typer` and `preparer` play under a temporary
+// - `tests-du-paquet`, `tests-de-nuit`, `verifier` and `typer` play under a temporary
 //   directory of their pass, the guard of the temporary directory: a base (`ouvrirBase` of ./jointure) named in TMPDIR, TMP and TEMP, removed at the
 //   end of the pass, green, red or interrupted; what the tests left there fails the pass (code 1),
 //   each name written on the error stream, the lock files uv takes there (`uv-<hash>.lock`) apart,
@@ -121,7 +120,6 @@ export const NOMS = [
   'verifier',
   'typer',
   'construire',
-  'preparer',
   'tests-de-nuit',
 ];
 // The task runner of the graph of the packages.
@@ -528,9 +526,9 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   if (nom === 'construire' && args.includes('--echec')) {
     return construireDepuisLesArguments(OUTIL, args, racine);
   }
-  if (nom === 'typer' || nom === 'preparer' || nom === 'construire') {
+  if (nom === 'typer' || nom === 'construire') {
     // `construire` and `typer` with a path: the one project of that folder, as Turborepo's task of
-    // one package; `typer` alone types them all, `preparer` syncs them all.
+    // one package; `typer` alone types them all.
     let choisis = composants(racine);
     if (nom === 'construire' || (nom === 'typer' && args.length)) {
       const [chemin, ...autres] = args;

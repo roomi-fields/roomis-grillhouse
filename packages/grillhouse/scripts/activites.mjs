@@ -905,8 +905,8 @@ export const sectionMisDeCote = fichiers =>
 
 // The integration of the lot: its two patches, its message and the references that write files in
 // full (`--references`, from `lesReferences`, the one list), written from the copy, then
-// scripts/integration/integrer.mjs from the main tree, its output added to the log. A run « à
-// repasser » (75) plays once more, the gesture `rejeu`. `{ code, sortie, args }`.
+// scripts/integration/integrer.mjs from the main tree, its output added to the log. `{ code,
+// sortie, args }`.
 export function integrer(ctx) {
   const branche = `agent/${ctx.ticket}`;
   const commande = `node ${INTEGRER}`;
@@ -1004,35 +1004,20 @@ export function integrer(ctx) {
     writeFileSync(f, `${JSON.stringify(entieres)}\n`);
     args.push('--references', f);
   }
-  let r;
-  for (let essai = 1; essai <= 2; essai++) {
-    entete(ctx, 'integration');
-    appendFileSync(ctx.journal, `$ node ${INTEGRER} ${args.join(' ')}\n`);
-    const x = avecLAvancementDuTravail(
-      ctx.tmp,
-      { racine: ctx.copie, genre: 'integration' },
-      avancement =>
-        spawnSync(process.execPath, [INTEGRER, ...args], {
-          cwd: ctx.racine,
-          encoding: 'utf8',
-          maxBuffer: 256 * 1024 * 1024,
-          env: { ...process.env, [AVANCEMENT]: avancement },
-        })
-    );
-    r = {
-      code: x.status ?? 1,
-      sortie: `${x.stdout ?? ''}${x.stderr ?? ''}`,
-      args,
-      commande: `node ${INTEGRER} ${args.join(' ')}`,
-    };
-    appendFileSync(ctx.journal, r.sortie);
-    if (r.code !== A_REPASSER) {
-      break;
-    }
-    if (essai === 1) {
-      geste(ctx, 'rejeu');
-    }
-  }
+  entete(ctx, 'integration');
+  appendFileSync(ctx.journal, `$ node ${INTEGRER} ${args.join(' ')}\n`);
+  const x = spawnSync(process.execPath, [INTEGRER, ...args], {
+    cwd: ctx.racine,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  const r = {
+    code: x.status ?? 1,
+    sortie: `${x.stdout ?? ''}${x.stderr ?? ''}`,
+    args,
+    commande: `node ${INTEGRER} ${args.join(' ')}`,
+  };
+  appendFileSync(ctx.journal, r.sortie);
   return r;
 }
 

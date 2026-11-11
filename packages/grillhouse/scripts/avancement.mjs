@@ -30,7 +30,7 @@
 //   total of the last pass of each kind and the files planned of each task by its hash (the
 //   latest TACHES_GARDEES); each pass keeps its own at its end (`garderLeTotal`).
 // - The holder of the lock of the machine (scripts/verrou-de-machine.mjs: a measure out of a
-//   ticket, `npm run verifier` of a supervisor or of an integration, or a heavy pass of the
+//   ticket, `npm run verifier` of a supervisor, or a heavy pass of the
 //   circuit of a ticket) names its progress directory beside the lock (`nommerLAvancement`); the
 //   board reads the holder with its progress, and the waits for the lock or for room
 //   (`lireLaMesure`).
@@ -231,23 +231,18 @@ export function avancementDeLaCI(travail, { nouvelle = false, debut = Date.now()
 /**
  * Runs <passe> under a progress directory of the kind <genre> (null: none kept) opened in the
  * working directory <travail> of a ticket's circuit, where the board reads it
- * (`avancementDuTravail`): each automatic pass of the circuit (scripts/activites.mjs) and the
- * replay of the ticket's branch by the queue (scripts/faits-du-circuit.mjs `avancer`), one pass at
- * a time. The directories a killed pass left there go first, a lot that goes through the queue
- * again included. The directory is given to <passe> and named to it and its children by
+ * (`avancementDuTravail`): each automatic pass of the circuit (scripts/activites.mjs), one pass
+ * at a time. The directories a killed pass left there go first. The directory is given to <passe> and named to it and its children by
  * GRILLHOUSE_AVANCEMENT (`AVANCEMENT`); then its total is kept in the repository at <racine> and
- * it is removed, unless <garder> holds for what <passe> returns: a lot entered on main keeps it
- * until the queue is done with the ticket closed, which removes the working directory whole
- * (`retirerLeTravail` of scripts/integration/file.mjs), as the circuit kept its progress for its
- * whole step of the queue. Without the working directory, <passe> runs without one (null).
+ * it is removed. Without the working directory, <passe> runs without one (null).
  * Returns what <passe> returns.
  * @template T
  * @param {string} travail
- * @param {{ racine: string, genre: string | null, garder?: (valeur: T) => boolean }} o
+ * @param {{ racine: string, genre: string | null }} o
  * @param {(dossier: string | null) => T} passe
  * @returns {T}
  */
-export function avecLAvancementDuTravail(travail, { racine, genre, garder = () => false }, passe) {
+export function avecLAvancementDuTravail(travail, { racine, genre }, passe) {
   if (!existsSync(travail)) {
     return passe(null);
   }
@@ -257,11 +252,8 @@ export function avecLAvancementDuTravail(travail, { racine, genre, garder = () =
   const dossier = ouvrirAvancement({ racine, genre, dans: travail });
   const avant = process.env[AVANCEMENT];
   process.env[AVANCEMENT] = dossier;
-  let garde = false;
   try {
-    const valeur = passe(dossier);
-    garde = garder(valeur);
-    return valeur;
+    return passe(dossier);
   } finally {
     if (avant === undefined) {
       delete process.env[AVANCEMENT];
@@ -269,9 +261,7 @@ export function avecLAvancementDuTravail(travail, { racine, genre, garder = () =
       process.env[AVANCEMENT] = avant;
     }
     garderLeTotal(dossier);
-    if (!garde) {
-      rmSync(dossier, { recursive: true, force: true });
-    }
+    rmSync(dossier, { recursive: true, force: true });
   }
 }
 

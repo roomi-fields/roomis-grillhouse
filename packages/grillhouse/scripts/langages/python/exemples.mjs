@@ -169,7 +169,7 @@ export default {
         attendu: ['absent : sans fournisseur'],
       },
       commandes: {
-        valide: ['tester', 'verifier', 'typer', 'preparer', 'tests-de-nuit', 'index-interfaces'],
+        valide: ['tester', 'verifier', 'typer', 'tests-de-nuit', 'index-interfaces'],
         invalide: ['tester', 'deployer'],
         attendu: ['deployer : absente'],
       },

@@ -1,17 +1,29 @@
 // The queue of integration of a project (grillhouse-4nr.8, decision Q3), `file:<racine>`, and the CI
-// of a commit, as a merge queue takes one entry at a time and waits for its checks: the queue of
+// of a commit, as bors and Zuul gate a merge on the CI of the tree that enters: the queue of
 // scripts/integration/file.mjs, its gestures its acts (./activites.ts). The circuit of a ticket
 // sends its branch at its step 5.2 (the signal ENTRER) and awaits its issue (the signal
-// ISSUE_DE_LA_FILE). For each entry, in its order of arrival: main moved onto the branch, or the
-// branch out of the queue, or kept; entered, the ticket closed and main pushed, then the CI of the
-// commit followed to its conclusion before the next entry, so that nothing is pushed on a red
-// main. An act that fails (its activity, the reading of the CI) gives the entry the issue `echec`,
-// its reason, on which the circuit of the ticket stops, and the queue goes on. The CI of a commit (`ciDuCommit`, a child workflow) is read by one reading at a time, a
-// durable timer between two, so that the death of the worker loses none of its wait: its run
-// looked for during `rechercheMs` (2 min), then read every `pasMs` (10 s) for `attenteMs` (30 min)
-// at most, counted on the workflow's clock. Past its length of history, the queue continues as new
-// between two entries, with those that wait. Deterministic: it imports the workflow API and the
-// contract.
+// ISSUE_DE_LA_FILE). For each entry, in its order of arrival: the branch made the candidate (on
+// top of main, replaced when main moved, pushed to origin), its CI followed to its conclusion, then,
+// green, main moved onto the candidate by fast-forward, the ticket closed and main pushed; main
+// moved meanwhile, the branch is replaced and judged again, `ESSAIS` times at most; red or not
+// read, main does not move. Nothing enters main that its CI did not judge, and the next entry waits.
+// An act that fails (its activity, the reading of the CI) gives the entry the issue `echec`, its
+// reason, on which the circuit of the ticket stops, and the queue goes on. The CI of a commit
+// (`ciDuCommit`, a child workflow) is read by one reading at a time, a durable timer between two,
+// so that the death of the worker loses none of its wait: its run looked for during `rechercheMs`
+// (2 min), then read every `pasMs` (10 s) for `attenteMs` (30 min) at most, counted on the
+// workflow's clock. Past its length of history, the queue continues as new between two entries,
+// with those that wait. Deterministic: it imports the workflow API and the contract.
+//
+// The CI of the branch replaced the CI of main read after the push (grillhouse-44b.12.5), as
+// Temporal changes the code of a running workflow (« Patching », TypeScript SDK,
+// https://docs.temporal.io/develop/typescript/versioning#patching): an entry asks
+// `patched(CI_DE_LA_BRANCHE)` at its start; a run that recorded its entries before the change
+// replays them on the code of before (`entreeDAvant`, `lireEtConclureLaCI`), and each new entry
+// takes the new path, the marker written in the history. Once no run holds an entry of before
+// (each queue continues as new past its length of history, a ticket's circuit ends), the next
+// version calls `deprecatePatch(CI_DE_LA_BRANCHE)` and removes the code of before, then the one
+// after removes the call, as the documentation's three steps.
 import {
   allHandlersFinished,
   ChildWorkflowCancellationType,
@@ -23,6 +35,7 @@ import {
   getExternalWorkflowHandle,
   isCancellation,
   ParentClosePolicy,
+  patched,
   proxyActivities,
   setHandler,
   sleep,
@@ -47,8 +60,8 @@ import {
   type VueDeLaFile,
 } from './contrat.js';
 
-// Every act of the queue: a replay of `npm run verifier` lasts 2 h at most; the reading of the CI
-// a minute. An act played again after its worker died replays its gestures without harm
+// Every act of the queue: a replacement of a branch and its install last 2 h at most; the reading
+// of the CI a minute. An act played again after its worker died replays its gestures without harm
 // (scripts/integration/file.mjs), and gives back its comments, which the workflow writes one per
 // activity, under the key of that activity (`jouerLesEffets`).
 const actes = proxyActivities<ActivitesDeLaFile>({
@@ -85,6 +98,10 @@ const DELAIS: Required<DelaisDeLaCI> = {
   pasMs: 10_000,
 };
 const LIMITE_D_HISTOIRE = 10_000;
+/** The patch of the CI of the branch (Temporal's patching), which the circuit's step 5.2 reads too. */
+export const CI_DE_LA_BRANCHE = 'ci-de-la-branche';
+// The judgements of one entry at most, main moving between its CI and its entry.
+const ESSAIS = 5;
 
 // The message of the failure <e> of an activity or of a child workflow, as its act gave it.
 function messageDe(e: unknown): string {
@@ -145,8 +162,9 @@ export async function ciDuCommit(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
 }
 
 // The CI of <sha> pushed to <branche> for <ticket> read as a child workflow of the caller, then
-// concluded at the ticket (<relue>, a reading again on `--reprendre`): the issue for the circuit. A
-// reading that fails (its act, after the push) concludes the CI not read, the failure its reason.
+// concluded at the ticket (<relue>, a reading again on `--reprendre`): the code of before the CI of
+// the branch, kept for the replay of the runs that recorded it (`CI_DE_LA_BRANCHE`); its acts
+// called by their names of then, their answers read from the history.
 export async function lireEtConclureLaCI(
   e: EntreeDeLaCI & { relue: boolean },
   id: string
@@ -163,14 +181,17 @@ export async function lireEtConclureLaCI(
     }
     verdict = { verdict: 'non-lue', passage: null, raison: `sa lecture échoue : ${messageDe(x)}` };
   }
-  const { effets, ...issue } = await actes.conclureLaCI({
+  const c = (await actes.conclureLaCI({
     racine: e.racine,
     ticket: e.ticket,
     sha: e.sha,
     branche: e.branche,
     relue: e.relue,
     ...verdict,
-  });
+  } as Parameters<ActivitesDeLaFile['conclureLaCI']>[0])) as unknown as IssueDeLaFile & {
+    effets: EffetDeLaFile[];
+  };
+  const { effets, ...issue } = c;
   await jouerLesEffets(e.racine, effets, `${id}:conclure`);
   return issue;
 }
@@ -200,7 +221,7 @@ export async function entrerDansLaFile(
   await getExternalWorkflowHandle(id).signal(entrer, e);
 }
 
-/** The queue of the project at <racine>: one entry at a time, its CI concluded before the next. */
+/** The queue of the project at <racine>: one entry at a time, judged by its CI before main moves. */
 export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void> {
   const { racine } = entree;
   const attente: EntreeDeLaFile[] = [...(entree.suite?.attente ?? [])];
@@ -222,12 +243,80 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
 
   // The commit main moved onto for the entry under way, until it is pushed.
   let avance: string | null = null;
-  // The entry <e> to its issue.
-  const traiter = async (e: EntreeDeLaFile): Promise<IssueDeLaFile> => {
-    avance = null;
-    entrees += 1;
-    const lieu = `entree:${entrees}`;
-    const r = await actes.avancerMain({ racine, ticket: e.ticket, branche: e.branche });
+  // The CI of the candidate <sha> of <e> on its branch, read as a child workflow: its verdict, a
+  // reading that fails concluding it not read, the failure its reason.
+  const juger = async (e: EntreeDeLaFile, sha: string): Promise<VerdictDeLaCI> => {
+    n += 1;
+    try {
+      return await executeChild(ciDuCommit, {
+        workflowId: `${workflowInfo().workflowId}:ci:${workflowInfo().runId}:${n}`,
+        args: [{ racine, ticket: e.ticket, sha, branche: e.branche, ci: entree.ci }],
+      });
+    } catch (x) {
+      if (isCancellation(x)) {
+        throw x;
+      }
+      return { verdict: 'non-lue', passage: null, raison: `sa lecture échoue : ${messageDe(x)}` };
+    }
+  };
+  // The branch of <e> brought onto main once its CI judged it, the entry's <lieu> keying its
+  // effects: the commit main is at, or the issue for the circuit when main does not move.
+  const surMain = async (
+    e: EntreeDeLaFile,
+    lieu: string
+  ): Promise<{ commit: string } | IssueDeLaFile> => {
+    for (let essai = 1; essai <= ESSAIS; essai++) {
+      const ici = `${lieu}:${essai}`;
+      const p = await actes.preparerLaBranche({ racine, ticket: e.ticket, branche: e.branche });
+      await jouerLesEffets(racine, p.effets, `${ici}:brancher`);
+      if ('issue' in p) {
+        return p.issue;
+      }
+      if ('entre' in p) {
+        return p.entre;
+      }
+      const sha = p.candidat.commit;
+      const verdict = await juger(e, sha);
+      const c = await actes.conclureLaCI({
+        racine,
+        ticket: e.ticket,
+        sha,
+        branche: e.branche,
+        ...verdict,
+      });
+      await jouerLesEffets(racine, c.effets, `${ici}:conclure`);
+      if ('issue' in c) {
+        return c.issue;
+      }
+      const a = await actes.avancerMain({
+        racine,
+        ticket: e.ticket,
+        branche: e.branche,
+        commit: sha,
+      });
+      await jouerLesEffets(racine, a.effets, `${ici}:avancer`);
+      if ('issue' in a) {
+        return a.issue;
+      }
+      if ('entre' in a) {
+        return a.entre;
+      }
+    }
+    return {
+      etat: 'en-file',
+      raison: `${e.branche} reste en file : main bouge sans cesse, ${ESSAIS} jugements de sa CI n'ont pas suffi.`,
+    };
+  };
+  // The entry <e> as the queue played it before the CI of the branch (`CI_DE_LA_BRANCHE`): main
+  // moved onto the branch, the ticket closed and main pushed, then the CI of the commit read.
+  const entreeDAvant = async (e: EntreeDeLaFile, lieu: string): Promise<IssueDeLaFile> => {
+    const r = (await actes.avancerMain({
+      racine,
+      ticket: e.ticket,
+      branche: e.branche,
+    } as Parameters<ActivitesDeLaFile['avancerMain']>[0])) as unknown as (
+      { entre: { commit: string } } | { issue: IssueDeLaFile }
+    ) & { effets: EffetDeLaFile[] };
     await jouerLesEffets(racine, r.effets, `${lieu}:avancer`);
     if ('issue' in r) {
       return r.issue;
@@ -237,7 +326,6 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     if (!f.poussee) {
-      // The lot is on main: its closure first, then why it is not pushed.
       const ferme = `intégré : ${commit.slice(0, 7)}`;
       return { etat: 'ferme', raison: f.raison ? `${ferme} ; ${f.raison}` : ferme };
     }
@@ -247,6 +335,27 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
       { racine, ticket: e.ticket, sha: commit, branche: f.poussee, ci: entree.ci, relue: false },
       `${workflowInfo().workflowId}:ci:${workflowInfo().runId}:${n}`
     );
+  };
+  // The entry <e> to its issue.
+  const traiter = async (e: EntreeDeLaFile): Promise<IssueDeLaFile> => {
+    avance = null;
+    entrees += 1;
+    const lieu = `entree:${entrees}`;
+    if (!patched(CI_DE_LA_BRANCHE)) {
+      return entreeDAvant(e, lieu);
+    }
+    const m = await surMain(e, lieu);
+    if ('etat' in m) {
+      return m;
+    }
+    const { commit } = m;
+    avance = commit;
+    const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
+    await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
+    avance = null;
+    // The lot is on main: its closure first, then why it is not pushed.
+    const ferme = `intégré : ${commit.slice(0, 7)}`;
+    return { etat: 'ferme', raison: f.raison ? `${ferme} ; ${f.raison}` : ferme };
   };
 
   // The entry <e> to its issue, an act that fails included: the queue goes on with the next

@@ -202,7 +202,7 @@ export const GESTES = [
     genre: 'rejeu',
     geste: 'la commande joue une seconde fois',
     regle:
-      'une commande des contrôles hors de la passe finale, ou l’intégration, à 75 rejoue une fois avant l’arrêt',
+      'une commande des contrôles hors de la passe finale à 75 rejoue une fois avant l’arrêt',
     cas: 'A12 : un contrôle à 75, rejoué avant de conclure à la charge',
   },
   {

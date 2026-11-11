@@ -291,11 +291,28 @@ if (cmd === 'config') {
 // exists, it is always red, and names the component whose `tour` (a count each one keeps in its
 // directory) is behind, forms on a tie: the two components send the red to each other. While
 // `packages/forms/garde-globale.txt` exists, it is red without SARIF, its output naming a file of
-// forms: a red no finding situates. While the main tree holds `.beads/essai/integration/rouge` and
-// the code of forms does not carry `// accordé`, it is red in the integration copy alone
-// (`.claude/worktrees/integration`): a red the checks of the ticket's copy never see, as a path of
-// the copy written in a fingerprint (BP 320.37), which the lot lifts, or the removal of that file,
-// as the load of the machine or main lifts it (BP 320.16).
+// forms: a red no finding situates.
+// The command of a generated file of the trial project (`refusALIntegration`), which the
+// integration plays on a lot that touches the code of forms: while the main tree holds
+// `.beads/essai/integration/rouge` and the code of forms does not carry `// accordé`, it fails in
+// the integration copy alone (`.claude/worktrees/integration`), and writes nothing elsewhere: a red
+// the checks of the ticket's copy never see, as a path of the copy written in a fingerprint (BP
+// 320.37), which the lot lifts, or the removal of that file, as the load of the machine or main
+// lifts it (BP 320.16).
+const REFUS_A_L_INTEGRATION = `import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+const commun = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+  encoding: 'utf8',
+}).trim();
+const marque = path.join(path.dirname(commun), '.beads', 'essai', 'integration', 'rouge');
+const accorde = readFileSync('packages/forms/src/index.mjs', 'utf8').includes('// accordé');
+if (path.basename(process.cwd()) === 'integration' && existsSync(marque) && !accorde) {
+  console.log('⛔ packages/forms/src/index.mjs:1 — la mesure lit un chemin que seule l’intégration voit.');
+  process.exit(1);
+}
+`;
+
 const GARDE = `import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -321,13 +338,6 @@ if (existsSync('packages/binder/garde-rouge.txt') && !accorde) {
 }
 if (existsSync('packages/binder/garde-finale.txt') && !accorde && !process.env.GRILLHOUSE_ENVELOPPE) {
   rouge('packages/forms/src/index.mjs', 'la mesure ne suit pas le classeur, hors enveloppe.');
-}
-if (
-  path.basename(process.cwd()) === 'integration' &&
-  existsSync(path.join(e, 'rouge')) &&
-  !accorde
-) {
-  rouge('packages/forms/src/index.mjs', 'la mesure lit un chemin que seule l’intégration voit.');
 }
 if (existsSync('packages/binder/arbitrer.txt') && !accorde) {
   rouge('packages/forms/src/index.mjs', 'la mesure attend un arbitrage.', 'a-arbitrer');
@@ -408,16 +418,17 @@ export const ARRETS = (valeurs.ARRETS ?? {}) as Record<string, number>;
 export const IMMOBILE_MS = (valeurs.IMMOBILE_MS ?? 0) as number;
 
 // The trial repository of one test file under <ESSAIS>, built when this machine can wrap an
-// envelope, and what reads and drives it; <feuille> adds the third package; <gardesSansCache> keeps
-// the project's guard out of Turborepo's cache, so that the integration copy plays it again, where
-// the checks of the ticket's copy played it green (the guard red in the integration copy alone);
-// <origine> pushes its main to a bare remote `origin`, with a CI on each push
-// (`.github/workflows/ci.yml`) that a fake gh answers (`ci`).
+// envelope, and what reads and drives it; <feuille> adds the third package; <refusALIntegration>
+// declares a generated file of the project whose command refuses in the integration copy alone
+// (REFUS_A_L_INTEGRATION);
+// its main is pushed to a bare remote `origin`, with a CI on each push (`.github/workflows/ci.yml`)
+// that a fake gh answers, green unless the test says otherwise (`ci`): the queue judges each
+// branch by it.
 // <banc>: the bench of Temporal the circuits of the file run on, opened before its tests; the tests
 // that open their own (./temporal-essai.ts) leave it out.
 export function circuitEssai(
   ESSAIS: string,
-  { feuille = false, gardesSansCache = false, origine = false, banc: avecBanc = true } = {}
+  { feuille = false, refusALIntegration = false, banc: avecBanc = true } = {}
 ) {
   const REPO = path.join(ESSAIS, 'depot');
   const HOME = path.join(ESSAIS, 'home');
@@ -455,7 +466,20 @@ export function circuitEssai(
         workspaces: ['packages/*'],
         packageManager: 'npm@10.9.8',
         // The circuits of the trial run side by side: each test leaves its own stopped.
-        grillhouse: { circuits: 100 },
+        grillhouse: {
+          circuits: 100,
+          ...(refusALIntegration
+            ? {
+                engendres: {
+                  'la mesure de l’intégration': {
+                    commande: 'node refus-integration.mjs',
+                    fichiers: ['packages/forms/mesure.txt'],
+                    lit: ['packages/forms/src/**'],
+                  },
+                },
+              }
+            : {}),
+        },
         scripts: {
           test: `node ${path.join(CADRE, 'scripts/langages/typescript/tests.mjs')}`,
           verifier: `node ${path.join(CADRE, 'scripts/langages/typescript/verifier.mjs')}`,
@@ -492,19 +516,12 @@ export function circuitEssai(
       ecrire(path.join(REPO, `packages/${dossier}/test/ancien.test.mjs`), ANCIEN);
     }
     ecrire(path.join(REPO, 'garde.mjs'), GARDE);
-    if (origine) {
-      ecrire(path.join(REPO, '.github/workflows/ci.yml'), 'on: push\n');
-      ecrire(path.join(BIN, 'gh'), FAUX_GH, 0o755);
-    }
+    ecrire(path.join(REPO, '.github/workflows/ci.yml'), 'on: push\n');
+    ecrire(path.join(BIN, 'gh'), FAUX_GH, 0o755);
     ecrire(path.join(REPO, 'CLAUDE.md'), CHARTE);
     ecrireTurbo(REPO);
-    if (gardesSansCache) {
-      const f = path.join(REPO, 'turbo.json');
-      const turbo = JSON.parse(readFileSync(f, 'utf8')) as {
-        tasks: Record<string, Record<string, unknown>>;
-      };
-      turbo.tasks['//#gardes'] = { ...turbo.tasks['//#gardes'], cache: false };
-      ecrire(f, json(turbo));
+    if (refusALIntegration) {
+      ecrire(path.join(REPO, 'refus-integration.mjs'), REFUS_A_L_INTEGRATION);
     }
     ecrire(
       path.join(REPO, '.gitignore'),
@@ -520,11 +537,9 @@ export function circuitEssai(
     git('init', '-q', '-b', 'main');
     git('add', '.');
     git('commit', '-qm', 'init');
-    if (origine) {
-      execFileSync('git', ['init', '-q', '--bare', '-b', 'main', DISTANT]);
-      git('remote', 'add', 'origin', DISTANT);
-      git('push', '-q', 'origin', 'main');
-    }
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', DISTANT]);
+    git('remote', 'add', 'origin', DISTANT);
+    git('push', '-q', 'origin', 'main');
     // The integration's copy made ahead, with this repository's dependencies, as a project holds them.
     const integration = path.join(REPO, '.claude/worktrees/integration');
     git('worktree', 'add', '-q', '--detach', integration);
@@ -540,11 +555,11 @@ export function circuitEssai(
     : '';
   const revenirAuDebut = () => {
     execFileSync('git', ['-C', REPO, 'reset', '-q', '--hard', INITIAL], { encoding: 'utf8' });
-    if (origine) {
-      execFileSync('git', ['-C', REPO, 'push', '-q', '--force', 'origin', 'main'], {
-        encoding: 'utf8',
-      });
-    }
+    execFileSync('git', ['-C', REPO, 'push', '-q', '--force', 'origin', 'main'], {
+      encoding: 'utf8',
+    });
+    // The CI answers green again, whatever the test before set.
+    rmSync(path.join(BIN, 'gh.json'), { force: true });
   };
   // The CI the fake gh gives for every commit pushed: one run, completed on <conclusion>.
   const ci = (conclusion: 'success' | 'failure') =>

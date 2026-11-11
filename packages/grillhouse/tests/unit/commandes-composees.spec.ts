@@ -71,7 +71,7 @@ git('add', '-A');
 git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'init');
 const vert = () => path.join(RACINE, '.git/grillhouse/dernier-vert/main.json');
 
-const CARGO = module('cargo', ['moteur'], ['tester', 'verifier', 'preparer']);
+const CARGO = module('cargo', ['moteur'], ['tester', 'verifier', 'tests-de-nuit']);
 const TS = module('typescript', ['site'], ['tester', 'verifier'], 'package.json');
 const MODULES = [CARGO, TS];
 
@@ -131,8 +131,8 @@ describe('grillhouse-akd, critère 3 — chaque module joue ses composants, un s
   });
 
   it('a command one module alone has plays in that module alone', () => {
-    expect(lancer('preparer', [])).toBe(0);
-    expect(journal()).toEqual(['cargo preparer']);
+    expect(lancer('tests-de-nuit', [])).toBe(0);
+    expect(journal()).toEqual(['cargo tests-de-nuit']);
   });
 
   it('grillhouse-44b.5 critère 9: no module is given a file of deferred greens, whatever the command', () => {

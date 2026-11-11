@@ -1,8 +1,7 @@
 // The lock of the machine for the heavy measure: one heavy measure at a time on the machine,
 // whatever repository it plays in, as GNU make's job server shares its slots between every make of
 // one build, and as Bazel holds a test that declares it wants the whole machine. Taken by every
-// `npm run verifier` (scripts/langages/typescript/verifier.mjs: the integration's, the queue's, the night's, a
-// supervisor's) and by the heavy passes of the circuit of a ticket (scripts/circuit.mjs: the proof
+// `npm run verifier` (scripts/langages/typescript/verifier.mjs: the night's, a supervisor's) and by the heavy passes of the circuit of a ticket (scripts/circuit.mjs: the proof
 // of the red and the checks), so that a measure gives the result of the code, not that of another
 // measure beside it.
 //

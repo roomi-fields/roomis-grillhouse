@@ -9,8 +9,8 @@ import { enProcessus } from './cadre.js';
 
 const fluxDeLaBranche = enProcessus<string[]>('scripts/integration/file.mjs', 'fluxDeLaBranche');
 
-// The integration queue (scripts/integration/file.mjs): it judges the tests by their status
-// (grillhouse-3uv.56), and reads the CI of the commit it pushes.
+// The integration queue (scripts/integration/file.mjs): it pushes the ticket's branch, reads its CI,
+// and moves main onto the tree the CI judged.
 // The queue's interface is told in file-integration.nuit.spec.ts; the trial harness is
 // ./integration-essai.ts, and the matter these files share ./file-integration-essai.ts.
 
@@ -19,60 +19,10 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'file-integration-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 serveurDeLaFileDIntegration(ESSAIS);
 
-// grillhouse-3uv.56 critères 11 and 21: a failed installation of the replay copy comes up in one
-// form, the refusals of the replay module; the queue judges `npm run verifier`, the guards included, as
-// integrer.mjs does, by its exit code. Guards that pass, whatever text they write, are green;
-// guards that fail, whatever text they write, make the tests red.
-const GARDES_BAVARDES = `import fs from 'node:fs';
-fs.appendFileSync(process.env.PRINCIPAL + '.gardes', 'g');
-process.stderr.write("Les dépendances de la copie ne s'installent pas.\\n");
-process.exit(fs.existsSync('GARDE_ROUGE') ? 1 : 0);
-`;
-describe('grillhouse-3uv.56 critères 11 and 21 — the queue judges the tests by their status', () => {
-  it(
-    'critère 21: guards that pass (exit 0) while writing the text of an installation refusal let a replaced branch enter',
-    () => {
-      const m = chantier(ESSAIS);
-      m.poser({ 'gardes.mjs': GARDES_BAVARDES }, 'gardes bavardes');
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
-      m.livrer('demo-1');
-      m.livrer('demo-2');
-      const gardes = m.gardes();
-      const r = m.file();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.gardes().length).toBeGreaterThan(gardes.length);
-      expect(m.sujets().slice(0, 2)).toEqual(['feat: lot (demo-2)', 'feat: lot (demo-1)']);
-      expect(m.bd('demo-2').status).toBe('closed');
-    },
-    LONG
-  );
-  it(
-    'critère 21: guards that fail while writing the text of an installation refusal take the branch out as red tests',
-    () => {
-      const m = chantier(ESSAIS);
-      m.poser({ 'gardes.mjs': GARDES_BAVARDES }, 'gardes bavardes');
-      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
-      m.livrer('demo-1');
-      m.livrer('demo-2');
-      m.poser({ GARDE_ROUGE: '' }, 'garde rouge');
-      const r = m.file();
-      expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.sujets()[0]).toBe('garde rouge');
-      const t = m.bd('demo-2');
-      expect(t.status).toBe('open');
-      const refus = t.comments.at(-1)!.text;
-      expect(refus).toContain('ses tests sont rouges une fois la branche replacée.');
-      expect(refus).not.toContain("Le verrou de la branche replacée ne s'installe pas.");
-    },
-    LONG
-  );
-});
-
-// 2026-10-17 (grill, Q13): the queue reads the CI of the commit it pushes, as a merge queue waits
-// for its checks; a red CI reopens the ticket. The CI is the fake gh of ./integration-essai.ts.
-describe('the queue reads the CI of the commit it pushes', () => {
+// The queue pushes agent/<ticket> and reads the CI of that branch before main moves, as bors and
+// Zuul gate a merge on the CI of the tree that enters; a red CI reopens the ticket and main stays
+// where it is. The CI is the fake gh of ./integration-essai.ts.
+describe('the queue judges the branch by its CI before main moves', () => {
   const ci = (m: Chantier, scenario: Record<string, unknown>) =>
     writeFileSync(path.join(m.bin, 'gh.json'), JSON.stringify(scenario));
   const appelsGh = (m: Chantier) => {
@@ -80,33 +30,33 @@ describe('the queue reads the CI of the commit it pushes', () => {
     return existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [];
   };
   const textes = (m: Chantier, id: string) => m.bd(id).comments.map(c => c.text);
-  // A CI that runs on every push, so that the queue looks for its run.
-  const avecCI = (m: Chantier) => m.poser({ '.github/workflows/ci.yml': 'on: push\n' }, 'ci');
   // A view of a run completed with <conclusion>, its one job of two steps done.
   const fini = (conclusion: string) => ({
     status: 'completed',
     conclusion,
     jobs: [{ status: 'completed', steps: [{ status: 'completed' }, { status: 'completed' }] }],
   });
+  const listeDe = (sha: string) =>
+    `run list --commit ${sha} --branch agent/demo-1 --json databaseId,status,conclusion`;
 
   it(
-    'a green CI leaves the ticket closed: the run of the pushed commit, then its reading until it completes',
+    'green: the branch is pushed, its run read on it, then main moves onto the tree it judged and the branch leaves origin',
     () => {
       const m = chantier(ESSAIS);
       ci(m, {
         runs: [{ databaseId: 41, status: 'queued', conclusion: '' }],
         vues: [fini('success')],
       });
-      avecCI(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
+      const candidat = m.sha('agent/demo-1');
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(appelsGh(m)).toEqual([
-        `run list --commit ${m.sha('main')} --json databaseId,status,conclusion`,
-        'run view 41 --json status,conclusion,jobs',
-      ]);
+      expect(appelsGh(m)).toEqual([listeDe(candidat), 'run view 41 --json status,conclusion,jobs']);
       expect(r.stdout).toContain('verte (passage 41)');
+      expect(m.sha('main')).toBe(candidat);
+      expect(m.distantSha('main')).toBe(candidat);
+      expect(m.distantSha('agent/demo-1')).toBe('');
       expect(m.bd('demo-1').status).toBe('closed');
       expect(textes(m, 'demo-1').join('\n')).not.toMatch(/CI rouge|CI non lue/);
     },
@@ -114,26 +64,58 @@ describe('the queue reads the CI of the commit it pushes', () => {
   );
 
   it(
-    'a red CI reopens the ticket, with the address of the run and the end of its failed log',
+    'red: main does not move, the ticket reopens with the address of the run and the end of its failed log, the branch stays on origin',
     () => {
       const m = chantier(ESSAIS);
       ci(m, {
         runs: [{ databaseId: 42, status: 'in_progress', conclusion: '' }],
         vues: [fini('failure')],
         url: 'https://github.com/demo/demo/actions/runs/42',
-        log: 'test\tUNIT\t✗ critère 3 — rouge sur la CI',
+        log: 'test\tUNIT\t✗ rouge sur la CI',
       });
-      avecCI(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
+      const avant = m.sha('main');
+      const candidat = m.sha('agent/demo-1');
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.bd('demo-1').status).toBe('open');
+      expect(m.sha('main')).toBe(avant);
+      expect(m.distantSha('main')).toBe(avant);
+      expect(m.distantSha('agent/demo-1')).toBe(candidat);
+      const t = m.bd('demo-1');
+      expect(t.status).toBe('open');
+      expect(t.labels).not.toContain('en-file');
       const rouge = textes(m, 'demo-1').at(-1);
       expect(rouge).toContain('CI rouge');
+      expect(rouge).toContain('agent/demo-1');
       expect(rouge).toContain('https://github.com/demo/demo/actions/runs/42');
-      expect(rouge).toContain('critère 3 — rouge sur la CI');
+      expect(rouge).toContain('rouge sur la CI');
       expect(appelsGh(m)).toContain('run view 42 --log-failed');
+    },
+    LONG
+  );
+
+  it(
+    'main moves while the CI runs: the branch is replaced on it, pushed again, and its CI read again before it enters',
+    () => {
+      const m = chantier(ESSAIS);
+      ci(m, {
+        runs: [{ databaseId: 44, status: 'completed', conclusion: 'success' }],
+        vues: [fini('success')],
+        bouger: m.repo,
+      });
+      m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
+      m.livrer('demo-1');
+      const premier = m.sha('agent/demo-1');
+      const r = m.file();
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(m.sujets().slice(0, 2)).toEqual(['feat: lot (demo-1)', 'main bouge']);
+      const second = m.sha('main');
+      expect(second).not.toBe(premier);
+      const listes = appelsGh(m).filter(l => l.startsWith('run list'));
+      expect(listes).toEqual([listeDe(premier), listeDe(second)]);
+      expect(m.distantSha('main')).toBe(second);
+      expect(m.bd('demo-1').status).toBe('closed');
     },
     LONG
   );
@@ -179,7 +161,6 @@ describe('the queue reads the CI of the commit it pushes', () => {
           },
         ],
       });
-      avecCI(m);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
       const r = m.file();
@@ -193,32 +174,36 @@ describe('the queue reads the CI of the commit it pushes', () => {
         .split('\n')
         .map(l => JSON.parse(l) as { faits: number; prevus: number });
       expect(vus).toContainEqual(expect.objectContaining({ faits: 3, prevus: 5 }));
-      // The CI concluded green, the queue is done with the ticket: its working directory leaves, the
-      // progress of the CI with it (`retirerLeTravail` of scripts/integration/file.mjs). Its final
-      // state is read where the queue leaves it (`conclureLaCI`): the ticket closed « intégré :
-      // <commit> », no comment of a red CI or of a CI not read at it, and the run named green in the
-      // queue's output.
+      // The CI concluded green, the lot entered, the queue is done with the ticket: its working
+      // directory leaves, the progress of the CI with it (`retirerLeTravail` of
+      // scripts/integration/file.mjs).
       expect(existsSync(travail)).toBe(false);
       const t = m.bd('demo-1') as { status: string; close_reason?: string };
       expect(t.status).toBe('closed');
       expect(t.close_reason).toMatch(/^intégré : [0-9a-f]{7}$/);
       const court = String(t.close_reason).slice('intégré : '.length);
       expect(textes(m, 'demo-1').filter(x => /CI rouge|CI non lue/.test(x))).toEqual([]);
-      expect(r.stdout + r.stderr).toContain(`CI de ${court} verte (passage 43)`);
+      expect(r.stdout + r.stderr).toContain(`CI de ${court} sur agent/demo-1 verte (passage 43)`);
     },
     LONG
   );
 
   it(
-    'without a run found, the ticket is told the CI was not read, and stays closed',
+    'without a run found, the CI is not read: main does not move, the ticket told why, neither closed nor reopened',
     () => {
       const m = chantier(ESSAIS);
-      avecCI(m);
+      // The CI of the project runs on every push, but no run comes.
+      ci(m, { runs: [] });
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
+      const avant = m.sha('main');
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(m.bd('demo-1').status).toBe('closed');
+      expect(m.sha('main')).toBe(avant);
+      const t = m.bd('demo-1');
+      expect(t.status).not.toBe('closed');
+      expect(t.status).not.toBe('open');
+      expect(t.labels).toContain('en-file');
       const texte = textes(m, 'demo-1').at(-1);
       expect(texte).toContain('CI non lue');
       expect(texte).toContain('aucun passage de la CI');
@@ -229,43 +214,49 @@ describe('the queue reads the CI of the commit it pushes', () => {
 });
 
 // grillhouse-3uv.89 L7 (BPScript 320.3, commit 106c32c): a project without any CI waited 120 s for
-// a run that could not come, and the ticket read « CI non lue ». As GitHub's required checks name
-// what a merge waits for, a check that does not exist is not waited for: the queue reads, in the
-// commit it pushes, the workflows that run on a push to the branch it pushes to
-// (`grillhouse.poussee.commit`), and says in one line that there are none.
-describe('L7 — a project without a CI for the branch pushed does not wait for it', () => {
-  // A comment without the line that carries the key of its writing.
-  const sansCle = (texte: string) => texte.replace(/\s*<!-- grillhouse : [^>]*-->\s*$/, '').trim();
+// a run that could not come, and the ticket read « CI non lue ». The queue reads, in the candidate
+// it pushes, the workflows that run on a push to the ticket's branch, and waits for no run when
+// there is none; but main moves only on a green its CI gave: without a workflow on agent/**, the
+// branch stays in the queue, and the ticket says that the CI of the project must listen to
+// agent/**. A trial project that wants no CI takes its workflow out.
+describe("L7 — a project without a CI for the ticket's branch does not wait for a run, and does not enter", () => {
   const appelsGh = (m: Chantier) => {
     const f = path.join(m.bin, 'gh-appels');
     return existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [];
   };
+  // Without a green, main does not move: the ticket keeps en-file, neither closed nor reopened, and
+  // its last comment names agent/**.
+  const resteEnFile = (m: Chantier, avant: string) => {
+    expect(appelsGh(m)).toEqual([]);
+    expect(m.sha('main')).toBe(avant);
+    const t = m.bd('demo-1');
+    expect(t.status).not.toBe('closed');
+    expect(t.status).not.toBe('open');
+    expect(t.labels).toContain('en-file');
+    const mot = t.comments.at(-1)!.text;
+    expect(mot).toContain('Aucune CI ne juge agent/demo-1');
+    expect(mot).toContain('agent/**');
+  };
 
   it(
-    'no workflow at all: gh is never called, and the ticket, closed, says in one line that there is no CI for the branch',
+    'no workflow at all: gh is never called, the branch stays in the queue, main does not move, and the ticket asks for a CI on agent/**',
     () => {
       const m = chantier(ESSAIS, { grillhouse: { poussee: { commit: 'travail' } } });
+      m.poser({ '.github/workflows/ci.yml': null }, 'sans ci');
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
+      const avant = m.sha('main');
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(appelsGh(m)).toEqual([]);
-      const t = m.bd('demo-1');
-      expect(t.status).toBe('closed');
-      const mot = t.comments.at(-1)!.text;
-      // The comment carries the key of its writing on a line of HTML comment, which GitHub and
-      // the board do not show (`marqueDeCle` of scripts/effets.mjs): the line read is the text.
-      expect(sansCle(mot).split('\n')).toHaveLength(1);
-      expect(mot).toContain('Aucune CI');
-      expect(mot).toContain('travail');
-      expect(mot).not.toContain('non lue');
-      expect(r.stdout).toContain('Aucune CI');
+      resteEnFile(m, avant);
+      expect(r.stdout).toContain('agent/**');
+      expect(m.distantSha('travail')).toBe('');
     },
     LONG
   );
 
   it(
-    'workflows that run on another branch only: gh is never called, and the ticket says there is no CI for the branch',
+    'workflows that run on other branches only: gh is never called, and the branch stays in the queue',
     () => {
       const m = chantier(ESSAIS, { grillhouse: { poussee: { commit: 'travail' } } });
       m.poser(
@@ -277,27 +268,26 @@ describe('L7 — a project without a CI for the branch pushed does not wait for 
       );
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
+      const avant = m.sha('main');
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(appelsGh(m)).toEqual([]);
-      const mot = m.bd('demo-1').comments.at(-1)!.text;
-      expect(sansCle(mot).split('\n')).toHaveLength(1);
-      expect(mot).toContain('Aucune CI');
+      resteEnFile(m, avant);
     },
     LONG
   );
 
   it(
-    'a workflow that runs on the branch pushed: the queue looks for its run, as before',
+    "a workflow that runs on the ticket's branch: the queue looks for its run on that branch, and enters on its green",
     () => {
       const m = chantier(ESSAIS, { grillhouse: { poussee: { commit: 'travail' } } });
-      m.poser({ '.github/workflows/ci.yml': 'on:\n  push:\n    branches: ["trav*"]\n' }, 'ci');
+      m.poser({ '.github/workflows/ci.yml': 'on:\n  push:\n    branches: ["agent/**"]\n' }, 'ci');
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
       const r = m.file();
       expect(r.status, r.stdout + r.stderr).toBe(0);
-      expect(appelsGh(m)[0]).toMatch(/^run list --commit /);
-      expect(m.bd('demo-1').comments.at(-1)!.text).toContain('CI non lue');
+      expect(appelsGh(m)[0]).toMatch(/^run list --commit \S+ --branch agent\/demo-1 /);
+      expect(m.bd('demo-1').status).toBe('closed');
+      expect(m.distantSha('travail')).toBe(m.sha('main'));
     },
     LONG
   );

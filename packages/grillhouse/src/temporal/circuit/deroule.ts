@@ -30,6 +30,7 @@ import {
   defineUpdate,
   isCancellation,
   makeContinueAsNewFunc,
+  patched,
   proxyActivities,
   setHandler,
   upsertMemo,
@@ -45,7 +46,22 @@ import {
 } from '../../../scripts/transitions.mjs';
 import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
 import type { ActivitesDeLaFile, IssueDeLaFile } from '../file/contrat.js';
-import { entrerDansLaFile, issueDeLaFile, lireEtConclureLaCI } from '../file/deroule.js';
+
+// The place of a lot as `situerLeLot` gave it before the CI of the branch, which a run recorded
+// before that change reads from its history (`laFileDAvant`).
+interface LotDAvant {
+  aEntrer?: boolean;
+  commit?: string | null;
+  branche?: string | null;
+  surOrigin?: 'oui' | 'non' | 'inconnu';
+  raisonOrigin?: string | null;
+}
+import {
+  CI_DE_LA_BRANCHE,
+  entrerDansLaFile,
+  issueDeLaFile,
+  lireEtConclureLaCI,
+} from '../file/deroule.js';
 import {
   ARRETER,
   DEPUIS,
@@ -291,34 +307,45 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     issue = i;
   });
   let relectures = 0;
-  // The fact `file` of the step 5.2: where the lot stands, then the queue, or its CI read again.
-  const laFile = async (): Promise<IssueDeLaFile> => {
+  // The fact `file` of the step 5.2 as the circuit read it before the CI of the branch
+  // (`CI_DE_LA_BRANCHE`, Temporal's patching, ../file/deroule.ts): a lot on main and on origin had
+  // the CI of its commit read again; kept for the replay of the runs that recorded it, the place of
+  // the lot read from the answer the history holds.
+  const laFileDAvant = (lot: LotDAvant): Promise<IssueDeLaFile> | null => {
     const { racine, ticket } = entree;
-    const lot = await actesDeLaFile.situerLeLot({ racine, ticket });
-    if (lot.statut === 'closed') {
-      return { etat: 'ferme', raison: lot.raison ?? 'ticket fermé' };
-    }
-    // A lot on main whose place on origin is unknown (origin does not answer) does not go back to
-    // the queue: the reason goes up, the stop « inattendu ».
     if (!lot.aEntrer && lot.commit && lot.branche && lot.surOrigin === 'inconnu') {
       throw new Error(
         `la place du lot ${lot.commit.slice(0, 7)} sur origin ne se lit pas (${lot.raisonOrigin ?? 'sans raison'}) : il ne retourne pas en file.`
       );
     }
-    // A lot on main and on origin: its CI read again. A lot on the local main alone (its closure
-    // failed before its push) goes through the queue again, which closes and pushes it.
     if (!lot.aEntrer && lot.commit && (lot.surOrigin === 'oui' || !lot.branche)) {
       if (!lot.branche) {
-        return {
+        return Promise.resolve({
           etat: 'rouvert',
           raison: 'grillhouse.poussee.commit ne nomme pas une branche : la CI ne se relit pas.',
-        };
+        });
       }
       relectures += 1;
       return lireEtConclureLaCI(
         { racine, ticket, sha: lot.commit, branche: lot.branche, ci: entree.ci, relue: true },
         `${workflowInfo().workflowId}:ci:${workflowInfo().runId}:${relectures}`
       );
+    }
+    return null;
+  };
+  // The fact `file` of the step 5.2: a ticket closed is done, any other lot goes to the queue,
+  // which enters a lot already on main without moving main again.
+  const laFile = async (): Promise<IssueDeLaFile> => {
+    const { racine, ticket } = entree;
+    const lot = await actesDeLaFile.situerLeLot({ racine, ticket });
+    if (lot.statut === 'closed') {
+      return { etat: 'ferme', raison: lot.raison ?? 'ticket fermé' };
+    }
+    if (!patched(CI_DE_LA_BRANCHE)) {
+      const avant = laFileDAvant(lot as LotDAvant);
+      if (avant) {
+        return avant;
+      }
     }
     issue = null;
     await entrerDansLaFile(

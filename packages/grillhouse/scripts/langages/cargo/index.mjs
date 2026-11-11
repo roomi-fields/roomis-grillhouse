@@ -17,10 +17,9 @@
 //   (./composants.mjs).
 // - The elements of a lot, one per crate (./elements-du-lot.mjs).
 // - The commands `tester` (the crates' tasks of Turborepo), `tests-du-paquet` (the body of a crate's
-//   task), `verifier`, `typer`, `preparer` and `tests-de-nuit` (./commandes.mjs),
-//   each described, `{ script, args }`, never run, `preparer` played by the integration before the
-//   verification, `tests-de-nuit` by the night (the test targets `tests/*_nuit.rs`, then the time
-//   budget benches `tests/*_budget.rs`, which the day leaves out);
+//   task), `verifier`, `typer` and `tests-de-nuit` (./commandes.mjs), each described, `{ script,
+//   args }`, never run, `tests-de-nuit` played by the night (the test targets `tests/*_nuit.rs`,
+//   then the time budget benches `tests/*_budget.rs`, which the day leaves out);
 //   the verdict of a run (./verdict.mjs). The tool of a test's temporary directory, the crate
 //   `tempfile`, and its guard: `tests-du-paquet` and `verifier` play under a base of their pass, named in
 //   TMPDIR, TMP and TEMP, and fail naming what the tests left there (./commandes.mjs).

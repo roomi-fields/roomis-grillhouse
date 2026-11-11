@@ -28,8 +28,8 @@ const appels = () => readFileSync(JOURNAL, 'utf8').split('\n').filter(Boolean);
 
 describe('grillhouse-pkl.5 — une commande du module, quand il la décrit', () => {
   it('runs a command the module describes, its code the command’s', () => {
-    expect(lancerDuLangage('preparer', [], seul)).toBe(0);
-    expect(appels()).toEqual(['fetch --locked']);
+    expect(lancerDuLangage('typer', [], seul)).toBe(0);
+    expect(appels().filter(a => !a.startsWith('metadata '))).toEqual(['check --all-targets']);
   });
 
   it('plays nothing for a command the module does not describe', () => {
@@ -47,7 +47,7 @@ describe('grillhouse-pkl.5 — une commande du module, quand il la décrit', () 
   it('plays nothing in a project that declares no language', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'sans-langage-'));
     writeFileSync(path.join(projet, 'package.json'), JSON.stringify({ name: 'p' }));
-    expect(lancerDuLangage('preparer', [], projet)).toBe(0);
+    expect(lancerDuLangage('typer', [], projet)).toBe(0);
     expect(appels()).toEqual([]);
   });
 });

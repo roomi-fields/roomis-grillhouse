@@ -50,12 +50,13 @@
 //   an effect not written has its outcome, said on the error output or the failure of its
 //   activity;
 // - the acts of the queue of a project (scripts/integration/file.mjs, grillhouse-4nr.8): `situer`,
-//   where the lot of a ticket stands (`situerLeLot`); `avancer`, main moved onto its branch
-//   (`avancerMain`), the ticket told of a branch out of the queue or kept (`direLIssue`);
-//   `fermer`, the ticket closed and main pushed (`fermerLEntree`); `ci`, one reading of the CI of
-//   a commit (`lireUneFoisLaCI`); `conclure`, the CI concluded at the ticket (`conclureLaCI`);
-//   `effet-de-la-file`, one effect they gave back, under the key of its activity. Their lines go
-//   to the error output.
+//   where the lot of a ticket stands (`situerLeLot`); `brancher`, the branch made the candidate its
+//   CI judges and pushed (`preparerLaBranche`); `ci`, one reading of the CI of a commit
+//   (`lireUneFoisLaCI`); `conclure`, the CI concluded at the ticket (`conclureLaCI`); `avancer`,
+//   main moved onto the candidate (`avancerMain`); each of `brancher` and `avancer` telling the
+//   ticket of a branch out of the queue or kept (`direLIssue`); `fermer`, the ticket closed and main
+//   pushed (`fermerLEntree`); `effet-de-la-file`, one effect they gave back, under the key of its
+//   activity. Their lines go to the error output.
 import { appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -87,9 +88,10 @@ import {
   fermerLEntree,
   lireUneFoisLaCI,
   outilsDeLaFile,
+  preparerLaBranche,
   situerLeLot,
 } from './integration/file.mjs';
-import { avancementDeLaCI, avecLAvancementDuTravail } from './avancement.mjs';
+import { avancementDeLaCI } from './avancement.mjs';
 import { ecrireLEffet } from './effets.mjs';
 import { Arret, geste } from './ticket-du-circuit.mjs';
 
@@ -416,20 +418,19 @@ Object.assign(ACTES, {
   async situer({ racine, ticket }) {
     return situerLeLot(laFile(racine), ticket);
   },
-  // The replay of the ticket's branch on main writes the progress of its `npm run verifier` in
-  // the working directory of the ticket, where the board reads it while the circuit waits for the
-  // queue (`avecLAvancementDuTravail`, the kind `file`); a lot entered keeps it until the queue is done
-  // with the ticket closed, which removes the working directory (`retirerLeTravail`).
-  async avancer({ racine, ticket, branche }) {
+  async brancher({ racine, ticket, branche }) {
     const o = laFile(racine);
     const entree = { ticket, branche };
-    const travail = path.join(racine, '.claude', 'worktrees', `${ticket}.travail`);
-    const r = avecLAvancementDuTravail(
-      travail,
-      { racine, genre: 'file', garder: lu => Boolean(lu.entre) },
-      () => avancerMain(o, entree)
-    );
-    return { ...(r.entre ? r : { issue: direLIssue(o, entree, r) }), effets: o.rendus };
+    const r = preparerLaBranche(o, entree);
+    return { ...(r.entre || r.candidat ? r : { issue: direLIssue(o, entree, r) }), effets: o.rendus };
+  },
+  async avancer({ racine, ticket, branche, commit }) {
+    const o = laFile(racine);
+    const r = avancerMain(o, { ticket, branche, commit });
+    return {
+      ...(r.entre || r.bouge ? r : { issue: direLIssue(o, { ticket, branche }, r) }),
+      effets: o.rendus,
+    };
   },
   async fermer({ racine, ticket, branche, commit }) {
     const o = laFile(racine);

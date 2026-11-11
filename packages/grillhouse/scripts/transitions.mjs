@@ -28,7 +28,6 @@
 // step the list does not hold `usage`. Each call is played again from the start of its step with
 // the facts read so far, as Temporal replays a workflow on its history: the same facts give the
 // same decision.
-import { A_REPASSER } from './codes-de-sortie.mjs';
 import { ARRETS, boucle, RESPONSABLE, SUITE } from './etapes.mjs';
 import { attribuerLeRouge } from './reprise.mjs';
 
@@ -466,9 +465,6 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
   }
   if (etape === INTEGRATION) {
     const r = lire('integration');
-    if (r.code === A_REPASSER) {
-      return arreter('a-repasser', fin(r.sortie, 40));
-    }
     if (r.nom) {
       // The resumption stops under a name (`lot-absent`, `copie-gardee`), at the code of the
       // integration stop (17, scripts/etapes.mjs), its piece the output.

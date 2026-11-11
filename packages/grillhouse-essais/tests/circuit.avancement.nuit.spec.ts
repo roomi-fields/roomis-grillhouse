@@ -6,7 +6,7 @@ import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/te
 import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // 2026-10-21 (Romain): each automatic pass the circuit runs (the proof of the red, the checks, the
-// final pass, the verification of the integration, the queue and its CI) writes its files done and
+// final pass, the CI of the queue) writes its files done and
 // planned in the working directory of the ticket (scripts/avancement.mjs), which the board reads
 // with the step of the circuit from the server (scripts/circuits-du-serveur.mjs); between two
 // passes, none.
@@ -14,7 +14,7 @@ import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 // (`<git common dir>/grillhouse/avancement.json`, `garderLeTotal` of scripts/avancement.mjs), never
 // by a sampling of the board, which can miss a window; the board reads none once the circuit ends.
 // How the board reads a progress directory of the working directory: tests/unit of the package
-// grillhouse (avancement-de-la-file.spec.ts, file-relecture-ci.spec.ts).
+// grillhouse (avancement-du-travail.spec.ts, file-ci-de-la-branche.spec.ts).
 // Witness: a pass frozen 40 min, the machine at rest, that nothing showed.
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
@@ -48,10 +48,8 @@ describe.runIf(canWrap)(
         0
       );
       // The total each pass kept at its end, under its kind: the proof, the checks of the plan and
-      // the final pass each counted their files. The verification of the integration plays on the
-      // tree the final pass just played: a task Turborepo serves from its cache counts the number
-      // its hash knows (`inscrireLePlan`), 0 when none is known; its total is kept under its kind
-      // all the same (`garderLeTotal`), so the kind is what the trace proves.
+      // the final pass each counted their files. The integration verifies nothing on the machine:
+      // the CI of the ticket's branch judges, so it keeps no total.
       const { passes } = JSON.parse(readFileSync(totaux, 'utf8')) as {
         passes: Record<string, number>;
       };
@@ -65,7 +63,7 @@ describe.runIf(canWrap)(
       expect(total('preuve ')).toBeGreaterThan(0);
       expect(total('controles ')).toBeGreaterThan(0);
       expect(total('passe finale ')).toBeGreaterThan(0);
-      expect(passes).toHaveProperty('integration');
+      expect(passes).not.toHaveProperty('integration');
       expect(lire()?.avancement ?? null).toBeNull();
     });
   }

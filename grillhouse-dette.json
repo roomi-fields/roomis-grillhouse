@@ -382,19 +382,14 @@
         "count": 5
       }
     },
-    "packages/grillhouse-essais/tests/file-integration.ci.nuit.spec.ts": {
+    "packages/grillhouse-essais/tests/file-integration.dependances.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 3
       }
     },
-    "packages/grillhouse-essais/tests/file-integration.dependances.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 9
-      }
-    },
     "packages/grillhouse-essais/tests/file-integration.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 16
+        "count": 14
       }
     },
     "packages/grillhouse-essais/tests/file-integration.renvois.nuit.spec.ts": {
@@ -419,12 +414,12 @@
     },
     "packages/grillhouse-essais/tests/integrer.commandes.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 21
+        "count": 10
       }
     },
     "packages/grillhouse-essais/tests/integrer.dependances.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 15
+        "count": 8
       }
     },
     "packages/grillhouse-essais/tests/integrer.engendres.nuit.spec.ts": {
@@ -434,7 +429,7 @@
     },
     "packages/grillhouse-essais/tests/integrer.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 32
+        "count": 31
       }
     },
     "packages/grillhouse-essais/tests/integrer.references.nuit.spec.ts": {
@@ -787,11 +782,6 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/file-relecture-ci.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 4
-      }
-    },
     "packages/grillhouse/tests/unit/flux-des-paquets.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 6
@@ -844,7 +834,7 @@
     },
     "packages/grillhouse/tests/unit/identite-de-verification.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 7
+        "count": 2
       }
     },
     "packages/grillhouse/tests/unit/index-interfaces.composee.spec.ts": {
@@ -925,11 +915,6 @@
     "packages/grillhouse/tests/unit/langages/cargo/migration.tailles-des-tests.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 5
-      }
-    },
-    "packages/grillhouse/tests/unit/langages/cargo/preparer.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 1
       }
     },
     "packages/grillhouse/tests/unit/langages/cargo/src-et-bancs.spec.ts": {

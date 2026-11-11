@@ -260,7 +260,7 @@ describe.runIf(canWrap)('the review and the integration', { timeout: 300_000 }, 
     expect(commentaires(id)).toContainEqual(
       expect.stringMatching(/^Circuit · integration : .*la branche est en file\.$/)
     );
-    // The ticket closed by the queue; the trial has no origin, so main is not pushed.
+    // The ticket closed by the queue once the CI of its branch is green, main pushed to origin.
     expect(ticketDe(id)).toMatchObject({ status: 'closed' });
     expect(commentaires(id).at(-1)).toMatch(/^Circuit · file : intégré : /);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });

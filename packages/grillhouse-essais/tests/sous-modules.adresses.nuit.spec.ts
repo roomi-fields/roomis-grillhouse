@@ -217,7 +217,6 @@ describe('grillhouse-3uv.69 critère 6 — a reused copy sets the submodule from
       const r = m.integrer();
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.natifDe(m.copies.integration)).toBe('b3');
-      expect(m.vus().at(-1)).toBe('b3');
       expect(m.sousModulesConfig()).toBe(avant);
       expect(existsSync(marque), 'the integration copy was removed and created again').toBe(true);
     },

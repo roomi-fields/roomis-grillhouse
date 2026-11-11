@@ -36,22 +36,11 @@
 //     file and the manifests the lot leaves (`npm ci`, as the continuous integration runs it); an
 //     install that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. »;
 //     then the references regenerate (below);
-//  6. the tests: the preparation the module of the language describes, when it describes one
-//     (`preparer`, cargo's `cargo fetch --locked`), then `npm run verifier` in the copy, one
-//     command (TypeScript's, by Turborepo: the build, then the
-//     guards, the frame's and the project's own (its root script `gardes`), and every test of the
-//     day beside each other, each task replayed from the cache of the
-//     main tree when its inputs are unchanged). Green is required: main stays green, and nothing is compared with a base. A test
-//     known red is put in quarantine in the test itself (`it.skip` or `it.fails`, with its
-//     ticket), as a mature continuous integration does; the integration admits none. A
-//     `npm run verifier` « à repasser » (75: the wait for the lock of the machine reached its
-//     bound, scripts/verrou-de-machine.mjs) is neither green nor red: the run stops there, exit 75,
-//     nothing committed and nothing refused, the lot where it was, for the same command again;
-//     any other code than 0 refuses;
-//  7. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
-//     hook that plays the guards skips them, as step 6 just played them; the commit validated is
-//     the commit that enters;
-//  8. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
+//  6. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
+//     hook that plays the guards skips them, as the CI of the ticket's branch plays them; nothing
+//     is verified here: the queue pushes the branch, and its CI judges the lot before main moves
+//     (scripts/integration/file.mjs); the commit committed is the commit the CI judges;
+//  7. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
 //     removed by `scripts/retirer-copie.sh` (no `--jetable`; `--garder-travail`: the working
 //     directory of the ticket's circuit, `<copie>.travail`, stays for the circuit that still runs,
 //     and the queue removes it at the ticket's closure): a refusal, a locked copy for
@@ -66,7 +55,7 @@
 // scripts/engendres.mjs reads them). As a genrule of Bazel writes its output again on the merged
 // tree, and npm install writes package-lock.json again after a merge, a file of the lot a reference
 // writes in full is not applied: main's version stays, and each reference whose files or reads the
-// lot touches plays in the copy, on main of the moment, after the install and before the tests,
+// lot touches plays in the copy, on main of the moment, after the install and before the commit,
 // through the mounts, with the tools of the project, and what it writes enters the commit
 // (`regenerer` of scripts/engendres.mjs; BPScript 320.30: refused twice for the one conflict on the
 // index of the interfaces; OSC Bridge, 2026-10-31: four conflicts in one day on the generated files
@@ -84,7 +73,7 @@
 // The main tree is not touched. The duration is written at the end.
 // One integration runs at a time (`.git/integration.lock`): another waits for the end of the
 // running one; a lock whose process is gone is taken over. Exit code: 0 committed, 1 refused,
-// 2 usage, 75 à repasser.
+// 2 usage.
 // Called without a lot to apply (neither `--tests` nor `--code`), it does not commit: the lot is
 // already on main (`lotSurMain`, exit 0, nothing done) or it is refused by the name `lot-absent`
 // (exit 1), the same rule the circuit's resumption reads (scripts/activites.mjs, grillhouse-bf5.2).
@@ -101,7 +90,6 @@ import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 import { verdictDe } from './verdict.mjs';
-import { A_REPASSER } from '../codes-de-sortie.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 
 // A file name as git writes it in a patch: a name with a character outside ASCII, a quote, a
@@ -468,7 +456,7 @@ function main(argv) {
     if (ouverte.refus) {
       return refuser(ouverte.refus);
     }
-    const { dansCopie, monter, installer, tester } = ouverte;
+    const { dansCopie, monter, installer } = ouverte;
 
     // 5. The lots, applied in the copy without the files a reference writes in full, then
     // installed, then the references regenerated.
@@ -509,23 +497,10 @@ function main(argv) {
       dire(`✓ références régénérées sur main à jour : ${aRegenerer.map(r => r.nom).join(', ')}`);
     }
 
-    // 6. The tests: the build, the guards and every test of the day, green required.
-    dire('— npm run verifier (construction, gardes, tests)');
-    const verdict = tester({ sorte: 'Intégration', ticket: o.ticket }).status;
-    if (verdict === A_REPASSER) {
-      dire(
-        `⏱ À repasser (code ${A_REPASSER}) : l'attente de la machine a atteint sa borne. Le lot n'est ni commis ni refusé ; relance la même commande.`
-      );
-      return A_REPASSER;
-    }
-    if (verdict !== 0) {
-      return refuser('Les tests refusent le lot (sortie ci-dessus).');
-    }
-    dire('✓ tests');
-
-    // 7. The commit, in the copy: the commit validated is the commit that enters.
-    // The guards have just run (in `npm run verifier`): a pre-commit hook that plays them skips them under
-    // GRILLHOUSE_INTEGRATION=1; commit-msg (a closed ticket refuses a second commit, a reopened one takes its corrections) runs as always.
+    // 6. The commit, in the copy: the commit committed is the commit the CI of the branch judges.
+    // The guards run in that CI: a pre-commit hook that plays them skips them under
+    // GRILLHOUSE_INTEGRATION=1; commit-msg (a closed ticket refuses a second commit, a reopened one
+    // takes its corrections) runs as always.
     const c = spawnSync(
       'bash',
       monter('git', '-C', copie, 'commit', '-q', '-F', absolu(o.message)),
@@ -539,7 +514,7 @@ function main(argv) {
     }
     const commit = dansCopie('rev-parse', 'HEAD').stdout.trim();
 
-    // 8. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
+    // 7. The branch of the ticket takes the commit; the ticket's copy follows it (it carried the
     // lot, which the commit now holds) and is removed; the ticket is labelled `en-file`.
     const pose = git('update-ref', `refs/heads/${branche}`, commit);
     if (pose.status !== 0) {

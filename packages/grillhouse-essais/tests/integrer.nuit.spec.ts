@@ -199,9 +199,9 @@ describe('refusLots', () => {
   });
 });
 
-// A repository with a fake Beads and the one test command of the frame: `npm run verifier` plays the guards
-// (red while GARDE_ROUGE or RESTE exists), then the tests (suites.mjs: red while ROUGES_FORCES
-// exists), one exit code. Each run of the tests appends « [<its arguments>] » to <PRINCIPAL>.args.
+// A repository with a fake Beads and the one test command of the frame, `npm run verifier`, which
+// the integration never plays (the CI of the ticket's branch judges the lot): each run of its
+// tests would append « [<its arguments>] » to <PRINCIPAL>.args.
 const SUITES_MONDE =
   "import fs from 'node:fs';\nfs.appendFileSync(`${process.env.PRINCIPAL}.args`, `[${process.argv.slice(2).join(' ')}]`);\nprocess.exit(fs.existsSync('ROUGES_FORCES') ? 1 : 0);\n";
 function monde(commentaires: string[]) {
@@ -309,28 +309,26 @@ function monde(commentaires: string[]) {
   return { repo, run, lancer, etat, poser, bin, appels, sha };
 }
 
-// The refusal of the integration once `npm run verifier` is red in its copy: no commit on the ticket's
-// branch, which stays where the copy was made, and the main tree as it was.
-const REFUS_TESTS = /⛔ Les tests refusent le lot \(sortie ci-dessus\)\./;
-
 describe('an integration', () => {
-  it('commits a reviewed lot whose npm run verifier is green, and writes its duration', () => {
+  it('commits a reviewed lot and writes its duration', () => {
     const m = monde(['ACCEPTÉ']);
     const r = m.run();
     expect(r.stdout).toMatch(/✓ commit/);
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/✓ tests/);
     expect(r.stdout).toMatch(/^⏱ \d+(\.\d)? s$/m);
     expect(r.stdout).not.toMatch(/budget/);
     const e = m.etat();
     expect(e.log[0]).toBe('feat: a (demo-1)');
     expect(e.status).toBe('');
   });
-  it('plays npm run verifier once in the copy, without any argument', () => {
+  it('commits the lot without playing npm run verifier: the CI of its branch judges it', () => {
     const m = monde(['ACCEPTÉ']);
+    m.poser('ROUGES_FORCES', 'rouge > partout\n');
     const r = m.run();
     expect(r.status, r.stdout + r.stderr).toBe(0);
-    expect(m.appels()).toBe('[]');
+    expect(m.appels()).toBe('');
+    expect(r.stdout).not.toMatch(/npm run verifier/);
+    expect(m.etat().log[0]).toBe('feat: a (demo-1)');
   });
   it('refuses a lot without the ACCEPTÉ verdict, touching nothing', () => {
     const m = monde(['RENDU : R1']);
@@ -356,76 +354,6 @@ describe('an integration', () => {
     expect(m.appels()).toBe('');
     expect(m.etat()).toMatchObject({ log: ['base'], status: '' });
   });
-  it('refuses a lot whose guards are red in npm run verifier: no commit, no branch moved, the tree restored', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('GARDE_ROUGE', '');
-    const r = m.run();
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(REFUS_TESTS);
-    expect(r.stdout).not.toMatch(/✓ commit/);
-    expect(m.etat()).toMatchObject({
-      log: ['pose GARDE_ROUGE', 'base'],
-      status: '',
-      a: 'export const a = 1;\n',
-      test: false,
-    });
-  });
-  it('refuses a lot whose tests are red with it: no commit, the branch where the copy was made', () => {
-    const m = monde(['ACCEPTÉ']);
-    // The tests fail only once the lot's test file exists.
-    m.poser(
-      'suites.mjs',
-      SUITES_MONDE.replace("fs.existsSync('ROUGES_FORCES')", "fs.existsSync('tests/a.spec.ts')")
-    );
-    const r = m.run();
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(REFUS_TESTS);
-    expect(m.sha('agent/demo-1')).toBe(m.sha('main'));
-    expect(m.etat()).toMatchObject({ log: ['pose suites.mjs', 'base'], status: '', test: false });
-  });
-  // A red test is never admitted: one known red already on HEAD refuses the lot too (main stays
-  // green; a known red test is put in quarantine in the test itself).
-  it('refuses a lot whose tests are already red on HEAD: nothing is compared with a base', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('ROUGES_FORCES', 'vieux > rouge\n');
-    const r = m.run();
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(REFUS_TESTS);
-    expect(r.stdout).not.toMatch(/base/);
-    expect(m.etat().log[0]).toBe('pose ROUGES_FORCES');
-  });
-  it('writes the output of the red npm run verifier before its refusal', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser(
-      'suites.mjs',
-      "process.stdout.write('sortie des tests : t > rouge\\n');\nprocess.exit(1);\n"
-    );
-    const r = m.run();
-    expect(r.status).toBe(1);
-    expect(r.stdout.indexOf('sortie des tests : t > rouge')).toBeGreaterThanOrEqual(0);
-    expect(r.stdout.indexOf('sortie des tests')).toBeLessThan(r.stdout.indexOf('⛔'));
-  });
-  // « À repasser » (75): the wait of the pass for the lock of the machine, or for room in the
-  // temporary directory, reached its bound (scripts/verrou-de-machine.mjs). Neither green nor red:
-  // nothing is committed, nothing is refused, the lot stays where it is for the same command again.
-  it('a npm run verifier à repasser (75) neither commits nor refuses: exit 75, the lot stays', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', "process.stdout.write('⏱ à repasser\\n');\nprocess.exit(75);\n");
-    const r = m.run();
-    expect(r.status, r.stdout).toBe(75);
-    expect(r.stdout).toMatch(/à repasser/);
-    expect(r.stdout).not.toMatch(/⛔/);
-    expect(r.stdout).not.toMatch(/✓ commit/);
-    expect(m.sha('agent/demo-1')).toBe(m.sha('main'));
-    expect(m.etat()).toMatchObject({ log: ['pose suites.mjs', 'base'], status: '' });
-  });
-  it('a npm run verifier at another code than 0 and 75 is a refusal', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('suites.mjs', 'process.exit(3);\n');
-    const r = m.run();
-    expect(r.status).toBe(1);
-    expect(r.stdout).toMatch(REFUS_TESTS);
-  });
   it('refuses when a file of the lot is modified in the tree', () => {
     const m = monde(['ACCEPTÉ']);
     writeFileSync(path.join(m.repo, 'src/a/index.ts'), 'export const a = 3;\n');
@@ -434,56 +362,12 @@ describe('an integration', () => {
     expect(r.stdout).toMatch(/modifiés dans l'arbre/);
     expect(m.etat().a).toBe('export const a = 3;\n');
   });
-  it('runs the tests on a clean copy: an untracked file of the main tree does not count', () => {
-    const m = monde(['ACCEPTÉ']);
-    writeFileSync(path.join(m.repo, 'ROUGES_FORCES'), 'local > rouge\n');
-    writeFileSync(path.join(m.repo, 'GARDE_ROUGE'), '');
-    expect(m.run().status).toBe(0);
-  });
-  it('cleans the integration copy of what an earlier integration left there', () => {
-    const m = monde(['ACCEPTÉ']);
-    m.poser('GARDE_ROUGE', '');
-    expect(m.run().status).toBe(1);
-    execFileSync('git', ['-C', m.repo, 'rm', '-q', 'GARDE_ROUGE']);
-    execFileSync('git', [
-      '-C',
-      m.repo,
-      '-c',
-      'user.name=t',
-      '-c',
-      'user.email=t@t',
-      'commit',
-      '-qm',
-      'garde',
-    ]);
-    writeFileSync(path.join(m.repo, '.claude/worktrees/integration/RESTE'), '');
-    expect(m.run().status).toBe(0);
-  });
   it("leaves the supervisor's own modified files in place", () => {
     const m = monde(['ACCEPTÉ']);
     m.poser('NOTES', 'v1\n');
     writeFileSync(path.join(m.repo, 'NOTES'), 'v2 du superviseur\n');
     expect(m.run().status).toBe(0);
     expect(readFileSync(path.join(m.repo, 'NOTES'), 'utf8')).toBe('v2 du superviseur\n');
-  });
-  // grillhouse-3uv.63 critère 11: the refusal « main a bougé » disappears; the lot goes onto its
-  // branch, and the queue brings it onto the main of the moment.
-  it('3uv.63 critère 11: main moving during the integration refuses nothing, the lot committed on its branch', () => {
-    const m = monde(['ACCEPTÉ']);
-    // The tests commit on main while they run, as a supervisor would.
-    m.poser(
-      'suites.mjs',
-      "import { execSync } from 'node:child_process';\nexecSync(`git -C ${process.env.PRINCIPAL} -c user.name=t -c user.email=t@t commit -q --allow-empty -m bouge`);\n"
-    );
-    const r = m.run();
-    expect(r.status, r.stdout + r.stderr).toBe(0);
-    expect(r.stdout).not.toMatch(/main a bougé/);
-    expect(m.etat().log[0]).toBe('feat: a (demo-1)');
-    expect(
-      execFileSync('git', ['-C', m.repo, 'log', '-1', '--format=%s', 'main'], {
-        encoding: 'utf8',
-      }).trim()
-    ).toBe('bouge');
   });
   // A lot that renames <de> into <vers> (git mv, then <contenu> written when given), as a code
   // patch with its rename header, the tree left as it was.
@@ -554,7 +438,7 @@ describe('an integration', () => {
     expect(r.status, r.stdout).toBe(0);
     expect(m.etat().log[0]).toBe('feat: a (demo-1)');
   });
-  it('tells the pre-commit hook that the guards have just run', () => {
+  it('tells the pre-commit hook that the CI of the branch plays the guards', () => {
     const m = monde(['ACCEPTÉ']);
     const crochets = path.join(m.repo, '.git', 'hooks');
     writeFileSync(
@@ -1082,23 +966,29 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
     LONG
   );
 
+  // The pre-commit hook of the repository at <repo>: the node code <corps> (fs at hand), which
+  // the commit of an integration runs under its lock.
+  const crochetLent = (repo: string, corps: string) =>
+    writeFileSync(
+      path.join(repo, '.git/hooks/pre-commit'),
+      `#!/usr/bin/env node\nconst fs = require('node:fs');\n${corps}`,
+      { mode: 0o755 }
+    );
+
   // Critère 17: two integrations launched together: the second waits for the end of the first,
   // then goes through; a lock left by a process that is gone is taken over.
   it(
     'critère 17: two integrations launched together run one after the other, and both commit',
     async () => {
       const m = chantier(ESSAIS);
-      // The tests mark their start « < » and their end « > », one second apart.
-      m.poser(
-        {
-          'suites.mjs':
-            "import fs from 'node:fs';\n" +
-            "const t = process.env.PRINCIPAL + '.trace';\n" +
-            "fs.appendFileSync(t, '<');\n" +
-            'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);\n' +
-            "fs.appendFileSync(t, '>');\n",
-        },
-        'suites lentes'
+      // The commit of each integration marks its start « < » and its end « > », one second apart:
+      // its pre-commit hook, which runs under the lock of the integration.
+      crochetLent(
+        m.repo,
+        "const t = process.env.PRINCIPAL + '.trace';\n" +
+          "fs.appendFileSync(t, '<');\n" +
+          'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);\n' +
+          "fs.appendFileSync(t, '>');\n"
       );
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
@@ -1107,7 +997,7 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
       expect(r2.status, r2.stdout + r2.stderr).toBe(0);
       expect(m.sujets('agent/demo-1')[0]).toBe('feat: lot (demo-1)');
       expect(m.sujets('agent/demo-2')[0]).toBe('feat: lot (demo-2)');
-      // One run of the tests for each integration, never two at once.
+      // One commit for each integration, never two at once.
       expect(readFileSync(`${m.repo}.trace`, 'utf8')).toBe('<><>');
     },
     LONG
@@ -1116,15 +1006,11 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
     'critère 17: an integration killed midway leaves no lock that holds the next one',
     async () => {
       const m = chantier(ESSAIS);
-      // The tests mark their start, then take ten seconds.
-      m.poser(
-        {
-          'suites.mjs':
-            "import fs from 'node:fs';\n" +
-            "fs.writeFileSync(process.env.PRINCIPAL + '.debut', '');\n" +
-            'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);\n',
-        },
-        'suites lentes'
+      // The commit of the first integration marks its start, then takes ten seconds.
+      crochetLent(
+        m.repo,
+        "fs.writeFileSync(process.env.PRINCIPAL + '.debut', '');\n" +
+          'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10000);\n'
       );
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.ticket('demo-2', { 'src/b/index.ts': 'export const b = 2;\n' });
@@ -1136,8 +1022,8 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
       expect(existsSync(debut)).toBe(true);
       premiere.p.kill('SIGKILL');
       await premiere.fin;
-      // The next integration's tests are quick again.
-      m.poser({ 'suites.mjs': '' }, 'suites rapides');
+      // The next integration's commit is quick again.
+      crochetLent(m.repo, '');
       const r = await Promise.race([
         m.integrerEnFond('demo-2'),
         new Promise<null>(r => setTimeout(() => r(null), 45_000)),

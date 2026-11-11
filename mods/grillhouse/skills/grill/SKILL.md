@@ -147,9 +147,9 @@ remplace jamais le grill. Les branches de l'arbre :
    sauf `--heure <0-23>`) lance la nuit de chaque projet du registre
    qui a bougé depuis sa dernière nuit verte, l'un après l'autre ; `npx grillhouse nuit <racine>`
    la demande à la main. La nuit rejoue pour de vrai la passe complète, puis les tests de nuit et
-   les bancs de budget, que le jour ne joue pas. Chaque
-   intégration joue `npm run verifier` en entier (les gardes, le typage de chaque paquet et les
-   tests), Turborepo relisant de son cache ce qui n'a pas bougé.
+   les bancs de budget, que le jour ne joue pas. La CI de
+   chaque branche de ticket (`agent/**`, qu'elle écoute) joue `npm run verifier` en entier (les
+   gardes, le typage de chaque paquet et les tests) avant que main avance.
    Restent des choix selon la taille du projet, que le responsable tranche :
    - **le contrôle de l'interface contre le code** (`packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle

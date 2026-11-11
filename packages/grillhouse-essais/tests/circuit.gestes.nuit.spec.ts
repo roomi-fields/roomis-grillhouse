@@ -136,7 +136,7 @@ node -e "const f='$c/package.json';const p=JSON.parse(require('fs').readFileSync
     expect(r.status, sortie(r)).toBe(0);
     expect(gestes(id)).toEqual([
       expect.stringMatching(
-        /^Circuit · geste : rejeu → la commande joue une seconde fois \(règle : une commande des contrôles hors de la passe finale, ou l’intégration, à 75 rejoue une fois avant l’arrêt\)$/
+        /^Circuit · geste : rejeu → la commande joue une seconde fois \(règle : une commande des contrôles hors de la passe finale à 75 rejoue une fois avant l’arrêt\)$/
       ),
     ]);
     expect(lignes(journal(id), /^geste : /)).toEqual([

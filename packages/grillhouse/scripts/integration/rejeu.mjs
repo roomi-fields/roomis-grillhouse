@@ -1,12 +1,12 @@
-// The replay of a lot in a clean copy, shared by the integration (scripts/integration/integrer.mjs,
+// The clean copy a lot is replayed in, shared by the integration (scripts/integration/integrer.mjs,
 // a lot on the main of the moment) and the queue (scripts/integration/file.mjs, a branch replaced
-// on the main of the moment): the copy made ready, the project's commands, its tests.
+// on the main of the moment): the copy made ready and the project's commands. Neither verifies
+// there: the CI of the ticket's branch judges the lot (scripts/integration/file.mjs).
 //
 // - `ouvrirCopie` makes the copy <copie> ready on <ref>: detached, every untracked file removed, its
 //   submodules set (`scripts/sous-modules.sh`, a local modification overwritten; a submodule the
 //   project shares, `grillhouse.partage`, is linked to the main repository's instead), its
-//   dependencies made to agree with its lock file and manifests (below). It builds nothing: the
-//   tests build. An existing copy that does not get ready is removed by
+//   dependencies made to agree with its lock file and manifests (below). It builds nothing. An existing copy that does not get ready is removed by
 //   `scripts/retirer-copie.sh --jetable` (local work does not hold it, a lock does) and created
 //   again, once; a copy that does not get ready the second time refuses, and so does a removal the
 //   script refuses, with its reason. Every command of the project plays through
@@ -18,19 +18,11 @@
 //   the manifests (every `package.json` git tracks) with the key
 //   `node_modules/.integration-lock`, runs `npm ci` when they differ and writes the key again; a
 //   failing install gives `DEPENDANCES_REFUSEES`, the one form of that refusal. It runs at the
-//   opening, and the consumer calls `installer` once the lot is in the copy, before the tests: a
-//   lot that changes the lock file or a manifest is installed as the continuous integration
-//   installs it (`npm ci` refuses a lock file in disagreement with its manifest). The tests run on
-//   dependencies in agreement, and they neither read the key nor install.
-// - `tester` plays the commands of the verification in the copy (`commandesDeVerification`): the
-//   preparation the module of its language describes (`preparer` of its `commandes`, cargo's
-//   `cargo fetch --locked`), as a CI fetches the dependencies of a job before its tests, then
-//   `npm run verifier`, the command of the module (TypeScript's builds the project with Turborepo,
-//   then plays its guards and its tests beside each other, each task kept in the cache of the main
-//   tree, shared by every copy). It gives the result of the first command that is not green, else
-//   of the last: green (status 0), « à repasser » (75) or red (any other), its output written as it
-//   comes.
-// - Every command of the project run in the copy (`lancer`: the install, the tests) leaves the
+//   opening, and the consumer calls `installer` once the lot is in the copy, before the commands
+//   that regenerate its files: a lot that changes the lock file or a manifest is installed as the
+//   continuous integration installs it (`npm ci` refuses a lock file in disagreement with its
+//   manifest).
+// - Every command of the project run in the copy (`lancer`: the install) leaves the
 //   index of its copy up to date, green or red: the consumers that apply a lot with `--index` (the
 //   integration, the queue) read an index that matches the files the command touched, and none
 //   refreshes for its own account.
@@ -39,14 +31,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { langageDe } from '../langages.mjs';
 
 const SOUS_MODULES = fileURLToPath(new URL('../sous-modules.sh', import.meta.url));
 export const RETIRER_COPIE = fileURLToPath(new URL('../retirer-copie.sh', import.meta.url));
 
 const VERROU = 'package-lock.json';
 const DEPENDANCES_REFUSEES = "Les dépendances de la copie ne s'installent pas.";
-// The most output a command of the project may write: a whole run of the tests, logs included.
+// The most output a command of the project may write: an install, logs included.
 const SORTIE_MAX = 256 * 1024 * 1024;
 
 // The fingerprint of what `npm ci` reads in <copie>: the lock file at <verrou> and every
@@ -65,24 +56,9 @@ function empreinteDesDependances(copie, verrou, dansCopie) {
   return h.digest('hex');
 }
 
-/**
- * The commands of the verification of the copy <copie>, in order, each `[commande, args]`: the
- * preparation the module of its language describes, when it describes one, then `npm run
- * verifier`.
- * @param {string} copie the root of the copy
- * @returns {[string, string[]][]}
- */
-export function commandesDeVerification(copie) {
-  const preparer = langageDe(copie).commandes(copie).preparer;
-  return [
-    ...(preparer ? [[process.execPath, [preparer.script, ...preparer.args]]] : []),
-    ['npm', ['run', 'verifier']],
-  ];
-}
-
 // The copy <copie> ready on <ref>, or `{ refus }`. `dire` writes a progress line. Returns the
 // copy's tools: `dansCopie` (git in the copy), `monter` (the command line of a mounted command),
-// `installer`, `tester`, and `tete`, the commit the copy was made ready on.
+// `installer`, and `tete`, the commit the copy was made ready on.
 export function ouvrirCopie({ racine, copie, ref, dire }) {
   const git = (...args) => spawnSync('git', ['-C', racine, ...args], { encoding: 'utf8' });
   const dansCopie = (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' });
@@ -130,10 +106,9 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
   if (montage.status !== 0) {
     return { refus: montage.stderr.trim() };
   }
-  const lancer = (commande, args, envPlus = null) => {
+  const lancer = (commande, args) => {
     const r = spawnSync('bash', monter(commande, ...args), {
       cwd: copie,
-      ...(envPlus ? { env: { ...process.env, ...envPlus } } : {}),
       encoding: 'utf8',
       maxBuffer: SORTIE_MAX,
     });
@@ -170,31 +145,5 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
   }
   dire(`✓ copie propre sur ${tete.slice(0, 7)}`);
 
-  // The checks of the copy: its preparation, then its verification; the first that is not green
-  // ends them.
-  // `identite` (`{ sorte, ticket }`, the ticket null when unknown) is set in the environment of
-  // `npm run verifier` alone, which names itself so at the lock of the machine; the preparation
-  // does not receive it.
-  const tester = identite => {
-    let r;
-    const commandes = commandesDeVerification(copie);
-    for (const [i, [commande, args]] of commandes.entries()) {
-      const verifier = i === commandes.length - 1 && identite;
-      r = lancer(
-        commande,
-        args,
-        verifier
-          ? {
-              GRILLHOUSE_VERIFICATION_SORTE: identite.sorte,
-              GRILLHOUSE_VERIFICATION_TICKET: identite.ticket ?? '',
-            }
-          : null
-      );
-      if (r.status !== 0) {
-        break;
-      }
-    }
-    return r;
-  };
-  return { dansCopie, monter, installer: accorder, tester, tete };
+  return { dansCopie, monter, installer: accorder, tete };
 }

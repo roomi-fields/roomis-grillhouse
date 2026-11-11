@@ -108,7 +108,7 @@ describe('migration 0.24.2 — API Extractor is the package’s dependency, not 
   it('critère 2 — a project at 0.24.1 hears it after the update; one at 0.24.2 does not', () => {
     const p = projet({ name: 'p', devDependencies: { [DEP]: '7.59.2' } });
     expect(restesAuProjet(p, '0.24.1').find(r => r.version === '0.24.2')?.lignes).toEqual([LIGNE]);
-    expect(restesAuProjet(p, '0.24.2')).toEqual([]);
+    expect(restesAuProjet(p, '0.24.2').filter(r => r.version === '0.24.2')).toEqual([]);
   });
 
   it('critère 3 — grillhouse maj on a project at 0.24.1 that declares it names it, and keeps it', () => {
