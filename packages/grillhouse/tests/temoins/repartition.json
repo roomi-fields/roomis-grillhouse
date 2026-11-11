@@ -87,6 +87,7 @@
     "scripts/migrations/0.27.0-langages-dans-l-architecture.mjs",
     "scripts/migrations/0.30.0-ci-appelle-la-verification.mjs",
     "scripts/migrations/0.31.0-paquets-dans-le-graphe.mjs",
+    "scripts/newday.mjs",
     "scripts/nuit.sh",
     "scripts/outil.mjs",
     "scripts/outils-cles.mjs",

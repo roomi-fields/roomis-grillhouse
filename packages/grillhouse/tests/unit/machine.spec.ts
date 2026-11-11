@@ -205,6 +205,8 @@ describe('le jour ne fait jouer aucun test de nuit du dépôt', () => {
     const source = readFileSync(path.join(__dirname, 'machine.spec.ts'), 'utf8');
     // The forbidden tokens are built from fragments, so this guard never names them itself.
     expect(source).not.toContain(['GRILLHOUSE', 'TESTS'].join('_'));
-    expect(source).not.toMatch(new RegExp('grillhouse-essais' + '[^\\n]*' + '[.]nuit[.]'));
+    expect(source).not.toMatch(
+      new RegExp(['grillhouse', 'essais'].join('-') + '[^\\n]*' + '[.]nuit[.]')
+    );
   });
 });
