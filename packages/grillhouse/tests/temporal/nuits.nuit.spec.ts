@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // The nights of the machine under Temporal (src/temporal/nuits/), played on a development server of
 // trial (the pinned program TEMPORAL on a free port, a database file of its own) with a worker of
 // this process whose activities are simulated: the choice of the projects, the note of a skip and
