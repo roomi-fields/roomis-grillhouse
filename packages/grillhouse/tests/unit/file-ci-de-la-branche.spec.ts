@@ -116,6 +116,10 @@ function depot() {
       encoding: 'utf8',
     }).trim();
   git('init', '-q', '-b', 'main');
+  // The identity in the repository's own configuration: the queue commits the replaced branch
+  // with its own git calls (and its copies share this configuration), where a CI has no global one.
+  git('config', 'user.name', 't');
+  git('config', 'user.email', 't@t');
   writeFileSync(path.join(racine, 'package.json'), '{}\n');
   mkdirSync(path.join(racine, '.github', 'workflows'), { recursive: true });
   writeFileSync(path.join(racine, '.github', 'workflows', 'ci.yml'), 'on: push\n');
