@@ -6,7 +6,8 @@
 //
 // - It connects to the server of TEMPORAL_ADDRESS (the common client library, ./client.ts), bundles
 //   the frame's workflows (./deroules.ts: the sonde, the places of the machine, the circuit of a ticket, the queue of a
-//   project and the CI of a commit, the queue of the tickets of a project) and serves them
+//   project and the CI of a commit, the queue of the tickets of a project, the nights of the
+//   machine) and serves them
 //   with their activities on the task queue <file>. It writes `prêt <file>` on its standard output once it polls.
 // - SIGINT and SIGTERM stop it cleanly, as the SDK's runtime has it: its running activities are
 //   cancelled, then it exits 0. Killed, the server gives its work to the next worker of the queue.
@@ -19,6 +20,7 @@ import * as activitesDeLaFile from './file/activites.js';
 import * as activitesDesPlaces from './places/activites.js';
 import * as activitesDesTickets from './tickets/activites.js';
 import * as activitesDeLaSonde from './sonde/activites.js';
+import { activitesDesNuits } from './nuits/activites.js';
 
 const DEROULES = fileURLToPath(new URL('./deroules.js', import.meta.url));
 
@@ -48,6 +50,7 @@ async function principal(args: string[]): Promise<number> {
         ...activitesDuCircuit,
         ...activitesDeLaFile,
         ...activitesDesTickets,
+        ...activitesDesNuits,
       },
       // A heartbeat reaches the server within the second: the last sign of life of a session
       // survives a worker that dies, and a cancellation reaches its activity at once.

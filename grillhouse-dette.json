@@ -494,7 +494,7 @@
     },
     "packages/grillhouse-essais/tests/session-start.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 31
+        "count": 23
       }
     },
     "packages/grillhouse-essais/tests/sous-modules.adresses.nuit.spec.ts": {

@@ -13,6 +13,8 @@
 //   (scripts/langages.mjs); each other command it describes is a subcommand by its name
 //   (`frontieres`, `index-interfaces`, `typer`, `construire`), as a backend of Pants brings its
 //   goals.
+// - `nuit` runs the build of src/temporal/nuits/commande.ts, which plays the night's pass
+//   (`nuit.sh`) when called alone: the script it replaces is that pass (`PASSES`).
 // - `temporal` runs the build of src/temporal/commande.ts (dist/temporal/commande.js), the
 //   package's TypeScript, which Turborepo builds before the tests and the package publishes.
 import { existsSync } from 'node:fs';
@@ -49,7 +51,7 @@ export const SOUS_COMMANDES = {
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',
   maj: 'grillhouse-maj.mjs',
   newday: 'newday.mjs',
-  nuit: 'nuit.sh',
+  nuit: '../dist/temporal/nuits/commande.js',
   outil: 'outil.mjs',
   paquet: 'paquet.mjs',
   pression: 'mesure/pression.mjs',
@@ -71,6 +73,10 @@ export const SOUS_COMMANDES = {
   verifier: { langage: 'verifier' },
   verrou: 'verrous/verrou.mjs',
 };
+
+// The script a subcommand plays when called alone, where its command is a client of Temporal that
+// runs it: `nuit`, the night's pass.
+const PASSES = { nuit: 'nuit.sh' };
 
 // The commands of the module of the language that serve the project at <racine> and are no
 // subcommand by their name: the ones `tests` and `verifier` run.
@@ -145,13 +151,18 @@ export function environnementDe(nom, racine = process.cwd(), env = process.env) 
 
 // The script of each subcommand in the project at <racine>, where a former copy of the frame lay
 // (`scripts/<script>`): what the migrations name, a former copy becoming its subcommand. A script
-// of the core is named from `scripts/`, one of a module of language by its file's name, where the
-// frame kept it before its module.
+// of the core is named from `scripts/` (the pass it plays alone, `PASSES`, for a client of
+// Temporal), one of a module of language by its file's name, where the frame kept it before its
+// module.
 export function scriptsDesSousCommandes(racine) {
   return Object.fromEntries(
     Object.entries(sousCommandes(racine)).map(([n, s]) => [
       n,
-      typeof s === 'string' ? s : path.basename(commandeDe(n, racine).script),
+      Object.hasOwn(PASSES, n)
+        ? PASSES[n]
+        : typeof s === 'string'
+          ? s
+          : path.basename(commandeDe(n, racine).script),
     ])
   );
 }

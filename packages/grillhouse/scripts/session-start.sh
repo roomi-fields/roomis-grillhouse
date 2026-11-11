@@ -208,39 +208,19 @@ if [ -f "$root/package.json" ]; then
   done
 fi
 
-# Once the architecture is written, the night (the full pass played for real, the night tests and
-# the time budget benches) needs its line in the crontab. Under the crontab, `#!/usr/bin/env node`
-# does not find a Node that nvm installed: the line sets the directory of the Node this script
-# runs. A line of the crontab is the night's when it runs `cd <root> && node_modules/.bin/grillhouse
-# nuit` and sets `PATH=<that directory>:`. A line that launches a nuit.sh under the root, absent
-# (the frame's script before the package, 0.24.0; a relative path after `cd <root>`), is named
-# with the line that replaces it, as brew doctor names a configuration that aims at a missing path.
-nuit_absente=
-if ecrit "$root/docs/ARCHITECTURE.md"; then
-  noeud="$(dirname "$(command -v node)")"
-  table="$(crontab -l 2>/dev/null | grep -v '^[[:space:]]*#')"
-  if ! printf '%s\n' "$table" | grep -F "cd $root && node_modules/.bin/grillhouse nuit" | grep -qF "PATH=$noeud:"; then
-    nuit="0 3 * * * export PATH=$noeud:\$PATH; cd $root && node_modules/.bin/grillhouse nuit"
-    while IFS= read -r ligne; do
-      read -ra mots <<< "$ligne"
-      for mot in "${mots[@]}"; do
-        mot="${mot%%[;&|]*}"
-        case "$mot" in
-          "$root"/*nuit.sh) chemin="$mot" ;;
-          /*) continue ;;
-          *nuit.sh) [[ "$ligne" == *"cd $root "* ]] || continue; chemin="$root/$mot" ;;
-          *) continue ;;
-        esac
-        [ -f "$chemin" ] || nuit_absente+="${nuit_absente:+ ; }lance $chemin, absent, par \`$ligne\`"
-      done
-    done <<< "$table"
-  fi
+# The nights run under the schedule of the machine (src/temporal/nuits/, `npx grillhouse nuit
+# --planifier`), no longer by the table of tasks: a line of the crontab that still launches a night
+# (`grillhouse nuit`, or a nuit.sh) is named, with the proposal to remove it, so that the table and
+# the schedule never play two nights at once.
+nuit_en_table=
+if command -v crontab >/dev/null 2>&1; then
+  nuit_en_table="$(crontab -l 2>/dev/null | grep -v '^[[:space:]]*#' | grep -E 'grillhouse nuit|nuit\.sh' | paste -sd ';' - | sed 's/;/ ; /g')"
 fi
 
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
 epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).filter(t=>t.parent).map(t=>t.id).join(" "))}catch{}})')"
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "${nuit:-}" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && exit 0
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "$nuit_en_table" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -254,10 +234,8 @@ fi
 if [ ${#wiring[@]} -gt 0 ]; then
   echo "À brancher : $(IFS=' '; echo "${wiring[*]}") dans le package.json de la racine. L'intégration (\`npx grillhouse integrer\`, contrat en tête de son script) et la nuit lancent \`npm run verifier\` (les gardes et les tests, par l'outil du langage du projet), les agents \`npm test\` ; sans eux, l'intégration refuse chaque lot. \`npm run grillhouse:maj\` les écrit quand le langage du projet sait jouer ses tests, et finit par \`npm run verifier\`, une passe longue : lance-la en tâche de fond et relis son code à la fin ; sinon, écris-les pour ses tests."
 fi
-if [ -n "$nuit_absente" ]; then
-  echo "La nuit ne tourne plus : la table des tâches du poste $nuit_absente. Propose au responsable de remplacer cette ligne (\`crontab -e\`) par : \`$nuit\`."
-elif [ -n "${nuit:-}" ]; then
-  echo "La nuit n'est pas programmée : elle rejoue pour de vrai la passe complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas (\`npx grillhouse nuit\`). Propose au responsable d'ajouter à la table des tâches du poste (\`crontab -e\`) : \`$nuit\`."
+if [ -n "$nuit_en_table" ]; then
+  echo "La table des tâches du poste lance encore la nuit : \`$nuit_en_table\`. La planification des nuits de la machine la remplace (\`npx grillhouse nuit --planifier\`, une fois par poste) : propose au responsable de retirer ces lignes (\`crontab -e\`)."
 fi
 if [ -n "$epopees" ]; then
   echo "Épopées qui ont une mère : $epopees. Une épopée est un chantier, à la racine ; une mère sous un chantier est une tâche (\`bd update <id> -t task\`, docs/agents/issue-tracker.md, « Numéros et titres »)."

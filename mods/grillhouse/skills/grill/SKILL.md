@@ -142,10 +142,12 @@ remplace jamais le grill. Les branches de l'arbre :
    Les mécanismes d'un paquet — sa forme publiée, les outils du projet, le corpus et ses données, les traces, Turborepo et la configuration Vitest — sont dans `references/paquets.md`, à lire au moment de créer un paquet.
 9. **Les interfaces** — pour chaque frontière : ce qui la traverse, qui offre, qui consomme, qui
    juge quelle faute, et le garde qui la tiendra.
-   **Une fois les composants décidés**, la nuit entre dans la table des tâches du poste
-   (`crontab -e` : `0 3 * * * export PATH=<dossier de Node>:$PATH; cd <racine> && node_modules/.bin/grillhouse nuit`,
-   la ligne que propose l'ouverture de séance, avec le dossier du Node qui l'exécute, que la table
-   des tâches ne trouve pas seule) : elle rejoue pour de vrai la passe complète, puis les tests de nuit et les bancs de budget, que le jour ne joue pas. Chaque
+   **Une fois les composants décidés**, la nuit du projet tourne sans rien à écrire : la
+   planification des nuits du poste (`npx grillhouse nuit --planifier`, une fois par poste, à 1 h
+   sauf `--heure <0-23>`) lance la nuit de chaque projet du registre
+   qui a bougé depuis sa dernière nuit verte, l'un après l'autre ; `npx grillhouse nuit <racine>`
+   la demande à la main. La nuit rejoue pour de vrai la passe complète, puis les tests de nuit et
+   les bancs de budget, que le jour ne joue pas. Chaque
    intégration joue `npm run verifier` en entier (les gardes, le typage de chaque paquet et les
    tests), Turborepo relisant de son cache ce qui n'a pas bougé.
    Restent des choix selon la taille du projet, que le responsable tranche :

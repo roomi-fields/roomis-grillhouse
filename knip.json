@@ -13,6 +13,7 @@
         "scripts/**/*.mjs",
         "src/temporal/commande.ts",
         "src/temporal/circuit/commande.ts",
+        "src/temporal/nuits/commande.ts",
         "src/temporal/travailleur.ts",
         "src/temporal/deroules.ts",
         "src/temporal/sonde/activites.ts",

@@ -5,11 +5,11 @@
 # scripts/dernier-vert.mjs); the module of the project's language plays each step
 # (scripts/jointure.d.ts).
 #
-#   npx grillhouse nuit        from the root of the project, by the crontab of the machine, as the
-#                              session start proposes it, with the directory of its Node, e.g.
-#                              « 0 3 * * * export PATH=<node dir>:$PATH; cd <root> &&
-#                              node_modules/.bin/grillhouse nuit »
-#   npx grillhouse nuit --help the usage on the output (also -h), exit 0; any other argument is
+#   npx grillhouse nuit        from the root of the project, which runs it alone
+#                              (src/temporal/nuits/commande.ts): the workflow of the nights of the
+#                              machine (src/temporal/nuits/) launches it for each project that moved,
+#                              one after the other
+#   nuit.sh --help             the usage on the output (also -h), exit 0; any other argument is
 #                              refused, the usage on the error stream, exit 2: nothing runs.
 #
 # - It plays main's HEAD in its own clean copy (.claude/worktrees/nuit): detached, every untracked

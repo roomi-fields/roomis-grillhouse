@@ -4,7 +4,10 @@
 // role agent launched in a shell included). An agent resumed by a message has one line per stop; the board
 // reads an agent's latest line, and the transcripts of running ones. The circuit of a ticket
 // (scripts/circuit.mjs) writes a line at the end of each step it leads itself, with no agent
-// (`ligneDEtape`: its role `circuit`, its step, one turn, no tokens).
+// (`ligneDEtape`: its role `circuit`, its step, one turn, no tokens). The workflow of the nights
+// (src/temporal/nuits/) writes a line for each night it skips (`ligneDeNuit`: its role `nuit`, no
+// ticket, no turn, the reason, the top and the reference compared), which the board counts nowhere;
+// the projects the register names are those whose night it plays.
 //
 // - The line: the project (the main tree of the directory the session opened in, which the hook
 //   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »),
@@ -41,10 +44,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { roleDeLAgent } from './etapes.mjs';
-import { lireFichier, ROLE_DU_CIRCUIT, roleDuMeta, tourne } from './tableau.mjs';
+import { lireFichier, ROLE_DE_LA_NUIT, ROLE_DU_CIRCUIT, roleDuMeta, tourne } from './tableau.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
-const REGISTRE =
+export const REGISTRE =
   process.env.GRILLHOUSE_REGISTRE ??
   path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
 
@@ -150,6 +153,28 @@ export function ligneDEtape({ projet, ticket, etape, debut, fin }) {
     jetons: 0,
     cache: 0,
     cout: null,
+  };
+}
+
+// The register's line of a night that the workflow of the nights skips (src/temporal/nuits/), at
+// <quand> (an ISO date): its role `nuit`, no ticket, no turn, no tokens, the reason, the top and
+// the reference compared; its key one per project, top and day, so that a skip noted again that
+// day writes nothing.
+export function ligneDeNuit({ projet, quand, raison, sommet, reference }) {
+  return {
+    projet,
+    agent: `${ROLE_DE_LA_NUIT}:${projet}:${quand}`,
+    ticket: null,
+    role: ROLE_DE_LA_NUIT,
+    debut: quand,
+    fin: quand,
+    travail: 0,
+    tours: [],
+    jetons: 0,
+    cache: 0,
+    cout: null,
+    cle: `${ROLE_DE_LA_NUIT}:${projet}:${sommet}:${quand.slice(0, 10)}`,
+    nuit: { verdict: 'sautee', raison, sommet, reference },
   };
 }
 

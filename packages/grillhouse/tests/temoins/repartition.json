@@ -102,6 +102,7 @@
     "scripts/poussee-cles.mjs",
     "scripts/prefixe-des-tickets.mjs",
     "scripts/preparation.mjs",
+    "scripts/registre.d.mts",
     "scripts/registre.mjs",
     "scripts/regles-des-places.d.mts",
     "scripts/regles-des-places.mjs",

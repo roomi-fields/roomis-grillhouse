@@ -1034,7 +1034,7 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   leurs activités sur une file de tâches, et écrit `prêt <file>` une fois à l'écoute ; SIGTERM
   l'arrête proprement. Il sert tous les déroulés du cadre (`src/temporal/deroules.ts` : la sonde,
   les places de la machine, le circuit d'un ticket, la file d'un projet et la CI d'un commit, la
-  file des tickets d'un projet). La sonde (`src/temporal/sonde/`) est un déroulé dont
+  file des tickets d'un projet, les nuits du poste). La sonde (`src/temporal/sonde/`) est un déroulé dont
   l'activité lance un processus, envoie un signe de vie à chaque pas (`heartbeat`), et reprend au
   dernier signe de vie que le serveur garde quand son travailleur meurt ; le déroulé attend au
   besoin le signal `finir`. Le serveur tué par SIGKILL et relancé sur le même fichier, le déroulé
@@ -1274,6 +1274,37 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   lit pas, une Beads qui échoue) ne lance rien, nommée dans la requête. Après une reprise à neuf
   (Continue-As-New), la fin d'un circuit lancé avant se lit au réveil suivant.
   `npx grillhouse circuit <ticket>` y met un ticket.
+- **Les nuits du poste passent l'une après l'autre, sous une seule planification**
+  (grillhouse-4nr.13, décision D6), comme une planification de Temporal, avec sa fenêtre de
+  rattrapage et son refus de chevauchement, remplace des lignes de table des tâches, et comme
+  Jenkins ne construit pas sans changement : le code vit dans `src/temporal/nuits/`. Une seule
+  planification du poste (`grillhouse-nuits`, sur la file `grillhouse-machine`) part chaque jour
+  à son heure, dans le fuseau du poste : une heure de la machine, que la planification garde, à
+  part de la plage de nuit de chaque projet que compte le bilan (1 h par défaut, le plus tôt des
+  départs de l'ancienne table des tâches), chevauchement SKIP, une nuit manquée (le poste éteint) rattrapée dans les
+  24 h, une fois. Son déroulé `nuitPlanifiee` demande les nuits planifiées au seul déroulé des
+  nuits, `nuitsDeLaMachine` (`grillhouse-nuits-de-la-machine`, démarré s'il ne tourne pas), puis
+  finit : une planification suffixe l'identifiant de ce qu'elle lance, et le déroulé des nuits
+  garde ainsi le sien. Une demande planifiée lit les projets du registre du poste
+  (`~/.claude/grillhouse/registre.jsonl`, `scripts/registre.mjs`) : un projet neuf entre à sa
+  première séance notée. Un projet dont la racine n'existe plus, ou sans nuit branchée
+  (`node_modules/.bin/grillhouse`, le script `verifier`, un commit), est écarté avec sa raison ;
+  un projet dont le sommet est le commit de sa dernière nuit verte (`<git common
+  dir>/nuit/dernier-vert`, que la nuit verte seule écrit, à part du dernier vert que les passes du
+  jour écrivent aussi) est sauté, sa raison, le sommet et la référence écrits au journal de sa
+  nuit et au registre (une ligne de rôle `nuit`, que le tableau ne compte nulle part) ; un projet
+  sans marqueur, ou dont le marqueur ne se lit plus comme un commit, joue. Un projet intégré vert
+  dans la journée rejoue donc ses tests de nuit et ses bancs. Les nuits passent l'une après
+  l'autre, chacune à la fin de la précédente, quel que soit son verdict : une nuit rouge, ou une
+  activité en échec, n'arrête pas les suivantes. La passe d'une nuit est `node_modules/.bin/
+  grillhouse nuit` dans l'arbre principal du projet (`scripts/nuit.sh`, inchangé, de la version
+  que le projet installe), dans un groupe de processus à elle ; une tentative rejouée après la
+  mort de son travailleur termine d'abord le groupe que la morte a laissé. `npx grillhouse nuit
+  <projet>` demande la nuit d'un projet sans lire son marqueur, par le même déroulé ; un projet
+  déjà en file ou en cours n'est pas joué deux fois. `npx grillhouse nuit --planifier [--heure <0-23>]`
+  crée la planification, ou met à jour celle qui existe ; sans `--heure`, elle garde l'heure
+  qu'elle a déjà. L'ouverture de séance ne propose aucune ligne de
+  la table des tâches, et nomme une ligne qui lance encore la nuit, avec son retrait.
 
 Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition
 s'inscrit dans l'histoire du serveur.

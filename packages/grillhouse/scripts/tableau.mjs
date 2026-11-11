@@ -133,6 +133,9 @@ const PLACE_DU_SUJET = 10;
 // The role of a register line that a step of a circuit writes (scripts/circuit.mjs): no agent,
 // no role of the flow.
 export const ROLE_DU_CIRCUIT = 'circuit';
+// The role of a register line that the workflow of the nights writes for a night it skips
+// (src/temporal/nuits/): no agent, no ticket, no turn; the board counts it nowhere.
+export const ROLE_DE_LA_NUIT = 'nuit';
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
 export const roleDuMeta = m =>
@@ -780,7 +783,9 @@ export function assembler({
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
-  const registre = parAgent(lignesDuRegistre.filter(r => r.role !== ROLE_DU_CIRCUIT));
+  const registre = parAgent(
+    lignesDuRegistre.filter(r => r.role !== ROLE_DU_CIRCUIT && r.role !== ROLE_DE_LA_NUIT)
+  );
   // A living agent runs without an end in the register, or when an incoming message follows its
   // latest end strictly; the writings of its last turn after that end leave it finished. A running
   // agent's transcript holds its sessions already in the register.
@@ -1179,7 +1184,8 @@ export function assembler({
     alertes.push({
       niveau: 'rouge',
       signe: '🔕',
-      texte: 'À corriger : une question au superviseur reste sans réponse, aucune attente ne tourne',
+      texte:
+        'À corriger : une question au superviseur reste sans réponse, aucune attente ne tourne',
     });
   }
   for (const b of blocs) {
