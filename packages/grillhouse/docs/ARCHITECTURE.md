@@ -883,10 +883,14 @@ cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; une passe lourde ga
 Une passe lourde prend sa place, puis le verrou exclusif de la machine ; une passe ciblée part
 pendant qu'une passe lourde tient le verrou.
 
-**La file des tickets** : chaque projet garde la sienne, ses tickets `circuit` ; ceux dont toutes
-les dépendances `blocks` sont fermées partent par priorité Beads (la règle, `ticketsAPartir` de
-`scripts/file-des-tickets.mjs`), et attendent une place dans l'ordre d'arrivée, commun aux
-projets ; ceux dont une dépendance est ouverte restent. Le déroulé de la file des tickets sous
+**La file des tickets** : chaque projet garde la sienne, ses tickets `circuit` ; ceux dont la
+description porte sa section « ## Architecture » et dont toutes les dépendances `blocks` sont
+fermées partent par priorité Beads (la règle, `ticketsAPartir` de `scripts/file-des-tickets.mjs`),
+et attendent une place dans l'ordre d'arrivée, commun aux projets ; ceux dont une dépendance est
+ouverte restent. Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
+d'entrée, un ticket sans sa section ne part jamais (grillhouse-d4n.10) : le panneau (une alerte)
+et l'ouverture de la séance du superviseur (« ## La file des tickets ») le nomment, « En file sans
+architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Le déroulé de la file des tickets sous
 Temporal la mène (ci-dessous).
 
 **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
@@ -1404,8 +1408,8 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   les 60 s et à la fin de chacun de ses circuits. À chaque réveil, il
   compte les circuits vivants du projet (ceux que le serveur fait tourner, et ceux qu'il vient de
   lancer, que la visibilité du serveur peut ne pas montrer encore), puis lance le circuit de chaque
-  ticket qui part (`ticketsAPartir` de `scripts/file-des-tickets.mjs`, inchangé : ouvert, étiqueté
-  `circuit`, ses dépendances fermées, par priorité), pas plus de vivants à la fois que le réglage
+  ticket qui part (`ticketsAPartir` de `scripts/file-des-tickets.mjs` : ouvert, étiqueté `circuit`, sa
+  section « ## Architecture » écrite, ses dépendances fermées, par priorité), pas plus de vivants à la fois que le réglage
   du projet (`grillhouse.circuits` du `package.json`, `scripts/circuits-cles.mjs`, 1 quand il
   manque). Un circuit qui attend la réponse du superviseur est vivant : son déroulé tourne, en
   attente durable de la réponse, et le serveur ne le purge jamais ; à 1, le suivant part quand le

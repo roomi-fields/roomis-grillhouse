@@ -8,11 +8,18 @@ export interface TicketDeBeads {
   priority?: number;
   labels?: string[];
   created_at?: string;
+  description?: string;
   dependencies?: Array<{ type: string; depends_on_id: string }>;
 }
 
 /** The tickets of <tous> that start now, in the order they start. */
 export function ticketsAPartir<T extends TicketDeBeads>(
+  tous: T[],
+  o?: { enCours?: Set<string> }
+): T[];
+
+/** The tickets of <tous> in the queue that never start for want of their section « ## Architecture ». */
+export function enFileSansArchitecture<T extends TicketDeBeads>(
   tous: T[],
   o?: { enCours?: Set<string> }
 ): T[];

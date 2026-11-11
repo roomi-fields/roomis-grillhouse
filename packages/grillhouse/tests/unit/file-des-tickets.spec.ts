@@ -13,6 +13,7 @@ const FILE = path.resolve(__dirname, '../../scripts/file-des-tickets.mjs');
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const charger = (): any => createRequire(path.join(__dirname, 'x.cjs'))(FILE);
 const ticketsAPartir = (...a: any[]) => charger().ticketsAPartir(...a);
+const enFileSansArchitecture = (...a: any[]) => charger().enFileSansArchitecture(...a);
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface Ticket {
@@ -21,15 +22,18 @@ interface Ticket {
   priority: number;
   labels: string[];
   created_at: string;
+  description?: string;
   dependencies?: Array<{ type: string; depends_on_id: string }>;
 }
 let n = 0;
+const ARCHITECTURE = '## Besoin\n\nUn besoin.\n\n## Architecture\n\n- Adresse : scripts/x.mjs.';
 const T = (id: string, o: Partial<Ticket> = {}): Ticket => ({
   id,
   status: 'open',
   priority: 2,
   labels: ['circuit'],
   created_at: `2026-11-02T10:00:${String(++n % 60).padStart(2, '0')}Z`,
+  description: ARCHITECTURE,
   ...o,
 });
 const bloque = (...ids: string[]) => ids.map(depends_on_id => ({ type: 'blocks', depends_on_id }));
@@ -96,5 +100,38 @@ describe('grillhouse-9kq critère 13 — les tickets circuit aux dépendances fe
 
   it('une dépendance hors de la liste (ticket inconnu) retient : le ticket n’est pas prêt', () => {
     expect(ids(ticketsAPartir([T('d-1', { dependencies: bloque('ailleurs-9') })]))).toEqual([]);
+  });
+});
+
+describe('un ticket en file sans section Architecture ne part pas, et il est nommé', () => {
+  const SANS = '## Besoin\n\nUn besoin, et le mot Architecture dans une phrase.';
+
+  it('un ticket sans section « ## Architecture » ne part pas ; celui qui l’a part', () => {
+    const tous = [T('d-1', { description: SANS }), T('d-2'), T('d-3', { description: undefined })];
+    expect(ids(ticketsAPartir(tous))).toEqual(['d-2']);
+  });
+
+  it('seule une ligne qui commence par « ## Architecture » vaut section', () => {
+    const tous = [
+      T('d-1', { description: 'Voir la section ## Architecture plus bas.' }),
+      T('d-2', { description: '### Architecture\n\n- Adresse.' }),
+      T('d-3', { description: '## Architecture — le modèle mûr\n\n- Adresse.' }),
+    ];
+    expect(ids(ticketsAPartir(tous))).toEqual(['d-3']);
+  });
+
+  it('nomme les tickets en file sans leur section, dépendance ouverte ou non, triés', () => {
+    const tous = [
+      T('d-10', { description: SANS }),
+      T('d-2', { description: SANS, dependencies: bloque('d-9') }),
+      T('d-9'),
+      T('d-3', { description: SANS, labels: [] }),
+      T('d-4', { description: SANS, status: 'closed' }),
+      T('d-5', { description: SANS }),
+    ];
+    expect(ids(enFileSansArchitecture(tous, { enCours: new Set(['d-5']) }))).toEqual([
+      'd-2',
+      'd-10',
+    ]);
   });
 });

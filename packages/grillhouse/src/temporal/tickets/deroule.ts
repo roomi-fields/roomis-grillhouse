@@ -3,7 +3,8 @@
 // (60 s) and at the end of each circuit it started, it counts the
 // circuits of the project alive (those the server runs, and those it has just started, which the
 // server's visibility may not show yet), then starts the circuit of each ticket that starts
-// (`ticketsAPartir`, unchanged: open, labelled `circuit`, its dependencies closed, by priority),
+// (`ticketsAPartir`: open, labelled `circuit`, its section « ## Architecture » written, its
+// dependencies closed, by priority),
 // no more alive at once than the setting of the project (`grillhouse.circuits`, 1 when absent). A
 // circuit waiting for the supervisor's answer is alive: its workflow runs, waiting for the answer,
 // and is never purged. A workflow closes only integrated (its ticket closed in Beads) or stopped

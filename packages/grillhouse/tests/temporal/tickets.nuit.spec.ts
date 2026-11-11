@@ -62,6 +62,7 @@ interface Ticket {
   priority: number;
   labels: string[];
   created_at: string;
+  description: string;
 }
 let n = 0;
 const T = (id: string, o: Partial<Ticket> = {}): Ticket => ({
@@ -70,6 +71,7 @@ const T = (id: string, o: Partial<Ticket> = {}): Ticket => ({
   priority: 2,
   labels: ['circuit'],
   created_at: `2026-11-04T10:00:${String(++n % 60).padStart(2, '0')}Z`,
+  description: '## Architecture\n\n- Adresse.',
   ...o,
 });
 

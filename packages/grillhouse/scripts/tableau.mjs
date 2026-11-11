@@ -119,6 +119,7 @@ import { echecDeLOutil } from './aiguillage.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { lireLaMesure } from './avancement.mjs';
 import { SANS_REPONSE_EN, ServeurMuet, circuitsDuServeur } from './circuits-du-serveur.mjs';
+import { enFileSansArchitecture } from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
 
@@ -1114,6 +1115,15 @@ export function assembler({
       signe: '🔕',
       texte:
         'À corriger : une question au superviseur reste sans réponse, aucune attente ne tourne',
+    });
+  }
+  // The tickets of the queue without their section « ## Architecture », which the queue never
+  // starts (scripts/file-des-tickets.mjs): one line names them all, for the supervisor to write it.
+  const sansArchitecture = enFileSansArchitecture(tous, { enCours: new Set(parCircuit.keys()) });
+  if (sansArchitecture.length) {
+    alertes.push({
+      niveau: 'orange',
+      texte: `En file sans architecture : ${sansArchitecture.map(t => numero(t.id)).join(', ')}`,
     });
   }
   for (const b of blocs) {

@@ -126,3 +126,45 @@ describe('the opening of a session of supervision', () => {
     expect(texte).not.toContain('Temporal ne répond pas');
   });
 });
+
+describe('the opening names the tickets of the queue without their architecture', () => {
+  const ticket = (id: string, description: string) => ({
+    id,
+    status: 'open',
+    labels: ['circuit'],
+    description,
+  });
+
+  it('names each ticket of the queue whose description has no section « ## Architecture »', async () => {
+    const texte = await circuitsALOuverture(depot(), {
+      fermes: () => new Set(),
+      circuitsDe: lus([circuitLu('demo-4', { etape: 'controles', vivant: true })]),
+      ticketsDe: () => [
+        ticket('demo-1', '## Besoin\n\nUn besoin.'),
+        ticket('demo-2', '## Architecture\n\n- Adresse.'),
+        ticket('demo-3', ''),
+        ticket('demo-4', '## Besoin'),
+      ],
+    });
+    expect(texte).toContain(
+      '\n## La file des tickets\nEn file sans architecture : demo-1, demo-3.'
+    );
+  });
+
+  it('says nothing of the queue when each ticket has its section, or when Beads fails', async () => {
+    const avec = await circuitsALOuverture(depot(), {
+      fermes: () => new Set(),
+      circuitsDe: lus([]),
+      ticketsDe: () => [ticket('demo-2', '## Architecture\n\n- Adresse.')],
+    });
+    const panne = await circuitsALOuverture(depot(), {
+      fermes: () => new Set(),
+      circuitsDe: lus([]),
+      ticketsDe: () => {
+        throw new Error('les tickets ne se lisent pas (bd list) : base illisible');
+      },
+    });
+    expect(avec).not.toContain('## La file des tickets');
+    expect(panne).not.toContain('## La file des tickets');
+  });
+});

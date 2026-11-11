@@ -525,3 +525,25 @@ describe('the Temporal server on the board', () => {
     expect(carte(t, tous, 'demo-32')).not.toContain('Temporal');
   });
 });
+
+describe('the tickets of the queue without their architecture', () => {
+  const SECTION = '## Architecture\n\n- Adresse.';
+  const enFile = (id: string, o: object = {}) => T(id, { status: 'open', ...o });
+
+  it('one alert names each ticket of the queue whose description has no section « ## Architecture »', () => {
+    const tous = [
+      enFile('demo-40', { description: '## Besoin\n\nUn besoin.' }),
+      enFile('demo-41', { description: SECTION }),
+      enFile('demo-42'),
+      enFile('demo-43', { description: '## Besoin', labels: [] }),
+      enFile('demo-44', { description: '## Besoin' }),
+    ];
+    const t = plateau(tous, [], [], [circuitLu('demo-44', { vivant: true })]);
+    expect(t.alertes.map(x => x.texte)).toEqual(['En file sans architecture : 40, 42']);
+  });
+
+  it('no alert when each ticket of the queue has its section', () => {
+    const t = plateau([enFile('demo-41', { description: SECTION })], [], [], []);
+    expect(t.alertes).toEqual([]);
+  });
+});

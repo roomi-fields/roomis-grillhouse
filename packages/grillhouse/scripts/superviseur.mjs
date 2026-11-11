@@ -27,7 +27,9 @@
 //   circuit ended without its issue, with the command that resumes it (`--reprendre` from its last
 //   state written, else `--depuis <testwriter|developpeur> --contexte <texte>`), which the
 //   supervisor launches without waiting for the owner's word; their ticket open, and the stopped
-//   and the ended ones then gone up; a server that does not answer is said. A circuit
+//   and the ended ones then gone up; a server that does not answer is said; then « ## La file des
+//   tickets », the tickets of the queue without their section « ## Architecture », which the
+//   queue never starts (scripts/file-des-tickets.mjs), for the supervisor to write it. A circuit
 //   runs on the worker of the project, apart from the sessions, its launch returns at once, and its
 //   question wakes the supervisor by the wait alone (grillhouse-mwz: SyntHub's SH-br0.1 stopped
 //   27 s after a relaunch of its session, read only on a word of the owner). The queue of the
@@ -68,6 +70,7 @@ import {
   verrouDeLAttente,
 } from './tableau.mjs';
 import { etapeDuCircuit, libelle, SUPERVISEUR } from './etapes.mjs';
+import { enFileSansArchitecture, lireLesTickets } from './file-des-tickets.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
 const COQUILLES = new Set(['sh', 'bash', 'dash', 'zsh']);
@@ -414,18 +417,22 @@ export function texteDesQuestions(questions) {
  * those whose ticket <fermes> gives closed left out: each one that runs, named; each one stopped on
  * a question (a stop other than the supervisor's own « arrete »), with its question and the command
  * that answers it; each one ended without its issue, with the command that resumes it. The
- * stopped and the ended ones are then gone up: the wait does not give them again.
+ * stopped and the ended ones are then gone up: the wait does not give them again. Last, « ## La
+ * file des tickets » names the tickets of the queue without their section « ## Architecture »
+ * (`enFileSansArchitecture` of scripts/file-des-tickets.mjs, the tickets read by <ticketsDe>,
+ * `lireLesTickets` by default; a Beads that fails says nothing), which the queue never starts.
  * @param {string} racine the root of the repository
  * The circuits are read once, by <circuitsDe> (one call to the Temporal server,
  * scripts/circuits-du-serveur.mjs, by default); a server that does not answer is said, and no
  * question goes up.
  * @param {{ fermes?: (racine: string, ids: string[]) => Set<string>,
- *   circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} options
+ *   circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>,
+ *   ticketsDe?: (racine: string) => import('./file-des-tickets.mjs').TicketDeBeads[] }} options
  * @returns {Promise<string>}
  */
 export async function circuitsALOuverture(
   racine,
-  { fermes = ticketsFermes, circuitsDe = circuitsDuServeur } = {}
+  { fermes = ticketsFermes, circuitsDe = circuitsDuServeur, ticketsDe = lireLesTickets } = {}
 ) {
   let circuits = null;
   let panne = null;
@@ -460,6 +467,14 @@ export async function circuitsALOuverture(
           `  La réponse : \`${q.commande}\`.`,
         ].join('\n'),
   });
+  let sansArchitecture = [];
+  try {
+    sansArchitecture = enFileSansArchitecture(ticketsDe(racine), {
+      enCours: new Set((circuits ?? []).map(c => c.ticket)),
+    }).map(t => t.id);
+  } catch {
+    // Beads fails: the board says it, the opening names no ticket.
+  }
   const nommes = [...tournent, ...questions.map(enLigne)].sort((a, b) =>
     a.ticket.localeCompare(b.ticket, 'en')
   );
@@ -468,6 +483,13 @@ export async function circuitsALOuverture(
     "Dès ta première réponse, sans attendre le mot du responsable, lance l'attente des questions en arrière-plan (`run_in_background`) et surveille sa sortie en continu (l'outil `Monitor`) : `npx grillhouse superviseur --attendre`. Elle ne se termine pas : elle imprime un lot à chaque question neuve d'un circuit, quel que soit son lanceur, et te réveille ainsi ; elle reprend l'écoute seule, sans relance. Une question sans réponse revient toutes les 5 min (`--rappel <minutes>` règle l'intervalle) jusqu'à sa réponse. Un lancement de circuit rend la main tout de suite ; la fin d'un circuit te réveille aussi, un arrêt comme une question, une intégration une fois.",
     ...(panne ? ['', '## Les circuits du dépôt', panne] : []),
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
+    ...(sansArchitecture.length
+      ? [
+          '',
+          '## La file des tickets',
+          `En file sans architecture : ${sansArchitecture.join(', ')}. La file ne démarre pas un ticket sans la section « ## Architecture » de sa description : écris-la (le modèle mûr, l'adresse, le mécanisme commun), puis la file le démarre.`,
+        ]
+      : []),
   ].join('\n');
 }
 

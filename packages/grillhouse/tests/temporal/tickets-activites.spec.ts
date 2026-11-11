@@ -34,7 +34,13 @@ function projet(paquet: string | undefined, tickets: object[] | null) {
   process.env.PATH = `${bin}:${avant}`;
   return racine;
 }
-const T = (id: string) => ({ id, status: 'open', priority: 2, labels: ['circuit'] });
+const T = (id: string) => ({
+  id,
+  status: 'open',
+  priority: 2,
+  labels: ['circuit'],
+  description: '## Architecture\n\n- Adresse.',
+});
 
 describe('les activités de la file des tickets', () => {
   it('reads the setting and the tickets that start', async () => {
