@@ -801,7 +801,14 @@ lu sur un mot du responsable).
 jugé vert, sans rouge admis (bors, Zuul), et la CI de main ne rejoue pas cet arbre : son premier
 job (`judged` de `ci.yml`, du dépôt et du gabarit) cherche, sur un push vers main seul, un run vert
 du même workflow sur une branche `agent/**` pour le même commit, et chaque job de la passe est sauté
-quand il le trouve ; tout autre événement joue la passe. La nuit rejoue la passe complète. La mise à jour du cadre
+quand il le trouve ; tout autre événement joue la passe. Rien d'autre n'avance main : dans un
+projet dont la CI écoute les branches de ticket, le crochet pre-push du cadre
+(`refusSurMain` de `scripts/branche-de-nuit.mjs`) refuse de pousser sur origin la branche de
+`grillhouse.poussee.commit` un commit qu'aucun run n'a conclu vert sur une branche `agent/**`, et
+le message dit le chemin (la branche du ticket, sa CI verte, puis l'avance de main) ; une règle
+du dépôt sur GitHub (ruleset, vérifications requises `gardes`, `fusion`, `build`, sans
+contournement) tient la même règle côté serveur, une lecture des runs qui échoue au crochet lui
+laissant le jugement. La nuit rejoue la passe complète. La mise à jour du cadre
 (`npx grillhouse maj`) finit par `npm run verifier` dans le projet, dont le vert pose le dernier
 vert sur l'arbre qu'elle laisse, comme Nx affected avance sa base au dernier commit vert de main ;
 elle rend le code de la vérification, et son compte rendu dit le vert posé, ou pourquoi il ne

@@ -7,7 +7,7 @@
 //   npx grillhouse hooks --absents [<project>]  prints the name of each absent hook, one per line
 //
 // - commit-msg: « un ticket fermé garde sa livraison ; un ticket rouvert reçoit ses corrections » (scripts/un-commit-par-ticket.mjs).
-// - pre-push: the night branch guard (scripts/branche-de-nuit.mjs).
+// - pre-push: the night branch guard and the judged main (scripts/branche-de-nuit.mjs).
 // - A hook lives in the folder git reads for the project (`git rev-parse --git-path hooks`, which
 //   follows `core.hooksPath`, Beads' `.beads/hooks` included); `core.hooksPath` is never changed
 //   here. The update of the frame (scripts/grillhouse-maj.mjs) places them by the same function.
