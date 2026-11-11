@@ -35,7 +35,54 @@ const unDossier = () => {
   mkdirSync(d, { recursive: true });
   return d;
 };
+// A folder whose path holds more than 300 characters, as the temporary folder of a ticket's session does.
+const unDossierLong = () => {
+  let d = unDossier();
+  while (d.length <= 300) {
+    d = path.join(d, 'dossier-long-'.padEnd(60, 'x'));
+  }
+  mkdirSync(d, { recursive: true });
+  return d;
+};
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
+// What a child writes, read as it comes.
+const sortieDe = (p: ChildProcess) => {
+  let sortie = '';
+  p.stdout?.on('data', b => (sortie += b));
+  p.stderr?.on('data', b => (sortie += b));
+  return () => sortie;
+};
+// A wait for the lock played in this process, on a clock and a sleep that move 100 ms per sleep:
+// no real time passes. Returns what the wait stopped on and what it said.
+async function attendreEnProcessus(
+  env: Record<string, string>,
+  racine: string,
+  borneMs: number
+): Promise<{ erreur: { code?: number; message?: string } | undefined; dites: string[] }> {
+  const { avecLaMachine } = (await import(MODULE)) as {
+    avecLaMachine: (corps: () => void, o: Record<string, unknown>) => void;
+  };
+  let t = 0;
+  const dites: string[] = [];
+  let erreur: { code?: number; message?: string } | undefined;
+  try {
+    avecLaMachine(() => {}, {
+      env,
+      racine,
+      libre: () => Number.MAX_SAFE_INTEGER,
+      occupe: () => '',
+      dire: (l: string) => dites.push(l),
+      borneMs,
+      maintenant: () => t,
+      dormir: () => {
+        t += 100;
+      },
+    });
+  } catch (e) {
+    erreur = e as { code?: number; message?: string };
+  }
+  return { erreur, dites };
+}
 // Waits for <condition>, up to <ms>: a child started under the load of a full pass can take a while to begin.
 async function jusqua(condition: () => boolean, nom = 'la condition', ms = 60_000) {
   const fin = Date.now() + ms;
@@ -132,7 +179,8 @@ describe(
       await jusqua(() => lignes(trace).includes('A début'));
       const second = lancer(preneur('B', trace), env);
       const finSecond = fin(second);
-      await attendre(1_000);
+      const sortieSecond = sortieDe(second);
+      await jusqua(() => sortieSecond().includes('⏳'));
       expect(lignes(trace)).toEqual(['A début']);
       writeFileSync(libere, '');
       const [a, b] = await Promise.all([finPremier, finSecond]);
@@ -228,12 +276,14 @@ describe(
     // waiting for the lock the pass that played it held. As `flock -w` and a database's lock
     // timeout, the wait is bounded, and it names who holds the lock.
     it('au-delà de sa borne, l’attente s’arrête à 75 et nomme le détenteur : processus, dossier, commande, depuis quand', async () => {
-      const d = unDossier();
+      // A folder of more than 300 characters, as a ticket session's temporary folder: the message cuts
+      // a command at 200 characters, so the holder is named by its script's relative name and its
+      // working directory said apart.
+      const d = unDossierLong();
+      expect(d.length).toBeGreaterThan(300);
       const verrou = path.join(d, 'mesure.lock');
       const trace = path.join(d, 'trace');
       const libere = path.join(d, 'libere');
-      // The holder's command names its script by a relative name, as `node scripts/langages/typescript/verifier.mjs`
-      // does, the working directory being said apart: the command carries no long path, whatever $TMPDIR is.
       writeFileSync(path.join(d, 'marque-du-detenteur.mjs'), preneur('A', trace, tenir(libere)));
       const detenteur = spawn(process.execPath, ['marque-du-detenteur.mjs'], {
         env: environnement({ GRILLHOUSE_VERROU_MACHINE: verrou }),
@@ -244,26 +294,19 @@ describe(
       try {
         await jusqua(() => lignes(trace).includes('A début'));
         const marque = readFileSync(verrou, 'utf8');
-        const debut = Date.now();
-        const b = await fin(
-          lancer(
-            preneur('B', trace),
-            environnement({
-              GRILLHOUSE_VERROU_MACHINE: verrou,
-              GRILLHOUSE_ATTENTE_MACHINE_MS: '1500',
-            })
-          )
+        const { erreur, dites } = await attendreEnProcessus(
+          environnement({ GRILLHOUSE_VERROU_MACHINE: verrou }),
+          d,
+          1_500
         );
-        expect(b.code, b.sortie).toBe(75);
-        expect(Date.now() - debut).toBeGreaterThanOrEqual(1_500);
-        expect(Date.now() - debut).toBeLessThan(10_000);
+        const message = erreur?.message ?? '';
+        expect(erreur?.code, dites.join('\n')).toBe(75);
         expect(lignes(trace)).toEqual(['A début']);
-        expect(b.sortie).toContain(String(detenteur.pid));
-        expect(b.sortie).toContain(d);
-        expect(b.sortie).toContain('marque-du-detenteur.mjs');
-        expect(b.sortie).toContain(`(dans ${d})`);
-        expect(b.sortie).toMatch(/depuis \d\d:\d\d:\d\d/);
-        expect(b.sortie).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
+        expect(message).toContain(String(detenteur.pid));
+        expect(message).toContain('marque-du-detenteur.mjs');
+        expect(message).toContain(`(dans ${d})`);
+        expect(message).toMatch(/depuis \d\d:\d\d:\d\d \(\d+ (s|min)\)/);
+        expect(message).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
         expect(readFileSync(verrou, 'utf8')).toBe(marque);
       } finally {
         writeFileSync(libere, '');
@@ -441,7 +484,8 @@ describe('grillhouse-3uv.89 — npm run verifier et la machine', { timeout: 60_0
     await jusqua(() => lignes(trace).includes('autre début'));
     const passe = spawn(process.execPath, [VERIFIER], { cwd: d, env, stdio: 'pipe' });
     const finPasse = fin(passe);
-    await attendre(1_500);
+    const sortiePasse = sortieDe(passe);
+    await jusqua(() => sortiePasse().includes('⏳'));
     expect(appels(d)).toEqual([]);
     writeFileSync(libere, '');
     const [a, v] = await Promise.all([finAutre, finPasse]);
@@ -459,7 +503,7 @@ describe('grillhouse-3uv.89 — npm run verifier et la machine', { timeout: 60_0
     const trace = path.join(d, 'trace');
     const env = environnement({
       GRILLHOUSE_VERROU_MACHINE: verrou,
-      GRILLHOUSE_ATTENTE_MACHINE_MS: '1000',
+      GRILLHOUSE_ATTENTE_MACHINE_MS: '0',
       PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
     });
     const autre = lancer(preneur('autre', trace, tenir(libere)), env);
@@ -681,18 +725,12 @@ describe('grillhouse-3uv.95.2 — le rang d’une mesure', { timeout: 60_000 }, 
       const p = lancerDans(preneur('P', trace), env, cadre);
       premier = p;
       await jusqua(() => p.sortie().includes('⏳'), '⏳ de P', 20_000);
-      const debut = Date.now();
-      const s = await avant(
-        lancerDans(preneur('S', trace), { ...env, GRILLHOUSE_ATTENTE_MACHINE_MS: '1500' }, projet)
-          .fini,
-        'sortie de S',
-        20_000
-      );
-      expect(s.code, s.sortie).toBe(75);
-      expect(Date.now() - debut).toBeGreaterThanOrEqual(1_500);
-      expect(Date.now() - debut).toBeLessThan(10_000);
-      expect(s.sortie).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
-      expect(s.sortie).toContain(String(a.p.pid));
+      const { erreur, dites } = await attendreEnProcessus(env, projet, 1_500);
+      const message = erreur?.message ?? '';
+      expect(erreur?.code, dites.join('\n')).toBe(75);
+      expect(message).toContain('GRILLHOUSE_ATTENTE_MACHINE_MS');
+      expect(message).toContain("mesure d'un projet");
+      expect(message).toContain(String(a.p.pid));
       expect(lignes(trace)).toEqual(['A début']);
     } finally {
       writeFileSync(libere, '');
