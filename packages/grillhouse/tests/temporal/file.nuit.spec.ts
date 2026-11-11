@@ -93,6 +93,8 @@ function actes(
     // Each act of the queue, `<acte> <ticket>`, in its order; `fin <acte> <ticket>` at its end.
     file: [] as string[],
     lectures: [] as { ticket: string; sha: string }[],
+    inscriptions: [] as Parameters<ActivitesDeLaFile['inscrireLesFluxDeMain']>[0][],
+    relectures: 0,
     conclusions: [] as Parameters<ActivitesDeLaFile['conclureLaCI']>[0][],
     arrets: [] as Parameters<Activites['publierLArret']>[0][],
     fins: [] as string[],
@@ -212,6 +214,16 @@ function actes(
         return Promise.resolve({ issue: { etat: 'en-file', raison: `CI non lue` }, effets });
       }
       return Promise.resolve({ avancer: true, effets });
+    },
+    // The main flows: recorded and read as the queue asks; no reading due unless a test says so.
+    inscrireLesFluxDeMain(e) {
+      journal.file.push(`inscrireLesFluxDeMain ${e.ticket}`);
+      journal.inscriptions.push(e);
+      return Promise.resolve();
+    },
+    relireLesFluxDeMain() {
+      journal.relectures += 1;
+      return Promise.resolve({ dues: 0, effets: [] });
     },
     // Each effect an act gave back, its activity id and its key.
     async jouerUnEffetDeLaFile({ effet }) {
@@ -685,6 +697,56 @@ const ENTIER = { longs: String, enums: String, bytes: String };
 
 // The queue of circuit.mjs said a lot closed on main by the reason of its closure, then the queue's
 // last word at the ticket: a push refused does not hide that the lot is on main.
+describe('la lecture des flux de main s’inscrit après la poussée sans retenir la file', () => {
+  it('records the reading after the push, reads the due ones at each pass, and the next entry goes on at once', async () => {
+    // A reading that stays due for ever: the queue must not wait for it.
+    const { activites, journal } = actes(undefined, {
+      relireLesFluxDeMain: (_e, _simule) => {
+        journal.relectures += 1;
+        return Promise.resolve({ dues: 1, effets: [] });
+      },
+    });
+    const s = await serveur(activites);
+    await Promise.all([s.demarrer('essai-1'), s.demarrer('essai-2')]);
+    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
+    expect(await finDuCircuit(s.client, RACINE, 'essai-2')).toEqual({ code: 0, raison: 'integre' });
+    // Each push is followed by the recording of its reading, before the next entry starts.
+    const premier = journal.file[0]!.split(' ')[1]!;
+    const second = premier === 'essai-1' ? 'essai-2' : 'essai-1';
+    expect(journal.file).toEqual([
+      `preparerLaBranche ${premier}`,
+      `fin preparerLaBranche ${premier}`,
+      `avancerMain ${premier}`,
+      `fermerLEntree ${premier}`,
+      `inscrireLesFluxDeMain ${premier}`,
+      `preparerLaBranche ${second}`,
+      `fin preparerLaBranche ${second}`,
+      `avancerMain ${second}`,
+      `fermerLEntree ${second}`,
+      `inscrireLesFluxDeMain ${second}`,
+    ]);
+    expect(journal.inscriptions).toMatchObject([
+      {
+        ticket: premier,
+        sha: `c-${premier}-1`,
+        branche: 'main',
+        brancheDuTicket: `agent/${premier}`,
+      },
+      {
+        ticket: second,
+        sha: `c-${second}-1`,
+        branche: 'main',
+        brancheDuTicket: `agent/${second}`,
+      },
+    ]);
+    expect(typeof journal.inscriptions[0]!.poussee).toBe('number');
+    // The readings due are read at passes of the queue, more than once while one stays due.
+    await attendre('les relectures dues', () =>
+      Promise.resolve(journal.relectures >= 2 ? true : undefined)
+    );
+  }, 120_000);
+});
+
 describe('un lot fermé sur main que la file ne pousse pas', () => {
   it('the circuit says « intégré » first, then why the push is refused', async () => {
     const { activites } = actes(undefined, {

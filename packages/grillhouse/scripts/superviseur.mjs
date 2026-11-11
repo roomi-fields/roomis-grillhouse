@@ -60,8 +60,9 @@
 //   an integration between two waits is not lost. Exit 0 on its batch, 1 when another wait
 //   already runs (`.claude/worktrees/attente-des-questions.lock`, which names its process: the
 //   presence of the wait that the board and the hooks read).
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { execFile, spawnSync } from 'node:child_process';
+import { promisify } from 'node:util';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
@@ -157,6 +158,84 @@ function lireLesIntegrations(racine, maintenant) {
   }
   return { depuis: maintenant, rendues: new Set() };
 }
+// The tickets the queue reopened for a red workflow of main (label `flux-rouge`) that wait open, with
+// the address of the run, which the title of the queue's comment (scripts/integration/file.mjs)
+// gives in its second paragraph; none when bd does not read them.
+export async function fluxRougesDe(racine) {
+  // A repository without its base of tickets has no ticket to give, and bd is never launched.
+  if (!existsSync(path.join(racine, '.beads'))) {
+    return [];
+  }
+  const bd = async (...a) =>
+    (
+      await promisify(execFile)('bd', a, {
+        cwd: racine,
+        encoding: 'utf8',
+        timeout: 5000,
+        maxBuffer: 64 * 1024 * 1024,
+      })
+    ).stdout;
+  try {
+    const l = JSON.parse(await bd('list', '--label', 'flux-rouge', '--status', 'open', '--json'));
+    const lots = await Promise.all(
+      l.map(async t => {
+        const dits = JSON.parse((await bd('comments', t.id, '--json')) || '[]');
+        const c = dits.findLast(x => String(x?.text ?? '').startsWith('## Flux de main rouge'));
+        return c ? [{ ticket: t.id, adresse: String(c.text).split('\n\n')[1] ?? '' }] : [];
+      })
+    );
+    return lots.flat();
+  } catch {
+    return [];
+  }
+}
+
+// The red workflows of main given by the waits of the repository at <racine>, `ticket adresse` keys:
+// those that still stand are kept, so that one is given once and again at another run.
+const fluxRougesRendus = racine => path.join(etatsDe(racine), 'flux-rouges-rendus.json');
+function lireLesFluxRougesRendus(racine) {
+  try {
+    const lu = JSON.parse(readFileSync(fluxRougesRendus(racine), 'utf8'));
+    return new Set(Array.isArray(lu?.rendus) ? lu.rendus.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+function ecrireLesFluxRougesRendus(racine, cles) {
+  const f = fluxRougesRendus(racine);
+  try {
+    mkdirSync(path.dirname(f), { recursive: true });
+    const provisoire = `${f}.${process.pid}`;
+    writeFileSync(provisoire, `${JSON.stringify({ rendus: [...cles].sort() })}\n`);
+    renameSync(provisoire, f);
+  } catch {
+    // kept as it was
+  }
+}
+
+// The batch of the tickets reopened by a red workflow of main among <rouges> and not yet given, as
+// questions sorted by ticket; the file of those given keeps the ones that stand.
+function releverLesFluxRouges(racine, rouges) {
+  const cleDuRouge = r => `${r.ticket} ${r.adresse}`;
+  const avant = lireLesFluxRougesRendus(racine);
+  const debout = new Set(rouges.map(cleDuRouge));
+  const neufs = rouges.filter(r => !avant.has(cleDuRouge(r)));
+  if (neufs.length || debout.size !== avant.size || [...debout].some(k => !avant.has(k))) {
+    ecrireLesFluxRougesRendus(racine, debout);
+  }
+  return neufs
+    .sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'))
+    .map(r => ({
+      ticket: r.ticket,
+      etape: '5 Intégration',
+      question: `un flux de main est rouge après l'entrée de son lot, le ticket est rouvert : ${r.adresse}`,
+      qui: SUPERVISEUR,
+      commande: `bd show ${r.ticket}`,
+      cle: `flux-rouge ${cleDuRouge(r)}`,
+      adresse: r.adresse,
+    }));
+}
+
 // A file that cannot be written never costs the batch: the next wait reads the former one.
 function ecrireLesIntegrations(racine, depuis, rendues) {
   const f = integrationsDe(racine);
@@ -323,8 +402,12 @@ const aucunFerme = () => new Set();
  * every <pas> ms by <circuitsDe> (one call to the Temporal server, scripts/circuits-du-serveur.mjs,
  * by default), as the UI of Temporal refreshes its list; a reading that fails (the server down) is
  * tried again at the next step, the questions gone up kept. One wait at a time per repository: a
- * second one is refused while the first runs. Its <signal> ends it with an empty batch.
- * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string>, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, maintenant?: () => number, rappel?: number }} options
+ * second one is refused while the first runs. Its <signal> ends it with an empty batch. A ticket
+ * the queue reopened for a red workflow of main (label `flux-rouge`, waiting open, read by
+ * <fluxRouges>: bd by default) is given as a batch of its own, once per run (`adresse`: the
+ * workflow, the URL of the run, the commit), and again at another run; taken up or closed, it is
+ * no longer given.
+ * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string>, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, fluxRouges?: (racine: string) => { ticket: string, adresse: string }[] | Promise<{ ticket: string, adresse: string }[]>, maintenant?: () => number, rappel?: number }} options
  * @returns {Promise<{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[]>}
  * @throws {Error} another wait runs
  */
@@ -334,6 +417,7 @@ export async function attendreUneQuestion({
   pas = 5_000,
   signal,
   circuitsDe = circuitsDuServeur,
+  fluxRouges = fluxRougesDe,
   maintenant = Date.now,
   rappel = RAPPEL_PAR_DEFAUT,
 }) {
@@ -353,14 +437,37 @@ export async function attendreUneQuestion({
   // The integrations new since the last reading of the previous wait, each given once.
   const { depuis: debut, rendues } = lireLesIntegrations(racine, maintenant());
   let lue = debut;
+  let lectureDesRouges = null;
+  let rougesLus = null;
   try {
     while (!signal?.aborted) {
       const avant = maintenant();
       let circuits = null;
+      // Read beside the circuits, never awaited: a slow bd never delays a step, and a reading not
+      // yet ended is taken at the next one.
+      lectureDesRouges ??= Promise.resolve()
+        .then(() => fluxRouges(racine))
+        .then(
+          r => (rougesLus = Array.isArray(r) ? r : []),
+          () => (rougesLus = [])
+        );
       try {
         circuits = await circuitsDe(racine, { integres: true });
       } catch {
         circuits = null;
+      }
+      await new Promise(resolve => setImmediate(resolve));
+      let rouges = [];
+      if (rougesLus) {
+        rouges = releverLesFluxRouges(racine, rougesLus);
+        rougesLus = null;
+        lectureDesRouges = null;
+      }
+      if (signal?.aborted) {
+        break;
+      }
+      if (rouges.length && !circuits) {
+        return rouges;
       }
       if (circuits && !signal?.aborted) {
         lue = avant;
@@ -378,6 +485,7 @@ export async function attendreUneQuestion({
             }
           ),
           ...integres,
+          ...rouges,
         ];
         if (lot.length) {
           // The integrations given, those ended since this reading kept, so that the next wait

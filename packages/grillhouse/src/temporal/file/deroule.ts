@@ -106,6 +106,8 @@ export const CI_DE_LA_BRANCHE = 'ci-de-la-branche';
  * (`lireLesPassagesDeLaCI`), where it read the first one (`lireLaCI`).
  */
 const CI_TOUS_LES_FLUX = 'ci-tous-les-flux';
+/** The patch of the reading of the workflows of main after the push of a lot. */
+const FLUX_DE_MAIN = 'flux-de-main';
 // The judgements of one entry at most, main moving between its CI and its entry.
 const ESSAIS = 5;
 
@@ -415,6 +417,18 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     avance = null;
+    // The push done, the reading of the workflows of main is recorded as due, not waited for.
+    if (f.poussee && patched(FLUX_DE_MAIN)) {
+      await actes.inscrireLesFluxDeMain({
+        racine,
+        ticket: e.ticket,
+        sha: commit,
+        branche: f.poussee,
+        brancheDuTicket: e.branche,
+        poussee: Date.now(),
+      });
+      dues = true;
+    }
     // The lot is on main: its closure first, then why it is not pushed.
     const ferme = `intégré : ${commit.slice(0, 7)}`;
     return { etat: 'ferme', raison: f.raison ? `${ferme} ; ${f.raison}` : ferme };
@@ -440,8 +454,33 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     }
   };
 
+  // Each pass of the queue reads the readings due of the workflows of main, without waiting: once
+  // at its start (the file of the readings outlives the workflow), then while one is due.
+  // The bounds of the CI of the branch, the same for the workflows of main.
+  const delais = { ...DELAIS, ...entree.ci };
+  let dues = patched(FLUX_DE_MAIN);
+  let lectures = 0;
+  const relireLesFluxDeMain = async () => {
+    lectures += 1;
+    const r = await actes.relireLesFluxDeMain({
+      racine,
+      maintenant: Date.now(),
+      ci: delais,
+    });
+    await jouerLesEffets(racine, r.effets, `flux-de-main:${lectures}`);
+    dues = r.dues > 0;
+  };
+
   for (;;) {
-    await condition(() => attente.length > 0 || aContinuer());
+    if (dues) {
+      await relireLesFluxDeMain();
+    }
+    const pret = () => attente.length > 0 || aContinuer();
+    if (dues) {
+      await condition(pret, delais.pasMs * 3);
+    } else {
+      await condition(pret);
+    }
     if (attente.length > 0) {
       enCours = attente.shift()!;
       const issue = await traiterSansTomber(enCours);

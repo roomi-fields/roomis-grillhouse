@@ -748,7 +748,7 @@ chaque lot traité, sans tube ni veille à durée (grillhouse-d4n.9 : une attent
 derrière `| tail` n'a été lue par personne pendant 40 min). Une question toujours sans réponse
 (le circuit est arrêté sur la même clé) est re-présentée toutes les 5 min
 (`--rappel <minutes>`), comme SQS redonne un message non acquitté après son délai de visibilité,
-jusqu'à ce que le circuit quitte l'arrêt ; une clé qui change est une question neuve, rendue
+jusqu'à ce que le circuit quitte l'arrêt ; un ticket que la file a rouvert pour un flux de main rouge (étiquette `flux-rouge`, ouvert) se rend aussi comme un lot, une fois, avec l'adresse du passage, et plus une fois repris ou refermé ; une clé qui change est une question neuve, rendue
 aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
 remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
 clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte par
@@ -1453,7 +1453,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   quand un flux n'a aucun passage au bout de la recherche, ou un passage sans fin au bout de
   l'attente, chaque flux nommé. Un passage d'un autre nom ne compte pas ; plusieurs flux de même nom
   comptent pour un seul, `gh run list` ne les distinguant pas. Les flux qui ne tournent qu'après
-  l'entrée, sur main, ne sont pas lus (ticket grillhouse-bf5.7). Le changement suit le « patching »
+  l'entrée, sur main, se lisent après la poussée, sans bloquer la file (ticket grillhouse-bf5.7) : la file inscrit une lecture due (le ticket, le commit, les flux de main absents de la branche, l'heure de la poussée), la relit à chaque passage avec les délais de la CI de la branche, comptés depuis la poussée ; un flux rouge rouvre le ticket sous l'étiquette `flux-rouge` avec l'adresse du passage, comme GitHub notifie l'échec d'un flux de la branche par défaut et que le pipeline « post » de Zuul signale le sien ; un flux non jugé se commente, jamais rouvert. Le changement suit le « patching »
   (`patched('ci-tous-les-flux')`) : l'acte `lireLaCI`, sa boucle et `lireEtConclureLaCI` restent pour
   rejouer les histoires d'avant ; ils sont retirés avec le patch (`deprecatePatch` puis son
   retrait) une fois qu'aucun run n'en porte l'histoire, dans la version qui suit celle-ci puis la

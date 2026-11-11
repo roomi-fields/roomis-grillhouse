@@ -86,13 +86,16 @@ import {
   conclureLaCI,
   direLIssue,
   fermerLEntree,
+  inscrireLesFluxDeMain,
   lireLesPassagesDeLaCI,
+  relireLesLecturesDues,
   lireUneFoisLaCI,
   outilsDeLaFile,
   preparerLaBranche,
   situerLeLot,
 } from './integration/file.mjs';
 import { avancementDeLaCI } from './avancement.mjs';
+
 import { ecrireLEffet } from './effets.mjs';
 import { Arret, geste } from './ticket-du-circuit.mjs';
 
@@ -451,6 +454,19 @@ Object.assign(ACTES, {
     const travail = path.join(racine, '.claude', 'worktrees', `${ticket}.travail`);
     const avancement = avancementDeLaCI(travail);
     return lireLesPassagesDeLaCI(laFile(racine, avancement), { sha, branche });
+  },
+  // The reading of the workflows of main recorded as due after the push of a lot (nothing read).
+  async 'inscrire-flux-de-main'({ racine, ...e }) {
+    inscrireLesFluxDeMain(laFile(racine), e);
+    return null;
+  },
+  // Every reading due of the workflows of main read once, without waiting; its comments given back.
+  async 'relire-flux-de-main'({ racine, maintenant, ci }) {
+    const o = laFile(racine);
+    return {
+      ...relireLesLecturesDues(o, { maintenant, ci }),
+      effets: o.rendus,
+    };
   },
   async conclure({ racine, ...e }) {
     const o = laFile(racine);

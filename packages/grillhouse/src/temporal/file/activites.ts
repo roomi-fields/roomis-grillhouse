@@ -41,6 +41,16 @@ export async function conclureLaCI(e: Entree<'conclureLaCI'>): Promise<Sortie<'c
   return jouer('conclure', e, e.racine);
 }
 
+export async function inscrireLesFluxDeMain(e: Entree<'inscrireLesFluxDeMain'>): Promise<void> {
+  await jouer('inscrire-flux-de-main', e, e.racine);
+}
+
+export async function relireLesFluxDeMain(
+  e: Entree<'relireLesFluxDeMain'>
+): Promise<Sortie<'relireLesFluxDeMain'>> {
+  return jouer('relire-flux-de-main', e, e.racine);
+}
+
 export async function jouerUnEffetDeLaFile(e: Entree<'jouerUnEffetDeLaFile'>): Promise<void> {
   await jouer('effet-de-la-file', e, e.racine);
 }

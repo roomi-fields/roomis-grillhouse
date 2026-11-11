@@ -170,6 +170,27 @@ export interface ActivitesDeLaFile {
     commit: string;
   }): Promise<{ poussee: string | null; raison?: string | null } & Rendus>;
   /**
+   * The reading of the workflows of main of <sha>, pushed to <branche> at <poussee> ms, recorded as
+   * due (`inscrireLesFluxDeMain`): nothing is read, nothing waited for.
+   */
+  inscrireLesFluxDeMain(e: {
+    racine: string;
+    ticket: string;
+    sha: string;
+    branche: string;
+    brancheDuTicket: string;
+    poussee: number;
+  }): Promise<void>;
+  /**
+   * Every reading due of the workflows of main read once, without waiting (`relireLesLecturesDues`):
+   * the number still due; a red workflow reopens its ticket, a comment is given back.
+   */
+  relireLesFluxDeMain(e: {
+    racine: string;
+    maintenant: number;
+    ci?: DelaisDeLaCI;
+  }): Promise<{ dues: number } & Rendus>;
+  /**
    * One effect <effet> an act of the queue gave back, written under the key of this activity (its
    * workflow, its run, its activity id, which the workflow sets): one that is not written fails.
    */

@@ -71,7 +71,7 @@
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
@@ -259,6 +259,191 @@ export function fluxDuCommit(racine, sha, branche) {
   return fichiers
     .filter(({ chemin }) => attendus.has(chemin))
     .map(({ chemin, texte }) => ({ chemin, nom: nomDuFlux(chemin, texte) }));
+}
+
+/**
+ * The workflows of the commit <sha> that run on a push to <main> and not on a push to the branch of
+ * the ticket <brancheDuTicket>: `{ chemin, nom }`, in the order of the files. The one the CI of the
+ * branch already judged is any workflow of the second set, found by its path.
+ * @param {string} racine
+ * @param {string} sha
+ * @param {string} main
+ * @param {string} brancheDuTicket
+ * @returns {{ chemin: string, nom: string }[]}
+ */
+export function fluxDeMainAbsentsDeLaBranche(racine, sha, main, brancheDuTicket) {
+  const jugés = new Set(fluxDuCommit(racine, sha, brancheDuTicket).map(f => f.chemin));
+  return fluxDuCommit(racine, sha, main).filter(f => !jugés.has(f.chemin));
+}
+
+// The file of the readings due of the workflows of main, in the main tree <racine>.
+const lecturesDues = racine => path.join(racine, '.claude', 'worktrees', 'flux-de-main-dus.json');
+
+/** The readings due of the workflows of main of <racine>: `{ ticket, commit, branche, flux, poussee }`. */
+export function lecturesDuesDe(racine) {
+  try {
+    const lu = JSON.parse(readFileSync(lecturesDues(racine), 'utf8'));
+    return Array.isArray(lu) ? lu : [];
+  } catch {
+    return [];
+  }
+}
+
+// The readings due <dues> written whole, atomically.
+function ecrireLesLecturesDues(racine, dues) {
+  const f = lecturesDues(racine);
+  mkdirSync(path.dirname(f), { recursive: true });
+  const provisoire = `${f}.${process.pid}`;
+  writeFileSync(provisoire, `${JSON.stringify(dues, null, 2)}\n`);
+  renameSync(provisoire, f);
+}
+
+/**
+ * After the push of the commit <sha> of the ticket <ticket> to <branche> (main) at <poussee> ms, the
+ * reading of its workflows of main recorded as due, with the tools <o>: nothing is read, nothing
+ * waited for; none is due when every workflow of main is one the CI of <brancheDuTicket> judged.
+ * A reading of the same ticket and commit is replaced.
+ */
+export function inscrireLesFluxDeMain(o, { ticket, sha, branche, brancheDuTicket, poussee }) {
+  const flux = fluxDeMainAbsentsDeLaBranche(o.racine, sha, branche, brancheDuTicket);
+  if (flux.length === 0) {
+    return;
+  }
+  const autres = lecturesDuesDe(o.racine).filter(l => !(l.ticket === ticket && l.commit === sha));
+  ecrireLesLecturesDues(o.racine, [...autres, { ticket, commit: sha, branche, flux, poussee }]);
+}
+
+// The conclusion of the run <id> read by <gh>: `{ fini, conclusion }`, or `{ raison }`.
+function lireUnPassage(gh, id) {
+  const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
+    timeout: 60_000,
+    killSignal: 'SIGKILL',
+  });
+  if (v.error) {
+    return { raison: `gh ne se lance pas (${v.error.code ?? v.error.message}).` };
+  }
+  if (v.status !== 0) {
+    return { raison: `gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}` };
+  }
+  try {
+    const vue = JSON.parse(v.stdout || '{}');
+    return { fini: vue?.status === 'completed', conclusion: vue?.conclusion ?? null };
+  } catch {
+    return { raison: `gh run view rend une sortie illisible :\n${v.stdout.trim()}` };
+  }
+}
+
+// The runs of the commit <sha> on <branche> read by <gh>: the list, or `{ raison }`.
+function lirePassagesDe(gh, sha, branche) {
+  const r = gh([
+    'run',
+    'list',
+    '--commit',
+    sha,
+    '--branch',
+    branche,
+    '--json',
+    'databaseId,status,conclusion,workflowName',
+  ]);
+  if (r.error) {
+    return { raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
+  }
+  if (r.status !== 0) {
+    return { raison: `gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}` };
+  }
+  try {
+    const l = JSON.parse(r.stdout || '[]');
+    return { passages: Array.isArray(l) ? l : [] };
+  } catch {
+    return { raison: `gh run list rend une sortie illisible :\n${r.stdout.trim()}` };
+  }
+}
+
+/** The label a ticket reopened by a red workflow of main bears, which the wait of the supervisor reads. */
+export const FLUX_ROUGE = 'flux-rouge';
+/** The title of the comment that gives the address of the red run, whose second paragraph is that address. */
+export const TITRE_DU_FLUX_ROUGE = '## Flux de main rouge';
+
+/**
+ * Each reading due of the workflows of main read once, without waiting, with the tools <o> at
+ * <maintenant> ms and the bounds <ci> (`rechercheMs`, `attenteMs`, from the push of main). A workflow
+ * red (any conclusion but `success`) reopens the ticket of the commit pushed under the label
+ * `flux-rouge`, a comment giving the address of the run, and closes the reading; green, it says
+ * nothing; with no run past the search bound, a run unfinished past the wait bound, or `gh`
+ * failing, a comment names the workflow and why, nothing is reopened. A reading with a workflow
+ * still to come stays due. `{ dues }`: the readings still due.
+ */
+export function relireLesLecturesDues(o, { maintenant, ci }) {
+  const toutes = lecturesDuesDe(o.racine);
+  if (toutes.length === 0) {
+    return { dues: 0 };
+  }
+  const restantes = [];
+  for (const l of toutes) {
+    const court = l.commit.slice(0, 7);
+    const ecoule = maintenant - l.poussee;
+    const nonJuge = (nom, pourquoi) => {
+      commenterAu(
+        o,
+        l.ticket,
+        `## Flux de main non jugé\n\nLe flux ${nom} de ${court} sur ${l.branche} n'a pas été jugé : ${pourquoi}\n\nLa file ne le tient pas pour rouge : le superviseur le lit à la main.`
+      );
+      o.dire(`⚠ flux ${nom} de ${court} non jugé : ${pourquoi}`);
+    };
+    const lus = lirePassagesDe(o.gh, l.commit, l.branche);
+    if (lus.raison) {
+      for (const f of l.flux) {
+        nonJuge(f.nom, lus.raison);
+      }
+      continue;
+    }
+    const encore = [];
+    let rouge = null;
+    for (const f of l.flux) {
+      const p = lus.passages
+        .filter(x => x?.databaseId && x.workflowName === f.nom)
+        .reduce((m, x) => (m === null || x.databaseId > m.databaseId ? x : m), null);
+      if (p === null) {
+        if (ecoule > ci.rechercheMs) {
+          nonJuge(f.nom, `aucun passage trouvé en ${Math.round(ci.rechercheMs / 60_000)} min.`);
+        } else {
+          encore.push(f);
+        }
+        continue;
+      }
+      const id = String(p.databaseId);
+      const v = lireUnPassage(o.gh, id);
+      if (v.raison) {
+        nonJuge(f.nom, v.raison);
+      } else if (!v.fini) {
+        if (ecoule > ci.attenteMs) {
+          nonJuge(f.nom, `le passage ${id} n'est pas fini après ${Math.round(ci.attenteMs / 60_000)} min.`);
+        } else {
+          encore.push(f);
+        }
+      } else if (v.conclusion !== 'success') {
+        rouge = { nom: f.nom, id };
+        break;
+      }
+    }
+    if (rouge) {
+      const url =
+        o.gh(['run', 'view', rouge.id, '--json', 'url', '--jq', '.url']).stdout?.trim() || rouge.id;
+      commenterAu(
+        o,
+        l.ticket,
+        `${TITRE_DU_FLUX_ROUGE}\n\n${rouge.nom} : ${url} (commit ${court})\n\nLe flux ${rouge.nom} de ${court} est rouge sur ${l.branche}, après l'entrée du lot : le ticket est rouvert, le superviseur juge la cause.`
+      );
+      o.bd('update', l.ticket, '--status', 'open', '--add-label', FLUX_ROUGE);
+      o.dire(`✗ flux ${rouge.nom} de ${court} rouge sur ${l.branche} : ${l.ticket} rouvert`);
+      continue;
+    }
+    if (encore.length > 0) {
+      restantes.push({ ...l, flux: encore });
+    }
+  }
+  ecrireLesLecturesDues(o.racine, restantes);
+  return { dues: restantes.length };
 }
 
 // The GitHub CLI run in the main tree <racine>.
