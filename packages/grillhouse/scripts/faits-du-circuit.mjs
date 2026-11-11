@@ -75,6 +75,9 @@ import {
   monter,
   ouvrirJusquAuPlan,
   publierLArret,
+  SANS_CONFLIT,
+  SUR_LA_POINTE,
+  suiteDuConflit,
   unPasDuPlan,
 } from './circuit.mjs';
 import {
@@ -232,10 +235,29 @@ const ACTES = {
         const { nom, rapport, piece, question } = pointe.arret;
         return { arret: { leve: { nom, rapport, piece, question } }, etat, menee };
       }
+      if (pointe.conflit) {
+        // The copy's advance left files in conflict, or a lot kept: the role that writes the first
+        // of them is relaunched (the decision of the workflow), then the pass prepares again.
+        geste(ctx, 'conflit-de-l-avance');
+        const { role, memoire } = suiteDuConflit(ctx, etape, pointe.conflit);
+        return {
+          conflit: { role, fichiers: pointe.conflit.fichiers, rapport: pointe.conflit.rapport },
+          memoire: { regeneration: pointe.regeneration ?? null, ...memoire },
+          etat,
+          menee,
+        };
+      }
       if (pointe.avancee) {
         appendFileSync(ctx.journal, 'la copie avance sur la pointe de main avant la passe.\n');
       }
-      return { memoire: { regeneration: pointe.regeneration ?? null }, etat, menee };
+      return {
+        memoire: {
+          regeneration: pointe.regeneration ?? null,
+          ...(SUR_LA_POINTE.has(etape.etape) ? SANS_CONFLIT : {}),
+        },
+        etat,
+        menee,
+      };
     });
   },
   async fait(

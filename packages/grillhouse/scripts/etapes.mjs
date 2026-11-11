@@ -234,6 +234,14 @@ export const GESTES = [
       'le plan dit le ticket mécanique, avec sa raison et sa commande (`sorte` de la fiche de l’explorateur) : un geste sans comportement neuf ; tant qu’aucun testwriter ni développeur n’a travaillé le lot, un rouge des contrôles ou un RENDU monte, sans relancer personne',
     cas: 'BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; BP 320.40.1 : une variable inutilisée, 4 séances ; BP 322.11.1 : l’outil de test monté sur 31 paquets',
   },
+  {
+    genre: 'conflit-de-l-avance',
+    geste:
+      'au rôle qui écrit les fichiers en conflit ou au lot gardé, les marques posées dans la copie : le testwriter pour un test ou la matière de test partagée, le développeur pour le code, le testwriter d’abord puis le développeur sur les fichiers des deux',
+    regle:
+      'l’avance d’une copie sur main laisse des fichiers en conflit ou un lot gardé : le rôle que `estUnTest` du module du langage désigne pour chacun les écrit ; un conflit que la seconde séance du rôle ne lève pas monte (lancement)',
+    cas: 'SH-b52.2 : marques dans 2 fichiers de test, résolues à la main par le superviseur ; SH-br0.3 : 8 fichiers de test dans le lot gardé, la copie sur main sans eux',
+  },
 ];
 
 // The gesture of name <genre>, or null.

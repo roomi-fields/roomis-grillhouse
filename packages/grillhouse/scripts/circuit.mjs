@@ -704,7 +704,7 @@ import {
   reponsesAuxQuestions,
   sorteDuPlan,
 } from './resultats.mjs';
-import { preparer } from './enveloppe/travail-de-la-copie.mjs';
+import { preparer, rolesDuConflit } from './enveloppe/travail-de-la-copie.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { prendreUnRang } from './places-de-la-machine.mjs';
 import { langageDe } from './langages.mjs';
@@ -912,6 +912,18 @@ function inscrireEtape(ctx, { etape, debut }) {
   });
 }
 
+// The rule of a test file of the module of the language of the copy of <ctx> (`estUnTest`); a copy
+// the module does not read judges every file the developpeur's.
+function rouleDeTest(ctx) {
+  return fichier => {
+    try {
+      return langageDe(ctx.copie).estUnTest(fichier, ctx.copie);
+    } catch {
+      return null;
+    }
+  };
+}
+
 // The steps whose pass judges the lot, 3.1 and 4.1 (one state, `finale` apart): the copy is
 // prepared on the tip of main before each of them.
 export const SUR_LA_POINTE = new Set([CONTROLES]);
@@ -930,7 +942,8 @@ export function avantLaPasse(
   ctx,
   etape,
   regeneration,
-  env = environnementDeLaPasse(ctx, process.env)
+  env = environnementDeLaPasse(ctx, process.env),
+  { estUnTest = rouleDeTest(ctx) } = {}
 ) {
   if (!SUR_LA_POINTE.has(etape)) {
     return { avancee: false, regeneration };
@@ -948,7 +961,11 @@ export function avantLaPasse(
     );
     const fd = openSync(ctx.journal, 'a');
     try {
-      r = preparer(ctx.copie, cible.stdout.trim(), { env, sortie: fd });
+      r = preparer(ctx.copie, cible.stdout.trim(), {
+        env,
+        sortie: fd,
+        suspects: ctx.fichiersDuConflit ?? [],
+      });
     } finally {
       closeSync(fd);
     }
@@ -959,6 +976,30 @@ export function avantLaPasse(
     const avancee = tete(ctx.copie).stdout.trim() !== avant.stdout.trim();
     return { avancee, regeneration: avancee ? null : regeneration };
   }
+  const fichiers = [...(r.conflits ?? []), ...(r.enAttente ?? [])];
+  if (fichiers.length) {
+    // The files in conflict, or kept in the lot, go to the role that writes them, the testwriter
+    // first; a role already relaunched for them that left one of its files is not relaunched: the
+    // stop goes up.
+    const { testwriter, developpeur, roles } = rolesDuConflit(fichiers, estUnTest);
+    const relances = ctx.conflitsRelances ?? [];
+    const restants = roles.filter(role => !relances.includes(role));
+    if (restants.length && restants.length === roles.length) {
+      const deRestants = restants.flatMap(role =>
+        role === 'testwriter' ? testwriter : developpeur
+      );
+      const siens = restants[0] === 'testwriter' ? testwriter : developpeur;
+      return {
+        avancee: false,
+        regeneration,
+        conflit: {
+          fichiers: deRestants,
+          roles: restants,
+          rapport: `${r.message}\n\nL'avance de la copie sur la pointe de main a laissé ces fichiers à ton rôle : ${siens.join(', ')}.\nLes marques de conflit sont dans la copie (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`) : tu résous chaque fichier, marques retirées ; un fichier du lot gardé (\`grillhouse-travail.patch\`, dans le dossier git de la copie) se reprend à la main dans la copie, un fichier supprimé par le lot se supprime. Les fichiers de l'autre rôle restent à sa séance.`,
+        },
+      };
+    }
+  }
   return {
     arret: {
       nom: 'lancement',
@@ -968,6 +1009,35 @@ export function avantLaPasse(
     },
   };
 }
+
+/**
+ * What the circuit keeps of the conflict <conflit> (`avantLaPasse`) its pass at the state <etat>
+ * met: the role relaunched, the first of `conflit.roles`, and the memory: the roles relaunched,
+ * the files of the conflict, whose marks the next advance looks for again (`fichiersDuConflit`),
+ * and the state of the pass the role's session comes back to (`retourDuConflit`), not the step
+ * that follows the role, so no build plays while a file carries marks.
+ * @param {{ conflitsRelances?: string[] | null, fichiersDuConflit?: string[] | null }} ctx
+ * @param {object} etat
+ * @param {{ fichiers: string[], roles: string[] }} conflit
+ */
+export function suiteDuConflit(ctx, etat, conflit) {
+  const [role] = conflit.roles;
+  return {
+    role,
+    memoire: {
+      conflitsRelances: [...(ctx.conflitsRelances ?? []), role],
+      fichiersDuConflit: [...new Set([...(ctx.fichiersDuConflit ?? []), ...conflit.fichiers])],
+      retourDuConflit: etat,
+    },
+  };
+}
+
+// The memory of a conflict once its pass prepares the copy without one: dropped.
+export const SANS_CONFLIT = Object.freeze({
+  conflitsRelances: null,
+  fichiersDuConflit: null,
+  retourDuConflit: null,
+});
 
 // The tools of the project whose main tree is <racine>, read at the launch of a run:
 // `{ outils }`, or `{ arret }`, the stop « lancement » that goes up to the supervisor before any
@@ -1282,6 +1352,9 @@ export const MEMOIRE = [
   'verts',
   'reprise',
   'relancesTestwriter',
+  'conflitsRelances',
+  'fichiersDuConflit',
+  'retourDuConflit',
 ];
 
 // The fact <fait> of the circuit of <ctx>, with its <parametres>, the facts <faits> of the step

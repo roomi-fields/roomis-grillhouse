@@ -277,6 +277,24 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     ...extra,
   });
   const arreter = (nom, r, options = {}) => decision({ arret: { nom, rapport: r, ...options } });
+  // A session relaunched on a conflict of the copy's advance (the gesture `conflit-de-l-avance`,
+  // `retourDuConflit`) comes back to the pass that met it, not to the step that follows its role:
+  // the pass prepares the copy again, and relaunches the other role while one of its files keeps
+  // its marks. Whether the decision went back to it.
+  const auRetourDuConflit = role => {
+    const retour = m('retourDuConflit');
+    if (!retour) {
+      return false;
+    }
+    maj.retourDuConflit = null;
+    commenter(
+      role,
+      `séance ${tentative} finie sur le conflit de l'avance : le circuit revient à la passe.`
+    );
+    ({ etape, tentative, rapport, finale } = retour);
+    relanceSurLeRefus = Boolean(retour.relanceSurLeRefus);
+    return true;
+  };
   const plan = ticket.paquets.join(', ');
 
   // After the plan: the gesture of a mechanical ticket, the developpeur of a plan without tests,
@@ -368,6 +386,9 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       etape = TESTS;
       tentative = suite.tentative;
       rapport = illisible.rapport;
+      return decision();
+    }
+    if (auRetourDuConflit('testwriter')) {
       return decision();
     }
     etape = PREUVE;
@@ -463,7 +484,10 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     if (r.deja && !r.enFile) {
       // The lot is already on main: nothing waits for the queue, the ticket goes straight to its
       // tri of discoveries and finishes at integre, as a merge queue closes an entry already merged.
-      commenter('integration', 'le commit est déjà sur main ; la copie et son dossier de travail sont retirés.');
+      commenter(
+        'integration',
+        'le commit est déjà sur main ; la copie et son dossier de travail sont retirés.'
+      );
       lire('tri');
       return decision({ fin: { code: 0 } });
     }
@@ -549,6 +573,10 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
         );
       }
       maj.renvoiAuTestwriter = sortie;
+      if (m('retourDuConflit')) {
+        // The testwriter the sending relaunches goes on to the proof, not back to a pass.
+        maj.retourDuConflit = null;
+      }
       commenter(
         'developpeur',
         `séance ${tentative}${fortement} finie ; sa fiche renvoie le rouge au testwriter : le circuit relance le testwriter, puis la preuve et le développeur.`
@@ -621,6 +649,9 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       geste('rien-a-livrer');
       inscrire({ etape: CODE, inchange: true }, 'inchange');
       maj.rienALivrer = `La séance ${tentative} du développeur ne change aucun fichier du plan (${plan}), et les contrôles restent rouges. Sa passation au ticket dit pourquoi :\n\n${lire('passation') ?? 'aucune'}`;
+    }
+    if (auRetourDuConflit('developpeur')) {
+      return decision();
     }
     commenter('developpeur', `séance ${tentative}${fortement} finie, sa fiche lue.`);
     etape = CONTROLES;

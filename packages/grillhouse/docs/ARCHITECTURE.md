@@ -459,9 +459,20 @@ chaque séance) : la garde des sous-modules, l'avance de la copie, la pose des s
 montage, et l'installation quand le fichier de verrouillage est plus récent qu'elle (BPScript :
 le verrou changé 27 fois en deux semaines, et le sous-module vendor/bp3-engine). Une copie déjà
 sur la pointe de main, ou en avance sur elle, n'avance pas ; une copie qui avance rejoue la passe due sur son nouvel
-arbre, sans la restriction d'une régénération d'avant. Une préparation qui échoue (une avance en
-conflit, une branche partie de main, un lot en attente dans le dossier git de la copie, un
-sous-module ou une installation en échec) arrête le circuit en
+arbre, sans la restriction d'une régénération d'avant. L'avance applique le travail de la copie
+fichier par fichier (un `git apply --3way` par fichier) : un fichier en conflit garde ses
+marques, un fichier que git refuse sans marques (la suppression d'un fichier que main a changé)
+reste seul dans le lot gardé, les autres s'appliquent. Les fichiers en conflit ou au lot vont,
+comme Gerrit rend un conflit de rebase à l'auteur, au rôle qui les écrit (le geste
+`conflit-de-l-avance` de `GESTES`, `estUnTest` du module du langage) : le testwriter pour un test
+ou la matière de test partagée, le développeur pour le code, le testwriter d'abord. La séance du
+rôle relancé revient à la passe, pas à l'étape qui suit son rôle : la passe revoit la copie (les
+marques cherchées aussi dans les fichiers du conflit, l'index dût-il ne plus les dire en conflit)
+et relance l'autre rôle tant qu'un de ses fichiers les garde, si bien qu'aucune construction ne
+joue sur un fichier marqué ; le lanceur
+accepte la séance du rôle qui écrit au moins un de ces fichiers (`preparer --role`). Une
+préparation qui échoue autrement (un conflit que la seconde séance du rôle ne lève pas, une
+branche partie de main, un sous-module ou une installation en échec) arrête le circuit en
 `lancement`, avant la passe : sa question nomme la copie, chaque fichier en conflit et le geste
 qui reprend (la copie remise en état à la main, puis `--reprendre`), le travail resté dans la
 copie. Ainsi le circuit ne monte pas une question qu'un correctif déjà sur main a levée (OSC

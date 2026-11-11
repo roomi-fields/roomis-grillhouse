@@ -464,6 +464,18 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         return { arreter: pointe.arret, etat: ecrit, menee };
       }
       memoire = { ...memoire, ...pointe.memoire };
+      if (pointe.conflit) {
+        // The advance left files in conflict: the role that writes them is relaunched, the marks
+        // in the copy; its decision then comes back to the pass (`retourDuConflit`).
+        await finir([], menee);
+        etat = {
+          etape: pointe.conflit.role,
+          tentative: 1,
+          rapport: pointe.conflit.rapport,
+          finale: false,
+        };
+        continue;
+      }
       const faits: Record<string, unknown> = {};
       let d: Transition;
       for (;;) {

@@ -43,6 +43,16 @@ export interface EtatDeLEtape {
   relanceSurLeRefus?: boolean;
 }
 
+/**
+ * The conflict an advance of the copy left (gesture `conflit-de-l-avance`): the role relaunched
+ * (`testwriter` or `developpeur`), the files it writes and its report, the marks being in the copy.
+ */
+interface ConflitDeLAvance {
+  role: 'testwriter' | 'developpeur';
+  fichiers: string[];
+  rapport: string;
+}
+
 /** What the circuit keeps between steps (`MEMOIRE` of scripts/circuit.mjs, and its session to resume). */
 export type Memoire = Record<string, unknown>;
 
@@ -244,7 +254,11 @@ export interface Activites {
     e: Lieu & { etape: EtatDeLEtape; paquets: string[] }
   ): Promise<
     { etat: EtatDeLEtape; menee: Menee | null } & Rendus &
-      ({ memoire: Memoire; arret?: undefined } | { arret: ArretDecide })
+      (
+        | { memoire: Memoire; arret?: undefined; conflit?: undefined }
+        | { memoire: Memoire; arret?: undefined; conflit: ConflitDeLAvance }
+        | { arret: ArretDecide; conflit?: undefined }
+      )
   >;
   /** The fact <fait> a decision asks for (a session, a pass, a reading), and the memory it leaves. */
   lireUnFait(

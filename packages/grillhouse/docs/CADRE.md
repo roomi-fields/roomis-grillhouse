@@ -49,6 +49,18 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   hachage d'entrées de Turborepo) est celle de son dernier vert ne se rejoue pas : son résultat
   se relit et le ticket le dit. `--depuis <étape>` rejoue cette étape et les suivantes sans rien
   relire. Le bilan compte à part le temps rejoué après un rouge et le temps relu.
+- **R2.4.** Aux tickets, un conflit de l'avance d'une copie sur main va au rôle qui écrit ses
+  fichiers, sans monter au superviseur : l'avance applique le lot fichier par fichier (un fichier
+  en conflit garde ses marques, un fichier que git refuse sans marques reste seul dans
+  `grillhouse-travail.patch`, les autres s'appliquent), puis le circuit relance, par le geste
+  `conflit-de-l-avance`, le testwriter pour un test ou la matière de test partagée (`estUnTest`
+  du module du langage), le développeur pour le code, le testwriter d'abord ; la séance du rôle
+  relancé revient à la passe, qui revoit la copie et relance l'autre rôle tant qu'un de ses
+  fichiers garde ses marques (cherchées aussi dans les fichiers du conflit que l'index ne dit plus
+  en conflit), si bien qu'aucune construction ne joue sur un fichier marqué. Le lanceur accepte
+  la relance d'un rôle sur une copie aux conflits non résolus ou au lot gardé quand il écrit un de
+  ces fichiers, et le refuse sinon ; un conflit que la seconde séance du rôle ne lève pas monte
+  (arrêt « lancement »), chaque fichier nommé.
 
 ## Ce qu'il refuse
 

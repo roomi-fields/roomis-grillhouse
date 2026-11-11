@@ -227,7 +227,7 @@ echec=$(mktemp)
   # its advance to main, its work kept in the copy, a conflict stopping the launch, marked in the
   # files, the log naming each one; then the pose of the submodules, their mount, the installation.
   # The list the pose fixes is the one every mount gets, whatever the installation rewrites.
-  partages=$(node "$ici/travail-de-la-copie.mjs" preparer "$copie" ${cible:+"$cible"}) || exit 1
+  partages=$(node "$ici/travail-de-la-copie.mjs" preparer "$copie" ${cible:+"$cible"} --role "$role") || exit 1
   monter() { bash "$ici/../sous-modules.sh" monter "$copie" --partages "$partages" "$@"; }
   if [ -f "$copie/package.json" ]; then
     # The build of the copy for the session's plan, by the module of its language (`construire`),

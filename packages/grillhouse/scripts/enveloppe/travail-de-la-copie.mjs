@@ -29,12 +29,26 @@
 //   copy brought back to HEAD, moved forward, the lot applied three ways. The lot waits in the
 //   copy's own git directory (`git rev-parse --git-dir`, `grillhouse-travail.patch`) while the
 //   copy moves, and goes once it is applied.
+//   - The lot applies file by file (one `git apply --3way` per file, its patch alone): a file that
+//     fails touches none of the others. A file in conflict keeps its marks; a file git refuses
+//     without marks (a deletion of a file main changed) stays alone in the lot kept in the git
+//     directory, named in the message; the untracked files stay in place.
 //   - Applied without conflict: the index is left as HEAD has it; exit 0.
 //   - In conflict: the copy stays as `git merge` leaves it, the conflicts marked in the files and
 //     unmerged in the index; the output names the copy and each file in conflict; exit 1.
-//   - A copy whose lot still waits in its git directory (git refused it whole, as a deletion of
-//     a file main changed) is not touched: the output names the file and how to take it back;
-//     exit 1. So no relaunch loses it.
+//   - A copy whose lot still waits in its git directory is not touched: the output names the files
+//     and how to take them back; exit 1. So no relaunch loses it.
+//   - With `--role <role>` (`ecrit`), the launch of a session of the role that writes at least one
+//     of the files in conflict or of the lot kept is accepted (exit 0): its session receives its
+//     files alone, the marks in the copy or the lot as it waits, the other role's files staying
+//     marked or in the lot until its own session. A role that writes none gets the refusal. The
+//     circuit plays the same rule before a pass (scripts/circuit.mjs `avantLaPasse`, the gesture
+//     `conflit-de-l-avance`): the testwriter first for a test or the shared test material
+//     (`estUnTest`), then the developpeur, the session of each coming back to the pass, which
+//     prepares the copy again (`suspects`, the files of the conflict whose marks are looked for
+//     even when the index no longer says them in conflict); a conflict the session of the role
+//     does not lift goes up to the supervisor, the stop « lancement », each file named. A file
+//     without marker left in the copy counts as resolved (put in the index by the circuit).
 //   - A copy still in conflict (unmerged entries in its index) or whose branch has left main
 //     (commits on both sides, no fast-forward) is not touched; the output says why; exit 1. A
 //     fast-forward that fails after the work is set aside (an untracked file in the way) gives
@@ -53,7 +67,7 @@
 //   and open-synth-descriptors, each copy moved by hand). A lot in conflict on another file is not
 //   regenerated: its conflicts come first.
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
@@ -102,31 +116,46 @@ function lesCles(copie) {
 }
 
 /**
- * Applies the lot <lot> (a Buffer of `git diff --binary`) three ways to <copie>: `conflits`, the
- * files in conflict, null when git refuses the lot outright. With <cles> (`lesCles`), the generated
- * files the lot (or one of <autres>, the copy's untracked files) touches are left out, then written
- * again by their command once the lot applies without conflict; `refus`, a command that fails.
+ * Applies the lot <lot> (a Buffer of `git diff --binary`) three ways to <copie>, file by file:
+ * `conflits`, the files that keep their marks; `enAttente`, the files git refuses without marks (a
+ * deletion of a file main changed), whose patches are `restant`. With <cles> (`lesCles`), the
+ * generated files the lot (or one of <autres>, the copy's untracked files) touches are left out,
+ * then written again by their command once the lot applies without conflict; `refus`, a command
+ * that fails.
  * @param {string} copie
  * @param {Buffer} lot
  * @param {{ engendres: any[], env: NodeJS.ProcessEnv } | null} [cles]
  * @param {string[]} [autres]
- * @returns {{ conflits: string[] | null, refus?: string | null }}
+ * @returns {{ conflits: string[], enAttente: string[], restant: Buffer, refus?: string | null }}
  */
 function appliquer(copie, lot, cles = null, autres = []) {
   const fichiers = cles ? [...fichiersDuLot(copie, lot), ...autres] : [];
   const touches = cles ? touchesPar(cles.engendres, fichiers) : [];
   const exclus = fichiers.filter(f => touches.some(e => couvertPar(e.entiers, f)));
-  const r = git(
-    copie,
-    ['apply', '--3way', '--allow-empty', ...exclus.map(f => `--exclude=${f}`), '-'],
-    lot
-  );
-  const conflits = enConflit(copie);
-  if (r.status !== 0 && !conflits.length) {
-    return { conflits: null };
+  // One call of `git apply --3way` per file: a file that fails touches none of the others.
+  const conflits = [];
+  const enAttente = [];
+  const gardes = [];
+  for (const morceau of morceauxDuLot(lot)) {
+    const noms = fichiersDuLot(copie, morceau);
+    if (noms.length && noms.every(f => exclus.includes(f))) {
+      continue;
+    }
+    const r = git(copie, ['apply', '--3way', '--allow-empty', '-'], morceau);
+    if (r.status === 0) {
+      continue;
+    }
+    const marques = enConflit(copie).filter(f => noms.includes(f));
+    if (marques.length) {
+      conflits.push(...marques);
+    } else {
+      enAttente.push(...noms.slice(-1));
+      gardes.push(morceau);
+    }
   }
-  if (conflits.length || !touches.length || !cles) {
-    return { conflits };
+  const restant = Buffer.concat(gardes);
+  if (conflits.length || enAttente.length || !touches.length || !cles) {
+    return { conflits, enAttente, restant };
   }
   const refus = regenerer({
     refs: touches.map(e => ({ ...e, cadre: false })),
@@ -139,7 +168,73 @@ function appliquer(copie, lot, cles = null, autres = []) {
       }),
     dansCopie: (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' }),
   });
-  return { conflits, refus };
+  return { conflits, enAttente, restant, refus };
+}
+
+/**
+ * The lot <lot> cut into the patch of each file (`diff --git` to the next), as Buffers.
+ * @param {Buffer} lot
+ * @returns {Buffer[]}
+ */
+function morceauxDuLot(lot) {
+  return String(lot.toString('latin1'))
+    .split(/(?=^diff --git )/m)
+    .filter(m => m.startsWith('diff --git '))
+    .map(m => Buffer.from(m, 'latin1'));
+}
+
+// Whether the file <f> of <copie> carries a conflict marker (`<<<<<<< ` or `>>>>>>> ` at the head
+// of a line), as git writes them.
+function porteDesMarques(copie, f) {
+  const chemin = path.join(copie, f);
+  return existsSync(chemin) && /^(<{7}|>{7}) /m.test(readFileSync(chemin, 'latin1'));
+}
+
+// The files of <copie> that carry no conflict marker any more, among those unmerged: the work of a
+// session that resolved them. Each goes to the index as resolved; the index is then left as HEAD has
+// it once no conflict remains.
+function releverLesResolus(copie) {
+  const a = enConflit(copie);
+  const resolus = a.filter(f => existsSync(path.join(copie, f)) && !porteDesMarques(copie, f));
+  for (const f of resolus) {
+    git(copie, ['add', '--', f]);
+  }
+  if (resolus.length && resolus.length === a.length) {
+    git(copie, ['reset', '-q']);
+  }
+}
+
+/**
+ * The files of <fichiers> by role: `{ testwriter, developpeur, roles }`, the testwriter's those
+ * <estUnTest> (the rule of a test file of the module of the language) judges, the developpeur's the
+ * others; `roles`, the order of the sessions, the testwriter first, a role without file absent.
+ * @param {string[]} fichiers
+ * @param {(fichier: string) => unknown} estUnTest
+ */
+export function rolesDuConflit(fichiers, estUnTest) {
+  const testwriter = fichiers.filter(f => Boolean(estUnTest(f)));
+  const developpeur = fichiers.filter(f => !estUnTest(f));
+  const roles = [
+    testwriter.length ? 'testwriter' : null,
+    developpeur.length ? 'developpeur' : null,
+  ];
+  return { testwriter, developpeur, roles: roles.filter(r => r !== null) };
+}
+
+/**
+ * Whether the role <role> writes a file, as a function of the file: the testwriter those
+ * <estUnTest> judges, the developpeur the others, any other role none (undefined).
+ * @param {string} role
+ * @param {(fichier: string) => unknown} estUnTest
+ */
+export function ecritPar(role, estUnTest) {
+  if (role === 'testwriter') {
+    return f => Boolean(estUnTest(f));
+  }
+  if (role === 'developpeur') {
+    return f => !estUnTest(f);
+  }
+  return undefined;
 }
 
 /**
@@ -157,8 +252,11 @@ export function reporter(copie, { base, pointe }) {
     return { ok: false, message: cles.refus };
   }
   const a = appliquer(copie, d.stdout, cles);
-  if (a.conflits === null) {
-    return { ok: false, message: `⛔ Le lot ne s'applique pas à la copie ${copie}.` };
+  if (a.enAttente.length) {
+    return {
+      ok: false,
+      message: `⛔ Le lot ne s'applique pas à la copie ${copie} pour : ${a.enAttente.join(', ')}.`,
+    };
   }
   const r = git(copie, ['reset', '-q']);
   if (a.refus) {
@@ -167,34 +265,68 @@ export function reporter(copie, { base, pointe }) {
   return r.status === 0 ? { ok: true, message: '' } : { ok: false, message: texte(r) };
 }
 
+const lotEnAttente = (copie, garde, fichiers) =>
+  `⛔ Le travail de la copie ${copie} attend dans ${garde}, que git n'a pas pu remettre en place pour :\n${fichiers.map(f => `  ${f}`).join('\n')}\nIl se reprend à la main (git apply --3way ${garde}, ou il se jette), puis le fichier se retire, avant une relance ; le circuit relance le rôle qui écrit ces fichiers.`;
+
 const conflit = (copie, conflits, entete) =>
   [entete, 'Fichiers en conflit :', ...conflits.map(f => `  ${f}`)].join('\n');
 
 /**
- * Moves <copie> forward to <cible>, its local work kept in the copy; returns `{ ok, message }`.
+ * Moves <copie> forward to <cible>, its local work kept in the copy; returns `{ ok, message,
+ * conflits, enAttente }`, the files that keep their marks and those that wait alone in the kept
+ * lot. With <ecrit> (whether the role relaunched writes a file), a copy that keeps conflicts or a
+ * lot waiting is accepted (`ok`) when that role writes one of their files. <suspects>, the files
+ * an earlier advance left in conflict: one that still carries its marks counts as in conflict,
+ * even when the index no longer says so (a session wrote it, or put it in the index, unresolved).
  * @param {string} copie
  * @param {string} cible
+ * @param {{ ecrit?: (fichier: string) => boolean, suspects?: string[] }} [o]
  */
-export function avancer(copie, cible) {
-  const restants = enConflit(copie);
-  if (restants.length) {
-    return {
-      ok: false,
-      message: conflit(
-        copie,
-        restants,
-        `⛔ La copie ${copie} garde des conflits non résolus ; ils se résolvent dans la copie avant une relance.`
-      ),
-    };
-  }
+export function avancer(copie, cible, { ecrit, suspects = [] } = {}) {
+  releverLesResolus(copie);
+  const restants = [
+    ...new Set([...enConflit(copie), ...suspects.filter(f => porteDesMarques(copie, f))]),
+  ];
   const garde = path.join(
     path.resolve(copie, String(git(copie, ['rev-parse', '--git-dir']).stdout).trim()),
     LOT
   );
+  // The deletions a session has done in the copy leave the kept lot.
   if (existsSync(garde)) {
+    const morceaux = morceauxDuLot(readFileSync(garde));
+    const reste = morceaux.filter(m =>
+      fichiersDuLot(copie, m).some(f => existsSync(path.join(copie, f)))
+    );
+    if (morceaux.length && reste.length < morceaux.length) {
+      if (reste.length) {
+        writeFileSync(garde, Buffer.concat(reste));
+      } else {
+        rmSync(garde, { force: true });
+      }
+    }
+  }
+  const attendus = existsSync(garde) ? fichiersDuLot(copie, readFileSync(garde)) : [];
+  if (restants.length || existsSync(garde)) {
+    const voulu = ecrit ? [...restants, ...attendus].some(f => ecrit(f)) : false;
+    // The role relaunched receives its files alone.
+    const siens = liste => (voulu ? liste.filter(f => ecrit(f)) : liste);
+    const message = [
+      restants.length
+        ? conflit(
+            copie,
+            restants,
+            `⛔ La copie ${copie} garde des conflits non résolus ; ils se résolvent dans la copie avant une relance.`
+          )
+        : null,
+      existsSync(garde) ? lotEnAttente(copie, garde, attendus) : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
     return {
-      ok: false,
-      message: `⛔ Le travail de la copie ${copie} attend dans ${garde}, que git n'a pas pu remettre en place ; il se reprend à la main (git apply --3way ${garde}, ou il se jette), puis le fichier se retire, avant une relance.`,
+      ok: voulu,
+      message: voulu ? '' : message,
+      conflits: siens(restants),
+      enAttente: siens(attendus),
     };
   }
   const cles = lesCles(copie);
@@ -234,8 +366,12 @@ export function avancer(copie, cible) {
   const remis = git(copie, ['reset', '-q', '--hard']);
   const ff = remis.status === 0 ? git(copie, ['merge', '-q', '--ff-only', cible]) : remis;
   if (ff.status !== 0) {
-    const rendu = appliquer(copie, d.stdout).conflits;
-    if (rendu !== null && rendu.length === 0 && git(copie, ['reset', '-q']).status === 0) {
+    const rendu = appliquer(copie, d.stdout);
+    if (
+      rendu.conflits.length === 0 &&
+      rendu.enAttente.length === 0 &&
+      git(copie, ['reset', '-q']).status === 0
+    ) {
       rmSync(garde, { force: true });
       return {
         ok: false,
@@ -248,22 +384,35 @@ export function avancer(copie, cible) {
     };
   }
   const libres = lignes(git(copie, ['ls-files', '--others', '--exclude-standard']));
-  const { conflits, refus } = appliquer(copie, d.stdout, cles, libres);
-  if (conflits === null) {
-    return {
-      ok: false,
-      message: `⛔ Le travail de la copie ${copie} ne s'applique pas sur main ; il reste dans ${garde}.`,
-    };
+  const { conflits, enAttente, restant, refus } = appliquer(copie, d.stdout, cles, libres);
+  if (enAttente.length) {
+    writeFileSync(garde, restant);
+  } else {
+    rmSync(garde, { force: true });
   }
-  rmSync(garde, { force: true });
-  if (conflits.length) {
+  if (conflits.length || enAttente.length) {
+    if (!conflits.length) {
+      git(copie, ['reset', '-q']);
+    }
+    const message = [
+      conflits.length
+        ? conflit(
+            copie,
+            conflits,
+            `⛔ Le travail en cours de la copie entre en conflit avec main ; il reste dans la copie ${copie}, ses conflits marqués dans ses fichiers.`
+          )
+        : null,
+      enAttente.length ? lotEnAttente(copie, garde, enAttente) : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const voulu = ecrit ? [...conflits, ...enAttente].some(f => ecrit(f)) : false;
+    const siens = liste => (voulu ? liste.filter(f => ecrit(f)) : liste);
     return {
-      ok: false,
-      message: conflit(
-        copie,
-        conflits,
-        `⛔ Le travail en cours de la copie entre en conflit avec main ; il reste dans la copie ${copie}, ses conflits marqués dans ses fichiers.`
-      ),
+      ok: voulu,
+      message: voulu ? '' : message,
+      conflits: siens(conflits),
+      enAttente: siens(enAttente),
     };
   }
   const r = git(copie, ['reset', '-q']);
@@ -285,9 +434,10 @@ const SOUS_MODULES = path.join(import.meta.dirname, '..', 'sous-modules.sh');
  * command goes to the file descriptor <sortie>; returns `{ ok, message, partages }`.
  * @param {string} copie
  * @param {string | null} cible
- * @param {{ env?: NodeJS.ProcessEnv, sortie?: number }} [o]
+ * @param {{ env?: NodeJS.ProcessEnv, sortie?: number, ecrit?: (fichier: string) => boolean,
+ *   suspects?: string[] }} [o]
  */
-export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
+export function preparer(copie, cible, { env = process.env, sortie = 2, ecrit, suspects } = {}) {
   // A command of the submodules whose error output is read: kept on <sortie> as well when it
   // succeeds, as the launcher's log kept it.
   const bash = (args, stdio) => {
@@ -311,7 +461,7 @@ export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
     if (g.status !== 0) {
       return echec(g, 'La garde des sous-modules');
     }
-    const a = avancer(copie, cible);
+    const a = avancer(copie, cible, { ecrit, suspects });
     if (!a.ok) {
       return { ...a, partages: '' };
     }
@@ -356,16 +506,26 @@ export function preparer(copie, cible, { env = process.env, sortie = 2 } = {}) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [geste, copie, ...reste] = process.argv.slice(2);
+  const [geste, copie, ...tout] = process.argv.slice(2);
+  // `--role <role>` (preparer): the role the session launched is, whose files a conflict or a lot
+  // kept may be.
+  const iRole = tout.indexOf('--role');
+  const role = iRole >= 0 ? tout[iRole + 1] : null;
+  const reste = iRole >= 0 ? tout.filter((_, i) => i !== iRole && i !== iRole + 1) : tout;
+  let ecrit;
+  if (geste === 'preparer' && role) {
+    const { langageDe } = await import('../langages.mjs');
+    ecrit = ecritPar(role, f => langageDe(copie).estUnTest(f, copie));
+  }
   const r =
     geste === 'reporter' && reste.length === 2
       ? reporter(copie, { base: reste[0], pointe: reste[1] })
       : geste === 'preparer' && reste.length <= 1
-        ? preparer(copie, reste[0] ?? null)
+        ? preparer(copie, reste[0] ?? null, { ecrit })
         : {
             ok: false,
             message:
-              'usage: travail-de-la-copie.mjs reporter <copie> <base> <pointe> | preparer <copie> [<cible>]',
+              'usage: travail-de-la-copie.mjs reporter <copie> <base> <pointe> | preparer <copie> [<cible>] [--role <role>]',
           };
   // `preparer` prints the list its pose fixes on stdout, its messages on stderr.
   if (geste === 'preparer') {

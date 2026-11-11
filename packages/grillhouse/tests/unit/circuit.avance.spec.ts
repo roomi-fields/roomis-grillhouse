@@ -198,7 +198,8 @@ describe('grillhouse-527 critère 3 — a preparation that fails stops the circu
     const d = depot();
     const main = d.avance('a.txt', lignes('MAIN'));
     d.ecrire('a.txt', lignes('COPIE'));
-    const r = avantLaPasse(d.ctx, 'controles', null);
+    // Le développeur, qui écrit a.txt, a déjà été relancé sur ce conflit : il monte.
+    const r = avantLaPasse({ ...d.ctx, conflitsRelances: ['developpeur'] }, 'controles', null);
     expect(r.avancee).toBeUndefined();
     expect(r.arret?.nom).toBe('lancement');
     expect(ARRETS[r.arret!.nom as keyof typeof ARRETS]).toBe(10);
