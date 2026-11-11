@@ -90,11 +90,11 @@ describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’
     );
   });
 
-  it('un plafond refusé se dit par son nom, à la place de la charge', () => {
+  it('un plafond refusé se dit par son nom, à la place de la charge, dans le ton d’une alerte', () => {
     const places = { ...PLACES, faute: 'GRILLHOUSE_PLACES vaut « x » dans machine.env' };
     const [l] = tete(agents(plateau([], { places })));
     expect(l.texte).toMatch(/^Places 3\/3 · plafond refusé : GRILLHOUSE_PLACES/);
-    expect(l.ton).toBe('attention');
+    expect(l.ton).toBe('alerte');
   });
 
   it('la ligne précède la mesure lourde et les étapes', () => {

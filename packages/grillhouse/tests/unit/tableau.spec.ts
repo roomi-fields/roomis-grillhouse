@@ -344,11 +344,16 @@ describe('assembler', () => {
       'x en cours sans rien qui tourne',
     ]);
   });
-  it('alerts in orange when the published version that leads the repository cannot be installed, never without its failure', () => {
+  it('alerts in the tone of attention when the published version that leads the repository cannot be installed, never without its failure', () => {
     const base = { tous: [], prefix: 'demo', registre: [], vivants: [], maintenant, jour };
     const avec = plateau({ ...base, outil: { version: '0.29.0', raison: 'npm : ENOTFOUND' } });
     expect(avec.alertes).toEqual([
-      { niveau: 'orange', signe: '🧰', texte: 'Outil 0.29.0 non installable : code du dépôt' },
+      {
+        etat: 'outilNonInstallable',
+        ton: 'attention',
+        signe: '🧰',
+        texte: 'Outil 0.29.0 non installable : code du dépôt',
+      },
     ]);
     expect(plateau(base).alertes).toEqual([]);
   });

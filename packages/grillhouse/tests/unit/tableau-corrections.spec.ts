@@ -594,7 +594,7 @@ describe('3uv.44 critère 6 : the catch-up holds a silent sub-agent whose last c
 
 // The board's alerts of a list of tickets.
 interface Alerte {
-  niveau: string;
+  ton: string;
   texte: string;
 }
 const nuit = (id: string, title: string, o: object = {}) => ({
@@ -615,7 +615,7 @@ const plateau = (tous: object[]) =>
     maintenant: MAINTENANT,
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as { alertes: Alerte[] };
-const rouges = (tous: object[]) => plateau(tous).alertes.filter(a => a.niveau === 'rouge');
+const rouges = (tous: object[]) => plateau(tous).alertes.filter(a => a.ton === 'alerte');
 const ROUGE = nuit('demo-87', '87 — La nuit est rouge depuis la nuit du 2026-10-17 — parent', {
   created_at: '2026-10-17T01:05:00Z',
 });

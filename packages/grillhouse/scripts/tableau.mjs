@@ -86,9 +86,13 @@
 //   with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A sign two
 //   columns wide stands as the others, a sign then a space; the width of a line counts its
 //   columns (`colonnes`), ⏳ two.
-// - Alerts: one red alert per open night ticket (🌙, its subject, then its number), tickets
-//   awaiting the responsable, a shell agent silent for 10 minutes, a ticket in progress without
-//   anything running for 30 minutes (💤).
+// - Alerts: one alert per open night ticket (🌙, its subject, then its number), per circuit that
+//   waits for the supervisor (⏳, how long), a shell agent silent for 10 minutes, a ticket in
+//   progress without anything running for 30 minutes (💤), each with its state (`etat`).
+// - Tones: each state the board shows has one tone, defined once (`TONS`), which every line and
+//   every alert takes, whatever its duration or the line that shows it: red for what asks for a
+//   correction (frozen, a fault, a question with no live wait, a ceiling refused), yellow for what
+//   waits for an answer or a look (the supervisor, the owner, the disk), cyan for what runs.
 import { execFileSync } from 'node:child_process';
 import {
   closeSync,
@@ -154,6 +158,44 @@ export const ETATS = [
   { cle: 'reportes', nom: 'reporté', sens: 'mis de côté' },
   { cle: 'fermes', nom: 'fait', sens: 'fermé' },
 ];
+// The tone of each state the board shows, defined once: as a dashboard of states (GitHub Checks,
+// Alertmanager), the severity belongs to the state, never to its duration nor to the line that
+// shows it; the duration stays in the text. Every line and every alert takes its tone here:
+// `alerte` (red), what asks for a correction; `attention` (yellow), what waits for an answer or a
+// look; `actif` (cyan), what runs; `discret`, what is done, empty or a measure; `titre`, a
+// heading; none, a ticket at rest. The pane turns each tone into its colour (mods/grillhouse
+// `couleur`).
+export const TONS = Object.freeze({
+  // A ticket's state (ETATS).
+  enCours: 'actif',
+  enAttente: undefined,
+  bloques: undefined,
+  sansGo: 'attention',
+  aValider: 'attention',
+  reportes: undefined,
+  fermes: 'discret',
+  // A circuit, a pass, a wait.
+  attendUnePlace: 'actif',
+  attendLeVerrou: 'actif',
+  attendLeDisque: 'attention',
+  attendLeSuperviseur: 'attention',
+  attendLeResponsable: 'attention',
+  arrete: 'attention',
+  sansRienQuiTourne: 'attention',
+  silencieux: 'attention',
+  sansArchitecture: 'attention',
+  outilNonInstallable: 'attention',
+  machineChargee: 'attention',
+  fige: 'alerte',
+  panne: 'alerte',
+  nuitRouge: 'alerte',
+  sansAttente: 'alerte',
+  plafondRefuse: 'alerte',
+  // The layout.
+  titre: 'titre',
+  vide: 'discret',
+  mesure: 'discret',
+});
 const enTirets = p => p.replace(/[^A-Za-z0-9]/g, '-');
 
 // The origins of an incoming message: the person, another agent, a notification, the supervisor
@@ -747,7 +789,6 @@ export function assembler({
   faute = null,
   echecPrefixe = null,
   remontees = [],
-  rappel = RAPPEL_PAR_DEFAUT,
   attenteVivante: attenteQuiVit = true,
 }) {
   // A circuit's lines are its steps, no agent's passage.
@@ -1049,18 +1090,19 @@ export function assembler({
       ...mesure(new Set([t.id])),
     }));
 
-  // Alerts.
+  // Alerts, each with its state (`etat`) and the tone of that state (TONS).
   const alertes = [];
+  const alerter = (etat, champs) => alertes.push({ etat, ton: TONS[etat], ...champs });
   // The Temporal server does not answer: the board shows the tickets without their circuits, and
   // its first alert names the command that tells the state of the service.
   if (muet) {
-    alertes.push({ niveau: 'rouge', texte: `${SANS_REPONSE_EN} · temporal etat` });
+    alerter('panne', { texte: `${SANS_REPONSE_EN} · temporal etat` });
   } else if (faute) {
-    alertes.push({ niveau: 'rouge', texte: `Circuits illisibles : ${faute}` });
+    alerter('panne', { texte: `Circuits illisibles : ${faute}` });
   }
   // The ticket prefix did not read: the project keeps its folder's name, and the alert says why.
   if (echecPrefixe) {
-    alertes.push({ niveau: 'rouge', texte: `Préfixe des tickets illisible : ${echecPrefixe}` });
+    alerter('panne', { texte: `Préfixe des tickets illisible : ${echecPrefixe}` });
   }
   // A red night says the night it turned red, short enough to stand whole on its line: the local
   // day and month its ticket was opened, the night's date (scripts/nuit.sh), whatever its title names, a
@@ -1072,8 +1114,7 @@ export function assembler({
       /^La nuit est rouge\b/.test(titreLu) && !Number.isNaN(ouvert)
         ? `Nuit rouge depuis le ${jourEtMois(ouvert)}`
         : titreLu;
-    alertes.push({
-      niveau: 'rouge',
+    alerter('nuitRouge', {
       signe: '🌙',
       texte: `${sujet} ${n}`,
       sujet,
@@ -1084,16 +1125,15 @@ export function assembler({
   // The published version that leads the repository cannot be installed: the orchestration runs on
   // the code of the repository (scripts/aiguillage.mjs).
   if (outil) {
-    alertes.push({
-      niveau: 'orange',
+    alerter('outilNonInstallable', {
       signe: '🧰',
       texte: `Outil ${outil.version} non installable : code du dépôt`,
     });
   }
-  // A circuit stopped on a question to the supervisor: orange, how long it has waited (from the
-  // `depuis` of its stop in the file of the stops gone up), red past two intervals of
-  // re-presentation (two presentations with no answer); it falls when the circuit leaves the stop.
-  // One red alert « à corriger » when some wait and no wait lives.
+  // A circuit stopped on a question to the supervisor: the tone of that wait, whatever its length,
+  // and how long it has waited (from the `depuis` of its stop in the file of the stops gone up);
+  // it falls when the circuit leaves the stop. One alert « à corriger » when some wait and no wait
+  // lives.
   const depuisDe = new Map(remontees.map(r => [r.cle, r.depuis]));
   const enAttenteDuSuperviseur = [...parCircuit.values()]
     .filter(attendLeSuperviseur)
@@ -1104,15 +1144,13 @@ export function assembler({
       continue;
     }
     const attendu = Math.max(0, maintenant - depuis);
-    alertes.push({
-      niveau: attendu > 2 * rappel * MINUTE ? 'rouge' : 'orange',
+    alerter('attendLeSuperviseur', {
       signe: '⏳',
       texte: `${numero(c.ticket)} attend le superviseur depuis ${Math.floor(attendu / MINUTE)} min`,
     });
   }
   if (enAttenteDuSuperviseur.length && !attenteQuiVit) {
-    alertes.push({
-      niveau: 'rouge',
+    alerter('sansAttente', {
       signe: '🔕',
       texte:
         'À corriger : une question au superviseur reste sans réponse, aucune attente ne tourne',
@@ -1122,16 +1160,14 @@ export function assembler({
   // starts (scripts/file-des-tickets.mjs): one line names them all, for the supervisor to write it.
   const sansArchitecture = enFileSansArchitecture(tous, { enCours: new Set(parCircuit.keys()) });
   if (sansArchitecture.length) {
-    alertes.push({
-      niveau: 'orange',
+    alerter('sansArchitecture', {
       texte: `En file sans architecture : ${sansArchitecture.map(t => numero(t.id)).join(', ')}`,
     });
   }
   for (const b of blocs) {
     for (const x of b.enCours) {
       if (x.ligne && x.silence !== null && x.silence > SILENCE) {
-        alertes.push({
-          niveau: 'orange',
+        alerter('silencieux', {
           texte: `${x.numero}, agent ${b.numero} silencieux depuis ${Math.round(x.silence / MINUTE)} min`,
         });
       }
@@ -1157,8 +1193,7 @@ export function assembler({
       t.started_at &&
       maintenant - Date.parse(t.started_at) > SANS_AGENT
     ) {
-      alertes.push({
-        niveau: 'orange',
+      alerter('sansRienQuiTourne', {
         signe: '💤',
         texte: `${numero(t.id)} en cours sans rien qui tourne`,
       });
@@ -1313,12 +1348,12 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The labels' column of the head and of AGENTS, « [OB]  », « [OSD] ».
   const large = Math.max(0, ...(t.projets ?? []).map(p => p.etiquette.length + 3));
   const colonneDe = etiquette => `[${etiquette}]`.padEnd(large);
-  L(nom.toUpperCase(), 'titre');
+  L(nom.toUpperCase(), TONS.titre);
   if (plusieurs) {
     // One line per project: its counters, or the fault that keeps its board out.
     for (const p of t.projets) {
       if (p.erreur) {
-        L(cadre(`${colonneDe(p.etiquette)}⚠ ${p.erreur}`, '', largeur), 'alerte');
+        L(cadre(`${colonneDe(p.etiquette)}⚠ ${p.erreur}`, '', largeur), TONS.panne);
         continue;
       }
       const c = p.compteurs;
@@ -1338,7 +1373,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         '',
         largeur
       ),
-      'discret'
+      TONS.mesure
     );
   } else {
     const g = t.global;
@@ -1353,7 +1388,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     );
     L(
       cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
-      c.sansGo || c.aValider ? 'attention' : undefined
+      c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
     );
     // The discoveries of the day, one count per case (grillhouse-3uv.96): always shown, at 0 when
     // nothing counts, like the other head lines.
@@ -1364,7 +1399,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         '',
         largeur
       ),
-      'discret'
+      TONS.mesure
     );
     L(
       cadre(
@@ -1372,7 +1407,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         '',
         largeur
       ),
-      'discret'
+      TONS.mesure
     );
   }
   // An alert of several projects' board names its ticket by its whole id.
@@ -1382,12 +1417,12 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       droite
         ? cadre(`${signeDe(a)} ${duProjet(a)}${a.sujet}`, droite, largeur)
         : cadre(`${signeDe(a)} ${duProjet(a)}${a.texte}`, '', largeur),
-      a.niveau === 'rouge' ? 'alerte' : 'attention'
+      a.ton
     );
   }
 
   L('', undefined);
-  L('AGENTS  ▶ en cours · en attente', 'titre');
+  L('AGENTS  ▶ en cours · en attente', TONS.titre);
   // The lock of the machine (scripts/avancement.mjs `lireLaMesure`): a holder or a wait of a
   // circuit shown stands on its line (`verrouDe`); any other at the head: its holder, whoever it
   // is, « 🔒 <sorte> · <projet> · <qui> · faits/prévus · <durée> », the time since it took the
@@ -1408,13 +1443,17 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         '',
         largeur
       ),
-      ton: p.faute || p.charge >= p.coeurs ? 'attention' : 'discret',
+      ton: p.faute
+        ? TONS.plafondRefuse
+        : p.charge >= p.coeurs
+          ? TONS.machineChargee
+          : TONS.mesure,
     });
     // A ticket that waits for the disk of its project's copies: what holds it, the ticket named.
     for (const w of (p.attentes ?? []).filter(x => x.disque)) {
       poser({
         texte: cadre(`⏳ ${courtDuTicket(w.ticket)} · ${w.disque}`, '', largeur),
-        ton: 'attention',
+        ton: TONS.attendLeDisque,
         ticket: w.ticket,
       });
     }
@@ -1468,7 +1507,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         texte: fige
           ? ligneDuVerrou(`⚠ ${tenu.sorte} figée ${ilYa(age)}`, tenu, compte ? ` · ${compte}` : '')
           : ligneDuVerrou(`🔒 ${tenu.sorte}`, tenu, ` · ${compte ? `${compte} · ` : ''}${depuis}`),
-        ton: fige ? 'alerte' : 'actif',
+        ton: fige ? TONS.fige : TONS.enCours,
         avancement: true,
       });
     }
@@ -1490,12 +1529,13 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         ` · attend · ${ilYa(maintenant - w.depuis)}`,
         ` · ${ilYa(maintenant - w.depuis)}`
       ),
-      ton: 'actif',
+      ton: TONS.attendLeVerrou,
       avancement: true,
     });
   }
   // The tickets whose circuit waits for the lock or for room.
-  const enAttente = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  const attendLeVerrou = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  const enAttente = new Set(attendLeVerrou);
   // The tickets whose circuit waits for a place of the machine, and those that wait for a place of
   // a circuit, not started, whose line in their chantier says « attend une place ».
   const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
@@ -1553,8 +1593,26 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       : `${signe} ${nomme(x).padEnd(colonne)}  `;
   const droiteDe = (signe, droite) =>
     plusieurs ? `${signe}${droite ? ` ${droite}` : ''}` : droite;
+  // The state of a circuit's line, whose tone TONS gives: frozen, its question (to the supervisor
+  // or to another), stopped, its wait for the disk, a place or the lock, else it runs.
+  const etatDuCircuit = (c, temoin) =>
+    temoin?.fige
+      ? 'fige'
+      : !c.vivant
+        ? enQuestion(c) === SUPERVISEUR
+          ? 'attendLeSuperviseur'
+          : enQuestion(c)
+            ? 'attendLeResponsable'
+            : 'arrete'
+        : attendLeDisque.has(c.id)
+          ? 'attendLeDisque'
+          : attendUnePlace.has(c.id)
+            ? 'attendUnePlace'
+            : attendLeVerrou.has(c.id)
+              ? 'attendLeVerrou'
+              : 'enCours';
   const ligneDuCircuit = c => {
-    const signe = !c.vivant ? '⏸' : enAttente.has(c.id) ? '⏳' : '▶';
+    const signe =!c.vivant ? '⏸' : enAttente.has(c.id) ? '⏳' : '▶';
     const droite = droiteDe(
       signe,
       conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)
@@ -1584,7 +1642,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     }${place}`;
     poser({
       texte: couperAvant(`${tete}${c.sujet}`, suite, droite, largeur),
-      ton: temoin?.fige ? 'alerte' : c.vivant ? 'actif' : 'attention',
+      ton: TONS[etatDuCircuit(c, temoin)],
       ticket: c.id,
       ...(temoin ? { avancement: true } : {}),
     });
@@ -1617,12 +1675,12 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     for (const x of enCours) {
       L(
         cadre(`${teteDe('▶', x)}${x.sujet}`, droiteDe('▶', conso(x.travail, x.jetons)), largeur),
-        'actif',
+        TONS.enCours,
         x.id
       );
     }
     for (const [qui, l] of enQuestions) {
-      L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), 'titre');
+      L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), TONS.titre);
       for (const c of l) {
         ligneDuCircuit(c);
       }
@@ -1631,7 +1689,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const ligneDEtape = (b, retrait, plein = !contenus.get(b).vide) =>
     L(
       cadre(`${retrait}${b.numero} · ${b.titre}${b.qui ? ` · ${b.qui}` : ''}`, '', largeur),
-      plein ? 'titre' : 'discret'
+      plein ? TONS.titre : TONS.vide
     );
   for (const e of ETAPES) {
     const b = blocDe(e);
@@ -1669,7 +1727,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     L('', undefined);
     poser({
       texte: cadre(`CHANTIER ${duProjet(ch)}${ch.numero} — ${ch.sujet}`, '', largeur),
-      ton: 'titre',
+      ton: TONS.titre,
       ticket: ch.id,
       chantier: true,
     });
@@ -1679,7 +1737,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         '',
         largeur
       ),
-      'discret'
+      TONS.mesure
     );
     const arbre = [];
     const marque = n =>
@@ -1701,22 +1759,31 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     // Every open ticket of the chantier has its line under the title of its state, the states in
     // their order, the tickets in their numbers' order. A ticket an agent block shows stands there
     // alone; its children keep their lines.
+    // The state of a ticket's line, whose tone TONS gives: a ticket in the queue that waits for the
+    // disk or a place, else its state.
+    const etatDuNoeud = n =>
+      !n.mere && n.etat === 'enAttente' && attendLeDisque.has(n.id)
+        ? 'attendLeDisque'
+        : !n.mere && n.etat === 'enAttente' && attendUnePlace.has(n.id)
+          ? 'attendUnePlace'
+          : n.etat;
     const ligneDe = n => {
       const conso = n.jetons ? ` · ${k(n.jetons)}` : '';
+      const etat = etatDuNoeud(n);
       const droite = n.mere
         ? `${n.faits}/${n.total}${conso}${n.etat === 'bloques' ? ` ${marque(n)}` : ''}`
         : n.etat === 'enCours'
           ? `${duree(n.travail)}${conso}`
           : n.etat === 'bloques'
             ? marque(n)
-            : n.etat === 'enAttente' && attendLeDisque.has(n.id)
+            : etat === 'attendLeDisque'
               ? 'attend le disque'
-              : n.etat === 'enAttente' && attendUnePlace.has(n.id)
+              : etat === 'attendUnePlace'
                 ? 'attend une place'
                 : '';
       return {
         texte: cadre(`   ${duProjet(n)}${n.numero}  ${n.sujet}`, droite, largeur),
-        ton: n.etat === 'enCours' ? 'actif' : undefined,
+        ton: TONS[etat],
         ticket: n.id,
       };
     };
@@ -1737,7 +1804,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       }
       const titreDuGroupe = {
         texte: cadre(`  ${e.nom}`, `${liste.length}`, largeur),
-        ton: 'titre',
+        ton: TONS.titre,
       };
       const replie =
         e.cle === 'sansGo' ||
@@ -1748,7 +1815,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         groupes[cle] = [titreDuGroupe, ...liste.map(ligneDe)].map(marquer);
         arbre.push({
           texte: cadre(`  ${e.nom} ›`, `${liste.length}`, largeur),
-          ton: 'titre',
+          ton: TONS.titre,
           groupe: cle,
         });
         continue;
@@ -1770,16 +1837,16 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     }));
     if (t.chantiers.length) {
       groupes.autres = [
-        { texte: cadre('AUTRES CHANTIERS', `${t.autres.length}`, largeur), ton: 'titre' },
+        { texte: cadre('AUTRES CHANTIERS', `${t.autres.length}`, largeur), ton: TONS.titre },
         ...autres,
       ].map(marquer);
       poser({
         texte: cadre('AUTRES CHANTIERS ›', `${t.autres.length}`, largeur),
-        ton: 'titre',
+        ton: TONS.titre,
         groupe: 'autres',
       });
     } else {
-      L(cadre('CHANTIERS', `${t.autres.length}`, largeur), 'titre');
+      L(cadre('CHANTIERS', `${t.autres.length}`, largeur), TONS.titre);
       poser(...autres);
     }
   }
@@ -1797,11 +1864,11 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         `${n} ticket${n > 1 ? 's' : ''} · ${duree(temps)} · ${k(jetons)}`,
         largeur
       ),
-      'titre'
+      TONS.titre
     );
     const fait = x => ({
       texte: cadre(`✓ ${duProjet(x)}${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
-      ton: 'discret',
+      ton: TONS.fermes,
       ticket: x.id,
     });
     poser(...t.faitsDuJour.map(fait));
@@ -1820,11 +1887,11 @@ export function lignesEtats(t, largeur = LARGEUR) {
     }
     out.push({
       texte: couper(`${e.nom.toUpperCase()} — ${e.sens}`, `${e.tickets.length}`, largeur),
-      ton: 'titre',
+      ton: TONS.titre,
       section: 'etats',
     });
     if (!e.tickets.length) {
-      out.push({ texte: '  —', ton: 'discret', section: 'etats' });
+      out.push({ texte: '  —', ton: TONS.vide, section: 'etats' });
     }
     for (const x of e.tickets) {
       out.push({
@@ -1835,7 +1902,7 @@ export function lignesEtats(t, largeur = LARGEUR) {
             : conso(t.parTicket[x.id]?.travail ?? 0, t.parTicket[x.id]?.jetons ?? 0),
           largeur
         ),
-        ton: e.cle === 'fermes' ? 'discret' : undefined,
+        ton: TONS[e.cle],
         ticket: x.id,
         section: 'etats',
       });

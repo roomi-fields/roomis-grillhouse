@@ -751,11 +751,15 @@ derrière `| tail` n'a été lue par personne pendant 40 min). Une question touj
 jusqu'à ce que le circuit quitte l'arrêt ; une clé qui change est une question neuve, rendue
 aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
 remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
-clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte orange par
-circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, rouge
-passé deux intervalles de re-présentation, et une alerte rouge « à corriger », distincte, quand un
-tel circuit attend alors qu'aucune attente ne vit (son verrou nomme un processus mort ou
-manque). L'attente lit aussi les circuits intégrés (`lireLesCircuits` avec `integres`) et rend une
+clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte par
+circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, et une
+alerte « à corriger », distincte, quand un tel circuit attend alors qu'aucune attente ne vit (son
+verrou nomme un processus mort ou manque). Chaque état que montre le panneau a un seul ton, défini
+une fois (`TONS` de `tableau.mjs`), comme un tableau de bord d'états (GitHub Checks,
+Alertmanager) : chaque ligne et chaque alerte le prend, quelle que soit sa durée, que dit son
+texte ; le rouge est réservé à ce qui demande une correction (figé, panne, aucune attente qui
+tourne, plafond refusé), le jaune à ce qui attend une réponse ou un regard (le superviseur, le
+responsable, le disque), le cyan à ce qui tourne. L'attente lit aussi les circuits intégrés (`lireLesCircuits` avec `integres`) et rend une
 fois chaque circuit intégré après la dernière lecture de l'attente précédente, sous « Circuit
 intégré » : `.claude/worktrees/integrations-rendues.json` garde cette heure et les intégrations
 rendues, que l'ouverture remet à son heure, pour qu'une intégration entre deux attentes ne se
@@ -1172,7 +1176,7 @@ code du dépôt la remplace. L'échec s'écrit dans le fichier d'état de l'outi
 installation réussie : pendant 5 minutes, aucun lancement ne relance npm ; tant qu'il existe pour
 la version de la clé, l'ouverture de séance le dit sur sa sortie standard (« l'orchestration tourne
 sur le code du dépôt », avec `npx grillhouse outil` qui la réinstalle), et le tableau porte une
-alerte orange, « Outil <version> non installable : code du dépôt ». Ainsi un échec qui dure se
+alerte jaune, « Outil <version> non installable : code du dépôt ». Ainsi un échec qui dure se
 voit. Le paquet qui tourne est la version installée quand leurs chemins sont les mêmes : il
 tourne alors sur place, sans variable d'environnement qui passerait aux agents. Le circuit lancé
 par la version publiée lance ses scripts voisins et le greffon de son paquet, et joue les tests,

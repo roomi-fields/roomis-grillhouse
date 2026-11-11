@@ -1,6 +1,6 @@
 // The alerts of the board for a question that waits for the supervisor (grillhouse-d4n.7): one
-// orange alert per circuit stopped on a question to the supervisor, how many minutes it has waited
-// (from the `depuis` of the file of the stops gone up), red past two intervals of re-presentation;
+// alert per circuit stopped on a question to the supervisor, in the tone of that wait whatever its
+// length, how many minutes it has waited (from the `depuis` of the file of the stops gone up);
 // one red alert « à corriger », distinct, when such a circuit stands while no wait lives; and
 // `attenteVivante`, which reads the lock of the wait and the process it names. Time is the board's
 // own injected `maintenant`.
@@ -18,7 +18,8 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-attente-superviseur-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 interface Alerte {
-  niveau: string;
+  etat: string;
+  ton: string;
   texte: string;
 }
 interface Board {
@@ -48,7 +49,7 @@ const cle = (ticket: string) => `${ticket}:run-${ticket}:1:controles`;
 const plateau = (
   circuits: object[],
   remontees: { cle: string; depuis: number }[],
-  extra: { rappel?: number; attenteVivante?: boolean } = {}
+  extra: { attenteVivante?: boolean } = {}
 ) =>
   assembler({
     tous: circuits.map(c => T((c as { ticket: string }).ticket)),
@@ -66,10 +67,10 @@ const attentes = (t: Board) => t.alertes.filter(a => /attend le superviseur/.tes
 const filets = (t: Board) => t.alertes.filter(a => /à corriger/i.test(a.texte));
 
 describe('the alert of a circuit that waits for the supervisor', () => {
-  it('is orange and says how many minutes the circuit has waited', () => {
+  it('is in the tone of a wait for the supervisor and says how many minutes the circuit has waited', () => {
     const t = plateau([arrete('demo-1')], [{ cle: cle('demo-1'), depuis: MAINTENANT - 7 * MIN }]);
     expect(attentes(t)).toHaveLength(1);
-    expect(attentes(t)[0]).toMatchObject({ niveau: 'orange' });
+    expect(attentes(t)[0]).toMatchObject({ etat: 'attendLeSuperviseur', ton: 'attention' });
     expect(attentes(t)[0]!.texte).toMatch(/^1 .*depuis 7 min/);
   });
 
@@ -84,16 +85,11 @@ describe('the alert of a circuit that waits for the supervisor', () => {
     expect(attentes(t).map(a => a.texte.match(/depuis (\d+) min/)?.[1])).toEqual(['2', '4']);
   });
 
-  it('stays orange up to two intervals of re-presentation, then turns red', () => {
+  it('keeps the tone of attention however long the circuit has waited', () => {
     const entree = (min: number) => [{ cle: cle('demo-1'), depuis: MAINTENANT - min * MIN }];
-    expect(attentes(plateau([arrete('demo-1')], entree(10)))[0]!.niveau).toBe('orange');
-    expect(attentes(plateau([arrete('demo-1')], entree(10.5)))[0]!.niveau).toBe('rouge');
-  });
-
-  it('turns red after two intervals of the interval given', () => {
-    const entree = [{ cle: cle('demo-1'), depuis: MAINTENANT - 7 * MIN }];
-    expect(attentes(plateau([arrete('demo-1')], entree, { rappel: 3 }))[0]!.niveau).toBe('rouge');
-    expect(attentes(plateau([arrete('demo-1')], entree, { rappel: 4 }))[0]!.niveau).toBe('orange');
+    for (const min of [1, 10.5, 600]) {
+      expect(attentes(plateau([arrete('demo-1')], entree(min)))[0]!.ton).toBe('attention');
+    }
   });
 
   it('falls once the circuit has left its stop', () => {
@@ -117,7 +113,7 @@ describe('the alert « à corriger » of a question with no live wait', () => {
   it('is one red alert, distinct from the alert of the wait', () => {
     const t = plateau([arrete('demo-1')], entree, { attenteVivante: false });
     expect(filets(t)).toHaveLength(1);
-    expect(filets(t)[0]!.niveau).toBe('rouge');
+    expect(filets(t)[0]!.ton).toBe('alerte');
     expect(filets(t)[0]!.texte).toMatch(/aucune attente/i);
     expect(attentes(t)).toHaveLength(1);
     expect(attentes(t)[0]).not.toBe(filets(t)[0]);

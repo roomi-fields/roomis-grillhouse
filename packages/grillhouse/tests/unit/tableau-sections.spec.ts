@@ -360,7 +360,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
         jour: { travail: 0, jetons: 0 },
         cumul: { travail: 0, jetons: 0 },
       },
-      alertes: [{ niveau: 'rouge', texte: 'La nuit est rouge : 1' }],
+      alertes: [{ etat: 'nuitRouge', ton: 'alerte', texte: 'La nuit est rouge : 1' }],
       chantiers: [],
       autres: [],
       agents: [
