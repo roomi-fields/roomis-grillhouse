@@ -72,13 +72,19 @@ const branches = (racine: string) =>
   git(racine, 'branch', '--format=%(refname:short)').split('\n').filter(Boolean);
 const balayer = (
   racine: string,
-  o: { garder?: string[]; enCours?: Set<string> | null; fermes?: Set<string> } = {}
+  o: {
+    garder?: string[];
+    enCours?: Set<string> | null;
+    fermes?: Set<string> | null;
+    tenus?: Set<string> | null;
+  } = {}
 ) =>
   retirerLesCopiesFinies(racine, {
     garder: o.garder ?? [],
     lireEnCours: () => (o.enCours === undefined ? new Set<string>() : o.enCours),
-    lireFermes: () => o.fermes ?? new Set<string>(),
+    lireFermes: () => (o.fermes === undefined ? new Set<string>() : o.fermes),
     ignorer: ['target', '.turbo'],
+    tenus: o.tenus ?? null,
   }).join('\n');
 
 describe('the night removes the copies whose content is on main (grillhouse-5vv)', () => {
@@ -305,6 +311,96 @@ describe('the night removes the copies whose content is on main (grillhouse-5vv)
         },
       });
       expect(lectures).toBe(1);
+    },
+    LONG
+  );
+});
+
+// The owner of a copy's `.travail` is the circuit the server holds, not the folder: on 2026-11-11
+// nine copies of closed tickets (delivered directly, or their circuit stopped) were kept for their
+// `.travail` alone, 4.3 GB that no circuit would ever remove.
+describe('a closed ticket whose circuit the server no longer holds loses its copy and its .travail', () => {
+  // The copy of the ticket <nom>, its work entered main, beside its `.travail` and its balance.
+  function copieFinie(racine: string, nom: string) {
+    const c = copie(racine, nom, `agent/${nom}`);
+    engager(c, 'a.txt', `${nom}\n`);
+    engager(racine, 'a.txt', `${nom}\n`);
+    mkdirSync(`${c}.travail`);
+    writeFileSync(path.join(`${c}.travail`, 'consigne-1.md'), 'x\n');
+    writeFileSync(`${c}.bilan.json`, '{}\n');
+    return c;
+  }
+
+  it(
+    'its copy goes with its .travail, its balance kept',
+    () => {
+      const racine = depot();
+      const c = copieFinie(racine, 'proj-30');
+      const journal = balayer(racine, { fermes: new Set(['proj-30']), tenus: new Set() });
+      expect(existsSync(c)).toBe(false);
+      expect(existsSync(`${c}.travail`)).toBe(false);
+      expect(existsSync(`${c}.bilan.json`)).toBe(true);
+      expect(journal).toContain(
+        'copie retirée : .claude/worktrees/proj-30 ; son dossier proj-30.travail retiré'
+      );
+    },
+    LONG
+  );
+
+  it(
+    'its circuit running or waiting an answer, the copy stays with its .travail',
+    () => {
+      const racine = depot();
+      const c = copieFinie(racine, 'proj-31');
+      const journal = balayer(racine, {
+        fermes: new Set(['proj-31']),
+        tenus: new Set(['proj-31']),
+      });
+      expect(existsSync(c)).toBe(true);
+      expect(existsSync(`${c}.travail`)).toBe(true);
+      expect(journal).toMatch(/proj-31 \([^)]*\) : son circuit a son dossier proj-31\.travail/);
+    },
+    LONG
+  );
+
+  it(
+    'its local work not committed, the copy stays with its .travail, named with that work',
+    () => {
+      const racine = depot();
+      const c = copieFinie(racine, 'proj-32');
+      writeFileSync(path.join(c, 'b.txt'), 'b local\n');
+      const journal = balayer(racine, { fermes: new Set(['proj-32']), tenus: new Set() });
+      expect(existsSync(c)).toBe(true);
+      expect(existsSync(`${c}.travail`)).toBe(true);
+      expect(readFileSync(path.join(c, 'b.txt'), 'utf8')).toBe('b local\n');
+      expect(journal).toMatch(/copie gardée : \.claude\/worktrees\/proj-32 .*travail local/);
+      expect(journal).toContain('b.txt');
+    },
+    LONG
+  );
+
+  it(
+    'the circuits the server holds unread, or the closed tickets unread, the copy stays',
+    () => {
+      const racine = depot();
+      const sansServeur = copieFinie(racine, 'proj-33');
+      balayer(racine, { fermes: new Set(['proj-33']), tenus: null });
+      expect(existsSync(sansServeur)).toBe(true);
+      const sansFermes = copieFinie(racine, 'proj-34');
+      balayer(racine, { fermes: null, tenus: new Set() });
+      expect(existsSync(sansFermes)).toBe(true);
+    },
+    LONG
+  );
+
+  it(
+    'its ticket open, the copy whose circuit no longer runs stays',
+    () => {
+      const racine = depot();
+      const c = copieFinie(racine, 'proj-35');
+      const journal = balayer(racine, { tenus: new Set() });
+      expect(existsSync(c)).toBe(true);
+      expect(journal).toMatch(/proj-35 \([^)]*\) : son circuit ne tourne plus/);
     },
     LONG
   );

@@ -649,12 +649,19 @@ copies. Les tickets en cours se lisent seulement quand une copie reste à juger 
 autre copie que la sienne n'appelle pas Beads. Une copie gardée dont le ticket est fermé perd
 ce que les outils de ses langages y écrivent, hors du suivi de git : les dossiers que le module
 du langage nomme (`ignorer` : `target`, `.turbo`) et `node_modules` ; son travail suivi reste.
-Chaque ligne d'une copie gardée nomme la place qu'elle tient. Une copie dont le circuit ne tourne
-plus (son `.travail` là, son ticket hors des circuits que le serveur Temporal fait tourner, que
-l'appelant lui donne : la commande les lit, la fin d'un circuit, dont l'acte ne lit aucun serveur,
-ne les donne pas), son ticket ouvert, reste, son code et ses commits intacts, et sa ligne le dit
-avec la place de chaque sortie de ses outils (« son circuit ne tourne plus ; target y tient
-5,1 Go »). Les copies qui durent perdent les sorties de leurs outils une fois leur passe jouée,
+Chaque ligne d'une copie gardée nomme la place qu'elle tient. Le propriétaire d'un `.travail` est
+le circuit que le serveur Temporal tient, comme `git worktree prune` retire ce qu'aucun
+propriétaire ne tient : un circuit qui tourne, attend une réponse ou une place, ou a fini sans son
+issue (l'appelant les lui donne : la commande les lit, la fin d'un circuit, dont l'acte ne lit
+aucun serveur, ne les donne pas, et chaque copie à côté de son `.travail` reste alors). Une copie
+dont le serveur ne tient plus le circuit, son ticket ouvert, reste, son code et ses commits
+intacts, et sa ligne le dit avec la place de chaque sortie de ses outils (« son circuit ne tourne
+plus ; target y tient 5,1 Go »). Son ticket fermé (livré en direct, ou son circuit arrêté), son
+`.travail` ne la tient plus : elle se juge comme toute copie, part avec son `.travail` quand son
+contenu est sur main, son bilan (`<ticket>.bilan.json`) gardé, et reste, nommée, avec son travail
+local non entré (Grillhouse, 2026-11-11 : 9 copies de tickets fermés, 4,3 Go). La copie de
+l'intégration repart propre à chaque ouverture (`git checkout --force`, puis `git clean -x`) : le
+conflit qu'un lot refusé y laisse ne passe pas à l'intégration suivante. Les copies qui durent perdent les sorties de leurs outils une fois leur passe jouée,
 leur `node_modules` gardé, puisque leur préparation suivante les efface (`git clean -x`) : la
 nuit nomme sa propre copie au retrait après ses étapes, et la copie de l'intégration ou de la
 file, gardée sans son verrou, les perd de même ; ainsi une copie qui dure ne tient jamais plus

@@ -286,13 +286,13 @@ describe('grillhouse-k5y, critère 3 — une passe lourde attend la place sur le
 
 const balayer = (
   racine: string,
-  o: { enCours?: Set<string>; fermes?: Set<string>; vivants?: Set<string> | null } = {}
+  o: { enCours?: Set<string>; fermes?: Set<string>; tenus?: Set<string> | null } = {}
 ) =>
   retirerLesCopiesFinies(racine, {
     lireEnCours: () => o.enCours ?? new Set<string>(),
     lireFermes: () => o.fermes ?? new Set<string>(),
     ignorer: ['target'],
-    vivants: o.vivants ?? null,
+    tenus: o.tenus ?? null,
   }).join('\n');
 
 describe('grillhouse-k5y, critère 4 — les copies qui durent élaguent leur target/', () => {
@@ -367,7 +367,7 @@ describe('grillhouse-k5y, critère 4 — les copies qui durent élaguent leur ta
 });
 
 // grillhouse-4nr.10, criterion 4: whether a circuit runs is what the Temporal server says, which
-// the caller gives (`vivants`); no state of the circuit is read.
+// the caller gives (`tenus`); no state of the circuit is read.
 describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plus est nommée avec sa place', () => {
   it(
     'its circuit gone, the line names it with the place of the copy and of its target/; its code and its commits stay',
@@ -380,7 +380,7 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
       // The server runs another ticket's circuit.
       const journal = balayer(racine, {
         enCours: new Set(['demo-20']),
-        vivants: new Set(['demo-99']),
+        tenus: new Set(['demo-99']),
       });
       expect(journal).toMatch(
         /copie gardée : \.claude\/worktrees\/demo-20 \(\d+(,\d)? Mo\) : son circuit ne tourne plus ; target y tient 1,\d Mo/
@@ -398,7 +398,7 @@ describe('grillhouse-k5y, critère 5 — une copie dont le circuit ne tourne plu
       const racine = depot();
       const c = copie(racine, 'demo-21');
       mkdirSync(`${c}.travail`);
-      const journal = balayer(racine, { vivants: new Set(['demo-21']) });
+      const journal = balayer(racine, { tenus: new Set(['demo-21']) });
       expect(journal).toMatch(
         /copie gardée : \.claude\/worktrees\/demo-21 \(.*\) : son circuit a son dossier demo-21\.travail/
       );

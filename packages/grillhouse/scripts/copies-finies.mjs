@@ -35,14 +35,18 @@
 //   progress that do not read, or not within a minute, hold every copy: none is removed. They are
 //   read only when a copy is left to judge: a repository with no copy but the night's calls no bd.
 //   A locked copy (`git worktree lock`, as Claude Code locks the copy of a live agent) stays too.
-//   A copy whose circuit no longer runs (its `<copie>.travail` there, its ticket out of the
-//   circuits the Temporal server runs, which its caller gives, `vivants`), its ticket still open,
-//   stays, its code and commits untouched, and its line says so with the place it holds and that
-//   of each of its tools' outputs (« son circuit ne tourne plus ; target y tient 5,1 Go ; son code
-//   et ses commits restent »): 5.2 GB of SyntHub's SH-cgi.8.2 were kept so under the words of a
-//   running circuit (grillhouse-k5y). Without the circuits that run (the server unread, or the end
-//   of a circuit, whose act reads no server), its line says only that its circuit has its
-//   working directory.
+//   The owner of a `<copie>.travail` is the circuit the Temporal server holds, as it runs or waits
+//   an answer (its caller gives their tickets, `tenus`), as `git worktree prune` removes what no
+//   owner holds. A copy whose circuit the server no longer holds, its ticket still open, stays,
+//   its code and commits untouched, and its line says so with the place it holds and that of each
+//   of its tools' outputs (« son circuit ne tourne plus ; target y tient 5,1 Go ; son code et ses
+//   commits restent »): 5.2 GB of SyntHub's SH-cgi.8.2 were kept so under the words of a running
+//   circuit (grillhouse-k5y). Its ticket closed (delivered directly, or its circuit stopped), its
+//   `.travail` holds it no more: no circuit will remove it (grillhouse-4nr.29: 9 copies, 4.3 GB,
+//   kept so), and the copy is judged as any other; removed, its `.travail` goes with it, its
+//   balance (`<ticket>.bilan.json`) kept. Without the circuits the server holds (the server
+//   unread, or the end of a circuit, whose act reads no server), its line says only that its
+//   circuit has its working directory.
 // - The count of what holds the disk of a copy (`occupantsDesCopies`), which the wait for room of
 //   a heavy pass names (scripts/verrou-de-machine.mjs): the copies of its repository, the five
 //   largest first, each with its ticket (the copy's folder, but the frame's copies that last and
@@ -128,14 +132,17 @@ function lesCopies(racine) {
     }));
 }
 
-// What holds the copy <chemin> for a running circuit or a live process (its lock), or null. A
-// copy whose circuit no longer runs (its ticket out of <vivants>, the tickets whose circuit the
-// server runs, null when unread) stays held beside its `.travail`, and its line names the place
-// its tools' outputs (<ignorer>) hold there.
-function tenue({ chemin, verrou: raison }, enCours, commun, ignorer, vivants) {
+// What holds the copy <chemin> for a circuit or a live process (its lock), or null. <tenus> names
+// the tickets whose circuit the server holds (it runs, or waits an answer), null when unread. A
+// copy beside its `.travail` whose ticket is out of <tenus> and closed (<fermes>, read once) is
+// held by its `.travail` no more: no circuit will ever remove it, and the copy is judged as any
+// other. Its ticket open, it stays held, and its line names the place its tools' outputs
+// (<ignorer>) hold there.
+function tenue({ chemin, verrou: raison }, enCours, commun, ignorer, tenus, fermes) {
   const nom = path.basename(chemin);
-  if (existsSync(`${chemin}.travail`)) {
-    if (vivants && !vivants.has(nom)) {
+  const sansCircuit = Boolean(tenus) && !tenus.has(nom);
+  if (existsSync(`${chemin}.travail`) && !(sansCircuit && fermes().has(nom))) {
+    if (sansCircuit) {
       const sorties = placeDesSorties(chemin, ignorer).map(s => ` ; ${s}`);
       return `son circuit ne tourne plus${sorties.join('')} ; son code et ses commits restent`;
     }
@@ -336,17 +343,19 @@ function elaguer(chemin, ignorer) {
  * wrote there (<ignorer>, the directories the module of the language names, and `node_modules`).
  * <elaguer> names copies left out too, whose owner has played its pass (the night's own): each
  * loses its tools' outputs, its install kept; so does a copy of the integration or of the queue
- * kept that no lock holds. <vivants> names the tickets whose circuit the Temporal server runs
- * (null when its caller does not read them): a copy beside its `.travail` whose ticket is out of
- * them stays, its line saying its circuit no longer runs, with the place of its tools' outputs.
+ * kept that no lock holds. <tenus> names the tickets whose circuit the Temporal server holds, as
+ * it runs or waits an answer (null when its caller does not read them): a copy beside its
+ * `.travail` whose ticket is out of them stays while its ticket is open, its line saying its
+ * circuit no longer runs, with the place of its tools' outputs; its ticket closed, it is judged as
+ * any other copy and, removed, its `.travail` goes with it.
  * @param {string} racine
  * @param {{ garder?: string[], elaguer?: string[], lireEnCours: () => Set<string> | null,
- *   lireFermes: () => Set<string> | null, ignorer: string[], vivants?: Set<string> | null }} o
+ *   lireFermes: () => Set<string> | null, ignorer: string[], tenus?: Set<string> | null }} o
  * @returns {string[]}
  */
 export function retirerLesCopiesFinies(
   racine,
-  { garder = [], elaguer: aElaguer = [], lireEnCours, lireFermes, ignorer, vivants = null }
+  { garder = [], elaguer: aElaguer = [], lireEnCours, lireFermes, ignorer, tenus = null }
 ) {
   const [principale, ...listees] = lesCopies(racine);
   const ici = reel(racine);
@@ -381,6 +390,8 @@ export function retirerLesCopiesFinies(
   ).stdout.trim();
   const copies = lesCopies(racine).slice(1);
   let fermes;
+  // The closed tickets, read once, none when they do not read (each copy then stays held).
+  const lesFermes = () => (fermes ??= lireFermes() ?? new Set());
   // The line of the copy <chemin> kept for <raison>: what it lost when its ticket is closed, or,
   // for the copy of the integration or of the queue, its tools' outputs, which its next
   // preparation removes; then the place it holds.
@@ -396,8 +407,7 @@ export function retirerLesCopiesFinies(
         : '';
       return `· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}${perte}`;
     }
-    fermes ??= lireFermes() ?? new Set();
-    const perdues = fermes.has(nom) ? retirerLesSorties(chemin, ignorer) : [];
+    const perdues = lesFermes().has(nom) ? retirerLesSorties(chemin, ignorer) : [];
     const perte = perdues.length ? ` ; son ticket est fermé : ${perdues.join(', ')} retirés` : '';
     return `· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}${perte}`;
   };
@@ -406,7 +416,7 @@ export function retirerLesCopiesFinies(
     if (ecartees.has(reel(chemin))) {
       continue;
     }
-    const raison = tenue(copie, enCours, commun, ignorer, vivants);
+    const raison = tenue(copie, enCours, commun, ignorer, tenus, lesFermes);
     if (raison) {
       lignes.push(`· copie gardée : ${vu(chemin)} (${place(chemin)}) : ${raison}.`);
       continue;
@@ -422,6 +432,7 @@ export function retirerLesCopiesFinies(
     if (lstatSync(lien, { throwIfNoEntry: false })?.isSymbolicLink() && seulLeLien(chemin)) {
       rmSync(lien);
     }
+    const travail = existsSync(`${chemin}.travail`);
     const r = lancer(racine, 'bash', [RETIRER, chemin]);
     if (r.status !== 0) {
       const refus = String(r.stderr || r.stdout)
@@ -431,6 +442,9 @@ export function retirerLesCopiesFinies(
       continue;
     }
     let ligne = `✓ copie retirée : ${vu(chemin)}`;
+    if (travail) {
+      ligne += ` ; son dossier ${path.basename(chemin)}.travail retiré`;
+    }
     if (branche && branche !== PRINCIPALE) {
       const tenante = lesCopies(racine).find(c => c.branche === branche);
       if (tenante) {
@@ -481,17 +495,17 @@ function ignoresDuLangage(racine) {
  * The removal of the copies of the repository at <racine> (`retirerLesCopiesFinies`), the copy of
  * the night left out, the copies <finies> left out and pruned, their owner having played its pass
  * in them (the night's own, which scripts/nuit.sh names), the tickets read by bd, the tickets
- * whose circuit runs <vivants> (null when unread), then of the temporary directories of its closed
- * tickets (`balayerLesTickets`): what the night and the end of each circuit (scripts/circuit.mjs)
- * run. Its lines.
+ * whose circuit the server holds <tenus> (null when unread), then of the temporary directories of
+ * its closed tickets (`balayerLesTickets`): what the night and the end of each circuit
+ * (scripts/circuit.mjs) run. Its lines.
  * @param {string} racine the main tree
  * @param {string[]} [finies]
- * @param {Set<string> | null} [vivants]
+ * @param {Set<string> | null} [tenus]
  * @returns {string[]}
  */
-export function retirerLesCopiesDuDepot(racine, finies = [], vivants = null) {
+export function retirerLesCopiesDuDepot(racine, finies = [], tenus = null) {
   const lignes = retirerLesCopiesFinies(racine, {
-    vivants,
+    tenus,
     garder: [path.join(racine, NUIT)],
     elaguer: finies,
     lireEnCours: () => tickets(racine, 'in_progress'),
