@@ -95,3 +95,13 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   suite déclare aussi l'usage dans la section « Consommateurs » de l'INTERFACE.md du fournisseur
   (que le contrôle des consommateurs exige). Le refus ne corrige rien ; il s'inscrit à la dette
   comme tout constat de frontières.
+- **R9.** Un test de jour valide le code en l'important. La garde des tailles refuse
+  (`binaire-de-jour`) un test de jour qui lance la commande grillhouse : un appel de processus
+  qui nomme `grillhouse`, son lien `node_modules/.bin/grillhouse`, `bin/grillhouse.mjs`, ou un
+  fichier de `bin/` ou `scripts/` du paquet du cadre (un script est le code de sa
+  sous-commande), en littéral ou par une constante qui le nomme. Lancer la commande est réservé
+  aux tests de bout-en-bout : sous un dossier `e2e/` (comme le `e2e/` de Playwright et
+  d'Angular), ou dans le paquet `grillhouse-essais` (comme un projet `<app>-e2e` de Nx). Un
+  chemin bâti à l'exécution, un lanceur passé par une fonction auxiliaire et le code d'un
+  `node -e` échappent à la lecture. Les cas existants sont inscrits à la dette ; la migration
+  0.33.0 les inscrit dans un projet.

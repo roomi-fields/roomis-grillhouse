@@ -101,8 +101,10 @@ assemble quelques modules sur la machine, avec des processus locaux ; un test gr
 projet d'essai et y lance le produit ou le cadre entier : il est un test de nuit (`*.nuit.test.*`,
 `*_nuit_test.py`, `tests/*_nuit.rs` en Rust), jamais joué au fil du travail. Chaque test prend la plus petite taille qui prouve son critère, dans
 Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-des-tests`) refuse
-un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Ainsi
-le jour reste court, et la preuve longue tourne la nuit.
+un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Un
+test de jour valide le code en l'important : lancer la commande grillhouse (son binaire, un
+script du cadre) est réservé aux tests de bout-en-bout, sous un dossier `e2e/`, et la même garde
+refuse les autres. Ainsi le jour reste court, et la preuve longue tourne la nuit.
 
 **Un test porte le nom du comportement qu'il prouve**, jamais le numéro de son ticket, qui va au
 message du commit (Software Engineering at Google, chap. 12 : un test par comportement). Ainsi un

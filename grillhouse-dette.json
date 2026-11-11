@@ -1,4 +1,241 @@
 {
+  "tailles-des-tests": {
+    "packages/grillhouse/tests/temporal/commande.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/commande-grillhouse.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/dette.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/donnees-cles.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/dossier-temporaire.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/droits.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/gardes-sarif.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/greffon.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/hors-cadre.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-espaces.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-hors-cadre.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/code-mort-tests-bancs.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.dependances-de-developpement.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.entrees.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.imports-non-declares.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.options.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/frontieres.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/index-interfaces.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.index.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.membres-et-fautes.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.partie-generee.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.rapport.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.signatures.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/interfaces-contre-code.tsdoc.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/tests-cibles.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/turbo-des-paquets.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.lint.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/langages/typescript/verifier.temoins.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.api-extractor-du-paquet.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/migration.copies-du-cadre.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/outil.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/paquet-publie.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/registre-fin.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/registre.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/structure-guard.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/style-a-l-ecriture.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-mesure-d-essai.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/tableau-sections.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/temps-de-travail.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/ticket-du-sous-agent.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/titre-des-tickets.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-commande.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-de-machine.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-essai.copie.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    },
+    "packages/grillhouse/tests/unit/verrou-publie.spec.ts": {
+      "binaire-de-jour": {
+        "count": 1
+      }
+    }
+  },
   "titres-de-tests": {
     "mods/grillhouse/tests/grillhouse.test.ts": {
       "titre-nommant-un-ticket": {

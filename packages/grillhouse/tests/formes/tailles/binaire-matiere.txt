@@ -1,0 +1,4 @@
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+export const BIN = path.resolve(__dirname, '../bin/grillhouse.mjs');
+export const lancer = (...args) => spawnSync(process.execPath, [BIN, ...args], { encoding: 'utf8' });

@@ -65,6 +65,7 @@ import * as cheminsDesTests from './migrations/0.25.0-chemins-des-tests.mjs';
 import * as taillesDesOutilsLourds from './migrations/0.30.0-tailles-des-outils-lourds.mjs';
 import * as prefixeDesTickets from './migrations/0.30.0-prefixe-des-tickets.mjs';
 import * as titresNommantUnTicket from './migrations/0.30.0-titres-nommant-un-ticket.mjs';
+import * as binaireDeJour from './migrations/0.33.0-binaire-de-jour.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -324,6 +325,7 @@ export default {
     taillesDesOutilsLourds,
     prefixeDesTickets,
     titresNommantUnTicket,
+    binaireDeJour,
   ],
   miseAJour: miseAJour(joueDesTests),
   squelette,

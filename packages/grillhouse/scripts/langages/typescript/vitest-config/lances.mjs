@@ -167,7 +167,7 @@ function sansCommentaires(texte) {
 
 // The code of <texte>: without its comments, whose words name no path read, nor its imports, whose
 // strings are in Vitest's graph.
-const code = texte => sansCommentaires(texte).replace(IMPORT, '');
+export const code = texte => sansCommentaires(texte).replace(IMPORT, '');
 
 // The strings of the code <texte> (without its comments), read character by character: a quoted
 // string, or a template without a substitution, each once.
@@ -193,9 +193,9 @@ function chainesDe(texte) {
   return out;
 }
 
-// The strings of the code <texte>, then the strings of each call of `join` or `resolve` written
-// together, each once.
-function chaines(texte) {
+/** The strings of the code <texte>, then the strings of each call of `join` or `resolve` written
+ * together, each once. */
+export function chaines(texte) {
   const jointes = [...texte.matchAll(APPEL)]
     .map(a => chainesDe(a[1]).filter(Boolean))
     .filter(l => l.length > 1)
