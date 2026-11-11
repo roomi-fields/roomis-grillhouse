@@ -113,6 +113,8 @@ const CONTROLES: [string, RegExp][] = [
   ['interfaces contre code', /^grillhouse interfaces-contre-code$/],
   ['code mort', /^grillhouse code-mort$/],
   ['tailles des tests', /^grillhouse tailles-des-tests$/],
+  // grillhouse-44b.12.4: a night test that depends on the poste bears the tag @poste.
+  ['tests du poste', /^grillhouse tests-du-poste$/],
   // grillhouse-44b.10.8: no title of a test names a ticket.
   ['titres des tests', /^grillhouse titres-de-tests$/],
   ['chemins des tests', /^grillhouse chemins-des-tests$/],

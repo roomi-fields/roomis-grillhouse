@@ -8,8 +8,9 @@
 // its copy (`vitest run --root <copy> --config <this file>`), after a green full pass (`npm run
 // verifier -- --force`) and before the project's night script: its include names the night tests
 // and the benches, and its plugin adds the witnesses under the root, or chooses the night tests
-// alone or the measures alone, one file at a time (`nuit` of ./vitest-config/cibles.mjs, the
-// variable GRILLHOUSE_TESTS_DE_NUIT). It reads no day configuration of the project, whether the
+// alone, the night tests but those tagged `@poste` (the night of a shared machine, a CI), or the
+// measures alone, one file at a time (`nuit` of ./vitest-config/cibles.mjs, the variable
+// GRILLHOUSE_TESTS_DE_NUIT). It reads no day configuration of the project, whether the
 // project has one at its root or one per package; it takes from the base configuration the common
 // environment (git's settings) and the measure of time: the setup file that notes the CPU pressure
 // of each test and the duration reporter, which gives 75, « à repasser », to a measure that fails

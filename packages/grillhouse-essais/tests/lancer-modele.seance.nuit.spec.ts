@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal, une séance de claude
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   accessSync,

@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal
 import { readFileSync, rmSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';

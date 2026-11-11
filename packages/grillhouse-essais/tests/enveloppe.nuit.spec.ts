@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, le bd réel, un serveur Temporal, la session de l’utilisateur
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {

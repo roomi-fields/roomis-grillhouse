@@ -58,6 +58,11 @@
       ".github/workflows/deploy-docs.yml": [
         "@roomi-fields/grillhouse"
       ],
+      ".github/workflows/nuit.yml": [
+        "@roomi-fields/grillhouse",
+        "@roomi-fields/grillhouse-essais",
+        "@roomi-fields/grillhouse-matiere"
+      ],
       ".github/workflows/release.yml": [
         "@roomi-fields/grillhouse"
       ]

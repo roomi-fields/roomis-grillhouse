@@ -297,19 +297,20 @@ describe('critères 2, 7 et 8 — la consigne du relecteur porte une ligne par f
   });
 });
 
-describe('critère 9 — ce dépôt déclare ses trois flux, et la garde y est verte', () => {
+describe('critère 9 — ce dépôt déclare ses quatre flux, et la garde y est verte', () => {
   const DEPOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
   const pkg = JSON.parse(readFileSync(path.join(DEPOT, 'package.json'), 'utf8')) as Record<
     string,
     unknown
   >;
 
-  it('ci.yml, deploy-docs.yml et release.yml sont déclarés, chacun avec au moins un paquet', () => {
+  it('ci.yml, deploy-docs.yml, nuit.yml et release.yml sont déclarés, chacun avec au moins un paquet', () => {
     const { flux, fautes } = lireFlux(pkg);
     expect(fautes).toEqual([]);
     expect(flux.map((f: { fichier: string }) => f.fichier).sort()).toEqual([
       '.github/workflows/ci.yml',
       '.github/workflows/deploy-docs.yml',
+      '.github/workflows/nuit.yml',
       '.github/workflows/release.yml',
     ]);
     for (const f of flux) {

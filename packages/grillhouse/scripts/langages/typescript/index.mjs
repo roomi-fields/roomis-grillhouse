@@ -66,6 +66,7 @@ import * as taillesDesOutilsLourds from './migrations/0.30.0-tailles-des-outils-
 import * as prefixeDesTickets from './migrations/0.30.0-prefixe-des-tickets.mjs';
 import * as titresNommantUnTicket from './migrations/0.30.0-titres-nommant-un-ticket.mjs';
 import * as binaireDeJour from './migrations/0.33.0-binaire-de-jour.mjs';
+import * as testsDuPoste from './migrations/0.33.0-tests-du-poste.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -86,6 +87,7 @@ const OUTILS = [
   'interfaces-contre-code',
   'resumes',
   'tailles-des-tests',
+  'tests-du-poste',
   'titres-de-tests',
   'turbo-des-paquets',
 ];
@@ -313,6 +315,7 @@ export default {
     [ici('interfaces-contre-code.mjs')],
     [ici('code-mort.mjs')],
     [ici('tailles-des-tests.mjs')],
+    [ici('tests-du-poste.mjs')],
     [ici('titres-de-tests.mjs')],
     [ici('chemins-des-tests.mjs')],
     [ici('resumes.mjs')],
@@ -328,6 +331,7 @@ export default {
     prefixeDesTickets,
     titresNommantUnTicket,
     binaireDeJour,
+    testsDuPoste,
   ],
   miseAJour: miseAJour(joueDesTests),
   squelette,

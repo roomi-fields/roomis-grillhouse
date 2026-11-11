@@ -933,6 +933,26 @@ juste s'élargit, très au-dessus de la durée normale du test ; `npm run verifi
 à 75 pour un rouge. Ainsi une mesure ne se prend jamais sous la charge du jour, et le jour
 n'attend jamais la machine.
 
+**La nuit d'une machine partagée** (`.github/workflows/nuit.yml`, chaque nuit, sur l'exécuteur
+que nomme la variable `RUNNER` du dépôt, `ubuntu-latest` de GitHub sans elle) joue les tests de nuit
+du cadre sans aucune mesure de temps, puisqu'une machine partagée ne mesure pas un temps
+(`tests-de-nuit --hors-du-poste` du module typescript), en tranches comme la vérification de la
+CI : chaque job joue sa tranche (`--tranche i/n`), et `fusion-des-tranches` refuse un test de nuit
+qu'aucune tranche ne joue ou que deux jouent, puis réunit leurs rapports. Elle laisse au poste chaque test de nuit
+qui porte l'étiquette `@poste` : une ligne `// @poste: <raison>` du commentaire de sa tête, comme
+les étiquettes de Bazel (`manual`, `exclusive`) et les marqueurs de pytest vivent avec le test,
+jamais dans une liste à côté. La garde des tests du poste
+(`packages/grillhouse/scripts/langages/typescript/tests-du-poste.mjs`) refuse un test de nuit qui
+dépend du poste sans l'étiquette, vu par ses appels et par la matière de test qu'il importe par un
+chemin relatif : l'enveloppe (`canWrap`, `bwrap`, le lanceur ou l'enveloppe du cadre), le `bd`
+réel (`hasBd`), un serveur Temporal (`server start-dev`), sccache, systemd, le trousseau, la session
+de l'utilisateur (`/run/user/`), la commande `claude` lancée pour autre chose que `plugin` ou
+`--version` ; ce que la lecture ne voit pas (un chemin bâti à l'exécution, ce que lance le code du
+produit) prend l'étiquette à la main, et une étiquette sans marque passe. Un vert de cette nuit ne
+pose jamais le dernier vert : la nuit du poste (`scripts/nuit.sh`) seule le pose, après tous les
+tests de nuit, étiquetés compris, puis les mesures. Ainsi la CI joue chaque nuit ce qu'elle peut
+jouer, et le poste garde ce qu'il est seul à avoir.
+
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
 scripts, appelés par `npx grillhouse <sous-commande>`, et il est le greffon `grillhouse`, qui
 porte les compétences, les agents, les crochets de Claude Code, cette charte et le métacadre,

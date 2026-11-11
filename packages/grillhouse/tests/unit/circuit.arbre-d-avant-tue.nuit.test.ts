@@ -1,3 +1,4 @@
+// @poste: sccache
 // grillhouse-3e2.3, criterion 5 — a tree left by a killed process is removed by the next run.
 // A large test (a repository of trial, a node process killed by a signal): a night test. The
 // review of grillhouse-3e2.3, finding 1.

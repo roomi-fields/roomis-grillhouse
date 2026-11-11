@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal
 // Ticket grillhouse-3uv.93: the trials live under the base of their pass, removed at its end and
 // swept when orphan (scripts/mesure/base-de-passe.mjs), as Bazel gives each test its
 // temporary directory (TEST_TMPDIR) under the base of its run and cleans the sandboxes a killed

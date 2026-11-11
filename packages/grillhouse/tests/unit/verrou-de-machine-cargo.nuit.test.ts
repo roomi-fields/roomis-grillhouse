@@ -1,3 +1,4 @@
+// @poste: sccache
 // grillhouse-6ay, critères 3, 5 et 10 — le module Cargo nomme sa vérification au verrou de la
 // machine. Il refuse un espace de travail dont git ne suit pas Cargo.lock : le cas monte un dépôt
 // d'essai et y lance le module, donc c'est un grand test, joué la nuit.

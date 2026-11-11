@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-4nr.8: the queue of integration of a project and the following of the CI under
 // Temporal, played on a development server of trial (the pinned program TEMPORAL on a free port,
 // a database file of its own), its activities simulated by the test (a worker of this process).

@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-4nr.2, criteria 2, 3, 4, 6 and 11: the sonde's workflow and activity played on a
 // development server of trial, the pinned program (TEMPORAL) started on a free port with a
 // database file of its own, the sonde's worker started by its built code as its own process, as

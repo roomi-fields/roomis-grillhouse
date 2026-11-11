@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal
 import { execFileSync } from 'node:child_process';
 import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

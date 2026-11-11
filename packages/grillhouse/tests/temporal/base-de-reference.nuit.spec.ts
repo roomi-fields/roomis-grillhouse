@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-4nr.2, criteria 5 and 13: the database file of reference, recorded by the pinned
 // program and committed beside this test (base-de-reference/temporal.db, its recording
 // ./enregistrer-la-base-de-reference.mjs), reads under the current server with its history. At

@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-4nr.9, decision D9: the queue of the tickets of a project under Temporal, played on a
 // development server of trial (the pinned program TEMPORAL on a free port, a database file of its
 // own). One workflow per project (`ticketsDuProjet`, `tickets:<racine>`), woken every `reveilMs`

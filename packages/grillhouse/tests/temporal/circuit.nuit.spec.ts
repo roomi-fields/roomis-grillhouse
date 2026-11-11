@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-4nr.6: the workflow of a ticket played on a development server of trial (the pinned
 // program TEMPORAL on a free port, a database file of its own), with the decisions of the
 // circuit (scripts/transitions.mjs) as they are, and the activities simulated by the test (the

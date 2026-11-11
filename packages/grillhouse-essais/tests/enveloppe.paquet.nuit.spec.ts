@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal
 // grillhouse-3uv.92.4 — in the envelope of a component that is a package, the agent writes its own
 // package and nothing else of the copy: the rest is read-only. The chain, played at night: bwrap
 // itself, in a repository of trial; the plan of the envelope is the day's

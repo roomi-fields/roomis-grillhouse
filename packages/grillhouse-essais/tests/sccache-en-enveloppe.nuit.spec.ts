@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, sccache
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

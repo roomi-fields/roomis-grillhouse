@@ -38,9 +38,12 @@
 //   Vitest's `passWithNoTests: false`.
 // - The night's configuration (scripts/langages/typescript/vitest.nuit.config.mjs) plays what the
 //   day leaves out, through the plugin `nuit`: the night tests, the benches and the witnesses; the
-//   variable `GRILLHOUSE_TESTS_DE_NUIT` (NUIT_VARIABLE) chooses `nuit`, the night tests alone, or
-//   `mesures`, the benches and the witnesses alone, one file at a time (`fileParallelism: false`),
-//   as scripts/langages/typescript/tests-de-nuit.mjs plays them.
+//   variable `GRILLHOUSE_TESTS_DE_NUIT` (NUIT_VARIABLE) chooses `nuit`, the night tests alone,
+//   `hors-poste`, the night tests but those that bear the tag `@poste` at their head (the night of
+//   a shared machine), or `mesures`, the benches and the witnesses alone, one file at a time
+//   (`fileParallelism: false`), as scripts/langages/typescript/tests-de-nuit.mjs plays them; the
+//   variable `GRILLHOUSE_TRANCHE_DE_NUIT` (NUIT_TRANCHE) gives the run its tranche, as a tranche of
+//   the day (`trancher`, ../tranches.mjs).
 // - A tranche of a pass (`tranche`, `i/n`, and `rapports` in the value, `npm run verifier --
 //   --tranche i/n`) plays its part of the files alone, writes its blob report and the files of its
 //   part (`trancher`, ../tranches.mjs).
@@ -64,6 +67,11 @@ export const BUDGET = '**/*.budget.{test,spec}.?(c|m)[jt]s?(x)';
 export const HORS_DU_JOUR = [NUIT, BUDGET];
 /** The variable that chooses the tests of a run of the night's configuration: `nuit` or `mesures`. */
 export const NUIT_VARIABLE = 'GRILLHOUSE_TESTS_DE_NUIT';
+/**
+ * The variable that carries the tranche of a run of the night's configuration, JSON: `tranche`,
+ * `i/n`, and `rapports`, the directory of its reports (`trancher`, ../tranches.mjs).
+ */
+export const NUIT_TRANCHE = 'GRILLHOUSE_TRANCHE_DE_NUIT';
 // Whether the file at <fichier> bears the name of <motif>, a globstar then a name: by the name of
 // the file, since a globstar passes no directory whose name starts with a dot, and a ticket's copy
 // lives under `.claude/worktrees/`.
@@ -75,6 +83,28 @@ export const estUnTestDeNuit = fichier => parSonNom(fichier, NUIT);
 export const estUnBanc = fichier => parSonNom(fichier, BUDGET);
 /** Whether the file at <fichier> is a night test or a time budget bench, by its name. */
 export const deNuitOuBanc = fichier => HORS_DU_JOUR.some(p => parSonNom(fichier, p));
+// The tag of a night test that depends on the poste (its envelope, its tools, its session): a line
+// `// @poste` of the comment at the head of the file, before its first line of code, its reason
+// after it (`// @poste: l'enveloppe bwrap`), as Bazel's tags (`manual`, `exclusive`) and pytest's
+// markers live with the test.
+const ETIQUETTE_DU_POSTE = /^\/\/\s*@poste\b/;
+/**
+ * Whether the text <texte> of a test file bears the tag `@poste` in the comment at its head: the
+ * night of a shared machine (`hors-poste`) leaves it out, the night of the poste plays it.
+ * @param {string} texte the text of the file
+ */
+export function porteLEtiquetteDuPoste(texte) {
+  for (const ligne of texte.split('\n')) {
+    const l = ligne.trim();
+    if (ETIQUETTE_DU_POSTE.test(l)) {
+      return true;
+    }
+    if (l !== '' && !l.startsWith('//') && !l.startsWith('#!')) {
+      return false;
+    }
+  }
+  return false;
+}
 // Vitest's default `include` (its configDefaults).
 const INCLUDE = ['**/*.{test,spec}.?(c|m)[jt]s?(x)'];
 // The mark of a time witness: the import of `mesurerAuRepos`, on a line of its own, from the
@@ -253,25 +283,58 @@ async function cibler(config, test, valeur, temoins) {
 }
 
 /**
+ * The night tests under <dir> that bear the tag `@poste` (`porteLEtiquetteDuPoste`), node_modules,
+ * dist, .git, .turbo and .claude left out; each path relative to <dir>, sorted.
+ * @param {string} dir the directory searched
+ */
+export function testsDuPoste(dir) {
+  return [
+    ...new Set(
+      globSync([NUIT], { cwd: dir, exclude: d => HORS_TEMOINS.has(path.basename(d)) }).map(f =>
+        f.split(path.sep).join('/')
+      )
+    ),
+  ]
+    .filter(f => porteLEtiquetteDuPoste(lireTexte(path.join(dir, f))))
+    .sort();
+}
+
+/**
  * The plugin of the night's configuration: the night tests, the benches and the time witnesses
- * under its directory, or, as <env> chooses in NUIT_VARIABLE, the night tests alone (`nuit`) or
- * the measures alone, one file at a time (`mesures`), the benches and the witnesses.
+ * under its directory, or, as <env> chooses in NUIT_VARIABLE, the night tests alone (`nuit`), the
+ * night tests but those tagged `@poste` (`hors-poste`, the night of a shared machine: a CI), or the
+ * measures alone, one file at a time (`mesures`), the benches and the witnesses; with
+ * NUIT_TRANCHE, the tranche it carries of these files.
  * @param {NodeJS.ProcessEnv} [env] the environment that holds the choice
  */
 export const nuit = (env = process.env) => ({
   name: 'grillhouse:nuit',
-  config(config) {
+  async config(config) {
     const choix = env[NUIT_VARIABLE];
+    const tranche = env[NUIT_TRANCHE];
     delete env[NUIT_VARIABLE];
+    delete env[NUIT_TRANCHE];
     const test = (config.test ??= {});
     const temoins = temoinsDe(config, { ...test, include: INCLUDE });
     if (choix === 'nuit') {
       test.include = [NUIT];
+    } else if (choix === 'hors-poste') {
+      test.include = [NUIT];
+      const duPoste = testsDuPoste(path.resolve(config.root ?? process.cwd(), test.dir ?? ''));
+      if (duPoste.length) {
+        test.exclude = [
+          ...(test.exclude ?? ['**/node_modules/**']),
+          ...duPoste.map(r => r.replace(SPECIAUX, '\\$&')),
+        ];
+      }
     } else if (choix === 'mesures') {
       test.include = [BUDGET, ...temoins];
       test.fileParallelism = false;
     } else {
       test.include = [...HORS_DU_JOUR, ...temoins];
+    }
+    if (tranche) {
+      await trancher(config, test, JSON.parse(tranche));
     }
   },
 });

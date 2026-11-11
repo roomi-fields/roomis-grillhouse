@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // The development server of trial (./essai.ts, `demarrerLeServeur`) resolves once its frontend
 // answers, not once its port accepts a connection: a server whose port opens before its frontend
 // serves (« Frontend is not healthy yet » under load) would fail the first call of a test.

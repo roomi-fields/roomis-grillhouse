@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // grillhouse-4nr.12 (décision 2) : les places de la machine (scripts/places-de-la-machine.mjs) se
 // prennent et se lisent sur le déroulé de la machine, par un processus à elles

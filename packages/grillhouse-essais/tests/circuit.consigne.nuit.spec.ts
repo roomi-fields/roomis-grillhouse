@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal
 import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';

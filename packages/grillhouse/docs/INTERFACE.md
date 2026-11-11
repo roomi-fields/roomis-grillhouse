@@ -265,7 +265,19 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     mesures de temps seules, qu'aucune autre commande ne joue sans les nommer (`typescript`, les
     tests de nuit puis les bancs de temps et les témoins de temps, un fichier à la fois, par
     Vitest ; `python`, les `*_nuit_test.py` par pytest ; `cargo`, les cibles `tests/*_nuit.rs`
-    puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à repasser ».
+    puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à repasser ». Avec
+    `--hors-du-poste` (`typescript`), la nuit d'une machine partagée (le workflow `nuit.yml`) : les
+    tests de nuit seuls, sauf ceux qui portent l'étiquette `@poste` (une ligne `// @poste: <raison>`
+    du commentaire de leur tête), et aucune mesure de temps ; elle ne pose jamais de dernier vert.
+    Avec `--tranche i/n` (ou `--tranche=i/n`) à côté de `--hors-du-poste`, la i-ième des n parts
+    de ces tests (le découpage de Vitest, comme une tranche de la vérification), ses rapports écrits
+    sous `.vitest-reports/`, que `fusion-des-tranches` réunit. Une tranche qui n'a pas la forme
+    `i/n`, une tranche sans `--hors-du-poste` et tout autre argument sont refusés avant tout
+    travail, code 2.
+  - `tests-du-poste` (`typescript`), une garde : un test de nuit qui dépend du poste (l'enveloppe,
+    le `bd` réel, un serveur Temporal, sccache, systemd, le trousseau, la session, une séance de
+    `claude`, vus par ses appels et sa matière de test) sans l'étiquette `@poste` est refusé par
+    son nom, ses marques nommées ; la dette du projet les inscrit (migration 0.33.0).
   - `fusion-des-tranches` (`typescript`), que la CI joue après les tranches d'une passe : chaque
     paquet doit tenir ses n tranches, les mêmes fichiers de la passe dans chacune, et chaque
     fichier de la passe joué par une tranche exactement, chaque faute nommée ; puis Vitest réunit

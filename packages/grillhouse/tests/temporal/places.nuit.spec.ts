@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-4nr.7: the workflow of the machine played on a development server of trial (the
 // pinned program TEMPORAL on a free port, a database file of its own) and the frame's worker
 // started by its built code. A machine of trial gives a fixed measure (`mesureFixe`), so the load

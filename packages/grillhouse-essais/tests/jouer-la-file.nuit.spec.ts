@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // The queue of a trial played by ./jouer-la-file.mjs, on a server of trial (./temporal-essai.ts):
 // a queue not started yet gave no issue, whatever error the reading of its history raises for a
 // workflow the server does not hold. A test medium: a local server, the script in its process.

@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap
 // grillhouse-xv9: an agent's temporary directory lives the time of its ticket, as the owner
 // amended criterion 1 (2026-11-01): the launcher gives the session of the envelope the ticket's
 // directory (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), kept from one session and one

@@ -1,3 +1,4 @@
+// @poste: un serveur Temporal
 // grillhouse-osf.2 (de 4nr.2, critère 10) : grand test de nuit. Le paquet publie les sources
 // construites de src/temporal/. Ce cas monte une copie du dépôt, construit (npm run build) et
 // empaquette (npm pack) pour de vrai : un grand test (pyramide de la charte), joué la nuit. Ses

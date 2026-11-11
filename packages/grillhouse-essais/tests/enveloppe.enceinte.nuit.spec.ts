@@ -1,3 +1,4 @@
+// @poste: l'enveloppe bwrap, un serveur Temporal
 // grillhouse-3uv.95.3 — the enclosure of writing: an agent reads the whole copy, and writes only in
 // the packages its plan names. The chain, played at night: bwrap itself, and the lock of the agent
 // (scripts/verrous/verrou.mjs), each in a repository of trial; the plan of the envelope is the
