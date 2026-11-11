@@ -92,6 +92,9 @@ pids/
 # Turborepo: its local cache and its runs
 .turbo/
 
+# Vitest: the reports of the tranches of a pass (npm run verifier -- --tranche i/n)
+.vitest-reports/
+
 # The frame's files the package carries when packed (scripts/cadre.mjs --empaqueter): the
 # plugin at its root, the template under cadre/
 packages/grillhouse/cadre/

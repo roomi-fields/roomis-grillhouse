@@ -2,7 +2,9 @@
 // (critère 2); the lint and the format check keep a cache under node_modules/.cache (critère 8).
 // Witness: main's CI stayed red from 8f16106 to 83785bd on a lint the verification did not play.
 // The build job (`npm run build`, `npm pack --dry-run`) stays in the CI as the written exception to
-// critère 2: it is the control of the publication and plays no test.
+// critère 2: it is the control of the publication and plays no test. The CI of Grillhouse plays the
+// verification in several jobs (`--sans-tests`, then its tranches, `--tranche i/n`, merged by
+// `grillhouse fusion-des-tranches`): each of its jobs but build calls the verification alone.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -23,24 +25,38 @@ const CIS = [
 // and of the tools the verification plays (uv, the command claude); no test of the day plays the
 // program temporal, which the night lays down.
 const INSTALLATION = [/^npm ci$/, /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/];
+// The merge of the tranches of the verification, the one other command of a job of the
+// verification.
+const FUSION = 'npx --no-install grillhouse fusion-des-tranches';
+const VERIFIER = /^npm run verifier( |$)/;
 const CONTROLES = /format:check|lint|typecheck|\bbuild\b|\bnpm test\b|\bvitest\b|\btsc\b/;
 
 describe('critère 2: the CI calls the verification alone', () => {
   for (const [titre, fichier] of CIS) {
     const jobs = (parse(lire(fichier)) as Flux).jobs;
-    const lancees = (jobs.test.steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
+    // The jobs of the verification: every job but build.
+    const verification = Object.entries(jobs).filter(([nom]) => nom !== 'build');
+    const runs = (j: { steps?: Etape[] }) =>
+      (j.steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
+    const lancees = verification.flatMap(([, j]) => runs(j));
 
     it(`critère 2: ${titre} plays, after the installation, \`npm run verifier\` and nothing else`, () => {
       // The CI of Grillhouse gives the verification a base for a push (a step of its own, under
       // its condition): every run of the verification is `npm run verifier`, then its base after
       // the `--` separator, so npm hands the base to the script and not to itself.
-      const verifs = lancees.filter(r => /^npm run verifier( |$)/.test(r));
+      const verifs = lancees.filter(r => VERIFIER.test(r));
       expect(verifs.length).toBeGreaterThanOrEqual(1);
       for (const r of verifs) {
-        expect(r).toMatch(/^npm run verifier( -- --base \S+)?$|^npm run verifier -- \$\{\{.*\}\}$/);
+        expect(r).toMatch(
+          /^npm run verifier( -- (--base \S+|--sans-tests))?$|^npm run verifier -- \$\{\{.*\}\}$/
+        );
       }
-      expect(lancees.at(-1)).toMatch(/^npm run verifier/);
-      for (const r of lancees.filter(l => !/^npm run verifier( |$)/.test(l))) {
+      for (const [nom, j] of verification) {
+        expect(runs(j).at(-1), nom).toMatch(
+          /^npm run verifier|^npx --no-install grillhouse fusion-des-tranches$/
+        );
+      }
+      for (const r of lancees.filter(l => !VERIFIER.test(l) && l !== FUSION)) {
         expect(
           INSTALLATION.some(re => re.test(r)),
           `étape de test hors installation : ${r}`
@@ -55,18 +71,17 @@ describe('critère 2: the CI calls the verification alone', () => {
     });
 
     it(`critère 2: ${titre} plays no control by itself in its test job`, () => {
-      for (const r of lancees.filter(l => !/^npm run verifier( |$)/.test(l))) {
+      for (const r of lancees.filter(l => !VERIFIER.test(l) && l !== FUSION)) {
         expect(r, r).not.toMatch(CONTROLES);
       }
     });
 
     it(`critère 2: ${titre} keeps the build job as the written exception, which plays no test`, () => {
-      const autres = Object.entries(jobs).filter(([nom]) => nom !== 'test');
-      expect(autres.map(([nom]) => nom)).toEqual(['build']);
-      const runs = (autres[0][1].steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
-      expect(runs).toContain('npm run build --if-present');
-      expect(runs.some(r => r.startsWith('npm pack --dry-run'))).toBe(true);
-      for (const r of runs) {
+      expect(jobs.build).toBeDefined();
+      const duBuild = runs(jobs.build);
+      expect(duBuild).toContain('npm run build --if-present');
+      expect(duBuild.some(r => r.startsWith('npm pack --dry-run'))).toBe(true);
+      for (const r of duBuild) {
         expect(r, r).not.toMatch(/format:check|lint|typecheck|verifier|\bnpm test\b|\bvitest\b/);
       }
     });

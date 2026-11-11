@@ -198,8 +198,9 @@ export default {
   binaires: {},
   // No program the installer of Temporal looks for: Node is a tool of the account.
   executables: [],
-  // What its tools write in a project: Turborepo's runs and cache.
-  ignorer: ['.turbo'],
+  // What its tools write in a project: Turborepo's runs and cache, and Vitest's reports of the
+  // tranches of a pass (./tranches.mjs).
+  ignorer: ['.turbo', '.vitest-reports'],
   // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
   // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
   // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of
@@ -243,6 +244,7 @@ export default {
     typer: { script: compilateur(racine), args: ['--noEmit'] },
     construire: { script: ici('construire.mjs'), args: [] },
     'tests-de-nuit': { script: ici('tests-de-nuit.mjs'), args: [] },
+    'fusion-des-tranches': { script: ici('tranches.mjs'), args: [] },
     ...Object.fromEntries(OUTILS.map(n => [n, { script: ici(`${n}.mjs`), args: [] }])),
   }),
   verdict,

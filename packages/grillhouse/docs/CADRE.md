@@ -61,6 +61,14 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   la relance d'un rôle sur une copie aux conflits non résolus ou au lot gardé quand il écrit un de
   ces fichiers, et le refuse sinon ; un conflit que la seconde séance du rôle ne lève pas monte
   (arrêt « lancement »), chaque fichier nommé.
+- **R2.5.** À la CI, la vérification en morceaux qui, réunis, font la passe complète, comme Vitest
+  découpe une passe (`--shard`, puis `--merge-reports`) : `npm run verifier -- --sans-tests` joue
+  chaque tâche sauf les tests (gardes, typage, mise en forme, lint) ; `npm run verifier --
+  --tranche i/n` joue les seuls tests de la tranche i sur n, avec les constructions dont ils
+  dépendent, chaque paquet de Vitest jouant la i-ième part de ses fichiers de tests ; `grillhouse
+  fusion-des-tranches` réunit leurs rapports et refuse un fichier de la passe qu'aucune tranche ne
+  joue ou que deux jouent. Une tranche mal écrite est refusée avant tout travail ; ni une tranche
+  ni la passe sans tests ne garde de dernier vert.
 
 ## Ce qu'il refuse
 

@@ -110,9 +110,10 @@ describe('the workflows of the repository', () => {
 type Etape = { run?: string; if?: string; with?: Record<string, unknown>; uses?: string };
 type Flux = { jobs: Record<string, { steps?: Etape[] }> };
 
+// The tranches of the verification are the jobs of the CI that a base measures: the tests.
 describe('the CI of Grillhouse', () => {
   const texte = readFileSync(path.join(DEPOT, '.github/workflows/ci.yml'), 'utf8');
-  const etapes = (parse(texte) as Flux).jobs.test.steps ?? [];
+  const etapes = (parse(texte) as Flux).jobs.tranches.steps ?? [];
 
   it('fetches the whole history, which a base of the lot needs', () => {
     const co = etapes.find(e => e.uses?.startsWith('actions/checkout'));
@@ -138,10 +139,13 @@ describe('the CI of Grillhouse', () => {
   });
 
   it('plays verifier without a base for every other event', () => {
-    const sans = etapes.filter(e => /^npm run verifier\s*$/.test((e.run ?? '').trim()));
+    const sans = etapes.filter(
+      e => /^npm run verifier( |$)/.test((e.run ?? '').trim()) && !/--base/.test(e.run ?? '')
+    );
     expect(sans.length).toBeGreaterThan(0);
     for (const e of sans) {
       expect(e.if ?? '').not.toMatch(/--base/);
+      expect(e.if ?? '').toMatch(/github\.event_name\s*!=\s*'push'/);
     }
   });
 });

@@ -2,7 +2,7 @@
 // cargo for a Cargo.toml at the root, writes no tool of npm of another language,
 // installs the binaries of the declared language that the machine lacks (`binaires`, by
 // `cargo binstall`, as `cargo install --list` reads what is installed), and ignores what the
-// language's tools write (`ignorer`: cargo's `target/`, typescript's `.turbo`), in the source files
+// language's tools write (`ignorer`: cargo's `target/`, typescript's `.turbo` and `.vitest-reports`), in the source files
 // the migrations read and in the `.gitignore` it writes. The template of a project of cargo
 // (`templates/cargo/`) gives its deny.toml, its nextest configuration, its toolchain and its
 // package.json, which the update copies where the project has none. The calls of cargo go to the
@@ -412,9 +412,12 @@ describe('grillhouse-rph, critère 1 — maj signale un Cargo.lock non versionn�
 });
 
 describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écrivent est ignoré', () => {
-  it('each module names what its tools write: cargo target, typescript .turbo', () => {
+  it('each module names what its tools write: cargo target, typescript .turbo and .vitest-reports', () => {
     expect((cargo as unknown as { ignorer: string[] }).ignorer).toEqual(['target']);
-    expect((typescript as unknown as { ignorer: string[] }).ignorer).toEqual(['.turbo']);
+    expect((typescript as unknown as { ignorer: string[] }).ignorer).toEqual([
+      '.turbo',
+      '.vitest-reports',
+    ]);
   });
 
   it('the source files of a project of Rust leave target/ out; of typescript, .turbo', () => {
@@ -501,7 +504,7 @@ describe('grillhouse-icj — la montée ignore les copies de tickets, d’une se
   it.each(formes('.claude/worktrees'))(
     'critère 2 — a .gitignore that ignores it as %s stays as it is',
     forme => {
-      const texte = `${forme}\n.turbo/\n`;
+      const texte = `${forme}\n${IGNORES_TS.map(n => `${n}/\n`).join('')}`;
       const t = ts({ '.gitignore': texte });
       mettreAJour(t, DEPOT);
       expect(lire(t, '.gitignore')).toBe(texte);

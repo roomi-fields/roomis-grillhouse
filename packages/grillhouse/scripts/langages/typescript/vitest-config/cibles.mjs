@@ -41,6 +41,9 @@
 //   variable `GRILLHOUSE_TESTS_DE_NUIT` (NUIT_VARIABLE) chooses `nuit`, the night tests alone, or
 //   `mesures`, the benches and the witnesses alone, one file at a time (`fileParallelism: false`),
 //   as scripts/langages/typescript/tests-de-nuit.mjs plays them.
+// - A tranche of a pass (`tranche`, `i/n`, and `rapports` in the value, `npm run verifier --
+//   --tranche i/n`) plays its part of the files alone, writes its blob report and the files of its
+//   part (`trancher`, ../tranches.mjs).
 // - The changes since the last green (`GRILLHOUSE_CHANGEMENTS`, ./changements.mjs) restrict the
 //   files played to those Vitest relates to them, the files named themselves kept, or leave every
 //   test when a change lies out of Vitest's graph.
@@ -48,6 +51,7 @@
 import { globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { CHANGEMENTS, TESTS_CIBLES } from '../../../services-du-noyau.mjs';
+import { trancher } from '../tranches.mjs';
 import { lireChangements, restreindre } from './changements.mjs';
 
 // The name of the variable is the core's (`TESTS_CIBLES`); this module reads it under its own name.
@@ -165,7 +169,11 @@ export const ciblage = (env = process.env, dire = l => process.stdout.write(`${l
     // The files a targeted run names themselves, absolute.
     let nommes = [];
     if (texte) {
-      nommes = await cibler(config, test, JSON.parse(texte), new Set(temoins));
+      const valeur = JSON.parse(texte);
+      nommes = await cibler(config, test, valeur, new Set(temoins));
+      if (valeur.tranche) {
+        await trancher(config, test, valeur);
+      }
     }
     // The witnesses out of the day, but those named themselves (in the include then).
     const joues = new Set(Array.isArray(test.include) ? test.include : []);

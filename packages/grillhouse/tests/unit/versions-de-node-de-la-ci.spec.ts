@@ -1,5 +1,6 @@
 // The versions of Node the CI plays: Node 22 alone for each batch (push, pull request), Node 22
-// and 24 at night (schedule) and at the release; the build job stays on Node 22.
+// and 24 at night (schedule) and at the release, in each job of the verification (the guards, the
+// tranches, their merge); the build job stays on Node 22.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -28,10 +29,13 @@ const sortie = lire('.github/workflows/release.yml');
 
 type Contexte = { event: string; entree?: string };
 
-// Plays the matrix of the test job as GitHub does: the expression `${{ fromJSON(...) }}` over
+// The jobs of the verification, each played on the versions of the matrix.
+const VERIFICATION = ['gardes', 'tranches', 'fusion'];
+
+// Plays the matrix of the job <job> as GitHub does: the expression `${{ fromJSON(...) }}` over
 // `inputs.node-versions` and `github.event_name`, for one trigger.
-function versionsJouees(ctx: Contexte): string[] {
-  const matrice = ci.jobs.test.strategy?.matrix?.['node-version'];
+function versionsJouees(ctx: Contexte, job = 'tranches'): string[] {
+  const matrice = ci.jobs[job]?.strategy?.matrix?.['node-version'];
   expect(typeof matrice, 'the matrix reads an expression, not a fixed list').toBe('string');
   const m = /^\s*\$\{\{\s*fromJSON\(([\s\S]*)\)\s*\}\}\s*$/.exec(matrice as string);
   expect(m, 'the matrix is `${{ fromJSON(...) }}`').not.toBeNull();
@@ -88,8 +92,21 @@ describe('the versions of Node the CI plays', () => {
       '24.x',
     ]);
     expect(versionsJouees({ event: 'workflow_call', entree: '["24.x"]' })).toEqual(['24.x']);
-    const matrice = ci.jobs.test.strategy?.matrix?.['node-version'];
+    const matrice = ci.jobs.tranches.strategy?.matrix?.['node-version'];
     expect(Array.isArray(matrice)).toBe(false);
+  });
+
+  it('every job of the verification plays the same versions, whatever the trigger', () => {
+    for (const ctx of [
+      { event: 'push' },
+      { event: 'pull_request' },
+      { event: 'schedule' },
+      { event: 'workflow_call', entree: '["22.x","24.x"]' },
+    ]) {
+      for (const job of VERIFICATION) {
+        expect(versionsJouees(ctx, job), `${job} sous ${ctx.event}`).toEqual(versionsJouees(ctx));
+      }
+    }
   });
 
   it('the build job stays on Node 22 whatever the matrix', () => {

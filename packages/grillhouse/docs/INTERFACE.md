@@ -77,6 +77,21 @@ garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
   celles du projet, sans ses tests ; puis la mise en forme et le lint de chaque paquet (ses tâches
   `<paquet>#format:check` et `<paquet>#lint`) et ceux de la racine (`//#format:check` et
   `//#lint`, pour les fichiers que nul paquet ne porte), jouées quand le script existe.
+- `npm run verifier -- --sans-tests` joue chaque tâche de la passe sauf les tests : les gardes, le
+  typage de chaque paquet, la mise en forme et le lint, sans mesure contre le dernier vert ;
+  `npm run verifier -- --tranche i/n` (ou `--tranche=i/n`) joue les seules tâches de tests, avec
+  les constructions dont elles dépendent, chaque paquet de Vitest jouant la i-ième des n parts de
+  ses fichiers de tests (le découpage de Vitest, `--shard`) ; les n tranches et la passe sans tests
+  font ensemble la passe complète, chaque tâche une fois. Une tranche se mesure comme la passe
+  (contre le dernier vert ou sa `--base` ; complète avec `--tout`), se porte dans
+  `GRILLHOUSE_TESTS`, donc dans le hash des tests (deux tranches ne se relisent jamais l'une du
+  cache de l'autre), se joue pour de vrai et écrit sous `.vitest-reports/` son rapport blob de
+  Vitest (`blobs/<paquet>-<i>-<n>.json`) et les fichiers de sa part
+  (`fichiers/<paquet>-<i>-<n>.json` : ceux de la passe et les siens). Une tranche qui n'a pas la
+  forme `i/n` (1 ≤ i ≤ n), ou donnée avec `--gardes` ou `--sans-tests`, est refusée avant tout
+  travail, code 1, la forme nommée. Ni une tranche ni la passe sans tests ne garde son arbre comme
+  dernier vert. Un paquet d'un autre langage que TypeScript joue tous ses tests dans chaque
+  tranche.
 
 ## Les demandes
 
@@ -251,6 +266,12 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     tests de nuit puis les bancs de temps et les témoins de temps, un fichier à la fois, par
     Vitest ; `python`, les `*_nuit_test.py` par pytest ; `cargo`, les cibles `tests/*_nuit.rs`
     puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à repasser ».
+  - `fusion-des-tranches` (`typescript`), que la CI joue après les tranches d'une passe : chaque
+    paquet doit tenir ses n tranches, les mêmes fichiers de la passe dans chacune, et chaque
+    fichier de la passe joué par une tranche exactement, chaque faute nommée ; puis Vitest réunit
+    leurs rapports blob en un seul (`vitest run --merge-reports .vitest-reports/blobs`). 0 quand
+    les tranches tiennent et que le rapport réuni est vert, ou qu'aucune tranche n'a de fichier de
+    tests ; 1 sinon.
 - La vérification écrit ses tâches rouges dans le fichier que nomme `GRILLHOUSE_ROUGES`, une par
   ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a
   une (`typescript`, `npx turbo run <tâche> --filter=<paquet>`) ; la nuit en tire sa commande

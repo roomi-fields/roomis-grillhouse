@@ -6,6 +6,8 @@
 //   npx grillhouse verifier [<argument of Turborepo>…]      (npm run verifier -- --force)
 //   npx grillhouse verifier --tout [<argument>…]             every test, played for real
 //   npx grillhouse verifier --gardes [<argument>…]           the guards alone (the reviewer)
+//   npx grillhouse verifier --sans-tests [<argument>…]       every control but the tests
+//   npx grillhouse verifier --tranche i/n [<argument>…]      the tests of the tranche i of n
 //
 // - A pass measures itself against the last green (scripts/dernier-vert.mjs), as
 //   `vitest --changed` and `jest --onlyChanged` do: the tree of the last pass green on every
@@ -80,6 +82,18 @@
 //   run of Turborepo gets it in TMPDIR, TMP and TEMP, the root's `globalPassThroughEnv` passing
 //   TMPDIR on to every task (scripts/langages/typescript/turbo-des-paquets.mjs), and the pass
 //   removes it at its end, green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
+// - `--sans-tests` plays every task of the pass but the tests: the guards, the typing, the format
+//   check and the lint (`turbo run grillhouse:gardes gardes typecheck format:check lint …`), with no
+//   measure; `--tranche i/n` plays the tasks of tests alone (`turbo run test:unit …`), with the
+//   builds they depend on, each package of Vitest playing the i-th of n parts of its test files
+//   (./tranches.mjs): the n tranches and `--sans-tests` together play the complete pass, each task
+//   once, as the CI plays it, one job each. A tranche is measured as the pass is (against the last
+//   green or its `--base`; complete with `--tout`), carries itself in the variable
+//   `GRILLHOUSE_TESTS`, which the hash of the tests counts (two tranches never replay one another
+//   from the cache), plays for real, since it writes its reports (./tranches.mjs, under
+//   `.vitest-reports/`, its former ones removed first), and never keeps its tree as the last green,
+//   green or not; neither does `--sans-tests`. A tranche not of the form `i/n` (1 ≤ i ≤ n), or given
+//   with `--gardes` or `--sans-tests`, is refused before any work, code 1.
 // - The run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
 //   (scripts/langages/typescript/vitest-config/cibles.mjs) carries only `rejouer`, for a complete
 //   pass.
@@ -106,6 +120,7 @@ import {
   testsCibles,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
+import { fichiersDeLaTranche, LA_FORME, lireLaTranche, RAPPORTS } from './tranches.mjs';
 import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
 
@@ -136,6 +151,12 @@ export function verifier({
   dire = l => process.stdout.write(`${l}\n`),
   coeurs = availableParallelism(),
 }) {
+  // A malformed request is refused before any work.
+  const { erreur } = lireLesDemandes(demandes);
+  if (erreur) {
+    dire(erreur);
+    return 1;
+  }
   // The base of the pass, in the temporary directory of <env>: every task writes in it (TMPDIR,
   // which Turborepo passes on), and it goes at the end of the pass.
   const base = ouvrirBase('verification', { dans: env.TMPDIR || tmpdir() });
@@ -200,28 +221,40 @@ function depotAvecTests(racine) {
 const filtre = args => args.some(a => a.startsWith('--filter=') || a === '--filter' || a === '-F');
 
 // A pass green on every package keeps its tree as the last green (`garder`): not when it is
-// restricted by a filter, measured against nothing, or run after a red module (PASSE_ROUGE).
-export function poserLeVert({ code, etat, args, env, garder }) {
-  if (code === 0 && etat && !filtre(args) && !env[PASSE_ROUGE]) {
+// restricted by a filter or to a part of its tasks (<partielle>: a tranche, `--sans-tests`),
+// measured against nothing, or run after a red module (PASSE_ROUGE).
+export function poserLeVert({ code, etat, args, env, garder, partielle = false }) {
+  if (code === 0 && etat && !partielle && !filtre(args) && !env[PASSE_ROUGE]) {
     garder(etat);
   }
 }
 
-// The options of the pass in <demandes>: `{ gardesSeules, tout, base, args }`. `--base <commit>`
-// (or `--base=<commit>`) belongs to the verification alone: it never reaches the tasks, `base` is
-// '' when it has no value (alone, or followed by another option), and undefined when it is not
-// given or when the guards alone ask for no measure.
+// The options of the pass in <demandes>: `{ gardesSeules, sansTests, tranche, tout, base, args,
+// erreur }`. `--base <commit>` (or `--base=<commit>`) belongs to the verification alone: it never
+// reaches the tasks, `base` is '' when it has no value (alone, or followed by another option), and
+// undefined when it is not given or when the guards alone, or the pass without its tests, ask for
+// no measure. `--tranche i/n` (or `--tranche=i/n`) neither: `tranche` is `{ index, count }`;
+// `erreur`, the line that refuses a tranche not of the form i/n, or given with `--gardes` or
+// `--sans-tests`.
 export function lireLesDemandes(demandes) {
   const gardesSeules = demandes.includes('--gardes');
+  const sansTests = demandes.includes('--sans-tests');
   const tout = demandes.includes('--tout') || demandes.includes('--force');
   let base;
+  let texte;
   const args = [];
   for (let i = 0; i < demandes.length; i++) {
     const a = demandes[i];
-    if (a === '--gardes' || a === '--tout') {
+    if (a === '--gardes' || a === '--tout' || a === '--sans-tests') {
       continue;
     }
-    if (a === '--base') {
+    if (a === '--tranche') {
+      const suite = demandes[i + 1];
+      texte = suite !== undefined && !suite.startsWith('-') ? suite : '';
+      i += texte ? 1 : 0;
+    } else if (a.startsWith('--tranche=')) {
+      texte = a.slice('--tranche='.length);
+    } else if (a === '--base') {
       const suite = demandes[i + 1];
       if (suite !== undefined && !suite.startsWith('-')) {
         base = suite;
@@ -235,21 +268,81 @@ export function lireLesDemandes(demandes) {
       args.push(a);
     }
   }
-  return { gardesSeules, tout, base: gardesSeules ? undefined : base, args };
+  const tranche = texte === undefined ? undefined : (lireLaTranche(texte) ?? undefined);
+  let erreur;
+  if (texte !== undefined && !tranche) {
+    erreur = `⛔ --tranche attend la forme ${LA_FORME}, deux entiers avec 1 ≤ i ≤ n (par exemple --tranche 1/3) : « ${texte} » ne l'a pas.`;
+  } else if (tranche && (gardesSeules || sansTests)) {
+    erreur = `⛔ --tranche joue les seuls tests : elle ne se combine ni avec --gardes ni avec --sans-tests.`;
+  }
+  const mesure = !gardesSeules && !sansTests;
+  return {
+    gardesSeules,
+    sansTests,
+    tranche,
+    tout,
+    base: mesure ? base : undefined,
+    args,
+    ...(erreur ? { erreur } : {}),
+  };
+}
+
+/**
+ * The tasks of Turborepo a pass plays, from its options (`lireLesDemandes`), <controles> the tasks
+ * of the format check and the lint of the repository (`controlesDuDepot`): a tranche, the tests
+ * alone; `--gardes`, the guards and the controls; `--sans-tests`, every task but the tests; else
+ * every task.
+ * @param {{ gardesSeules?: boolean, sansTests?: boolean, tranche?: object }} demandes
+ * @param {string[]} controles
+ * @returns {string[]}
+ */
+export function tachesDeLaPasse({ gardesSeules, sansTests, tranche }, controles) {
+  if (tranche) {
+    return [SCRIPT_DES_TESTS];
+  }
+  if (gardesSeules) {
+    return [...GARDES, ...controles];
+  }
+  if (sansTests) {
+    return [...GARDES, TYPAGE, ...controles];
+  }
+  return [...TACHES, ...controles];
+}
+
+/**
+ * The content of the variable of the tests (`GRILLHOUSE_TESTS`) for the tranche <tranche> of a pass
+ * in <racine>: the tranche and the directory of its reports, and the moment of the pass, which no
+ * cached run holds.
+ * @param {{ index: number, count: number }} tranche
+ * @param {string} racine
+ */
+export function testsDeLaTranche(tranche, racine) {
+  return {
+    ...testsCibles({ arguments: [], force: true }),
+    tranche: `${tranche.index}/${tranche.count}`,
+    rapports: path.join(racine, RAPPORTS),
+  };
 }
 
 function passe({ racine, demandes, env, dire, coeurs }) {
-  const { gardesSeules, tout, base, args } = lireLesDemandes(demandes);
-  // The measure against the last green, or the base given: the guards alone need none.
-  const m = gardesSeules ? null : mesure(racine, { tout, base, dans: env.TMPDIR });
+  const lu = lireLesDemandes(demandes);
+  const { gardesSeules, sansTests, tranche, tout, base, args } = lu;
+  // The measure against the last green, or the base given: a pass without tests needs none.
+  const m = gardesSeules || sansTests ? null : mesure(racine, { tout, base, dans: env.TMPDIR });
   if (m) {
     dire(m.ligne);
   }
   const taches = new Set();
   try {
+    // A tranche writes its reports anew.
+    if (tranche) {
+      for (const f of fichiersDeLaTranche(path.join(racine, RAPPORTS), tranche)) {
+        rmSync(f, { force: true });
+      }
+    }
     const code = jouerLaPasse({
       racine,
-      gardesSeules,
+      demandes: lu,
       args,
       tout,
       ajouts: m?.env ?? {},
@@ -262,36 +355,43 @@ function passe({ racine, demandes, env, dire, coeurs }) {
       writeFileSync(env[ROUGES], [...taches].map(t => `${t}\t${rejeu(t)}\n`).join(''));
     }
     // A pass green on every package keeps its tree as the last green.
-    poserLeVert({ code, etat: m?.etat, args, env, garder: garderLeVert });
+    poserLeVert({
+      code,
+      etat: m?.etat,
+      args,
+      env,
+      garder: garderLeVert,
+      partielle: Boolean(tranche) || sansTests,
+    });
     return code;
   } finally {
     m?.retirer();
   }
 }
 
-function jouerLaPasse({ racine, gardesSeules, args, tout, ajouts, env, dire, coeurs, taches }) {
+function jouerLaPasse({ racine, demandes, args, tout, ajouts, env, dire, coeurs, taches }) {
+  const { gardesSeules, sansTests, tranche } = demandes;
   const { [TESTS_CIBLES]: _, [CHANGEMENTS]: __, ...propre } = env;
   // The environment of the run: measured against the last green; the moment of a complete pass,
-  // which moves the hash of every task of tests, so that each plays for real.
-  const e = gardesSeules
-    ? propre
-    : {
-        ...propre,
-        ...ajouts,
-        ...(tout
-          ? { [TESTS_CIBLES]: JSON.stringify(testsCibles({ arguments: [], force: true })) }
-          : {}),
-      };
+  // which moves the hash of every task of tests, so that each plays for real; a tranche, with it.
+  const cibles = tranche
+    ? testsDeLaTranche(tranche, racine)
+    : tout
+      ? testsCibles({ arguments: [], force: true })
+      : undefined;
+  const e =
+    gardesSeules || sansTests
+      ? propre
+      : { ...propre, ...ajouts, ...(cibles ? { [TESTS_CIBLES]: JSON.stringify(cibles) } : {}) };
   const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
   const a = [
-    ...(gardesSeules ? GARDES : TACHES),
-    ...controlesDuDepot(racine),
+    ...tachesDeLaPasse(demandes, controlesDuDepot(racine)),
     '--continue=dependencies-successful',
     ...borne,
     ...args,
   ];
   // The plan of the run, before it: the progress knows all its tasks.
-  if (!gardesSeules && depotAvecTests(racine)) {
+  if (!gardesSeules && !sansTests && depotAvecTests(racine)) {
     planifier(env[AVANCEMENT], { racine, args: a, env: e });
   }
   // The run of Turborepo, and its summary.
