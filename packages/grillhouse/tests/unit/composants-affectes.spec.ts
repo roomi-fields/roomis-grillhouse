@@ -303,7 +303,7 @@ describe('the command reads its options before any ticket', () => {
   it('--help writes the usage and ends at 0, without reading a ticket', () => {
     const sortie = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     try {
-      expect(commande(tmpdir(), ['--help'])).toBe(0);
+      expect(commande(ESSAIS, ['--help'])).toBe(0);
       expect(String(sortie.mock.calls[0]?.[0])).toMatch(/^usage: /);
     } finally {
       sortie.mockRestore();
@@ -313,7 +313,7 @@ describe('the command reads its options before any ticket', () => {
   it('an unknown option is refused at 2, named', () => {
     const erreur = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     try {
-      expect(commande(tmpdir(), ['--rien'])).toBe(2);
+      expect(commande(ESSAIS, ['--rien'])).toBe(2);
       expect(String(erreur.mock.calls[0]?.[0])).toContain('--rien');
     } finally {
       erreur.mockRestore();

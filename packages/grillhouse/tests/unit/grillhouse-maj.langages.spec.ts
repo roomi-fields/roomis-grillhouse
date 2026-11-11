@@ -202,7 +202,10 @@ describe('grillhouse-3dr.2.3 — un projet d’essai copié de BPScript', () => 
     const changes = [...etat(racine)]
       .filter(([f, t]) => avant.get(f) !== t)
       .map(([f]) => f)
-      .filter(f => path.basename(f) !== 'package.json' && f !== '.gitattributes');
+      // The update writes the ignore lines of what the frame and its tools write (ignorer).
+      .filter(
+        f => path.basename(f) !== 'package.json' && f !== '.gitattributes' && f !== '.gitignore'
+      );
     expect(changes).toEqual([]);
   });
 });

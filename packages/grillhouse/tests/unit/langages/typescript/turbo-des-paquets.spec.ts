@@ -959,6 +959,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'langages/typescript/vitest-config/changements.mjs',
       'langages/typescript/vitest-config/lances.mjs',
       'langages/typescript/vitest-config/resultats.mjs',
+      // What cibles.mjs imports: the tranches of a pass (grillhouse-44b.12.1).
+      'langages/typescript/tranches.mjs',
     ];
     const r = codeMortEssai(ESSAIS, {
       'package.json': pkg({
