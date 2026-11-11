@@ -400,7 +400,10 @@ agent, le même pour tout langage, que le module appelle en lui donnant l'outil 
 chemins, uniques pour tout langage, typescript compris ; `GRAPHE_JOUE`, que la commande composée
 pose aux modules qui jouent à côté du module de `package.json`, dont la passe joue déjà toutes les
 tâches du graphe ; `PASSE_ROUGE`, que la commande composée pose à un module qui joue après un
-module rouge : la passe de la vérification ne pose alors aucun vert ; `TRACE`, `tracesDuPlan`), et la lecture unique
+module rouge (un code 75 d'un module hors du graphe compte comme rouge) : la passe de la
+vérification ne pose alors aucun vert ; sous `verifier`, le module de `package.json` joue en
+dernier, quel que soit l'ordre des langages du tableau des composants, si bien qu'un contrôle
+hors du graphe rouge, `cargo deny check` par exemple, l'empêche de poser le dernier vert ; `TRACE`, `tracesDuPlan`), et la lecture unique
 (`luUneFois(cle, lire)` : ce qu'un module lit à grand coût, les métadonnées de cargo, ses
 composants, se lit une fois tant que le noyau tient une portée de lecture unique, un geste qui
 pose beaucoup de questions sur un arbre immobile, le balayage des sœurs ; à chaque appel hors

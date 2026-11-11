@@ -25,9 +25,10 @@
 //   (scripts/dernier-vert.mjs) is kept by the one pass of the verification, once, when every task
 //   of every language of the graph is green (scripts/langages/typescript/verifier.mjs). A module
 //   that plays after a red one gets `PASSE_ROUGE` in its environment: that pass keeps none.
-// - `verifier`: the module of package.json passes over the whole graph (every task of every
-//   language, once); the others get `GRAPHE_JOUE` and play no task of it again (cargo: its
-//   `deny check` alone), so that nextest and pytest play once.
+// - `verifier`: the module of package.json plays last, and passes over the whole graph (every task
+//   of every language, once); the others play before it in their declared order and get
+//   `GRAPHE_JOUE` and play no task of it again (cargo: its `deny check` alone), so that nextest
+//   and pytest play once.
 // - The exit code: 0 when every module is green, 75 when the only reds are « à repasser », else the
 //   first other code; 128 plus the number of a signal that ended a module.
 import { spawnSync } from 'node:child_process';
@@ -126,7 +127,13 @@ export function jouer(
   // keeps no green then.
   const codes = [];
   const duGraphe = r.parts.find(x => x.module.manifeste === 'package.json')?.module;
-  for (const { module, args: siens } of r.parts) {
+  // `verifier`: the module of the graph plays last, so that its pass, the one that keeps the last
+  // green, knows the verdict of every other module; the others keep their relative order.
+  const ordre =
+    nom === 'verifier' && duGraphe
+      ? [...r.parts.filter(x => x.module !== duGraphe), ...r.parts.filter(x => x.module === duGraphe)]
+      : r.parts;
+  for (const { module, args: siens } of ordre) {
     const c = module.commandes(racine)[nom];
     dire(`▶ ${module.nom} : ${nom}`);
     const rouge = codes.some(x => x !== 0);

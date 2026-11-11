@@ -191,3 +191,80 @@ describe('grillhouse-44b.5 critère 9 — les marques GRAPHE_JOUE et PASSE_ROUGE
     expect(marques().join(',')).not.toMatch(/PASSE_ROUGE/);
   });
 });
+
+// Le module du graphe joue en dernier sous `verifier`, quel que soit l'ordre déclaré : un rouge
+// d'un module hors graphe le marque PASSE_ROUGE, et le dernier vert ne se pose qu'une fois.
+describe('verifier composée — le module du graphe joue en dernier', () => {
+  const PYTHON = module('python', ['moteur'], ['tester', 'verifier']);
+  const avec = (nom: string, modules: Langage[], args: string[] = [], env = {}) =>
+    jouer(nom, args, { racine: RACINE, modules, env: { ...process.env, JOURNAL, ...env } });
+
+  it('verifier: le module du graphe joue en dernier même déclaré avant les autres', () => {
+    expect(avec('verifier', [TS, CARGO])).toBe(0);
+    expect(journal()).toEqual(['cargo verifier', 'typescript verifier']);
+  });
+
+  it('verifier: les modules hors graphe gardent leur ordre relatif', () => {
+    expect(avec('verifier', [PYTHON, TS, CARGO])).toBe(0);
+    expect(journal()).toEqual(['python verifier', 'cargo verifier', 'typescript verifier']);
+    writeFileSync(JOURNAL, '');
+    expect(avec('verifier', [CARGO, TS, PYTHON])).toBe(0);
+    expect(journal()).toEqual(['cargo verifier', 'python verifier', 'typescript verifier']);
+  });
+
+  it('un module hors graphe rouge, déclaré après typescript, marque le module du graphe PASSE_ROUGE', () => {
+    expect(avec('verifier', [TS, CARGO], [], { CODE_cargo: '1' })).toBe(1);
+    expect(marques()).toEqual(['GRAPHE_JOUE', 'PASSE_ROUGE']);
+  });
+
+  it('tous verts, typescript déclaré d’abord: le module du graphe seul rejoue, sans PASSE_ROUGE', () => {
+    expect(avec('verifier', [TS, CARGO])).toBe(0);
+    expect(marques()).toEqual(['GRAPHE_JOUE', '']);
+  });
+
+  it('le rouge d’un seul module hors graphe, quel qu’il soit, marque le module du graphe', () => {
+    expect(avec('verifier', [TS, CARGO, PYTHON], [], { CODE_python: '3' })).toBe(3);
+    expect(marques()).toEqual(['GRAPHE_JOUE', 'GRAPHE_JOUE', 'PASSE_ROUGE']);
+  });
+
+  it('un code 75 d’un module hors graphe marque le module du graphe, le code joint reste 75', () => {
+    expect(avec('verifier', [TS, CARGO], [], { CODE_cargo: '75' })).toBe(75);
+    expect(marques()).toEqual(['GRAPHE_JOUE', 'PASSE_ROUGE']);
+  });
+
+  it('un 75 hors graphe et un rouge: le rouge l’emporte', () => {
+    expect(avec('verifier', [TS, CARGO, PYTHON], [], { CODE_cargo: '75', CODE_python: '2' })).toBe(
+      2
+    );
+  });
+
+  it('verifier --gardes et --tout suivent le même ordre', () => {
+    for (const option of ['--gardes', '--tout']) {
+      writeFileSync(JOURNAL, '');
+      expect(avec('verifier', [TS, CARGO], [option])).toBe(0);
+      expect(journal()).toEqual([`cargo verifier ${option}`, `typescript verifier ${option}`]);
+    }
+  });
+
+  it('le module du graphe seul garde ses marques', () => {
+    expect(avec('verifier', [TS])).toBe(0);
+    expect(marques()).toEqual(['']);
+  });
+
+  it('tester, construire, typer: l’ordre déclaré et la répartition des chemins ne changent pas', () => {
+    const commandes = ['tester', 'construire', 'typer'];
+    const TS2 = module('typescript', ['site'], commandes, 'package.json');
+    const CARGO2 = module('cargo', ['moteur'], commandes);
+    for (const nom of commandes) {
+      writeFileSync(JOURNAL, '');
+      expect(avec(nom, [TS2, CARGO2])).toBe(0);
+      expect(journal()).toEqual([`typescript ${nom}`, `cargo ${nom}`]);
+    }
+    writeFileSync(JOURNAL, '');
+    expect(avec('tester', [TS2, CARGO2], ['moteur/src/lib.rs', 'site/tests/a.spec.ts'])).toBe(0);
+    expect(journal()).toEqual([
+      'typescript tester site/tests/a.spec.ts',
+      'cargo tester moteur/src/lib.rs',
+    ]);
+  });
+});
