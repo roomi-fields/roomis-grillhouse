@@ -1553,7 +1553,7 @@ export function monter(ctx, a) {
   const piece =
     String(a.piece ?? '').trim() ||
     rouges ||
-    `Le journal du ticket, ${ctx.journal} :\n${fin(lire(ctx.journal), 20)}`;
+    `Le journal du ticket, ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`) :\n${fin(lire(ctx.journal), 20)}`;
   const question = a.question ? `${a.question}\n\n${m.question}` : m.question;
   const qui = a.qui ?? m.qui;
   ecrireEtat(ctx, {

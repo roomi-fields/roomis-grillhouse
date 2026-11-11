@@ -730,7 +730,7 @@ export function regenerer(
         ...ecarts,
         '',
         ...difference,
-        `Le journal du ticket : ${ctx.journal}`,
+        `Le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`,
       ].join('\n'),
       {
         piece: [...ecarts, ...difference].join('\n'),
@@ -1758,7 +1758,7 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
         // It cannot load before the build: it plays at the checks.
       } else if (!res) {
         casses.push(
-          `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal}`
+          `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`
         );
       } else if (tests.length === 0) {
         casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);
@@ -1982,7 +1982,7 @@ function rougesDe(ctx, liste, c) {
   }
   if (out.length === 0) {
     out.push({
-      texte: `${ligneDeCommande(c)} rouge (code ${c.code}), sans résultat qui situe son rouge — le journal du ticket : ${ctx.journal}`,
+      texte: `${ligneDeCommande(c)} rouge (code ${c.code}), sans résultat qui situe son rouge — le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`,
       ...situer(ctx, liste, null),
     });
   }
@@ -2100,7 +2100,7 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
     : 'Contrôles de la passe finale, hors enveloppe, sur la bande du lot (sa base et ses dépendants)';
   const ligne = r => [`- ${r.texte}`, ...(r.detail ? ['', r.detail, ''] : [])];
   const nomDuPaquet = r => r.paquet ?? 'hors des paquets';
-  const journal = `Le journal du ticket, pour le détail des commandes : ${ctx.journal}`;
+  const journal = `Le journal du ticket, pour le détail des commandes : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`;
   // The warnings and notes of the guards, apart from the reds: shown, given to no one to correct.
   const signales = resultats.flatMap(r => r.avertissements);
   const avertissements = signales.length

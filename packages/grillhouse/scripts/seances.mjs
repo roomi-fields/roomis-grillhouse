@@ -886,7 +886,7 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
   }
   throw new Arret(
     'sans-fiche',
-    `Deux fois, la séance du ${nomDuRole(role)} finit sans fiche conforme : ${lu.erreur}. Le journal du ticket : ${ctx.journal}`
+    `Deux fois, la séance du ${nomDuRole(role)} finit sans fiche conforme : ${lu.erreur}. Le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`
   );
 }
 

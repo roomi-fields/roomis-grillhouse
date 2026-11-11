@@ -756,9 +756,19 @@ function introuvables(f, copie) {
     if (!lu?.fichier) {
       continue;
     }
-    const abs = path.resolve(racine, lu.fichier);
+    let abs = path.resolve(racine, lu.fichier);
     const lieu = `${lu.fichier}:${lu.ligne}${lu.fin ? `-${lu.fin}` : ''}`;
-    if (!abs.startsWith(`${racine}${path.sep}`) || !existsSync(abs) || !statSync(abs).isFile()) {
+    // The journal of the ticket, `<copie>.log` next to the copy, named by its absolute path or by
+    // `<nom de la copie>.log`; a file of the copy of that name is judged as that file.
+    const journal = `${racine}.log`;
+    const dansLaCopie = abs.startsWith(`${racine}${path.sep}`) && existsSync(abs);
+    if (!dansLaCopie && (lu.fichier === journal || lu.fichier === path.basename(journal))) {
+      abs = journal;
+    } else if (!abs.startsWith(`${racine}${path.sep}`)) {
+      out.push(`${ou} : ${lieu} introuvable dans la copie : pas de tel fichier`);
+      continue;
+    }
+    if (!existsSync(abs) || !statSync(abs).isFile()) {
       out.push(`${ou} : ${lieu} introuvable dans la copie : pas de tel fichier`);
       continue;
     }
