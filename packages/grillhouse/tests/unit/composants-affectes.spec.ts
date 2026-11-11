@@ -1,11 +1,12 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as module from '../../scripts/composants-affectes.mjs';
 import {
   cheminsLus,
+  commande,
   manquants,
   rapportDescription,
   releve,
@@ -295,5 +296,27 @@ describe('grillhouse-3uv.89 — cheminsLus : ce que le package.json d’un paque
     manifeste({ name: 'a' });
     expect(cheminsLus(dir)).toEqual([]);
     expect(cheminsLus(path.join(dir, 'absent'))).toEqual([]);
+  });
+});
+
+describe('the command reads its options before any ticket', () => {
+  it('--help writes the usage and ends at 0, without reading a ticket', () => {
+    const sortie = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      expect(commande(tmpdir(), ['--help'])).toBe(0);
+      expect(String(sortie.mock.calls[0]?.[0])).toMatch(/^usage: /);
+    } finally {
+      sortie.mockRestore();
+    }
+  });
+
+  it('an unknown option is refused at 2, named', () => {
+    const erreur = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      expect(commande(tmpdir(), ['--rien'])).toBe(2);
+      expect(String(erreur.mock.calls[0]?.[0])).toContain('--rien');
+    } finally {
+      erreur.mockRestore();
+    }
   });
 });

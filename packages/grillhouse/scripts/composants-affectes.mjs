@@ -391,8 +391,22 @@ export function rapportDescription(racine, fichier) {
   return texteDuReleve(releve(racine, readFileSync(path.resolve(racine, fichier), 'utf8')));
 }
 
-// The command: its exit code.
-function commande(racine, args) {
+const USAGE = 'usage: npx grillhouse composants-affectes <ticket> | --description <fichier>\n';
+
+// The command: its exit code. `-h`/`--help` writes the usage, exit 0; any other option than
+// `--description`, the usage on the error stream, exit 2.
+export function commande(racine, args) {
+  if (args.includes('-h') || args.includes('--help')) {
+    process.stdout.write(USAGE);
+    return 0;
+  }
+  const inconnue = args.find(
+    (a, k) => a.startsWith('-') && a !== '--description' && args[k - 1] !== '--description'
+  );
+  if (inconnue) {
+    process.stderr.write(`⛔ option inconnue : ${inconnue}\n${USAGE}`);
+    return 2;
+  }
   const i = args.indexOf('--description');
   if (i >= 0) {
     if (!args[i + 1]) {
@@ -404,9 +418,7 @@ function commande(racine, args) {
   }
   const [ticket] = args;
   if (!ticket) {
-    process.stderr.write(
-      'usage: npx grillhouse composants-affectes <ticket> | --description <fichier>\n'
-    );
+    process.stderr.write(USAGE);
     return 2;
   }
   const show = spawnSync('bd', ['show', ticket, '--json'], {
