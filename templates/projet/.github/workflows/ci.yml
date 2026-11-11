@@ -51,7 +51,38 @@ env:
 # repository's settings, never in this file.
 
 jobs:
+  # A tree already judged plays nothing again, as bors and Zuul test once the tree that enters
+  # main: the queue of the frame (scripts/integration/file.mjs) moves main by fast-forward onto the
+  # commit the CI of the ticket's branch judged green, so a push to main whose commit a run of this
+  # workflow on a branch agent/** concluded green skips every job of the pass. Every other event (a
+  # pull request, the schedule, the call by a release, whose event is the caller's push of a tag, a
+  # push to develop or to agent/**) plays as before. The job itself always runs, so that its
+  # dependents read its output; a search that fails says nothing judged, and the pass plays. A job
+  # skipped by its condition reports « Success », and the run concludes in success (docs.github.com,
+  # « Using conditions to control job execution »). It reads the runs of the repository: a workflow
+  # that calls this one grants it `actions: read`. On a runner of the repository, `gh` must be
+  # installed.
+  judged:
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      judged: ${{ steps.search.outputs.judged }}
+    steps:
+      - name: A green run of a ticket's branch on this commit
+        id: search
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branches=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status success --json headBranch --jq '.[].headBranch') || branches=''
+          if grep -q '^agent/' <<< "$branches"; then judged=true; else judged=false; fi
+          echo "judged=$judged" >> "$GITHUB_OUTPUT"
+
   gardes:
+    needs: judged
+    if: needs.judged.outputs.judged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     # The versions come from the input of the call; push and pull request play Node 26 alone,
@@ -87,6 +118,8 @@ jobs:
         run: npm run verifier -- --sans-tests
 
   tranches:
+    needs: judged
+    if: needs.judged.outputs.judged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
@@ -140,8 +173,8 @@ jobs:
           retention-days: 7
 
   fusion:
-    needs: tranches
-    if: ${{ !cancelled() }}
+    needs: [judged, tranches]
+    if: ${{ !cancelled() && needs.judged.outputs.judged != 'true' }}
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:

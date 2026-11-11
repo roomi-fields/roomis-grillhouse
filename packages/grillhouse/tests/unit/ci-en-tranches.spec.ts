@@ -39,8 +39,14 @@ const runs = (j: Job) => (j.steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : 
 const TRANCHES = Number(ci.env?.TRANCHES);
 
 describe('the CI of Grillhouse plays the verification in tranches', () => {
-  it('has a job of guards, the tranches, their merge and build', () => {
-    expect(Object.keys(ci.jobs).sort()).toEqual(['build', 'fusion', 'gardes', 'tranches']);
+  it('has a job of guards, the tranches, their merge and build, after the job that finds a judged tree', () => {
+    expect(Object.keys(ci.jobs).sort()).toEqual([
+      'build',
+      'fusion',
+      'gardes',
+      'judged',
+      'tranches',
+    ]);
   });
 
   it('keeps its name and the input of its call by the release', () => {
@@ -95,8 +101,8 @@ describe('the CI of Grillhouse plays the verification in tranches', () => {
 
   it('merges the reports of the n tranches of one version of Node, after them, even red', () => {
     const fusion = ci.jobs.fusion;
-    expect([fusion.needs].flat()).toEqual(['tranches']);
-    expect(fusion.if).toBe('${{ !cancelled() }}');
+    expect([fusion.needs].flat()).toEqual(['judged', 'tranches']);
+    expect(fusion.if).toMatch(/^\$\{\{ !cancelled\(\) && /);
     const recu = (fusion.steps ?? []).find(e => e.uses?.startsWith('actions/download-artifact'));
     expect(String(recu?.with?.pattern)).toMatch(/^tranche-\$\{\{ matrix\.node-version \}\}-\*$/);
     expect(recu?.with?.path).toBe('.vitest-reports');
@@ -105,6 +111,6 @@ describe('the CI of Grillhouse plays the verification in tranches', () => {
   });
 
   it('builds once the guards, the tranches and their merge are green', () => {
-    expect([ci.jobs.build.needs].flat().sort()).toEqual(['fusion', 'gardes', 'tranches']);
+    expect([ci.jobs.build.needs].flat().sort()).toEqual(['fusion', 'gardes', 'judged', 'tranches']);
   });
 });

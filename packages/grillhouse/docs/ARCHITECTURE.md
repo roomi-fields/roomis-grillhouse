@@ -759,7 +759,10 @@ superviseur, repris à la main ; SyntHub SH-br0.1 : un arrêt 27 s après la rel
 lu sur un mot du responsable).
 
 **Main reste vert** : la file n'avance main que sur l'arbre que la CI de la branche du ticket a
-jugé vert, sans rouge admis (bors, Zuul) ; la nuit rejoue la passe complète. La mise à jour du cadre
+jugé vert, sans rouge admis (bors, Zuul), et la CI de main ne rejoue pas cet arbre : son premier
+job (`judged` de `ci.yml`, du dépôt et du gabarit) cherche, sur un push vers main seul, un run vert
+du même workflow sur une branche `agent/**` pour le même commit, et chaque job de la passe est sauté
+quand il le trouve ; tout autre événement joue la passe. La nuit rejoue la passe complète. La mise à jour du cadre
 (`npx grillhouse maj`) finit par `npm run verifier` dans le projet, dont le vert pose le dernier
 vert sur l'arbre qu'elle laisse, comme Nx affected avance sa base au dernier commit vert de main ;
 elle rend le code de la vérification, et son compte rendu dit le vert posé, ou pourquoi il ne
@@ -1007,8 +1010,8 @@ sous l'environnement du poste que le module donne (`environnementDuPoste` de la 
 déjà l'une de ses variables (une CI sur un exécuteur du poste) le garde. La séance d'un agent
 n'en a pas besoin : l'enveloppe ne lui rend ni le fichier (sa maison est vide) ni les variables
 (son environnement est déclaré), et ses passes partagent le cache local de l'arbre principal.
-Ainsi la CI de main après l'avance rapide est servie du cache pour l'arbre que la CI de la branche
-a déjà jugé, et le poste en profite sans jamais l'écrire.
+Ainsi chaque run sert les suivants pour ce qui n'a pas bougé, et le poste en profite sans jamais
+l'écrire ; la CI de main après l'avance rapide ne rejoue rien (« Main reste vert »).
 
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
 scripts, appelés par `npx grillhouse <sous-commande>`, et il est le greffon `grillhouse`, qui

@@ -8,7 +8,9 @@ on:
     tags:
       - 'v*.*.*'
 
+# actions: read for the job judged of the CI it calls, which reads the runs of the repository.
 permissions:
+  actions: read
   contents: write
   id-token: write
 
