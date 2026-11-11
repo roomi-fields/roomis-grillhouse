@@ -10,7 +10,8 @@
 //   version (`binaires`, ./binaires.json). What uv, pytest and Python write in a project: `.venv`,
 //   `.pytest_cache`, `__pycache__` (`ignorer`).
 // - Where they write, which the envelope opens to a session (`sorties`): in writing, `.venv` and
-//   `.pytest_cache` at the root, where the commands make uv and pytest write for each package
+//   `.pytest_cache` at the root (the tree of HEAD's version of the proof of the red reuses the uv
+//   environment of the copy, `GRILLHOUSE_VENV_DE_LA_COPIE`, `envDArbre`), where the commands make uv and pytest write for each package
 //   (./commandes.mjs), and uv's cache, `~/.cache/grillhouse/uv` (UV_CACHE_DIR, ./commandes.mjs: the
 //   frame's caches of compilation, never in the temporary directory); proper to the session, the
 //   tree of the bytecode at the root, `__pycache__` (PYTHONPYCACHEPREFIX, ./commandes.mjs); read,
@@ -34,7 +35,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { avecLeFichierDuPoste, empreintesDesTaches } from '../../services-du-noyau.mjs';
-import { commandes, GARDES, PYCACHE } from './commandes.mjs';
+import { commandes, GARDES, PYCACHE, VENV, VENV_DE_LA_COPIE } from './commandes.mjs';
 import {
   composantDans,
   composants,
@@ -109,8 +110,13 @@ export default {
   // A night test, `*_nuit_test.py` (`estDeNuit`).
   horsDuJour: chemin => estDeNuit(path.basename(chemin)),
   arbreDAvant,
-  // Its tree needs no environment of its own: the virtual environment of a tree is uv's.
-  envDArbre: () => ({}),
+  // Its tree reuses the uv environment of the copy: the folder of the environments, `<copie>/.venv`,
+  // under `GRILLHOUSE_VENV_DE_LA_COPIE`, the same for every file of a package (uv reconciles it with
+  // the manifest and lock of the tree, `uv run --locked`); a file out of every package gets none.
+  envDArbre: (chemin, racine) =>
+    composantDans(composants(racine), racine, chemin)
+      ? { [VENV_DE_LA_COPIE]: path.join(racine, VENV) }
+      : {},
   // Its tool plays HEAD's version of each test file in a tree (`arbreDAvant`): no name to read.
   testsDeHead: () => null,
   manifestes,

@@ -272,7 +272,8 @@ export interface Composition {
    * beside it (typescript: `soeurDAvant`) or does not play. */
   arbreDAvant(chemin: string, racine: string): boolean;
   /** The environment a tree of HEAD's version of `chemin` plays under (cargo: the target
-   * directory of the copy's compilations); empty for none. */
+   * directory of the copy's compilations; python: the copy's folder of uv environments, which the
+   * tree reuses, `GRILLHOUSE_VENV_DE_LA_COPIE`); empty for none. */
   envDArbre(chemin: string, racine: string): Record<string, string>;
   /** The names of the tests of HEAD's version of the test file `chemin` (from `racine`), as the
    * verdict names them, read without playing them, for a file whose tree the proof does not play

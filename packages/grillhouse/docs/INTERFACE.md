@@ -334,7 +334,9 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
 - `envDArbre` (`chemin`, `racine`) : l'environnement sous lequel l'arbre d'un fichier se joue (`cargo` :
   le dossier cible des compilations de la copie, que l'arbre partage — `target/` de la copie quand
   elle est hors du dossier temporaire — et la copie elle-même, `GRILLHOUSE_COPIE_DE_L_ARBRE`, dont
-  git suit le `Cargo.lock` que l'arbre, sans `.git`, porte) ; vide pour `typescript` et `python`.
+  git suit le `Cargo.lock` que l'arbre, sans `.git`, porte ; `python` : le dossier des environnements
+  uv de la copie, `<copie>/.venv`, sous `GRILLHOUSE_VENV_DE_LA_COPIE`, que l'arbre réutilise au lieu
+  d'en recréer un par fichier) ; vide pour `typescript` et pour un fichier hors de tout paquet python.
 - `testsDeHead` (`chemin`, `racine`, `lire`) : pour un fichier de test dont la preuve ne joue pas l'arbre,
   les noms des tests de sa version de HEAD, lus sans les jouer, tels que le verdict les nomme ; la
   preuve du rouge tient chacun pour un vert que HEAD tient déjà, puisque main reste vert. `lire`

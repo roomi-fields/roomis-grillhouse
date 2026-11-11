@@ -68,7 +68,9 @@
 //   its end, a failed test included, never `mkdtemp` by hand.
 // - Python writes its bytecode under one tree at the root, `__pycache__` (PYTHONPYCACHEPREFIX),
 //   which the envelope makes proper to the session (`sorties.propres` of ./index.mjs); uv the
-//   environment of each package under `.venv/<dossier>` at the root (UV_PROJECT_ENVIRONMENT), and
+//   environment of each package under `.venv/<dossier>` at the root (UV_PROJECT_ENVIRONMENT; the
+//   tree of HEAD's version of the proof of the red, which `uv run --locked` reconciles with its own
+//   manifest and lock, reuses the copy's, under the folder `GRILLHOUSE_VENV_DE_LA_COPIE` names), and
 //   pytest its cache under `.pytest_cache/<dossier>` (`cache_dir`), where the envelope opens them
 //   in writing, rather than in the package's folder, which a session whose plan does not write the
 //   package could not write; uv its cache under ~/.cache/grillhouse/uv (UV_CACHE_DIR), the frame's
@@ -133,6 +135,8 @@ export const DE_NUIT = '*_nuit_test.py';
 export const PYCACHE = '__pycache__';
 /** The environments of uv and the caches of pytest, one per package, at the root. */
 export const VENV = '.venv';
+/** The variable by which a tree of HEAD's version receives the copy's folder of environments. */
+export const VENV_DE_LA_COPIE = 'GRILLHOUSE_VENV_DE_LA_COPIE';
 export const CACHE_DE_PYTEST = '.pytest_cache';
 
 /** The guards of the module: each its name and its script beside this one. */
@@ -204,7 +208,12 @@ function passe(racine, env) {
     // <vert>, the codes that count green beside 0.
     jouer({ t, args, cwd, programme }, vert = []) {
       // The environment of uv of the package, at the root (`sorties` of ./index.mjs).
-      const venv = path.join(racine, VENV, path.relative(racine, cwd));
+      // A tree of HEAD's version receives the copy's folder of environments (`GRILLHOUSE_VENV_DE_LA_COPIE`)
+      // and reuses its environment of the package.
+      const venv = path.join(
+        environnement[VENV_DE_LA_COPIE] || path.join(racine, VENV),
+        path.relative(racine, cwd)
+      );
       const r = spawnSync(programme, args, {
         cwd,
         env: { ...environnement, UV_PROJECT_ENVIRONMENT: venv },
