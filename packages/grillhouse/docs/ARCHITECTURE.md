@@ -977,6 +977,26 @@ sans workflow du cadre n'en reçoit aucun (la mise à jour ne lance aucune CI su
 migration 0.33.0 lui dit une fois comment l'adopter. Ainsi chaque projet joue la CI du cadre à sa
 version, et garde la sienne tant qu'il ne l'adopte pas.
 
+**Le cache distant de Turborepo** est partagé entre la CI et le poste, comme le cache distant de
+Turborepo le prévoit (`TURBO_API`, `TURBO_TEAM`, `TURBO_TOKEN`, `TURBO_CACHE`, la signature HMAC
+`remoteCache.signature` du `turbo.json` racine et sa clé `TURBO_REMOTE_CACHE_SIGNATURE_KEY`) ;
+le serveur de Grillhouse est un `ducktors/turborepo-remote-cache` auto-hébergé. Dans la CI
+(`ci.yml` du dépôt et du gabarit), le serveur et l'équipe viennent des variables du dépôt, le
+jeton et la clé de ses secrets ; un push vers main ou une branche `agent/**` écrit le cache (le
+run qui juge l'arbre sur lequel la file avance main), tout autre run le lit seul, et sans la
+variable `TURBO_API` le cache reste local à l'exécuteur, aucune étape ne s'y ajoutant. Sur le
+poste, les mêmes quatre variables vivent dans `~/.config/grillhouse/turbo-cache.env`
+(`$XDG_CONFIG_HOME/grillhouse/` quand il est posé), hors de tout dépôt : chaque commande du module
+du langage (`tests`, `verifier`, donc la nuit et les passes du circuit, qui les appellent) joue
+sous l'environnement du poste que le module donne (`environnementDuPoste` de la jointure,
+`avecLeFichierDuPoste` de `scripts/fichier-du-poste.mjs`), le cache lu seul
+(`TURBO_CACHE=local:rw,remote:r`) ; sans le fichier rien ne change, et un environnement qui nomme
+déjà l'une de ses variables (une CI sur un exécuteur du poste) le garde. La séance d'un agent
+n'en a pas besoin : l'enveloppe ne lui rend ni le fichier (sa maison est vide) ni les variables
+(son environnement est déclaré), et ses passes partagent le cache local de l'arbre principal.
+Ainsi la CI de main après l'avance rapide est servie du cache pour l'arbre que la CI de la branche
+a déjà jugé, et le poste en profite sans jamais l'écrire.
+
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
 scripts, appelés par `npx grillhouse <sous-commande>`, et il est le greffon `grillhouse`, qui
 porte les compétences, les agents, les crochets de Claude Code, cette charte et le métacadre,

@@ -32,7 +32,9 @@
 //   the envelope declares: each starts empty and sealed read-only, and the home gets back
 //   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
 //   git and the session's tools) and the repository. No socket of the session comes back. Of
-//   the machine's credentials, only claude's own are in sight.
+//   the machine's credentials, only claude's own are in sight: the file of the remote cache of
+//   the poste (`~/.config/grillhouse/`, scripts/fichier-du-poste.mjs) stays out, and the
+//   session's runs keep to the local cache of the main tree that every copy shares.
 // - A project that names its published version (`grillhouse.outil`) gets `~/.cache/grillhouse/outil`
 //   read-only, the version installed by the envelope before the session starts: the write lock
 //   runs on that version, never on the code of the copy it guards.

@@ -18,6 +18,8 @@
 //   when one module cannot read it, its reason named with its language.
 // - The verdict of a run is every module's, read in the same results directory, where each module
 //   writes under names of its own (scripts/resultats.mjs).
+// - The environment of the poste is each module's, applied one after the other: a module that
+//   finds its file's variables already set (by the one before) leaves the environment as it is.
 // - Each command a module describes is the composed command by its name
 //   (./commandes-composees.mjs), which plays it in each module that describes it and joins their
 //   codes.
@@ -196,6 +198,7 @@ export function composer(modules) {
     matieres: racine => modules.flatMap(m => m.matieres(racine)),
     joueDesTests: (racine, composant) =>
       moduleDuComposant(racine, composant)?.joueDesTests(racine, composant) ?? false,
+    environnementDuPoste: env => modules.reduce((e, m) => m.environnementDuPoste(e), env),
     empreintes(racine, noms) {
       const parts = modules.map(m => m.empreintes(racine, noms));
       return parts.some(p => p === null) ? null : Object.assign({}, ...parts);

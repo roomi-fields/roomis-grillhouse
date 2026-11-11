@@ -51,7 +51,11 @@ import { elementsDuLot } from './elements-du-lot.mjs';
 import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest, manifestes, soeurDAvant } from './regle-des-tests.mjs';
-import { empreintesDesTaches, SCRIPT_DES_TESTS } from '../../services-du-noyau.mjs';
+import {
+  avecLeFichierDuPoste,
+  empreintesDesTaches,
+  SCRIPT_DES_TESTS,
+} from '../../services-du-noyau.mjs';
 import { verdict } from './verdict.mjs';
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
@@ -239,6 +243,13 @@ export default {
   elementsDuLot,
   // The hashes of the inputs of the tests tasks of the packages and their dependents, as
   // Turborepo plans them.
+  // The remote cache of Turborepo on the poste: its server, its team, its token and the key of its
+  // signature in ~/.config/grillhouse/turbo-cache.env, read alone, never written from the poste.
+  environnementDuPoste: env =>
+    avecLeFichierDuPoste(env, {
+      fichier: 'turbo-cache.env',
+      ajouts: { TURBO_CACHE: 'local:rw,remote:r' },
+    }),
   empreintes: (racine, noms) => empreintesDesTaches('turbo', racine, noms),
   commandes: racine => ({
     tester: { script: ici('tests.mjs'), args: [] },

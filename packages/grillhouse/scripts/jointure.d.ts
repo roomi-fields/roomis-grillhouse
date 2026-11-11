@@ -231,6 +231,11 @@ export interface Composition {
    * task covers the content of the files it reads and of what it waits for); null when the runner
    * gives no plan. The fingerprint of a step of the circuit reads them. */
   empreintes(racine: string, noms: string[]): Record<string, string> | null;
+  /** The environment the tools of the language run under on the poste, from `env`: the variables
+   * of the file of the poste the module names (`avecLeFichierDuPoste`), the server of the remote
+   * cache of its task runner, read-only; `env` itself without the file, or when `env` already
+   * names one of its variables (a CI). The commands of the module run under it. */
+  environnementDuPoste(env: Record<string, string | undefined>): Record<string, string | undefined>;
   lecteurs(
     racine: string,
     o: { composants: Composant[]; noms: string[]; texte: string; nommes: Composant[] }
@@ -395,6 +400,14 @@ export function dansLeTemporaire(chemin: string, env?: NodeJS.ProcessEnv): boole
 /** The cache of compilation of `outil`, under `~/.cache/grillhouse/`, never in the temporary
  * directory. */
 export function cacheDeCompilation(outil: string, env?: NodeJS.ProcessEnv): string;
+/** The environment <env> with the variables of the file `fichier` of the poste (under
+ * `$XDG_CONFIG_HOME/grillhouse/`, `~/.config/grillhouse/` without it), then `ajouts`; <env> itself
+ * when the file is absent or <env> already names one of its variables
+ * (scripts/fichier-du-poste.mjs). */
+export function avecLeFichierDuPoste<T extends Record<string, string | undefined>>(
+  env: T,
+  o: { fichier: string; ajouts?: Record<string, string>; lire?: (f: string) => string | null }
+): T;
 /** The path of the command <nom> in the PATH of <env>, or null (scripts/commandes-du-path.mjs). */
 export function trouverDansLePath(nom: string, env?: NodeJS.ProcessEnv): string | null;
 /** The cache of `outil` for the build rooted at `racine`, swept once `racine` is gone. */

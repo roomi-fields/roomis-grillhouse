@@ -7,6 +7,9 @@
     "GRILLHOUSE_AVANCEMENT",
     "TMPDIR"
   ],
+  "remoteCache": {
+    "signature": true
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -18,15 +21,11 @@
       "outputs": []
     },
     "//#grillhouse:gardes": {
-      "dependsOn": [
-        "@roomi-fields/grillhouse#build"
-      ],
+      "dependsOn": ["@roomi-fields/grillhouse#build"],
       "outputs": []
     },
     "//#gardes": {
-      "dependsOn": [
-        "@roomi-fields/grillhouse#build"
-      ],
+      "dependsOn": ["@roomi-fields/grillhouse#build"],
       "outputs": []
     },
     "typecheck": {

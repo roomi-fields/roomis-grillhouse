@@ -36,6 +36,7 @@ export {
   tracesDuPlan,
 } from './taches-du-graphe.mjs';
 export { luUneFois } from './lecture-unique.mjs';
+export { avecLeFichierDuPoste } from './fichier-du-poste.mjs';
 export { CHANGEMENTS, DEPUIS_LE_VERT, garderLeVert, mesure } from './dernier-vert.mjs';
 export { lireLaListe, paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 export { AVANCEMENT, ecrireTache } from './mesure/avancement.mjs';

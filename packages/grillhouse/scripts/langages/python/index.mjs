@@ -33,7 +33,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { empreintesDesTaches } from '../../services-du-noyau.mjs';
+import { avecLeFichierDuPoste, empreintesDesTaches } from '../../services-du-noyau.mjs';
 import { commandes, GARDES, PYCACHE } from './commandes.mjs';
 import {
   composantDans,
@@ -93,6 +93,13 @@ export default {
   elementsDuLot,
   // The hashes of the inputs of the tests tasks of the projects and their dependents, as
   // Turborepo plans them.
+  // The remote cache of Turborepo on the poste: its server, its team, its token and the key of its
+  // signature in ~/.config/grillhouse/turbo-cache.env, read alone, never written from the poste.
+  environnementDuPoste: env =>
+    avecLeFichierDuPoste(env, {
+      fichier: 'turbo-cache.env',
+      ajouts: { TURBO_CACHE: 'local:rw,remote:r' },
+    }),
   empreintes: (racine, noms) => empreintesDesTaches('turbo', racine, noms),
   commandes,
   verdict,

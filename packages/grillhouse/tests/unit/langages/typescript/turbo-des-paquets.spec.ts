@@ -940,6 +940,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'taches-du-graphe.mjs',
       // What services-du-noyau.mjs gives of the search in the PATH (grillhouse-4nr.12).
       'commandes-du-path.mjs',
+      // What services-du-noyau.mjs gives of the variables of the poste (grillhouse-44b.12.6).
+      'fichier-du-poste.mjs',
       'langages/typescript/consommateurs.mjs',
       // The walk of the guards (grillhouse-rm7).
       'langages/typescript/parcours.mjs',

@@ -28,6 +28,18 @@ on:
 env:
   TRANCHES: 3
 
+  # The remote cache of Turborepo (grillhouse-44b.12.6), the server the repository's variables
+  # TURBO_API and TURBO_TEAM name, its token and the key of its signature in the secrets
+  # TURBO_TOKEN and TURBO_REMOTE_CACHE_SIGNATURE_KEY (Settings > Secrets and variables > Actions),
+  # never in this file. A push to main or to a branch agent/** writes it (the run that judges the
+  # tree the queue moves main onto); every other run reads it alone. Without TURBO_API the cache is
+  # the runner's local cache, as before. No step of the workflow touches the cache.
+  TURBO_API: ${{ vars.TURBO_API }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
+  TURBO_CACHE: ${{ !vars.TURBO_API && 'local:rw' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/agent/')) && 'local:rw,remote:rw' || 'local:rw,remote:r') }}
+
 jobs:
   gardes:
     # The machine of the jobs: the variable RUNNER of the repository, GitHub's runner without it.

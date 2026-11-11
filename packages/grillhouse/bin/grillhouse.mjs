@@ -16,10 +16,12 @@
 //   `verifier` and the guards and generators of the module of the project's language
 //   (`grillhouse frontieres`) run its commands, with their arguments first. A project whose language the frame refuses (scripts/langages.mjs) has the refusal on
 //   the error stream, and the exit code is 2.
-// - `verifier` runs with the tools of the project (`grillhouse.outils` of the package.json of its
-//   main tree, `environnementDe` of scripts/sous-commandes.mjs), each variable set to its path,
-//   whatever the caller's environment; a faulty key is refused by its name on the error stream,
-//   nothing run, and the exit code is 2.
+// - A command of the module of the language (`tests`, `verifier`…) runs under the module's
+//   environment of the poste (the remote cache read alone, when the poste holds its file;
+//   `environnementDe` of scripts/sous-commandes.mjs); `verifier` also runs with the tools of the
+//   project (`grillhouse.outils` of the package.json of its main tree), each variable set to its
+//   path, whatever the caller's environment; a faulty key is refused by its name on the error
+//   stream, nothing run, and the exit code is 2.
 // - In a project whose package.json names its published version (`grillhouse.outil`, the frame's
 //   repository), a subcommand of the orchestration (circuit, superviseur, nuit, tableau, the status
 //   line, the hooks of Claude Code and the write lock) runs by that version, installed under

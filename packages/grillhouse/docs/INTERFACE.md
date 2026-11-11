@@ -216,6 +216,11 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   l'outil de tâches les planifie (le hachage d'une tâche couvre le contenu des fichiers qu'elle lit
   et de ce qu'elle attend, comme la clé de cache d'une tâche de Turborepo) ; null quand l'outil ne
   donne aucun plan. L'empreinte d'une étape du circuit les lit (`empreinte-d-etape.mjs`).
+- `environnementDuPoste` (`env`) : l'environnement sous lequel les outils du langage jouent sur le
+  poste : les variables du fichier du poste que le module nomme (`avecLeFichierDuPoste`), le
+  serveur du cache distant de son outil de tâches, lu seul ; `env` tel quel sans le fichier, ou
+  quand `env` nomme déjà l'une de ses variables (une CI). Les commandes du module jouent sous lui
+  (`environnementDe` de `sous-commandes.mjs`) ; la composition l'applique module après module.
 - `lecteurs` : les fournisseurs et les lecteurs, par le code, des éléments qu'un ticket nomme : son
   interface, ses imports, ses tests, ses types ; ce que lit chaque composant (`lit`) et ce que
   lisent ses tests (`parLesTests` : leurs imports ; `cargo`, ses dépendances de développement),
@@ -377,7 +382,9 @@ les arbitrages d'un ticket, le préfixe des tickets (`CONFIG_BEADS`, le fichier 
 erreur qui nomme le fichier ou la clé manquants ; `ecrireLePrefixe(racine, valeur)`, son seul
 écrivain, que la préparation d'un projet neuf et la migration de `grillhouse maj` appellent : la
 clé vide remplacée, la clé absente ajoutée, la ligne écrite rendue, `null` pour une clé qui a sa
-valeur), les fichiers sources d'un projet, la recherche d'une commande dans le PATH (`trouverDansLePath(nom, env?)` : le chemin du premier exécutable de ce nom, ou `null`, comme `command -v`), les paquets d'un langage sans
+valeur), les fichiers sources d'un projet, les variables d'un fichier du poste (`avecLeFichierDuPoste(env, { fichier, ajouts })` : celles de
+`$XDG_CONFIG_HOME/grillhouse/<fichier>`, `~/.config/grillhouse/<fichier>` sans lui, puis
+`ajouts`, `env` tel quel quand il nomme déjà l'une d'elles ou sans le fichier), la recherche d'une commande dans le PATH (`trouverDansLePath(nom, env?)` : le chemin du premier exécutable de ce nom, ou `null`, comme `command -v`), les paquets d'un langage sans
 `package.json` à lui (`paquetsSansPackageJson(racine)` : les crates et les projets Python que le
 tableau des composants de `docs/ARCHITECTURE.md` déclare, chacun `{ langage, chemin, nom }`, `nom`
 celui du manifeste ; le `tester` du module typescript en exclut les tâches `test:unit`, que le
