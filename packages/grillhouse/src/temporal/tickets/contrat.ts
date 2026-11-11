@@ -47,6 +47,12 @@ export interface ActivitesDesTickets {
   /** The tickets of the project whose circuit runs, read from the server. */
   circuitsVivants(e: { racine: string }): Promise<string[]>;
   /**
+   * The tickets of <vivants> closed in Beads outside their circuit (`fermesHorsCircuit` of
+   * scripts/file-des-tickets.mjs, on the step each circuit's memo holds): none when Beads fails,
+   * whose fault `ticketsAPartir` names.
+   */
+  fermesHorsCircuit(e: { racine: string; vivants: string[] }): Promise<string[]>;
+  /**
    * The tickets of the project whose circuit the server holds, not integrated (`lireLesCircuits`
    * of ../circuit/client.ts, one call): a circuit stopped on a question, its workflow running, or
    * ended without its issue holds its ticket.

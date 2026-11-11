@@ -1431,7 +1431,11 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   attente durable de la réponse, et le serveur ne le purge jamais ; à 1, le suivant part quand le
   précédent finit. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
   mot du superviseur (`--arreter`, l'étiquette `circuit` retirée) : Beads, le registre durable,
-  le garde de repartir. Les circuits que le serveur tient sans les avoir intégrés
+  le garde de repartir. Un circuit vivant dont le ticket est fermé hors de son circuit (livré en
+  direct), avant son intégration, ne compte plus : la file l'arrête (`ARRETER`) à son réveil
+  suivant et écrit sa ligne « termine » au journal des états (`fermesHorsCircuit` de
+  `scripts/file-des-tickets.mjs`), comme Zuul retire de son pipeline un changement abandonné ou
+  fusionné ; un circuit à son intégration (5.1 à 5.3) a fermé son ticket lui-même, et reste. Les circuits que le serveur tient sans les avoir intégrés
   (`circuitsNonIntegres`, sur `lireLesCircuits`, un appel) tiennent aussi leur ticket, un circuit
   fini sans son issue compris. Chaque circuit est un enfant détaché ; un ticket dont le circuit tourne
   déjà, visible ou pas encore, ne repart pas. Une faute (le réglage, un `package.json` qui ne se

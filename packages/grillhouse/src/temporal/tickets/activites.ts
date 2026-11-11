@@ -1,11 +1,16 @@
 // The activities of the queue of the tickets of a project (./deroule.ts): the tickets that start,
 // read from Beads in the main tree of the repository with the setting of its package.json, the
-// circuits of the project alive and those not integrated, read from the server. A package.json that does not parse, or a Beads that fails, is a fault named, never a key
+// circuits of the project alive and those not integrated, read from the server, and those alive whose
+// ticket was closed outside them. A package.json that does not parse, or a Beads that fails, is a fault named, never a key
 // absent nor an empty list.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
-import { lireLesTickets, ticketsAPartir as aPartir } from '../../../scripts/file-des-tickets.mjs';
+import {
+  fermesHorsCircuit as lesFermes,
+  lireLesTickets,
+  ticketsAPartir as aPartir,
+} from '../../../scripts/file-des-tickets.mjs';
 import { ecrireLaTrace, traceDeLaFile } from '../../../scripts/journal-des-etats.mjs';
 import { ouvrirLeClient } from '../client.js';
 import { lireLesCircuits } from '../circuit/client.js';
@@ -68,6 +73,28 @@ export async function circuitsVivants(e: Entree<'circuitsVivants'>): Promise<str
       }
     }
     return vivants.sort();
+  } finally {
+    await c.fermer();
+  }
+}
+
+export async function fermesHorsCircuit(
+  e: Entree<'fermesHorsCircuit'>
+): Promise<Sortie<'fermesHorsCircuit'>> {
+  if (!e.vivants.length) {
+    return [];
+  }
+  let tickets;
+  try {
+    tickets = lireLesTickets(e.racine);
+  } catch {
+    return [];
+  }
+  const vivants = new Set(e.vivants);
+  const c = ouvrirLeClient();
+  try {
+    const lus = (await lireLesCircuits(c.client, e.racine)).filter(x => vivants.has(x.ticket));
+    return lesFermes(tickets, lus);
   } finally {
     await c.fermer();
   }

@@ -24,5 +24,14 @@ export function enFileSansArchitecture<T extends TicketDeBeads>(
   o?: { enCours?: Set<string> }
 ): T[];
 
+/**
+ * The tickets of <circuits> (alive, each with the step of its state, null before its first) closed
+ * in <tous> outside their circuit: closed, the circuit before its integration.
+ */
+export function fermesHorsCircuit(
+  tous: Array<{ id: string; status: string }>,
+  circuits: Array<{ ticket: string; etape: string | null }>
+): string[];
+
 /** Every ticket of the project at <racine>, the closed ones too, as Beads gives them; throws on a Beads that fails. */
 export function lireLesTickets(racine: string): TicketDeBeads[];

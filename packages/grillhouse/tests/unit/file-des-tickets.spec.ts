@@ -14,6 +14,7 @@ const FILE = path.resolve(__dirname, '../../scripts/file-des-tickets.mjs');
 const charger = (): any => createRequire(path.join(__dirname, 'x.cjs'))(FILE);
 const ticketsAPartir = (...a: any[]) => charger().ticketsAPartir(...a);
 const enFileSansArchitecture = (...a: any[]) => charger().enFileSansArchitecture(...a);
+const fermesHorsCircuit = (...a: any[]) => charger().fermesHorsCircuit(...a);
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface Ticket {
@@ -133,5 +134,36 @@ describe('un ticket en file sans section Architecture ne part pas, et il est nom
       'd-2',
       'd-10',
     ]);
+  });
+});
+
+describe('les circuits dont le ticket est fermé hors circuit', () => {
+  it('un circuit vivant dont le ticket est fermé avant son intégration est fermé hors circuit', () => {
+    const tous = [T('d-1', { status: 'closed' }), T('d-2', { status: 'closed' })];
+    const circuits = [
+      { ticket: 'd-1', etape: 'developpeur' },
+      { ticket: 'd-2', etape: null },
+    ];
+    expect(fermesHorsCircuit(tous, circuits)).toEqual(['d-1', 'd-2']);
+  });
+
+  it('un circuit sur un ticket ouvert reste, à toute étape', () => {
+    const tous = [T('d-1'), T('d-2'), T('d-3', { status: 'in_progress' })];
+    const circuits = [
+      { ticket: 'd-1', etape: 'relecteur' },
+      { ticket: 'd-2', etape: 'file' },
+      { ticket: 'd-3', etape: null },
+    ];
+    expect(fermesHorsCircuit(tous, circuits)).toEqual([]);
+  });
+
+  it('un circuit à son intégration a fermé son ticket lui-même et reste', () => {
+    const tous = ['d-1', 'd-2', 'd-3'].map(id => T(id, { status: 'closed' }));
+    const circuits = [
+      { ticket: 'd-1', etape: 'integration' },
+      { ticket: 'd-2', etape: 'file' },
+      { ticket: 'd-3', etape: 'tri' },
+    ];
+    expect(fermesHorsCircuit(tous, circuits)).toEqual([]);
   });
 });

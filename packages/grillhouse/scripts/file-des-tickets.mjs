@@ -11,8 +11,11 @@
 //   that passes its checks of entry: `enFileSansArchitecture` names it, for the board and the
 //   opening of the supervisor, who writes it.
 // - The order is the Beads priority (0 first), then the creation (the oldest first).
+// - A circuit alive whose ticket was closed outside it (delivered directly) holds no place: the
+//   queue stops it (`fermesHorsCircuit`).
 // - A ticket whose dependency is open stays: the board says « attend <ticket> » (scripts/tableau.mjs).
 import { spawnSync } from 'node:child_process';
+import { ETAPES } from './etapes.mjs';
 
 // Whether the description of <t> holds its section « ## Architecture ».
 const aSonArchitecture = t => /^## Architecture\b/m.test(t.description ?? '');
@@ -46,6 +49,29 @@ export function ticketsAPartir(tous, { enCours = new Set() } = {}) {
         Date.parse(a.created_at ?? '') - Date.parse(b.created_at ?? '') ||
         a.id.localeCompare(b.id, 'en')
     );
+}
+
+// The states of the steps of the integration (5.1, 5.2, 5.3): the circuit's own queue closes the
+// ticket at 5.2, then the circuit sorts its discoveries and ends.
+const DE_L_INTEGRATION = new Set(
+  (ETAPES.find(e => e.numero === '5')?.sous ?? []).map(s => s.etat).concat('integre')
+);
+
+/**
+ * The tickets of <circuits> (the circuits alive, each its ticket and the step of the state it last
+ * wrote, null before its first) closed in <tous> outside their circuit, as Zuul drops from its
+ * pipeline a change abandoned or merged: a closed ticket whose circuit stands before its
+ * integration. A circuit at its integration closed its ticket itself, and stays.
+ * @param {Array<{ id: string, status: string }>} tous every ticket of the project
+ * @param {Array<{ ticket: string, etape: string | null }>} circuits
+ * @returns {string[]}
+ */
+export function fermesHorsCircuit(tous, circuits) {
+  const fermes = new Set(tous.filter(t => t.status === 'closed').map(t => t.id));
+  return circuits
+    .filter(c => fermes.has(c.ticket) && !DE_L_INTEGRATION.has(c.etape ?? ''))
+    .map(c => c.ticket)
+    .sort();
 }
 
 /**
