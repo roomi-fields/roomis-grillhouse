@@ -31,6 +31,12 @@ export async function lireLaCI(e: Entree<'lireLaCI'>): Promise<Sortie<'lireLaCI'
   return jouer('ci', e, e.racine);
 }
 
+export async function lireLesPassagesDeLaCI(
+  e: Entree<'lireLesPassagesDeLaCI'>
+): Promise<Sortie<'lireLesPassagesDeLaCI'>> {
+  return jouer('passages', e, e.racine);
+}
+
 export async function conclureLaCI(e: Entree<'conclureLaCI'>): Promise<Sortie<'conclureLaCI'>> {
   return jouer('conclure', e, e.racine);
 }

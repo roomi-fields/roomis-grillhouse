@@ -27,6 +27,7 @@ import {
   idDeLaFile,
   type ActivitesDeLaFile,
   type LectureDeLaCI,
+  type LectureDesPassages,
 } from '../../src/temporal/file/contrat.js';
 import {
   PAUSE_D_ESSAI,
@@ -59,6 +60,21 @@ const VERTE: Scenario = [
   { etat: 'en-cours', passage: '41' },
   { etat: 'finie', passage: '41', conclusion: 'success' },
 ];
+// A reading of a scenario as the new act gives it: the one workflow « Tests » of the project of trial.
+const lectureDesPassages = (l: LectureDeLaCI): LectureDesPassages => {
+  if (l.etat === 'cherche') {
+    return { etat: 'en-cours', flux: [{ nom: 'Tests', passage: null, fini: false }] };
+  }
+  if (l.etat === 'en-cours') {
+    return { etat: 'en-cours', flux: [{ nom: 'Tests', passage: l.passage, fini: false }] };
+  }
+  if (l.etat === 'finie') {
+    return l.conclusion === 'success'
+      ? { etat: 'verte', passage: l.passage }
+      : { etat: 'rouge', passage: l.passage, flux: 'Tests' };
+  }
+  return l;
+};
 const ROUGE: Scenario = [{ etat: 'finie', passage: '42', conclusion: 'failure' }];
 
 // The acts a test simulates, and what they were asked: the circuit's at its step 5.2 (the ticket
@@ -76,7 +92,7 @@ function actes(
   const journal = {
     // Each act of the queue, `<acte> <ticket>`, in its order; `fin <acte> <ticket>` at its end.
     file: [] as string[],
-    lectures: [] as { ticket: string; sha: string; passage: string | null }[],
+    lectures: [] as { ticket: string; sha: string }[],
     conclusions: [] as Parameters<ActivitesDeLaFile['conclureLaCI']>[0][],
     arrets: [] as Parameters<Activites['publierLArret']>[0][],
     fins: [] as string[],
@@ -171,12 +187,17 @@ function actes(
         effets: [{ genre: 'commentaire', ticket, texte: `${ticket} fermé` }],
       });
     },
-    lireLaCI({ ticket, sha, passage }) {
-      journal.lectures.push({ ticket, sha, passage });
+    // The act of before the change, kept for the replay of the histories that recorded it: never
+    // called by a run that takes the new path.
+    lireLaCI() {
+      return Promise.reject(new Error('lireLaCI : le chemin neuf lit les passages de la CI'));
+    },
+    lireLesPassagesDeLaCI({ ticket, sha }) {
+      journal.lectures.push({ ticket, sha });
       const n = (lus.get(ticket) ?? 0) + 1;
       lus.set(ticket, n);
       const s = ci();
-      return Promise.resolve(s[Math.min(n, s.length) - 1]!);
+      return Promise.resolve(lectureDesPassages(s[Math.min(n, s.length) - 1]!));
     },
     conclureLaCI(e) {
       journal.conclusions.push(e);
@@ -294,12 +315,12 @@ describe('une seule entrée sur main à la fois par projet', () => {
     let tenues = 0;
     const { activites, journal } = actes(undefined, {
       // The CI of essai-1 runs until the test lets it end.
-      lireLaCI: async (e, simule) => {
+      lireLesPassagesDeLaCI: async (e, simule) => {
         if (e.ticket === 'essai-1') {
           await Promise.race([tenue, new Promise(r => setTimeout(r, 100))]);
           if (!conclue) {
             tenues += 1;
-            return { etat: 'en-cours', passage: '41' };
+            return { etat: 'en-cours', flux: [{ nom: 'Tests', passage: '41', fini: false }] };
           }
         }
         return simule(e);
@@ -445,7 +466,7 @@ describe('la CI se suit par minuteurs durables', () => {
     const s = await serveur(activites);
     await s.demarrer('essai-1');
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    expect(journal.lectures.map(l => l.passage)).toEqual([null, null, '41']);
+    expect(journal.lectures).toHaveLength(3);
     const enfants: string[] = [];
     for await (const w of s.client.workflow.list({ query: `WorkflowType = 'ciDuCommit'` })) {
       enfants.push(w.workflowId);
@@ -471,7 +492,7 @@ describe('la CI se suit par minuteurs durables', () => {
       { etat: 'finie', passage: '41', conclusion: 'success' },
     ];
     const { activites, journal } = actes(() => longue, {
-      lireLaCI: (e, simule) => {
+      lireLesPassagesDeLaCI: (e, simule) => {
         n += 1;
         return simule(e);
       },
@@ -483,9 +504,8 @@ describe('la CI se suit par minuteurs durables', () => {
     await new Promise(r => setTimeout(r, 1000));
     await s.lancer();
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    // The search is not done again: one reading without a run, then the run followed to its end.
-    expect(journal.lectures.filter(l => l.passage === null)).toHaveLength(2);
-    expect(journal.lectures.at(-1)?.passage).toBe('41');
+    // Each reading lists the runs again; the readings go on to the end of the run.
+    expect(journal.lectures.length).toBeGreaterThanOrEqual(10);
     expect(journal.conclusions).toMatchObject([{ verdict: 'verte' }]);
   }, 120_000);
 
@@ -632,7 +652,8 @@ describe('un acte de la file qui échoue', () => {
 
   it('the CI of the candidate fails to be read: concluded not read, main unmoved, the queue goes on', async () => {
     const { activites, journal } = actes(undefined, {
-      lireLaCI: () => Promise.reject(ApplicationFailure.nonRetryable('gh plante', 'Inattendu')),
+      lireLesPassagesDeLaCI: () =>
+        Promise.reject(ApplicationFailure.nonRetryable('gh plante', 'Inattendu')),
     });
     const s = await serveur(activites);
     await s.demarrer('essai-1');
@@ -691,6 +712,103 @@ describe('un lot fermé sur main que la file ne pousse pas', () => {
           'intégré : c-essai ; La poussée vers origin/main est refusée : fatal: aucun distant.',
       },
     ]);
+  }, 120_000);
+});
+
+describe('la CI juge tous les flux attendus', () => {
+  const A = (passage: string | null, fini: boolean) => ({ nom: 'Tests', passage, fini });
+  const B = (passage: string | null, fini: boolean) => ({
+    nom: 'Deploy hosted server',
+    passage,
+    fini,
+  });
+  // The CI of a commit with the readings <lectures>, in their order, the last one repeated.
+  const avecLesLectures = (lectures: LectureDesPassages[]) => {
+    let n = 0;
+    return actes(undefined, {
+      lireLesPassagesDeLaCI: () => Promise.resolve(lectures[Math.min(n++, lectures.length - 1)]!),
+    });
+  };
+  const conclusion = async (a: ReturnType<typeof actes>) => {
+    const s = await serveur(a.activites);
+    await s.demarrer('essai-1');
+    await attendre('la conclusion', () =>
+      Promise.resolve(a.journal.conclusions.length ? true : undefined)
+    );
+    return { s, verdict: a.journal.conclusions[0]! };
+  };
+
+  it('the CI is green only once every workflow is green, its run the first workflow’s', async () => {
+    const a = avecLesLectures([
+      { etat: 'en-cours', flux: [A('41', true), B(null, false)] },
+      { etat: 'en-cours', flux: [A('41', true), B('42', false)] },
+      { etat: 'verte', passage: '41' },
+    ]);
+    const { verdict } = await conclusion(a);
+    expect(verdict).toMatchObject({ verdict: 'verte', passage: '41' });
+    expect(a.journal.lectures).toHaveLength(3);
+  }, 120_000);
+
+  it('a red run ends the CI at once, without waiting for the other runs, and names its run', async () => {
+    const a = avecLesLectures([
+      { etat: 'en-cours', flux: [A('41', false), B(null, false)] },
+      { etat: 'rouge', passage: '42', flux: 'Deploy hosted server' },
+    ]);
+    const { verdict } = await conclusion(a);
+    expect(verdict).toMatchObject({ verdict: 'rouge', passage: '42' });
+    expect(a.journal.lectures).toHaveLength(2);
+    expect(a.journal.file).not.toContain('avancerMain essai-1');
+  }, 120_000);
+
+  it('a workflow with no run past the search: the CI is not read, naming that workflow', async () => {
+    const a = avecLesLectures([{ etat: 'en-cours', flux: [A('41', false), B(null, false)] }]);
+    const { verdict } = await conclusion(a);
+    expect(verdict.verdict).toBe('non-lue');
+    expect(verdict.raison).toContain('Deploy hosted server');
+    expect(verdict.raison).toMatch(/aucun passage/);
+    // The first workflow found still running gives its run.
+    expect(verdict.passage).toBe('41');
+  }, 120_000);
+
+  it('no run of any workflow past the search: not read, its run null', async () => {
+    const a = avecLesLectures([{ etat: 'en-cours', flux: [A(null, false), B(null, false)] }]);
+    const { verdict } = await conclusion(a);
+    expect(verdict).toMatchObject({ verdict: 'non-lue', passage: null });
+    expect(verdict.raison).toContain('Tests');
+    expect(verdict.raison).toContain('Deploy hosted server');
+  }, 120_000);
+
+  it('runs not ended past the wait: not read, the reason naming each workflow not finished with its run', async () => {
+    const a = avecLesLectures([{ etat: 'en-cours', flux: [A('41', true), B('42', false)] }]);
+    const { verdict } = await conclusion(a);
+    expect(verdict).toMatchObject({ verdict: 'non-lue', passage: '42' });
+    expect(verdict.raison).toContain('Deploy hosted server');
+    expect(verdict.raison).toContain('42');
+    expect(verdict.raison).not.toContain('Tests');
+  }, 120_000);
+
+  it('a commit with no workflow expected stays without CI', async () => {
+    const a = avecLesLectures([{ etat: 'sans-ci' }]);
+    const { verdict } = await conclusion(a);
+    expect(verdict).toMatchObject({ verdict: 'sans-ci', passage: null });
+  }, 120_000);
+
+  it('the history of a CI read on the new path carries the marker of its patch', async () => {
+    const { activites } = actes();
+    const s = await serveur(activites);
+    await s.demarrer('essai-1');
+    await finDuCircuit(s.client, RACINE, 'essai-1');
+    const enfants: string[] = [];
+    for await (const w of s.client.workflow.list({ query: `WorkflowType = 'ciDuCommit'` })) {
+      enfants.push(w.workflowId);
+    }
+    const evenements = (await s.client.workflow.getHandle(enfants[0]!).fetchHistory()).events ?? [];
+    const marques = evenements
+      .filter(e => e.markerRecordedEventAttributes)
+      .flatMap(e => Object.values(e.markerRecordedEventAttributes!.details ?? {}))
+      .flatMap(d => d.payloads ?? [])
+      .map(p => Buffer.from(p.data ?? []).toString());
+    expect(marques.some(m => m.includes('ci-tous-les-flux'))).toBe(true);
   }, 120_000);
 });
 

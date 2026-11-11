@@ -1417,7 +1417,24 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   verifier`. Son issue revient au déroulé du ticket, le fait `file` de ses décisions. La CI d'un
   commit (`ciDuCommit`, un déroulé enfant) se lit une lecture à la fois, un minuteur durable entre
   deux (10 s), sa recherche (2 min) et son attente (30 min) comptées sur l'horloge du déroulé : la
-  mort du travailleur n'en perd pas l'attente. Les gestes sont ceux de
+  mort du travailleur n'en perd pas l'attente. Elle juge tous les flux attendus de la branche, comme
+  la file de fusion de GitHub et bors jugent un commit sur tous ses contrôles : `fluxDuCommit` rend
+  pour chaque flux son chemin et son nom (la clé `name` du fichier au commit, à défaut son chemin,
+  comme GitHub nomme un flux sans `name`), et chaque lecture (`lireLesPassagesDeLaCI`) liste les
+  passages du commit, rattache chacun à son flux par ce nom (`workflowName` de `gh run list`), juge
+  chaque flux sur son passage le plus récent et ne garde rien de la lecture d'avant, si bien qu'après
+  un rejeu et `--reprendre` chaque passage se juge à son dernier essai. Vert quand tous sont verts
+  (son passage celui du premier flux, dans l'ordre des fichiers) ; rouge dès qu'un l'est, sans
+  attendre les autres, le premier flux rouge dans l'ordre des fichiers nommant son passage, que le
+  ticket rouvert donne avec son adresse, la fin de son journal et sa commande de rejeu ; non lue
+  quand un flux n'a aucun passage au bout de la recherche, ou un passage sans fin au bout de
+  l'attente, chaque flux nommé. Un passage d'un autre nom ne compte pas ; plusieurs flux de même nom
+  comptent pour un seul, `gh run list` ne les distinguant pas. Les flux qui ne tournent qu'après
+  l'entrée, sur main, ne sont pas lus (ticket grillhouse-bf5.7). Le changement suit le « patching »
+  (`patched('ci-tous-les-flux')`) : l'acte `lireLaCI`, sa boucle et `lireEtConclureLaCI` restent pour
+  rejouer les histoires d'avant ; ils sont retirés avec le patch (`deprecatePatch` puis son
+  retrait) une fois qu'aucun run n'en porte l'histoire, dans la version qui suit celle-ci puis la
+  suivante. Les gestes sont ceux de
   `scripts/integration/file.mjs`, que ses actes appellent ; un lot déjà sur main est entré, pas
   écarté (la branche pointe sur le commit de main qui livre son ticket, ou chacun de ses commits a
   son équivalent sur main, même patch selon `git cherry`, le rejeu qu'écrit un rebase, ou la

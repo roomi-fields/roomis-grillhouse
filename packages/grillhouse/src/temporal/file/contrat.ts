@@ -57,6 +57,18 @@ export type LectureDeLaCI =
   | { etat: 'finie'; passage: string; conclusion: string | null }
   | { etat: 'non-lue'; raison: string };
 
+/**
+ * One reading of the CI of every expected workflow of a commit (`lireLesPassagesDeLaCI`): green,
+ * its run the first workflow's; red, the run of the first red workflow `flux`; or under way, each
+ * workflow `nom` with its run (null while it is looked for) and whether it finished.
+ */
+export type LectureDesPassages =
+  | { etat: 'sans-ci' }
+  | { etat: 'non-lue'; raison: string }
+  | { etat: 'verte'; passage: string }
+  | { etat: 'rouge'; passage: string; flux: string }
+  | { etat: 'en-cours'; flux: { nom: string; passage: string | null; fini: boolean }[] };
+
 /** The verdict of the CI of a commit, its run, the reason of a CI not read. */
 export interface VerdictDeLaCI {
   verdict: 'verte' | 'rouge' | 'sans-ci' | 'non-lue';
@@ -113,6 +125,16 @@ export interface ActivitesDeLaFile {
     branche: string;
     passage: string | null;
   }): Promise<LectureDeLaCI>;
+  /**
+   * One reading of the CI of <sha> on <branche>, every expected workflow together
+   * (`lireLesPassagesDeLaCI`); it keeps nothing from one reading to the next.
+   */
+  lireLesPassagesDeLaCI(e: {
+    racine: string;
+    ticket: string;
+    sha: string;
+    branche: string;
+  }): Promise<LectureDesPassages>;
   /**
    * The CI of the candidate <sha> concluded at the ticket (`conclureLaCI`): `{ avancer: true }`,
    * green or no CI for the branch; or the issue for the circuit, red or not read.

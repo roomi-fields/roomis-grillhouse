@@ -86,6 +86,7 @@ import {
   conclureLaCI,
   direLIssue,
   fermerLEntree,
+  lireLesPassagesDeLaCI,
   lireUneFoisLaCI,
   outilsDeLaFile,
   preparerLaBranche,
@@ -443,6 +444,13 @@ Object.assign(ACTES, {
     const travail = path.join(racine, '.claude', 'worktrees', `${ticket}.travail`);
     const avancement = avancementDeLaCI(travail, { nouvelle: passage === null });
     return lireUneFoisLaCI(laFile(racine, avancement), { sha, branche, passage });
+  },
+  // A reading of the CI of every expected workflow of the commit (`lireLesPassagesDeLaCI`), its
+  // steps written to the progress directory of the ticket.
+  async passages({ racine, ticket, sha, branche }) {
+    const travail = path.join(racine, '.claude', 'worktrees', `${ticket}.travail`);
+    const avancement = avancementDeLaCI(travail);
+    return lireLesPassagesDeLaCI(laFile(racine, avancement), { sha, branche });
   },
   async conclure({ racine, ...e }) {
     const o = laFile(racine);

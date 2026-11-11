@@ -226,9 +226,27 @@ const VERTE = 'verte';
 const SANS_CI = 'sans-ci';
 const NON_LUE = 'non-lue';
 
-// The workflows of the commit <sha> of the repository <racine> that run on a push to <branche>:
-// their paths.
-function fluxDuCommit(racine, sha, branche) {
+// The name GitHub gives the workflow of the file <texte>: its `name` key, its path <chemin> without
+// one (or when the file is not given or its YAML not read).
+function nomDuFlux(chemin, texte) {
+  if (texte === null) {
+    return chemin;
+  }
+  try {
+    const require = createRequire(import.meta.url);
+    const nom = require('yaml').parse(texte)?.name;
+    return typeof nom === 'string' && nom !== '' ? nom : chemin;
+  } catch {
+    return chemin;
+  }
+}
+
+/**
+ * The workflows of the commit <sha> of the repository <racine> that run on a push to <branche>,
+ * in the order of the files of their directory: `{ chemin, nom }`, the path and the name GitHub
+ * gives the workflow (`workflowName` of `gh run list`).
+ */
+export function fluxDuCommit(racine, sha, branche) {
   const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
   const l = git('ls-tree', '--name-only', `${sha}:${DOSSIER_DES_FLUX}`);
   const noms = l.status === 0 ? l.stdout.split('\n').filter(n => EXTENSIONS_DES_FLUX.test(n)) : [];
@@ -237,7 +255,10 @@ function fluxDuCommit(racine, sha, branche) {
     const f = git('show', `${sha}:${chemin}`);
     return { chemin, texte: f.status === 0 ? f.stdout : null };
   });
-  return fluxDeLaBranche(fichiers, branche);
+  const attendus = new Set(fluxDeLaBranche(fichiers, branche));
+  return fichiers
+    .filter(({ chemin }) => attendus.has(chemin))
+    .map(({ chemin, texte }) => ({ chemin, nom: nomDuFlux(chemin, texte) }));
 }
 
 // The GitHub CLI run in the main tree <racine>.
@@ -290,6 +311,7 @@ export function lireUneFoisLaCI(o, { sha, branche, passage = null }) {
   let id = passage;
   if (id === null) {
     if (fluxDuCommit(o.racine, sha, branche).length === 0) {
+      // (the reading of before the CI of every workflow, kept for the replay of `lireLaCI`)
       return { etat: SANS_CI };
     }
     const r = gh([
@@ -344,6 +366,96 @@ export function lireUneFoisLaCI(o, { sha, branche, passage = null }) {
     return { etat: 'finie', passage: id, conclusion: vue.conclusion ?? null };
   }
   return { etat: 'en-cours', passage: id };
+}
+
+/**
+ * One reading of the CI of the commit <sha> pushed to <branche>, every expected workflow
+ * (`fluxDuCommit`) read together, with the tools <o>: `{ etat: 'sans-ci' }`; `{ etat: 'non-lue',
+ * raison }` (gh absent, refusing, or its output unreadable); `{ etat: 'rouge', passage, flux }`, the
+ * first workflow in the order of the files whose run is not a success, whatever the others still
+ * do; `{ etat: 'verte', passage }`, every workflow green, `passage` the first workflow's; or `{
+ * etat: 'en-cours', flux: [{ nom, passage, fini }] }`, each workflow with its run (null while it
+ * is looked for). A run joins its workflow by its name (`workflowName`); one of no expected name
+ * does not count, the latest run (the greatest id) of a name decides, and workflows of one name count
+ * for one, which `gh run list` does not tell apart. Each run is read at its current attempt (`gh
+ * run view <id>` without `--attempt`). Nothing is kept from one reading to the next; nothing is
+ * written to the ticket: `conclureLaCI` does.
+ */
+export function lireLesPassagesDeLaCI(o, { sha, branche }) {
+  const { gh } = o;
+  const attendus = [...new Set(fluxDuCommit(o.racine, sha, branche).map(f => f.nom))];
+  if (attendus.length === 0) {
+    return { etat: SANS_CI };
+  }
+  const r = gh([
+    'run',
+    'list',
+    '--commit',
+    sha,
+    '--branch',
+    branche,
+    '--json',
+    'databaseId,status,conclusion,workflowName',
+  ]);
+  if (r.error) {
+    return { etat: NON_LUE, raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
+  }
+  if (r.status !== 0) {
+    return { etat: NON_LUE, raison: `gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}` };
+  }
+  let passages;
+  try {
+    passages = JSON.parse(r.stdout || '[]');
+  } catch {
+    return {
+      etat: NON_LUE,
+      raison: `gh run list rend une sortie illisible :\n${r.stdout.trim()}`,
+    };
+  }
+  const recent = nom =>
+    (Array.isArray(passages) ? passages : [])
+      .filter(x => x?.databaseId && x.workflowName === nom)
+      .reduce((m, x) => (m === null || x.databaseId > m.databaseId ? x : m), null);
+  const lus = [];
+  for (const nom of attendus) {
+    const p = recent(nom);
+    if (p === null) {
+      lus.push({ nom, passage: null, fini: false });
+      continue;
+    }
+    const id = String(p.databaseId);
+    const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
+      timeout: 60_000,
+      killSignal: 'SIGKILL',
+    });
+    if (v.error) {
+      return { etat: NON_LUE, raison: `gh ne se lance pas (${v.error.code ?? v.error.message}).` };
+    }
+    if (v.status !== 0) {
+      return { etat: NON_LUE, raison: `gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}` };
+    }
+    let vue;
+    try {
+      vue = JSON.parse(v.stdout || '{}');
+    } catch {
+      return {
+        etat: NON_LUE,
+        raison: `gh run view rend une sortie illisible :\n${v.stdout.trim()}`,
+      };
+    }
+    const fini = vue?.status === 'completed';
+    if (!fini) {
+      ecrireLesEtapes(o.avancement, vue);
+    }
+    if (fini && vue.conclusion !== 'success') {
+      return { etat: 'rouge', passage: id, flux: nom };
+    }
+    lus.push({ nom, passage: id, fini });
+  }
+  if (lus.every(f => f.fini)) {
+    return { etat: VERTE, passage: lus[0].passage };
+  }
+  return { etat: 'en-cours', flux: lus };
 }
 
 /**

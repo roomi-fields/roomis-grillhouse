@@ -56,6 +56,7 @@ import {
   type EntreeDeLaFileDuProjet,
   type IssueDeLaFile,
   type LectureDeLaCI,
+  type LectureDesPassages,
   type VerdictDeLaCI,
   type VueDeLaFile,
 } from './contrat.js';
@@ -100,6 +101,11 @@ const DELAIS: Required<DelaisDeLaCI> = {
 const LIMITE_D_HISTOIRE = 10_000;
 /** The patch of the CI of the branch (Temporal's patching), which the circuit's step 5.2 reads too. */
 export const CI_DE_LA_BRANCHE = 'ci-de-la-branche';
+/**
+ * The patch of the CI of every expected workflow: `ciDuCommit` reads all the runs of the commit
+ * (`lireLesPassagesDeLaCI`), where it read the first one (`lireLaCI`).
+ */
+const CI_TOUS_LES_FLUX = 'ci-tous-les-flux';
 // The judgements of one entry at most, main moving between its CI and its entry.
 const ESSAIS = 5;
 
@@ -120,8 +126,64 @@ function messageDe(e: unknown): string {
   return String((c as Error)?.message ?? c);
 }
 
-/** The CI of a commit, read to its conclusion: its verdict, its run, the reason of a CI not read. */
+/**
+ * The CI of a commit, read to its conclusion: its verdict, its run, the reason of a CI not read.
+ * Every expected workflow is read at each reading (`lireLesPassagesDeLaCI`), which keeps nothing:
+ * green when all are green, red as soon as one is, whatever the others do; the runs are looked for
+ * during `rechercheMs` from the start, then waited for during `attenteMs` from the moment each
+ * workflow has its run. A run that recorded its history before this path (`CI_TOUS_LES_FLUX`)
+ * replays the loop of before (`ciDuCommitDUnPassage`).
+ */
 export async function ciDuCommit(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
+  if (!patched(CI_TOUS_LES_FLUX)) {
+    return ciDuCommitDUnPassage(e);
+  }
+  const { rechercheMs, attenteMs, pasMs } = { ...DELAIS, ...e.ci };
+  const debut = Date.now();
+  let limite = Infinity;
+  for (;;) {
+    const l: LectureDesPassages = await actes.lireLesPassagesDeLaCI({
+      racine: e.racine,
+      ticket: e.ticket,
+      sha: e.sha,
+      branche: e.branche,
+    });
+    if (l.etat === 'sans-ci') {
+      return { verdict: 'sans-ci', passage: null, raison: null };
+    }
+    if (l.etat === 'non-lue') {
+      return { verdict: 'non-lue', passage: null, raison: l.raison };
+    }
+    if (l.etat === 'verte') {
+      return { verdict: 'verte', passage: l.passage, raison: null };
+    }
+    if (l.etat === 'rouge') {
+      return { verdict: 'rouge', passage: l.passage, raison: null };
+    }
+    const manquants = l.flux.filter(f => f.passage === null);
+    const enCours = l.flux.find(f => f.passage !== null && !f.fini);
+    const passage = enCours?.passage ?? null;
+    if (manquants.length === 0 && limite === Infinity) {
+      limite = Date.now() + attenteMs;
+    }
+    const reste = manquants.length > 0 ? debut + rechercheMs - Date.now() : limite - Date.now();
+    if (reste <= 0) {
+      const raison =
+        manquants.length > 0
+          ? `aucun passage de la CI pour ce commit en ${Math.round(rechercheMs / 1000)} s : ${manquants.map(f => `« ${f.nom} »`).join(', ')}.`
+          : `en ${Math.round(attenteMs / 60_000)} min, ${l.flux
+              .filter(f => !f.fini)
+              .map(f => `le passage ${f.passage} de « ${f.nom} » n'a pas fini`)
+              .join(', ')}.`;
+      return { verdict: 'non-lue', passage, raison };
+    }
+    await sleep(Math.min(pasMs, reste));
+  }
+}
+
+// The CI of a commit as the queue read it before the CI of every workflow (`CI_TOUS_LES_FLUX`): the
+// first run of the commit alone, kept for the replay of the histories that recorded it.
+async function ciDuCommitDUnPassage(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
   const { rechercheMs, attenteMs, pasMs } = { ...DELAIS, ...e.ci };
   const debut = Date.now();
   let passage: string | null = null;
