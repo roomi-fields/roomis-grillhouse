@@ -233,3 +233,11 @@ export async function attendre<T>(
     await new Promise(r => setTimeout(r, 200));
   }
 }
+
+/**
+ * The acts of a circuit's pause on a trial machine: no copy to measure, a place always there.
+ */
+export const PAUSE_D_ESSAI = {
+  mesurerLaCopieDuTicket: () => Promise.resolve(null),
+  reprendreUnePlace: () => Promise.resolve(true),
+};

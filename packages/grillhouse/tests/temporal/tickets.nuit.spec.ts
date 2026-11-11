@@ -30,6 +30,7 @@ import {
   type ArretPublie,
 } from '../../src/temporal/circuit/contrat.js';
 import {
+  circuitsEnPause,
   circuitsNonIntegres,
   circuitsVivants,
   placesDeLaMachine,
@@ -38,6 +39,7 @@ import {
 import { demarrerLesTickets, lireLaFileDesTickets } from '../../src/temporal/tickets/client.js';
 import { idDesTickets, type ActivitesDesTickets } from '../../src/temporal/tickets/contrat.js';
 import {
+  PAUSE_D_ESSAI,
   PAQUET,
   attendre,
   demarrerLeServeur,
@@ -137,8 +139,10 @@ async function serveur(activites: object, db = path.join(dossier('tickets'), 'te
     // No ticket of a trial is closed outside its circuit; no workflow of the machine runs on the
     // trial server, so the machine bounds nothing.
     activities: {
+      ...PAUSE_D_ESSAI,
       ...circuit,
       circuitsVivants,
+      circuitsEnPause,
       circuitsNonIntegres,
       tracerLaFile,
       fermesHorsCircuit: () => Promise.resolve([]),

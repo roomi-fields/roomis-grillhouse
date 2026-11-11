@@ -107,23 +107,25 @@ export async function lireLesPlaces(client: Client, id = ID_DES_PLACES): Promise
 }
 
 /**
- * The tickets among <c.candidats> the machine lets the project start (RESERVER), in the order of
- * arrival of every project, under its ceiling; every candidate where no workflow of the machine
- * runs (no place is taken on that server, as in the CI).
+ * The tickets of the demand <c> that hold a place of a circuit (RESERVER: the candidates the
+ * machine lets the project start, or the circuit resumed), in the order of arrival of every
+ * project, under its ceiling; every one where no workflow of the machine runs (no place is taken
+ * on that server, as in the CI).
  */
 export async function reserverDesCircuits(
   client: Client,
   c: CircuitsDuProjet,
   id = ID_DES_PLACES
 ): Promise<string[]> {
+  const tous = [...(c.candidats ?? []), ...(c.reprise ? [c.reprise.ticket] : [])];
   const h = client.workflow.getHandle(id);
   try {
     if ((await h.describe()).status.name !== 'RUNNING') {
-      return c.candidats;
+      return tous;
     }
   } catch (e) {
     if ((e as Error).name === 'WorkflowNotFoundError') {
-      return c.candidats;
+      return tous;
     }
     throw e;
   }

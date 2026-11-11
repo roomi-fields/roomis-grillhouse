@@ -293,6 +293,10 @@ export interface Langage extends Composition {
   /** The manifest of a package of this language, in its folder (`package.json`, `Cargo.toml`):
    * the guard of the languages asks it of a package the architecture declares of this language. */
   manifeste: string;
+  /** The expected size of a copy of a project of this language before any of its copies is
+   * measured, in bytes: the room a circuit's start wants on the disk of the copies, the charter's
+   * margin besides (scripts/disque-des-copies.mjs), its dependencies and its builds included. */
+  tailleDUneCopie: number;
   /** The name the text of a manifest of this language gives its package (the `name` of a
    * `package.json`, of the `[package]` of a `Cargo.toml`, of the `[project]` of a
    * `pyproject.toml`); null for none. */

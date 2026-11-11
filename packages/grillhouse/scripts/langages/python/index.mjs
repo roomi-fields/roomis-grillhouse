@@ -58,6 +58,8 @@ const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 
 export default {
   nom: 'python',
+  // The expected size of a copy before any is measured: its .venv, about 0.1 GB (2026-11-11).
+  tailleDUneCopie: 1024 ** 3,
   manifeste: 'pyproject.toml',
   nomDuManifeste,
   liensDuManifeste,

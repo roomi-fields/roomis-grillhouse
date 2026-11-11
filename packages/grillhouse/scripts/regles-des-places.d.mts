@@ -46,15 +46,26 @@ export interface PlaceDeCircuit {
   accordee: boolean;
   depuis: number;
   vu: number;
+  /** A circuit resumed after its question, which asks again by itself. */
+  reprise?: boolean;
+  /** Why it waits apart from the order of arrival (its disk of copies), null without. */
+  raison?: string | null;
 }
 
 /**
- * The places of the circuits once the queue of a project gives its circuits alive and the tickets
- * it would start: granted in the order of arrival of every project under the ceiling; the
- * candidates that hold a place.
+ * The places of the circuits once a demand comes: the queue of a project gives its circuits active,
+ * the tickets it would start and the reason its disk lacks room; or a circuit resumed asks again by
+ * itself (`reprise`). Granted in the order of arrival of every project under the ceiling, a
+ * candidate short of disk aside; the tickets of the demand that hold a place.
  */
 export function reserverDesCircuits(
   places: readonly PlaceDeCircuit[],
-  demande: { racine: string; vivants: string[]; candidats: string[] },
+  demande: {
+    racine: string;
+    vivants?: string[];
+    candidats?: string[];
+    disque?: string | null;
+    reprise?: { ticket: string; rang: number | null };
+  },
   o: { rang: number; plafond: number; maintenant: number }
 ): { circuits: PlaceDeCircuit[]; rang: number; accordes: string[] };

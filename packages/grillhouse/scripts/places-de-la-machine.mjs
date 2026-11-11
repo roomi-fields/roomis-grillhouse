@@ -399,9 +399,11 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine }
     charge: Math.round(m.charge * 10) / 10,
     coeurs: m.coeurs,
     memoireGo: Math.floor(m.memoireLibre / 1024 ** 3),
-    attentes: [...attentes, ...circuits.filter(c => !c.accordee)].map(a => ({
-      ticket: a.ticket,
-      depuis: a.depuis,
-    })),
+    attentes: [
+      ...attentes.map(a => ({ ticket: a.ticket, depuis: a.depuis })),
+      ...circuits
+        .filter(c => !c.accordee)
+        .map(c => ({ ticket: c.ticket, depuis: c.depuis, disque: c.raison ?? null })),
+    ],
   };
 }

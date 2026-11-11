@@ -1,8 +1,12 @@
 // The activities of the workflow of a ticket (./deroule.ts): each plays one act of the circuit
 // in a process of its own (../acte.ts); each act but `effet` gives back the effects it emitted,
-// which the workflow plays one by one (`jouerUnEffet`).
+// which the workflow plays one by one (`jouerUnEffet`); and the acts of its pause on a question,
+// its copy measured and its place asked again (`ActivitesDeLaPause`).
+import { mesurerLaCopie } from '../../../scripts/disque-des-copies.mjs';
 import { jouer } from '../acte.js';
-import type { Activites } from './contrat.js';
+import { ouvrirLeClient } from '../client.js';
+import { reserverDesCircuits } from '../places/client.js';
+import type { Activites, ActivitesDeLaPause } from './contrat.js';
 
 type Entree<K extends keyof Activites> = Parameters<Activites[K]>[0];
 const ou = (e: { racine: string }) => e.racine;
@@ -47,6 +51,30 @@ export async function arreterLeTicket(
 
 export async function jouerUnEffet(e: Entree<'jouerUnEffet'>): Promise<void> {
   await jouer('effet', e, ou(e));
+}
+
+export function mesurerLaCopieDuTicket(
+  e: Parameters<ActivitesDeLaPause['mesurerLaCopieDuTicket']>[0]
+): Promise<number | null> {
+  return Promise.resolve(mesurerLaCopie(e.racine, e.ticket));
+}
+
+// A machine that does not answer gives no place: the circuit asks again at its next turn.
+export async function reprendreUnePlace(
+  e: Parameters<ActivitesDeLaPause['reprendreUnePlace']>[0]
+): Promise<boolean> {
+  const c = ouvrirLeClient();
+  try {
+    const accordes = await reserverDesCircuits(c.client, {
+      racine: e.racine,
+      reprise: { ticket: e.ticket, rang: e.rang },
+    });
+    return accordes.includes(e.ticket);
+  } catch {
+    return false;
+  } finally {
+    await c.fermer();
+  }
 }
 
 export async function jouerUnPasDuPlan(

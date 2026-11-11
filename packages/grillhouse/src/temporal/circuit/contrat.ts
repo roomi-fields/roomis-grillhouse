@@ -14,6 +14,8 @@ export const idDuCircuit = (racine: string, ticket: string) => `circuit:${racine
 
 /** The update that resumes a stopped circuit at its step (`--reprendre`). */
 export const REPRENDRE = 'reprendre';
+/** The step a circuit resumed after its question publishes while it waits for its place. */
+export const EN_ATTENTE_DE_PLACE = 'attend-une-place';
 /** The signal that stops the circuit, its session with it (`--arreter`), wherever it stands. */
 export const ARRETER = 'arreter';
 /** The update that resumes a stopped circuit from the step of an agent (`--depuis`). */
@@ -253,6 +255,17 @@ interface Lieu {
   memoire: Memoire;
   /** The supervisor's session of the entry (`EntreeDuCircuit.superviseur`), null without one. */
   superviseur: string | null;
+}
+
+/**
+ * The acts of a circuit's pause on a question (grillhouse-4nr.27): the size of its copy kept once
+ * (`mesurerLaCopie` of scripts/disque-des-copies.mjs), and, resumed, its place of a circuit asked
+ * again by itself (`reserverDesCircuits` of ../places/client.ts, its rank of arrival kept):
+ * whether it holds one.
+ */
+export interface ActivitesDeLaPause {
+  mesurerLaCopieDuTicket(e: { racine: string; ticket: string }): Promise<number | null>;
+  reprendreUnePlace(e: { racine: string; ticket: string; rang: number | null }): Promise<boolean>;
 }
 
 export interface Activites {

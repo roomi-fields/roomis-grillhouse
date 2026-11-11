@@ -74,7 +74,9 @@ import {
   REFUS_DU_VALIDATEUR,
   REPRENDRE,
   resumeDeLEtat,
+  EN_ATTENTE_DE_PLACE,
   type Activites,
+  type ActivitesDeLaPause,
   type ArretDecide,
   type ArretPublie,
   type Effet,
@@ -112,6 +114,12 @@ const unEffet = (activityId: string) =>
   proxyActivities<Activites>({ ...OPTIONS_D_UN_EFFET, activityId }).jouerUnEffet;
 
 // The acts of the queue the circuit plays itself at its step 5.2.
+// The acts of the pause: a measure, a demand to the machine.
+const actesDeLaPause = proxyActivities<ActivitesDeLaPause>({
+  startToCloseTimeout: '10 minutes',
+  retry: { initialInterval: '5 seconds', maximumAttempts: 4 },
+});
+
 const actesDeLaFile = proxyActivities<ActivitesDeLaFile>({
   startToCloseTimeout: '1 minute',
   retry: { initialInterval: '1 second', maximumAttempts: 4 },
@@ -158,6 +166,12 @@ const aLaReprise = <E extends EtatDeLEtape>(e: E): E =>
 // and without counting, as a job of Buildkite waits for an agent; a run that recorded such a stop
 // before the change replays it as it was.
 const ATTENTE_DE_PLACE = 'attente-de-place';
+// The patch of the pause (grillhouse-4nr.27): a circuit stopped on a question gives its place of
+// a circuit back, its copy measured once; resumed, it asks its place again by itself
+// (`reserverDesCircuits`, its rank of arrival kept), the step EN_ATTENTE_DE_PLACE published,
+// every ATTENTE_DE_PLACE_MS until it holds one, before it reopens.
+const PAUSE_REND_SA_PLACE = 'pause-rend-sa-place';
+const ATTENTE_DE_PLACE_MS = 60_000;
 
 // How a run of steps ends.
 type Issue =
@@ -385,6 +399,28 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     memoire,
     superviseur,
   });
+  // Resumed after its pause: its place of a circuit asked again, every ATTENTE_DE_PLACE_MS, the
+  // step EN_ATTENTE_DE_PLACE published, which the board says « attend une place »; false when
+  // ARRETER comes meanwhile.
+  const reprendreUnePlace = async (): Promise<boolean> => {
+    publier(EN_ATTENTE_DE_PLACE, null);
+    const rang = typeof memoire.rang === 'number' ? memoire.rang : null;
+    for (;;) {
+      if (arretDemande) {
+        return false;
+      }
+      if (
+        await actesDeLaPause.reprendreUnePlace({
+          racine: entree.racine,
+          ticket: entree.ticket,
+          rang,
+        })
+      ) {
+        return true;
+      }
+      await condition(() => arretDemande !== null, ATTENTE_DE_PLACE_MS);
+    }
+  };
   // The effects an act gave back, played one by one, each in an activity whose id the workflow
   // sets (its rank in the run, then its sort), the key of its writing (../acte.ts
   // `cleDeLActivite`); consecutive states are one (`effetsAJouer`). The state is no writing out of
@@ -577,6 +613,12 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         return { arreter: arret, etat: ecrit, menee };
       }
       if (d.fin) {
+        if (patched(PAUSE_REND_SA_PLACE)) {
+          await actesDeLaPause.mesurerLaCopieDuTicket({
+            racine: entree.racine,
+            ticket: entree.ticket,
+          });
+        }
         const f = await actes.finirLeTicket({ ...lieu(), etat, paquets: ticket.paquets });
         await jouerLesEffets(f.effets);
         return { fin: true };
@@ -670,6 +712,9 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         }
       }
       const { publie, rejoue, place } = await ecrire(suite);
+      // A stop whose question waits is a pause: the circuit gives its place of a circuit back
+      // (the queue no longer counts it), its copy measured once.
+      const enPause = !place && !rejoue && !arretDemande && patched(PAUSE_REND_SA_PLACE);
       suite = { arret: publie };
       // ARRETER while the stop was written.
       if (arretDemande) {
@@ -689,6 +734,12 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         }
         repasses += 1;
       } else {
+        if (enPause) {
+          await actesDeLaPause.mesurerLaCopieDuTicket({
+            racine: entree.racine,
+            ticket: entree.ticket,
+          });
+        }
         await condition(() => reponse !== null);
         repasses = 0;
       }
@@ -700,6 +751,11 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       }
       issueDeLaReponse = arretDemande ? 'arret' : 'reprise';
       if (arretDemande) {
+        continue;
+      }
+      // Resumed after its pause, it asks its place again before it reopens; ARRETER meanwhile
+      // stops it.
+      if (enPause && !(await reprendreUnePlace())) {
         continue;
       }
       arrete = { ...publie.etat, question: publie.question };

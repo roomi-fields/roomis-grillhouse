@@ -1442,11 +1442,24 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   `scripts/regles-des-places.mjs`), et la machine les accorde dans l'ordre d'arrivée de tous les
   projets tant que ses circuits tenus restent sous son plafond, comme Buildkite borne ses pipelines
   dans un parc d'agents commun : à 5 places, trois projets réglés à 2, le sixième ticket attend en
-  file, non démarré, et le panneau dit « attend une place ». Un circuit vivant tient sa place ; une
+  file, non démarré, et le panneau dit « attend une place ». Un circuit actif tient sa place ; une
   place qu'aucune file ne redonne depuis 10 min se perd ; sans déroulé de la machine sur le
-  serveur, rien ne borne. Un circuit qui attend la réponse du superviseur est vivant : son déroulé tourne, en
-  attente durable de la réponse, et le serveur ne le purge jamais ; à 1, le suivant part quand le
-  précédent finit. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
+  serveur, rien ne borne. Le disque des copies borne aussi un départ, puisque créer la copie le
+  consomme, comme Nomad réserve le disque d'un client : la file joint à ses candidats la raison
+  qui manque à son disque (`disqueDesCopies` de `scripts/disque-des-copies.mjs`, le `statfs` de
+  `<racine>/.claude/worktrees`), qui demande la taille attendue d'une copie du projet (la plus
+  grande copie mesurée, sinon le `tailleDUneCopie` des modules de ses langages, 1 Go, 8 Go pour
+  cargo, plus la marge de 4 Go de la charte) ; un
+  candidat sans cette place attend avec sa raison, qui nomme les copies en pause et leur taille,
+  sans retenir les autres, et le panneau dit « attend le disque ». La taille d'une copie se mesure
+  une fois, quand son circuit se met en pause sur une question ou finit, et se garde à côté d'elle
+  (`<ticket>.taille`) : jamais de `du` à chaque jugement. Un circuit arrêté sur une question est
+  en pause, comme une étape de blocage de Buildkite libère son agent : son déroulé tourne, en
+  attente durable de la réponse, et le serveur ne le purge jamais, mais il rend sa place de
+  circuit, que la file ne compte plus (`circuitsEnPause`, sur le mémo des déroulés) ; sa copie
+  reste comptée par le disque libre réel. Repris, il redemande lui-même sa place
+  (`reserverDesCircuits`, son rang d'arrivée gardé) et attend, à l'étape `attend-une-place`, avant
+  de rouvrir. À 1, le suivant part quand le précédent finit ou se met en pause. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
   mot du superviseur (`--arreter`, l'étiquette `circuit` retirée) : Beads, le registre durable,
   le garde de repartir. Un circuit vivant dont le ticket est fermé hors de son circuit (livré en
   direct), avant son intégration, ne compte plus : la file l'arrête (`ARRETER`) à son réveil

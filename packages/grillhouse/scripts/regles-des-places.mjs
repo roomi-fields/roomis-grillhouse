@@ -74,45 +74,77 @@ export function refusDeLaPlace(etat, { id, rang, plafond, espacementMs, maintena
 export const PERIME_MS = 10 * 60_000;
 
 /**
- * The places of the circuits of the machine once the queue of the project <racine> gives its
- * circuits alive <vivants> and the tickets it would start <candidats>, as Buildkite bounds its
- * pipelines in one fleet of agents: its circuits alive hold their place, its candidates wait for
- * one, each its rank of arrival among every project, drawn from <rang>; its other places, and
- * those no queue gave for PERIME_MS, are gone. The places are granted in the order of arrival
- * while the circuits that hold one are fewer than <plafond>: the first that waits keeps the next
- * ones waiting. Gives the places, the last rank drawn, and the candidates that hold a place.
- * @param {Array<{ racine: string, ticket: string, rang: number, accordee: boolean, depuis: number, vu: number }>} places
- * @param {{ racine: string, vivants: string[], candidats: string[] }} demande
+ * The places of the circuits of the machine once a demand comes, as Buildkite bounds its pipelines
+ * in one fleet of agents. The queue of the project <racine> gives its circuits active <vivants>
+ * (a circuit paused on a question gives its place back) and the tickets it would start
+ * <candidats>, with the reason its disk of copies lacks room (<disque>, null with room): its
+ * circuits active hold their place, its candidates wait for one, each its rank of arrival among
+ * every project, drawn from <rang>; its other places, but a circuit resumed that waits, and those
+ * no demand gave for PERIME_MS, are gone. A circuit resumed after its question asks again by
+ * itself (<reprise>: its ticket and its rank of arrival, a new one when null), as a candidate,
+ * without the disk, its copy already there. The places are granted in the order of arrival while
+ * the circuits that hold one are fewer than <plafond>: the first that waits keeps the next ones
+ * waiting, but a candidate short of disk, which waits with its reason and keeps no one. Gives the
+ * places, the last rank drawn, and the tickets of the demand that hold a place.
+ * @param {Array<{ racine: string, ticket: string, rang: number, accordee: boolean, depuis: number,
+ *   vu: number, reprise?: boolean, raison?: string | null }>} places
+ * @param {{ racine: string, vivants?: string[], candidats?: string[], disque?: string | null,
+ *   reprise?: { ticket: string, rang: number | null } }} demande
  * @param {{ rang: number, plafond: number, maintenant: number }} o
  */
-export function reserverDesCircuits(places, { racine, vivants, candidats }, o) {
+export function reserverDesCircuits(places, demande, o) {
+  const { racine, vivants = [], candidats = [], disque = null, reprise } = demande;
   const { plafond, maintenant } = o;
   let { rang } = o;
   const siens = new Set([...vivants, ...candidats]);
-  const circuits = places
-    .filter(c => (c.racine !== racine || siens.has(c.ticket)) && maintenant - c.vu < PERIME_MS)
-    .map(c => ({ ...c }));
-  const placer = (ticket, accordee) => {
+  const garde = c =>
+    maintenant - c.vu < PERIME_MS &&
+    (c.racine !== racine || siens.has(c.ticket) || Boolean(reprise) || (c.reprise && !c.accordee));
+  const circuits = places.filter(garde).map(c => ({ ...c }));
+  const placer = (ticket, accordee, o2 = {}) => {
     const c = circuits.find(x => x.racine === racine && x.ticket === ticket);
     if (c) {
       c.vu = maintenant;
       c.accordee = c.accordee || accordee;
+      if (accordee) {
+        c.reprise = false;
+      }
+      Object.assign(c, o2.maj ?? {});
       return;
     }
-    rang += 1;
-    circuits.push({ racine, ticket, rang, accordee, depuis: maintenant, vu: maintenant });
+    const r = o2.rang ?? (rang += 1);
+    rang = Math.max(rang, r);
+    circuits.push({
+      racine,
+      ticket,
+      rang: r,
+      accordee,
+      depuis: maintenant,
+      vu: maintenant,
+      ...(o2.maj ?? {}),
+    });
   };
   vivants.forEach(t => placer(t, true));
-  candidats.forEach(t => placer(t, false));
+  candidats.forEach(t => placer(t, false, { maj: { raison: disque } }));
+  if (reprise) {
+    placer(reprise.ticket, false, {
+      rang: reprise.rang ?? undefined,
+      maj: { reprise: true, raison: null },
+    });
+  }
   let tenues = circuits.filter(c => c.accordee).length;
   for (const c of circuits.filter(x => !x.accordee).sort((a, b) => a.rang - b.rang)) {
     if (tenues >= plafond) {
       break;
     }
+    if (c.raison) {
+      continue;
+    }
     c.accordee = true;
     tenues += 1;
   }
-  const accordes = candidats.filter(t =>
+  const demandes = reprise ? [...candidats, reprise.ticket] : candidats;
+  const accordes = demandes.filter(t =>
     circuits.some(c => c.racine === racine && c.ticket === t && c.accordee)
   );
   return { circuits, rang, accordes };

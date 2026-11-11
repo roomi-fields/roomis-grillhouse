@@ -67,6 +67,8 @@ const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 
 export default {
   nom: 'cargo',
+  // The expected size of a copy before any is measured: its target/, 2 to 7.6 GB (2026-11-11).
+  tailleDUneCopie: 8 * 1024 ** 3,
   manifeste: 'Cargo.toml',
   nomDuManifeste,
   liensDuManifeste,

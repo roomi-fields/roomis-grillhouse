@@ -51,6 +51,7 @@ import {
 } from '../../src/temporal/circuit/contrat.js';
 import type { ActivitesDeLaFile } from '../../src/temporal/file/contrat.js';
 import {
+  PAUSE_D_ESSAI,
   COMMANDE,
   PAQUET,
   attendre,
@@ -286,7 +287,7 @@ async function circuit(activites: Activites, entree: Partial<EntreeDuCircuit> = 
       connection: connexion,
       taskQueue: FILE,
       workflowsPath: DEROULES,
-      activities: activites,
+      activities: { ...PAUSE_D_ESSAI, ...activites },
       maxHeartbeatThrottleInterval: '1 second',
       defaultHeartbeatThrottleInterval: '1 second',
     });

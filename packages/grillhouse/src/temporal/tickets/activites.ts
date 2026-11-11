@@ -14,9 +14,10 @@ import {
 } from '../../../scripts/file-des-tickets.mjs';
 import { ecrireLaTrace, traceDeLaFile } from '../../../scripts/journal-des-etats.mjs';
 import { ouvrirLeClient } from '../client.js';
+import { disqueDesCopies } from '../../../scripts/disque-des-copies.mjs';
 import { reserverDesCircuits } from '../places/client.js';
 import { lireLesCircuits } from '../circuit/client.js';
-import { idDuCircuit } from '../circuit/contrat.js';
+import { EN_ATTENTE_DE_PLACE, idDuCircuit } from '../circuit/contrat.js';
 import type { ActivitesDesTickets } from './contrat.js';
 
 type Entree<K extends keyof ActivitesDesTickets> = Parameters<ActivitesDesTickets[K]>[0];
@@ -102,12 +103,42 @@ export async function fermesHorsCircuit(
   }
 }
 
+export async function circuitsEnPause(e: Entree<'circuitsEnPause'>): Promise<string[]> {
+  const prefixe = idDuCircuit(e.racine, '');
+  const c = ouvrirLeClient();
+  try {
+    const enPause: string[] = [];
+    for await (const w of c.client.workflow.list({
+      query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
+    })) {
+      const memo = (w.memo ?? {}) as { question?: unknown; etape?: string };
+      if (
+        w.workflowId.startsWith(prefixe) &&
+        (memo.question || memo.etape === EN_ATTENTE_DE_PLACE)
+      ) {
+        enPause.push(w.workflowId.slice(prefixe.length));
+      }
+    }
+    return enPause.sort();
+  } finally {
+    await c.fermer();
+  }
+}
+
 export async function placesDeLaMachine(
   e: Entree<'placesDeLaMachine'>
 ): Promise<Sortie<'placesDeLaMachine'>> {
   const c = ouvrirLeClient();
   try {
-    return { accordes: await reserverDesCircuits(c.client, e), faute: null };
+    let disque: string | null = null;
+    if (e.candidats.length) {
+      try {
+        disque = disqueDesCopies(e.racine).raison;
+      } catch {
+        disque = null;
+      }
+    }
+    return { accordes: await reserverDesCircuits(c.client, { ...e, disque }), faute: null };
   } catch (x) {
     return {
       accordes: [],

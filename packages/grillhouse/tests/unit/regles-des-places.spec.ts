@@ -159,3 +159,52 @@ describe('les places des circuits de la machine, dans l’ordre d’arrivée de 
     expect(r.accordes).toEqual(['b-1']);
   });
 });
+
+describe('un circuit en pause rend sa place, le disque des copies borne un départ', () => {
+  const T0 = 1_000_000;
+  type Places = Parameters<typeof reserverDesCircuits>[0];
+  const reserver = (
+    places: Places,
+    demande: Parameters<typeof reserverDesCircuits>[1],
+    o: Partial<Parameters<typeof reserverDesCircuits>[2]> = {}
+  ) => reserverDesCircuits(places, demande, { rang: 10, plafond: 1, maintenant: T0, ...o });
+
+  it('un circuit en pause n’est plus actif : sa place va au candidat suivant', () => {
+    const tenu = reserver([], { racine: '/a', vivants: ['a-1'], candidats: [] });
+    const r = reserver(tenu.circuits, { racine: '/a', vivants: [], candidats: ['a-2'] });
+    expect(r.accordes).toEqual(['a-2']);
+  });
+
+  it('un candidat sans place disque attend avec sa raison, sans retenir les autres', () => {
+    const a = reserver([], { racine: '/a', candidats: ['a-1'], disque: 'disque plein' });
+    expect(a.accordes).toEqual([]);
+    expect(a.circuits[0]).toMatchObject({ ticket: 'a-1', raison: 'disque plein' });
+    const b = reserver(a.circuits, { racine: '/b', candidats: ['b-1'] }, { rang: a.rang });
+    expect(b.accordes).toEqual(['b-1']);
+  });
+
+  it('un circuit repris redemande sa place avec son rang d’origine, avant les arrivés après lui', () => {
+    const attend = reserver([], { racine: '/b', candidats: ['b-1'] }, { plafond: 0, rang: 20 });
+    const repris = reserver(
+      attend.circuits,
+      { racine: '/a', reprise: { ticket: 'a-1', rang: 3 } },
+      { plafond: 1, rang: attend.rang }
+    );
+    expect(repris.accordes).toEqual(['a-1']);
+    expect(repris.circuits.find(c => c.ticket === 'b-1')?.accordee).toBe(false);
+  });
+
+  it('la file de son projet garde la demande d’un circuit repris qui attend', () => {
+    const repris = reserver(
+      [],
+      { racine: '/a', reprise: { ticket: 'a-1', rang: 3 } },
+      { plafond: 0 }
+    );
+    const r = reserver(
+      repris.circuits,
+      { racine: '/a', vivants: [], candidats: [] },
+      { plafond: 0 }
+    );
+    expect(r.circuits.map(c => c.ticket)).toEqual(['a-1']);
+  });
+});

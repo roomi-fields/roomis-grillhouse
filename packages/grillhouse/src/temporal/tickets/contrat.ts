@@ -55,9 +55,15 @@ export interface ActivitesDesTickets {
   /**
    * The tickets among <candidats> the machine lets start (`reserverDesCircuits` of
    * ../places/client.ts: the circuits of every project under the ceiling of the machine, in their
-   * order of arrival), <vivants> holding their place; none, its fault named, when the machine does
-   * not answer.
+   * order of arrival, the disk of the project's copies with the room of one more,
+   * `disqueDesCopies` of scripts/disque-des-copies.mjs), <vivants>, the circuits active, holding
+   * their place; none, its fault named, when the machine does not answer.
    */
+  /**
+   * The tickets of the project whose circuit runs paused: on a question, or resumed and waiting for
+   * its place of the machine (the memo of its workflow); it holds no place.
+   */
+  circuitsEnPause(e: { racine: string }): Promise<string[]>;
   placesDeLaMachine(e: {
     racine: string;
     vivants: string[];

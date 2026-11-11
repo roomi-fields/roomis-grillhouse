@@ -29,6 +29,7 @@ import {
   type LectureDeLaCI,
 } from '../../src/temporal/file/contrat.js';
 import {
+  PAUSE_D_ESSAI,
   PAQUET,
   attendre,
   demarrerLeServeur,
@@ -234,7 +235,7 @@ async function serveur(activites: object) {
       connection: connexion,
       taskQueue: FILE,
       workflowsPath: DEROULES,
-      activities: activites,
+      activities: { ...PAUSE_D_ESSAI, ...activites },
       maxHeartbeatThrottleInterval: '1 second',
       defaultHeartbeatThrottleInterval: '1 second',
     });

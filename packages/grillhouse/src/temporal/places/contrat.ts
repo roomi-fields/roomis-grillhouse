@@ -49,13 +49,17 @@ interface Attente {
   depuis: number;
 }
 
-/** What the queue of the tickets of a project gives the machine (RESERVER). */
+/** What the queue of the tickets of a project, or a circuit resumed, gives the machine (RESERVER). */
 export interface CircuitsDuProjet {
   racine: string;
-  /** The tickets of the project whose circuit runs. */
-  vivants: string[];
+  /** The tickets of the project whose circuit is active (a circuit on a question is not). */
+  vivants?: string[];
   /** The tickets the project would start now, in its order, within its own setting. */
-  candidats: string[];
+  candidats?: string[];
+  /** Why the disk of the project's copies lacks room for one more, null with room. */
+  disque?: string | null;
+  /** A circuit resumed after its question that asks again by itself: its ticket and its rank. */
+  reprise?: { ticket: string; rang: number | null };
 }
 
 /** The state of the places, which the workflow carries across a Continue-As-New. */

@@ -155,6 +155,8 @@ const joueDesTests = (_racine, composant) =>
 
 export default {
   nom: 'typescript',
+  // The expected size of a copy before any is measured: its node_modules, about 0.5 to 1 GB (2026-11-11).
+  tailleDUneCopie: 1024 ** 3,
   manifeste: 'package.json',
   // The name a package.json gives its package; its internal dependencies are the package.json's
   // own, so no other manifest holds any.

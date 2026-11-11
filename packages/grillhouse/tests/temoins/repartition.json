@@ -36,6 +36,8 @@
     "scripts/dernier-vert.mjs",
     "scripts/dette.d.ts",
     "scripts/dette.mjs",
+    "scripts/disque-des-copies.d.mts",
+    "scripts/disque-des-copies.mjs",
     "scripts/donnees-cles.mjs",
     "scripts/droits.mjs",
     "scripts/effets.mjs",

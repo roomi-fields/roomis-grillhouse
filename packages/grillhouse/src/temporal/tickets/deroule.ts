@@ -119,12 +119,17 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
       enCours: [...new Set([...vivants, ...tenus])].sort(),
     });
     faute = r.faute;
-    const places = r.max === null ? 0 : r.max - vivants.length;
-    let partir = r.partir.slice(0, Math.max(0, places));
     // The machine bounds every project: a ticket starts once it holds a place of the machine, in
-    // the order of arrival of every project; the others stay in the queue, not started.
-    if (patched(PLACES_DE_LA_MACHINE)) {
-      const m = await actes.placesDeLaMachine({ racine, vivants, candidats: partir });
+    // the order of arrival of every project, its disk of copies with room; the others stay in the
+    // queue, not started. A circuit paused on a question, or resumed and waiting for its place,
+    // is not active and holds none: the places are the setting less the circuits active.
+    const machine = patched(PLACES_DE_LA_MACHINE);
+    const enPause = new Set(machine ? await actes.circuitsEnPause({ racine }) : []);
+    const actifs = vivants.filter(t => !enPause.has(t));
+    const places = r.max === null ? 0 : r.max - actifs.length;
+    let partir = r.partir.slice(0, Math.max(0, places));
+    if (machine) {
+      const m = await actes.placesDeLaMachine({ racine, vivants: actifs, candidats: partir });
       partir = m.accordes;
       faute = faute ?? m.faute;
     }

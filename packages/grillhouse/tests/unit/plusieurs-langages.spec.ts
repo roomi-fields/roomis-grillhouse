@@ -38,6 +38,7 @@ function faux(nom: string, dossiers: string[], autres: Partial<Langage> = {}): L
   return {
     nom,
     manifeste: `manifeste de ${nom}`,
+    tailleDUneCopie: 1,
     outils: [`outil-${nom}`, 'commun'],
     binaires: { [`binaire-${nom}`]: '1.0.0' },
     ignorer: [`sortie-${nom}`],

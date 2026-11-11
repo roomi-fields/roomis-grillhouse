@@ -728,8 +728,8 @@ export function lecture(t, prefix) {
  *   maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
- *   coeurs: number, memoireGo: number,
- *   attentes: { ticket: string, depuis: number }[] } | null, muet?: boolean, faute?: string | null,
+ *   coeurs: number, memoireGo: number, attentes: { ticket: string, depuis: number,
+ *   disque?: string | null }[] } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null }} lu
  */
 export function assembler({
@@ -1410,6 +1410,14 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ),
       ton: p.faute || p.charge >= p.coeurs ? 'attention' : 'discret',
     });
+    // A ticket that waits for the disk of its project's copies: what holds it, the ticket named.
+    for (const w of (p.attentes ?? []).filter(x => x.disque)) {
+      poser({
+        texte: cadre(`⏳ ${courtDuTicket(w.ticket)} · ${w.disque}`, '', largeur),
+        ton: 'attention',
+        ticket: w.ticket,
+      });
+    }
   }
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   const duCircuit = x => Boolean(x.ticket && enCircuit.has(x.ticket));
@@ -1491,6 +1499,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The tickets whose circuit waits for a place of the machine, and those that wait for a place of
   // a circuit, not started, whose line in their chantier says « attend une place ».
   const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  // The tickets that wait for the disk of their project's copies.
+  const attendLeDisque = new Set((p?.attentes ?? []).filter(w => w.disque).map(w => w.ticket));
   for (const id of attendUnePlace) {
     enAttente.add(id);
   }
@@ -1699,9 +1709,11 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           ? `${duree(n.travail)}${conso}`
           : n.etat === 'bloques'
             ? marque(n)
-            : n.etat === 'enAttente' && attendUnePlace.has(n.id)
-              ? 'attend une place'
-              : '';
+            : n.etat === 'enAttente' && attendLeDisque.has(n.id)
+              ? 'attend le disque'
+              : n.etat === 'enAttente' && attendUnePlace.has(n.id)
+                ? 'attend une place'
+                : '';
       return {
         texte: cadre(`   ${duProjet(n)}${n.numero}  ${n.sujet}`, droite, largeur),
         ton: n.etat === 'enCours' ? 'actif' : undefined,

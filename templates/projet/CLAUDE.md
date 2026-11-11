@@ -62,9 +62,12 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   lot appliqué ; lue dans l'arbre principal ; une clé sans commande, sans fichiers ou avec un
   motif hors du dépôt est refusée par son nom avant tout travail).
 - Le nombre de circuits à la fois : la clé `grillhouse.circuits` du `package.json` (un entier
-  ≥ 1, **1** quand elle est absente : les circuits du projet qui tournent à la fois, que la file
-  des tickets tient ; un circuit qui attend la réponse du superviseur compte ; lue dans l'arbre
-  principal ; toute autre valeur est refusée par son nom avant tout travail). La machine borne
-  aussi : un ticket ne part que s'il a une place de circuit de la machine, commune à ses projets
-  et donnée dans l'ordre d'arrivée (`GRILLHOUSE_PLACES` de `~/.config/grillhouse/machine.env`, 3
-  par défaut) ; sinon il reste en file, non démarré, et le panneau dit « attend une place ».
+  ≥ 1, **1** quand elle est absente : les circuits actifs du projet à la fois, que la file des
+  tickets tient ; un circuit arrêté sur une question rend sa place, et repris, la redemande avant
+  de rouvrir ; lue dans l'arbre principal ; toute autre valeur est refusée par son nom avant tout
+  travail). La machine borne aussi : un ticket ne part que s'il a une place de circuit de la
+  machine, commune à ses projets et donnée dans l'ordre d'arrivée (`GRILLHOUSE_PLACES` de
+  `~/.config/grillhouse/machine.env`, 3 par défaut), et la place d'une copie de plus sur le disque
+  des copies (la plus grande copie mesurée du projet, sinon 1 Go, 8 Go pour Rust, plus 4 Go) ;
+  sinon il reste en file, non démarré, et le panneau dit « attend une place » ou « attend le
+  disque » avec les copies en pause qui l'occupent.
