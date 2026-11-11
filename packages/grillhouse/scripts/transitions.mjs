@@ -208,6 +208,26 @@ export const arretSansActe = (etat, message, ou) => ({
   etat: { ...etat, raison: 'inattendu' },
 });
 
+// The step of a run of the workflow of a ticket from its opening to its plan passed
+// (src/temporal/circuit/deroule.ts): no step of the table of transitions.
+export const AU_PLAN = 'plan';
+
+// The state a stop at <etat> is written at and resumed from: a run at its plan (AU_PLAN) stands at
+// the state the plan writes (scripts/circuit.mjs `etatDuPlan`: the testwriter's first attempt, the
+// work on the plan named), from which the opening plays the plan again
+// (scripts/circuit.mjs `ouvrirJusquAuPlan`), as a Temporal resumption replays from the step it
+// stopped at; any other state as it is.
+export const etatDeReprise = etat =>
+  etat.etape === AU_PLAN
+    ? {
+        ...etat,
+        etape: TESTS,
+        tentative: 1,
+        finale: false,
+        questionnement: { objet: 'plan' },
+      }
+    : etat;
+
 // The decision of the step of <entree> (see the header), or the next fact it needs.
 export function transition(entree) {
   const faits = entree.faits ?? {};

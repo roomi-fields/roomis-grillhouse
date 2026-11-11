@@ -74,6 +74,12 @@ export function arretSansActe(
   etat: EtatDeLaTransition & { raison: string };
 };
 
+/** The step of a run of the workflow from its opening to its plan passed: no step of the table. */
+export const AU_PLAN: string;
+
+/** The state a stop at <etat> is written at and resumed from: a run at its plan stands at the plan's state. */
+export function etatDeReprise<E extends EtatDeLaTransition>(etat: E): E;
+
 /** The steps of the run by their state (scripts/etapes.mjs): 1.1 to 5.3. */
 export const GESTE: string;
 export const TESTS: string;

@@ -39,7 +39,9 @@ import {
 } from '@temporalio/workflow';
 import {
   arretSansActe,
+  AU_PLAN,
   effetsAJouer,
+  etatDeReprise,
   pasDuPlan,
   transition,
   type Transition,
@@ -142,6 +144,14 @@ const LIMITE_D_HISTOIRE = 10_000;
 // run that recorded its opening before the change replays it without the marker, its plan
 // published as its states said.
 const ETAT_AU_PLAN = 'etat-au-plan';
+// The patch of the stop at the plan (grillhouse-d4n.11): a stop of a run at its plan (AU_PLAN, no
+// step of the table of transitions) is written at the plan's state, and an answer reopens the
+// plan from it (`etatDeReprise` of scripts/transitions.mjs); a run that recorded such a stop or
+// opening before the change replays it at the step `plan`.
+const REPRISE_AU_PLAN = 'reprise-au-plan';
+// The state <e> of a stop or of a reopening as a resumption reads it, under REPRISE_AU_PLAN.
+const aLaReprise = <E extends EtatDeLEtape>(e: E): E =>
+  e.etape === AU_PLAN && patched(REPRISE_AU_PLAN) ? etatDeReprise(e) : e;
 
 // How a run of steps ends.
 type Issue =
@@ -187,7 +197,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   let ouvrirSur: Exclude<Reponse, { genre: 'arreter' }> | null = entree.reprise ?? null;
   let memoire: Memoire = ouverture?.memoire ?? {};
   let etat: EtatDeLEtape = ouverture?.debut ?? {
-    etape: 'plan',
+    etape: AU_PLAN,
     tentative: 1,
     rapport: null,
     finale: false,
@@ -434,7 +444,11 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       if (!etatEcrit) {
         publierLePlan();
       }
-      let o = await actes.ouvrirLeCircuit({ ...lieu(), reponse: ouvrirSur, arrete });
+      let o = await actes.ouvrirLeCircuit({
+        ...lieu(),
+        reponse: ouvrirSur,
+        arrete: arrete && aLaReprise(arrete),
+      });
       await jouerLesEffets(o.effets);
       // The plan still to write: each of its steps an activity, the next decided by `pasDuPlan`.
       while ('plan' in o) {
@@ -625,7 +639,8 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     }
     // The stop, until the supervisor's answer resumes the run: the supervisor's word ends the
     // circuit; any other stop is written, then played again (75) or its question awaited.
-    let suite: Exclude<Issue, { fin: true } | { continuer: Ouverture }> = issue;
+    let suite: Exclude<Issue, { fin: true } | { continuer: Ouverture }> =
+      'arreter' in issue ? { ...issue, etat: aLaReprise(issue.etat) } : issue;
     for (;;) {
       // Set by the signal's handler, which the compiler does not follow.
       const demande = arretDemande as { contexte: string | null } | null;

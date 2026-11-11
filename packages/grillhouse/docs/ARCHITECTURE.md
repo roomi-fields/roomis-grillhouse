@@ -701,6 +701,10 @@ le résumé du dernier état qu'il écrit (étape, tentative, arrêt et premièr
 objet du questionnement, boucles, début de l'étape menée) et sa question, numérotée dans son run ;
 de son ouverture à son plan passé, ce résumé est l'étape `plan`, publié dès l'ouverture et à
 chaque pas du plan, que le panneau montre en « 1 Plan » (`patched('etat-au-plan')`, comme la file) ;
+l'étape `plan` n'est aucune étape de la table des transitions : un arrêt pendant le plan s'écrit à
+l'état que le plan écrit (le testwriter, le travail sur le plan nommé), d'où une réponse rouvre le
+plan, l'explorateur puis le questionneur (`etatDeReprise` de `transitions.mjs`,
+`patched('reprise-au-plan')`) ;
 un circuit tourne quand son déroulé tourne sans question en attente, et finit sans son issue
 quand il est terminé, en échec ou expiré sans question. L'avancement d'une passe se lit dans le
 dossier de travail du ticket (`<copie>.travail/avancement-*`), où chaque passe du circuit ouvre le
