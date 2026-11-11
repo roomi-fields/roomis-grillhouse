@@ -243,10 +243,11 @@ describe('the night lays the pinned program of Temporal down and exports it', ()
     expect(vus).not.toContain(outil);
   });
 
-  it('a laying that fails stops the night, naming its cause, and nothing runs', () => {
+  it('a laying that fails does not stop the night: its commands run, TEMPORAL unset', () => {
     const { code, journal, vu } = nuitDeTemporal({}, 'somme refusée : archive corrompue');
-    expect(code).toBe(1);
+    expect(code, journal).toBe(0);
     expect(journal).toContain('somme refusée : archive corrompue');
-    expect(existsSync(vu)).toBe(false);
+    expect(journal).toContain("la pose du programme temporal n'a pas abouti");
+    expect(readFileSync(vu, 'utf8')).toContain('TEMPORAL=absent');
   });
 });

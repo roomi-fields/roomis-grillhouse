@@ -43,8 +43,10 @@
 #   Temporal down (`grillhouse temporal installer --programme-seul`, by the built command of the
 #   version playing the night, not the copy's: the copy has no build yet; idempotent: a program
 #   already laid down is not downloaded again) and exports its path as TEMPORAL, over any key left
-#   in a package.json; a laying that fails turns the night red, the log naming its cause, and
-#   nothing runs.
+#   in a package.json. A laying that fails does not stop the night: the log names it, TEMPORAL
+#   stays unset, and a test that starts a server resolves the program from the shared cache
+#   (~/.cache/grillhouse/temporal/<version>/temporal), or fails on itself naming the command that
+#   lays it down. A night of trial, whose copy holds no build, thus plays on.
 # - The night tests: after the full pass, the night tests, then the measures of time alone (the
 #   time budget benches and the time witnesses), which `npm test` and the integration leave out
 #   (grillhouse-bd7), played by the command `tests-de-nuit` of the module of the copy's language
@@ -236,11 +238,11 @@ jouer() {
   # of the version playing the night (already built), not the copy's: the copy is cleaned of its
   # build and has no node_modules before the `npm ci` below.
   local temporal
-  if ! temporal=$(env -C "$copie" node "$ici/../bin/grillhouse.mjs" temporal installer --programme-seul); then
-    echo "✗ la pose du programme temporal échoue : rien n'est joué."
-    return 1
+  if temporal=$(env -C "$copie" node "$ici/../bin/grillhouse.mjs" temporal installer --programme-seul); then
+    export TEMPORAL="$temporal"
+  else
+    echo "⚠ la pose du programme temporal n'a pas abouti : un test qui monte un serveur le résout depuis le cache partagé, ou échoue en le nommant."
   fi
-  export TEMPORAL="$temporal"
   # The data of the project (donnees-cles.mjs), exported the same way.
   local donnees
   if ! donnees=$(node "$ici/donnees-cles.mjs" "$copie"); then
