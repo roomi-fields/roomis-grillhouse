@@ -32,6 +32,34 @@ function tenant(racine) {
 }
 
 /**
+ * The root of the repository whose session of supervision works in <dossier>: null out of a git
+ * repository, in an agent's copy (a worktree) and in the session of a role that the circuit
+ * launches (BEADS_ACTOR set). The hooks of the supervisor's session read it (this one, and
+ * scripts/attente-a-l-arret.mjs).
+ * @param {string} dossier
+ * @param {Record<string, string | undefined>} env
+ * @returns {string | null}
+ */
+export function racineDeLaSupervision(dossier, env = process.env) {
+  if (env.BEADS_ACTOR) {
+    return null;
+  }
+  const r = spawnSync(
+    'git',
+    ['-C', dossier, 'rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir'],
+    { encoding: 'utf8' }
+  );
+  if (r.status !== 0) {
+    return null;
+  }
+  const [dossierGit, commun] = r.stdout.trim().split('\n');
+  if (path.resolve(dossierGit) !== path.resolve(commun)) {
+    return null;
+  }
+  return path.dirname(commun);
+}
+
+/**
  * What the session of supervision in <dossier> reads at its turn: the circuits that wait for the
  * supervisor, each with its ticket, its question and the command that answers it, then the wait to
  * launch again; empty when a wait lives, when no circuit waits, or out of a session of supervision.
@@ -45,22 +73,10 @@ export async function attenteAuTour(
   dossier,
   { env = process.env, fermes = ticketsFermes, circuitsDe = circuitsDuServeur } = {}
 ) {
-  if (env.BEADS_ACTOR) {
+  const racine = racineDeLaSupervision(dossier, env);
+  if (!racine) {
     return '';
   }
-  const r = spawnSync(
-    'git',
-    ['-C', dossier, 'rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir'],
-    { encoding: 'utf8' }
-  );
-  if (r.status !== 0) {
-    return '';
-  }
-  const [dossierGit, commun] = r.stdout.trim().split('\n');
-  if (path.resolve(dossierGit) !== path.resolve(commun)) {
-    return '';
-  }
-  const racine = path.dirname(commun);
   const vit = tenant(racine);
   if (vit && vivant(vit)) {
     return '';
@@ -78,7 +94,7 @@ export async function attenteAuTour(
   return [
     questions.length > 1
       ? '## Circuits en attente du superviseur'
-      : "## Circuit en attente du superviseur",
+      : '## Circuit en attente du superviseur',
     ...questions.map(q =>
       q.interrompu
         ? `- ${q.ticket} a fini sans son issue, à ${q.etape} : \`${q.commande}\`.`
@@ -87,7 +103,7 @@ export async function attenteAuTour(
             `  La réponse : \`${q.commande}\`.`,
           ].join('\n')
     ),
-    "Aucune attente de fond ne vit : lance-la en arrière-plan (`run_in_background`) et surveille son flux (l'outil `Monitor`) : `npx grillhouse superviseur --attendre`.",
+    'Aucune attente de fond ne vit : lance-la en arrière-plan (`run_in_background`), sans tube ni veille à durée, et relance-la après chaque lot traité : `npx grillhouse superviseur --attendre`.',
   ].join('\n');
 }
 

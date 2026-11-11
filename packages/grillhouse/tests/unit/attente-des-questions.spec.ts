@@ -1,8 +1,8 @@
 // The wait of the questions of the circuits (grillhouse-pq6, grillhouse-4nr.10,
-// scripts/superviseur.mjs): a command the session of supervision keeps in the background, which
-// ends only when a new question of a circuit appears (its ticket, its step, its question, the
-// command that answers it), whatever launched the circuit, and so wakes the session by the end of
-// its task. It reads the circuits from the Temporal server at each step (here a reading injected).
+// scripts/superviseur.mjs): a command the session of supervision launches in the background, which
+// gives one batch and ends as soon as a new question of a circuit appears (its ticket, its step, its
+// question, the command that answers it), whatever launched the circuit, and so wakes the session by
+// the end of its task (grillhouse-d4n.9), the session launching it again. It reads the circuits from the Temporal server at each step (here a reading injected).
 // A question already gone up never wakes it twice, a question answered leaves the set of those
 // gone up, the supervisor's own stop never wakes it, and an integration wakes it once. Witness: on 2026-11-01, SyntHub's
 // SH-ae6.5.2, SH-ae6.5.6 and SH-br0.1.5, launched by a queue in the background, stopped on a
@@ -70,16 +70,13 @@ const attendre = async (
   const fin = new AbortController();
   const minuteur = setTimeout(() => fin.abort(), ms);
   try {
-    for await (const lot of attendreUneQuestion({
+    return await attendreUneQuestion({
       racine,
       fermes: aucun,
       pas,
       signal: fin.signal,
       circuitsDe: lire,
-    })) {
-      return lot;
-    }
-    return [];
+    });
   } finally {
     clearTimeout(minuteur);
   }
@@ -154,9 +151,8 @@ describe('the questions that wait for the supervisor, one source', () => {
       /- demo-1, à 3\.1 Contrôles, au superviseur : Quel paquet lève ce rouge \?/
     );
     expect(texte).toContain('`npx grillhouse circuit demo-1 --reprendre`');
-    // The wait keeps listening by itself: the text asks for no relaunch.
-    expect(texte).not.toContain('run_in_background');
-    expect(texte).not.toMatch(/relance l'attente/);
+    // The wait ends on its batch: the text ends on its relaunch.
+    expect(texte).toMatch(/relance l'attente en arrière-plan/);
   });
 });
 
@@ -271,11 +267,7 @@ describe('the wait of a new question', () => {
     const s = serveur();
     const premiere = attendre(racine, s.lire, { ms: 500 });
     await expect(
-      (async () => {
-        for await (const _ of attendreUneQuestion({ racine, fermes: aucun, circuitsDe: s.lire })) {
-          // refused before any batch
-        }
-      })()
+      attendreUneQuestion({ racine, fermes: aucun, circuitsDe: s.lire })
     ).rejects.toThrow(/une attente des questions tourne déjà/i);
     expect(await premiere).toEqual([]);
   });
@@ -304,29 +296,33 @@ describe('the end of a circuit integrated', () => {
     expect(await attendre(depot(), s.lire, { ms: 500 })).toEqual([]);
   });
 
-  it('wakes the wait once, never presented again', async () => {
+  it('is given once, never by the next wait', async () => {
+    const racine = depot();
     const s = serveur([circuitLu('demo-1', { etape: 'controles', vivant: true })]);
-    const fin = new AbortController();
-    const minuteur = setTimeout(() => fin.abort(), 1200);
-    const lots: { ticket: string }[][] = [];
-    setTimeout(() => {
-      s.circuits = [integre('demo-1', Date.now())];
-    }, 100);
-    try {
-      for await (const lot of attendreUneQuestion({
-        racine: depot(),
-        fermes: aucun,
-        pas: 50,
-        rappel: 0.001,
-        signal: fin.signal,
-        circuitsDe: s.lire,
-      })) {
-        lots.push(lot);
-      }
-    } finally {
-      clearTimeout(minuteur);
-    }
-    expect(lots.map(l => l.map(x => x.ticket))).toEqual([['demo-1']]);
+    const attente = attendre(racine, s.lire, { ms: 5000 });
+    await new Promise(r => setTimeout(r, 100));
+    s.circuits = [integre('demo-1', Date.now())];
+    expect((await attente).map(x => x.ticket)).toEqual(['demo-1']);
+    expect(await attendre(racine, s.lire, { ms: 300 })).toEqual([]);
+  });
+
+  it('an integration between two waits is given by the next one', async () => {
+    const racine = depot();
+    const s = serveur([arrete('demo-1', 'Q1 ?'), circuitLu('demo-2', { vivant: true })]);
+    expect((await attendre(racine, s.lire)).map(x => x.ticket)).toEqual(['demo-1']);
+    // No wait runs while the session deals with the batch: demo-2 is integrated meanwhile.
+    await new Promise(r => setTimeout(r, 20));
+    s.circuits = [arrete('demo-1', 'Q1 ?'), integre('demo-2', Date.now())];
+    await new Promise(r => setTimeout(r, 20));
+    const q = await attendre(racine, s.lire, { ms: 1000 });
+    expect(q.map(x => [x.ticket, x.integre])).toEqual([['demo-2', true]]);
+  });
+
+  it('an integration before the opening of the session is not given', async () => {
+    const racine = depot();
+    const s = serveur([integre('demo-1', Date.now() - 1000)]);
+    await circuitsALOuverture(racine, { fermes: aucun, circuitsDe: s.lire, ticketsDe: () => [] });
+    expect(await attendre(racine, s.lire, { ms: 300 })).toEqual([]);
   });
 
   it('asks the reading of the server for the circuits integrated', async () => {

@@ -181,6 +181,7 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       PostToolUse: [{ matcher: 'Write|Edit|MultiEdit', sous: ['style-a-l-ecriture'] }],
       SubagentStop: [{ matcher: undefined, sous: ['registre', 'messages-non-lus'] }],
       TeammateIdle: [{ matcher: undefined, sous: ['messages-non-lus'] }],
+      Stop: [{ matcher: undefined, sous: ['attente-a-l-arret'] }],
       SessionEnd: [{ matcher: undefined, sous: ['registre'] }],
     });
     for (const sous of [
@@ -191,6 +192,7 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       'style-a-l-ecriture',
       'registre',
       'messages-non-lus',
+      'attente-a-l-arret',
     ]) {
       expect(Object.keys(SOUS_COMMANDES), sous).toContain(sous);
     }

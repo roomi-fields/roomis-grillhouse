@@ -38,22 +38,28 @@
 //
 //   npx grillhouse superviseur --attendre [<dossier>]
 //
-// - The wait of the session of supervision (`attendreUneQuestion`), which the supervisor keeps in
-//   the background, one at a time, the one way a question of a circuit wakes the session (the
-//   owner's decision, grillhouse-pq6): it ends only when a question of a circuit appears that never
-//   went up (`questionsEnAttente`, the one source of the questions that wait for the supervisor,
+// - The wait of the session of supervision (`attendreUneQuestion`), which the supervisor launches
+//   in the background, one at a time, the one way a question of a circuit wakes the session (the
+//   owner's decision, grillhouse-pq6): it writes the batch of the questions already due at its
+//   start, else waits for one, and ENDS once it has written one batch, as `gh run watch` or
+//   `kubectl wait` return on their event: the end of its task wakes the session, whatever pipe
+//   follows it, and the session launches it again once the batch is dealt with
+//   (grillhouse-d4n.9: a wait that never ended, launched behind `| tail`, was read by no one for
+//   40 min). A batch holds each question of a circuit that never went up or whose re-presentation
+//   is due (`questionsEnAttente`, the one source of the questions that wait for the supervisor,
 //   which the opening reads too), whatever launched the circuit (alone, in a queue, by another
-//   session), and writes each one, its ticket, step, question and the command that answers it;
-//   the end of its task wakes the session, which spends nothing while it waits (grillhouse-pq6:
+//   session): its ticket, step, question and the command that answers it (grillhouse-pq6:
 //   SyntHub's SH-ae6.5.2, SH-ae6.5.6 and SH-br0.1.5, launched by a queue, waited hours on their
 //   question). The stops gone up, by a wait or named at the opening, are kept in
 //   `.claude/worktrees/questions-remontees.json`, each one by its ticket, the run of its workflow,
-//   the rank of its question in that run and its stop: one never wakes the session twice, a
-//   session closed then opened again finds every one that waits, and one answered leaves them.
-//   The end of a circuit wakes it too: a stop as a question; a circuit integrated once, its end
-//   after the start of the wait (`integre`), so that the supervisor goes on to the next ticket.
-//   Exit 0 on its
-//   questions, 1 when another wait already runs (`.claude/worktrees/attente-des-questions.lock`).
+//   the rank of its question in that run and its stop: one never wakes the session twice before
+//   its re-presentation, a session closed then opened again finds every one that waits, and one
+//   answered leaves them. The end of a circuit wakes it too: a stop as a question; a circuit
+//   integrated once (`integre`), its end after the last reading of the previous wait, kept in
+//   `.claude/worktrees/integrations-rendues.json` (the opening sets it to its own time), so that
+//   an integration between two waits is not lost. Exit 0 on its batch, 1 when another wait
+//   already runs (`.claude/worktrees/attente-des-questions.lock`, which names its process: the
+//   presence of the wait that the board and the hooks read).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -135,6 +141,34 @@ const ou = c => {
 // both: its alerts).
 const etatsDe = racine => path.join(racine, '.claude', 'worktrees');
 export { verrouDeLAttente };
+
+// The integrations given by the waits of the repository at <racine>: `depuis`, the time (ms) of
+// the last reading of the last wait, from which an integration is new; `rendues`, the keys of the
+// integrations it gave, ended at that time or after. Absent or unreadable: none since <maintenant>.
+const integrationsDe = racine => path.join(etatsDe(racine), 'integrations-rendues.json');
+function lireLesIntegrations(racine, maintenant) {
+  try {
+    const lu = JSON.parse(readFileSync(integrationsDe(racine), 'utf8'));
+    if (Number.isFinite(lu?.depuis) && Array.isArray(lu?.rendues)) {
+      return { depuis: lu.depuis, rendues: new Set(lu.rendues.map(String)) };
+    }
+  } catch {
+    // none yet
+  }
+  return { depuis: maintenant, rendues: new Set() };
+}
+// A file that cannot be written never costs the batch: the next wait reads the former one.
+function ecrireLesIntegrations(racine, depuis, rendues) {
+  const f = integrationsDe(racine);
+  try {
+    mkdirSync(path.dirname(f), { recursive: true });
+    const provisoire = `${f}.${process.pid}`;
+    writeFileSync(provisoire, `${JSON.stringify({ depuis, rendues: [...rendues].sort() })}\n`);
+    renameSync(provisoire, f);
+  } catch {
+    // kept as it was
+  }
+}
 
 // The stops gone up of the repository at <racine>, its circuits <circuits> read, under the lock of
 // their file, at <maintenant> ms. Each stop that waits for the supervisor and never went up, or
@@ -275,26 +309,26 @@ const aucunFerme = () => new Set();
 
 /**
  * The wait of the session of supervision of the repository at <racine> (`npx grillhouse
- * superviseur --attendre`, which the supervisor reads as a stream, as a worker of Temporal keeps its
- * task queue): an asynchronous iterator that gives one batch of questions at a time and goes on
- * listening by itself, with no relaunch. It gives a question that waits for the supervisor
- * (`questionsEnAttente`), whatever launched its circuit, once it never went up, and again, marked
- * `representee`, every <rappel> minutes (5 by default) while its circuit stands on the same stop,
- * as SQS gives a message not acknowledged again after its visibility timeout; a question
- * answered (its circuit left the stop) leaves those gone up and is not given again. A stop whose
- * key changes is a new question, given at once. The end of a circuit integrated after the start of
- * the wait is given once, marked `integre`, never again (the circuits integrated read too, by
- * `{ integres: true }`); the supervisor's own « arrete » is never one. The
- * times are those of <maintenant> (`Date.now` by default). It reads the circuits every <pas> ms by
- * <circuitsDe> (one call to the Temporal server, scripts/circuits-du-serveur.mjs, by default), as
- * the UI of Temporal refreshes its list; a reading that fails (the server down) is tried again at
- * the next step, the questions gone up kept. One wait at a time per repository: a second one is
- * refused while the first runs. Its <signal> ends it.
+ * superviseur --attendre`): the first batch of questions, given as soon as one is due, after
+ * which the wait ends; the session launches it again once the batch is dealt with. A batch holds
+ * each question that waits for the supervisor (`questionsEnAttente`), whatever launched its
+ * circuit, once it never went up, and again, marked `representee`, every <rappel> minutes (5 by
+ * default) while its circuit stands on the same stop, as SQS gives a message not acknowledged
+ * again after its visibility timeout; a question answered (its circuit left the stop) leaves those
+ * gone up and is not given again. A stop whose key changes is a new question, given at once. The
+ * end of a circuit integrated after the last reading of the previous wait (the file of the
+ * integrations given; none, the start of this one) is given once, marked `integre`, never again
+ * (the circuits integrated read too, by `{ integres: true }`); the supervisor's own « arrete » is
+ * never one. The times are those of <maintenant> (`Date.now` by default). It reads the circuits
+ * every <pas> ms by <circuitsDe> (one call to the Temporal server, scripts/circuits-du-serveur.mjs,
+ * by default), as the UI of Temporal refreshes its list; a reading that fails (the server down) is
+ * tried again at the next step, the questions gone up kept. One wait at a time per repository: a
+ * second one is refused while the first runs. Its <signal> ends it with an empty batch.
  * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string>, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, maintenant?: () => number, rappel?: number }} options
- * @returns {AsyncGenerator<{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[], void, void>}
+ * @returns {Promise<{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[]>}
  * @throws {Error} another wait runs
  */
-export async function* attendreUneQuestion({
+export async function attendreUneQuestion({
   racine,
   fermes = ticketsFermes,
   pas = 5_000,
@@ -316,11 +350,12 @@ export async function* attendreUneQuestion({
       `Une attente des questions tourne déjà pour ce dépôt${qui}, ${verrou} : une seule à la fois.`
     );
   }
-  // The circuits integrated since the start of the wait, each given once.
-  const debut = maintenant();
-  const finis = new Set();
+  // The integrations new since the last reading of the previous wait, each given once.
+  const { depuis: debut, rendues } = lireLesIntegrations(racine, maintenant());
+  let lue = debut;
   try {
     while (!signal?.aborted) {
+      const avant = maintenant();
       let circuits = null;
       try {
         circuits = await circuitsDe(racine, { integres: true });
@@ -328,12 +363,10 @@ export async function* attendreUneQuestion({
         circuits = null;
       }
       if (circuits && !signal?.aborted) {
+        lue = avant;
         const integres = circuits
-          .filter(c => c.integre && c.fin !== null && c.fin >= debut && !finis.has(cleDe(c)))
+          .filter(c => c.integre && c.fin !== null && c.fin >= debut && !rendues.has(cleDe(c)))
           .map(enFin);
-        for (const f of integres) {
-          finis.add(f.cle);
-        }
         const lot = [
           ...relever(
             racine,
@@ -347,11 +380,20 @@ export async function* attendreUneQuestion({
           ...integres,
         ];
         if (lot.length) {
-          yield lot;
+          // The integrations given, those ended since this reading kept, so that the next wait
+          // gives none of them again.
+          const fins = new Map(circuits.map(c => [cleDe(c), c.fin]));
+          ecrireLesIntegrations(
+            racine,
+            lue,
+            [...rendues, ...integres.map(i => i.cle)].filter(k => (fins.get(k) ?? -Infinity) >= lue)
+          );
+          return lot;
         }
       }
       await attendre(pas, signal);
     }
+    return [];
   } finally {
     lacherVerrou(verrou);
   }
@@ -368,12 +410,16 @@ const attendre = (ms, signal) =>
     signal?.addEventListener('abort', fin, { once: true });
   });
 
+// The relaunch of the wait, which ends on each batch: the last line of a batch.
+const RELANCE =
+  "Ce lot traité, relance l'attente en arrière-plan (`run_in_background`), sans tube ni veille à durée : `npx grillhouse superviseur --attendre`. Sa fin te réveille au lot suivant.";
+
 /**
  * The text that wakes the session of supervision on the questions <questions>: for each one, its
  * ticket, step, who must answer it, its question and the command that answers it; then each end of
- * a circuit integrated (`integre`), its ticket and its step. The wait goes on by itself: the text
- * asks for no relaunch. A question presented again (`representee`) says that it still waits for an
- * answer.
+ * a circuit integrated (`integre`), its ticket and its step; last, the wait to launch again once
+ * the batch is dealt with, since the wait ended on it. A question presented again (`representee`)
+ * says that it still waits for an answer.
  * @param {{ ticket: string, etape: string, question: string, qui: string, commande: string, representee?: boolean, integre?: boolean }[]} questions
  * @returns {string}
  */
@@ -405,9 +451,13 @@ export function texteDesQuestions(questions) {
         ...fins.map(q => `- ${q.ticket} est intégré, à ${q.etape} : son lot est sur main.`),
       ]
     : [];
-  return [...enQuestions, ...(enQuestions.length && enFins.length ? [''] : []), ...enFins].join(
-    '\n'
-  );
+  return [
+    ...enQuestions,
+    ...(enQuestions.length && enFins.length ? [''] : []),
+    ...enFins,
+    '',
+    RELANCE,
+  ].join('\n');
 }
 
 /**
@@ -445,6 +495,7 @@ export async function circuitsALOuverture(
         ? `${e.message} : les circuits ne se lisent pas.`
         : `Les circuits ne se lisent pas : ${message}.`;
   }
+  ecrireLesIntegrations(racine, Date.now(), []);
   const questions = circuits
     ? relever(racine, circuits, {
         fermes,
@@ -480,7 +531,7 @@ export async function circuitsALOuverture(
   );
   return [
     "## L'attente des questions",
-    "Dès ta première réponse, sans attendre le mot du responsable, lance l'attente des questions en arrière-plan (`run_in_background`) et surveille sa sortie en continu (l'outil `Monitor`) : `npx grillhouse superviseur --attendre`. Elle ne se termine pas : elle imprime un lot à chaque question neuve d'un circuit, quel que soit son lanceur, et te réveille ainsi ; elle reprend l'écoute seule, sans relance. Une question sans réponse revient toutes les 5 min (`--rappel <minutes>` règle l'intervalle) jusqu'à sa réponse. Un lancement de circuit rend la main tout de suite ; la fin d'un circuit te réveille aussi, un arrêt comme une question, une intégration une fois.",
+    "Dès ta première réponse, sans attendre le mot du responsable, lance l'attente des questions en arrière-plan (`run_in_background`), sans tube ni veille à durée : `npx grillhouse superviseur --attendre`. Elle imprime un lot (une question neuve d'un circuit, quel que soit son lanceur, une fin de circuit) et se termine : sa fin te réveille. Relance-la après chaque lot traité. Une question sans réponse revient toutes les 5 min (`--rappel <minutes>` règle l'intervalle) jusqu'à sa réponse. Un lancement de circuit rend la main tout de suite ; la fin d'un circuit te réveille aussi, un arrêt comme une question, une intégration une fois. Tu ne te mets pas en attente du responsable tant qu'une question d'un circuit attend ta réponse, ni tant qu'un circuit tourne sans attente vivante : le crochet de fin de tour te le rappelle.",
     ...(panne ? ['', '## Les circuits du dépôt', panne] : []),
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
     ...(sansArchitecture.length
@@ -567,13 +618,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         }
         args.splice(i, 2);
       }
-      for await (const questions of attendreUneQuestion({
+      const lot = await attendreUneQuestion({
         racine: racineDe(args[0] ?? process.cwd()),
         rappel,
-      })) {
-        // One batch, one block ended by a blank line: a stream read line by line.
-        process.stdout.write(`${texteDesQuestions(questions)}\n\n`);
-      }
+      });
+      process.stdout.write(`${texteDesQuestions(lot)}\n`);
     } catch (e) {
       process.stderr.write(`${e.message}\n`);
       process.exitCode = 1;

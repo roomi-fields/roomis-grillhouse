@@ -58,6 +58,7 @@ const PAQUET_QUI_TOURNE = path.resolve(import.meta.dirname, '..');
  * results, the removal of a copy and the balance, even when the supervisor runs one by hand.
  */
 export const REDIRIGEES = new Set([
+  'attente-a-l-arret',
   'attente-au-tour',
   'bilan',
   'circuit',

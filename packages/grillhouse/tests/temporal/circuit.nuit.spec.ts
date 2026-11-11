@@ -615,17 +615,14 @@ describe('le tableau lit les déroulés en un appel', () => {
         const fin = new AbortController();
         const minuteur = setTimeout(() => fin.abort(), ms);
         try {
-          for await (const lot of attendreUneQuestion({
+          return await attendreUneQuestion({
             racine,
             fermes: () => new Set(),
             pas: 100,
             signal: fin.signal,
             circuitsDe: async () =>
               avecLeurAvancement(racine, await lireLesCircuits(client, RACINE)),
-          })) {
-            return lot;
-          }
-          return [];
+          });
         } finally {
           clearTimeout(minuteur);
         }

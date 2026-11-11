@@ -52,6 +52,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
   it('the orchestration runs by the published version: circuit, supervisor, night, board, hooks of Claude Code, locks and rights of the sessions, integration', () => {
     expect([...REDIRIGEES].sort()).toEqual(
       [
+        'attente-a-l-arret',
         'attente-au-tour',
         'bilan',
         'circuit',

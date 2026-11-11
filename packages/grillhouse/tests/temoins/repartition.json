@@ -6,6 +6,7 @@
     "scripts/aiguillage.mjs",
     "scripts/aiguillage.d.mts",
     "scripts/arbitrages.mjs",
+    "scripts/attente-a-l-arret.mjs",
     "scripts/attente-au-tour.mjs",
     "scripts/avancement.mjs",
     "scripts/base-des-workflows.mjs",

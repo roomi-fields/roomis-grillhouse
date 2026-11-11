@@ -60,6 +60,10 @@ describe('the opening of a session of supervision', () => {
     expect(texte.startsWith(ATTENTE)).toBe(true);
     expect(texte).toContain('sans attendre le mot du responsable');
     expect(texte).toContain('`npx grillhouse superviseur --attendre`');
+    // It ends on each batch: the session launches it again, never behind a pipe nor a watch.
+    expect(texte).toContain('Relance-la après chaque lot traité.');
+    expect(texte).toContain('sans tube ni veille à durée');
+    expect(texte).not.toContain('Monitor');
     expect(texte).not.toContain('--rattacher');
     expect(texte).not.toContain('## Les circuits du dépôt');
   });
