@@ -28,7 +28,11 @@ import {
   type Activites,
   type ArretPublie,
 } from '../../src/temporal/circuit/contrat.js';
-import { circuitsNonIntegres, circuitsVivants } from '../../src/temporal/tickets/activites.js';
+import {
+  circuitsNonIntegres,
+  circuitsVivants,
+  tracerLaFile,
+} from '../../src/temporal/tickets/activites.js';
 import { demarrerLesTickets, lireLaFileDesTickets } from '../../src/temporal/tickets/client.js';
 import { idDesTickets, type ActivitesDesTickets } from '../../src/temporal/tickets/contrat.js';
 import {
@@ -126,7 +130,7 @@ async function serveur(activites: object, db = path.join(dossier('tickets'), 'te
     connection: connexion,
     taskQueue: FILE,
     workflowsPath: DEROULES,
-    activities: { ...circuit, circuitsVivants, circuitsNonIntegres, ...activites },
+    activities: { ...circuit, circuitsVivants, circuitsNonIntegres, tracerLaFile, ...activites },
   });
   const fin = travailleur.run();
   arrets.unshift(async () => {

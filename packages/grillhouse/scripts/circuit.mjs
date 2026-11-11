@@ -595,7 +595,9 @@
 //   the developpeur's same sending to the testwriter twice in a row, on the same red output of the
 //   checks, no green checks between them), 16 relecture-arret (a finding without a valid agent, one to the testwriter the plan skips,
 //   one on a criterion, the third RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
-//   ticket), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
+//   ticket; at the same code, two stops of the resumption of the integration under their own
+//   names: lot-absent, a lot neither on main nor in the copy, and copie-gardee, a lot on main
+//   whose copy does not get removed), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
 //   sending to the testwriter, or a developpeur's FAIT with criteria out of the plan), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
 //   reviewer whose sheet carries a `question`, or a ticket labelled `arbitrage` whose arbitrage
 //   `refusArbitrage` of scripts/integration/integrer.mjs refuses, at the launch or a resumption,

@@ -1750,7 +1750,7 @@ describe('un rouge de passe finale se reprend sans rejouer les tests, la preuve 
     expect(apres).toContain('controles');
   }, 120_000);
 
-  it('un rouge d’un seul fichier de test : ce fichier seul rejoue sa séance et sa preuve, aucune séance du développeur de plus', async () => {
+  it('un rouge de garde d’un seul fichier de test : ce fichier seul rejoue sa séance et sa preuve, aucune séance du développeur de plus', async () => {
     const seances: Record<string, unknown>[] = [];
     const preuves: Record<string, unknown>[] = [];
     const controles: Record<string, unknown>[] = [];
@@ -1767,7 +1767,9 @@ describe('un rouge de passe finale se reprend sans rejouer les tests, la preuve 
       },
       controles: (p: Record<string, unknown>, n: number) => {
         controles.push(p);
-        return n === 2 ? { ...ROUGE, lieux: [{ fichier: TEST_X, gardes: [] }] } : VERT;
+        // Un fichier de test qu'une garde refuse (sa taille) est au testwriter ; un test qui
+        // échoue sans garde irait au développeur (scripts/reprise.mjs).
+        return n === 2 ? { ...ROUGE, lieux: [{ fichier: TEST_X, gardes: ['tailles'] }] } : VERT;
       },
     });
     const client = await circuit(activites);

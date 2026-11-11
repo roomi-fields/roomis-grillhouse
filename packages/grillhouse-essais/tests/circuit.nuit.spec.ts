@@ -29,7 +29,7 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const { BEADS, ticket, circuit, sessions } = circuitEssai(ESSAIS);
 
 describe('the stops of the circuit and their codes', () => {
-  it('names a distinct code, not 0 nor 2, for each stop', () => {
+  it('names a distinct code, not 0 nor 2, for each stop, the stops of the resumption of the integration at its code', () => {
     const noms = [
       'lancement',
       'bloqué',
@@ -47,8 +47,14 @@ describe('the stops of the circuit and their codes', () => {
       'hors-plan',
       'inattendu',
     ];
-    expect(Object.keys(ARRETS).sort()).toEqual([...noms].sort());
-    const codes = Object.values(ARRETS);
+    // The resumption of the integration stops under its own names at the code of the integration
+    // stop: a lot neither on main nor in the copy, a copy that does not get removed.
+    const deLaReprise = ['lot-absent', 'copie-gardee'];
+    expect(Object.keys(ARRETS).sort()).toEqual([...noms, ...deLaReprise].sort());
+    for (const nom of deLaReprise) {
+      expect(ARRETS[nom]).toBe(ARRETS.integration);
+    }
+    const codes = noms.map(nom => ARRETS[nom]);
     expect(new Set(codes).size).toBe(codes.length);
     expect(codes).not.toContain(0);
     expect(codes).not.toContain(2);

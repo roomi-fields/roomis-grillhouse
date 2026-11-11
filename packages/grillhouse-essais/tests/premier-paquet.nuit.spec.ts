@@ -139,7 +139,9 @@ beforeAll(() => {
       2
     )}\n`
   );
-  ecrire('.beads/config.yaml', DE_BD_INIT);
+  // The key the preparation writes after `bd init` (scripts/prefixe-des-tickets.mjs): the guard of
+  // the titles reads the prefix there.
+  ecrire('.beads/config.yaml', `${DE_BD_INIT}issue-prefix: "synthub"\n`);
   ecrire('.gitignore', 'node_modules/\ntarget/\n.turbo/\n');
   ecrire('docs/ARCHITECTURE.md', TABLE([SERVICE]));
   lierLesDependances();

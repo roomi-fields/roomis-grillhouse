@@ -47,6 +47,11 @@
 #   stays unset, and a test that starts a server resolves the program from the shared cache
 #   (~/.cache/grillhouse/temporal/<version>/temporal), or fails on itself naming the command that
 #   lays it down. A night of trial, whose copy holds no build, thus plays on.
+# - The frame's package: after the installation, before the full pass, the night builds
+#   @roomi-fields/grillhouse (`npm run build --workspace=@roomi-fields/grillhouse`) when it is a
+#   package of the copy's repository, one the `workspaces` of its root select (scripts/paquets.mjs);
+#   a project that installs the frame, even with a copy of the frame's package.json under
+#   packages/grillhouse/, builds nothing. A failed build turns the night red, and nothing runs.
 # - The night tests: after the full pass, the night tests, then the measures of time alone (the
 #   time budget benches and the time witnesses), which `npm test` and the integration leave out
 #   (grillhouse-bd7), played by the command `tests-de-nuit` of the module of the copy's language
@@ -254,10 +259,16 @@ jouer() {
     monter npm --prefix "$copie" ci --no-audit --no-fund --silent || return 1
     cp "$copie/package-lock.json" "$copie/node_modules/.nuit-lock"
   fi
-  # The frame's package, built once when the copy carries it as a package of the repository: the
-  # copy is cleaned of dist/ and the pass (the taking of its place) and the night tests of Temporal
-  # read dist/temporal. A project that installs the frame builds nothing more.
-  if grep -q '"name": *"@roomi-fields/grillhouse"' "$copie/packages/grillhouse/package.json" 2>/dev/null; then
+  # The frame's package, built once when the copy carries it as a package of the repository (one
+  # the `workspaces` of its root select, as scripts/paquets.mjs maps them, named
+  # @roomi-fields/grillhouse): the copy is cleaned of dist/ and the pass (the taking of its place)
+  # and the night tests of Temporal read dist/temporal. A project that installs the frame builds
+  # nothing more, even with a copy of the frame's package.json no `workspaces` select.
+  if node --input-type=module -e '
+const { pathToFileURL } = await import("node:url");
+const { paquets } = await import(pathToFileURL(process.argv[1]).href);
+process.exit(paquets(process.argv[2]).some(p => p.pkg.name === "@roomi-fields/grillhouse") ? 0 : 1);
+' "$ici/paquets.mjs" "$copie" 2>/dev/null; then
     if ! monter npm --prefix "$copie" run build --workspace=@roomi-fields/grillhouse; then
       echo "✗ la construction du paquet @roomi-fields/grillhouse échoue : rien n'est joué."
       return 1
