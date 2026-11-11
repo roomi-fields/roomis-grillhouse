@@ -1038,7 +1038,9 @@ syncpack alignent les déclarations d'une dépendance : un paquet resté sur l'a
 garderait sous lui une copie de l'ancienne version ; une plage qui couvre déjà la version reste.
 Un projet n'en garde aucune copie
 (`npx grillhouse maj` retire, à leur empreinte, celles que posait la 0.22) ; sans le paquet installé, l'ouverture de séance dit « lance `npm install` », et les autres crochets
-sortent sans effet. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
+sortent sans effet, comme un crochet que le paquet installé, plus ancien que le greffon, ne connaît
+pas (sa commande répond « sous-commande inconnue ») : un crochet neuf ne bloque jamais un outil, un
+tour ou un arrêt. Les crochets git du cadre suivent le modèle de Husky : le `prepare` du
 projet lance `grillhouse hooks`, qui les pose à côté des sections de Beads, et chacun appelle
 `grillhouse hook <nom>`, sans effet sans le paquet. Le même geste écrit dans la configuration du
 dépôt le pilote de fusion du CHANGELOG (`scripts/fusion-du-changelog.mjs`, sur le modèle de
@@ -1048,6 +1050,21 @@ partout où git fusionne en trois voies (l'intégration, la relance, la copie ra
 deux ajouts au même endroit sont gardés tous deux, ceux de main d'abord, et tout autre conflit
 reste un conflit. Ainsi chaque projet suit la version du cadre qu'il installe, sans fichier à
 recopier.
+
+**Un agent d'une équipe ne s'arrête pas sur un message non lu** : comme un consommateur d'une file
+(SQS, Kafka) ne s'arrête pas sur des messages non acquittés, les crochets `SubagentStop` et
+`TeammateIdle` du greffon (`npx grillhouse messages-non-lus`, `scripts/messages-non-lus.mjs`)
+lisent la boîte de l'agent qui s'arrête (`~/.claude/teams/<équipe>/inboxes/<nom>.json`, que
+Claude Code écrit) et bloquent l'arrêt tant qu'elle porte un message non lu (`read: false`) :
+la raison, que l'agent reçoit comme sa consigne suivante, donne chaque message, son expéditeur et
+son texte. Le nom de l'agent vient de l'entrée du crochet (`teammate_name`, le fichier méta de sa
+transcription, un `agent_id` `<nom>@<équipe>`, son `agent_type`), son équipe du fichier méta ou
+de la séance de son chef (`leadSessionId` du `config.json` de l'équipe) ; la liste des membres
+n'est pas lue, un agent qui la quitte gardant sa boîte. Chaque message ne bloque qu'une fois : son `msg_id` se note sous
+`~/.claude/grillhouse/messages-signales/<équipe>/<nom>.json`, que le crochet réduit aux messages
+encore dans la boîte. Le crochet ne modifie jamais la boîte, et une boîte absente ou illisible,
+une équipe introuvable ou une note impossible laissent passer l'arrêt. Ainsi une consigne
+envoyée pendant qu'un agent rédige sa fin est traitée avant sa pause.
 
 **Les dépendances notent le Node qui les a installées** : comme le fichier d'intégrité de Yarn
 garde le système pour lequel il a installé, une installation complète (`npm ci`) écrit
@@ -1083,7 +1100,7 @@ sous-commande du noyau a sa place, qu'un test tient :
 
 - l'orchestration tourne par la version nommée, installée à son premier lancement : `circuit`,
   `superviseur`, `nuit`, `tableau`, `ligne-etat`, les crochets de Claude Code (`session-start`,
-  `structure-guard`, `ticket-du-sous-agent`, `registre`, `attente-au-tour`), les verrous et les droits des séances
+  `structure-guard`, `ticket-du-sous-agent`, `registre`, `attente-au-tour`, `messages-non-lus`), les verrous et les droits des séances
   (`verrou`, `commande`, `droits`), l'enveloppe et son lanceur (`enveloppe`, `lancer`),
   l'intégration et la file (`integrer`, `file`), `resultats`, `retirer-copie` et `bilan`, même
   lancés à la main par le superviseur ;

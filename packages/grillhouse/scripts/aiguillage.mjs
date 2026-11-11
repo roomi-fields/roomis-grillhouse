@@ -68,6 +68,7 @@ export const REDIRIGEES = new Set([
   'journal',
   'lancer',
   'ligne-etat',
+  'messages-non-lus',
   'newday',
   'nuit',
   'registre',

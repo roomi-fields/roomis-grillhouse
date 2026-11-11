@@ -130,6 +130,7 @@ roomis-grillhouse/
 │   │   ├── tableau.mjs                # npm run tableau: the board on three levels (project, agents, chantier)
 │   │   ├── ligne-etat/                # the status line: the person's own on the left, the chantier on the right
 │   │   ├── verrou-de-fichier.mjs      # the lock of a file shared between processes (judged by the owner's process or by age); taken by integrer.mjs, file.mjs, registre.mjs, verrou-de-machine.mjs and superviseur.mjs
+│   │   ├── messages-non-lus.mjs       # hook SubagentStop and TeammateIdle: an agent of a team does not stop while its box holds an unread message, each message blocking once
 │   │   ├── registre.mjs               # hook: one line per finished agent (ticket, role, time, tokens), and the line of a night the workflow of the nights skips (its role nuit, its reason); its types in registre.d.mts
 │   │   ├── bilan.mjs                  # the bilan of a ticket, written by the circuit at each end: wall time by category (work kept, relaunch without effect, questioning, the supervisor's wait, the owner's, the night the project declares, automatic steps, final passes, replay, between steps), the wall time out of the night and the time lost out of the waits, the sessions the circuit launched and the supervisor's apart, stops, tokens, cost, against the project's bilan before
 │   │   ├── integration/               # One delivery, in a clean copy: verdicts, lots, npm run verifier green, commit on agent/<ticket>; then the queue brings it onto main

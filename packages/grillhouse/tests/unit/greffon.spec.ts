@@ -179,7 +179,8 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       UserPromptSubmit: [{ matcher: undefined, sous: ['structure-guard', 'attente-au-tour'] }],
       PreToolUse: [{ matcher: 'Agent|Task', sous: ['ticket-du-sous-agent'] }],
       PostToolUse: [{ matcher: 'Write|Edit|MultiEdit', sous: ['style-a-l-ecriture'] }],
-      SubagentStop: [{ matcher: undefined, sous: ['registre'] }],
+      SubagentStop: [{ matcher: undefined, sous: ['registre', 'messages-non-lus'] }],
+      TeammateIdle: [{ matcher: undefined, sous: ['messages-non-lus'] }],
       SessionEnd: [{ matcher: undefined, sous: ['registre'] }],
     });
     for (const sous of [
@@ -189,6 +190,7 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       'ticket-du-sous-agent',
       'style-a-l-ecriture',
       'registre',
+      'messages-non-lus',
     ]) {
       expect(Object.keys(SOUS_COMMANDES), sous).toContain(sous);
     }
@@ -225,6 +227,32 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
     const r = crochet(p, 'session-start', '{"source":"startup"}');
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toBe(`grillhouse session-start\nentrée : {"source":"startup"}\n`);
+  });
+
+  it('a package that does not know the subcommand leaves the hook without effect, its refusal never blocking', () => {
+    const p = projet(false);
+    ecrire(
+      p,
+      'node_modules/.bin/grillhouse',
+      '#!/usr/bin/env bash\ncat >/dev/null\nprintf "⛔ sous-commande inconnue : %s\\nUsage : grillhouse <sous-commande>\\n" "$1" >&2\nexit 2\n'
+    );
+    chmodSync(path.join(p, 'node_modules/.bin/grillhouse'), 0o755);
+    const r = crochet(p, 'messages-non-lus', '{"hook_event_name":"SubagentStop"}');
+    expect(r.status, r.stderr).toBe(0);
+    expect(`${r.stdout}${r.stderr}`).toBe('');
+  });
+
+  it("a refusal of the subcommand itself still blocks, its message on the hook's error stream", () => {
+    const p = projet(false);
+    ecrire(
+      p,
+      'node_modules/.bin/grillhouse',
+      '#!/usr/bin/env bash\ncat >/dev/null\necho "⛔ refusé" >&2\nexit 2\n'
+    );
+    chmodSync(path.join(p, 'node_modules/.bin/grillhouse'), 0o755);
+    const r = crochet(p, 'ticket-du-sous-agent');
+    expect(r.status).toBe(2);
+    expect(r.stderr).toBe('⛔ refusé\n');
   });
 });
 

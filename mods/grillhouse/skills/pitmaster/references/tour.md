@@ -115,7 +115,9 @@ agents voient ce que le cadre attend.
   part sur un ticket tranché**, dont les règles et les documents sont nommés. Ainsi il travaille
   dans l'architecture, pas dans ses suppositions.
 - Un agent se reprend avec `SendMessage` (chargé par `ToolSearch`, `select:SendMessage`) et son
-  identifiant : il garde son contexte. Un nouvel appel `Agent` part de zéro.
+  identifiant : il garde son contexte. Un nouvel appel `Agent` part de zéro. Un message arrivé
+  pendant que l'agent rédige sa fin lui revient avant sa pause : le crochet d'arrêt du greffon le
+  lui remet, sans geste du superviseur.
 - **J'inscris chaque lancement dans `SUIVI.md`** : le ticket, l'agent, les fichiers qu'il
   touchera. Ainsi deux agents ne touchent jamais le même fichier.
 

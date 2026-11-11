@@ -50,6 +50,7 @@ export const SOUS_COMMANDES = {
   journal: 'journal.mjs',
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',
   maj: 'grillhouse-maj.mjs',
+  'messages-non-lus': 'messages-non-lus.mjs',
   newday: 'newday.mjs',
   nuit: '../dist/temporal/nuits/commande.js',
   outil: 'outil.mjs',

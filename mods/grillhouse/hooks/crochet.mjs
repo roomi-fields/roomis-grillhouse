@@ -16,6 +16,10 @@
 //   a section that says to run `npm install`, and any other subcommand exits 0 and writes nothing.
 // - The command receives the hook's input on its standard input, writes on the hook's outputs, and
 //   its exit code is the hook's (2 blocks, as Claude Code reads it).
+// - A command that does not know the subcommand (a package older than the plugin: it writes
+//   « ⛔ sous-commande inconnue : <sous-commande> » and its usage, and exits 2) is as no command:
+//   the hook exits 0 and writes nothing, so that a hook the plugin adds never blocks a tool, a
+//   prompt or a stop with the usage.
 import { spawnSync } from 'node:child_process';
 import { existsSync, writeSync } from 'node:fs';
 import path from 'node:path';
@@ -34,8 +38,19 @@ function arbrePrincipal() {
 const commande = path.join(arbrePrincipal(), 'node_modules', '.bin', 'grillhouse');
 
 if (existsSync(commande)) {
-  const r = spawnSync(commande, [sous], { stdio: 'inherit', cwd: projet });
-  process.exitCode = r.status ?? 1;
+  const r = spawnSync(commande, [sous], {
+    stdio: ['inherit', 'inherit', 'pipe'],
+    cwd: projet,
+    encoding: 'utf8',
+  });
+  if (r.status === 2 && (r.stderr ?? '').startsWith(`⛔ sous-commande inconnue : ${sous}\n`)) {
+    process.exitCode = 0;
+  } else {
+    if (r.stderr) {
+      writeSync(2, r.stderr);
+    }
+    process.exitCode = r.status ?? 1;
+  }
 } else if (sous === 'verrou') {
   writeSync(
     2,
