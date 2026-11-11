@@ -34,3 +34,27 @@ export function refusDeLaPlace(
     mesurer: () => MesureDeLaMachine;
   }
 ): string | null;
+
+/** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
+export const PERIME_MS: number;
+
+/** The place of a circuit of the machine: held (`accordee`) or waited for, its rank of arrival. */
+export interface PlaceDeCircuit {
+  racine: string;
+  ticket: string;
+  rang: number;
+  accordee: boolean;
+  depuis: number;
+  vu: number;
+}
+
+/**
+ * The places of the circuits once the queue of a project gives its circuits alive and the tickets
+ * it would start: granted in the order of arrival of every project under the ceiling; the
+ * candidates that hold a place.
+ */
+export function reserverDesCircuits(
+  places: readonly PlaceDeCircuit[],
+  demande: { racine: string; vivants: string[]; candidats: string[] },
+  o: { rang: number; plafond: number; maintenant: number }
+): { circuits: PlaceDeCircuit[]; rang: number; accordes: string[] };

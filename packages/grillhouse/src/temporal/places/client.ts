@@ -2,7 +2,8 @@
 // machine if it does not run, takes a place (the update PRENDRE records the request, then the
 // query LA_DEMANDE tells once it is given), gives it back or withdraws the request (the signal
 // RENDRE), names the process that holds it (the signal RATTACHER), and reads the places as the
-// board shows them (the query LES_PLACES), from the server and the worker of the machine.
+// board shows them (the query LES_PLACES), and gives the machine the circuits of a project to
+// learn which may start (the update RESERVER), from the server and the worker of the machine.
 import { randomUUID } from 'node:crypto';
 import { setTimeout as dormir } from 'node:timers/promises';
 import type { Client } from '@temporalio/client';
@@ -15,7 +16,9 @@ import {
   PRENDRE,
   RATTACHER,
   RENDRE,
+  RESERVER,
   TIRER_UN_RANG,
+  type CircuitsDuProjet,
   type DemandeDePlace,
   type EntreeDesPlaces,
   type EtatDeLaDemande,
@@ -101,4 +104,28 @@ export async function rattacherLaPlace(
 /** The places of the machine as the board shows them: the ceiling, the places, the waits. */
 export async function lireLesPlaces(client: Client, id = ID_DES_PLACES): Promise<VueDesPlaces> {
   return client.workflow.getHandle(id).query<VueDesPlaces>(LES_PLACES);
+}
+
+/**
+ * The tickets among <c.candidats> the machine lets the project start (RESERVER), in the order of
+ * arrival of every project, under its ceiling; every candidate where no workflow of the machine
+ * runs (no place is taken on that server, as in the CI).
+ */
+export async function reserverDesCircuits(
+  client: Client,
+  c: CircuitsDuProjet,
+  id = ID_DES_PLACES
+): Promise<string[]> {
+  const h = client.workflow.getHandle(id);
+  try {
+    if ((await h.describe()).status.name !== 'RUNNING') {
+      return c.candidats;
+    }
+  } catch (e) {
+    if ((e as Error).name === 'WorkflowNotFoundError') {
+      return c.candidats;
+    }
+    throw e;
+  }
+  return h.executeUpdate<string[], [CircuitsDuProjet]>(RESERVER, { args: [c] });
 }

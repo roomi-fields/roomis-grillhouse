@@ -1,8 +1,9 @@
 // The activities of the queue of the tickets of a project (./deroule.ts): the tickets that start,
 // read from Beads in the main tree of the repository with the setting of its package.json, the
-// circuits of the project alive and those not integrated, read from the server, and those alive whose
-// ticket was closed outside them. A package.json that does not parse, or a Beads that fails, is a fault named, never a key
-// absent nor an empty list.
+// circuits of the project alive and those not integrated, read from the server, those alive whose
+// ticket was closed outside them, and the places of the machine its tickets may start on. A
+// package.json that does not parse, or a Beads that fails, is a fault named, never a key absent nor
+// an empty list.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
@@ -13,6 +14,7 @@ import {
 } from '../../../scripts/file-des-tickets.mjs';
 import { ecrireLaTrace, traceDeLaFile } from '../../../scripts/journal-des-etats.mjs';
 import { ouvrirLeClient } from '../client.js';
+import { reserverDesCircuits } from '../places/client.js';
 import { lireLesCircuits } from '../circuit/client.js';
 import { idDuCircuit } from '../circuit/contrat.js';
 import type { ActivitesDesTickets } from './contrat.js';
@@ -95,6 +97,22 @@ export async function fermesHorsCircuit(
   try {
     const lus = (await lireLesCircuits(c.client, e.racine)).filter(x => vivants.has(x.ticket));
     return lesFermes(tickets, lus);
+  } finally {
+    await c.fermer();
+  }
+}
+
+export async function placesDeLaMachine(
+  e: Entree<'placesDeLaMachine'>
+): Promise<Sortie<'placesDeLaMachine'>> {
+  const c = ouvrirLeClient();
+  try {
+    return { accordes: await reserverDesCircuits(c.client, e), faute: null };
+  } catch (x) {
+    return {
+      accordes: [],
+      faute: `les places de la machine ne se lisent pas : ${(x as Error).message}`,
+    };
   } finally {
     await c.fermer();
   }

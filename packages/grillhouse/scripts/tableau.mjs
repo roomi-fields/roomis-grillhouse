@@ -1488,7 +1488,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   }
   // The tickets whose circuit waits for the lock or for room.
   const enAttente = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
-  // The tickets whose circuit waits for a place of the machine.
+  // The tickets whose circuit waits for a place of the machine, and those that wait for a place of
+  // a circuit, not started, whose line in their chantier says « attend une place ».
   const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
   for (const id of attendUnePlace) {
     enAttente.add(id);
@@ -1698,7 +1699,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           ? `${duree(n.travail)}${conso}`
           : n.etat === 'bloques'
             ? marque(n)
-            : '';
+            : n.etat === 'enAttente' && attendUnePlace.has(n.id)
+              ? 'attend une place'
+              : '';
       return {
         texte: cadre(`   ${duProjet(n)}${n.numero}  ${n.sujet}`, droite, largeur),
         ton: n.etat === 'enCours' ? 'actif' : undefined,

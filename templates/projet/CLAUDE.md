@@ -64,4 +64,7 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
 - Le nombre de circuits à la fois : la clé `grillhouse.circuits` du `package.json` (un entier
   ≥ 1, **1** quand elle est absente : les circuits du projet qui tournent à la fois, que la file
   des tickets tient ; un circuit qui attend la réponse du superviseur compte ; lue dans l'arbre
-  principal ; toute autre valeur est refusée par son nom avant tout travail).
+  principal ; toute autre valeur est refusée par son nom avant tout travail). La machine borne
+  aussi : un ticket ne part que s'il a une place de circuit de la machine, commune à ses projets
+  et donnée dans l'ordre d'arrivée (`GRILLHOUSE_PLACES` de `~/.config/grillhouse/machine.env`, 3
+  par défaut) ; sinon il reste en file, non démarré, et le panneau dit « attend une place ».

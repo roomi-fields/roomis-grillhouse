@@ -2,6 +2,7 @@
 // decision D2): its type, its update, its signals and its queries by their names, its id, its state
 // and what its callers send and receive. The workflow, its activities and their clients share it
 // without importing each other.
+import type { PlaceDeCircuit } from '../../../scripts/regles-des-places.mjs';
 
 /** The workflow's type. */
 export const PLACES = 'placesDeLaMachine';
@@ -19,6 +20,11 @@ export const RATTACHER = 'rattacher';
 export const LES_PLACES = 'lesPlaces';
 /** The query of one request: given, waiting, or unknown (withdrawn, or its process gone). */
 export const LA_DEMANDE = 'laDemande';
+/**
+ * The update by which the queue of the tickets of a project (../tickets/deroule.ts) gives its
+ * circuits alive and the tickets it would start, and learns those the machine lets start.
+ */
+export const RESERVER = 'reserverDesCircuits';
 
 /** A place taken. */
 interface Prise {
@@ -43,6 +49,15 @@ interface Attente {
   depuis: number;
 }
 
+/** What the queue of the tickets of a project gives the machine (RESERVER). */
+export interface CircuitsDuProjet {
+  racine: string;
+  /** The tickets of the project whose circuit runs. */
+  vivants: string[];
+  /** The tickets the project would start now, in its order, within its own setting. */
+  candidats: string[];
+}
+
 /** The state of the places, which the workflow carries across a Continue-As-New. */
 export interface EtatDesPlaces {
   /** The last rank of arrival drawn. */
@@ -51,6 +66,8 @@ export interface EtatDesPlaces {
   dernier: number;
   prises: Prise[];
   attentes: Attente[];
+  /** The places of the circuits of the machine; absent in a state of before. */
+  circuits?: PlaceDeCircuit[];
 }
 
 /** What the machine gives at a moment (scripts/regles-des-places.mjs). */
@@ -98,13 +115,15 @@ export interface PlaceDonnee {
 
 /**
  * What the board reads: the ceiling last read, the places taken, the waits in their order of
- * arrival, and the fault of the last reading of the ceiling (null without one).
+ * arrival, the fault of the last reading of the ceiling (null without one), and the places of the
+ * circuits in their order of arrival.
  */
 export interface VueDesPlaces {
   plafond: number;
   faute?: string | null;
   prises: Prise[];
   attentes: Attente[];
+  circuits?: PlaceDeCircuit[];
 }
 
 /** Where a request stands. */

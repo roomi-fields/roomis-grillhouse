@@ -333,8 +333,9 @@ export function avecLaMachineEtUnePlace(mesure, options = {}) {
 
 /**
  * The places taken and the waits of the machine under <env>, as the server holds them: `{ plafond,
- * faute, prises, attentes }` (`faute`, a value of the ceiling the poste names and the server
- * refused, the ceiling read before kept), `prises` `{ id, pid, depart, ticket, rang, depuis }`, `attentes` in the
+ * faute, prises, attentes, circuits }` (`faute`, a value of the ceiling the poste names and the
+ * server refused, the ceiling read before kept; `circuits`, the places of the circuits, held or
+ * waited for, `{ racine, ticket, rang, accordee, depuis, vu }`), `prises` `{ id, pid, depart, ticket, rang, depuis }`, `attentes` in the
  * order of arrival `{ id, pid, ticket, rang, raison, depuis }`; none where no place is taken.
  * @param {{ env?: Record<string, string | undefined> }} [o]
  */
@@ -379,7 +380,9 @@ function mesureDEssai(env) {
 
 /**
  * The places as the board shows them: taken and ceiling, the load over one minute and the cores,
- * the free memory in whole GB, and the waits (ticket, since when) in the order of arrival. The
+ * the free memory in whole GB, and the waits (ticket, since when) in the order of arrival: those
+ * of a place for a session or a pass, then the tickets that wait for a place of a circuit, not
+ * started (`circuits` of the server, which the queue of each project reserves). The
  * machine is the one GRILLHOUSE_MESURE_D_ESSAI fixes, else the real one (`mesurer`).
  * @param {{ env?: Record<string, string | undefined>, mesurer?: () => { coeurs: number,
  *   charge: number, memoireLibre: number } }} [o]
@@ -387,7 +390,7 @@ function mesureDEssai(env) {
  */
 export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine } = {}) {
   const fixee = mesureDEssai(env);
-  const { plafond, faute = null, prises, attentes } = lirePlaces({ env });
+  const { plafond, faute = null, prises, attentes, circuits = [] } = lirePlaces({ env });
   const m = fixee ?? mesurer();
   return {
     prises: prises.length,
@@ -396,6 +399,9 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine }
     charge: Math.round(m.charge * 10) / 10,
     coeurs: m.coeurs,
     memoireGo: Math.floor(m.memoireLibre / 1024 ** 3),
-    attentes: attentes.map(a => ({ ticket: a.ticket, depuis: a.depuis })),
+    attentes: [...attentes, ...circuits.filter(c => !c.accordee)].map(a => ({
+      ticket: a.ticket,
+      depuis: a.depuis,
+    })),
   };
 }

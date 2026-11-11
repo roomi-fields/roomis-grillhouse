@@ -53,6 +53,17 @@ export interface ActivitesDesTickets {
    */
   fermesHorsCircuit(e: { racine: string; vivants: string[] }): Promise<string[]>;
   /**
+   * The tickets among <candidats> the machine lets start (`reserverDesCircuits` of
+   * ../places/client.ts: the circuits of every project under the ceiling of the machine, in their
+   * order of arrival), <vivants> holding their place; none, its fault named, when the machine does
+   * not answer.
+   */
+  placesDeLaMachine(e: {
+    racine: string;
+    vivants: string[];
+    candidats: string[];
+  }): Promise<{ accordes: string[]; faute: string | null }>;
+  /**
    * The tickets of the project whose circuit the server holds, not integrated (`lireLesCircuits`
    * of ../circuit/client.ts, one call): a circuit stopped on a question, its workflow running, or
    * ended without its issue holds its ticket.

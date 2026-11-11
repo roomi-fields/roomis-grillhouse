@@ -4,7 +4,11 @@
 // refusal of a taking: the ceiling, the turn of a lower rank, the measure read only when the place
 // and the turn pass, the spacing of the starts.
 import { describe, expect, it } from 'vitest';
-import { admission, refusDeLaPlace } from '../../scripts/regles-des-places.mjs';
+import {
+  admission,
+  refusDeLaPlace,
+  reserverDesCircuits,
+} from '../../scripts/regles-des-places.mjs';
 
 const GO = 1024 ** 3;
 const base = { coeurs: 12, charge: 1, memoireLibre: 16 * GO };
@@ -73,5 +77,85 @@ describe('le refus d’une prise', () => {
     const etat = { ...vide(), dernier: 95_000 };
     expect(prise(etat, { espacementMs: 10_000 })).toContain('espacement');
     expect(prise(etat, { espacementMs: 5_000 })).toBeNull();
+  });
+});
+
+describe('les places des circuits de la machine, dans l’ordre d’arrivée de tous les projets', () => {
+  const T0 = 1_000_000;
+  const reserver = (
+    places: Parameters<typeof reserverDesCircuits>[0],
+    demande: Parameters<typeof reserverDesCircuits>[1],
+    o: Partial<Parameters<typeof reserverDesCircuits>[2]> = {}
+  ) => reserverDesCircuits(places, demande, { rang: 0, plafond: 5, maintenant: T0, ...o });
+
+  it('une machine à 5, trois projets réglés à 2 : le sixième ticket attend', () => {
+    let places: Parameters<typeof reserverDesCircuits>[0] = [];
+    let rang = 0;
+    const accordes: string[][] = [];
+    for (const racine of ['/a', '/b', '/c']) {
+      const r = reserver(
+        places,
+        { racine, vivants: [], candidats: [`${racine}-1`, `${racine}-2`] },
+        { rang }
+      );
+      places = r.circuits;
+      rang = r.rang;
+      accordes.push(r.accordes);
+    }
+    expect(accordes).toEqual([['/a-1', '/a-2'], ['/b-1', '/b-2'], ['/c-1']]);
+  });
+
+  it('une place libérée va au premier arrivé, quel que soit son projet', () => {
+    const premier = reserver([], { racine: '/a', vivants: [], candidats: ['a-1'] }, { plafond: 1 });
+    const b = reserver(
+      premier.circuits,
+      { racine: '/b', vivants: [], candidats: ['b-1'] },
+      {
+        plafond: 1,
+        rang: premier.rang,
+      }
+    );
+    const c = reserver(
+      b.circuits,
+      { racine: '/c', vivants: [], candidats: ['c-1'] },
+      {
+        plafond: 1,
+        rang: b.rang,
+      }
+    );
+    expect([b.accordes, c.accordes]).toEqual([[], []]);
+    // a-1 a fini : /a ne le donne plus ; /c repasse avant /b, mais b-1 est arrivé le premier.
+    const fini = reserver(
+      c.circuits,
+      { racine: '/a', vivants: [], candidats: [] },
+      { plafond: 1, rang: c.rang }
+    );
+    expect(
+      reserver(fini.circuits, { racine: '/c', vivants: [], candidats: ['c-1'] }, { plafond: 1 })
+        .accordes
+    ).toEqual([]);
+    expect(
+      reserver(fini.circuits, { racine: '/b', vivants: [], candidats: ['b-1'] }, { plafond: 1 })
+        .accordes
+    ).toEqual(['b-1']);
+  });
+
+  it('un circuit vivant tient sa place sans la demander', () => {
+    const r = reserver([], { racine: '/a', vivants: ['a-1'], candidats: ['a-2'] }, { plafond: 1 });
+    expect(r.accordes).toEqual([]);
+    expect(r.circuits.find(c => c.ticket === 'a-1')?.accordee).toBe(true);
+  });
+
+  it('la place qu’aucune file ne redonne depuis 10 min est perdue', () => {
+    const vieille = reserver([], { racine: '/a', vivants: ['a-1'], candidats: [] }, { plafond: 1 });
+    const r = reserver(
+      vieille.circuits,
+      { racine: '/b', vivants: [], candidats: ['b-1'] },
+      {
+        plafond: 1,
+        maintenant: T0 + 10 * 60_000,
+      }
+    );
+    expect(r.accordes).toEqual(['b-1']);
   });
 });

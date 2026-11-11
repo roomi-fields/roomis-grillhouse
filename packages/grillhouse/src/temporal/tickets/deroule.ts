@@ -5,7 +5,9 @@
 // server's visibility may not show yet), then starts the circuit of each ticket that starts
 // (`ticketsAPartir`: open, labelled `circuit`, its section « ## Architecture » written, its
 // dependencies closed, by priority),
-// no more alive at once than the setting of the project (`grillhouse.circuits`, 1 when absent). A
+// no more alive at once than the setting of the project (`grillhouse.circuits`, 1 when absent),
+// and each once it holds a place of the machine (`placesDeLaMachine`: the circuits of every
+// project under the machine's ceiling, in their order of arrival); the others stay in the queue. A
 // circuit waiting for the supervisor's answer is alive: its workflow runs, waiting for the answer,
 // and is never purged. A workflow closes only integrated (its ticket closed in Beads) or stopped
 // on the supervisor's word (`--arreter`, the label `circuit` taken off): Beads, the durable
@@ -57,6 +59,9 @@ const arreterLeCircuit = defineSignal<[string | null]>(ARRETER);
 // The patch of the circuits closed outside them (Temporal's patching): a run that recorded its
 // wakes before the change replays them without the reading.
 const FERMES_HORS_CIRCUIT = 'fermes-hors-circuit';
+// The patch of the places of the machine: a run that recorded its starts on its own setting alone
+// replays them so.
+const PLACES_DE_LA_MACHINE = 'places-de-la-machine';
 
 const REVEIL_MS = 60_000;
 const LIMITE_D_HISTOIRE = 10_000;
@@ -115,7 +120,15 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
     });
     faute = r.faute;
     const places = r.max === null ? 0 : r.max - vivants.length;
-    for (const ticket of r.partir.slice(0, Math.max(0, places))) {
+    let partir = r.partir.slice(0, Math.max(0, places));
+    // The machine bounds every project: a ticket starts once it holds a place of the machine, in
+    // the order of arrival of every project; the others stay in the queue, not started.
+    if (patched(PLACES_DE_LA_MACHINE)) {
+      const m = await actes.placesDeLaMachine({ racine, vivants, candidats: partir });
+      partir = m.accordes;
+      faute = faute ?? m.faute;
+    }
+    for (const ticket of partir) {
       try {
         const enfant = await startChild(circuitDuTicket, {
           workflowId: idDuCircuit(racine, ticket),

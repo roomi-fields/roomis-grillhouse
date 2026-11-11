@@ -32,6 +32,7 @@ import {
 import {
   circuitsNonIntegres,
   circuitsVivants,
+  placesDeLaMachine,
   tracerLaFile,
 } from '../../src/temporal/tickets/activites.js';
 import { demarrerLesTickets, lireLaFileDesTickets } from '../../src/temporal/tickets/client.js';
@@ -133,7 +134,17 @@ async function serveur(activites: object, db = path.join(dossier('tickets'), 'te
     connection: connexion,
     taskQueue: FILE,
     workflowsPath: DEROULES,
-    activities: { ...circuit, circuitsVivants, circuitsNonIntegres, tracerLaFile, ...activites },
+    // No ticket of a trial is closed outside its circuit; no workflow of the machine runs on the
+    // trial server, so the machine bounds nothing.
+    activities: {
+      ...circuit,
+      circuitsVivants,
+      circuitsNonIntegres,
+      tracerLaFile,
+      fermesHorsCircuit: () => Promise.resolve([]),
+      placesDeLaMachine,
+      ...activites,
+    },
   });
   const fin = travailleur.run();
   arrets.unshift(async () => {

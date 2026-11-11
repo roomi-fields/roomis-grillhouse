@@ -2,7 +2,8 @@
 // at a load and a free memory, as `make -l` admits it, and why a taking does not pass now. The
 // workflow of the machine (src/temporal/places/, grillhouse-4nr.7) holds the places of the machine
 // and decides by them; a session or a pass takes its place there by
-// scripts/places-de-la-machine.mjs. The workflow bundles this module, which imports nothing. What
+// scripts/places-de-la-machine.mjs; the places of the circuits, which the queue of each project
+// reserves (`reserverDesCircuits`). The workflow bundles this module, which imports nothing. What
 // the machine gives, its load and its memory, is measured by scripts/mesure-de-la-machine.mjs.
 
 /** The memory a start wants free, in bytes: 4 GB. */
@@ -67,4 +68,52 @@ export function refusDeLaPlace(etat, { id, rang, plafond, espacementMs, maintena
     return `espacement des départs : le dernier date de ${duree(ecoule)}, ${duree(espacementMs)} au moins`;
   }
   return null;
+}
+
+/** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
+export const PERIME_MS = 10 * 60_000;
+
+/**
+ * The places of the circuits of the machine once the queue of the project <racine> gives its
+ * circuits alive <vivants> and the tickets it would start <candidats>, as Buildkite bounds its
+ * pipelines in one fleet of agents: its circuits alive hold their place, its candidates wait for
+ * one, each its rank of arrival among every project, drawn from <rang>; its other places, and
+ * those no queue gave for PERIME_MS, are gone. The places are granted in the order of arrival
+ * while the circuits that hold one are fewer than <plafond>: the first that waits keeps the next
+ * ones waiting. Gives the places, the last rank drawn, and the candidates that hold a place.
+ * @param {Array<{ racine: string, ticket: string, rang: number, accordee: boolean, depuis: number, vu: number }>} places
+ * @param {{ racine: string, vivants: string[], candidats: string[] }} demande
+ * @param {{ rang: number, plafond: number, maintenant: number }} o
+ */
+export function reserverDesCircuits(places, { racine, vivants, candidats }, o) {
+  const { plafond, maintenant } = o;
+  let { rang } = o;
+  const siens = new Set([...vivants, ...candidats]);
+  const circuits = places
+    .filter(c => (c.racine !== racine || siens.has(c.ticket)) && maintenant - c.vu < PERIME_MS)
+    .map(c => ({ ...c }));
+  const placer = (ticket, accordee) => {
+    const c = circuits.find(x => x.racine === racine && x.ticket === ticket);
+    if (c) {
+      c.vu = maintenant;
+      c.accordee = c.accordee || accordee;
+      return;
+    }
+    rang += 1;
+    circuits.push({ racine, ticket, rang, accordee, depuis: maintenant, vu: maintenant });
+  };
+  vivants.forEach(t => placer(t, true));
+  candidats.forEach(t => placer(t, false));
+  let tenues = circuits.filter(c => c.accordee).length;
+  for (const c of circuits.filter(x => !x.accordee).sort((a, b) => a.rang - b.rang)) {
+    if (tenues >= plafond) {
+      break;
+    }
+    c.accordee = true;
+    tenues += 1;
+  }
+  const accordes = candidats.filter(t =>
+    circuits.some(c => c.racine === racine && c.ticket === t && c.accordee)
+  );
+  return { circuits, rang, accordes };
 }

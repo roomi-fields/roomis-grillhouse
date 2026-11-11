@@ -8,7 +8,10 @@
 // handler stays open while a request waits, and a request lives in the state a Continue-As-New
 // carries. The signal RENDRE gives a place back or withdraws a request, RATTACHER names the process
 // that holds a place; the query LES_PLACES gives the board the places and the requests that wait.
-// A grant passes by the rule of the places (`refusDeLaPlace` of
+// The queue of the tickets of each project gives its circuits alive and the tickets it would start
+// by the update RESERVER, and starts only those the machine lets start: the circuits of every
+// project hold at most the ceiling, granted in the order of arrival of every project, as Buildkite
+// bounds its pipelines in one fleet of agents. A grant passes by the rule of the places (`refusDeLaPlace` of
 // scripts/regles-des-places.mjs): a free place under the ceiling (a configuration of the poste,
 // read again by an activity at each judgement, so that a ceiling
 // changed counts without restarting the workflow), the turn of its rank of arrival
@@ -30,7 +33,7 @@ import {
   setHandler,
   workflowInfo,
 } from '@temporalio/workflow';
-import { refusDeLaPlace } from '../../../scripts/regles-des-places.mjs';
+import { refusDeLaPlace, reserverDesCircuits } from '../../../scripts/regles-des-places.mjs';
 import type * as activites from './activites.js';
 import {
   LA_DEMANDE,
@@ -38,7 +41,9 @@ import {
   PRENDRE,
   RATTACHER,
   RENDRE,
+  RESERVER,
   TIRER_UN_RANG,
+  type CircuitsDuProjet,
   type DemandeDePlace,
   type EntreeDesPlaces,
   type EtatDeLaDemande,
@@ -58,6 +63,7 @@ const { mesurerLaMachine, plafondDeLaMachine, processusVivants } = proxyActiviti
 
 const prendre = defineUpdate<PlaceDonnee, [DemandeDePlace]>(PRENDRE);
 const tirerUnRang = defineUpdate<number, []>(TIRER_UN_RANG);
+const reserver = defineUpdate<string[], [CircuitsDuProjet]>(RESERVER);
 const rendre = defineSignal<[string]>(RENDRE);
 const rattacher = defineSignal<[Rattachement]>(RATTACHER);
 const lesPlaces = defineQuery<VueDesPlaces>(LES_PLACES);
@@ -202,6 +208,19 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
     changer();
     return { id: demande.id, rang };
   });
+  // The circuits of a project (`reserverDesCircuits` of scripts/regles-des-places.mjs): its
+  // circuits alive hold their place, the tickets it would start wait for one in the order of
+  // arrival of every project, under the ceiling; it gives back the candidates that hold a place.
+  setHandler(reserver, demande => {
+    const r = reserverDesCircuits(etat.circuits ?? [], demande, {
+      rang: etat.rang,
+      plafond,
+      maintenant: Date.now(),
+    });
+    etat.circuits = r.circuits;
+    etat.rang = r.rang;
+    return r.accordes;
+  });
   setHandler(tirerUnRang, () => {
     etat.rang += 1;
     return etat.rang;
@@ -225,6 +244,7 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
   setHandler(lesPlaces, () => ({
     plafond,
     faute,
+    circuits: [...(etat.circuits ?? [])].sort((a, b) => a.rang - b.rang),
     prises: etat.prises,
     attentes: [...etat.attentes].sort((a, b) => a.rang - b.rang),
   }));

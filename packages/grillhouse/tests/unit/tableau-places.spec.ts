@@ -141,6 +141,21 @@ describe('grillhouse-9kq critères 4 et 18 — ⏳ « attend une place »', () =
   });
 });
 
+describe('un ticket en file, non démarré, qui attend une place de la machine', () => {
+  it('sa ligne de chantier dit « attend une place », aucune ligne d’AGENTS', () => {
+    const tous = [
+      T('demo-e', 'e — Le chantier', { issue_type: 'epic' }),
+      T('demo-e.1', 'Le sujet en file', { status: 'open', parent: 'demo-e' }),
+    ];
+    const places: Places = { ...PLACES, attentes: [{ ticket: 'demo-e.1', depuis: MAINTENANT }] };
+    const p = plateau(tous, { places });
+    const siennes = (lignes(p, 'depot') as Ligne[]).filter(x => x.ticket === 'demo-e.1');
+    expect(siennes.length).toBeGreaterThan(0);
+    expect(siennes.some(x => x.section === 'agents')).toBe(false);
+    expect(siennes.map(x => x.texte).join(' ')).toMatch(/attend une place/);
+  });
+});
+
 describe('grillhouse-9kq critère 18 — « attend <ticket> » pour une dépendance ouverte', () => {
   it('un ticket validé dont une dépendance est ouverte garde « attend <ticket> »', () => {
     // Under a chantier in progress, the blocked ticket stands in CHANTIER, under « bloqué ».

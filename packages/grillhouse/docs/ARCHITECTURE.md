@@ -1436,7 +1436,15 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   ticket qui part (`ticketsAPartir` de `scripts/file-des-tickets.mjs` : ouvert, étiqueté `circuit`, sa
   section « ## Architecture » écrite, ses dépendances fermées, par priorité), pas plus de vivants à la fois que le réglage
   du projet (`grillhouse.circuits` du `package.json`, `scripts/circuits-cles.mjs`, 1 quand il
-  manque). Un circuit qui attend la réponse du superviseur est vivant : son déroulé tourne, en
+  manque), et chacun seulement quand il tient une place de circuit de la machine : la file donne
+  à la machine ses circuits vivants et les tickets qu'elle lancerait (`placesDeLaMachine`, la mise
+  à jour `reserverDesCircuits` du déroulé de la machine, la règle `reserverDesCircuits` de
+  `scripts/regles-des-places.mjs`), et la machine les accorde dans l'ordre d'arrivée de tous les
+  projets tant que ses circuits tenus restent sous son plafond, comme Buildkite borne ses pipelines
+  dans un parc d'agents commun : à 5 places, trois projets réglés à 2, le sixième ticket attend en
+  file, non démarré, et le panneau dit « attend une place ». Un circuit vivant tient sa place ; une
+  place qu'aucune file ne redonne depuis 10 min se perd ; sans déroulé de la machine sur le
+  serveur, rien ne borne. Un circuit qui attend la réponse du superviseur est vivant : son déroulé tourne, en
   attente durable de la réponse, et le serveur ne le purge jamais ; à 1, le suivant part quand le
   précédent finit. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
   mot du superviseur (`--arreter`, l'étiquette `circuit` retirée) : Beads, le registre durable,
