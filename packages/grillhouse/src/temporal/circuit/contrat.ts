@@ -91,6 +91,40 @@ export interface ResumeDeLEtat {
 }
 
 /**
+ * What the board shows of the state <e> a run wrote (the effect `etat`), published in the memo
+ * (./client.ts `lireLesCircuits` reads it): its step, its attempt, its stop and the first line of
+ * its report, the object of its questioning, its loops, the start of its step led. A run at its
+ * plan (<auPlan>, from its opening to its plan passed) stands at the step `plan`, its
+ * questioning the plan, whatever state its plan wrote last, <e> null before the first: the board
+ * places it at « 1 Plan » (scripts/etapes.mjs `etapeDuCircuit`); a stop (`raison`) stands as
+ * written.
+ */
+export function resumeDeLEtat(e: unknown, auPlan = false): ResumeDeLEtat {
+  const x = (e ?? {}) as Record<string, unknown>;
+  const rapport = typeof x.rapport === 'string' ? x.rapport : '';
+  const objet = (x.questionnement as { objet?: unknown } | null | undefined)?.objet;
+  const resume: ResumeDeLEtat = {
+    etape: typeof x.etape === 'string' ? x.etape : null,
+    tentative: typeof x.tentative === 'number' ? x.tentative : null,
+    finale: x.finale === true,
+    code: typeof x.code === 'number' ? x.code : null,
+    raison: typeof x.raison === 'string' ? x.raison : null,
+    rapport:
+      rapport
+        .split('\n')
+        .map(l => l.trim())
+        .find(Boolean) ?? null,
+    questionnement: typeof objet === 'string' ? objet : null,
+    boucles:
+      x.boucles && typeof x.boucles === 'object' ? (x.boucles as Record<string, number>) : {},
+    mene: typeof x.mene === 'string' ? x.mene : null,
+  };
+  return auPlan && resume.raison === null
+    ? { ...resume, etape: 'plan', tentative: 1, finale: false, questionnement: 'plan' }
+    : resume;
+}
+
+/**
  * The whole state the circuit wrote last (the effect `etat` of scripts/circuit.mjs `ecrireEtat`):
  * its step, its stop, its question and what the run keeps between steps. The workflow holds it,
  * and gives it back when it stops on the supervisor's word, so that his answer reopens from it.

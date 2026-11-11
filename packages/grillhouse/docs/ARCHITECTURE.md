@@ -690,6 +690,8 @@ circuits du dépôt sur le serveur Temporal, en un appel (`circuits-du-serveur.m
 travailleur), comme l'interface de Temporal liste ses déroulés : le déroulé publie dans son mémo
 le résumé du dernier état qu'il écrit (étape, tentative, arrêt et première ligne du rapport,
 objet du questionnement, boucles, début de l'étape menée) et sa question, numérotée dans son run ;
+de son ouverture à son plan passé, ce résumé est l'étape `plan`, publié dès l'ouverture et à
+chaque pas du plan, que le panneau montre en « 1 Plan » (`patched('etat-au-plan')`, comme la file) ;
 un circuit tourne quand son déroulé tourne sans question en attente, et finit sans son issue
 quand il est terminé, en échec ou expiré sans question. L'avancement d'une passe se lit dans le
 dossier de travail du ticket (`<copie>.travail/avancement-*`), où chaque passe du circuit ouvre le

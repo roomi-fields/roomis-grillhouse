@@ -499,6 +499,41 @@ describe('le déroulé mène le plan, un pas par activité', () => {
     expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
     expect(journal.plan.map(p => p.pas)).toEqual(['explorateur', 'questionneur']);
   }, 120_000);
+
+  // The board reads a circuit at its plan at « 1 Plan » from its opening to its plan passed: during
+  // the explorateur's first session, no state written yet; during the questionneur's, the
+  // explorateur's session ended on the state the plan writes (the testwriter's); then at 2 once
+  // the testwriter starts.
+  it('the board reads the step plan from the opening to the plan passed, then the testwriter', async () => {
+    const ouverts: Record<string, () => void> = {};
+    const etatDuPlan = { ...TESTS, code: null, raison: null, questionnement: null };
+    const { activites } = actes({}, () => TESTS, {
+      ouvrirLeCircuit: o => avecUnPlan(o),
+      jouerUnPasDuPlan: async (e, simule) => {
+        await new Promise<void>(r => (ouverts[e.pas] = r));
+        const r = await simule(e);
+        return { ...r, effets: [{ genre: 'etat', etat: etatDuPlan }] };
+      },
+      preparerLaPasse: async (e, simule) => {
+        await new Promise<void>(r => (ouverts.testwriter = r));
+        return simule(e);
+      },
+    });
+    const client = await circuit(activites);
+    const lu = async () => (await lireLesCircuits(client, RACINE))[0];
+    const pendant = (pas: string) =>
+      attendre(`la séance ${pas}`, () => Promise.resolve(ouverts[pas] ? true : undefined));
+    await pendant('explorateur');
+    expect(await lu()).toMatchObject({ etape: 'plan', questionnement: 'plan', vivant: true });
+    ouverts.explorateur?.();
+    await pendant('questionneur');
+    expect(await lu()).toMatchObject({ etape: 'plan', questionnement: 'plan', vivant: true });
+    ouverts.questionneur?.();
+    await pendant('testwriter');
+    expect(await lu()).toMatchObject({ etape: 'testwriter', questionnement: null });
+    ouverts.testwriter?.();
+    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+  }, 120_000);
 });
 
 // grillhouse-4nr.10, criteria 1 and 3: the board and the supervisor read the circuits of a

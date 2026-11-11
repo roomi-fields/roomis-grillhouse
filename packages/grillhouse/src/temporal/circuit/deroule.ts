@@ -70,6 +70,7 @@ import {
   L_ETAT,
   REFUS_DU_VALIDATEUR,
   REPRENDRE,
+  resumeDeLEtat,
   type Activites,
   type ArretDecide,
   type ArretPublie,
@@ -83,7 +84,6 @@ import {
   type Ouverture,
   type Question,
   type Reponse,
-  type ResumeDeLEtat,
   type VueDuCircuit,
 } from './contrat.js';
 
@@ -137,6 +137,11 @@ const lEtat = defineQuery<VueDuCircuit>(L_ETAT);
 const REPASSER_MS = 10 * 60_000;
 const REPASSES_MAX = 6;
 const LIMITE_D_HISTOIRE = 10_000;
+// The patch of the state of the plan (Temporal's patching, as `CI_DE_LA_BRANCHE`,
+// grillhouse-bf5.6): a run at its plan publishes the step `plan` from its opening (`auPlan`); a
+// run that recorded its opening before the change replays it without the marker, its plan
+// published as its states said.
+const ETAT_AU_PLAN = 'etat-au-plan';
 
 // How a run of steps ends.
 type Issue =
@@ -151,31 +156,6 @@ function inattendu(e: unknown): ArretDecide {
   const d = (cause?.details?.[0] ?? {}) as { message?: string | null; pile?: string | null };
   const message = d.message ?? cause?.message ?? String((e as Error)?.message ?? e);
   return { inattendu: { message, pile: d.pile ?? null } };
-}
-
-// What the board shows of the state <e> a run wrote (the effect `etat`), published in the memo
-// (./client.ts `lireLesCircuits` reads it): its step, its attempt, its stop and the first line of
-// its report, the object of its questioning, its loops, the start of its step led.
-function resumeDeLEtat(e: unknown): ResumeDeLEtat {
-  const x = (e ?? {}) as Record<string, unknown>;
-  const rapport = typeof x.rapport === 'string' ? x.rapport : '';
-  const objet = (x.questionnement as { objet?: unknown } | null | undefined)?.objet;
-  return {
-    etape: typeof x.etape === 'string' ? x.etape : null,
-    tentative: typeof x.tentative === 'number' ? x.tentative : null,
-    finale: x.finale === true,
-    code: typeof x.code === 'number' ? x.code : null,
-    raison: typeof x.raison === 'string' ? x.raison : null,
-    rapport:
-      rapport
-        .split('\n')
-        .map(l => l.trim())
-        .find(Boolean) ?? null,
-    questionnement: typeof objet === 'string' ? objet : null,
-    boucles:
-      x.boucles && typeof x.boucles === 'object' ? (x.boucles as Record<string, number>) : {},
-    mene: typeof x.mene === 'string' ? x.mene : null,
-  };
 }
 
 // The name of the stop <a>.
@@ -397,12 +377,16 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   // summary, which the board reads (`resumeDeLEtat`). ARRETER does not cut them: they are written to their end, out of the scope
   // it cancels, and the run stops at its next act.
   let effetsJoues = 0;
+  // The run at its plan, from its opening to its plan passed (`ETAT_AU_PLAN`): the summary it
+  // publishes is the step `plan` (`resumeDeLEtat`), the state its plan writes (the testwriter's,
+  // where a resumption starts) kept whole in `ecrit`.
+  let auPlan = false;
   const jouerLesEffets = (effets: Effet[] | undefined) =>
     CancellationScope.nonCancellable(async () => {
       for (const effet of effetsAJouer(effets ?? [])) {
         if (effet.genre === 'etat') {
           etatEcrit = effet.etat as EtatEcrit;
-          upsertMemo({ etat: resumeDeLEtat(effet.etat), ecrit: effet.etat });
+          upsertMemo({ etat: resumeDeLEtat(effet.etat, auPlan), ecrit: effet.etat });
           continue;
         }
         effetsJoues += 1;
@@ -437,11 +421,25 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   ): Promise<Issue> => {
     if (!ouverture) {
       publier('ouverture', null);
+      // The plan published at once: at the opening of a run with no state to resume from, then at
+      // each step of the plan, before the activity whose effects come at its end.
+      auPlan = false;
+      const lePlanSePublie = patched(ETAT_AU_PLAN);
+      const publierLePlan = () => {
+        if (lePlanSePublie) {
+          auPlan = true;
+          upsertMemo({ etat: resumeDeLEtat(null, true) });
+        }
+      };
+      if (!etatEcrit) {
+        publierLePlan();
+      }
       let o = await actes.ouvrirLeCircuit({ ...lieu(), reponse: ouvrirSur, arrete });
       await jouerLesEffets(o.effets);
       // The plan still to write: each of its steps an activity, the next decided by `pasDuPlan`.
       while ('plan' in o) {
         publier('plan', null);
+        publierLePlan();
         const plan = o.plan;
         memoire = plan.memoire;
         o = await actes.jouerUnPasDuPlan({
@@ -452,6 +450,11 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         });
         await jouerLesEffets(o.effets);
       }
+      // The plan passed or stopped: the summary of the state it wrote last, as it stands.
+      if (auPlan && etatEcrit) {
+        upsertMemo({ etat: resumeDeLEtat(etatEcrit) });
+      }
+      auPlan = false;
       if ('arret' in o) {
         return { arret: o.arret };
       }
