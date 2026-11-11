@@ -957,6 +957,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'prefixe-des-tickets.mjs',
       // What copies-finies.mjs and places-de-la-machine.mjs import: the journal of states (grillhouse-4nr.20).
       'journal-des-etats.mjs',
+      // What places-de-la-machine.mjs imports: the ceiling of the poste (grillhouse-4nr.25).
+      'plafond-de-la-machine.mjs',
       'langages/typescript/vitest-config/cibles.mjs',
       'langages/typescript/vitest-config/changements.mjs',
       'langages/typescript/vitest-config/lances.mjs',
