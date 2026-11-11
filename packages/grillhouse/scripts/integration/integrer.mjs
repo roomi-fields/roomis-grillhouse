@@ -205,11 +205,13 @@ export function lotSurMain(o, ticket) {
   const surMain = sha =>
     Boolean(sha) && git('merge-base', '--is-ancestor', sha, refMain).status === 0;
   // (a) the delivered tip of the branch, on main and naming the ticket.
-  const tip = git('rev-parse', '--verify', '-q', `refs/heads/agent/${ticket}^{commit}`).stdout.trim();
-  if (
-    surMain(tip) &&
-    git('show', '-s', '--format=%s', tip).stdout.includes(`(${ticket})`)
-  ) {
+  const tip = git(
+    'rev-parse',
+    '--verify',
+    '-q',
+    `refs/heads/agent/${ticket}^{commit}`
+  ).stdout.trim();
+  if (surMain(tip) && git('show', '-s', '--format=%s', tip).stdout.includes(`(${ticket})`)) {
     return tip;
   }
   // (b) a commit of main that names the ticket, the queue's rebase or squash.
@@ -227,8 +229,9 @@ export function lotSurMain(o, ticket) {
 export const refusLotAbsent = ticket =>
   `lot-absent : ${ticket} n'a aucun lot à appliquer (ni --tests ni --code) et aucun commit de ce ticket n'est sur main.`;
 
-// The options, or { faute } for a usage error.
-function lire(argv) {
+// The options, or { faute } for a usage error: a ticket always, a message with a lot to apply;
+// without a lot (neither --tests nor --code), the call is judged by `lotSurMain` (see `main`).
+export function lire(argv) {
   const o = { ticket: null, tests: null, code: null, message: null, references: null };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i + 1];
@@ -262,7 +265,7 @@ function lire(argv) {
         return { faute: null };
     }
   }
-  if (!o.ticket || !o.message || !(o.tests || o.code)) {
+  if (!o.ticket || ((o.tests || o.code) && !o.message)) {
     return { faute: null };
   }
   return o;

@@ -12,7 +12,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { lotSurMain } from '../../scripts/integration/integrer.mjs';
+import { lire, lotSurMain } from '../../scripts/integration/integrer.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'lot-sur-main-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -101,5 +101,20 @@ describe('le lot d’un ticket est reconnu sur main par une seule fonction', () 
     const { commit, o } = depot();
     commit('autre.txt', 'feat: autre chose (demo-2)');
     expect(lotSurMain(o, 'demo-1')).toBeNull();
+  });
+});
+
+describe('the integrator reads a call without a lot as a call to judge, not as a usage error', () => {
+  it('a ticket alone passes the reading: lotSurMain then judges it', () => {
+    expect(lire(['--ticket', 'p-1'])).toMatchObject({ ticket: 'p-1', tests: null, code: null });
+  });
+
+  it('a lot still needs its message, and every call needs its ticket', () => {
+    expect(lire(['--ticket', 'p-1', '--code', 'c.patch'])).toEqual({ faute: null });
+    expect(lire(['--message', 'm.txt'])).toEqual({ faute: null });
+    expect(lire(['--ticket', 'p-1', '--code', 'c.patch', '--message', 'm.txt'])).toMatchObject({
+      code: 'c.patch',
+      message: 'm.txt',
+    });
   });
 });
