@@ -11,6 +11,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { BaseSequencer } from 'vitest/node';
 import * as verifierMjs from '../../../../scripts/langages/typescript/verifier.mjs';
 import * as tranchesMjs from '../../../../scripts/langages/typescript/tranches.mjs';
+import { lireLaTranche } from '../../../../scripts/taches-du-graphe.mjs';
 
 type Tranche = { index: number; count: number };
 type Demandes = {
@@ -44,7 +45,6 @@ const verifier = verifierMjs as unknown as {
 };
 const tranches = tranchesMjs as unknown as {
   RAPPORTS: string;
-  lireLaTranche: (t: unknown) => Tranche | null;
   enregistreur: (
     Parent: typeof BaseSequencer,
     o: { fichier: string; racine: string; paquet: string; tranche: string }
@@ -392,9 +392,9 @@ describe('the merge of the tranches', () => {
   });
 
   it('reads a tranche only of the form i/n with 1 ≤ i ≤ n', () => {
-    expect(tranches.lireLaTranche('2/3')).toEqual({ index: 2, count: 3 });
+    expect(lireLaTranche('2/3')).toEqual({ index: 2, count: 3 });
     for (const f of ['0/3', '4/3', 'a/b', '1/0', 3, null]) {
-      expect(tranches.lireLaTranche(f)).toBeNull();
+      expect(lireLaTranche(f)).toBeNull();
     }
   });
 });

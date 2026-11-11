@@ -495,13 +495,24 @@ export function testsCibles(o: {
 /** The paths and the options of a task of the tests of a package, run by its script: the paths
  * `donnes` its script names, each replaced by those of the variable `TESTS_CIBLES` of `env` that
  * lie in the same component (`dossierDe`: the folder of the component of an absolute path, or
- * null), and the options of the variable. */
+ * null), the options of the variable, and the tranche of a pass it carries, or null. */
 export function cheminsDeLaTache(o: {
   racine: string;
   donnes: string[];
   env?: NodeJS.ProcessEnv;
   dossierDe: (absolu: string) => string | null;
-}): { chemins: string[]; options: string[] };
+}): { chemins: string[]; options: string[]; tranche: Tranche | null };
+/** A tranche of a pass, the i-th (`index`) of n (`count`) parts of the tests. */
+export interface Tranche {
+  index: number;
+  count: number;
+}
+/** Whether the tests a tool cannot split play in `tranche`: without a tranche, or in the first. */
+export function joueCeQuiNeSeDivisePas(tranche: Tranche | null | undefined): boolean;
+/** The form of a tranche, `i/n`. */
+export const LA_FORME: string;
+/** The tranche `texte` reads, or null when it is not `i/n` with 1 ≤ i ≤ n. */
+export function lireLaTranche(texte: unknown): Tranche | null;
 /** The trace tasks of a plan of the runner (`run … --dry=json`, parsed), those `garder` keeps: their
  * task ids, sorted. */
 export function tracesDuPlan(

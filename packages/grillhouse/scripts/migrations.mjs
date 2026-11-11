@@ -37,6 +37,7 @@ import * as ciAppelleLaVerification from './migrations/0.30.0-ci-appelle-la-veri
 import * as paquetsDansLeGraphe from './migrations/0.31.0-paquets-dans-le-graphe.mjs';
 import * as ciDesBranchesDeTicket from './migrations/0.33.0-ci-des-branches-de-ticket.mjs';
 import * as node26 from './migrations/0.33.0-node-26.mjs';
+import * as ciDuCadre from './migrations/0.33.0-ci-du-cadre.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -53,6 +54,7 @@ export const MIGRATIONS = [
   paquetsDansLeGraphe,
   ciDesBranchesDeTicket,
   node26,
+  ciDuCadre,
 ];
 
 /**

@@ -22,7 +22,13 @@
 //   migration played, scripts/migrations.mjs: in 0.24.0, a file that still calls a former copy of
 //   the frame; in 0.24.2, API Extractor still declared by the project) is reported on the standard output, « reste au projet », with no effect on the exit
 //   code nor on the version recorded.
-// - The frame copies no file into a project: its scripts are the package's, its skills, agents,
+// - The frame's workflows of GitHub Actions (scripts/workflows-du-cadre.mjs): each workflow of the
+//   template's `.github/workflows/` (the CI of a lot, `ci.yml`; the night of a shared machine,
+//   `nuit.yml`) that the project holds with the frame's mark on its first line is rewritten when
+//   it differs, and one it lacks is written once the project holds one of them; a workflow without
+//   the mark is the project's, and stays. Their machine is the repository's variable RUNNER on
+//   GitHub, which no file holds. The report names each workflow written.
+// - The frame copies no other file into a project: its scripts are the package's, its skills, agents,
 //   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
 //   (scripts/cadre.mjs): the frame arrives in one piece, at the version npm installs.
 // - The frame's plugin is a setting of the project: in a project whose `.claude/settings.json`
@@ -149,6 +155,7 @@ import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
 import { langageDe, langagesDe } from './langages.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
+import { poserLesWorkflows } from './workflows-du-cadre.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -321,6 +328,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     gardes: null,
     ligneEtat: false,
     greffon: false,
+    workflows: [],
     duLangage: { lignes: [], aFaire: [], installer: false, sansVerifier: null },
   };
   const pkg = path.join(projet, 'package.json');
@@ -431,6 +439,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   bilan.greffon = declarerGreffon(projet);
   poserCrochets(projet);
   attribuer(projet);
+  bilan.workflows = poserLesWorkflows(projet, source);
   return bilan;
 }
 
@@ -542,6 +551,11 @@ export function rapport(b) {
   if (b.greffon) {
     lignes.push(
       `Greffon du cadre : .claude/settings.json déclare la place de marché ${MARCHE_DU_CADRE} (${SOURCE_DU_MARCHE.repo}) et active ${GREFFON_DU_CADRE}.`
+    );
+  }
+  if (b.workflows?.length > 0) {
+    lignes.push(
+      `Workflows du cadre : ${b.workflows.join(', ')} écrit(s) depuis le gabarit ; leur machine est la variable RUNNER du dépôt sur GitHub (ubuntu-latest sans elle), que la mise à jour ne touche pas.`
     );
   }
   if (b.gardes?.deplace) {

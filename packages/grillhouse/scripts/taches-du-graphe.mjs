@@ -52,6 +52,31 @@ export const TESTS_CIBLES = 'GRILLHOUSE_TESTS';
 export const GRAPHE_JOUE = 'GRILLHOUSE_GRAPHE_JOUE';
 /** The variable that tells a module it plays after a red one: that pass keeps no green. */
 export const PASSE_ROUGE = 'GRILLHOUSE_PASSE_ROUGE';
+/** The form of a tranche, as Vitest's `--shard` and nextest's `--partition` read it. */
+export const LA_FORME = 'i/n';
+
+/**
+ * The tranche <texte> reads, `{ index, count }`, or null when it is not `i/n` with 1 ≤ i ≤ n.
+ * @param {unknown} texte
+ * @returns {{ index: number, count: number } | null}
+ */
+export function lireLaTranche(texte) {
+  const m = /^([1-9]\d*)\/([1-9]\d*)$/.exec(typeof texte === 'string' ? texte : '');
+  if (!m) {
+    return null;
+  }
+  const index = Number(m[1]);
+  const count = Number(m[2]);
+  return index <= count ? { index, count } : null;
+}
+
+/**
+ * Whether the tests a tool cannot split play in the tranche <tranche>: in a pass without a tranche,
+ * or in the first; so the n tranches together play them once.
+ * @param {{ index: number, count: number } | null | undefined} tranche
+ */
+export const joueCeQuiNeSeDivisePas = tranche => !tranche || tranche.index === 1;
+
 /** The beginning of the name of a trace task, the output of a package that another's tests read. */
 export const TRACE = 'trace:';
 const SANS_INSTALLER = '--no-install';
@@ -115,17 +140,21 @@ export function testsCibles({ arguments: donnes, force = false }) {
  * The paths and the options of a task of the tests of a package, run by its script: the paths
  * <donnes> its script names (its own folder), each replaced by the paths of the variable
  * `TESTS_CIBLES` of <env> that lie in the same component (<dossierDe>, from an absolute path, the
- * folder of its component or null), and the options of the variable. A task with no path of the
- * variable in its component plays whole what its script names.
+ * variable or null), and the options of the variable. A task with no path of the
+ * variable in its component plays whole what its script names. `tranche`: the tranche of a pass the
+ * variable carries (`verifier --tranche i/n`), `{ index, count }`, or null; the module of the
+ * language plays its part of the tests in it.
  * @param {{ racine: string, donnes: string[], env?: NodeJS.ProcessEnv,
  *   dossierDe: (absolu: string) => string | null }} o
- * @returns {{ chemins: string[], options: string[] }}
+ * @returns {{ chemins: string[], options: string[], tranche: { index: number, count: number } | null }}
  */
 export function cheminsDeLaTache({ racine, donnes, env = process.env, dossierDe }) {
   let variable = [];
+  let tranche = null;
   try {
-    const lu = JSON.parse(env[TESTS_CIBLES] ?? '{}')?.arguments;
-    variable = Array.isArray(lu) ? lu.map(String) : [];
+    const lu = JSON.parse(env[TESTS_CIBLES] ?? '{}');
+    variable = Array.isArray(lu?.arguments) ? lu.arguments.map(String) : [];
+    tranche = lireLaTranche(lu?.tranche);
   } catch {
     variable = [];
   }
@@ -136,7 +165,11 @@ export function cheminsDeLaTache({ racine, donnes, env = process.env, dossierDe 
     const siens = d === null ? [] : nommes.filter(n => dossier(n) === d);
     return siens.length ? siens : [g];
   });
-  return { chemins: [...new Set(chemins)], options: variable.filter(a => a.startsWith('-')) };
+  return {
+    chemins: [...new Set(chemins)],
+    options: variable.filter(a => a.startsWith('-')),
+    tranche,
+  };
 }
 
 /**

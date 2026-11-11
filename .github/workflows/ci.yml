@@ -31,7 +31,7 @@ env:
 jobs:
   gardes:
     # The machine of the jobs: the variable RUNNER of the repository, GitHub's runner without it.
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     # The versions come from the input of the call; push and pull request play Node 26 alone,
     # the nightly schedule plays Node 24 and 26.
@@ -71,7 +71,7 @@ jobs:
         run: npm run verifier -- --sans-tests
 
   tranches:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
       fail-fast: false
@@ -133,7 +133,7 @@ jobs:
   fusion:
     needs: tranches
     if: ${{ !cancelled() }}
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
       matrix:
@@ -164,7 +164,7 @@ jobs:
         run: npx --no-install grillhouse fusion-des-tranches
 
   build:
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
     needs: [gardes, tranches, fusion]
 
     steps:

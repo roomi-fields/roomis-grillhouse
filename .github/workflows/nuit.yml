@@ -23,7 +23,7 @@ env:
 jobs:
   tranches:
     # The runner of the repository's variable RUNNER, GitHub's ubuntu-latest without it.
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
       fail-fast: false
@@ -81,7 +81,7 @@ jobs:
   fusion:
     needs: tranches
     if: ${{ !cancelled() }}
-    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
       fail-fast: false

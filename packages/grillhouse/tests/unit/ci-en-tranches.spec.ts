@@ -51,7 +51,7 @@ describe('the CI of Grillhouse plays the verification in tranches', () => {
 
   it('runs every job on the machine of the variable RUNNER, ubuntu-latest without it', () => {
     for (const [nom, j] of Object.entries(ci.jobs)) {
-      expect(j['runs-on'], nom).toBe("${{ vars.RUNNER || 'ubuntu-latest' }}");
+      expect(j['runs-on'], nom).toBe(`\${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}`);
     }
   });
 

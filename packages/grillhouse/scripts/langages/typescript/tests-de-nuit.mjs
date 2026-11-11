@@ -42,7 +42,12 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { A_REPASSER, attendreDeLaPlace } from '../../services-du-noyau.mjs';
+import {
+  A_REPASSER,
+  attendreDeLaPlace,
+  LA_FORME,
+  lireLaTranche,
+} from '../../services-du-noyau.mjs';
 import {
   estUnBanc,
   estUnTestDeNuit,
@@ -50,7 +55,7 @@ import {
   NUIT_TRANCHE,
   NUIT_VARIABLE,
 } from './vitest-config/cibles.mjs';
-import { fichiersDeLaTranche, LA_FORME, lireLaTranche, RAPPORTS } from './tranches.mjs';
+import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
 
 /**
  * The options of the arguments <args>: `{ horsDuPoste, tranche, erreur }`, `tranche`

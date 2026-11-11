@@ -91,6 +91,7 @@
     "scripts/migrations/0.31.0-paquets-dans-le-graphe.mjs",
     "scripts/migrations/0.33.0-ci-des-branches-de-ticket.mjs",
     "scripts/migrations/0.33.0-node-26.mjs",
+    "scripts/migrations/0.33.0-ci-du-cadre.mjs",
     "scripts/newday.mjs",
     "scripts/nuit.sh",
     "scripts/outil.mjs",
@@ -141,7 +142,8 @@
     "scripts/verrou-de-machine.mjs",
     "scripts/verrous/commande.mjs",
     "scripts/verrous/ticket-du-sous-agent.mjs",
-    "scripts/verrous/verrou.mjs"
+    "scripts/verrous/verrou.mjs",
+    "scripts/workflows-du-cadre.mjs"
   ],
   "typescript": [
     "scripts/langages/typescript/chemins-des-tests.mjs",

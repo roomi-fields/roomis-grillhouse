@@ -1,19 +1,143 @@
+# Généré par `npx grillhouse maj` depuis le gabarit du cadre ; ne pas éditer : la mise à jour le réécrit. Un workflow sans cette ligne est au projet, et la mise à jour n'y touche pas.
+#
+# The CI of a lot: the verification of the frame (`npm run verifier`) in tranches, as Grillhouse
+# plays its own (its .github/workflows/ci.yml).
 name: CI
 
 on:
-  # agent/**: the branch of a ticket the queue of the frame pushes, whose run judges the lot.
+  # `agent/**`: the branch of a ticket the queue of the frame pushes; its run judges the lot before
+  # main moves onto it.
   push:
     branches: [main, develop, 'agent/**']
   pull_request:
     branches: [main, develop]
+  # Once a night, on the default branch: Node 24 and 26.
+  schedule:
+    - cron: '0 2 * * *'
+  # A release of the project may play the CI on the tagged commit before it publishes, on the
+  # versions of Node its call names.
+  workflow_call:
+    inputs:
+      node-versions:
+        description: 'The versions of Node to play, a JSON array'
+        type: string
+        default: '["26.x"]'
+
+# The pass of the verification in n + 2 jobs per version of Node, as Vitest shards a run
+# (https://vitest.dev/guide/improving-performance#sharding): `gardes` plays every task but the
+# tests (`npm run verifier -- --sans-tests`), each job of `tranches` the tests of its tranche
+# (`npm run verifier -- --tranche i/n`), and `fusion` merges the reports of the n tranches, which it
+# refuses when a file of the pass is missing or played twice. TRANCHES is n, and the matrix of
+# `tranches` lists 1 to n: both change together. The build of the project is proven by `gardes`:
+# its guard tasks wait for the build of every package, so no job builds a second time.
+env:
+  TRANCHES: 3
+
+# The machine of every job: the repository's variable RUNNER (Settings > Secrets and variables >
+# Actions > Variables), a label in JSON (`"ubuntu-latest"`) or a list of labels
+# (`["self-hosted","linux"]`); GitHub's ubuntu-latest without it. The variable lives in the
+# repository's settings, never in this file.
+#
+# The cache of Turborepo shared between the CI and the poste is not decided: no step of a remote
+# cache here.
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  gardes:
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
+
+    # The versions come from the input of the call; push and pull request play Node 26 alone,
+    # the nightly schedule plays Node 24 and 26.
+    strategy:
+      matrix:
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      # uv, which the frame's module python plays, for a project with packages of Python; a runner
+      # of the repository brings its own.
+      - name: Install uv
+        if: runner.environment == 'github-hosted' && hashFiles('**/pyproject.toml') != ''
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Build, guards, typing, formatting and lint: every task of the pass but the tests; the guard
+      # tasks wait for the build of every package, which proves the project builds.
+      - name: Verification without the tests
+        run: npm run verifier -- --sans-tests
+
+  tranches:
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
+        tranche: [1, 2, 3]
+
+    steps:
+      # The whole history: the base of a push (github.event.before) must be in the clone.
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install uv
+        if: runner.environment == 'github-hosted' && hashFiles('**/pyproject.toml') != ''
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The tests of the tranche, with the builds they depend on. A push is measured against the
+      # commit before it; a pull request, a call and the nightly schedule play the complete pass,
+      # with no base.
+      - name: Tranche ${{ matrix.tranche }} (a push, against its parent)
+        if: github.event_name == 'push' && github.event.before != ''
+        run: npm run verifier -- ${{ format('--tranche {0}/{1} --base {2}', matrix.tranche, env.TRANCHES, github.event.before) }}
+
+      - name: Tranche ${{ matrix.tranche }}
+        if: github.event_name != 'push' || github.event.before == ''
+        run: npm run verifier -- ${{ format('--tranche {0}/{1}', matrix.tranche, env.TRANCHES) }}
+
+      # The reports of the tranche (Vitest's blob and the files of its part), red or green, which
+      # the job fusion merges.
+      - name: Reports of the tranche
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tranche-${{ matrix.node-version }}-${{ matrix.tranche }}
+          path: .vitest-reports/
+          include-hidden-files: true
+          # A pass with no test file (a push whose changes no test relates to) writes none.
+          if-no-files-found: warn
+          retention-days: 7
+
+  fusion:
+    needs: tranches
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
       matrix:
-        node-version: [24.x, 26.x]
+        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
 
     steps:
       - name: Checkout
@@ -28,29 +152,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Formatting, lint, typing, build, guards and tests: the one command of the poste.
-      - name: Verification
-        run: npm run verifier
-
-  build:
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Reports of the tranches
+        uses: actions/download-artifact@v4
         with:
-          node-version: '26'
-          cache: 'npm'
+          pattern: tranche-${{ matrix.node-version }}-*
+          path: .vitest-reports
+          merge-multiple: true
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build --if-present
-
-      - name: Check package
-        run: npm pack --dry-run
+      # Each file of Vitest's pass played by one tranche exactly, then one report of the n tranches.
+      # The tests of Rust (nextest's `--partition hash:i/n`) and of Python (the first tranche alone)
+      # have no report to merge: the job of their tranche is red on their red.
+      - name: Merge of the tranches
+        run: npx --no-install grillhouse fusion-des-tranches

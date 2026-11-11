@@ -1,8 +1,9 @@
 // grillhouse-61z: the verification plays every control of the CI, and the CI calls it alone
 // (critère 2); the lint and the format check keep a cache under node_modules/.cache (critère 8).
 // Witness: main's CI stayed red from 8f16106 to 83785bd on a lint the verification did not play.
-// The build job (`npm run build`, `npm pack --dry-run`) stays in the CI as the written exception to
-// critère 2: it is the control of the publication and plays no test. The CI of Grillhouse plays the
+// The build job (`npm run build`, `npm pack --dry-run`) stays in the CI of Grillhouse as the written
+// exception to critère 2: it is the control of the publication of its package and plays no test. The
+// CI of the project template has none: its job of the guards waits for the build of every package. The CI of Grillhouse plays the
 // verification in several jobs (`--sans-tests`, then its tranches, `--tranche i/n`, merged by
 // `grillhouse fusion-des-tranches`): each of its jobs but build calls the verification alone.
 import { readFileSync } from 'node:fs';
@@ -75,6 +76,13 @@ describe('critère 2: the CI calls the verification alone', () => {
         expect(r, r).not.toMatch(CONTROLES);
       }
     });
+
+    if (fichier === 'templates/projet/.github/workflows/ci.yml') {
+      it(`${titre} has no build job: its guards prove the build`, () => {
+        expect(jobs.build).toBeUndefined();
+      });
+      continue;
+    }
 
     it(`critère 2: ${titre} keeps the build job as the written exception, which plays no test`, () => {
       expect(jobs.build).toBeDefined();

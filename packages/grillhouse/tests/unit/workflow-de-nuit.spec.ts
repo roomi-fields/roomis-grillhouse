@@ -25,7 +25,7 @@ describe('the night of the frame on GitHub', () => {
   it('runs each job on the runner of the variable RUNNER, GitHub’s ubuntu-latest without it', () => {
     expect(jobs.length).toBeGreaterThan(0);
     for (const j of jobs) {
-      expect(j['runs-on']).toBe("${{ vars.RUNNER || 'ubuntu-latest' }}");
+      expect(j['runs-on']).toBe(`\${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}`);
     }
   });
 

@@ -957,6 +957,26 @@ pose jamais le dernier vert : la nuit du poste (`scripts/nuit.sh`) seule le pose
 tests de nuit, étiquetés compris, puis les mesures. Ainsi la CI joue chaque nuit ce qu'elle peut
 jouer, et le poste garde ce qu'il est seul à avoir.
 
+**Le cadre porte la CI d'un projet** (`templates/projet/.github/workflows/`,
+`packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, le lot (les gardes, les
+tranches mesurées contre le commit d'avant un push, leur fusion ; il écoute
+aussi les branches `agent/**` que pousse la file), et `nuit.yml`, les tests de nuit hors du
+poste, tels que Grillhouse les joue chez lui. Chaque job tourne sur la variable `RUNNER` du dépôt
+(`fromJSON(vars.RUNNER || '"ubuntu-latest"')`, une étiquette ou une liste d'étiquettes en JSON,
+la convention de SyntHub), qui vit dans les réglages du dépôt sur GitHub et qu'aucun fichier
+n'écrit. Les tranches couvrent chaque langage, chaque test joué une fois dans leur union :
+Vitest par son découpage (`--shard`), cargo par celui de nextest (`--partition hash:i/n`, ses
+doctests dans la première tranche), Python, que pytest ne découpe pas, dans la première tranche
+seule ; la fusion ne relit que les rapports de Vitest, et un rouge de cargo ou de Python est le
+rouge du job de sa tranche. La construction se prouve dans le job des gardes, dont les tâches
+attendent la construction de chaque paquet : aucun job ne construit une seconde fois. Un workflow du cadre porte sur sa première ligne la marque « Généré par `npx grillhouse
+maj` », comme un fichier engendré : `grillhouse init` les copie, et `npx grillhouse maj` réécrit
+chaque workflow marqué qui diffère du gabarit et écrit celui qui manque à un projet qui en tient
+déjà un. Un workflow sans la marque est au projet, et la mise à jour n'y touche pas ; un projet
+sans workflow du cadre n'en reçoit aucun (la mise à jour ne lance aucune CI sur un dépôt), et la
+migration 0.33.0 lui dit une fois comment l'adopter. Ainsi chaque projet joue la CI du cadre à sa
+version, et garde la sienne tant qu'il ne l'adopte pas.
+
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
 scripts, appelés par `npx grillhouse <sous-commande>`, et il est le greffon `grillhouse`, qui
 porte les compétences, les agents, les crochets de Claude Code, cette charte et le métacadre,

@@ -7,6 +7,11 @@
 // - A tranche `i/n` (LA_FORME: 1 ≤ i ≤ n, both whole) plays, in each package of Vitest, the i-th of
 //   n parts of its test files, Vitest's own split (its sequencer's `shard`, by the hash of each
 //   file's path): the n tranches together play each file of the pass once.
+// - The other languages play their part of the same tranche in their task of tests, which reads it
+//   from the variable `GRILLHOUSE_TESTS` (`cheminsDeLaTache` of scripts/taches-du-graphe.mjs):
+//   cargo by nextest's own split (`--partition hash:i/n`), its doctests in the first tranche
+//   alone; python, which pytest does not split, all its tests in the first tranche alone. The
+//   merge below reads Vitest's reports only: a red of theirs is the red of its tranche's job.
 // - The plugin of the day (./vitest-config/cibles.mjs) applies the tranche the variable
 //   `GRILLHOUSE_TESTS` carries (`trancher`): the shard, a blob reporter beside the configuration's
 //   reporters, writing `<rapports>/blobs/<paquet>-<i>-<n>.json`, and a sequencer that writes, in
@@ -25,29 +30,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { LA_FORME, lireLaTranche } from '../../services-du-noyau.mjs';
 
 /** The directory of the reports of the tranches, under the root of the project: Vitest's own. */
 export const RAPPORTS = '.vitest-reports';
 const BLOBS = 'blobs';
 const FICHIERS = 'fichiers';
-/** The form of a tranche, as Vitest's `--shard` reads it. */
-export const LA_FORME = 'i/n';
-
-/**
- * The tranche <texte> reads, `{ index, count }`, or null when it is not `i/n` with 1 ≤ i ≤ n.
- * @param {unknown} texte
- * @returns {{ index: number, count: number } | null}
- */
-export function lireLaTranche(texte) {
-  const m = /^([1-9]\d*)\/([1-9]\d*)$/.exec(typeof texte === 'string' ? texte : '');
-  if (!m) {
-    return null;
-  }
-  const index = Number(m[1]);
-  const count = Number(m[2]);
-  return index <= count ? { index, count } : null;
-}
-
 // The name of the files of the package <paquet> for the tranche <t>.
 const nomDuFichier = (paquet, t) =>
   `${paquet.replace(/[^A-Za-z0-9._-]+/g, '_')}-${t.index}-${t.count}.json`;

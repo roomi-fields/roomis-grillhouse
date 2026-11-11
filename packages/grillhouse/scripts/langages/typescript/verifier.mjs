@@ -109,6 +109,8 @@ import {
   CHANGEMENTS,
   garderLeTotal,
   garderLeVert,
+  LA_FORME,
+  lireLaTranche,
   mesure,
   nommerLAvancement,
   ouvrirAvancement,
@@ -120,7 +122,7 @@ import {
   testsCibles,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
-import { fichiersDeLaTranche, LA_FORME, lireLaTranche, RAPPORTS } from './tranches.mjs';
+import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
 import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
 import { garderLesResumes } from './verdict.mjs';
 

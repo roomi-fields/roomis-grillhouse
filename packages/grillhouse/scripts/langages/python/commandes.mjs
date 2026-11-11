@@ -93,6 +93,7 @@ import {
   cheminsDeLaTache,
   construireDepuisLesArguments,
   GRAPHE_JOUE,
+  joueCeQuiNeSeDivisePas,
   lancerLesTaches,
   ligneDesRestes,
   nomDuPaquet,
@@ -378,13 +379,18 @@ function testsDuPaquet(racine, args, env) {
     return 2;
   }
   const dossierDe = abs => composantDans(tous, racine, abs)?.dossier ?? null;
-  const { chemins, options } = cheminsDeLaTache({ racine, donnes, env, dossierDe });
+  const { chemins, options, tranche } = cheminsDeLaTache({ racine, donnes, env, dossierDe });
   const r = choisir(racine, tous, chemins);
   if (r.refus) {
     for (const l of r.refus) {
       process.stderr.write(`⛔ ${l}\n`);
     }
     return 2;
+  }
+  // pytest has no split of its own: a tranche past the first plays none of its tests, the first
+  // plays them all, so the n tranches together play each test once.
+  if (!joueCeQuiNeSeDivisePas(tranche)) {
+    return 0;
   }
   const p = passe(racine, env);
   jouerLesTests(p, r.choix, [...args.filter(a => a.startsWith('-')), ...options]);

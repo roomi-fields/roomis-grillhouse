@@ -142,6 +142,7 @@ import {
   construireDepuisLesArguments,
   ecrirePression,
   GRAPHE_JOUE,
+  joueCeQuiNeSeDivisePas,
   lancerLesTaches,
   ligneDesRestes,
   lirePression,
@@ -417,13 +418,26 @@ function sousCharge(t, pressions) {
   t.code = A_REPASSER;
 }
 
+/**
+ * The arguments of nextest for the tranche <tranche> of a pass (`verifier --tranche i/n`): its own
+ * split, `--partition hash:i/n` (each test by the hash of its name, so the n tranches together
+ * play each test once), and `--no-tests=warn`, a crate whose part is empty being green; none
+ * without a tranche.
+ * @param {{ index: number, count: number } | null | undefined} tranche
+ * @returns {string[]}
+ */
+export const partitionDeNextest = tranche =>
+  tranche ? ['--partition', `hash:${tranche.index}/${tranche.count}`, '--no-tests=warn'] : [];
+
 // Plans and plays the tests of the crates <choix> in the run <p>, each `{ c, cibles }`: `cibles`
 // the test targets named, empty for the whole crate of the day (its night tests and its benches
 // left out). For a crate that plays tests:
 // the build of its test targets first, then nextest, then its doctests; a failed build leaves the
 // crate's other tasks not played. The benches named, each crate's in a task `budget`, are
 // planned with the rest and played by the function this one returns, after the other tests.
-function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
+// In a tranche <tranche>, nextest plays its part (`partitionDeNextest`); the doctests and the
+// benches, which nextest does not split, play in the first tranche alone.
+function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranche = null) {
   const m = metadonnees(racine);
   // Nextest's store is `target/nextest` under the workspace's root (its default `store.dir`),
   // whatever the target directory of the compilations (./sccache.mjs).
@@ -437,7 +451,8 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
   // A bench plays on one thread (`--test-threads 1`, which `-j` of nextest is the alias of): it
   // takes the arguments without `-j`.
   const nextestDuBanc = [...nextest];
-  nextest.push(...j);
+  nextest.push(...j, ...partitionDeNextest(tranche));
+  const indivisible = joueCeQuiNeSeDivisePas(tranche);
   const parCrate = [];
   const bancs = [];
   // The test executables the builds of the run report, removed once its tests played.
@@ -484,7 +499,7 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
           { junit, temporaire: temporaire(nom) },
         ]);
       }
-      if (desBancs.length) {
+      if (desBancs.length && indivisible) {
         const args = [...nextestDuBanc, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
         bancs.push({
           nom,
@@ -496,7 +511,7 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({})) {
       }
     }
     const doctests = c.cibles.some(t => t.kind.includes('lib') && t.doctest !== false);
-    if ((cibles.length === 0 || avecLeJour) && doctests) {
+    if ((cibles.length === 0 || avecLeJour) && doctests && indivisible) {
       const args = ['test', '--doc', ...j, '-p', nom];
       prevues.push([p.prevoir(nom, d, 'doctest', true, args), { temporaire: temporaire(nom) }]);
     }
@@ -876,7 +891,7 @@ function testsDuPaquet(racine, tous, args, env, parPaquet) {
       racine,
       abs
     )?.dossier ?? null;
-  const { chemins, options } = cheminsDeLaTache({ racine, donnes, env, dossierDe });
+  const { chemins, options, tranche } = cheminsDeLaTache({ racine, donnes, env, dossierDe });
   const r = choisir(racine, tous, chemins);
   if (r.refus) {
     for (const l of r.refus) {
@@ -890,7 +905,8 @@ function testsDuPaquet(racine, tous, args, env, parPaquet) {
     p,
     r.choix,
     [...args.filter(a => a.startsWith('-')), ...options],
-    parPaquet.temporaire
+    parPaquet.temporaire,
+    tranche
   )();
   restesParPaquet(p, r.choix, parPaquet);
   return p.code();
