@@ -360,19 +360,29 @@ export interface CircuitLu {
   reponse: string;
   run: string;
   numero: number;
+  /** Whether it is integrated: read only when the reading asks for them (`integres`). */
+  integre: boolean;
+  /** The time its workflow ended (ms), null while it runs. */
+  fin: number | null;
 }
 
 /**
  * The circuits of the repository at <racine>, read in one call to the server (a `workflow.list`,
- * its memo and its status, no worker living): the last run of each ticket, a circuit integrated
- * left out, in the form the board reads (`CircuitLu`).
+ * its memo and its status, no worker living): the last run of each ticket, in the form the board
+ * reads (`CircuitLu`); a circuit integrated is left out, unless <integres> asks for them (the wait
+ * of the supervisor, which their end wakes, scripts/superviseur.mjs).
  */
-export async function lireLesCircuits(client: Client, racine: string): Promise<CircuitLu[]> {
+export async function lireLesCircuits(
+  client: Client,
+  racine: string,
+  { integres = false }: { integres?: boolean } = {}
+): Promise<CircuitLu[]> {
   const prefixe = idDuCircuit(racine, '');
   const lus: {
     workflowId: string;
     runId: string;
     startTime: Date;
+    closeTime?: Date;
     status: { name: string };
     memo?: Record<string, unknown>;
   }[] = [];
@@ -398,7 +408,8 @@ export async function lireLesCircuits(client: Client, racine: string): Promise<C
       ecrit?: unknown;
     };
     const etat = memo.etat ?? null;
-    if (memo.etape === 'integre' || etat?.etape === 'integre') {
+    const integre = memo.etape === 'integre' || etat?.etape === 'integre';
+    if (integre && !integres) {
       continue;
     }
     const q = memo.question ?? null;
@@ -429,6 +440,8 @@ export async function lireLesCircuits(client: Client, racine: string): Promise<C
       reponse,
       run: w.runId,
       numero: memo.numero ?? 0,
+      integre,
+      fin: w.closeTime ? w.closeTime.getTime() : null,
     });
   }
   return out.sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'));

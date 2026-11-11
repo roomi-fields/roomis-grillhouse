@@ -287,7 +287,7 @@ describe('the complete pass', () => {
 describe('grillhouse-44b.5 critère 9 — la mesure des fichiers changés et la pose du vert, seules', () => {
   it('le module publie la mesure, la pose et les variables de la mesure, plus la variable du vert différé', () => {
     expect(Object.keys(derniersVerts).sort()).toEqual(
-      ['CHANGEMENTS', 'DEPUIS_LE_VERT', 'garderLeVert', 'mesure'].sort()
+      ['BASE_DU_LOT', 'CHANGEMENTS', 'DEPUIS_LE_VERT', 'garderLeVert', 'mesure'].sort()
     );
   });
 

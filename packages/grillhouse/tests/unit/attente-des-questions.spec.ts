@@ -4,7 +4,7 @@
 // command that answers it), whatever launched the circuit, and so wakes the session by the end of
 // its task. It reads the circuits from the Temporal server at each step (here a reading injected).
 // A question already gone up never wakes it twice, a question answered leaves the set of those
-// gone up, and the normal end of a circuit never wakes it. Witness: on 2026-11-01, SyntHub's
+// gone up, the supervisor's own stop never wakes it, and an integration wakes it once. Witness: on 2026-11-01, SyntHub's
 // SH-ae6.5.2, SH-ae6.5.6 and SH-br0.1.5, launched by a queue in the background, stopped on a
 // question to the supervisor and waited hours, read by no one.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -176,11 +176,11 @@ describe('the wait of a new question', () => {
     expect(q.map(x => [x.ticket, x.question])).toEqual([['demo-1', 'Q1 ?']]);
   });
 
-  it('grillhouse-4nr.10 critère 1 — the normal end of a circuit never ends the wait', async () => {
+  it("grillhouse-4nr.10 critère 1 — the supervisor's own stop never ends the wait", async () => {
     const s = serveur([circuitLu('demo-1', { etape: 'controles', vivant: true })]);
     const attente = attendre(depot(), s.lire, { ms: 600 });
     await new Promise(r => setTimeout(r, 150));
-    // Its workflow completes on the supervisor's « arrete », or is integrated: no longer read.
+    // Its workflow completes on the supervisor's « arrete », then is no longer read.
     s.circuits = [circuitLu('demo-1', { code: 0, arret: 'arrete' })];
     await new Promise(r => setTimeout(r, 150));
     s.circuits = [];
@@ -278,5 +278,64 @@ describe('the wait of a new question', () => {
       })()
     ).rejects.toThrow(/une attente des questions tourne déjà/i);
     expect(await premiere).toEqual([]);
+  });
+});
+
+// The end of a circuit wakes the supervisor as a question does, by the same wait: a stop goes up as
+// a question; a circuit integrated goes up once, its end after the start of the wait, so that the
+// supervisor launches the next ticket without polling the board.
+describe('the end of a circuit integrated', () => {
+  // The circuit of <ticket> integrated at <fin> (ms).
+  const integre = (ticket: string, fin: number) =>
+    circuitLu(ticket, { etape: 'integre', code: 0, arret: 'arrete', integre: true, fin });
+
+  it('ends the wait, its ticket named as integrated', async () => {
+    const s = serveur([circuitLu('demo-1', { etape: 'controles', vivant: true })]);
+    const attente = attendre(depot(), s.lire, { ms: 5000 });
+    await new Promise(r => setTimeout(r, 150));
+    s.circuits = [integre('demo-1', Date.now())];
+    const q = await attente;
+    expect(q.map(x => [x.ticket, x.integre])).toEqual([['demo-1', true]]);
+    expect(texteDesQuestions(q)).toMatch(/demo-1 est intégré/);
+  });
+
+  it('ended before the start of the wait does not wake it', async () => {
+    const s = serveur([integre('demo-1', Date.now() - 60_000)]);
+    expect(await attendre(depot(), s.lire, { ms: 500 })).toEqual([]);
+  });
+
+  it('wakes the wait once, never presented again', async () => {
+    const s = serveur([circuitLu('demo-1', { etape: 'controles', vivant: true })]);
+    const fin = new AbortController();
+    const minuteur = setTimeout(() => fin.abort(), 1200);
+    const lots: { ticket: string }[][] = [];
+    setTimeout(() => {
+      s.circuits = [integre('demo-1', Date.now())];
+    }, 100);
+    try {
+      for await (const lot of attendreUneQuestion({
+        racine: depot(),
+        fermes: aucun,
+        pas: 50,
+        rappel: 0.001,
+        signal: fin.signal,
+        circuitsDe: s.lire,
+      })) {
+        lots.push(lot);
+      }
+    } finally {
+      clearTimeout(minuteur);
+    }
+    expect(lots.map(l => l.map(x => x.ticket))).toEqual([['demo-1']]);
+  });
+
+  it('asks the reading of the server for the circuits integrated', async () => {
+    const options: unknown[] = [];
+    const lire = (_: string, o?: unknown) => {
+      options.push(o);
+      return Promise.resolve([]);
+    };
+    await attendre(depot(), lire, { ms: 200 });
+    expect(options[0]).toEqual({ integres: true });
   });
 });

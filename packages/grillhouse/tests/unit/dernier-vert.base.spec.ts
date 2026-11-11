@@ -186,3 +186,28 @@ describe('a base that gives the complete pass', () => {
     expect(m.ligne).toMatch(/passe complète : demandée/);
   });
 });
+
+// The circuit measures its passes against the base of its lot, targeted: the changes carry the
+// mark `cible`, by which each package plays the tests related to them, never whole for a file a
+// test reads by its path (./langages/typescript/changements.spec.ts).
+describe('a measure targeted against the base of a lot', () => {
+  it('marks its changes as targeted', () => {
+    const { r, premier } = depot();
+    const m = mesurer(r, { lot: premier });
+    expect(m.fichiers).toEqual(['a.txt']);
+    expect(m.changements).toMatchObject({ cible: true });
+  });
+
+  it('names the base of the lot on its line', () => {
+    const { r, premier } = depot();
+    const { ligne } = mesurer(r, { lot: premier });
+    expect(ligne).toMatch(/^↳ depuis la base du lot /);
+    expect(ligne).toContain(premier.slice(0, 7));
+  });
+
+  it('keeps no green', () => {
+    const { r, premier } = depot();
+    const m = mesurer(r, { lot: premier });
+    expect(m.etat ?? null).toBeNull();
+  });
+});

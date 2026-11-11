@@ -7,9 +7,10 @@
 // the files that differ from the tree of the last green instead, which Vitest's git cannot read
 // (a green kept on a copy whose lot is not committed).
 //
-// - The variable `GRILLHOUSE_CHANGEMENTS` names a JSON file, `{ racine, fichiers, supprimes }`: the
-//   top of the repository, the files changed or added since the last green and the files removed,
-//   each path from the top. It passes through Turborepo without entering any hash (the root's
+// - The variable `GRILLHOUSE_CHANGEMENTS` names a JSON file, `{ racine, fichiers, supprimes, cible }`:
+//   the top of the repository, the files changed or added since the last green and the files
+//   removed, each path from the top, and, for a pass of the circuit measured against the base of
+//   its lot (scripts/dernier-vert.mjs), the mark `cible`. It passes through Turborepo without entering any hash (the root's
 //   `globalPassThroughEnv`, which scripts/langages/typescript/turbo-des-paquets.mjs writes and checks): a package whose
 //   inputs did not move replays its last green from Turborepo's cache, whatever the last green.
 //   The plugin takes it out of the environment once read: no process the tests start receives it.
@@ -46,7 +47,12 @@
 //      `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`, `.json`): data, a template, a
 //      script of the shell, a document, which a test reads without importing it.
 //   Vitest's own `forceRerunTriggers` (a configuration's, or its default) still apply, as with
-//   `--changed`.
+//   `--changed`. Under the mark `cible`, 5 and 7 do not play the package whole, and no test is
+//   related by the paths it reads (`testsQuiLancent`): the tests Vitest relates alone, and the
+//   files named, as `vitest --changed` leaves a file out of its graph to the complete pass, the
+//   CI's of the ticket's branch and the night's. Witness: grillhouse-4nr.21, whose
+//   `scripts/session-start.sh` the reads of 276 of the 282 test files of packages/grillhouse hold
+//   (a test that starts the command reads every script of its table).
 // - Otherwise the tests played are those Vitest relates to the files changed or added (`related`,
 //   absolute), the tests that read one of them by its path, a script they launch or a file they
 //   read, with what it imports and names (`testsQuiLancent`, ./lances.mjs, as Bazel's `data`),
@@ -87,12 +93,18 @@ const sous = (f, dir) => {
   return r === '' || (!r.startsWith('..') && !path.isAbsolute(r));
 };
 
-// The changes the file at <chemin> holds, `{ racine, fichiers, supprimes }`; null when it does not
-// read.
+// The changes the file at <chemin> holds, `{ racine, fichiers, supprimes, cible? }`; null when it
+// does not read.
 export function lireChangements(chemin) {
   const c = lireJson(chemin);
   const liste = l => Array.isArray(l) && l.every(x => typeof x === 'string');
-  if (!c || typeof c.racine !== 'string' || !liste(c.fichiers) || !liste(c.supprimes)) {
+  if (
+    !c ||
+    typeof c.racine !== 'string' ||
+    !liste(c.fichiers) ||
+    !liste(c.supprimes) ||
+    (c.cible !== undefined && typeof c.cible !== 'boolean')
+  ) {
     return null;
   }
   return c;
@@ -213,11 +225,11 @@ function paquetEntier(ch, dossier, test = {}) {
           ? 'la configuration du paquet'
           : preparation.includes(a)
             ? 'un fichier de préparation des tests'
-            : lit.some(l => f === l || f.startsWith(`${l}/`))
+            : !ch.cible && lit.some(l => f === l || f.startsWith(`${l}/`))
               ? 'un chemin que ses tests déclarent lire (grillhouse.lit)'
               : deps.some(d => sous(a, d) && construit(racine, d, a))
                 ? 'le code d’un paquet dont il dépend, que ses tests lisent construit'
-                : sous(a, dossier) && !MODULE.test(f)
+                : !ch.cible && sous(a, dossier) && !MODULE.test(f)
                   ? 'un fichier qu’aucun module n’importe, qu’un test lit sans l’importer'
                   : null;
     if (raison) {
@@ -238,10 +250,10 @@ export function restreindre(test, dossier, ch, nommes, dire) {
     return;
   }
   const changes = ch.fichiers.map(f => path.join(ch.racine, f));
-  const lanceurs = testsQuiLancent(dossier, ch.racine, changes);
+  const lanceurs = ch.cible ? [] : testsQuiLancent(dossier, ch.racine, changes);
   test.related = [...new Set([...changes, ...nommes, ...lanceurs])];
   test.passWithNoTests = true;
   dire(
-    `↳ ${nom} : les tests que Vitest relie aux ${ch.fichiers.length} fichier(s) changé(s) depuis le dernier vert${lanceurs.length ? `, et ${lanceurs.length} test(s) qui en lisent un par son chemin` : ''}.`
+    `↳ ${nom} : les tests que Vitest relie aux ${ch.fichiers.length} fichier(s) changé(s) depuis ${ch.cible ? 'la base du lot' : 'le dernier vert'}${lanceurs.length ? `, et ${lanceurs.length} test(s) qui en lisent un par son chemin` : ''}.`
   );
 }

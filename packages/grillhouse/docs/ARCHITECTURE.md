@@ -42,7 +42,16 @@ ligne de commande, avec ce que ce fichier importe et nomme à son tour, comme le
 cible de Bazel, `vitest-config/lances.mjs`), et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
 configuration, un fichier qu'aucun module n'importe, un fichier, changé ou supprimé, que lit
 la construction d'un paquet dont il dépend, un chemin que ses tests déclarent lire,
-`grillhouse.lit`) ; un seul graphe Turborepo sert tous les langages : un crate ou un projet
+`grillhouse.lit`) ; les passes d'un circuit (preuve, contrôles, passe finale), dans un projet
+dont la CI se lance sur les branches de ticket, se mesurent contre la base de leur lot, le HEAD
+de la copie, que main n'atteint que vert par cette CI (la variable `GRILLHOUSE_BASE_DU_LOT`,
+`mesureDesPasses` de `scripts/activites.mjs`), et ciblées : les seuls tests que Vitest relie au
+lot, comme `vitest --changed` ; un fichier qu'aucun module n'importe et un chemin de
+`grillhouse.lit` ne rejouent ni le paquet entier ni les tests qui les lisent par leur chemin (le
+`scripts/session-start.sh` de grillhouse-4nr.21 est lu par 276 des 282 fichiers de tests du
+paquet, chaque test qui lance la commande lisant tous ses scripts) ; la passe complète va à la CI de la branche du ticket et à la nuit, comme la
+pré-soumission de Google (TAP) ne joue que les tests qu'un changement atteint ; un projet dont la
+CI n'écoute pas ces branches garde la mesure contre le dernier vert ; un seul graphe Turborepo sert tous les langages : un crate ou un projet
 Python a un `package.json` à côté de son manifeste (modèle `multi-language.mdx` de Turborepo),
 et le générateur du `turbo.json` écrit ses entrées de hash selon le langage que déclare
 `docs/ARCHITECTURE.md` (un crate : son dossier, `Cargo.lock`, le `Cargo.toml` racine ; un projet
@@ -671,8 +680,8 @@ rouvre quand aucun état n'est écrit. Les réponses que le client accepte, selo
 déroulé et l'état écrit, ont une seule règle (`lesReponses` de
 `scripts/reponses-du-circuit.mjs`), que le client, l'ouverture, l'attente et le panneau
 reprennent : ils ne proposent que ce qui marche. La question d'un circuit
-réveille le superviseur par la seule attente des questions (ci-dessous), et sa fin normale ne
-réveille personne : le panneau la montre (décision du responsable, grillhouse-pq6).
+réveille le superviseur par la seule attente des questions (ci-dessous), et sa fin aussi : un
+arrêt comme une question, une intégration une fois (grillhouse-44b.15).
 L'ouverture d'une séance de supervision (`packages/grillhouse/scripts/superviseur.mjs`, joué par le
 crochet de démarrage), quand cette ouverture prend le verrou du dépôt (non quand la même séance le
 garde déjà, après un compactage ou un `/clear`), demande de lancer l'attente des questions, puis
@@ -720,7 +729,9 @@ clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : u
 circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, rouge
 passé deux intervalles de re-présentation, et une alerte rouge « à corriger », distincte, quand un
 tel circuit attend alors qu'aucune attente ne vit (son verrou nomme un processus mort ou
-manque). La fin normale d'un circuit ne termine ni ne réveille rien. Le plancher ne dépend pas de cette attente, qui peut mourir sans bruit : le
+manque). L'attente lit aussi les circuits intégrés (`lireLesCircuits` avec `integres`) et rend une
+fois chaque circuit intégré après son départ, sous « Circuit intégré » ; l'arrêt `arrete` du
+superviseur ne réveille rien. Le plancher ne dépend pas de cette attente, qui peut mourir sans bruit : le
 panneau tague « en attente du superviseur » chaque circuit arrêté sur une question du superviseur,
 et le crochet `UserPromptSubmit` du mod (`npx grillhouse attente-au-tour`) nomme, à chaque tour
 d'une séance de supervision, chaque circuit en attente (ticket, question, commande qui répond,

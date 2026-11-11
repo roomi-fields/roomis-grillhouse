@@ -75,13 +75,14 @@ const sansReponse = e =>
 
 /**
  * The circuits of the repository at <racine>, read from the Temporal server of the environment in
- * one call, with their progress (`avecLeurAvancement`) and the page of each one's workflow on the
+ * one call (the integrated ones too when <integres> asks for them, `lireLesCircuits`), with their progress (`avecLeurAvancement`) and the page of each one's workflow on the
  * web UI of the server (`lienDuTableauWeb`). A server that does not answer within
  * DELAI_MS throws `ServeurMuet`, which its caller tells from a repository without circuits and
  * from any other fault, thrown as it is; a client not built throws `ClientNonConstruit`.
  * @param {string} racine
+ * @param {{ integres?: boolean }} [options]
  */
-export async function circuitsDuServeur(racine) {
+export async function circuitsDuServeur(racine, options = {}) {
   if (!existsSync(CONSTRUIT)) {
     throw new ClientNonConstruit();
   }
@@ -91,7 +92,7 @@ export async function circuitsDuServeur(racine) {
   const c = ouvrirLeClient();
   try {
     const lus = await c.client.connection.withDeadline(Date.now() + DELAI_MS, () =>
-      lireLesCircuits(c.client, racine)
+      lireLesCircuits(c.client, racine, options)
     );
     return avecLeurAvancement(racine, lus).map(x => ({
       ...x,

@@ -66,10 +66,14 @@ async function restreint(
   paquet: string,
   fichiers: string[],
   supprimes: string[] = [],
-  nommes: string[] = []
+  nommes: string[] = [],
+  cible = false
 ) {
   const f = path.join(mkdtempSync(path.join(ESSAIS, 'changements-')), 'changements.json');
-  writeFileSync(f, JSON.stringify({ racine, fichiers, supprimes }));
+  writeFileSync(
+    f,
+    JSON.stringify({ racine, fichiers, supprimes, ...(cible ? { cible: true } : {}) })
+  );
   const env: Record<string, string> = { [CHANGEMENTS]: f };
   if (nommes.length) {
     env[VARIABLE] = JSON.stringify({ arguments: nommes.map(n => path.join(racine, n)) });
@@ -167,6 +171,80 @@ describe('a pass measured against the last green, in each package', () => {
     const r = depot();
     const p = await restreint(r, 'a', ['packages/a/src/index.mjs'], [], ['packages/a']);
     expect(p.variables).toEqual([]);
+  });
+});
+
+// The circuit's passes measure against the base of the lot, targeted (`cible`), as `vitest
+// --changed`: the tests Vitest relates to the lot alone, a file out of its graph relating no test
+// by the paths tests read, and the package plays whole only for its configuration, a file removed,
+// or the code of a package it depends on; the CI of the ticket's branch and the night play the rest.
+// Witness: grillhouse-4nr.21, 7 passes of the 4 235 tests of packages/grillhouse for a lot whose
+// tests play in 1 to 10 s, its CHANGELOG and its documents counted as reads of the whole package.
+describe('a measure targeted against the base of a lot, in each package', () => {
+  // The repository of depot(), with a test of `a` that reads its notes by their path, and a
+  // document at the top that `a` declares it reads (`grillhouse.lit`), named by a test.
+  function depotDesLectures() {
+    const r = depot();
+    const ecrire = (f: string, t: string) => {
+      mkdirSync(path.dirname(path.join(r, f)), { recursive: true });
+      writeFileSync(path.join(r, f), t);
+    };
+    ecrire(
+      'packages/a/package.json',
+      json({ name: 'a', type: 'module', grillhouse: { lit: ['docs'] } })
+    );
+    ecrire('docs/guide.md', '# Le guide\n');
+    ecrire(
+      'packages/a/test/trois.test.mjs',
+      "import { readFileSync } from 'node:fs';\nreadFileSync('notes.txt');\n"
+    );
+    ecrire(
+      'packages/a/test/quatre.test.mjs',
+      "import { readFileSync } from 'node:fs';\nreadFileSync('docs/guide.md');\n"
+    );
+    return r;
+  }
+
+  it('a file no module imports plays neither the whole package nor the tests that read it by its path', async () => {
+    const r = depotDesLectures();
+    const p = await restreint(r, 'a', ['packages/a/test/notes.txt'], [], [], true);
+    expect(p.related).toEqual(['packages/a/test/notes.txt']);
+    expect(p.ligne).not.toMatch(/tous ses tests/);
+  });
+
+  it('a path the package declares it reads plays neither the whole package nor the tests that name it', async () => {
+    const r = depotDesLectures();
+    const p = await restreint(r, 'a', ['docs/guide.md'], [], [], true);
+    expect(p.related).toEqual(['docs/guide.md']);
+    expect(p.ligne).not.toMatch(/tous ses tests/);
+  });
+
+  it('the tests Vitest relates to the code still play', async () => {
+    const r = depotDesLectures();
+    const p = await restreint(r, 'a', ['packages/a/src/index.mjs', 'docs/guide.md'], [], [], true);
+    expect(p.related).toEqual(['docs/guide.md', 'packages/a/src/index.mjs']);
+    expect(p.test.passWithNoTests).toBe(true);
+  });
+
+  it('the same changes measured against the last green still play the whole package', async () => {
+    const r = depotDesLectures();
+    const p = await restreint(r, 'a', ['docs/guide.md']);
+    expect(p.test.related).toBeUndefined();
+    expect(p.ligne).toMatch(/tous ses tests, un chemin que ses tests déclarent lire/);
+  });
+
+  it('the configuration of Vitest changed still plays the whole package', async () => {
+    const r = depotDesLectures();
+    const p = await restreint(r, 'a', ['packages/a/vitest.config.mjs'], [], [], true);
+    expect(p.test.related).toBeUndefined();
+    expect(p.ligne).toMatch(/tous ses tests, la configuration du paquet/);
+  });
+
+  it('a file removed still plays the whole package', async () => {
+    const r = depotDesLectures();
+    const p = await restreint(r, 'a', [], ['packages/a/test/notes.txt'], [], true);
+    expect(p.test.related).toBeUndefined();
+    expect(p.ligne).toMatch(/tous ses tests, un fichier supprimé/);
   });
 });
 

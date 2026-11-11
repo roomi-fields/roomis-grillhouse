@@ -88,8 +88,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   `npx grillhouse circuit <ticket>`, que je lance une fois, au premier plan. La commande est la
   cliente du serveur Temporal : elle met le ticket dans la file des tickets du projet et rend la
   main aussitôt (« ▶ <ticket> est dans la file des tickets du projet »), et son circuit tourne sur
-  le serveur, hors de ma séance. Sa question me réveille par l'attente des questions, seule voie,
-  et sa fin normale ne me réveille pas : le panneau la montre. Je ne dis jamais « les circuits
+  le serveur, hors de ma séance. Sa question et sa fin me réveillent par l'attente des questions,
+  seule voie : un arrêt comme une question, son intégration une fois. Je ne dis jamais « les circuits
   continuent » sans que l'attente des questions tourne. Lancé en arrière-plan, son lancement me réveillerait pour rien en rendant la main :
   seule l'attente des questions tourne en arrière-plan. Une file de lancements part d'un coup,
   au premier plan, chaque lancement rendant la main en quelques secondes ; les questions de ses
@@ -186,7 +186,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   une seule à la fois, est la seule voie par laquelle une question me réveille. Elle ne se
   termine pas et reprend l'écoute seule : je ne la relance jamais à la main. Elle imprime un bloc
   à chaque question neuve d'un circuit, lancé seul, dans une file ou par une autre séance ; ce
-  bloc donne, par question, le ticket, l'étape, la question et la commande qui répond. Une
+  bloc donne, par question, le ticket, l'étape, la question et la commande qui répond ; un circuit
+  intégré y vient une fois, sous « Circuit intégré ». Une
   question qu'aucune réponse n'a levée (son circuit est toujours arrêté sur le même arrêt) revient
   sur ce flux toutes les 5 min (`--rappel <minutes>` règle l'intervalle), marquée « toujours sans
   réponse », jusqu'à sa réponse : je la réponds, ou je la porte au responsable. Le tableau montre
@@ -286,8 +287,10 @@ plan, sur un ticket que son plan dit mécanique : il joue la commande du plan da
 place de 2 et de 3 ;
 2 Tests, le `testwriter`, une séance pour tout le ticket, et 2.1 Preuve du rouge, auto, sur tous
 les tests du lot, trois essais au plus ; 3 Code, le `developpeur`, une séance pour tout le ticket,
-et 3.1 Contrôles, auto, sur tout le plan, trois essais au plus ; 4 Passe finale et relecture :
-4.1 Passe finale, auto, trois essais au plus, puis 4.2 Régénération des références, auto : celles
+et 3.1 Contrôles, auto, sur le plan, trois essais au plus ; 4 Passe finale et relecture :
+4.1 Passe finale, auto, trois essais au plus (les contrôles et la passe finale ne jouent que les
+tests que le lot atteint depuis sa base, la passe complète à la CI de la branche du ticket et à la
+nuit ; un projet sans cette CI les mesure contre le dernier vert), puis 4.2 Régénération des références, auto : celles
 que le projet tire de la copie entière (`grillhouse.references` de son `package.json`, chacune
 `{ nom, commande, fichiers, tests, lit, gardes }` : `fichiers`, des chemins, des dossiers ou des
 motifs `*` et `**`, comme les entrées de Turborepo ; `tests`, les fichiers de test qui la jugent ;

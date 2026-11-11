@@ -34,6 +34,14 @@
 //   removes at its end.
 // - `npm test` measures itself against the last green under the circuit's mark,
 //   `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/langages/typescript/tests.mjs, scripts/circuit.mjs); it never keeps one.
+// - The circuit's passes, in a project whose CI runs on a ticket's branch, measure themselves
+//   against the base of their lot (`lot`, the variable `GRILLHOUSE_BASE_DU_LOT` that the circuit
+//   gives to `npm test` and `npm run verifier`): the copy's HEAD, which main reached green by that
+//   CI, as Google's presubmit plays the tests a change affects. Their changes carry the mark
+//   `cible`: each package plays the tests Vitest relates to them, a file out of its graph playing
+//   neither the whole package nor the tests that read it by its path
+//   (scripts/langages/typescript/vitest-config/changements.mjs); the complete pass is the CI's and
+//   the night's. Such a pass keeps no green.
 // - Only the measure of the changed files and the keeping of the green live here: the files go to
 //   `vitest --changed`, and no module of language chooses the packages it plays by the last green
 //   (the tests of a crate or a Python project are tasks of Turborepo, which its cache selects).
@@ -56,6 +64,9 @@ import path from 'node:path';
 // tests of the module of the language reads in each package.
 export const CHANGEMENTS = 'GRILLHOUSE_CHANGEMENTS';
 export const DEPUIS_LE_VERT = 'GRILLHOUSE_DEPUIS_LE_VERT';
+// The variable that gives a pass of the circuit the base of its lot, against which it measures
+// itself, targeted.
+export const BASE_DU_LOT = 'GRILLHOUSE_BASE_DU_LOT';
 const SHA = /^[0-9a-f]{40,64}$/;
 
 const git = (racine, args, env = process.env) =>
@@ -244,10 +255,11 @@ function supprimesDuCommit(racine, commit, arbre) {
 // What a pass in <racine> measures itself against: `{ etat, env, ligne, retirer }`, the state to
 // keep once green (null when none can count), the variables to add to the pass's environment (the
 // changes since the last green, none for a complete pass), the line that says which, and the
-// function that removes the file of the changes. <tout> asks for the complete pass; the file lies
-// in <dans>, the base of the pass (scripts/mesure/base-de-passe.mjs), which a killed pass
-// leaves to the next one to sweep.
-export function mesure(racine, { tout = false, base, dans = os.tmpdir() } = {}) {
+// function that removes the file of the changes. <tout> asks for the complete pass; <base>, a base
+// given (`verifier --base`); <lot>, the base of a lot of the circuit, measured targeted (`cible`),
+// <base> taking precedence; the file lies in <dans>, the base of the pass
+// (scripts/mesure/base-de-passe.mjs), which a killed pass leaves to the next one to sweep.
+export function mesure(racine, { tout = false, base, lot, dans = os.tmpdir() } = {}) {
   const etat = etatDuDepot(racine);
   const complete = raison => ({
     etat: etat.raison ? null : etat,
@@ -261,8 +273,10 @@ export function mesure(racine, { tout = false, base, dans = os.tmpdir() } = {}) 
   if (tout) {
     return complete('demandée');
   }
-  // A base given takes precedence over the last green: the pass keeps no green of its own.
-  const donnee = base === undefined ? null : lireLaBase(etat, base);
+  // A base given, or the base of a lot, takes precedence over the last green: the pass keeps no
+  // green of its own.
+  const cible = base === undefined && Boolean(lot);
+  const donnee = base !== undefined ? lireLaBase(etat, base) : cible ? lireLaBase(etat, lot) : null;
   if (donnee?.raison) {
     return complete(donnee.raison);
   }
@@ -288,15 +302,22 @@ export function mesure(racine, { tout = false, base, dans = os.tmpdir() } = {}) 
   const fichier = path.join(dir, 'changements.json');
   writeFileSync(
     fichier,
-    JSON.stringify({ racine: etat.racine, fichiers: ch.fichiers, supprimes: ch.supprimes })
+    JSON.stringify({
+      racine: etat.racine,
+      fichiers: ch.fichiers,
+      supprimes: ch.supprimes,
+      ...(cible ? { cible: true } : {}),
+    })
   );
   const n = ch.fichiers.length + ch.supprimes.length;
   return {
     etat: donnee ? null : etat,
     env: { [CHANGEMENTS]: fichier },
-    ligne: donnee
-      ? `↳ depuis la base ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`
-      : `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`,
+    ligne: cible
+      ? `↳ depuis la base du lot ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent, la passe complète à la CI de la branche et à la nuit.`
+      : donnee
+        ? `↳ depuis la base ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`
+        : `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`,
     retirer: () => rmSync(dir, { recursive: true, force: true }),
   };
 }

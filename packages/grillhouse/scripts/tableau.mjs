@@ -604,17 +604,19 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
 
 /**
  * Whether the circuit <c>, as scripts/circuits-du-serveur.mjs reads it, waits for the supervisor:
- * not running on its own, and ended without its issue, on a question, or stopped (any stop but the
+ * not running on its own, not integrated, and ended without its issue, on a question, or stopped (any stop but the
  * supervisor's own « arrete », « à repasser » included: the supervisor resumes it once the machine
  * is free). The
  * one rule of the questions that wait for the supervisor (grillhouse-pq6), which the board reads,
  * and `questionsEnAttente` of scripts/superviseur.mjs, the one source of the opening and of the
  * wait of the questions.
- * @param {{ vivant: boolean, interrompu: boolean, question: string | null, arret: string | null }} c
+ * @param {{ vivant: boolean, integre?: boolean, interrompu: boolean, question: string | null, arret: string | null }} c
  * @returns {boolean}
  */
 export const attendLeSuperviseur = c =>
-  !c.vivant && Boolean(c.interrompu || c.question || (c.arret && c.arret !== 'arrete'));
+  !c.vivant &&
+  !c.integre &&
+  Boolean(c.interrompu || c.question || (c.arret && c.arret !== 'arrete'));
 
 /**
  * The key of one stop of the circuit <c>: its ticket, the run of its workflow, the rank of its

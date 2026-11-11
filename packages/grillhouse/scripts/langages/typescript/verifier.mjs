@@ -17,7 +17,10 @@
 //   a package whose inputs did not move replays from Turborepo's cache, the guards play whole,
 //   and so do the builds. The changes reach Vitest in a variable no hash counts
 //   (`GRILLHOUSE_CHANGEMENTS`). Without a last green that counts, the pass is complete. The
-//   line `↳` says which. A pass green, restricted by no filter, keeps its tree as the last green;
+//   line `↳` says which. The final pass of a circuit gives the base of its lot
+//   (`GRILLHOUSE_BASE_DU_LOT`, scripts/dernier-vert.mjs): it measures itself against it, targeted,
+//   the tests Vitest relates to the lot, never the whole package for a file out of its graph; a
+//   `--base` given takes precedence. A pass green, restricted by no filter, keeps its tree as the last green;
 //   a red one keeps the last green as it was. The pass is the one that keeps it, for every language
 //   of the project: it plays the tasks of every package of the graph, a crate's and a Python
 //   project's beside a TypeScript package's (their `test:unit` and `typecheck`, scripts of their
@@ -106,6 +109,7 @@ import {
   AttenteDeLaMachine,
   AVANCEMENT,
   avecLaMachineEtUnePlace,
+  BASE_DU_LOT,
   CHANGEMENTS,
   garderLeTotal,
   garderLeVert,
@@ -330,7 +334,10 @@ function passe({ racine, demandes, env, dire, coeurs }) {
   const lu = lireLesDemandes(demandes);
   const { gardesSeules, sansTests, tranche, tout, base, args } = lu;
   // The measure against the last green, or the base given: a pass without tests needs none.
-  const m = gardesSeules || sansTests ? null : mesure(racine, { tout, base, dans: env.TMPDIR });
+  const m =
+    gardesSeules || sansTests
+      ? null
+      : mesure(racine, { tout, base, lot: env[BASE_DU_LOT], dans: env.TMPDIR });
   if (m) {
     dire(m.ligne);
   }
@@ -373,7 +380,7 @@ function passe({ racine, demandes, env, dire, coeurs }) {
 
 function jouerLaPasse({ racine, demandes, args, tout, ajouts, env, dire, coeurs, taches }) {
   const { gardesSeules, sansTests, tranche } = demandes;
-  const { [TESTS_CIBLES]: _, [CHANGEMENTS]: __, ...propre } = env;
+  const { [TESTS_CIBLES]: _, [CHANGEMENTS]: __, [BASE_DU_LOT]: ___, ...propre } = env;
   // The environment of the run: measured against the last green; the moment of a complete pass,
   // which moves the hash of every task of tests, so that each plays for real; a tranche, with it.
   const cibles = tranche

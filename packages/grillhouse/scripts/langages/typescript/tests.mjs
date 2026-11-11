@@ -66,7 +66,9 @@
 //   does (scripts/dernier-vert.mjs): in a package or a directory named, the tests Vitest relates to
 //   the files changed since it, every test when a change lies out of Vitest's graph; a file named
 //   itself plays, changed or not; `--force` plays them all. Without the mark, every test named
-//   plays.
+//   plays. Given the base of the lot besides (`GRILLHOUSE_BASE_DU_LOT`, in a project whose CI runs
+//   on a ticket's branch), it measures itself against that base, targeted: the tests Vitest
+//   relates to the lot, never the whole package for a file out of its graph.
 // - While the environment names a results directory (`GRILLHOUSE_RESULTATS`,
 //   scripts/resultats.mjs), each run of Turborepo writes its summary (`--summarize`), moved there,
 //   and Vitest its JSON report there: what the circuit reads of a run.
@@ -83,6 +85,7 @@ import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:f
 import path from 'node:path';
 import {
   AVANCEMENT,
+  BASE_DU_LOT,
   CHANGEMENTS,
   DEPUIS_LE_VERT,
   mesure,
@@ -113,7 +116,9 @@ const force = args.includes('--force');
 const options = args.filter(a => a.startsWith('-') && a !== '--force');
 const chemins = args.filter(a => !a.startsWith('-'));
 // Under the circuit's mark, the tests measured against the last green; `--force` plays them all.
-const depuis = process.env[DEPUIS_LE_VERT] ? mesure(racine, { tout: force }) : null;
+const depuis = process.env[DEPUIS_LE_VERT]
+  ? mesure(racine, { tout: force, lot: process.env[BASE_DU_LOT] })
+  : null;
 if (depuis) {
   process.stdout.write(`${depuis.ligne}\n`);
 }
@@ -125,6 +130,7 @@ const turbo = (args, tests) => {
   const env = { ...process.env };
   delete env[TESTS_CIBLES];
   delete env[CHANGEMENTS];
+  delete env[BASE_DU_LOT];
   Object.assign(env, depuis?.env ?? {});
   if (tests) {
     env[TESTS_CIBLES] = JSON.stringify(tests);
