@@ -270,6 +270,8 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
 
 Le détail de ce que la charte commune résume : le circuit que je lance, et ce qu'il me remonte.
 
+La montée de version de l'outil est transparente : le travailleur Temporal resté sur l'ancienne version se dit à l'ouverture de séance sous « Manque », avec son seul geste, `npx grillhouse temporal installer`, que je lance.
+
 Une séance de supervision charge le superviseur (`pitmaster`) ; un projet a un seul superviseur,
 comme Zuul a un seul ordonnanceur : l'ouverture de séance prend le verrou du dépôt, et une seconde
 séance le dit au responsable et ne lance aucun circuit. Les rôles sont des agents du greffon du

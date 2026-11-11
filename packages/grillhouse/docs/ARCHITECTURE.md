@@ -1153,6 +1153,14 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   systemd n'a pas appliquée (un `systemctl` en échec) l'est au passage suivant. Rejouée sur une
   installation à jour et appliquée, l'installation ne change rien : rien ne se télécharge, aucun
   fichier ne s'écrit, systemd n'est pas appelé.
+- **La montée de version est transparente** : quand `grillhouse.outil` change de version, l'unité du
+  travailleur reste sur l'ancienne jusqu'à `npx grillhouse temporal installer`. L'ouverture de séance
+  le détecte (`travailleurPerime`, lue par `grillhouse temporal perime`) : les sommes appliquées
+  (`unites-appliquees.json`) comparées aux textes que `installer` écrirait, calculés par le même code
+  (`textesAttendus`), le travailleur de la version pris dans son dossier du cache des outils, sans
+  rien poser, lancer ni écrire. Un écart, un outil introuvable ou aucun outil déclaré compris, range
+  « le travailleur de Temporal périmé » sous « Manque », avec la seule commande ; sans état appliqué
+  (le déploiement initial), rien ; la copie d'un agent ne le lit pas.
 - **`grillhouse temporal installer --programme-seul`** pose le programme seul, vérifié de même, et
   écrit son chemin sur la sortie standard : aucune unité, aucun `package.json`, aucun `systemctl`.
   La nuit obtient ainsi le programme épinglé (idempotent), par la commande construite de la version

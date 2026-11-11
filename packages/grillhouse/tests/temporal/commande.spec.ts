@@ -57,7 +57,7 @@ describe('a malformed call', () => {
     for (const args of [[], ['demarrer']]) {
       const r = temporal(args);
       expect(r.status, args.join(' ')).toBe(2);
-      expect(r.stderr).toMatch(/Usage : grillhouse temporal <installer\|etat>/);
+      expect(r.stderr).toMatch(/Usage : grillhouse temporal <installer\|etat\|perime>/);
     }
   });
 });

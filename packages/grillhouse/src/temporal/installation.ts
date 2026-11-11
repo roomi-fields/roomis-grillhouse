@@ -275,11 +275,15 @@ const TRAVAILLEUR = 'dist/temporal/travailleur.js';
  * by <outil> (its folder), refused when that version carries none; else its own version of the
  * frame, else this one.
  */
-export function travailleurDe(racine: string, outil: (version: string) => string): string {
+export function travailleurDe(
+  racine: string,
+  outil: (version: string) => string,
+  exiger = true
+): string {
   const version = versionDeLOutil(racine);
   if (version !== null) {
     const f = path.join(outil(version), 'node_modules/@roomi-fields/grillhouse', TRAVAILLEUR);
-    if (!existsSync(f)) {
+    if (exiger && !existsSync(f)) {
       throw new Error(
         `temporal : @roomi-fields/grillhouse@${version}, la version que nomme grillhouse.outil, ne porte pas de travailleur (${TRAVAILLEUR}).`
       );
@@ -471,22 +475,29 @@ function lireLesAppliquees(f: string): Record<string, string> {
   }
 }
 
-/** Installs the account's Temporal at the places <lieux> (see the header). */
-export async function installer({
+/** What `installer` writes, and what the detection compares. */
+interface OptionsDesTextes {
+  lieux: Lieux;
+  epingle?: Epingle;
+  node?: string;
+  trouver?: (nom: string) => string | null;
+  /** The frame's worker of the project, read once the tools are checked. */
+  travailleur: () => string;
+}
+
+/**
+ * The text of each unit `installer` writes for the places <lieux>: the one computation, played by
+ * `installer` and by the detection of a stale worker. Every refusal of the tools (an account's
+ * tool not found, a fault of `grillhouse.outils`) is thrown here, before any writing.
+ */
+function textesAttendus({
   lieux,
-  systemctl,
   epingle = EPINGLE,
-  plateforme = plateformeDe(),
-  obtenir = telecharger,
   node = process.execPath,
-  outil = v => installerLOutil(v, { cache: cacheDesOutils(lieux.maison) }).dossier,
-  travailleur,
   trouver = nom => trouverDansLePath(nom),
-}: OptionsDInstallation): Promise<RapportDInstallation> {
-  const { donnees, appliquees: fichierDesAppliquees } = cheminsDe(lieux, epingle.version);
-  // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
-  // version down in its cache first.
-  const { programme, contenu } = await obtenirLeProgramme({ lieux, epingle, plateforme, obtenir });
+  travailleur,
+}: OptionsDesTextes) {
+  const { programme } = cheminsDe(lieux, epingle.version);
   const executables = langagesDe(lieux.racine).flatMap(m => m.executables);
   const chemin = cheminDesUnites(node, trouver, executables);
   const pkg = JSON.parse(readFileSync(path.join(lieux.racine, 'package.json'), 'utf8')) as {
@@ -512,19 +523,82 @@ export async function installer({
   if (fautes.length) {
     throw new Error(`temporal : ${fautes.join(' ; ')}`);
   }
-  const leTravailleur = travailleur ?? travailleurDe(lieux.racine, outil);
+  const textes = textesDesUnites(lieux, {
+    version: epingle.version,
+    node,
+    travailleur: travailleur(),
+    chemin,
+    outils,
+  });
+  return { programme, textes };
+}
+
+/**
+ * Whether the worker the account runs is stale: the units applied by `installer` (the sums of
+ * unites-appliquees.json) differ from the texts `installer` would write now, for the version
+ * `grillhouse.outil` names (its worker deduced from its folder in the cache of the home, nothing
+ * laid down) or, without the key, for the repository's. Without an applied state, false: the
+ * initial deployment is not a rise. Any error of the computation (a tool not found) is stale, as
+ * `installer` refuses it by its name. It plays nothing and writes nothing.
+ */
+export function travailleurPerime({
+  lieux,
+  epingle = EPINGLE,
+  node,
+  trouver,
+}: {
+  lieux: Lieux;
+  epingle?: Epingle;
+  node?: string;
+  trouver?: (nom: string) => string | null;
+}): boolean {
+  const deja = lireLesAppliquees(cheminsDe(lieux, epingle.version).appliquees);
+  if (Object.keys(deja).length === 0) {
+    return false;
+  }
+  try {
+    const { textes } = textesAttendus({
+      lieux,
+      epingle,
+      node,
+      trouver,
+      travailleur: () =>
+        travailleurDe(lieux.racine, v => path.join(cacheDesOutils(lieux.maison), v), false),
+    });
+    return Object.entries(textes).some(([n, t]) => deja[n] !== sommeDe(t));
+  } catch {
+    return true;
+  }
+}
+
+/** Installs the account's Temporal at the places <lieux> (see the header). */
+export async function installer({
+  lieux,
+  systemctl,
+  epingle = EPINGLE,
+  plateforme = plateformeDe(),
+  obtenir = telecharger,
+  node = process.execPath,
+  outil = v => installerLOutil(v, { cache: cacheDesOutils(lieux.maison) }).dossier,
+  travailleur,
+  trouver = nom => trouverDansLePath(nom),
+}: OptionsDInstallation): Promise<RapportDInstallation> {
+  const { donnees, appliquees: fichierDesAppliquees } = cheminsDe(lieux, epingle.version);
+  // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
+  // version down in its cache first.
+  const { programme, contenu } = await obtenirLeProgramme({ lieux, epingle, plateforme, obtenir });
+  const { textes } = textesAttendus({
+    lieux,
+    epingle,
+    node,
+    trouver,
+    travailleur: () => travailleur ?? travailleurDe(lieux.racine, outil),
+  });
   const pose = contenu !== null;
   if (contenu) {
     poser(contenu, programme);
   }
   mkdirSync(path.dirname(donnees), { recursive: true });
-  const textes = textesDesUnites(lieux, {
-    version: epingle.version,
-    node,
-    travailleur: leTravailleur,
-    chemin,
-    outils,
-  });
   const unites: string[] = [];
   for (const [nom, texte] of Object.entries(textes)) {
     const f = path.join(lieux.unites, nom);

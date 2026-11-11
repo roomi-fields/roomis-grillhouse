@@ -31,6 +31,10 @@
 # for the project at another version than the package @roomi-fields/grillhouse, both released under
 # one version, with the command that aligns the one behind. An agent's copy does not read them.
 #
+# The worker of Temporal on a former version after a rise of `grillhouse.outil` (see below, the
+# detection `grillhouse temporal perime`): joins « Manque » with `npx grillhouse temporal installer`.
+# An agent's copy does not read it.
+#
 # The CI of the ticket branches: a project none of whose workflows runs on a push to `agent/**`
 # (scripts/ci-des-branches.mjs) joins « Manque », with `npx grillhouse maj`, which adds it.
 #
@@ -126,6 +130,14 @@ if [ -z "$copie_agent" ]; then
         ;;
     esac
   done < <(timeout -k 1 8 node "$ici/greffons.mjs" --absents "$root" 2>/dev/null)
+fi
+# The worker of Temporal left on a former version after a rise of `grillhouse.outil`
+# (src/temporal/installation.ts, travailleurPerime, read from dist/): the one command that
+# re-points it joins « Manque ». Nothing without an installation of Temporal on the account; an
+# agent's copy does not read it.
+if [ -z "$copie_agent" ] && [ -f "$ici/../dist/temporal/commande.js" ] && [ -f "$root/package.json" ] \
+  && [ -n "$(timeout -k 1 8 node "$ici/../dist/temporal/commande.js" perime --racine "$root" 2>/dev/null)" ]; then
+  missing+=("le travailleur de Temporal périmé après une montée de version (\`npx grillhouse temporal installer\`)")
 fi
 # The frame's git hooks absent from the folder git reads (scripts/crochets.mjs), each named.
 while IFS= read -r crochet; do

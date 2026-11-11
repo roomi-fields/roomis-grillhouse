@@ -5,6 +5,7 @@
 //   grillhouse temporal installer --programme-seul [--archive <fichier>] [--maison <dossier>]
 //                                                                  lays down the program alone
 //   grillhouse temporal etat [lieux]                                says whether each service runs
+//   grillhouse temporal perime [lieux]                              writes `perime` when the worker is stale
 //
 //   lieux : [--maison <dossier>] [--unites <dossier>] [--racine <dossier>] [--systemctl <programme>]
 //
@@ -19,16 +20,25 @@
 //   pinned program so (`TEMPORAL=$(npx grillhouse temporal installer --programme-seul)`).
 // - `etat` writes the state of each service on the standard output (./etat.ts); exit 0 when
 //   installed, 1 when not.
+// - `perime` reads only (no systemctl, no download, no writing): it writes `perime` on the standard
+//   output when the units applied differ from what `installer` would write (travailleurPerime), and
+//   nothing otherwise; exit 0. The session's start asks it and names `installer` under « Manque ».
 // - The places: the home ($HOME), the directory of the units (<home>/.config/systemd/user), the
 //   project (the working directory), and the program systemctl (`systemctl`), each an option, so
 //   that a test plays under a trial home and never in the account's systemd.
 // - A malformed call writes the usage on the error stream, exit 2.
 import { readFileSync } from 'node:fs';
 import { etat, texteDeLEtat } from './etat.js';
-import { installer, lieuxDe, poserLeProgramme, systemctlDuCompte } from './installation.js';
+import {
+  installer,
+  lieuxDe,
+  poserLeProgramme,
+  systemctlDuCompte,
+  travailleurPerime,
+} from './installation.js';
 
 const USAGE =
-  'Usage : grillhouse temporal <installer|etat> [--programme-seul] [--archive <fichier>] ' +
+  'Usage : grillhouse temporal <installer|etat|perime> [--programme-seul] [--archive <fichier>] ' +
   '[--maison <dossier>] [--unites <dossier>] [--racine <dossier>] [--systemctl <programme>]\n';
 
 const OPTIONS = new Set(['--archive', '--maison', '--unites', '--racine', '--systemctl']);
@@ -36,7 +46,7 @@ const OPTIONS = new Set(['--archive', '--maison', '--unites', '--racine', '--sys
 // The action and the options of <args>, or null for a malformed call.
 function lire(args: string[]) {
   const [action, ...reste] = args;
-  if (action !== 'installer' && action !== 'etat') {
+  if (action !== 'installer' && action !== 'etat' && action !== 'perime') {
     return null;
   }
   const options: Record<string, string> = {};
@@ -74,6 +84,12 @@ async function principal(args: string[]): Promise<number> {
     }
     const { programme } = await poserLeProgramme({ lieux, ...obtenir });
     process.stdout.write(`${programme}\n`);
+    return 0;
+  }
+  if (action === 'perime') {
+    // Reads only: no systemctl, no download, nothing written; the session's start asks it.
+    const perime = travailleurPerime({ lieux });
+    process.stdout.write(perime ? 'perime\n' : '');
     return 0;
   }
   const systemctl = systemctlDuCompte(o.systemctl);
