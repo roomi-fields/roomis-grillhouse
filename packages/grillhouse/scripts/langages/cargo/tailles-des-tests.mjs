@@ -9,7 +9,10 @@
 //   test target cargo describes (`tests/<nom>.rs`, `tests/<dossier>/main.rs`), and each unit test
 //   file under `src/` (a `tests.rs`, a file of a folder `tests/`, `unitaire`). A test target whose
 //   name ends with `_nuit` is a night test, with `_budget` a time budget bench (`horsDuJour`,
-//   ./commandes.mjs); a unit test file is of the day.
+//   ./commandes.mjs); a unit test file is of the day. A target `tests/<dossier>/main.rs` (the
+//   crate's one executable, `tests/it/main.rs`, ./executables-de-tests.mjs) gives each module of
+//   tests it declares as a test file of its own, and its root when it holds a test itself
+//   (`fichiersDeLaCible`): one large module is refused by its name, never the whole executable.
 // - A test is classed by a static reading of its text, of the modules it declares (`mod common;`,
 //   `#[path = "…"] mod x;`), followed from file to file as rustc finds them, and of each crate of
 //   the shared test material (`matiere`) whose name it writes (`ws_essai::`, `use ws_essai`), its
@@ -138,6 +141,57 @@ const rust = dossier =>
         .map(e => path.join(e.parentPath, e.name))
     : [];
 
+// Whether <f> is the root of a test target `tests/<dossier>/main.rs`, whose test files are its
+// modules (`tests/it/main.rs`, ./executables-de-tests.mjs).
+const racineDeDossier = f =>
+  path.basename(f) === 'main.rs' && path.basename(path.dirname(path.dirname(f))) === 'tests';
+
+// An attribute of a test, `#[test]` or `#[<chemin>::test]`.
+const ATTRIBUT_DE_TEST = /#\[\s*(?:\w+\s*::\s*)*test\s*\]/;
+
+// The modules <f> declares, each `{ nom, fichier }`, its file as rustc finds it; none unread.
+const modulesDe = f =>
+  [...(lireLeDisque(f) ?? '').matchAll(MODULE)]
+    .map(m => ({ nom: m[2], fichier: fichierDuModule(f, m[2], m[1], lireLeDisque) }))
+    .filter(m => m.fichier !== null);
+
+// The files of <f> and of the modules it declares, followed from file to file.
+function arbreDe(f, vus = new Set()) {
+  if (!vus.has(f)) {
+    vus.add(f);
+    modulesDe(f).forEach(m => arbreDe(m.fichier, vus));
+  }
+  return [...vus];
+}
+
+/**
+ * The test files of the target rooted at <main> (`tests/<dossier>/main.rs`), each classed apart,
+ * as Cargo's testsuite holds one test file per module: each module it declares that holds a test,
+ * its text and its submodules, reading the other modules of the root, its helpers (`mod common;`),
+ * only when it writes their name (`common::`), as a crate of the shared test material; and the
+ * root when it holds a test of its own, its helpers read, its modules of tests left out.
+ * `[{ abs, masques, appuis }]`: `masques` the files a reading leaves out, `appuis` the helpers as
+ * `classer` takes the material.
+ */
+function fichiersDeLaCible(main) {
+  const modules = modulesDe(main).map(m => ({ ...m, arbre: arbreDe(m.fichier) }));
+  const appuis = modules.map(m => ({ nom: m.nom, fichiers: m.arbre }));
+  const deTests = modules.filter(m =>
+    m.arbre.some(f => ATTRIBUT_DE_TEST.test(lireLeDisque(f) ?? ''))
+  );
+  const racine = ATTRIBUT_DE_TEST.test(lireLeDisque(main) ?? '')
+    ? [{ abs: main, masques: new Set(deTests.flatMap(m => m.arbre)), appuis: [] }]
+    : [];
+  return [
+    ...racine,
+    ...deTests.map(m => ({
+      abs: m.fichier,
+      masques: new Set(),
+      appuis: appuis.filter(a => a.nom !== m.nom),
+    })),
+  ];
+}
+
 /** Each test file of the workspace at <racine> and its size: `[{ fichier, taille, nuit }]`. */
 export function tailles(racine) {
   const tous = crates(racine);
@@ -154,13 +208,21 @@ export function tailles(racine) {
       .map(f => ({ abs: f, nuit: false }));
     const cibles = c.cibles
       .filter(t => t.kind.includes('test'))
-      .map(t => ({ abs: t.src, nuit: horsDuJour(t) !== null }));
-    return [...cibles, ...unitaires];
+      .flatMap(t => {
+        const nuit = horsDuJour(t) !== null;
+        return racineDeDossier(t.src)
+          ? fichiersDeLaCible(t.src).map(m => ({ ...m, nuit }))
+          : [{ abs: t.src, nuit, masques: new Set(), appuis: [] }];
+      });
+    return [...cibles, ...unitaires.map(u => ({ ...u, masques: new Set(), appuis: [] }))];
   });
   return tests
-    .map(({ abs, nuit }) => ({
+    .map(({ abs, nuit, masques, appuis }) => ({
       fichier: path.relative(racine, abs).split(path.sep).join('/'),
-      taille: classer(abs, lireLeDisque, matieres),
+      taille: classer(abs, f => (masques.has(f) ? null : lireLeDisque(f)), [
+        ...matieres,
+        ...appuis,
+      ]),
       nuit,
     }))
     .sort((a, b) => a.fichier.localeCompare(b.fichier, 'en'));

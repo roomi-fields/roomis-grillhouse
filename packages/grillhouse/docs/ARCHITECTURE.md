@@ -825,7 +825,8 @@ jamais ; les grands tests de jour d'un projet s'inscrivent dans sa dette à la m
 apporte la garde (`npx grillhouse maj`, migration 0.25.0), et celles que l'outil lourd fait grandes à la migration
 0.30.0, sans qu'un test se réécrive. Chaque
 module de langage porte la sienne sous la même commande, chacune sa part de la dette : le module
-python lit un test et ses `conftest.py` ; le module cargo lit chaque cible de test et chaque
+python lit un test et ses `conftest.py` ; le module cargo lit chaque cible de test (de
+`tests/it/main.rs`, chaque module de tests à part, ses aides lues quand il les nomme) et chaque
 fichier de tests unitaires d'un crate, les modules qu'il déclare (`mod common;`) et les crates de
 la matière partagée qu'il nomme, un processus étant `std::process`, `assert_cmd`, `duct` ou
 `xshell`, un dépôt d'essai celui de git ou de git2 (`Repository::init`), et un test de nuit ou un

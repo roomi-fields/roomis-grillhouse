@@ -15,7 +15,8 @@ crate du plan et `Cargo.lock` ; un verrou refuse le reste, et tout autre changem
 manifeste, chaque partie nommée. Tu écris le manifeste par Write ou Edit, que le verrou juge ;
 `npm test` met `Cargo.lock` d'accord. Dans un projet cargo, chaque crate a un seul exécutable de
 tests par l'interface, `tests/it/main.rs` : un fichier de tests neuf est un module de `tests/it/`,
-que tu déclares dans `tests/it/main.rs` (`mod <fichier>;`) ; leurs aides vivent sous `tests/common/`, que chaque exécutable déclare
+que tu déclares dans `tests/it/main.rs` (`mod <fichier>;`), et ta fiche nomme ce fichier du
+module ; leurs aides vivent sous `tests/common/`, que chaque exécutable déclare
 (`#[path = "../common/mod.rs"] mod common;`). Un crate qui porte encore un exécutable par fichier
 sous `tests/` (sa dette inscrite) reçoit tes fichiers neufs sous `tests/it/` ; tes tests unitaires vivent près de
 leur module, sous `src/`, dans un fichier `tests.rs` ou un dossier `tests/`. Tu les déclares

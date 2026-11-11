@@ -187,3 +187,69 @@ describe('grillhouse-wbk.1 critère 3 — the debt inscribed passes, a new large
     expect(refus.map(c => c.fichier)).toEqual(['crates/app/tests/neuf.rs']);
   });
 });
+
+describe('each module of tests of tests/it/main.rs is classed apart, never the whole executable', () => {
+  const MAIN = 'mod un;\nmod bout;\nmod par_commun;\n#[path = "../common/mod.rs"]\nmod common;\n';
+  const PAR_CRATE =
+    '#[test]\nfn bout() {\n    crate::common::monter(std::path::Path::new("."));\n}\n';
+  const fichiersRefuses = (r: string) => (verifier(r) as { fichier: string }[]).map(c => c.fichier);
+  const tailleParFichier = (r: string) =>
+    (tailles(r) as { fichier: string; taille: string; nuit: boolean }[]).map(x => [
+      x.fichier,
+      x.taille,
+      x.nuit,
+    ]);
+
+  it('a large module is a finding by its name; a small module, and the root without a test, are not', () => {
+    const r = espace({
+      app: {
+        'tests/it/main.rs': MAIN,
+        'tests/it/un.rs': PETIT,
+        'tests/it/bout.rs': GRAND,
+        'tests/it/par_commun.rs': PETIT,
+        'tests/common/mod.rs': COMMUN,
+      },
+    });
+    expect(fichiersRefuses(r)).toEqual(['crates/app/tests/it/bout.rs']);
+    expect(tailleParFichier(r)).toEqual([
+      ['crates/app/tests/it/bout.rs', 'grand', false],
+      ['crates/app/tests/it/par_commun.rs', 'petit', false],
+      ['crates/app/tests/it/un.rs', 'petit', false],
+    ]);
+  });
+
+  it('a module reads a helper of the root only when it names it', () => {
+    const r = espace({
+      app: {
+        'tests/it/main.rs': MAIN,
+        'tests/it/un.rs': PETIT,
+        'tests/it/bout.rs': PETIT,
+        'tests/it/par_commun.rs': PAR_CRATE,
+        'tests/common/mod.rs': COMMUN,
+      },
+    });
+    expect(fichiersRefuses(r)).toEqual(['crates/app/tests/it/par_commun.rs']);
+  });
+
+  it('a module of a submodule is read with it, and the root’s own test is classed alone', () => {
+    const r = espace({
+      app: {
+        'tests/it/main.rs': `mod un;\n${PETIT}`,
+        'tests/it/un.rs': 'mod sous;\n',
+        'tests/it/un/sous.rs': GRAND,
+      },
+    });
+    expect(tailleParFichier(r)).toEqual([
+      ['crates/app/tests/it/main.rs', 'petit', false],
+      ['crates/app/tests/it/un.rs', 'grand', false],
+    ]);
+  });
+
+  it('the modules of tests/it_nuit/main.rs are night tests, never a finding', () => {
+    const r = espace({
+      app: { 'tests/it_nuit/main.rs': 'mod bout;\n', 'tests/it_nuit/bout.rs': GRAND },
+    });
+    expect(verifier(r)).toEqual([]);
+    expect(tailleParFichier(r)).toEqual([['crates/app/tests/it_nuit/bout.rs', 'grand', true]]);
+  });
+});

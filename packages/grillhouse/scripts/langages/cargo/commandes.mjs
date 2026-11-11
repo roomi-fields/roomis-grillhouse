@@ -47,7 +47,9 @@
 //   `<target>/grillhouse/<crate>-build.log`, the task's `journal` from the root, then to the error
 //   stream. The folder of a crate plays it whole; the source of a test target
 //   (`<crate>/tests/<nom>.rs`) builds and plays that target alone (`--test <nom>`), without the
-//   doctests; the paths of the variable `GRILLHOUSE_TESTS` that lie in the crate replace the folder.
+//   doctests; a module of a target `tests/<dossier>/main.rs` (`tests/it/foo.rs`, the crate's one
+//   executable) builds that target and plays its tests alone, by the filterset of nextest
+//   (`-E 'binary_id(<crate>::it) & test(/^foo::/)'`), as Cargo filters its own testsuite; the paths of the variable `GRILLHOUSE_TESTS` that lie in the crate replace the folder.
 //   A path out of every crate, or in a crate without tests, is refused, named, and nothing plays
 //   (code 2). `--force` changes nothing here: cargo keeps no result of a test to replay. Another
 //   option goes to nextest.
@@ -458,7 +460,7 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
   const bancs = [];
   // The test executables the builds of the run report, removed once its tests played.
   const executables = [];
-  for (const { c, cibles: nommees, jour } of choix) {
+  for (const { c, cibles: nommees, jour, modules = new Map() } of choix) {
     // Targets named beside the day of the crate (`jour`, a unit test of `src/` named): the day
     // builds whole, and plays besides the targets named.
     const cibles = jour && nommees.length === 0 ? [] : nommees;
@@ -493,7 +495,7 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
             ? duC.length
               ? [...duC, ...nommes]
               : []
-            : nommes;
+            : [...nommes, ...filtreDesModules(nom, autres, modules)];
         const args = [...nextest, '-p', nom, ...selection, ...options];
         prevues.push([
           p.prevoir(nom, d, 'nextest', true, args),
@@ -501,7 +503,13 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
         ]);
       }
       if (desBancs.length && indivisible) {
-        const args = [...nextestDuBanc, '-p', nom, ...desBancs.flatMap(n => ['--test', n])];
+        const args = [
+          ...nextestDuBanc,
+          '-p',
+          nom,
+          ...desBancs.flatMap(n => ['--test', n]),
+          ...filtreDesModules(nom, desBancs, modules),
+        ];
         bancs.push({
           nom,
           d,
@@ -563,6 +571,46 @@ function duJour(c) {
 // The refusal of a night test named in a targeted run: the night alone plays it.
 const REFUS_DE_NUIT = 'un test de nuit se joue la nuit seulement (npx grillhouse nuit le joue)';
 
+// The target `tests/<dossier>/main.rs` of the crate <crate> whose module is the file <abs> (out
+// of `tests/common/` and of the target's root), and the module's path in the executable
+// (`tests/it/foo.rs` and `tests/it/foo/mod.rs` → `foo`, `tests/it/foo/sous.rs` → `foo::sous`):
+// `{ cible, module }`, null for any other file.
+function moduleDeCible(crate, abs) {
+  const parts = path.relative(crate.composant.dossier, abs).split(path.sep);
+  if (parts.length < 3 || parts[0] !== 'tests' || parts[1] === 'common' || !abs.endsWith('.rs')) {
+    return null;
+  }
+  const racine = path.join(crate.composant.dossier, 'tests', parts[1], 'main.rs');
+  const cible = crate.cibles.find(t => t.kind.includes('test') && t.src === racine);
+  const module = parts.slice(2);
+  module[module.length - 1] = module[module.length - 1].replace(/\.rs$/, '');
+  if (module.at(-1) === 'mod') {
+    module.pop();
+  }
+  return cible && module.length ? { cible, module: module.join('::') } : null;
+}
+
+// The filterset of nextest that plays, of the targets <noms> of the crate <nom>, the modules
+// <modules> holds (`Map` target → its modules, or null for the whole target), as Cargo's own
+// testsuite filters one executable by module path: `binary_id(<crate>::<cible>) &
+// test(/^<module>::/)`; none when every target plays whole.
+function filtreDesModules(nom, noms, modules) {
+  if (noms.every(n => (modules.get(n) ?? null) === null)) {
+    return [];
+  }
+  const echapper = s => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const parCible = noms.map(n => {
+    const binaire = `binary_id(${nom}::${n})`;
+    const deN = modules.get(n) ?? null;
+    if (deN === null) {
+      return binaire;
+    }
+    const tests = deN.map(m => `test(/^${echapper(m)}::/)`).join(' | ');
+    return `(${binaire} & (${tests}))`;
+  });
+  return ['-E', parCible.join(' | ')];
+}
+
 // The crates the paths <chemins> choose in <racine>: `{ choix }`, or `{ refus }` naming each path
 // refused.
 function choisir(racine, tous, chemins) {
@@ -586,7 +634,9 @@ function choisir(racine, tous, chemins) {
       refus.push(`${chemin} : ${c.nom} n'a aucun test, ni dossier tests/, ni tests.rs sous src/`);
       continue;
     }
-    const cible = crate.cibles.find(t => t.kind.includes('test') && t.src === abs);
+    const propre = crate.cibles.find(t => t.kind.includes('test') && t.src === abs);
+    const duModule = propre ? null : moduleDeCible(crate, abs);
+    const cible = propre ?? duModule?.cible;
     // A night test plays at night alone (`tests-de-nuit`): a targeted run refuses it, named.
     if (cible && horsDuJour(cible) === 'nuit') {
       refus.push(`${chemin} : ${REFUS_DE_NUIT}`);
@@ -594,13 +644,23 @@ function choisir(racine, tous, chemins) {
     }
     const deja = parDossier.get(c.dossier);
     // A file with no target of its own (a unit test of `src/`) asks for the day of its crate; a
-    // target named stays named, whatever the order of the paths.
-    const entree = deja ?? { c: crate, cibles: [], jour: false };
+    // target named stays named, whatever the order of the paths; a module of a target
+    // `tests/<dossier>/main.rs` names its target, its tests alone (`modules`), unless the target
+    // is named whole.
+    const entree = deja ?? { c: crate, cibles: [], jour: false, modules: new Map() };
     parDossier.set(c.dossier, entree);
     if (!cible) {
       entree.jour = true;
-    } else {
+      continue;
+    }
+    if (!entree.cibles.includes(cible.name)) {
       entree.cibles.push(cible.name);
+    }
+    const avant = entree.modules.get(cible.name);
+    if (!duModule || avant === null) {
+      entree.modules.set(cible.name, null);
+    } else {
+      entree.modules.set(cible.name, [...(avant ?? []), duModule.module]);
     }
   }
   if (refus.length) {

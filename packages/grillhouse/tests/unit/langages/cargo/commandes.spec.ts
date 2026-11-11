@@ -1058,6 +1058,81 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
   });
 });
 
+describe('a targeted run of a module of tests/it/ plays that module’s tests alone', () => {
+  const NEXTEST = 'nextest run --no-fail-fast -p seul';
+  let racine = '';
+  beforeAll(() => {
+    const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'it-'))) as { depots: Depots };
+    racine = e.depots.seul;
+    for (const d of ['tests/it/sous', 'tests/it_nuit', 'tests/it_budget']) {
+      mkdirSync(path.join(racine, d), { recursive: true });
+    }
+    const fichiers = {
+      'tests/it/main.rs': 'mod foo;\nmod bar;\n',
+      'tests/it/foo.rs': 'mod sous;\n#[test]\nfn un() {}\n',
+      'tests/it/foo/sous.rs': '#[test]\nfn deux() {}\n',
+      'tests/it/bar/mod.rs': '#[test]\nfn trois() {}\n',
+      'tests/it_nuit/main.rs': 'mod long;\n',
+      'tests/it_nuit/long.rs': '#[test]\nfn long() {}\n',
+      'tests/it_budget/main.rs': 'mod vite;\n',
+      'tests/it_budget/vite.rs': '#[test]\nfn vite() {}\n',
+    };
+    for (const [f, t] of Object.entries(fichiers)) {
+      mkdirSync(path.dirname(path.join(racine, f)), { recursive: true });
+      writeFileSync(path.join(racine, f), t);
+    }
+  });
+
+  it('a module file builds its target and filters nextest by its module path', () => {
+    const r = lancer(racine, 'tester', ['tests/it/foo.rs']);
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toEqual([
+      'test --no-run -p seul --test it',
+      `${NEXTEST} --test it -E (binary_id(seul::it) & (test(/^foo::/)))`,
+    ]);
+  });
+
+  it('a submodule and a mod.rs filter by their own path; several modules of a target join', () => {
+    expect(
+      lancer(racine, 'tester', ['tests/it/foo/sous.rs', 'tests/it/bar/mod.rs']).appels
+    ).toEqual([
+      'test --no-run -p seul --test it',
+      `${NEXTEST} --test it -E (binary_id(seul::it) & (test(/^foo::sous::/) | test(/^bar::/)))`,
+    ]);
+  });
+
+  it('the target named whole, besides one of its modules, plays whole', () => {
+    expect(lancer(racine, 'tester', ['tests/it/foo.rs', 'tests/it/main.rs']).appels).toEqual([
+      'test --no-run -p seul --test it',
+      `${NEXTEST} --test it`,
+    ]);
+  });
+
+  it('a module of tests/it_budget/ plays alone, one test at a time, filtered by its module', () => {
+    const f = path.join(mkdtempSync(path.join(ESSAIS, 'pression-')), 'cpu');
+    writeFileSync(f, 'some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n');
+    const r = lancer(
+      racine,
+      'tester',
+      ['tests/it_budget/vite.rs'],
+      {},
+      {
+        GRILLHOUSE_PRESSION_CPU: f,
+      }
+    );
+    expect(r.appels).toEqual([
+      'test --no-run -p seul --test it_budget',
+      `${NEXTEST} --test it_budget -E (binary_id(seul::it_budget) & (test(/^vite::/))) --test-threads 1`,
+    ]);
+  });
+
+  it('a module of tests/it_nuit/ is refused as a night test, nothing played', () => {
+    const r = lancer(racine, 'tester', ['tests/it_nuit/long.rs']);
+    expect(r.code).toBe(2);
+    expect(r.appels).toEqual([]);
+  });
+});
+
 describe('une copie ne garde pas les exécutables de test de sa passe', () => {
   // The files the fake nextest saw in `<target>/debug/deps` as it started, then the folder after.
   function vus(racine: string, args: string[] = [], codes: object = {}) {
