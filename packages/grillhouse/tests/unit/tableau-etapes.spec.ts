@@ -51,7 +51,6 @@ interface Bloc {
   roles: string[];
   qui: string;
   enCours: { id: string }[];
-  attend: { id: string }[];
 }
 interface Board {
   agents: Bloc[];
@@ -363,18 +362,21 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     ]);
   });
 
-  it('a waiting ticket waits under the step of the role it waits for', () => {
+  it('a ticket in the queue stands at no step, a ticket with a circuit at the step of its circuit', () => {
     const t = plateau([T('demo-41', { status: 'open' }), T('demo-42'), T('demo-43')], {
       registre: [
-        fin('t1', 'demo-42', 'testwriter', '09:00'),
-        fin('t2', 'demo-43', 'testwriter', '09:00'),
-        fin('d2', 'demo-43', 'developpeur', '10:00'),
+        fin('t2', 'demo-42', 'testwriter', '09:00'),
+        fin('d2', 'demo-42', 'developpeur', '10:00'),
       ],
+      circuits: [circuit('demo-43', { etape: 'developpeur' })],
     });
-    expect(etapeDe(t, 'demo-41')).toBe('▾ 2 · Tests · testwriter');
-    expect(etapeDe(t, 'demo-42')).toBe('▾ 3 · Code · développeur');
-    expect(etapeDe(t, 'demo-43')).toBe('  4.3 · Relecture · relecteur');
-    expect(ligneDe(t, 'demo-42').texte).toMatch(/^· 42 {2}Le sujet de demo-42/);
+    for (const id of ['demo-41', 'demo-42']) {
+      expect(
+        agents(t).some(x => x.ticket === id),
+        id
+      ).toBe(false);
+    }
+    expect(etapeDe(t, 'demo-43')).toBe('▾ 3 · Code · développeur');
   });
 
   it('a circuit stopped on a question at no step of the list stands under the line of its question, after the steps', () => {

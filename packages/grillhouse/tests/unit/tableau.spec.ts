@@ -5,7 +5,6 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   assembler,
   dernierBouge,
-  etape,
   fiches,
   lecture,
   lignes as lignesRepliees,
@@ -16,9 +15,8 @@ import {
   LARGEUR,
   SANS_AGENT,
   SILENCE,
-  verdict,
 } from '../../scripts/tableau.mjs';
-import { ligneEnveloppe } from './tableau-essai.js';
+import { circuitLu, ligneEnveloppe } from './tableau-essai.js';
 
 // The board's lines with each folded group unfolded in place: the lines the tests of the tree read.
 const lignes = (t: unknown, nom: string, largeur?: number) => {
@@ -86,7 +84,7 @@ interface Board {
   global: { compteurs: Record<string, number>; jour: object; cumul: object };
   chantiers: Noeud[];
   autres: object[];
-  agents: { enCours: object[]; attend: { numero: string; sujet: string }[] }[];
+  agents: { enCours: { numero: string }[] }[];
   faitsDuJour: object[];
   alertes: { texte: string }[];
 }
@@ -127,70 +125,6 @@ describe('lecture', () => {
       sujet: 'Un titre libre',
       composant: '',
     });
-  });
-});
-
-describe('verdict and etape', () => {
-  const c = (text: string, at: string, author = 'relecteur') => ({ text, author, created_at: at });
-  it("keeps the reviewer's last verdict", () => {
-    expect(
-      verdict([
-        c('RENDU — x', '2026-10-10T10:00:00Z'),
-        c('Passation', '2026-10-10T11:00:00Z'),
-        c('ACCEPTÉ', '2026-10-10T12:00:00Z'),
-      ])
-    ).toEqual({
-      verdict: 'ACCEPTÉ',
-      date: Date.parse('2026-10-10T12:00:00Z'),
-    });
-    expect(verdict([c('Passation', '2026-10-10T11:00:00Z')])).toBeNull();
-  });
-  it("reads a verdict only from the reviewer's comments: another agent's « RENDU » is none", () => {
-    expect(
-      verdict([
-        c('ACCEPTÉ', '2026-10-10T10:00:00Z'),
-        c(
-          'RENDU 000-forms — rien de neuf',
-          '2026-10-10T11:00:00Z',
-          'developpeur packages/000-forms'
-        ),
-      ])
-    ).toEqual({ verdict: 'ACCEPTÉ', date: Date.parse('2026-10-10T10:00:00Z') });
-  });
-  const p = (role: string, fin: string) => ({ role, fin });
-  it('passes a ticket from role to role, the verdict choosing after the review', () => {
-    expect(etape([], null)).toBe('testwriter');
-    expect(etape([p('testwriter', '2026-10-10T10:00:00Z')], null)).toBe('developpeur');
-    expect(
-      etape(
-        [p('testwriter', '2026-10-10T10:00:00Z'), p('developpeur', '2026-10-10T11:00:00Z')],
-        null
-      )
-    ).toBe('relecteur');
-    const relu = [p('developpeur', '2026-10-10T11:00:00Z'), p('relecteur', '2026-10-10T12:00:00Z')];
-    // An accepted lot waits for no agent: the circuit integrates it.
-    expect(
-      etape(relu, { verdict: 'ACCEPTÉ', date: Date.parse('2026-10-10T12:00:00Z') })
-    ).toBeNull();
-    expect(etape(relu, { verdict: 'RENDU', date: Date.parse('2026-10-10T12:00:00Z') })).toBe(
-      'developpeur'
-    );
-  });
-  it('reads only the roles of the flow, a passage under a name or no role skipped', () => {
-    expect(
-      etape(
-        [p('relecteur', '2026-10-10T12:00:00Z'), p('demo-agent-2-liste', '2026-10-10T12:30:00Z')],
-        { verdict: 'RENDU', date: Date.parse('2026-10-10T12:00:00Z') }
-      )
-    ).toBe('developpeur');
-  });
-  it('resumes the role an arbiter interrupted', () => {
-    expect(
-      etape(
-        [p('developpeur', '2026-10-10T11:00:00Z'), p('questionneur', '2026-10-10T11:30:00Z')],
-        null
-      )
-    ).toBe('relecteur');
   });
 });
 
@@ -376,24 +310,13 @@ describe('assembler', () => {
       { id: 'demo-z', numero: 'z', sujet: 'Un autre', faits: 1, total: 1 },
     ]);
   });
-  it('puts each ticket in one place: running at its step, else waiting at the next one', () => {
+  it('puts a ticket on which an agent runs at its step, and a ticket in the queue at none', () => {
     const b = (n: string) => t.agents.find((x: { numero: string }) => x.numero === n)!;
     expect(b('3').enCours).toEqual([
       expect.objectContaining({ numero: 'c.1.1', composant: 'moteur', ligne: true }),
     ]);
     expect(b('2').enCours).toEqual([]);
-    expect(b('3').attend).toEqual([
-      {
-        id: 'demo-c.3',
-        numero: 'c.3',
-        sujet: 'demo-c.3',
-        bloquePar: [],
-        travail: 60_000,
-        jetons: 50,
-      },
-    ]);
-    expect(b('2').attend).toEqual([]);
-    expect(t.agents.flatMap(x => x.attend.map(y => y.numero))).not.toContain('c.4');
+    expect(t.agents.flatMap(x => x.enCours.map(y => y.numero))).toEqual(['c.1.1']);
   });
   it('lists the tickets closed today', () => {
     expect(t.faitsDuJour).toEqual([
@@ -442,12 +365,12 @@ describe('assembler', () => {
     const texte = l.map((x: { texte: string }) => x.texte).join('\n');
     expect(texte).toMatch(/CHANTIER c — Le chantier/);
     expect(texte).toMatch(/\n {2}en cours +1\n {3}c\.1 {2}Une mère +1\/2 · 1 k\n/);
-    // A ticket the agents' blocks show is not drawn again in the chantier's tree, nor counted.
+    // A ticket the agents' blocks show is not drawn again in the chantier's tree, nor counted; a
+    // ticket in the queue stands in the tree alone.
     expect(texte.match(/c\.1\.1 {2}Écrit/g)).toHaveLength(1);
     expect(texte.match(/c\.3 +demo-c\.3/g)).toHaveLength(1);
     expect(texte).toMatch(/\n {2}sans go +1\n {3}c\.2 {2}demo-c\.2\n/);
     expect(texte).toMatch(/\n▾ 3 · Code · développeur\n▶ c\.1\.1 {2}Écrit/);
-    expect(texte).toMatch(/\n▾ 3 · Code · développeur[\s\S]*\n· c\.3 {4}demo-c\.3 +1 min · 50\n/);
     expect(texte).toMatch(
       /\n▸ 1 · Plan · explorateur ⇄ questionneur\n▸ 2 · Tests · testwriter\n▾ 3 · Code · développeur\n/
     );
@@ -545,29 +468,6 @@ describe('assembler', () => {
     const l = dessin(t).map(x => x.texte);
     expect(l).toContain('✓ c.1.2  demo-c.1.2');
   });
-  // Decided by the owner on 2026-10-17 (grill, Q10): the circuit's first agent is the testwriter.
-  it('waits a blocked ticket in the circuit under the testwriter, naming the ticket it waits for', () => {
-    const b = plateau({
-      tous: [
-        T('demo-e', { issue_type: 'epic', status: 'in_progress', title: 'e — Bloqué' }),
-        T('demo-e.1', { parent: 'demo-e' }),
-        T('demo-e.2', {
-          parent: 'demo-e',
-          dependencies: [{ type: 'blocks', depends_on_id: 'demo-e.1' }],
-        }),
-      ],
-      prefix: 'demo',
-      registre: [],
-      vivants: [],
-      maintenant,
-      jour,
-    });
-    expect(b.global.compteurs).toMatchObject({ enAttente: 1, bloques: 1 });
-    const l = dessin(b).map(x => x.texte);
-    const i = l.indexOf('▾ 2 · Tests · testwriter');
-    expect(i).toBeGreaterThan(-1);
-    expect(l[i + 2]).toMatch(/^· e\.2 {2}demo-e\.2 +attend e\.1$/);
-  });
 });
 
 describe('chantiers', () => {
@@ -664,13 +564,14 @@ describe('a ticket in progress with children', () => {
         },
       ],
       vivants: [],
+      circuits: [circuitLu('demo-m')],
       maintenant: Date.parse('2026-10-10T12:00:00Z'),
       jour: Date.parse('2026-10-10T00:00:00Z'),
     });
     const texte = dessin(t)
       .map(x => x.texte)
       .join('\n');
-    expect(texte).toMatch(/\n▾ 3 · Code · développeur\n· m {2}La mère en cours/);
+    expect(texte).toMatch(/\n▾ 3 · Code · développeur\n⏸ m {2}La mère en cours/);
     expect(texte).toMatch(/\n {2}en cours +1\n {3}m\.1 {2}L’enfant en cours/);
   });
 });

@@ -560,8 +560,8 @@ interface Board {
   agents: {
     roles: string[];
     enCours: (Mesure & { id: string })[];
-    attend: (Mesure & { id: string })[];
   }[];
+  parTicket: Record<string, Mesure>;
 }
 const TICKETS = [
   T('demo-c', { issue_type: 'epic', title: 'c — Le chantier — parent' }),
@@ -574,8 +574,7 @@ const plateau = (o: {
   maintenant: number;
   jour: number;
 }): Board => assembler({ tous: TICKETS, prefix: 'demo', vivants: [], ...o }) as Board;
-const ligneTicket = (b: Board, id = 'demo-c.1') =>
-  b.agents.flatMap(x => [...x.enCours, ...x.attend]).find(x => x.id === id);
+const duTicket = (b: Board, id = 'demo-c.1') => b.parTicket[id];
 
 // A sub-agent's transcript, written now (so it counts as running), in a home of its own.
 const avecSousAgent = (id: string, role: string, texte: string) => {
@@ -619,7 +618,7 @@ describe('3uv.41 critère 4 : the register writes the working time, and every ti
     expect(b.global.cumul).toEqual({ travail: 15 * MIN, jetons: 50 });
     expect(b.global.jour).toEqual({ travail: 15 * MIN, jetons: 50 });
     expect(b.chantiers[0]).toMatchObject({ id: 'demo-c', travail: 15 * MIN });
-    expect(ligneTicket(b)).toMatchObject({ travail: 15 * MIN });
+    expect(duTicket(b)).toMatchObject({ travail: 15 * MIN });
   });
 
   it('3uv.41 critère 4 : two agents on a ticket add their sums of turns', () => {
@@ -664,7 +663,7 @@ describe('3uv.41 critère 4 : the register writes the working time, and every ti
       jour: maintenant - 24 * 60 * MIN,
     });
     expect(b.global.cumul.travail).toBe(15 * MIN);
-    expect(ligneTicket(b)).toMatchObject({ travail: 15 * MIN });
+    expect(duTicket(b)).toMatchObject({ travail: 15 * MIN });
   });
 });
 
@@ -736,7 +735,7 @@ describe('3uv.41 critère 5 : the lines already in the register are not rewritte
     });
     expect(b.global.cumul.travail).toBe(185 * MIN);
     expect(b.global.jour.travail).toBe(185 * MIN);
-    expect(ligneTicket(b)).toMatchObject({ travail: 185 * MIN });
+    expect(duTicket(b)).toMatchObject({ travail: 185 * MIN });
   });
 });
 
@@ -939,7 +938,7 @@ describe("the circuit's own steps count in the ticket's working time", () => {
       maintenant: midi,
       jour: minuit,
     });
-    expect(ligneTicket(b)).toMatchObject({ travail: 15 * MIN, jetons: 30 });
+    expect(duTicket(b)).toMatchObject({ travail: 15 * MIN, jetons: 30 });
     expect(parTicket(b)).toEqual({ travail: 15 * MIN, jetons: 30 });
     expect(b.chantiers[0]).toMatchObject({ id: 'demo-c', travail: 15 * MIN, jetons: 30 });
     expect(b.global.jour).toEqual({ travail: 15 * MIN, jetons: 30 });
@@ -1002,7 +1001,7 @@ describe("the circuit's own steps count in the ticket's working time", () => {
     expect(parTicket(avec(false)).travail).toBe(10 * MIN);
   });
 
-  it("a circuit's line is no passage of a role: the ticket waits for the role after its last agent, and no block holds the circuit", () => {
+  it("a circuit's line is no passage of a role: no block holds the circuit nor its ticket", () => {
     const b = plateau({
       registre: [
         seance(at('09:00'), at('09:05')),
@@ -1012,9 +1011,7 @@ describe("the circuit's own steps count in the ticket's working time", () => {
       jour: minuit,
     });
     expect(b.agents.flatMap(x => x.roles)).not.toContain('circuit');
-    const ou = b.agents.filter(x => [...x.enCours, ...x.attend].some(y => y.id === 'demo-c.1'));
-    expect(ou.map(x => x.roles)).toEqual([['developpeur']]);
-    expect(ou[0].enCours).toEqual([]);
+    expect(b.agents.flatMap(x => x.enCours)).toEqual([]);
   });
 
   it("a circuit's line alone is no passage: the claimed ticket keeps its line in its chantier, waiting in no block", () => {
@@ -1023,7 +1020,7 @@ describe("the circuit's own steps count in the ticket's working time", () => {
       maintenant: midi,
       jour: minuit,
     });
-    expect(b.agents.flatMap(x => [...x.enCours, ...x.attend]).map(x => x.id)).toEqual([]);
+    expect(b.agents.flatMap(x => x.enCours).map(x => x.id)).toEqual([]);
     expect(parTicket(b).travail).toBe(10 * MIN);
   });
 });

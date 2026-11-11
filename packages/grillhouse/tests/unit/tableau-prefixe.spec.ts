@@ -7,7 +7,7 @@ import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { rmSync } from 'node:fs';
 import { tableau } from '../../scripts/tableau.mjs';
-import { aucunCircuit } from './tableau-essai.js';
+import { circuitLu } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-prefixe-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -45,11 +45,12 @@ interface Vu {
   lignes: { texte: string; ton?: string }[];
   alertes: { texte: string }[];
 }
+// Each project's server gives the stopped circuit of demo-5, whose line stands in AGENTS.
 const lire = async (racine: string, projets: string[] = []) =>
   (await tableau(racine, {
     home: dossier('home'),
     projets,
-    circuitsDe: aucunCircuit,
+    circuitsDe: () => Promise.resolve([circuitLu('demo-5')]),
   })) as unknown as Vu;
 const echapper = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

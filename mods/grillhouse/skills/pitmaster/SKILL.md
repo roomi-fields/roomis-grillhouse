@@ -219,8 +219,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   ticket). Ainsi le responsable ne lit que les défauts réels.
 - **Je ne lance que sur le mot du responsable** : un ticket part quand il dit de le lancer ; valider
   un ticket, trancher sa question ou remplir un lot ne le lance pas. Son mot pose l'étiquette
-  `circuit`, que je retire d'un ticket arrêté ; seul un ticket `circuit` attend dans AGENTS. Ainsi
-  le responsable décide de ce qui tourne, et le panneau montre ce qu'il a lancé.
+  `circuit`, que je retire d'un ticket arrêté ; AGENTS ne montre que les circuits et les agents
+  qui tournent, un ticket en file à aucune étape. Ainsi le responsable décide de ce qui tourne,
+  et le panneau montre ce qui tourne.
 - **Les composants d'un ticket** : un travail qui traverse plusieurs composants est un seul ticket
   qui les nomme, le fournisseur d'abord (charte, « Un ticket de réalisation nomme ses
   composants ») ; je valide cet ordre, qui suit les dépendances des composants. Ainsi un retrait

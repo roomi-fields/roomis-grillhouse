@@ -1279,7 +1279,7 @@
     },
     "packages/grillhouse/tests/unit/tableau-fin-inscrite.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 46
+        "count": 44
       }
     },
     "packages/grillhouse/tests/unit/tableau-lecture.budget.test.ts": {
@@ -1299,17 +1299,17 @@
     },
     "packages/grillhouse/tests/unit/tableau-repris.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 25
+        "count": 24
       }
     },
     "packages/grillhouse/tests/unit/tableau-sections.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 45
+        "count": 44
       }
     },
     "packages/grillhouse/tests/unit/tableau-sous-agents.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 46
+        "count": 38
       }
     },
     "packages/grillhouse/tests/unit/tableau-verrou.spec.ts": {

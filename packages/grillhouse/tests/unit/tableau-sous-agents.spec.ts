@@ -1,7 +1,7 @@
 // The sub-agents on the board (grillhouse-3uv.49; the lead role is the questionneur since
 // grillhouse-3uv.95.4 removed the regulator): a role running on a ticket stands in its block with its
-// time and tokens, the agents it launches are tied to their ticket and role as the supervisor's are,
-// and a ticket it leads waits for no role of the flow. A sub-agent, whatever its role, runs when its
+// time and tokens, and the agents it launches are tied to their ticket and role as the supervisor's
+// are. A sub-agent, whatever its role, runs when its
 // transcript moved in the last 2 minutes, or while its last tool call awaits its answer, its
 // transcript moved in the last 30 minutes and no end in the register follows its last incoming
 // message; a session keeps the 2-minute rule alone. The board reads no transcript older than 30
@@ -9,16 +9,10 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { ligne as ligneDuRegistre } from '../../scripts/registre.mjs';
-import {
-  assembler,
-  lignes,
-  lireTranscription,
-  lireVivant,
-  tableau,
-} from '../../scripts/tableau.mjs';
-import { aucunCircuit, ligneEnveloppe } from './tableau-essai.js';
+import { assembler, lignes, lireTranscription, lireVivant } from '../../scripts/tableau.mjs';
+import { ligneEnveloppe } from './tableau-essai.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-sous-agents-'));
@@ -133,7 +127,6 @@ interface Bloc {
   qui: string;
   roles: string[];
   enCours: Entree[];
-  attend: { id: string }[];
 }
 interface Board {
   agents: Bloc[];
@@ -157,18 +150,12 @@ const vivant = (agent: string, ticket: string, role: string, jetons = 40, o: obj
   tours: [[MAINTENANT - 20 * MIN, MAINTENANT]],
   ...o,
 });
-const plateau = (
-  tous: object[],
-  registre: object[],
-  enVie: object[],
-  o: { verdicts?: object } = {}
-): Board =>
+const plateau = (tous: object[], registre: object[], enVie: object[]): Board =>
   assembler({
     tous,
     prefix: 'demo',
     registre,
     vivants: enVie,
-    verdicts: o.verdicts ?? {},
     maintenant: MAINTENANT,
     jour: MAINTENANT - 24 * 60 * MIN,
   }) as Board;
@@ -186,7 +173,6 @@ const plateauVivant = (home: string, tous: object[], registre: object[] = [], ps
 };
 const bloc = (t: Board, role: string) => t.agents.find(b => b.roles.includes(role));
 const enCours = (t: Board, role: string) => (bloc(t, role)?.enCours ?? []).map(x => x.id);
-const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 // The lines of AGENTS: the lines of section agents from the blank line above its title, the head
 // above it left out.
 const agentsTextes = (t: Board) => {
@@ -280,24 +266,11 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
       [fin('t1', 'demo-9', 'testwriter', '09:00')],
       [vivant('c0', 'demo-9', MENEUR)]
     );
-    expect(attentes(t)).not.toContain('demo-9');
-    expect(enCours(t, MENEUR)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 3 : after an accepted review, the ticket waits for no role while its manager runs', () => {
-    const t = plateau(
-      [T('demo-9')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('d1', 'demo-9', 'developpeur', '10:00')],
-      [vivant('c0', 'demo-9', MENEUR)],
-      { verdicts: { 'demo-9': { verdict: 'ACCEPTÉ', date: Date.parse(at('10:30')) } } }
-    );
-    expect(attentes(t)).not.toContain('demo-9');
     expect(enCours(t, MENEUR)).toEqual(['demo-9']);
   });
 
   it('3uv.49 critère 3 : an open ticket with no passage does not wait for the testwriter while its manager runs', () => {
     const t = plateau([T('demo-9', { status: 'open' })], [], [vivant('c0', 'demo-9', MENEUR)]);
-    expect(attentes(t)).not.toContain('demo-9');
     expect(enCours(t, MENEUR)).toEqual(['demo-9']);
   });
 
@@ -307,18 +280,8 @@ describe('3uv.49 critère 3 : a ticket a running manager leads waits for no role
       [],
       [vivant('c0', 'demo-9', MENEUR), vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true })]
     );
-    expect(attentes(t)).not.toContain('demo-9');
     expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
     expect(enCours(t, MENEUR)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 3 : a ticket without a manager still waits for the next role of the flow', () => {
-    const t = plateau(
-      [T('demo-9'), T('demo-10')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('t2', 'demo-10', 'testwriter', '09:00')],
-      [vivant('c0', 'demo-9', MENEUR)]
-    );
-    expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-10']);
   });
 });
 
@@ -365,9 +328,9 @@ function ligneFinie(home: string, id: string, session = 'sess') {
 // A manager's id as the tool writes it, and the parent id its sub-agents carry.
 const ID_MENEUR = 'ademo-9-agent-0-4f3ac190df511767';
 
-// Decided by the owner on 2026-10-17 (grill, Q10): a ticket a manager led waits under no block of
+// Decided by the owner on 2026-10-17 (grill, Q10): a ticket a manager led stands under no block of
 // its own.
-describe('a ticket a manager led: its running agents hold it, and it waits as any other', () => {
+describe('a ticket a manager led: its running agents hold it', () => {
   it('a testwriter running on the led ticket holds it in progress, waiting nowhere', () => {
     const t = plateau(
       [T('demo-9')],
@@ -375,7 +338,6 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
       [vivant('s1', 'demo-9', 'testwriter', 10, { ligne: true })]
     );
     expect(enCours(t, 'testwriter')).toEqual(['demo-9']);
-    expect(attentes(t)).toEqual([]);
   });
 
   it('a manager resumed by a message after its end stands in progress, not waiting', () => {
@@ -385,34 +347,6 @@ describe('a ticket a manager led: its running agents hold it, and it waits as an
       [vivant('c0', 'demo-9', MENEUR, 40, { entre: Date.parse(at('11:00')) })]
     );
     expect(enCours(t, MENEUR)).toEqual(['demo-9']);
-    expect(attentes(t)).toEqual([]);
-  });
-
-  it('after its manager and its testwriter finished, the led ticket waits for the developer, not under 0', () => {
-    const t = plateau(
-      [T('demo-9')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', MENEUR, '11:00')],
-      []
-    );
-    expect(bloc(t, MENEUR)!.attend).toEqual([]);
-    expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
-  });
-
-  it('a closed, deferred or to-validate ticket a manager led waits nowhere', () => {
-    const t = plateau(
-      [
-        T('demo-9', { status: 'closed', closed_at: at('11:30') }),
-        T('demo-10', { status: 'deferred' }),
-        T('demo-11', { labels: ['a-valider'] }),
-      ],
-      [
-        fin('c0', 'demo-9', MENEUR, '11:00'),
-        fin('c1', 'demo-10', MENEUR, '11:00'),
-        fin('c2', 'demo-11', MENEUR, '11:00'),
-      ],
-      []
-    );
-    expect(attentes(t)).toEqual([]);
   });
 });
 
@@ -433,99 +367,13 @@ describe('the block of 1 names the explorateur and the questionneur', () => {
   });
 });
 
-// A repository whose Beads answers from files: a fake `bd` on the PATH (its tickets, and the
-// comments of `demo-9`), its package.json, the register in a file.
-const depotFactice = (tickets: object[], commentaires: object[], registre: object[]) => {
-  const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
-  const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-  writeFileSync(path.join(bin, 'tous.json'), JSON.stringify(tickets));
-  writeFileSync(path.join(bin, 'commentaires.json'), JSON.stringify(commentaires));
-  writeFileSync(
-    path.join(bin, 'bd'),
-    `#!/bin/sh\ncase "$1" in\n  config) echo demo ;;\n  list) cat '${bin}/tous.json' ;;\n  comments) cat '${bin}/commentaires.json' ;;\n  *) echo '[]' ;;\nesac\n`,
-    { mode: 0o755 }
-  );
-  writeFileSync(path.join(racine, 'package.json'), l({ name: 'demo' }));
-  const fichier = path.join(bin, 'registre.jsonl');
-  writeFileSync(fichier, registre.map(r => l({ ...r, projet: racine })).join('\n') + '\n');
-  vi.stubEnv('PATH', `${bin}:${process.env.PATH}`);
-  vi.stubEnv('GRILLHOUSE_REGISTRE', fichier);
-  return racine;
-};
-
-describe("3uv.49 critère 9 : a manager's passage leaves the ticket to the flow", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("3uv.49 critère 9 : a manager's finished passage leaves the ticket to the next role of the flow", () => {
-    const t = plateau(
-      [T('demo-9')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00'), fin('c0', 'demo-9', MENEUR, '11:00')],
-      []
-    );
-    expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
-  });
-
-  it('3uv.49 critère 9 : a review accepted then a manager finished last, the board reads the verdict: the ticket waits for no agent, the circuit integrates it', async () => {
-    const racine = depotFactice(
-      [T('demo-9')],
-      [
-        {
-          id: 1,
-          issue_id: 'demo-9',
-          author: 'relecteur',
-          text: 'ACCEPTÉ — le lot',
-          created_at: at('10:45'),
-        },
-      ],
-      [
-        fin('t1', 'demo-9', 'testwriter', '09:00'),
-        fin('d1', 'demo-9', 'developpeur', '10:00'),
-        fin('r1', 'demo-9', 'relecteur', '10:40'),
-        fin('c0', 'demo-9', MENEUR, '11:00'),
-      ]
-    );
-    const t = (await tableau(racine, {
-      home: nouveauHome(),
-      circuitsDe: aucunCircuit,
-    })) as unknown as Board;
-    expect(t.agents.flatMap(b => b.attend.map(x => x.id))).toEqual([]);
-  });
-});
-
-// A ticket open and blocked by another open ticket (Beads' « blocks » dependency).
-const bloque = (id: string, par: string, o: object = {}) =>
-  T(id, { status: 'open', dependencies: [{ type: 'blocks', depends_on_id: par }], ...o });
-
-describe('3uv.49 critère 10 : a blocked ticket in the circuit waits for the next role of the flow', () => {
-  // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testwriter.
-  it('a blocked ticket in the circuit without any passage waits for the testwriter, the circuit launching it first', () => {
-    const t = plateau([bloque('demo-9', 'demo-8'), T('demo-8')], [], []);
-    expect(bloc(t, 'testwriter')!.attend.map(x => x.id)).toContain('demo-9');
-    expect(bloc(t, MENEUR)!.attend.map(x => x.id)).not.toContain('demo-9');
-  });
-
-  it('3uv.49 critère 10 : a blocked ticket no manager led still waits for the next role of the flow', () => {
-    const t = plateau(
-      [bloque('demo-9', 'demo-8'), T('demo-8')],
-      [fin('t1', 'demo-9', 'testwriter', '09:00')],
-      []
-    );
-    expect(bloc(t, 'developpeur')!.attend.map(x => x.id)).toEqual(['demo-9']);
-    expect(bloc(t, MENEUR)!.attend).toEqual([]);
-  });
-});
-
 describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progress', () => {
-  it('3uv.49 critère 11 : an Explore running on a led ticket leaves it waiting for the testwriter', () => {
+  it('an Explore running on a led ticket puts it in progress nowhere', () => {
     const t = plateau(
       [T('demo-9')],
       [fin('c0', 'demo-9', MENEUR, '09:00')],
       [vivant('e1', 'demo-9', 'Explore', 30)]
     );
-    expect(bloc(t, 'testwriter')!.attend.map(x => x.id)).toEqual(['demo-9']);
     expect(t.agents.flatMap(b => b.enCours)).toEqual([]);
   });
 
@@ -536,7 +384,6 @@ describe('3uv.49 critère 11 : only an agent of a block puts a ticket in progres
       [vivant('r1', 'demo-9', 'relecteur', 30)]
     );
     expect(enCours(t, 'relecteur')).toEqual(['demo-9']);
-    expect(attentes(t)).toEqual([]);
   });
 });
 

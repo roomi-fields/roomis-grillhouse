@@ -14,10 +14,9 @@
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts.
 // - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
-//   sub-step, with who works there, for the whole project. A ticket stands at the step of every
-//   agent that runs on it, or waits in one place: at the step of the next role, deduced from the
-//   roles of the flow that ran on it and the reviewer's last verdict (`ACCEPTÉ` or `RENDU` at the
-//   start of a comment).
+//   sub-step, with who works there, for the whole project. A ticket stands at a step only by its
+//   circuit (below) or by an agent that runs on it, at that agent's step; a ticket in the queue,
+//   with neither, stands at no step.
 // - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
 //   from the Temporal server in one call (scripts/circuits-du-serveur.mjs, the memo of its
 //   workflow): it runs while its workflow runs with no question awaited, and stands at the step of
@@ -28,8 +27,7 @@
 //   « arrete », or ended without its issue), it stands under the stopped
 //   step after a line « ⤷ Question · <qui> », who must answer it, the supervisor or the owner, the
 //   supervisor when it names no question; its card opens on that question, or on the stop
-//   (its name and code) and the first line of its reason. A ticket with a circuit waits in no
-//   block.
+//   (its name and code) and the first line of its reason.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
 //   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures: wall time, share lost,
 //   sessions, cost.
@@ -105,7 +103,6 @@ import {
   etapeDuCircuit,
   etapeDuRole,
   libelle,
-  QUESTIONNEUR,
   quiDe,
   roleDeLAgent,
   SUITE,
@@ -113,7 +110,6 @@ import {
 } from './etapes.mjs';
 import { echecDeLOutil } from './aiguillage.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
-import { verdictDe } from './integration/verdict.mjs';
 import { lireLaMesure } from './avancement.mjs';
 import { SANS_REPONSE_EN, ServeurMuet, circuitsDuServeur } from './circuits-du-serveur.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
@@ -682,44 +678,6 @@ export function attenteVivante(racine) {
 // The minutes between two presentations of a question not answered, by default.
 export const RAPPEL_PAR_DEFAUT = 5;
 
-// The reviewer's last verdict among a ticket's comments (verdictDe: a comment of the reviewer's
-// author), or null.
-export function verdict(commentaires) {
-  let v = null;
-  for (const c of [...commentaires].sort(
-    (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)
-  )) {
-    const lu = verdictDe(c);
-    if (lu) {
-      v = { verdict: lu, date: Date.parse(c.created_at) };
-    }
-  }
-  return v;
-}
-
-// The role a ticket waits for, from the roles of the flow that ran on it (finished, oldest first)
-// and the reviewer's last verdict; null when it waits for none: an accepted lot waits for no
-// agent, the circuit integrates it (scripts/circuit.mjs).
-export function etape(passages, v) {
-  const faits = passages.filter(p => etapeDuRole(p.role) && p.role !== QUESTIONNEUR);
-  const dernier = faits[faits.length - 1];
-  if (!dernier) {
-    return 'testwriter';
-  }
-  const fin = Date.parse(dernier.fin);
-  const jugé = v && v.date >= fin ? v.verdict : null;
-  if (dernier.role === 'testwriter') {
-    return 'developpeur';
-  }
-  if (dernier.role === 'developpeur') {
-    return jugé === 'ACCEPTÉ' ? null : jugé === 'RENDU' ? 'developpeur' : 'relecteur';
-  }
-  if (dernier.role === 'relecteur') {
-    return v?.verdict === 'ACCEPTÉ' ? null : 'developpeur';
-  }
-  return null;
-}
-
 // A ticket's number, subject and component: its title « number — subject — component » when
 // the number ends its id, else its id without the prefix and its whole title.
 export function lecture(t, prefix) {
@@ -758,7 +716,7 @@ export function lecture(t, prefix) {
  * other fault of that reading, said in the first alert as it is; `echecPrefixe`, the cause of a
  * ticket prefix that did not read, named in an alert.
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
- *   verdicts?: Record<string, any>, maintenant: number, jour: number,
+ *   maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, charge: number, coeurs: number, memoireGo: number,
  *   attentes: { ticket: string, depuis: number }[] } | null, muet?: boolean, faute?: string | null,
@@ -770,7 +728,6 @@ export function assembler({
   registre: lignesDuRegistre,
   vivants,
   circuits = [],
-  verdicts = {},
   maintenant,
   jour,
   machine = null,
@@ -1035,12 +992,6 @@ export function assembler({
   const etats = etatsDe(duChantier);
 
   // Agents.
-  const passages = new Map();
-  for (const r of [...registre].sort((a, b) => Date.parse(a.fin) - Date.parse(b.fin))) {
-    if (r.ticket) {
-      (passages.get(r.ticket) ?? passages.set(r.ticket, []).get(r.ticket)).push(r);
-    }
-  }
   // One block per step and sub-step, in the order of the steps, with who works there.
   const blocs = SUITE.map(e => ({
     numero: e.numero,
@@ -1048,20 +999,17 @@ export function assembler({
     roles: e.qui.filter(r => r !== AUTO),
     qui: quiDe(e),
     enCours: [],
-    attend: [],
   }));
   const bloc = role => {
     const e = etapeDuRole(role);
     return e ? blocs.find(b => b.numero === e.numero) : undefined;
   };
-  const places = new Set();
   // One line per ticket: a ticket on which a role agent runs stands at its step.
   for (const v of enCoursMesures) {
     const t = v.ticket && parId.get(v.ticket);
     if (!t || !bloc(v.role)) {
       continue;
     }
-    places.add(t.id);
     bloc(v.role).enCours.push({
       id: t.id,
       numero: numero(t.id),
@@ -1072,36 +1020,6 @@ export function assembler({
       silence: v.silence ?? null,
       ...mesure(new Set([t.id])),
     });
-  }
-  // A ticket waits in AGENTS only with the owner's go (`circuit`): ready, blocked, or claimed with
-  // nothing running; a ticket without it stands in CHANTIER alone; a ticket with a circuit, running
-  // or stopped, stands in its circuit's entry, never waiting. The flow's deduction places the
-  // others, and a ticket no agent took yet waits for the testwriter, the circuit's first agent.
-  for (const t of [...tous].sort(ordre)) {
-    if (
-      !travail(t) ||
-      places.has(t.id) ||
-      parCircuit.has(t.id) ||
-      ['fermes', 'reportes', 'aValider', 'sansGo'].includes(etat(t)) ||
-      !circuit(t)
-    ) {
-      continue;
-    }
-    const p = passages.get(t.id) ?? [];
-    // Claimed without any passage, the ticket keeps its line in its chantier.
-    if (p.length === 0 && t.status === 'in_progress') {
-      continue;
-    }
-    const r = etape(p, verdicts[t.id] ?? null);
-    if (r && bloc(r)) {
-      bloc(r).attend.push({
-        id: t.id,
-        numero: numero(t.id),
-        sujet: titre(t).sujet,
-        bloquePar: bloquePar(t),
-        ...mesure(new Set([t.id])),
-      });
-    }
   }
   const debutJour = jour;
   const faitsDuJour = tous
@@ -1543,11 +1461,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         titre: e.titre,
         qui: quiDe(e),
         enCours: [],
-        attend: [],
       })
       .get(e.numero);
   // The block of the circuits at no step of the list, after the steps.
-  const ailleurs = { numero: null, titre: '', qui: '', enCours: [], attend: [] };
+  const ailleurs = { numero: null, titre: '', qui: '', enCours: [] };
   const etapeDe = c => etapeDuCircuit({ ...c, raison: c.arret });
   // A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
   // its question, the supervisor when its stop names no one.
@@ -1556,9 +1473,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const e = etapeDe(c);
     return e ? blocDe(e) : !c.vivant ? ailleurs : undefined;
   };
-  const montres = t.agents.flatMap(b =>
-    [...b.enCours, ...b.attend].filter(x => !enCircuit.has(x.id))
-  );
+  const montres = t.agents.flatMap(b => b.enCours.filter(x => !enCircuit.has(x.id)));
   // A ticket's number, or on several projects' board its whole id, in one column.
   const nomme = x => String(plusieurs ? x.id : x.numero);
   const colonne = Math.max(0, ...[...(t.circuits ?? []), ...montres].map(x => nomme(x).length));
@@ -1612,21 +1527,19 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       .map(qui => [qui, tous.filter(c => enQuestion(c) === qui)])
       .filter(([, l]) => l.length);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
-    const attend = b.attend.filter(x => !enCircuit.has(x.id));
     return {
       circuits,
       enQuestions,
       enCours,
-      attend,
-      vide: !tous.length && !enCours.length && !attend.length,
+      vide: !tous.length && !enCours.length,
     };
   };
   const contenus = new Map([...SUITE.map(blocDe), ailleurs].map(b => [b, contenu(b)]));
-  // The tickets of the block <b>: its circuits without a question, its agents, its waits, then
+  // The tickets of the block <b>: its circuits without a question, its agents, then
   // for each one who must answer, the line « ⤷ Question · <qui> », indented by <retrait>, and its
   // circuits.
   const tickets = (b, retrait) => {
-    const { circuits, enQuestions, enCours, attend } = contenus.get(b);
+    const { circuits, enQuestions, enCours } = contenus.get(b);
     for (const c of circuits) {
       ligneDuCircuit(c);
     }
@@ -1637,19 +1550,6 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         x.id
       );
     }
-    const attente = x => ({
-      texte: cadre(
-        `${teteDe('·', x)}${x.sujet}`,
-        droiteDe(
-          '·',
-          x.bloquePar?.length ? `attend ${x.bloquePar.join(', ')}` : conso(x.travail, x.jetons)
-        ),
-        largeur
-      ),
-      ton: 'discret',
-      ticket: x.id,
-    });
-    poser(...attend.map(attente));
     for (const [qui, l] of enQuestions) {
       L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), 'titre');
       for (const c of l) {
@@ -1692,7 +1592,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The tickets the agents' blocks show: the chantier's tree does not show them a second time.
   const dansAgents = new Set([
     ...(t.circuits ?? []).map(c => c.id),
-    ...t.agents.flatMap(b => [...b.enCours, ...b.attend].map(x => x.id)),
+    ...t.agents.flatMap(b => b.enCours.map(x => x.id)),
   ]);
   for (const ch of t.chantiers) {
     L('', undefined);
@@ -2081,23 +1981,6 @@ function lire(
     ? lireRegistre(readFileSync(fichierRegistre, 'utf8'), racine)
     : [];
   const tous = bdJson(racine, 'list', '--all', '--limit', '0');
-  // The reviewer's verdict matters once a developer or a reviewer ran: only those tickets are read.
-  const dernier = {};
-  for (const r of [...registre].sort((x, y) => Date.parse(x.fin) - Date.parse(y.fin))) {
-    if (r.ticket && r.role !== QUESTIONNEUR && r.role !== ROLE_DU_CIRCUIT) {
-      dernier[r.ticket] = r.role;
-    }
-  }
-  const verdicts = {};
-  for (const t of tous) {
-    if (t.status === 'closed' || !['developpeur', 'relecteur'].includes(dernier[t.id])) {
-      continue;
-    }
-    const v = verdict(bdJson(racine, 'comments', t.id));
-    if (v) {
-      verdicts[t.id] = v;
-    }
-  }
   const commun = dossierCommun(racine);
   const fichierCache = commun && path.join(commun, 'tableau-cache.json');
   let cache = {};
@@ -2130,7 +2013,6 @@ function lire(
     registre,
     vivants,
     circuits,
-    verdicts,
     maintenant,
     jour: lireLeRepere(commun, maintenant),
     machine,
@@ -2183,7 +2065,7 @@ export function ensemble(lus) {
         lisibles.flatMap(l =>
           (l.t.agents.find(x => x.numero === b.numero)?.[cle] ?? []).map(marquer(l.etiquette))
         );
-      return { ...b, enCours: de('enCours'), attend: de('attend') };
+      return { ...b, enCours: de('enCours') };
     }),
     maintenant: premier.t.maintenant,
     machine: premier.t.machine,

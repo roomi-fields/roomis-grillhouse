@@ -1,8 +1,8 @@
 // The board shows the open work: a closed ticket leaves the chantier's tree, mother included, and
 // stays counted in the « faits » of the head and of the chantier; the tickets closed today go to
 // FAITS AUJOURD'HUI. Each line of the board carries its section (agents, chantier, faits), which
-// a reader takes instead of guessing it from the text (grillhouse-3uv.42). A ticket waits in
-// AGENTS only once the owner launched it (label `circuit`); one never launched stands in CHANTIER.
+// a reader takes instead of guessing it from the text (grillhouse-3uv.42). A ticket stands in
+// AGENTS only by its circuit or an agent that runs on it; any other stands in CHANTIER.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -91,7 +91,7 @@ const TOUS = [
   T('demo-z.1', { parent: 'demo-z', ...ferme(AVANT) }),
 ];
 const FERMES = TOUS.filter(t => t.status === 'closed').map(t => t.id);
-// A testwriter finished on e.1.4: it waits for the developer, in the agents' blocks.
+// A testwriter finished on e.1.4, with nothing running on it: it stands in CHANTIER.
 const REGISTRE = [
   {
     agent: 'r1',
@@ -273,11 +273,9 @@ describe('3uv.42 critère 3 : an open mother keeps its open tickets, its closed 
     expect(categorie(L0, 'demo-e.1.6')).toBe('sans go');
   });
 
-  it('3uv.42 critère 3 : its ticket an agent block shows stays in the agents only', () => {
-    expect(partieChantier(L0).some(x => x.ticket === 'demo-e.1.4')).toBe(false);
-    expect(partieAgents(L0).some(x => x.ticket === 'demo-e.1.4' && x.texte.startsWith('·'))).toBe(
-      true
-    );
+  it('its ticket in the queue, with nothing running on it, stands in CHANTIER and not in AGENTS', () => {
+    expect(partieChantier(L0).some(x => x.ticket === 'demo-e.1.4')).toBe(true);
+    expect(partieAgents(L0).some(x => x.ticket === 'demo-e.1.4')).toBe(false);
   });
 
   it('3uv.42 critère 3 : its closed tickets, a closed mother and its tickets included, have no line', () => {
@@ -326,8 +324,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
 
   it('3uv.42 critère 4 : the agents title, each step and its tickets are in agents', () => {
     expect(section(L0, x => x.texte.startsWith('AGENTS'))).toBe('agents');
-    expect(section(L0, x => x.texte === '▾ 3 · Code · développeur')).toBe('agents');
-    expect(section(L0, x => x.ticket === 'demo-e.1.4')).toBe('agents');
+    expect(section(L0, x => x.texte === '▸ 3 · Code · développeur')).toBe('agents');
   });
 
   it("3uv.42 critère 4 : the FAITS AUJOURD'HUI title and its tickets are in faits", () => {
@@ -340,7 +337,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
     }
   });
 
-  it('3uv.42 critère 4 : the waiting lines of the agents and the lines of the faits carry their section', () => {
+  it('3uv.42 critère 4 : the lines of the agents and the lines of the faits carry their section', () => {
     const x = (n: number) => ({
       id: `demo-${n}`,
       numero: `${n}`,
@@ -372,8 +369,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
           titre: 'Tests',
           roles: ['testwriter'],
           qui: 'testwriter',
-          enCours: [],
-          attend: [1, 2, 3, 4, 5].map(x),
+          enCours: [1, 2, 3, 4, 5].map(x),
         },
       ],
       faitsDuJour: [1, 2, 3, 4, 5, 6, 7].map(x),
@@ -583,8 +579,7 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
         titre: 'Tests',
         roles: ['testwriter'],
         qui: 'testwriter',
-        enCours: [],
-        attend: Array.from({ length: 20 }, (_, i) => x(i + 1)),
+        enCours: Array.from({ length: 20 }, (_, i) => x(i + 1)),
       },
     ],
     faitsDuJour: Array.from({ length: 20 }, (_, i) => x(i + 101)),
@@ -602,9 +597,9 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
     expect(LP.some(y => /lignes? de plus/.test(y.texte))).toBe(false);
   });
 
-  it('an agent block shows its 20 waiting tickets, each on its line, none folded', () => {
-    const attente = LM.filter(y => y.section === 'agents' && y.ticket);
-    expect(attente.map(y => y.ticket)).toEqual(MAIN.agents[0].attend.map(y => y.id));
+  it('an agent block shows its 20 running tickets, each on its line, none folded', () => {
+    const enCours = LM.filter(y => y.section === 'agents' && y.ticket);
+    expect(enCours.map(y => y.ticket)).toEqual(MAIN.agents[0].enCours.map(y => y.id));
   });
 
   it("FAITS AUJOURD'HUI shows its 20 tickets, each on its line, none folded", () => {
@@ -781,12 +776,12 @@ describe('3uv.42 critère 10 : the open ticket of a closed mother keeps its line
   });
 });
 
-describe('a ticket waits in AGENTS only once the owner launched it (label circuit)', () => {
+describe('a ticket stands in AGENTS only by its circuit or an agent that runs on it', () => {
   interface Agents {
-    agents: { roles: string[]; enCours: { id: string }[]; attend: { id: string }[] }[];
+    agents: { roles: string[]; enCours: { id: string }[] }[];
   }
   // A chantier in progress, its ticket k.1 ready and open, with the labels, passages and running
-  // agents given.
+  // agents given, without a circuit.
   const circuit = (labels: string[], registre: object[] = [], vivants: object[] = []) => {
     const t = assembler({
       tous: [
@@ -801,8 +796,6 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
     }) as Board & Agents;
     return { t, l: lignes(t, 'demo') as Ligne[] };
   };
-  const attend = (t: Agents) =>
-    t.agents.flatMap(b => b.attend.map(x => `${b.roles.join(' ')} ${x.id}`));
   const passage = {
     agent: 'r1',
     ticket: 'demo-k.1',
@@ -812,24 +805,20 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
     jetons: 10,
   };
 
-  it('a ready ticket never launched waits nowhere in AGENTS and stands in CHANTIER', () => {
-    const { t, l } = circuit([]);
-    expect(attend(t)).toEqual([]);
+  it('a ready ticket never launched stands in CHANTIER, not in AGENTS', () => {
+    const { l } = circuit([]);
     expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(false);
     expect(partieChantier(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
   });
 
-  // Decided by the owner on 2026-10-17 (grill, Q10): the supervisor launches the circuit, whose
-  // first agent is the testwriter.
-  it('the same ticket in the circuit waits for the testwriter, the first agent of the circuit', () => {
-    const { t, l } = circuit(['circuit']);
-    expect(attend(t)).toEqual(['testwriter demo-k.1']);
-    expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
+  it('the same ticket in the queue (label circuit), without its circuit, stands in CHANTIER, not in AGENTS', () => {
+    const { l } = circuit(['circuit'], [passage]);
+    expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(false);
+    expect(partieChantier(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
   });
 
-  it('a ticket worked then taken out of the circuit waits nowhere in AGENTS', () => {
-    const { t, l } = circuit([], [passage]);
-    expect(attend(t)).toEqual([]);
+  it('a ticket worked then taken out of the circuit stands in CHANTIER, not in AGENTS', () => {
+    const { l } = circuit([], [passage]);
     expect(partieAgents(l).some(x => x.ticket === 'demo-k.1')).toBe(false);
     expect(partieChantier(l).some(x => x.ticket === 'demo-k.1')).toBe(true);
   });
@@ -850,7 +839,6 @@ describe('a ticket waits in AGENTS only once the owner launched it (label circui
     expect(t.agents.find(b => b.roles.includes('developpeur'))?.enCours.map(x => x.id)).toEqual([
       'demo-k.1',
     ]);
-    expect(attend(t)).toEqual([]);
   });
 });
 

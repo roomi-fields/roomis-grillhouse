@@ -143,7 +143,6 @@ const T = (id: string, o: object = {}) => ({
 interface Bloc {
   roles: string[];
   enCours: { id: string }[];
-  attend: ({ id: string } & Mesure)[];
 }
 interface Mesure {
   travail: number;
@@ -152,6 +151,7 @@ interface Mesure {
 interface Board {
   global: { compteurs: { enCours: number; fermes: number }; jour: Mesure; cumul: Mesure };
   agents: Bloc[];
+  parTicket: Record<string, Mesure>;
   faitsDuJour: { id: string }[];
 }
 interface Ligne {
@@ -175,7 +175,6 @@ const plateau = (home: string, tous: object[], registre: object[], ps = ''): Boa
 const enCours = (t: Board) => t.agents.flatMap(b => b.enCours.map(x => x.id));
 const enCoursDe = (t: Board, role: string) =>
   t.agents.find(b => b.roles.includes(role))!.enCours.map(x => x.id);
-const attend = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 
 // The events after the end that belong to the last turn, and the incoming messages.
 const DU_DERNIER_TOUR: [string, Evenement][] = [
@@ -204,11 +203,10 @@ describe('3uv.45 critère 1 : an agent followed after its end only by events of 
     ]);
     const t = plateau(home, [T('demo-5')], [arret('a76', 'demo-5', 'relecteur', quand(20, 42))]);
     expect(enCours(t)).not.toContain('demo-5');
-    expect(attend(t)).toContain('demo-5');
   });
 
   it.each(DU_DERNIER_TOUR)(
-    '3uv.45 critère 1 : a reviewer followed after its end by %s only is finished, waiting for the next role',
+    'a reviewer followed after its end by %s only is finished',
     (_, apres) => {
       const home = sousAgent('r1', 'relecteur', [
         [invite('demo-6'), quand(0)],
@@ -217,7 +215,6 @@ describe('3uv.45 critère 1 : an agent followed after its end only by events of 
       ]);
       const t = plateau(home, [T('demo-6')], [arret('r1', 'demo-6', 'relecteur', quand(15))]);
       expect(enCours(t)).not.toContain('demo-6');
-      expect(attend(t)).toContain('demo-6');
     }
   );
 
@@ -287,7 +284,6 @@ describe('3uv.45 critère 2 : an agent whose end is followed by an incoming mess
       ]);
       const t = plateau(home, [T('demo-9')], [arret('r5', 'demo-9', 'relecteur', quand(15))]);
       expect(enCoursDe(t, 'relecteur')).toEqual(['demo-9']);
-      expect(attend(t)).not.toContain('demo-9');
     }
   );
 
@@ -567,7 +563,7 @@ describe('3uv.45 critère 7 : an agent of a closed ticket followed after its end
 });
 
 describe('3uv.45 critère 8 : a finished agent is measured by its latest end, without what was written after it', () => {
-  it('3uv.45 critère 8 : the tokens and time of the waiting ticket are those of the register, not of the late answer', () => {
+  it('the tokens and time of the ticket are those of the register, not of the late answer', () => {
     const home = sousAgent('a77', 'relecteur', [
       [invite('demo-5'), quand(0)],
       [reponse, quand(10)],
@@ -577,8 +573,7 @@ describe('3uv.45 critère 8 : a finished agent is measured by its latest end, wi
     ]);
     const fin = arret('a77', 'demo-5', 'relecteur', quand(20, 42));
     const t = plateau(home, [T('demo-5')], [fin]);
-    const x = t.agents.flatMap(b => b.attend).find(a => a.id === 'demo-5');
-    expect(x).toMatchObject({ jetons: fin.jetons, travail: fin.travail });
+    expect(t.parTicket['demo-5']).toMatchObject({ jetons: fin.jetons, travail: fin.travail });
   });
 
   it("3uv.45 critère 8 : the board's totals, of the day and in all, are those of the register", () => {
@@ -623,7 +618,6 @@ describe('3uv.45 critère 9 : an agent with no incoming message after its end is
     ]);
     const t = plateau(home, [T('demo-6')], [arret('r12', 'demo-6', 'relecteur', quand(10))]);
     expect(enCours(t)).not.toContain('demo-6');
-    expect(attend(t)).toContain('demo-6');
   });
 
   it('3uv.45 critère 9 : a transcript with no incoming message at all, written after the end, is finished', () => {

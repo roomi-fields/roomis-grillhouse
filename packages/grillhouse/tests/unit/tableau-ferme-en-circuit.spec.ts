@@ -117,7 +117,7 @@ describe('le panneau classe un ticket fermé à circuit vivant en cours dans ses
     expect(p.autres).toEqual([]);
   });
 
-  it("un ticket fermé à circuit vivant n'attend aucun agent, et son circuit est listé", () => {
+  it('un ticket fermé à circuit vivant a son circuit listé', () => {
     const passage = (role: string, h: number) => ({
       projet: '/depot',
       agent: `a-${role}`,
@@ -137,10 +137,8 @@ describe('le panneau classe un ticket fermé à circuit vivant en cours dans ses
       maintenant: MAINTENANT,
       jour: JOUR,
     }) as unknown as {
-      agents: { attend: Ligne[] }[];
       circuits: { ticket?: string; id?: string }[];
     };
-    expect(p.agents.flatMap(b => b.attend.map(x => x.id))).not.toContain('demo-a');
     expect(p.circuits.map(c => c.ticket ?? c.id)).toContain('demo-a');
   });
 

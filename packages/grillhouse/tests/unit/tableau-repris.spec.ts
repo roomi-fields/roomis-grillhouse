@@ -94,11 +94,11 @@ const T = (id: string, o: object = {}) => ({
 interface Bloc {
   roles: string[];
   enCours: { id: string; jetons: number; travail: number }[];
-  attend: { id: string }[];
 }
 interface Board {
   global: { cumul: { travail: number; jetons: number } };
   agents: Bloc[];
+  parTicket: Record<string, { travail: number; jetons: number }>;
 }
 
 const plateau = (home: string, tickets: string[], registre: object[], ps = ''): Board => {
@@ -115,8 +115,7 @@ const plateau = (home: string, tickets: string[], registre: object[], ps = ''): 
 };
 const enCours = (t: Board, role: string) =>
   t.agents.find(b => b.roles.includes(role))!.enCours.map(x => x.id);
-const partout = (t: Board, cle: 'enCours' | 'attend') =>
-  t.agents.flatMap(b => b[cle].map(x => x.id));
+const partout = (t: Board) => t.agents.flatMap(b => b.enCours.map(x => x.id));
 
 describe('3uv.40 critère 1 : an agent whose last end in the register is followed by an incoming message runs (3uv.45)', () => {
   it('3uv.40 critère 1 : a reviewer stopped twice then resumed by a message is in progress, waiting nowhere', () => {
@@ -127,7 +126,6 @@ describe('3uv.40 critère 1 : an agent whose last end in the register is followe
       [fin('a9', 'demo-5', 'relecteur', '08:28', 1), fin('a9', 'demo-5', 'relecteur', '08:41', 2)]
     );
     expect(enCours(t, 'relecteur')).toEqual(['demo-5']);
-    expect(partout(t, 'attend')).not.toContain('demo-5');
   });
 
   it('3uv.40 critère 1 : the last end is the latest one, whatever the order of the register lines', () => {
@@ -145,7 +143,6 @@ describe('3uv.40 critère 1 : an agent whose last end in the register is followe
     const ps = ligneEnveloppe(RACINE, 'demo-6', 'developpeur');
     const t = plateau(home, ['demo-6'], [fin('s7', 'demo-6', 'developpeur', '08:30', 1)], ps);
     expect(enCours(t, 'developpeur')).toEqual(['demo-6']);
-    expect(partout(t, 'attend')).not.toContain('demo-6');
   });
 });
 
@@ -157,8 +154,7 @@ describe('3uv.40 critère 2 : an agent whose last end is not older than its last
       ['demo-5'],
       [fin('a9', 'demo-5', 'relecteur', '08:28', 1), fin('a9', 'demo-5', 'relecteur', '08:41', 2)]
     );
-    expect(partout(t, 'enCours')).not.toContain('demo-5');
-    expect(partout(t, 'attend')).toContain('demo-5');
+    expect(partout(t)).not.toContain('demo-5');
   });
 
   it('3uv.40 critère 2 : a latest end after the last writing keeps it finished, an older line after it notwithstanding', () => {
@@ -168,7 +164,7 @@ describe('3uv.40 critère 2 : an agent whose last end is not older than its last
       ['demo-8'],
       [fin('c2', 'demo-8', 'relecteur', '08:50', 2), fin('c2', 'demo-8', 'relecteur', '08:28', 1)]
     );
-    expect(partout(t, 'enCours')).not.toContain('demo-8');
+    expect(partout(t)).not.toContain('demo-8');
   });
 });
 
@@ -282,11 +278,6 @@ const depotFactice = (tickets: object[], registre: object[]) => {
 interface Fiche {
   jetons: number;
 }
-interface Ligne {
-  ticket?: string;
-  travail?: number;
-  jetons?: number;
-}
 
 describe('3uv.40 critère 5 : an agent resumed then finished again counts each of its sessions once, in all its measures', () => {
   afterEach(() => {
@@ -313,17 +304,14 @@ describe('3uv.40 critère 5 : an agent resumed then finished again counts each o
     expect(t.global.cumul).toEqual({ travail: 41 * MIN, jetons: 20 });
   });
 
-  it('3uv.40 critère 5 : the waiting line of its ticket counts its latest reading only', () => {
+  it('the measure of its ticket counts its latest reading only', () => {
     const home = mkdtempSync(path.join(ESSAIS, 'home-repris-'));
     const t = plateau(
       home,
       ['demo-5'],
       [fin('a9', 'demo-5', 'relecteur', '08:28', 1), fin('a9', 'demo-5', 'relecteur', '08:41', 2)]
     );
-    const ligne = t.agents
-      .flatMap(b => b.attend as (Ligne & { id: string })[])
-      .find(x => x.id === 'demo-5');
-    expect(ligne).toMatchObject({ travail: 41 * MIN, jetons: 20 });
+    expect(t.parTicket['demo-5']).toMatchObject({ travail: 41 * MIN, jetons: 20 });
   });
 
   it('3uv.40 critère 5 : the card of its ticket counts its latest reading only, another agent on it added', async () => {
@@ -421,7 +409,7 @@ describe('3uv.40 critère 6 : the board has one definition of a running agent, f
     const home = avecSousAgentRecent('e1', 'demo-3', 30 * SEC);
     const p = panneau(home, [reclame('demo-3')], [finRecente('e1', 'demo-3', 30 * SEC)]);
     expect(sansRien(p, 'demo-3')).toBe(true);
-    expect(partout(p as unknown as Board, 'enCours')).not.toContain('demo-3');
+    expect(partout(p as unknown as Board)).not.toContain('demo-3');
   });
 
   it('3uv.40 critère 6 : a ticket in progress whose sub-agent ended after its last message raises the alert', () => {
@@ -541,7 +529,7 @@ describe('the board of several projects, read in their folders', () => {
     const t = (await tableau(racine, {
       home,
       projets: [absent],
-      circuitsDe: aucunCircuit,
+      circuitsDe: () => Promise.resolve([circuitLu('demo-5')]),
     })) as unknown as {
       lignes: { texte: string; ton?: string }[];
       dossiers: Record<string, string>;

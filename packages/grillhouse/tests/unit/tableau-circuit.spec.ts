@@ -23,7 +23,7 @@ interface Ligne {
 }
 interface Board {
   alertes: { texte: string }[];
-  agents: { roles: string[]; enCours: { id: string }[]; attend: { id: string }[] }[];
+  agents: { roles: string[]; enCours: { id: string }[] }[];
 }
 
 // The states of the circuits <etats> names, by ticket, in the words of the circuit's state.
@@ -130,7 +130,6 @@ const question = (o: object = {}) => ({
   qui: 'superviseur',
   ...o,
 });
-const attentes = (t: Board) => t.agents.flatMap(b => b.attend.map(x => x.id));
 
 describe("a circuit's line carries its ticket's working time and tokens", () => {
   const registre = [fin('a1', 'demo-12', 'testwriter', '09:00')];
@@ -191,7 +190,6 @@ describe('a circuit that runs: its step and its attempt', () => {
     expect(lignesAgents(t)[i + 1]).not.toHaveProperty('alterne');
     expect(lignesAgents(t)[i + 1]).toMatchObject({ ton: 'actif', ticket: 'demo-12' });
     expect(a.filter(x => x.includes('Le sujet de demo-12'))).toHaveLength(1);
-    expect(attentes(t)).toEqual([]);
   });
 
   it('each step of the state stands at its numbered step, the automatic ones included', () => {

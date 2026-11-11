@@ -135,9 +135,12 @@ describe('grillhouse-9kq critères 4 et 18 — ⏳ « attend une place »', () =
 
 describe('grillhouse-9kq critère 18 — « attend <ticket> » pour une dépendance ouverte', () => {
   it('un ticket validé dont une dépendance est ouverte garde « attend <ticket> »', () => {
+    // Under a chantier in progress, the blocked ticket stands in CHANTIER, under « bloqué ».
     const tous = [
-      T('demo-1', 'Le fournisseur'),
+      T('demo-e', 'Le chantier', { issue_type: 'epic' }),
+      T('demo-1', 'Le fournisseur', { parent: 'demo-e' }),
       T('demo-2', 'Le consommateur', {
+        parent: 'demo-e',
         status: 'open',
         dependencies: [{ type: 'blocks', depends_on_id: 'demo-1' }],
       }),
