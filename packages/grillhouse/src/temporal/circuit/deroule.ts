@@ -10,7 +10,8 @@
 // fails is the stop « inattendu » at the step it fell, its question awaited; when the act of the
 // stop fails too, the stop stands in the memo alone (scripts/transitions.mjs `arretSansActe`). A « a-repasser » (75)
 // plays again by itself after `repasserMs` (10 min), `repassesMax` times (6) in a row, then its
-// question goes up (decision D4). The effects a step decided before a fact that fails are written
+// question goes up (decision D4); one that is a wait for a place, the lock or room plays again at
+// once, without limit, never a question. The effects a step decided before a fact that fails are written
 // before its stop (scripts/transitions.mjs gives them with each fact it asks for). The step and the
 // question are a search attribute and the memo, which the board reads from the server alone; past
 // its length of history, the workflow continues as new at a step's start. At its step 5.2, the
@@ -152,6 +153,11 @@ const REPRISE_AU_PLAN = 'reprise-au-plan';
 // The state <e> of a stop or of a reopening as a resumption reads it, under REPRISE_AU_PLAN.
 const aLaReprise = <E extends EtatDeLEtape>(e: E): E =>
   e.etape === AU_PLAN && patched(REPRISE_AU_PLAN) ? etatDeReprise(e) : e;
+// The patch of the wait for a place (Temporal's patching): a « a-repasser » the checks give on a
+// wait for a place, the lock or room at its bound (`attente`) plays again at once, without limit
+// and without counting, as a job of Buildkite waits for an agent; a run that recorded such a stop
+// before the change replays it as it was.
+const ATTENTE_DE_PLACE = 'attente-de-place';
 
 // How a run of steps ends.
 type Issue =
@@ -585,11 +591,13 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   // the memo alone (scripts/transitions.mjs `arretSansActe`); `rejoue`, a « a-repasser » played again.
   const ecrire = async (
     issue: Exclude<Issue, { fin: true } | { continuer: Ouverture }>
-  ): Promise<{ publie: ArretPublie; rejoue: boolean }> => {
+  ): Promise<{ publie: ArretPublie; rejoue: boolean; place: boolean }> => {
     if ('arret' in issue) {
-      return { publie: issue.arret, rejoue: false };
+      return { publie: issue.arret, rejoue: false, place: false };
     }
-    const rejoue = nomDe(issue.arreter) === 'a-repasser' && repasses < repassesMax;
+    const aRepasser = nomDe(issue.arreter) === 'a-repasser';
+    const place = aRepasser && issue.arreter.attente === true && patched(ATTENTE_DE_PLACE);
+    const rejoue = aRepasser && (place || repasses < repassesMax);
     try {
       const publie = await actes.publierLArret({
         ...lieu(),
@@ -600,12 +608,13 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         menee: issue.menee,
       });
       await jouerLesEffets(publie.effets);
-      return { publie, rejoue };
+      return { publie, rejoue, place };
     } catch (e) {
       const { message } = inattendu(e).inattendu as { message: string };
       return {
         publie: arretSansActe(issue.etat, message, `le déroulé ${workflowInfo().workflowId}`),
         rejoue: false,
+        place: false,
       };
     }
   };
@@ -660,7 +669,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
           suite = { arreter: inattendu(e), etat: a, menee: null };
         }
       }
-      const { publie, rejoue } = await ecrire(suite);
+      const { publie, rejoue, place } = await ecrire(suite);
       suite = { arret: publie };
       // ARRETER while the stop was written.
       if (arretDemande) {
@@ -670,7 +679,10 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       reponse = null;
       attente = true;
       publier(rejoue ? 'a-repasser' : 'question', question);
-      if (rejoue) {
+      if (place) {
+        // A wait for a place plays again at once: the wait itself paces it.
+        repondre({ genre: 'reprendre', contexte: null });
+      } else if (rejoue) {
         // A « a-repasser » plays again after its sleep, unless the supervisor answers before.
         if (!(await condition(() => reponse !== null, repasserMs))) {
           repondre({ genre: 'reprendre', contexte: null });

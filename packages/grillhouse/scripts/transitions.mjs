@@ -740,6 +740,8 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
         motif: `${avant}${k.sansListe}`,
         etape: lieu,
         resultat: lieu ? null : resultat(nom === 'a-repasser' ? 'a-repasser' : 'rouge'),
+        // A « à repasser » that is a wait for a place, the lock or room plays again without limit.
+        ...(nom === 'a-repasser' && k.attente ? { attente: true } : {}),
       });
     };
     const suivante = tentative + 1;

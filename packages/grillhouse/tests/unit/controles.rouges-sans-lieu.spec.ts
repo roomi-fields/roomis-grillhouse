@@ -1,7 +1,8 @@
 // Le lieu d'un rouge des contrôles (`controles`, scripts/activites.mjs) : un rouge que rien ne
 // situe est dans le plan quand le plan nomme « . », qui couvre tout le dépôt, et hors du plan
 // sans `horsTitre` sinon ; un rouge dont le paquet est connu garde son paquet. Joué sur un espace
-// cargo d'essai, contre un faux cargo et un faux npm dont les résultats sont ceux d'une passe.
+// cargo d'essai, contre un faux cargo et un faux npm dont les résultats sont ceux d'une passe. Le
+// 75 de la passe finale est son attente du verrou ou de place à sa borne : une attente.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -18,6 +19,8 @@ interface Rouge {
 }
 interface Controles {
   rouge: boolean;
+  aRepasser: boolean;
+  attente: boolean;
   auDeveloppeur: boolean;
   horsTitre: string[];
   tous: Rouge[];
@@ -33,7 +36,7 @@ beforeAll(() => {
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal'));
   espace = (exemples.preparer(ESSAIS) as { depots: { espace: string } }).depots.espace;
   // Un faux npm : il écrit dans le dossier de résultats de la passe ce que FAUX_NPM_RESULTATS
-  // décrit (`{ taches, sarif }`), puis rend le code 1.
+  // décrit (`{ taches, sarif }`), puis rend le code FAUX_NPM_CODE, 1 sans lui.
   bin = path.join(ESSAIS, 'bin');
   mkdirSync(bin);
   const npm = path.join(bin, 'npm');
@@ -52,7 +55,7 @@ if (d && s.sarif) {
   fs.mkdirSync(path.join(d, 'sarif'), { recursive: true });
   fs.writeFileSync(path.join(d, 'sarif', 'garde.sarif'), JSON.stringify({ version: '2.1.0', runs: [{ tool: { driver: { name: 'garde-essai' } }, results: s.sarif }] }));
 }
-process.exit(1);
+process.exit(Number(process.env.FAUX_NPM_CODE || 1));
 `
   );
   chmodSync(npm, 0o755);
@@ -62,6 +65,7 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 afterAll(() => {
   process.env.PATH = avant.PATH;
   delete process.env.FAUX_NPM_RESULTATS;
+  delete process.env.FAUX_NPM_CODE;
   restaurer();
 });
 
@@ -77,7 +81,8 @@ const tache = (paquet: string, dossier: string, script = 'nextest') => ({
 });
 
 // Joue les contrôles du plan <paquets>, le faux npm rendant <resultats>.
-function jouer(paquets: string[], resultats: object) {
+function jouer(paquets: string[], resultats: object, code = 1) {
+  process.env.FAUX_NPM_CODE = String(code);
   const tmp = mkdtempSync(path.join(ESSAIS, 'tmp-'));
   process.env.FAUX_NPM_RESULTATS = JSON.stringify(resultats);
   const ctx = {
@@ -156,5 +161,16 @@ describe('un rouge que rien ne situe, sous un plan qui ne nomme pas « . »', ()
       [true, 'ws-app', null],
     ]);
     expect(c.auDeveloppeur).toBe(true);
+  });
+});
+
+describe('le 75 de la passe finale', () => {
+  it('est une attente de place, sans rouge', () => {
+    const c = jouer(['.'], {}, 75);
+    expect(c).toMatchObject({ rouge: false, aRepasser: true, attente: true });
+  });
+
+  it('un rouge n’est pas une attente', () => {
+    expect(jouer(['.'], {}).attente).toBe(false);
   });
 });

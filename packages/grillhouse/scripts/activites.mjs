@@ -1269,7 +1269,8 @@ function paquetDe(liste, fichier) {
 // red, the checks on the tests of the ticket) takes a place like a session of an agent
 // (scripts/passe-de-la-machine.mjs); its wait is written to the log. A wait that stops (its bound,
 // 75; a lock held by an ancestor or a server of the places that does not answer, 1) is the
-// command's code, its message in the log. Once it holds the lock, the pass plays under a
+// command's code, its message in the log; `attente`, a 75 that is a wait for a place, the lock or
+// room at its bound (the pass's own, or that of the `npm run verifier` it runs). Once it holds the lock, the pass plays under a
 // progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names. It plays in
 // the environment of a pass (`environnementDeLaPasse`).
 function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
@@ -1323,13 +1324,15 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
         sorte: etapeDuCircuit({ etape, finale })?.titre ?? etape,
       }
     );
-    return { code: r.status ?? 1, dossier };
+    const code = r.status ?? 1;
+    // The 75 of `npm run verifier` is its wait for the lock or for room under /tmp at its bound.
+    return { code, dossier, attente: finale && code === A_REPASSER };
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) {
       throw e;
     }
     appendFileSync(ctx.journal, `${e.message}\n`);
-    return { code: e.code, dossier };
+    return { code: e.code, dossier, attente: e.code === A_REPASSER };
   } finally {
     closeSync(fd);
   }
@@ -2002,7 +2005,8 @@ const ligneDeCommande = c =>
 // checks of the plan: each one in a package the pass after the regeneration does not play again
 // stands, as a CI keeps the verdict of a job it does not run again; when the regeneration changes
 // nothing (`rejouee` false), no command plays, and they all stand. `{ rouge, aRepasser, arbitrer, auDeveloppeur,
-// texte, complet, resume, horsTitre, lieux, tous, notes, avertissements }`: `texte` the report for
+// attente, texte, complet, resume, horsTitre, lieux, tous, notes, avertissements }`: `attente` every
+// « à repasser » a wait (`npm`); `texte` the report for
 // the developpeur, his reds first; `complet` every red, for a stop, and the warnings;
 // `avertissements` the section of the warnings and notes of the guards, which are no reds, for the
 // report of the checks (empty without one); `auDeveloppeur` whether a red lies
@@ -2142,6 +2146,8 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
   return {
     rouge: rouges.length > 0,
     aRepasser: aRepasser.length > 0,
+    // Every « à repasser » a wait for a place, the lock or room: it waits again, never a question.
+    attente: aRepasser.length > 0 && aRepasser.every(r => r.attente),
     arbitrer: a.length > 0 && a.every(r => r.arbitrer),
     auDeveloppeur: a.length > 0,
     texte,

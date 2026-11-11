@@ -1371,7 +1371,11 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     effets, la fin, l'arrêt sur le mot du superviseur) est l'arrêt « inattendu » à l'étape où il est
     tombé, sa réponse attendue ; quand l'acte de l'arrêt
     échoue lui aussi, l'arrêt tient dans le seul mémo (`arretSansActe` de `scripts/transitions.mjs`). Un « a-repasser » (75) se rejoue seul après
-    10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Les effets qu'une étape a
+    10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Un « a-repasser » des
+    contrôles qui est une attente de place, du verrou de la machine ou de place disque à sa borne
+    (`attente` des contrôles) se rejoue tout de suite, sans limite et sans compter, et ne monte
+    jamais en question, comme un job de Buildkite attend un agent : l'attente elle-même le cadence,
+    et le panneau le montre « attend une place » (grillhouse-4nr.26). Les effets qu'une étape a
     décidés avant un fait qui échoue s'écrivent avant son arrêt : `transition` les rend avec chaque
     fait qu'elle demande. L'étape et la question sont un attribut de recherche et le mémo. Une
     histoire enregistrée (`tests/temporal/histoires/`) se rejoue sur le code courant (décision D7).

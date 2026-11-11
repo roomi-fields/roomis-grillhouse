@@ -421,6 +421,17 @@ describe('un tableau de transitions par étape', () => {
         jouer({ etat: etat(CONTROLES) }, { controles: { ...VERT, aRepasser: true } }).d.arret?.nom
       ).toBe('a-repasser');
     });
+    it('à repasser sur une attente de place : l’arrêt la dit, une autre cause non', () => {
+      const attente = jouer(
+        { etat: etat(CONTROLES) },
+        { controles: { ...VERT, aRepasser: true, attente: true } }
+      ).d.arret;
+      expect(attente).toMatchObject({ nom: 'a-repasser', attente: true });
+      const autre = jouer({ etat: etat(CONTROLES) }, { controles: { ...VERT, aRepasser: true } }).d
+        .arret;
+      expect(autre?.nom).toBe('a-repasser');
+      expect(autre).not.toHaveProperty('attente');
+    });
     it('un rouge de référence aux contrôles du plan : la régénération, puis les contrôles', () => {
       const k = { ...ROUGE, references: [{ nom: 'ref' }] };
       const { d } = jouer(
