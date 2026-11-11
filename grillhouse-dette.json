@@ -1224,7 +1224,7 @@
     },
     "packages/grillhouse/tests/unit/places-de-la-machine.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 3
+        "count": 2
       }
     },
     "packages/grillhouse/tests/unit/plusieurs-langages.spec.ts": {

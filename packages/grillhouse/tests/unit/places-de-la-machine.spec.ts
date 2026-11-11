@@ -5,7 +5,7 @@
 // avec 4 Go de mémoire libres). Les places vivent sur le serveur Temporal (grillhouse-4nr.12) :
 // leur prise, leur attente et leur rang se jouent avec un serveur d'essai
 // (tests/temporal/places-de-la-machine.nuit.spec.ts) ; ce fichier joue ce qui se juge sans serveur : le
-// plafond, les travailleurs, l'admission, et les lieux où aucune place ne se prend.
+// les travailleurs, l'admission, et les lieux où aucune place ne se prend.
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
@@ -20,29 +20,10 @@ const REGLES = path.resolve(__dirname, '../../scripts/regles-des-places.mjs');
 const admission = (...a: any[]) =>
   createRequire(path.join(__dirname, 'x.cjs'))(REGLES).admission(...a);
 const lirePlaces = (...a: any[]) => charger().lirePlaces(...a);
-const plafondDe = (...a: any[]) => charger().plafondDe(...a);
 const prendreUnePlace = (...a: any[]) => charger().prendreUnePlace(...a);
 const prendreUnRang = (...a: any[]) => charger().prendreUnRang(...a);
 const travailleursDe = (...a: any[]) => charger().travailleursDe(...a);
 /* eslint-enable @typescript-eslint/no-explicit-any */
-
-describe('grillhouse-9kq critère 12 — le plafond : 3 par défaut, réglé par une variable d’environnement', () => {
-  it('3 places sans variable', () => {
-    expect(plafondDe({})).toBe(3);
-  });
-
-  it('GRILLHOUSE_PLACES règle le plafond', () => {
-    expect(plafondDe({ GRILLHOUSE_PLACES: '5' })).toBe(5);
-    expect(plafondDe({ GRILLHOUSE_PLACES: '1' })).toBe(1);
-  });
-
-  it.each(['abc', '0', '-2', '1.5', '3 places'])(
-    'la valeur fautive « %s » est refusée par le nom de la variable',
-    valeur => {
-      expect(() => plafondDe({ GRILLHOUSE_PLACES: valeur })).toThrow(/GRILLHOUSE_PLACES/);
-    }
-  );
-});
 
 describe('grillhouse-9kq critères 5 et 17 — le nombre de travailleurs vaut max(1, cœurs ÷ places)', () => {
   it('12 cœurs, 3 places : 4 travailleurs', () => {

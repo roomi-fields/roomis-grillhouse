@@ -887,7 +887,12 @@ charge, ses cœurs et sa mémoire, au lieu de lire la machine ; une valeur fauti
 champ manquant ou non numérique) est refusée en nommant la variable, et le tableau n'affiche alors
 aucune ligne des places. La configuration de base de Vitest la pose dans les tests de chaque
 projet, de sorte que la ligne des places du texte et celle du JSON ne varient pas avec la charge.
-3 places par défaut (`GRILLHOUSE_PLACES`) ; une place porte le
+Le plafond est une configuration du poste, comme le nombre d'agents de Buildkite ou le
+`client.reserved` de Nomad : `GRILLHOUSE_PLACES=<n>` dans `~/.config/grillhouse/machine.env`
+(`scripts/plafond-de-la-machine.mjs`), 3 places sans lui, la variable d'environnement l'emportant
+(une machine d'essai) ; le déroulé de la machine le relit par une activité à chaque jugement, si
+bien qu'un plafond changé vaut sans redémarrer le déroulé, et le tableau lit le même ; une valeur
+fautive est refusée par son nom, le plafond d'avant gardé, et le tableau la dit. Une place porte le
 processus de la séance et son début (pid et heure de départ), et le déroulé la libère quand ce
 processus n'existe plus, sans bail. Un départ n'est admis que si la charge sur 1 min est sous le
 nombre de cœurs et si 4 Go au moins sont libres, deux départs étant espacés de 10 s

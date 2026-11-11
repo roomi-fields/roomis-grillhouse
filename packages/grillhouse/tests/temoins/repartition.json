@@ -106,6 +106,8 @@
     "scripts/paquets.d.ts",
     "scripts/paquets.mjs",
     "scripts/passe-de-la-machine.mjs",
+    "scripts/plafond-de-la-machine.d.mts",
+    "scripts/plafond-de-la-machine.mjs",
     "scripts/places-de-la-machine.mjs",
     "scripts/places-du-serveur.mjs",
     "scripts/poussee-cles.mjs",

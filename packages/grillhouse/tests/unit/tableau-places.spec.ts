@@ -47,6 +47,7 @@ const circuit = (ticket: string, o: object = {}) => ({
 type Places = {
   prises: number;
   plafond: number;
+  faute?: string | null;
   charge: number;
   coeurs: number;
   memoireGo: number;
@@ -87,6 +88,13 @@ describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’
     expect(tete(agents(plateau([], { places })))[0].texte).toBe(
       'Places 1/2 · charge 4/8 · mémoire 14 Go'
     );
+  });
+
+  it('un plafond refusé se dit par son nom, à la place de la charge', () => {
+    const places = { ...PLACES, faute: 'GRILLHOUSE_PLACES vaut « x » dans machine.env' };
+    const [l] = tete(agents(plateau([], { places })));
+    expect(l.texte).toMatch(/^Places 3\/3 · plafond refusé : GRILLHOUSE_PLACES/);
+    expect(l.ton).toBe('attention');
   });
 
   it('la ligne précède la mesure lourde et les étapes', () => {

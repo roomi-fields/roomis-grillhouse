@@ -62,8 +62,11 @@ export interface Mesure {
 
 /** What the workflow receives. */
 export interface EntreeDesPlaces {
-  /** The ceiling of the places (GRILLHOUSE_PLACES of the machine, 3 by default). */
-  plafond: number;
+  /**
+   * The ceiling a run started before the ceiling was read from the poste carries, which it judges
+   * by until its first reading; a new run reads the poste's (`plafondDeLaMachine`).
+   */
+  plafond?: number;
   /** The gap between two starts, in ms (GRILLHOUSE_ESPACEMENT_MS). */
   espacementMs: number;
   /** How often a wait and the places taken are judged again, in ms. */
@@ -93,9 +96,13 @@ export interface PlaceDonnee {
   rang: number;
 }
 
-/** What the board reads: the ceiling, the places taken, the waits in their order of arrival. */
+/**
+ * What the board reads: the ceiling last read, the places taken, the waits in their order of
+ * arrival, and the fault of the last reading of the ceiling (null without one).
+ */
 export interface VueDesPlaces {
   plafond: number;
+  faute?: string | null;
   prises: Prise[];
   attentes: Attente[];
 }

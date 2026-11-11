@@ -1,6 +1,6 @@
 // The machine of trial of the places (scripts/places-de-la-machine.mjs), shared by their tests: a
-// server of its own, the frame's worker on the task queue of the machine, its workflow started with
-// a ceiling and a fixed measure (the load of the workstation does not decide), and the environment
+// server of its own, the frame's worker on the task queue of the machine under a ceiling
+// (GRILLHOUSE_PLACES, which the workflow reads from it), its workflow started with a fixed measure (the load of the workstation does not decide), and the environment
 // the module reads it under (GRILLHOUSE_PLACES_D_ESSAI, the server of the places of a trial
 // machine). Each machine is closed after its test.
 import path from 'node:path';
@@ -36,14 +36,15 @@ export async function machineDesPlaces({ plafond = 2, charge = 1 } = {}) {
     ATTRIBUTS_DE_RECHERCHE
   );
   arrets.push(() => s.tuer());
-  const t = await demarrerLeTravailleur(s.adresse, FILE_DE_LA_MACHINE);
+  const t = await demarrerLeTravailleur(s.adresse, FILE_DE_LA_MACHINE, {
+    GRILLHOUSE_PLACES: String(plafond),
+  });
   arrets.unshift(() => t.tuer());
   const c = ouvrirLeClient({ adresse: s.adresse });
   arrets.unshift(() => c.fermer());
   await demarrerLesPlaces(
     c.client,
     {
-      plafond,
       espacementMs: 0,
       veilleMs: 300,
       mesureFixe: { coeurs: 12, charge, memoireLibre: 16 * GO },

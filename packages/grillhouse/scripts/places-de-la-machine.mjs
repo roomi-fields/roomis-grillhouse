@@ -22,10 +22,10 @@
 //   (./verrou-de-machine.mjs): the place of the session, taken out of it by the circuit, covers its
 //   commands, and the envelope passes on its mark; a number of process there means nothing on
 //   the machine.
-// - The ceiling is PLAFOND_PAR_DEFAUT, 3, unless GRILLHOUSE_PLACES names another (a positive
-//   integer; any other value is refused by the name of the variable); two starts are spaced by
-//   ESPACEMENT_MS (GRILLHOUSE_ESPACEMENT_MS names another, in ms). The workflow reads both when it
-//   starts.
+// - The ceiling is a configuration of the poste (`plafondDe` of ./plafond-de-la-machine.mjs:
+//   GRILLHOUSE_PLACES of `~/.config/grillhouse/machine.env`, 3 without it), which the workflow
+//   reads again at each judgement; two starts are spaced by ESPACEMENT_MS
+//   (GRILLHOUSE_ESPACEMENT_MS names another, in ms), which the workflow reads when it starts.
 // - A wait says its reason (place, rank, load, memory or spacing) when it begins and every 30 s,
 //   and is bounded as the wait for the lock of the machine, GRILLHOUSE_ATTENTE_MACHINE_MS: at the
 //   bound, « à repasser » (75), the request withdrawn.
@@ -41,9 +41,9 @@ import { A_REPASSER } from './codes-de-sortie.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { ecrireLaTrace, traceDesPlaces } from './journal-des-etats.mjs';
 import { mesureDeLaMachine } from './mesure-de-la-machine.mjs';
+import { plafondDe } from './plafond-de-la-machine.mjs';
 import { AttenteDeLaMachine, avecLaMachine, borneDe } from './verrou-de-machine.mjs';
 
-export const VARIABLE_PLACES = 'GRILLHOUSE_PLACES';
 export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
 /** The mark of a place held, which the children of its holder inherit. */
@@ -53,32 +53,11 @@ export const VARIABLE_MESURE_D_ESSAI = 'GRILLHOUSE_MESURE_D_ESSAI';
 // The server of the places of a trial machine.
 const VARIABLE_ESSAI = 'GRILLHOUSE_PLACES_D_ESSAI';
 
-/** The ceiling of the places of the machine when GRILLHOUSE_PLACES names none. */
-export const PLAFOND_PAR_DEFAUT = 3;
 /** The gap between two starts when GRILLHOUSE_ESPACEMENT_MS names none, in ms. */
 export const ESPACEMENT_MS = 10_000;
 const RAPPEL_MS = 30_000;
 // The reading and the taking of the places on the server, in a process of their own.
 const PONT = path.join(import.meta.dirname, 'places-du-serveur.mjs');
-
-/**
- * The ceiling of the places under <env>.
- * @param {Record<string, string | undefined>} [env]
- * @returns {number}
- * @throws {Error} naming GRILLHOUSE_PLACES when its value is not a positive integer
- */
-export function plafondDe(env = process.env) {
-  const v = env[VARIABLE_PLACES];
-  if (v === undefined || v === '') {
-    return PLAFOND_PAR_DEFAUT;
-  }
-  if (!/^[1-9]\d*$/.test(v)) {
-    throw new Error(
-      `${VARIABLE_PLACES} vaut « ${v} » : un entier positif est attendu (3 par défaut).`
-    );
-  }
-  return Number(v);
-}
 
 /**
  * The gap between two starts under <env>, in ms.
@@ -354,7 +333,8 @@ export function avecLaMachineEtUnePlace(mesure, options = {}) {
 
 /**
  * The places taken and the waits of the machine under <env>, as the server holds them: `{ plafond,
- * prises, attentes }`, `prises` `{ id, pid, depart, ticket, rang, depuis }`, `attentes` in the
+ * faute, prises, attentes }` (`faute`, a value of the ceiling the poste names and the server
+ * refused, the ceiling read before kept), `prises` `{ id, pid, depart, ticket, rang, depuis }`, `attentes` in the
  * order of arrival `{ id, pid, ticket, rang, raison, depuis }`; none where no place is taken.
  * @param {{ env?: Record<string, string | undefined> }} [o]
  */
@@ -407,11 +387,12 @@ function mesureDEssai(env) {
  */
 export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine } = {}) {
   const fixee = mesureDEssai(env);
-  const { plafond, prises, attentes } = lirePlaces({ env });
+  const { plafond, faute = null, prises, attentes } = lirePlaces({ env });
   const m = fixee ?? mesurer();
   return {
     prises: prises.length,
     plafond,
+    faute,
     charge: Math.round(m.charge * 10) / 10,
     coeurs: m.coeurs,
     memoireGo: Math.floor(m.memoireLibre / 1024 ** 3),

@@ -203,11 +203,12 @@ export interface TravailleurDEssai {
  */
 export async function demarrerLeTravailleur(
   adresse: string,
-  file: string
+  file: string,
+  env: Record<string, string> = {}
 ): Promise<TravailleurDEssai> {
   const enfant = spawn(process.execPath, [TRAVAILLEUR, '--file', file], {
     stdio: ['ignore', 'pipe', 'inherit'],
-    env: { ...process.env, TEMPORAL_ADDRESS: adresse },
+    env: { ...process.env, ...env, TEMPORAL_ADDRESS: adresse },
   });
   enfants.add(enfant);
   await attendreLaLigne(enfant, /^prêt /, 60_000, 'travailleur');

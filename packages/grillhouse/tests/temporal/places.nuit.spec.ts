@@ -49,8 +49,9 @@ afterEach(async () => {
   }
 });
 
-// A server, the frame's worker on its queue, the workflow of the machine started with <entree>.
-async function machine(entree: Partial<EntreeDesPlaces> = {}) {
+// A server, the frame's worker on its queue under the ceiling <plafond> (GRILLHOUSE_PLACES, which
+// the workflow reads from the worker), the workflow of the machine started with <entree>.
+async function machine({ plafond = 2, ...entree }: Partial<EntreeDesPlaces> = {}) {
   const base = path.join(dossier('places'), 'temporal.db');
   const s = await demarrerLeServeur(
     programmeTemporal(),
@@ -59,14 +60,15 @@ async function machine(entree: Partial<EntreeDesPlaces> = {}) {
     ATTRIBUTS_DE_RECHERCHE
   );
   arrets.push(() => s.tuer());
-  const t = await demarrerLeTravailleur(s.adresse, 'essai-machine');
+  const t = await demarrerLeTravailleur(s.adresse, 'essai-machine', {
+    GRILLHOUSE_PLACES: String(plafond),
+  });
   arrets.unshift(() => t.tuer());
   const c = ouvrirLeClient({ adresse: s.adresse });
   ouverts.push(c);
   await demarrerLesPlaces(
     c.client,
     {
-      plafond: 2,
       espacementMs: 0,
       veilleMs: 300,
       mesureFixe: { coeurs: 12, charge: 1, memoireLibre: 16 * GO },
@@ -307,8 +309,8 @@ function porte() {
 
 // A server and a worker of this process whose measure of the machine and life of the processes
 // pass the gates <mesure> and <vie> (the mocked activities of Temporal's tests), the life the
-// real one: the workflow of the machine started with <entree>.
-async function machineAPortes(entree: Partial<EntreeDesPlaces> = {}) {
+// real one, its ceiling <plafond>: the workflow of the machine started with <entree>.
+async function machineAPortes({ plafond = 1, ...entree }: Partial<EntreeDesPlaces> = {}) {
   const mesure = porte();
   const vie = porte();
   const s = await demarrerLeServeur(
@@ -332,6 +334,7 @@ async function machineAPortes(entree: Partial<EntreeDesPlaces> = {}) {
         await mesure.passer();
         return { coeurs: 12, charge: 1, memoireLibre: 16 * GO };
       },
+      plafondDeLaMachine: () => Promise.resolve({ plafond, faute: null }),
     },
   });
   const fin = travailleur.run();
@@ -346,7 +349,7 @@ async function machineAPortes(entree: Partial<EntreeDesPlaces> = {}) {
   ouverts.push(c);
   await demarrerLesPlaces(
     c.client,
-    { plafond: 1, espacementMs: 0, veilleMs: 300, ...entree },
+    { espacementMs: 0, veilleMs: 300, ...entree },
     { file: 'essai-portes' }
   );
   return { client: c.client, mesure, vie };

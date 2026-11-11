@@ -727,7 +727,8 @@ export function lecture(t, prefix) {
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
  *   maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
- *   places?: { prises: number, plafond: number, charge: number, coeurs: number, memoireGo: number,
+ *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
+ *   coeurs: number, memoireGo: number,
  *   attentes: { ticket: string, depuis: number }[] } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null }} lu
  */
@@ -1396,17 +1397,18 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const maintenant = t.maintenant ?? Date.now();
   // The places of the machine (scripts/places-de-la-machine.mjs), the first line of AGENTS:
   // « Places 3/3 · charge 11,2/12 · mémoire 9 Go », the places taken of the ceiling, the load over
-  // one minute of the cores, the free memory.
+  // one minute of the cores, the free memory; a value of the ceiling the poste names and the
+  // server refused, in place of the load and the memory, by its name.
   const p = t.places;
   if (p) {
     const nb = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
     poser({
       texte: cadre(
-        `Places ${p.prises}/${p.plafond} · charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo} Go`,
+        `Places ${p.prises}/${p.plafond} · ${p.faute ? `plafond refusé : ${p.faute}` : `charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo} Go`}`,
         '',
         largeur
       ),
-      ton: p.charge >= p.coeurs ? 'attention' : 'discret',
+      ton: p.faute || p.charge >= p.coeurs ? 'attention' : 'discret',
     });
   }
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));

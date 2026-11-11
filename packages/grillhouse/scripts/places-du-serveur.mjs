@@ -10,16 +10,16 @@
 //   node places-du-serveur.mjs lire
 //
 // - Each mode first starts the workflow of the machine when none runs (`demarrerLesPlaces`, on the
-//   task queue of the worker of the machine), its ceiling GRILLHOUSE_PLACES and its spacing
-//   GRILLHOUSE_ESPACEMENT_MS (scripts/places-de-la-machine.mjs).
+//   task queue of the worker of the machine), its spacing GRILLHOUSE_ESPACEMENT_MS
+//   (scripts/places-de-la-machine.mjs); it reads its ceiling from the poste itself.
 // - `rang` writes the next rank of arrival of the machine, which a circuit draws at its launch.
 // - `prendre` asks for a place for <demande> (JSON: `{ pid, depart, ticket, rang, borneMs,
 //   rappelMs }`, the process that holds it), then waits for it: each line it says, at the start of
 //   a wait and every <rappelMs>, is one JSON line `{ dire }` on the standard output, then the place
 //   given, `{ id, rang }`. At the bound <borneMs>, the request is withdrawn, its line said, exit 75.
 // - `rendre` gives the place <id> back (or withdraws its request), `rattacher` names the process
-//   that holds it; `lire` writes the places as the board reads them (`{ plafond, prises, attentes
-//   }`).
+//   that holds it; `lire` writes the places as the board reads them (`{ plafond, faute, prises,
+//   attentes }`).
 // - A server that does not answer within 5 s, or a client not built, is said on the error stream,
 //   exit 1; a malformed call, exit 2.
 import { randomUUID } from 'node:crypto';
@@ -35,11 +35,11 @@ const DELAI_MS = 5_000;
 // How often a wait reads its request again.
 const VEILLE_MS = 250;
 
-// The ceiling and the spacing of the machine under <env>, as scripts/places-de-la-machine.mjs reads
-// them; the workflow's veille, a second.
+// The spacing of the machine under <env>, as scripts/places-de-la-machine.mjs reads it; the
+// workflow's veille, a second. The ceiling, the workflow reads from the poste at each judgement.
 const entreeDe = async env => {
-  const { plafondDe, espacementDe } = await import('./places-de-la-machine.mjs');
-  return { plafond: plafondDe(env), espacementMs: espacementDe(env), veilleMs: 1_000 };
+  const { espacementDe } = await import('./places-de-la-machine.mjs');
+  return { espacementMs: espacementDe(env), veilleMs: 1_000 };
 };
 
 const MODES = { rang: 0, prendre: 1, rendre: 1, rattacher: 3, lire: 0 };

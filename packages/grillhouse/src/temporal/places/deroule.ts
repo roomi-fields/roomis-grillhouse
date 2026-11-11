@@ -9,7 +9,9 @@
 // carries. The signal RENDRE gives a place back or withdraws a request, RATTACHER names the process
 // that holds a place; the query LES_PLACES gives the board the places and the requests that wait.
 // A grant passes by the rule of the places (`refusDeLaPlace` of
-// scripts/regles-des-places.mjs): a free place under the ceiling, the turn of its rank of arrival
+// scripts/regles-des-places.mjs): a free place under the ceiling (a configuration of the poste,
+// read again by an activity at each judgement, so that a ceiling
+// changed counts without restarting the workflow), the turn of its rank of arrival
 // between projects, the admission at the load and the memory (measured by an activity, once per
 // judgement and only when the place and the turn pass), the spacing of the starts. The requests
 // are judged again at each change and every `veilleMs`; a place or a request whose process is gone
@@ -23,6 +25,7 @@ import {
   defineQuery,
   defineSignal,
   defineUpdate,
+  patched,
   proxyActivities,
   setHandler,
   workflowInfo,
@@ -46,7 +49,9 @@ import {
   type VueDesPlaces,
 } from './contrat.js';
 
-const { mesurerLaMachine, processusVivants } = proxyActivities<typeof activites>({
+const { mesurerLaMachine, plafondDeLaMachine, processusVivants } = proxyActivities<
+  typeof activites
+>({
   startToCloseTimeout: '30 seconds',
   retry: { initialInterval: '1 second', maximumAttempts: 5 },
 });
@@ -62,6 +67,11 @@ const laDemande = defineQuery<EtatDeLaDemande, [string]>(LA_DEMANDE);
 class BesoinDeLaMesure extends Error {}
 
 const LIMITE_D_HISTOIRE = 2000;
+// The patch of the ceiling read from the poste (Temporal's patching): a run that recorded its
+// judgements on the ceiling of its entry replays them on it.
+const PLAFOND_DU_POSTE = 'plafond-du-poste';
+// The ceiling before the first reading of a run with none in its entry.
+const PLAFOND_AVANT_LECTURE = 3;
 
 /** The places of the machine, until the next Continue-As-New. */
 export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> {
@@ -70,6 +80,20 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
   let version = 0;
   const changer = () => {
     version += 1;
+  };
+  // The ceiling last read from the poste, and the fault of that reading; a faulty value keeps the
+  // ceiling read before.
+  let plafond = entree.plafond ?? PLAFOND_AVANT_LECTURE;
+  let faute: string | null = null;
+  const lireLePlafond = async () => {
+    if (!patched(PLAFOND_DU_POSTE)) {
+      return;
+    }
+    const r = await plafondDeLaMachine();
+    faute = r.faute;
+    if (r.plafond !== null) {
+      plafond = r.plafond;
+    }
   };
 
   // Removes the places and the requests whose process is gone, by one activity for all of them. A
@@ -116,7 +140,7 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
         refusDeLaPlace(etat, {
           id: a.id,
           rang: a.rang,
-          plafond: entree.plafond,
+          plafond,
           espacementMs: entree.espacementMs,
           maintenant: Date.now(),
           mesurer: m,
@@ -199,7 +223,8 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
     }
   });
   setHandler(lesPlaces, () => ({
-    plafond: entree.plafond,
+    plafond,
+    faute,
     prises: etat.prises,
     attentes: [...etat.attentes].sort((a, b) => a.rang - b.rang),
   }));
@@ -218,17 +243,25 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
   // The version the last judgement started from: a change during it (a request, a place given
   // back, its own grants) wakes the next one at once.
   let jugee = -1;
+  if (entree.plafond === undefined) {
+    await lireLePlafond();
+  }
   for (;;) {
     await condition(() => version !== jugee || aContinuer(), entree.veilleMs);
     jugee = version;
     if (etat.prises.length || etat.attentes.length) {
       await purger();
+      await lireLePlafond();
       await juger();
     }
     if (aContinuer()) {
       // Every handler returns at once: none holds the run open.
       await condition(allHandlersFinished);
-      await continueAsNew<typeof placesDeLaMachine>({ ...entree, etat });
+      // The ceiling is read from the poste from then on, never carried.
+      const { plafond: _lu, ...suite } = entree;
+      await continueAsNew<typeof placesDeLaMachine>(
+        patched(PLAFOND_DU_POSTE) ? { ...suite, etat } : { ...entree, etat }
+      );
     }
   }
 }
