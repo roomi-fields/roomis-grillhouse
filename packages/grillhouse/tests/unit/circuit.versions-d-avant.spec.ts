@@ -202,7 +202,8 @@ describe('grillhouse-3e2, criterion 5 — the names of HEAD’s tests of a file 
       'crates/service/src/server/tests.rs',
       ['server::tests::ancien', 'server::tests::groupe::interne'],
     ],
-    ['crates/service/tests/scenario/main.rs', ['principal', 'aide::aidant']],
+    // A file of a target tests/<dossier>/main.rs names its own tests: aide.rs names aide::aidant.
+    ['crates/service/tests/scenario/main.rs', ['principal']],
   ])('%s: no sibling, the names of HEAD’s tests read', (modifie, noms) => {
     const racine = depot(
       { 'crates/service': 'cargo' },

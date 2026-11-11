@@ -140,7 +140,7 @@ que le testwriter écrit.
 **Un crate Rust a un seul exécutable de tests d'intégration par moment** (la suite de tests de
 Cargo, `tests/testsuite/main.rs`) : chaque fichier de tests est un module que déclare
 `tests/it/main.rs` le jour, `tests/it_nuit/main.rs` la nuit, `tests/it_budget/main.rs` pour les
-bancs ; la garde `grillhouse executables-de-tests` refuse un exécutable de plus. Ainsi cargo lie
+bancs ; une garde du module cargo refuse un exécutable de plus. Ainsi cargo lie
 les dépendances une fois par moment, et une copie garde la place de son disque.
 
 **Un ticket ouvert naît du mot du responsable**, ou d'un défaut qu'un projet du cadre rencontre.
