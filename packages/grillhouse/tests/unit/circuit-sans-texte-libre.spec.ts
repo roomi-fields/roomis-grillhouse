@@ -46,6 +46,8 @@ const PERMISES: Record<string, string> = {
   '/\\/+$/': 'la barre finale d’un dossier que déclare une référence du projet',
   '/-(\\d+)(?:\\.[a-z]+)?$/':
     'le numéro d’un fichier du dossier de travail du circuit, pour numéroter après lui',
+  "/\\bGARDE\\s*=\\s*'([^']+)'|\\btrancher\\(\\s*racine,\\s*'([^']+)'/g":
+    'le nom d’une garde lu dans le code d’un script du cadre (sa constante GARDE ou son appel de trancher), jamais dans un texte libre d’agent',
   '/\\s+/g': 'les blancs du sujet d’un écart d’une fiche, pour le reconnaître une seule fois',
   '/\\s+[>›]\\s+/g':
     'le séparateur « > » ou « › » du nom complet d’un vert attendu d’une fiche et d’un test du rapport de Vitest (grillhouse-j2m)',

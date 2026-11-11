@@ -48,7 +48,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { composants as lesComposants, matieres } from './consommateurs.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
-import { A_ELAGUER, lireSarif, RESULTATS } from '../../resultats.mjs';
+import { estNoteDeDette, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
 import { estUnTest, manifestes, soeurDAvant } from './regle-des-tests.mjs';
 import {
@@ -134,7 +134,7 @@ function constatsDe(racine, script, args) {
       env: { ...process.env, [RESULTATS]: dossier },
       encoding: 'utf8',
     });
-    const constats = lireSarif(dossier).constats.filter(k => k.genre !== A_ELAGUER);
+    const constats = lireSarif(dossier).constats.filter(k => !estNoteDeDette(k));
     if (r.status !== 0 && constats.length === 0) {
       return [{ message: `${path.basename(script)} rouge (code ${r.status ?? r.signal}).` }];
     }

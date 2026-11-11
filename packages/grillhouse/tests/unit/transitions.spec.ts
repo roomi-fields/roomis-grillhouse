@@ -520,6 +520,36 @@ describe('un tableau de transitions par étape', () => {
         ).d;
         expect(livre.suivant).toMatchObject({ etape: CODE, tentative: 2 });
       });
+      it('le rouge d’une garde que le lot ajoute, noté à inscrire : la régénération de la dette, pas sans-livraison, aux contrôles et à la passe finale', () => {
+        const aInscrire = {
+          garde: 'neuve',
+          fichier: 'a.ts',
+          regle: 'r',
+          trouve: 2,
+          genre: 'a-inscrire',
+        };
+        const { d } = jouer(
+          { etat: etat(CONTROLES), memoire: { rienALivrer: 'RIEN' } },
+          faitsDette({ ...ROUGE, notes: [aInscrire] })
+        );
+        expect(d.arret).toBeUndefined();
+        expect(d.suivant).toMatchObject({ etape: REFERENCES, finale: true });
+        expect(d.memoire.aRegenerer).toMatchObject({
+          noms: ['dette'],
+          notes: [aInscrire],
+          suite: 'controles',
+        });
+        const finale = jouer(
+          { etat: etat(CONTROLES, { finale: true }) },
+          {
+            passeFinale: { arbre: 'T', restreinte: null },
+            controles: { ...ROUGE, notes: [aInscrire] },
+            referencesDesRouges: DETTE,
+          }
+        ).d;
+        expect(finale.suivant.etape).toBe(REFERENCES);
+        expect(finale.memoire.aRegenerer).toMatchObject({ noms: ['dette'], notes: [aInscrire] });
+      });
       it('un rouge sans note de dette (titre fautif neuf, vrai défaut) : sans-livraison comme avant', () => {
         const { d } = jouer(
           { etat: etat(CONTROLES), memoire: { rienALivrer: 'RIEN' } },

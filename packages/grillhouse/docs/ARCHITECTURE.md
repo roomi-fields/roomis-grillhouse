@@ -246,7 +246,11 @@ le code de sortie d'un générateur du cadre, qui juge aussi les rouges qu'il la
 refuse à côté d'eux) : il juge la régénération sur ce qu'elle écrit, puis sur la passe restreinte
 qui suit, et seule une vraie panne l'arrête (la commande introuvable, ou tuée par un signal). La dette s'abaisse depuis les notes de la passe finale (une note
 `a-elaguer` du SARIF d'une garde, chaque clé inscrite au-dessus de ce qu'elle trouve), par
-`dette.mjs --abaisser`, sans rejouer les gardes. Un plafond ne monte jamais : un lot qui le dépasse
+`dette.mjs --abaisser`, sans rejouer les gardes. Elle inscrit aussi la dette d'une garde que le lot
+ajoute, absente des gardes de main (le circuit les nomme à la passe par `GRILLHOUSE_GARDES_DE_LA_BASE`) :
+chaque fichier et règle de ses constats est une note `a-inscrire`, au compte trouvé, que la
+régénération inscrit en section entière et écrit au ticket (garde, fichier, règle, compte). Une garde
+de main n'en émet jamais. Un plafond ne monte jamais : un lot qui dépasse celui d'une garde de main
 reste rouge. Ainsi aucun fichier engendré n'attend une main (BP 320.9 : 292 min autour des
 références, dont 163 d'attente).
 

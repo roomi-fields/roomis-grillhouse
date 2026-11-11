@@ -143,7 +143,12 @@ const SARIF = 'sarif';
 export const A_ELAGUER = 'a-elaguer';
 // The kinds of a guard's finding: to fix (a developpeur's work), to settle (a person's decision),
 // to lower (a note).
-const GENRES = ['a-corriger', 'a-arbitrer', A_ELAGUER];
+const GENRES = ['a-corriger', 'a-arbitrer', A_ELAGUER, 'a-inscrire'];
+// The kind of a note of a guard the lot adds (absent from the guards of main): the findings of a
+// key, which the circuit inscribes as its debt (scripts/dette.mjs, scripts/circuit.mjs).
+export const A_INSCRIRE = 'a-inscrire';
+// Whether a finding is a note of the debt, lowered or inscribed by the circuit: no red.
+export const estNoteDeDette = k => k.genre === A_ELAGUER || k.genre === A_INSCRIRE;
 const texte = description => ({ type: 'string', description });
 const liste = (items, description) => ({ type: 'array', description, items });
 const objet = (properties, required = [], description) => ({

@@ -29,7 +29,10 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { A_ELAGUER, ecrireSarif } from './resultats.mjs';
+import { A_ELAGUER, A_INSCRIRE, ecrireSarif } from './resultats.mjs';
+
+// The environment variable that names the guards of the lot's base (main), a JSON list.
+export const BASE = 'GRILLHOUSE_GARDES_DE_LA_BASE';
 
 export const FICHIER = 'grillhouse-dette.json';
 // The environment variable that names the mode of a run: `inscrire` or `elaguer`.
@@ -158,8 +161,48 @@ export function trancher(racine, garde, constats, mode = process.env[MODE] || un
     trouve: c.trouve,
     message: `${c.trouve} constat(s) pour ${c.inscrit} inscrit(s) dans ${FICHIER} : la dette s'abaisse.`,
   }));
-  ecrireSarif({ garde, constats: [...refus, ...notes], racine, env: env ?? process.env });
+  const lEnv = env ?? process.env;
+  ecrireSarif({
+    garde,
+    constats: [...refus, ...notes, ...aInscrire(garde, refus, lEnv)],
+    racine,
+    env: lEnv,
+  });
   return { refus, lignes };
+}
+
+// The guards of the lot's base (main), a JSON list of names the circuit gives the run; undefined
+// without it (a project's run) or when it is not a list.
+function gardesDeLaBase(env) {
+  try {
+    const l = JSON.parse(env[BASE] ?? 'null');
+    return Array.isArray(l) ? l : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// The notes « to inscribe » of <garde> when the base does not hold it: one per file and rule of
+// its refusals, with its count. None for a guard of main, nor without a base to compare with.
+function aInscrire(garde, refus, env) {
+  const base = gardesDeLaBase(env);
+  if (!base || base.includes(garde)) {
+    return [];
+  }
+  const out = [];
+  for (const [fichier, regles] of compter(refus)) {
+    for (const [regle, trouve] of regles) {
+      out.push({
+        fichier,
+        regle,
+        niveau: 'note',
+        genre: A_INSCRIRE,
+        trouve,
+        message: `${trouve} constat(s) d'une garde que le lot ajoute : la dette de ${garde} s'inscrit dans ${FICHIER}.`,
+      });
+    }
+  }
+  return out;
 }
 
 // Writes <dette> at <racine>, its guards sorted.
@@ -176,10 +219,18 @@ function ecrire(racine, dette) {
 // `a-elaguer` of a pass, scripts/resultats.mjs): each key named comes down to what its guard
 // found, and leaves at zero; a count never rises, no key is added. Written when it changes;
 // returns whether it did.
-function abaisser(racine, notes) {
+export function abaisser(racine, notes) {
   const avant = lire(racine);
   const dette = JSON.parse(JSON.stringify(avant));
-  for (const { garde, fichier, regle, trouve } of notes) {
+  for (const { garde, fichier, regle, trouve, genre } of notes) {
+    if (genre === A_INSCRIRE) {
+      if (fichier && regle && Number.isInteger(trouve) && trouve > 0) {
+        dette[garde] ??= {};
+        dette[garde][fichier] ??= {};
+        dette[garde][fichier][regle] = { count: trouve };
+      }
+      continue;
+    }
     const parRegle = dette[garde]?.[fichier];
     const cle = parRegle?.[regle];
     if (!cle || !Number.isInteger(trouve) || trouve >= cle.count) {

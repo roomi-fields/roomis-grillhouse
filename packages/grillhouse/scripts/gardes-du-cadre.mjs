@@ -28,7 +28,7 @@ import { SCRIPT as LANGAGES_DES_PAQUETS } from './langages-des-paquets.mjs';
 import { SCRIPT as FLUX_DES_PAQUETS } from './flux-des-paquets.mjs';
 import { SCRIPT as MIGRATIONS_DES_GARDES } from './migrations-des-gardes.mjs';
 import { langageDe } from './langages.mjs';
-import { A_ELAGUER, ecrireSarif, lireSarif, RESULTATS } from './resultats.mjs';
+import { ecrireSarif, estNoteDeDette, lireSarif, RESULTATS } from './resultats.mjs';
 
 // The guards of the frame in the repository at <racine>, each its script and its arguments, in
 // the order they play: the core's, then the languages'.
@@ -57,7 +57,7 @@ export function jouerLesGardes({
 }) {
   const rouges = [];
   // The findings under the results directory, the notes of the debt left out.
-  const nombre = () => lireSarif(env[RESULTATS]).constats.filter(k => k.genre !== A_ELAGUER).length;
+  const nombre = () => lireSarif(env[RESULTATS]).constats.filter(k => !estNoteDeDette(k)).length;
   for (const garde of gardes) {
     const avant = env[RESULTATS] ? nombre() : 0;
     const r = spawnSync(process.execPath, garde, { cwd: racine, env, stdio: 'inherit' });

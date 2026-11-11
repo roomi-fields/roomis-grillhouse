@@ -32,13 +32,13 @@ import { A_REPASSER } from './codes-de-sortie.mjs';
 import { ecouteLesBranchesDeTicket } from './ci-des-branches.mjs';
 import { BASE_DU_LOT, DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { empreinteDEtape } from './empreinte-d-etape.mjs';
-import { FICHIER as DETTE } from './dette.mjs';
+import { BASE as GARDES_DE_LA_BASE, FICHIER as DETTE } from './dette.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import { cheminsLus } from './composants-affectes.mjs';
 import { couvertPar } from './engendres.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import { etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
-import { nomsDesGardes } from './gardes-du-cadre.mjs';
+import { gardesDuCadre, nomsDesGardes } from './gardes-du-cadre.mjs';
 import { INTEGRE } from './integration/file.mjs';
 import { lotSurMain, refusLotAbsent } from './integration/integrer.mjs';
 import { RETIRER_COPIE } from './integration/rejeu.mjs';
@@ -51,8 +51,9 @@ import { avecLesDonnees } from './donnees-cles.mjs';
 import { consigneDesFlux } from './flux-des-paquets.mjs';
 import { avecLaPasse, lancementDeLaPasse, passeLourde } from './passe-de-la-machine.mjs';
 import {
-  A_ELAGUER,
+  A_INSCRIRE,
   bloquantsDeLaFiche,
+  estNoteDeDette,
   conformiteDuLot,
   conformiteDuTri,
   lireSarif,
@@ -419,6 +420,44 @@ export function arbreDeLaCopie(ctx) {
   }
 }
 
+// The guards of the frame the base of the lot (the copy's HEAD, main of its time) holds, as the
+// environment of a pass names them (`GRILLHOUSE_GARDES_DE_LA_BASE`, scripts/dette.mjs): each guard
+// whose script lies outside the copy (the installed frame's), or in the copy and in HEAD's tree.
+// A guard whose script HEAD does not hold is the lot's, its debt inscribed from its notes.
+// Each guard is listed under the name its findings carry (the one it gives `trancher`, read from
+// its script: `GARDE = '…'` or a literal), and under its script's name; the scripts the lint of the
+// package plays beside the guards of the frame count too.
+export function gardesDeLaBase(ctx) {
+  const copie = path.resolve(ctx.copie);
+  const noms = [];
+  const scripts = [
+    ...gardesDuCadre(ctx.copie).map(garde => garde[0]),
+    path.join(ici, 'lint-des-scripts.mjs'),
+  ];
+  for (const chemin of scripts) {
+    const script = path.resolve(copie, chemin);
+    const rel = path.relative(copie, script);
+    const dehors = rel.startsWith('..') || path.isAbsolute(rel);
+    const dansHead =
+      !dehors &&
+      spawnSync('git', ['-C', copie, 'cat-file', '-e', `HEAD:${rel}`], { encoding: 'utf8' })
+        .status === 0;
+    if (dehors || dansHead) {
+      noms.push(path.basename(script, path.extname(script)));
+      let source = '';
+      try {
+        source = readFileSync(script, 'utf8');
+      } catch {
+        // an unreadable script keeps its script's name alone
+      }
+      for (const m of source.matchAll(/\bGARDE\s*=\s*'([^']+)'|\btrancher\(\s*racine,\s*'([^']+)'/g)) {
+        noms.push(m[1] ?? m[2]);
+      }
+    }
+  }
+  return JSON.stringify([...new Set(noms)]);
+}
+
 // The copy's HEAD, the base of the lot as it stands (the tip of main of its time), or null.
 function laBase(ctx) {
   const r = spawnSync('git', ['-C', ctx.copie, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
@@ -648,6 +687,10 @@ export function regenerer(
       : r
   );
   const aJouer = toutes.filter(r => noms.includes(r.nom));
+  // The guards the lot adds, inscribed whole from their notes: each its guard, file, rule, count.
+  const inscriptions = aJouer.some(r => r.abaisser)
+    ? notes.filter(k => k.genre === A_INSCRIRE && k.fichier && k.regle)
+    : [];
   if (aJouer.some(r => r.abaisser)) {
     writeFileSync(fichierDesNotes, `${JSON.stringify(notes)}\n`);
   }
@@ -763,6 +806,13 @@ export function regenerer(
       }.`,
       '',
       ...regenerees.map(r => `- ${r.nom} (\`${r.commande}\`) : ${siens(r).join(', ')}`),
+      ...(inscriptions.length
+        ? [
+            '',
+            `La dette d'une garde que le lot ajoute, inscrite (garde · fichier · règle · compte) :`,
+            ...inscriptions.map(k => `- ${k.garde} · ${k.fichier} · ${k.regle} · ${k.trouve}`),
+          ]
+        : []),
       '',
       `La différence : \`git diff ${avant.commit} ${apres.commit}\`, dans la copie du ticket.`,
     ].join('\n'),
@@ -1300,6 +1350,7 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
                   ...env,
                   [RESULTATS]: dossier,
                   [AVANCEMENT]: avancement,
+                  [GARDES_DE_LA_BASE]: gardesDeLaBase(ctx),
                   ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
                   ...(args[0] === 'test' || args[1] === 'verifier' ? mesureDesPasses(ctx) : {}),
                 }),
@@ -1903,7 +1954,7 @@ function situer(ctx, liste, chemin) {
 // of another level, which the report lists apart. A guards' task red without a finding of level
 // error keeps its line of a red task, with its log.
 function rougesDe(ctx, liste, c) {
-  const lus = lireSarif(c.dossier).constats.filter(k => k.genre !== A_ELAGUER);
+  const lus = lireSarif(c.dossier).constats.filter(k => !estNoteDeDette(k));
   const vert = c.code === 0 || c.code === A_REPASSER;
   const gardesDuCadre = nomsDesGardes(ctx.copie);
   const duCadre = k => gardesDuCadre.includes(k.garde);
@@ -2164,8 +2215,14 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
     tous,
     notes: resultats.flatMap(r =>
       lireSarif(r.dossier)
-        .constats.filter(k => k.genre === A_ELAGUER)
-        .map(({ garde, fichier, regle, trouve }) => ({ garde, fichier, regle, trouve }))
+        .constats.filter(estNoteDeDette)
+        .map(({ garde, fichier, regle, trouve, genre }) => ({
+          garde,
+          fichier,
+          regle,
+          trouve,
+          genre,
+        }))
     ),
   };
 }
