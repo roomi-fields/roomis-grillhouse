@@ -430,6 +430,9 @@ function verifier(racine, args, env) {
     tests: testsCibles({ arguments: [], force: args.includes('--tout') }),
     env,
   });
+  if (code !== 0) {
+    process.stderr.write('⛔ rouge.\n');
+  }
   return code === 0 ? 0 : 1;
 }
 

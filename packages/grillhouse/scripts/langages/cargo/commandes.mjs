@@ -722,8 +722,16 @@ function verifier(racine, args, env) {
         env,
       })
     : 0;
-  p.jouer(p.prevoir(RACINE, racine, 'deny', false, ['deny', 'check']));
-  return code === 0 ? p.code() : 1;
+  const deny = p.jouer(p.prevoir(RACINE, racine, 'deny', false, ['deny', 'check']));
+  const verdict = code === 0 ? p.code() : 1;
+  // A red pass names its task out of the graph, as `lancerLesTaches` names those of the graph.
+  if (verdict !== 0) {
+    if (deny !== 0) {
+      process.stderr.write(`⛔ ${RACINE}#deny (code ${deny})\n`);
+    }
+    process.stderr.write('⛔ rouge.\n');
+  }
+  return verdict;
 }
 
 // The scripts of guards of the project, in the order they play, as the module typescript's

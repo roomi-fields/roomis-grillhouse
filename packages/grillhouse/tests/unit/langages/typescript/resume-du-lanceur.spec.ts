@@ -1,7 +1,7 @@
 // Le résumé d'un lancement de Turborepo (`--summarize`) se lit et se range une seule fois, dans le
 // module typescript, qui pilote Turborepo ; la jointure le sert aux modules cargo et python (un
 // membre de `Langage`, scripts/jointure.d.ts). Un lancement par `lancerLesTaches`
-// (scripts/taches-du-graphe.mjs) en demande le résumé quand un dossier de résultats est nommé.
+// (scripts/taches-du-graphe.mjs) en demande toujours le résumé, et nomme chaque tâche rouge.
 // Joué contre le faux Turborepo (../../faux-turbo.ts).
 import {
   existsSync,
@@ -26,7 +26,11 @@ type Membres = {
   lireLesResumes: (
     dossier: string
   ) => { tache: string; tests: boolean; code: number | null; cache: string | null }[];
-  garderLesResumes: (racine: string, avant: Set<string>, env: NodeJS.ProcessEnv) => void;
+  garderLesResumes: (
+    racine: string,
+    avant: Set<string>,
+    env: NodeJS.ProcessEnv
+  ) => { tache: string; code: number | null }[];
   resumesDuLancement: (racine: string) => Set<string>;
 };
 const module = () => typescript as unknown as Membres;
@@ -197,6 +201,33 @@ describe('le lancement des tâches demande le résumé', () => {
     expect(r.code).toBe(0);
     const runs = path.join(racine, '.turbo/runs');
     expect(existsSync(runs) ? readdirSync(runs) : []).toEqual([]);
+  });
+
+  it('rouge, nomme chaque tâche dont le code n’est pas 0, même sans dossier de résultats', () => {
+    const racine = dossier('rouge');
+    const journal = path.join(racine, 'journal');
+    writeFileSync(journal, '');
+    const lignes: string[] = [];
+    const code = lancerLesTaches({
+      outil: turbo,
+      racine,
+      taches: ['test:unit'],
+      env: {
+        ...process.env,
+        GRILLHOUSE_RESULTATS: '',
+        FAUX_TURBO_JOURNAL: journal,
+        FAUX_TURBO_CODE: '1',
+        FAUX_TURBO_RESUME: resume([
+          tache('a#test:unit', { execution: { exitCode: 0 } }),
+          tache('b#test:unit', { execution: { exitCode: 1 } }),
+          tache('c#test:unit', {}),
+        ]),
+      },
+      dire: l => lignes.push(l),
+    });
+    expect(code).toBe(1);
+    expect(appelsDeTurbo(journal)[0]!.args).toContain('--summarize');
+    expect(lignes).toEqual(['⛔ b#test:unit (code 1)', '⛔ c#test:unit (code absent)']);
   });
 
   it('garde les résumés d’avant le lancement, et rend le code de l’outil', () => {

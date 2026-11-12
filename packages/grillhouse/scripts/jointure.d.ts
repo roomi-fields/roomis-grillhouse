@@ -260,8 +260,13 @@ export interface Composition {
    * the others: the names of the summaries of a run present in `racine` before a run. */
   resumesDuLancement?(racine: string): Set<string>;
   /** Optional, typescript's alone: moves the summaries a run in `racine` wrote (absent from
-   * `avant`) into the results directory `env` names, or removes them without one. */
-  garderLesResumes?(racine: string, avant: Set<string>, env?: NodeJS.ProcessEnv): void;
+   * `avant`) into the results directory `env` names, or removes them without one; gives each
+   * task of those summaries with its exit code, null for a task that did not run. */
+  garderLesResumes?(
+    racine: string,
+    avant: Set<string>,
+    env?: NodeJS.ProcessEnv
+  ): { tache: string; code: number | null }[];
   /** Optional, typescript's alone: the tasks of the summaries under the results directory
    * `dossier`, in their order, each with its cache status; `code` null for a task that did not run. */
   lireLesResumes?(dossier: string): TacheDuResume[];
@@ -503,7 +508,8 @@ export const TRACE: string;
 export function nomDuPaquet(racine: string, dossier: string): string | null;
 /** Runs the tasks `taches` of the packages `noms` (all when empty) with the task runner `outil`,
  * each task whose dependencies succeed played to its end: the runner's exit code. `tests` is the
- * content of the variable `TESTS_CIBLES` of the run; the variable of `env` never passes on. */
+ * content of the variable `TESTS_CIBLES` of the run; the variable of `env` never passes on. A
+ * red run names, through `dire`, each task whose code is not 0. */
 export function lancerLesTaches(o: {
   outil: string;
   racine: string;
@@ -511,6 +517,7 @@ export function lancerLesTaches(o: {
   noms?: Iterable<string>;
   tests?: { arguments: string[]; rejouer?: string };
   env?: NodeJS.ProcessEnv;
+  dire?: (ligne: string) => void;
 }): number;
 /** A task of the summary of the task runner, or one a module wrote: `code` null for a task that did not run. */
 export interface TacheDuResume {

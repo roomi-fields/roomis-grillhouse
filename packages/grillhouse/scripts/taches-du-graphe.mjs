@@ -39,7 +39,6 @@ import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { lireLaListe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
-import { RESULTATS } from './resultats.mjs';
 import { langage } from './langages.mjs';
 
 /** The name of the script and of the task of the tests of a package, the same for every language. */
@@ -104,21 +103,31 @@ export function nomDuPaquet(racine, dossier) {
  * Runs the tasks <taches> of the packages <noms> (all of them when <noms> is empty) with <outil> in
  * <racine>, each task whose dependencies succeed played to its end: its exit code, the runner's.
  * <tests>, when given, is the content of the variable `TESTS_CIBLES` of the run (`{ arguments,
- * rejouer? }`); the variable of <env> never passes on.
+ * rejouer? }`); the variable of <env> never passes on. A red run names, through <dire>, each task
+ * whose code is not 0, « ⛔ <tâche> (code N) », as the pass of the module typescript does.
  * @param {{ outil: string, racine: string, taches: string[], noms?: Iterable<string>,
- *   tests?: { arguments: string[], rejouer?: string }, env?: NodeJS.ProcessEnv }} o
+ *   tests?: { arguments: string[], rejouer?: string }, env?: NodeJS.ProcessEnv,
+ *   dire?: (ligne: string) => void }} o
  * @returns {number}
  */
-export function lancerLesTaches({ outil, racine, taches, noms = [], tests, env = process.env }) {
+export function lancerLesTaches({
+  outil,
+  racine,
+  taches,
+  noms = [],
+  tests,
+  env = process.env,
+  dire = l => process.stderr.write(`${l}\n`),
+}) {
   const e = { ...env };
   delete e[TESTS_CIBLES];
   if (tests) {
     e[TESTS_CIBLES] = JSON.stringify(tests);
   }
   const filtres = [...new Set(noms)].sort().map(n => `--filter=${n}`);
-  // A named results directory asks the runner for its summary, kept there; the summaries of a run
-  // are never left in the project.
-  const resume = e[RESULTATS] ? ['--summarize'] : [];
+  // The runner's summary gives each task's verdict; kept in a named results directory, never left
+  // in the project.
+  const resume = ['--summarize'];
   const lanceur = langage('typescript');
   const avant = lanceur.resumesDuLancement(racine);
   const r = spawnSync(
@@ -126,7 +135,12 @@ export function lancerLesTaches({ outil, racine, taches, noms = [], tests, env =
     ['run', ...taches, ...filtres, '--continue=dependencies-successful', ...resume],
     { cwd: racine, stdio: 'inherit', env: e }
   );
-  lanceur.garderLesResumes(racine, avant, e);
+  const verdicts = lanceur.garderLesResumes(racine, avant, e);
+  if (r.status !== 0) {
+    for (const t of verdicts.filter(x => x.code !== 0)) {
+      dire(`⛔ ${t.tache} (code ${t.code ?? 'absent'})`);
+    }
+  }
   return r.status ?? 1;
 }
 
