@@ -1,7 +1,8 @@
 // The bridge to the places of the machine (scripts/places-du-serveur.mjs) plays again a call the
 // server fails transiently, and only then gives up: a busy server is a wait, never a red.
+import { createServer } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { avecReprises, transitoire } from '../../scripts/places-du-serveur.mjs';
+import { avecReprises, ecoute, transitoire } from '../../scripts/places-du-serveur.mjs';
 
 const sansPause = { attendre: () => Promise.resolve() };
 const delai = Object.assign(new Error('4 DEADLINE_EXCEEDED: Deadline exceeded after 0.000s'), {
@@ -9,10 +10,11 @@ const delai = Object.assign(new Error('4 DEADLINE_EXCEEDED: Deadline exceeded af
 });
 
 describe('a call the server fails transiently is played again', () => {
-  it('tells a deadline exceeded and an unavailable server from another failure', () => {
+  it('tells a deadline exceeded, a call cancelled at its deadline and an unavailable server from another failure', () => {
     expect(transitoire(delai)).toBe(true);
     expect(transitoire({ code: 14, message: 'UNAVAILABLE' })).toBe(true);
     expect(transitoire({ cause: { code: 4 } })).toBe(true);
+    expect(transitoire({ code: 1, message: '1 CANCELLED: Call cancelled' })).toBe(true);
     expect(transitoire(new Error('workflow not found'))).toBe(false);
   });
 
@@ -40,5 +42,16 @@ describe('a call the server fails transiently is played again', () => {
       avecReprises(() => (m++, Promise.reject(autre)), { essais: 3, ...sansPause })
     ).rejects.toBe(autre);
     expect(m).toBe(1);
+  });
+});
+
+describe('a server busy is told from a server absent', () => {
+  it('a port that listens is a server there, a port refused none', async () => {
+    const serveur = createServer();
+    await new Promise<void>(ok => serveur.listen(0, '127.0.0.1', ok));
+    const { port } = serveur.address() as { port: number };
+    expect(await ecoute(`127.0.0.1:${port}`)).toBe(true);
+    await new Promise<void>(ok => serveur.close(() => ok()));
+    expect(await ecoute(`127.0.0.1:${port}`)).toBe(false);
   });
 });

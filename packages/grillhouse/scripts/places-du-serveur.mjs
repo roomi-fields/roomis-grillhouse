@@ -20,10 +20,13 @@
 // - `rendre` gives the place <id> back (or withdraws its request), `rattacher` names the process
 //   that holds it; `lire` writes the places as the board reads them (`{ plafond, faute, prises,
 //   attentes }`).
-// - A server that does not answer within 5 s, or a client not built, is said on the error stream,
-//   exit 1; a malformed call, exit 2.
+// - Each call waits DELAI_MS for the server, and is played again ESSAIS times when it fails
+//   transiently. Still failing, its port open: the server is busy, said on the error stream, exit
+//   75. A port refused (no server), another failure, or a client not built: said on the error
+//   stream, exit 1. A malformed call, exit 2.
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { A_REPASSER } from './codes-de-sortie.mjs';
@@ -37,11 +40,11 @@ const ESSAIS = 3;
 const RECUL_MS = 1_000;
 
 // Whether <x> is a transient failure of the server, which a new attempt may pass: a deadline
-// exceeded (the connection slow to open under load) or the server unavailable, as Temporal's
-// clients retry them (gRPC codes 4 and 14).
+// exceeded, or a call cancelled at its deadline (the connection slow to open under load), or the
+// server unavailable, as Temporal's clients retry them (gRPC codes 1, 4 and 14).
 export const transitoire = x =>
-  [4, 14].includes(x?.code ?? x?.cause?.code) ||
-  /DEADLINE_EXCEEDED|UNAVAILABLE/.test(`${x?.message ?? ''} ${x?.cause?.message ?? ''}`);
+  [1, 4, 14].includes(x?.code ?? x?.cause?.code) ||
+  /CANCELLED|DEADLINE_EXCEEDED|UNAVAILABLE/.test(`${x?.message ?? ''} ${x?.cause?.message ?? ''}`);
 
 /**
  * Plays <appel> (an async function), again after a pause growing by <reculMs>, while it fails
@@ -66,6 +69,27 @@ export async function avecReprises(
     }
   }
 }
+/**
+ * Whether something listens on <adresse> (`hote:port`): false when the connection is refused (no
+ * server), true when it opens or does not answer within <delaiMs> (a server busy).
+ * @param {string} adresse
+ * @param {number} [delaiMs]
+ * @returns {Promise<boolean>}
+ */
+export function ecoute(adresse, delaiMs = 2_000) {
+  const deux = adresse.lastIndexOf(':');
+  return new Promise(ok => {
+    const s = net.connect({ host: adresse.slice(0, deux), port: Number(adresse.slice(deux + 1)) });
+    const fin = r => {
+      s.destroy();
+      ok(r);
+    };
+    s.once('connect', () => fin(true));
+    s.once('error', () => fin(false));
+    s.setTimeout(delaiMs, () => fin(true));
+  });
+}
+
 // How often a wait reads its request again.
 const VEILLE_MS = 1_000;
 
@@ -182,9 +206,10 @@ async function principal(mode, args) {
     }
     return 0;
   } catch (x) {
-    if (transitoire(x)) {
-      // Still failing transiently after its attempts: the server is busy, not absent; the
-      // measure is to be played again (75), never a red.
+    if (transitoire(x) && (await ecoute(c.adresse))) {
+      // Still failing transiently after its attempts, its port open: the server is busy, not
+      // absent; the measure is to be played again (75), never a red. A port refused is a server
+      // absent, required on the poste, below.
       process.stderr.write(
         `les places de la machine ne répondent pas à temps sur le serveur Temporal (${c.adresse}), ${ESSAIS} essais : ${x?.message ?? x} ; à repasser.\n`
       );
