@@ -134,6 +134,7 @@ export function rangDeLaSeance(ctx, id) {
     fin: path.join(dossier, 'fin'),
     resultat: path.join(dossier, 'resultat.json'),
     horsPlan: path.join(dossier, 'hors-plan'),
+    horsPlanFait: path.join(dossier, 'hors-plan.json'),
   };
 }
 
@@ -147,6 +148,7 @@ function resultatRange(rang, id) {
     seance: Number(readFileSync(rang.fin, 'utf8').trim()),
     bloque: false,
     horsPlan: existsSync(rang.horsPlan) ? lire(rang.horsPlan).trim() : null,
+    ecriture: ecritureRangee(rang),
     erreur: null,
     sortie: lire(rang.resultat).trim(),
     id,
@@ -244,6 +246,7 @@ export async function lancer(
   rmSync(rang.fin, { force: true });
   rmSync(rang.resultat, { force: true });
   rmSync(rang.horsPlan, { force: true });
+  rmSync(rang.horsPlanFait, { force: true });
   inscrire(ctx, {
     role: AUTEUR_DU_CIRCUIT,
     lancement: { role, seance: id, ...(objet ? { objet } : {}) },
@@ -373,6 +376,7 @@ export async function lancer(
   let seance;
   let sortie;
   let horsPlan = null;
+  let ecriture = null;
   if (horsEnveloppe) {
     seance = existsSync(rang.fin)
       ? Number(readFileSync(rang.fin, 'utf8').trim())
@@ -389,12 +393,14 @@ export async function lancer(
     seance = existsSync(rang.fin) ? Number(readFileSync(rang.fin, 'utf8').trim()) : null;
     sortie = lire(rang.resultat).trim();
     horsPlan = existsSync(rang.horsPlan) ? lire(rang.horsPlan).trim() : null;
+    ecriture = ecritureRangee(rang);
   }
   return {
     code: r.code,
     seance,
     bloque: r.bloque,
     horsPlan,
+    ecriture,
     erreur: r.erreur ?? lire(erreurs),
     sortie,
     id,
@@ -747,15 +753,31 @@ function avecLesReponses(constats, fiche) {
   });
 }
 
+// The write the lock stopped, `{ chemin, paquet, racine }`, as it ranged it at <rang>
+// (`hors-plan.json`), or null without it.
+function ecritureRangee(rang) {
+  return existsSync(rang.horsPlanFait) ? JSON.parse(lire(rang.horsPlanFait)) : null;
+}
+
 // The launch <r> of a session of <role>, or the Arret it is: a session its lock stopped on a
 // write out of the plan (« hors-plan », the write as its piece), a motionless session
 // (« bloqué »), a launch that stops before its session (« lancement »).
 export function seanceLancee(ctx, role, r) {
   if (r.horsPlan) {
+    // The lock's structured write: the first line of the report names the path and its package;
+    // the question carries the command (none for the root, which no package holds).
+    const ecriture = r.ecriture;
+    const nom = ecriture ? (ecriture.racine ? 'la racine du dépôt' : ecriture.paquet) : null;
+    const dit = ecriture ? `${ecriture.chemin} est dans ${nom}` : null;
+    const question = !ecriture
+      ? null
+      : ecriture.racine
+        ? `La séance écrit ${ecriture.chemin}, que tient la racine du dépôt, hors du plan du ticket : aucun paquet ne le porte, l'écriture est-elle refusée (\`--reprendre\` avec son contexte) ?`
+        : `La séance écrit ${ecriture.chemin}, que tient ${ecriture.paquet}, hors du plan du ticket : le plan s'étend-il à ce paquet (\`--etendre ${ecriture.paquet}\`), ou l'écriture est-elle refusée (\`--reprendre\` avec son contexte) ?`;
     throw new Arret(
       'hors-plan',
-      `Le crochet de la séance du ${nomDuRole(role)} l'arrête sur une écriture hors du plan du ticket (ses paquets : ${ctx.paquets.join(', ')}) :\n\n${r.horsPlan}`,
-      { piece: r.horsPlan }
+      `${dit ? `${dit}, hors du plan du ticket (ses paquets : ${ctx.paquets.join(', ')}).\n\n` : ''}Le crochet de la séance du ${nomDuRole(role)} l'arrête sur une écriture hors du plan du ticket (ses paquets : ${ctx.paquets.join(', ')}) :\n\n${r.horsPlan}`,
+      { piece: r.horsPlan, ...(question ? { question } : {}) }
     );
   }
   if (r.bloque) {

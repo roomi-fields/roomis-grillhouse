@@ -1555,7 +1555,14 @@ export function monter(ctx, a) {
     String(a.piece ?? '').trim() ||
     rouges ||
     `Le journal du ticket, ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`) :\n${fin(lire(ctx.journal), 20)}`;
-  const question = a.question ? `${a.question}\n\n${m.question}` : m.question;
+  // A hors-plan stop carries its own question (the exact command for its path, or the refusal
+  // alone for the repository root): the generic one would offer `--etendre` for any path.
+  const question =
+    a.question && a.nom === 'hors-plan'
+      ? a.question
+      : a.question
+        ? `${a.question}\n\n${m.question}`
+        : m.question;
   const qui = a.qui ?? m.qui;
   ecrireEtat(ctx, {
     ...a.etat,

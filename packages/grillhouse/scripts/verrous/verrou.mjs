@@ -40,6 +40,7 @@ import { pathToFileURL } from 'node:url';
 import {
   ecritsDuPlan,
   MARQUE_HORS_PLAN,
+  MARQUE_HORS_PLAN_FAIT,
   paquetQuiTient,
   paquetsDeLEnveloppe,
   paquetsDuLangage,
@@ -125,6 +126,8 @@ export function horsDuPlan(input, { tmp = tmpdir(), env = process.env, role = nu
   const paquet = tenant === '.' ? 'la racine du dépôt' : tenant;
   return {
     paquet,
+    chemin: rel,
+    racine: tenant === '.',
     raison: `⛔ hors-plan — ${rel} est dans ${paquet}, hors des paquets du plan (${plan.join(', ')}) : ta séance s'arrête là, et le superviseur étend le plan ou refuse l'écriture.`,
   };
 }
@@ -267,6 +270,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     // The mark for the circuit; the stop below is the hook's answer, mark or not.
     try {
       writeFileSync(path.join(tmpdir(), MARQUE_HORS_PLAN), stop.raison);
+      writeFileSync(
+        path.join(tmpdir(), MARQUE_HORS_PLAN_FAIT),
+        JSON.stringify({ chemin: stop.chemin, paquet: stop.paquet, racine: stop.racine })
+      );
     } catch {
       // A working directory gone leaves no mark; the session still stops.
     }
