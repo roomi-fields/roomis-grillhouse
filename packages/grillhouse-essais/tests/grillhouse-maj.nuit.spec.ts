@@ -105,6 +105,8 @@ const CONTROLES: [string, RegExp][] = [
   // CI exercises.
   ['dépendances internes', /^grillhouse dependances-internes$/],
   ['flux des paquets', /^grillhouse flux-des-paquets$/],
+  // grillhouse-44b.10.8.2: a guard with a debt arrives with its migration.
+  ['migrations des gardes', /^grillhouse migrations-des-gardes$/],
   ['turbo.json des paquets', /^grillhouse turbo-des-paquets$/],
   ['index des interfaces', /^grillhouse index-interfaces --verifier$/],
   ['consommateurs', /^grillhouse consommateurs$/],

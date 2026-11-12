@@ -303,7 +303,8 @@ describe('une seule entrée sur main à la fois par projet', () => {
     expect([vue.enCours, ...vue.attente].sort()).toEqual(['essai-1', 'essai-2']);
     expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
     expect(await finDuCircuit(s.client, RACINE, 'essai-2')).toEqual({ code: 0, raison: 'integre' });
-    // Each entry ends (its candidate, its CI, main, the closure) before the next one starts.
+    // Each entry ends (its candidate, its CI, main, the closure, the main flows recorded after the
+    // push) before the next one starts.
     const premier = journal.file[0]!.split(' ')[1]!;
     const second = premier === 'essai-1' ? 'essai-2' : 'essai-1';
     expect(journal.file).toEqual([
@@ -311,10 +312,12 @@ describe('une seule entrée sur main à la fois par projet', () => {
       `fin preparerLaBranche ${premier}`,
       `avancerMain ${premier}`,
       `fermerLEntree ${premier}`,
+      `inscrireLesFluxDeMain ${premier}`,
       `preparerLaBranche ${second}`,
       `fin preparerLaBranche ${second}`,
       `avancerMain ${second}`,
       `fermerLEntree ${second}`,
+      `inscrireLesFluxDeMain ${second}`,
     ]);
     const d = await s.client.workflow.getHandle(idDeLaFile(RACINE)).describe();
     expect(d.status.name).toBe('RUNNING');
@@ -679,7 +682,8 @@ describe('un acte de la file qui échoue', () => {
     });
     expect(journal.conclusions[0]!.raison).toContain('gh plante');
     expect(journal.file).not.toContain('avancerMain essai-1');
-    expect(journal.arrets).toEqual([]);
+    // The ticket stays in the queue: its circuit's « a-repasser » plays again, no question goes up.
+    expect(journal.arrets.filter(a => a.monter)).toEqual([]);
     await attendre('la file libre', async () =>
       (await lireLaFile(s.client, RACINE)).enCours === null ? true : undefined
     );
@@ -787,9 +791,13 @@ describe('la CI juge tous les flux attendus', () => {
   // The CI of a commit with the readings <lectures>, in their order, the last one repeated.
   const avecLesLectures = (lectures: LectureDesPassages[]) => {
     let n = 0;
-    return actes(undefined, {
-      lireLesPassagesDeLaCI: () => Promise.resolve(lectures[Math.min(n++, lectures.length - 1)]!),
+    const a = actes(undefined, {
+      lireLesPassagesDeLaCI: ({ ticket, sha }) => {
+        a.journal.lectures.push({ ticket, sha });
+        return Promise.resolve(lectures[Math.min(n++, lectures.length - 1)]!);
+      },
     });
+    return a;
   };
   const conclusion = async (a: ReturnType<typeof actes>) => {
     const s = await serveur(a.activites);

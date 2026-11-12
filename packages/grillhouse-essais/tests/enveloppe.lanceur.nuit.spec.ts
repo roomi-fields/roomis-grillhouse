@@ -319,8 +319,10 @@ describe('the launcher and the dependencies of the copy', () => {
 // « Un ticket bloqué repart de sa copie : sa copie garde le code de l'agent précédent » (pitmaster),
 // and the safety measure of grillhouse-3uv.8.3: a reapplication that conflicts stops the launch
 // (CODE_COPIE), names the conflict in the log and leaves the work in the copy, its conflicts
-// marked, never in git's stash, which every copy shares (grillhouse-fy3). The copy moves
-// forward before its envelope, so these tests do not depend on bwrap.
+// marked, never in git's stash, which every copy shares (grillhouse-fy3). The session of the role
+// that writes a file in conflict is launched on its marks (grillhouse-bf5.3, `preparer --role`):
+// the refusal goes to a role that writes none of them, the testwriter on a file of code. The copy
+// moves forward before its envelope, so these tests do not depend on bwrap.
 describe('the launcher and the work in progress of the copy', () => {
   const ident = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
   const lignes = (deuxieme: string) => `l1\n${deuxieme}\nl3\nl4\nl5\nl6\nl7\n`;
@@ -344,8 +346,8 @@ describe('the launcher and the work in progress of the copy', () => {
     git(repo, 'commit', '-qm', 'init');
     const copie = path.join(repo, '.claude/worktrees/demo-1');
     const home = essai('home-');
-    const launch = () =>
-      spawnSync('bash', [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', consigne], {
+    const launch = (role = 'developpeur') =>
+      spawnSync('bash', [LAUNCHER, 'demo-1', role, 'packages/a', consigne], {
         cwd: repo,
         encoding: 'utf8',
         env: { ...process.env, CLAUDE_BIN: 'true', HOME: home },
@@ -404,11 +406,11 @@ describe('the launcher and the work in progress of the copy', () => {
     expect(d.git(d.copie, 'stash', 'list')).toBe('');
   });
 
-  it('refuses with CODE_COPIE when the work conflicts with main, and names the conflict in the log', () => {
+  it('refuses with CODE_COPIE a role that writes no file of the conflict with main, and names the conflict in the log', () => {
     const d = depot();
     d.avance('packages/a/src/a.ts', lignes('MAIN'));
     d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
-    const r = d.launch();
+    const r = d.launch('testwriter');
     expect(r.status).toBe(CODE_COPIE);
     expect(r.stderr).toMatch(/demo-1\.log/);
     const log = readFileSync(d.copie + '.log', 'utf8');
@@ -420,13 +422,13 @@ describe('the launcher and the work in progress of the copy', () => {
     const d = depot();
     d.avance('packages/a/src/a.ts', lignes('MAIN'));
     d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
-    d.launch();
+    d.launch('testwriter');
     expect(d.git(d.copie, 'stash', 'list')).toBe('');
     expect(d.lire('packages/a/src/a.ts')).toMatch(/^<<<<<<< .*\nMAIN\n=======\nCOPIE\n>>>>>>> /m);
     expect(readFileSync(d.copie + '.log', 'utf8')).toContain('il reste dans la copie');
   });
 
-  it('starts no agent on a copy whose work conflicts', () => {
+  it('starts no agent of a role that writes no file of the conflict', () => {
     const d = depot();
     const trace = path.join(d.repo, 'lance');
     const fake = path.join(d.repo, 'faux-claude.sh');
@@ -435,7 +437,7 @@ describe('the launcher and the work in progress of the copy', () => {
     d.ecrire('packages/a/src/a.ts', lignes('COPIE'));
     const r = spawnSync(
       'bash',
-      [LAUNCHER, 'demo-1', 'developpeur', 'packages/a', path.join(d.repo, 'consigne.txt')],
+      [LAUNCHER, 'demo-1', 'testwriter', 'packages/a', path.join(d.repo, 'consigne.txt')],
       {
         cwd: d.repo,
         encoding: 'utf8',

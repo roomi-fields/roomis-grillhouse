@@ -58,16 +58,22 @@ describe.runIf(canWrap)(
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
     });
 
-    it('critère 3: a copy in conflict with main stops the resumption at « lancement », its question naming the file', () => {
+    // A file of code in conflict goes to the developpeur, relaunched once on its marks
+    // (grillhouse-bf5.3, the gesture `conflit-de-l-avance`); a conflict its session does not lift
+    // stops the resumption.
+    it('critère 3: a copy in conflict with main that the developpeur relaunched leaves marked stops the resumption at « lancement », its question naming the file', () => {
       const id = 'demo-pointe-conflit';
       const copie = arreteAuxControles(
         id,
         `printf 'export const mesure = x => 3 * x;\\n' > $c/src/index.mjs\n`
       );
       surMain('export const mesure = x => 2 * x;\n');
+      // The developpeur relaunched on the conflict leaves its marks.
+      scenario(id, 'developpeur', `passation 'Les marques restent.'\n`);
       const r = circuit([id, '--reprendre']);
       expect(r.status, sortie(r)).toBe(ARRETS.lancement);
-      expect(sessions(id, 'developpeur')).toBe(3);
+      expect(sessions(id, 'developpeur')).toBe(4);
+      expect(journal(id)).toContain('conflit-de-l-avance');
       const e = etat(id);
       expect(e).toMatchObject({ etape: 'controles', raison: 'lancement', code: ARRETS.lancement });
       expect(e?.question?.piece).toMatch(/^ {2}packages\/forms\/src\/index\.mjs$/m);

@@ -1371,11 +1371,14 @@ describe('une histoire enregistrée se rejoue sur le code courant', () => {
   }, 120_000);
 });
 
+// The checks « à repasser » (75 of the verifier: the machine's lock or room not had in time) are the
+// stop « a-repasser »; the integration verifies nothing since grillhouse-44b.12.5, so it has none.
+const A_REPASSER = { ...VERT, aRepasser: true };
+
 describe('un « a-repasser » se rejoue, 6 fois au plus, puis sa question monte', () => {
   it('plays again after its sleep, six times, then the seventh goes up', async () => {
-    const { activites, journal } = actes(
-      { integration: { code: 75, sortie: 'machine chargée', commande: 'integrer' } },
-      o => (o.arrete ? { ...o.arrete } : TESTS)
+    const { activites, journal } = actes({ controles: A_REPASSER }, o =>
+      o.arrete ? { ...o.arrete } : TESTS
     );
     const client = await circuit(activites, { repasserMs: 300 });
     const v = await enAttente(client).then(async () =>
@@ -1401,13 +1404,11 @@ describe('un « a-repasser » se rejoue, 6 fois au plus, puis sa question monte'
     expect(journal.ouvertures.slice(1).map(o => o.reponse)).toEqual(
       Array(6).fill({ genre: 'reprendre', contexte: null })
     );
-    expect(journal.ouvertures.slice(1).every(o => o.arrete?.etape === 'integration')).toBe(true);
+    expect(journal.ouvertures.slice(1).every(o => o.arrete?.etape === 'controles')).toBe(true);
   }, 120_000);
 
   it('sleeps 10 min by default, as its timer says', async () => {
-    const { activites } = actes({
-      integration: { code: 75, sortie: 'machine chargée', commande: 'integrer' },
-    });
+    const { activites } = actes({ controles: A_REPASSER });
     const client = await circuit(activites);
     const h = handle(client);
     const minuteur = await attendre('le minuteur', async () =>

@@ -63,7 +63,13 @@ describe('une place se prend, s’attend et se rend sur le serveur', () => {
     }
     expect(erreur?.code).toBe(75);
     expect(erreur?.message).toMatch(/à repasser/);
-    expect(dit[0]).toMatch(/attente d'une place : .*place/);
+    // A line of the wait names the ceiling (« place ») as its reason; the first may come before
+    // the workflow of the machine judged the request (« pas encore jugée »).
+    const raisons = dit.map(l => l.split(' : ').slice(1).join(' : ').split(' ; ')[0] ?? '');
+    expect(
+      raisons.some(r => /place/.test(r)),
+      dit.join('\n')
+    ).toBe(true);
     const vue = P().lirePlaces({ env });
     expect(vue.prises.map((p: { ticket: string }) => p.ticket)).toEqual(['a']);
     expect(vue.attentes).toEqual([]);

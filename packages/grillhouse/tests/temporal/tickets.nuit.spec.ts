@@ -166,6 +166,10 @@ async function serveur(activites: object, db = path.join(dossier('tickets'), 'te
   return { client: c.client, redemarrer };
 }
 
+// The circuits of a trial open on a question, and a circuit paused on a question holds no place
+// (grillhouse-4nr.27): a test of the bound counts them active, as circuits at work.
+const ACTIFS = { circuitsEnPause: () => Promise.resolve([]) };
+
 type LeClient = Awaited<ReturnType<typeof serveur>>['client'];
 // The tickets whose circuit runs, as the queue of the tickets of <racine> reads them.
 const vivants = async (client: LeClient, racine = RACINE) =>
@@ -224,7 +228,7 @@ describe('un ticket sans l’étiquette circuit ne démarre jamais', () => {
 describe('pas plus de circuits vivants que le réglage du projet', () => {
   it('two at most: the third starts once one of them ends', async () => {
     const p = projet([T('d-1'), T('d-2'), T('d-3')], 2);
-    const s = await serveur(p.lecture);
+    const s = await serveur({ ...p.lecture, ...ACTIFS });
     await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);
     const deux = await enAttente(s.client, ['d-1', 'd-2']);
     await new Promise(r => setTimeout(r, 1500));
@@ -237,7 +241,7 @@ describe('pas plus de circuits vivants que le réglage du projet', () => {
 
   it('without a setting, one circuit runs at a time', async () => {
     const p = projet([T('d-1'), T('d-2'), T('d-3')]);
-    const s = await serveur(p.lecture);
+    const s = await serveur({ ...p.lecture, ...ACTIFS });
     await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);
     await enAttente(s.client, ['d-1']);
     await new Promise(r => setTimeout(r, 1500));
@@ -261,7 +265,7 @@ describe('pas plus de circuits vivants que le réglage du projet', () => {
 describe('un ticket qui a déjà un déroulé ne repart pas', () => {
   it('a circuit started by hand counts among the alive ones, and is not started again', async () => {
     const p = projet([T('d-1', { priority: 0 }), T('d-2', { priority: 1 })], 1);
-    const s = await serveur(p.lecture);
+    const s = await serveur({ ...p.lecture, ...ACTIFS });
     await demarrerLeCircuit(s.client, { racine: RACINE, ticket: 'd-2' }, FILE);
     await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);
     await enAttente(s.client, ['d-2']);
@@ -319,7 +323,7 @@ describe('la file tient sa borne quand la visibilité du serveur retarde', () =>
 
   it('one place, nothing visible: the circuit just started holds it, a ticket of a higher priority waits', async () => {
     const p = projet([T('d-1', { priority: 1 }), T('d-2', { priority: 2 })], 1);
-    const s = await serveur({ ...p.lecture, ...invisibles });
+    const s = await serveur({ ...p.lecture, ...invisibles, ...ACTIFS });
     await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);
     await attendre('le circuit de d-1', async () =>
       (await lances(s.client, 'd-1')) > 0 ? true : undefined
