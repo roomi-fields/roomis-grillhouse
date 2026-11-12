@@ -131,6 +131,19 @@ async function repondre(
   appel: Appel
 ): Promise<string> {
   const { ticket, contexte } = appel;
+  if (appel.reporter) {
+    // The ticket deferred, its circuit left waiting on its question: the wait, the stop and the
+    // opening keep it quiet until the hour (scripts/superviseur.mjs `horsAttente`).
+    bd(racine, 'update', ticket, '--defer', appel.reporter);
+    bd(
+      racine,
+      'comments',
+      'add',
+      ticket,
+      `Question reportée au ${appel.reporter}${contexte ? ` : ${contexte}` : ''} ; le circuit reste en attente, sa question remonte à l'heure.`
+    );
+    return `▶ Circuit de ${ticket} : sa question est reportée au ${appel.reporter} ; le circuit reste en attente, sa question remonte à l'heure.`;
+  }
   if (appel.arreter) {
     await arreterLeCircuit(client, racine, ticket, contexte);
     return `▶ Circuit de ${ticket} : l'arrêt est demandé ; il s'arrête, sa séance avec lui.`;
@@ -141,6 +154,8 @@ async function repondre(
     const { resoudre } = aLaPorte(() => ticketAuLancement(racine, ticket, { arreter: true }));
     aLaPorte(() => appel.etendre!.forEach(resoudre));
   }
+  // An answer lifts a deferral of the question.
+  bd(racine, 'update', ticket, '--defer', '');
   const ou = { superviseur: seanceDuSuperviseur() };
   const dit = appel.depuis
     ? await reprendreDepuis(client, racine, ticket, appel.depuis, contexte, ou)
@@ -171,7 +186,8 @@ async function principal(argv: string[]): Promise<number> {
   const racine = arbrePrincipal();
   const c = ouvrirLeClient();
   try {
-    const repond = appel.reprendre || appel.depuis || appel.etendre || appel.arreter;
+    const repond =
+      appel.reprendre || appel.depuis || appel.etendre || appel.arreter || appel.reporter;
     let ligne: string;
     if (appel.recommencer) {
       const retiree = await recommencerLeCircuit(

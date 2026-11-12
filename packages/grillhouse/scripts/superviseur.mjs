@@ -111,9 +111,26 @@ function seance(depart = process.ppid) {
   return depart;
 }
 
-// Of the tickets <ids> of the repository at <racine>, those that bd gives closed; none when bd does
-// not read them.
-export function ticketsFermes(racine, ids) {
+/**
+ * Of the tickets <tickets> (as `bd show --json` gives them), the ids of those whose question does
+ * not wait for the supervisor at <maintenant> (ms): closed, or deferred to a later time
+ * (`defer_until`, the answer `--reporter <heure>`), as a review's snooze hides a request until its
+ * hour, then shows it again.
+ * @param {{ id: string, status?: string, defer_until?: string }[]} tickets
+ * @param {number} maintenant
+ * @returns {Set<string>}
+ */
+export function horsAttente(tickets, maintenant) {
+  return new Set(
+    tickets
+      .filter(t => t.status === 'closed' || Date.parse(t.defer_until ?? '') > maintenant)
+      .map(t => t.id)
+  );
+}
+
+// Of the tickets <ids> of the repository at <racine>, those whose question does not wait now
+// (`horsAttente`); none when bd does not read them.
+export function ticketsHorsAttente(racine, ids) {
   const r = spawnSync('bd', ['show', ...ids, '--json'], {
     cwd: racine,
     encoding: 'utf8',
@@ -121,11 +138,7 @@ export function ticketsFermes(racine, ids) {
     maxBuffer: 256 * 1024 * 1024,
   });
   try {
-    return new Set(
-      JSON.parse(r.stdout)
-        .filter(t => t.status === 'closed')
-        .map(t => t.id)
-    );
+    return horsAttente(JSON.parse(r.stdout), Date.now());
   } catch {
     return new Set();
   }
@@ -374,7 +387,7 @@ function enAttente(lus, racine, fermes) {
 export function questionsEnAttente(
   racine,
   circuits,
-  { fermes = ticketsFermes, sauf = new Set() } = {}
+  { fermes = ticketsHorsAttente, sauf = new Set() } = {}
 ) {
   return enAttente(
     circuits.filter(c => attendLeSuperviseur(c) && !sauf.has(cleDe(c))),
@@ -413,7 +426,7 @@ const aucunFerme = () => new Set();
  */
 export async function attendreUneQuestion({
   racine,
-  fermes = ticketsFermes,
+  fermes = ticketsHorsAttente,
   pas = 5_000,
   signal,
   circuitsDe = circuitsDuServeur,
@@ -590,7 +603,7 @@ export function texteDesQuestions(questions) {
  */
 export async function circuitsALOuverture(
   racine,
-  { fermes = ticketsFermes, circuitsDe = circuitsDuServeur, ticketsDe = lireLesTickets } = {}
+  { fermes = ticketsHorsAttente, circuitsDe = circuitsDuServeur, ticketsDe = lireLesTickets } = {}
 ) {
   let circuits = null;
   let panne = null;

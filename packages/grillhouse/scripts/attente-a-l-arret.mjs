@@ -29,7 +29,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { racineDeLaSupervision } from './attente-au-tour.mjs';
 import { circuitsDuServeur } from './circuits-du-serveur.mjs';
-import { questionsEnAttente, ticketsFermes } from './superviseur.mjs';
+import { questionsEnAttente, ticketsHorsAttente } from './superviseur.mjs';
 import { attenteVivante } from './tableau.mjs';
 
 // The note of what blocked the stop in the repository at <racine>.
@@ -62,7 +62,7 @@ export async function attenteALArret(
   dossier,
   {
     env = process.env,
-    fermes = ticketsFermes,
+    fermes = ticketsHorsAttente,
     circuitsDe = circuitsDuServeur,
     attenteVit = attenteVivante,
   } = {}

@@ -254,7 +254,7 @@ export const RESPONSABLE = 'responsable';
 // The commands by which the supervisor answers a question (scripts/circuit.mjs): resume, extend
 // the plan, stop.
 const REPONSES =
-  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), ou `--arreter`.';
+  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), `--reporter <heure>` (la question se tait jusqu’à l’heure, le circuit en attente), ou `--arreter`.';
 
 // The question of each stop no gesture settles, as a CI calls a person only for what no rule
 // settles (the approval of a review): every stop of ARRETS, « a-repasser » once the circuit has

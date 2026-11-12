@@ -23,6 +23,6 @@ export function lesReponses(ticket, statut, ecrit) {
   }
   const etendre = '--etendre <paquet>';
   return statut === 'RUNNING'
-    ? `${circuit} --reprendre\`, \`${depuis}\`, \`${etendre}\` ou \`--arreter`
+    ? `${circuit} --reprendre\`, \`${depuis}\`, \`${etendre}\`, \`--reporter <heure>\` ou \`--arreter`
     : `${circuit} --reprendre\`, \`${depuis}\` ou \`${etendre}`;
 }

@@ -20,7 +20,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { circuitsDuServeur } from './circuits-du-serveur.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
-import { questionsEnAttente, ticketsFermes, verrouDeLAttente } from './superviseur.mjs';
+import { questionsEnAttente, ticketsHorsAttente, verrouDeLAttente } from './superviseur.mjs';
 
 // The process that the lock of the wait of the repository at <racine> names; null without a lock.
 function tenant(racine) {
@@ -71,7 +71,7 @@ export function racineDeLaSupervision(dossier, env = process.env) {
  */
 export async function attenteAuTour(
   dossier,
-  { env = process.env, fermes = ticketsFermes, circuitsDe = circuitsDuServeur } = {}
+  { env = process.env, fermes = ticketsHorsAttente, circuitsDe = circuitsDuServeur } = {}
 ) {
   const racine = racineDeLaSupervision(dossier, env);
   if (!racine) {
