@@ -1,8 +1,8 @@
 // grillhouse-9kq critères 4 et 18 — les places de la machine sur le panneau (scripts/tableau.mjs) :
-// une ligne en tête d'AGENTS, « Places 3/3 · charge 11,2/12 · mémoire 9 Go » ; un ticket qui
+// une ligne en tête d'AGENTS, « Places 3/3 · charge 11,2/12 · mémoire 9/30 Go » ; un ticket qui
 // attend une place porte ⏳ et « attend une place » ; un ticket qui attend une dépendance garde
 // « attend <ticket> ». Le panneau reçoit les places lues (`lirePlaces` de
-// scripts/places-de-la-machine.mjs, la charge et la mémoire de la machine) dans `places`.
+// scripts/places-de-la-machine.mjs, la charge, la mémoire disponible et la mémoire totale de la machine) dans `places`.
 import { describe, expect, it } from 'vitest';
 import { assembler, LARGEUR, lignes } from '../../scripts/tableau.mjs';
 
@@ -51,6 +51,7 @@ type Places = {
   charge: number;
   coeurs: number;
   memoireGo: number;
+  memoireTotaleGo: number;
   attentes: Array<{ ticket: string; depuis: number; disque?: string | null }>;
 };
 const PLACES: Places = {
@@ -59,6 +60,7 @@ const PLACES: Places = {
   charge: 11.2,
   coeurs: 12,
   memoireGo: 9,
+  memoireTotaleGo: 30,
   attentes: [],
 };
 const plateau = (tous: object[], o: { circuits?: object[]; places?: Places | null } = {}) =>
@@ -78,15 +80,23 @@ const agents = (p: ReturnType<typeof plateau>) =>
 const tete = (a: Ligne[]) => a.slice(a.findIndex(x => x.texte.startsWith('AGENTS')) + 1);
 
 describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’AGENTS', () => {
-  it('« Places n/N · charge x/c · mémoire m Go », la virgule décimale, juste sous le titre', () => {
+  it('« Places n/N · charge x/c · mémoire m/M Go », la mémoire disponible sur la totale, la virgule décimale, juste sous le titre', () => {
     const [l] = tete(agents(plateau([])));
-    expect(l.texte).toBe('Places 3/3 · charge 11,2/12 · mémoire 9 Go');
+    expect(l.texte).toBe('Places 3/3 · charge 11,2/12 · mémoire 9/30 Go');
   });
 
-  it('les chiffres suivent la machine : 1 place sur 2, charge entière, mémoire de 14 Go', () => {
-    const places = { ...PLACES, prises: 1, plafond: 2, charge: 4, coeurs: 8, memoireGo: 14 };
+  it('les chiffres suivent la machine : 1 place sur 2, charge entière, mémoire de 14 Go sur 62', () => {
+    const places = {
+      ...PLACES,
+      prises: 1,
+      plafond: 2,
+      charge: 4,
+      coeurs: 8,
+      memoireGo: 14,
+      memoireTotaleGo: 62,
+    };
     expect(tete(agents(plateau([], { places })))[0].texte).toBe(
-      'Places 1/2 · charge 4/8 · mémoire 14 Go'
+      'Places 1/2 · charge 4/8 · mémoire 14/62 Go'
     );
   });
 

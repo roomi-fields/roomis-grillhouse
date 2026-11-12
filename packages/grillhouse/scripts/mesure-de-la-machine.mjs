@@ -1,11 +1,12 @@
 // What the machine gives at a moment, which the admission of a start reads
-// (scripts/regles-des-places.mjs): its cores, its load over one minute, its free memory. The
+// (scripts/regles-des-places.mjs): its cores, its load over one minute, its free memory, and its
+// total memory, which the board shows beside it. The
 // activity of the workflow of the machine (src/temporal/places/activites.ts) measures it here, and
 // whether the process of a place still lives; a signal to a process group, and whether the group
 // a sign of life names still runs, which the sessions (scripts/seances.mjs), the circuit and the
 // acts under Temporal (src/temporal/acte.ts) share.
 import { readFileSync } from 'node:fs';
-import { availableParallelism, freemem, loadavg } from 'node:os';
+import { availableParallelism, freemem, loadavg, totalmem } from 'node:os';
 import { departDe, leMemeVivant, vivant } from './mesure/base-de-passe.mjs';
 
 export { departDe };
@@ -27,13 +28,15 @@ export function memoireDisponible() {
 }
 
 /**
- * The machine now: `{ coeurs, charge, memoireLibre }`, the load over one minute, the memory in bytes.
- * @returns {{ coeurs: number, charge: number, memoireLibre: number }}
+ * The machine now: `{ coeurs, charge, memoireLibre, memoireTotale }`, the load over one minute,
+ * the memories in bytes.
+ * @returns {{ coeurs: number, charge: number, memoireLibre: number, memoireTotale: number }}
  */
 export const mesureDeLaMachine = () => ({
   coeurs: availableParallelism(),
   charge: loadavg()[0],
   memoireLibre: memoireDisponible(),
+  memoireTotale: totalmem(),
 });
 
 /**

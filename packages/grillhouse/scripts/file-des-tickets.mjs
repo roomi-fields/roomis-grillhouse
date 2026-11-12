@@ -10,6 +10,8 @@
 // - A ticket of the queue without its section never starts, as a merge queue admits only a change
 //   that passes its checks of entry: `enFileSansArchitecture` names it, for the board and the
 //   opening of the supervisor, who writes it.
+// - A ticket labelled `direct` is led out of the circuit, by hand: it never starts, even labelled
+//   `circuit` too (a label `bd create --parent` copies from its epic).
 // - The order is the Beads priority (0 first), then the creation (the oldest first).
 // - A circuit alive whose ticket was closed outside it (delivered directly) holds no place: the
 //   queue stops it (`fermesHorsCircuit`).
@@ -20,10 +22,15 @@ import { ETAPES } from './etapes.mjs';
 // Whether the description of <t> holds its section « ## Architecture ».
 const aSonArchitecture = t => /^## Architecture\b/m.test(t.description ?? '');
 
-// The tickets of <tous> in the queue: open, labelled `circuit`, those of <enCours> aside.
+// The tickets of <tous> in the queue: open, labelled `circuit` and not `direct`, those of
+// <enCours> aside.
 const enFile = (tous, enCours) =>
   tous.filter(
-    t => t.status === 'open' && (t.labels ?? []).includes('circuit') && !enCours.has(t.id)
+    t =>
+      t.status === 'open' &&
+      (t.labels ?? []).includes('circuit') &&
+      !(t.labels ?? []).includes('direct') &&
+      !enCours.has(t.id)
   );
 
 /**

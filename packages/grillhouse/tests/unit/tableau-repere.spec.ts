@@ -1,6 +1,6 @@
 // grillhouse-3uv.96: the day's marker is persistent — read from a file in the project's git common
 // dir, next to the board's cache, out of the worktree (unversioned); the board does not reset at
-// midnight, and `grillhouse newday` (poserLeRepere) sets it to now.
+// midnight (a first reading sets the marker and keeps it), and `grillhouse newday` (poserLeRepere) sets it to now.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,9 +28,10 @@ const depot = () => {
 };
 
 describe('le repère de journée persistant', () => {
-  it('sans fichier, le repère se replie sur minuit du jour', () => {
+  it('sans fichier, la première lecture pose le repère à minuit du jour, que le lendemain garde', () => {
     const r = depot();
     expect(lireLeRepere(dossierCommun(r), MIDI)).toBe(minuitDe(MIDI));
+    expect(lireLeRepere(dossierCommun(r), LENDEMAIN)).toBe(minuitDe(MIDI));
   });
 
   it('newday pose le repère, que la lecture du lendemain rend encore', () => {

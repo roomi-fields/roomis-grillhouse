@@ -922,8 +922,8 @@ que `scripts/places-de-la-machine.mjs` lit et prend par un processus à lui
 (`scripts/places-du-serveur.mjs`) ; le serveur est requis sur le poste, et la CI n'en prend aucune.
 Une machine d'essai des tests ne prend que les places du serveur d'essai que nomme
 `GRILLHOUSE_PLACES_D_ESSAI`. `GRILLHOUSE_MESURE_D_ESSAI` fixe la mesure de la machine en JSON
-`{ coeurs, charge, memoireLibre }` (la forme de `Mesure`) : posée, l'état des places en tire sa
-charge, ses cœurs et sa mémoire, au lieu de lire la machine ; une valeur fautive (JSON illisible,
+`{ coeurs, charge, memoireLibre, memoireTotale }` (la forme de `Mesure`, et la mémoire totale) :
+posée, l'état des places en tire sa charge, ses cœurs et ses mémoires, au lieu de lire la machine ; une valeur fautive (JSON illisible,
 champ manquant ou non numérique) est refusée en nommant la variable, et le tableau n'affiche alors
 aucune ligne des places. La configuration de base de Vitest la pose dans les tests de chaque
 projet, de sorte que la ligne des places du texte et celle du JSON ne varient pas avec la charge.
@@ -944,7 +944,8 @@ cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; une passe lourde ga
 Une passe lourde prend sa place, puis le verrou exclusif de la machine ; une passe ciblée part
 pendant qu'une passe lourde tient le verrou.
 
-**La file des tickets** : chaque projet garde la sienne, ses tickets `circuit` ; ceux dont la
+**La file des tickets** : chaque projet garde la sienne, ses tickets `circuit`, hors de ceux
+étiquetés `direct`, menés hors du circuit, qu'elle ne prend jamais ; ceux dont la
 description porte sa section « ## Architecture » et dont toutes les dépendances `blocks` sont
 fermées partent par priorité Beads (la règle, `ticketsAPartir` de `scripts/file-des-tickets.mjs`),
 et attendent une place dans l'ordre d'arrivée, commun aux projets ; ceux dont une dépendance est
@@ -979,7 +980,15 @@ machine, quel qu'il soit (une passe hors ticket, le circuit d'un ticket, de n'im
 de la machine), se nomme à côté (la racine de son dépôt, celle de sa copie de travail, son ticket
 s'il en a un, sa sorte, depuis quand, puis son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
 processus. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · charge x/c ·
-mémoire m Go », puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
+mémoire m/M Go », la mémoire disponible sur la mémoire totale du poste ; puis la nuit en cours sur
+la machine, « 🌙 nuit · <projet> · depuis <durée> », que lit la requête du déroulé des nuits
+(`nuitDuServeur` de `scripts/circuits-du-serveur.mjs`), une lecture qui échoue n'en montrant
+aucune ; puis chaque ticket pris (`in_progress`) sans circuit sur le serveur qui le tienne, ni lui, ni
+une de ses mères ou un ticket sous lui (un circuit qui tourne ou attend une réponse ; un circuit que
+le superviseur a arrêté n'en tient aucun), et chaque ticket étiqueté `direct`, ouvert ou en cours,
+travaillé en direct : une ligne, une seule, hors des étapes,
+« ✎ <numéro>  <sujet> · en direct · <assignee> », de sa prise à sa fermeture (aucune tant que les
+circuits ne se lisent pas) ; puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
 dépendance ouverte, « attend <ticket> ». Le détenteur ou l'attente d'un circuit que montrent les
 agents tient sur la ligne de ce circuit, une ligne par ticket, à la place de l'avancement de sa
 passe : « · 🔒 <sorte> faits/prévus · <durée> », « · ⏳ <sorte> · <durée> », la sorte en minuscules.
@@ -998,7 +1007,8 @@ for file lock »). Ainsi une attente se voit, avec ce qui la bloque, depuis n'im
 
 **Un signe par sorte d'état** (décision du responsable, 2026-11-01) : ▶ en cours ; ⏸ circuit
 arrêté ; 🔒 tient le verrou de la machine ; ⏳ attend le verrou, une place ou la place sous /tmp ; 💤 ticket
-pris sans rien qui tourne ; 🌙 nuit rouge ; ⚠ les alertes sans sorte à elles (une passe figée, un
+pris sans rien qui tourne ; ✎ ticket travaillé en direct, hors circuit ; 🌙 la nuit, rouge en
+alerte, en cours dans les agents ; ⚠ les alertes sans sorte à elles (une passe figée, un
 projet illisible, un agent silencieux). Un signe large se cale comme les autres, un signe puis une
 espace, et la largeur d'une ligne compte ses colonnes. Ainsi chaque signe garde un seul sens.
 

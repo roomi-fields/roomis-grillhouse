@@ -48,7 +48,7 @@ export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
 /** The mark of a place held, which the children of its holder inherit. */
 export const VARIABLE_TENUE = 'GRILLHOUSE_PLACE_TENUE';
-/** The measure of the machine a trial fixes, in JSON `{ coeurs, charge, memoireLibre }`. */
+/** The measure of the machine a trial fixes, in JSON `{ coeurs, charge, memoireLibre, memoireTotale }`. */
 export const VARIABLE_MESURE_D_ESSAI = 'GRILLHOUSE_MESURE_D_ESSAI';
 // The server of the places of a trial machine.
 const VARIABLE_ESSAI = 'GRILLHOUSE_PLACES_D_ESSAI';
@@ -111,13 +111,14 @@ export function travailleursDeLaSeance(env = process.env) {
 }
 
 /**
- * The environment the places are read under on <env>: the address of their server
+ * The environment the server of the machine is read under on <env>: the address of its server
  * (TEMPORAL_ADDRESS), or null where no place is taken (the CI, the envelope of an agent, a trial
- * machine without its server).
+ * machine without its server); the places and the night under way (scripts/circuits-du-serveur.mjs
+ * `nuitDuServeur`) read there.
  * @param {Record<string, string | undefined>} env
  * @returns {Record<string, string | undefined> | null}
  */
-function surLeServeur(env) {
+export function surLeServeur(env) {
   if (env.CI || paquetsDeLEnveloppe(env)) {
     return null;
   }
@@ -356,9 +357,9 @@ export function lirePlaces({ env = process.env } = {}) {
 
 /**
  * The machine a trial fixes under <env> (GRILLHOUSE_MESURE_D_ESSAI, JSON `{ coeurs, charge,
- * memoireLibre }`), or null without the variable.
+ * memoireLibre, memoireTotale }`), or null without the variable.
  * @param {Record<string, string | undefined>} env
- * @returns {{ coeurs: number, charge: number, memoireLibre: number } | null}
+ * @returns {{ coeurs: number, charge: number, memoireLibre: number, memoireTotale: number } | null}
  * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is not that JSON
  */
 function mesureDEssai(env) {
@@ -375,25 +376,30 @@ function mesureDEssai(env) {
   if (
     !m ||
     typeof m !== 'object' ||
-    ['coeurs', 'charge', 'memoireLibre'].some(
+    ['coeurs', 'charge', 'memoireLibre', 'memoireTotale'].some(
       c => typeof m[c] !== 'number' || !Number.isFinite(m[c])
     )
   ) {
     throw new Error(
-      `${VARIABLE_MESURE_D_ESSAI} vaut « ${v} » : un JSON { coeurs, charge, memoireLibre } de nombres est attendu.`
+      `${VARIABLE_MESURE_D_ESSAI} vaut « ${v} » : un JSON { coeurs, charge, memoireLibre, memoireTotale } de nombres est attendu.`
     );
   }
-  return { coeurs: m.coeurs, charge: m.charge, memoireLibre: m.memoireLibre };
+  return {
+    coeurs: m.coeurs,
+    charge: m.charge,
+    memoireLibre: m.memoireLibre,
+    memoireTotale: m.memoireTotale,
+  };
 }
 
 /**
  * The places as the board shows them: taken and ceiling, the load over one minute and the cores,
- * the free memory in whole GB, and the waits (ticket, since when) in the order of arrival: those
+ * the free memory and the total memory in whole GB, and the waits (ticket, since when) in the order of arrival: those
  * of a place for a session or a pass, then the tickets that wait for a place of a circuit, not
  * started (`circuits` of the server, which the queue of each project reserves). The
  * machine is the one GRILLHOUSE_MESURE_D_ESSAI fixes, else the real one (`mesurer`).
  * @param {{ env?: Record<string, string | undefined>, mesurer?: () => { coeurs: number,
- *   charge: number, memoireLibre: number } }} [o]
+ *   charge: number, memoireLibre: number, memoireTotale: number } }} [o]
  * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is faulty
  */
 export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine } = {}) {
@@ -407,6 +413,7 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine }
     charge: Math.round(m.charge * 10) / 10,
     coeurs: m.coeurs,
     memoireGo: Math.floor(m.memoireLibre / 1024 ** 3),
+    memoireTotaleGo: Math.floor(m.memoireTotale / 1024 ** 3),
     attentes: [
       ...attentes.map(a => ({ ticket: a.ticket, depuis: a.depuis })),
       ...circuits

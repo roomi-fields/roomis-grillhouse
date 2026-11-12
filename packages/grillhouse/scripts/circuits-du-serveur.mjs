@@ -2,10 +2,12 @@
 // (scripts/superviseur.mjs) read them: one call to the Temporal server (src/temporal/circuit/
 // client.ts `lireLesCircuits`, the memo and the status of each workflow, no worker living), as the
 // UI of Temporal lists its workflows, and the progress of the pass under way of each one that runs,
-// read in its working directory (scripts/avancement.mjs `avancementDuTravail`).
+// read in its working directory (scripts/avancement.mjs `avancementDuTravail`); and the night
+// under way on the machine, by the query of the workflow of the nights (`nuitDuServeur`).
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { avancementDuTravail } from './avancement.mjs';
+import { surLeServeur } from './places-de-la-machine.mjs';
 import { sansReponseEn } from './sans-reponse.mjs';
 
 /**
@@ -100,6 +102,37 @@ export async function circuitsDuServeur(racine, options = {}) {
     }));
   } catch (e) {
     throw sansReponse(e) ? new ServeurMuet(c.adresse, e) : e;
+  } finally {
+    await c.fermer();
+  }
+}
+
+/**
+ * The night under way on the machine, read by the query of the workflow of the nights
+ * (src/temporal/nuits/client.ts `lireLesNuits`) under <env>: `{ racine, depuis }`, its project's
+ * root and when it started (null from a worker that does not give it), or null without one. Where
+ * the server of the machine is not read (`surLeServeur`: the CI, an agent's envelope, a trial
+ * machine without its server), null without a call. A reading that fails throws, as
+ * `circuitsDuServeur` does; the board shows no night then.
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {Promise<{ racine: string, depuis: number | null } | null>}
+ */
+export async function nuitDuServeur(env = process.env) {
+  const e = surLeServeur(env);
+  if (!e) {
+    return null;
+  }
+  if (!existsSync(CONSTRUIT)) {
+    throw new ClientNonConstruit();
+  }
+  const { ouvrirLeClient } = await import('../dist/temporal/client.js');
+  const { lireLesNuits } = await import('../dist/temporal/nuits/client.js');
+  const c = ouvrirLeClient({ adresse: e.TEMPORAL_ADDRESS || undefined });
+  try {
+    const vue = await c.client.connection.withDeadline(Date.now() + DELAI_MS, () =>
+      lireLesNuits(c.client)
+    );
+    return vue.enCours ? { racine: vue.enCours, depuis: vue.depuis ?? null } : null;
   } finally {
     await c.fermer();
   }

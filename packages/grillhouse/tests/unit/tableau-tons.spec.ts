@@ -134,6 +134,7 @@ describe('a circuit that waits for the disk', () => {
         charge: 1,
         coeurs: 12,
         memoireGo: 9,
+        memoireTotaleGo: 30,
         attentes: [{ ticket: 'demo-2', depuis: MAINTENANT - MIN, disque: 'copies : 2 Go libres' }],
       },
     });

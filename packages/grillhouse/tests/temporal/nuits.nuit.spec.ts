@@ -176,6 +176,7 @@ describe('a night asked by hand', () => {
     await attendre('la nuit de a en cours', async () =>
       (await lireLesNuits(client)).enCours === '/depot/a' ? true : undefined
     );
+    expect((await lireLesNuits(client)).depuis).toEqual(expect.any(Number));
     await demanderDesNuits(client, { projet: '/depot/a' }, { file: FILE });
     await demanderDesNuits(client, { projet: '/depot/b' }, { file: FILE });
     await demanderDesNuits(client, { projet: '/depot/d' }, { file: FILE });

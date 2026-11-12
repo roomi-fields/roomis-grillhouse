@@ -396,7 +396,9 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     expect(ligne('17')).toContain(TAG);
     expect(ligne('14')).not.toContain('en attente du superviseur');
     expect(ligne('15')).not.toContain('en attente du superviseur');
-    expect(ligne('16')).not.toContain('en attente du superviseur');
+    // Stopped by the supervisor, its ticket still claimed: worked in direct, out of the circuit.
+    expect(a.find(x => x.startsWith('✎ 16 '))).toMatch(/ · en direct/);
+    expect(a.find(x => x.startsWith('✎ 16 '))).not.toContain('en attente du superviseur');
   });
 
   it('a circuit that runs again after the answer stands at its step, running, its question gone', () => {

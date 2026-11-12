@@ -1361,7 +1361,7 @@
     },
     "packages/grillhouse/tests/unit/tableau-sections.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 44
+        "count": 42
       }
     },
     "packages/grillhouse/tests/unit/tableau-sous-agents.spec.ts": {

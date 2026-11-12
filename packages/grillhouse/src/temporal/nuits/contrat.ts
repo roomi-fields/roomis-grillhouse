@@ -67,6 +67,8 @@ interface NuitJouee {
 /** The nights as the query gives them. */
 export interface VueDesNuits {
   enCours: string | null;
+  /** When the night under way started (ms), null without one. */
+  depuis: number | null;
   attente: string[];
   jouees: NuitJouee[];
   sautes: Saut[];

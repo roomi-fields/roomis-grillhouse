@@ -264,7 +264,12 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
     ],
     {
       circuits: [
-        circuit('bp-mono-vbwf.320.6.2.1', { vivant: false, etape: 'developpeur', code: 1 }),
+        circuit('bp-mono-vbwf.320.6.2.1', {
+          vivant: false,
+          etape: 'developpeur',
+          code: 1,
+          arret: 'controles',
+        }),
         circuit('bp-mono-vbwf.3.11'),
       ],
       machine: { detenteur: MESURE, attentes: [ATTENTE] },
@@ -293,7 +298,8 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
   it('the lock at the head of AGENTS, ⏸ a stopped circuit, ⏳ the circuit that waits; ■ is gone', () => {
     const a = tete(deux().filter(x => x.section === 'agents'));
     expect(a[0].texte).toBe('🔒 Mesure · roomis-grillhouse · 124/190 · 8 min');
-    expect(a[1].texte).toMatch(/^▸ 1 · Plan/);
+    expect(a[1].texte).toMatch(/^\[grillhouse\] grillhouse-bd7 .* · en direct ✎$/);
+    expect(a[2].texte).toMatch(/^▸ 1 · Plan/);
     expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toContain(
       ' · ⏳ contrôles · 2 min'
     );
@@ -449,8 +455,9 @@ describe('the lock on the line of its circuit, and the lines of the lock out of 
     const a = lesLignes({ detenteur: null, attentes: [attente] }, [circuit('demo-6')]);
     expect(a.filter(l => l.texte.includes('attend'))).toEqual([]);
     expect(a.filter(l => l.ticket === 'demo-6')).toHaveLength(1);
+    // Its number in the column of 5hn's, worked in direct.
     expect(a.find(l => l.ticket === 'demo-6')?.texte).toMatch(
-      /^⏳ 6 {2}Le sujet de demo-6 · ⏳ contrôles · 2 min/
+      /^⏳ 6 {4}Le sujet de demo-6 · ⏳ contrôles · 2 min/
     );
   });
 

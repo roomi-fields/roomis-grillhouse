@@ -569,14 +569,18 @@ describe('a ticket in progress with children', () => {
         },
       ],
       vivants: [],
-      circuits: [circuitLu('demo-m')],
+      circuits: [
+        circuitLu('demo-m', { arret: 'controles', question: 'Quel paquet ?', qui: 'superviseur' }),
+      ],
       maintenant: Date.parse('2026-10-10T12:00:00Z'),
       jour: Date.parse('2026-10-10T00:00:00Z'),
     });
     const texte = dessin(t)
       .map(x => x.texte)
       .join('\n');
-    expect(texte).toMatch(/\n▾ 3 · Code · développeur\n⏸ m {2}La mère en cours/);
+    expect(texte).toMatch(
+      /\n▾ 3 · Code · développeur\n {2}⤷ Question · superviseur\n⏸ m {2}La mère /
+    );
     expect(texte).toMatch(/\n {2}en cours +1\n {3}m\.1 {2}L’enfant en cours/);
   });
 });

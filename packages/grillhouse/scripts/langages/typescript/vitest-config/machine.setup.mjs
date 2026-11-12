@@ -24,6 +24,7 @@ process.env.GRILLHOUSE_MESURE_D_ESSAI ||= JSON.stringify({
   coeurs: 12,
   charge: 1,
   memoireLibre: 16 * 1024 ** 3,
+  memoireTotale: 32 * 1024 ** 3,
 });
 process.env.GRILLHOUSE_TEMPORAIRE_LIBRE ||= '0';
 process.env.GRILLHOUSE_COPIE_LIBRE ||= '0';

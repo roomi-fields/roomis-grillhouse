@@ -1,5 +1,5 @@
 // La mesure d'essai de la machine : GRILLHOUSE_MESURE_D_ESSAI porte en JSON la mesure
-// { coeurs, charge, memoireLibre } dont l'état des places (scripts/places-de-la-machine.mjs
+// { coeurs, charge, memoireLibre, memoireTotale } dont l'état des places (scripts/places-de-la-machine.mjs
 // `etatDesPlaces`) tire sa charge, ses cœurs et sa mémoire ; sans elle, l'état mesure la machine
 // (scripts/mesure-de-la-machine.mjs). Le tableau (scripts/tableau.mjs) en rend la même ligne des
 // places en texte et en JSON ; une valeur fautive est refusée par le nom de la variable, et le
@@ -55,21 +55,33 @@ describe('la mesure d’essai fixe la mesure de la machine du tableau', () => {
   it('le texte et le JSON portent la même ligne des places, au chiffre près', () => {
     const lancer = lanceur(essais());
     const env = {
-      [VARIABLE]: JSON.stringify({ coeurs: 12, charge: 10.24, memoireLibre: 24.5 * GO }),
+      [VARIABLE]: JSON.stringify({
+        coeurs: 12,
+        charge: 10.24,
+        memoireLibre: 24.5 * GO,
+        memoireTotale: 31.3 * GO,
+      }),
     };
     const texte = lancer(['--texte'], env).split('\n');
     const json = JSON.parse(lancer([], env)) as { lignes: Ligne[] };
     const duTexte = texte.filter(desPlaces);
     const duJson = json.lignes.map(l => l.texte).filter(desPlaces);
-    expect(duTexte).toEqual(['Places 0/3 · charge 10,2/12 · mémoire 24 Go']);
+    expect(duTexte).toEqual(['Places 0/3 · charge 10,2/12 · mémoire 24/31 Go']);
     expect(duJson).toEqual(duTexte);
   });
 
   it('une autre mesure change la ligne : ses cœurs, sa charge et sa mémoire sont ceux de la variable', () => {
     const lancer = lanceur(essais());
-    const env = { [VARIABLE]: JSON.stringify({ coeurs: 4, charge: 0.5, memoireLibre: 7 * GO }) };
+    const env = {
+      [VARIABLE]: JSON.stringify({
+        coeurs: 4,
+        charge: 0.5,
+        memoireLibre: 7 * GO,
+        memoireTotale: 8 * GO,
+      }),
+    };
     const lignes = lancer(['--texte'], env).split('\n');
-    expect(lignes.filter(desPlaces)).toEqual(['Places 0/3 · charge 0,5/4 · mémoire 7 Go']);
+    expect(lignes.filter(desPlaces)).toEqual(['Places 0/3 · charge 0,5/4 · mémoire 7/8 Go']);
   });
 
   it.each([
@@ -92,20 +104,27 @@ describe('l’état des places lit la mesure d’essai', () => {
           charge: number;
           coeurs: number;
           memoireGo: number;
+          memoireTotaleGo: number;
         };
       }
     ).etatDesPlaces({ env: { CI: '1', ...env } });
 
   it('sa charge, ses cœurs et sa mémoire viennent de la variable', async () => {
     const r = await etat({
-      [VARIABLE]: JSON.stringify({ coeurs: 8, charge: 3.14, memoireLibre: 5.9 * GO }),
+      [VARIABLE]: JSON.stringify({
+        coeurs: 8,
+        charge: 3.14,
+        memoireLibre: 5.9 * GO,
+        memoireTotale: 15.6 * GO,
+      }),
     });
-    expect(r).toMatchObject({ charge: 3.1, coeurs: 8, memoireGo: 5 });
+    expect(r).toMatchObject({ charge: 3.1, coeurs: 8, memoireGo: 5, memoireTotaleGo: 15 });
   });
 
   it.each([
     ['un JSON illisible', '{'],
-    ['un champ manquant', JSON.stringify({ coeurs: 8, memoireLibre: GO })],
+    ['un champ manquant', JSON.stringify({ coeurs: 8, memoireLibre: GO, memoireTotale: GO })],
+    ['sans la mémoire totale', JSON.stringify({ coeurs: 8, charge: 1, memoireLibre: GO })],
     ['un champ non numérique', JSON.stringify({ coeurs: 8, charge: 1, memoireLibre: '1Go' })],
     ['un champ nul', JSON.stringify({ coeurs: null, charge: 1, memoireLibre: GO })],
   ])('%s est refusé par le nom de la variable', async (_nom, valeur) => {
@@ -120,13 +139,14 @@ describe('sans la variable, l’état des places mesure la machine réelle', () 
     vi.resetModules();
   });
 
-  it('la charge sur une minute, les cœurs et la mémoire libre viennent du système', async () => {
+  it('la charge sur une minute, les cœurs, la mémoire libre et la totale viennent du système', async () => {
     vi.resetModules();
     vi.doMock('node:os', async importOriginal => ({
       ...(await importOriginal<typeof import('node:os')>()),
       availableParallelism: () => 6,
       loadavg: () => [2.34, 9, 9],
       freemem: () => 3 * GO,
+      totalmem: () => 31.3 * GO,
     }));
     vi.doMock('node:fs', async importOriginal => {
       const reel = await importOriginal<typeof import('node:fs')>();
@@ -145,15 +165,16 @@ describe('sans la variable, l’état des places mesure la machine réelle', () 
       charge: 2.3,
       coeurs: 6,
       memoireGo: 8,
+      memoireTotaleGo: 31,
     });
   });
 });
 
 describe('le gabarit de test pose la mesure d’essai', () => {
-  it('la variable est posée dans chaque passe de tests, en JSON { coeurs, charge, memoireLibre }', () => {
+  it('la variable est posée dans chaque passe de tests, en JSON { coeurs, charge, memoireLibre, memoireTotale }', () => {
     const mesure = JSON.parse(process.env[VARIABLE] ?? 'null') as Record<string, unknown> | null;
     expect(mesure).not.toBeNull();
-    for (const champ of ['coeurs', 'charge', 'memoireLibre']) {
+    for (const champ of ['coeurs', 'charge', 'memoireLibre', 'memoireTotale']) {
       expect(typeof mesure?.[champ], champ).toBe('number');
     }
   });

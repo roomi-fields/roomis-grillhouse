@@ -54,6 +54,7 @@ const LIMITE_D_HISTOIRE = 2000;
 export async function nuitsDeLaMachine(entree: EntreeDesNuits = {}): Promise<VueDesNuits> {
   const vue: VueDesNuits = {
     enCours: null,
+    depuis: null,
     attente: [...(entree.etat?.attente ?? [])],
     jouees: [],
     sautes: [],
@@ -97,12 +98,14 @@ export async function nuitsDeLaMachine(entree: EntreeDesNuits = {}): Promise<Vue
       return vue;
     }
     vue.enCours = racine;
+    vue.depuis = Date.now();
     try {
       vue.jouees.push({ racine, code: await jouerLaNuit({ racine }), echec: null });
     } catch (e) {
       vue.jouees.push({ racine, code: null, echec: e instanceof Error ? e.message : String(e) });
     }
     vue.enCours = null;
+    vue.depuis = null;
     if (workflowInfo().continueAsNewSuggested || workflowInfo().historyLength >= limite) {
       await condition(allHandlersFinished);
       await continueAsNew<typeof nuitsDeLaMachine>({

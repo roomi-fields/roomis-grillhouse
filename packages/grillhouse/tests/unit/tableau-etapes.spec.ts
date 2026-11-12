@@ -362,7 +362,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     ]);
   });
 
-  it('a ticket in the queue stands at no step, a ticket with a circuit at the step of its circuit', () => {
+  it('a ticket in the queue stands at no step, nor a ticket in direct, a ticket with a circuit at the step of its circuit', () => {
     const t = plateau([T('demo-41', { status: 'open' }), T('demo-42'), T('demo-43')], {
       registre: [
         fin('t2', 'demo-42', 'testwriter', '09:00'),
@@ -370,12 +370,10 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
       ],
       circuits: [circuit('demo-43', { etape: 'developpeur' })],
     });
-    for (const id of ['demo-41', 'demo-42']) {
-      expect(
-        agents(t).some(x => x.ticket === id),
-        id
-      ).toBe(false);
-    }
+    expect(agents(t).some(x => x.ticket === 'demo-41')).toBe(false);
+    const enDirect = agents(t).filter(x => x.ticket === 'demo-42');
+    expect(enDirect).toHaveLength(1);
+    expect(enDirect[0].texte).toMatch(/^✎ 42 .* · en direct$/);
     expect(etapeDe(t, 'demo-43')).toBe('▾ 3 · Code · développeur');
   });
 
@@ -425,7 +423,10 @@ describe('the line of a ticket in a circuit: its subject, then time and tokens',
 
   it("the tickets' numbers line up in one column, as in the maquette", () => {
     const r = plateau([T('demo-320.3'), T('demo-318')], {
-      circuits: [circuit('demo-320.3'), circuit('demo-318', { vivant: false, code: 20 })],
+      circuits: [
+        circuit('demo-320.3'),
+        circuit('demo-318', { vivant: false, code: 20, arret: 'besoin' }),
+      ],
     });
     expect(ligneDe(r, 'demo-320.3').texte).toMatch(/^▶ 320\.3 {2}Le sujet/);
     expect(ligneDe(r, 'demo-318').texte).toMatch(/^⏸ 318 {4}Le sujet/);

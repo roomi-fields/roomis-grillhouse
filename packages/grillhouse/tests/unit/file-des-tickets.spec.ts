@@ -167,3 +167,15 @@ describe('les circuits dont le ticket est fermé hors circuit', () => {
     expect(fermesHorsCircuit(tous, circuits)).toEqual([]);
   });
 });
+
+describe('un ticket mené hors du circuit (étiquette `direct`)', () => {
+  it('ne part jamais, même étiqueté `circuit` (hérité de son épopée)', () => {
+    const tous = [T('d-1', { labels: ['circuit', 'direct'] }), T('d-2')];
+    expect(ids(ticketsAPartir(tous))).toEqual(['d-2']);
+  });
+
+  it('n’est pas nommé en file sans architecture', () => {
+    const tous = [T('d-1', { labels: ['circuit', 'direct'], description: '' })];
+    expect(enFileSansArchitecture(tous)).toEqual([]);
+  });
+});

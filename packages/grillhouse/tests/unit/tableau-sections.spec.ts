@@ -2,7 +2,8 @@
 // stays counted in the « faits » of the head and of the chantier; the tickets closed today go to
 // FAITS AUJOURD'HUI. Each line of the board carries its section (agents, chantier, faits), which
 // a reader takes instead of guessing it from the text (grillhouse-3uv.42). A ticket stands in
-// AGENTS only by its circuit or an agent that runs on it; any other stands in CHANTIER.
+// AGENTS only by its circuit, an agent that runs on it, or its work in direct (claimed, with no
+// circuit); any other stands in CHANTIER.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -262,11 +263,11 @@ describe('CHANTIER lists its open tickets under the title of their state', () =>
 });
 
 describe('3uv.42 critère 3 : an open mother keeps its open tickets, its closed ones gone', () => {
-  it('3uv.42 critère 3 : its ticket in progress has its line under « en cours »', () => {
-    expect(categorie(L0, 'demo-e.1.1')).toBe('en cours');
-    expect(partieChantier(L0).find(x => x.ticket === 'demo-e.1.1')?.texte).toMatch(
-      /^ {3}e\.1\.1 {2}/
+  it('its ticket in progress with no circuit stands in AGENTS, worked in direct, not in the tree', () => {
+    expect(partieAgents(L0).find(x => x.ticket === 'demo-e.1.1')?.texte).toMatch(
+      /^✎ e\.1\.1 {2}.* · en direct$/
     );
+    expect(partieChantier(L0).some(x => x.ticket === 'demo-e.1.1')).toBe(false);
   });
 
   it('its ticket without the go has its line under « sans go »', () => {
@@ -316,7 +317,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
   it('3uv.42 critère 4 : the chantier, its tree and the other chantiers are in chantier', () => {
     expect(section(L0, x => x.texte.startsWith('CHANTIER e'))).toBe('chantier');
     expect(section(L0, x => /^ {2}8\/14 faits/.test(x.texte))).toBe('chantier');
-    expect(section(L0, x => x.ticket === 'demo-e.1.1')).toBe('chantier');
+    expect(section(L0, x => x.ticket === 'demo-e.1.1')).toBe('agents');
     expect(section(L0, x => x.ticket === 'demo-e.1.6')).toBe('chantier');
     expect(section(L0, x => x.texte.startsWith('AUTRES CHANTIERS'))).toBe('chantier');
     expect(section(L0, x => x.ticket === 'demo-z')).toBe('chantier');
@@ -586,11 +587,11 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
   };
   const LM = lignes(MAIN, 'demo') as Ligne[];
 
-  it('the tree of a chantier shows its 31 tickets in progress, each on its line, none folded', () => {
-    const arbre = lignesChantier(LP);
+  it('AGENTS shows the 31 tickets in progress in direct, each on its line, none folded', () => {
+    const agents = partieAgents(LP);
     for (let i = 1; i <= 31; i++) {
       expect(
-        arbre.some(y => y.ticket === `demo-e.${i}`),
+        agents.some(y => y.ticket === `demo-e.${i}` && y.texte.startsWith('✎ ')),
         `e.${i}`
       ).toBe(true);
     }
@@ -743,8 +744,9 @@ const L10 = lignes(B10, 'demo') as Ligne[];
 const C10 = lignesChantier(L10);
 
 describe('3uv.42 critère 10 : the open ticket of a closed mother keeps its line, under its state', () => {
-  it('3uv.42 critère 10 : a ticket in progress of a closed mother stands under « en cours »', () => {
-    expect(categorie(L10, 'demo-e.4.1')).toBe('en cours');
+  it('a ticket in progress of a closed mother, with no circuit, stands in AGENTS in direct', () => {
+    expect(partieAgents(L10).some(x => x.ticket === 'demo-e.4.1')).toBe(true);
+    expect(partieChantier(L10).some(x => x.ticket === 'demo-e.4.1')).toBe(false);
   });
 
   it('3uv.42 critère 10 : under nested closed mothers, it stands under its state', () => {
@@ -759,7 +761,7 @@ describe('3uv.42 critère 10 : the open ticket of a closed mother keeps its line
 
   it('3uv.42 critère 10 : deeper, under an open mother in progress, it stands under its state', () => {
     expect(categorie(L10, 'demo-e.7.2.1')).toBe('reporté');
-    expect(categorie(L10, 'demo-e.7.1')).toBe('en cours');
+    expect(partieAgents(L10).some(x => x.ticket === 'demo-e.7.1')).toBe(true);
   });
 
   it('3uv.42 critère 10 : the closed mothers have no line', () => {

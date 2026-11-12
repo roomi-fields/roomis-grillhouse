@@ -122,7 +122,12 @@ import {
 import { echecDeLOutil } from './aiguillage.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { lireLaMesure } from './avancement.mjs';
-import { SANS_REPONSE_EN, ServeurMuet, circuitsDuServeur } from './circuits-du-serveur.mjs';
+import {
+  SANS_REPONSE_EN,
+  ServeurMuet,
+  circuitsDuServeur,
+  nuitDuServeur,
+} from './circuits-du-serveur.mjs';
 import { enFileSansArchitecture } from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
@@ -175,8 +180,10 @@ export const TONS = Object.freeze({
   reportes: undefined,
   fermes: 'discret',
   // A circuit, a pass, a wait.
-  attendUnePlace: 'actif',
+  attendUnePlace: 'attention',
   attendLeVerrou: 'actif',
+  enDirect: 'actif',
+  nuitEnCours: 'actif',
   attendLeDisque: 'attention',
   attendLeSuperviseur: 'attention',
   attendLeResponsable: 'attention',
@@ -762,7 +769,9 @@ export function lecture(t, prefix) {
  * The board, from what was read. Pure: every source comes in, the time included; `machine`, the
  * lock of the machine; `outil`, the failed installation of the published version that leads the
  * repository (scripts/aiguillage.mjs `echecDeLOutil`); `places`, the places of the machine
- * (scripts/places-de-la-machine.mjs `etatDesPlaces`), whose line heads AGENTS; `muet`, the Temporal
+ * (scripts/places-de-la-machine.mjs `etatDesPlaces`), whose line heads AGENTS; `nuit`, the night
+ * under way on the machine (scripts/circuits-du-serveur.mjs `nuitDuServeur`), its line under the
+ * places'; `muet`, the Temporal
  * server did not answer the reading of the circuits, which the first alert says; `faute`, any
  * other fault of that reading, said in the first alert as it is; `echecPrefixe`, the cause of a
  * ticket prefix that did not read, named in an alert.
@@ -770,8 +779,9 @@ export function lecture(t, prefix) {
  *   maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
- *   coeurs: number, memoireGo: number, attentes: { ticket: string, depuis: number,
- *   disque?: string | null }[] } | null, muet?: boolean, faute?: string | null,
+ *   coeurs: number, memoireGo: number, memoireTotaleGo: number, attentes: { ticket: string,
+ *   depuis: number, disque?: string | null }[] } | null,
+ *   nuit?: { racine: string, depuis: number | null } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null }} lu
  */
 export function assembler({
@@ -785,6 +795,7 @@ export function assembler({
   machine = null,
   outil = null,
   places: placesDeLaMachine = null,
+  nuit: nuitEnCours = null,
   muet = false,
   faute = null,
   echecPrefixe = null,
@@ -1203,8 +1214,48 @@ export function assembler({
   const parTicket = Object.fromEntries(
     [...new Set(mesures.map(m => m.ticket).filter(Boolean))].map(id => [id, mesure(new Set([id]))])
   );
-  // The circuits, in the tickets' order.
+  // The tickets worked out of a circuit: claimed (`in_progress`), no circuit on the server that
+  // holds them, a mother of theirs or a ticket under them (a circuit holds its ticket's mothers and
+  // children): one that runs or waits for an answer (`attendLeSuperviseur`), never one the
+  // supervisor stopped; or labelled `direct`, open or claimed (led out of the circuit); and no role
+  // agent shown at a step. None while the circuits do not read (a
+  // silent server, a fault), when no ticket can be told out of a circuit.
+  const aUneEtape = new Set(blocs.flatMap(b => b.enCours.map(x => x.id)));
+  const tenus = new Set(
+    [...parCircuit.values()].filter(c => c.vivant || attendLeSuperviseur(c)).map(c => c.ticket)
+  );
+  const sousUnCircuit = t => tenus.has(t.id) || (enfants.get(t.id) ?? []).some(sousUnCircuit);
+  const dansUnCircuit = t => {
+    for (let m = parId.get(t.parent); m; m = parId.get(m.parent)) {
+      if (tenus.has(m.id)) {
+        return true;
+      }
+    }
+    return sousUnCircuit(t);
+  };
+  const horsCircuit =
+    muet || faute
+      ? []
+      : tous
+          .filter(
+            t =>
+              travail(t) &&
+              !aUneEtape.has(t.id) &&
+              ((t.status === 'in_progress' && !dansUnCircuit(t)) ||
+                ((t.labels ?? []).includes('direct') &&
+                  (t.status === 'open' || t.status === 'in_progress')))
+          )
+          .sort(ordre)
+          .map(t => ({
+            id: t.id,
+            numero: numero(t.id),
+            sujet: titre(t).sujet,
+            qui: t.assignee || null,
+          }));
+  // The circuits, in the tickets' order; a ticket worked in direct has its line alone.
+  const enDirect = new Set(horsCircuit.map(x => x.id));
   const lesCircuits = [...parCircuit.values()]
+    .filter(c => !enDirect.has(c.ticket))
     .sort((a, b) => ordre({ id: a.ticket }, { id: b.ticket }))
     .map(c => ({
       ...c,
@@ -1216,12 +1267,14 @@ export function assembler({
     global,
     alertes,
     circuits: lesCircuits,
+    horsCircuit,
     chantiers,
     autres,
     agents: blocs,
     maintenant,
     machine,
     places: placesDeLaMachine,
+    nuit: nuitEnCours,
     faitsDuJour,
     etats,
     parTicket,
@@ -1431,23 +1484,19 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // the oldest first, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> ».
   const maintenant = t.maintenant ?? Date.now();
   // The places of the machine (scripts/places-de-la-machine.mjs), the first line of AGENTS:
-  // « Places 3/3 · charge 11,2/12 · mémoire 9 Go », the places taken of the ceiling, the load over
-  // one minute of the cores, the free memory; a value of the ceiling the poste names and the
+  // « Places 3/3 · charge 11,2/12 · mémoire 9/30 Go », the places taken of the ceiling, the load
+  // over one minute of the cores, the free memory of the total; a value of the ceiling the poste names and the
   // server refused, in place of the load and the memory, by its name.
   const p = t.places;
   if (p) {
     const nb = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
     poser({
       texte: cadre(
-        `Places ${p.prises}/${p.plafond} · ${p.faute ? `plafond refusé : ${p.faute}` : `charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo} Go`}`,
+        `Places ${p.prises}/${p.plafond} · ${p.faute ? `plafond refusé : ${p.faute}` : `charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo}/${p.memoireTotaleGo} Go`}`,
         '',
         largeur
       ),
-      ton: p.faute
-        ? TONS.plafondRefuse
-        : p.charge >= p.coeurs
-          ? TONS.machineChargee
-          : TONS.mesure,
+      ton: p.faute ? TONS.plafondRefuse : p.charge >= p.coeurs ? TONS.machineChargee : TONS.mesure,
     });
     // A ticket that waits for the disk of its project's copies: what holds it, the ticket named.
     for (const w of (p.attentes ?? []).filter(x => x.disque)) {
@@ -1457,6 +1506,16 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         ticket: w.ticket,
       });
     }
+  }
+  // The night under way on the machine, under the places: « 🌙 nuit · <projet> · depuis <durée> »,
+  // its project by its folder's name, the time since it started when the server gives it.
+  if (t.nuit) {
+    const depuis =
+      typeof t.nuit.depuis === 'number' ? ` · depuis ${duree(maintenant - t.nuit.depuis)}` : '';
+    poser({
+      texte: couperAvant(`🌙 nuit · ${path.basename(t.nuit.racine)}`, depuis, '', largeur),
+      ton: TONS.nuitEnCours,
+    });
   }
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
   const duCircuit = x => Boolean(x.ticket && enCircuit.has(x.ticket));
@@ -1584,7 +1643,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const montres = t.agents.flatMap(b => b.enCours.filter(x => !enCircuit.has(x.id)));
   // A ticket's number, or on several projects' board its whole id, in one column.
   const nomme = x => String(plusieurs ? x.id : x.numero);
-  const colonne = Math.max(0, ...[...(t.circuits ?? []), ...montres].map(x => nomme(x).length));
+  const colonne = Math.max(
+    0,
+    ...[...(t.circuits ?? []), ...(t.horsCircuit ?? []), ...montres].map(x => nomme(x).length)
+  );
   // A ticket's line in AGENTS: « <signe> <numéro>  <sujet> … <droite> »; on several projects'
   // board « <[projet]> <id>  <sujet> … <signe> <droite> », the owner's maquette (grillhouse-erp.1).
   const teteDe = (signe, x) =>
@@ -1612,7 +1674,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
               ? 'attendLeVerrou'
               : 'enCours';
   const ligneDuCircuit = c => {
-    const signe =!c.vivant ? '⏸' : enAttente.has(c.id) ? '⏳' : '▶';
+    const signe = !c.vivant ? '⏸' : enAttente.has(c.id) ? '⏳' : '▶';
     const droite = droiteDe(
       signe,
       conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)
@@ -1691,6 +1753,20 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       cadre(`${retrait}${b.numero} · ${b.titre}${b.qui ? ` · ${b.qui}` : ''}`, '', largeur),
       plein ? TONS.titre : TONS.vide
     );
+  // The tickets worked out of a circuit, once each, before the steps, from their claim to their
+  // close: « ✎ <numéro>  <sujet> · en direct · <assignee> ».
+  for (const x of t.horsCircuit ?? []) {
+    poser({
+      texte: couperAvant(
+        `${teteDe('✎', x)}${x.sujet}`,
+        ` · en direct${x.qui ? ` · ${x.qui}` : ''}`,
+        droiteDe('✎', ''),
+        largeur
+      ),
+      ton: TONS.enDirect,
+      ticket: x.id,
+    });
+  }
   for (const e of ETAPES) {
     const b = blocDe(e);
     const lesSous = e.sous ?? [];
@@ -1721,6 +1797,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The tickets the agents' blocks show: the chantier's tree does not show them a second time.
   const dansAgents = new Set([
     ...(t.circuits ?? []).map(c => c.id),
+    ...(t.horsCircuit ?? []).map(x => x.id),
     ...t.agents.flatMap(b => b.enCours.map(x => x.id)),
   ]);
   for (const ch of t.chantiers) {
@@ -2060,17 +2137,28 @@ export function dossierCommun(racine) {
 // dir. Unversioned, out of the worktree: the board does not reset at midnight.
 const fichierDuRepere = commun => commun && path.join(commun, 'tableau-repere.json');
 
-// The day's marker of the project whose common dir is <commun>: the number its file holds, else
-// midnight of <maintenant> (no file, or no number).
+// The day's marker of the project whose common dir is <commun>: the number its file holds. Without
+// one (no file, or no number), the first reading sets it to midnight of <maintenant> and keeps it,
+// so that only `grillhouse newday` moves it; a place that cannot be written gives midnight still.
 export function lireLeRepere(commun, maintenant) {
+  try {
+    const { repere } = JSON.parse(readFileSync(fichierDuRepere(commun), 'utf8'));
+    if (typeof repere === 'number') {
+      return repere;
+    }
+  } catch {
+    // No marker yet: set below.
+  }
   const minuit = new Date(maintenant);
   minuit.setHours(0, 0, 0, 0);
   try {
-    const { repere } = JSON.parse(readFileSync(fichierDuRepere(commun), 'utf8'));
-    return typeof repere === 'number' ? repere : minuit.getTime();
+    if (commun) {
+      writeFileSync(fichierDuRepere(commun), `${JSON.stringify({ repere: minuit.getTime() })}\n`);
+    }
   } catch {
-    return minuit.getTime();
+    // A read-only place keeps the board working: midnight, unkept.
   }
+  return minuit.getTime();
 }
 
 // Sets the day's marker of the project at <racine> to <quand> (now by default), purging FAITS
@@ -2089,7 +2177,16 @@ export function poserLeRepere(racine, quand = Date.now()) {
 // shared files in (`commun`).
 function lire(
   racine,
-  { home, maintenant, circuits, muet = false, faute = null, machine = null, places = null }
+  {
+    home,
+    maintenant,
+    circuits,
+    muet = false,
+    faute = null,
+    machine = null,
+    places = null,
+    nuit = null,
+  }
 ) {
   // The prefix is read once, with no delay of its own; a read that fails leaves it empty (the
   // project is labelled by its folder) and its cause is named in an alert (`echecPrefixe`).
@@ -2159,6 +2256,7 @@ function lire(
     jour: lireLeRepere(commun, maintenant),
     machine,
     places,
+    nuit,
     muet,
     faute,
     echecPrefixe,
@@ -2200,6 +2298,7 @@ export function ensemble(lus) {
     ),
     alertes: tous('alertes'),
     circuits: tous('circuits'),
+    horsCircuit: tous('horsCircuit'),
     chantiers: lisibles.flatMap(l => l.t.chantiers.map(noeud(l.etiquette))),
     autres: tous('autres'),
     agents: premier.t.agents.map(b => {
@@ -2212,6 +2311,7 @@ export function ensemble(lus) {
     maintenant: premier.t.maintenant,
     machine: premier.t.machine,
     places: premier.t.places,
+    nuit: premier.t.nuit,
     faitsDuJour: tous('faitsDuJour'),
     decouvertes: lisibles.reduce(
       (s, l) => {
@@ -2292,11 +2392,13 @@ export function nommerLesProjets(machine, noms, ici = null) {
 // board of them all (`ensemble`), named « <dépôt> + <projet> + … », with the folder of each
 // ticket's project (`dossiers`), where the pane runs Beads for it. The status line is the
 // session's project's alone. Each project's circuits are read by <circuitsDe> (one call to the
-// Temporal server, scripts/circuits-du-serveur.mjs, by default).
+// Temporal server, scripts/circuits-du-serveur.mjs, by default), and the night under way on the
+// machine by <nuitDe> (`nuitDuServeur` by default); a night that does not read shows none.
 /**
  * @param {string} racine
  * @param {{ home?: string, maintenant?: number, projets?: string[],
- *   circuitsDe?: (racine: string) => Promise<object[]> }} [o]
+ *   circuitsDe?: (racine: string) => Promise<object[]>,
+ *   nuitDe?: () => Promise<{ racine: string, depuis: number | null } | null> }} [o]
  */
 export async function tableau(
   racine,
@@ -2305,9 +2407,13 @@ export async function tableau(
     maintenant = Date.now(),
     projets = [],
     circuitsDe = circuitsDuServeur,
+    nuitDe = () => nuitDuServeur(),
   } = {}
 ) {
-  const [{ circuits, muet, faute }, ...autres] = await Promise.all([
+  const [nuit, { circuits, muet, faute }, ...autres] = await Promise.all([
+    Promise.resolve()
+      .then(nuitDe)
+      .catch(() => null),
     lesCircuits(circuitsDe, racine),
     ...projets.map(d => lireUnAutre(d, { home, maintenant, circuitsDe })),
   ]);
@@ -2321,6 +2427,7 @@ export async function tableau(
       faute,
       machine: lireLaMesure(process.env),
       places: lireLesPlaces(),
+      nuit,
     }),
   };
   const lus = [ici, ...autres];

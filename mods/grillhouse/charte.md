@@ -172,7 +172,8 @@ contrôles et à la relecture sans séance du développeur. Ainsi chaque séance
 le circuit court (1.1) pour un geste sans comportement neuf, que l'explorateur juge au plan ; hors
 du circuit, mené en direct par le superviseur, pour un défaut du circuit lui-même (le circuit ne se
 répare pas par lui-même), une correction triviale repérée en analyse (une ligne fautive, un
-mauvais argument), un ticket de données ou le squelette d'un paquet. Un lot hors du circuit passe
+mauvais argument), un ticket de données ou le squelette d'un paquet ; il porte l'étiquette `direct`, que la file des
+tickets ignore, même s'il porte aussi `circuit`. Un lot hors du circuit passe
 la CI de sa branche avant main, comme un autre. Un changement de comportement du produit va au
 circuit, même pressé. Ainsi la voie d'un ticket se lit à la charte, et non au choix de la séance.
 
