@@ -1,5 +1,5 @@
 // @poste: l'enveloppe bwrap, un serveur Temporal
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
@@ -22,7 +22,24 @@ import { dormir, ouvrirLeBanc } from './temporal-essai.js';
 const ESSAIS = racineSousLaMaison('grillhouse-essais-repetition-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const essai = circuitEssai(ESSAIS, { banc: false });
-const { BEADS, revenirAuDebut, ticket, scenario, ordre, ci, sessions, journal } = essai;
+const { BEADS, REPO, revenirAuDebut, ticket, scenario, ordre, ci, sessions, journal } = essai;
+
+// Until the lock of the wait of the questions names a live process: a wait launched listens.
+const attendreQuUneAttenteEcoute = async () => {
+  const verrou = path.join(REPO, '.claude', 'worktrees', 'attente-des-questions.lock');
+  for (let i = 0; i < 300; i++) {
+    try {
+      const pid = Number(/^(\d+)/.exec(readFileSync(verrou, 'utf8'))?.[1]);
+      if (pid && process.kill(pid, 0)) {
+        return;
+      }
+    } catch {
+      // no lock yet, or its process gone
+    }
+    await dormir(100);
+  }
+  throw new Error(`aucune attente des questions n'écoute : ${verrou}`);
+};
 
 // The status of the ticket <id> in the stand-in Beads.
 const statutDuTicket = (id: string) =>
@@ -90,10 +107,12 @@ describe.runIf(canWrap)(
         await banc.attendreLaFin(id);
         expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
         expect(statutDuTicket(id)).toBe('closed');
-        // Integrated, the circuit leaves the board, and the wait never woke.
+        // Integrated, the circuit leaves the board; the wait ends on the integration alone, no
+        // question in its batch (it ends on each batch, grillhouse-d4n.9).
         expect(banc.circuits().map(c => c.ticket)).not.toContain(id);
-        await dormir(6000);
-        expect(attente.finie(), 'l’attente des questions s’est réveillée').toBe(false);
+        const fin = await attente.fin;
+        expect(fin).toContain(`- ${id} est intégré`);
+        expect(fin, 'l’attente des questions a rendu une question').not.toContain('## Question');
       } finally {
         await banc.fermer([id]);
       }
@@ -113,14 +132,19 @@ describe.runIf(canWrap)(
         const reveil = await attente.lot;
         expect(reveil).toContain(`- ${id}, à `);
         expect(reveil).toContain('Quelle valeur la mesure rend-elle ?');
-        // The wait goes on listening: it did not end, and a second one is refused.
-        expect(attente.finie()).toBe(false);
+        // The wait ends on its batch (grillhouse-d4n.9), and the supervisor launches it again;
+        // while that one listens, another is refused.
+        expect(await attente.fin).toContain('Quelle valeur la mesure rend-elle ?');
         const seconde = banc.attendreLesQuestions();
-        expect(await seconde.fin).toContain('une seule à la fois');
+        await attendreQuUneAttenteEcoute();
+        expect(await banc.attendreLesQuestions().fin).toContain('une seule à la fois');
         expect(banc.reprendre(id, 'Le double.')).toBe('repris');
         await banc.attendreLaFin(id);
         expect(sessions(id, 'testwriter')).toBe(2);
-        expect(attente.finie()).toBe(false);
+        // The question went up once: the next wait gives the integration, not the question again.
+        const fin = await seconde.fin;
+        expect(fin).toContain(`- ${id} est intégré`);
+        expect(fin).not.toContain('Quelle valeur la mesure rend-elle ?');
       } finally {
         await banc.fermer([id]);
       }

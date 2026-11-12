@@ -536,7 +536,12 @@ describe('le déroulé mène le plan, un pas par activité', () => {
     await pendant('testwriter');
     expect(await lu()).toMatchObject({ etape: 'testwriter', questionnement: null });
     ouverts.testwriter?.();
-    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+    // The end carries the state written last, the one the plan wrote.
+    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({
+      code: 0,
+      raison: 'integre',
+      etat: etatDuPlan,
+    });
   }, 120_000);
 });
 
@@ -784,8 +789,10 @@ describe('un acte qui échoue est l’arrêt « inattendu », sa réponse attend
   const inattendus = (journal: ReturnType<typeof actes>['journal']) =>
     journal.arrets.map(a => (a.arret.inattendu as { message?: string } | undefined)?.message);
 
+  // A stop at the plan is written at the state the plan writes, the testwriter's with its
+  // questioning on the plan (grillhouse-d4n.11, `etatDeReprise`), from which an answer reopens it.
   it.each([
-    ['ouvrirLeCircuit', 'plan'],
+    ['ouvrirLeCircuit', 'testwriter'],
     ['preparerLaPasse', 'developpeur'],
     ['appliquerLesEffets', 'testwriter'],
     ['finirLeTicket', null],
@@ -817,6 +824,9 @@ describe('un acte qui échoue est l’arrêt « inattendu », sa réponse attend
       expect(journal.arrets[0]).toMatchObject({ monter: true });
       if (etape) {
         expect(journal.arrets[0]?.etat.etape).toBe(etape);
+      }
+      if (acte === 'ouvrirLeCircuit') {
+        expect(journal.arrets[0]?.etat).toMatchObject({ questionnement: { objet: 'plan' } });
       }
       await reprendreLeCircuit(client, RACINE, TICKET, null);
       expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
@@ -1131,7 +1141,11 @@ describe('les réponses du superviseur reprennent comme circuit.mjs', () => {
     await commence;
     await handle(client).terminate('essai');
     liberer({ statut: 'FAIT' });
-    const lu = (await lireLesCircuits(client, RACINE)).find(c => c.ticket === TICKET);
+    // The list of the server follows its visibility, which may lag behind the termination.
+    const lu = await attendre('le circuit interrompu', async () => {
+      const c = (await lireLesCircuits(client, RACINE)).find(x => x.ticket === TICKET);
+      return c?.interrompu ? c : undefined;
+    });
     expect(lu).toMatchObject({ interrompu: true, vivant: false });
     expect(lu?.reponse).toBe(
       'npx grillhouse circuit essai-1 --reprendre` ou `--depuis <testwriter|developpeur> --contexte <texte>'

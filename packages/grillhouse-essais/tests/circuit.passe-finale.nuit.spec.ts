@@ -29,8 +29,10 @@ const { revenirAuDebut, ticket, scenario, circuit, sessions, etat, commentaires,
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). The lot adds a file to a directory of the root
-  // that a reader out of the title reads (`grillhouse.lit`); its test turned red only at the
-  // integration's `npm run verifier`, the final pass playing the packages of the title alone.
+  // that a reader out of the title reads; its test turned red only at the integration's `npm run
+  // verifier`, the final pass playing the packages of the title alone. The package declares the
+  // directory (`grillhouse.lit`), which brings it into the final pass, and its test the files it
+  // reads (`// @lit`, grillhouse-44b.17), which plays it in that targeted pass (grillhouse-44b.15).
   it('plays npm run verifier at the final pass, and stops at « controles » on a red of a package out of the plan', () => {
     const id = 'demo-finale-hors-titre';
     const copie = ticket(id, '000-forms');
@@ -51,7 +53,8 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
     );
     ecrire(
       path.join(loader, 'test/bibliotheques.test.mjs'),
-      `import { readdirSync } from 'node:fs';
+      `// @lit libraries/**
+import { readdirSync } from 'node:fs';
 import { expect, it } from 'vitest';
 it('bibliothèques — chaque fichier est une bibliothèque .bp', () => {
   const noms = readdirSync(new URL('../../../libraries', import.meta.url));
