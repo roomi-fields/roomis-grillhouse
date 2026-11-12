@@ -691,6 +691,29 @@ describe('grillhouse-ool, critère 3 — hors du plan, et les droits du dévelop
     expect(stop?.paquet).toBe('packages/b');
   });
 
+  it('a stop out of the plan carries the written path, its package and whether the root holds it', () => {
+    const paquet = horsDuPlan(devDependencies('packages/b/package.json'), {
+      tmp: SCRATCH,
+      env,
+      role: 'testwriter',
+    });
+    expect(paquet).toMatchObject({
+      chemin: 'packages/b/package.json',
+      paquet: 'packages/b',
+      racine: false,
+    });
+    const racine = horsDuPlan(devDependencies('package-lock.json'), {
+      tmp: SCRATCH,
+      env,
+      role: 'developpeur',
+    });
+    expect(racine).toMatchObject({
+      chemin: 'package-lock.json',
+      paquet: 'la racine du dépôt',
+      racine: true,
+    });
+  });
+
   it('the manifest of a package of the plan does not stop the testwriter', () => {
     expect(
       horsDuPlan(devDependencies('packages/a/package.json'), {

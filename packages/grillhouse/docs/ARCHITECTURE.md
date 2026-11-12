@@ -1398,7 +1398,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   - Une séance d'agent est une activité. Son identifiant porte l'essai de l'activité
     (`<séance>-e<essai>`), si bien que deux essais ne se disputent jamais un `--session-id`.
     lancer.sh range le résultat de chaque séance sous son identifiant
-    (`<copie>.travail/seances/<id>/` : `fin`, `resultat.json`, `hors-plan` ; `rangDeLaSeance` de
+    (`<copie>.travail/seances/<id>/` : `fin`, `resultat.json`, `hors-plan`, `hors-plan.json` (`{ chemin, paquet, racine }`, l'écriture refusée) ; `rangDeLaSeance` de
     `scripts/seances.mjs`), une séance hors de l'enveloppe le sien au même lieu. À l'essai 2 et plus, l'activité cherche d'abord l'essai mort par le signe de
     vie de son groupe : un groupe encore vivant s'attend, puis son résultat se lit ; un résultat
     rangé se rend, sans seconde séance, au dernier lancement de l'essai mort quel que soit son

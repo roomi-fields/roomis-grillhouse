@@ -182,8 +182,9 @@ rang="$copie.travail/seances/${seance:-${reprise:-courante}}"
 fin="$rang/fin"
 resultat="$rang/resultat.json"
 hors_plan="$rang/hors-plan"
+hors_plan_fait="$rang/hors-plan.json"
 mkdir -p "$(dirname "$copie")" "$rang"
-rm -f "$fin" "$resultat" "$hors_plan"
+rm -f "$fin" "$resultat" "$hors_plan" "$hors_plan_fait"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
 # The temporary directory of the ticket (`ouvrirBaseDuTicket`, scripts/mesure/base-de-passe.mjs):
 # TMPDIR, TMP and TEMP of the rest of the launch and of the session, whose scratchpads and working
@@ -292,6 +293,9 @@ rm -f "$prompt"
 if [ -f "$travail/hors-plan" ]; then
   mv "$travail/hors-plan" "$hors_plan"
   { cat "$hors_plan"; echo; } >> "$journal"
+fi
+if [ -f "$travail/hors-plan.json" ]; then
+  mv "$travail/hors-plan.json" "$hors_plan_fait"
 fi
 echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
