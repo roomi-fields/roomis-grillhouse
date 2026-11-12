@@ -48,7 +48,7 @@
   },
   "packageManager": "npm@11.20.0",
   "grillhouse": {
-    "outil": "0.33.1",
+    "outil": "0.34.0",
     "flux": {
       ".github/workflows/ci.yml": [
         "@roomi-fields/grillhouse",
