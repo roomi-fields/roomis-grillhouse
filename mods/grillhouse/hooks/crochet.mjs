@@ -51,12 +51,6 @@ if (existsSync(commande)) {
     }
     process.exitCode = r.status ?? 1;
   }
-} else if (sous === 'verrou') {
-  writeSync(
-    2,
-    `⛔ verrou : le cadre de l'arbre principal est absent (${commande}) ; écriture refusée. La réparation de l'arbre principal revient au superviseur, hors séance d'agent.\n`
-  );
-  process.exitCode = 2;
 } else if (sous === 'session-start') {
   writeSync(
     1,
