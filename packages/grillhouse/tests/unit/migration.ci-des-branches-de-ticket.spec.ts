@@ -72,6 +72,28 @@ describe('la CI du projet se lance sur les branches de ticket', () => {
     expect(lire(racine, 'docs.yml')).not.toContain('agent/**');
   });
 
+  it('a workflow on main filtered on paths neither listens nor gains agent/**; the CI of the lots does', () => {
+    const racine = projet({
+      'ci.yml': 'on:\n  push:\n    branches: [main]\n',
+      'docs.yml': "on:\n  push:\n    branches: [main]\n    paths:\n      - 'docs/**'\n",
+    });
+    expect(ecouteLesBranchesDeTicket(racine)).toBe(false);
+    expect(migration.migrer(racine)).toEqual([expect.stringContaining('.github/workflows/ci.yml')]);
+    expect(lire(racine, 'docs.yml')).not.toContain('agent/**');
+    expect(ecouteLesBranchesDeTicket(racine)).toBe(true);
+  });
+
+  it('a workflow filtered on paths alone, or on agent/** and paths, still listens', () => {
+    expect(
+      ecouteLesBranchesDeTicket(projet({ 'a.yml': "on:\n  push:\n    paths: ['src/**']\n" }))
+    ).toBe(true);
+    expect(
+      ecouteLesBranchesDeTicket(
+        projet({ 'a.yml': "on:\n  push:\n    branches: ['agent/**']\n    paths: ['src/**']\n" })
+      )
+    ).toBe(true);
+  });
+
   it('a CI that runs on every branch already listens: nothing written', () => {
     const racine = projet({ 'ci.yml': 'on: push\n' });
     expect(ecouteLesBranchesDeTicket(racine)).toBe(true);

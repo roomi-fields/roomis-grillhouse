@@ -58,7 +58,8 @@ function principale(racine) {
 /**
  * `agent/**` added to the push of the CI of the lots of the project at <racine>: the workflows
  * written, none when the project already listens or has no workflow that runs on a push to main
- * with a list of branches to add it to.
+ * with a list of branches to add it to. A workflow filtered on paths (a documentation published
+ * when its sources change) is no CI of the lots, and is left.
  */
 export function ajouterLesBranchesDeTicket(racine) {
   const flux = lesFlux(racine);
@@ -70,7 +71,8 @@ export function ajouterLesBranchesDeTicket(racine) {
   for (const { chemin, texte } of flux.filter(f => surMain.has(f.chemin))) {
     const doc = parseDocument(texte);
     const branches = doc.getIn(['on', 'push', 'branches'], true);
-    if (!branches || typeof branches.add !== 'function') {
+    const chemins = ['paths', 'paths-ignore'].some(c => doc.hasIn(['on', 'push', c]));
+    if (chemins || !branches || typeof branches.add !== 'function') {
       continue;
     }
     branches.add(doc.createNode(BRANCHES_DE_TICKET));

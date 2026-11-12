@@ -153,16 +153,14 @@ function motifDeGitHub(motif) {
 // Whether the `on.push` of a workflow <push> runs on a push to <branche>, as GitHub reads its
 // filters: none runs on every branch; `branches` in its order, a `!` pattern taking out what the
 // ones before took in, the last match deciding; `branches-ignore` takes out what it matches;
-// `tags` or `tags-ignore` alone run on no branch. A filter on the paths, or a form the queue does
-// not judge, counts as one that runs.
+// `tags` or `tags-ignore` alone run on no branch. GitHub asks both filters: a branch the branch
+// filter leaves out never runs, whatever the paths; a filter on the paths leaves a branch it takes
+// in counted as one that runs, as does a form the queue does not judge.
 function pousseeSurLaBranche(push, branche) {
   if (push === null || push === undefined) {
     return true;
   }
   if (typeof push !== 'object' || Array.isArray(push)) {
-    return true;
-  }
-  if (push.paths || push['paths-ignore']) {
     return true;
   }
   const { branches, 'branches-ignore': ignorees } = push;
@@ -417,7 +415,10 @@ export function relireLesLecturesDues(o, { maintenant, ci }) {
         nonJuge(f.nom, v.raison);
       } else if (!v.fini) {
         if (ecoule > ci.attenteMs) {
-          nonJuge(f.nom, `le passage ${id} n'est pas fini après ${Math.round(ci.attenteMs / 60_000)} min.`);
+          nonJuge(
+            f.nom,
+            `le passage ${id} n'est pas fini après ${Math.round(ci.attenteMs / 60_000)} min.`
+          );
         } else {
           encore.push(f);
         }
