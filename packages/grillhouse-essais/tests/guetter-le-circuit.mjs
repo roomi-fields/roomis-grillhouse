@@ -14,8 +14,10 @@
 //   ended without its issue is its `fin`. It writes `{ code, fin, signe, etat, ou, question }`, `ou`
 //   the step of the state in words (scripts/etapes.mjs), `question` the one the workflow awaits;
 //   past <ms>, it exits 1 with the last sign it read.
-// Each call to the server is bounded (`DELAI_MS`): a server or a workflow that does not answer
-// exits 1, the call named, instead of a watch that hangs without a word.
+// Each call to the server is bounded (`DELAI_MS`) by its gRPC deadline (`withDeadline` of the
+// connection): a server or a workflow that does not answer exits 1, the call named, instead of a
+// watch that hangs without a word; the call ends with its deadline, so no retry of it outlives the
+// client closed.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -32,20 +34,32 @@ const ouDansLeCircuit = e => {
   return x ? libelle(x) : (e?.etape ?? null);
 };
 
-// <p>, the call <quoi> to the server, bounded by DELAI_MS: past it, an error that names the call.
 const DELAI_MS = 30_000;
-const borne = (p, quoi) =>
-  Promise.race([
-    p,
-    new Promise((_, ko) =>
-      setTimeout(
-        () => ko(new Error(`le serveur ne répond pas à ${quoi} en ${DELAI_MS / 1000} s`)),
-        DELAI_MS
-      ).unref()
-    ),
-  ]);
+// The gRPC status of a deadline exceeded (DEADLINE_EXCEEDED).
+const DELAI_DEPASSE = 4;
+// Whether <e>, or one of its causes, is a gRPC call ended by its deadline.
+const horsDelai = e => {
+  for (let x = e; x instanceof Error; x = x.cause) {
+    if (x.code === DELAI_DEPASSE) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const c = ouvrirLeClient();
+// The calls <f> makes to the server, named <quoi>, under a deadline DELAI_MS from now: past it,
+// an error that names the call.
+const borne = async (f, quoi) => {
+  try {
+    return await c.client.connection.withDeadline(Date.now() + DELAI_MS, f);
+  } catch (x) {
+    if (horsDelai(x)) {
+      throw new Error(`le serveur ne répond pas à ${quoi} en ${DELAI_MS / 1000} s`, { cause: x });
+    }
+    throw x;
+  }
+};
 const h = c.client.workflow.getHandle(idDuCircuit(racine, ticket));
 
 // The message of <e> and of each of its causes, as Temporal wraps a failure in its own.
@@ -58,7 +72,7 @@ const raisons = e =>
 async function lire() {
   let d;
   try {
-    d = await borne(h.describe(), 'la description du déroulé');
+    d = await borne(() => h.describe(), 'la description du déroulé');
   } catch (x) {
     if (x?.name === 'WorkflowNotFoundError') {
       return null;
@@ -67,11 +81,12 @@ async function lire() {
   }
   const memo = d.memo ?? {};
   const statut = d.status.name;
-  const vue = statut === 'RUNNING' ? await borne(h.query(L_ETAT), "la requête de l'état") : null;
+  const vue =
+    statut === 'RUNNING' ? await borne(() => h.query(L_ETAT), "la requête de l'état") : null;
   const fin =
     statut === 'RUNNING'
       ? null
-      : await borne(h.result(), 'la lecture de la fin').catch(x => ({ echec: raisons(x) }));
+      : await borne(() => h.result(), 'la lecture de la fin').catch(x => ({ echec: raisons(x) }));
   const signe = [
     d.runId,
     memo.numero ?? 0,
@@ -130,5 +145,6 @@ try {
   process.stderr.write(`le guet du circuit de ${ticket} échoue : ${raisons(x)}\n`);
   process.exitCode = 1;
 } finally {
-  await borne(c.fermer(), 'la fermeture du client').catch(() => {});
+  // Closing makes no call to the server: every call above has ended, within its deadline.
+  await c.fermer();
 }
