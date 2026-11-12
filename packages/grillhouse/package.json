@@ -1,6 +1,6 @@
 {
   "name": "@roomi-fields/grillhouse",
-  "version": "0.34.1",
+  "version": "0.34.2",
   "description": "Roomi's Grillhouse: the frame's scripts, called by one command, grillhouse <sous-commande>",
   "keywords": [
     "claude-code",

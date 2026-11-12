@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.34.2] - 2026-11-12
+
 - **The pre-push hook sees a green CI as soon as its run is green** (grillhouse-do5e): on 2026-11-12, main could not advance on a commit whose ticket branch CI was green, the hook asking GitHub for the runs of the commit filtered by `success`, a filter that lags the runs by minutes. It now lists the runs of the commit and reads each one's conclusion (`jugeeDansLesRuns`, scripts/branche-de-nuit.mjs). **Action for projects**: none.
 
 - **A pass of the module cargo never joins the sccache server of another** (grillhouse-67dz): on 2026-11-12, every tranche of SyntHub's CI stopped on « sccache: Failed to create temp dir … No such file or directory » under the temporary directory of an earlier verification. The server was named after the copy and the namespace of processes alone, and a server cargo starts keeps the temporary directory of its run, which goes at the pass's end, while the server outlives it. Its socket now follows the run's temporary directory too (`socketDuServeur`, scripts/langages/cargo/sccache.mjs): each pass has its own server, the disk cache stays common. **Action for projects**: none.
