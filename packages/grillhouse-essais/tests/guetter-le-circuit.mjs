@@ -15,9 +15,10 @@
 //   the step of the state in words (scripts/etapes.mjs), `question` the one the workflow awaits;
 //   past <ms>, it exits 1 with the last sign it read.
 // Each call to the server is bounded (`DELAI_MS`) by its gRPC deadline (`withDeadline` of the
-// connection): a server or a workflow that does not answer exits 1, the call named, instead of a
-// watch that hangs without a word; the call ends with its deadline, so no retry of it outlives the
-// client closed.
+// connection): in `lire`, a server or a workflow that does not answer exits 1, the call named;
+// in the watch, a call that fails transiently is probed again until <ms>, then exits 1 as any
+// watch past its bound, instead of a watch that hangs without a word. Each call ends with its
+// deadline, so no retry of it outlives the client closed.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -41,6 +42,18 @@ const DELAI_DEPASSE = 4;
 const horsDelai = e => {
   for (let x = e; x instanceof Error; x = x.cause) {
     if (x.code === DELAI_DEPASSE) {
+      return true;
+    }
+  }
+  return false;
+};
+// The gRPC statuses a later call may pass: cancelled (a deadline reached by the client),
+// deadline exceeded, unavailable, as Temporal's clients retry them.
+const PASSAGERS = new Set([1, 4, 14]);
+// Whether <e>, or one of its causes, is a call of the server that failed transiently.
+const passager = e => {
+  for (let x = e; x instanceof Error; x = x.cause) {
+    if (PASSAGERS.has(x.code)) {
       return true;
     }
   }
@@ -117,7 +130,15 @@ try {
     const limite = Date.now() + Number(ms);
     let l = null;
     for (;;) {
-      l = await lire();
+      // A reading the server answers late is a probe missed, not a failure: the watch probes
+      // again until its bound, the last reading kept.
+      try {
+        l = await lire();
+      } catch (x) {
+        if (!passager(x)) {
+          throw x;
+        }
+      }
       const a = l && l.signe !== avant ? arret(l) : null;
       if (a) {
         process.stdout.write(
