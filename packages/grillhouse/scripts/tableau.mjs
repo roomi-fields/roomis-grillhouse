@@ -774,7 +774,8 @@ export function lecture(t, prefix) {
  * places'; `muet`, the Temporal
  * server did not answer the reading of the circuits, which the first alert says; `faute`, any
  * other fault of that reading, said in the first alert as it is; `echecPrefixe`, the cause of a
- * ticket prefix that did not read, named in an alert.
+ * ticket prefix that did not read, named in an alert; `voies`, the way of each circuit done
+ * (`voiesDesCircuits`), whose sign FAITS AUJOURD'HUI shows.
  * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
  *   maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
@@ -782,7 +783,7 @@ export function lecture(t, prefix) {
  *   coeurs: number, memoireGo: number, memoireTotaleGo: number, attentes: { ticket: string,
  *   depuis: number, disque?: string | null }[] } | null,
  *   nuit?: { racine: string, depuis: number | null } | null, muet?: boolean, faute?: string | null,
- *   echecPrefixe?: string | null }} lu
+ *   echecPrefixe?: string | null, voies?: Record<string, 'complet' | 'court'> }} lu
  */
 export function assembler({
   tous,
@@ -801,6 +802,7 @@ export function assembler({
   echecPrefixe = null,
   remontees = [],
   attenteVivante: attenteQuiVit = true,
+  voies = {},
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1084,6 +1086,15 @@ export function assembler({
     });
   }
   const debutJour = jour;
+  // The way of a ticket done (grillhouse-592): `direct` when labelled so; else the way its kept
+  // results give (`voies`, `voiesDesCircuits`: `court` through 1.1, else `complet`); else
+  // `complet` when a circuit led a step of it (the register) or is read for it; else `direct`,
+  // closed with no circuit.
+  const parUnCircuit = new Set([...etapesFinies.map(r => r.ticket), ...parCircuit.keys()]);
+  const voieDe = t =>
+    (t.labels ?? []).includes('direct')
+      ? 'direct'
+      : (voies[t.id] ?? (parUnCircuit.has(t.id) ? 'complet' : 'direct'));
   const faitsDuJour = tous
     .filter(
       t =>
@@ -1094,12 +1105,20 @@ export function assembler({
         Date.parse(t.closed_at) >= debutJour
     )
     .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))
-    .map(t => ({
-      id: t.id,
-      numero: numero(t.id),
-      sujet: titre(t).sujet,
-      ...mesure(new Set([t.id])),
-    }));
+    .map(t => {
+      const m = mesure(new Set([t.id]));
+      const voie = voieDe(t);
+      // A circuit's time is its agents' and steps' working time; a direct ticket's runs from its
+      // claim to its close, null without a claim.
+      const pris = Date.parse(t.started_at ?? '');
+      const dure =
+        voie !== 'direct'
+          ? m.travail
+          : Number.isFinite(pris)
+            ? Date.parse(t.closed_at) - pris
+            : null;
+      return { id: t.id, numero: numero(t.id), sujet: titre(t).sujet, voie, duree: dure, ...m };
+    });
 
   // Alerts, each with its state (`etat`) and the tone of that state (TONS).
   const alertes = [];
@@ -1330,6 +1349,41 @@ function temoinDe(c, maintenant) {
 }
 
 // A ticket's time and tokens, « 12 min · 310 k »; nothing when both are zero.
+// The sign of a ticket done by its way (grillhouse-592): a full circuit, a short one (1.1 Geste
+// mécanique), a ticket led directly.
+export const SIGNE_DE_LA_VOIE = Object.freeze({ complet: '●', court: '○', direct: '✎' });
+
+/**
+ * The way of the circuit each ticket of <tickets> went, read from its kept results in the main tree
+ * <racine> (`.claude/worktrees/<ticket>.fiches.jsonl`, which the circuit writes and keeps once the
+ * ticket is done): `court` when the launch of a session carries the object `geste` (1.1 Geste
+ * mécanique), else `complet`; a ticket without the file has no entry. A line that does not parse
+ * counts nothing.
+ * @param {string} racine
+ * @param {string[]} tickets
+ * @returns {Record<string, 'complet' | 'court'>}
+ */
+export function voiesDesCircuits(racine, tickets) {
+  const out = {};
+  for (const id of tickets) {
+    let texte;
+    try {
+      texte = readFileSync(path.join(racine, '.claude', 'worktrees', `${id}.fiches.jsonl`), 'utf8');
+    } catch {
+      continue;
+    }
+    const geste = texte.split('\n').some(l => {
+      try {
+        return JSON.parse(l)?.lancement?.objet === 'geste';
+      } catch {
+        return false;
+      }
+    });
+    out[id] = geste ? 'court' : 'complet';
+  }
+  return out;
+}
+
 const conso = (ms, jetons) =>
   Math.round(ms / MINUTE) === 0 && !jetons ? '' : `${duree(ms)} · ${k(jetons)}`;
 
@@ -1943,8 +1997,14 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ),
       TONS.titre
     );
+    // Each line: the sign of its way, then « <durée> · <jetons> », « — » for a direct ticket never
+    // claimed.
     const fait = x => ({
-      texte: cadre(`✓ ${duProjet(x)}${x.numero}  ${x.sujet}`, conso(x.travail, x.jetons), largeur),
+      texte: cadre(
+        `${SIGNE_DE_LA_VOIE[x.voie] ?? SIGNE_DE_LA_VOIE.direct} ${duProjet(x)}${x.numero}  ${x.sujet}`,
+        `${x.duree === null || x.duree === undefined ? '—' : duree(x.duree)} · ${k(x.jetons)}`,
+        largeur
+      ),
       ton: TONS.fermes,
       ticket: x.id,
     });
@@ -2246,6 +2306,12 @@ function lire(
   } catch {
     // A read-only place keeps the board working, without its cache.
   }
+  const jour = lireLeRepere(commun, maintenant);
+  // The kept results of the circuits of the tickets done since the day's marker, in the main tree.
+  const voies = voiesDesCircuits(
+    commun ? path.dirname(commun) : racine,
+    tous.filter(x => x.closed_at && Date.parse(x.closed_at) >= jour).map(x => x.id)
+  );
   const t = assembler({
     tous,
     prefix,
@@ -2253,7 +2319,8 @@ function lire(
     vivants,
     circuits,
     maintenant,
-    jour: lireLeRepere(commun, maintenant),
+    jour,
+    voies,
     machine,
     places,
     nuit,

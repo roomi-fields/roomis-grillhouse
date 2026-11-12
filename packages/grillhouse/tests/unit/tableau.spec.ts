@@ -320,7 +320,15 @@ describe('assembler', () => {
   });
   it('lists the tickets closed today', () => {
     expect(t.faitsDuJour).toEqual([
-      { id: 'demo-c.1.2', numero: 'c.1.2', sujet: 'demo-c.1.2', travail: 0, jetons: 0 },
+      {
+        id: 'demo-c.1.2',
+        numero: 'c.1.2',
+        sujet: 'demo-c.1.2',
+        voie: 'direct',
+        duree: null,
+        travail: 0,
+        jetons: 0,
+      },
     ]);
   });
   it('alerts on a silent shell agent and a ticket in progress without anything running, never on a decision awaited', () => {
@@ -379,7 +387,7 @@ describe('assembler', () => {
     expect(texte).toMatch(
       /\n▸ 1 · Plan · explorateur ⇄ questionneur\n▸ 2 · Tests · testwriter\n▾ 3 · Code · développeur\n/
     );
-    expect(texte).toMatch(/✓ c\.1\.2 {2}demo-c\.1\.2/);
+    expect(texte).toMatch(/✎ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
   });
   it('heads the board with two lines of states, the circuit then what waits for the owner', () => {
@@ -469,9 +477,9 @@ describe('assembler', () => {
     );
     expect(u.faitsDuJour.map(x => (x as { id: string }).id)).toContain('demo-d.1');
   });
-  it('shows no time nor tokens on a ticket line at 0 min and 0 tokens', () => {
+  it('shows « — · 0 » on a direct ticket done without a claim nor tokens', () => {
     const l = dessin(t).map(x => x.texte);
-    expect(l).toContain('✓ c.1.2  demo-c.1.2');
+    expect(l).toContainEqual(expect.stringMatching(/^✎ c\.1\.2 {2}demo-c\.1\.2 +— · 0$/));
   });
 });
 

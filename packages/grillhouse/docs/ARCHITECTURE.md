@@ -1012,6 +1012,18 @@ alerte, en cours dans les agents ; ⚠ les alertes sans sorte à elles (une pass
 projet illisible, un agent silencieux). Un signe large se cale comme les autres, un signe puis une
 espace, et la largeur d'une ligne compte ses colonnes. Ainsi chaque signe garde un seul sens.
 
+**FAITS AUJOURD'HUI dit la voie de chaque ticket fini** (maquette du responsable, 2026-11-12,
+grillhouse-592) : son signe est ● pour un circuit complet, ○ pour un circuit court (passé par 1.1
+Geste mécanique), ✎ pour un ticket direct (étiqueté `direct`, ou fermé sans aucun circuit). Le
+circuit court se lit dans les résultats que le circuit garde dans l'arbre principal
+(`.claude/worktrees/<ticket>.fiches.jsonl`, `voiesDesCircuits`) : le lancement de la séance du geste
+porte l'objet `geste` ; un circuit dont il reste des résultats, une étape au registre ou une lecture
+sur le serveur est complet. Chaque ligne porte « <durée> · <jetons> » : pour un circuit, le temps
+de travail de ses agents et de ses étapes ; pour un ticket direct, de sa prise à sa fermeture,
+« — » sans prise ; les jetons des agents que le registre rattache au ticket, ceux du superviseur
+restant hors du ticket. Le total de l'en-tête reste le temps de travail et les jetons des agents.
+Ainsi la journée se lit par voie, chaque ticket avec ce qu'il a coûté.
+
 **Une passe automatique montre son avancement** : chaque passe automatique écrit ses fichiers
 de tests faits sur prévus (la file, les étapes de sa CI), dans le dossier de travail de son
 ticket pour une passe du circuit, que le panneau affiche avec le temps

@@ -332,7 +332,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
     expect(section(L0, x => x.texte.startsWith("FAITS AUJOURD'HUI"))).toBe('faits');
     for (const id of ['demo-e.1.2', 'demo-e.2.2', 'demo-e.5']) {
       expect(
-        section(L0, x => x.ticket === id && x.texte.startsWith('✓')),
+        section(L0, x => x.ticket === id && x.texte.startsWith('✎')),
         id
       ).toBe('faits');
     }
@@ -460,7 +460,7 @@ describe('3uv.42 critère 5 : the text output stays readable, without the closed
     );
     expect(l.some(x => x.startsWith('CHANTIER e — Le chantier'))).toBe(true);
     expect(l.some(x => x.startsWith('AGENTS'))).toBe(true);
-    expect(l.some(x => /^✓ e\.1\.2 {2}Fait ce jour/.test(x))).toBe(true);
+    expect(l.some(x => /^✎ e\.1\.2 {2}Fait ce jour/.test(x))).toBe(true);
     for (const x of l) {
       expect([...x].length, x).toBeLessThanOrEqual(LARGEUR);
     }
