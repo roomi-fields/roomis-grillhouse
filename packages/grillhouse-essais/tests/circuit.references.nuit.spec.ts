@@ -814,11 +814,14 @@ if (refus.length) process.exit(1);
       const id = 'demo-references-meles';
       laReference(true);
       // A test of binder, out of the plan, red whatever the lot: the checks of the plan do not
-      // play it, the final pass after the regeneration does, and its red stands.
+      // play it, the final pass after the regeneration does, and its red stands. It imports the
+      // module of forms the lot changes, so the final pass, which plays the tests Vitest ties to
+      // the lot (grillhouse-44b.15), plays it.
       ecrire(
         path.join(REPO, 'packages/binder/test/rouge.test.mjs'),
         `import { expect, it } from 'vitest';
-it('binder reste rouge', () => { expect(1).toBe(2); });
+import { mesure } from '../../forms/src/index.mjs';
+it('binder reste rouge', () => { expect(mesure(1)).toBe(-1); });
 `
       );
       git('add', '-A');
