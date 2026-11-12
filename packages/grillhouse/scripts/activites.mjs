@@ -450,7 +450,9 @@ export function gardesDeLaBase(ctx) {
       } catch {
         // an unreadable script keeps its script's name alone
       }
-      for (const m of source.matchAll(/\bGARDE\s*=\s*'([^']+)'|\btrancher\(\s*racine,\s*'([^']+)'/g)) {
+      for (const m of source.matchAll(
+        /\bGARDE\s*=\s*'([^']+)'|\btrancher\(\s*racine,\s*'([^']+)'/g
+      )) {
         noms.push(m[1] ?? m[2]);
       }
     }
@@ -930,18 +932,43 @@ export function preuveReussie(
   return rouges > 0;
 }
 
-// The files <fichiers> of the lot, in the copy, split into the ones the day plays (`jour`) and the
+// The files <fichiers> of the lot, in the copy, split into the ones the day plays (`jour`), the
 // ones only the night plays (`misDeCote`: a night test, a bench, a time witness), by each module's
-// own definition (`horsDuJour` of the join); the order of the lot kept.
+// own definition (`horsDuJour` of the join), and the ones out of every package of the language
+// (`horsDesPaquets`: the tests of the frame's plugin, which `claude plugin test` plays in the
+// guards, with no report test by test); the order of the lot kept.
 export function separerLesFichiersDuJour(ctx, fichiers) {
   const langage = langageDe(ctx.copie);
+  const paquets = composantsDe(ctx.copie).filter(p => !p.hors);
+  // A project without packages is one package: `npm test` plays its every path.
+  const dansUnPaquet = f =>
+    paquets.length === 0 ||
+    paquets.some(({ dossier }) =>
+      `${path.resolve(ctx.copie, f)}${path.sep}`.startsWith(path.join(ctx.copie, dossier, path.sep))
+    );
   const jour = [];
   const misDeCote = [];
+  const horsDesPaquets = [];
   for (const f of fichiers) {
-    (langage.horsDuJour(f, ctx.copie) ? misDeCote : jour).push(f);
+    if (!dansUnPaquet(f)) {
+      horsDesPaquets.push(f);
+    } else {
+      (langage.horsDuJour(f, ctx.copie) ? misDeCote : jour).push(f);
+    }
   }
-  return { jour, misDeCote };
+  return { jour, misDeCote, horsDesPaquets };
 }
+
+// The lines of the section of the report of the proof that names the files <fichiers> out of every
+// package, which the checks play; none for none.
+export const sectionHorsDesPaquets = fichiers =>
+  fichiers.length
+    ? [
+        `Mis de côté (hors de tout paquet, joués par les contrôles) (${fichiers.length}) :`,
+        ...fichiers.map(f => `- ${f}`),
+        '',
+      ]
+    : [];
 
 // The lines of the section of the report of the proof that names the files <fichiers> put aside;
 // none for none.
@@ -1750,7 +1777,13 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
   // Only the files of the day are proved; the ones only the night plays are put aside, named.
   // Resumed at a red (<seuls>, the files it names), the proof plays these files alone and passes
   // when they load: a test fixed is green, not red.
-  const { jour: fichiers, misDeCote } = separerLesFichiersDuJour(ctx, seuls ?? testsDuLot(ctx));
+  const {
+    jour: fichiers,
+    misDeCote: deNuit,
+    horsDesPaquets,
+  } = separerLesFichiersDuJour(ctx, seuls ?? testsDuLot(ctx));
+  // Every file the proof cannot measure: the night's, and the ones out of every package.
+  const misDeCote = [...deNuit, ...horsDesPaquets];
   const portent = portentLeTravail(fichesDe(ctx, 'testwriter'));
   // Whether the sheet names the test <a> of the file <f>, by its full name or by its whole file.
   const nomme = (f, a) =>
@@ -1874,7 +1907,8 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
           ]
         : []),
       ...section('Fichiers qui ne prouvent rien', casses),
-      ...sectionMisDeCote(misDeCote),
+      ...sectionMisDeCote(deNuit),
+      ...sectionHorsDesPaquets(horsDesPaquets),
     ]
       .join('\n')
       .trim();

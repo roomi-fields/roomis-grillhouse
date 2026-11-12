@@ -19,7 +19,7 @@ import modulePython from '../../scripts/langages/python/index.mjs';
 import moduleTypescript from '../../scripts/langages/typescript/index.mjs';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
-type Separation = { jour: string[]; misDeCote: string[] };
+type Separation = { jour: string[]; misDeCote: string[]; horsDesPaquets: string[] };
 const separer = activites.separerLesFichiersDuJour as (
   ctx: { copie: string },
   fichiers: string[]
@@ -136,7 +136,44 @@ describe('grillhouse-3e2.4, critère 6 — chaque module dit, pour un fichier de
     expect(separer({ copie }, ['test/lourd.nuit.test.ts', 'test/jour.test.ts'])).toEqual({
       jour: ['test/jour.test.ts'],
       misDeCote: ['test/lourd.nuit.test.ts'],
+      horsDesPaquets: [],
     });
+  });
+
+  // The tests of the frame's plugin (mods/grillhouse/tests) lie out of every package: `npm test`
+  // refuses them, `claude plugin test` plays them in the guards, with no report test by test.
+  it('a test file out of every package of the language is put aside, apart from the night’s', () => {
+    const racine = depot(
+      { 'packages/a': 'typescript' },
+      {
+        'package.json': JSON.stringify({ name: 'r', private: true, workspaces: ['packages/*'] }),
+        'packages/a/package.json': JSON.stringify({ name: 'a', private: true }),
+        'packages/a/test/jour.test.ts': "import { it } from 'vitest';\nit('a', () => {});\n",
+        'packages/a/test/lourd.nuit.test.ts': "import { it } from 'vitest';\nit('a', () => {});\n",
+        'mods/m/tests/panneau.test.tsx': "import { it } from 'vitest';\nit('a', () => {});\n",
+      }
+    );
+    expect(
+      separer({ copie: racine }, [
+        'packages/a/test/jour.test.ts',
+        'packages/a/test/lourd.nuit.test.ts',
+        'mods/m/tests/panneau.test.tsx',
+      ])
+    ).toEqual({
+      jour: ['packages/a/test/jour.test.ts'],
+      misDeCote: ['packages/a/test/lourd.nuit.test.ts'],
+      horsDesPaquets: ['mods/m/tests/panneau.test.tsx'],
+    });
+  });
+
+  it('the report names the files out of every package, as played by the checks', () => {
+    const sectionHorsDesPaquets = activites.sectionHorsDesPaquets as (f: string[]) => string[];
+    expect(sectionHorsDesPaquets(['mods/m/tests/panneau.test.tsx'])).toEqual([
+      'Mis de côté (hors de tout paquet, joués par les contrôles) (1) :',
+      '- mods/m/tests/panneau.test.tsx',
+      '',
+    ]);
+    expect(sectionHorsDesPaquets([])).toEqual([]);
   });
 
   it('critère 6 : un fichier dont le nom ne suit pas ces définitions est du jour, un fichier absent aussi', () => {
@@ -162,6 +199,7 @@ describe('grillhouse-3e2.4, critère 2 et 4 — la preuve met de côté les fich
     expect(separer({ copie: racine }, lot)).toEqual({
       jour: ['crates/service/src/server/tests.rs', 'crates/service/tests/jour.rs'],
       misDeCote: ['crates/service/tests/lourd_nuit.rs', 'crates/service/tests/search_budget.rs'],
+      horsDesPaquets: [],
     });
   });
 
@@ -170,6 +208,7 @@ describe('grillhouse-3e2.4, critère 2 et 4 — la preuve met de côté les fich
     expect(separer({ copie: racine }, ['lourd_nuit_test.py', 'test_x.py'])).toEqual({
       jour: ['test_x.py'],
       misDeCote: ['lourd_nuit_test.py'],
+      horsDesPaquets: [],
     });
   });
 
@@ -185,6 +224,7 @@ describe('grillhouse-3e2.4, critère 2 et 4 — la preuve met de côté les fich
     ).toEqual({
       jour: ['test/jour.test.ts'],
       misDeCote: ['test/lourd.nuit.test.ts', 'test/temoin.test.ts', 'test/vitesse.budget.test.ts'],
+      horsDesPaquets: [],
     });
   });
 
@@ -193,8 +233,9 @@ describe('grillhouse-3e2.4, critère 2 et 4 — la preuve met de côté les fich
     expect(separer({ copie: racine }, ['test_x.py', 'test_jour.py'])).toEqual({
       jour: ['test_x.py', 'test_jour.py'],
       misDeCote: [],
+      horsDesPaquets: [],
     });
-    expect(separer({ copie: racine }, [])).toEqual({ jour: [], misDeCote: [] });
+    expect(separer({ copie: racine }, [])).toEqual({ jour: [], misDeCote: [], horsDesPaquets: [] });
   });
 
   it('critère 2 : le rapport nomme les fichiers mis de côté dans la section « Mis de côté (joués par la nuit seule) »', () => {
@@ -285,6 +326,7 @@ describe('grillhouse-3e2.4, critère 6 — la composition de plusieurs langages 
     ).toEqual({
       jour: ['crates/service/tests/jour.rs', 'py/test_x.py'],
       misDeCote: ['crates/service/tests/search_budget.rs', 'py/lourd_nuit_test.py'],
+      horsDesPaquets: [],
     });
   });
 });

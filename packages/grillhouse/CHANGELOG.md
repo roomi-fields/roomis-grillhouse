@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The proof of the red puts aside the tests of the frame's plugin** (grillhouse-1au): the proof refused three times the lot of grillhouse-nglm, `mods/grillhouse/tests/*.test.ts*` « not loading (code 2) »: `npm test` refuses a path out of every package, and `claude plugin test` plays the plugin's tests in the guards with no report test by test. As a night test, a test file of the lot out of every package of the language is put aside, named in the report (« joués par les contrôles »), never counted as not loading (`separerLesFichiersDuJour`, `sectionHorsDesPaquets`, scripts/activites.mjs). **Action for projects**: none.
+
 - **The board of several projects gives each project its three lines of states** (grillhouse-cw6): the board of SyntHub's three projects showed neither the queue nor « sans go · à valider · reportés » nor « bloqués », which grillhouse-d7y had given one project's board alone. Each project now has the three lines of one project's board, the first under its label, the two others aligned below it, the third in its tone of alert. **Action for projects**: none.
 
 - **The probe of a port no longer takes a connection to itself for a server** (grillhouse-jye.9): the night of 2026-11-12 saw a closed port « listened » in 420 ms, Linux opening a connection to a free local port from that same port (TCP simultaneous open). The probe (`ecoute`, scripts/places-du-serveur.mjs) counts a connection whose local end is its remote end as no server (`connecteeASoi`), as go-redis does; and its test probes the reserved port 1 for a refusal, since the port it has just closed may be taken already by a test running beside it. **Action for projects**: none.
