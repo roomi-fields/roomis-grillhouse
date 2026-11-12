@@ -3,7 +3,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantierDependances, serveurDeLaFileDIntegration } from './integration-essai.js';
+import {
+  chantierDependances,
+  FLUX_DE_L_ESSAI,
+  serveurDeLaFileDIntegration,
+} from './integration-essai.js';
 
 // The integration queue (scripts/integration/file.mjs): the dependencies of its copy, which follow
 // its lock file (grillhouse-3uv.74).
@@ -67,7 +71,9 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
         writeFileSync(
           path.join(m.bin, 'gh.json'),
           JSON.stringify({
-            runs: [{ databaseId: 41, status: 'completed', conclusion }],
+            runs: [
+              { databaseId: 41, status: 'completed', conclusion, workflowName: FLUX_DE_L_ESSAI },
+            ],
             vues: [{ status: 'completed', conclusion, jobs: [] }],
           })
         );

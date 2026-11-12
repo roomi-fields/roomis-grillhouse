@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { canWrap, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { afterAll, beforeAll } from 'vitest';
 import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
-import { FAUX_GH } from './integration-essai.js';
+import { FAUX_GH, FLUX_DE_L_ESSAI } from './integration-essai.js';
 import { ouvrirLeBanc, type Banc } from './temporal-essai.js';
 
 // The trial harness of the circuit of a ticket, shared by its tests (tests/circuit*.nuit.spec.ts):
@@ -566,7 +566,7 @@ export function circuitEssai(
     ecrire(
       path.join(BIN, 'gh.json'),
       json({
-        runs: [{ databaseId: 41, status: 'completed', conclusion }],
+        runs: [{ databaseId: 41, status: 'completed', conclusion, workflowName: FLUX_DE_L_ESSAI }],
         vues: [
           {
             status: 'completed',

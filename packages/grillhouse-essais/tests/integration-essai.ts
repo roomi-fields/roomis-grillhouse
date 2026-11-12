@@ -251,6 +251,10 @@ export interface Resultat {
   stderr: string;
 }
 
+// The name GitHub gives the workflow of a trial project (`workflowName` of `gh run list`): its
+// `.github/workflows/ci.yml` has no `name`, so GitHub names it by its path.
+export const FLUX_DE_L_ESSAI = '.github/workflows/ci.yml';
+
 // The fake GitHub CLI: its answers come from <bin>/gh.json ({ runs, vues, url, log, avancement,
 // bouger }: the runs `gh run list` gives, the successive views of the run `gh run view <id> --json
 // status,conclusion,jobs` gives, the last one repeated, the address and the failed log `gh run
@@ -269,7 +273,10 @@ const f = path.join(ici, 'gh.json');
 const vert = { status: 'completed', conclusion: 'success', jobs: [] };
 const s = fs.existsSync(f)
   ? JSON.parse(fs.readFileSync(f, 'utf8'))
-  : { runs: [{ databaseId: 1, status: 'completed', conclusion: 'success' }], vues: [vert] };
+  : {
+      runs: [{ databaseId: 1, status: 'completed', conclusion: 'success', workflowName: ${JSON.stringify(FLUX_DE_L_ESSAI)} }],
+      vues: [vert],
+    };
 // Under a progress directory, the record of the CI it holds at each call, one per line.
 try {
   const ci = path.join(s.avancement, 'taches', 'etapes-de-la-ci.json');

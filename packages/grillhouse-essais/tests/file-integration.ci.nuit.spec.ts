@@ -3,7 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { chantier, serveurDeLaFileDIntegration, type Chantier } from './integration-essai.js';
+import {
+  chantier,
+  FLUX_DE_L_ESSAI,
+  serveurDeLaFileDIntegration,
+  type Chantier,
+} from './integration-essai.js';
 import { LONG } from './file-integration-essai.js';
 import { enProcessus } from './cadre.js';
 
@@ -37,14 +42,14 @@ describe('the queue judges the branch by its CI before main moves', () => {
     jobs: [{ status: 'completed', steps: [{ status: 'completed' }, { status: 'completed' }] }],
   });
   const listeDe = (sha: string) =>
-    `run list --commit ${sha} --branch agent/demo-1 --json databaseId,status,conclusion`;
+    `run list --commit ${sha} --branch agent/demo-1 --json databaseId,status,conclusion,workflowName`;
 
   it(
     'green: the branch is pushed, its run read on it, then main moves onto the tree it judged and the branch leaves origin',
     () => {
       const m = chantier(ESSAIS);
       ci(m, {
-        runs: [{ databaseId: 41, status: 'queued', conclusion: '' }],
+        runs: [{ databaseId: 41, status: 'queued', conclusion: '', workflowName: FLUX_DE_L_ESSAI }],
         vues: [fini('success')],
       });
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -68,7 +73,9 @@ describe('the queue judges the branch by its CI before main moves', () => {
     () => {
       const m = chantier(ESSAIS);
       ci(m, {
-        runs: [{ databaseId: 42, status: 'in_progress', conclusion: '' }],
+        runs: [
+          { databaseId: 42, status: 'in_progress', conclusion: '', workflowName: FLUX_DE_L_ESSAI },
+        ],
         vues: [fini('failure')],
         url: 'https://github.com/demo/demo/actions/runs/42',
         log: 'test\tUNIT\t✗ rouge sur la CI',
@@ -100,7 +107,14 @@ describe('the queue judges the branch by its CI before main moves', () => {
     () => {
       const m = chantier(ESSAIS);
       ci(m, {
-        runs: [{ databaseId: 44, status: 'completed', conclusion: 'success' }],
+        runs: [
+          {
+            databaseId: 44,
+            status: 'completed',
+            conclusion: 'success',
+            workflowName: FLUX_DE_L_ESSAI,
+          },
+        ],
         vues: [fini('success')],
         bouger: m.repo,
       });
@@ -134,7 +148,7 @@ describe('the queue judges the branch by its CI before main moves', () => {
       const dossier = path.join(travail, 'avancement-ci');
       ci(m, {
         avancement: dossier,
-        runs: [{ databaseId: 43, status: 'queued', conclusion: '' }],
+        runs: [{ databaseId: 43, status: 'queued', conclusion: '', workflowName: FLUX_DE_L_ESSAI }],
         vues: [
           { status: 'queued', conclusion: '', jobs: [] },
           {
