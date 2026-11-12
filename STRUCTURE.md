@@ -256,7 +256,7 @@ commit. The project keeps the example application (`src/`) and its tests
 
 Prerequisites: Node.js and Claude Code. Everything else installs by default: `init` installs
 Beads (`bd`) when missing, and installs, for the project, the Claude Code plugins the project
-settings enable: `mattpocock-skills` (grill, TDD, code review, handoff), `rtfm` (search index) and
+settings enable: `rtfm` (search index) and
 `grillhouse` (the frame's skills, agents, hooks and common charter, and the board). `grillhouse:maj` installs them too, and a session start names under
 « Manque » each one still missing.
 

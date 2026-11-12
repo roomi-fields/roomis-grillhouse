@@ -14,7 +14,6 @@
     "deny": []
   },
   "enabledPlugins": {
-    "mattpocock-skills@claude-plugins-official": true,
     "rtfm@roomi-fields": true,
     "grillhouse@roomi-fields": true
   },
