@@ -5,7 +5,8 @@
 import { spawn } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { departDe } from '../../scripts/mesure-de-la-machine.mjs';
-import { finirLaTentativeMorte } from '../../src/temporal/acte.js';
+import { CancelledFailure } from '@temporalio/common';
+import { echecDeLAnnulation, finirLaTentativeMorte } from '../../src/temporal/acte.js';
 
 // Whether the process group <groupe> still has a process.
 const groupeVit = (groupe: number) => {
@@ -38,5 +39,19 @@ describe('le groupe d’une tentative morte', () => {
 
   it('no process before it: nothing is killed', () => {
     expect(() => finirLaTentativeMorte(null)).not.toThrow();
+  });
+});
+
+describe('l’acte annulé', () => {
+  it('by the stop of its worker, its failure is tried again on the next worker', () => {
+    const e = echecDeLAnnulation('seance', new CancelledFailure('WORKER_SHUTDOWN'));
+    expect(e.nonRetryable).toBe(false);
+    expect(e.type).toBe('ArretDuTravailleur');
+  });
+
+  it('by the supervisor or a timeout, its failure is tried no more', () => {
+    const e = echecDeLAnnulation('seance', new CancelledFailure('CANCELLED'));
+    expect(e.nonRetryable).toBe(true);
+    expect(e.type).toBe('Annule');
   });
 });

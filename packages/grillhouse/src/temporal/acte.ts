@@ -13,7 +13,10 @@
 // the commands it runs (a rebase, a verification), as a session does (scripts/seances.mjs
 // `jouerLeGroupe`). A cancellation (the supervisor's `--arreter`, a timeout of the activity) sends
 // SIGTERM to its group, which ends its session, its group killed, then SIGKILL 10 s later; the
-// activity fails once the whole group is gone, so that no command of the act outlives it. An act
+// activity fails once the whole group is gone, so that no command of the act outlives it. The stop
+// of its worker (a restart for a new version, `WORKER_SHUTDOWN`) cancels it the same way, and its
+// failure is tried again on the next worker, as Temporal advises (`echecDeLAnnulation`): an
+// update of the frame stays transparent to the circuits in flight. An act
 // that fails is an error of the activity that is not tried again (`ApplicationFailure`, its
 // message and its stack).
 import { spawn } from 'node:child_process';
@@ -49,6 +52,25 @@ export function finirLaTentativeMorte(
   if (groupeVivant(mort)) {
     signalerGroupe(mort!.pid, 'SIGKILL');
   }
+}
+
+/** The reason Temporal gives the cancellation of an activity whose worker stops. */
+const ARRET_DU_TRAVAILLEUR = 'WORKER_SHUTDOWN';
+
+/**
+ * The failure of the act <acte> cancelled for <raison> (the reason of its cancellation signal): one
+ * Temporal tries again when its worker stops, the act played anew on the next one; else one it
+ * tries no more (the supervisor's `--arreter`, a timeout).
+ */
+export function echecDeLAnnulation(acte: string, raison: unknown): ApplicationFailure {
+  const message = (raison as { message?: unknown } | null | undefined)?.message ?? raison;
+  if (message === ARRET_DU_TRAVAILLEUR) {
+    return ApplicationFailure.retryable(
+      `acte ${acte} interrompu par l'arrêt de son travailleur`,
+      'ArretDuTravailleur'
+    );
+  }
+  return ApplicationFailure.nonRetryable(`acte ${acte} annulé`, 'Annule');
 }
 
 /**
@@ -133,7 +155,7 @@ export async function jouer<T>(acte: string, entree: object, racine: string): Pr
       while (signalerGroupe(moi.pid, 0)) {
         await new Promise(ok => setTimeout(ok, 200));
       }
-      throw ApplicationFailure.nonRetryable(`acte ${acte} annulé`, 'Annule');
+      throw echecDeLAnnulation(acte, contexte.cancellationSignal.reason);
     }
     if (r?.genre === 'resultat') {
       return r.valeur as T;
