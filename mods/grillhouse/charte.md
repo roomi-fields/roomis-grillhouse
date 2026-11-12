@@ -233,7 +233,7 @@ dossier.
 - **Les tests se lancent par `npm test`** : `npm test -- <chemins>` pour un lancement ciblé,
   chaque chemin écrit depuis la racine du dépôt ; `npm run test:forcer -- <chemins>` pour rejouer
   pour de vrai un test soupçonné instable. `npm run verifier` joue les gardes, le typage de chaque
-  paquet et les tests ; `npm run verifier -- --gardes`, les gardes seules. Aucun agent ne lance
+  paquet et les tests ; `npm run verifier -- --gardes`, les gardes, la mise en forme et le lint. Aucun agent ne lance
   l'outil de test directement. Ainsi chaque test tourne avec ce dont il dépend, et une seule fois
   tant que rien ne change.
 - **Les tests ne laissent rien dans le dossier temporaire** : un test crée ses fichiers et
