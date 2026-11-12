@@ -86,7 +86,9 @@
 //     (explorateur);
 //   - `reponses` (`numero` of the question, `reponse` CHANGE or GARDE, `texte`): the explorateur's
 //     one answer to the questionneur, which the circuit writes at the ticket; a question without
-//     an answer stays open (explorateur);
+//     an answer stays open (explorateur); an answer may carry a `correction` of a criterion
+//     (`critere`, `texte`, `piece`, `extrait`), which the circuit accepts when the extract stands
+//     at the line of the question's piece (`correctionsDuPlan` of scripts/transitions.mjs);
 //   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`, and its
 //     `piece`; AUCUNE; DÉSACCORD
 //     with its `desaccord`): the explorateur answers the questions, the disagreement as one, and
@@ -295,6 +297,18 @@ const FICHES = {
             numero: texte('Le numéro de la question, « 1 ».'),
             reponse: { type: 'string', enum: ['CHANGE', 'GARDE'] },
             texte: texte('CHANGE : ce que le plan devient ; GARDE : pourquoi il reste tel quel.'),
+            correction: objet(
+              {
+                critere: texte('Le numéro du critère que la pièce contredit, « 3 ».'),
+                texte: texte('Le texte corrigé du critère, tel qu’il remplace l’ancien.'),
+                piece: texte(
+                  'La pièce fichier:ligne de la question, la même, jamais « $ commande ».'
+                ),
+                extrait: texte('Un extrait littéral de la ligne citée, qui prouve la correction.'),
+              },
+              ['critere', 'texte', 'piece', 'extrait'],
+              'Facultative : la question oppose un critère qui affirme ce que contient ou fait la pièce à cette pièce ; le circuit l’accepte si l’extrait figure à la ligne citée, et la question n’est plus ouverte. Jamais pour une décision (architecture, écart à la référence, fonctionnel).'
+            ),
           },
           ['numero', 'reponse', 'texte']
         ),
@@ -899,6 +913,11 @@ function manques(role, f) {
     for (const [i, r] of (f.reponses ?? []).entries()) {
       if (!/^[1-9]\d*$/.test(r.numero)) {
         out.push(`reponses[${i}].numero : « ${r.numero} » n'est pas le numéro d'une question`);
+      }
+      if (r.correction && !/^[1-9]\d*$/.test(r.correction.critere)) {
+        out.push(
+          `reponses[${i}].correction.critere : « ${r.correction.critere} » n'est pas le numéro d'un critère`
+        );
       }
     }
   }

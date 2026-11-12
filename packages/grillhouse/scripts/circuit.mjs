@@ -642,6 +642,7 @@ import {
 import {
   CODE,
   CONTROLES,
+  correctionsDuPlan,
   ouvertesDuPlan,
   pasDuPlan,
   questionsPosees,
@@ -1685,6 +1686,26 @@ export function aLaFin(ctx, code) {
 const lignesDesQuestions = questions =>
   (questions ?? []).map((q, i) => `${i + 1}. (${q.vise}) ${q.question}`).join('\n');
 
+// The corrections of criteria <corrections> the circuit accepted, one per line: the criterion, its
+// corrected text, its piece and the extract that proves it.
+export const lignesDesCorrections = corrections =>
+  corrections
+    .map(
+      c =>
+        `- critère ${c.critere} corrigé : « ${c.texte} » — pièce ${c.piece}, extrait « ${c.extrait} »`
+    )
+    .join('\n');
+
+// The line <ligne> (from 1) of the file <fichier> of the copy, null when the file or the line is absent.
+const ligneDeLaCopie = (ctx, fichier, ligne) => {
+  const base = path.resolve(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
+  const chemin = path.resolve(base, fichier);
+  if (!chemin.startsWith(`${base}${path.sep}`) || !existsSync(chemin)) {
+    return null;
+  }
+  return readFileSync(chemin, 'utf8').split('\n')[ligne - 1] ?? null;
+};
+
 // The open questions <questions> of a plan (`{ question, motif, piece }`), one per line, each with
 // why it goes up, when the explorateur wrote it, and its piece.
 const lignesOuvertes = questions =>
@@ -1790,7 +1811,16 @@ function numerotee(ligne) {
 // stay as they are, the decision of the owner: each criterion the plan adds follows them, numbered
 // after them. Written again from the description before the plan, the description holds the
 // criteria, the sort and the names of the explorateur's last sheet alone.
-export function decrireLePlan(description, criteres, questions, sorte = null, noms = undefined) {
+// A correction accepted (`{ critere, texte }`) replaces the text of the criterion it names, in place;
+// one whose criterion the description does not hold changes nothing.
+export function decrireLePlan(
+  description,
+  criteres,
+  questions,
+  sorte = null,
+  noms = undefined,
+  corrections = []
+) {
   const gardees = sectionsDe(description).filter(
     s =>
       s.tete !== QUESTIONS_OUVERTES &&
@@ -1803,6 +1833,16 @@ export function decrireLePlan(description, criteres, questions, sorte = null, no
     gardees.push({ tete: '## Critères', lignes: [] });
     i = gardees.length - 1;
   }
+  gardees[i] = {
+    tete: gardees[i].tete,
+    lignes: gardees[i].lignes.map(ligne => {
+      const c =
+        numerotee(ligne) === null
+          ? undefined
+          : corrections.find(k => ligne.trim().startsWith(`${k.critere}. `));
+      return c ? `${c.critere}. ${c.texte.trim()}` : ligne;
+    }),
+  };
   const ecrits = gardees[i].lignes.map(numerotee).filter(c => c !== null);
   const ajouts = criteres.map(c => c.trim());
   const avant = [...gardees[i].lignes];
@@ -2112,7 +2152,12 @@ const PAS_DU_PLAN = {
   async conclure(ctx, e) {
     const { plan, premier, lu, posees } = e;
     const reponses = e.reponse?.reponses ?? [];
-    const ouvertes = ouvertesDuPlan(plan, posees, reponses);
+    const { acceptees, refusees } = correctionsDuPlan(
+      lu.issue === 'QUESTIONS' ? lu.questions : [],
+      reponses,
+      (fichier, ligne) => ligneDeLaCopie(ctx, fichier, ligne)
+    );
+    const ouvertes = ouvertesDuPlan(plan, posees, reponses, refusees);
     if (posees.length) {
       const plans = [{ fiche: premier }, { fiche: plan, reponse: true }];
       ecrireLePlan(
@@ -2123,8 +2168,16 @@ const PAS_DU_PLAN = {
           plan.criteres,
           ouvertes,
           sorteEcrite(ficheDuPlan(plans, 'sorte')),
-          ficheDuPlan(plans, 'noms_publies').noms_publies
+          ficheDuPlan(plans, 'noms_publies').noms_publies,
+          acceptees
         )
+      );
+    }
+    if (acceptees.length) {
+      commenter(
+        ctx,
+        'questionnement',
+        `corrections de critères acceptées, la pièce de la question les prouve :\n${lignesDesCorrections(acceptees)}`
       );
     }
     const empreinte = empreinteDuPlan(leTicket(ctx));

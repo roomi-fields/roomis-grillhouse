@@ -56,8 +56,28 @@ export function questionsPosees(lu: {
 export function ouvertesDuPlan<Q>(
   plan: { questions: Q[] },
   posees: string[],
-  reponses: { numero: number | string }[]
+  reponses: { numero: number | string }[],
+  refusees?: number[]
 ): (Q | { question: string; piece: string })[];
+
+/** A correction of a criterion the circuit accepted, by the number of the question it answers. */
+export interface CorrectionAcceptee {
+  numero: number;
+  critere: string;
+  texte: string;
+  piece: string;
+  extrait: string;
+}
+
+/** The corrections the answers give that the piece of their question proves, and the refused ones. */
+export function correctionsDuPlan(
+  questions: { question: string; vise: string; piece: string }[],
+  reponses: {
+    numero: number | string;
+    correction?: { critere: string; texte: string; piece: string; extrait: string };
+  }[],
+  lireLigne: (fichier: string, ligne: number) => string | null
+): { acceptees: CorrectionAcceptee[]; refusees: number[] };
 
 /** The effects <effets> an act gave back as the workflow plays them: consecutive states are one. */
 export function effetsAJouer<E extends { genre: string }>(effets: E[]): E[];

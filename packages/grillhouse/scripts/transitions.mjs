@@ -163,12 +163,82 @@ export const questionsPosees = lu =>
 
 // What stays open of the plan <plan> once the explorateur answered <reponses> to the questions
 // <posees>: the plan's own questions, then each question put left without its answer.
-export const ouvertesDuPlan = (plan, posees, reponses) => [
+// A question whose correction the circuit refused (<refusees>, their numbers) stays open.
+export const ouvertesDuPlan = (plan, posees, reponses, refusees = []) => [
   ...plan.questions,
-  ...posees
-    .filter((_q, i) => !reponses.some(r => Number(r.numero) === i + 1))
-    .map(question => ({ question, piece: 'question du questionneur, sans réponse' })),
+  ...posees.flatMap((question, i) => {
+    if (!reponses.some(r => Number(r.numero) === i + 1)) {
+      return [{ question, piece: 'question du questionneur, sans réponse' }];
+    }
+    return refusees.includes(i + 1)
+      ? [
+          {
+            question,
+            piece: 'question du questionneur, correction refusée : la pièce ne la prouve pas',
+          },
+        ]
+      : [];
+  }),
 ];
+
+// The pieces `<fichier>:<ligne>` or `<fichier>:<ligne>-<fin>` of the file:line form, as
+// `{ fichier, de, a }`; null for a command piece (`$ …`), a piece of the ticket or any other form.
+const adresseDeLaPiece = piece => {
+  const texte = String(piece).trim();
+  // The first word of the piece is its address.
+  const mot = texte.split(' ')[0].split('\t')[0].split('\n')[0];
+  const deuxPoints = mot.lastIndexOf(':');
+  if (deuxPoints <= 0 || mot.startsWith('$') || mot.slice(0, deuxPoints).includes(':')) {
+    return null;
+  }
+  const nombres = mot
+    .slice(deuxPoints + 1)
+    .split('-')
+    .map(Number);
+  if (nombres.length > 2 || nombres.some(n => !Number.isInteger(n) || n < 1 || n >= 1e9)) {
+    return null;
+  }
+  return { fichier: mot.slice(0, deuxPoints), de: nombres[0], a: nombres[1] ?? nombres[0] };
+};
+
+// The corrections of criteria the explorateur's answers <reponses> give to the questions <questions>
+// (`{ question, vise, piece }`, numbered from 1): a correction (`{ critere, texte, piece, extrait }`)
+// is accepted when its question aims at a criterion, its piece is the question's, a file:line piece
+// (a command is never played again), and its extract stands on a line the piece cites, as
+// <lireLigne>(file, line) reads it in the copy (null when absent). Any other is refused, and its
+// question stays open.
+export const correctionsDuPlan = (questions, reponses, lireLigne) => {
+  const acceptees = [];
+  const refusees = [];
+  for (const r of reponses) {
+    const c = r.correction;
+    if (!c) {
+      continue;
+    }
+    const numero = Number(r.numero);
+    const q = questions[numero - 1];
+    const adresse = q && c.piece === q.piece ? adresseDeLaPiece(q.piece) : null;
+    const extrait = String(c.extrait ?? '').trim();
+    let prouvee = false;
+    if (q?.vise === 'critère' && adresse && extrait) {
+      for (let n = adresse.de; n <= adresse.a && !prouvee; n += 1) {
+        prouvee = (lireLigne(adresse.fichier, n) ?? '').includes(extrait);
+      }
+    }
+    if (prouvee) {
+      acceptees.push({
+        numero,
+        critere: c.critere,
+        texte: c.texte,
+        piece: c.piece,
+        extrait: c.extrait,
+      });
+    } else {
+      refusees.push(numero);
+    }
+  }
+  return { acceptees, refusees };
+};
 
 // The effects <effets> an act gave back as the workflow plays them (scripts/effets.mjs), in their
 // order: a state followed by another state is not played, since the state is written whole and

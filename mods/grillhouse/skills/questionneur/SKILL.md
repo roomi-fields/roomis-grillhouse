@@ -33,7 +33,11 @@ la charte commune est dans mon contexte. Aucune question ne m'est donnée d'avan
    le produit, courtes, dans les mots de la proposition. Souvent la plus utile est la plus simple :
    « je n'ai pas compris », « donne plus de détails », « illustre par un exemple ». Chacune dit ce
    qu'elle vise : `flou`, `intention`, `référence`, `règle` ou `critère`. _Fini quand_ chaque
-   question porte sur un endroit relevé à l'étape 2.
+   question porte sur un endroit relevé à l'étape 2. Quand un critère affirme ce que contient ou
+   fait une pièce fichier:ligne et que cette pièce dit autre chose, je le signale : une question
+   `critère`, sa pièce la ligne citée ; l'explorateur la corrige sans que rien monte. Je ne
+   l'étends pas à une vraie décision (architecture, écart à la référence, fonctionnel) : elle reste
+   une question `flou`, `intention`, `référence` ou `règle`, et monte.
 
 ## La réponse de l'auteur
 

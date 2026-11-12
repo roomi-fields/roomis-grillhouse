@@ -117,8 +117,14 @@ change, et ceux qu'il peut casser.
    et sa `sorte` comprises ; sans `sorte`, le circuit garde celle de mon plan, et sans
    `noms_publies`, ceux de mon plan. Chaque question posée a sa ligne dans mes `reponses`, même quand je réponds par des
    critères ajoutés : une fiche sans elle est refusée, et le circuit me la redemande une fois avec
-   les numéros qui manquent ; après, une question sans ligne reste ouverte. _Fini quand_ chaque
-   question a sa ligne.
+   les numéros qui manquent ; après, une question sans ligne reste ouverte. Une question `critère`
+   dont la pièce est un fichier:ligne et qui oppose un critère à ce que cette ligne contient ou
+   fait, je la corrige : ma ligne de `reponses` porte une `correction` (le numéro du critère, son
+   texte corrigé, la même pièce, un extrait littéral de la ligne) ; le circuit l'accepte si
+   l'extrait figure à la ligne citée, écrit le critère corrigé à la place de l'ancien et ne monte
+   rien. Je ne l'étends pas à une vraie décision (architecture, écart à la référence,
+   fonctionnel), ni à une pièce « $ commande », que le circuit ne rejoue jamais : elles restent
+   ouvertes. _Fini quand_ chaque question a sa ligne.
 
 Je n'écris ni fichier ni plan au ticket : le circuit l'écrit depuis ma fiche. Ainsi le plan a une
 seule source, et les paquets un seul format.
