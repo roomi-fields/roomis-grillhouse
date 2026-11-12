@@ -111,6 +111,11 @@ function seance(depart = process.ppid) {
   return depart;
 }
 
+// The time in ms of <texte>, a `defer_until` as Beads writes it: the local wall time of the
+// machine, followed by a « Z » it does not mean (`bd update --defer 17:30` gives `…T17:30:00Z`);
+// NaN without one.
+const heureMurale = texte => Date.parse(String(texte ?? '').replace(/Z$/, ''));
+
 /**
  * Of the tickets <tickets> (as `bd show --json` gives them), the ids of those whose question does
  * not wait for the supervisor at <maintenant> (ms): closed, or deferred to a later time
@@ -123,7 +128,7 @@ function seance(depart = process.ppid) {
 export function horsAttente(tickets, maintenant) {
   return new Set(
     tickets
-      .filter(t => t.status === 'closed' || Date.parse(t.defer_until ?? '') > maintenant)
+      .filter(t => t.status === 'closed' || heureMurale(t.defer_until) > maintenant)
       .map(t => t.id)
   );
 }
