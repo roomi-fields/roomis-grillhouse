@@ -23,16 +23,20 @@
 // Every command of the module that compiles (tests, verification, typing, clippy) runs cargo
 // under this environment, in a copy as in an agent's envelope.
 //
-// - One server per copy and per namespace of processes: by default the server of sccache listens
-//   on 127.0.0.1:4226 (README of v0.19.0), one for the whole machine, and the envelope shares the
-//   network, so that a server born in one agent's envelope would serve another copy, and one born
-//   outside would compile for an agent out of his envelope. Each run names its server's socket
-//   (`SCCACHE_SERVER_UDS`), an abstract unix socket (the README's `\x00<name>` form), named after
-//   the copy and the namespace of processes it runs in (`/proc/self/ns/pid`), which each envelope
-//   creates (`--unshare-pid`): the two sides of an envelope, and two envelopes of one copy, never
-//   share a server, whatever the environment says. An abstract socket writes no file, so that
-//   neither the read-only copy nor the 108 bytes of a socket's path bind it, and it goes with its
-//   server, leaving no stale file. The disk cache stays common.
+// - One server per copy, per temporary directory and per namespace of processes: by default the
+//   server of sccache listens on 127.0.0.1:4226 (README of v0.19.0), one for the whole machine, and
+//   the envelope shares the network, so that a server born in one agent's envelope would serve
+//   another copy, and one born outside would compile for an agent out of his envelope. Each run
+//   names its server's socket (`SCCACHE_SERVER_UDS`), an abstract unix socket (the README's
+//   `\x00<name>` form), named after the copy, the temporary directory of the run (TMPDIR) and the
+//   namespace of processes it runs in (`/proc/self/ns/pid`), which each envelope creates
+//   (`--unshare-pid`): the two sides of an envelope, and two envelopes of one copy, never share a
+//   server, whatever the environment says. An abstract socket writes no file, so that neither the
+//   read-only copy nor the 108 bytes of a socket's path bind it, and it goes with its server,
+//   leaving no stale file. A server cargo starts keeps the temporary directory of its run, where it
+//   writes as it compiles, and outlives it (its idle time): a pass, whose temporary directory goes
+//   at its end, never joins the server of another (SyntHub, grillhouse-67dz). The disk cache stays
+//   common.
 // - The server starts before each run of cargo that compiles, under the machine's `/tmp`
 //   (`demarrerLeServeur`): sccache 0.19.0 starts its server by binding a socket of a path under
 //   TMPDIR (`<TMPDIR>/sccacheXXXXXX/sock`, src/commands.rs, `run_server_process`), which fails
@@ -51,7 +55,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   cacheDeCompilation,
@@ -122,14 +126,16 @@ const reel = p => {
 };
 
 /**
- * The socket of the server of sccache for the copy at <racine> in the namespace of processes
- * <espace>: an abstract unix socket, named after both.
+ * The socket of the server of sccache for the copy at <racine>, the temporary directory
+ * <temporaire> and the namespace of processes <espace>: an abstract unix socket, named after the
+ * three.
  * @param {string} racine
+ * @param {string} temporaire the temporary directory of the run (its TMPDIR)
  * @param {string} [espace] this process's namespace by default
  */
-export function socketDuServeur(racine, espace = espaceDesProcessus()) {
+export function socketDuServeur(racine, temporaire, espace = espaceDesProcessus()) {
   const empreinte = createHash('sha256')
-    .update(`${reel(racine)}\0${espace}`)
+    .update(`${reel(racine)}\0${reel(temporaire)}\0${espace}`)
     .digest('hex');
   return `\\x00grillhouse-sccache-${empreinte.slice(0, 16)}`;
 }
@@ -244,6 +250,6 @@ export function avecSccache(racine, env) {
     ...cible,
     RUSTC_WRAPPER: 'sccache',
     SCCACHE_DIR: cacheDeCompilation('sccache', env),
-    SCCACHE_SERVER_UDS: socketDuServeur(racine),
+    SCCACHE_SERVER_UDS: socketDuServeur(racine, env.TMPDIR || tmpdir()),
   };
 }

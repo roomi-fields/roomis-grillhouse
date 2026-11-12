@@ -713,15 +713,35 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
   });
 
   it('one server per copy and per namespace of processes: its socket follows both', () => {
-    const seul = parSccache(compilateur(d.seul, 'typer'), ['check']);
-    expect(parSccache(compilateur(d.seul, 'tester'), ['build', 'nextest', 'test'])).toBe(seul);
-    expect(seul).toBe(socketDuServeur(d.seul, espaceDesProcessus()));
-    const espace = parSccache(compilateur(d.espace, 'typer'), ['check']);
+    const t = mkdtempSync(path.join(ESSAIS, 'passe-'));
+    const typer = (racine: string) =>
+      parSccache(compilateur(racine, 'typer', [], { TMPDIR: t }), ['check']);
+    const seul = typer(d.seul);
+    expect(typer(d.seul)).toBe(seul);
+    expect(seul).toBe(socketDuServeur(d.seul, t, espaceDesProcessus()));
+    const espace = typer(d.espace);
     // Another namespace of processes, as an envelope creates (bwrap --unshare-pid).
-    const enveloppe = socketDuServeur(d.seul, 'pid:[1]');
-    const autre = socketDuServeur(d.seul, 'pid:[2]');
+    const enveloppe = socketDuServeur(d.seul, t, 'pid:[1]');
+    const autre = socketDuServeur(d.seul, t, 'pid:[2]');
     expect(new Set([seul, espace, enveloppe, autre]).size).toBe(4);
-    expect(socketDuServeur(d.seul, 'pid:[2]')).toBe(autre);
+    expect(socketDuServeur(d.seul, t, 'pid:[2]')).toBe(autre);
+  });
+
+  // A server cargo starts writes under the temporary directory of its run and outlives it: a pass
+  // that joined it after that directory went could not compile (SyntHub's CI).
+  it('one server per temporary directory: a pass never joins the server of another', () => {
+    const passe = (nom: string) => {
+      const t = mkdtempSync(path.join(ESSAIS, nom));
+      return parSccache(compilateur(d.seul, 'typer', [], { TMPDIR: t }), ['check']);
+    };
+    const premiere = passe('passe-');
+    const seconde = passe('passe-');
+    expect(premiere).not.toBe(seconde);
+    const t = mkdtempSync(path.join(ESSAIS, 'passe-'));
+    const deux = [0, 1].map(() =>
+      parSccache(compilateur(d.seul, 'typer', [], { TMPDIR: t }), ['check'])
+    );
+    expect(deux[0]).toBe(deux[1]);
   });
 
   // grillhouse-cyr: the circuit sets GRILLHOUSE_ENVELOPPE for its checks out of bwrap; a server
