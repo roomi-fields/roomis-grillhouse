@@ -76,7 +76,9 @@ const constanteGarde = t => /\bconst\s+GARDE\s*=\s*['"]([^'"]+)['"]/.exec(t)?.[1
 
 // The names of the guard <fichier> (text <t>), or [] when it is not a guard with a debt.
 function nomsDeGarde(fichier, t) {
-  if (!imports(t, fichier).some(i => /\btrancher\b/.test(i.noms) && /\/dette(\.mjs)?$/.test(i.chemin))) {
+  if (
+    !imports(t, fichier).some(i => /\btrancher\b/.test(i.noms) && /\/dette(\.mjs)?$/.test(i.chemin))
+  ) {
     return [];
   }
   const noms = new Set();
@@ -93,7 +95,9 @@ function nomsDeGarde(fichier, t) {
 // installed under node_modules. A project that installs the frame judges none of its scripts.
 function chezLeCadre(racine, scripts) {
   const rel = path.relative(racine, scripts);
-  return !rel.startsWith('..') && !path.isAbsolute(rel) && !rel.split(path.sep).includes('node_modules');
+  return (
+    !rel.startsWith('..') && !path.isAbsolute(rel) && !rel.split(path.sep).includes('node_modules')
+  );
 }
 
 // The refusals of the repository at <racine>, its frame's scripts at <scripts>.
@@ -125,7 +129,9 @@ export function verifier(racine, scripts = DOSSIER) {
     const noms = nomsDeGarde(g, t);
     for (const nom of noms) {
       const couverte = jouees.some(({ m, t: tm }) => {
-        const lien = imports(tm, m).find(i => i.chemin === g || i.chemin === g.replace(/\.mjs$/, ''));
+        const lien = imports(tm, m).find(
+          i => i.chemin === g || i.chemin === g.replace(/\.mjs$/, '')
+        );
         if (!lien) {
           return false;
         }
@@ -147,8 +153,13 @@ export function verifier(racine, scripts = DOSSIER) {
 }
 
 // The report of the guard at <racine>: its lines and its exit code, the findings counted against
-// the debt.
+// the debt. A repository whose frame's scripts are not its own (a project, or a copy that runs the
+// scripts of another tree) is not measured: its debt is neither judged nor pruned, since no
+// finding there says what is corrected.
 export function rapport(racine, env = process.env, scripts = DOSSIER) {
+  if (!chezLeCadre(racine, scripts)) {
+    return { lignes: [], code: 0 };
+  }
   const { refus, lignes } = trancher(
     racine,
     GARDE,

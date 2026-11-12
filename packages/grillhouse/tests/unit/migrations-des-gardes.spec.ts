@@ -201,6 +201,16 @@ describe('the guard of the frame', () => {
     writeFileSync(path.join(hors, 'a.mjs'), gardeLitterale('a'));
     expect(rapport(racine, {}, hors).code).toBe(0);
   });
+  it('a repository whose frame scripts are another tree’s keeps its debt as written when pruned', () => {
+    const r = depot({ 'a.mjs': gardeLitterale('a') });
+    rapport(r.racine, { GRILLHOUSE_DETTE: 'inscrire' }, r.scripts);
+    const fichier = path.join(r.racine, 'grillhouse-dette.json');
+    const avant = readFileSync(fichier, 'utf8');
+    const ailleurs = mkdtempSync(path.join(ESSAIS, 'copie-'));
+    writeFileSync(path.join(ailleurs, 'grillhouse-dette.json'), avant);
+    expect(rapport(ailleurs, { GRILLHOUSE_DETTE: 'elaguer' }, r.scripts).code).toBe(0);
+    expect(readFileSync(path.join(ailleurs, 'grillhouse-dette.json'), 'utf8')).toBe(avant);
+  });
   it('prunes the entry of a guard that receives its migration', () => {
     const r = depot({ 'a.mjs': gardeLitterale('a') });
     rapport(r.racine, { GRILLHOUSE_DETTE: 'inscrire' }, r.scripts);
