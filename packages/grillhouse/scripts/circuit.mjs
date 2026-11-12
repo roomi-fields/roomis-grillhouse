@@ -1543,7 +1543,8 @@ export function arretDe(ctx, a) {
 // rule settles: its question (`{ arret, fait, piece, question, qui }`: the fact, the first line of
 // its motive or its report; its piece, the one it carries, else its reds with their file and line,
 // else the end of the log; the question of its kind, scripts/etapes.mjs MONTEES, after the agent's
-// own; who must answer it) kept in the state, written at the ticket and on the error output. Its
+// own, or the agent's alone for a hors-plan stop, MONTEES' text its fallback when the stop carries
+// none; who must answer it) kept in the state, written at the ticket and on the error output. Its
 // exit code.
 export function monter(ctx, a) {
   const m = monteeDe(a.nom);
