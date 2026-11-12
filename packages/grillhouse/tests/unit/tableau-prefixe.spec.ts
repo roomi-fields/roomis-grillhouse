@@ -64,9 +64,9 @@ describe('the label of a project on the board of several projects', () => {
     const vite = await lire(dossier('depot'), [dossier('autre')]);
     const lente = await lire(dossier('depot'), [dossier('lent')]);
     expect(vite.lignes[1]?.texte).toMatch(/^\[demo\]\s+▶ /);
-    expect(vite.lignes[2]?.texte).toMatch(/^\[demo\]\s+▶ /);
+    expect(vite.lignes[4]?.texte).toMatch(/^\[demo\]\s+▶ /);
     expect(lente.lignes[1]?.texte).toMatch(/^\[demo\]\s+▶ /);
-    expect(lente.lignes[2]?.texte).toMatch(/^\[demo\]\s+▶ /);
+    expect(lente.lignes[4]?.texte).toMatch(/^\[demo\]\s+▶ /);
     expect(lente.lignes[0]?.texte).toMatch(/\+ DEMO$/);
   });
 
@@ -95,9 +95,9 @@ describe('the label of a project on the board of several projects', () => {
     const echec = dossier('echec');
     const vu = await lire(dossier('depot'), [echec]);
     const i = vu.lignes.findIndex(x => /Préfixe des tickets illisible/.test(x.texte));
-    // Head: the title, one line per project, then the discoveries line (grillhouse-3uv.96); the
+    // Head: the title, three lines per project, then the discoveries line (grillhouse-3uv.96); the
     // alert stands under them.
-    expect(i).toBe(4);
+    expect(i).toBe(8);
     expect(vu.lignes[i]?.ton).not.toBeUndefined();
   });
 

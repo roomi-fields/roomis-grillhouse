@@ -119,13 +119,19 @@ const NOM = 'osc-bridge + SH + OSD';
 const textes = (l: Ligne[]) => l.map(x => x.texte.trimEnd());
 
 describe('critère 1 : the usual board, each project prefixed', () => {
-  it('the head names the projects, then one line of counters per project, then the alerts prefixed', () => {
+  it('the head names the projects, then the three lines of states of each project, then the alerts prefixed', () => {
     const l = textes(lignes(trois(), NOM) as Ligne[]);
-    expect(l.slice(0, 6)).toEqual([
+    expect(l.slice(0, 12)).toEqual([
       'OSC-BRIDGE + SH + OSD',
-      '[OB]  ▶ 1 en cours · ⏭ 0 · ✎ 0 · 0 faits',
-      '[SH]  ▶ 1 en cours · ⏭ 0 · ✎ 0 · 0 faits',
-      '[OSD] ▶ 0 en cours · ⏭ 0 · ✎ 0 · 0 faits',
+      '[OB]  ▶ 1 en cours · 0 bloqués · 0 faits',
+      '      ⏭ file : 0 en circuit · 0 en direct',
+      '      0 sans go · 1 à valider · 0 reportés',
+      '[SH]  ▶ 1 en cours · 0 bloqués · 0 faits',
+      '      ⏭ file : 0 en circuit · 0 en direct',
+      '      1 sans go · 0 à valider · 0 reportés',
+      '[OSD] ▶ 0 en cours · 0 bloqués · 0 faits',
+      '      ⏭ file : 0 en circuit · 0 en direct',
+      '      0 sans go · 0 à valider · 0 reportés',
       '🔍 0 new · 0 →check · 0 rejetés · 0 validés',
       expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
     ]);
@@ -215,8 +221,10 @@ describe('critère 4 : a project whose board does not read is named in the head 
       { etiquette: 'OSD', erreur: 'dossier introuvable' },
     ]);
     const l = lignes(t, 'osc-bridge + OSD') as Ligne[];
-    expect(l.slice(1, 3).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
-      ['[OB]  ▶ 1 en cours · ⏭ 0 · ✎ 0 · 0 faits', undefined],
+    expect(l.slice(1, 5).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
+      ['[OB]  ▶ 1 en cours · 0 bloqués · 0 faits', undefined],
+      ['      ⏭ file : 0 en circuit · 0 en direct', undefined],
+      ['      0 sans go · 1 à valider · 0 reportés', 'attention'],
       ['[OSD] ⚠ dossier introuvable', 'alerte'],
     ]);
     expect(l.some(x => x.ticket === 'OB-k2')).toBe(true);

@@ -1525,7 +1525,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const colonneDe = etiquette => `[${etiquette}]`.padEnd(large);
   L(nom.toUpperCase(), TONS.titre);
   if (plusieurs) {
-    // One line per project: its counters, or the fault that keeps its board out.
+    // The three lines of states of each project, as one project's board says them: the first
+    // under its label, the two others aligned below it; or the fault that keeps its board out.
+    const retrait = ' '.repeat(large);
     for (const p of t.projets) {
       if (p.erreur) {
         L(cadre(`${colonneDe(p.etiquette)}⚠ ${p.erreur}`, '', largeur), TONS.panne);
@@ -1534,10 +1536,25 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       const c = p.compteurs;
       L(
         cadre(
-          `${colonneDe(p.etiquette)}▶ ${c.enCours} en cours · ⏭ ${c.enAttente} · ✎ ${c.fileDirecte ?? 0} · ${c.fermes} faits`,
+          `${colonneDe(p.etiquette)}▶ ${c.enCours} en cours · ${c.bloques ?? 0} bloqués · ${c.fermes} faits`,
           '',
           largeur
         )
+      );
+      L(
+        cadre(
+          `${retrait}⏭ file : ${c.enAttente} en circuit · ${c.fileDirecte ?? 0} en direct`,
+          '',
+          largeur
+        )
+      );
+      L(
+        cadre(
+          `${retrait}${c.sansGo ?? 0} sans go · ${c.aValider ?? 0} à valider · ${c.reportes ?? 0} reportés`,
+          '',
+          largeur
+        ),
+        c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
       );
     }
     // The discoveries of the day, summed across the projects (grillhouse-3uv.96, criterion 14).

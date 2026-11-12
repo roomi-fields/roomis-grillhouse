@@ -535,11 +535,13 @@ describe('the board of several projects, read in their folders', () => {
       lignes: { texte: string; ton?: string }[];
       dossiers: Record<string, string>;
     };
-    const tete = t.lignes.slice(0, 3).map(x => [x.texte.trimEnd(), x.ton]);
+    const tete = t.lignes.slice(0, 5).map(x => [x.texte.trimEnd(), x.ton]);
     expect(tete[0]).toEqual([`${path.basename(racine).toUpperCase()} + ABSENT`, 'titre']);
-    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+▶ \d+ en cours · ⏭ \d+ · ✎ \d+ · \d+ faits$/);
-    expect(tete[2]?.[0]).toBe('[absent] ⚠ dossier introuvable');
-    expect(tete[2]?.[1]).toBe('alerte');
+    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+▶ \d+ en cours · \d+ bloqués · \d+ faits$/);
+    expect(tete[2]?.[0]).toMatch(/^\s+⏭ file : \d+ en circuit · \d+ en direct$/);
+    expect(tete[3]?.[0]).toMatch(/^\s+\d+ sans go · \d+ à valider · \d+ reportés$/);
+    expect(tete[4]?.[0]).toBe('[absent] ⚠ dossier introuvable');
+    expect(tete[4]?.[1]).toBe('alerte');
     expect(t.lignes.some(x => /^\[demo\]\s+demo-5 {2}demo-5\b/.test(x.texte))).toBe(true);
     // critère 3: each ticket's card names the folder of its project.
     expect(t.dossiers['demo-5']).toBe(racine);
