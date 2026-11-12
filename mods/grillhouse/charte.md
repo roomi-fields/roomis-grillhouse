@@ -168,6 +168,14 @@ puis les contrôles et la relecture. Hors de ce cas, une preuve qui ne trouve au
 contrôles et à la relecture sans séance du développeur. Ainsi chaque séance du circuit a un lot à
 écrire.
 
+**Un ticket prend l'une de trois voies** : le circuit complet pour un comportement qui change ;
+le circuit court (1.1) pour un geste sans comportement neuf, que l'explorateur juge au plan ; hors
+du circuit, mené en direct par le superviseur, pour un défaut du circuit lui-même (le circuit ne se
+répare pas par lui-même), une correction triviale repérée en analyse (une ligne fautive, un
+mauvais argument), un ticket de données ou le squelette d'un paquet. Un lot hors du circuit passe
+la CI de sa branche avant main, comme un autre. Un changement de comportement du produit va au
+circuit, même pressé. Ainsi la voie d'un ticket se lit à la charte, et non au choix de la séance.
+
 **Un paquet naît hors du circuit, en quatre temps** (un squelette n'a ni comportement ni test),
 comme les générateurs de Nx et `cargo new --lib` : 1, le grill, le superviseur et le responsable
 (son rôle, sa frontière, ses refus, son interface, son langage) ; 2, l'écriture, le superviseur
