@@ -7,7 +7,7 @@ seule adresse du cadre du projet.
 ## 1. Les outils
 
 Le cadre s'appuie sur des produits sur étagère, toujours présents : Beads (`bd`) pour les tickets
-(`docs/agents/issue-tracker.md`), le greffon `mattpocock-skills` pour le flux, RTFM pour la
+(`docs/agents/issue-tracker.md`), les compétences `grillhouse:` pour le flux, RTFM pour la
 recherche, CodeGraph pour les appels. Les commandes du dépôt sont celles de la charte. Ainsi le
 projet se base sur l'existant, et chaque agent trouve les mêmes outils.
 

@@ -27,7 +27,7 @@ professionnel.
 2. Un défaut remonté est d'abord une question d'architecture : le ticket s'ouvre sur sa section
    « Architecture » (le modèle mûr nommé, l'adresse dans l'architecture, le mécanisme commun), et
    le correctif va dans ce mécanisme. Ainsi tout correctif passe par l'architecture.
-3. Une décision reste à prendre : `mattpocock-skills:grilling` avant d'écrire, ses questions dans
+3. Une décision reste à prendre : `grillhouse:grilling` avant d'écrire, ses questions dans
    le ticket. Ainsi la décision est prise et écrite avant le code.
 4. Le plan va dans le ticket : dans le circuit, l'explorateur l'écrit (ses critères, les paquets à
    toucher, ses questions ouvertes), le questionneur le lit une fois, l'explorateur répond une
@@ -267,6 +267,6 @@ dossier.
   et le superviseur étend le plan ou refuse. Ainsi l'agent lit ce dont il a besoin, et les gardes
   tiennent l'architecture.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
-- Le greffon `mattpocock-skills` s'appelle avec son préfixe ; un document pour un agent s'écrit
-  avec `mattpocock-skills:writing-for-agents`.
+- Une compétence du cadre s'appelle avec son préfixe `grillhouse:` ; un document pour un agent
+  s'écrit avec `grillhouse:writing-for-agents`.
 - Réponses en français ; le code et les noms d'API restent en anglais.

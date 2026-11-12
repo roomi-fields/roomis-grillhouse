@@ -10,12 +10,23 @@ This file names the author of Roomi's Grillhouse and the work the frame takes fr
 
 - **BMAD-METHOD** ([bmad-code-org/BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD), MIT, © 2025 BMad Code, LLC): the reviewer's passes `edge-case-hunter.md`, `deletion-check.md`, `claims-check.md` and `verification-gap.md` come from its `skills/bmad-build/`. `.claude/skills/relecteur/references/SOURCE.md` names the commit and the one change; `LICENSE-MIT`, beside it, reproduces the licence.
 
+- **Matt Pocock's skills** (plugin `mattpocock-skills`, version 1.3.1, [mattpocock/skills](https://github.com/mattpocock/skills), MIT, © 2026 Matt Pocock): four skills, copied with their neighbouring files into the frame's plugin and called `grillhouse:grilling`, `grillhouse:writing-for-agents`, `grillhouse:codebase-design` and `grillhouse:domain-modeling` (`mods/grillhouse/skills/<name>/`). The MIT licence follows.
+
+  > MIT License
+  >
+  > Copyright (c) 2026 Matt Pocock
+  >
+  > Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+  >
+  > The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+  >
+  > THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ## 3. Tools and plugins the frame uses
 
 Each tool below is called by a file of the repository, named on its line. The role each one plays is described in the README, §3.
 
 - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: skills, agents, hooks and plugins (`.claude/`).
-- **[mattpocock-skills](https://github.com/anthropics/claude-plugins-official)**: the flow skills the charter calls, `grilling` and `writing-for-agents` among them (`.claude/settings.json`, `.claude/grillhouse/charte.md`).
 - **[RTFM](https://github.com/roomi-fields/rtfm)**: the search index over code and documents (`.claude/settings.json`).
 - **[CodeGraph](https://github.com/colbymchenry/codegraph)**: the code knowledge graph (`.mcp.json`, `packages/grillhouse/scripts/preparation.mjs`).
 - **[Beads](https://github.com/gastownhall/beads)** (`bd`): the ticket store (`packages/grillhouse/scripts/preparation.mjs`, `docs/agents/issue-tracker.md`).

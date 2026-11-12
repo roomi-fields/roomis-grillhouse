@@ -100,6 +100,7 @@
     "scripts/migrations/0.33.0-node-26.mjs",
     "scripts/migrations/0.33.0-ci-du-cadre.mjs",
     "scripts/migrations/0.33.0-cache-distant.mjs",
+    "scripts/migrations/0.35.0-greffon-mattpocock-retire.mjs",
     "scripts/newday.mjs",
     "scripts/nuit.sh",
     "scripts/outil.mjs",

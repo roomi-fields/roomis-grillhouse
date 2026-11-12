@@ -4,7 +4,7 @@ description: >
   Le rédacteur : rédiger un document du dépôt lu par des humains. À charger avant d'écrire ou de réécrire :
   l'architecture du projet ou d'un composant, son cadre, son interface ; une spécification ; un
   guide ; tout document de référence. Pour un document lu par un agent (compétence, charte,
-  consigne), `mattpocock-skills:writing-for-agents`.
+  consigne), `grillhouse:writing-for-agents`.
 ---
 
 # Rédacteur — rédiger un document

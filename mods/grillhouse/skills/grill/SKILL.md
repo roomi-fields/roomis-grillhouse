@@ -63,7 +63,7 @@ une passe longue : lance-la en tâche de fond et relis son code à la fin. Le pr
   lui), une raison de changer, une donnée qui traverse. Une fusion se justifie de même : deux
   parties qui changent toujours ensemble, qu'aucun consommateur ne sépare. Ainsi chaque frontière
   découle de l'architecture.
-- **Les mots de la structure** : tu charges `mattpocock-skills:codebase-design` avant le grill et tu
+- **Les mots de la structure** : tu charges `grillhouse:codebase-design` avant le grill et tu
   emploies ses mots (module, interface, profondeur, jointure). Ainsi le responsable et les agents
   parlent de la structure avec les mêmes mots.
 - **Chaque recommandation cite sa référence mature** : elle dit ce que ferait le produit mature du
@@ -98,8 +98,7 @@ ce qui doit être. Ainsi chaque décision part de l'état réel du code.
 
 ## 4. Le grill d'initialisation
 
-Charge `mattpocock-skills:grilling` et suis-le (s'il n'est pas disponible, suis le même format, et
-signale au responsable que le greffon `mattpocock-skills` manque) : des tours numérotés, chaque
+Charge `grillhouse:grilling` et suis-le : des tours numérotés, chaque
 question avec ta recommandation et ses pièces, la frontière de l'arbre des décisions à chaque tour.
 **Le grill se mène en entier**, par tours, même quand le responsable pose la question en une
 phrase. Ainsi chaque décision de structure passe par l'architecture, et une réponse directe ne
@@ -161,7 +160,7 @@ remplace jamais le grill. Les branches de l'arbre :
 10. **L'architecture** — les trois ou quatre choix qui commandent le reste, chacun avec sa raison et
    l'objectif qu'il sert ; les données centrales ; où le code tourne.
 11. **Le lexique** — les mots du domaine dont la définition change du code
-    (`mattpocock-skills:domain-modeling`).
+    (`grillhouse:domain-modeling`).
 12. **Le premier chantier** — ce qui se construit d'abord, et ce qui attend.
 
 **La fin du grill** : le grill est fini quand la frontière est vide, que chaque composant et chaque
@@ -172,7 +171,7 @@ ensuite. Ainsi les documents écrivent des décisions prises.
 ## 5. Écrire
 
 - Les documents lus par un humain s'écrivent avec la compétence `redacteur` (référence
-  « Les documents d'un composant ») ; la charte avec `mattpocock-skills:writing-for-agents`.
+  « Les documents d'un composant ») ; la charte avec `grillhouse:writing-for-agents`.
 - **Les champs de la charte** : chaque champ `<…>` de la charte modèle reçoit sa valeur. Ainsi la
   charte cadre les agents dès la séance suivante.
 - `package.json` (nom, description, auteur, dépôt), `README.md`, `LICENSE`, `CREDITS.md`,

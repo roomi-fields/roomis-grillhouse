@@ -37,15 +37,19 @@ const ecrire = (racine: string, f: string, texte: string) => {
 const TITRE_DE_LA_CHARTE = "# La charte commune de Roomi's Grillhouse";
 
 const COMPETENCES = [
+  'codebase-design',
   'developpeur',
+  'domain-modeling',
   'explorateur',
   'grill',
+  'grilling',
   'mesure',
   'pitmaster',
   'questionneur',
   'redacteur',
   'relecteur',
   'testwriter',
+  'writing-for-agents',
 ];
 const AGENTS = ['developpeur', 'explorateur', 'questionneur', 'relecteur', 'testwriter'];
 
