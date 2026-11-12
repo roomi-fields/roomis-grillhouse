@@ -441,7 +441,12 @@ describe('a command run by env -C <copie> passes the rights of its bare form, an
       'npm run verifier -- --gardes*',
       'codegraph explore *',
     ]);
-    expect(nues('testwriter')).toEqual(['npm test *', 'node $TMPDIR/*', 'codegraph explore *']);
+    expect(nues('testwriter')).toEqual([
+      'npm test *',
+      'node $TMPDIR/*',
+      'npx grillhouse tailles-des-tests',
+      'codegraph explore *',
+    ]);
     expect(nues('developpeur')).toEqual(['npm test *', 'npm run api*', 'codegraph explore *']);
     expect(nues('questionneur')).toEqual(['codegraph explore *']);
   });

@@ -166,6 +166,8 @@ export const ROLES = {
       'Bash(npm test *)',
       // The removal of a file of its tests, by a script of its temporary directory.
       'Bash(node $TMPDIR/*)',
+      // The size guard on its batch before it hands back its sheet: no argument, the whole repository.
+      'Bash(npx grillhouse tailles-des-tests)',
       ...LIRE_L_INDEX,
     ]),
   },

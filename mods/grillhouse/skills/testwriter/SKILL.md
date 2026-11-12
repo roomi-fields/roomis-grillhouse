@@ -121,6 +121,23 @@ n'a pas prescrite, ta fiche finit sur BESOIN (ta question, ta recommandation), s
 de ton propre chef. Ainsi la taille se décide au plan, et le jour reste rapide quel que soit le
 nombre de tests.
 
+**Tu décomposes le comportement selon la pyramide** : la logique d'un critère se prouve petit, par
+l'interface d'un module que le test appelle dans son processus, sans lancer de processus et sans
+dépôt monté. Le lancement réel (le produit, un crochet, un script comme processus) s'isole dans un
+test de nuit, `*.nuit.test.*`, écrit seulement quand le plan le prescrit ; sinon il reste sans test.
+L'interface se prend là où le plan ou l'`INTERFACE.md` du paquet la publie ; quand aucune interface publiée ne porte le comportement, ta fiche finit sur BESOIN (le module à publier, ses options, ta
+recommandation) : le testwriter n'invente pas la structure du code. Exemple : un crochet qui liste les
+circuits en attente. La fonction qui liste et formate le message se teste petit, en l'appelant, sans
+dépôt git ni processus ; le lancement du crochet est au plus un test de nuit.
+
+**Tu joues la garde des tailles avant de rendre** : avant de rendre ta fiche, tu joues
+`npx grillhouse tailles-des-tests` (sans argument, sur tout le dépôt). Sur un grand test de jour
+refusé pour ton lot, le testwriter décompose lui-même, dans sa séance : la logique en petit test par
+l'interface, le lancement réel abandonné ou, si le plan le prescrit grand, écrit en
+`*.nuit.test.*`. Tu ne rends FAIT que sur un lot sans constat neuf, et ta fiche finit sur BESOIN
+seulement quand la logique n'a aucune interface petite publiée (le paragraphe d'avant). Ainsi le
+testwriter ne propose jamais un grand test de jour, et le circuit ne boucle pas.
+
 **Le rouge prouve le travail du ticket** : tu lances tes tests sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt), et ta fiche nomme dans
 `portent_le_travail` ceux qui portent le travail du ticket : seuls ceux-là rougissent d'abord. Les
