@@ -31,8 +31,8 @@ const TESTS = path.join(CADRE, 'scripts/langages/typescript/tests.mjs');
 const VERIFIER = path.join(CADRE, 'scripts/langages/typescript/verifier.mjs');
 // The summaries of Turborepo's runs a results directory holds, read in a process of its own.
 const lireResumes = enProcessus<{ script: string; paquet: string; cache: string }[]>(
-  'scripts/langages/typescript/verdict.mjs',
-  'lireResumes'
+  'scripts/langages/typescript/resume-du-lanceur.mjs',
+  'lireLesResumes'
 );
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'depuis-le-vert-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
