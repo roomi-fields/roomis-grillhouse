@@ -1275,7 +1275,6 @@ export function assembler({
             id: t.id,
             numero: numero(t.id),
             sujet: titre(t).sujet,
-            qui: t.assignee || null,
           }));
   // The circuits, in the tickets' order; a ticket worked in direct has its line alone.
   const enDirect = new Set(horsCircuit.map(x => x.id));
@@ -1810,15 +1809,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       plein ? TONS.titre : TONS.vide
     );
   // The tickets worked out of a circuit, once each, before the steps, from their claim to their
-  // close: « ✎ <numéro>  <sujet> · en direct · <assignee> ».
+  // close: « ✎ <numéro>  <sujet> · en direct ».
   for (const x of t.horsCircuit ?? []) {
     poser({
-      texte: couperAvant(
-        `${teteDe('✎', x)}${x.sujet}`,
-        ` · en direct${x.qui ? ` · ${x.qui}` : ''}`,
-        droiteDe('✎', ''),
-        largeur
-      ),
+      texte: couperAvant(`${teteDe('✎', x)}${x.sujet}`, ' · en direct', droiteDe('✎', ''), largeur),
       ton: TONS.enDirect,
       ticket: x.id,
     });

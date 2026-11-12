@@ -1,6 +1,6 @@
 // Un ticket hors circuit sur le panneau (scripts/tableau.mjs) : un ticket pris (`in_progress`) sans
 // circuit sur le serveur Temporal se travaille en direct ; il a une ligne d'AGENTS, une seule,
-// hors des étapes, « ✎ <numéro>  <sujet> · en direct · <assignee> », de sa prise à sa fermeture.
+// hors des étapes, « ✎ <numéro>  <sujet> · en direct », de sa prise à sa fermeture.
 // Un ticket qui a un circuit, vivant ou arrêté, garde sa ligne de circuit à son étape.
 import { describe, expect, it } from 'vitest';
 import { assembler, LARGEUR, lignes, TONS } from '../../scripts/tableau.mjs';
@@ -55,10 +55,10 @@ const agents = (p: ReturnType<typeof plateau>) => dessin(p).filter(l => l.sectio
 const duTicket = (l: Ligne[], id: string) => l.filter(x => x.ticket === id);
 
 describe('un ticket pris sans circuit sur le serveur', () => {
-  it('a une ligne d’AGENTS « ✎ <numéro>  <sujet> · en direct · <assignee> »', () => {
+  it('a une ligne d’AGENTS « ✎ <numéro>  <sujet> · en direct »', () => {
     const p = plateau([T('demo-9', 'La nuit')]);
     const [l] = duTicket(agents(p), 'demo-9');
-    expect(l.texte).toBe('✎ 9  La nuit · en direct · roomi-fields');
+    expect(l.texte).toBe('✎ 9  La nuit · en direct');
     expect(l.ton).toBe(TONS.enDirect);
     expect(TONS.enDirect).toBe('actif');
   });
@@ -83,16 +83,16 @@ describe('un ticket pris sans circuit sur le serveur', () => {
     expect(l[0].texte).toMatch(/^✎ /);
   });
 
-  it('sans assignee, la ligne s’arrête à « en direct »', () => {
-    const p = plateau([T('demo-9', 'Le sujet', { assignee: undefined })]);
+  it('la ligne ne dit pas qui a pris le ticket : elle s’arrête à « en direct »', () => {
+    const p = plateau([T('demo-9', 'Le sujet', { assignee: 'roomi-fields' })]);
     expect(duTicket(agents(p), 'demo-9')[0].texte).toBe('✎ 9  Le sujet · en direct');
   });
 
-  it('un sujet long se coupe, « en direct » et l’assignee restent', () => {
+  it('un sujet long se coupe, « en direct » reste', () => {
     const p = plateau([T('demo-9', 'Un sujet très long '.repeat(6))]);
     const [l] = duTicket(agents(p), 'demo-9');
     expect(colonnes(l.texte)).toBeLessThanOrEqual(LARGEUR);
-    expect(l.texte).toMatch(/… · en direct · roomi-fields$/);
+    expect(l.texte).toMatch(/… · en direct$/);
   });
 
   it('un ticket fermé n’a plus de ligne en direct', () => {
@@ -131,7 +131,7 @@ describe('un ticket qui a un circuit garde sa ligne de circuit', () => {
     });
     const l = duTicket(agents(p), 'demo-9');
     expect(l).toHaveLength(1);
-    expect(l[0].texte).toBe('✎ 9  Le sujet · en direct · roomi-fields');
+    expect(l[0].texte).toBe('✎ 9  Le sujet · en direct');
   });
 
   it('le circuit court du geste mécanique (1.1) reste une ligne de circuit', () => {
