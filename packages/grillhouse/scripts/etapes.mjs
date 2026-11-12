@@ -201,8 +201,7 @@ export const GESTES = [
   {
     genre: 'rejeu',
     geste: 'la commande joue une seconde fois',
-    regle:
-      'une commande des contrôles hors de la passe finale à 75 rejoue une fois avant l’arrêt',
+    regle: 'une commande des contrôles hors de la passe finale à 75 rejoue une fois avant l’arrêt',
     cas: 'A12 : un contrôle à 75, rejoué avant de conclure à la charge',
   },
   {
@@ -258,13 +257,16 @@ const REPONSES =
   'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), ou `--arreter`.';
 
 // The question of each stop no gesture settles, as a CI calls a person only for what no rule
-// settles (the approval of a review): every stop of ARRETS but « a-repasser », a gesture. The
+// settles (the approval of a review): every stop of ARRETS, « a-repasser » once the circuit has
+// played it again as often as it may (a gesture until then). The
 // circuit ends on the stop, its state carrying the question (`question`: `{ arret, fait, piece,
 // question, qui }`: the fact, its piece, file:line or command and output, the question and who must
 // answer it), for the supervisor, who answers by a command of the circuit and carries to the owner
 // what is his (`qui` responsable: the reviewer's question on a real word of the language).
 export const MONTEES = Object.fromEntries(
   Object.entries({
+    'a-repasser':
+      'L’étape à repasser (une passe sous charge, une CI non lue, une file qui n’avance pas) a été rejouée autant de fois que le circuit le fait, sans aboutir : sa cause se lève-t-elle, pour reprendre, ou le circuit s’arrête-t-il ?',
     lancement:
       'Le lanceur s’arrête avant la séance, ou la copie n’avance pas sur la pointe de main avant une passe : la machine ou la copie se répare-t-elle, pour reprendre ?',
     bloqué:
@@ -299,5 +301,5 @@ export const MONTEES = Object.fromEntries(
   }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])
 );
 
-// The question of the stop <arret>, `{ question, qui }`, or null for a gesture.
+// The question of the stop <arret>, `{ question, qui }`, or null for a stop of no circuit.
 export const monteeDe = arret => MONTEES[arret] ?? null;

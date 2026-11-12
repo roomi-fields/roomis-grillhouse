@@ -353,19 +353,17 @@ describe('the gestures of the circuit and the questions of its stops, in the lis
     expect(gesteDe('controles')).toBeNull();
   });
 
-  it('every stop but « a-repasser » carries its question for the supervisor, with the commands that answer it', () => {
-    expect(Object.keys(MONTEES).sort()).toEqual(
-      Object.keys(ARRETS)
-        .filter(n => n !== 'a-repasser')
-        .sort()
-    );
+  it('every stop carries its question for the supervisor, with the commands that answer it', () => {
+    expect(Object.keys(MONTEES).sort()).toEqual(Object.keys(ARRETS).sort());
     for (const [arret, m] of Object.entries(MONTEES)) {
       expect(m.qui, arret).toBe(SUPERVISEUR);
       for (const commande of ['--reprendre', '--etendre', '--arreter']) {
         expect(m.question, arret).toContain(commande);
       }
     }
-    expect(monteeDe('a-repasser')).toBeNull();
+    // « a-repasser » goes up once its replays are spent, with its own question.
+    expect(monteeDe('a-repasser')?.question).toMatch(/rejouée autant de fois/);
+    expect(monteeDe('inconnu')).toBeNull();
     expect(monteeDe('hors-plan')?.question).toContain('--etendre');
     // grillhouse-3uv.95.6: `--depuis` names a step for the whole ticket, `--etendre` a package.
     for (const m of Object.values(MONTEES)) {
