@@ -150,6 +150,33 @@ const sortiesDe = (dir, sorties, lien = () => null) =>
       });
     })
     .map(s => path.join(dir, s));
+// The packages of the copy that the plan <paquets> does not name and that are not the shared test
+// material, relative to the copy: where the envelope opens an empty own output to each run. The
+// root package is the copy's own root, treated apart.
+const paquetsHorsDuPlan = (paquets, paquetsDeLaCopie, matieres) => {
+  const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie);
+  return paquetsDeLaCopie
+    .map(p => p.dossier)
+    .filter(d => d !== '.' && !ecrits.includes(d) && !matieres.includes(d));
+};
+// Creates, in the writable copy and before anything is mounted, the own outputs of the language
+// that are missing: in each package out of the plan, in the shared test material for a role that
+// does not write it, and at the root of the copy when the plan does not write it. An output that a
+// link carries out of the copy is left out. bwrap then has a directory to mount an empty one over.
+export function preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres, role, sorties }) {
+  const dossiers = paquetsHorsDuPlan(paquets, paquetsDeLaCopie, matieres);
+  if (role !== ROLE_MATIERE) {
+    dossiers.push(...matieres);
+  }
+  if (!ecritsDuPlan(paquets, paquetsDeLaCopie).includes('.')) {
+    dossiers.push('.');
+  }
+  for (const d of dossiers) {
+    for (const s of sortiesDe(path.join(copie, d), sorties.propres, lienSurDisque)) {
+      mkdirSync(s, { recursive: true });
+    }
+  }
+}
 // The machine's temporary directory: an empty one, proper to the session, replaces it.
 const TEMPORAIRE = '/tmp';
 // What stays read-only inside `~/.claude`: the configuration and what it loads.
@@ -656,6 +683,17 @@ export function plan(
       }
     }
   }
+  // Each package out of the plan has its own outputs as empty directories proper to the session,
+  // as a sandbox of Bazel opens the declared outputs whatever the package; the rest stays read-only.
+  if (!toute) {
+    for (const d of paquetsHorsDuPlan(paquets, paquetsDeLaCopie, matieres)) {
+      for (const s of sortiesDe(path.join(copie, d), sorties.propres, fs.lien)) {
+        if (fs.existe(s)) {
+          args.push('--tmpfs', s);
+        }
+      }
+    }
+  }
   const gitDeLaCopie = path.join(copie, '.git');
   if (fs.existe(gitDeLaCopie)) {
     args.push('--ro-bind', gitDeLaCopie, gitDeLaCopie);
@@ -824,22 +862,14 @@ function envelopper(argv) {
     maison: os.homedir(),
     principal: path.dirname(commun),
   });
-  // For a role that does not write it, the directories where a run of the material's tests writes
-  // are created here, so that bwrap mounts an empty one over each inside the read-only package.
-  if (role !== ROLE_MATIERE) {
-    for (const m of matieres) {
-      for (const s of sortiesDe(path.join(copie, m), sorties.propres, lienSurDisque)) {
-        mkdirSync(s, { recursive: true });
-      }
-    }
-  }
-  // For a plan that leaves the root read-only, where the language's tools write at the root of the
-  // copy is created here, so that bwrap mounts it, empty or in writing, inside the read-only copy.
+  // The own outputs of the language are created here, while the copy is writable, so that bwrap
+  // mounts an empty one over each inside the read-only copy: at its root, in the packages out of
+  // the plan, and in the material for a role that does not write it.
   const paquetsDeLaCopie = paquetsDuLangage(langage, copie);
+  preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres, role, sorties });
+  // For a plan that leaves the root read-only, where the language's tools write at the root of the
+  // copy is created here, so that bwrap mounts it in writing, inside the read-only copy.
   if (!ecritsDuPlan(paquets, paquetsDeLaCopie).includes('.')) {
-    for (const s of sortiesDe(copie, sorties.propres, lienSurDisque)) {
-      mkdirSync(s, { recursive: true });
-    }
     for (const s of sortiesDe(copie, sorties.ecrites, lienSurDisque)) {
       creer(s, fichiers.includes(path.relative(copie, s)));
     }
