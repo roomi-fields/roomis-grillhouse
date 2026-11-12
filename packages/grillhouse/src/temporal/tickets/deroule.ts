@@ -62,6 +62,9 @@ const FERMES_HORS_CIRCUIT = 'fermes-hors-circuit';
 // The patch of the places of the machine: a run that recorded its starts on its own setting alone
 // replays them so.
 const PLACES_DE_LA_MACHINE = 'places-de-la-machine';
+// The patch of the journal of states (grillhouse-4nr.20): a run that recorded its starts and ends
+// before the change replays them without their line.
+const TRACE_DE_LA_FILE = 'trace-de-la-file';
 
 const REVEIL_MS = 60_000;
 const LIMITE_D_HISTOIRE = 10_000;
@@ -89,7 +92,9 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
   const finis: string[] = [];
   for (;;) {
     for (const ticket of finis.splice(0)) {
-      await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
+      if (patched(TRACE_DE_LA_FILE)) {
+        await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
+      }
     }
     const surLeServeur = await actes.circuitsVivants({ racine });
     // A circuit whose ticket was closed outside it (delivered directly) holds no place: the queue
@@ -106,7 +111,7 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
       } catch {
         // Ended meanwhile: nothing to stop.
       }
-      if (!lances.has(ticket)) {
+      if (!lances.has(ticket) && patched(TRACE_DE_LA_FILE)) {
         await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
       }
     }
@@ -142,7 +147,9 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
           cancellationType: ChildWorkflowCancellationType.ABANDON,
         });
         lances.add(ticket);
-        await actes.tracerLaFile({ racine, ticket, evenement: 'lance' });
+        if (patched(TRACE_DE_LA_FILE)) {
+          await actes.tracerLaFile({ racine, ticket, evenement: 'lance' });
+        }
         // The end of the circuit wakes the queue, and its line to the journal is written at the
         // next wake (a workflow awaits no activity in a callback).
         const fini = () => {
