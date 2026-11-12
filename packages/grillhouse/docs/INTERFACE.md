@@ -187,9 +187,10 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `ecrites` s'ouvrent en écriture, créées avant la séance, un dossier quand le chemin finit par
   `/`, sinon un fichier vide : un chemin depuis la racine de la copie, `~/…` depuis la maison,
   `//…` depuis l'arbre principal, un magasin que toutes les copies partagent. `propres` deviennent
-  un dossier vide propre à la séance, à la racine de la copie et dans chaque composant de la
-  matière de test, là où la séance ne les écrit pas, comme Bazel écrit les journaux d'un test hors
-  de ses sources. `lues`, `~/…` ou `//…`, se montent en lecture seule avant ce qui s'écrit en
+  un dossier vide propre à la séance, dans chaque paquet de la copie que le plan ne nomme pas, à
+  la racine quand le plan ne l'écrit pas, et dans la matière de test sauf pour le testwriter, qui
+  l'écrit ; le lanceur crée ceux qui manquent avant de monter (`preparerLesSorties`), comme Bazel
+  écrit les journaux d'un test hors de ses sources. `lues`, `~/…` ou `//…`, se montent en lecture seule avant ce qui s'écrit en
   elles, quand elles existent. `typescript` : `//.turbo/cache/` écrit, `.turbo` et
   `node_modules/.vite` propres ; `cargo` : `target/`, et dans `~/.cargo` son registre, ses
   dépendances git, ses avis de sécurité et les fichiers de ses verrous et du cache de ses paquets
