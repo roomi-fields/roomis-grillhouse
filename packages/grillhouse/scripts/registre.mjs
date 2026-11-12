@@ -47,9 +47,9 @@ import { roleDeLAgent } from './etapes.mjs';
 import { lireFichier, ROLE_DE_LA_NUIT, ROLE_DU_CIRCUIT, roleDuMeta, tourne } from './tableau.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
-export const REGISTRE =
-  process.env.GRILLHOUSE_REGISTRE ??
-  path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
+import { REGISTRE } from './adresse-du-registre.mjs';
+
+export { REGISTRE };
 
 // The transcript and the role the hook's input names: a sub-agent's sits next to the session's.
 export function source(input) {

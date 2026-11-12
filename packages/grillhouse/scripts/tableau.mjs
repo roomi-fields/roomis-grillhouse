@@ -121,6 +121,7 @@ import {
 } from './etapes.mjs';
 import { echecDeLOutil } from './aiguillage.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
+import { REGISTRE } from './adresse-du-registre.mjs';
 import { lireLaMesure } from './avancement.mjs';
 import {
   SANS_REPONSE_EN,
@@ -2270,10 +2271,8 @@ function lire(
   } catch {
     ps = '';
   }
-  const fichierRegistre =
-    process.env.GRILLHOUSE_REGISTRE ?? path.join(home, '.claude', 'grillhouse', 'registre.jsonl');
-  const registre = existsSync(fichierRegistre)
-    ? lireRegistre(readFileSync(fichierRegistre, 'utf8'), racine)
+  const registre = existsSync(REGISTRE)
+    ? lireRegistre(readFileSync(REGISTRE, 'utf8'), racine)
     : [];
   const tous = bdJson(racine, 'list', '--all', '--limit', '0');
   const commun = dossierCommun(racine);

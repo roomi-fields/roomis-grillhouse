@@ -65,6 +65,8 @@
 //   scripts/mesure/avancement.mjs), the reporter of progress writes there the files done and planned of its
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
 //   scripts/tableau.mjs).
+import { readdirSync, rmSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ligneDesRestes,
@@ -120,6 +122,13 @@ function baseDeVitest() {
       Object.assign(process.env, b.env);
       retirerALInterruption(b.fermer);
       process.on('exit', () => {
+        // The registers of the test files (registre.setup.mjs): a file whose tests are all skipped
+        // runs no `afterAll`, so its register directory goes with the base, not as a rest.
+        for (const n of readdirSync(b.dossier)) {
+          if (n.startsWith('grillhouse-registre-')) {
+            rmSync(path.join(b.dossier, n),{ recursive: true, force: true });
+          }
+        }
         const ligne = ligneDesRestes([
           ...b.restes().filter(n => !CACHES_DES_OUTILS.has(n)),
           ...b.essais(),
@@ -154,6 +163,7 @@ export default {
       ici('./mesure.setup.mjs'),
       ici('./machine.setup.mjs'),
       ici('./resultats.setup.mjs'),
+      ici('./registre.setup.mjs'),
     ],
     watch: false,
     ...travailleurs(),

@@ -96,6 +96,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
+import { REGISTRE } from './adresse-du-registre.mjs';
 import { pathToFileURL } from 'node:url';
 import {
   AGENTS_DU_LOT,
@@ -706,10 +707,10 @@ function messagesDeLaSeance(seance) {
 // circuit kept, where its circuit ended (<fin>, `{ etape, raison, code }`, null while it runs), and
 // the owner's messages in the supervisor's sessions its stops name unless <responsable> is false.
 function calculer(racine, ticket, fin, { responsable = true } = {}) {
-  const registre =
-    process.env.GRILLHOUSE_REGISTRE ??
-    path.join(os.homedir(), '.claude', 'grillhouse', 'registre.jsonl');
-  const lignes = lignesDuProjet(existsSync(registre) ? readFileSync(registre, 'utf8') : '', racine);
+  const lignes = lignesDuProjet(
+    existsSync(REGISTRE) ? readFileSync(REGISTRE, 'utf8') : '',
+    racine
+  );
   const fiches = path.join(dossier(racine), `${ticket}.fiches.jsonl`);
   const entrees = (existsSync(fiches) ? readFileSync(fiches, 'utf8') : '')
     .split('\n')

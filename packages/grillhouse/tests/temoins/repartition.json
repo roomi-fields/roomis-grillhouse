@@ -2,6 +2,7 @@
   "noyau": [
     "bin/grillhouse.mjs",
     "scripts/abi-des-dependances.mjs",
+    "scripts/adresse-du-registre.mjs",
     "scripts/activites.mjs",
     "scripts/aiguillage.mjs",
     "scripts/aiguillage.d.mts",
@@ -214,6 +215,7 @@
     "scripts/langages/typescript/vitest-config/mesure.d.ts",
     "scripts/langages/typescript/vitest-config/mesure.mjs",
     "scripts/langages/typescript/vitest-config/mesure.setup.mjs",
+    "scripts/langages/typescript/vitest-config/registre.setup.mjs",
     "scripts/langages/typescript/vitest-config/resultats.mjs",
     "scripts/langages/typescript/vitest-config/resultats.setup.mjs",
     "scripts/langages/typescript/vitest.nuit.config.mjs"

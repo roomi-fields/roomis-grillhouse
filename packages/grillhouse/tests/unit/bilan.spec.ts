@@ -13,13 +13,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   bilan,
   bilansGardes,
-  ecrireLeBilan,
   enBref,
   garder,
   lignesDuProjet,
   messagesDuResponsable,
   plageDeNuit,
-  precedent,
   texteDuBilan,
 } from '../../scripts/bilan.mjs';
 import { fiches } from '../../scripts/tableau.mjs';
@@ -27,6 +25,23 @@ import { fiches } from '../../scripts/tableau.mjs';
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'bilan-'));
 const BILAN = path.resolve(__dirname, '../../scripts/bilan.mjs');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+
+// Runs `corps` (module code, with `bilan` the namespace of bilan.mjs) in a process whose register
+// is `registre` from its start: the address of the register is fixed at the import of bilan.mjs.
+// `corps` returns a JSON-able value, which this returns.
+const avecLeRegistre = (registre: string, corps: string): unknown => {
+  const r = spawnSync(
+    'node',
+    [
+      '--input-type=module',
+      '-e',
+      `import * as bilan from ${JSON.stringify(BILAN)};\nconst sortie = await (async () => { ${corps} })();\nprocess.stdout.write(JSON.stringify(sortie ?? null));`,
+    ],
+    { encoding: 'utf8', env: { ...process.env, GRILLHOUSE_REGISTRE: registre } }
+  );
+  expect(r.status, r.stderr).toBe(0);
+  return JSON.parse(r.stdout);
+};
 
 const TICKET = 'demo-7';
 const PROJET = '/depot';
@@ -865,17 +880,10 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
         path.join(racine, '.claude', 'worktrees', `${TICKET}.fiches.jsonl`),
         [...lancees, ...entrees].map(e => JSON.stringify(e)).join('\n') + '\n'
       );
-      const avant = process.env.GRILLHOUSE_REGISTRE;
-      process.env.GRILLHOUSE_REGISTRE = registre;
-      try {
-        ecrireLeBilan(racine, TICKET);
-      } finally {
-        if (avant === undefined) {
-          delete process.env.GRILLHOUSE_REGISTRE;
-        } else {
-          process.env.GRILLHOUSE_REGISTRE = avant;
-        }
-      }
+      avecLeRegistre(
+        registre,
+        `bilan.ecrireLeBilan(${JSON.stringify(racine)}, ${JSON.stringify(TICKET)});`
+      );
       const f = path.join(racine, '.claude', 'worktrees', `${TICKET}.bilan.json`);
       return JSON.parse(readFileSync(f, 'utf8')) as Bilan;
     };
@@ -894,21 +902,17 @@ describe('the night, the supervisor’s wait and the owner’s', () => {
     writeFileSync(path.join(racine, 'package.json'), JSON.stringify({ name: 'projet-fin-donnee' }));
     const registre = path.join(racine, 'registre.jsonl');
     writeFileSync(registre, '');
-    const avant = process.env.GRILLHOUSE_REGISTRE;
-    process.env.GRILLHOUSE_REGISTRE = registre;
-    try {
-      ecrireLeBilan(racine, TICKET, { etape: 'controles', raison: 'controles', code: 14 });
-      const f = path.join(dossier, `${TICKET}.bilan.json`);
-      expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).statut).toBe('arrêt controles (14)');
-      ecrireLeBilan(racine, TICKET, null);
-      expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).statut).toBe('en cours');
-    } finally {
-      if (avant === undefined) {
-        delete process.env.GRILLHOUSE_REGISTRE;
-      } else {
-        process.env.GRILLHOUSE_REGISTRE = avant;
-      }
-    }
+    const f = path.join(dossier, `${TICKET}.bilan.json`);
+    avecLeRegistre(
+      registre,
+      `bilan.ecrireLeBilan(${JSON.stringify(racine)}, ${JSON.stringify(TICKET)}, { etape: 'controles', raison: 'controles', code: 14 });`
+    );
+    expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).statut).toBe('arrêt controles (14)');
+    avecLeRegistre(
+      registre,
+      `bilan.ecrireLeBilan(${JSON.stringify(racine)}, ${JSON.stringify(TICKET)}, null);`
+    );
+    expect((JSON.parse(readFileSync(f, 'utf8')) as Bilan).statut).toBe('en cours');
   });
 
   it('reads the range from the key grillhouse.plageDeNuit of the project’s package.json, 23 h – 8 h without it', () => {
@@ -1188,27 +1192,21 @@ describe('the text of the bilan and its base', () => {
       cout: 0,
       seances: { ...b.seances, total: 0 },
     });
-    const avant = process.env.GRILLHOUSE_REGISTRE;
-    process.env.GRILLHOUSE_REGISTRE = registre;
-    try {
-      const p = precedent(racine, TICKET) as Bilan | null;
-      expect(p?.ticket).toBe('demo-6');
-      expect(p?.seances.total).toBe(2);
-      expect(p?.cout).toBeCloseTo(4.5);
-      // Its sources gone, demo-6 gives no base: the bilan compares itself with nothing.
-      writeFileSync(path.join(dossier, 'demo-6.fiches.jsonl'), '');
-      writeFileSync(registre, '');
-      expect(precedent(racine, TICKET)).toBeNull();
-      expect(ecrireLeBilan(racine, TICKET)).toMatch(
-        /^Aucun bilan d'avant dans ce projet : pas de base\.$/m
-      );
-    } finally {
-      if (avant === undefined) {
-        delete process.env.GRILLHOUSE_REGISTRE;
-      } else {
-        process.env.GRILLHOUSE_REGISTRE = avant;
-      }
-    }
+    const precedentDe = `return bilan.precedent(${JSON.stringify(racine)}, ${JSON.stringify(TICKET)});`;
+    const p = avecLeRegistre(registre, precedentDe) as Bilan | null;
+    expect(p?.ticket).toBe('demo-6');
+    expect(p?.seances.total).toBe(2);
+    expect(p?.cout).toBeCloseTo(4.5);
+    // Its sources gone, demo-6 gives no base: the bilan compares itself with nothing.
+    writeFileSync(path.join(dossier, 'demo-6.fiches.jsonl'), '');
+    writeFileSync(registre, '');
+    expect(avecLeRegistre(registre, precedentDe)).toBeNull();
+    expect(
+      avecLeRegistre(
+        registre,
+        `return bilan.ecrireLeBilan(${JSON.stringify(racine)}, ${JSON.stringify(TICKET)});`
+      )
+    ).toMatch(/^Aucun bilan d'avant dans ce projet : pas de base\.$/m);
   });
 
   it('takes as its base the last other ticket kept, by the time its bilan was computed, never its own', () => {
@@ -1239,18 +1237,13 @@ describe('the text of the bilan and its base', () => {
     garder(racine, { ...b, ticket: 'demo-6', calcule: '2026-10-19T12:00:00.000Z' });
     garder(racine, { ...b, ticket: 'demo-5', calcule: '2026-10-19T10:00:00.000Z' });
     garder(racine, { ...b, ticket: TICKET, calcule: '2026-10-20T12:00:00.000Z' });
-    const avant = process.env.GRILLHOUSE_REGISTRE;
-    process.env.GRILLHOUSE_REGISTRE = registre;
-    try {
-      expect((precedent(racine, TICKET) as Bilan | null)?.ticket).toBe('demo-6');
-      expect((precedent(racine, 'demo-6') as Bilan | null)?.ticket).toBe(TICKET);
-    } finally {
-      if (avant === undefined) {
-        delete process.env.GRILLHOUSE_REGISTRE;
-      } else {
-        process.env.GRILLHOUSE_REGISTRE = avant;
-      }
-    }
+    const precedentDe = (t: string) =>
+      avecLeRegistre(
+        registre,
+        `return bilan.precedent(${JSON.stringify(racine)}, ${JSON.stringify(t)});`
+      ) as Bilan | null;
+    expect(precedentDe(TICKET)?.ticket).toBe('demo-6');
+    expect(precedentDe('demo-6')?.ticket).toBe(TICKET);
   });
 
   it('says its key figures in one short sentence', () => {

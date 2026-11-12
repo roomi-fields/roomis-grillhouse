@@ -268,10 +268,11 @@ const depotFactice = (tickets: object[], registre: object[]) => {
     `#!/bin/sh\ncase "$1" in\n  config) echo demo ;;\n  list) cat '${bin}/tous.json' ;;\n  *) echo '[]' ;;\nesac\n`,
     { mode: 0o755 }
   );
-  const fichier = path.join(bin, 'registre.jsonl');
+  // The register is the one of this test file, which the base configuration names (the module reads
+  // it once, at its import).
+  const fichier = process.env.GRILLHOUSE_REGISTRE as string;
   writeFileSync(fichier, registre.map(r => l({ ...r, projet: racine })).join('\n') + '\n');
   vi.stubEnv('PATH', `${bin}:${process.env.PATH}`);
-  vi.stubEnv('GRILLHOUSE_REGISTRE', fichier);
   return racine;
 };
 
