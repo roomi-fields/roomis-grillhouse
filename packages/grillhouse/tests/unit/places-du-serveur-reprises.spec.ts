@@ -58,7 +58,9 @@ describe('a server busy is told from a server absent', () => {
     expect(await ecoute(`127.0.0.1:${port}`)).toBe(true);
     await new Promise<void>(ok => serveur.close(() => ok()));
     // A refusal answers at once; the wide bound keeps a slow loopback from passing for a server.
-    expect(await ecoute(`127.0.0.1:${port}`, 30_000)).toBe(false);
+    // The port refused is port 1, reserved and never handed out: the port just closed, back in the
+    // dynamic range, another test running beside this one may be listening on already.
+    expect(await ecoute('127.0.0.1:1', 30_000)).toBe(false);
   });
 });
 
