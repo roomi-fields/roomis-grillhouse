@@ -2,15 +2,23 @@
 // (scripts/tableau.mjs) : ● un circuit complet, ○ un circuit court (passé par 1.1 Geste mécanique),
 // ✎ un ticket direct (étiquette `direct`, ou fermé sans aucun circuit). Chaque ligne porte
 // « <durée> · <jetons> » ; un ticket direct compte sa durée de sa prise à sa fermeture, « — » sans
-// prise. Les jetons sont ceux des agents que le registre rattache au ticket. Le total de l'en-tête
-// reste le temps de travail des agents. La voie d'un circuit fini se lit dans ses résultats gardés
+// prise. Les jetons sont ceux des agents que le registre rattache au ticket, et, pour un ticket
+// direct, la part des jetons du superviseur de sa prise à sa fermeture, partagée minute par minute
+// entre les directs pris en même temps. Un ticket fermé sans livraison (doublon, remplacé, sans
+// suite) n'est pas un fait. La voie d'un circuit fini se lit dans ses résultats gardés
 // (`.claude/worktrees/<ticket>.fiches.jsonl` de l'arbre principal) : le lancement de la séance du
 // geste porte l'objet `geste`.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { assembler, LARGEUR, lignes, voiesDesCircuits } from '../../scripts/tableau.mjs';
+import {
+  assembler,
+  jetonsDuSuperviseur,
+  LARGEUR,
+  lignes,
+  voiesDesCircuits,
+} from '../../scripts/tableau.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tableau-faits-voies-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -46,7 +54,10 @@ const agent = (ticket: string, role: string, travail: number, jetons: number) =>
   travail,
   jetons,
 });
-const plateau = (tous: object[], o: { registre?: object[]; voies?: object } = {}) =>
+const plateau = (
+  tous: object[],
+  o: { registre?: object[]; voies?: object; superviseur?: Record<string, number> } = {}
+) =>
   assembler({
     tous,
     prefix: 'demo',
@@ -56,7 +67,10 @@ const plateau = (tous: object[], o: { registre?: object[]; voies?: object } = {}
     maintenant: MAINTENANT,
     jour: JOUR,
     voies: o.voies ?? {},
+    superviseur: o.superviseur ?? {},
   } as Parameters<typeof assembler>[0]);
+// The minute since the epoch of the instant <iso>.
+const minute = (iso: string) => String(Math.floor(Date.parse(iso) / MIN));
 const faits = (p: ReturnType<typeof plateau>) =>
   (lignes(p, 'depot') as Ligne[]).filter(l => l.section === 'faits');
 const duTicket = (p: ReturnType<typeof plateau>, id: string) =>
@@ -174,5 +188,76 @@ describe('la voie d’un circuit fini se lit dans ses résultats gardés', () =>
 
   it('une ligne illisible ne casse pas la lecture : le circuit reste complet', () => {
     expect(voiesDesCircuits(RACINE, ['demo-6'])).toEqual({ 'demo-6': 'complet' });
+  });
+});
+
+describe('un ticket direct porte les jetons du superviseur qui le mène', () => {
+  it('ceux de sa prise à sa fermeture, en plus de ceux de ses agents', () => {
+    const p = plateau([T('demo-3')], {
+      registre: [agent('demo-3', 'explorateur', MIN, 4_000)],
+      superviseur: {
+        [minute('2026-11-12T09:30:00Z')]: 50_000,
+        [minute('2026-11-12T11:00:00Z')]: 70_000,
+      },
+    });
+    expect(duTicket(p, 'demo-3').texte).toMatch(/ · 54 k$/);
+  });
+
+  it('une minute se partage entre les directs pris à cette minute', () => {
+    const p = plateau(
+      [
+        T('demo-3'),
+        T('demo-4', { started_at: '2026-11-12T09:20:00Z', closed_at: '2026-11-12T09:40:00Z' }),
+      ],
+      { superviseur: { [minute('2026-11-12T09:30:00Z')]: 50_000 } }
+    );
+    expect(duTicket(p, 'demo-3').texte).toMatch(/ · 25 k$/);
+    expect(duTicket(p, 'demo-4').texte).toMatch(/ · 25 k$/);
+  });
+
+  it('un circuit ne prend rien des jetons du superviseur', () => {
+    const p = plateau([T('demo-1')], {
+      voies: { 'demo-1': 'complet' },
+      superviseur: { [minute('2026-11-12T09:30:00Z')]: 50_000 },
+    });
+    expect(duTicket(p, 'demo-1').texte).toMatch(/ · 0$/);
+  });
+
+  it('se lisent minute par minute dans les séances du projet touchées depuis le repère du jour', () => {
+    const home = mkdtempSync(path.join(ESSAIS, 'home-'));
+    const racine = '/depot/essai';
+    const dossier = path.join(home, '.claude', 'projects', racine.replace(/[^A-Za-z0-9]/g, '-'));
+    mkdirSync(dossier, { recursive: true });
+    const message = (ts: string, id: string, n: number) =>
+      JSON.stringify({
+        type: 'assistant',
+        timestamp: ts,
+        message: { id, model: 'm', usage: { input_tokens: n, output_tokens: 0 } },
+      });
+    writeFileSync(
+      path.join(dossier, 's.jsonl'),
+      [message('2026-11-12T09:30:10Z', 'a', 300), message('2026-11-12T09:30:50Z', 'b', 200)].join(
+        '\n'
+      ) + '\n'
+    );
+    expect(jetonsDuSuperviseur({ racine, home, jour: 0 })).toEqual({
+      [minute('2026-11-12T09:30:00Z')]: 500,
+    });
+  });
+});
+
+describe('un ticket fermé sans livraison n’est pas un fait du jour', () => {
+  it('ni un doublon, ni un ticket remplacé, ni un ticket sans suite', () => {
+    const p = plateau([
+      T('demo-1'),
+      T('demo-5', { dependencies: [{ type: 'duplicates', depends_on_id: 'demo-1' }] }),
+      T('demo-6', { dependencies: [{ type: 'supersedes', depends_on_id: 'demo-1' }] }),
+      T('demo-7', { labels: ['sans-suite'] }),
+    ]);
+    expect(
+      faits(p)
+        .filter(l => l.ticket)
+        .map(l => l.ticket)
+    ).toEqual(['demo-1']);
   });
 });

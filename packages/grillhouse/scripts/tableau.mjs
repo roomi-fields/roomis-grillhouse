@@ -262,6 +262,7 @@ const etatNeuf = () => ({
   tours: [],
   recu: false,
   vus: [],
+  minutes: {},
 });
 
 // The union of intervals, ordered by date: no instant is in two of them.
@@ -351,8 +352,15 @@ function avancer(etat, texte) {
     if (id) {
       vus.add(id);
     }
-    etat.jetons +=
-      (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    const n = (u.input_tokens ?? 0) + (u.output_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+    etat.jetons += n;
+    // The tokens by minute of their message, which share the supervisor's among the tickets he
+    // leads directly (`jetonsDuSuperviseur`); a state kept before them starts its own.
+    if (!Number.isNaN(t)) {
+      etat.minutes ??= {};
+      const minute = Math.floor(t / 60_000);
+      etat.minutes[minute] = (etat.minutes[minute] ?? 0) + n;
+    }
     etat.cache += u.cache_read_input_tokens ?? 0;
     // The usage of the message's model: a write of the cache by its duration, one without them
     // of five minutes, the default of the API.
@@ -395,6 +403,7 @@ const mesurer = etat => ({
   role: etat.role,
   cout: etat.cout,
   modeles: structuredClone(etat.modeles),
+  minutes: { ...(etat.minutes ?? {}) },
 });
 
 // The measures of the transcript text `texte` held in memory.
@@ -572,6 +581,25 @@ const metaDe = f => {
     return {};
   }
 };
+
+/**
+ * The tokens of the supervisor's sessions of the repository at <racine> by minute (`{ <minute>:
+ * <tokens> }`, the minute since the epoch): its main transcripts touched since the day's marker
+ * <jour>, read through <cache>; the sub-agents' are counted by their tickets.
+ */
+export function jetonsDuSuperviseur({ racine, home, jour, cache = {} }) {
+  const lire = lecteur(cache);
+  const out = {};
+  for (const f of fichiers(path.join(home, '.claude', 'projects', enTirets(racine)), '.jsonl')) {
+    if (statSync(f).mtimeMs < jour) {
+      continue;
+    }
+    for (const [minute, n] of Object.entries(lire(f)?.minutes ?? {})) {
+      out[minute] = (out[minute] ?? 0) + n;
+    }
+  }
+  return out;
+}
 
 // The agents running now, each with its measures so far. `ps` is the process list
 // (`pid etimes args` per line); `cache` keeps the readings of unchanged transcripts. A role agent
@@ -806,6 +834,7 @@ export function assembler({
   remontees = [],
   attenteVivante: attenteQuiVit = true,
   voies = {},
+  superviseur = {},
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1103,12 +1132,35 @@ export function assembler({
     (t.labels ?? []).includes('direct')
       ? 'direct'
       : (voies[t.id] ?? (parUnCircuit.has(t.id) ? 'complet' : 'direct'));
+  // A ticket closed with no delivery: a duplicate, superseded (`bd duplicate`, `bd supersede`), or
+  // labelled `sans-suite`.
+  const sansLivraison = t =>
+    (t.dependencies ?? []).some(d => d.type === 'duplicates' || d.type === 'supersedes') ||
+    aLabel(t, 'sans-suite');
+  // The supervisor leads a direct ticket from its claim to its close (now while it runs): each
+  // minute of his tokens is shared among the direct tickets he holds at that minute.
+  const tenusEnDirect = tous
+    .filter(t => voieDe(t) === 'direct' && Number.isFinite(Date.parse(t.started_at ?? '')))
+    .map(t => ({
+      id: t.id,
+      debut: Math.floor(Date.parse(t.started_at) / 60_000),
+      fin: Math.floor((t.closed_at ? Date.parse(t.closed_at) : maintenant) / 60_000),
+    }));
+  const partDuSuperviseur = new Map();
+  for (const [cle, n] of Object.entries(superviseur)) {
+    const minute = Number(cle);
+    const tenus = tenusEnDirect.filter(x => x.debut <= minute && minute <= x.fin);
+    for (const x of tenus) {
+      partDuSuperviseur.set(x.id, (partDuSuperviseur.get(x.id) ?? 0) + n / tenus.length);
+    }
+  }
   const faitsDuJour = tous
     .filter(
       t =>
         travail(t) &&
         !actifs.has(t.id) &&
         !estDecouverte(t) &&
+        !sansLivraison(t) &&
         t.closed_at &&
         Date.parse(t.closed_at) >= debutJour
     )
@@ -1125,7 +1177,17 @@ export function assembler({
           : Number.isFinite(pris)
             ? Date.parse(t.closed_at) - pris
             : null;
-      return { id: t.id, numero: numero(t.id), sujet: titre(t).sujet, voie, duree: dure, ...m };
+      const jetons =
+        m.jetons + Math.round(voie === 'direct' ? (partDuSuperviseur.get(t.id) ?? 0) : 0);
+      return {
+        id: t.id,
+        numero: numero(t.id),
+        sujet: titre(t).sujet,
+        voie,
+        duree: dure,
+        ...m,
+        jetons,
+      };
     });
 
   // Alerts, each with its state (`etat`) and the tone of that state (TONS).
@@ -2271,9 +2333,7 @@ function lire(
   } catch {
     ps = '';
   }
-  const registre = existsSync(REGISTRE)
-    ? lireRegistre(readFileSync(REGISTRE, 'utf8'), racine)
-    : [];
+  const registre = existsSync(REGISTRE) ? lireRegistre(readFileSync(REGISTRE, 'utf8'), racine) : [];
   const tous = bdJson(racine, 'list', '--all', '--limit', '0');
   const commun = dossierCommun(racine);
   const fichierCache = commun && path.join(commun, 'tableau-cache.json');
@@ -2291,6 +2351,8 @@ function lire(
     ps,
     cache,
   });
+  const jourLu = lireLeRepere(commun, maintenant);
+  const superviseur = jetonsDuSuperviseur({ racine, home, jour: jourLu, cache });
   try {
     if (fichierCache) {
       writeFileSync(
@@ -2301,7 +2363,7 @@ function lire(
   } catch {
     // A read-only place keeps the board working, without its cache.
   }
-  const jour = lireLeRepere(commun, maintenant);
+  const jour = jourLu;
   // The kept results of the circuits of the tickets done since the day's marker, in the main tree.
   const voies = voiesDesCircuits(
     commun ? path.dirname(commun) : racine,
@@ -2325,6 +2387,7 @@ function lire(
     outil: echecDeLOutil(racine),
     remontees: lireLesRemontees(racine, maintenant),
     attenteVivante: attenteVivante(racine),
+    superviseur,
   });
   return { t, prefix, tous, vivants, commun };
 }
