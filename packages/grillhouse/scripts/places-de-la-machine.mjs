@@ -141,6 +141,14 @@ function auServeur(env, args, ms = 30_000) {
     .split('\n')
     .filter(Boolean)
     .map(l => JSON.parse(l));
+  // A server still busy after the bridge's attempts: the measure is to be played again (75), as
+  // the bound of a wait is; only `prendre` gives a 75 of its own, its wait said in its lines.
+  if (r.status === A_REPASSER && args[0] !== 'prendre') {
+    throw new AttenteDeLaMachine(
+      `⏳ ${(r.stderr || 'les places de la machine ne répondent pas à temps').trim()}`,
+      A_REPASSER
+    );
+  }
   if (r.status !== 0 && r.status !== A_REPASSER) {
     throw new AttenteDeLaMachine(
       `✗ ${(r.stderr || r.error?.message || `les places de la machine ne se lisent pas, code ${r.status}`).trim()}`,

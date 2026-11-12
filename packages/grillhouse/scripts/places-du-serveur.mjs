@@ -30,10 +30,44 @@ import { A_REPASSER } from './codes-de-sortie.mjs';
 import { duree } from './regles-des-places.mjs';
 
 const DIST = path.join(import.meta.dirname, '..', 'dist', 'temporal');
-// How long a call waits for the server to answer.
-const DELAI_MS = 5_000;
+// How long a call waits for the server to answer, each attempt.
+const DELAI_MS = 8_000;
+// The attempts of a call the server fails transiently, and the pause before the next.
+const ESSAIS = 3;
+const RECUL_MS = 1_000;
+
+// Whether <x> is a transient failure of the server, which a new attempt may pass: a deadline
+// exceeded (the connection slow to open under load) or the server unavailable, as Temporal's
+// clients retry them (gRPC codes 4 and 14).
+export const transitoire = x =>
+  [4, 14].includes(x?.code ?? x?.cause?.code) ||
+  /DEADLINE_EXCEEDED|UNAVAILABLE/.test(`${x?.message ?? ''} ${x?.cause?.message ?? ''}`);
+
+/**
+ * Plays <appel> (an async function), again after a pause growing by <reculMs>, while it fails
+ * transiently, at most <essais> times; any other failure, or the last, throws.
+ * @template T
+ * @param {() => Promise<T>} appel
+ * @param {{ essais?: number, reculMs?: number, attendre?: (ms: number) => Promise<void> }} [o]
+ * @returns {Promise<T>}
+ */
+export async function avecReprises(
+  appel,
+  { essais = ESSAIS, reculMs = RECUL_MS, attendre = ms => new Promise(r => setTimeout(r, ms)) } = {}
+) {
+  for (let n = 1; ; n++) {
+    try {
+      return await appel();
+    } catch (x) {
+      if (n >= essais || !transitoire(x)) {
+        throw x;
+      }
+      await attendre(reculMs * n);
+    }
+  }
+}
 // How often a wait reads its request again.
-const VEILLE_MS = 250;
+const VEILLE_MS = 1_000;
 
 // The spacing of the machine under <env>, as scripts/places-de-la-machine.mjs reads it; the
 // workflow's veille, a second. The ceiling, the workflow reads from the poste at each judgement.
@@ -101,7 +135,8 @@ async function principal(mode, args) {
   const { ID_DES_PLACES, LA_DEMANDE, PRENDRE } = await depuisDist('places', 'contrat.js');
   const places = await depuisDist('places', 'client.js');
   const c = ouvrirLeClient();
-  const sous = f => c.client.connection.withDeadline(Date.now() + DELAI_MS, f);
+  // Each attempt gets its own deadline, counted from its start.
+  const sous = f => avecReprises(() => c.client.connection.withDeadline(Date.now() + DELAI_MS, f));
   try {
     try {
       await sous(async () =>
@@ -147,6 +182,14 @@ async function principal(mode, args) {
     }
     return 0;
   } catch (x) {
+    if (transitoire(x)) {
+      // Still failing transiently after its attempts: the server is busy, not absent; the
+      // measure is to be played again (75), never a red.
+      process.stderr.write(
+        `les places de la machine ne répondent pas à temps sur le serveur Temporal (${c.adresse}), ${ESSAIS} essais : ${x?.message ?? x} ; à repasser.\n`
+      );
+      return A_REPASSER;
+    }
     process.stderr.write(
       `les places de la machine ne se lisent pas sur le serveur Temporal (${c.adresse}) : ${x?.message ?? x}${x?.cause?.message ? ` (${x.cause.message})` : ''} ; le serveur est requis sur le poste (\`npx grillhouse temporal installer\`).\n`
     );
