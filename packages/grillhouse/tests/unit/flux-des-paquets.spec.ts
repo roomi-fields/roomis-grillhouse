@@ -18,6 +18,7 @@ import {
   consigneDesFlux,
   constats,
   fluxDe,
+  fluxSansEntree,
   GARDE,
   lireFlux,
   SCRIPT,
@@ -125,6 +126,46 @@ describe('critère 4 — la clé grillhouse.flux se lit comme celles d’engendr
       expect(t).toContain('grillhouse.flux');
       expect(t).toContain(CI);
     }
+  });
+});
+
+describe('fluxSansEntree — la lecture des flux sans entrée, partagée par la garde et la montée', () => {
+  const A = '.github/workflows/a.yml';
+  const B = '.github/workflows/b.yaml';
+  const C = '.github/workflows/c.yml';
+
+  it('rend, triés, les fichiers yml et yaml sans entrée dans grillhouse.flux', () => {
+    const racine = projet({ [C]: ['@p/x'] }, { x: {} }, [C, B, A]);
+    expect(fluxSansEntree(racine)).toEqual([A, B]);
+  });
+
+  it('rend chaque flux quand la clé est absente', () => {
+    const racine = projet(undefined, {}, [B, A]);
+    expect(fluxSansEntree(racine)).toEqual([A, B]);
+  });
+
+  it('ne rend rien d’autre : ni fichier déclaré absent, ni paquet inconnu, ni fichier d’une autre extension', () => {
+    const racine = projet({ [A]: ['@p/inconnu'], [C]: ['@p/x'] }, { x: {} }, [A]);
+    ecrire(racine, '.github/workflows/lisez-moi.md', 'x');
+    expect(fluxSansEntree(racine)).toEqual([]);
+  });
+
+  it('rend une liste vide sans dossier de flux', () => {
+    expect(fluxSansEntree(projet({}, {}, []))).toEqual([]);
+  });
+
+  it('rend une liste vide quand la clé est fautive', () => {
+    for (const faute of [['a'], 'ci.yml', { [A]: 'oui' }, { 'autre/a.yml': [] }]) {
+      expect(fluxSansEntree(projet(faute, {}, [A, B]))).toEqual([]);
+    }
+  });
+
+  it('les constats « flux sans entrée » de la garde nomment exactement ces fichiers', () => {
+    const racine = projet({ [C]: ['@p/x'] }, { x: {} }, [A, B, C]);
+    const nommes = constats(racine)
+      .filter(c => c.message.includes('flux de la CI sans entrée'))
+      .map(c => c.fichier);
+    expect(nommes).toEqual(fluxSansEntree(racine));
   });
 });
 

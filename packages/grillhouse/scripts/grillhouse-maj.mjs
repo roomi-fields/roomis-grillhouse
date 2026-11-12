@@ -151,6 +151,7 @@ import { pathToFileURL } from 'node:url';
 import { CADRE, VERSION } from './cadre.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
+import { fluxSansEntree } from './flux-des-paquets.mjs';
 import { installerGreffons } from './greffons.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
 import { langageDe, langagesDe } from './langages.mjs';
@@ -329,6 +330,8 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
     ligneEtat: false,
     greffon: false,
     workflows: [],
+    fluxSansEntree: [],
+    fluxDeclares: {},
     duLangage: { lignes: [], aFaire: [], installer: false, sansVerifier: null },
   };
   const pkg = path.join(projet, 'package.json');
@@ -433,6 +436,10 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
       };
     }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);
+    // The flows of the CI without entry in `grillhouse.flux` (the guard's read), with the entries
+    // already declared, which the command of the report keeps.
+    bilan.fluxSansEntree = fluxSansEntree(projet);
+    bilan.fluxDeclares = bilan.fluxSansEntree.length > 0 ? (p.grillhouse?.flux ?? {}) : {};
     ignorer(projet);
   }
   bilan.ligneEtat = reglerLigneEtat(projet);
@@ -556,6 +563,18 @@ export function rapport(b) {
   if (b.workflows?.length > 0) {
     lignes.push(
       `Workflows du cadre : ${b.workflows.join(', ')} écrit(s) depuis le gabarit ; leur machine est la variable RUNNER du dépôt sur GitHub (ubuntu-latest sans elle), que la mise à jour ne touche pas.`
+    );
+  }
+  if (b.fluxSansEntree?.length > 0) {
+    // The whole object: the declared entries as they are, each missing flow with a name the graph
+    // does not know, so the guard stays red until the project names the package the flow exercises.
+    const objet = { ...b.fluxDeclares };
+    for (const f of b.fluxSansEntree) {
+      objet[f] = ['<paquet>'];
+    }
+    const json = JSON.stringify(objet).replaceAll("'", "'\\''");
+    lignes.push(
+      `Flux de la CI sans entrée dans grillhouse.flux : ${b.fluxSansEntree.join(', ')}. Déclare les paquets que chacun exerce : \`npm pkg set --json grillhouse.flux='${json}'\`, puis remplace chaque <paquet> par le nom du paquet que le flux exerce (la garde flux-des-paquets reste rouge d'ici là).`
     );
   }
   if (b.gardes?.deplace) {

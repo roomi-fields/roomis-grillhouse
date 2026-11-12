@@ -111,6 +111,23 @@ function fichiersDeFlux(racine) {
 }
 
 /**
+ * The workflow files of the project at <racine> (.yml, .yaml under .github/workflows) that
+ * `grillhouse.flux` of its package.json does not declare, sorted; nothing else (not a declared
+ * file that is absent, not an unknown package), and none when the key is faulty. The guard and the
+ * update (`grillhouse maj`) read the flows without entry through it.
+ * @param {string} racine the root of the project
+ * @returns {string[]}
+ */
+export function fluxSansEntree(racine) {
+  const { flux, fautes } = lireFlux(lireJson(path.join(racine, 'package.json')));
+  if (fautes.length) {
+    return [];
+  }
+  const declares = new Set(flux.map(f => f.fichier));
+  return fichiersDeFlux(racine).filter(f => !declares.has(f));
+}
+
+/**
  * The findings of the guard on the project at <racine>: `{ fichier, message }`, none when each
  * workflow is declared with packages the graph carries.
  * @param {string} racine the root of the project
@@ -123,14 +140,11 @@ export function constats(racine) {
     return out;
   }
   const connus = new Set(paquets(racine).map(p => p.pkg.name));
-  const declares = new Set(flux.map(f => f.fichier));
-  for (const f of fichiersDeFlux(racine)) {
-    if (!declares.has(f)) {
-      out.push({
-        fichier: f,
-        message: `${f} : flux de la CI sans entrée dans ${CLE} du package.json ; chaque flux déclare les paquets qu'il exerce, le relecteur le lit.`,
-      });
-    }
+  for (const f of fluxSansEntree(racine)) {
+    out.push({
+      fichier: f,
+      message: `${f} : flux de la CI sans entrée dans ${CLE} du package.json ; chaque flux déclare les paquets qu'il exerce, le relecteur le lit.`,
+    });
   }
   for (const { fichier, paquets: noms } of flux) {
     if (!existsSync(path.join(racine, fichier))) {
