@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.34.1] - 2026-11-12
+
 - **Pruning the debt no longer empties the debt of the guard of the migrations of the guards** (grillhouse-7jk): `npm run grillhouse:dette:elaguer`, run in a copy whose frame's scripts were another tree's (its `node_modules` linked to the main tree), emptied the whole section `migrations-des-gardes` of `grillhouse-dette.json`: the guard measures nothing outside the frame's own scripts, and pruning read that nothing as every finding corrected; the guard then turned red at the CI. As a baseline (ESLint, Betterer) only moves on what it measured, the guard no longer judges nor prunes its debt where it does not measure. **Action for projects**: none.
 
 - **A restart of the worker for an update no longer stops the circuits in flight** (grillhouse-63z): on 2026-11-12, `npx grillhouse temporal installer` (the update to 0.34.0) restarted the workers, and the acts in flight of two circuits failed « acte … annulé » with no attempt again, each circuit raising a question « inattendu » that a mere `--reprendre` lifted. As Temporal advises for the stop of a worker (its activities cancelled with `WORKER_SHUTDOWN`, failed so that the server tries them again at once), an act cancelled by the stop of its worker now fails as one Temporal tries again on the next worker (`echecDeLAnnulation`, src/temporal/acte.ts), its session resumed as after a dead worker; a cancellation by the supervisor or a timeout still fails for good. **Action for projects**: none.
