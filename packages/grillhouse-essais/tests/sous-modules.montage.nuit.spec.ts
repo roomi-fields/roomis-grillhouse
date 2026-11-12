@@ -159,11 +159,16 @@ describe('grillhouse-3uv.58.1 critère 16 — the mount covers each shared submo
 
 // A command of the project that moves the shared submodule: `git reset --soft` of vendor/natif to
 // its v2, and an empty commit in the submodule nested in it; it notes « deplacer-<step> <outcome of
-// the reset> <outcome of the commit> » in the copy's ecritures.log, and always exits 0.
+// the reset> <outcome of the commit> » in the copy's ecritures.log, and always exits 0. Its git
+// commands leave out the repository git gives a hook (GIT_DIR, GIT_INDEX_FILE…), as a hook that
+// acts on another repository does: with them, `git -C vendor/natif` would act on the copy.
 const PARTAGE_DEPLACEMENT = (cible: string) => `import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 const etape = process.argv[2];
-const essai = args => (spawnSync('git', args, { stdio: 'ignore' }).status === 0 ? 'ok' : 'refus');
+const env = Object.fromEntries(
+  Object.entries(process.env).filter(([k]) => !['GIT_DIR', 'GIT_INDEX_FILE', 'GIT_WORK_TREE', 'GIT_PREFIX'].includes(k))
+);
+const essai = args => (spawnSync('git', args, { stdio: 'ignore', env }).status === 0 ? 'ok' : 'refus');
 const reset = essai(['-C', 'vendor/natif', 'reset', '-q', '--soft', ${JSON.stringify(cible)}]);
 const commit = essai(['-C', 'vendor/natif/profond', 'commit', '-q', '--allow-empty', '-m', etape]);
 fs.appendFileSync('ecritures.log', ['deplacer-' + etape, reset, commit].join(' ') + '\\n');
@@ -423,9 +428,10 @@ const mondeReecrit = (commande: string, script = 'build') => {
 describe('grillhouse-3uv.58.1 critère 20 — the mount reads nothing the copy can rewrite during a lot to find the shared submodules', () => {
   for (const [cas, reecrire] of Object.entries(lotsGitmodules)) {
     it.runIf(canWrap)(
-      `critère 20: an integration whose lot ${cas}, its build writing into the shared submodule — the write fails or the lot is refused, the main repository’s submodule intact`,
+      `critère 20: an integration whose lot ${cas}, its installation and its commit’s hook writing into the shared submodule — the write fails or the lot is refused, the main repository’s submodule intact`,
       () => {
         const m = mondePartage({ ecritures: true });
+        poserCrochet(m);
         const gm = path.join(m.repo, '.gitmodules');
         const avant = readFileSync(gm, 'utf8');
         const apres = reecrire(avant);
@@ -455,8 +461,12 @@ describe('grillhouse-3uv.58.1 critère 20 — the mount reads nothing the copy c
         expect(existsSync(m.nonSuivi)).toBe(true);
         expect(git(m.principalNatif, 'rev-parse', 'HEAD')).toBe(commit);
         if (r.status === 0) {
-          // Committed: every command, after the lot, failed to write into the shared submodule.
-          expect(vues.filter(l => l.startsWith('construction ')).length, dit).toBeGreaterThan(0);
+          // Committed: every command the integration plays after the lot (the installation, the
+          // commit's hook; it verifies nothing since grillhouse-44b.12.5) failed to write into the
+          // shared submodule.
+          for (const e of ['installation', 'crochet']) {
+            expect(vues.filter(l => l.startsWith(`${e} `)).length, dit).toBeGreaterThan(0);
+          }
           expect(ecrituresFautives(vues), dit).toEqual([]);
         } else {
           expect(r.status, dit).toBe(1);
@@ -470,15 +480,17 @@ describe('grillhouse-3uv.58.1 critère 20 — the mount reads nothing the copy c
   }
   for (const [cas, commande] of Object.entries(commandesGitmodules)) {
     it.runIf(canWrap)(
-      `critère 20: in the integration, a build that ${cas} leaves the following commands (tests, guards) unable to write into the shared submodule, the main repository’s submodule intact`,
+      `critère 20: in the integration, an installation that ${cas} leaves the following command (the commit’s hook) unable to write into the shared submodule, the main repository’s submodule intact`,
       () => {
-        const m = mondeReecrit(commande);
+        // The integration plays the installation and the commit's hook, no build nor test.
+        const m = mondeReecrit(commande, 'postinstall');
+        poserCrochet(m);
         const commit = git(m.principalNatif, 'rev-parse', 'HEAD');
         const r = m.integrer();
         const vues = m.ecrituresDe(m.copies.integration);
         const dit = r.stdout + r.stderr + vues.join('\n');
         expect(m.intrus(), dit).toEqual([]);
-        for (const e of ['tests', 'gardes']) {
+        for (const e of ['installation', 'crochet']) {
           expect(vues.filter(l => l.startsWith(`${e} `)).length, dit).toBeGreaterThan(0);
         }
         expect(ecrituresFautives(vues), dit).toEqual([]);

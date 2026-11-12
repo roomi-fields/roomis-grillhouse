@@ -515,8 +515,11 @@ describe('le déroulé mène le plan, un pas par activité', () => {
         const r = await simule(e);
         return { ...r, effets: [{ genre: 'etat', etat: etatDuPlan }] };
       },
+      // The first pass, the testwriter's, waits for the test; the others go on.
       preparerLaPasse: async (e, simule) => {
-        await new Promise<void>(r => (ouverts.testwriter = r));
+        if (!ouverts.testwriter) {
+          await new Promise<void>(r => (ouverts.testwriter = r));
+        }
         return simule(e);
       },
     });
