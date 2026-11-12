@@ -183,6 +183,7 @@
     "scripts/langages/typescript/migrations/0.30.0-titres-nommant-un-ticket.mjs",
     "scripts/langages/typescript/migrations/0.33.0-binaire-de-jour.mjs",
     "scripts/langages/typescript/migrations/0.33.0-tests-du-poste.mjs",
+    "scripts/langages/typescript/migrations/0.34.1-cache-des-outils.mjs",
     "scripts/langages/typescript/tranches.mjs",
     "scripts/langages/typescript/mise-a-jour.mjs",
     "scripts/langages/typescript/parcours.mjs",

@@ -106,14 +106,14 @@ describe('critère 8: lint and format:check keep a cache under node_modules/.cac
   for (const [titre, manifeste, ignore] of PROJETS) {
     const scripts = (JSON.parse(lire(manifeste)) as { scripts: Record<string, string> }).scripts;
     for (const nom of ['lint', 'format:check']) {
-      it(`critère 8: ${titre}: the script ${nom} carries --cache and --cache-location under node_modules/.cache`, () => {
+      it(`critère 8: ${titre}: the script ${nom} carries --cache and --cache-location under .cache-outils/`, () => {
         expect(scripts[nom]).toMatch(/(^|\s)--cache(\s|$)/);
-        expect(scripts[nom]).toMatch(/--cache-location[ =]\S*node_modules\/\.cache\//);
+        expect(scripts[nom]).toMatch(/--cache-location[ =]\S*\.cache-outils\//);
       });
     }
 
-    it(`critère 8: ${titre}: git ignores node_modules, where the cache lives`, () => {
-      expect(lire(ignore)).toMatch(/^\/?node_modules\/?$/m);
+    it(`critère 8: ${titre}: git ignores .cache-outils, where the cache lives`, () => {
+      expect(lire(ignore)).toMatch(/^\/?\.cache-outils\/?$/m);
     });
   }
 });

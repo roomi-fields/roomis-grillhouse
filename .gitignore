@@ -95,6 +95,9 @@ pids/
 # Vitest: the reports of the tranches of a pass (npm run verifier -- --tranche i/n)
 .vitest-reports/
 
+# ESLint and Prettier: the cache of the lint and of the format check (a clean output of a session)
+.cache-outils/
+
 # The frame's files the package carries when packed (scripts/cadre.mjs --empaqueter): the
 # plugin at its root, the template under cadre/
 packages/grillhouse/cadre/

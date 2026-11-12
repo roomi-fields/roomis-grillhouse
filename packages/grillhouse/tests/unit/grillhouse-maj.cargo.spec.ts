@@ -417,6 +417,7 @@ describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écriven
     expect((typescript as unknown as { ignorer: string[] }).ignorer).toEqual([
       '.turbo',
       '.vitest-reports',
+      '.cache-outils',
     ]);
   });
 
@@ -515,7 +516,8 @@ describe('grillhouse-icj — la montée ignore les copies de tickets, d’une se
     expect(IGNORES_DU_CADRE).toEqual(['.claude/worktrees']);
     const gabarit = readFileSync(path.join(DEPOT, 'templates/projet/_gitignore'), 'utf8');
     const duGabarit = gabarit.split('\n').map(l => l.trim());
-    for (const nom of [...IGNORES_DU_CADRE, ...IGNORES_TS]) {
+    // `.cache-outils/` is the one line the template carries itself (the cache of the root's tools).
+    for (const nom of [...IGNORES_DU_CADRE, ...IGNORES_TS].filter(n => n !== '.cache-outils')) {
       expect(
         formes(nom).filter(f => duGabarit.includes(f)),
         nom

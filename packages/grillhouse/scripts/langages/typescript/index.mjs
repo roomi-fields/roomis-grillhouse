@@ -72,6 +72,7 @@ import * as prefixeDesTickets from './migrations/0.30.0-prefixe-des-tickets.mjs'
 import * as titresNommantUnTicket from './migrations/0.30.0-titres-nommant-un-ticket.mjs';
 import * as binaireDeJour from './migrations/0.33.0-binaire-de-jour.mjs';
 import * as testsDuPoste from './migrations/0.33.0-tests-du-poste.mjs';
+import * as cacheDesOutils from './migrations/0.34.1-cache-des-outils.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -208,16 +209,18 @@ export default {
   // No program the installer of Temporal looks for: Node is a tool of the account.
   executables: [],
   // What its tools write in a project: Turborepo's runs and cache, and Vitest's reports of the
-  // tranches of a pass (./tranches.mjs).
-  ignorer: ['.turbo', '.vitest-reports'],
+  // tranches of a pass (./tranches.mjs), and the cache of the lint and of the format check of the
+  // project (`.cache-outils/`).
+  ignorer: ['.turbo', '.vitest-reports', '.cache-outils'],
   // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
   // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
   // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of
   // Vite, where Vitest writes the results of a run (`node_modules/.vite/vitest/`) and whose failure
-  // fails it, proper to the session.
+  // fails it, proper to the session; and the cache of ESLint and Prettier (`.cache-outils/`),
+  // proper to the session too, an empty one costing a whole reading, as without a cache.
   sorties: {
     ecrites: ['//.turbo/cache/'],
-    propres: ['.turbo', 'node_modules/.vite'],
+    propres: ['.turbo', 'node_modules/.vite', '.cache-outils'],
     lues: [],
   },
   // The test tool run directly, Vitest or Turborepo that plays it: `npm test` and `npm run
@@ -350,6 +353,7 @@ export default {
     titresNommantUnTicket,
     binaireDeJour,
     testsDuPoste,
+    cacheDesOutils,
   ],
   miseAJour: miseAJour(joueDesTests),
   squelette,
