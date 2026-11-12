@@ -152,18 +152,21 @@ autres sont verts avant le code, sans justification à donner. Chaque sorte de t
 | Banc de temps, témoin de temps | Un temps reste sous sa borne | Non : mesuré la nuit |
 | Test de nuit | Le produit entier, monté dans un projet d'essai | Oui s'il porte le travail du ticket, joué la nuit |
 
-Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de ton lot, dans
+Après ta séance, le circuit du ticket joue la preuve : il lance les seuls tests de ton lot que joue le jour, dans
 tous les paquets du plan, et écrit au ticket les rouges, les verts non nommés (acceptés, que le
 relecteur lit) et les tests nommés encore verts, qui sont un défaut : il te relance. Un test nommé
-que HEAD tient déjà vert sous le même nom n'a rien à prouver. Sous un plan « comportement changé »,
-la preuve passe avec au moins un rouge ; sans rouge, la question monte au superviseur. Ainsi la
+que HEAD tient déjà vert sous le même nom n'a rien à prouver. Les fichiers de ton lot que joue la
+seule nuit (un test de nuit, un banc, un témoin de temps) sont mis de côté : ils ne sont ni exigés
+rouges ni cause de refus. Sous un plan « comportement changé », la preuve passe avec au moins un
+rouge ; sans rouge, la question monte au superviseur. Ainsi la
 preuve mesure le travail du ticket, et aucun test ne rougit pour la forme.
 
 **Un rouge existant suffit** : sans fichier de ton lot, la preuve joue en entier les paquets du
 plan ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a changé un
 type) est un rouge de la preuve, `rouge existant`, qui lance le développeur. Quand ces rouges
 couvrent les critères du ticket, tu n'écris aucun test neuf et ta passation le dit.
-Sans fichier de ton lot ni rouge, la preuve échoue. Ainsi le développeur du lecteur est lancé sur
+Sans fichier de ton lot ni rouge, la preuve échoue, sauf quand les seuls fichiers de test de ton
+lot sont ceux que joue la nuit : elle passe. Ainsi le développeur du lecteur est lancé sur
 ce que le lot casse.
 
 **Un fichier entier se nomme sans `test`** : `portent_le_travail` porte `fichier` (depuis la

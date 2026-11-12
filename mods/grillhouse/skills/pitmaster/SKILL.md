@@ -344,9 +344,10 @@ seul testwriter et un seul développeur pour tout le ticket, chacun dans l'envel
 paquets du plan, puis le relecteur, qui relit l'ensemble. Ainsi un type change avec ses lecteurs,
 comme dans une demande de fusion de rustc : un auteur, une série de tests et de code, une CI sur
 l'ensemble, une revue. Sur un lot rendu, le circuit relance l'agent que nomme chaque constat,
-puis la passe finale restreinte à ce que le correctif change et à ses dépendants, et le relecteur
-relit la différence depuis la relecture d'avant et les constats ouverts ; la passe finale entière joue une fois
-avant l'intégration. Ainsi seul ce qui a changé se rejoue, comme Bazel ne joue que les cibles
+puis la passe finale, qui joue toujours la bande du lot (sa base et ses dépendants), avant une
+relecture, après elle et sur un lot accepté, et jamais le dépôt entier, que jouent la nuit et
+l'intégration ; le relecteur relit la différence depuis la relecture d'avant et les constats
+ouverts. Ainsi seul ce qui a changé se rejoue, comme Bazel ne joue que les cibles
 qu'un changement atteint.
 
 ⛔ **Aucune commande ne fait attendre le responsable** : dans une séance où il attend, celle du

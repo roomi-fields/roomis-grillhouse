@@ -46,6 +46,13 @@
 //   namespace of the sweeper (an envelope has its own, bwrap --unshare-pid, where a number means
 //   nothing outside): a base of another namespace, a base without a readable owner (one being
 //   created) and a base whose owner lives are never touched.
+// - The trial directories under the home, `~/.cache/grillhouse-essais-*` (`racineSousLaMaison`,
+//   grillhouse-matiere), are not in the base: each holds its owner file (`.grillhouse-base`, the
+//   pass that made it). Opening a base sweeps them too (`balayerLesEssais`), from the host alone
+//   (the home is read-only in an envelope): one whose pass is gone (`passeMorte`) is removed, and
+//   one without a readable owner file, after 24 hours. `essais()` of a base names those of its own
+//   pass, which a run of Vitest counts as a leftover that fails it (the base configuration of the
+//   module typescript, vitest-config/base.mjs).
 import { createHash } from 'node:crypto';
 import {
   existsSync,
