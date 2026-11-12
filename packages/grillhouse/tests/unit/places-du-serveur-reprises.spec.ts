@@ -1,8 +1,13 @@
 // The bridge to the places of the machine (scripts/places-du-serveur.mjs) plays again a call the
 // server fails transiently, and only then gives up: a busy server is a wait, never a red.
-import { createServer } from 'node:net';
+import { connect, createServer, type Socket } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { avecReprises, ecoute, transitoire } from '../../scripts/places-du-serveur.mjs';
+import {
+  avecReprises,
+  connecteeASoi,
+  ecoute,
+  transitoire,
+} from '../../scripts/places-du-serveur.mjs';
 
 const sansPause = { attendre: () => Promise.resolve() };
 const delai = Object.assign(new Error('4 DEADLINE_EXCEEDED: Deadline exceeded after 0.000s'), {
@@ -54,5 +59,34 @@ describe('a server busy is told from a server absent', () => {
     await new Promise<void>(ok => serveur.close(() => ok()));
     // A refusal answers at once; the wide bound keeps a slow loopback from passing for a server.
     expect(await ecoute(`127.0.0.1:${port}`, 30_000)).toBe(false);
+  });
+});
+
+describe('a connection the probe opens on itself is no server', () => {
+  // Linux opens a connection to a free local port from that same port (TCP simultaneous open):
+  // the night of 2026-11-12 saw a closed port « listened » in 420 ms.
+  it('a socket whose local end is its remote end is told; one to a server is not', async () => {
+    const libre = createServer();
+    await new Promise<void>(ok => libre.listen(0, '127.0.0.1', ok));
+    const { port } = libre.address() as { port: number };
+    await new Promise<void>(ok => libre.close(() => ok()));
+    const soi = await new Promise<Socket>((ok, ko) => {
+      const s = connect({ host: '127.0.0.1', port, localAddress: '127.0.0.1', localPort: port });
+      s.once('connect', () => ok(s));
+      s.once('error', ko);
+    });
+    expect(connecteeASoi(soi)).toBe(true);
+    soi.destroy();
+
+    const serveur = createServer(c => c.destroy());
+    await new Promise<void>(ok => serveur.listen(0, '127.0.0.1', ok));
+    const autre = (serveur.address() as { port: number }).port;
+    const vers = await new Promise<Socket>(ok => {
+      const s = connect({ host: '127.0.0.1', port: autre });
+      s.once('connect', () => ok(s));
+    });
+    expect(connecteeASoi(vers)).toBe(false);
+    vers.destroy();
+    await new Promise<void>(ok => serveur.close(() => ok()));
   });
 });

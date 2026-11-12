@@ -70,8 +70,18 @@ export async function avecReprises(
   }
 }
 /**
+ * Whether the socket <s> is connected to itself: its local end is its remote end, as Linux opens a
+ * connection to a free local port whose source port happens to be that port (TCP simultaneous
+ * open; go-redis and Go's PostgreSQL driver tell it the same way).
+ * @param {import('node:net').Socket} s
+ */
+export const connecteeASoi = s =>
+  s.localPort === s.remotePort && s.localAddress === s.remoteAddress;
+
+/**
  * Whether something listens on <adresse> (`hote:port`): false when the connection is refused (no
- * server), true when it opens or does not answer within <delaiMs> (a server busy).
+ * server) or opens on itself (`connecteeASoi`), true when it opens on another end or does not
+ * answer within <delaiMs> (a server busy).
  * @param {string} adresse
  * @param {number} [delaiMs]
  * @returns {Promise<boolean>}
@@ -84,7 +94,7 @@ export function ecoute(adresse, delaiMs = 2_000) {
       s.destroy();
       ok(r);
     };
-    s.once('connect', () => fin(true));
+    s.once('connect', () => fin(!connecteeASoi(s)));
     s.once('error', () => fin(false));
     s.setTimeout(delaiMs, () => fin(true));
   });
