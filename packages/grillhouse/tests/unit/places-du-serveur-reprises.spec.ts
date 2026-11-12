@@ -52,6 +52,7 @@ describe('a server busy is told from a server absent', () => {
     const { port } = serveur.address() as { port: number };
     expect(await ecoute(`127.0.0.1:${port}`)).toBe(true);
     await new Promise<void>(ok => serveur.close(() => ok()));
-    expect(await ecoute(`127.0.0.1:${port}`)).toBe(false);
+    // A refusal answers at once; the wide bound keeps a slow loopback from passing for a server.
+    expect(await ecoute(`127.0.0.1:${port}`, 30_000)).toBe(false);
   });
 });
