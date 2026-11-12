@@ -20,6 +20,11 @@
 // - grillhouse-pkl.7, criterion 5: the update, the source files, the session start and the list
 //   of the migrations name no tool and no file of a module either: they ask the module
 //   (`outils`, `binaires`, `ignorer`, `miseAJour`, `migrations`); no rest remains.
+//
+// It reads every file of `scripts/` and `bin/`, the documents of the core and the share, and
+// declares them, so that each pass whose lot touches one plays it.
+// @lit packages/grillhouse/scripts/** packages/grillhouse/bin/** packages/grillhouse/docs/**
+// @lit packages/grillhouse/tests/temoins/repartition.json
 import {
   mkdirSync,
   mkdtempSync,

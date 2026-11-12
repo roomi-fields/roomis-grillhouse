@@ -49,7 +49,12 @@ de la copie, que main n'atteint que vert par cette CI (la variable `GRILLHOUSE_B
 lot, comme `vitest --changed` ; un fichier qu'aucun module n'importe et un chemin de
 `grillhouse.lit` ne rejouent ni le paquet entier ni les tests qui les lisent par leur chemin (le
 `scripts/session-start.sh` de grillhouse-4nr.21 est lu par 276 des 282 fichiers de tests du
-paquet, chaque test qui lance la commande lisant tous ses scripts) ; la passe complète va à la CI de la branche du ticket et à la nuit, comme la
+paquet, chaque test qui lance la commande lisant tous ses scripts) ; un test qui juge une liste
+du dépôt complète (la répartition de `scripts/` et `bin/`, les appelants de chaque
+sous-commande) déclare ce qu'il lit, comme les `data` d'une cible de Bazel : une ligne
+`// @lit <motif> …` du commentaire de sa tête, chaque motif un glob depuis la racine, et il joue
+dans chaque passe, ciblée ou non, dont un fichier changé, ajouté ou supprimé tombe sous un de ses
+motifs (`testsQuiDeclarent`, `vitest-config/lances.mjs`) ; la passe complète va à la CI de la branche du ticket et à la nuit, comme la
 pré-soumission de Google (TAP) ne joue que les tests qu'un changement atteint ; un projet dont la
 CI n'écoute pas ces branches garde la mesure contre le dernier vert ; un seul graphe Turborepo sert tous les langages : un crate ou un projet
 Python a un `package.json` à côté de son manifeste (modèle `multi-language.mdx` de Turborepo),

@@ -8,6 +8,9 @@
 // that HEAD holds beside it when its module names a sibling, calls <jouer> with the map file →
 // sibling, and removes the siblings after it, red included. Against the fake cargo
 // (./langages/cargo/faux-cargo.ts), which reads the targets from the manifests as cargo does.
+//
+// It reads the circuit and its facts by their path, beyond what it imports, and declares them.
+// @lit packages/grillhouse/scripts/circuit.mjs packages/grillhouse/scripts/faits-du-circuit.mjs
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

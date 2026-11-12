@@ -248,6 +248,80 @@ describe('a measure targeted against the base of a lot, in each package', () => 
   });
 });
 
+// A test that judges a list of the repository complete (every script has its share, every caller
+// names its subcommand) declares what it reads at its head, `// @lit <motif> …`, each pattern a
+// glob from the top, as Bazel's `data`: it plays in each pass whose changes one pattern covers,
+// targeted included. Witness: grillhouse-44b.17, five reds of such tests left to the CI of the
+// branch in one night.
+describe('a test that declares what it reads', () => {
+  // The repository of depot(), with a test of `a` that declares it reads the documents at the top
+  // and the scripts of `c`, on two lines of the comment at its head, and a test that declares it
+  // below its first line of code.
+  function depotDesDeclarations() {
+    const r = depot();
+    const ecrire = (f: string, t: string) => {
+      mkdirSync(path.dirname(path.join(r, f)), { recursive: true });
+      writeFileSync(path.join(r, f), t);
+    };
+    ecrire('docs/guide.md', '# Le guide\n');
+    ecrire(
+      'packages/a/test/liste.test.mjs',
+      "// The list of the documents is complete.\n// @lit docs/**\n// @lit packages/c/scripts/*.mjs README.md\nimport { readdirSync } from 'node:fs';\n"
+    );
+    ecrire(
+      'packages/a/test/tard.test.mjs',
+      "import { readdirSync } from 'node:fs';\n// @lit docs/**\n"
+    );
+    return r;
+  }
+
+  it('plays in a targeted pass when a file it declares changes', async () => {
+    const r = depotDesDeclarations();
+    const p = await restreint(r, 'a', ['docs/guide.md'], [], [], true);
+    expect(p.related).toEqual(['docs/guide.md', 'packages/a/test/liste.test.mjs']);
+    expect(p.ligne).toMatch(/1 test\(s\) qui déclarent en lire un \(@lit\)/);
+  });
+
+  it('plays when a file its pattern covers is added or removed', async () => {
+    const r = depotDesDeclarations();
+    const ajoute = await restreint(r, 'a', ['packages/c/scripts/neuf.mjs'], [], [], true);
+    expect(ajoute.related).toContain('packages/a/test/liste.test.mjs');
+    const retire = await restreint(r, 'a', [], ['docs/ancien.md'], [], true);
+    expect(retire.related).toEqual(['packages/a/test/liste.test.mjs']);
+  });
+
+  it('reads each word of each line of its head as a pattern', async () => {
+    const r = depotDesDeclarations();
+    const p = await restreint(r, 'a', ['README.md'], [], [], true);
+    expect(p.related).toEqual(['README.md', 'packages/a/test/liste.test.mjs']);
+  });
+
+  it('does not play when the changes lie out of its patterns', async () => {
+    const r = depotDesDeclarations();
+    const p = await restreint(
+      r,
+      'a',
+      ['packages/c/scripts/sous/outil.mjs', 'LISEZMOI.md'],
+      [],
+      [],
+      true
+    );
+    expect(p.related).toEqual(['LISEZMOI.md', 'packages/c/scripts/sous/outil.mjs']);
+  });
+
+  it('a declaration below the first line of code is none', async () => {
+    const r = depotDesDeclarations();
+    const p = await restreint(r, 'a', ['docs/guide.md'], [], [], true);
+    expect(p.related).not.toContain('packages/a/test/tard.test.mjs');
+  });
+
+  it('plays in a pass measured against the last green too', async () => {
+    const r = depotDesDeclarations();
+    const p = await restreint(r, 'a', ['docs/guide.md']);
+    expect(p.related).toContain('packages/a/test/liste.test.mjs');
+  });
+});
+
 // A night test plays at night alone: a targeted run that names one is refused by its name, in a
 // ticket's copy under `.claude/worktrees/` as anywhere else (the one rule `estUnTestDeNuit`).
 describe('a targeted run that names a night test', () => {

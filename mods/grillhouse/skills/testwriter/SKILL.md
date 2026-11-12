@@ -193,7 +193,12 @@ paquet déclare sort de la construction de son paquet, un chemin qui contient du
 fichier que cette construction lit (son `package.json`, ses `tsconfig*.json`) y reste, et
 un lecteur qui l'omet garde un vert périmé. Le `package.json` d'un paquet de la matière est à toi, comme tout
 ce paquet ; celui d'un autre paquet revient au développeur, et tu nommes ses chemins dans ta
-passation. Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
+passation. Un test qui juge une liste du dépôt complète (chaque script a sa part, chaque appelant
+nomme sa sous-commande) lit des fichiers qu'il n'importe ni ne nomme : il les déclare en tête,
+dans le commentaire qui précède son premier import, une ligne `// @lit <motif> …`, chaque motif un
+glob depuis la racine (`// @lit packages/grillhouse/scripts/** docs/agents/**`), le plus étroit
+qui couvre sa lecture ; une passe ciblée le joue alors dès que son lot touche un fichier couvert.
+Ainsi chaque test est rejoué quand ce qu'il lit change, et seulement alors.
 
 **Les références, le circuit les régénère** : les fichiers que ta consigne liste sous « LES
 RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2, sur la copie entière : l'index

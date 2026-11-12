@@ -32,6 +32,14 @@
 //   one of the files changed. ./changements.mjs adds them to the tests Vitest relates to the
 //   changes, so that a test plays when the script it launches changes, as it plays when a module it
 //   imports changes.
+// - The tests that declare what they read (`testsQuiDeclarent`): a test that judges a list of the
+//   repository complete (every script has its share, every caller names its subcommand) reads files
+//   it neither imports nor names, and the reads of a test that launches the command hold every
+//   script, too many to follow under a targeted measure (./changements.mjs). It declares them, as a
+//   target of Bazel declares its `data`: a line `// @lit <motif> …` of the comment at its head,
+//   each pattern a glob from the top of the repository (`// @lit packages/grillhouse/scripts/**`).
+//   ./changements.mjs adds it to the tests of every pass, targeted or not, whose changes, files
+//   changed, added or removed, one of its patterns covers.
 // - What a test names without the frame reading it (`nonDeclares`): a string of the test's code or
 //   of its material that ends the path of a module of its package (`'verrou.mjs'`,
 //   `'verrous/verrou.mjs'`), out of a directory of tests, the module out of what the test reads and
@@ -454,6 +462,43 @@ export function testsQuiLancent(dossier, racine, changes) {
       }
     }
     return false;
+  });
+}
+
+// The tag of a test that declares the files it reads: a line `// @lit <motif> …` of the comment at
+// the head of the file, before its first line of code, as the tag `@poste` (./cibles.mjs).
+const ETIQUETTE_DE_LECTURE = /^\/\/\s*@lit\b(.*)$/;
+
+/**
+ * The patterns the text <texte> of a test file declares it reads: the words of each line
+ * `// @lit` of the comment at its head, each a glob from the top of the repository.
+ * @param {string} texte the text of the file
+ */
+export function lecturesDeclarees(texte) {
+  const out = [];
+  for (const ligne of texte.split('\n')) {
+    const l = ligne.trim();
+    const m = ETIQUETTE_DE_LECTURE.exec(l);
+    if (m) {
+      out.push(...m[1].split(/\s+/).filter(Boolean));
+    } else if (l !== '' && !l.startsWith('//') && !l.startsWith('#!')) {
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * The test files of the package at <dossier> that declare they read one of the files <chemins>
+ * (each from the top of the repository): those whose `@lit` patterns cover one; absolute, sorted.
+ */
+export function testsQuiDeclarent(dossier, chemins) {
+  if (chemins.length === 0) {
+    return [];
+  }
+  return testsDuPaquet(dossier).filter(t => {
+    const motifs = lecturesDeclarees(lire(t));
+    return motifs.some(m => chemins.some(c => path.matchesGlob(c, m)));
   });
 }
 

@@ -48,16 +48,20 @@
 //      script of the shell, a document, which a test reads without importing it.
 //   Vitest's own `forceRerunTriggers` (a configuration's, or its default) still apply, as with
 //   `--changed`. Under the mark `cible`, 5 and 7 do not play the package whole, and no test is
-//   related by the paths it reads (`testsQuiLancent`): the tests Vitest relates alone, and the
-//   files named, as `vitest --changed` leaves a file out of its graph to the complete pass, the
+//   related by the paths it reads (`testsQuiLancent`): the tests Vitest relates alone, the tests
+//   that declare their reads, and the files named, as `vitest --changed` leaves a file out of its graph to the complete pass, the
 //   CI's of the ticket's branch and the night's. Witness: grillhouse-4nr.21, whose
 //   `scripts/session-start.sh` the reads of 276 of the 282 test files of packages/grillhouse hold
 //   (a test that starts the command reads every script of its table).
 // - Otherwise the tests played are those Vitest relates to the files changed or added (`related`,
 //   absolute), the tests that read one of them by its path, a script they launch or a file they
 //   read, with what it imports and names (`testsQuiLancent`, ./lances.mjs, as Bazel's `data`),
-//   and the files a targeted run names themselves (./cibles.mjs): a file named plays, changed or
-//   not. A package where none relates plays none and passes
+//   the tests that declare they read a file changed, added or removed (`// @lit <motif>` at
+//   their head, `testsQuiDeclarent`, ./lances.mjs), targeted or not, and the files a targeted run
+//   names themselves (./cibles.mjs): a file named plays, changed or not. Witness: the tests that
+//   judge a list of the repository complete (the share of `scripts/` and `bin/`, the callers of
+//   each subcommand), which the targeted passes of grillhouse-44b.15 left red to the CI of the
+//   branch five times in one night (grillhouse-44b.17). A package where none relates plays none and passes
 //   (`passWithNoTests`), as Vitest's `--changed` has it.
 //
 // This module's top level uses Node alone (./cibles.mjs, scripts/langages/typescript/tests.mjs import it); a
@@ -66,7 +70,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { testsQuiLancent } from './lances.mjs';
+import { testsQuiDeclarent, testsQuiLancent } from './lances.mjs';
 
 // This directory, the frame's base configuration.
 const BASE = path.dirname(fileURLToPath(import.meta.url));
@@ -251,9 +255,10 @@ export function restreindre(test, dossier, ch, nommes, dire) {
   }
   const changes = ch.fichiers.map(f => path.join(ch.racine, f));
   const lanceurs = ch.cible ? [] : testsQuiLancent(dossier, ch.racine, changes);
-  test.related = [...new Set([...changes, ...nommes, ...lanceurs])];
+  const declarants = testsQuiDeclarent(dossier, [...ch.fichiers, ...ch.supprimes]);
+  test.related = [...new Set([...changes, ...nommes, ...lanceurs, ...declarants])];
   test.passWithNoTests = true;
   dire(
-    `↳ ${nom} : les tests que Vitest relie aux ${ch.fichiers.length} fichier(s) changé(s) depuis ${ch.cible ? 'la base du lot' : 'le dernier vert'}${lanceurs.length ? `, et ${lanceurs.length} test(s) qui en lisent un par son chemin` : ''}.`
+    `↳ ${nom} : les tests que Vitest relie aux ${ch.fichiers.length} fichier(s) changé(s) depuis ${ch.cible ? 'la base du lot' : 'le dernier vert'}${lanceurs.length ? `, et ${lanceurs.length} test(s) qui en lisent un par son chemin` : ''}${declarants.length ? `, et ${declarants.length} test(s) qui déclarent en lire un (@lit)` : ''}.`
   );
 }

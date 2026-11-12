@@ -1,3 +1,7 @@
+// The trial of jsonc-parser below copies a fixed list of the frame's scripts, the generator and
+// what it imports from file to file: it declares the scripts it reads, so that each pass whose
+// lot touches one plays it.
+// @lit packages/grillhouse/scripts/**/*.mjs packages/grillhouse/scripts/**/*.d.ts
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,

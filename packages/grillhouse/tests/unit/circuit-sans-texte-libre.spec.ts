@@ -14,6 +14,11 @@
 // transcript of the supervisor's session each stop names, the origin and the time of each message,
 // which tell whose wait a stop was (grillhouse-982.3); it reads no comment of the ticket. It holds
 // no regular expression.
+//
+// It reads the scripts below by their path, and declares them, so that each pass whose lot
+// touches one plays it.
+// @lit packages/grillhouse/scripts/{circuit,transitions,seances,ticket-du-circuit}.mjs
+// @lit packages/grillhouse/scripts/{activites,effets,bilan}.mjs
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';

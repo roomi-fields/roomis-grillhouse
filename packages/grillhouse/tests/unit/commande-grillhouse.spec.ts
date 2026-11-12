@@ -1,3 +1,8 @@
+// It reads the callers of the repository that APPELANTS lists below, and declares them, so that
+// each pass whose lot touches one plays it.
+// @lit package.json templates/projet/package.json README.md CONTRIBUTING.md STRUCTURE.md
+// @lit mods/grillhouse/skills/** mods/grillhouse/agents/** mods/grillhouse/charte.md
+// @lit docs/agents/** mods/grillhouse/hooks/register.tsx
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
