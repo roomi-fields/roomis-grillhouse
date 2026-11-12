@@ -2,7 +2,7 @@
 // origin of the branch main is pushed to carries only a commit the CI judged green on a ticket
 // branch, in a project whose CI runs on the ticket branches.
 import { describe, expect, it } from 'vitest';
-import { refusSurMain } from '../../scripts/branche-de-nuit.mjs';
+import { jugeeDansLesRuns, refusSurMain } from '../../scripts/branche-de-nuit.mjs';
 
 const JUGE = 'a'.repeat(40);
 const NEUF = 'b'.repeat(40);
@@ -51,5 +51,15 @@ describe('a push to main carries only a commit judged green on a ticket branch',
         jugee,
       })
     ).toEqual([]);
+  });
+});
+
+describe('a commit is judged by the conclusion of its runs', () => {
+  it('a green run of a ticket branch judges it; a red one, or a green one of main, does not', () => {
+    expect(jugeeDansLesRuns([{ headBranch: 'agent/x-1', conclusion: 'success' }])).toBe(true);
+    expect(jugeeDansLesRuns([{ headBranch: 'agent/x-1', conclusion: 'failure' }])).toBe(false);
+    expect(jugeeDansLesRuns([{ headBranch: 'main', conclusion: 'success' }])).toBe(false);
+    expect(jugeeDansLesRuns([{ headBranch: 'agent/x-1', conclusion: '' }])).toBe(false);
+    expect(jugeeDansLesRuns([])).toBe(false);
   });
 });

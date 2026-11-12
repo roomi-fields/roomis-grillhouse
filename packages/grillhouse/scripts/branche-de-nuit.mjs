@@ -52,19 +52,28 @@ export function refusSurMain(remote, refs, { principale, ecoute, jugee }) {
     );
 }
 
+/**
+ * Whether one of the runs <runs> of a commit (`gh run list --json headBranch,conclusion`)
+ * concluded green on a ticket branch. The conclusion is read run by run: the status filter of
+ * GitHub's API lags its runs by minutes (grillhouse-do5e).
+ * @param {{ headBranch?: string, conclusion?: string }[]} runs
+ */
+export const jugeeDansLesRuns = runs =>
+  runs.some(x => x.conclusion === 'success' && String(x.headBranch).startsWith('agent/'));
+
 // Whether a run of the CI concluded green on the commit <sha> on a ticket branch, read by gh in
 // <racine>; true when gh does not answer (the server's ruleset judges then).
 function jugeeParGh(racine, sha) {
-  const r = spawnSync(
-    'gh',
-    ['run', 'list', '--commit', sha, '--status', 'success', '--json', 'headBranch'],
-    { cwd: racine, encoding: 'utf8', timeout: 30_000 }
-  );
+  const r = spawnSync('gh', ['run', 'list', '--commit', sha, '--json', 'headBranch,conclusion'], {
+    cwd: racine,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
   if (r.status !== 0) {
     return true;
   }
   try {
-    return JSON.parse(r.stdout || '[]').some(x => String(x.headBranch).startsWith('agent/'));
+    return jugeeDansLesRuns(JSON.parse(r.stdout || '[]'));
   } catch {
     return true;
   }
