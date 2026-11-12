@@ -165,11 +165,20 @@ describe('un ticket qui a un circuit garde sa ligne de circuit', () => {
 });
 
 describe('un ticket étiqueté `direct`', () => {
-  it('ouvert, il a sa ligne en direct, même étiqueté `circuit`', () => {
+  it('ouvert, non pris, il n’a pas de ligne d’AGENTS : il compte dans la file du direct', () => {
     const p = plateau([T('demo-9', 'Le sujet', { status: 'open', labels: ['circuit', 'direct'] })]);
-    const l = duTicket(agents(p), 'demo-9');
-    expect(l).toHaveLength(1);
-    expect(l[0].texte).toBe('✎ 9  Le sujet · en direct · roomi-fields');
+    expect(duTicket(agents(p), 'demo-9')).toHaveLength(0);
+    expect(p.global.compteurs.fileDirecte).toBe(1);
+    expect(p.global.compteurs.enAttente).toBe(0);
+  });
+
+  it('pris, plusieurs tickets en direct ont chacun leur ligne', () => {
+    const p = plateau([
+      T('demo-8', 'Un sujet', { labels: ['direct'] }),
+      T('demo-9', 'Le sujet', { labels: ['direct'] }),
+    ]);
+    expect(duTicket(agents(p), 'demo-8')).toHaveLength(1);
+    expect(duTicket(agents(p), 'demo-9')).toHaveLength(1);
   });
 
   it('en cours, il a sa ligne en direct, une seule', () => {

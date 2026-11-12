@@ -269,6 +269,7 @@ describe('assembler', () => {
     expect(t.global.compteurs).toEqual({
       enCours: 1,
       enAttente: 1,
+      fileDirecte: 0,
       bloques: 0,
       fermes: 2,
       sansGo: 1,
@@ -390,11 +391,12 @@ describe('assembler', () => {
     expect(texte).toMatch(/✎ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
   });
-  it('heads the board with two lines of states, the circuit then what waits for the owner', () => {
+  it('heads the board with three lines of states: the work, the queues, then what waits for the owner', () => {
     const l = dessin(t).map(x => x.texte);
-    expect(l[1]).toBe('▶ 1 en cours · 1 en attente · 0 bloqués · 2 faits');
-    expect(l[2]).toBe('1 sans go · 1 à valider · 0 reportés');
-    expect((dessin(t)[2] as { ton?: string }).ton).toBe('attention');
+    expect(l[1]).toBe('▶ 1 en cours · 0 bloqués · 2 faits');
+    expect(l[2]).toBe('⏭ file : 1 en circuit · 0 en direct');
+    expect(l[3]).toBe('1 sans go · 1 à valider · 0 reportés');
+    expect((dessin(t)[3] as { ton?: string }).ton).toBe('attention');
   });
   it('lists each state, its meaning and the tickets of the chantier in progress one per line in the states view', () => {
     const v = lignesEtats(t) as { texte: string; ticket?: string; section: string }[];
@@ -402,6 +404,7 @@ describe('assembler', () => {
     expect(titres.map(x => x.texte.split(' — ')[0])).toEqual([
       'EN COURS',
       'EN ATTENTE',
+      'EN DIRECT',
       'BLOQUÉ',
       'SANS GO',
       'À VALIDER',

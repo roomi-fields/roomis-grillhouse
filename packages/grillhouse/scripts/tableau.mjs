@@ -157,6 +157,7 @@ export const roleDuMeta = m =>
 export const ETATS = [
   { cle: 'enCours', nom: 'en cours', sens: 'un agent y travaille' },
   { cle: 'enAttente', nom: 'en attente', sens: 'ton go, prêt à partir' },
+  { cle: 'fileDirecte', nom: 'en direct', sens: 'mené hors du circuit, pas encore pris' },
   { cle: 'bloques', nom: 'bloqué', sens: 'ton go, il attend un autre ticket' },
   { cle: 'sansGo', nom: 'sans go', sens: 'validé, il attend ton go' },
   { cle: 'aValider', nom: 'à valider', sens: 'une trouvaille attend ton accord' },
@@ -174,6 +175,7 @@ export const TONS = Object.freeze({
   // A ticket's state (ETATS).
   enCours: 'actif',
   enAttente: undefined,
+  fileDirecte: undefined,
   bloques: undefined,
   sansGo: 'attention',
   aValider: 'attention',
@@ -878,6 +880,10 @@ export function assembler({
     if (avalider.has(t.id)) {
       return 'aValider';
     }
+    // A ticket led out of the circuit, not yet claimed: the direct queue.
+    if ((t.labels ?? []).includes('direct')) {
+      return 'fileDirecte';
+    }
     if (!circuit(t)) {
       return 'sansGo';
     }
@@ -888,6 +894,7 @@ export function assembler({
   const compteurs = {
     enCours: 0,
     enAttente: 0,
+    fileDirecte: 0,
     bloques: 0,
     fermes: 0,
     sansGo: 0,
@@ -1236,7 +1243,7 @@ export function assembler({
   // The tickets worked out of a circuit: claimed (`in_progress`), no circuit on the server that
   // holds them, a mother of theirs or a ticket under them (a circuit holds its ticket's mothers and
   // children): one that runs or waits for an answer (`attendLeSuperviseur`), never one the
-  // supervisor stopped; or labelled `direct`, open or claimed (led out of the circuit); and no role
+  // supervisor stopped; or labelled `direct` and claimed (led out of the circuit); and no role
   // agent shown at a step. None while the circuits do not read (a
   // silent server, a fault), when no ticket can be told out of a circuit.
   const aUneEtape = new Set(blocs.flatMap(b => b.enCours.map(x => x.id)));
@@ -1260,9 +1267,8 @@ export function assembler({
             t =>
               travail(t) &&
               !aUneEtape.has(t.id) &&
-              ((t.status === 'in_progress' && !dansUnCircuit(t)) ||
-                ((t.labels ?? []).includes('direct') &&
-                  (t.status === 'open' || t.status === 'in_progress')))
+              t.status === 'in_progress' &&
+              (!dansUnCircuit(t) || (t.labels ?? []).includes('direct'))
           )
           .sort(ordre)
           .map(t => ({
@@ -1466,7 +1472,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       const c = p.compteurs;
       L(
         cadre(
-          `${colonneDe(p.etiquette)}▶ ${c.enCours} en cours · ${c.enAttente} en attente · ${c.fermes} faits`,
+          `${colonneDe(p.etiquette)}▶ ${c.enCours} en cours · ⏭ ${c.enAttente} · ✎ ${c.fileDirecte ?? 0} · ${c.fermes} faits`,
           '',
           largeur
         )
@@ -1485,14 +1491,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   } else {
     const g = t.global;
     const c = g.compteurs;
-    // Two lines of states: those of the circuit, then those that wait for the owner.
-    L(
-      cadre(
-        `▶ ${c.enCours} en cours · ${c.enAttente} en attente · ${c.bloques} bloqués · ${c.fermes} faits`,
-        '',
-        largeur
-      )
-    );
+    // Three lines of states: the work, the queues (the circuit's, the direct one), then those that
+    // wait for the owner.
+    L(cadre(`▶ ${c.enCours} en cours · ${c.bloques} bloqués · ${c.fermes} faits`, '', largeur));
+    L(cadre(`⏭ file : ${c.enAttente} en circuit · ${c.fileDirecte} en direct`, '', largeur));
     L(
       cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
       c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
@@ -2159,7 +2161,7 @@ export function ligneEtat(t) {
   const ch = t.chantiers[0];
   const c = t.global.compteurs;
   if (!ch) {
-    return `${alerte}Grillhouse : ${c.enCours} en cours · ${c.enAttente} en attente · ${c.fermes} faits`;
+    return `${alerte}Grillhouse : ${c.enCours} en cours · ⏭ ${c.enAttente} · ✎ ${c.fileDirecte} · ${c.fermes} faits`;
   }
   return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ▶ ${c.enCours} en cours · ${k(t.global.jour.jetons)} aujourd'hui`;
 }

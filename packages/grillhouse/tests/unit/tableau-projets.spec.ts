@@ -123,9 +123,9 @@ describe('critère 1 : the usual board, each project prefixed', () => {
     const l = textes(lignes(trois(), NOM) as Ligne[]);
     expect(l.slice(0, 6)).toEqual([
       'OSC-BRIDGE + SH + OSD',
-      '[OB]  ▶ 1 en cours · 0 en attente · 0 faits',
-      '[SH]  ▶ 1 en cours · 0 en attente · 0 faits',
-      '[OSD] ▶ 0 en cours · 0 en attente · 0 faits',
+      '[OB]  ▶ 1 en cours · ⏭ 0 · ✎ 0 · 0 faits',
+      '[SH]  ▶ 1 en cours · ⏭ 0 · ✎ 0 · 0 faits',
+      '[OSD] ▶ 0 en cours · ⏭ 0 · ✎ 0 · 0 faits',
       '🔍 0 new · 0 →check · 0 rejetés · 0 validés',
       expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
     ]);
@@ -216,7 +216,7 @@ describe('critère 4 : a project whose board does not read is named in the head 
     ]);
     const l = lignes(t, 'osc-bridge + OSD') as Ligne[];
     expect(l.slice(1, 3).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
-      ['[OB]  ▶ 1 en cours · 0 en attente · 0 faits', undefined],
+      ['[OB]  ▶ 1 en cours · ⏭ 0 · ✎ 0 · 0 faits', undefined],
       ['[OSD] ⚠ dossier introuvable', 'alerte'],
     ]);
     expect(l.some(x => x.ticket === 'OB-k2')).toBe(true);
