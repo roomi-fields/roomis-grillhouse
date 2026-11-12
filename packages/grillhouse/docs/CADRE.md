@@ -48,7 +48,12 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   finale) dont l'empreinte (le hachage de sa commande et du contenu de ce qu'elle lit, par le
   hachage d'entrées de Turborepo) est celle de son dernier vert ne se rejoue pas : son résultat
   se relit et le ticket le dit. `--depuis <étape>` rejoue cette étape et les suivantes sans rien
-  relire. Le bilan compte à part le temps rejoué après un rouge et le temps relu.
+  relire. `--recommencer` repart à neuf d'un circuit arrêté sur le mot du superviseur : sa copie
+  (avec le travail qu'elle porte), ses fiches et son journal sont retirés, puis le ticket repart
+  du testwriter dans une copie fraîche ; le ticket, son plan et ses commentaires restent. Un
+  circuit qui tourne le refuse, et l'option va seule. La preuve du rouge s'abstient quand le code
+  du développeur est dans la copie, non commité ou commité en avance sur main, fiche ou non.
+  Le bilan compte à part le temps rejoué après un rouge et le temps relu.
 - **R2.4.** Aux tickets, un conflit de l'avance d'une copie sur main va au rôle qui écrit ses
   fichiers, sans monter au superviseur : l'avance applique le lot fichier par fichier (un fichier
   en conflit garde ses marques, un fichier que git refuse sans marques reste seul dans

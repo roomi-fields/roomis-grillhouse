@@ -7,6 +7,7 @@
 //   grillhouse circuit <ticket> --depuis <testwriter|developpeur> --contexte <texte>
 //   grillhouse circuit <ticket> --etendre <paquet>[,<paquet>…] [--contexte <texte>]
 //   grillhouse circuit <ticket> --arreter [--contexte <motif>]
+//   grillhouse circuit <ticket> --recommencer
 //
 // - The repository is the main tree of the working directory (git's common directory), as the
 //   worker of the project runs there; the server, TEMPORAL_ADDRESS or the account's.
@@ -16,10 +17,15 @@
 //   A ticket the circuit could not run is refused before, by its name (scripts/depart-du-ticket.mjs:
 //   unreadable, without its section « ## Architecture », a title that names no component, or a
 //   component the repository does not hold); so is a ticket whose circuit runs (`--arreter` stops
-//   it), and one stopped on the supervisor's word (`--reprendre` or `--depuis` reopens it).
+//   it), and one stopped on the supervisor's word (`--reprendre`, `--depuis` or `--recommencer`
+//   reopens it).
 // - `--reprendre`, `--depuis` and `--etendre` answer the stop of the circuit (the updates of its
 //   workflow, or a new workflow on the state a stopped one gave back), `--arreter` stops it (its
 //   signal); a package of `--etendre` the repository does not hold is refused before, by its name; `--contexte` gives the supervisor's text to each, and `--depuis` requires it.
+// - `--recommencer` starts a stopped circuit over, as a reset of Temporal: its copy (with any work
+//   it carries), its sheets and its journal are removed, then the ticket goes in the queue and its
+//   circuit starts from the testwriter in a fresh copy; the ticket, its plan and its comments stay.
+//   A circuit that runs is refused; it goes alone (./appel.ts).
 // - Each writes one line on the standard output, exit 0. A malformed call writes the usage, a
 //   refusal (`ReponseRefusee`, the ticket refused) its reason, on the error stream, exit 2. A
 //   server that does not answer, or Beads that fails, is said on the error stream, exit 1.
@@ -27,6 +33,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { WorkflowNotFoundError } from '@temporalio/client';
 import { DepartRefuse, ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
+import { retirerLaCopieDuTicket } from '../../../scripts/recommencer.mjs';
 import { sansReponseEn } from '../../../scripts/sans-reponse.mjs';
 import {
   DELAI_JOIGNABLE_MS,
@@ -36,99 +43,16 @@ import {
 } from '../client.js';
 import { fileDuProjet } from '../installation.js';
 import { demarrerLesTickets } from '../tickets/client.js';
+import { USAGE, Usage, lireLAppel, refusDuLancementApresArret, type Appel } from './appel.js';
 import {
   arreterLeCircuit,
   etendreLeCircuit,
+  recommencerLeCircuit,
   reprendreDepuis,
   reprendreLeCircuit,
   ReponseRefusee,
 } from './client.js';
-import { ETAPES_DE_REPRISE, idDuCircuit } from './contrat.js';
-
-const USAGE =
-  'usage: npx grillhouse circuit <ticket> [--reprendre [--contexte <texte>] | ' +
-  '--depuis <testwriter|preuve|developpeur|controles|passe-finale> --contexte <texte> | ' +
-  '--etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>]]\n';
-
-/** A malformed call, by its reason. */
-class Usage extends Error {}
-
-/** What the command line asks. */
-interface Appel {
-  ticket: string;
-  reprendre: boolean;
-  depuis: (typeof ETAPES_DE_REPRISE)[number] | null;
-  etendre: string[] | null;
-  arreter: boolean;
-  contexte: string | null;
-}
-
-/** The call <argv> read, or a Usage, by the rules of the circuit's options. */
-function lireLAppel(argv: string[]): Appel {
-  let ticket: string | null = null;
-  const o: Omit<Appel, 'ticket'> = {
-    reprendre: false,
-    depuis: null,
-    etendre: null,
-    arreter: false,
-    contexte: null,
-  };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]!;
-    const suivant = argv[i + 1];
-    if (a === '--reprendre') {
-      o.reprendre = true;
-    } else if (a === '--arreter') {
-      o.arreter = true;
-    } else if (a === '--etendre') {
-      const liste = String(suivant ?? '')
-        .split(',')
-        .map(c => c.trim())
-        .filter(Boolean);
-      if (!liste.length || suivant!.startsWith('-')) {
-        throw new Usage('--etendre attend les paquets que le plan gagne.');
-      }
-      o.etendre = liste;
-      i++;
-    } else if (a === '--depuis') {
-      if (!ETAPES_DE_REPRISE.includes(suivant as (typeof ETAPES_DE_REPRISE)[number])) {
-        throw new Usage(`--depuis attend une étape du ticket : ${ETAPES_DE_REPRISE.join(', ')}.`);
-      }
-      o.depuis = suivant as (typeof ETAPES_DE_REPRISE)[number];
-      i++;
-    } else if (a === '--contexte') {
-      if (suivant === undefined) {
-        throw new Usage('--contexte attend son texte.');
-      }
-      o.contexte = suivant;
-      i++;
-    } else if (a.startsWith('-')) {
-      throw new Usage(`option inconnue : ${a}`);
-    } else if (ticket) {
-      throw new Usage(`un seul ticket : ${ticket}, puis ${a}.`);
-    } else {
-      ticket = a;
-    }
-  }
-  if (!ticket) {
-    throw new Usage('le ticket manque.');
-  }
-  if (o.depuis && o.reprendre) {
-    throw new Usage('--depuis et --reprendre ne vont pas ensemble.');
-  }
-  if (o.depuis && o.contexte === null) {
-    throw new Usage('--depuis attend son --contexte : la tâche de chaque agent du lot.');
-  }
-  if (o.etendre && (o.reprendre || o.depuis || o.arreter)) {
-    throw new Usage(
-      '--etendre va seule, avec son --contexte : le circuit reprend sur le plan étendu.'
-    );
-  }
-  if (o.arreter && (o.reprendre || o.depuis)) {
-    throw new Usage('--arreter va seule, son motif en --contexte.');
-  }
-  return { ticket, ...o };
-}
+import { idDuCircuit } from './contrat.js';
 
 // The main tree of the repository of the working directory, from git's common directory.
 function arbrePrincipal(): string {
@@ -167,11 +91,14 @@ function aLaPorte<T>(f: () => T): T {
 // circuit's stop gone up keeps (`EntreeDuCircuit.superviseur`); null out of a session.
 const seanceDuSuperviseur = (): string | null => process.env.CLAUDE_CODE_SESSION_ID || null;
 
-// The ticket <ticket> of <racine> put in the queue of the tickets of the project: its line.
+// The ticket <ticket> of <racine> put in the queue of the tickets of the project: its line. With
+// <recommence>, its circuit stopped on the supervisor's word was just started over: that stop no
+// longer refuses the launch.
 async function mettreEnFile(
   client: Parameters<typeof demarrerLesTickets>[0],
   racine: string,
-  ticket: string
+  ticket: string,
+  recommence = false
 ): Promise<string> {
   aLaPorte(() => ticketAuLancement(racine, ticket));
   try {
@@ -184,10 +111,8 @@ async function mettreEnFile(
     const fin = (await client.workflow.getHandle(idDuCircuit(racine, ticket)).result()) as {
       raison?: string;
     };
-    if (fin?.raison === 'arrete') {
-      throw new ReponseRefusee(
-        `le circuit de ${ticket} est arrêté sur le mot du superviseur : \`--reprendre\` ou \`--depuis <testwriter|developpeur> --contexte <texte>\` le rouvre.`
-      );
+    if (fin?.raison === 'arrete' && !recommence) {
+      throw new ReponseRefusee(refusDuLancementApresArret(ticket));
     }
   } catch (x) {
     if (!(x instanceof WorkflowNotFoundError)) {
@@ -247,9 +172,20 @@ async function principal(argv: string[]): Promise<number> {
   const c = ouvrirLeClient();
   try {
     const repond = appel.reprendre || appel.depuis || appel.etendre || appel.arreter;
-    const ligne = repond
-      ? await repondre(c.client, racine, appel)
-      : await mettreEnFile(c.client, racine, appel.ticket);
+    let ligne: string;
+    if (appel.recommencer) {
+      const retiree = await recommencerLeCircuit(
+        c.client,
+        racine,
+        appel.ticket,
+        retirerLaCopieDuTicket
+      );
+      ligne = `${retiree} ; ${await mettreEnFile(c.client, racine, appel.ticket, true)}`;
+    } else {
+      ligne = repond
+        ? await repondre(c.client, racine, appel)
+        : await mettreEnFile(c.client, racine, appel.ticket);
+    }
     process.stdout.write(`${ligne}\n`);
     return 0;
   } catch (x) {

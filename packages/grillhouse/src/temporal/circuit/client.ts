@@ -229,6 +229,34 @@ export async function reprendreLeCircuit(
 }
 
 /**
+ * Starts the circuit of <ticket> over (`--recommencer`): <retirer> removes its copy, sheets and
+ * journal, and its line names the copy removed. A circuit that runs is refused by its name
+ * (`ReponseRefusee`) and nothing is removed; a ticket the server no longer holds is removed all the
+ * same.
+ */
+export async function recommencerLeCircuit(
+  client: Client,
+  racine: string,
+  ticket: string,
+  retirer: (racine: string, ticket: string) => string
+): Promise<string> {
+  const d = await handle(client, racine, ticket)
+    .describe()
+    .catch((x: unknown) => {
+      if (x instanceof WorkflowNotFoundError) {
+        return null;
+      }
+      throw x;
+    });
+  if (d?.status.name === 'RUNNING') {
+    throw new ReponseRefusee(
+      `--recommencer : un circuit tourne sur ${ticket} ; \`--arreter\` l'arrête d'abord.`
+    );
+  }
+  return `copie retirée : ${retirer(racine, ticket)}`;
+}
+
+/**
  * Stops the circuit, its session with it (`--arreter`), its motive <contexte>. A circuit that does
  * not run is refused by its name (`ReponseRefusee`): its lot integrated, or no circuit running.
  */

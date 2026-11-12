@@ -154,6 +154,26 @@ export const fichesDe = (ctx, role) =>
     .filter(e => e.role === role)
     .map(e => e.fiche);
 
+// Whether the branch of the copy holds, ahead of main (the files changed since their merge base,
+// not deleted), a production file the testwriter does not write.
+function codeCommiteEnAvanceSurMain(ctx) {
+  const git = (...a) => spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8' });
+  const base = ['main', 'origin/main']
+    .map(b => git('merge-base', 'HEAD', b))
+    .find(r => r.status === 0);
+  if (!base) {
+    return false;
+  }
+  const r = git('diff', '--name-only', '-z', '--diff-filter=d', base.stdout.trim(), 'HEAD', '--');
+  if (r.status !== 0) {
+    return false;
+  }
+  const langage = langageDe(ctx.copie);
+  return r.stdout
+    .split('\0')
+    .some(fichier => fichier !== '' && langage.estUnTest(fichier, ctx.copie) === null);
+}
+
 // Whether the code of the behaviour is already in the copy: a developpeur session has run (the
 // sheets hold one) and the copy still carries a change of production the testwriter does not write
 // (`estUnTest` null: neither a test file nor the shared test material). This is the ground truth,
@@ -161,6 +181,11 @@ export const fichesDe = (ctx, role) =>
 // test) does not remove the code, so the sign stays raised; a new lot whose code is not in the copy
 // never raises it. With it, no test can turn red, and the proof abstains.
 export const codeDejaPresent = ctx => {
+  // The code committed on the copy's branch ahead of main is there whatever the sheets say: a lost
+  // sheet of the developpeur does not hide it.
+  if (codeCommiteEnAvanceSurMain(ctx)) {
+    return true;
+  }
   if (!lesFiches(ctx).some(e => e.role === 'developpeur')) {
     return false;
   }
