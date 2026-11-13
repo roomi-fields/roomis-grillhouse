@@ -235,11 +235,11 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet typescrip
   const presents = [
     '/wt/.git',
     '/wt/.turbo',
-    '/wt/node_modules/.vite',
+    '/wt/.cache-outils',
     '/wt/packages/a',
     '/wt/packages/m',
     '/wt/packages/m/.turbo',
-    '/wt/packages/m/node_modules/.vite',
+    '/wt/packages/m/.cache-outils',
     '/main/.beads',
     '/main/.turbo/cache',
   ];
@@ -251,7 +251,7 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet typescrip
   const debut = ['--ro-bind', '/', '/', '--dev-bind', '/dev', '/dev', '--tmpfs', '/dev/shm'];
   const copie = ['--unshare-pid', '--proc', '/proc', '--ro-bind', '/wt', '/wt'];
   const racine = [
-    ...['--tmpfs', '/wt/.turbo', '--tmpfs', '/wt/node_modules/.vite'],
+    ...['--tmpfs', '/wt/.turbo', '--tmpfs', '/wt/.cache-outils'],
     ...['--ro-bind', '/wt/.git', '/wt/.git'],
   ];
   const magasin = ['--bind', '/main/.turbo/cache', '/main/.turbo/cache'];
@@ -268,7 +268,7 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet typescrip
       ...duPlan,
       ...['--ro-bind', '/wt/packages/m', '/wt/packages/m'],
       ...['--tmpfs', '/wt/packages/m/.turbo'],
-      ...['--tmpfs', '/wt/packages/m/node_modules/.vite'],
+      ...['--tmpfs', '/wt/packages/m/.cache-outils'],
       ...['--chdir', '/wt'],
     ]);
   });
@@ -310,6 +310,36 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet typescrip
           lien: (p: string) => (p === '/wt/node_modules' ? '/main/node_modules' : null),
         }
       ).args ?? [];
-    expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm', '/wt/.turbo']);
+    expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm', '/wt/.turbo', '/wt/.cache-outils']);
+  });
+
+  it('mounts .cache-outils in writing in a copy whose node_modules is a link, and drops no clean output of the module', () => {
+    const { lectures, magasins, sorties } = sortiesDuLangage(ts.sorties, {
+      maison: '/h',
+      principal: '/main',
+    });
+    const lien = (p: string) => (p === '/wt/node_modules' ? '/main/node_modules' : null);
+    const args =
+      plan(
+        {
+          trees: ['/main', '/wt'],
+          copie: '/wt',
+          paquets: ['packages/a'],
+          role: 'developpeur',
+          lectures,
+          magasins,
+          sorties,
+          paquetsDeLaCopie: [{ dossier: 'packages/a', pkg: { name: 'a' } }],
+        },
+        { existe: (p: string) => presents.includes(p), lien }
+      ).args ?? [];
+    const vides = pairs(args, '--tmpfs');
+    expect(vides).toContain('/wt/.cache-outils');
+    expect(vides).toContain('/wt/.turbo');
+    // Every clean output the module declares at the root is mounted: none is dropped for a link.
+    const racineDeclarees = ts.sorties.propres.filter((s: string) => presents.includes(`/wt/${s}`));
+    expect(racineDeclarees.map((s: string) => `/wt/${s}`).sort()).toEqual(
+      vides.filter(v => v.startsWith('/wt/') && !v.startsWith('/wt/packages')).sort()
+    );
   });
 });

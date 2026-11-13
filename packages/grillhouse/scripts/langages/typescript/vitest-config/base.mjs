@@ -145,6 +145,9 @@ function baseDeVitest() {
 
 export default {
   plugins: [baseDeVitest(), ciblage()],
+  // The cache of Vite, where Vitest writes its results (`vitest/results.json`), under the clean
+  // output `.cache-outils` of the module: never under `node_modules`, a link in a copy.
+  cacheDir: '.cache-outils/vite',
   test: {
     environment: 'node',
     env: {

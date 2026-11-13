@@ -25,7 +25,7 @@
 //   `~/.cargo` with its `env`, its configuration and its binaries, and rustup's `~/.rustup`) comes
 //   back read-only under them, nothing a shell sources written; its outputs in the copy (cargo's
 //   `target`) come back in writing; and its outputs proper to the session (TypeScript's `.turbo`
-//   and `node_modules/.vite`) are below. Each written path is created on disk before the session,
+//   and `.cache-outils`, the cache of Vite included) are below. Each written path is created on disk before the session,
 //   a directory or, without a trailing `/` in the module's list, an empty file, so that bwrap
 //   mounts it.
 // - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) show only what

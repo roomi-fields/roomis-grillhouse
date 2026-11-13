@@ -21,6 +21,7 @@ import { DELAI_NUIT_MS } from './vitest-config/bornes.mjs';
 
 export default {
   plugins: [nuit()],
+  cacheDir: base.cacheDir,
   test: {
     env: base.test.env,
     environment: base.test.environment,

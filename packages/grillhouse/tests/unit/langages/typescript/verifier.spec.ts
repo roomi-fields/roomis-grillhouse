@@ -103,7 +103,7 @@ function depot(
     );
     ecrire(`packages/${nom}/test/x.test.mjs`, fichierDeTest(r, nom, sorte));
   }
-  ecrire('.gitignore', 'node_modules\n.turbo/\n');
+  ecrire('.gitignore', 'node_modules\n.turbo/\n.cache-outils/\n');
   const fichierPression = path.join(r, 'pression');
   writeFileSync(fichierPression, pression(some));
   const env: NodeJS.ProcessEnv = {

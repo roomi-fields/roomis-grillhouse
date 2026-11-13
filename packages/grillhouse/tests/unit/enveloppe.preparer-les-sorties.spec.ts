@@ -41,7 +41,7 @@ describe('la création des dossiers de sortie propre avant le montage', () => {
   it('crée les sorties propres qui manquent dans un paquet hors du plan sans node_modules', () => {
     const c = copie();
     preparer(c, { paquets: ['packages/a'] });
-    expect(existsSync(path.join(c, 'packages/essais/node_modules/.vite'))).toBe(true);
+    expect(existsSync(path.join(c, 'packages/essais/.cache-outils'))).toBe(true);
     expect(existsSync(path.join(c, 'packages/essais/.turbo'))).toBe(true);
   });
 
@@ -49,7 +49,8 @@ describe('la création des dossiers de sortie propre avant le montage', () => {
     const c = copie();
     preparer(c, { paquets: ['packages/a'] });
     expect(existsSync(path.join(c, '.turbo'))).toBe(true);
-    expect(existsSync(path.join(c, 'node_modules/.vite'))).toBe(true);
+    expect(existsSync(path.join(c, '.cache-outils'))).toBe(true);
+    expect(existsSync(path.join(c, 'node_modules/.vite'))).toBe(false);
   });
 
   it('ne crée rien dans un paquet que le plan nomme', () => {

@@ -1,7 +1,7 @@
 // The envelope opens where the tools of the language write, as a sandbox of Bazel opens the
 // outputs an action declares whatever the package: in each package of the copy that the plan does
 // not name, every own output of the module of the language (`sorties.propres`: `.turbo`,
-// `node_modules/.vite`) is an empty directory proper to the session, and the rest of the package
+// `.cache-outils`) is an empty directory proper to the session, and the rest of the package
 // stays read-only. A package the plan names keeps its outputs written; a plan that writes the
 // root stays as it was. Read on the plan of the envelope, without disk.
 import { describe, expect, it } from 'vitest';
@@ -12,7 +12,7 @@ import typescript from '../../scripts/langages/typescript/index.mjs';
 const pairs = (args: string[], flag: string) =>
   args.flatMap((a, i) => (a === flag ? [args[i + 1] ?? ''] : []));
 
-const PROPRES = ['.turbo', 'node_modules/.vite'];
+const PROPRES = ['.turbo', '.cache-outils'];
 const PAQUETS = ['packages/a', 'packages/b', 'packages/essais', 'packages/m'];
 
 function enveloppe(o: {
@@ -114,17 +114,27 @@ describe('les sorties propres de la séance dans les paquets hors du plan', () =
     });
     const vides = pairs(args, '--tmpfs');
     expect(vides).toContain('/wt/packages/essais/.turbo');
-    expect(vides).not.toContain('/wt/packages/essais/node_modules/.vite');
+    expect(vides).not.toContain('/wt/packages/essais/.cache-outils');
     expect(vides).not.toContain('/wt/packages/b/.turbo');
   });
 
-  it('écarte une sortie qu’un lien symbolique sort de la copie', () => {
+  it('monte chaque sortie propre du module même quand node_modules est un lien', () => {
     const args = enveloppe({
       paquets: ['packages/a'],
       liens: { '/wt/packages/essais/node_modules': '/ailleurs/node_modules' },
     });
     const vides = pairs(args, '--tmpfs');
-    expect(vides).not.toContain('/wt/packages/essais/node_modules/.vite');
+    expect(vides).toContain('/wt/packages/essais/.cache-outils');
+    expect(vides).toContain('/wt/packages/essais/.turbo');
+  });
+
+  it('écarte une sortie qu’un lien symbolique sort de la copie', () => {
+    const args = enveloppe({
+      paquets: ['packages/a'],
+      liens: { '/wt/packages/essais/.cache-outils': '/ailleurs/cache' },
+    });
+    const vides = pairs(args, '--tmpfs');
+    expect(vides).not.toContain('/wt/packages/essais/.cache-outils');
     expect(vides).toContain('/wt/packages/essais/.turbo');
   });
 

@@ -105,7 +105,7 @@ function depotAPaquets() {
   );
   ecrire(r, 'packages/outil/test/x.test.mjs', fichierDeTest(3, 'outil/x'));
   ecrire(r, 'tests/x.test.mjs', fichierDeTest(1, 'racine/x'));
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\nconstruits.txt\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\n.cache-outils/\njoues.txt\nconstruits.txt\n');
   // The turbo.json of each package, as the update writes them: `gele` plays no task.
   ecrireTurbo(r);
   return r;
@@ -133,7 +133,7 @@ function depotSansPaquets() {
   ecrire(r, 'vitest.config.mjs', configuration);
   ecrire(r, 'tests/x.test.mjs', fichierDeTest(1, 'racine/x'));
   ecrire(r, 'tests/y.test.mjs', fichierDeTest(1, 'racine/y'));
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\nconstruits.txt\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\n.cache-outils/\njoues.txt\nconstruits.txt\n');
   return r;
 }
 

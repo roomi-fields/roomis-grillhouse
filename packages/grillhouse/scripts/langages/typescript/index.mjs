@@ -215,12 +215,13 @@ export default {
   // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
   // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
   // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of
-  // Vite, where Vitest writes the results of a run (`node_modules/.vite/vitest/`) and whose failure
-  // fails it, proper to the session; and the cache of ESLint and Prettier (`.cache-outils/`),
-  // proper to the session too, an empty one costing a whole reading, as without a cache.
+  // Vite, where Vitest writes the results of a run (`.cache-outils/vite/vitest/`, the `cacheDir` of
+  // the base configurations: a copy's `node_modules` is a link, so nothing under it is a clean
+  // output) and whose failure fails it; and the cache of ESLint and Prettier (`.cache-outils/`),
+  // proper to the session, an empty one costing a whole reading, as without a cache.
   sorties: {
     ecrites: ['//.turbo/cache/'],
-    propres: ['.turbo', 'node_modules/.vite', '.cache-outils'],
+    propres: ['.turbo', '.cache-outils'],
     lues: [],
   },
   // The test tool run directly, Vitest or Turborepo that plays it: `npm test` and `npm run
