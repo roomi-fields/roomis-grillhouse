@@ -1681,11 +1681,12 @@ function avecLesDependancesDeLaCopie(ctx, racine, jouer) {
 // lot that lie in it, HEAD's version of each beside it or in a tree of its own, played again
 // without the trees when they alone break the build (`jouerAvecLesVersionsDAvant`), or, with no
 // file of the lot, `npm test -- <package>` for each package of the plan, played whole. Each run
-// `{ groupe, entier, avant, lus, arbres, code, resultats, constructions }`. A measure on the same tree (the copy's fingerprint, `empreinte`) is
-// not played again, as Turborepo replays a task whose inputs did not move: the last one, <derniere>,
-// its caller keeps. `{ cle, runs }`, each map of a run (`avant`, `lus`, `arbres`) an object.
+// `{ groupe, entier, avant, lus, arbres, code, resultats, constructions }`. A measure of the same
+// files on the same tree (`cleDeLaMesure`) is not played again, as Turborepo replays a task whose
+// inputs and arguments did not move: the last one, <derniere>, its caller keeps. `{ cle, runs }`,
+// each map of a run (`avant`, `lus`, `arbres`) an object.
 function mesureDeLaPreuve(ctx, liste, fichiers, derniere = null) {
-  const cle = empreinte(ctx, ['.']);
+  const cle = cleDeLaMesure(ctx, fichiers);
   if (derniere?.cle === cle) {
     return derniere;
   }
@@ -2334,6 +2335,11 @@ export function livre(ctx) {
 
 // The fingerprint of the files of <chemins> in the copy (the plan by default): `git status
 // --porcelain` of them and the content of each file it lists.
+// The key of a measure of the proof: the copy's fingerprint and the files it measures, in their
+// order; the same tree measured on other files (a version that sets other files aside) is another
+// measure.
+export const cleDeLaMesure = (ctx, fichiers) => [empreinte(ctx, ['.']), ...fichiers].join('\n');
+
 export function empreinte(ctx, chemins = ctx.paquets) {
   const r = spawnSync(
     'git',

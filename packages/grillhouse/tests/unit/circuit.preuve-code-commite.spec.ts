@@ -26,10 +26,9 @@ const preuve = activites.preuve as (
   ctx: Ctx,
   o: { mesure: { cle: string; runs: unknown[] } }
 ) => { ok: boolean; rouges: number; texte: string };
-const empreinte = activites.empreinte as (
-  ctx: { copie: string; paquets: string[] },
-  chemins: string[]
-) => string;
+// The key of the last measure of the copy <c>: its fingerprint and the files of the day of its lot.
+const cleDuLot = (c: Parameters<typeof activites.testsDuLot>[0]) =>
+  activites.cleDeLaMesure(c, activites.separerLesFichiersDuJour(c, activites.testsDuLot(c)).jour);
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'preuve-code-commite-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -82,7 +81,7 @@ describe('le signe « le code est déjà dans la copie » sur du code commité',
 });
 
 describe('la preuve rejouée sur une copie dont le code est commité', () => {
-  const rejouer = (c: Ctx) => preuve(c, { mesure: { cle: empreinte(c, ['.']), runs: [] } });
+  const rejouer = (c: Ctx) => preuve(c, { mesure: { cle: cleDuLot(c), runs: [] } });
 
   it('passes with no red and says the code is there when it is committed ahead of main', () => {
     const r = rejouer(copie(['explorateur', 'testwriter', 'developpeur'], true));
@@ -101,5 +100,17 @@ describe('la preuve rejouée sur une copie dont le code est commité', () => {
     const r = rejouer(copie(['explorateur', 'testwriter'], false));
     expect(r.ok).toBe(false);
     expect(r.texte).not.toContain('Le code du développeur est déjà dans la copie');
+  });
+});
+
+// A measure is kept for the files it measured: the same tree measured on other files (a version
+// that sets other files aside, grillhouse-2vl) is played again.
+describe('la clé de la mesure de la preuve', () => {
+  it('names the files it measures: the same tree on other files is another measure', () => {
+    const c = copie(['explorateur', 'testwriter'], false);
+    const avec = activites.cleDeLaMesure(c, ['a.test.ts', 'mods/b.test.ts']);
+    expect(activites.cleDeLaMesure(c, ['a.test.ts', 'mods/b.test.ts'])).toBe(avec);
+    expect(activites.cleDeLaMesure(c, ['a.test.ts'])).not.toBe(avec);
+    expect(activites.cleDeLaMesure(c, [])).not.toBe(avec);
   });
 });

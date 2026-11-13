@@ -128,14 +128,13 @@ describe('la preuve rejouée sur une copie qui porte ou non le code de productio
     ctx: { copie: string; fiches: string; paquets: string[]; journal: string },
     o: { mesure: { cle: string; runs: unknown[] } }
   ) => { ok: boolean; rouges: number; texte: string };
-  const empreinte = activites.empreinte as (
-    ctx: { copie: string; paquets: string[] },
-    chemins: string[]
-  ) => string;
+  // The key of the last measure of the copy <c>: its fingerprint and the files of the day of its lot.
+  const cleDuLot = (c: Parameters<typeof activites.testsDuLot>[0]) =>
+    activites.cleDeLaMesure(c, activites.separerLesFichiersDuJour(c, activites.testsDuLot(c)).jour);
 
   const rejouer = (roles: string[], production = false) => {
     const c = copieAvec(roles, production);
-    return preuve(c, { mesure: { cle: empreinte(c, ['.']), runs: [] } });
+    return preuve(c, { mesure: { cle: cleDuLot(c), runs: [] } });
   };
 
   it('passes and says the code is there when a developpeur ran and the production code is in the copy', () => {
