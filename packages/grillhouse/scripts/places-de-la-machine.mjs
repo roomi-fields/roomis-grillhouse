@@ -42,7 +42,7 @@ import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { ecrireLaTrace, traceDesPlaces } from './journal-des-etats.mjs';
 import { mesureDeLaMachine } from './mesure-de-la-machine.mjs';
 import { plafondDe } from './plafond-de-la-machine.mjs';
-import { AttenteDeLaMachine, avecLaMachine, borneDe } from './verrou-de-machine.mjs';
+import { AttenteDeLaMachine, avecLaMachine, borneDe, racineDuDepot } from './verrou-de-machine.mjs';
 
 export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
@@ -205,6 +205,7 @@ export function prendreUnePlace({
     pid,
     depart: depart === undefined ? departDe(pid) : depart,
     ticket,
+    racine: racineDuDepot(racine),
     ...(rang === undefined || rang === null ? {} : { rang }),
     borneMs,
     rappelMs,
@@ -344,7 +345,7 @@ export function avecLaMachineEtUnePlace(mesure, options = {}) {
  * The places taken and the waits of the machine under <env>, as the server holds them: `{ plafond,
  * faute, prises, attentes, circuits }` (`faute`, a value of the ceiling the poste names and the
  * server refused, the ceiling read before kept; `circuits`, the places of the circuits, held or
- * waited for, `{ racine, ticket, rang, accordee, depuis, vu }`), `prises` `{ id, pid, depart, ticket, rang, depuis }`, `attentes` in the
+ * waited for, `{ racine, ticket, rang, accordee, depuis, vu }`), `prises` `{ id, pid, depart, ticket, racine, rang, depuis }`, `attentes` in the
  * order of arrival `{ id, pid, ticket, rang, raison, depuis }`; none where no place is taken.
  * @param {{ env?: Record<string, string | undefined> }} [o]
  */
@@ -399,15 +400,24 @@ function mesureDEssai(env) {
  * started (`circuits` of the server, which the queue of each project reserves). The
  * machine is the one GRILLHOUSE_MESURE_D_ESSAI fixes, else the real one (`mesurer`).
  * @param {{ env?: Record<string, string | undefined>, mesurer?: () => { coeurs: number,
- *   charge: number, memoireLibre: number, memoireTotale: number } }} [o]
+ *   charge: number, memoireLibre: number, memoireTotale: number },
+ *   lues?: { plafond: number, faute?: string | null, prises: { ticket: string | null,
+ *   racine?: string | null }[], attentes: { ticket: string, depuis: number }[],
+ *   circuits?: { ticket: string, depuis: number, accordee?: boolean, raison?: string | null }[] }
+ *   }} [o] `lues`, the places as the server holds them (`lirePlaces` by default); `tenues` of the
+ *   result gives each place taken, its ticket and the root of its project (null without one)
+ * @returns {{ prises: number, tenues: { ticket: string | null, racine: string | null }[],
+ *   plafond: number, faute: string | null, charge: number, coeurs: number, memoireGo: number,
+ *   memoireTotaleGo: number, attentes: { ticket: string, depuis: number, disque?: string | null }[] }}
  * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is faulty
  */
-export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine } = {}) {
+export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine, lues } = {}) {
   const fixee = mesureDEssai(env);
-  const { plafond, faute = null, prises, attentes, circuits = [] } = lirePlaces({ env });
+  const { plafond, faute = null, prises, attentes, circuits = [] } = lues ?? lirePlaces({ env });
   const m = fixee ?? mesurer();
   return {
     prises: prises.length,
+    tenues: prises.map(p => ({ ticket: p.ticket ?? null, racine: p.racine ?? null })),
     plafond,
     faute,
     charge: Math.round(m.charge * 10) / 10,

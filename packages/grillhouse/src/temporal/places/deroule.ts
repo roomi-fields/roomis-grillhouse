@@ -177,6 +177,7 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
           pid: a.pid,
           depart: a.depart,
           ticket: a.ticket,
+          racine: a.racine ?? null,
           rang: a.rang,
           depuis: Date.now(),
         });
@@ -201,6 +202,7 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
       pid: demande.pid,
       depart: demande.depart,
       ticket: demande.ticket ?? null,
+      racine: demande.racine ?? null,
       rang,
       raison: 'pas encore jugée',
       depuis: Date.now(),

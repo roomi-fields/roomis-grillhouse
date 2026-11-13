@@ -71,3 +71,8 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   des copies (la plus grande copie mesurée du projet, sinon 1 Go, 8 Go pour Rust, plus 4 Go) ;
   sinon il reste en file, non démarré, et le panneau dit « attend une place » ou « attend le
   disque » avec les copies en pause qui l'occupent.
+- Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
+  espace, le nom court du projet aux affichages partagés entre projets : la ligne des places, qui
+  nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets
+  de `.beads/config.yaml` sert ; une autre valeur est une faute que le panneau dit en alerte, le
+  préfixe restant le sigle).

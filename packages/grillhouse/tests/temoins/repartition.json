@@ -136,6 +136,7 @@
     "scripts/seances.mjs",
     "scripts/services-du-noyau.mjs",
     "scripts/session-start.sh",
+    "scripts/sigle-du-projet.mjs",
     "scripts/sortie.mjs",
     "scripts/sources.mjs",
     "scripts/sous-commandes.mjs",

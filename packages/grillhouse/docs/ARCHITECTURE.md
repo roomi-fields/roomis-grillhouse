@@ -985,8 +985,16 @@ comme Bazel ordonne ses tests par priorité.
 machine, quel qu'il soit (une passe hors ticket, le circuit d'un ticket, de n'importe quel projet
 de la machine), se nomme à côté (la racine de son dépôt, celle de sa copie de travail, son ticket
 s'il en a un, sa sorte, depuis quand, puis son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
-processus. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · charge x/c ·
-mémoire m/M Go », la mémoire disponible sur la mémoire totale du poste ; puis la nuit en cours sur
+processus. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · <qui> · charge x/c ·
+mémoire m/M Go », la mémoire disponible sur la mémoire totale du poste. Chaque prise porte sa
+racine (celle du dépôt principal de son projet, que la demande de place donne au serveur avec son
+ticket) : `<qui>` nomme chaque prise, celle du projet du panneau par le numéro court de son ticket,
+celle d'un autre projet « <SIGLE> <numéro court> », une prise sans ticket « passe » ; les prises en
+trop se comptent « +n » quand la ligne dépasserait la largeur. Le sigle d'un projet
+(`scripts/sigle-du-projet.mjs`) est la clé `grillhouse.sigle` de son `package.json`, sinon son
+préfixe de tickets ; il ne sert qu'aux affichages partagés entre projets (cette ligne, l'étiquette
+de chaque projet du panneau de plusieurs projets, qui alerte quand deux projets en portent un même) ;
+puis la nuit en cours sur
 la machine, « 🌙 nuit · <projet> · depuis <durée> », que lit la requête du déroulé des nuits
 (`nuitDuServeur` de `scripts/circuits-du-serveur.mjs`), une lecture qui échoue n'en montrant
 aucune ; puis chaque ticket pris (`in_progress`) sans circuit sur le serveur qui le tienne, ni lui, ni

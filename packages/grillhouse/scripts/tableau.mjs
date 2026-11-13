@@ -131,6 +131,8 @@ import {
 } from './circuits-du-serveur.mjs';
 import { enFileSansArchitecture } from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
+import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
+import { sigleDuProjet } from './sigle-du-projet.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
 
 const MINUTE = 60_000;
@@ -807,11 +809,12 @@ export function lecture(t, prefix) {
  * other fault of that reading, said in the first alert as it is; `echecPrefixe`, the cause of a
  * ticket prefix that did not read, named in an alert; `voies`, the way of each circuit done
  * (`voiesDesCircuits`), whose sign FAITS AUJOURD'HUI shows.
- * @param {{ tous: any[], prefix?: string, registre: any[], vivants: any[], circuits?: any[],
- *   maintenant: number, jour: number,
+ * @param {{ tous: any[], prefix?: string, racine?: string | null, registre: any[], vivants: any[],
+ *   circuits?: any[], maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
- *   coeurs: number, memoireGo: number, memoireTotaleGo: number, attentes: { ticket: string,
+ *   coeurs: number, memoireGo: number, memoireTotaleGo: number,
+ *   tenues?: { ticket: string | null, racine?: string | null }[], attentes: { ticket: string,
  *   depuis: number, disque?: string | null }[] } | null,
  *   nuit?: { racine: string, depuis: number | null } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null, voies?: Record<string, 'complet' | 'court'> }} lu
@@ -819,6 +822,7 @@ export function lecture(t, prefix) {
 export function assembler({
   tous,
   prefix = '',
+  racine = null,
   registre: lignesDuRegistre,
   vivants,
   circuits = [],
@@ -1360,7 +1364,10 @@ export function assembler({
     agents: blocs,
     maintenant,
     machine,
-    places: placesDeLaMachine,
+    places: placesDeLaMachine && {
+      ...placesDeLaMachine,
+      noms: nommerLesPrises(placesDeLaMachine.tenues ?? [], { racine, prefix }),
+    },
     nuit: nuitEnCours,
     faitsDuJour,
     etats,
@@ -1498,6 +1505,30 @@ const signeDe = a => a.signe ?? '⚠';
 // project's prefix, which the line already names, « bp-mono-vbwf.320.11 » → « vbwf.320.11 »,
 // « SH-ae6.5 » → « ae6.5 ».
 const courtDuTicket = id => id.slice(id.lastIndexOf('-') + 1);
+
+// Who holds each place of the machine, in the order of the places: the project of the board (the
+// root <racine> of its main tree, its ticket prefix <prefix>) by the short number of its ticket,
+// another project by « <sigle> <short number> » (its sigle and its prefix read from its own root),
+// a place with no ticket « passe »; a place with no root (a state of before) is the board's.
+function nommerLesPrises(tenues, { racine, prefix }) {
+  return tenues.map(({ ticket, racine: deLaPrise }) => {
+    const ici = !deLaPrise || (racine && path.resolve(deLaPrise) === path.resolve(racine));
+    let prefixeDuProjet = prefix;
+    if (!ici) {
+      try {
+        prefixeDuProjet = prefixeDeLaRacine(deLaPrise);
+      } catch {
+        prefixeDuProjet = '';
+      }
+    }
+    const numero = !ticket
+      ? 'passe'
+      : prefixeDuProjet && ticket.startsWith(`${prefixeDuProjet}-`)
+        ? ticket.slice(prefixeDuProjet.length + 1)
+        : courtDuTicket(ticket);
+    return ici ? numero : `${sigleDuProjet(deLaPrise).sigle ?? path.basename(deLaPrise)} ${numero}`;
+  });
+}
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
@@ -1625,12 +1656,26 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const p = t.places;
   if (p) {
     const nb = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
+    // Who holds each place stands between the count and the load: the most names that keep the
+    // line within the width, the others counted « +n ».
+    const noms = p.noms ?? [];
+    const suite = p.faute
+      ? `plafond refusé : ${p.faute}`
+      : `charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo}/${p.memoireTotaleGo} Go`;
+    const ligne = k =>
+      `Places ${p.prises}/${p.plafond} · ${
+        noms.length
+          ? `${[noms.slice(0, k).join(', '), ...(k < noms.length ? [`+${noms.length - k}`] : [])]
+              .filter(Boolean)
+              .join(' ')} · `
+          : ''
+      }${suite}`;
+    let k = noms.length;
+    while (k > 0 && colonnes(ligne(k)) > largeur) {
+      k--;
+    }
     poser({
-      texte: cadre(
-        `Places ${p.prises}/${p.plafond} · ${p.faute ? `plafond refusé : ${p.faute}` : `charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo}/${p.memoireTotaleGo} Go`}`,
-        '',
-        largeur
-      ),
+      texte: cadre(ligne(k), '', largeur),
       ton: p.faute ? TONS.plafondRefuse : p.charge >= p.coeurs ? TONS.machineChargee : TONS.mesure,
     });
     // A ticket that waits for the disk of its project's copies: what holds it, the ticket named.
@@ -2389,6 +2434,7 @@ function lire(
   const t = assembler({
     tous,
     prefix,
+    racine: commun ? path.dirname(commun) : racine,
     registre,
     vivants,
     circuits,
@@ -2573,7 +2619,32 @@ export async function tableau(
     }),
   };
   const lus = [ici, ...autres];
-  const etiquette = l => l.prefix || path.basename(l.dossier);
+  // A project is labelled by its sigle (scripts/sigle-du-projet.mjs: the key `grillhouse.sigle`, else
+  // its ticket prefix), as the line of the places names it; a project with neither keeps its
+  // folder's name. A faulty key is said in an alert, the prefix staying the sigle; two projects of
+  // the board with one sigle are said, both named.
+  const sigles = new Map(lus.map(l => [l, sigleDuProjet(l.dossier)]));
+  const etiquette = l => sigles.get(l).sigle || l.prefix || path.basename(l.dossier);
+  const alerteDeSigle = (l, texte) =>
+    (l.t ?? ici.t).alertes.push({ etat: 'panne', ton: TONS.panne, texte });
+  for (const l of lus) {
+    const { faute } = sigles.get(l);
+    if (faute) {
+      alerteDeSigle(l, `Sigle illisible : ${faute}`);
+    }
+  }
+  const memeSigle = new Map();
+  for (const l of lus) {
+    memeSigle.set(etiquette(l), [...(memeSigle.get(etiquette(l)) ?? []), l]);
+  }
+  for (const [sigle, deux] of memeSigle) {
+    if (deux.length > 1) {
+      alerteDeSigle(
+        ici,
+        `Sigle « ${sigle} » porté par ${deux.map(l => path.basename(l.dossier)).join(' et ')}`
+      );
+    }
+  }
   // The lock of the machine names each project of the board as the board does: the session's by
   // its folder, another by its label; the root of its main tree, its common git directory's parent.
   ici.t.machine = nommerLesProjets(

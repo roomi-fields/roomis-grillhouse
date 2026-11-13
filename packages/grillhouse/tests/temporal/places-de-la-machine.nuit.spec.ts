@@ -127,6 +127,20 @@ describe('une place se prend, s’attend et se rend sur le serveur', () => {
     );
   }, 120_000);
 
+  it('the place carries the root of the main tree of its project, which the places read gives back', async () => {
+    const { env } = await machine(2);
+    const place = P().prendreUnePlace({
+      env,
+      ticket: 'a',
+      racine: '/depots/projet-un',
+      dire: () => {},
+    });
+    expect(P().lirePlaces({ env }).prises).toMatchObject([
+      { ticket: 'a', racine: '/depots/projet-un' },
+    ]);
+    place.rendre();
+  }, 120_000);
+
   it('a child killed frees its place, and the taking that waits passes', async () => {
     const { env } = await machine(1);
     const e = tenir(env, 'mort');

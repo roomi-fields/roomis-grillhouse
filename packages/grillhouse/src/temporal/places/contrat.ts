@@ -33,6 +33,8 @@ interface Prise {
   /** The start of the process (`departDe`), null when unknown. */
   depart: string | null;
   ticket: string | null;
+  /** The root of the main tree of the project that holds it; absent in a state of before. */
+  racine?: string | null;
   rang: number;
   /** The time it was taken, in ms. */
   depuis: number;
@@ -44,6 +46,7 @@ interface Attente {
   pid: number;
   depart: string | null;
   ticket: string | null;
+  racine?: string | null;
   rang: number;
   raison: string;
   depuis: number;
@@ -107,6 +110,8 @@ export interface DemandeDePlace {
   pid: number;
   depart: string | null;
   ticket?: string | null;
+  /** The root of the main tree of the project that asks. */
+  racine?: string | null;
   /** The rank of arrival of the circuit; drawn by the workflow, past every rank given, when absent. */
   rang?: number;
 }
