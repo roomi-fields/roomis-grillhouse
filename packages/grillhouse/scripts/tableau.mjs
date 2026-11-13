@@ -1207,13 +1207,16 @@ export function assembler({
       partDuSuperviseur.set(x.id, (partDuSuperviseur.get(x.id) ?? 0) + n / tenus.length);
     }
   }
+  // A finding is done only once led to its end: validated and carried by the circuit, or led
+  // direct; a finding just recorded, or rejected at its sorting, is no work done.
+  const menee = t => aLabel(t, 'circuit') || aLabel(t, 'direct');
   const faitsDuJour = tous
     .filter(
       t =>
         travail(t) &&
         !actifs.has(t.id) &&
         !parCircuit.has(t.id) &&
-        !estDecouverte(t) &&
+        !(estDecouverte(t) && !menee(t)) &&
         !sansLivraison(t) &&
         t.closed_at &&
         Date.parse(t.closed_at) >= debutJour
