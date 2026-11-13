@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-11-13
+
 - **The integration judges each file of a lot on the tree where it exists** (grillhouse-1lj): on osc-bridge, a lot that moved the crate at the root under `crates/osc-bridge` was refused « Le lot de tests touche du code » for some 45 files, all tests: the integration judged each one with the crates of the main tree, before the lot, where `crates/osc-bridge/tests/x.rs` fell in the root crate as code. `refusLots` (scripts/integration/integrer.mjs) now judges a file present after the lot on the ticket's copy, and a file the lot deletes or renames away on the main tree, as each side of a diff is read in its own tree; a code file stays refused from the tests lot, and a test from the code lot. **Action for projects**: none.
 
 - **A closed ticket whose old circuit the supervisor stopped is done again** (grillhouse-lm4): under 0.37.0 the board counted under ⏸ and showed in AGENTS every closed ticket with a circuit not integrated, 21 on Grillhouse, their circuits stopped by the supervisor long ago and their lots entered another way. A closed ticket now keeps its circuit, and stays in progress, only while that circuit runs or waits for the supervisor (`attendLeSuperviseur`); an open ticket keeps its stopped circuit as before. **Action for projects**: none.
