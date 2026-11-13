@@ -1161,7 +1161,7 @@ describe('les réponses du superviseur reprennent comme circuit.mjs', () => {
     });
   }, 120_000);
 
-  it('two answers at once to a stopped circuit: one resumes it, the other is told it runs', async () => {
+  it('two answers at once to a stopped circuit: one resumes it, the other is told it runs or is integrated', async () => {
     const { activites } = actes(unBesoin());
     const client = await circuit(activites);
     await enAttente(client);
@@ -1174,7 +1174,7 @@ describe('les réponses du superviseur reprennent comme circuit.mjs', () => {
     expect(r.filter(x => x.status === 'fulfilled')).toHaveLength(1);
     const refus = r.find(x => x.status === 'rejected') as PromiseRejectedResult;
     expect(String((refus.reason as Error).message)).toMatch(
-      /une autre réponse a déjà repris le circuit de essai-1|le circuit tourne/
+      /une autre réponse a déjà repris le circuit de essai-1|le circuit tourne|rien à reprendre : le lot de essai-1 est intégré/
     );
     expect(refus.reason).toBeInstanceOf(ReponseRefusee);
     await finDuCircuit(client, RACINE, TICKET);

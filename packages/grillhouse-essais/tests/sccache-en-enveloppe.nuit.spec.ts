@@ -159,10 +159,8 @@ describe.runIf(AVEC_SCCACHE)(
     // travail/grillhouse-tests-XXXXXX/t`, 105 bytes).
     const LONG = path.join(ESSAIS, 'x'.repeat(60), 'y'.repeat(40));
     const racine = path.join(ESSAIS, 'copie-du-vrai');
-    const env = (): NodeJS.ProcessEnv => ({
-      ...avecSccache(racine, process.env),
-      TMPDIR: LONG,
-    });
+    // The client names the server after its own temporary directory (`avecSccache`), the long one.
+    const env = (): NodeJS.ProcessEnv => avecSccache(racine, { ...process.env, TMPDIR: LONG });
     const arreter = () => spawnSync('sccache', ['--stop-server'], { env: env(), stdio: 'ignore' });
     afterAll(arreter);
 
