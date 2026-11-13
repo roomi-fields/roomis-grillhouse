@@ -1,6 +1,6 @@
 // grillhouse-9kq critères 4 et 18 — les places de la machine sur le panneau (scripts/tableau.mjs) :
 // une ligne en tête d'AGENTS, « Places 3/3 · charge 11,2/12 · mémoire 9/30 Go » ; un ticket qui
-// attend une place porte ⏳ et « attend une place » ; un ticket qui attend une dépendance garde
+// attend une place porte ⏸ et « attend une place » ; un ticket qui attend une dépendance garde
 // « attend <ticket> ». Le panneau reçoit les places lues (`lirePlaces` de
 // scripts/places-de-la-machine.mjs, la charge, la mémoire disponible et la mémoire totale de la machine) dans `places`.
 import { describe, expect, it } from 'vitest';
@@ -125,7 +125,7 @@ describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’
   });
 });
 
-describe('grillhouse-9kq critères 4 et 18 — ⏳ « attend une place »', () => {
+describe('grillhouse-9kq critères 4 et 18 — ⏸ « attend une place »', () => {
   const tous = [T('demo-1', 'Le premier sujet'), T('demo-2', 'Le second sujet')];
   const circuits = [circuit('demo-1'), circuit('demo-2')];
   const places: Places = {
@@ -133,9 +133,9 @@ describe('grillhouse-9kq critères 4 et 18 — ⏳ « attend une place »', () =
     attentes: [{ ticket: 'demo-2', depuis: MAINTENANT - 3 * MIN }],
   };
 
-  it('un ticket qui attend une place porte ⏳ et « attend une place » sur sa ligne', () => {
+  it('un ticket qui attend une place porte ⏸ et « attend une place » sur sa ligne', () => {
     const l = agents(plateau(tous, { circuits, places })).find(x => x.ticket === 'demo-2');
-    expect(l?.texte).toMatch(/⏳/);
+    expect(l?.texte).toMatch(/^⏸ /);
     expect(l?.texte).toMatch(/attend une place/);
   });
 

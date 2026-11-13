@@ -265,7 +265,7 @@ describe('CHANTIER lists its open tickets under the title of their state', () =>
 describe('3uv.42 critère 3 : an open mother keeps its open tickets, its closed ones gone', () => {
   it('its ticket in progress with no circuit stands in AGENTS, worked in direct, not in the tree', () => {
     expect(partieAgents(L0).find(x => x.ticket === 'demo-e.1.1')?.texte).toMatch(
-      /^✎ e\.1\.1 {2}.* · en direct$/
+      /^▶ e\.1\.1 {2}.* · en direct$/
     );
     expect(partieChantier(L0).some(x => x.ticket === 'demo-e.1.1')).toBe(false);
   });
@@ -589,7 +589,7 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
     const agents = partieAgents(LP);
     for (let i = 1; i <= 31; i++) {
       expect(
-        agents.some(y => y.ticket === `demo-e.${i}` && y.texte.startsWith('✎ ')),
+        agents.some(y => y.ticket === `demo-e.${i}` && /^▶ .* · en direct$/.test(y.texte)),
         `e.${i}`
       ).toBe(true);
     }

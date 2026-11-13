@@ -117,10 +117,10 @@ const lignesAgents = (t: Board) =>
   (lignes(t, 'depot') as Ligne[]).filter(x => x.section === 'agents');
 const agents = (t: Board) => lignesAgents(t).map(x => x.texte.trimEnd());
 const QUESTION = '  ⤷ Question · superviseur';
-// The tag of a circuit that waits for the supervisor, at the end of its line.
-const TAG = ' · en attente du superviseur';
-// The panel is 52 columns wide: the subject gives way, the tag stays at the end of the line.
-const ENATTENTE13 = /^⏸ 13 {2}Le su.* · en attente du superviseur$/;
+// The reason of a circuit that waits for the supervisor, at the end of its line.
+const TAG = ' · question au superviseur';
+// The panel is 52 columns wide: the subject gives way, the reason stays at the end of the line.
+const ENATTENTE13 = /^⏸ 13 {2}Le su.* · question au superviseur$/;
 // The question of a stop, as scripts/circuit.mjs keeps it in the state.
 const question = (o: object = {}) => ({
   arret: 'controles',
@@ -158,7 +158,7 @@ describe("a circuit's line carries its ticket's working time and tokens", () => 
     const a = agents(t);
     const i = a.indexOf('  3.1 · Contrôles · auto');
     expect(a[i + 1]).toBe(QUESTION);
-    expect(a[i + 2]).toMatch(/^⏸ 12 {2}Le su.* · en attente du superviseur +1 h 00 · 10$/);
+    expect(a[i + 2]).toMatch(/^⏸ 12 {2}Le su.* · question au superviseur +1 h 00 · 10$/);
   });
 });
 
@@ -287,7 +287,7 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
 
   // grillhouse-mwz, criterion 2: a circuit dead without a final state (its process gone, no stop
   // written) is named with the command that resumes it, a question for the supervisor.
-  it('grillhouse-mwz critère 2 — a circuit dead without a stop written stands under « ⤷ Question · superviseur », with the command that resumes it', () => {
+  it('grillhouse-mwz critère 2 — a circuit dead without a stop written stands under « ⤷ Question · superviseur », ⛔ « fini sans son issue », with the command that resumes it', () => {
     const racine = depot({ 'demo-13': { etape: 'preuve', tentative: 1 } });
     const lus = circuits(racine);
     expect(lus).toEqual([
@@ -304,7 +304,7 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const a = agents(t);
     const i = a.indexOf(QUESTION);
     expect(a[i - 1]).toBe('  2.1 · Preuve du rouge · auto');
-    expect(a[i + 1]).toMatch(ENATTENTE13);
+    expect(a[i + 1]).toMatch(/^⛔ 13 {2}Le su.* · fini sans son issue$/);
     expect(carte(t, [T('demo-13')], 'demo-13')).toMatch(
       /^Question · superviseur : Le déroulé du circuit a fini sans son issue \(TERMINATED\), aucun arrêt écrit\. `npx grillhouse circuit demo-13 --reprendre` ou `--depuis <testwriter\|developpeur> --contexte <texte>` le reprend\./
     );
@@ -368,14 +368,14 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const a = agents(t);
     const i = a.indexOf('  ⤷ Question · responsable');
     expect(a[i - 1]).toBe('  4.3 · Relecture · relecteur');
-    expect(a[i + 1]).toBe('⏸ 14  Le sujet de demo-14');
+    expect(a[i + 1]).toBe('⏸ 14  Le sujet de demo-14 · question au responsable');
     expect(a[a.indexOf(QUESTION) + 1]).toMatch(ENATTENTE13);
     expect(carte(t, [T('demo-14')], 'demo-14')).toMatch(
       /^Question · responsable : Le relecteur demande/
     );
   });
 
-  it('a circuit that waits for the supervisor carries the tag « en attente du superviseur », one that waits for the owner, runs, or was stopped by the supervisor carries none', () => {
+  it('a circuit that waits for the supervisor says « question au superviseur », one that waits for the owner « question au responsable », one ended without its issue ⛔ « fini sans son issue », one that runs nothing', () => {
     const racine = depot({
       'demo-13': { ...ARRET, question: question() },
       'demo-14': {
@@ -393,12 +393,11 @@ describe('a circuit that stopped: under its step, its stop, its code and its rea
     const a = agents(plateau(tous, [], [], lus));
     const ligne = (n: string) => a.find(x => x.startsWith(`⏸ ${n} `) || x.startsWith(`▶ ${n} `));
     expect(ligne('13')).toContain(TAG);
-    expect(ligne('17')).toContain(TAG);
-    expect(ligne('14')).not.toContain('en attente du superviseur');
-    expect(ligne('15')).not.toContain('en attente du superviseur');
+    expect(a.find(x => x.startsWith('⛔ 17 '))).toMatch(/ · fini sans son issue$/);
+    expect(ligne('14')).toMatch(/ · question au responsable$/);
+    expect(ligne('15')).not.toContain(' · question');
     // Stopped by the supervisor, its ticket still claimed: worked in direct, out of the circuit.
-    expect(a.find(x => x.startsWith('✎ 16 '))).toMatch(/ · en direct/);
-    expect(a.find(x => x.startsWith('✎ 16 '))).not.toContain('en attente du superviseur');
+    expect(a.find(x => x.startsWith('▶ 16 '))).toMatch(/ · en direct$/);
   });
 
   it('a circuit that runs again after the answer stands at its step, running, its question gone', () => {

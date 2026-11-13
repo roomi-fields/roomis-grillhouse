@@ -2,7 +2,7 @@
 // counter of actions « [1 234 / 2 000] » and the steps of a CI: the line of a ticket whose circuit
 // runs an automatic step gives `faits/prévus · <durée>` since the last sign of its pass
 // (scripts/avancement.mjs), after the counters of its loops, or in their place when room lacks;
-// past FIGEE without a sign, `⚠ figée <durée> · faits/prévus`, in the tone of an alert. The queue
+// past FIGEE without a sign, ⛔ `figée <durée> · faits/prévus`, in the tone of an alert. The queue
 // (5.2) gives the steps of its CI. The holder of the lock of the machine and its waits, at the head of
 // AGENTS, are tests/unit/tableau-verrou.spec.ts's.
 // Witness: Romain, 2026-10-21, a pass frozen 40 min, the machine at rest, that nothing showed.
@@ -125,11 +125,11 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
     expect(l).toMatchObject({ ton: 'actif', avancement: true });
   });
 
-  it(`past FIGEE (${FIGEE / MIN} min) without a sign: « ⚠ figée <durée> · faits/prévus », in the tone of an alert`, () => {
+  it(`past FIGEE (${FIGEE / MIN} min) without a sign: ⛔ « figée <durée> · faits/prévus », in the tone of an alert`, () => {
     expect(FIGEE).toBe(5 * MIN);
     const racine = depot({ avancement: avancement([[87, 123, 12 * MIN]]) });
     const l = duTicket(agents(racine));
-    expect(l.texte).toBe('▶ 12  Le sujet de demo-12 · ⚠ figée 12 min · 87/123');
+    expect(l.texte).toBe('⛔ 12  Le sujet de demo-12 · figée 12 min · 87/123');
     expect(l.ton).toBe('alerte');
     const juste = depot({ avancement: avancement([[87, 123, 4 * MIN]]) });
     expect(duTicket(agents(juste)).texte).toBe('▶ 12  Le sujet de demo-12 · 87/123 · 20 min');
@@ -159,7 +159,7 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
 
   it('a pass whose tasks have not written yet: the time since its start alone, frozen past FIGEE', () => {
     const racine = depot({ avancement: avancement([]) });
-    expect(duTicket(agents(racine)).texte).toBe('▶ 12  Le sujet de demo-12 · ⚠ figée 20 min');
+    expect(duTicket(agents(racine)).texte).toBe('⛔ 12  Le sujet de demo-12 · figée 20 min');
   });
 });
 
@@ -188,9 +188,9 @@ describe('every automatic step carries its witness', () => {
     expect(duTicket(a).texte).toBe('▶ 12  Le sujet de demo-12 · 40/123 · 20 min');
   });
 
-  it('5.2 the queue: the steps of its CI done over planned', () => {
+  it('5.2 the queue: the steps of its CI done over planned, ⏸ while it waits for the CI', () => {
     const a = agents(depot({ etape: 'file', avancement: avancement([], [3, 7, 10 * S]) }));
     expect(sous(a)).toBe('  5.2 · File : main, poussée, CI · auto');
-    expect(duTicket(a).texte).toBe('▶ 12  Le sujet de demo-12 · 3/7 · 20 min');
+    expect(duTicket(a).texte).toBe('⏸ 12  Le sujet de demo-12 · 3/7 · 20 min · CI');
   });
 });

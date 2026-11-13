@@ -1,7 +1,8 @@
 // grillhouse-wui: the lock of the machine on the board (scripts/tableau.mjs). Whoever holds it, a
 // pass out of a ticket or the circuit of a ticket of any project of the machine, has its line 🔒
 // at the head of AGENTS; each pass that waits for it, or for room under /tmp, its line ⏳; a
-// circuit that waits shows ⏳ on its ticket's line too, and keeps ▶ while it waits for nothing.
+// circuit that waits shows ⏸ on its ticket's line (AGENTS signs a ticket by ▶, ⏸ and ⛔ alone), and
+// keeps ▶ while it waits for nothing.
 // Each sign keeps one sense: ⏸ a stopped circuit (in place of ■), 💤 a ticket claimed with
 // nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. Witness: Romain,
 // 2026-11-01 at 17 h, the verification of Grillhouse waiting behind the circuit of BPScript
@@ -229,14 +230,14 @@ describe('critère 2 : each pass that waits has its line ⏳, after the holder',
     );
   });
 
-  it('a circuit that waits shows ⏳ on its ticket line; the one that holds the lock keeps ▶', () => {
+  it('a circuit that waits shows ⏸ on its ticket line; the one that holds the lock keeps ▶', () => {
     const tous = [T('demo-12', 'Le sujet de demo-12'), T('demo-13', 'Le sujet de demo-13')];
     const machine = {
       detenteur: { ...MESURE, projet: 'depot', ticket: 'demo-13', sorte: 'Contrôles' },
       attentes: [{ ...ATTENTE, projet: 'depot', ticket: 'demo-12' }],
     };
     const a = agents(machine, [circuit('demo-12'), circuit('demo-13')], tous);
-    expect(a.find(l => l.ticket === 'demo-12')?.texte).toMatch(/^⏳ 12 {2}Le sujet de demo-12/);
+    expect(a.find(l => l.ticket === 'demo-12')?.texte).toMatch(/^⏸ 12 {2}Le sujet de demo-12/);
     expect(a.find(l => l.ticket === 'demo-13')?.texte).toMatch(/^▶ 13 {2}Le sujet/);
   });
 });
@@ -295,16 +296,17 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
     expect(l.some(x => x.texte.startsWith('⚠ '))).toBe(false);
   });
 
-  it('the lock at the head of AGENTS, ⏸ a stopped circuit, ⏳ the circuit that waits; ■ is gone', () => {
+  it('the lock at the head of AGENTS, ⏸ a stopped circuit and the circuit that waits, ▶ the ticket in direct; ■ is gone', () => {
     const a = tete(deux().filter(x => x.section === 'agents'));
     expect(a[0].texte).toBe('🔒 Mesure · roomis-grillhouse · 124/190 · 8 min');
-    expect(a[1].texte).toMatch(/^\[grillhouse\] grillhouse-bd7 .* · en direct ✎$/);
+    expect(a[1].texte).toMatch(/^\[grillhouse\] grillhouse-bd7 +· en direct +▶$/);
     expect(a[2].texte).toMatch(/^▸ 1 · Plan/);
-    expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toContain(
-      ' · ⏳ contrôles · 2 min'
+    // Its id whole: the wait of the lock gives way when the line lacks room.
+    expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toMatch(
+      /^\[bp-mono\] +bp-mono-vbwf\.3\.11 +· verrou co/
     );
     expect(a.find(x => x.ticket === 'bp-mono-vbwf.320.6.2.1')?.texte).toMatch(/ ⏸$| ⏸ /);
-    expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toMatch(/ ⏳$| ⏳ /);
+    expect(a.find(x => x.ticket === 'bp-mono-vbwf.3.11')?.texte).toMatch(/ ⏸$| ⏸ /);
     expect(deux().some(x => x.texte.includes('■'))).toBe(false);
   });
 
@@ -454,23 +456,23 @@ describe('the lock on the line of its circuit, and the lines of the lock out of 
       l => l.section === 'agents'
     );
 
-  it('the holder of a circuit shown stands on its line: « · 🔒 <sorte> faits/prévus · <durée> », no line of its own', () => {
+  it('the holder of a circuit shown stands on its line: « · <sorte> faits/prévus · <durée> », no line of its own', () => {
     const a = lesLignes({ detenteur: PASSE, attentes: [] }, [finale]);
-    expect(a.filter(l => l.texte.includes('🔒'))).toHaveLength(1);
+    expect(a.filter(l => l.texte.includes('passe finale'))).toHaveLength(1);
     const l = a.find(x => x.ticket === 'demo-5hn')!;
-    expect(l.texte).toMatch(/^▶ 5hn {2}Le journal.*… · 🔒 passe finale 54\/311 · 2 min$/);
+    expect(l.texte).toMatch(/^▶ 5hn {2}Le journal.*… · passe finale 54\/311 · 2 min$/);
     expect(l.texte).not.toContain('65/311');
     expect(l).toMatchObject({ ton: 'actif', avancement: true });
   });
 
-  it('a wait of a circuit shown stands on its line: « · ⏳ <sorte> · <durée> », no line of its own', () => {
+  it('a wait of a circuit shown stands on its line: ⏸ « · verrou <sorte> · <durée> », no line of its own', () => {
     const attente = { ...ATTENTE, projet: 'depot', ticket: 'demo-6', sorte: 'Contrôles' };
     const a = lesLignes({ detenteur: null, attentes: [attente] }, [circuit('demo-6')]);
     expect(a.filter(l => l.texte.includes('attend'))).toEqual([]);
     expect(a.filter(l => l.ticket === 'demo-6')).toHaveLength(1);
     // Its number in the column of 5hn's, worked in direct.
     expect(a.find(l => l.ticket === 'demo-6')?.texte).toMatch(
-      /^⏳ 6 {4}Le sujet de demo-6 · ⏳ contrôles · 2 min/
+      /^⏸ 6 {4}Le sujet de demo-6 · verrou contrôles · 2 min/
     );
   });
 
@@ -518,7 +520,7 @@ describe('the lock on the line of its circuit, and the lines of the lock out of 
       x => x.ticket === 'demo-5hn'
     )!;
     expect(colonnes(l.texte)).toBeLessThanOrEqual(etroit);
-    expect(l.texte).toContain('… · 🔒 passe finale 54/311 · 2 min');
+    expect(l.texte).toContain('… · passe finale 54/311 · 2 min');
     expect(l.texte).toMatch(/^▶ 5hn {2}L/);
     const loin = {
       ...VERIFICATION,

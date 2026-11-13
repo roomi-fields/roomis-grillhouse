@@ -58,7 +58,14 @@ describe('the table of the tones', () => {
       .filter(([, ton]) => ton === 'alerte')
       .map(([etat]) => etat)
       .sort();
-    expect(rouges).toEqual(['fige', 'nuitRouge', 'panne', 'plafondRefuse', 'sansAttente']);
+    expect(rouges).toEqual([
+      'fige',
+      'nuitRouge',
+      'panne',
+      'plafondRefuse',
+      'sansAttente',
+      'sansIssue',
+    ]);
   });
 
   it('gives a wait for the supervisor the tone of attention', () => {

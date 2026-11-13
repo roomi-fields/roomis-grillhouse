@@ -16,18 +16,24 @@
 // - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
 //   sub-step, with who works there, for the whole project. A ticket stands at a step only by its
 //   circuit (below) or by an agent that runs on it, at that agent's step; a ticket in the queue,
-//   with neither, stands at no step.
-// - Circuits: one entry per open ticket whose circuit (scripts/circuit.mjs) runs or stopped, read
-//   from the Temporal server in one call (scripts/circuits-du-serveur.mjs, the memo of its
-//   workflow): it runs while its workflow runs with no question awaited, and stands at the step of
-//   its last state, with its attempt, every step one for the whole ticket; while the explorateur
-//   or the questionneur works on its plan (`questionnement`, of the plan), it stands at the plan
-//   (1); waiting for the supervisor (`attendLeSuperviseur`, the one rule the opening and the wait
-//   of the questions read too: stopped, « à repasser » included, but by the supervisor's
-//   « arrete », or ended without its issue), it stands under the stopped
-//   step after a line « ⤷ Question · <qui> », who must answer it, the supervisor or the owner, the
-//   supervisor when it names no question; its card opens on that question, or on the stop
-//   (its name and code) and the first line of its reason.
+//   its circuit not launched, stands at no step.
+// - Circuits: one entry per known ticket, open or closed, whose circuit (scripts/circuit.mjs) is
+//   launched and not integrated, read from the Temporal server in one call
+//   (scripts/circuits-du-serveur.mjs, the memo of its workflow), so that the ticket stands in
+//   AGENTS at every instant from the launch of its circuit to its end: it runs while its workflow
+//   runs with no question awaited, and stands at the step of its last state, with its attempt,
+//   every step one for the whole ticket, a running one with no known state at the step of its
+//   stop, else at the plan (1); while the explorateur or the questionneur works on its plan
+//   (`questionnement`, of the plan), it stands at the plan (1); waiting for the supervisor
+//   (`attendLeSuperviseur`, the one rule the opening and the wait of the questions read too:
+//   stopped, « à repasser » included, but by the supervisor's « arrete », or ended without its
+//   issue), it stands under the stopped step after a line « ⤷ Question · <qui> », who must answer
+//   it, the supervisor or the owner, the supervisor when it names no question; its card opens on
+//   that question, or on the stop (its name and code) and the first line of its reason.
+// - Readings: a reading of the circuits or of the tickets that fails (the Temporal server silent
+//   or at fault, Beads at fault) gives way to the last one that succeeded, kept in the common git
+//   directory (`lectureGardee`, `tableau-lu-<quoi>.json`), its age in the alert that names the
+//   fault; a project beside the session's says the faults of its own reading.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
 //   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures: wall time, share lost,
 //   sessions, cost.
@@ -62,37 +68,43 @@
 //   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
 //   figures, as Bazel's counter of actions: « faits/prévus · <durée> » since the start of the
 //   pass, after the counters of its loops, or in their place when room lacks (the subject is cut,
-//   never the figures); the queue (5.2), the steps of its CI. Past FIGEE
-//   without a sign, « ⚠ figée <durée> · faits/prévus », the time since its last sign, in the
-//   tone of an alert.
+//   never the figures nor the ticket's number); the queue (5.2), the steps of its CI. Past FIGEE
+//   without a sign, « figée <durée> · faits/prévus », the time since its last sign, signed ⛔ in
+//   the tone of an alert.
 // - The lock of the machine (scripts/verrou-de-machine.mjs, read by `lireLaMesure`), as lslocks
 //   names who holds a lock and cargo says what its wait waits for. A holder or a wait of a circuit
 //   AGENTS shows stands on that circuit's line, one line per ticket, in place of the progress of
-//   its pass: « · 🔒 <sorte> faits/prévus · <durée> » since it took the lock, « · ⚠ <sorte> figée
-//   <durée> · faits/prévus » past FIGEE without a sign, « · ⏳ <sorte> · <durée> » for a wait, the
-//   kind in lower case. Any other stands at the head of AGENTS: its holder, whoever it is (a pass
-//   out of a ticket, the circuit of a ticket of any project of the machine), « 🔒 <sorte> ·
-//   <projet> · <qui> · faits/prévus · <durée> », « ⚠ <sorte> figée <durée> · <projet> · <qui> ·
-//   faits/prévus »; then each pass that waits for the lock or for room under /tmp, the oldest
-//   first, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> ». <qui> is its ticket without its
-//   prefix (`courtDuTicket`), else the folder of its copy (`copie`, under .claude/worktrees/, or
-//   the main tree when the project is not named); <projet> is left out for the project of the
-//   board (`ici`). The width cuts the project first, then leaves out « attend », then cuts <qui>,
-//   never the kind, the figures nor the time. Such a line
-//   is marked `avancement`, which the pane measures again more often. A circuit that waits shows
-//   ⏳ on its ticket's line, ▶ while it waits for nothing.
-// - Signs: each sign keeps one sense (the owner's decision of 2026-11-01): ▶ in progress, ⏸ a
-//   stopped circuit, 🔒 the holder of the lock, ⏳ a wait for it or for room, 💤 a ticket claimed
-//   with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A sign two
-//   columns wide stands as the others, a sign then a space; the width of a line counts its
-//   columns (`colonnes`), ⏳ two.
+//   its pass: « · <sorte> faits/prévus · <durée> » since it took the lock, « · <sorte> figée
+//   <durée> · faits/prévus » past FIGEE without a sign, « · verrou <sorte> · <durée> » for a
+//   wait, the kind in lower case. Any other stands at the head of AGENTS, with the machine: its
+//   holder, whoever it is (a pass out of a ticket, the circuit of a ticket of any project of the
+//   machine), « 🔒 <sorte> · <projet> · <qui> · faits/prévus · <durée> », « ⚠ <sorte> figée
+//   <durée> · <projet> · <qui> · faits/prévus »; then each pass that waits for the lock or for
+//   room under /tmp, the oldest first, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> ». <qui>
+//   is its ticket without its prefix (`courtDuTicket`), else the folder of its copy (`copie`,
+//   under .claude/worktrees/, or the main tree when the project is not named); <projet> is left
+//   out for the project of the board (`ici`). The width cuts the project first, then leaves out
+//   « attend », then cuts <qui>, never the kind, the figures nor the time. Such a line is marked
+//   `avancement`, which the pane measures again more often.
+// - Signs: each sign keeps one sense (the owner's decisions of 2026-11-01 and 2026-11-12). A
+//   ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step works (cyan),
+//   a ticket led in direct included; ⏸ it waits, under the step about to be launched, the reason
+//   on its right (« attend une place », « verrou », « CI », « disque », « démarre » in grey, the
+//   circuit waiting for the machine; « question au superviseur », « question au responsable »,
+//   « arrêté » in yellow, the circuit waiting for someone); ⛔ it stopped on a fault or its pass is
+//   frozen, to correct (red). The head of AGENTS, the machine's lines: 🔒 the holder of the lock,
+//   ⏳ a pass that waits for it or for room, 🌙 the night under way. The alerts: 💤 a ticket
+//   claimed with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A
+//   sign two columns wide stands as the others, a sign then a space; the width of a line counts
+//   its columns (`colonnes`), ⏳ and ⛔ two.
 // - Alerts: one alert per open night ticket (🌙, its subject, then its number), per circuit that
 //   waits for the supervisor (⏳, how long), a shell agent silent for 10 minutes, a ticket in
 //   progress without anything running for 30 minutes (💤), each with its state (`etat`).
 // - Tones: each state the board shows has one tone, defined once (`TONS`), which every line and
 //   every alert takes, whatever its duration or the line that shows it: red for what asks for a
 //   correction (frozen, a fault, a question with no live wait, a ceiling refused), yellow for what
-//   waits for an answer or a look (the supervisor, the owner, the disk), cyan for what runs.
+//   waits for someone (the supervisor, the owner), grey for what waits for the machine (a place,
+//   the lock, the disk, the CI), cyan for what runs.
 import { execFileSync } from 'node:child_process';
 import {
   closeSync,
@@ -101,6 +113,7 @@ import {
   readdirSync,
   readFileSync,
   readSync,
+  renameSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -174,10 +187,10 @@ export const ETATS = [
 // The tone of each state the board shows, defined once: as a dashboard of states (GitHub Checks,
 // Alertmanager), the severity belongs to the state, never to its duration nor to the line that
 // shows it; the duration stays in the text. Every line and every alert takes its tone here:
-// `alerte` (red), what asks for a correction; `attention` (yellow), what waits for an answer or a
-// look; `actif` (cyan), what runs; `discret`, what is done, empty or a measure; `titre`, a
-// heading; none, a ticket at rest. The pane turns each tone into its colour (mods/grillhouse
-// `couleur`).
+// `alerte` (red), what asks for a correction; `attention` (yellow), what waits for someone, an
+// answer or a look; `actif` (cyan), what runs; `discret` (grey), what waits for the machine (a
+// place, the lock, the disk, the CI), what is done, empty or a measure; `titre`, a heading; none,
+// a ticket at rest. The pane turns each tone into its colour (mods/grillhouse `couleur`).
 export const TONS = Object.freeze({
   // A ticket's state (ETATS).
   enCours: 'actif',
@@ -189,11 +202,13 @@ export const TONS = Object.freeze({
   reportes: undefined,
   fermes: 'discret',
   // A circuit, a pass, a wait.
-  attendUnePlace: 'attention',
-  attendLeVerrou: 'actif',
+  attendUnePlace: 'discret',
+  attendLeVerrou: 'discret',
+  attendLeDisque: 'discret',
+  attendLaCI: 'discret',
+  sansEtape: 'discret',
   enDirect: 'actif',
   nuitEnCours: 'actif',
-  attendLeDisque: 'attention',
   attendLeSuperviseur: 'attention',
   attendLeResponsable: 'attention',
   arrete: 'attention',
@@ -203,6 +218,7 @@ export const TONS = Object.freeze({
   outilNonInstallable: 'attention',
   machineChargee: 'attention',
   fige: 'alerte',
+  sansIssue: 'alerte',
   panne: 'alerte',
   nuitRouge: 'alerte',
   sansAttente: 'alerte',
@@ -810,11 +826,16 @@ export function lecture(t, prefix) {
  * under way on the machine (scripts/circuits-du-serveur.mjs `nuitDuServeur`), its line under the
  * places'; `muet`, the Temporal
  * server did not answer the reading of the circuits, which the first alert says; `faute`, any
- * other fault of that reading, said in the first alert as it is; `echecPrefixe`, the cause of a
- * ticket prefix that did not read, named in an alert; `voies`, the way of each circuit done
- * (`voiesDesCircuits`), whose sign FAITS AUJOURD'HUI shows.
+ * other fault of that reading, said in the first alert as it is; `circuitsLusA`, when the reading
+ * failed, the time of the last one that succeeded, whose circuits `circuits` holds and whose age
+ * the alert says; `fauteTickets`, the fault of the reading of the tickets, said in an alert, and
+ * `ticketsLusA`, the time of the last one that succeeded, whose tickets `tous` holds;
+ * `echecPrefixe`, the cause of a ticket prefix that did not read, named in an alert; `voies`, the
+ * way of each circuit done (`voiesDesCircuits`), whose sign FAITS AUJOURD'HUI shows.
  * @param {{ tous: any[], prefix?: string, racine?: string | null, registre: any[], vivants: any[],
- *   circuits?: any[], maintenant: number, jour: number,
+ *   circuits?: any[],
+ *   circuitsLusA?: number | null, fauteTickets?: string | null, ticketsLusA?: number | null,
+ *   maintenant: number, jour: number,
  *   machine?: Machine | null, outil?: { version: string, raison: string } | null,
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
  *   coeurs: number, memoireGo: number, memoireTotaleGo: number,
@@ -838,6 +859,9 @@ export function assembler({
   nuit: nuitEnCours = null,
   muet = false,
   faute = null,
+  circuitsLusA = null,
+  fauteTickets = null,
+  ticketsLusA = null,
   echecPrefixe = null,
   remontees = [],
   attenteVivante: attenteQuiVit = true,
@@ -888,12 +912,11 @@ export function assembler({
   for (const l of enfants.values()) {
     l.sort(ordre);
   }
-  // The circuits of the open tickets, and the running ones of the closed tickets (the queue closes
-  // a ticket before it reads the CI); a ticket whose circuit runs is in progress.
+  // The circuits not integrated of the known tickets, open or closed (the queue closes a ticket
+  // before it reads the CI, and its circuit may then wait); a ticket whose circuit runs is in
+  // progress.
   const parCircuit = new Map(
-    circuits
-      .filter(c => ouvert(c.ticket) || (c.vivant && parId.has(c.ticket)))
-      .map(c => [c.ticket, c])
+    circuits.filter(c => parId.has(c.ticket) && !c.integre).map(c => [c.ticket, c])
   );
   const actifs = new Set([
     ...enCoursMesures.map(v => v.ticket).filter(Boolean),
@@ -1208,12 +1231,21 @@ export function assembler({
   // Alerts, each with its state (`etat`) and the tone of that state (TONS).
   const alertes = [];
   const alerter = (etat, champs) => alertes.push({ etat, ton: TONS[etat], ...champs });
-  // The Temporal server does not answer: the board shows the tickets without their circuits, and
-  // its first alert names the command that tells the state of the service.
+  // The Temporal server does not answer: the board shows the circuits of the last reading that
+  // succeeded, whose age the first alert says, or none without one; that alert names the command
+  // that tells the state of the service.
+  const ageDesCircuits =
+    circuitsLusA === null ? '' : ` · circuits lus il y a ${ilYa(maintenant - circuitsLusA)}`;
   if (muet) {
-    alerter('panne', { texte: `${SANS_REPONSE_EN} · temporal etat` });
+    alerter('panne', { texte: `${SANS_REPONSE_EN} · temporal etat${ageDesCircuits}` });
   } else if (faute) {
-    alerter('panne', { texte: `Circuits illisibles : ${faute}` });
+    alerter('panne', { texte: `Circuits illisibles : ${faute}${ageDesCircuits}` });
+  }
+  // Beads did not read: the board shows the tickets of the last reading that succeeded.
+  if (fauteTickets) {
+    alerter('panne', {
+      texte: `Tickets illisibles : ${fauteTickets}${ticketsLusA === null ? '' : ` · tickets lus il y a ${ilYa(maintenant - ticketsLusA)}`}`,
+    });
   }
   // The ticket prefix did not read: the project keeps its folder's name, and the alert says why.
   if (echecPrefixe) {
@@ -1322,8 +1354,8 @@ export function assembler({
   // holds them, a mother of theirs or a ticket under them (a circuit holds its ticket's mothers and
   // children): one that runs or waits for an answer (`attendLeSuperviseur`), never one the
   // supervisor stopped; or labelled `direct` and claimed (led out of the circuit); and no role
-  // agent shown at a step. None while the circuits do not read (a
-  // silent server, a fault), when no ticket can be told out of a circuit.
+  // agent shown at a step. None while the circuits do not read (a silent server, a fault) and no
+  // earlier reading is kept, when no ticket can be told out of a circuit.
   const aUneEtape = new Set(blocs.flatMap(b => b.enCours.map(x => x.id)));
   const tenus = new Set(
     [...parCircuit.values()].filter(c => c.vivant || attendLeSuperviseur(c)).map(c => c.ticket)
@@ -1338,7 +1370,7 @@ export function assembler({
     return sousUnCircuit(t);
   };
   const horsCircuit =
-    muet || faute
+    (muet || faute) && circuitsLusA === null
       ? []
       : tous
           .filter(
@@ -1409,8 +1441,9 @@ const ilYa = ms => (ms < MINUTE ? `${Math.max(0, Math.round(ms / 1000))} s` : du
 
 // The witness of the automatic step of the running circuit <c> at <maintenant>: the progress of
 // its pass (` · faits/prévus · <durée>`, the figures once a task wrote, the time since the start
-// of the pass, as Bazel's counter); past FIGEE without a sign, ` · ⚠ figée <durée> ·
-// faits/prévus`, the time since the last sign, `fige`. Null without a progress.
+// of the pass, as Bazel's counter); past FIGEE without a sign, ` · figée <durée> ·
+// faits/prévus`, the time since the last sign, `fige`, which the line's ⛔ signs. Null without a
+// progress.
 function temoinDe(c, maintenant) {
   let age;
   let ecoule;
@@ -1429,7 +1462,7 @@ function temoinDe(c, maintenant) {
   return {
     fige,
     texte: fige
-      ? ` · ⚠ figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
+      ? ` · figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
       : ` · ${compte ? `${compte} · ` : ''}${ilYa(ecoule)}`,
   };
 }
@@ -1473,9 +1506,9 @@ export function voiesDesCircuits(racine, tickets) {
 const conso = (ms, jetons) =>
   Math.round(ms / MINUTE) === 0 && !jetons ? '' : `${duree(ms)} · ${k(jetons)}`;
 
-// The columns <s> takes in a terminal: a character one, ⏳ two, as the signs out of the basic
-// plane (🔒 💤 🌙), which count two code units, take two.
-const colonnes = s => s.length + (s.match(/⏳/g)?.length ?? 0);
+// The columns <s> takes in a terminal: a character one, ⏳ and ⛔ two, as the signs out of the
+// basic plane (🔒 💤 🌙), which count two code units, take two.
+const colonnes = s => s.length + (s.match(/[⏳⛔]/g)?.length ?? 0);
 // The start of <s> that holds in <n> columns, a sign out of the basic plane never split.
 const debutDe = (s, n) => {
   let out = '';
@@ -1761,8 +1794,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       verrouDe.set(tenu.ticket, {
         fige,
         texte: fige
-          ? ` · ⚠ ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
-          : ` · 🔒 ${sorte}${compte ? ` ${compte}` : ''} · ${depuis}`,
+          ? ` · ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
+          : ` · ${sorte}${compte ? ` ${compte}` : ''} · ${depuis}`,
       });
     } else {
       poser({
@@ -1779,7 +1812,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       if (!verrouDe.has(w.ticket)) {
         verrouDe.set(w.ticket, {
           fige: false,
-          texte: ` · ⏳ ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
+          texte: ` · verrou ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
         });
       }
       continue;
@@ -1797,29 +1830,28 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   }
   // The tickets whose circuit waits for the lock or for room.
   const attendLeVerrou = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
-  const enAttente = new Set(attendLeVerrou);
   // The tickets whose circuit waits for a place of the machine, and those that wait for a place of
   // a circuit, not started, whose line in their chantier says « attend une place ».
   const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
   // The tickets that wait for the disk of their project's copies.
   const attendLeDisque = new Set((p?.attentes ?? []).filter(w => w.disque).map(w => w.ticket));
-  for (const id of attendUnePlace) {
-    enAttente.add(id);
-  }
   // The tree of the steps (scripts/etapes.mjs), in its order, as a pipeline of GitLab CI shows its
   // stages and folds the jobs of a stage that has nothing: a step with sub-steps is folded
   // (« ▸ 2 · Composants ») while none of them holds a ticket, unfolded (« ▾ ») once one does, all
   // its sub-steps then shown, indented, the empty ones in the discreet tone; a step without
   // sub-steps stands on one line « number · title · who », discreet when empty, a title with its
-  // tickets under it. A circuit's ticket stands on one line, at the step of its state, and nowhere
-  // else in AGENTS: the work on the plan at its step; waiting for the supervisor
-  // (`attendLeSuperviseur`), under its step after a line « ⤷ Question · <qui> », who
+  // tickets under it. A circuit launched and not integrated stands on one line from its launch to
+  // its end, and nowhere else in AGENTS: at the step that works, or, while it waits, at the step
+  // about to be launched: the step of its state; the work on the plan at its step; a running
+  // circuit with no known step at the step of its stop, else at the plan (1); waiting for the
+  // supervisor (`attendLeSuperviseur`), under its step after a line « ⤷ Question · <qui> », who
   // must answer it, the supervisor or the owner, which unfolds the step, its counters those of its
   // step; a stopped circuit at no step of the list stands under that line after the steps. A
   // circuit's line gives its subject (`texte`), then the counters of the bounded loops of its step
   // from their second pass (`boucles` of the step, scripts/etapes.mjs, their counts in the state's
-  // `boucles`), whole; then its ticket's working time and tokens. Its card opens on
-  // its question, or says where it stopped and why. The tickets' numbers line up in one column.
+  // `boucles`), whole, the reason of its wait; then its ticket's working time and tokens. Its card
+  // opens on its question, or says where it stopped and why. The tickets' numbers line up in one
+  // column.
   // The block of the step <e>, an empty one when the board holds none.
   const vides = new Map();
   const blocDe = e =>
@@ -1839,9 +1871,11 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
   // its question, the supervisor when its stop names no one.
   const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null);
+  // The block of the circuit <c>: the step of its state, else, while it stopped, the block after
+  // the steps, else, running with no known step (it starts or resumes), the plan (1).
   const blocDuCircuit = c => {
     const e = etapeDe(c);
-    return e ? blocDe(e) : !c.vivant ? ailleurs : undefined;
+    return e ? blocDe(e) : !c.vivant ? ailleurs : blocDe(ETAPES[0]);
   };
   const montres = t.agents.flatMap(b => b.enCours.filter(x => !enCircuit.has(x.id)));
   // A ticket's number, or on several projects' board its whole id, in one column.
@@ -1858,56 +1892,86 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       : `${signe} ${nomme(x).padEnd(colonne)}  `;
   const droiteDe = (signe, droite) =>
     plusieurs ? `${signe}${droite ? ` ${droite}` : ''}` : droite;
-  // The state of a circuit's line, whose tone TONS gives: frozen, its question (to the supervisor
-  // or to another), stopped, its wait for the disk, a place or the lock, else it runs.
-  const etatDuCircuit = (c, temoin) =>
-    temoin?.fige
-      ? 'fige'
-      : !c.vivant
-        ? enQuestion(c) === SUPERVISEUR
-          ? 'attendLeSuperviseur'
-          : enQuestion(c)
-            ? 'attendLeResponsable'
-            : 'arrete'
-        : attendLeDisque.has(c.id)
-          ? 'attendLeDisque'
-          : attendUnePlace.has(c.id)
-            ? 'attendUnePlace'
-            : attendLeVerrou.has(c.id)
-              ? 'attendLeVerrou'
-              : 'enCours';
+  // A ticket's line of `largeur` columns: its head <tete> (its sign and number, or its project and
+  // id) whole, then its subject, cut to leave <suite> and the right part <droite> whole; without
+  // room for the subject, <suite> is cut, never the head.
+  const ligneDuTicket = (tete, sujet, suite, droite) => {
+    const place = largeur - colonnes(tete) - colonnes(suite) - (droite ? colonnes(droite) + 1 : 0);
+    if (place < 2) {
+      return couper(`${tete}${suite}`, droite, largeur);
+    }
+    const s = colonnes(sujet) > place ? `${debutDe(sujet, place - 1)}…` : sujet;
+    return couper(`${tete}${s}${suite}`, droite, largeur);
+  };
+  // The ticket whose circuit holds the lock of the machine.
+  const tientLeVerrou = tenu && duCircuit(tenu) ? tenu.ticket : null;
+  // The state of a circuit's line, whose tone TONS gives, and the reason of its wait: frozen; ended
+  // without its issue; its question (to the supervisor or to another); stopped; its wait for the
+  // disk, a place (« nuit » while the night holds the machine), the lock, the CI of its queue (5.2,
+  // the lock not held) or its first state;
+  // else it runs.
+  const etatDuCircuit = (c, temoin) => {
+    if (temoin?.fige) {
+      return ['fige', ''];
+    }
+    if (!c.vivant) {
+      const qui = enQuestion(c);
+      return c.sansIssue
+        ? ['sansIssue', 'fini sans son issue']
+        : qui === SUPERVISEUR
+          ? ['attendLeSuperviseur', `question au ${SUPERVISEUR}`]
+          : qui
+            ? ['attendLeResponsable', `question au ${qui}`]
+            : ['arrete', 'arrêté'];
+    }
+    return attendLeDisque.has(c.id)
+      ? ['attendLeDisque', 'disque']
+      : attendUnePlace.has(c.id)
+        ? ['attendUnePlace', p?.nuit ? 'nuit' : 'attend une place']
+        : attendLeVerrou.has(c.id)
+          ? ['attendLeVerrou', '']
+          : !etapeDe(c)
+            ? ['sansEtape', 'démarre']
+            : etapeDe(c).etat === 'file' && tientLeVerrou !== c.id
+              ? ['attendLaCI', 'CI']
+              : ['enCours', ''];
+  };
+  // The sign of a line in AGENTS, by its tone: ▶ what runs, ⛔ what asks for a correction, ⏸ a
+  // wait, for the machine (grey) or for someone (yellow).
+  const signeDuTon = ton => (ton === TONS.enCours ? '▶' : ton === 'alerte' ? '⛔' : '⏸');
   const ligneDuCircuit = c => {
-    const signe = !c.vivant ? '⏸' : enAttente.has(c.id) ? '⏳' : '▶';
+    const etape = etapeDe(c);
+    // The lock it holds or waits for, else the progress of its pass.
+    const temoin =
+      verrouDe.get(c.id) ??
+      (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
+    const [etat, raison] = etatDuCircuit(c, temoin);
+    const ton = TONS[etat];
+    const signe = signeDuTon(ton);
     const droite = droiteDe(
       signe,
       conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)
     );
-    const etape = etapeDe(c);
     const boucles = (etape ? bouclesDe(etape) : [])
       .filter(b => b.max && c.boucles?.[b.cle] >= 2)
       .map(b => ` · ${b.libelle} ${c.boucles[b.cle]}/${b.max}`)
       .join('');
     const tete = teteDe(signe, c);
-    // The lock it holds or waits for, else the progress of its pass.
-    const temoin =
-      verrouDe.get(c.id) ??
-      (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
+    const pourquoi = raison ? ` · ${raison}` : '';
     // The progress after the counters of the loops while the subject keeps its room beside them,
-    // in their place otherwise.
+    // in their place otherwise; the reason of its wait last.
     const reste = avec =>
       largeur - (droite ? colonnes(droite) + 1 : 0) - colonnes(tete) - colonnes(avec);
-    const place = attendUnePlace.has(c.id) ? ' · attend une place' : '';
-    const tag = enQuestion(c) === SUPERVISEUR ? ' · en attente du superviseur' : '';
-    const suite = `${tag}${
+    const suite = `${
       !temoin
         ? boucles
-        : reste(`${boucles}${temoin.texte}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)
+        : reste(`${boucles}${temoin.texte}${pourquoi}`) >= Math.min(PLACE_DU_SUJET, c.sujet.length)
           ? `${boucles}${temoin.texte}`
           : temoin.texte
-    }${place}`;
+    }${pourquoi}`;
     poser({
-      texte: couperAvant(`${tete}${c.sujet}`, suite, droite, largeur),
-      ton: TONS[etatDuCircuit(c, temoin)],
+      texte: ligneDuTicket(tete, c.sujet, suite, droite),
+      ton,
       ticket: c.id,
       ...(temoin ? { avancement: true } : {}),
     });
@@ -1939,7 +2003,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     }
     for (const x of enCours) {
       L(
-        cadre(`${teteDe('▶', x)}${x.sujet}`, droiteDe('▶', conso(x.travail, x.jetons)), largeur),
+        ligneDuTicket(teteDe('▶', x), x.sujet, '', droiteDe('▶', conso(x.travail, x.jetons))),
         TONS.enCours,
         x.id
       );
@@ -1957,10 +2021,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       plein ? TONS.titre : TONS.vide
     );
   // The tickets worked out of a circuit, once each, before the steps, from their claim to their
-  // close: « ✎ <numéro>  <sujet> · en direct ».
+  // close: « ▶ <numéro>  <sujet> · en direct ».
   for (const x of t.horsCircuit ?? []) {
     poser({
-      texte: couperAvant(`${teteDe('✎', x)}${x.sujet}`, ' · en direct', droiteDe('✎', ''), largeur),
+      texte: ligneDuTicket(teteDe('▶', x), x.sujet, ' · en direct', droiteDe('▶', '')),
       ton: TONS.enDirect,
       ticket: x.id,
     });
@@ -2310,20 +2374,67 @@ export function ligneEtat(t, voisins = []) {
   return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ▶ ${c.enCours} en cours · ${k(t.global.jour.jetons)} aujourd'hui`;
 }
 
+// The answer of Beads to <args> in the repository at <racine>, as JSON (`liste`), or the first line
+// of its fault (`faute`), its error output first.
 const bdJson = (racine, ...args) => {
   try {
-    return JSON.parse(
-      execFileSync('bd', [...args, '--json'], {
-        cwd: racine,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        maxBuffer: 256 * 1024 * 1024,
-      })
-    );
-  } catch {
-    return [];
+    return {
+      liste: JSON.parse(
+        execFileSync('bd', [...args, '--json'], {
+          cwd: racine,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          maxBuffer: 256 * 1024 * 1024,
+        })
+      ),
+      faute: null,
+    };
+  } catch (e) {
+    const message = String(e?.stderr ?? '').trim() || String(e?.message ?? e);
+    return { liste: [], faute: message.split('\n')[0] };
   }
 };
+
+// The file of the last reading that succeeded of <quoi> (`circuits`, `tickets`), beside the
+// status line in the common dir <commun>; null without a common dir.
+const fichierDeLaLecture = (commun, quoi) => commun && path.join(commun, `tableau-lu-${quoi}.json`);
+
+/**
+ * The reading of <quoi> (`circuits`, `tickets`) of the project whose common dir is <commun>, kept
+ * when it succeeded, as a dashboard keeps showing its last data with their age: a reading that
+ * succeeded (<liste>, not null) is written with its time <maintenant> and comes back as it is,
+ * `lu` null; a reading that failed (<liste> null) comes back as the last one kept, `lu` its time,
+ * or empty, `lu` null, without one. A place that cannot be written or read keeps none.
+ * @param {string | null} commun
+ * @param {'circuits' | 'tickets'} quoi
+ * @param {any[] | null} liste
+ * @param {number} maintenant
+ * @returns {{ liste: any[], lu: number | null }}
+ */
+export function lectureGardee(commun, quoi, liste, maintenant) {
+  const fichier = fichierDeLaLecture(commun, quoi);
+  if (liste) {
+    try {
+      if (fichier) {
+        // Written beside, then renamed: a reader never sees a file half written.
+        writeFileSync(`${fichier}.${process.pid}`, JSON.stringify({ lu: maintenant, liste }));
+        renameSync(`${fichier}.${process.pid}`, fichier);
+      }
+    } catch {
+      // A read-only place keeps the board working, without the reading kept.
+    }
+    return { liste, lu: null };
+  }
+  try {
+    const garde = JSON.parse(readFileSync(fichier, 'utf8'));
+    if (Array.isArray(garde.liste) && typeof garde.lu === 'number') {
+      return { liste: garde.liste, lu: garde.lu };
+    }
+  } catch {
+    // No reading kept.
+  }
+  return { liste: [], lu: null };
+}
 
 // The folder git keeps a repository's shared files in (its common dir), absolute; null when
 // <racine> is no git repository. The board's cache and the day's marker live there.
@@ -2421,8 +2532,22 @@ function lire(
     ps = '';
   }
   const registre = existsSync(REGISTRE) ? lireRegistre(readFileSync(REGISTRE, 'utf8'), racine) : [];
-  const tous = bdJson(racine, 'list', '--all', '--limit', '0');
   const commun = dossierCommun(racine);
+  // The tickets and the circuits, each the last reading that succeeded when this one failed.
+  const lesTickets = bdJson(racine, 'list', '--all', '--limit', '0');
+  const tickets = lectureGardee(
+    commun,
+    'tickets',
+    lesTickets.faute ? null : lesTickets.liste,
+    maintenant
+  );
+  const tous = tickets.liste;
+  const lesCircuitsLus = lectureGardee(
+    commun,
+    'circuits',
+    muet || faute ? null : circuits,
+    maintenant
+  );
   const fichierCache = commun && path.join(commun, 'tableau-cache.json');
   let cache = {};
   try {
@@ -2462,7 +2587,7 @@ function lire(
     racine: commun ? path.dirname(commun) : racine,
     registre,
     vivants,
-    circuits,
+    circuits: lesCircuitsLus.liste,
     maintenant,
     jour,
     voies,
@@ -2471,6 +2596,9 @@ function lire(
     nuit,
     muet,
     faute,
+    circuitsLusA: lesCircuitsLus.lu,
+    fauteTickets: lesTickets.faute,
+    ticketsLusA: tickets.lu,
     echecPrefixe,
     outil: echecDeLOutil(racine),
     remontees: lireLesRemontees(racine, maintenant),
@@ -2549,8 +2677,8 @@ export function ensemble(lus) {
   };
 }
 
-// A project beside the session's, read in its folder <dossier>: its board, or the fault that keeps
-// it out, on one line.
+// A project beside the session's, read in its folder <dossier>: its board, the faults of its
+// reading of the circuits in its alerts, or the fault that keeps it out, on one line.
 async function lireUnAutre(dossier, { circuitsDe, ...o }) {
   try {
     if (!existsSync(dossier)) {
@@ -2558,7 +2686,7 @@ async function lireUnAutre(dossier, { circuitsDe, ...o }) {
     }
     return {
       dossier,
-      ...lire(dossier, { ...o, circuits: (await lesCircuits(circuitsDe, dossier)).circuits }),
+      ...lire(dossier, { ...o, ...(await lesCircuits(circuitsDe, dossier)) }),
     };
   } catch (e) {
     return { dossier, erreur: String(e.message ?? e).split('\n')[0] };
@@ -2566,8 +2694,9 @@ async function lireUnAutre(dossier, { circuitsDe, ...o }) {
 }
 
 // The circuits of the repository at <racine> by the reader <circuitsDe>; none when the reading
-// fails, the board shows the rest: the server stayed silent (`muet`, `ServeurMuet`), or another
-// fault, a client not built among them, by the first line of its message (`faute`).
+// fails, which `lire` replaces by the last reading kept: the server stayed silent (`muet`,
+// `ServeurMuet`), or another fault, a client not built among them, by the first line of its
+// message (`faute`).
 async function lesCircuits(circuitsDe, racine) {
   try {
     return { circuits: await circuitsDe(racine), muet: false, faute: null };

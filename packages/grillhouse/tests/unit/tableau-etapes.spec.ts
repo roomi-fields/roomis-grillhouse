@@ -234,7 +234,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       '▾ 5 · Intégration',
       '  5.1 · Commit · auto',
       '  5.2 · File : main, poussée, CI · auto',
-      expect.stringMatching(/^▶ 32 /),
+      expect.stringMatching(/^⏸ 32 .* · CI$/),
       '  5.3 · Tri des découvertes · explorateur',
     ]);
   });
@@ -282,7 +282,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 3)).toEqual([
       '  3.1 · Contrôles · auto',
       `  ${QUESTION}`,
-      expect.stringMatching(/^⏸ 36 {2}Le sujet.* · en attente du superviseur$/),
+      expect.stringMatching(/^⏸ 36 {2}Le sujet.* · question au superviseur$/),
     ]);
     expect(a).toContain('▾ 3 · Code · développeur');
     expect(
@@ -306,7 +306,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 3)).toEqual([
       '  4.1 · Passe finale · auto',
       `  ${QUESTION}`,
-      expect.stringMatching(/^⏸ 37 {2}Le sujet.* · en attente du superviseur$/),
+      expect.stringMatching(/^⏸ 37 {2}Le sujet.* · question au superviseur$/),
     ]);
     expect(ligneDe(t, 'demo-37')).toMatchObject({ ton: 'attention' });
   });
@@ -328,7 +328,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(a.slice(i, i + 3)).toEqual([
       '▾ 1 · Plan · explorateur ⇄ questionneur',
       `  ${QUESTION}`,
-      expect.stringMatching(/^⏸ 323 {2}Le sujet.* · en attente du superviseur$/),
+      expect.stringMatching(/^⏸ 323 {2}Le sujet.* · question au superviseur$/),
     ]);
     expect(agents(t)[i]).toMatchObject({ ton: 'titre' });
     expect(ligneDe(t, 'demo-323')).toMatchObject({ ton: 'attention' });
@@ -373,7 +373,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(agents(t).some(x => x.ticket === 'demo-41')).toBe(false);
     const enDirect = agents(t).filter(x => x.ticket === 'demo-42');
     expect(enDirect).toHaveLength(1);
-    expect(enDirect[0].texte).toMatch(/^✎ 42 .* · en direct$/);
+    expect(enDirect[0].texte).toMatch(/^▶ 42 .* · en direct$/);
     expect(etapeDe(t, 'demo-43')).toBe('▾ 3 · Code · développeur');
   });
 
@@ -383,7 +383,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     });
     expect(textes(t).slice(-2)).toEqual([
       QUESTION,
-      expect.stringMatching(/^⏸ 44 {2}Le sujet.* · en attente du superviseur$/),
+      expect.stringMatching(/^⏸ 44 {2}Le sujet.* · question au superviseur$/),
     ]);
   });
 });
@@ -416,7 +416,7 @@ describe('the line of a ticket in a circuit: its subject, then time and tokens',
       circuits: [circuit('demo-50', { vivant: false, code: 20, arret: 'besoin' })],
     });
     expect(ligneDe(r, 'demo-50').texte).toMatch(
-      /^⏸ 50 {2}Le su.* · en attente du superviseur +41 min · 10$/
+      /^⏸ 50 {2}Le su.* · question au superviseur +41 min · 10$/
     );
     expect(ligneDe(r, 'demo-50')).toMatchObject({ ton: 'attention' });
   });
