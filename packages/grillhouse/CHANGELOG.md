@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The external projects of a group are written as relative paths** (grillhouse-97s): on OSC Bridge, `npx grillhouse maj` wrote `external_projects` in `.beads/config.yaml` as absolute paths (`/home/…`) though `grillhouse.groupe` was relative; that file is committed, and two of the three repositories are public: the local tree would have been published, and the paths held on no other machine. `projetsExternes` (scripts/groupe-cles.mjs) now gives each other project of the group by its path relative to the project's root, and the queue and the board read a relative path from the root of the project's main tree, a copy included (`cheminDuProjetExterne` of scripts/file-des-tickets.mjs); an absolute path already set still reads. **Action for projects**: a project of a group runs `npx grillhouse maj` again, which rewrites its `external_projects` as relative paths, then commits `.beads/config.yaml`.
+
 - **A circuit resumed stays within its project's number of circuits** (grillhouse-4xe): on Grillhouse (`grillhouse.circuits` 2), three circuits held a place at once: a circuit resumed after its question (`--depuis`, `--reprendre`) asked its place of the machine again, and the machine judged it against its own ceiling alone, the project's number being held by the queue only when it starts a ticket. Each demand of places now carries the project's number (`max`, read by `maxDuProjet` of scripts/circuits-cles.mjs), each place of a circuit keeps it, and `reserverDesCircuits` gives no place to a circuit of a project that holds its number, whichever project's demand judges it; the other projects still pass. **Action for projects**: none.
 
 ## [0.37.1] - 2026-11-13

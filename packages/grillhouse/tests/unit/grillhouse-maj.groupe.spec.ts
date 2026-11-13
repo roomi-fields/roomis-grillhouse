@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // `grillhouse maj` pose, dans la configuration de Beads de chaque projet, les projets externes
 // (`external_projects.<nom>`) que déclare son groupe (`grillhouse.groupe` du package.json) : les
-// autres projets du groupe, chacun par son nom et son chemin absolu. La montée joue Beads par
+// autres projets du groupe, chacun par son nom et son chemin relatif à la racine du projet. La montée joue Beads par
 // l'option `bd(args, cwd)` (un `{ status, stdout, stderr }`), `config get` rendant la valeur, ou
 // « <clé> (not set in config.yaml) » quand elle manque ; `bilan.projetsExternes` nomme ceux qu'elle
 // a posés. Rejouée sur un groupe déjà posé, elle ne pose rien. Un groupe mal formé est refusé,
@@ -53,7 +53,7 @@ function beads() {
 }
 
 describe('la montée pose les projets externes depuis la déclaration du groupe', () => {
-  it('chaque projet reçoit les autres projets de son groupe, par nom et chemin absolu', () => {
+  it('chaque projet reçoit les autres projets de son groupe, par nom et chemin relatif', () => {
     const sh = projet('synthub');
     const ob = projet('osc-bridge');
     const osd = projet('osd');
@@ -72,13 +72,14 @@ describe('la montée pose les projets externes depuis la déclaration du groupe'
     const bilan = mettreAJour(sh, DEPOT, { bd: b.bd });
     mettreAJour(ob, DEPOT, { bd: b.bd });
     expect(b.poses(sh)).toEqual({
-      'external_projects.osc-bridge': ob,
-      'external_projects.osd': osd,
+      'external_projects.osc-bridge': '../osc-bridge',
+      'external_projects.osd': '../osd',
     });
     expect(b.poses(ob)).toEqual({
-      'external_projects.synthub': sh,
-      'external_projects.osd': osd,
+      'external_projects.synthub': '../synthub',
+      'external_projects.osd': '../osd',
     });
+    expect(JSON.stringify(b.poses(sh))).not.toContain(ESSAIS);
     expect([...bilan.projetsExternes].sort()).toEqual(['osc-bridge', 'osd']);
   });
 
@@ -112,7 +113,7 @@ describe('la montée pose les projets externes depuis la déclaration du groupe'
     mettreAJour(sh, DEPOT, { bd: b.bd });
     ecrire([sh, ob2]);
     mettreAJour(sh, DEPOT, { bd: b.bd });
-    expect(b.poses(sh)['external_projects.osc-bridge-3-bis']).toBe(ob2);
+    expect(b.poses(sh)['external_projects.osc-bridge-3-bis']).toBe(path.relative(sh, ob2));
   });
 
   it('un projet sans groupe ne pose rien et ne joue aucun Beads', () => {

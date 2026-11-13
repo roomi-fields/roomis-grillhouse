@@ -123,7 +123,7 @@
 //   update has finished its files, and the exit code is non-zero.
 // - The group: when the package.json declares `grillhouse.groupe` (scripts/groupe-cles.mjs), the
 //   update sets in the Beads of the project each other project of the group as an
-//   `external_projects.<name>` (its absolute path), the ones already set left alone; a group
+//   `external_projects.<name>` (its path relative to the project), the ones already set left alone; a group
 //   badly declared is refused by its key before any work.
 // - The generated files: after the package.json, each generator of the declared language
 //   (`miseAJour.generateurs` of its module) is run in the project by the project's command
@@ -326,7 +326,8 @@ export function versionDuProjet(projet) {
 }
 
 // Beads run in <cwd>, as `bd(args, cwd)` gives it: { status, stdout, stderr }.
-const jouerBd = (args, cwd) => spawnSync('bd', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+const jouerBd = (args, cwd) =>
+  spawnSync('bd', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
 
 // The group the package.json of <projet> declares (null without it); a fault throws, naming its
 // key (`grillhouse.groupe`) and its value.
@@ -345,7 +346,7 @@ function lireDuGroupe(projet) {
 }
 
 // The `external_projects` of the Beads of <projet>: the other projects of its <groupe>, each by its
-// name and absolute path; those it sets, by name (none when already set).
+// name and its path relative to <projet> (`projetsExternes`); those it sets, by name (none when already set).
 function poserLesProjetsExternes(projet, groupe, bd) {
   if (groupe === null) {
     return [];

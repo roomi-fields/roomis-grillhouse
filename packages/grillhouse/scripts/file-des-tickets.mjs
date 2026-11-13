@@ -23,6 +23,7 @@
 //   `external_projects`; a project it lacks holds the ticket, and `attentesExternes` names the
 //   fault (never a silent start).
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 import { ETAPES } from './etapes.mjs';
 
 // Whether the description of <t> holds its section « ## Architecture ».
@@ -172,17 +173,41 @@ export function lireLesExternes(racine, tous) {
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
     });
-    const chemin =`${r.stdout ?? ''}`.trim();
+    const chemin = `${r.stdout ?? ''}`.trim();
     if (r.status !== 0 || chemin === '' || chemin.includes('not set')) {
       continue;
     }
     try {
-      externes[nom] = lireLesTickets(chemin);
+      externes[nom] = lireLesTickets(cheminDuProjetExterne(racine, chemin));
     } catch {
       // Left out: the project does not resolve.
     }
   }
   return externes;
+}
+
+/**
+ * The directory of a project of `external_projects` whose path <chemin> the Beads of the project
+ * at <racine> sets: an absolute path as it is, a relative one from the root of the main tree of
+ * <racine> (the parent of its common directory of git, a copy included), where `grillhouse maj`
+ * writes it from (`projetsExternes` of ./groupe-cles.mjs).
+ * @param {string} racine
+ * @param {string} chemin
+ * @returns {string}
+ */
+export function cheminDuProjetExterne(racine, chemin) {
+  if (path.isAbsolute(chemin)) {
+    return chemin;
+  }
+  const r = spawnSync(
+    'git',
+    ['-C', racine, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    {
+      encoding: 'utf8',
+    }
+  );
+  const principal = r.status === 0 ? path.dirname(r.stdout.trim()) : path.resolve(racine);
+  return path.resolve(principal, chemin);
 }
 
 /**

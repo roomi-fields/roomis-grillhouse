@@ -60,7 +60,9 @@ export function lireGroupe(pkg, racine) {
 
 /**
  * The `external_projects` of the Beads of the project at <racine>: the other projects of its
- * <groupe>, `{ <nom>: <chemin> }`.
+ * <groupe>, `{ <nom>: <chemin> }`, each path relative to <racine>, the root of its main tree:
+ * `.beads/config.yaml` is committed, and a relative path keeps the local tree out of it and holds
+ * on every machine where the projects sit side by side.
  * @param {{ projets: { nom: string, chemin: string }[] }} groupe
  * @param {string} racine
  * @returns {Record<string, string>}
@@ -68,6 +70,6 @@ export function lireGroupe(pkg, racine) {
 export function projetsExternes(groupe, racine) {
   const soi = path.resolve(racine);
   return Object.fromEntries(
-    groupe.projets.filter(p => p.chemin !== soi).map(p => [p.nom, p.chemin])
+    groupe.projets.filter(p => p.chemin !== soi).map(p => [p.nom, path.relative(soi, p.chemin)])
   );
 }

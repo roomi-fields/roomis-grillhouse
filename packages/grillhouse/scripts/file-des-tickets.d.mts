@@ -55,5 +55,8 @@ export function lireLesExternes(
   tous: TicketDeBeads[]
 ): Record<string, TicketDeBeads[]>;
 
+/** The directory of a project of `external_projects`: absolute as set, relative from the main tree of <racine>. */
+export function cheminDuProjetExterne(racine: string, chemin: string): string;
+
 /** Every ticket of the project at <racine>, the closed ones too, as Beads gives them; throws on a Beads that fails. */
 export function lireLesTickets(racine: string): TicketDeBeads[];

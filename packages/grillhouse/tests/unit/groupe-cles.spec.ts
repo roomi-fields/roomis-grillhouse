@@ -7,7 +7,7 @@
 // projets qui déclarent les mêmes chemins, dans l'ordre qu'ils veulent. Chaque faute nomme sa clé
 // (`grillhouse.groupe`, ou `grillhouse.groupe[<i>]`) et sa valeur. `projetsExternes(groupe,
 // racine)` rend les `external_projects` de Beads du projet : `{ <nom>: <chemin> }`, les autres
-// projets du groupe.
+// projets du groupe, chacun par son chemin relatif à la racine du projet.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -115,8 +115,14 @@ describe('l’identité du groupe est celle de ses projets, dans l’ordre qu’
 describe('les projets externes de Beads d’un projet sont les autres projets de son groupe', () => {
   it('chaque autre projet par son nom, le projet lui-même exclu', () => {
     const { groupe: g } = lireGroupe(groupe(SH, OB, OSD), SH);
-    expect(projetsExternes(g, SH)).toEqual({ 'osc-bridge': OB, osd: OSD });
-    expect(projetsExternes(g, OB)).toEqual({ synthub: SH, osd: OSD });
+    expect(projetsExternes(g, SH)).toEqual({
+      'osc-bridge': path.relative(SH, OB),
+      osd: path.relative(SH, OSD),
+    });
+    expect(projetsExternes(g, OB)).toEqual({
+      synthub: path.relative(OB, SH),
+      osd: path.relative(OB, OSD),
+    });
   });
 
   it('un groupe d’un seul projet n’a aucun projet externe', () => {

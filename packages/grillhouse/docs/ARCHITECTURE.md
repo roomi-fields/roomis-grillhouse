@@ -962,7 +962,9 @@ fournisseur ne porte `provides:<capacité>` (que pose `bd ship <capacité>`), et
 absent ou un projet inconnu le tient aussi, la faute nommée (le tableau dit « attend
 <projet>:<capacité> »). L'intégration d'un ticket qui porte `export:<capacité>` joue `bd ship
 <capacité>` après son commit sur main, et son échec est une faute nommée. `grillhouse maj` écrit le
-`external_projects` de Beads de chaque projet d'un groupe depuis `grillhouse.groupe`. Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
+`external_projects` de Beads de chaque projet d'un groupe depuis `grillhouse.groupe`, chaque chemin
+relatif à la racine du projet, car `.beads/config.yaml` est commité : aucune arborescence locale
+n'y entre, et la file le lit depuis l'arbre principal (`cheminDuProjetExterne`). Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
 d'entrée, un ticket sans sa section ne part jamais (grillhouse-d4n.10) : le panneau (une alerte)
 et l'ouverture de la séance du superviseur (« ## La file des tickets ») le nomment, « En file sans
 architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Le déroulé de la file des tickets sous
