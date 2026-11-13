@@ -391,10 +391,10 @@ describe('assembler', () => {
     expect(texte).toMatch(/✎ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
   });
-  it('heads the board with three lines of states: the work, the queues, then what waits for the owner', () => {
+  it('heads the board with three lines of states: the signs of AGENTS and the tickets done, the queues, then what waits for the owner', () => {
     const l = dessin(t).map(x => x.texte);
-    expect(l[1]).toBe('▶ 1 en cours · 0 bloqués · 2 faits');
-    expect(l[2]).toBe('⏭ file : 1 en circuit · 0 en direct');
+    expect(l[1]).toBe('▶ 1 · ⏸ 0 · ⛔ 0 · 2 faits');
+    expect(l[2]).toBe('⏭ file : 1 en circuit · 0 en direct · 0 bloqués');
     expect(l[3]).toBe('1 sans go · 1 à valider · 0 reportés');
     expect((dessin(t)[3] as { ton?: string }).ton).toBe('attention');
   });

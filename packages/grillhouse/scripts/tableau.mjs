@@ -12,7 +12,11 @@
 // common git directory, where the status line (`scripts/ligne-etat/`) reads it.
 //
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
-//   by state, the agents' working time and tokens of the day and in all, the alerts.
+//   by state, the agents' working time and tokens of the day and in all, the alerts. The head's
+//   first line counts the signs AGENTS shows (`etatsDAgents`, the one source: « ▶ N · ⏸ N · ⛔ N
+//   · N faits », a ticket closed and not integrated counted under its sign, not as done), one line
+//   per project on a board of several; the line of the queues counts the tickets blocked
+//   by an open ticket; the status line says the same signs in the same words.
 // - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
 //   sub-step, with who works there, for the whole project. A ticket stands at a step only by its
 //   circuit (below) or by an agent that runs on it, at that agent's step; a ticket in the queue,
@@ -933,10 +937,13 @@ export function assembler({
   const bloquePar = t => [...blocages(t).map(d => numero(d.depends_on_id)), ...attentesExternes(t)];
   // The owner's go: the label `circuit`, set on his word.
   const circuit = t => (t.labels ?? []).includes('circuit');
-  // A ticket's state: done, in progress, deferred, awaiting validation; else, with the owner's go,
-  // waiting (ready) or blocked (an open ticket it depends on); without it, awaiting his go.
+  // A ticket's state: in progress (claimed, or its circuit launched and not integrated, its
+  // question deferred or its ticket closed before its integration included: AGENTS shows it, and it
+  // is done only once integrated), done, deferred,
+  // awaiting validation; else, with the owner's go, waiting (ready) or blocked (an open ticket it
+  // depends on); without it, awaiting his go.
   const etat = t => {
-    if (t.status === 'in_progress' || actifs.has(t.id)) {
+    if (t.status === 'in_progress' || actifs.has(t.id) || parCircuit.has(t.id)) {
       return 'enCours';
     }
     if (t.status === 'closed') {
@@ -1197,6 +1204,7 @@ export function assembler({
       t =>
         travail(t) &&
         !actifs.has(t.id) &&
+        !parCircuit.has(t.id) &&
         !estDecouverte(t) &&
         !sansLivraison(t) &&
         t.closed_at &&
@@ -1573,6 +1581,118 @@ function nommerLesPrises(tenues, { racine, prefix }) {
     return ici ? numero : `${sigleDuProjet(deLaPrise).sigle ?? path.basename(deLaPrise)} ${numero}`;
   });
 }
+// The sign of a ticket's line in AGENTS, by the tone of its state: ▶ what runs, ⛔ what asks for a
+// correction, ⏸ a wait, for the machine (grey) or for someone (yellow).
+const signeDuTon = ton => (ton === TONS.enCours ? '▶' : ton === 'alerte' ? '⛔' : '⏸');
+// The step of the circuit <c>, by its state or its stop.
+const etapeDuCircuitLu = c => etapeDuCircuit({ ...c, raison: c.arret });
+// A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
+// its question, the supervisor when its stop names no one.
+const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null);
+
+/**
+ * The state of each ticket's line of AGENTS on the board <t>, the one source of its signs, which
+ * AGENTS draws and the head and the status line count. Each circuit (`circuits`, by its ticket):
+ * its state (`etat`, whose tone TONS gives), the reason of its wait (`raison`), its tone, its sign
+ * and its witness (`temoin`: the lock it holds or waits for, « · <sorte> faits/prévus · <durée> »,
+ * « · verrou <sorte> · <durée> », else the progress of its automatic pass, `temoinDe`), in this
+ * order: frozen; ended without its issue; its question (to the supervisor or to another); stopped;
+ * its wait for the disk, a place (« nuit » while the night holds the machine), the lock, the CI of
+ * its queue (5.2, the lock not held) or its first state; else it runs. `lignes`: one entry per
+ * ticket's line of AGENTS, its id, its project on a board of several and its sign: each circuit,
+ * each ticket led in direct (▶) and each agent shown out of a circuit (▶).
+ */
+export function etatsDAgents(t) {
+  const maintenant = t.maintenant ?? Date.now();
+  const p = t.places;
+  const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
+  const duCircuit = x => Boolean(x.ticket && enCircuit.has(x.ticket));
+  const verrouDe = new Map();
+  const tenu = t.machine?.detenteur;
+  if (tenu && duCircuit(tenu)) {
+    const a = tenu.avancement;
+    const age = a ? maintenant - a.dernier : 0;
+    const compte = a && (a.faits || a.prevus) ? `${a.faits}/${a.prevus}` : '';
+    const fige = age > FIGEE;
+    const sorte = tenu.sorte.toLocaleLowerCase('fr');
+    verrouDe.set(tenu.ticket, {
+      fige,
+      texte: fige
+        ? ` · ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
+        : ` · ${sorte}${compte ? ` ${compte}` : ''} · ${ilYa(maintenant - (tenu.depuis ?? maintenant))}`,
+    });
+  }
+  for (const w of [...(t.machine?.attentes ?? [])].sort((x, y) => x.depuis - y.depuis)) {
+    if (duCircuit(w) && !verrouDe.has(w.ticket)) {
+      verrouDe.set(w.ticket, {
+        fige: false,
+        texte: ` · verrou ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
+      });
+    }
+  }
+  const attendLeVerrou = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
+  const attendLeDisque = new Set((p?.attentes ?? []).filter(w => w.disque).map(w => w.ticket));
+  const tientLeVerrou = tenu && duCircuit(tenu) ? tenu.ticket : null;
+  const etatDuCircuit = (c, temoin) => {
+    if (temoin?.fige) {
+      return ['fige', ''];
+    }
+    if (!c.vivant) {
+      const qui = enQuestion(c);
+      return c.sansIssue
+        ? ['sansIssue', 'fini sans son issue']
+        : qui === SUPERVISEUR
+          ? ['attendLeSuperviseur', `question au ${SUPERVISEUR}`]
+          : qui
+            ? ['attendLeResponsable', `question au ${qui}`]
+            : ['arrete', 'arrêté'];
+    }
+    const etape = etapeDuCircuitLu(c);
+    return attendLeDisque.has(c.id)
+      ? ['attendLeDisque', 'disque']
+      : attendUnePlace.has(c.id)
+        ? ['attendUnePlace', p?.nuit ? 'nuit' : 'attend une place']
+        : attendLeVerrou.has(c.id)
+          ? ['attendLeVerrou', '']
+          : !etape
+            ? ['sansEtape', 'démarre']
+            : etape.etat === 'file' && tientLeVerrou !== c.id
+              ? ['attendLaCI', 'CI']
+              : ['enCours', ''];
+  };
+  const circuits = new Map();
+  for (const c of t.circuits ?? []) {
+    const etape = etapeDuCircuitLu(c);
+    const temoin =
+      verrouDe.get(c.id) ??
+      (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
+    const [etat, raison] = etatDuCircuit(c, temoin);
+    circuits.set(c.id, { etat, raison, ton: TONS[etat], signe: signeDuTon(TONS[etat]), temoin });
+  }
+  const ligne = (x, signe) => ({ id: x.id, projet: x.projet, signe });
+  return {
+    circuits,
+    lignes: [
+      ...(t.circuits ?? []).map(c => ligne(c, circuits.get(c.id).signe)),
+      ...(t.horsCircuit ?? []).map(x => ligne(x, '▶')),
+      ...t.agents.flatMap(b => b.enCours.filter(x => !enCircuit.has(x.id)).map(x => ligne(x, '▶'))),
+    ],
+  };
+}
+
+/**
+ * The counts of the signs of AGENTS on the board <t> (`etatsDAgents`), of the project <projet> on a
+ * board of several, of all its lines otherwise: `enCours` ▶, `enAttente` ⏸, `arretes` ⛔.
+ * @param {any} t
+ * @param {string} [projet]
+ */
+export function comptesDAgents(t, projet) {
+  const l = etatsDAgents(t).lignes.filter(x => projet === undefined || x.projet === projet);
+  const n = s => l.filter(x => x.signe === s).length;
+  return { enCours: n('▶'), enAttente: n('⏸'), arretes: n('⛔') };
+}
+
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
 // discret, or none), its section (`section`: agents, chantier or faits, in that order) and, for a
 // ticket's line, its id (`ticket`), which the pane makes selectable; an epic's line is marked
@@ -1599,6 +1719,19 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   const large = Math.max(0, ...(t.projets ?? []).map(p => p.etiquette.length + 3));
   const colonneDe = etiquette => `[${etiquette}]`.padEnd(large);
   L(nom.toUpperCase(), TONS.titre);
+  // The state of each ticket's line of AGENTS, which AGENTS draws and the head counts.
+  const etats = etatsDAgents(t);
+  // The first line of the head, the signs of AGENTS counted (`comptesDAgents`) as AGENTS signs its
+  // lines, then the tickets done: « ▶ N · ⏸ N · ⛔ N · N faits ».
+  const ligneDesSignes = (a, fermes) =>
+    `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes} · ${fermes} faits`;
+  // The line of the queues: the circuit's, the direct one, then the tickets blocked by an open
+  // ticket; where it does not hold, its label « file : » gives way.
+  const ligneDeLaFile = (c, place) =>
+    [
+      `⏭ file : ${c.enAttente} en circuit · ${c.fileDirecte ?? 0} en direct · ${c.bloques ?? 0} bloqués`,
+      `⏭ ${c.enAttente} en circuit · ${c.fileDirecte ?? 0} en direct · ${c.bloques ?? 0} bloqués`,
+    ].find((x, i, l) => colonnes(x) <= place || i === l.length - 1);
   if (plusieurs) {
     // The three lines of states of each project, as one project's board says them: the first
     // under its label, the two others aligned below it; or the fault that keeps its board out.
@@ -1609,20 +1742,15 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         continue;
       }
       const c = p.compteurs;
+      const place = largeur - colonnes(retrait);
       L(
         cadre(
-          `${colonneDe(p.etiquette)}▶ ${c.enCours} en cours · ${c.bloques ?? 0} bloqués · ${c.fermes} faits`,
+          `${colonneDe(p.etiquette)}${ligneDesSignes(comptesDAgents(t, p.etiquette), c.fermes)}`,
           '',
           largeur
         )
       );
-      L(
-        cadre(
-          `${retrait}⏭ file : ${c.enAttente} en circuit · ${c.fileDirecte ?? 0} en direct`,
-          '',
-          largeur
-        )
-      );
+      L(cadre(`${retrait}${ligneDeLaFile(c, place)}`, '', largeur));
       L(
         cadre(
           `${retrait}${c.sansGo ?? 0} sans go · ${c.aValider ?? 0} à valider · ${c.reportes ?? 0} reportés`,
@@ -1645,10 +1773,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   } else {
     const g = t.global;
     const c = g.compteurs;
-    // Three lines of states: the work, the queues (the circuit's, the direct one), then those that
-    // wait for the owner.
-    L(cadre(`▶ ${c.enCours} en cours · ${c.bloques} bloqués · ${c.fermes} faits`, '', largeur));
-    L(cadre(`⏭ file : ${c.enAttente} en circuit · ${c.fileDirecte} en direct`, '', largeur));
+    // Three lines of states: the signs of AGENTS and the tickets done, the queues (the circuit's,
+    // the direct one, the blocked), then those that wait for the owner.
+    L(cadre(ligneDesSignes(comptesDAgents(t), c.fermes), '', largeur));
+    L(cadre(ligneDeLaFile(c, largeur), '', largeur));
     L(
       cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
       c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
@@ -1780,41 +1908,24 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     }
     return couperAvant(avecQui, fin, '', largeur);
   };
-  // The lock on the line of each circuit shown that holds it or waits for it, by its ticket.
-  const verrouDe = new Map();
+  // The lock of each circuit shown stands on its line (`etatsDAgents`); any other, here.
   const tenu = t.machine?.detenteur;
-  if (tenu) {
+  if (tenu && !duCircuit(tenu)) {
     const a = tenu.avancement;
     const age = a ? maintenant - a.dernier : 0;
     const compte = a && (a.faits || a.prevus) ? `${a.faits}/${a.prevus}` : '';
     const fige = age > FIGEE;
     const depuis = ilYa(maintenant - (tenu.depuis ?? maintenant));
-    if (duCircuit(tenu)) {
-      const sorte = tenu.sorte.toLocaleLowerCase('fr');
-      verrouDe.set(tenu.ticket, {
-        fige,
-        texte: fige
-          ? ` · ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
-          : ` · ${sorte}${compte ? ` ${compte}` : ''} · ${depuis}`,
-      });
-    } else {
-      poser({
-        texte: fige
-          ? ligneDuVerrou(`⚠ ${tenu.sorte} figée ${ilYa(age)}`, tenu, compte ? ` · ${compte}` : '')
-          : ligneDuVerrou(`🔒 ${tenu.sorte}`, tenu, ` · ${compte ? `${compte} · ` : ''}${depuis}`),
-        ton: fige ? TONS.fige : TONS.enCours,
-        avancement: true,
-      });
-    }
+    poser({
+      texte: fige
+        ? ligneDuVerrou(`⚠ ${tenu.sorte} figée ${ilYa(age)}`, tenu, compte ? ` · ${compte}` : '')
+        : ligneDuVerrou(`🔒 ${tenu.sorte}`, tenu, ` · ${compte ? `${compte} · ` : ''}${depuis}`),
+      ton: fige ? TONS.fige : TONS.enCours,
+      avancement: true,
+    });
   }
   for (const w of [...(t.machine?.attentes ?? [])].sort((x, y) => x.depuis - y.depuis)) {
     if (duCircuit(w)) {
-      if (!verrouDe.has(w.ticket)) {
-        verrouDe.set(w.ticket, {
-          fige: false,
-          texte: ` · verrou ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
-        });
-      }
       continue;
     }
     poser({
@@ -1828,10 +1939,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       avancement: true,
     });
   }
-  // The tickets whose circuit waits for the lock or for room.
-  const attendLeVerrou = new Set((t.machine?.attentes ?? []).map(w => w.ticket).filter(Boolean));
-  // The tickets whose circuit waits for a place of the machine, and those that wait for a place of
-  // a circuit, not started, whose line in their chantier says « attend une place ».
+  // The tickets that wait for a place of a circuit, not started, whose line in their chantier says
+  // « attend une place ».
   const attendUnePlace = new Set((p?.attentes ?? []).map(w => w.ticket).filter(Boolean));
   // The tickets that wait for the disk of their project's copies.
   const attendLeDisque = new Set((p?.attentes ?? []).filter(w => w.disque).map(w => w.ticket));
@@ -1867,10 +1976,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       .get(e.numero);
   // The block of the circuits at no step of the list, after the steps.
   const ailleurs = { numero: null, titre: '', qui: '', enCours: [] };
-  const etapeDe = c => etapeDuCircuit({ ...c, raison: c.arret });
-  // A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
-  // its question, the supervisor when its stop names no one.
-  const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null);
+  const etapeDe = etapeDuCircuitLu;
   // The block of the circuit <c>: the step of its state, else, while it stopped, the block after
   // the steps, else, running with no known step (it starts or resumes), the plan (1).
   const blocDuCircuit = c => {
@@ -1903,51 +2009,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const s = colonnes(sujet) > place ? `${debutDe(sujet, place - 1)}…` : sujet;
     return couper(`${tete}${s}${suite}`, droite, largeur);
   };
-  // The ticket whose circuit holds the lock of the machine.
-  const tientLeVerrou = tenu && duCircuit(tenu) ? tenu.ticket : null;
-  // The state of a circuit's line, whose tone TONS gives, and the reason of its wait: frozen; ended
-  // without its issue; its question (to the supervisor or to another); stopped; its wait for the
-  // disk, a place (« nuit » while the night holds the machine), the lock, the CI of its queue (5.2,
-  // the lock not held) or its first state;
-  // else it runs.
-  const etatDuCircuit = (c, temoin) => {
-    if (temoin?.fige) {
-      return ['fige', ''];
-    }
-    if (!c.vivant) {
-      const qui = enQuestion(c);
-      return c.sansIssue
-        ? ['sansIssue', 'fini sans son issue']
-        : qui === SUPERVISEUR
-          ? ['attendLeSuperviseur', `question au ${SUPERVISEUR}`]
-          : qui
-            ? ['attendLeResponsable', `question au ${qui}`]
-            : ['arrete', 'arrêté'];
-    }
-    return attendLeDisque.has(c.id)
-      ? ['attendLeDisque', 'disque']
-      : attendUnePlace.has(c.id)
-        ? ['attendUnePlace', p?.nuit ? 'nuit' : 'attend une place']
-        : attendLeVerrou.has(c.id)
-          ? ['attendLeVerrou', '']
-          : !etapeDe(c)
-            ? ['sansEtape', 'démarre']
-            : etapeDe(c).etat === 'file' && tientLeVerrou !== c.id
-              ? ['attendLaCI', 'CI']
-              : ['enCours', ''];
-  };
-  // The sign of a line in AGENTS, by its tone: ▶ what runs, ⛔ what asks for a correction, ⏸ a
-  // wait, for the machine (grey) or for someone (yellow).
-  const signeDuTon = ton => (ton === TONS.enCours ? '▶' : ton === 'alerte' ? '⛔' : '⏸');
   const ligneDuCircuit = c => {
     const etape = etapeDe(c);
-    // The lock it holds or waits for, else the progress of its pass.
-    const temoin =
-      verrouDe.get(c.id) ??
-      (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
-    const [etat, raison] = etatDuCircuit(c, temoin);
-    const ton = TONS[etat];
-    const signe = signeDuTon(ton);
+    // Its state, its sign, its reason and its witness, as the head counts them.
+    const { ton, signe, raison, temoin } = etats.circuits.get(c.id);
     const droite = droiteDe(
       signe,
       conso(t.parTicket?.[c.id]?.travail ?? 0, t.parTicket?.[c.id]?.jetons ?? 0)
@@ -2352,7 +2417,8 @@ export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = D
 
 // The status line: the chantier in progress; first the alerts, counted by their signs as the board
 // shows them (🌙, 💤, ⚠), then the holder of the lock of the machine, « 🔒 <sorte> · <projet> »,
-// and the count of its waits, « ⏳ <n> ». The alerts of the other projects of a board of several
+// and the count of its waits, « ⏳ <n> »; then the signs of AGENTS counted as the head counts them
+// (`comptesDAgents`), « ▶ N · ⏸ N · ⛔ N ». The alerts of the other projects of a board of several
 // (<voisins>, their boards) count beside the session's, as a multi-root status bar counts the problems
 // of every root; the counters and the chantier stay the session's.
 export function ligneEtat(t, voisins = []) {
@@ -2368,10 +2434,12 @@ export function ligneEtat(t, voisins = []) {
     .join('');
   const ch = t.chantiers[0];
   const c = t.global.compteurs;
+  const a = comptesDAgents(t);
+  const dAgents = `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes}`;
   if (!ch) {
-    return `${alerte}Grillhouse : ${c.enCours} en cours · ⏭ ${c.enAttente} · ✎ ${c.fileDirecte} · ${c.fermes} faits`;
+    return `${alerte}Grillhouse : ${dAgents} · ⏭ ${c.enAttente} · ✎ ${c.fileDirecte} · ${c.fermes} faits`;
   }
-  return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ▶ ${c.enCours} en cours · ${k(t.global.jour.jetons)} aujourd'hui`;
+  return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ${dAgents} · ${k(t.global.jour.jetons)} aujourd'hui`;
 }
 
 // The answer of Beads to <args> in the repository at <racine>, as JSON (`liste`), or the first line

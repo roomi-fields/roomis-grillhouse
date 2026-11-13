@@ -123,14 +123,14 @@ describe('critère 1 : the usual board, each project prefixed', () => {
     const l = textes(lignes(trois(), NOM) as Ligne[]);
     expect(l.slice(0, 12)).toEqual([
       'OSC-BRIDGE + SH + OSD',
-      '[OB]  ▶ 1 en cours · 0 bloqués · 0 faits',
-      '      ⏭ file : 0 en circuit · 0 en direct',
+      '[OB]  ▶ 1 · ⏸ 0 · ⛔ 0 · 0 faits',
+      '      ⏭ 0 en circuit · 0 en direct · 0 bloqués',
       '      0 sans go · 1 à valider · 0 reportés',
-      '[SH]  ▶ 1 en cours · 0 bloqués · 0 faits',
-      '      ⏭ file : 0 en circuit · 0 en direct',
+      '[SH]  ▶ 1 · ⏸ 0 · ⛔ 0 · 0 faits',
+      '      ⏭ 0 en circuit · 0 en direct · 0 bloqués',
       '      1 sans go · 0 à valider · 0 reportés',
-      '[OSD] ▶ 0 en cours · 0 bloqués · 0 faits',
-      '      ⏭ file : 0 en circuit · 0 en direct',
+      '[OSD] ▶ 0 · ⏸ 0 · ⛔ 0 · 0 faits',
+      '      ⏭ 0 en circuit · 0 en direct · 0 bloqués',
       '      0 sans go · 0 à valider · 0 reportés',
       '🔍 0 new · 0 →check · 0 rejetés · 0 validés',
       expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
@@ -222,8 +222,8 @@ describe('critère 4 : a project whose board does not read is named in the head 
     ]);
     const l = lignes(t, 'osc-bridge + OSD') as Ligne[];
     expect(l.slice(1, 5).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
-      ['[OB]  ▶ 1 en cours · 0 bloqués · 0 faits', undefined],
-      ['      ⏭ file : 0 en circuit · 0 en direct', undefined],
+      ['[OB]  ▶ 1 · ⏸ 0 · ⛔ 0 · 0 faits', undefined],
+      ['      ⏭ 0 en circuit · 0 en direct · 0 bloqués', undefined],
       ['      0 sans go · 1 à valider · 0 reportés', 'attention'],
       ['[OSD] ⚠ dossier introuvable', 'alerte'],
     ]);

@@ -1,5 +1,7 @@
-// A ticket whose circuit lives is in progress on the board, whatever its status: the queue closes a
-// ticket before it reads the CI, and reopens it if red. Closed without a living circuit, it is done.
+// A ticket whose circuit is launched and not integrated is in progress on the board, whatever its
+// status: the queue closes a ticket before it reads the CI, and reopens it if red; a circuit that
+// stopped before its integration waits. Closed with no circuit, or its circuit integrated, it is
+// done.
 import { describe, expect, it } from 'vitest';
 import { assembler } from '../../scripts/tableau.mjs';
 import { circuitLu } from './tableau-essai.js';
@@ -62,9 +64,16 @@ describe('un ticket fermé dont le circuit vit est en cours au panneau', () => {
   });
 });
 
-describe('un ticket fermé sans circuit vivant reste fermé', () => {
+describe('un ticket fermé sans circuit, ou au circuit intégré, est fait', () => {
   it('sans circuit il est compté fermé et entre aux faits du jour', () => {
     const p = plateau([T('demo-a')], []);
+    expect(p.global.compteurs.fermes).toBe(1);
+    expect(p.global.compteurs.enCours).toBe(0);
+    expect(p.faitsDuJour.map(t => t.id)).toEqual(['demo-a']);
+  });
+
+  it('un circuit intégré le laisse fait', () => {
+    const p = plateau([T('demo-a')], [circuitLu('demo-a', { etape: 'integre', integre: true })]);
     expect(p.global.compteurs.fermes).toBe(1);
     expect(p.global.compteurs.enCours).toBe(0);
     expect(p.faitsDuJour.map(t => t.id)).toEqual(['demo-a']);
@@ -74,11 +83,11 @@ describe('un ticket fermé sans circuit vivant reste fermé', () => {
     ['arrêté', { vivant: false, arret: 'manuel' }],
     ['en attente de réponse', { vivant: false, question: 'Que faire ?', qui: 'superviseur' }],
     ['en erreur', { vivant: false, code: 'erreur', raison: 'échec' }],
-  ])('un circuit %s ne le rend pas en cours', (_nom, c) => {
+  ])('un circuit %s pas encore intégré le garde en cours, hors des faits', (_nom, c) => {
     const p = plateau([T('demo-a')], [circuitLu('demo-a', c)]);
-    expect(p.global.compteurs.fermes).toBe(1);
-    expect(p.global.compteurs.enCours).toBe(0);
-    expect(p.faitsDuJour.map(t => t.id)).toEqual(['demo-a']);
+    expect(p.global.compteurs.fermes).toBe(0);
+    expect(p.global.compteurs.enCours).toBe(1);
+    expect(p.faitsDuJour).toEqual([]);
   });
 
   it("le circuit vivant d'un autre ticket ne change pas son état", () => {
@@ -89,15 +98,15 @@ describe('un ticket fermé sans circuit vivant reste fermé', () => {
   });
 });
 
-describe('un ticket fermé dont le circuit vit n’entre aux faits du jour qu’à la fin du circuit', () => {
+describe('un ticket fermé dont le circuit vit n’entre aux faits du jour qu’à son intégration', () => {
   it('il n’est pas listé tant que son circuit vit', () => {
     const p = plateau([T('demo-a'), T('demo-b')], [circuitLu('demo-a', { vivant: true })]);
     expect(p.faitsDuJour.map(t => t.id)).toEqual(['demo-b']);
   });
 
-  it('il y entre dès que son circuit ne vit plus', () => {
+  it('il y entre dès que son circuit est intégré', () => {
     const vit = plateau([T('demo-a')], [circuitLu('demo-a', { vivant: true })]);
-    const fini = plateau([T('demo-a')], [circuitLu('demo-a', { vivant: false })]);
+    const fini = plateau([T('demo-a')], [circuitLu('demo-a', { etape: 'integre', integre: true })]);
     expect(vit.faitsDuJour).toEqual([]);
     expect(fini.faitsDuJour.map(t => t.id)).toEqual(['demo-a']);
   });
@@ -142,8 +151,11 @@ describe('le panneau classe un ticket fermé à circuit vivant en cours dans ses
     expect(p.circuits.map(c => c.ticket ?? c.id)).toContain('demo-a');
   });
 
-  it("la même mère, son circuit arrêté, n'est pas un chantier en cours", () => {
-    const p = plateau([MERE, FILLE()], [circuitLu('demo-m.1', { vivant: false })]);
+  it("la même mère, son circuit intégré, n'est pas un chantier en cours", () => {
+    const p = plateau(
+      [MERE, FILLE()],
+      [circuitLu('demo-m.1', { etape: 'integre', integre: true })]
+    );
     expect(p.chantiers).toEqual([]);
     expect(p.autres.map(c => c.id)).toEqual(['demo-m']);
   });

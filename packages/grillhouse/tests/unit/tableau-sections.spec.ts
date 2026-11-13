@@ -455,7 +455,7 @@ describe('3uv.42 critère 5 : the text output stays readable, without the closed
   it('3uv.42 critère 5 : the text keeps its head, its chantier, its agents and its faits, no wider than the pane', () => {
     const l = texte.split('\n');
     expect(l[0]).toMatch(/^DEPOT-/);
-    expect(l.some(x => /^▶ 1 en cours · \d+ bloqués · 2 faits$/.test(x))).toBe(true);
+    expect(l.some(x => /^▶ 1 · ⏸ \d+ · ⛔ \d+ · 2 faits$/.test(x))).toBe(true);
     expect(l.some(x => x.startsWith('CHANTIER e — Le chantier'))).toBe(true);
     expect(l.some(x => x.startsWith('AGENTS'))).toBe(true);
     expect(l.some(x => /^✎ e\.1\.2 {2}Fait ce jour/.test(x))).toBe(true);

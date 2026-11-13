@@ -77,7 +77,11 @@ describe('the label of a project on the board of several projects', () => {
     const nom = path.basename(echec);
     const vu = await lire(racine, [echec]);
     expect(
-      vu.lignes.some(x => new RegExp(`^\\[${echapper(nom)}\\]\\s+▶ \\d+ en cours`).test(x.texte))
+      vu.lignes.some(x =>
+        new RegExp(`^\\[${echapper(nom)}\\]\\s+▶ \\d+ · ⏸ \\d+ · ⛔ \\d+ · \\d+ faits`).test(
+          x.texte
+        )
+      )
     ).toBe(true);
     expect(
       vu.lignes.some(x => new RegExp(`^\\[${echapper(nom)}\\]\\s+demo-5\\b`).test(x.texte))
