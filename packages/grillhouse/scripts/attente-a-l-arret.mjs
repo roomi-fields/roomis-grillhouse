@@ -53,7 +53,7 @@ function lireLaNote(racine) {
  * that each blocks once.
  * @param {string} dossier the directory the session works in
  * @param {{ env?: Record<string, string | undefined>,
- *   fermes?: (racine: string, ids: string[]) => Set<string>,
+ *   fermes?: (racine: string, ids: string[]) => Set<string> | null,
  *   circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>,
  *   attenteVit?: (racine: string) => boolean }} [options]
  * @returns {Promise<string | null>}

@@ -134,18 +134,19 @@ export function horsAttente(tickets, maintenant) {
 }
 
 // Of the tickets <ids> of the repository at <racine>, those whose question does not wait now
-// (`horsAttente`); none when bd does not read them.
+// (`horsAttente`); null when bd does not read them (unknown, never « none »): a machine under
+// load can take seconds to answer.
 export function ticketsHorsAttente(racine, ids) {
   const r = spawnSync('bd', ['show', ...ids, '--json'], {
     cwd: racine,
     encoding: 'utf8',
-    timeout: 5000,
+    timeout: 30_000,
     maxBuffer: 256 * 1024 * 1024,
   });
   try {
     return horsAttente(JSON.parse(r.stdout), Date.now());
   } catch {
-    return new Set();
+    return null;
   }
 }
 
@@ -293,10 +294,15 @@ function relever(racine, circuits, { fermes, maintenant, rappelMs, toutes = fals
           aRendre.map(q => q.ticket)
         )
       : new Set();
-    const rendu = aRendre
-      .filter(q => !fermesDe.has(q.ticket))
-      .map(q => (avant.has(q.cle) && !toutes ? { ...q, representee: true } : q));
-    const presentes = new Set(aRendre.map(q => q.cle));
+    // Tickets that do not read: nothing is given at this reading, nor counted presented, so that
+    // the next reading that reads them gives what still waits.
+    const lisible = fermesDe !== null;
+    const rendu = lisible
+      ? aRendre
+          .filter(q => !fermesDe.has(q.ticket))
+          .map(q => (avant.has(q.cle) && !toutes ? { ...q, representee: true } : q))
+      : [];
+    const presentes = new Set(lisible ? aRendre.map(q => q.cle) : []);
     const enTexte = liste =>
       `${JSON.stringify(
         {
@@ -307,15 +313,18 @@ function relever(racine, circuits, { fermes, maintenant, rappelMs, toutes = fals
         null,
         2
       )}\n`;
+    // A question never presented, its ticket unread, is not written: the next reading gives it.
     const ecrit = enTexte(
-      debout.map(q => {
-        const r = avant.get(q.cle);
-        return {
-          cle: q.cle,
-          depuis: r?.depuis ?? maintenant,
-          presentee: presentes.has(q.cle) ? maintenant : r.presentee,
-        };
-      })
+      debout
+        .filter(q => presentes.has(q.cle) || avant.has(q.cle))
+        .map(q => {
+          const r = avant.get(q.cle);
+          return {
+            cle: q.cle,
+            depuis: r?.depuis ?? maintenant,
+            presentee: presentes.has(q.cle) ? maintenant : r.presentee,
+          };
+        })
     );
     let enFichier = '';
     try {
@@ -370,6 +379,10 @@ function enAttente(lus, racine, fermes) {
         lus.map(c => c.ticket)
       )
     : new Set();
+  // Tickets that do not read: no question can be told waiting, none is.
+  if (ferme === null) {
+    return [];
+  }
   return lus
     .filter(c => !ferme.has(c.ticket))
     .sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'));
@@ -386,7 +399,7 @@ function enAttente(lus, racine, fermes) {
  * its circuit ended without its issue (`interrompu`) and its stop (`arret`).
  * @param {string} racine the root of the repository
  * @param {import('./circuits-du-serveur.mjs').CircuitDuServeur[]} circuits
- * @param {{ fermes?: (racine: string, ids: string[]) => Set<string>, sauf?: Set<string> }} options
+ * @param {{ fermes?: (racine: string, ids: string[]) => Set<string> | null, sauf?: Set<string> }} options
  * @returns {{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, interrompu: boolean, arret: string | null }[]}
  */
 export function questionsEnAttente(
@@ -425,7 +438,7 @@ const aucunFerme = () => new Set();
  * <fluxRouges>: bd by default) is given as a batch of its own, once per run (`adresse`: the
  * workflow, the URL of the run, the commit), and again at another run; taken up or closed, it is
  * no longer given.
- * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string>, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, fluxRouges?: (racine: string) => { ticket: string, adresse: string }[] | Promise<{ ticket: string, adresse: string }[]>, maintenant?: () => number, rappel?: number }} options
+ * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string> | null, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, fluxRouges?: (racine: string) => { ticket: string, adresse: string }[] | Promise<{ ticket: string, adresse: string }[]>, maintenant?: () => number, rappel?: number }} options
  * @returns {Promise<{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[]>}
  * @throws {Error} another wait runs
  */
@@ -601,7 +614,7 @@ export function texteDesQuestions(questions) {
  * The circuits are read once, by <circuitsDe> (one call to the Temporal server,
  * scripts/circuits-du-serveur.mjs, by default); a server that does not answer is said, and no
  * question goes up.
- * @param {{ fermes?: (racine: string, ids: string[]) => Set<string>,
+ * @param {{ fermes?: (racine: string, ids: string[]) => Set<string> | null,
  *   circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>,
  *   ticketsDe?: (racine: string) => import('./file-des-tickets.mjs').TicketDeBeads[] }} options
  * @returns {Promise<string>}

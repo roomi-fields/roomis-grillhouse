@@ -335,3 +335,37 @@ describe('the end of a circuit integrated', () => {
     expect(options[0]).toEqual({ integres: true });
   });
 });
+
+// A machine under load can take longer than its bound to answer `bd show`: tickets that do not
+// read are unknown, never « none deferred », so a deferred question stays quiet.
+describe('the tickets that do not read', () => {
+  it('give no question waiting: a deferred one is not told waiting', () => {
+    const circuits = [arrete('demo-1', 'Quel paquet lève ce rouge ?')];
+    expect(questionsEnAttente(depot(), circuits, { fermes: () => null })).toEqual([]);
+  });
+
+  it('the wait gives nothing while they do not read, then what still waits once they do', async () => {
+    const racine = depot();
+    const s = serveur([arrete('demo-1', 'Quel paquet lève ce rouge ?')]);
+    let lisible = false;
+    const fin = new AbortController();
+    const minuteur = setTimeout(() => fin.abort(), 3000);
+    setTimeout(() => {
+      lisible = true;
+    }, 300);
+    try {
+      const q = await attendreUneQuestion({
+        racine,
+        fermes: () => (lisible ? new Set<string>() : null),
+        pas: 50,
+        signal: fin.signal,
+        circuitsDe: s.lire,
+      });
+      expect(q.map(x => x.ticket)).toEqual(['demo-1']);
+      expect(q[0]).not.toHaveProperty('representee', true);
+      expect(s.lectures).toBeGreaterThan(1);
+    } finally {
+      clearTimeout(minuteur);
+    }
+  });
+});

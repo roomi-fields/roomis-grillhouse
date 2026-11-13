@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A deferred question stays quiet when Beads answers slowly** (grillhouse-v8g): under load, `bd show` took more than the 5 s `ticketsHorsAttente` gave it, the failure read as « no ticket deferred », and every deferred question went up again at the stop hook and in the wait. The read now waits 30 s and, unread, gives null: no question is told waiting, none counted presented, and the next reading gives what still waits (scripts/superviseur.mjs). **Action for projects**: none.
+
 - **The tests of the board answer ui.focus for every plugin** (grillhouse-bzc.1): under Claude Code 2.1.323 the engine of `claude plugin test` no longer lets a hook without a matcher answer an event that carries another plugin's name, and five tests of mods/grillhouse/tests/sections.test.tsx failed (« no implementation for ui.focus »), the guards red on every lot. The bench answers `ui.focus` with `{ plugin: '*' }`. The CI and the night install the same Claude Code as the machine, 2.1.323 (was 2.1.312), so the tests of the plugin run against one engine. **Action for projects**: none.
 
 ## [0.35.0] - 2026-11-12
