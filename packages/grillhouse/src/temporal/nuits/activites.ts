@@ -14,15 +14,25 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { Context } from '@temporalio/activity';
 import { departDe, signalerGroupe } from '../../../scripts/mesure-de-la-machine.mjs';
+import { espacementDe, VARIABLE_JETON } from '../../../scripts/regles-des-places.mjs';
 import { ecrire, ligneDeNuit, REGISTRE } from '../../../scripts/registre.mjs';
 import { finirLaTentativeMorte } from '../acte.js';
 import { ouvrirLeClient } from '../client.js';
 import { choisir, marqueurDeLaNuit, projetsDuRegistre } from './choix.js';
+import {
+  battreLaReservation,
+  demarrerLesPlaces,
+  leverLaReservation,
+  lireLesPlaces,
+  reserverLaMachineEntiere,
+} from '../places/client.js';
 import { demanderDesNuits } from './client.js';
 import type { ActivitesDesNuits, ChoixDesNuits, Saut } from './contrat.js';
 
 // How often a night in progress sends its heartbeat.
 const BATTEMENT_MS = 30_000;
+// How often the wait of the stages under way reads the phase of the night again.
+const ATTENTE_DES_ETAPES_MS = 5_000;
 // How long a cancelled night's group has after SIGTERM, before SIGKILL.
 const GRACE_MS = 10_000;
 
@@ -72,14 +82,70 @@ interface Battement {
   processus: { pid: number; depart: string | null };
 }
 
-export async function jouerLaNuit({ racine }: { racine: string }): Promise<number> {
+/** The environment of the passes of the night: <env> with the jeton of the reservation of the machine. */
+export function environnementDeLaNuit(
+  env: Record<string, string | undefined>,
+  jeton: string
+): Record<string, string | undefined> {
+  return { ...env, [VARIABLE_JETON]: jeton };
+}
+
+// Renews the reservation <jeton> of the machine, which the places lift once its beat is PERIME_MS
+// old; a beat that fails is the next one's to renew.
+async function battreLaReservationDe(jeton: string): Promise<void> {
+  const c = ouvrirLeClient();
+  try {
+    await battreLaReservation(c.client, jeton);
+  } catch {
+    // The next beat renews it.
+  } finally {
+    await c.fermer();
+  }
+}
+
+export async function reserverLaMachine({ jeton }: { jeton: string }): Promise<void> {
+  const contexte = Context.current();
+  const c = ouvrirLeClient();
+  try {
+    await demarrerLesPlaces(c.client, { espacementMs: espacementDe(process.env), veilleMs: 1_000 });
+    await reserverLaMachineEntiere(c.client, { jeton });
+    // The stages under way finish: the nights start once no place is held but the night's.
+    for (;;) {
+      if ((await lireLesPlaces(c.client)).nuit?.phase === 'en cours') {
+        return;
+      }
+      contexte.heartbeat();
+      await battreLaReservation(c.client, jeton);
+      await contexte.sleep(ATTENTE_DES_ETAPES_MS);
+    }
+  } finally {
+    await c.fermer();
+  }
+}
+
+export async function leverLaMachine({ jeton }: { jeton: string }): Promise<void> {
+  const c = ouvrirLeClient();
+  try {
+    await leverLaReservation(c.client, jeton);
+  } finally {
+    await c.fermer();
+  }
+}
+
+export async function jouerLaNuit({
+  racine,
+  jeton,
+}: {
+  racine: string;
+  jeton: string;
+}): Promise<number> {
   const contexte = Context.current();
   const avant = contexte.info.heartbeatDetails as Battement | undefined;
   finirLaTentativeMorte(avant?.processus);
   const enfant = spawn(path.join(racine, 'node_modules/.bin/grillhouse'), ['nuit'], {
     cwd: racine,
     stdio: 'ignore',
-    env: process.env,
+    env: environnementDeLaNuit(process.env, jeton),
     detached: true,
   });
   const fin = new Promise<number>((ok, ko) => {
@@ -87,7 +153,10 @@ export async function jouerLaNuit({ racine }: { racine: string }): Promise<numbe
     enfant.on('close', (code, signal) => ok(code ?? (signal ? 128 : 1)));
   });
   const moi = { pid: enfant.pid!, depart: enfant.pid ? departDe(enfant.pid) : null };
-  const battre = () => contexte.heartbeat({ processus: moi } satisfies Battement);
+  const battre = () => {
+    contexte.heartbeat({ processus: moi } satisfies Battement);
+    void battreLaReservationDe(jeton);
+  };
   battre();
   const minuteur = setInterval(battre, BATTEMENT_MS);
   let tuer: NodeJS.Timeout | null = null;
@@ -125,6 +194,8 @@ export async function demanderLesNuitsPlanifiees(): Promise<void> {
 export const activitesDesNuits: ActivitesDesNuits = {
   choisirLesNuits,
   noterLeSaut,
+  reserverLaMachine,
+  leverLaMachine,
   jouerLaNuit,
   demanderLesNuitsPlanifiees,
 };

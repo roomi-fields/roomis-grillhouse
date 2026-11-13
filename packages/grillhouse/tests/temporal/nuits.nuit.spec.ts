@@ -49,6 +49,9 @@ afterEach(async () => {
 function machine(choix: ChoixDesNuits, verdicts: Record<string, number | 'echec'> = {}) {
   const notes: Saut[] = [];
   const debuts: string[] = [];
+  // The reservations of the machine and the nights, in their order: « reserver:<jeton> »,
+  // « nuit:<racine>:<jeton> », « lever:<jeton> ».
+  const journal: string[] = [];
   let enCours = 0;
   let auPlus = 0;
   const liberer = new Map<string, () => void>();
@@ -60,7 +63,16 @@ function machine(choix: ChoixDesNuits, verdicts: Record<string, number | 'echec'
       notes.push(s);
       return Promise.resolve();
     },
-    jouerLaNuit: async ({ racine }) => {
+    reserverLaMachine: ({ jeton }) => {
+      journal.push(`reserver:${jeton}`);
+      return Promise.resolve();
+    },
+    leverLaMachine: ({ jeton }) => {
+      journal.push(`lever:${jeton}`);
+      return Promise.resolve();
+    },
+    jouerLaNuit: async ({ racine, jeton }) => {
+      journal.push(`nuit:${racine}:${jeton}`);
       debuts.push(racine);
       enCours += 1;
       auPlus = Math.max(auPlus, enCours);
@@ -86,6 +98,7 @@ function machine(choix: ChoixDesNuits, verdicts: Record<string, number | 'echec'
     activites,
     notes,
     debuts,
+    journal,
     auPlus: () => auPlus,
     retenir: (racine: string) => retenues.add(racine),
     liberer: (racine: string) => liberer.get(racine)?.(),
@@ -164,6 +177,82 @@ describe('the scheduled nights play one after the other', () => {
     expect(vue.sautes).toEqual([saut]);
     expect(vue.ecartes).toEqual([{ racine: '/depot/c', raison: 'sa racine n’existe plus' }]);
     expect(m.debuts).toEqual(['/depot/a']);
+  }, 120_000);
+});
+
+// The jeton of the reservation of a journal: the one of its first « reserver:<jeton> ».
+const jetonDe = (journal: string[]) =>
+  journal.find(l => l.startsWith('reserver:'))?.slice('reserver:'.length);
+
+describe('the nights reserve the whole machine once, before the first night, and lift it after the last', () => {
+  it('reserves once for several nights, each night carries its jeton, then lifts', async () => {
+    const m = machine({ jouer: ['/depot/a', '/depot/b', '/depot/c'], sautes: [], ecartes: [] });
+    const client = await serveur(m.activites);
+    await demanderDesNuits(client, { planifiee: true }, { file: FILE });
+    await resultat(client);
+    const jeton = jetonDe(m.journal);
+    expect(jeton).toBeTruthy();
+    expect(m.journal).toEqual([
+      `reserver:${jeton}`,
+      `nuit:/depot/a:${jeton}`,
+      `nuit:/depot/b:${jeton}`,
+      `nuit:/depot/c:${jeton}`,
+      `lever:${jeton}`,
+    ]);
+  }, 120_000);
+
+  it('lifts it when a night fails, ends red or ends with 75, and the nights after it play', async () => {
+    const m = machine(
+      { jouer: ['/depot/a', '/depot/b', '/depot/c'], sautes: [], ecartes: [] },
+      { '/depot/a': 75, '/depot/b': 'echec', '/depot/c': 1 }
+    );
+    const client = await serveur(m.activites);
+    await demanderDesNuits(client, { planifiee: true }, { file: FILE });
+    await resultat(client);
+    const jeton = jetonDe(m.journal);
+    expect(m.journal.filter(l => l.startsWith('reserver:'))).toHaveLength(1);
+    expect(m.journal.filter(l => l.startsWith('nuit:'))).toHaveLength(3);
+    expect(m.journal.at(-1)).toBe(`lever:${jeton}`);
+    expect(m.journal.filter(l => l.startsWith('lever:'))).toHaveLength(1);
+  }, 120_000);
+
+  it('lifts it when the workflow is cancelled during a night', async () => {
+    const m = machine({ jouer: ['/depot/a'], sautes: [], ecartes: [] });
+    m.retenir('/depot/a');
+    const client = await serveur(m.activites);
+    await demanderDesNuits(client, { planifiee: true }, { file: FILE });
+    await attendre('la nuit de a en cours', async () =>
+      (await lireLesNuits(client)).enCours === '/depot/a' ? true : undefined
+    );
+    await client.workflow.getHandle(ID_DES_NUITS).cancel();
+    const jeton = jetonDe(m.journal);
+    await attendre('la levée', () =>
+      Promise.resolve(m.journal.includes(`lever:${jeton}`) ? true : undefined)
+    );
+  }, 120_000);
+
+  it('reserves nothing when no night is to play', async () => {
+    const m = machine({ jouer: [], sautes: [], ecartes: [] });
+    const client = await serveur(m.activites);
+    await demanderDesNuits(client, { planifiee: true }, { file: FILE });
+    await resultat(client);
+    expect(m.journal).toEqual([]);
+  }, 120_000);
+
+  it('a night asked while the nights play joins the same reservation', async () => {
+    const m = machine({ jouer: ['/depot/a'], sautes: [], ecartes: [] });
+    m.retenir('/depot/a');
+    const client = await serveur(m.activites);
+    await demanderDesNuits(client, { planifiee: true }, { file: FILE });
+    await attendre('la nuit de a en cours', async () =>
+      (await lireLesNuits(client)).enCours === '/depot/a' ? true : undefined
+    );
+    await demanderDesNuits(client, { projet: '/depot/b' }, { file: FILE });
+    m.liberer('/depot/a');
+    await resultat(client);
+    expect(m.journal.filter(l => l.startsWith('reserver:'))).toHaveLength(1);
+    expect(m.journal.filter(l => l.startsWith('lever:'))).toHaveLength(1);
+    expect(m.journal.indexOf(`lever:${jetonDe(m.journal)}`)).toBe(m.journal.length - 1);
   }, 120_000);
 });
 

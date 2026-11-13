@@ -819,7 +819,7 @@ export function lecture(t, prefix) {
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
  *   coeurs: number, memoireGo: number, memoireTotaleGo: number,
  *   tenues?: { ticket: string | null, racine?: string | null }[], attentes: { ticket: string,
- *   depuis: number, disque?: string | null }[] } | null,
+ *   depuis: number, disque?: string | null }[], nuit?: 'attend' | 'en cours' | null } | null,
  *   nuit?: { racine: string, depuis: number | null } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null, voies?: Record<string, 'complet' | 'court'> }} lu
  */
@@ -1695,6 +1695,18 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         texte: cadre(`⏳ ${courtDuTicket(w.ticket)} · ${w.disque}`, '', largeur),
         ton: TONS.attendLeDisque,
         ticket: w.ticket,
+      });
+    }
+    // The night reserving the machine (`nuit` of the places: `attend`, `en cours`, none outside
+    // the night): the stages under way finish, then the nights play.
+    if (p.nuit) {
+      poser({
+        texte: cadre(
+          p.nuit === 'attend' ? 'nuit : attend la fin des étapes en cours' : 'nuit en cours',
+          '',
+          largeur
+        ),
+        ton: p.nuit === 'attend' ? TONS.attendLeDisque : TONS.nuitEnCours,
       });
     }
   }

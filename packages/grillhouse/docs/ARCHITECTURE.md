@@ -1609,6 +1609,17 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   crée la planification, ou met à jour celle qui existe ; sans `--heure`, elle garde l'heure
   qu'elle a déjà. L'ouverture de séance ne propose aucune ligne de
   la table des tâches, et nomme une ligne qui lance encore la nuit, avec son retrait.
+  **La nuit draine la machine** (grillhouse-giw ; modèle : `kubectl drain`, un ordonnanceur de
+  lots qui réserve la machine pour un travail exclusif) : avant sa première nuit en attente, le
+  déroulé des nuits réserve la machine entière au déroulé des places (`reserverLaMachine`, un
+  jeton). Dès lors le déroulé des places ne donne de place qu'à une demande qui porte ce jeton, la
+  réservation des circuits n'en donne aucune neuve, et ce qui est pris finit, à la maille de la
+  prise ; la phase se lit dans `lesPlaces` (`nuit.phase`, `attend` puis `en cours`) et le tableau
+  la dit. Une fois les places rendues, les nuits jouent l'une après l'autre, leurs passes portant
+  le jeton par l'environnement (`GRILLHOUSE_JETON_DE_LA_NUIT`) ; la réservation se lève après la
+  dernière, ou à l'échec, au code rouge ou 75, à l'annulation, et les circuits reprennent d'eux-
+  mêmes. Le déroulé des nuits la bat tant qu'il vit ; sans battement depuis la péremption des
+  places de circuit, le déroulé des places la lève. Aucune attente bornée, aucun créneau horaire.
 
 Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition
 s'inscrit dans l'histoire du serveur.

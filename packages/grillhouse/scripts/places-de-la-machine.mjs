@@ -42,9 +42,16 @@ import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { ecrireLaTrace, traceDesPlaces } from './journal-des-etats.mjs';
 import { mesureDeLaMachine } from './mesure-de-la-machine.mjs';
 import { plafondDe } from './plafond-de-la-machine.mjs';
+import { VARIABLE_JETON } from './regles-des-places.mjs';
 import { AttenteDeLaMachine, avecLaMachine, borneDe, racineDuDepot } from './verrou-de-machine.mjs';
 
-export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
+// The spacing and the jeton of the night are rules (./regles-des-places.mjs), published here too.
+export {
+  ESPACEMENT_MS,
+  espacementDe,
+  VARIABLE_ESPACEMENT,
+  VARIABLE_JETON,
+} from './regles-des-places.mjs';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
 /** The mark of a place held, which the children of its holder inherit. */
 export const VARIABLE_TENUE = 'GRILLHOUSE_PLACE_TENUE';
@@ -53,30 +60,9 @@ export const VARIABLE_MESURE_D_ESSAI = 'GRILLHOUSE_MESURE_D_ESSAI';
 // The server of the places of a trial machine.
 const VARIABLE_ESSAI = 'GRILLHOUSE_PLACES_D_ESSAI';
 
-/** The gap between two starts when GRILLHOUSE_ESPACEMENT_MS names none, in ms. */
-export const ESPACEMENT_MS = 10_000;
 const RAPPEL_MS = 30_000;
 // The reading and the taking of the places on the server, in a process of their own.
 const PONT = path.join(import.meta.dirname, 'places-du-serveur.mjs');
-
-/**
- * The gap between two starts under <env>, in ms.
- * @param {Record<string, string | undefined>} [env]
- * @returns {number}
- * @throws {Error} naming GRILLHOUSE_ESPACEMENT_MS when its value is not a number of ms
- */
-export function espacementDe(env = process.env) {
-  const v = env[VARIABLE_ESPACEMENT];
-  if (v === undefined || v === '') {
-    return ESPACEMENT_MS;
-  }
-  if (!/^\d+$/.test(v)) {
-    throw new Error(
-      `${VARIABLE_ESPACEMENT} vaut « ${v} » : un nombre de millisecondes est attendu.`
-    );
-  }
-  return Number(v);
-}
 
 /**
  * The number of workers of the tests of a session: max(1, cores ÷ places), the division whole.
@@ -172,6 +158,28 @@ export function prendreUnRang({ env = process.env } = {}) {
 }
 
 /**
+ * The request of a place for the process <pid>: its start, its ticket, the root of its project,
+ * the rank of its circuit, and the jeton of the night when <env> carries it (VARIABLE_JETON: the
+ * passes of the night), which the workflow of the machine lets pass during the reservation of the
+ * machine.
+ * @param {{ env?: Record<string, string | undefined>, pid: number, depart?: string | null,
+ *   ticket?: string | null, racine?: string, rang?: number | null }} o
+ * @returns {{ pid: number, depart: string | null, ticket: string | null, racine?: string | null,
+ *   rang?: number, jeton?: string }}
+ */
+export function demandeDePlace({ env = process.env, pid, depart, ticket = null, racine, rang }) {
+  const jeton = env[VARIABLE_JETON];
+  return {
+    pid,
+    depart: depart === undefined ? departDe(pid) : depart,
+    ticket,
+    ...(racine === undefined ? {} : { racine: racineDuDepot(racine) }),
+    ...(rang === undefined || rang === null ? {} : { rang }),
+    ...(jeton ? { jeton } : {}),
+  };
+}
+
+/**
  * Takes a place of the machine, waiting for one, saying why it waits (`dire`), and returns the
  * place. Where no place is taken, or under a place already held (GRILLHOUSE_PLACE_TENUE), the
  * place returned holds nothing.
@@ -202,11 +210,7 @@ export function prendreUnePlace({
     return { id: null, rang: rang ?? null, env, rendre: () => {}, rattacher: () => {} };
   }
   const demande = {
-    pid,
-    depart: depart === undefined ? departDe(pid) : depart,
-    ticket,
-    racine: racineDuDepot(racine),
-    ...(rang === undefined || rang === null ? {} : { rang }),
+    ...demandeDePlace({ env, pid, depart, ticket, racine, rang }),
     borneMs,
     rappelMs,
   };
@@ -413,11 +417,19 @@ function mesureDEssai(env) {
  */
 export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine, lues } = {}) {
   const fixee = mesureDEssai(env);
-  const { plafond, faute = null, prises, attentes, circuits = [] } = lues ?? lirePlaces({ env });
+  const {
+    plafond,
+    faute = null,
+    prises,
+    attentes,
+    circuits = [],
+    nuit = null,
+  } = lues ?? lirePlaces({ env });
   const m = fixee ?? mesurer();
   return {
     prises: prises.length,
     tenues: prises.map(p => ({ ticket: p.ticket ?? null, racine: p.racine ?? null })),
+    nuit: nuit?.phase ?? null,
     plafond,
     faute,
     charge: Math.round(m.charge * 10) / 10,

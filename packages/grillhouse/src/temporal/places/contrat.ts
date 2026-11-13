@@ -25,10 +25,40 @@ export const LA_DEMANDE = 'laDemande';
  * circuits alive and the tickets it would start, and learns those the machine lets start.
  */
 export const RESERVER = 'reserverDesCircuits';
+/**
+ * The update by which the nights reserve the whole machine (grillhouse-giw): no place is given but
+ * to the requests that carry the jeton of the night, and the places taken finish.
+ */
+export const RESERVER_LA_MACHINE = 'reserverLaMachine';
+/** The update by which the nights renew their reservation: its beat. */
+export const BATTRE_LA_RESERVATION = 'battreLaReservation';
+/** The update by which the nights lift their reservation, by its jeton. */
+export const LEVER_LA_RESERVATION = 'leverLaReservation';
+/** The patch of the reservation of the machine (Temporal's patching). */
+export const RESERVATION_DE_LA_NUIT = 'reservation-de-la-nuit';
+
+/** The reservation of the whole machine by the night. */
+interface Reservation {
+  jeton: string;
+  /** The time it was made, in ms. */
+  depuis: number;
+  /** The time of its last beat, in ms. */
+  battement: number;
+}
+
+/** The night as the places show it: its reservation and its phase. */
+interface NuitDesPlaces {
+  /** `attend` while the places taken finish, `en cours` once none is. */
+  phase: 'attend' | 'en cours';
+  depuis: number;
+  battement: number;
+}
 
 /** A place taken. */
 interface Prise {
   id: string;
+  /** The jeton of the night the request carried, null without. */
+  jeton?: string | null;
   pid: number;
   /** The start of the process (`departDe`), null when unknown. */
   depart: string | null;
@@ -43,6 +73,7 @@ interface Prise {
 /** A taking that waits, and why. */
 interface Attente {
   id: string;
+  jeton?: string | null;
   pid: number;
   depart: string | null;
   ticket: string | null;
@@ -79,6 +110,8 @@ export interface EtatDesPlaces {
   attentes: Attente[];
   /** The places of the circuits of the machine; absent in a state of before. */
   circuits?: PlaceDeCircuit[];
+  /** The reservation of the machine by the night; absent in a state of before, null without. */
+  reservation?: Reservation | null;
 }
 
 /** What the machine gives at a moment (scripts/regles-des-places.mjs). */
@@ -116,6 +149,8 @@ export interface DemandeDePlace {
   ticket?: string | null;
   /** The root of the main tree of the project that asks. */
   racine?: string | null;
+  /** The jeton of the reservation of the night, which the passes of the night carry. */
+  jeton?: string | null;
   /** The rank of arrival of the circuit; drawn by the workflow, past every rank given, when absent. */
   rang?: number;
 }
@@ -137,6 +172,8 @@ export interface VueDesPlaces {
   prises: Prise[];
   attentes: Attente[];
   circuits?: PlaceDeCircuit[];
+  /** The night when it reserves the machine; absent without. */
+  nuit?: NuitDesPlaces | null;
 }
 
 /** Where a request stands. */

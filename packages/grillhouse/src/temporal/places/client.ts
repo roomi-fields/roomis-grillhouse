@@ -9,9 +9,12 @@ import { setTimeout as dormir } from 'node:timers/promises';
 import type { Client } from '@temporalio/client';
 import { FILE_DE_LA_MACHINE } from '../installation.js';
 import {
+  BATTRE_LA_RESERVATION,
   ID_DES_PLACES,
   LA_DEMANDE,
   LES_PLACES,
+  LEVER_LA_RESERVATION,
+  RESERVER_LA_MACHINE,
   PLACES,
   PRENDRE,
   RATTACHER,
@@ -104,6 +107,43 @@ export async function rattacherLaPlace(
 /** The places of the machine as the board shows them: the ceiling, the places, the waits. */
 export async function lireLesPlaces(client: Client, id = ID_DES_PLACES): Promise<VueDesPlaces> {
   return client.workflow.getHandle(id).query<VueDesPlaces>(LES_PLACES);
+}
+
+/**
+ * Reserves the whole machine for the night <jeton> (RESERVER_LA_MACHINE): no place is given but to
+ * the requests that carry the jeton, no circuit starts, the places taken finish. The update
+ * returns at once; the phase is read in `lireLesPlaces`.
+ */
+export async function reserverLaMachineEntiere(
+  client: Client,
+  { jeton }: { jeton: string },
+  id = ID_DES_PLACES
+): Promise<void> {
+  await client.workflow
+    .getHandle(id)
+    .executeUpdate<void, [string]>(RESERVER_LA_MACHINE, { args: [jeton] });
+}
+
+/** Renews the reservation <jeton>: its beat, which keeps it from going out of date. */
+export async function battreLaReservation(
+  client: Client,
+  jeton: string,
+  id = ID_DES_PLACES
+): Promise<void> {
+  await client.workflow
+    .getHandle(id)
+    .executeUpdate<void, [string]>(BATTRE_LA_RESERVATION, { args: [jeton] });
+}
+
+/** Lifts the reservation <jeton>; another jeton lifts nothing. */
+export async function leverLaReservation(
+  client: Client,
+  jeton: string,
+  id = ID_DES_PLACES
+): Promise<void> {
+  await client.workflow
+    .getHandle(id)
+    .executeUpdate<void, [string]>(LEVER_LA_RESERVATION, { args: [jeton] });
 }
 
 /**

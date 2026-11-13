@@ -9,6 +9,31 @@
 /** The memory a start wants free, in bytes: 4 GB. */
 export const MEMOIRE_MIN = 4 * 1024 ** 3;
 
+export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
+/** The jeton of the reservation of the machine by the night, which the passes of the night carry. */
+export const VARIABLE_JETON = 'GRILLHOUSE_JETON_DE_LA_NUIT';
+/** The gap between two starts when GRILLHOUSE_ESPACEMENT_MS names none, in ms. */
+export const ESPACEMENT_MS = 10_000;
+
+/**
+ * The gap between two starts under <env>, in ms.
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {number}
+ * @throws {Error} naming GRILLHOUSE_ESPACEMENT_MS when its value is not a number of ms
+ */
+export function espacementDe(env = process.env) {
+  const v = env[VARIABLE_ESPACEMENT];
+  if (v === undefined || v === '') {
+    return ESPACEMENT_MS;
+  }
+  if (!/^\d+$/.test(v)) {
+    throw new Error(
+      `${VARIABLE_ESPACEMENT} vaut « ${v} » : un nombre de millisecondes est attendu.`
+    );
+  }
+  return Number(v);
+}
+
 // 11.2 → « 11,2 », 4 → « 4 ».
 const nombre = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
 
@@ -51,11 +76,21 @@ export function admission({ coeurs, charge, memoireLibre }) {
  *   mesurer: () => { coeurs: number, charge: number, memoireLibre: number } }} o
  * @returns {string | null}
  */
-export function refusDeLaPlace(etat, { id, rang, plafond, espacementMs, maintenant, mesurer }) {
+export function refusDeLaPlace(
+  etat,
+  { id, rang, plafond, espacementMs, maintenant, mesurer, jeton = null }
+) {
+  const reservation = etat.reservation ?? null;
+  if (reservation && jeton !== reservation.jeton) {
+    return 'la nuit tient la machine : la place est donnée à la fin des nuits';
+  }
   if (etat.prises.length >= plafond) {
     return `aucune place libre : ${etat.prises.length} prises sur ${plafond}`;
   }
-  const avant = etat.attentes.find(a => a.id !== id && a.rang < rang);
+  // Under a reservation, only the waits of the night count for the turn: the others wait for it.
+  const avant = etat.attentes.find(
+    a => a.id !== id && a.rang < rang && (!reservation || (a.jeton ?? null) === reservation.jeton)
+  );
   if (avant) {
     return `place réservée : ${avant.ticket ?? 'un départ'} est arrivé avant et attend (${avant.raison})`;
   }
@@ -72,6 +107,30 @@ export function refusDeLaPlace(etat, { id, rang, plafond, espacementMs, maintena
 
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS = 10 * 60_000;
+
+/**
+ * The phase of the night on a state of the places: null without a reservation of the machine;
+ * `'attend'` while a place is held that is not one of the night's passes (the stages under way
+ * finish); `'en cours'` once none is.
+ * @param {{ prises: { jeton?: string | null }[], reservation?: { jeton: string } | null }} etat
+ * @returns {'attend' | 'en cours' | null}
+ */
+export function phaseDeLaNuit({ prises, reservation = null }) {
+  if (!reservation) {
+    return null;
+  }
+  return prises.some(p => (p.jeton ?? null) !== reservation.jeton) ? 'attend' : 'en cours';
+}
+
+/**
+ * Whether a reservation of the machine is out of date at <maintenant>: its last beat, the one the
+ * workflow of the nights renews, is PERIME_MS old, as a place of a circuit is.
+ * @param {{ battement: number }} reservation
+ * @param {number} maintenant
+ * @returns {boolean}
+ */
+export const reservationPerimee = (reservation, maintenant) =>
+  maintenant - reservation.battement >= PERIME_MS;
 
 /**
  * The places of the circuits of the machine once a demand comes, as Buildkite bounds its pipelines
@@ -99,7 +158,8 @@ export const PERIME_MS = 10 * 60_000;
  * @param {{ racine: string, vivants?: string[], candidats?: string[], disque?: string | null,
  *   reprise?: { ticket: string, rang: number | null }, groupe?: string,
  *   priorites?: Record<string, { priorite: number, creation: string }> }} demande
- * @param {{ rang: number, plafond: number, maintenant: number }} o
+ * @param {{ rang: number, plafond: number, maintenant: number, reservee?: boolean }} o `reservee`:
+ *   the machine is reserved by the night, no place is given
  */
 export function reserverDesCircuits(places, demande, o) {
   const {
@@ -111,7 +171,7 @@ export function reserverDesCircuits(places, demande, o) {
     groupe,
     priorites = {},
   } = demande;
-  const { plafond, maintenant } = o;
+  const { plafond, maintenant, reservee = false } = o;
   let { rang } = o;
   const siens = new Set([...vivants, ...candidats]);
   const garde = c =>
@@ -176,7 +236,8 @@ export function reserverDesCircuits(places, demande, o) {
   }
   let tenues = circuits.filter(c => c.accordee).length;
   for (const c of circuits.filter(x => !x.accordee).sort((a, b) => a.rang - b.rang)) {
-    if (tenues >= plafond) {
+    // Under the reservation of the night no place is new: circuits alive keep theirs.
+    if (reservee || tenues >= plafond) {
       break;
     }
     if (c.raison) {

@@ -79,7 +79,8 @@ export interface VueDesNuits {
 export interface EntreeDesNuits {
   /** The length of history past which the workflow continues as new; 2000 by default. */
   limiteDHistoire?: number;
-  etat?: { attente: string[]; planifiees: number };
+  /** The jeton of the reservation of the machine, kept across a Continue-As-New. */
+  etat?: { attente: string[]; planifiees: number; jeton?: string | null };
 }
 
 export interface ActivitesDesNuits {
@@ -98,7 +99,15 @@ export interface ActivitesDesNuits {
    * The pass of the night of the project at <racine> (`node_modules/.bin/grillhouse nuit`, which
    * runs scripts/nuit.sh), in its main tree, in a process group of its own: its exit code.
    */
-  jouerLaNuit(e: { racine: string }): Promise<number>;
+  jouerLaNuit(e: { racine: string; jeton: string }): Promise<number>;
+  /**
+   * Reserves the whole machine for the nights under <jeton> (the workflow of the places,
+   * ../places/deroule.ts) and returns once the stages under way have finished: no place is taken
+   * by anything but the night, and the activity renews the reservation while it waits.
+   */
+  reserverLaMachine(e: { jeton: string }): Promise<void>;
+  /** Lifts the reservation of the machine <jeton>, so that the circuits resume. */
+  leverLaMachine(e: { jeton: string }): Promise<void>;
   /** The scheduled nights asked of the workflow of the nights, started when none runs. */
   demanderLesNuitsPlanifiees(): Promise<void>;
 }

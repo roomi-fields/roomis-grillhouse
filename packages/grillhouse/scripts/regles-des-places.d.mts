@@ -4,6 +4,14 @@
 /** The memory a start wants free, in bytes: 4 GB. */
 export const MEMOIRE_MIN: number;
 
+export const VARIABLE_ESPACEMENT: string;
+/** The jeton of the reservation of the machine by the night, which the passes of the night carry. */
+export const VARIABLE_JETON: string;
+/** The gap between two starts when GRILLHOUSE_ESPACEMENT_MS names none, in ms. */
+export const ESPACEMENT_MS: number;
+/** The gap between two starts under <env>, in ms. */
+export function espacementDe(env?: Record<string, string | undefined>): number;
+
 /** A duration as a line says it: seconds under 2 min, else minutes. */
 export function duree(ms: number): string;
 
@@ -22,8 +30,15 @@ export function admission(m: MesureDeLaMachine): { ok: true } | { ok: false; rai
 export function refusDeLaPlace(
   etat: {
     prises: readonly unknown[];
-    attentes: readonly { id: string; rang: number; ticket?: string | null; raison?: string }[];
+    attentes: readonly {
+      id: string;
+      rang: number;
+      ticket?: string | null;
+      raison?: string;
+      jeton?: string | null;
+    }[];
     dernier: number;
+    reservation?: { jeton: string } | null;
   },
   o: {
     id: string;
@@ -32,11 +47,21 @@ export function refusDeLaPlace(
     espacementMs: number;
     maintenant: number;
     mesurer: () => MesureDeLaMachine;
+    jeton?: string | null;
   }
 ): string | null;
 
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS: number;
+
+/** The phase of the night on the places: none without a reservation, waiting, or under way. */
+export function phaseDeLaNuit(etat: {
+  prises: readonly { id?: string; jeton?: string | null }[];
+  reservation?: { jeton: string } | null;
+}): 'attend' | 'en cours' | null;
+
+/** Whether a reservation's last beat is PERIME_MS old at <maintenant>. */
+export function reservationPerimee(reservation: { battement: number }, maintenant: number): boolean;
 
 /** The place of a circuit of the machine: held (`accordee`) or waited for, its rank of arrival. */
 export interface PlaceDeCircuit {
@@ -74,5 +99,5 @@ export function reserverDesCircuits(
     groupe?: string;
     priorites?: Record<string, { priorite: number; creation: string }>;
   },
-  o: { rang: number; plafond: number; maintenant: number }
+  o: { rang: number; plafond: number; maintenant: number; reservee?: boolean }
 ): { circuits: PlaceDeCircuit[]; rang: number; accordes: string[] };
