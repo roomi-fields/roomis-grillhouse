@@ -8,8 +8,10 @@
 //   npx grillhouse tableau <dossier>… the board of this project and of the projects in <dossier>…,
 //                                     one board, each ticket prefixed by its project (`ensemble`)
 //
-// Each measure writes the status line (the chantier in progress) to `grillhouse-etat.txt` in the
-// common git directory, where the status line (`scripts/ligne-etat/`) reads it.
+//   npx grillhouse tableau --suivre   the follower (`scripts/suiveur.mjs`): measures on events and
+//                                     writes the status line (`grillhouse-etat.txt` in the common
+//                                     git directory, which `scripts/ligne-etat/` reads) and one
+//                                     JSON board per line, from one measure.
 //
 // - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
 //   by state, the agents' working time and tokens of the day and in all, the alerts. The head's
@@ -2877,13 +2879,6 @@ export async function tableau(
     ici.commun ? path.dirname(ici.commun) : null
   );
   const etat = ligneEtat(ici.t, autres.map(l => l.t).filter(Boolean));
-  try {
-    if (ici.commun) {
-      writeFileSync(path.join(ici.commun, 'grillhouse-etat.txt'), `${etat}\n`);
-    }
-  } catch {
-    // A read-only place keeps the board working, without its status line.
-  }
   const t = projets.length
     ? ensemble(lus.map(l => ({ etiquette: etiquette(l), t: l.t, erreur: l.erreur })))
     : ici.t;
@@ -2922,16 +2917,41 @@ export async function tableau(
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  // The arguments other than --texte are the folders of the other projects.
+  // The arguments other than --texte and --suivre are the folders of the other projects.
   const projets = process.argv
     .slice(2)
-    .filter(a => a !== '--texte')
+    .filter(a => a !== '--texte' && a !== '--suivre')
     .map(d => path.resolve(d));
-  void tableau(process.cwd(), { projets }).then(t =>
-    process.stdout.write(
-      process.argv.includes('--texte')
-        ? `${t.lignes.map(l => l.texte).join('\n')}\n`
-        : JSON.stringify(t)
-    )
-  );
+  if (process.argv.includes('--suivre')) {
+    // The follower (scripts/suiveur.mjs): one JSON board per line on the standard output.
+    const { suivre } = await import('./suiveur.mjs');
+    const suiveur = await suivre(process.cwd(), {
+      projets,
+      mesure: tableau,
+      dossierCommun,
+      surLigne: ligne => process.stdout.write(`${ligne}\n`),
+    });
+    // The pane that started the follower is gone when the standard output closes or its process
+    // is no longer the parent. The end closes the follower and the watch of the parent; the
+    // process then ends by itself once nothing holds it.
+    const parent = process.ppid;
+    const veilleDuParent = setInterval(() => process.ppid !== parent && fin(), 5_000);
+    const fin = () => {
+      process.exitCode = 0;
+      suiveur.fermer();
+      clearInterval(veilleDuParent);
+    };
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+      process.on(signal, fin);
+    }
+    process.stdout.on('error', fin);
+  } else {
+    void tableau(process.cwd(), { projets }).then(t =>
+      process.stdout.write(
+        process.argv.includes('--texte')
+          ? `${t.lignes.map(l => l.texte).join('\n')}\n`
+          : JSON.stringify(t)
+      )
+    );
+  }
 }

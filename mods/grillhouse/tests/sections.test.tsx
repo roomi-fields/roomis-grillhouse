@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 import { enLignes, memoire } from '../hooks/register'
-import { projetGrillhouse } from './projet'
+import { projetGrillhouse, suiveurSimule } from './projet'
 
 // The pane lists every line of the board, in the board's order — the head, AGENTS, CHANTIER, then
 // FAITS AUJOURD'HUI — and folds none to save rows: its window runs over them all, moved by the
@@ -95,9 +95,9 @@ type Monte = {
   passes: () => number
   decalages: number[]
   appels: string[][]
-  // The board `grillhouse tableau` gives from now on, at its next measure.
+  // The board the follower gives from now on, at its next line.
   changer: (t: object) => void
-  // The pane's next periodic measure of the board (PERIODE, 30 s, on the mocked clock).
+  // The follower's next line: it starts again after its wait and writes the board as `changer` left it.
   mesurer: () => Promise<void>
   // How many times the mod has read its state (`etat`) so far.
   lectures: () => number
@@ -124,15 +124,14 @@ async function monter(
   let passes = 0
   const decalages: number[] = []
   let courant = t
+  // The board from the follower's lines; a ticket's whole text from Beads (`bd show <id> --json`).
+  suiveurSimule(h, () => courant)
   h('process.run', (_: unknown, e: { argv: string[] }) => {
     appels.push(e.argv)
-    // The board from `grillhouse tableau`; a ticket's whole text from Beads (`bd show <id> --json`).
     const stdout =
-      e.argv[1] === 'tableau'
-        ? JSON.stringify(courant)
-        : e.argv[0] === 'bd' && e.argv[1] === 'show'
-          ? JSON.stringify([{ id: e.argv[2], description: o.texte?.(e.argv[2] as string) ?? `Le texte entier de ${e.argv[2]}.` }])
-          : ''
+      e.argv[0] === 'bd' && e.argv[1] === 'show'
+        ? JSON.stringify([{ id: e.argv[2], description: o.texte?.(e.argv[2] as string) ?? `Le texte entier de ${e.argv[2]}.` }])
+        : ''
     return { value: { exitCode: 0, stdout, stderr: '' } }
   })
   h('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
@@ -146,8 +145,8 @@ async function monter(
   type T = { lignes: { texte: string }[]; fiches: Record<string, { titre: string }> }
   const retoucher = (tableau: T): T => ({
     ...tableau,
-    lignes: tableau.lignes.map(l => ({ ...l, texte: `${l.texte} ✎` })),
-    fiches: Object.fromEntries(Object.entries(tableau.fiches).map(([id, f]) => [id, { ...f, titre: `${f.titre} ✎` }])),
+    lignes: tableau.lignes.map(l => ({ ...l, texte: l.texte.endsWith(' ✎') ? l.texte : `${l.texte} ✎` })),
+    fiches: Object.fromEntries(Object.entries(tableau.fiches).map(([id, f]) => [id, { ...f, titre: f.titre.endsWith(' ✎') ? f.titre : `${f.titre} ✎` }])),
   })
   h('state.get', async (_: unknown, e: { plugin: string; key: string }, next: (e: unknown) => unknown) => {
     if (e.plugin !== 'grillhouse' || e.key !== 'etat') return next(e)
@@ -201,7 +200,7 @@ async function monter(
     courant = x
   }
   const mesurer = async () => {
-    await horloge.advance(30_000)
+    await horloge.advance(1_000)
     await new Promise(r => setTimeout(r, 50))
   }
   return { ui, defiler, viser, passes: () => passes, decalages, appels, changer, mesurer, lectures: () => lectures,
@@ -600,7 +599,7 @@ test('critère 3 : the wheel alone computes neither the lines nor the cards agai
   let arbre = await m.ui.drawn()
   expect(liste(arbre).filter(x => x.includes('✎'))).toEqual([])
   expect(dessous(arbre).join('\n')).toContain('a.1 — Titre de a.1 ✎')
-  // A new measure computes the lines again.
+  // A new line of the follower computes the lines again.
   await m.mesurer()
   arbre = await m.ui.drawn()
   expect(liste(arbre)[0]).toBe('DEMO ✎')
@@ -633,9 +632,7 @@ test('critère 6 : while the keyboard runs the board, a new measure moves neithe
   // The board gains two agents above, and another ticket moved last.
   const apres = tableau(30, 8, 3)
   m.changer({ ...apres.t, dernier: 'c.5' })
-  const mesures = m.appels.filter(a => a[1] === 'tableau').length
   await m.mesurer()
-  expect(m.appels.filter(a => a[1] === 'tableau').length).toBeGreaterThan(mesures)
   const arbre = await m.ui.drawn()
   // The window shows the same lines, two lines further down the new board.
   expect(liste(arbre)).toEqual(apres.tout.slice(13, 36))

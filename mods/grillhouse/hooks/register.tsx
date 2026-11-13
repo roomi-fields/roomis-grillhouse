@@ -4,10 +4,10 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Etat, Fiche, Ligne, Tableau } from '../types'
 
 // The board of a Grillhouse project, in the pane (/grillhouse) on its three levels. The frame's
-// command of the project (`node_modules/.bin/grillhouse tableau`, the package
-// @roomi-fields/grillhouse) measures and lays out the lines, and writes the status line for the
-// person's status line command; this mod shows the lines, every 30 s (every 10 s while a line of
-// progress shows) and after each `bd` or `git` command. A Grillhouse project is one whose
+// follower (`node_modules/.bin/grillhouse tableau --suivre`, the package @roomi-fields/grillhouse)
+// measures on events, lays out the lines and writes the status line for the person's status line
+// command from the same measure; this mod starts it, keeps it alive and shows each line it
+// gives, on no clock of its own. A Grillhouse project is one whose
 // package.json declares the package (`dependencies` or `devDependencies`); the mod stays silent
 // outside one, inside an agent's copy (`.claude/worktrees/`), and in a run nobody sees (claude -p,
 // the SDK without a display): the board comes with the terminal's prompt, or with a surface that
@@ -43,7 +43,6 @@ export function commenceParCd(commande: string): boolean {
 export const REFUS_CD =
   "Refusé : une commande qui commence par cd (seule ou composée) attend la validation d'une personne et bloque la séance. " +
   "Écris `env -C <dossier> <commande>`, `git -C <dossier> <sous-commande>`, ou la commande seule si le dossier courant est déjà le bon."
-const PERIODE = 30_000
 // The width of the lines `grillhouse tableau` lays out (its LARGEUR).
 const COLONNES = 52
 const DOCK = 110
@@ -219,12 +218,20 @@ export const ouvrirGroupe = (s: Etat, groupe: string | undefined): Etat =>
       ? { ...s, vue: 'groupe', groupe, element: null, grand: false }
       : s
 
-// While the board shows a line of progress (`avancement`: an automatic pass, « il y a 8 s »), it is
-// measured again every AVANCEMENT ms instead of every PERIODE: `aMesurer` says when, at the pane's
-// clock.
-export const AVANCEMENT = 10_000
-export const aMesurer = (s: Etat, maintenant: number) =>
-  maintenant - s.lu >= AVANCEMENT && lignesDe(s).some(l => l.avancement === true)
+// The board a line of the follower carries, or null when the line is not a board (empty, not JSON,
+// no lines): never thrown.
+export function tableauDeLaLigne(ligne: string): Tableau | null {
+  try {
+    const t = JSON.parse(ligne) as Tableau
+    return t && typeof t === 'object' && Array.isArray(t.lignes) ? t : null
+  } catch {
+    return null
+  }
+}
+
+// The wait before the follower that died is started again, after `echecs` deaths in a row: 1 s,
+// doubling, capped at 5 minutes, so a follower that dies at once never loops tight.
+export const attenteDeRelance = (echecs: number) => Math.min(1_000 * 2 ** Math.max(0, echecs), 300_000)
 
 // The colour of a line's tone.
 export const couleur = (ton: Ligne['ton']) =>
@@ -307,63 +314,88 @@ function recommencer(): void {
   crans = []
 }
 
-// Measures the board again and redraws the pane.
-// One board at a time: a refresh asked while one runs is folded into a single next one, so a
-// loop of commands never stacks boards, each reading every ticket.
-let enCours: Promise<void> | null = null
-let encore = false
-function rafraichir($: EngineInterface): Promise<void> {
-  if (enCours) {
-    encore = true
-    return enCours
-  }
-  enCours = (async () => {
-    try {
-      do {
-        encore = false
-        await mesurer($)
-      } while (encore)
-    } finally {
-      enCours = null
-    }
-  })()
-  return enCours
-}
+// The follower the pane starts (`grillhouse tableau --suivre`): one JSON board per line on its
+// standard output, which the pane reads as it comes. The engine's `process.spawn` starts it.
+// `spawn` returns a stream of `{ stream, text }` chunks, then `{ code, signal }`; leaving the loop
+// (`return()`) stops the child.
+type Morceau = { stream: 'stdout' | 'stderr'; text: string }
+type Flux = AsyncGenerator<Morceau, { code: number | null; signal: string | null }>
+type Lanceur = { spawn: (r: { argv: readonly string[]; cwd?: string }) => Flux }
+type Suiveur = { kill: () => void }
+let suiveur: Suiveur | null = null
+// A generation per start: a follower that dies after it was replaced or stopped is not started again.
+let generation = 0
+let echecs = 0
 
-// After a `bd` or `git` command, one refresh REBOND ms after the first of a burst.
-const REBOND = 3_000
-let attend = false
-async function bientot($: EngineInterface) {
-  if (attend) return
-  attend = true
-  try {
-    await $.clock.sleep(REBOND)
-  } finally {
-    attend = false
-  }
-  await rafraichir($)
-}
-
-// The board, the session's project with the projects the pane shows beside it; a fault keeps the
-// last board read. A board past what a process returns (4 MiB) or that does not parse is said,
-// never thrown.
-async function mesurer($: EngineInterface) {
-  if (!actif) return
-  const { projets } = await read($, etat)
-  const r = await $.process.run([GRILLHOUSE, 'tableau', ...projets], { cwd, timeoutMs: 20_000 })
-  if (r.exitCode !== 0) {
-    await update($, etat, s => ({ ...s, erreur: r.stderr.slice(0, 300) }))
+// Updates the pane with the board a line carries; a line that is not a board is said, never thrown.
+async function lireLaLigne($: EngineInterface, ligne: string) {
+  if (!ligne.trim()) return
+  const tableau = tableauDeLaLigne(ligne)
+  if (!tableau) {
+    await update($, etat, s => ({ ...s, erreur: `Tableau illisible : ${ligne.slice(0, 200)}` }))
     return
   }
-  let tableau: Tableau
-  try {
-    if (r.isStdoutTruncated) throw new Error('la sortie de grillhouse tableau dépasse 4 Mio')
-    tableau = JSON.parse(r.stdout) as Tableau
-  } catch (err) {
-    await update($, etat, s => ({ ...s, erreur: `Tableau illisible : ${(err as Error).message}`.slice(0, 300) }))
-    return
-  }
+  echecs = 0
   await update($, etat, s => ({ ...s, tableau, erreur: null, lu: Date.now(), revision: (s.revision || 0) + 1 }))
+}
+
+// Starts the follower for the session's project and the projects the pane shows beside it, after
+// stopping the one that runs; one that dies is started again after a growing wait.
+async function demarrer($: EngineInterface): Promise<void> {
+  if (!actif) return
+  arreter()
+  const moi = ++generation
+  const { projets } = await read($, etat)
+  let flux: Flux
+  try {
+    flux = ($.process as unknown as Lanceur).spawn({ argv: [GRILLHOUSE, 'tableau', '--suivre', ...projets], cwd })
+  } catch (err) {
+    suiveur = null
+    await update($, etat, s => ({ ...s, erreur: `Suiveur impossible à lancer : ${(err as Error).message}`.slice(0, 300) }))
+    return
+  }
+  suiveur = { kill: () => void flux.return({ code: null, signal: null }).catch(() => undefined) }
+  void suivre($, flux, moi).catch(() => undefined)
+}
+
+// Reads the follower's chunks as they come, a line at a time, until it ends; then, unless the pane
+// stopped or replaced it, says it and starts it again after its growing wait.
+async function suivre($: EngineInterface, flux: Flux, moi: number): Promise<void> {
+  let reste = ''
+  let code: number | null = null
+  try {
+    for (;;) {
+      const pas = await flux.next()
+      if (pas.done) {
+        code = pas.value?.code ?? null
+        break
+      }
+      if (moi !== generation) return
+      if (pas.value.stream !== 'stdout') continue
+      const morceaux = (reste + pas.value.text).split('\n')
+      reste = morceaux.pop() ?? ''
+      for (const ligne of morceaux) await lireLaLigne($, ligne)
+    }
+  } catch (err) {
+    if (moi !== generation) return
+    await update($, etat, s => ({ ...s, erreur: `Suiveur interrompu : ${(err as Error).message}`.slice(0, 300) }))
+  }
+  if (moi !== generation) return
+  suiveur = null
+  await update($, etat, s => ({ ...s, erreur: `Le suiveur du tableau s'est arrêté (code ${code ?? '?'}).` }))
+  await $.clock.sleep(attenteDeRelance(echecs++))
+  if (moi === generation) await demarrer($)
+}
+
+// Stops the follower, with no restart.
+function arreter(): void {
+  generation++
+  try {
+    suiveur?.kill()
+  } catch {
+    // A follower already gone.
+  }
+  suiveur = null
 }
 
 // The folder of the project the ticket <id> belongs to, which the board names beside the
@@ -393,8 +425,8 @@ async function basculer($: EngineInterface, id: string, statut: string | undefin
     cwd: dossier,
     timeoutMs: 20_000,
   })
+  // The change under `.beads/` is the follower's event: it measures, the pane reads the line.
   if (r.exitCode !== 0) await $.ui.toast(`Le chantier n'a pas basculé : ${r.stderr.slice(0, 200)}`)
-  await rafraichir($)
 }
 
 // The projects the store keeps for the session's folder; none when it holds nothing readable.
@@ -429,7 +461,7 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
   }
   await $.store.set(cleProjets(cwd), liste)
   await update($, etat, s => ({ ...s, projets: liste }))
-  void rafraichir($)
+  void demarrer($)
   return geste === 'ajouter' ? `Projet ajouté au tableau : ${dossier}.` : `Projet retiré du tableau : ${dossier}.`
 }
 
@@ -447,14 +479,7 @@ async function activer($: EngineInterface) {
     description: 'Ouvre le tableau Grillhouse : le projet, les agents, le chantier en cours',
     argumentHint: '[newday|ajouter|retirer <chemin>]',
   })
-  void rafraichir($)
-  $.clock.every(PERIODE, () => void rafraichir($))
-  // A line of progress has the board measured again, by the clock of half its period.
-  $.clock.every(AVANCEMENT / 2, () => {
-    void read($, etat).then(s => {
-      if (aMesurer(s, Date.now())) void rafraichir($)
-    })
-  })
+  void demarrer($)
 }
 
 export const register: Register = on => {
@@ -480,8 +505,7 @@ export const register: Register = on => {
     return attached
   })
 
-  // The command answers at once and the board is measured behind it: a measure takes seconds on a
-  // large project, and a hook past its budget (10 s) is skipped, its command answered by the engine.
+  // The command answers at once; the board comes from the follower's lines.
   // `ajouter <chemin>` and `retirer <chemin>` change the projects the pane shows.
   on('command.run', { command: 'grillhouse' }, async ($, e) => {
     const [geste = '', ...reste] = (e.args ?? '').trim().split(/\s+/)
@@ -490,11 +514,10 @@ export const register: Register = on => {
     // of the board restart from zero (grillhouse-3uv.96).
     if (geste === 'newday') {
       const r = await $.process.run([GRILLHOUSE, 'newday'], { cwd, timeoutMs: 20_000 })
-      void rafraichir($)
+      // The follower watches the marker's file and measures again.
       return { text: `${r.stdout || ''}${r.stderr || ''}`.trim() || 'Repère de journée posé.' }
     }
     if (geste) return { text: 'Usage : /grillhouse, /grillhouse newday, /grillhouse ajouter <chemin>, /grillhouse retirer <chemin>.' }
-    void rafraichir($)
     // A narrow column docked beside the transcript; a short block when seated above the prompt.
     await $.ui.open({ id: PANE, title: 'Grillhouse', columns: COLONNES, rows: 12 })
     return { text: placement(e.presentation) }
@@ -505,12 +528,6 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Bash' }, ($, e, next) =>
     projet && commenceParCd(e.command) ? { deny: REFUS_CD } : next(e),
   ).catch(($, e, next) => (next.called ? next(e) : { deny: REFUS_CD }))
-
-  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    const ran = await next(e)
-    if (actif && /(^|[\s;&|(])(bd|git)\s/.test(e.command)) void bientot($)
-    return ran
-  }).catch(($, e, next) => next(e))
 
   // The ring that moves onto a line acts on it (`viser`).
   on('ui.focus', async ($, e, next) => {

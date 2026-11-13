@@ -147,6 +147,7 @@
     "scripts/sous-modules.sh",
     "scripts/structure-guard.sh",
     "scripts/style-a-l-ecriture.mjs",
+    "scripts/suiveur.mjs",
     "scripts/superviseur.mjs",
     "scripts/tableau-des-composants.mjs",
     "scripts/tableau.mjs",

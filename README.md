@@ -222,7 +222,8 @@ run Beads in the ticket's project. `/grillhouse` with any other argument answers
 Without the mod, `npm run tableau` prints the same lines. The status line
 (`packages/grillhouse/scripts/ligne-etat/`, the project's `statusLine`) keeps the person's own status line on the
 left, or a default one (model, context, rate limits), and shows the chantier in progress on the
-right, as each measure writes it to `grillhouse-etat.txt` in the common git directory.
+right, as the follower (`grillhouse tableau --suivre`) writes it, with the time of its measure, to
+`grillhouse-etat.txt` in the common git directory; the pane reads the lines of the same follower.
 The pane docks beside the transcript in Claude Code's fullscreen layout (`/tui fullscreen`, from
 110 columns); the wheel scrolls the transcript there only while Claude Code captures the mouse, so
 `CLAUDE_CODE_DISABLE_MOUSE` stays unset (`CLAUDE_CODE_DISABLE_MOUSE_CLICKS` keeps the wheel).

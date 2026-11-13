@@ -19,7 +19,10 @@ describe('the status line command', () => {
   const projet = () => {
     const d = mkdtempSync(path.join(ESSAIS, 'ligne-projet-'));
     execFileSync('git', ['init', '-q', d]);
-    writeFileSync(path.join(d, '.git/grillhouse-etat.txt'), '▶ 2 en cours\n');
+    writeFileSync(
+      path.join(d, '.git/grillhouse-etat.txt'),
+      JSON.stringify({ texte: '▶ 2 en cours', mesure: Date.now() })
+    );
     return d;
   };
   const lancer = (home: string, dir: string) =>

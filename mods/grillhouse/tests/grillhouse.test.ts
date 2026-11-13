@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 
 import { bascule, commenceParCd, couleur, debut, declareLePaquet, ficheLignes, placement } from '../hooks/register'
 import type { Tableau } from '../types'
-import { projetGrillhouse } from './projet'
+import { projetGrillhouse, suiveurSimule } from './projet'
 
 const TABLEAU: Tableau = {
   lignes: [
@@ -21,19 +21,19 @@ test('each tone has its colour, the plain and quiet lines none', () => {
   expect(couleur(undefined)).toBeUndefined()
 })
 
-test('in a Grillhouse project, the session start measures the board', async ($, on) => {
+test('in a Grillhouse project, the session start starts the follower of the board', async ($, on) => {
   let lance: (argv: string) => void = () => undefined
   const mesure = new Promise<string>(r => (lance = r))
-  on('process.run', ($, e) => {
+  suiveurSimule(on, e => {
     lance(e.argv.join(' '))
-    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+    return TABLEAU
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
   mock.clock(on)
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
-  expect(await mesure).toBe('node_modules/.bin/grillhouse tableau')
+  expect(await mesure).toBe('node_modules/.bin/grillhouse tableau --suivre')
   await new Promise(r => setTimeout(r, 50))
 })
 
@@ -51,18 +51,18 @@ for (const [cas, cwd, pkg, isInteractive] of [
   ['outside a Grillhouse project (no package.json)', '/hors', null, true],
   ['in a project that does not declare the package', '/hors', '{"devDependencies":{"vitest":"*"}}', true],
 ] as const) {
-  test(`${cas}, the mod measures nothing`, async ($, on) => {
+  test(`${cas}, the mod starts no follower`, async ($, on) => {
     const lances: string[] = []
-    on('process.run', ($, e) => {
+    suiveurSimule(on, e => {
       lances.push(e.argv.join(' '))
-      return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+      return TABLEAU
     })
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     projetGrillhouse(on, pkg)
     on('command.register', () => ({ value: undefined }))
     mock.clock(on)
     await $.session.start({ cwd, surface: isInteractive ? 'terminal' : null, isInteractive })
-    expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
+    expect(lances).toEqual([])
   })
 }
 
@@ -74,9 +74,9 @@ type Banc = Parameters<Parameters<typeof test>[1]>
 async function seance($: Banc[0], on: Banc[1], cwd: string, attache: 'desktop' | null) {
   const lances: string[] = []
   const commandes: string[] = []
-  on('process.run', ($, e) => {
+  suiveurSimule(on, e => {
     lances.push(e.argv.join(' '))
-    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+    return TABLEAU
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.attach', ($, e) => ({ clientId: e.clientId }))
@@ -97,7 +97,7 @@ async function seance($: Banc[0], on: Banc[1], cwd: string, attache: 'desktop' |
 test("in the desktop app's Code tab, /grillhouse registers and the pane draws on every surface", async ($, on) => {
   const { lances, commandes } = await seance($, on, '/p', 'desktop')
   expect(commandes).toEqual(['grillhouse'])
-  expect(lances).toContain('node_modules/.bin/grillhouse tableau')
+  expect(lances).toContain('node_modules/.bin/grillhouse tableau --suivre')
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({
       plugin: 'grillhouse',
@@ -127,7 +127,7 @@ for (const [cas, cwd, attache] of [
   test(`${cas}, /grillhouse does not register`, async ($, on) => {
     const { lances, commandes } = await seance($, on, cwd, attache)
     expect(commandes).toEqual([])
-    expect(lances).not.toContain('node_modules/.bin/grillhouse tableau')
+    expect(lances).toEqual([])
   })
 }
 
@@ -170,7 +170,7 @@ for (const [cas, cwd, isInteractive] of [
 ] as const) {
   test(`${cas}, a command that starts with cd is refused, and another one runs`, async ($, on) => {
     const lances: string[] = []
-    on('process.run', () => ({ value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }))
+    suiveurSimule(on, () => TABLEAU)
     on('session.start', ($, e) => ({ cwd: e.cwd }))
     projetGrillhouse(on)
     on('command.register', () => ({ value: undefined }))

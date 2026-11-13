@@ -1,9 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 import * as register from '../hooks/register'
-import { AVANCEMENT, aMesurer } from '../hooks/register'
-import type { Etat, Ligne } from '../types'
-import { projetGrillhouse } from './projet'
+import { projetGrillhouse, suiveurSimule } from './projet'
 
 const TABLEAU = {
   lignes: [
@@ -35,9 +33,7 @@ const TABLEAU = {
 }
 
 test('the pane draws each ticket line as a button, and a hidden card per ticket on a blank', async ($, on) => {
-  on('process.run', ($, e) => ({
-    value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' },
-  }))
+  suiveurSimule(on, () => TABLEAU)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
@@ -64,9 +60,7 @@ test('the pane draws each ticket line as a button, and a hidden card per ticket 
 })
 
 test('unfocused, the card shows the ticket that moved last', async ($, on) => {
-  on('process.run', ($, e) => ({
-    value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' },
-  }))
+  suiveurSimule(on, () => TABLEAU)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
@@ -111,13 +105,11 @@ async function monter($: never, on: never) {
   const o = on as (n: string, h: unknown) => void
   const s = $ as { session: { start: (a: object) => Promise<unknown> }; ui: { mount: (a: object) => Promise<never> } }
   // The whole text comes from Beads (`bd show <id> --json`), not from the board.
+  suiveurSimule(o, () => ENTIER)
   o('process.run', (_: unknown, e: { argv: string[] }) => ({
     value: {
       exitCode: 0,
-      stdout:
-        e.argv[0] === 'bd'
-            ? JSON.stringify([{ id: e.argv[2], description: 'Le texte entier du ticket, jusqu’à sa dernière ligne.' }])
-            : JSON.stringify(ENTIER),
+      stdout: JSON.stringify([{ id: e.argv[2], description: 'Le texte entier du ticket, jusqu’à sa dernière ligne.' }]),
       stderr: '',
     },
   }))
@@ -171,12 +163,15 @@ const CHANTIERS = {
   dernier: 'c.2',
 }
 
+let lancements: { argv: string[] }[] = []
 async function monterChantiers($: never, on: never, appels: string[][]) {
+  const suiveur = suiveurSimule(on, () => CHANTIERS)
+  lancements = suiveur.lancements
   const o = on as (n: string, h: unknown) => void
   const s = $ as { session: { start: (a: object) => Promise<unknown> }; ui: { mount: (a: object) => Promise<never> } }
   o('process.run', (_: unknown, e: { argv: string[] }) => {
     appels.push(e.argv)
-    return { value: { exitCode: 0, stdout: e.argv[1] === 'tableau' ? JSON.stringify(CHANTIERS) : '', stderr: '' } }
+    return { value: { exitCode: 0, stdout: '', stderr: '' } }
   })
   o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   projetGrillhouse(o)
@@ -193,21 +188,22 @@ async function monterChantiers($: never, on: never, appels: string[][]) {
   }) as Promise<{ unmount: () => Promise<void> }>
 }
 
-test('3uv.24 critère 5 : h on the chosen chantier switches its status and measures again', async ($, on) => {
+test('h on the chosen chantier switches its status and leaves the measure to the follower', async ($, on) => {
   const appels: string[][] = []
   const ui = await monterChantiers($ as never, on as never, appels)
-  const avant = appels.filter(a => a[1] === 'tableau').length
+  const avant = lancements.length
   await $.ui.press({ plugin: 'grillhouse', key: 'demo-a:0' })
   await new Promise(r => setTimeout(r, 50))
   expect(appels.some(a => a[0] === 'bd')).toBe(false)
   await $.ui.press({ plugin: 'grillhouse', key: 'h' })
   await new Promise(r => setTimeout(r, 50))
   expect(appels).toContainEqual(['bd', 'update', 'demo-a', '--status', 'open'])
-  expect(appels.filter(a => a[1] === 'tableau').length).toBeGreaterThan(avant)
+  expect(appels.some(a => a[1] === 'tableau')).toBe(false)
+  expect(lancements.length).toBe(avant)
   await ui.unmount()
 })
 
-test('3uv.24 critère 6 : on a ticket line, h is not drawn and nothing switches', async ($, on) => {
+test('on a ticket line, h is not drawn and nothing switches', async ($, on) => {
   const appels: string[][] = []
   const ui = await monterChantiers($ as never, on as never, appels)
   await $.ui.press({ plugin: 'grillhouse', key: 'c.2:0' })
@@ -217,15 +213,8 @@ test('3uv.24 critère 6 : on a ticket line, h is not drawn and nothing switches'
   await ui.unmount()
 })
 
-test('a board past what a process returns opens the pane on a message, not on a failure', async ($, on) => {
-  on('process.run', ($, e) => ({
-    value: {
-      exitCode: 0,
-      stdout: JSON.stringify(TABLEAU).slice(0, 40),
-      stderr: '',
-      isStdoutTruncated: true,
-    },
-  }))
+test('a line of the follower that is not a board opens the pane on a message, not on a failure', async ($, on) => {
+  suiveurSimule(on, () => JSON.stringify(TABLEAU).slice(0, 40), true)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
@@ -235,7 +224,7 @@ test('a board past what a process returns opens the pane on a message, not on a 
   await new Promise(r => setTimeout(r, 50))
   const r = await $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
   expect(JSON.stringify(r)).toContain('Tableau Grillhouse')
-  // The board is measured behind the command.
+  // The board comes from the follower's line, behind the command.
   await new Promise(r => setTimeout(r, 50))
   const ui = await $.ui.mount({
     plugin: 'grillhouse',
@@ -259,9 +248,9 @@ test('the command answers and opens the pane before the board is read', async ($
   let lire = () => undefined as void
   const lu = new Promise<void>(r => (lire = r))
   let ouvert = false
-  on('process.run', async ($, e) => {
-    if (e.argv[1] === 'tableau') await lu
-    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
+  suiveurSimule(on, async () => {
+    await lu
+    return TABLEAU
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
@@ -279,15 +268,8 @@ test('the command answers and opens the pane before the board is read', async ($
   await new Promise(r => setTimeout(r, 50))
 })
 
-test('refreshes asked while a board is read fold into one more, never one board each', async ($, on) => {
-  let tableaux = 0
-  on('process.run', async ($, e) => {
-    if (e.argv[1] === 'tableau') {
-      tableaux++
-      await new Promise(r => setTimeout(r, 30))
-    }
-    return { value: { exitCode: 0, stdout: JSON.stringify(TABLEAU), stderr: '' } }
-  })
+test('the command run again starts no other follower: one follower per session, whatever the commands', async ($, on) => {
+  const suiveur = suiveurSimule(on, () => TABLEAU)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
@@ -295,12 +277,11 @@ test('refreshes asked while a board is read fold into one more, never one board 
   on('ui.open', () => ({ value: { isPlaced: true } }))
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await new Promise(r => setTimeout(r, 100))
-  const avant = tableaux
+  expect(suiveur.lancements).toHaveLength(1)
   const run = () => $.command.run({ command: 'grillhouse', presentation: { isFullscreen: true, columns: 200 } } as never)
   await Promise.all([run(), run(), run(), run(), run()])
-  // The boards are read behind the commands.
   await new Promise(r => setTimeout(r, 200))
-  expect(tableaux - avant).toBeLessThanOrEqual(2)
+  expect(suiveur.lancements).toHaveLength(1)
 })
 
 const REPLIE = {
@@ -321,9 +302,7 @@ const REPLIE = {
 }
 
 test('o on a folded group opens it alone and whole, and o again comes back to the board', async ($, on) => {
-  on('process.run', ($, e) => ({
-    value: { exitCode: 0, stdout: JSON.stringify(REPLIE), stderr: '' },
-  }))
+  suiveurSimule(on, () => REPLIE)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   projetGrillhouse(on)
   on('command.register', () => ({ value: undefined }))
@@ -356,24 +335,6 @@ test('o on a folded group opens it alone and whole, and o again comes back to th
   expect(await vu()).not.toContain('Le neuvième, caché')
   expect(await vu()).toContain('· c.2  Le dernier')
   await ui.unmount()
-})
-
-// 2026-10-21 (Romain): a line of progress (`avancement`, `grillhouse tableau`) says « il y a 8 s »:
-// while the board shows one, the pane measures it again every AVANCEMENT ms, not every 30 s.
-test('the board is measured again every AVANCEMENT ms while a line of progress shows, else not', () => {
-  expect(AVANCEMENT).toBe(10_000)
-  const avec = {
-    texte: '▶ 12  binder 3/5 · 87/123 · il y a 8 s',
-    ton: 'actif',
-    section: 'agents',
-    avancement: true,
-  } as Ligne
-  const sans = { texte: '▶ 12  binder 3/5', ton: 'actif', section: 'agents' } as Ligne
-  const etat = (l: Ligne) =>
-    ({ tableau: { lignes: [l], fiches: {} }, lu: 1_000, vue: 'tableau' }) as unknown as Etat
-  expect(aMesurer(etat(avec), 1_000 + AVANCEMENT)).toBe(true)
-  expect(aMesurer(etat(avec), 1_000 + AVANCEMENT - 1)).toBe(false)
-  expect(aMesurer(etat(sans), 1_000 + 10 * AVANCEMENT)).toBe(false)
 })
 
 // grillhouse-3uv.95.6: no component is a unit of the circuit any more; the line of a ticket in a

@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 
 import type { Tableau } from '../types'
-import { PKG } from './projet'
+import { PKG, suiveurSimule } from './projet'
 
 // grillhouse-erp.1: a session that coordinates several projects keeps the usual board. The list of
 // projects lives in the session (`/grillhouse ajouter <chemin>`, `/grillhouse retirer <chemin>`,
@@ -142,17 +142,11 @@ async function seance(
     [DOSSIERS.osd]: seul('open-synth-descriptors', 'OSD'),
   }
   const paquets: Record<string, string | null> = { '/p': PKG, ...o.paquets }
+  // The follower: with other folders than the session's, the board of them all.
+  const suiveur = suiveurSimule(on, e => (e.argv.length > 3 ? o.ensemble : seuls[e.cwd ?? '']) ?? null)
   on('process.run', ($, e) => {
     const cwd = e.init?.cwd
     appels.push({ argv: [...e.argv], cwd })
-    if (e.argv[1] === 'tableau') {
-      const t = e.argv.length > 2 ? o.ensemble : seuls[cwd ?? '']
-      return {
-        value: t
-          ? { exitCode: 0, stdout: JSON.stringify(t), stderr: '' }
-          : { exitCode: 1, stdout: '', stderr: `tableau illisible à ${cwd}` },
-      }
-    }
     if (e.argv[0] === 'bd' && e.argv[1] === 'show') {
       return {
         value: {
@@ -200,7 +194,7 @@ async function seance(
         view: {} as never,
       },
     })
-  const tableaux = () => appels.filter(a => a.argv[1] === 'tableau')
+  const tableaux = () => suiveur.lancements
   return { appels, ecrits, grillhouse, monter, tableaux }
 }
 
@@ -236,7 +230,7 @@ test('/grillhouse ajouter adds a Grillhouse project, kept for the folder, and th
   expect(ecrits).toContainEqual({ key: 'projets:/p', value: [DOSSIERS.sh] })
   await new Promise(r => setTimeout(r, 50))
   expect(tableaux().at(-1)).toEqual({
-    argv: ['node_modules/.bin/grillhouse', 'tableau', DOSSIERS.sh],
+    argv: ['node_modules/.bin/grillhouse', 'tableau', '--suivre', DOSSIERS.sh],
     cwd: '/p',
   })
 })
@@ -273,7 +267,7 @@ test('the list kept for the folder comes back at the next session: one board of 
     ensemble: ENSEMBLE,
   })
   expect(tableaux()).toEqual([
-    { argv: ['node_modules/.bin/grillhouse', 'tableau', DOSSIERS.sh, DOSSIERS.osd], cwd: '/p' },
+    { argv: ['node_modules/.bin/grillhouse', 'tableau', '--suivre', DOSSIERS.sh, DOSSIERS.osd], cwd: '/p' },
   ])
 })
 
@@ -336,7 +330,7 @@ test("critère 3 : g reads the ticket's whole text in its project, h switches a 
 // and the pane draws its lines as they are.
 test("critère 5 : with the session's project alone, the pane draws its board as it is", async ($, on) => {
   const { monter, tableaux } = await seance($, on)
-  expect(tableaux()).toEqual([{ argv: ['node_modules/.bin/grillhouse', 'tableau'], cwd: '/p' }])
+  expect(tableaux()).toEqual([{ argv: ['node_modules/.bin/grillhouse', 'tableau', '--suivre'], cwd: '/p' }])
   const ui = await monter()
   const lignes = seul('p', 'P').lignes
   expect(rangees(await ui.drawn()).slice(0, lignes.length + 1)).toEqual([

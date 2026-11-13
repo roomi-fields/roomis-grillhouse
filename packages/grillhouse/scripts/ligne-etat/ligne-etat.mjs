@@ -7,13 +7,15 @@
 // - The left part: the status line command of the person's own settings (~/.claude/settings.json),
 //   run on the same input; without one, `defaut.sh` beside this file.
 // - The right part: `grillhouse-etat.txt` in the project's common git directory, which each
-//   measure of the board writes (`scripts/tableau.mjs`), dim, aligned on the terminal's width
-//   (COLUMNS), on the first line.
+//   measure of the follower writes (`scripts/suiveur.mjs`), dim, aligned on the terminal's width
+//   (COLUMNS), on the first line; nothing when that measure is older than 10 minutes.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { lireEtat } from '../suiveur.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 // The columns Claude Code keeps around the status line: two before it, two after.
@@ -69,7 +71,21 @@ function sortie(commande, entree, cwd) {
   }
 }
 
-// The chantier in progress the board last wrote for the project at `projet`, or ''.
+/**
+ * The status text the follower wrote in `commun`, or '' without a file, with an unreadable one,
+ * or when its measure is older than 10 minutes (no follower runs). It measures nothing.
+ * @param {string} commun the project's common git directory
+ * @param {number} maintenant
+ */
+export function etatDuFichier(commun, maintenant) {
+  try {
+    return lireEtat(readFileSync(path.join(commun, 'grillhouse-etat.txt'), 'utf8'), maintenant);
+  } catch {
+    return '';
+  }
+}
+
+// The chantier in progress the follower last wrote for the project at `projet`, or ''.
 function etat(projet) {
   try {
     const commun = execFileSync(
@@ -77,7 +93,7 @@ function etat(projet) {
       ['-C', projet, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
     ).trim();
-    return readFileSync(path.join(commun, 'grillhouse-etat.txt'), 'utf8').split('\n')[0].trim();
+    return etatDuFichier(commun, Date.now()).split('\n')[0].trim();
   } catch {
     return '';
   }
