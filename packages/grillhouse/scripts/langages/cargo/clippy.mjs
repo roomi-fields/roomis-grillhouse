@@ -8,7 +8,7 @@
 //   tests of `tests/` included, which clippy reads only with `--all-targets`; every warning denied;
 //   rustc wrapped by sccache, as every command of the module that compiles (./sccache.mjs), its
 //   server started first under the machine's /tmp (`demarrerLeServeur`); a
-//   PATH without sccache refuses before cargo runs, the line naming `npx grillhouse maj`.
+//   PATH without sccache refuses before cargo runs, the line naming `npx grillhouse binaires`.
 // - Each diagnostic of the compiler that carries a code is a finding: its file, the primary span's
 //   from the root, its line, its message the compiler's. A lint (`clippy::needless_return`, a lint
 //   of rustc such as `unused_variables`) is its rule, which the debt keys; an error of compilation

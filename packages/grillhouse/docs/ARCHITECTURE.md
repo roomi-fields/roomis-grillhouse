@@ -1219,7 +1219,7 @@ sous-commande du noyau a sa place, qu'un test tient :
 - le code de la copie : `tests`, `verifier`, `gardes-du-cadre`, `langages-des-paquets`,
   `dependances-internes`, `flux-des-paquets`, `temporaire`, `style-a-l-ecriture`, les crochets git (`hook`, `hooks`), `fusion-du-changelog`,
   `composants-affectes`, et les commandes des modules de langage ;
-- les outils du dépôt, qui tournent par son code : `init`, `maj`, `paquet`, `sortie`, `outil`,
+- les outils du dépôt, qui tournent par son code : `init`, `maj`, `binaires`, `paquet`, `sortie`, `outil`,
   `greffons`, `sous-modules`, `pression`, `temporal`, `ticket`.
 
 Une version non installable (le réseau absent) se dit en une ligne sur la sortie d'erreur, et le
@@ -1887,7 +1887,7 @@ chaque greffon ; la part du langage dans `maj` (`miseAJour`), comme le générat
 greffon de Nx : son gabarit (`templates/projet/`, `templates/cargo/`), ce que ses outils
 demandent au projet, ses générateurs ; le squelette d'un paquet neuf (`squelette`), que
 `grillhouse paquet` écrit, comme le générateur d'une bibliothèque d'un greffon de Nx ; ses binaires (`binaires`), que `maj` installe par
-`cargo binstall` ; ce que ses outils écrivent dans un projet (`ignorer` : `.turbo`, `target`), que
+`cargo binstall`, et `npx grillhouse binaires` seuls, sans écrire le projet, après le `npm ci` de la CI ; ce que ses outils écrivent dans un projet (`ignorer` : `.turbo`, `target`), que
 les fichiers sources laissent de côté, que `maj` écrit dans le `.gitignore` et que le retrait
 des copies finies retire d'une copie gardée dont le ticket est fermé. `maj` y joint ce que le
 cadre lui-même écrit dans un projet (`IGNORES_DU_CADRE` : les copies des tickets,
@@ -1926,7 +1926,7 @@ sauf quand l'appelant la décide (`CARGO_INCREMENTAL`, `CARGO_BUILD_INCREMENTAL`
 à travers sccache (`RUSTC_WRAPPER=sccache`), le cache de compilation de Mozilla qu'emploient
 Firefox et les CI Rust, son cache sous la maison (`~/.cache/grillhouse/sccache`), commun aux copies du poste
 et que l'enveloppe ouvre en écriture : chaque copie garde son `target/`, sans le verrou que cargo
-pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; ce serveur démarre avant chaque lancement de cargo qui compile, sous `/tmp` (celui de la machine, ou dans une enveloppe celui, vide, de la séance), car sccache 0.19.0 démarre le sien par un socket au chemin sous TMPDIR, refusé au-delà des 108 octets d'un chemin de socket, et le dossier temporaire d'une passe sous le dossier de travail d'une séance les dépasse ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse maj` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
+pose sur un dossier commun, et ne recompile pas ce qu’une autre a compilé ; un serveur de sccache par copie et par espace de processus (`/proc/self/ns/pid`, que chaque enveloppe crée), sur un socket unix abstrait nommé d'après eux (`SCCACHE_SERVER_UDS`), puisque le serveur par défaut écoute 127.0.0.1:4226 pour toute la machine et que l'enveloppe partage le réseau ; ce serveur démarre avant chaque lancement de cargo qui compile, sous `/tmp` (celui de la machine, ou dans une enveloppe celui, vide, de la séance), car sccache 0.19.0 démarre le sien par un socket au chemin sous TMPDIR, refusé au-delà des 108 octets d'un chemin de socket, et le dossier temporaire d'une passe sous le dossier de travail d'une séance les dépasse ; un lanceur de rustc que le projet pose reste le sien, sans sccache, lu comme cargo le lit (l'environnement, puis `build.rustc-wrapper` des `.cargo/config.toml` du projet vers la racine, puis de `$CARGO_HOME`) ; sans sccache sur le PATH, ces commandes refusent avant cargo, en une ligne qui nomme `npx grillhouse binaires` ; le refus, avant tout lancement de cargo, d'un espace dont git ne
 suit pas le Cargo.lock, comme `npm ci` refuse un projet sans package-lock.json : les tests, la
 vérification et la préparation le nomment en une ligne avec son geste (`git add Cargo.lock`), et
 `maj` le laisse au projet (`aFaire` de sa part), sans jouer la vérification ; ses gardes, la taille des tests, un exécutable de tests par crate et par moment, clippy, les frontières entre crates contre la liste

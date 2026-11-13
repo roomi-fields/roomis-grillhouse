@@ -32,6 +32,7 @@ export const SOUS_COMMANDES = {
   'attente-a-l-arret': 'attente-a-l-arret.mjs',
   'attente-au-tour': 'attente-au-tour.mjs',
   bilan: 'bilan.mjs',
+  binaires: 'binaires.mjs',
   circuit: '../dist/temporal/circuit/commande.js',
   commande: 'verrous/commande.mjs',
   'composants-affectes': 'composants-affectes.mjs',

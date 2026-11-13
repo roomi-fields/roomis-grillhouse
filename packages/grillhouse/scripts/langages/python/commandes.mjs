@@ -220,7 +220,7 @@ function passe(racine, env) {
         stdio: 'inherit',
       });
       if (r.error?.code === 'ENOENT' && programme === 'uv') {
-        process.stderr.write("⛔ uv absent du PATH : `npx grillhouse maj` l'installe.\n");
+        process.stderr.write("⛔ uv absent du PATH : `npx grillhouse binaires` l'installe.\n");
       }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
       if (vert.includes(t.code)) {

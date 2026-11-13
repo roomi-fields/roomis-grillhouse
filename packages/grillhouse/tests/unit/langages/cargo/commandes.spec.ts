@@ -823,7 +823,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
       const r = lancer(d.seul, nom, [...args], {}, { PATH });
       expect(r.code, nom).not.toBe(0);
       expect(r.stderr, nom).toContain('sccache absent du PATH');
-      expect(r.stderr, nom).toContain('npx grillhouse maj');
+      expect(r.stderr, nom).toContain('npx grillhouse binaires');
       expect(r.appels, nom).toEqual([]);
     }
   });

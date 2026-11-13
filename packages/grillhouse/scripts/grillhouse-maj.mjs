@@ -104,7 +104,8 @@
 //   brings what is installed to what is declared; the report
 //   names each one installed. One that cannot be installed has its line, the error stream of its
 //   command naming the command to type, and the exit code is non-zero. A language without
-//   binaries runs nothing.
+//   binaries runs nothing. The same installation runs alone by `npx grillhouse binaires`
+//   (scripts/binaires.mjs), which a CI plays after `npm ci`.
 // - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
 //   guard) are placed by scripts/crochets.mjs, the mechanism `grillhouse hooks` (the project's
 //   `prepare`) also runs, in the hooks folder git reads for the project (`core.hooksPath`, else the
@@ -153,6 +154,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CADRE, VERSION } from './cadre.mjs';
+import { installerBinaires } from './binaires.mjs';
 import { poserCrochets } from './crochets.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { fluxSansEntree } from './flux-des-paquets.mjs';
@@ -500,65 +502,6 @@ export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd }
   bilan.workflows = poserLesWorkflows(projet, source);
   bilan.projetsExternes = poserLesProjetsExternes(projet, groupe, bd);
   return bilan;
-}
-
-/**
- * Installs on the machine each binary of the languages of the project at <projet> (`binaires` of
- * its module) that its installation does not list at its version, by the commands its module
- * describes (`miseAJour.installation`: `liste`, then `installer` for each one missing), each run by
- * Node, as `npm install` brings what is installed to what is declared; a language without
- * binaries runs nothing. Returns `{ installes, lignes }`: each binary installed
- * (`<nom>@<version>`), and the line of each failure, the error stream of its command, which names
- * the command to type.
- */
-export function installerBinaires(projet) {
-  const installes = [];
-  const lignes = [];
-  for (const m of langagesDe(projet)) {
-    const r = installerLesBinairesDe(projet, m);
-    installes.push(...r.installes);
-    lignes.push(...r.lignes);
-  }
-  return { installes, lignes };
-}
-
-// The binaries of the module <langage> installed in the project at <projet> (`installerBinaires`).
-function installerLesBinairesDe(projet, langage) {
-  const voulus = Object.entries(langage.binaires);
-  const installation = langage.miseAJour.installation;
-  if (voulus.length === 0 || installation === null) {
-    return { installes: [], lignes: [] };
-  }
-  const lancer = c =>
-    spawnSync(process.execPath, [c.script, ...c.args], { cwd: projet, encoding: 'utf8' });
-  const cause = r => (r.error ? r.error.message : (r.stderr ?? '').trim() || `code ${r.status}`);
-  const liste = lancer(installation.liste);
-  let presents;
-  try {
-    if (liste.error || liste.status !== 0) {
-      throw new Error(cause(liste));
-    }
-    presents = JSON.parse(liste.stdout);
-  } catch (e) {
-    return {
-      installes: [],
-      lignes: [`Binaires : la liste des binaires installés échoue. ${e.message}`],
-    };
-  }
-  const installes = [];
-  const lignes = [];
-  for (const [nom, version] of voulus) {
-    if (presents[nom] === version) {
-      continue;
-    }
-    const r = lancer(installation.installer(nom, version));
-    if (!r.error && r.status === 0) {
-      installes.push(`${nom}@${version}`);
-    } else {
-      lignes.push(`Binaire ${nom}@${version} : ${cause(r)}`);
-    }
-  }
-  return { installes, lignes };
 }
 
 /**

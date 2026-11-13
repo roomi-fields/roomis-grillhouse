@@ -127,7 +127,10 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
   exacte ; `maj` installe chacun de ceux qui manquent ou sont à une autre version, par les
-  commandes de `miseAJour.installation`. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
+  commandes de `miseAJour.installation`. `npx grillhouse binaires` joue la même installation seule,
+  sans écrire aucun fichier du projet, comme `rustup` pose une chaîne d'outils : ce que la CI d'un
+  projet joue après `npm ci` (le gabarit `templates/projet/.github/workflows/`) ; 0 tout installé
+  ou à jour, 1 un échec, sa ligne nommant la commande à taper, 2 un argument ou un langage refusé. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
   sccache (`scripts/langages/cargo/binaires.json`) ; `python`, uv
   (`scripts/langages/python/binaires.json`).
 - `executables` : les programmes de la chaîne d'outils du langage que l'installateur de Temporal

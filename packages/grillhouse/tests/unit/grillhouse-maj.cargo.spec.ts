@@ -13,13 +13,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { installerBinaires } from '../../scripts/binaires.mjs';
 import { VERSION } from '../../scripts/cadre.mjs';
-import {
-  IGNORES_DU_CADRE,
-  installerBinaires,
-  LIGNE_DU_CADRE,
-  mettreAJour,
-} from '../../scripts/grillhouse-maj.mjs';
+import { IGNORES_DU_CADRE, LIGNE_DU_CADRE, mettreAJour } from '../../scripts/grillhouse-maj.mjs';
 import cargo from '../../scripts/langages/cargo/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 import { sources as lesSources } from '../../scripts/sources.mjs';

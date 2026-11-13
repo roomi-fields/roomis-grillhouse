@@ -45,13 +45,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CADRE } from './cadre.mjs';
-import {
-  aInstaller,
-  installerBinaires,
-  mettreAJour,
-  rapport,
-  regenerer,
-} from './grillhouse-maj.mjs';
+import { installerBinaires } from './binaires.mjs';
+import { aInstaller, mettreAJour, rapport, regenerer } from './grillhouse-maj.mjs';
 import { LANGAGES, langage } from './langages.mjs';
 import {
   inscrireAuxEspaces,

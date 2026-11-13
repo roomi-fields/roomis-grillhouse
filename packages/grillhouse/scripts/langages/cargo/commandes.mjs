@@ -98,7 +98,7 @@
 //   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr), its server started
 //   under the machine's /tmp before each run of cargo that compiles (grillhouse-qmk).
 //   `tests-du-paquet`, `verifier` and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
-//   and `npx grillhouse maj`, which installs it (code 2).
+//   and `npx grillhouse binaires`, which installs it (code 2).
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
 //   the project's own, `--tool-config-file`), whose JUnit report lands in nextest's store, at
 //   `<workspace root>/target/nextest/grillhouse/junit.xml` (nextest's default `store.dir`, under

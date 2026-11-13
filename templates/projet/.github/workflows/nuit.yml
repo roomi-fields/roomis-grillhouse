@@ -55,6 +55,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The binaries of the project's languages that the night tests run (cargo's sccache,
+      # nextest and cargo-deny, python's uv), each at its version; none for TypeScript alone.
+      - name: Install the binaries of the languages
+        run: npx --no-install grillhouse binaires
+
       # The builds the night tests start, as the night of the poste has them from its complete pass.
       - name: Build
         run: npx --no-install turbo run build

@@ -23,7 +23,7 @@ export function installes() {
   if (r.error || r.status !== 0) {
     const cause = r.error ? r.error.message : (r.stderr ?? '').trim() || `code ${r.status}`;
     throw new Error(
-      `⛔ \`cargo install --list\` échoue (${cause}) ; installe Rust (rustup), puis relance \`npx grillhouse maj\`.`
+      `⛔ \`cargo install --list\` échoue (${cause}) ; installe Rust (rustup), puis relance \`npx grillhouse binaires\`.`
     );
   }
   return Object.fromEntries(

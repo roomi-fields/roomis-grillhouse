@@ -25,7 +25,11 @@ const CIS = [
 // What a step of the test job may run besides the verification: the installation of the project
 // and of the tools the verification plays (uv, the command claude); no test of the day plays the
 // program temporal, which the night lays down.
-const INSTALLATION = [/^npm ci$/, /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/];
+const INSTALLATION = [
+  /^npm ci$/,
+  /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/,
+  /^npx --no-install grillhouse binaires$/,
+];
 // The merge of the tranches of the verification, the one other command of a job of the
 // verification.
 const FUSION = 'npx --no-install grillhouse fusion-des-tranches';
@@ -79,6 +83,17 @@ describe('critère 2: the CI calls the verification alone', () => {
     });
 
     if (fichier === 'templates/projet/.github/workflows/ci.yml') {
+      it(`${titre} installs the binaries of the project's languages after npm ci, before each verification`, () => {
+        const verifiants = verification.filter(([, j]) => runs(j).some(r => VERIFIER.test(r)));
+        expect(verifiants.map(([nom]) => nom).sort()).toEqual(['gardes', 'tranches']);
+        for (const [nom, j] of verifiants) {
+          const r = runs(j);
+          const binaires = r.indexOf('npx --no-install grillhouse binaires');
+          expect(binaires, nom).toBeGreaterThan(r.indexOf('npm ci'));
+          expect(binaires, nom).toBeLessThan(r.findIndex(l => VERIFIER.test(l)));
+        }
+      });
+
       it(`${titre} has no build job: its guards prove the build`, () => {
         expect(jobs.build).toBeUndefined();
       });

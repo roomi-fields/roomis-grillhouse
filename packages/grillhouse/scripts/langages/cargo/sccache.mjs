@@ -153,7 +153,7 @@ export function sccacheAbsent(racine, env) {
   }
   return trouverDansLePath('sccache', env)
     ? null
-    : "⛔ sccache absent du PATH : cargo compile à travers lui (RUSTC_WRAPPER=sccache) ; `npx grillhouse maj` l'installe avec les autres binaires du module cargo.";
+    : "⛔ sccache absent du PATH : cargo compile à travers lui (RUSTC_WRAPPER=sccache) ; `npx grillhouse binaires` l'installe avec les autres binaires du module cargo.";
 }
 
 /**

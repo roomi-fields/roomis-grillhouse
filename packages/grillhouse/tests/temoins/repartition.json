@@ -12,6 +12,7 @@
     "scripts/avancement.mjs",
     "scripts/base-des-workflows.mjs",
     "scripts/bilan.mjs",
+    "scripts/binaires.mjs",
     "scripts/branche-de-nuit.mjs",
     "scripts/cadre.mjs",
     "scripts/circuit.mjs",

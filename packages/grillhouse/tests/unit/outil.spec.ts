@@ -100,7 +100,9 @@ describe('each subcommand has its side, so that a new one never falls on one by 
 
   it('the tools of the repository run the code of the repository', () => {
     expect([...OUTILS_DU_DEPOT].sort()).toEqual(
-      'greffons init maj outil paquet pression sortie sous-modules temporal ticket'.split(' ')
+      'binaires greffons init maj outil paquet pression sortie sous-modules temporal ticket'.split(
+        ' '
+      )
     );
   });
 

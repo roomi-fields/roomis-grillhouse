@@ -105,6 +105,7 @@ export const DU_CODE_EN_COURS = new Set([
 
 /** The tools of the repository, which run its code: creation, update, release, installation. */
 export const OUTILS_DU_DEPOT = new Set([
+  'binaires',
   'greffons',
   'init',
   'maj',

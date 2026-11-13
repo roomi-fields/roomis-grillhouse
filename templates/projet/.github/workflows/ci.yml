@@ -112,6 +112,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The binaries of the project's languages that the verification runs (cargo's sccache,
+      # nextest and cargo-deny, python's uv), each at its version; none for TypeScript alone.
+      - name: Install the binaries of the languages
+        run: npx --no-install grillhouse binaires
+
       # Build, guards, typing, formatting and lint: every task of the pass but the tests; the guard
       # tasks wait for the build of every package, which proves the project builds.
       - name: Verification without the tests
@@ -147,6 +152,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The binaries of the project's languages that the verification runs (cargo's sccache,
+      # nextest and cargo-deny, python's uv), each at its version; none for TypeScript alone.
+      - name: Install the binaries of the languages
+        run: npx --no-install grillhouse binaires
 
       # The tests of the tranche, with the builds they depend on. A push is measured against the
       # commit before it; a pull request, a call and the nightly schedule play the complete pass,
