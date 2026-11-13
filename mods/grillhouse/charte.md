@@ -177,6 +177,11 @@ tickets ignore, même s'il porte aussi `circuit`. Un lot hors du circuit passe
 la CI de sa branche avant main, comme un autre. Un changement de comportement du produit va au
 circuit, même pressé. Ainsi la voie d'un ticket se lit à la charte, et non au choix de la séance.
 
+**La file directe se tient comme la file des tickets** : un ticket direct attend ouvert, et l'en-tête
+du panneau le compte (« ✎ N en direct ») ; le superviseur prend le seul qu'il travaille, rend
+ouvert celui qu'il quitte, et ferme celui dont le lot est sur main (« intégré : <commit> »), même
+si une nuit doit encore le confirmer. Ainsi le panneau montre seulement ce qui tourne.
+
 **Un paquet naît hors du circuit, en quatre temps** (un squelette n'a ni comportement ni test),
 comme les générateurs de Nx et `cargo new --lib` : 1, le grill, le superviseur et le responsable
 (son rôle, sa frontière, ses refus, son interface, son langage) ; 2, l'écriture, le superviseur
