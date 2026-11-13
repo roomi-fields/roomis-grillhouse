@@ -127,7 +127,7 @@ export function sousModulesEssai(ESSAIS: string) {
     const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
     writeFileSync(
       path.join(bin, 'bd'),
-      `#!/bin/sh\ncase "$1 $2 $3" in "config get issue_prefix") echo demo; exit 0;; esac\ncase "$1" in show) echo '[{"id":"demo-1","labels":[]}]';; comments) echo '[{"author":"relecteur","text":"ACCEPTÉ"}]';; list) echo '[]';; create) echo demo-12;; esac\n`,
+      `#!/bin/sh\ncase "$1" in show) echo '[{"id":"demo-1","labels":[]}]';; comments) echo '[{"author":"relecteur","text":"ACCEPTÉ"}]';; list) echo '[]';; create) echo demo-12;; esac\n`,
       { mode: 0o755 }
     );
     const vu = path.join(bin, 'vu');
@@ -152,6 +152,8 @@ export function sousModulesEssai(ESSAIS: string) {
     mkdirSync(path.join(repo, 'outils/turbo'), { recursive: true });
     writeFileSync(path.join(repo, 'outils/turbo/package.json'), TURBO_PAQUET);
     writeFileSync(path.join(repo, 'outils/turbo/turbo.mjs'), TURBO_FAUX, { mode: 0o755 });
+    mkdirSync(path.join(repo, '.beads'));
+    writeFileSync(path.join(repo, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
     writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
     mkdirSync(path.join(repo, 'packages/a/src'), { recursive: true });
     writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'export const a = 1;\n');

@@ -1,11 +1,13 @@
-// The board reads each project's ticket prefix once, from Beads (`bd config get issue_prefix`):
-// a prefix that reads gives its label whatever the time Beads takes, and a prefix that does not
-// read is named under the head with its cause, never replaced in silence by the folder's name.
-import { mkdtempSync, writeFileSync } from 'node:fs';
+// The board reads each project's ticket prefix once, from the key `issue-prefix` of its
+// `.beads/config.yaml` (`prefixe` of scripts/prefixe-des-tickets.mjs), never from `bd`: a prefix
+// that reads gives its label, and a prefix that does not read is named under the head with the
+// message of `prefixe` (the file or the key), never replaced in silence by the folder's name.
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { rmSync } from 'node:fs';
+import { prefixe } from '../../scripts/prefixe-des-tickets.mjs';
 import { tableau } from '../../scripts/tableau.mjs';
 import { circuitLu } from './tableau-essai.js';
 
@@ -23,8 +25,9 @@ const TICKET = {
   updated_at: '2026-10-11T08:00:00Z',
 };
 
-// A fake `bd` on the PATH: the folders whose name holds « echec » fail to read their prefix with
-// code 3 and the message « boom », those holding « lent » answer after a second, the others at once.
+// A fake `bd` on the PATH that fails on `config` (the prefix is no longer read there): the
+// folders whose name holds « echec » have no `.beads/config.yaml`, those holding « sanscle » have
+// one without the key, the others have the key `issue-prefix: "demo"`.
 const faux = (config: string) => {
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   writeFileSync(path.join(bin, 'tous.json'), JSON.stringify([TICKET]));
@@ -37,9 +40,27 @@ const faux = (config: string) => {
   vi.stubEnv('PATH', `${bin}:${process.env.PATH}`);
   vi.stubEnv('GRILLHOUSE_REGISTRE', path.join(bin, 'registre.jsonl'));
 };
-const SELON_LE_DOSSIER =
-  'case "$PWD" in *echec*) echo boom >&2; exit 3;; *lent*) sleep 1; echo demo;; *) echo demo;; esac';
-const dossier = (nom: string) => mkdtempSync(path.join(ESSAIS, `${nom}-`));
+const SELON_LE_DOSSIER = 'echo "bd config appelé" >&2; exit 9';
+const dossier = (nom: string) => {
+  const d = mkdtempSync(path.join(ESSAIS, `${nom}-`));
+  if (!nom.includes('echec')) {
+    mkdirSync(path.join(d, '.beads'));
+    writeFileSync(
+      path.join(d, '.beads/config.yaml'),
+      nom.includes('sanscle') ? '# issue-prefix: ""\n' : 'issue-prefix: "demo"\n'
+    );
+  }
+  return d;
+};
+// The refusal of `prefixe` on <racine>: the message the alert carries.
+const refus = (racine: string) => {
+  try {
+    prefixe(racine);
+  } catch (e) {
+    return (e as Error).message;
+  }
+  throw new Error('prefixe a lu un préfixe');
+};
 
 interface Vu {
   lignes: { texte: string; ton?: string }[];
@@ -59,10 +80,11 @@ describe('the label of a project on the board of several projects', () => {
     vi.unstubAllEnvs();
   });
 
-  it('a prefix that reads gives the label whether Beads answers at once or late', async () => {
+  it('a prefix that reads in the file gives the label, bd never asked', async () => {
     faux(SELON_LE_DOSSIER);
     const vite = await lire(dossier('depot'), [dossier('autre')]);
     const lente = await lire(dossier('depot'), [dossier('lent')]);
+    expect(lente.alertes.some(x => /Préfixe/.test(x.texte))).toBe(false);
     expect(vite.lignes[1]?.texte).toMatch(/^\[demo\]\s+▶ /);
     expect(vite.lignes[4]?.texte).toMatch(/^\[demo\]\s+▶ /);
     expect(lente.lignes[1]?.texte).toMatch(/^\[demo\]\s+▶ /);
@@ -70,7 +92,7 @@ describe('the label of a project on the board of several projects', () => {
     expect(lente.lignes[0]?.texte).toMatch(/\+ DEMO$/);
   });
 
-  it('a prefix that does not read leaves its project on the board by its folder, with an alert naming the exit code', async () => {
+  it('a prefix that does not read leaves its project on the board by its folder, with an alert naming the missing file', async () => {
     faux(SELON_LE_DOSSIER);
     const racine = dossier('depot');
     const echec = dossier('echec');
@@ -88,8 +110,21 @@ describe('the label of a project on the board of several projects', () => {
     expect(alerte?.texte).toContain(`[${nom}]`);
     // The panel line is cut to the width of the panel: the full cause stands in the alert.
     expect(
-      vu.alertes.some(x => /Préfixe des tickets illisible : .*(\b3\b|boom)/.test(x.texte))
+      vu.alertes.some(x => x.texte === `Préfixe des tickets illisible : ${refus(echec)}`)
     ).toBe(true);
+    expect(vu.alertes.every(x => !/code \d|boom/.test(x.texte))).toBe(true);
+  });
+
+  it('a file without the key names the key in the alert, its project labelled by its folder', async () => {
+    faux(SELON_LE_DOSSIER);
+    const sansCle = dossier('sanscle');
+    const nom = path.basename(sansCle);
+    const vu = await lire(dossier('depot'), [sansCle]);
+    expect(
+      vu.alertes.some(x => x.texte === `Préfixe des tickets illisible : ${refus(sansCle)}`)
+    ).toBe(true);
+    expect(refus(sansCle)).toContain('issue-prefix');
+    expect(vu.lignes.some(x => new RegExp(`^\\[${echapper(nom)}\\]`).test(x.texte))).toBe(true);
   });
 
   it('the alert of a prefix that does not read stands under the head, with the project lines above it', async () => {
@@ -102,18 +137,6 @@ describe('the label of a project on the board of several projects', () => {
     expect(i).toBe(8);
     expect(vu.lignes[i]?.ton).not.toBeUndefined();
   });
-
-  it('a prefix that does not read because Beads does not start names the cause of the launch', async () => {
-    const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-    writeFileSync(path.join(bin, 'bd'), '#!/nonexistent/interprete\n', { mode: 0o755 });
-    // The PATH holds the fake `bd` alone: another `bd` further on would be tried after the ENOENT.
-    vi.stubEnv('PATH', bin);
-    vi.stubEnv('GRILLHOUSE_REGISTRE', path.join(bin, 'absent.jsonl'));
-    const vu = await lire(dossier('depot'), [dossier('autre')]);
-    expect(vu.alertes.some(x => /Préfixe des tickets illisible : .*ENOENT/.test(x.texte))).toBe(
-      true
-    );
-  });
 });
 
 describe('the board of the session’s project alone', () => {
@@ -121,11 +144,12 @@ describe('the board of the session’s project alone', () => {
     vi.unstubAllEnvs();
   });
 
-  it('a prefix that does not read gives the same alert, naming the exit code', async () => {
+  it('a prefix that does not read gives the same alert, the message of prefixe', async () => {
     faux(SELON_LE_DOSSIER);
-    const vu = await lire(dossier('echec'));
+    const racine = dossier('echec');
+    const vu = await lire(racine);
     const alerte = vu.alertes.find(x => /Préfixe des tickets illisible/.test(x.texte));
-    expect(alerte?.texte).toMatch(/illisible : .*(\b3\b|boom)/);
+    expect(alerte?.texte).toBe(`Préfixe des tickets illisible : ${refus(racine)}`);
     expect(vu.lignes.some(x => /Préfixe des tickets illisible/.test(x.texte))).toBe(true);
   });
 

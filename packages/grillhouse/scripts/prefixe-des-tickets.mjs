@@ -6,6 +6,7 @@
 // (the migration 0.30.0 « préfixe des tickets »).
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export const CONFIG_BEADS = '.beads/config.yaml';
 
@@ -65,4 +66,15 @@ export function ecrireLePrefixe(racine, valeur) {
       : `${texte}${texte.endsWith('\n') || texte === '' ? '' : '\n'}${ligne}\n`
   );
   return ligne;
+}
+
+// Run as `node prefixe-des-tickets.mjs <racine>`, the shell scripts (ticket.sh, nuit.sh) read the
+// prefix by the same function: it prints the prefix, or the message of the refusal with exit 1.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  try {
+    process.stdout.write(prefixe(process.argv[2] ?? process.cwd()));
+  } catch (e) {
+    process.stderr.write(`${e.message}\n`);
+    process.exitCode = 1;
+  }
 }

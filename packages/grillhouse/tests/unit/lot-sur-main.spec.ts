@@ -6,26 +6,25 @@
 // the queue rebased or squashed). A fresh branch sitting at a commit of main carries no lot and is
 // not taken for one (grillhouse-bf5.2.1). The commit it finds, or null.
 //
-// The history is a trial repository read by git; Beads is a stand-in in the process (the prefix).
+// The history is a trial repository read by git; the prefix is the key `issue-prefix` of its
+// `.beads/config.yaml`, read without `bd` (absent in a CI).
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { lire, lotSurMain } from '../../scripts/integration/integrer.mjs';
+import { prefixe } from '../../scripts/prefixe-des-tickets.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'lot-sur-main-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
-type Reponse = { status: number; stdout: string; stderr: string };
-// A stand-in for Beads: only the prefix `demo` is read.
-const bd = (...a: string[]): Reponse =>
-  a[0] === 'config'
-    ? { status: 0, stdout: 'demo\n', stderr: '' }
-    : { status: 0, stdout: '', stderr: '' };
-
-function depot() {
+function depot(config: string | null = 'issue-prefix: "demo"\n') {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
+  if (config !== null) {
+    mkdirSync(path.join(racine, '.beads'));
+    writeFileSync(path.join(racine, '.beads/config.yaml'), config);
+  }
   const git = (...a: string[]) =>
     execFileSync('git', ['-C', racine, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
       encoding: 'utf8',
@@ -38,7 +37,7 @@ function depot() {
     return git('rev-parse', 'HEAD');
   };
   commit('base.txt', 'base');
-  const o = { racine, principale: 'main', bd };
+  const o = { racine, principale: 'main' };
   return { racine, git, commit, o };
 }
 
@@ -101,6 +100,41 @@ describe('le lot d’un ticket est reconnu sur main par une seule fonction', () 
     const { commit, o } = depot();
     commit('autre.txt', 'feat: autre chose (demo-2)');
     expect(lotSurMain(o, 'demo-1')).toBeNull();
+  });
+});
+
+describe('le lot sur main se lit avec le préfixe de .beads/config.yaml, sans bd', () => {
+  it('lit le préfixe d’un autre projet dans sa clé', () => {
+    const { commit, o } = depot('issue-prefix: "autre"\n');
+    const entre = commit('lot.txt', 'feat: le lot (autre-3)');
+    expect(lotSurMain(o, 'autre-3')).toBe(entre);
+    expect(lotSurMain(o, 'demo-3')).toBeNull();
+  });
+
+  it('refuse par le message de prefixe quand la clé manque, au lieu de chercher sous un préfixe vide', () => {
+    const { commit, racine, o } = depot('# issue-prefix: ""\n');
+    commit('lot.txt', 'feat: le lot (demo-1)');
+    const juger = () => {
+      lotSurMain(o, 'demo-1');
+    };
+    expect(juger).toThrow(/issue-prefix/);
+    expect(juger).toThrow(
+      (() => {
+        try {
+          prefixe(racine);
+        } catch (e) {
+          return (e as Error).message;
+        }
+        return '';
+      })()
+    );
+  });
+
+  it('refuse par le message de prefixe, nommant le fichier, quand .beads/config.yaml manque', () => {
+    const { o } = depot(null);
+    expect(() => {
+      lotSurMain(o, 'demo-1');
+    }).toThrow(/\.beads\/config\.yaml manque/);
   });
 });
 

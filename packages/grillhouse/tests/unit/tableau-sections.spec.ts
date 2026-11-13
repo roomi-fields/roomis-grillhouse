@@ -5,7 +5,7 @@
 // AGENTS only by its circuit, an agent that runs on it, or its work in direct (claimed, with no
 // circuit); any other stands in CHANTIER.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -404,6 +404,8 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
 // empty home; the board run as the person runs it.
 const depot = (tickets: object[]) => {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
+  mkdirSync(path.join(racine, '.beads'));
+  writeFileSync(path.join(racine, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   const home = mkdtempSync(path.join(ESSAIS, 'home-'));
   writeFileSync(path.join(bin, 'tous.json'), JSON.stringify(tickets));

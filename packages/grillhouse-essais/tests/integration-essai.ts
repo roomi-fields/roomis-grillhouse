@@ -82,7 +82,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
 // It answers show, comments (and comments add, each under its author: BEADS_ACTOR, else git's
 // user `t`, as bd writes it), update (--add-label, --remove-label, --status,
 // --claim), label add/remove, close (--reason), reopen, list (--label, --status, --all) and
-// `config get issue_prefix` (demo); any other call succeeds silently.
+// any other call succeeds silently (the prefix is read in `.beads/config.yaml`, never here).
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -114,7 +114,6 @@ const lire = args => {
   return { pos, opts };
 };
 const [cmd, ...reste] = a;
-if (cmd === 'config' && reste[0] === 'get') { process.stdout.write(reste[1] === 'issue_prefix' ? 'demo\\n' : '\\n'); process.exit(0); }
 if (cmd === 'show') { const { pos } = lire(reste); out(pos.map(ticket)); process.exit(0); }
 if (cmd === 'comments') {
   if (reste[0] === 'add') {
@@ -356,6 +355,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   for (const c of ['a', 'b', 'c']) {
     ecrire(repo, `src/${c}/index.ts`, `export const ${c} = 0;\n`);
   }
+  ecrire(repo, '.beads/config.yaml', 'issue-prefix: "demo"\n');
   ecrire(repo, '.gitignore', '.claude/worktrees/\nnode_modules\n');
   ecrire(repo, '.github/workflows/ci.yml', 'on: push\n');
   git('init', '-q', '-b', 'main');

@@ -13,7 +13,7 @@
 //   The title line of a message is its first line that is neither blank nor a comment (a line
 //   starting with `#`); in the history it is the first line of the commit message.
 // - The tickets are the words `<prefix>-<id>` of the title line that Beads knows, the prefix read
-//   from Beads (`bd config get issue_prefix`): as Jira's smart commits and GitHub's « fixes #12 »
+//   from the key `issue-prefix` of `.beads/config.yaml` (`prefixe`; a missing key is refused): as Jira's smart commits and GitHub's « fixes #12 »
 //   link a commit to an existing key alone, a word of that shape Beads does not know (a package
 //   `grillhouse-essais` in the frame's repository) is text. Beads knows an id when
 //   `bd show <id> --json` lists a ticket of that exact id, and does not when it answers a JSON
@@ -35,6 +35,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { prefixe } from './prefixe-des-tickets.mjs';
 
 const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -81,18 +82,6 @@ export function refusal(message, prefix, commitsOf, isOpen = () => false, isKnow
     }
   }
   return null;
-}
-
-function prefixe() {
-  try {
-    return execFileSync('bd', ['config', 'get', 'issue_prefix'], {
-      encoding: 'utf8',
-      stdio: 'pipe',
-      maxBuffer: 256 * 1024 * 1024,
-    }).trim();
-  } catch {
-    return '';
-  }
 }
 
 // What Beads answers on the id (`bd show <id> --json`): `{ status }` when it knows the id (a ticket
@@ -261,16 +250,24 @@ export function controle(message, prefix, commitsOf, answer) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const prefix = prefixe();
-  const log = gitLog(process.cwd());
-  const { lignes, code } = controle(
-    readFileSync(process.argv[2], 'utf8'),
-    prefix,
-    id => commitsDelivering(id, prefix, log),
-    beads
-  );
-  for (const l of lignes) {
-    process.stderr.write(`${l}\n`);
+  let prefix = null;
+  try {
+    prefix = prefixe(process.cwd());
+  } catch (e) {
+    process.stderr.write(`⛔ ${e.message}\n`);
+    process.exitCode = 1;
   }
-  process.exitCode = code;
+  if (prefix !== null) {
+    const log = gitLog(process.cwd());
+    const { lignes, code } = controle(
+      readFileSync(process.argv[2], 'utf8'),
+      prefix,
+      id => commitsDelivering(id, prefix, log),
+      beads
+    );
+    for (const l of lignes) {
+      process.stderr.write(`${l}\n`);
+    }
+    process.exitCode = code;
+  }
 }

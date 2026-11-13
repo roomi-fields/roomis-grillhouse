@@ -2577,25 +2577,15 @@ function lire(
     nuit = null,
   }
 ) {
-  // The prefix is read once, with no delay of its own; a read that fails leaves it empty (the
+  // The prefix is read once, from `.beads/config.yaml`; a read that fails leaves it empty (the
   // project is labelled by its folder) and its cause is named in an alert (`echecPrefixe`).
   let prefix = '';
   let echecPrefixe = null;
   try {
-    prefix = execFileSync('bd', ['config', 'get', 'issue_prefix'], {
-      cwd: racine,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      maxBuffer: 256 * 1024 * 1024,
-    }).trim();
+    prefix = prefixeDeLaRacine(racine);
   } catch (e) {
     prefix = '';
-    const message = String(e?.stderr ?? '').trim() || String(e?.message ?? e);
-    const ligne = message.split('\n')[0];
-    echecPrefixe =
-      e?.status === null || e?.status === undefined
-        ? `${e?.code ?? 'échec'} ${ligne}`.trim()
-        : `code ${e.status} ${ligne}`.trim();
+    echecPrefixe = String(e?.message ?? e);
   }
   let ps = '';
   try {

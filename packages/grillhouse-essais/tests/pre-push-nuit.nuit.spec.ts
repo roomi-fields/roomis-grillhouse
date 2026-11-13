@@ -69,7 +69,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   const entrees = path.join(bin, 'entrees');
   writeFileSync(
     path.join(bin, 'bd'),
-    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1 $2 $3" in\n  "config get issue_prefix") echo demo; exit 0;;\nesac\ncase "$1" in\n  hooks) cat >> ${entrees}; exit "$(cat ${bin}/BD_CODE 2>/dev/null || echo 0)";;\n  list) echo '[]';;\n  create) echo demo-12;;\nesac\nexit 0\n`,
+    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1" in\n  hooks) cat >> ${entrees}; exit "$(cat ${bin}/BD_CODE 2>/dev/null || echo 0)";;\n  list) echo '[]';;\n  create) echo demo-12;;\nesac\nexit 0\n`,
     { mode: 0o755 }
   );
   const env = sansNuit(bin);
@@ -122,6 +122,8 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
   writeFileSync(path.join(repo, 't.mjs'), "console.log('tout vert');\n");
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules/\n');
+  mkdirSync(path.join(repo, '.beads'), { recursive: true });
+  writeFileSync(path.join(repo, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
   git('add', '-A');
   git('commit', '-q', '--no-verify', '-m', 'base');
   const bare = mkdtempSync(path.join(ESSAIS, 'distant-'));

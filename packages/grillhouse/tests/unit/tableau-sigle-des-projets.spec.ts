@@ -23,13 +23,13 @@ const TICKET = {
   updated_at: '2026-10-11T08:00:00Z',
 };
 
-// Un faux `bd` sur le PATH : le préfixe lu par Beads est « demo » pour chaque dossier.
+// Un faux `bd` sur le PATH, qui échoue sur `config` : le préfixe se lit dans .beads/config.yaml.
 const fauxBd = () => {
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
   writeFileSync(path.join(bin, 'tous.json'), JSON.stringify([TICKET]));
   writeFileSync(
     path.join(bin, 'bd'),
-    `#!/bin/sh\ncase "$1" in\n  config) echo demo ;;\n  list) cat '${bin}/tous.json' ;;\n  *) echo '[]' ;;\nesac\n`,
+    `#!/bin/sh\ncase "$1" in\n  config) exit 9 ;;\n  list) cat '${bin}/tous.json' ;;\n  *) echo '[]' ;;\nesac\n`,
     { mode: 0o755 }
   );
   writeFileSync(path.join(bin, 'registre.jsonl'), '');

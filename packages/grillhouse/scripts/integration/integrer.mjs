@@ -86,6 +86,7 @@ import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
 import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { langageDe } from '../langages.mjs';
+import { prefixe } from '../prefixe-des-tickets.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
@@ -186,13 +187,15 @@ export function refusLots(tests, code, { avant, apres }) {
  *     `(<ticket>)` — a lot the queue entered by fast-forward; its tip naming the ticket keeps a fresh
  *     branch sitting at a commit of main (lancer.sh creates it there, no lot yet) from being taken
  *     for a delivered lot (grillhouse-bf5.2.1);
- * (b) a commit of main whose message names the ticket (`commitsDelivering`, the prefix read from bd,
+ * (b) a commit of main whose message names the ticket (`commitsDelivering`, the prefix read from `.beads/config.yaml`,
  *     a withdrawn one left out) — a lot the queue rebased or merged in a squash, its branch gone or
  *     left behind.
- * <o> is `{ racine, principale, bd }` over the main tree.
+ * <o> is `{ racine, principale }` over the main tree.
  */
 export function lotSurMain(o, ticket) {
-  const { racine, bd } = o;
+  const { racine } = o;
+  // Read first, whichever way the lot is found: a key missing refuses, by the message of `prefixe`.
+  const prefix = prefixe(racine);
   const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
   const principale =
     o.principale ?? (git('symbolic-ref', '--short', '-q', 'HEAD').stdout.trim() || 'main');
@@ -210,9 +213,8 @@ export function lotSurMain(o, ticket) {
     return tip;
   }
   // (b) a commit of main that names the ticket, the queue's rebase or squash.
-  const prefixe = bd('config', 'get', 'issue_prefix').stdout?.trim() ?? '';
   return (
-    commitsDelivering(ticket, prefixe, gitLog(racine))
+    commitsDelivering(ticket, prefix, gitLog(racine))
       .map(c => git('rev-parse', '--verify', '-q', `${c}^{commit}`).stdout.trim())
       .find(surMain) ?? null
   );
@@ -337,7 +339,12 @@ function main(argv) {
   // rule `lotSurMain` the circuit's resumption reads, not the usage (exit 2), so a resumption that
   // finds no lot and no commit on main gets the one named refusal.
   if (!(o.tests || o.code)) {
-    const entre = lotSurMain({ racine, bd }, o.ticket);
+    let entre;
+    try {
+      entre = lotSurMain({ racine }, o.ticket);
+    } catch (e) {
+      return refuser(e.message);
+    }
     if (!entre) {
       return refuser(refusLotAbsent(o.ticket));
     }

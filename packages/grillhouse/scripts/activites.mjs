@@ -1007,7 +1007,13 @@ export function integrer(ctx) {
     // the copy after a commit (here the ticket is done, so `.travail` goes too — no `--garder-travail`).
     // A removal that fails stops under its name `copie-gardee`, the copy kept, and a new resumption
     // plays the removal again.
-    const commit = lotSurMain({ racine: ctx.racine, bd: ctx.bd }, ctx.ticket);
+    let commit;
+    try {
+      commit = lotSurMain({ racine: ctx.racine }, ctx.ticket);
+    } catch (e) {
+      // A key `issue-prefix` missing or faulty: refused by the message of `prefixe`, not by `lot-absent`.
+      return finir(`⛔ ${e.message}\n`, { code: 1, nom: 'prefixe' });
+    }
     if (commit) {
       let retrait = { status: 0, stderr: '' };
       if (existsSync(ctx.copie) && ctx.copie !== ctx.racine) {

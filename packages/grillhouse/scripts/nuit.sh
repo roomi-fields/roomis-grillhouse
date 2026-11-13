@@ -357,7 +357,7 @@ ouverts=
 commentes=" "
 # Reports one cause: comments the open night ticket whose title names it (once a night), or opens
 # its own (title « number — subject — parent », the number being the id without the project's
-# prefix as `bd config get issue_prefix` gives it, the subject naming « <cause> »); its id goes to
+# prefix as `prefixe` reads it in `.beads/config.yaml`, the subject naming « <cause> »); its id goes to
 # `numero`.
 signaler() {
   local cause="$1" sujet="$2" texte="$3" ouvert neuf= prefixe
@@ -372,8 +372,11 @@ signaler() {
     esac
   else
     neuf="$(cd "$racine" && bd create "$sujet" -t bug -p 1 -l nuit -d "$texte" --silent)"
-    prefixe="$(cd "$racine" && bd config get issue_prefix 2>/dev/null)"
-    [ -n "$neuf" ] && (cd "$racine" && bd update "$neuf" --title "${neuf#"$prefixe"-} — $sujet — parent" >/dev/null)
+    if prefixe="$(node "$ici/prefixe-des-tickets.mjs" "$racine" 2>&1)"; then
+      [ -n "$neuf" ] && (cd "$racine" && bd update "$neuf" --title "${neuf#"$prefixe"-} — $sujet — parent" >/dev/null)
+    else
+      echo "⛔ ${prefixe}" >> "$journal"
+    fi
   fi
   numero="${ouvert:-$neuf}"
 }

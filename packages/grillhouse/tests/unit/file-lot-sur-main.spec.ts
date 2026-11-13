@@ -8,7 +8,7 @@
 //
 // The history is a trial repository read by git; Beads is a stand-in in the process.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -54,6 +54,8 @@ function depot() {
     }).trim();
   git('init', '-q', '-b', 'main');
   writeFileSync(path.join(racine, 'package.json'), '{}\n');
+  mkdirSync(path.join(racine, '.beads'));
+  writeFileSync(path.join(racine, '.beads', 'config.yaml'), 'issue-prefix: "demo"\n');
   git('add', '-A');
   git('commit', '-qm', 'base');
   git('branch', 'agent/demo-1');

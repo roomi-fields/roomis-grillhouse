@@ -1053,13 +1053,13 @@ describe('grillhouse-3uv.63 — the integration commits on the ticket branch', (
 // --code) finds the lot on main by the one rule `lotSurMain` (exit 0), or is refused by the name
 // `lot-absent`, not by its usage — the same rule the circuit's resumption reads.
 describe('l’intégrateur sans lot à appliquer', () => {
-  // A trial repo whose main holds <messages>, a bd stub on PATH giving the prefix `demo`, a message.
+  // A trial repo whose main holds <messages> and whose `.beads/config.yaml` gives the prefix `demo`, a bd stub on PATH, a message.
   function depotSansLot(messages: string[]) {
     const repo = mkdtempSync(path.join(ESSAIS, 'lot-absent-'));
     const bin = mkdtempSync(path.join(ESSAIS, 'bin-lot-absent-'));
-    writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\ncase "$1" in config) echo demo;; esac\n', {
-      mode: 0o755,
-    });
+    writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    mkdirSync(path.join(repo, '.beads'));
+    writeFileSync(path.join(repo, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
     const git = (...a: string[]) =>
       execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
         encoding: 'utf8',

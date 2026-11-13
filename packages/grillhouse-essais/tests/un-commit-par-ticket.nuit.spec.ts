@@ -4,7 +4,7 @@
 // where the hook's verdict, the reading of the history and the answers of Beads are tested by its
 // interface, by day.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -27,7 +27,9 @@ type Message = string | ((shas: string[]) => string);
 function history(messages: Message[]) {
   const repo = mkdtempSync(path.join(ESSAIS, 'commit-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
-  writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
+  writeFileSync(path.join(bin, 'bd'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  mkdirSync(path.join(repo, '.beads'));
+  writeFileSync(path.join(repo, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args]);
   git('init', '-q', '-b', 'main');
@@ -59,15 +61,11 @@ function history(messages: Message[]) {
 
 // grillhouse-3uv.81: a commit naming a delivered ticket passes while that ticket is open in Beads
 // (reopened after its delivery): it is a correction commit. A closed ticket is finished: the commit
-// stays refused, with the same message. The fake `bd` answers `demo` to `config`, and to
+// stays refused, with the same message. The fake `bd` answers
 // `bd show <id> --json` the JSON Beads 1.2.2 writes: an array of one object carrying its `status`.
 function answerState(bin: string, id: string, status: string) {
   const out = JSON.stringify([{ id, title: 't', status }]);
-  writeFileSync(
-    path.join(bin, 'bd'),
-    `#!/bin/sh\ncase "$1" in config) echo demo; exit 0;; esac\nprintf '%s\\n' '${out}'\n`,
-    { mode: 0o755 }
-  );
+  writeFileSync(path.join(bin, 'bd'), `#!/bin/sh\nprintf '%s\\n' '${out}'\n`, { mode: 0o755 });
 }
 
 describe('a correction commit on a reopened ticket (grillhouse-3uv.81)', () => {

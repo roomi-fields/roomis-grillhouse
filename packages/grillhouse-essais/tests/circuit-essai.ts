@@ -230,17 +230,15 @@ exit 0
 // --remove-label, -d/--description, --notes, --title), `close` (--reason, -r) and `reopen` write
 // its state, as the integration, the queue and the circuit change it; `create` (--parent, -l,
 // -d) makes a child `<parent>.<n>`, and prints its id, `list` gives every ticket (its status
-// `open` when it names none), as the queue of the tickets reads them, and `config get
-// issue_prefix` is `demo`, as scripts/ticket.sh uses them.
+// `open` when it names none), as the queue of the tickets reads them; and
+// the prefix is read in `.beads/config.yaml` of the trial project, not here.
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
 const [cmd, ...r] = process.argv.slice(2);
 const b = path.join(process.cwd(), '.beads');
 const commentaires = id => path.join(b, id + '.comments.jsonl');
-if (cmd === 'config') {
-  process.stdout.write('demo\\n');
-} else if (cmd === 'create') {
+if (cmd === 'create') {
   const v = o => (r.includes(o) ? r[r.indexOf(o) + 1] : null);
   const parent = v('--parent');
   let n = 1;
@@ -530,6 +528,7 @@ export function circuitEssai(
     ecrire(path.join(REPO, 'faux-claude.sh'), FAUX_CLAUDE, 0o755);
     installerEnveloppe();
     mkdirSync(BEADS, { recursive: true });
+    ecrire(path.join(BEADS, 'config.yaml'), 'issue-prefix: "demo"\n');
     ecrire(path.join(BIN, 'bd'), FAUX_BD, 0o755);
     mkdirSync(path.join(HOME, '.claude/projects'), { recursive: true });
     const git = (...a: string[]) =>

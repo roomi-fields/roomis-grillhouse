@@ -5,7 +5,7 @@
 # « 020-loader, 050-emitter ».
 # Un corps @<fichier> se lit dans ce fichier. L'étiquette vaut a-valider par défaut ;
 # decouverte crée le ticket fermé (« découverte consignée »).
-# Le numéro est l'id sans le préfixe entier du projet (bd config get issue_prefix).
+# Le numéro est l'id sans le préfixe entier du projet (la clé issue-prefix de .beads/config.yaml).
 set -eu
 if [ $# -lt 4 ]; then
   sed -n '2,9p' "$0" >&2
@@ -17,7 +17,9 @@ case "$corps" in
   @*) source_corps=(--body-file "${corps#@}") ;;
   *) source_corps=(-d "$corps") ;;
 esac
+ici="$(cd "$(dirname "$0")" && pwd)"
+prefixe="$(node "$ici/prefixe-des-tickets.mjs" "$PWD")" || exit 1
 n=$(bd create "$sujet" --parent "$mere" --no-inherit-labels -t task -l "$etiquette" "${source_corps[@]}" --silent)
-bd update "$n" --title "${n#"$(bd config get issue_prefix)"-} — $sujet — $composants" >/dev/null
+bd update "$n" --title "${n#"$prefixe"-} — $sujet — $composants" >/dev/null
 [ "$etiquette" = decouverte ] && bd close "$n" -r "découverte consignée" >/dev/null
 echo "$n"

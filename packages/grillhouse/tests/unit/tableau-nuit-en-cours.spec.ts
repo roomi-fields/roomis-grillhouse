@@ -3,7 +3,7 @@
 // machine ; une ligne d'AGENTS, sous celle des places, la montre, « 🌙 nuit · <projet> · depuis
 // <durée> ». Le panneau reçoit la nuit lue dans `nuit` ; une lecture qui échoue ne montre aucune
 // nuit, et le reste du panneau se lit.
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -102,7 +102,10 @@ describe('la lecture de la nuit par le tableau', () => {
   };
   const lire = async (nuitDe: () => Promise<unknown>) => {
     faux();
-    return (await tableau(mkdtempSync(path.join(ESSAIS, 'depot-')), {
+    const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
+    mkdirSync(path.join(racine, '.beads'));
+    writeFileSync(path.join(racine, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
+    return (await tableau(racine, {
       home: mkdtempSync(path.join(ESSAIS, 'home-')),
       circuitsDe: aucunCircuit,
       nuitDe,

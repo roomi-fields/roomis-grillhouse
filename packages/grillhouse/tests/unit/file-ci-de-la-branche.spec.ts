@@ -121,6 +121,8 @@ function depot() {
   git('config', 'user.name', 't');
   git('config', 'user.email', 't@t');
   writeFileSync(path.join(racine, 'package.json'), '{}\n');
+  mkdirSync(path.join(racine, '.beads'));
+  writeFileSync(path.join(racine, '.beads', 'config.yaml'), 'issue-prefix: "demo"\n');
   mkdirSync(path.join(racine, '.github', 'workflows'), { recursive: true });
   writeFileSync(path.join(racine, '.github', 'workflows', 'ci.yml'), 'on: push\n');
   git('add', '-A');

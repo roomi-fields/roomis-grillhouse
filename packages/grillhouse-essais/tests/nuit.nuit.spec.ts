@@ -30,8 +30,7 @@ const enteteDeNuit = () => {
 // A repository whose tests (`npm test`, and the full pass the night plays, `npm run verifier -- --force`)
 // fail while ROUGE is committed, with a fake Beads that records its calls,
 // answers `list` with the open tickets written in OUVERTS, `create` with the ticket <prefixe>-<numero>
-// and `config get issue_prefix` with the project's prefix, as the real bd does (the value, then a
-// newline).
+// (the project's prefix is the key of its `.beads/config.yaml`).
 function monde({ prefixe = 'demo', numero = '12' } = {}) {
   const repo = mkdtempSync(path.join(ESSAIS, 'nuit-'));
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-'));
@@ -42,7 +41,7 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
   const tmp = mkdtempSync(path.join(ESSAIS, 'tmp-'));
   writeFileSync(
     path.join(bin, 'bd'),
-    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1 $2 $3" in "config get issue_prefix") echo ${prefixe}; exit 0;; esac\ncase "$1" in list) cat ${bin}/OUVERTS 2>/dev/null || echo '[]';; create) echo ${prefixe}-${numero};; esac\n`,
+    `#!/bin/sh\necho "$@" >> ${appels}\ncase "$1" in list) cat ${bin}/OUVERTS 2>/dev/null || echo '[]';; create) echo ${prefixe}-${numero};; esac\n`,
     { mode: 0o755 }
   );
   const git = (...a: string[]) =>
@@ -60,6 +59,8 @@ function monde({ prefixe = 'demo', numero = '12' } = {}) {
     "import fs from 'node:fs';\nif (fs.existsSync('ROUGE')) { console.log('✗ un test rouge'); process.exit(1); }\nconsole.log('tout vert');\n"
   );
   writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\n');
+  mkdirSync(path.join(repo, '.beads'));
+  writeFileSync(path.join(repo, '.beads/config.yaml'), `issue-prefix: "${prefixe}"\n`);
   git('init', '-q', '-b', 'main');
   git('add', '.');
   git('commit', '-qm', 'base');

@@ -44,6 +44,7 @@ function projet() {
   const racine = mkdtempSync(path.join(ESSAIS, 'projet-'));
   for (const [rel, texte] of Object.entries({
     'package.json': JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }),
+    '.beads/config.yaml': 'issue-prefix: "demo"\n',
     'docs/ARCHITECTURE.md': architecture(),
     'packages/outil/package.json': JSON.stringify({ name: '@essai/outil' }),
     'packages/outil/a.txt': 'a\n',
@@ -176,6 +177,17 @@ describe('la reprise de l’intégration d’un lot déjà sur main finit le tic
     const ctx = avecCopie({ surMain: true, sale: true, labels: ['en-file'] });
     const r = reprendre(ctx);
     expect(r).toMatchObject({ code: 1, nom: 'copie-gardee' });
+    expect(existsSync(ctx.copie)).toBe(true);
+  });
+
+  it('une clé issue-prefix absente arrête la reprise par le message de prefixe, code 1, distinct de lot-absent', () => {
+    const ctx = avecCopie({ surMain: true });
+    writeFileSync(path.join(ctx.racine, '.beads/config.yaml'), '# issue-prefix: ""\n');
+    const r = reprendre(ctx);
+    expect(r.code).toBe(1);
+    expect(r.sortie).toContain(".beads/config.yaml n'a pas la clé `issue-prefix`");
+    expect(r.sortie).not.toContain('lot-absent');
+    expect(r.nom).not.toBe('lot-absent');
     expect(existsSync(ctx.copie)).toBe(true);
   });
 

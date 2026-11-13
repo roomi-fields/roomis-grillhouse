@@ -5,7 +5,7 @@
 // places en texte et en JSON ; une valeur fautive est refusée par le nom de la variable, et le
 // tableau n'affiche alors aucune ligne des places.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,8 @@ interface Ligne {
 // Un dépôt dont Beads répond depuis un fichier ; la fonction rend la sortie du tableau sous <env>.
 const lanceur = (essais: string) => {
   const racine = mkdtempSync(path.join(essais, 'depot-'));
+  mkdirSync(path.join(racine, '.beads'));
+  writeFileSync(path.join(racine, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
   const bin = mkdtempSync(path.join(essais, 'bin-'));
   const home = mkdtempSync(path.join(essais, 'home-'));
   writeFileSync(path.join(bin, 'tous.json'), '[]');

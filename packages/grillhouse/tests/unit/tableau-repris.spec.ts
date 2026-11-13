@@ -261,6 +261,8 @@ describe('3uv.40 critère 4 : the time of a transcript is the time written in it
 // A repository whose Beads answers from a file: a fake `bd` on the PATH, the register in a file.
 const depotFactice = (tickets: object[], registre: object[]) => {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-repris-'));
+  mkdirSync(path.join(racine, '.beads'));
+  writeFileSync(path.join(racine, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
   const bin = mkdtempSync(path.join(ESSAIS, 'bin-repris-'));
   writeFileSync(path.join(bin, 'tous.json'), JSON.stringify(tickets));
   writeFileSync(
