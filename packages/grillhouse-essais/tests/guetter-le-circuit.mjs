@@ -13,7 +13,8 @@
 //   its workflow ended (`code` 0, integrated or stopped on the supervisor's word); a workflow that
 //   ended without its issue is its `fin`. It writes `{ code, fin, signe, etat, ou, question }`, `ou`
 //   the step of the state in words (scripts/etapes.mjs), `question` the one the workflow awaits;
-//   past <ms>, it exits 1 with the last sign it read.
+//   past <ms>, it exits 1 with the last sign it read and what holds the circuit (`constat`): the
+//   acts its workflow awaits, the places of the machine of the trial, the circuits still running.
 // Each call to the server is bounded (`DELAI_MS`) by its gRPC deadline (`withDeadline` of the
 // connection): in `lire`, a server or a workflow that does not answer exits 1, the call named;
 // in the watch, a call that fails transiently is probed again until <ms>, then exits 1 as any
@@ -26,6 +27,7 @@ const [cadre, mode, racine, ticket, avant, ms] = process.argv.slice(2);
 const charger = f => import(pathToFileURL(path.join(cadre, 'dist/temporal', f)).href);
 const { ouvrirLeClient } = await charger('client.js');
 const { idDuCircuit, L_ETAT } = await charger('circuit/contrat.js');
+const { ID_DES_PLACES, LES_PLACES } = await charger('places/contrat.js');
 const { etapeDuCircuit, libelle } = await import(
   pathToFileURL(path.join(cadre, 'scripts/etapes.mjs')).href
 );
@@ -111,6 +113,54 @@ async function lire() {
   return { signe, statut, vue, fin, etat: vue?.ecrit ?? fin?.etat ?? null };
 }
 
+// What holds a circuit that does not stop, in lines: each act its workflow awaits (its type, its
+// state, its attempt, its last beat and failure), the places of the machine of the trial, and the
+// circuits the server still runs; a part that does not read says why. The three read at once,
+// each within its deadline, so that the watch ends within its bound.
+async function constat() {
+  const partie = (titre, f) =>
+    f().then(
+      v => `${titre} : ${v}`,
+      x => `${titre} : illisible (${raisons(x)})`
+    );
+  const date = t => (t ? new Date(Number(t.seconds ?? 0) * 1000).toISOString() : '—');
+  const lignes = await Promise.all([
+    partie('Les actes en attente', async () => {
+      const d = await borne(() => h.describe(), 'la description du déroulé');
+      const actes = d.raw?.pendingActivities ?? [];
+      return actes.length
+        ? actes
+            .map(
+              a =>
+                `\n  ${a.activityType?.name} · état ${a.state} · tentative ${a.attempt} · programmé ${date(a.scheduledTime)} · démarré ${date(a.lastStartedTime)} · battement ${date(a.lastHeartbeatTime)}${a.lastFailure?.message ? ` · échec : ${a.lastFailure.message}` : ''}`
+            )
+            .join('')
+        : 'aucun';
+    }),
+    partie("Les places de la machine de l'essai", async () =>
+      JSON.stringify(
+        await borne(
+          () => c.client.workflow.getHandle(ID_DES_PLACES).query(LES_PLACES),
+          'la requête des places'
+        )
+      )
+    ),
+    partie('Les circuits vivants', async () => {
+      const ids = [];
+      await borne(async () => {
+        for await (const w of c.client.workflow.list({ query: 'ExecutionStatus="Running"' })) {
+          ids.push(`${w.workflowId} (${w.type})`);
+          if (ids.length >= 30) {
+            break;
+          }
+        }
+      }, 'la liste des déroulés');
+      return ids.join(', ') || 'aucun';
+    }),
+  ]);
+  return lignes.join('\n');
+}
+
 // The stop where the circuit stands, or null while it runs.
 function arret(l) {
   if (l.statut !== 'RUNNING') {
@@ -154,7 +204,7 @@ try {
       }
       if (Date.now() > limite) {
         process.stderr.write(
-          `le circuit de ${ticket} ne s'arrête pas en ${ms} ms : ${l?.signe ?? 'aucun déroulé'}\n`
+          `le circuit de ${ticket} ne s'arrête pas en ${ms} ms : ${l?.signe ?? 'aucun déroulé'}\n${await constat()}\n`
         );
         process.exitCode = 1;
         break;
