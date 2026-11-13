@@ -340,6 +340,19 @@ describe('critère 4 : the status line says the same', () => {
   it('without alerts nor lock, the status line is the counters alone', () => {
     expect(ligneEtat(plateau('demo', []))).toMatch(/^Grillhouse : /);
   });
+
+  it('the alerts of the other projects of the board count beside the session’s, its counters kept', () => {
+    const nuitRouge = (id: string) =>
+      T(id, 'La nuit est rouge', {
+        status: 'open',
+        labels: ['nuit'],
+        created_at: '2026-10-29T03:00:00',
+      });
+    const ici = plateau('demo', []);
+    const voisins = [plateau('osd', [nuitRouge('osd-1')]), plateau('sh', [nuitRouge('sh-1')])];
+    expect(ligneEtat(ici, voisins)).toMatch(/^🌙 2 · Grillhouse : /);
+    expect(ligneEtat(ici, voisins)).toContain(ligneEtat(ici));
+  });
 });
 
 // grillhouse-6ay: the line of the lock names the phase and the ticket of the verification it

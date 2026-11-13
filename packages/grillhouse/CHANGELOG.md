@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **The charter says how the direct queue is held**: a direct ticket waits open, counted in the head of the board; the supervisor takes the one it works, gives back open the one it leaves, and closes the one whose lot is on main. **Action for projects**: none.
 
+- **The status line counts the alerts of every project of the board** (grillhouse-mec): in a session leading several projects, the board showed three red nights of the other projects and the status line none: it read the session's project alone. `ligneEtat` (scripts/tableau.mjs) counts the alerts of the other projects of the board beside the session's, as a multi-root status bar counts the problems of every root; its counters and chantier stay the session's. **Action for projects**: none.
+
 - **The proof of the red measures again when the files it measures change** (grillhouse-2vl): under 0.35.0 the proof of grillhouse-nglm set the tests of the plugin aside (grillhouse-1au) and still counted them « not loading »: the last measure, taken under 0.34.x on the same tree, was read again, its key the copy's fingerprint alone. Its key now holds the files it measures (`cleDeLaMesure`, scripts/activites.mjs), as Turborepo's hash holds a task's arguments. **Action for projects**: none.
 
 ## [0.36.0] - 2026-11-13

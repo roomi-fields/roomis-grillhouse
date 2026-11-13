@@ -2288,9 +2288,11 @@ export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = D
 
 // The status line: the chantier in progress; first the alerts, counted by their signs as the board
 // shows them (🌙, 💤, ⚠), then the holder of the lock of the machine, « 🔒 <sorte> · <projet> »,
-// and the count of its waits, « ⏳ <n> ».
-export function ligneEtat(t) {
-  const signes = t.alertes.map(signeDe);
+// and the count of its waits, « ⏳ <n> ». The alerts of the other projects of a board of several
+// (<voisins>, their boards) count beside the session's, as a multi-root status bar counts the problems
+// of every root; the counters and the chantier stay the session's.
+export function ligneEtat(t, voisins = []) {
+  const signes = [t, ...voisins].flatMap(b => b.alertes ?? []).map(signeDe);
   const tenu = t.machine?.detenteur;
   const attentes = t.machine?.attentes?.length ?? 0;
   const alerte = [
@@ -2680,7 +2682,7 @@ export async function tableau(
     ),
     ici.commun ? path.dirname(ici.commun) : null
   );
-  const etat = ligneEtat(ici.t);
+  const etat = ligneEtat(ici.t, autres.map(l => l.t).filter(Boolean));
   try {
     if (ici.commun) {
       writeFileSync(path.join(ici.commun, 'grillhouse-etat.txt'), `${etat}\n`);
