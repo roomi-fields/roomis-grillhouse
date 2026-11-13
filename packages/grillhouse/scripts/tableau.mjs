@@ -1728,7 +1728,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The line of the queues, under their signs: ● the tickets ready for the circuit, ✎ the direct
   // queue, ⊘ the tickets blocked by an open ticket.
   const ligneDeLaFile = c =>
-    `⏭ file : ●:${c.enAttente} · ✎ :${c.fileDirecte ?? 0} · ⊘ :${c.bloques ?? 0}`;
+    `⏭ file : ● ${c.enAttente} · ✎ ${c.fileDirecte ?? 0} · ⊘ ${c.bloques ?? 0}`;
   if (plusieurs) {
     // The three lines of states of each project, as one project's board says them: the first
     // under its label, the two others aligned below it; or the fault that keeps its board out.
@@ -2433,7 +2433,7 @@ export function ligneEtat(t, voisins = []) {
   const a = comptesDAgents(t);
   const dAgents = `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes}`;
   if (!ch) {
-    return `${alerte}Grillhouse : ${dAgents} · ⏭ ●:${c.enAttente} · ✎ :${c.fileDirecte} · ✓ ${c.fermes}`;
+    return `${alerte}Grillhouse : ${dAgents} · ⏭ ● ${c.enAttente} · ✎ ${c.fileDirecte} · ✓ ${c.fermes}`;
   }
   return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ${dAgents} · ${k(t.global.jour.jetons)} aujourd'hui`;
 }

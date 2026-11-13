@@ -163,7 +163,7 @@ describe('a circuit whose question is deferred waits', () => {
 });
 
 describe('the tickets blocked by an open ticket count on the line of the queue', () => {
-  it('« ⏭ file : ●:N · ✎ :N · ⊘ :N », and no longer on the first line', () => {
+  it('« ⏭ file : ● N · ✎ N · ⊘ N », and no longer on the first line', () => {
     const t = plateau(
       'demo',
       [
@@ -177,7 +177,7 @@ describe('the tickets blocked by an open ticket count on the line of the queue',
     );
     const l = lignes(t, 'demo') as Ligne[];
     expect(l[1]?.texte).not.toContain('bloqués');
-    expect(l[2]?.texte.trimEnd()).toBe('⏭ file : ●:1 · ✎ :0 · ⊘ :1');
+    expect(l[2]?.texte.trimEnd()).toBe('⏭ file : ● 1 · ✎ 0 · ⊘ 1');
   });
 });
 

@@ -124,13 +124,13 @@ describe('critère 1 : the usual board, each project prefixed', () => {
     expect(l.slice(0, 12)).toEqual([
       'OSC-BRIDGE + SH + OSD',
       '[OB]  ▶ 1 · ⏸ 0 · ⛔ 0 · ✓ 0',
-      '      ⏭ file : ●:0 · ✎ :0 · ⊘ :0',
+      '      ⏭ file : ● 0 · ✎ 0 · ⊘ 0',
       '      0 sans go · 1 à valider · 0 reportés',
       '[SH]  ▶ 1 · ⏸ 0 · ⛔ 0 · ✓ 0',
-      '      ⏭ file : ●:0 · ✎ :0 · ⊘ :0',
+      '      ⏭ file : ● 0 · ✎ 0 · ⊘ 0',
       '      1 sans go · 0 à valider · 0 reportés',
       '[OSD] ▶ 0 · ⏸ 0 · ⛔ 0 · ✓ 0',
-      '      ⏭ file : ●:0 · ✎ :0 · ⊘ :0',
+      '      ⏭ file : ● 0 · ✎ 0 · ⊘ 0',
       '      0 sans go · 0 à valider · 0 reportés',
       '🔍 0 new · 0 →check · 0 rejetés · 0 validés',
       expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
@@ -223,7 +223,7 @@ describe('critère 4 : a project whose board does not read is named in the head 
     const l = lignes(t, 'osc-bridge + OSD') as Ligne[];
     expect(l.slice(1, 5).map(x => [x.texte.trimEnd(), x.ton])).toEqual([
       ['[OB]  ▶ 1 · ⏸ 0 · ⛔ 0 · ✓ 0', undefined],
-      ['      ⏭ file : ●:0 · ✎ :0 · ⊘ :0', undefined],
+      ['      ⏭ file : ● 0 · ✎ 0 · ⊘ 0', undefined],
       ['      0 sans go · 1 à valider · 0 reportés', 'attention'],
       ['[OSD] ⚠ dossier introuvable', 'alerte'],
     ]);
