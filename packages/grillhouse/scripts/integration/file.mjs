@@ -902,6 +902,29 @@ export function avancerMain(o, entree) {
   return { entre: { commit: entree.commit } };
 }
 
+// The capabilities of the ticket <ticket> (its `labels`, `export:<capability>` each) delivered by
+// `bd ship <capability>`, which sets `provides:<capability>`, the signal that the queue of another
+// project reads. A `bd ship` that fails is a fault named, never ignored: its comment at the
+// ticket says it whole, `livraison` in one line (the capability and Beads' reason), the other
+// capabilities still delivered; null without a fault.
+function livrerLesCapacites(o, ticket, labels) {
+  const fautes = [];
+  for (const cap of labels.filter(l => l.startsWith('export:')).map(l => l.slice(7))) {
+    const r = o.bd('ship', cap);
+    if (r.status !== 0) {
+      const raison = `${r.stderr ?? ''}`.trim() || `${r.stdout ?? ''}`.trim() || `code ${r.status}`;
+      commenterAu(
+        o,
+        ticket,
+        `La livraison de la capacité ${cap} n'est pas faite : \`bd ship ${cap}\` échoue :\n${raison}\n\nLe ticket est fermé ; la capacité reste à livrer.`
+      );
+      o.dire(`⚠ bd ship ${cap} échoue`);
+      fautes.push(`bd ship ${cap} échoue : ${enUneLigne(raison)}`);
+    }
+  }
+  return { livraison: fautes.length > 0 ? fautes.join(' ; ') : null };
+}
+
 /**
  * The ticket of <entree> (`{ ticket, branche, commit }`) entered on main at <commit>, with the
  * tools <o>: it closes « intégré : <commit> » and loses `en-file` (a ticket already closed is left
@@ -920,11 +943,13 @@ export function fermerLEntree(o, entree) {
   const court = entree.commit.slice(0, 7);
   const commenter = texte => commenterAu(o, entree.ticket, texte);
   const show = o.bd('show', entree.ticket, '--json');
-  const statut = show.status === 0 ? (JSON.parse(show.stdout)[0]?.status ?? null) : null;
-  if (statut !== 'closed') {
+  const lu = show.status === 0 ? (JSON.parse(show.stdout)[0] ?? null) : null;
+  if ((lu?.status ?? null) !== 'closed') {
     o.bd('update', entree.ticket, '--remove-label', 'en-file');
     o.bd('close', entree.ticket, '--reason', `${INTEGRE}${court}`);
   }
+  // The capabilities the ticket exports (`export:<capability>`) are delivered once it is closed.
+  const ferme = livrerLesCapacites(o, entree.ticket, lu?.labels ?? []);
   o.dire(`✓ ${entree.branche} entre sur ${o.principale} : ${court}`);
   if (git('rev-parse', '--verify', '-q', `refs/heads/${entree.branche}`).status === 0) {
     const efface = git('branch', '-D', entree.branche);
@@ -941,7 +966,7 @@ export function fermerLEntree(o, entree) {
   if (faute) {
     const raison = `Poussée non faite : grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`;
     commenter(raison);
-    return { poussee: null, raison: enUneLigne(raison) };
+    return { poussee: null, raison: enUneLigne(raison), ...ferme };
   }
   const sansInvite = { encoding: 'utf8', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } };
   const pousse = spawnSync(
@@ -953,7 +978,7 @@ export function fermerLEntree(o, entree) {
     const raison = `La poussée de ${court} vers origin/${commit} (grillhouse.poussee.commit) est refusée :\n${pousse.stderr.trim()}`;
     commenter(raison);
     o.dire(`⚠ poussée de ${court} refusée`);
-    return { poussee: null, raison: enUneLigne(raison) };
+    return { poussee: null, raison: enUneLigne(raison), ...ferme };
   }
   o.dire(`✓ poussée : ${court} est sur origin/${commit}`);
   // The branch the CI judged leaves origin with its entry; one already gone is no fault.
@@ -965,7 +990,7 @@ export function fermerLEntree(o, entree) {
   if (distante.status !== 0) {
     o.dire(`⚠ origin/${entree.branche} n'est pas effacée : ${distante.stderr.trim()}`);
   }
-  return { poussee: commit, raison: null };
+  return { poussee: commit, raison: null, ...ferme };
 }
 
 /**

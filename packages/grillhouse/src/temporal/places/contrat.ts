@@ -63,6 +63,10 @@ export interface CircuitsDuProjet {
   disque?: string | null;
   /** A circuit resumed after its question that asks again by itself: its ticket and its rank. */
   reprise?: { ticket: string; rang: number | null };
+  /** The identity of the project's group (`grillhouse.groupe`), absent out of a group. */
+  groupe?: string;
+  /** The Beads priority (0 to 4) and creation of each candidate, which order a group's waits. */
+  priorites?: Record<string, { priorite: number; creation: string }>;
 }
 
 /** The state of the places, which the workflow carries across a Continue-As-New. */

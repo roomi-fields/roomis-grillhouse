@@ -129,7 +129,11 @@ import {
   circuitsDuServeur,
   nuitDuServeur,
 } from './circuits-du-serveur.mjs';
-import { enFileSansArchitecture } from './file-des-tickets.mjs';
+import {
+  attendDeLAutreProjet,
+  enFileSansArchitecture,
+  lireLesExternes,
+} from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
@@ -839,6 +843,7 @@ export function assembler({
   attenteVivante: attenteQuiVit = true,
   voies = {},
   superviseur = {},
+  externes,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -862,7 +867,13 @@ export function assembler({
   // Ready: open, every ticket that blocks it closed (Beads' own rule, without a second call).
   const blocages = t =>
     (t.dependencies ?? []).filter(d => d.type === 'blocks' && ouvert(d.depends_on_id));
-  const prets = tous.filter(t => t.status === 'open' && blocages(t).length === 0);
+  // What a ticket waits for from another project, « <project>:<capability> » (the capability not
+  // delivered by the provider, or its project not resolved: `externes`, the tickets of each other
+  // project by its name in Beads' `external_projects`).
+  const attentesExternes = t => attendDeLAutreProjet(t, externes).map(a => a.attend);
+  const prets = tous.filter(
+    t => t.status === 'open' && blocages(t).length === 0 && attentesExternes(t).length === 0
+  );
   const aValider = tous.filter(
     t => t.status !== 'closed' && (t.labels ?? []).includes('a-valider')
   );
@@ -896,7 +907,7 @@ export function assembler({
     (!enfants.has(t.id) || t.status === 'in_progress' || actifs.has(t.id) || travailles.has(t.id));
   const pret = new Set(prets.map(t => t.id));
   const avalider = new Set(aValider.map(t => t.id));
-  const bloquePar = t => blocages(t).map(d => numero(d.depends_on_id));
+  const bloquePar = t => [...blocages(t).map(d => numero(d.depends_on_id)), ...attentesExternes(t)];
   // The owner's go: the label `circuit`, set on his word.
   const circuit = t => (t.labels ?? []).includes('circuit');
   // A ticket's state: done, in progress, deferred, awaiting validation; else, with the owner's go,
@@ -2451,6 +2462,7 @@ function lire(
     remontees: lireLesRemontees(racine, maintenant),
     attenteVivante: attenteVivante(racine),
     superviseur,
+    externes: lireLesExternes(racine, tous),
   });
   return { t, prefix, tous, vivants, commun };
 }

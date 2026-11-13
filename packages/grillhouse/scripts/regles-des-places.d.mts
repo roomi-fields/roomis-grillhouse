@@ -50,6 +50,11 @@ export interface PlaceDeCircuit {
   reprise?: boolean;
   /** Why it waits apart from the order of arrival (its disk of copies), null without. */
   raison?: string | null;
+  /** Its Beads priority (0 to 4) and creation, which order the circuits that wait of one group. */
+  priorite?: number;
+  creation?: string;
+  /** The identity of its project's group, absent out of a group. */
+  groupe?: string;
 }
 
 /**
@@ -66,6 +71,8 @@ export function reserverDesCircuits(
     candidats?: string[];
     disque?: string | null;
     reprise?: { ticket: string; rang: number | null };
+    groupe?: string;
+    priorites?: Record<string, { priorite: number; creation: string }>;
   },
   o: { rang: number; plafond: number; maintenant: number }
 ): { circuits: PlaceDeCircuit[]; rang: number; accordes: string[] };

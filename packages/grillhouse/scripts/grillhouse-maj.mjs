@@ -120,6 +120,10 @@
 //   as `npm install` brings what is installed to what is declared. A plugin that cannot be
 //   installed, or a mod left at another version, has its line naming the command to type; the
 //   update has finished its files, and the exit code is non-zero.
+// - The group: when the package.json declares `grillhouse.groupe` (scripts/groupe-cles.mjs), the
+//   update sets in the Beads of the project each other project of the group as an
+//   `external_projects.<name>` (its absolute path), the ones already set left alone; a group
+//   badly declared is refused by its key before any work.
 // - The generated files: after the package.json, each generator of the declared language
 //   (`miseAJour.generateurs` of its module) is run in the project by the project's command
 //   (`node_modules/.bin/grillhouse`, its installed package) for the file it writes when the project
@@ -153,6 +157,7 @@ import { poserCrochets } from './crochets.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { fluxSansEntree } from './flux-des-paquets.mjs';
 import { installerGreffons } from './greffons.mjs';
+import { lireGroupe, projetsExternes } from './groupe-cles.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
 import { langageDe, langagesDe } from './langages.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
@@ -318,13 +323,59 @@ export function versionDuProjet(projet) {
   return typeof v === 'string' ? v : null;
 }
 
+// Beads run in <cwd>, as `bd(args, cwd)` gives it: { status, stdout, stderr }.
+const jouerBd = (args, cwd) => spawnSync('bd', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+
+// The group the package.json of <projet> declares (null without it); a fault throws, naming its
+// key (`grillhouse.groupe`) and its value.
+function lireDuGroupe(projet) {
+  const pkg = path.join(projet, 'package.json');
+  if (!existsSync(pkg)) {
+    return null;
+  }
+  const { groupe, fautes } = lireGroupe(lireJson(pkg, {}), projet);
+  if (fautes.length > 0) {
+    throw new Error(
+      `⛔ ${fautes.map(f => `${f.cle} vaut ${f.valeur}, pas un chemin de projet existant, une fois`).join(' ; ')}.`
+    );
+  }
+  return groupe;
+}
+
+// The `external_projects` of the Beads of <projet>: the other projects of its <groupe>, each by its
+// name and absolute path; those it sets, by name (none when already set).
+function poserLesProjetsExternes(projet, groupe, bd) {
+  if (groupe === null) {
+    return [];
+  }
+  const poses = [];
+  for (const [nom, chemin] of Object.entries(projetsExternes(groupe, projet))) {
+    const cle = `external_projects.${nom}`;
+    const lu = bd(['config', 'get', cle], projet);
+    if (lu.status === 0 && `${lu.stdout ?? ''}`.trim() === chemin) {
+      continue;
+    }
+    const r = bd(['config', 'set', cle, chemin], projet);
+    if (r.status !== 0) {
+      throw new Error(
+        `⛔ bd config set ${cle} a échoué : ${`${r.stderr ?? ''}`.trim() || `code ${r.status}`}`
+      );
+    }
+    poses.push(nom);
+  }
+  return poses;
+}
+
 /**
  * Brings the project at `projet` to the frame's files at `source` (CADRE, scripts/cadre.mjs; a
  * trial's own in the tests); <inscrite> is the version it records (the package's; null records
  * none, the project keeping its own). Returns what changed.
  */
-export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
+export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd } = {}) {
+  // The group declared, refused by its key before any work.
+  const groupe = lireDuGroupe(projet);
   const bilan = {
+    projetsExternes: [],
     dependances: [],
     gardes: null,
     ligneEtat: false,
@@ -447,6 +498,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION } = {}) {
   poserCrochets(projet);
   attribuer(projet);
   bilan.workflows = poserLesWorkflows(projet, source);
+  bilan.projetsExternes = poserLesProjetsExternes(projet, groupe, bd);
   return bilan;
 }
 
@@ -558,6 +610,11 @@ export function rapport(b) {
   if (b.greffon) {
     lignes.push(
       `Greffon du cadre : .claude/settings.json déclare la place de marché ${MARCHE_DU_CADRE} (${SOURCE_DU_MARCHE.repo}) et active ${GREFFON_DU_CADRE}.`
+    );
+  }
+  if (b.projetsExternes?.length > 0) {
+    lignes.push(
+      `Projets externes de Beads : ${b.projetsExternes.join(', ')} posé(s) depuis grillhouse.groupe.`
     );
   }
   if (b.workflows?.length > 0) {

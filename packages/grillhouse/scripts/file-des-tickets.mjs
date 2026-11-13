@@ -16,6 +16,12 @@
 // - A circuit alive whose ticket was closed outside it (delivered directly) holds no place: the
 //   queue stops it (`fermesHorsCircuit`).
 // - A ticket whose dependency is open stays: the board says « attend <ticket> » (scripts/tableau.mjs).
+// - A dependency on another project (`external:<project>:<capability>`, Beads' cross-project
+//   dependency) holds the ticket until the provider delivered the capability: a closed ticket of
+//   that project labelled `provides:<capability>` (which `bd ship` sets; `export:` alone does
+//   not deliver). <externes> gives the tickets of each provider by its name in Beads'
+//   `external_projects`; a project it lacks holds the ticket, and `attentesExternes` names the
+//   fault (never a silent start).
 import { spawnSync } from 'node:child_process';
 import { ETAPES } from './etapes.mjs';
 
@@ -33,22 +39,76 @@ const enFile = (tous, enCours) =>
       !enCours.has(t.id)
   );
 
+// The external dependencies of <t>, each { projet, capacite }.
+const dependancesExternes = t =>
+  (t.dependencies ?? [])
+    .filter(d => d.type === 'blocks' && d.depends_on_id.startsWith('external:'))
+    .map(d => {
+      const [, projet = '', ...reste] = d.depends_on_id.split(':');
+      return { projet, capacite: reste.join(':') };
+    });
+
+// Whether the provider <projet> delivered <capacite> in <externes>.
+const livree = (externes, projet, capacite) =>
+  (externes?.[projet] ?? []).some(
+    t => t.status === 'closed' && (t.labels ?? []).includes(`provides:${capacite}`)
+  );
+
+/**
+ * What each ticket of the queue waits for from another project: one { ticket, attend:
+ * '<project>:<capability>', faute } per capability not delivered, `faute` naming the project that
+ * `external_projects` does not resolve (a project absent of <externes>), null otherwise.
+ * @param {Parameters<typeof ticketsAPartir>[0]} tous every ticket of the project
+ * @param {{ enCours?: Set<string>, externes?: Record<string, typeof tous> }} [o]
+ * @returns {Array<{ ticket: string, attend: string, faute: string | null }>}
+ */
+export function attentesExternes(tous, { enCours = new Set(), externes } = {}) {
+  return enFile(tous, enCours).flatMap(t =>
+    attendDeLAutreProjet(t, externes).map(a => ({ ticket: t.id, ...a }))
+  );
+}
+
+/**
+ * What the ticket <t> waits for from another project in <externes>: one { attend:
+ * '<project>:<capability>', faute } per capability not delivered (see `attentesExternes`).
+ * @param {{ dependencies?: Array<{ type: string, depends_on_id: string }> }} t
+ * @param {Record<string, Array<{ status: string, labels?: string[] }>>} [externes]
+ * @returns {Array<{ attend: string, faute: string | null }>}
+ */
+export function attendDeLAutreProjet(t, externes) {
+  return dependancesExternes(t)
+    .filter(d => !livree(externes, d.projet, d.capacite))
+    .map(d => ({
+      attend: `${d.projet}:${d.capacite}`,
+      faute:
+        externes?.[d.projet] === undefined
+          ? `le projet ${d.projet} n'est pas dans external_projects de Beads`
+          : null,
+    }));
+}
+
 /**
  * The tickets of <tous> that start now, in the order they start.
  * @param {Array<{ id: string, status: string, priority?: number, labels?: string[],
  *   created_at?: string, description?: string,
  *   dependencies?: Array<{ type: string, depends_on_id: string }> }>} tous
  *   every ticket of the project, the closed ones too
- * @param {{ enCours?: Set<string> }} [o] `enCours`, the tickets whose circuit already runs
+ * @param {{ enCours?: Set<string>, externes?: Record<string, typeof tous> }} [o] `enCours`, the
+ *   tickets whose circuit already runs; `externes`, the tickets of each other project by its name
  * @returns {typeof tous}
  */
-export function ticketsAPartir(tous, { enCours = new Set() } = {}) {
+export function ticketsAPartir(tous, { enCours = new Set(), externes } = {}) {
   const fermes = new Set(tous.filter(t => t.status === 'closed').map(t => t.id));
   return enFile(tous, enCours)
     .filter(
       t =>
         aSonArchitecture(t) &&
-        (t.dependencies ?? []).every(d => d.type !== 'blocks' || fermes.has(d.depends_on_id))
+        (t.dependencies ?? []).every(
+          d =>
+            d.type !== 'blocks' ||
+            (d.depends_on_id.startsWith('external:') ? true : fermes.has(d.depends_on_id))
+        ) &&
+        dependancesExternes(t).every(d => livree(externes, d.projet, d.capacite))
     )
     .sort(
       (a, b) =>
@@ -92,6 +152,37 @@ export function enFileSansArchitecture(tous, { enCours = new Set() } = {}) {
   return enFile(tous, enCours)
     .filter(t => !aSonArchitecture(t))
     .sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
+}
+
+/**
+ * The tickets of each provider project the tickets <tous> depend on (`external:<project>:…`), by
+ * the project's name, read through Beads' `external_projects` of the project at <racine>; a
+ * project that the configuration does not set, or whose tickets do not read, is left out (the
+ * ticket that waits for it stays held, `attentesExternes` naming the fault).
+ * @param {string} racine
+ * @param {Parameters<typeof ticketsAPartir>[0]} tous
+ * @returns {Record<string, typeof tous>}
+ */
+export function lireLesExternes(racine, tous) {
+  const noms = new Set(tous.flatMap(t => dependancesExternes(t).map(d => d.projet)));
+  const externes = {};
+  for (const nom of noms) {
+    const r = spawnSync('bd', ['config', 'get', `external_projects.${nom}`], {
+      cwd: racine,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    });
+    const chemin =`${r.stdout ?? ''}`.trim();
+    if (r.status !== 0 || chemin === '' || chemin.includes('not set')) {
+      continue;
+    }
+    try {
+      externes[nom] = lireLesTickets(chemin);
+    } catch {
+      // Left out: the project does not resolve.
+    }
+  }
+  return externes;
 }
 
 /**

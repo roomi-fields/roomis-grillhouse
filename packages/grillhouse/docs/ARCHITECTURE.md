@@ -954,8 +954,15 @@ pendant qu'une passe lourde tient le verrou.
 étiquetés `direct`, menés hors du circuit, qu'elle ne prend jamais ; ceux dont la
 description porte sa section « ## Architecture » et dont toutes les dépendances `blocks` sont
 fermées partent par priorité Beads (la règle, `ticketsAPartir` de `scripts/file-des-tickets.mjs`),
-et attendent une place dans l'ordre d'arrivée, commun aux projets ; ceux dont une dépendance est
-ouverte restent. Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
+et attendent une place dans l'ordre d'arrivée, commun aux projets, sauf entre projets d'un même
+groupe (`grillhouse.groupe`), où les circuits en attente se redistribuent leurs rangs par priorité
+Beads (P0 à P4), puis ancienneté ; ceux dont une dépendance est ouverte restent, une dépendance
+`external:<projet>:<capacité>` comprise : elle tient le ticket tant qu'aucun ticket fermé du projet
+fournisseur ne porte `provides:<capacité>` (que pose `bd ship <capacité>`), et un `external_projects`
+absent ou un projet inconnu le tient aussi, la faute nommée (le tableau dit « attend
+<projet>:<capacité> »). L'intégration d'un ticket qui porte `export:<capacité>` joue `bd ship
+<capacité>` après son commit sur main, et son échec est une faute nommée. `grillhouse maj` écrit le
+`external_projects` de Beads de chaque projet d'un groupe depuis `grillhouse.groupe`. Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
 d'entrée, un ticket sans sa section ne part jamais (grillhouse-d4n.10) : le panneau (une alerte)
 et l'ouverture de la séance du superviseur (« ## La file des tickets ») le nomment, « En file sans
 architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Le déroulé de la file des tickets sous
@@ -1527,13 +1534,19 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   compte les circuits vivants du projet (ceux que le serveur fait tourner, et ceux qu'il vient de
   lancer, que la visibilité du serveur peut ne pas montrer encore), puis lance le circuit de chaque
   ticket qui part (`ticketsAPartir` de `scripts/file-des-tickets.mjs` : ouvert, étiqueté `circuit`, sa
-  section « ## Architecture » écrite, ses dépendances fermées, par priorité), pas plus de vivants à la fois que le réglage
+  section « ## Architecture » écrite, ses dépendances fermées, celles vers un autre projet
+  (`external:<projet>:<capacité>`) livrées par un ticket fermé `provides:<capacité>` de ce projet,
+  lu par `external_projects` de Beads que `grillhouse maj` pose depuis `grillhouse.groupe`, par
+  priorité), pas plus de vivants à la fois que le réglage
   du projet (`grillhouse.circuits` du `package.json`, `scripts/circuits-cles.mjs`, 1 quand il
   manque), et chacun seulement quand il tient une place de circuit de la machine : la file donne
   à la machine ses circuits vivants et les tickets qu'elle lancerait (`placesDeLaMachine`, la mise
   à jour `reserverDesCircuits` du déroulé de la machine, la règle `reserverDesCircuits` de
   `scripts/regles-des-places.mjs`), et la machine les accorde dans l'ordre d'arrivée de tous les
-  projets tant que ses circuits tenus restent sous son plafond, comme Buildkite borne ses pipelines
+  projets (la demande porte la priorité et l'ancienneté de chaque candidat et le groupe du projet :
+  entre circuits non accordés d'un même groupe, les rangs d'arrivée se redistribuent par priorité,
+  ancienneté, puis rang ; un circuit déjà accordé garde sa place, un projet hors groupe son rang)
+  tant que ses circuits tenus restent sous son plafond, comme Buildkite borne ses pipelines
   dans un parc d'agents commun : à 5 places, trois projets réglés à 2, le sixième ticket attend en
   file, non démarré, et le panneau dit « attend une place ». Un circuit actif tient sa place ; une
   place qu'aucune file ne redonne depuis 10 min se perd ; sans déroulé de la machine sur le

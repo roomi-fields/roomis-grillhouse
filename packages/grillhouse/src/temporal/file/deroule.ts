@@ -391,7 +391,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     if (!f.poussee) {
       const ferme = `intégré : ${commit.slice(0, 7)}`;
-      return { etat: 'ferme', raison: f.raison ? `${ferme} ; ${f.raison}` : ferme };
+      return { etat: 'ferme', raison: [ferme, f.raison, f.livraison].filter(Boolean).join(' ; ') };
     }
     avance = null;
     n += 1;
@@ -431,7 +431,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     }
     // The lot is on main: its closure first, then why it is not pushed.
     const ferme = `intégré : ${commit.slice(0, 7)}`;
-    return { etat: 'ferme', raison: f.raison ? `${ferme} ; ${f.raison}` : ferme };
+    return { etat: 'ferme', raison: [ferme, f.raison, f.livraison].filter(Boolean).join(' ; ') };
   };
 
   // The entry <e> to its issue, an act that fails included: the queue goes on with the next

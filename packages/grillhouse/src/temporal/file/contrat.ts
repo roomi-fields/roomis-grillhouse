@@ -161,14 +161,17 @@ export interface ActivitesDeLaFile {
   >;
   /**
    * The ticket closed, its branch deleted, main pushed (`fermerLEntree`): the branch pushed to, or
-   * null and why, in one line.
+   * null and why, in one line; `livraison`, the fault of a `bd ship` of a capability the ticket
+   * exports, in one line, null without one.
    */
   fermerLEntree(e: {
     racine: string;
     ticket: string;
     branche: string;
     commit: string;
-  }): Promise<{ poussee: string | null; raison?: string | null } & Rendus>;
+  }): Promise<
+    { poussee: string | null; raison?: string | null; livraison?: string | null } & Rendus
+  >;
   /**
    * The reading of the workflows of main of <sha>, pushed to <branche> at <poussee> ms, recorded as
    * due (`inscrireLesFluxDeMain`): nothing is read, nothing waited for.

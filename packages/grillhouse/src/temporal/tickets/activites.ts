@@ -9,9 +9,11 @@ import path from 'node:path';
 import { reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
 import {
   fermesHorsCircuit as lesFermes,
+  lireLesExternes,
   lireLesTickets,
   ticketsAPartir as aPartir,
 } from '../../../scripts/file-des-tickets.mjs';
+import { lireGroupe } from '../../../scripts/groupe-cles.mjs';
 import { ecrireLaTrace, traceDeLaFile } from '../../../scripts/journal-des-etats.mjs';
 import { ouvrirLeClient } from '../client.js';
 import { disqueDesCopies } from '../../../scripts/disque-des-copies.mjs';
@@ -57,7 +59,10 @@ export function ticketsAPartir(e: Entree<'ticketsAPartir'>): Promise<Sortie<'tic
     return faute((x as Error).message);
   }
   return Promise.resolve({
-    partir: aPartir(tickets, { enCours: new Set(e.enCours) }).map(t => t.id),
+    partir: aPartir(tickets, {
+      enCours: new Set(e.enCours),
+      externes: lireLesExternes(e.racine, tickets),
+    }).map(t => t.id),
     max: reglage.max,
     faute: null,
   });
@@ -125,6 +130,28 @@ export async function circuitsEnPause(e: Entree<'circuitsEnPause'>): Promise<str
   }
 }
 
+// The group of the project and the priority and creation of each candidate, which order its tickets
+// that wait for a place among the projects of its group; none out of a group, or when the
+// package.json or Beads do not read (the order of arrival then decides).
+function ordreDuGroupe(e: { racine: string; candidats: string[] }) {
+  try {
+    const { groupe } = lireGroupe(lePaquet(e.racine), e.racine);
+    if (!groupe) {
+      return {};
+    }
+    const lus = new Map(lireLesTickets(e.racine).map(t => [t.id, t]));
+    const priorites = Object.fromEntries(
+      e.candidats.flatMap(id => {
+        const t = lus.get(id);
+        return t ? [[id, { priorite: t.priority ?? 2, creation: t.created_at ?? '' }]] : [];
+      })
+    );
+    return { groupe: groupe.id, priorites };
+  } catch {
+    return {};
+  }
+}
+
 export async function placesDeLaMachine(
   e: Entree<'placesDeLaMachine'>
 ): Promise<Sortie<'placesDeLaMachine'>> {
@@ -138,7 +165,10 @@ export async function placesDeLaMachine(
         disque = null;
       }
     }
-    return { accordes: await reserverDesCircuits(c.client, { ...e, disque }), faute: null };
+    return {
+      accordes: await reserverDesCircuits(c.client, { ...e, disque, ...ordreDuGroupe(e) }),
+      faute: null,
+    };
   } catch (x) {
     return {
       accordes: [],

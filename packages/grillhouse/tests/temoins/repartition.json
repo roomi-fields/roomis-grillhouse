@@ -58,6 +58,8 @@
     "scripts/fusion-du-changelog.mjs",
     "scripts/gardes-du-cadre.mjs",
     "scripts/greffons.mjs",
+    "scripts/groupe-cles.mjs",
+    "scripts/groupe-cles.d.mts",
     "scripts/grillhouse-maj.mjs",
     "scripts/index-interfaces.mjs",
     "scripts/init.mjs",

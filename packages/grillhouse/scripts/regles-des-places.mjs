@@ -86,14 +86,31 @@ export const PERIME_MS = 10 * 60_000;
  * the circuits that hold one are fewer than <plafond>: the first that waits keeps the next ones
  * waiting, but a candidate short of disk, which waits with its reason and keeps no one. Gives the
  * places, the last rank drawn, and the tickets of the demand that hold a place.
+ *
+ * Between the projects of one group (`grillhouse.groupe`, `groupe` its identity, absent out of a
+ * group), the priority orders the circuits that wait: each candidate carries its Beads priority and
+ * its creation (`priorites`), and the circuits not granted of one group share out their own ranks
+ * of arrival again by priority (P0 to P4), age, then rank. A circuit already granted keeps its
+ * place (a higher priority arriving later passes only the ones that wait), a project out of a
+ * group and the order of the groups between them keep the order of arrival.
  * @param {Array<{ racine: string, ticket: string, rang: number, accordee: boolean, depuis: number,
- *   vu: number, reprise?: boolean, raison?: string | null }>} places
+ *   vu: number, reprise?: boolean, raison?: string | null, priorite?: number, creation?: string,
+ *   groupe?: string }>} places
  * @param {{ racine: string, vivants?: string[], candidats?: string[], disque?: string | null,
- *   reprise?: { ticket: string, rang: number | null } }} demande
+ *   reprise?: { ticket: string, rang: number | null }, groupe?: string,
+ *   priorites?: Record<string, { priorite: number, creation: string }> }} demande
  * @param {{ rang: number, plafond: number, maintenant: number }} o
  */
 export function reserverDesCircuits(places, demande, o) {
-  const { racine, vivants = [], candidats = [], disque = null, reprise } = demande;
+  const {
+    racine,
+    vivants = [],
+    candidats = [],
+    disque = null,
+    reprise,
+    groupe,
+    priorites = {},
+  } = demande;
   const { plafond, maintenant } = o;
   let { rang } = o;
   const siens = new Set([...vivants, ...candidats]);
@@ -101,6 +118,13 @@ export function reserverDesCircuits(places, demande, o) {
     maintenant - c.vu < PERIME_MS &&
     (c.racine !== racine || siens.has(c.ticket) || Boolean(reprise) || (c.reprise && !c.accordee));
   const circuits = places.filter(garde).map(c => ({ ...c }));
+  // What the demand says of a ticket's place: its group, its priority and its creation.
+  const dit = ticket => ({
+    ...(groupe === undefined ? {} : { groupe }),
+    ...(priorites[ticket] === undefined
+      ? {}
+      : { priorite: priorites[ticket].priorite, creation: priorites[ticket].creation }),
+  });
   const placer = (ticket, accordee, o2 = {}) => {
     const c = circuits.find(x => x.racine === racine && x.ticket === ticket);
     if (c) {
@@ -109,7 +133,7 @@ export function reserverDesCircuits(places, demande, o) {
       if (accordee) {
         c.reprise = false;
       }
-      Object.assign(c, o2.maj ?? {});
+      Object.assign(c, dit(ticket), o2.maj ?? {});
       return;
     }
     const r = o2.rang ?? (rang += 1);
@@ -121,6 +145,7 @@ export function reserverDesCircuits(places, demande, o) {
       accordee,
       depuis: maintenant,
       vu: maintenant,
+      ...dit(ticket),
       ...(o2.maj ?? {}),
     });
   };
@@ -131,6 +156,23 @@ export function reserverDesCircuits(places, demande, o) {
       rang: reprise.rang ?? undefined,
       maj: { reprise: true, raison: null },
     });
+  }
+  // The circuits not granted of each group share out their own ranks again, by priority, age, rank.
+  const sorte = c => [c.priorite ?? 2, Date.parse(c.creation ?? '') || 0, c.rang];
+  const parGroupe = Map.groupBy(
+    circuits.filter(c => !c.accordee && c.groupe !== undefined),
+    c => c.groupe
+  );
+  for (const attente of parGroupe.values()) {
+    const rangs = attente.map(c => c.rang).sort((a, b) => a - b);
+    attente
+      .toSorted((a, b) => {
+        const [x, y] = [sorte(a), sorte(b)];
+        return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+      })
+      .forEach((c, i) => {
+        c.rang = rangs[i];
+      });
   }
   let tenues = circuits.filter(c => c.accordee).length;
   for (const c of circuits.filter(x => !x.accordee).sort((a, b) => a.rang - b.rang)) {
