@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The tests of the board answer ui.focus for every plugin** (grillhouse-bzc.1): under Claude Code 2.1.323 the engine of `claude plugin test` no longer lets a hook without a matcher answer an event that carries another plugin's name, and five tests of mods/grillhouse/tests/sections.test.tsx failed (« no implementation for ui.focus »), the guards red on every lot. The bench answers `ui.focus` with `{ plugin: '*' }`. The CI and the night install the same Claude Code as the machine, 2.1.323 (was 2.1.312), so the tests of the plugin run against one engine. **Action for projects**: none.
+
 ## [0.35.0] - 2026-11-12
 
 - **A question deferred goes up again at its hour, not an hour later** (grillhouse-sjj): Beads writes `defer_until` at the local wall time of the machine with a « Z » it does not mean (`--defer 17:30` gives `…T17:30:00Z`), and the wait read it as UTC, one hour late in winter, two in summer. `horsAttente` (scripts/superviseur.mjs) now reads it as Beads writes it. **Action for projects**: none.

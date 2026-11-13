@@ -163,7 +163,8 @@ async function monter(
     decalages.push(e.offset)
     return {}
   })
-  h('ui.focus', () => ({}))
+  // The focus the test moves carries the pane's plugin, another than the test's: answered for every plugin.
+  ;(on as (n: string, m: object, f: unknown) => void)('ui.focus', { plugin: '*' }, () => ({}))
   h('ui.open', () => ({ value: undefined }))
   await s.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await new Promise(r => setTimeout(r, 50))

@@ -55,7 +55,7 @@ jobs:
       # alone (`claude plugin`), never for a session; a runner of the repository brings its own.
       - name: Install Claude Code
         if: runner.environment == 'github-hosted'
-        run: npm install -g @anthropic-ai/claude-code@2.1.312
+        run: npm install -g @anthropic-ai/claude-code@2.1.323
 
       # The builds the night tests start (the frame's dist/), as the night of the poste has them from
       # its complete pass.

@@ -107,7 +107,7 @@ jobs:
       # `gardes`) play the tests of the frame's plugin, `claude plugin test mods/grillhouse`.
       - name: Install Claude Code
         if: runner.environment == 'github-hosted'
-        run: npm install -g @anthropic-ai/claude-code@2.1.312
+        run: npm install -g @anthropic-ai/claude-code@2.1.323
 
       # Build, guards, typing, formatting and lint: every task of the pass but the tests.
       - name: Verification without the tests
@@ -149,7 +149,7 @@ jobs:
       # `claude plugin validate` when the command answers.
       - name: Install Claude Code
         if: runner.environment == 'github-hosted'
-        run: npm install -g @anthropic-ai/claude-code@2.1.312
+        run: npm install -g @anthropic-ai/claude-code@2.1.323
 
       # The tests of the tranche, with the builds they depend on. A push is measured against the
       # commit before it (the parent of main); a pull request, the call by the release and the
