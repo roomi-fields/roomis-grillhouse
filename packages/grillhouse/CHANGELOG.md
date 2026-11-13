@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-13
+
 - **The update gives a project of cargo or Python the scaffold of Turborepo** (grillhouse-x2w): since 0.31.0 the modules cargo and python play their tasks by Turborepo, but only the module typescript's update posed it; osc-bridge and OSD, older than the template's turbo, failed at their first `turbo run` (« npx canceled due to missing packages », then « Missing packageManager », then no `turbo.json`). The modules cargo and python now name `turbo` among their tools (`outils`), their templates declare it with `packageManager`, and each module's update writes `turbo.json` from the template of its form when the project has none, by the one copy of a template of the core (`poserLeGabaritAbsent`, scripts/gabarit-absent.mjs), which the module typescript's uses too. A `turbo.json`, a `packageManager` or a version of turbo the project holds is kept. **Action for projects**: `npx grillhouse maj`, then `npm install`. A crate at the root of the repository is no package of the graph: its tests play once it lives in a folder of its own (`crates/<nom>`), the root a virtual workspace of Cargo.
 
 - **A deferred question stays quiet when Beads answers slowly** (grillhouse-v8g): under load, `bd show` took more than the 5 s `ticketsHorsAttente` gave it, the failure read as « no ticket deferred », and every deferred question went up again at the stop hook and in the wait. The read now waits 30 s and, unread, gives null: no question is told waiting, none counted presented, and the next reading gives what still waits (scripts/superviseur.mjs). **Action for projects**: none.
