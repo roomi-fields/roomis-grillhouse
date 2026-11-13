@@ -106,7 +106,7 @@ const compte = (l: Ligne[], etiquette?: string) => {
 describe('the first line of the head counts the signs of AGENTS', () => {
   it('on one project’s board: « ▶ N · ⏸ N · ⛔ N · N faits »', () => {
     const l = lignes(projet('demo'), 'demo') as Ligne[];
-    expect(l[1]?.texte.trimEnd()).toBe('▶ 2 · ⏸ 2 · ⛔ 1 · 2 faits');
+    expect(l[1]?.texte.trimEnd()).toBe('▶ 2 · ⏸ 2 · ⛔ 1 · ✓ 2');
     expect(compte(l)).toEqual([2, 2, 1]);
   });
 
@@ -116,10 +116,10 @@ describe('the first line of the head counts the signs of AGENTS', () => {
       { etiquette: 'SH', t: plateau('SH', [T('SH-1')], [circuitLu('SH-1', { vivant: true })]) },
     ]);
     const l = lignes(t, 'ob + sh') as Ligne[];
-    expect(l[1]?.texte.trimEnd()).toBe('[OB] ▶ 2 · ⏸ 2 · ⛔ 1 · 2 faits');
+    expect(l[1]?.texte.trimEnd()).toBe('[OB] ▶ 2 · ⏸ 2 · ⛔ 1 · ✓ 2');
     expect(l[2]?.texte).toMatch(/^ {5}⏭ file : /);
     expect(l[3]?.texte).toMatch(/^ {5}\d+ sans go/);
-    expect(l[4]?.texte.trimEnd()).toBe('[SH] ▶ 1 · ⏸ 0 · ⛔ 0 · 0 faits');
+    expect(l[4]?.texte.trimEnd()).toBe('[SH] ▶ 1 · ⏸ 0 · ⛔ 0 · ✓ 0');
     expect(compte(l, 'OB')).toEqual([2, 2, 1]);
     expect(compte(l, 'SH')).toEqual([1, 0, 0]);
   });
@@ -142,7 +142,7 @@ describe('the first line of the head counts the signs of AGENTS', () => {
       ]
     ) as { faitsDuJour: { id: string }[] };
     const l = lignes(t, 'demo') as Ligne[];
-    expect(l[1]?.texte.trimEnd()).toBe('▶ 0 · ⏸ 1 · ⛔ 0 · 1 faits');
+    expect(l[1]?.texte.trimEnd()).toBe('▶ 0 · ⏸ 1 · ⛔ 0 · ✓ 1');
     expect(compte(l)).toEqual([0, 1, 0]);
     expect(t.faitsDuJour.map(x => x.id)).toEqual(['demo-6']);
     expect(colonnes(l[1]!.texte)).toBeLessThanOrEqual(LARGEUR);
@@ -163,7 +163,7 @@ describe('a circuit whose question is deferred waits', () => {
 });
 
 describe('the tickets blocked by an open ticket count on the line of the queue', () => {
-  it('« ⏭ file : N en circuit · N en direct · N bloqués », and no longer on the first line', () => {
+  it('« ⏭ file : ●:N · ✎ :N · ⊘ :N », and no longer on the first line', () => {
     const t = plateau(
       'demo',
       [
@@ -177,7 +177,7 @@ describe('the tickets blocked by an open ticket count on the line of the queue',
     );
     const l = lignes(t, 'demo') as Ligne[];
     expect(l[1]?.texte).not.toContain('bloqués');
-    expect(l[2]?.texte.trimEnd()).toBe('⏭ file : 1 en circuit · 0 en direct · 1 bloqués');
+    expect(l[2]?.texte.trimEnd()).toBe('⏭ file : ●:1 · ✎ :0 · ⊘ :1');
   });
 });
 

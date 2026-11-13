@@ -1722,16 +1722,13 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The state of each ticket's line of AGENTS, which AGENTS draws and the head counts.
   const etats = etatsDAgents(t);
   // The first line of the head, the signs of AGENTS counted (`comptesDAgents`) as AGENTS signs its
-  // lines, then the tickets done: « ▶ N · ⏸ N · ⛔ N · N faits ».
+  // lines, then the tickets done: « ▶ N · ⏸ N · ⛔ N · ✓ N ».
   const ligneDesSignes = (a, fermes) =>
-    `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes} · ${fermes} faits`;
-  // The line of the queues: the circuit's, the direct one, then the tickets blocked by an open
-  // ticket; where it does not hold, its label « file : » gives way.
-  const ligneDeLaFile = (c, place) =>
-    [
-      `⏭ file : ${c.enAttente} en circuit · ${c.fileDirecte ?? 0} en direct · ${c.bloques ?? 0} bloqués`,
-      `⏭ ${c.enAttente} en circuit · ${c.fileDirecte ?? 0} en direct · ${c.bloques ?? 0} bloqués`,
-    ].find((x, i, l) => colonnes(x) <= place || i === l.length - 1);
+    `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes} · ✓ ${fermes}`;
+  // The line of the queues, under their signs: ● the tickets ready for the circuit, ✎ the direct
+  // queue, ⊘ the tickets blocked by an open ticket.
+  const ligneDeLaFile = c =>
+    `⏭ file : ●:${c.enAttente} · ✎ :${c.fileDirecte ?? 0} · ⊘ :${c.bloques ?? 0}`;
   if (plusieurs) {
     // The three lines of states of each project, as one project's board says them: the first
     // under its label, the two others aligned below it; or the fault that keeps its board out.
@@ -1742,7 +1739,6 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         continue;
       }
       const c = p.compteurs;
-      const place = largeur - colonnes(retrait);
       L(
         cadre(
           `${colonneDe(p.etiquette)}${ligneDesSignes(comptesDAgents(t, p.etiquette), c.fermes)}`,
@@ -1750,7 +1746,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
           largeur
         )
       );
-      L(cadre(`${retrait}${ligneDeLaFile(c, place)}`, '', largeur));
+      L(cadre(`${retrait}${ligneDeLaFile(c)}`, '', largeur));
       L(
         cadre(
           `${retrait}${c.sansGo ?? 0} sans go · ${c.aValider ?? 0} à valider · ${c.reportes ?? 0} reportés`,
@@ -1776,7 +1772,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     // Three lines of states: the signs of AGENTS and the tickets done, the queues (the circuit's,
     // the direct one, the blocked), then those that wait for the owner.
     L(cadre(ligneDesSignes(comptesDAgents(t), c.fermes), '', largeur));
-    L(cadre(ligneDeLaFile(c, largeur), '', largeur));
+    L(cadre(ligneDeLaFile(c), '', largeur));
     L(
       cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
       c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
@@ -2437,7 +2433,7 @@ export function ligneEtat(t, voisins = []) {
   const a = comptesDAgents(t);
   const dAgents = `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes}`;
   if (!ch) {
-    return `${alerte}Grillhouse : ${dAgents} · ⏭ ${c.enAttente} · ✎ ${c.fileDirecte} · ${c.fermes} faits`;
+    return `${alerte}Grillhouse : ${dAgents} · ⏭ ●:${c.enAttente} · ✎ :${c.fileDirecte} · ✓ ${c.fermes}`;
   }
   return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ${dAgents} · ${k(t.global.jour.jetons)} aujourd'hui`;
 }

@@ -78,9 +78,7 @@ describe('the label of a project on the board of several projects', () => {
     const vu = await lire(racine, [echec]);
     expect(
       vu.lignes.some(x =>
-        new RegExp(`^\\[${echapper(nom)}\\]\\s+▶ \\d+ · ⏸ \\d+ · ⛔ \\d+ · \\d+ faits`).test(
-          x.texte
-        )
+        new RegExp(`^\\[${echapper(nom)}\\]\\s+▶ \\d+ · ⏸ \\d+ · ⛔ \\d+ · ✓ \\d+`).test(x.texte)
       )
     ).toBe(true);
     expect(

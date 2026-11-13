@@ -537,8 +537,8 @@ describe('the board of several projects, read in their folders', () => {
     };
     const tete = t.lignes.slice(0, 5).map(x => [x.texte.trimEnd(), x.ton]);
     expect(tete[0]).toEqual([`${path.basename(racine).toUpperCase()} + ABSENT`, 'titre']);
-    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+▶ \d+ · ⏸ \d+ · ⛔ \d+ · \d+ faits$/);
-    expect(tete[2]?.[0]).toMatch(/^\s+⏭ (file : )?\d+ en circuit · \d+ en direct · \d+ bloqués$/);
+    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+▶ \d+ · ⏸ \d+ · ⛔ \d+ · ✓ \d+$/);
+    expect(tete[2]?.[0]).toMatch(/^\s+⏭ file : ●:\d+ · ✎ :\d+ · ⊘ :\d+$/);
     expect(tete[3]?.[0]).toMatch(/^\s+\d+ sans go · \d+ à valider · \d+ reportés$/);
     expect(tete[4]?.[0]).toBe('[absent] ⚠ dossier introuvable');
     expect(tete[4]?.[1]).toBe('alerte');

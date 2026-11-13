@@ -393,8 +393,8 @@ describe('assembler', () => {
   });
   it('heads the board with three lines of states: the signs of AGENTS and the tickets done, the queues, then what waits for the owner', () => {
     const l = dessin(t).map(x => x.texte);
-    expect(l[1]).toBe('▶ 1 · ⏸ 0 · ⛔ 0 · 2 faits');
-    expect(l[2]).toBe('⏭ file : 1 en circuit · 0 en direct · 0 bloqués');
+    expect(l[1]).toBe('▶ 1 · ⏸ 0 · ⛔ 0 · ✓ 2');
+    expect(l[2]).toBe('⏭ file : ●:1 · ✎ :0 · ⊘ :0');
     expect(l[3]).toBe('1 sans go · 1 à valider · 0 reportés');
     expect((dessin(t)[3] as { ton?: string }).ton).toBe('attention');
   });
