@@ -152,12 +152,17 @@ export const reservationPerimee = (reservation, maintenant) =>
  * of arrival again by priority (P0 to P4), age, then rank. A circuit already granted keeps its
  * place (a higher priority arriving later passes only the ones that wait), a project out of a
  * group and the order of the groups between them keep the order of arrival.
+ *
+ * The project <racine> holds at most <max> places of circuits (`grillhouse.circuits`, read by
+ * scripts/circuits-cles.mjs), the circuits resumed after their question with the others: past it,
+ * its circuits that wait keep waiting, whichever project's demand judges them, and the other
+ * projects still pass.
  * @param {Array<{ racine: string, ticket: string, rang: number, accordee: boolean, depuis: number,
  *   vu: number, reprise?: boolean, raison?: string | null, priorite?: number, creation?: string,
  *   groupe?: string }>} places
  * @param {{ racine: string, vivants?: string[], candidats?: string[], disque?: string | null,
  *   reprise?: { ticket: string, rang: number | null }, groupe?: string,
- *   priorites?: Record<string, { priorite: number, creation: string }> }} demande
+ *   priorites?: Record<string, { priorite: number, creation: string }>, max?: number }} demande
  * @param {{ rang: number, plafond: number, maintenant: number, reservee?: boolean }} o `reservee`:
  *   the machine is reserved by the night, no place is given
  */
@@ -170,6 +175,7 @@ export function reserverDesCircuits(places, demande, o) {
     reprise,
     groupe,
     priorites = {},
+    max,
   } = demande;
   const { plafond, maintenant, reservee = false } = o;
   let { rang } = o;
@@ -181,6 +187,7 @@ export function reserverDesCircuits(places, demande, o) {
   // What the demand says of a ticket's place: its group, its priority and its creation.
   const dit = ticket => ({
     ...(groupe === undefined ? {} : { groupe }),
+    ...(max === undefined ? {} : { max }),
     ...(priorites[ticket] === undefined
       ? {}
       : { priorite: priorites[ticket].priorite, creation: priorites[ticket].creation }),
@@ -235,12 +242,14 @@ export function reserverDesCircuits(places, demande, o) {
       });
   }
   let tenues = circuits.filter(c => c.accordee).length;
+  // The places of circuits each project holds, under the bound its last demand carried (`max`).
+  const tenuesDe = r => circuits.filter(c => c.accordee && c.racine === r).length;
   for (const c of circuits.filter(x => !x.accordee).sort((a, b) => a.rang - b.rang)) {
     // Under the reservation of the night no place is new: circuits alive keep theirs.
     if (reservee || tenues >= plafond) {
       break;
     }
-    if (c.raison) {
+    if (c.raison || (c.max !== undefined && tenuesDe(c.racine) >= c.max)) {
       continue;
     }
     c.accordee = true;

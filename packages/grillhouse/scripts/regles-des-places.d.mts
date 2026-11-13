@@ -80,6 +80,8 @@ export interface PlaceDeCircuit {
   creation?: string;
   /** The identity of its project's group, absent out of a group. */
   groupe?: string;
+  /** The places of circuits its project holds at most, as its last demand said; absent unbounded. */
+  max?: number;
 }
 
 /**
@@ -98,6 +100,8 @@ export function reserverDesCircuits(
     reprise?: { ticket: string; rang: number | null };
     groupe?: string;
     priorites?: Record<string, { priorite: number; creation: string }>;
+    /** The places of circuits the project holds at most (`grillhouse.circuits`). */
+    max?: number;
   },
   o: { rang: number; plafond: number; maintenant: number; reservee?: boolean }
 ): { circuits: PlaceDeCircuit[]; rang: number; accordes: string[] };

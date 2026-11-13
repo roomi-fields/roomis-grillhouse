@@ -98,6 +98,8 @@ export interface CircuitsDuProjet {
   groupe?: string;
   /** The Beads priority (0 to 4) and creation of each candidate, which order a group's waits. */
   priorites?: Record<string, { priorite: number; creation: string }>;
+  /** The places of circuits the project holds at most (`grillhouse.circuits`), absent unbounded. */
+  max?: number;
 }
 
 /** The state of the places, which the workflow carries across a Continue-As-New. */

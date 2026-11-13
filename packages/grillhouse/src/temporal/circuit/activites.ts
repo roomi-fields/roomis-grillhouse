@@ -2,6 +2,7 @@
 // in a process of its own (../acte.ts); each act but `effet` gives back the effects it emitted,
 // which the workflow plays one by one (`jouerUnEffet`); and the acts of its pause on a question,
 // its copy measured and its place asked again (`ActivitesDeLaPause`).
+import { maxDuProjet } from '../../../scripts/circuits-cles.mjs';
 import { mesurerLaCopie } from '../../../scripts/disque-des-copies.mjs';
 import { jouer } from '../acte.js';
 import { ouvrirLeClient } from '../client.js';
@@ -59,7 +60,8 @@ export function mesurerLaCopieDuTicket(
   return Promise.resolve(mesurerLaCopie(e.racine, e.ticket));
 }
 
-// A machine that does not answer gives no place: the circuit asks again at its next turn.
+// A machine that does not answer gives no place: the circuit asks again at its next turn. The
+// project's own number of circuits bounds it, as it bounds the queue.
 export async function reprendreUnePlace(
   e: Parameters<ActivitesDeLaPause['reprendreUnePlace']>[0]
 ): Promise<boolean> {
@@ -68,6 +70,7 @@ export async function reprendreUnePlace(
     const accordes = await reserverDesCircuits(c.client, {
       racine: e.racine,
       reprise: { ticket: e.ticket, rang: e.rang },
+      max: maxDuProjet(e.racine),
     });
     return accordes.includes(e.ticket);
   } catch {

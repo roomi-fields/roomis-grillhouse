@@ -194,6 +194,39 @@ describe('un circuit en pause rend sa place, le disque des copies borne un dépa
     expect(repris.circuits.find(c => c.ticket === 'b-1')?.accordee).toBe(false);
   });
 
+  it('un circuit repris attend tant que son projet tient son nombre de circuits, les autres projets passent', () => {
+    const tenus = reserver(
+      [],
+      { racine: '/a', vivants: ['a-1', 'a-2'], max: 2 },
+      { plafond: 3, rang: 5 }
+    );
+    const repris = reserver(
+      tenus.circuits,
+      { racine: '/a', reprise: { ticket: 'a-3', rang: 1 }, max: 2 },
+      { plafond: 3, rang: tenus.rang }
+    );
+    expect(repris.accordes).toEqual([]);
+    expect(repris.circuits.find(c => c.ticket === 'a-3')?.accordee).toBe(false);
+    const file = reserver(
+      repris.circuits,
+      { racine: '/a', vivants: ['a-1', 'a-2'], candidats: [], max: 2 },
+      { plafond: 3, rang: repris.rang }
+    );
+    expect(file.circuits.find(c => c.ticket === 'a-3')?.accordee).toBe(false);
+    const autre = reserver(
+      file.circuits,
+      { racine: '/b', candidats: ['b-1'], max: 1 },
+      { plafond: 3, rang: file.rang }
+    );
+    expect(autre.accordes).toEqual(['b-1']);
+    const libere = reserver(
+      autre.circuits,
+      { racine: '/a', vivants: ['a-1'], candidats: [], max: 2 },
+      { plafond: 4, rang: autre.rang }
+    );
+    expect(libere.circuits.find(c => c.ticket === 'a-3')?.accordee).toBe(true);
+  });
+
   it('la file de son projet garde la demande d’un circuit repris qui attend', () => {
     const repris = reserver(
       [],

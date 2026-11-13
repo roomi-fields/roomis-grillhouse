@@ -6,7 +6,7 @@
 // an empty list.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
+import { maxDuProjet, reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
 import {
   fermesHorsCircuit as lesFermes,
   lireLesExternes,
@@ -166,7 +166,12 @@ export async function placesDeLaMachine(
       }
     }
     return {
-      accordes: await reserverDesCircuits(c.client, { ...e, disque, ...ordreDuGroupe(e) }),
+      accordes: await reserverDesCircuits(c.client, {
+        ...e,
+        disque,
+        ...ordreDuGroupe(e),
+        max: maxDuProjet(e.racine),
+      }),
       faute: null,
     };
   } catch (x) {

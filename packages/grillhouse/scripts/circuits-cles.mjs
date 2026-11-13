@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 // The reading of the key `grillhouse.circuits` of a package.json (grillhouse-4nr.9, decision D9,
 // the owner's word of 2026-11-04), read as written: an integer of 1 or more, the number of
 // circuits of the project that run at once, which the queue of its tickets
@@ -18,4 +21,21 @@ export function reglageDesCircuits(pkg) {
     };
   }
   return { max: c, faute: null };
+}
+
+/**
+ * The number of circuits at once of the project at <racine>, as its package.json sets it; undefined
+ * when the package.json or the key does not read (the queue names the fault).
+ * @param {string} racine
+ * @returns {number | undefined}
+ */
+export function maxDuProjet(racine) {
+  try {
+    return (
+      reglageDesCircuits(JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'))).max ??
+      undefined
+    );
+  } catch {
+    return undefined;
+  }
 }

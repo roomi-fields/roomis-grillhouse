@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A circuit resumed stays within its project's number of circuits** (grillhouse-4xe): on Grillhouse (`grillhouse.circuits` 2), three circuits held a place at once: a circuit resumed after its question (`--depuis`, `--reprendre`) asked its place of the machine again, and the machine judged it against its own ceiling alone, the project's number being held by the queue only when it starts a ticket. Each demand of places now carries the project's number (`max`, read by `maxDuProjet` of scripts/circuits-cles.mjs), each place of a circuit keeps it, and `reserverDesCircuits` gives no place to a circuit of a project that holds its number, whichever project's demand judges it; the other projects still pass. **Action for projects**: none.
+
 ## [0.37.1] - 2026-11-13
 
 - **The integration judges each file of a lot on the tree where it exists** (grillhouse-1lj): on osc-bridge, a lot that moved the crate at the root under `crates/osc-bridge` was refused « Le lot de tests touche du code » for some 45 files, all tests: the integration judged each one with the crates of the main tree, before the lot, where `crates/osc-bridge/tests/x.rs` fell in the root crate as code. `refusLots` (scripts/integration/integrer.mjs) now judges a file present after the lot on the ticket's copy, and a file the lot deletes or renames away on the main tree, as each side of a diff is read in its own tree; a code file stays refused from the tests lot, and a test from the code lot. **Action for projects**: none.
