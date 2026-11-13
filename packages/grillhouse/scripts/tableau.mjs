@@ -918,9 +918,17 @@ export function assembler({
   }
   // The circuits not integrated of the known tickets, open or closed (the queue closes a ticket
   // before it reads the CI, and its circuit may then wait); a ticket whose circuit runs is in
-  // progress.
+  // progress. A closed ticket keeps its circuit only while it runs or waits for the supervisor:
+  // stopped by the supervisor, its lot entered another way, the ticket is done.
   const parCircuit = new Map(
-    circuits.filter(c => parId.has(c.ticket) && !c.integre).map(c => [c.ticket, c])
+    circuits
+      .filter(
+        c =>
+          parId.has(c.ticket) &&
+          !c.integre &&
+          (parId.get(c.ticket).status !== 'closed' || c.vivant || attendLeSuperviseur(c))
+      )
+      .map(c => [c.ticket, c])
   );
   const actifs = new Set([
     ...enCoursMesures.map(v => v.ticket).filter(Boolean),

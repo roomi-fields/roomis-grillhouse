@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A closed ticket whose old circuit the supervisor stopped is done again** (grillhouse-lm4): under 0.37.0 the board counted under ⏸ and showed in AGENTS every closed ticket with a circuit not integrated, 21 on Grillhouse, their circuits stopped by the supervisor long ago and their lots entered another way. A closed ticket now keeps its circuit, and stays in progress, only while that circuit runs or waits for the supervisor (`attendLeSuperviseur`); an open ticket keeps its stopped circuit as before. **Action for projects**: none.
+
 ## [0.37.0] - 2026-11-13
 
 - **The CI of a project installs the binaries of its languages** (grillhouse-l9xa): SyntHub's CI was red « sccache absent du PATH »: `npm run verifier` of a project of Rust runs sccache, cargo-nextest and cargo-deny, which only `npx grillhouse maj` installed, on the poste. The new subcommand `npx grillhouse binaires` installs alone each binary of the project's languages missing or at another version (`installerBinaires`, now scripts/binaires.mjs, which `maj` and `paquet` also play), and writes no file of the project; the template's CI plays it after `npm ci` in its jobs `gardes` and `tranches`, and the night's workflow in its job of the night tests. The refusals « sccache absent du PATH » and « uv absent du PATH » now name `npx grillhouse binaires`. **Action for projects**: `npx grillhouse maj`, which rewrites the frame's workflows (`.github/workflows/ci.yml`, `nuit.yml`) from the template.

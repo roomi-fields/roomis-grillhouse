@@ -82,12 +82,32 @@ describe('un ticket fermé sans circuit, ou au circuit intégré, est fait', () 
   it.each([
     ['arrêté', { vivant: false, arret: 'manuel' }],
     ['en attente de réponse', { vivant: false, question: 'Que faire ?', qui: 'superviseur' }],
-    ['en erreur', { vivant: false, code: 'erreur', raison: 'échec' }],
+    ['en erreur', { vivant: false, code: 'erreur', raison: 'échec', interrompu: true }],
   ])('un circuit %s pas encore intégré le garde en cours, hors des faits', (_nom, c) => {
     const p = plateau([T('demo-a')], [circuitLu('demo-a', c)]);
     expect(p.global.compteurs.fermes).toBe(0);
     expect(p.global.compteurs.enCours).toBe(1);
     expect(p.faitsDuJour).toEqual([]);
+  });
+
+  it('un circuit arrêté par le superviseur le laisse fait, hors de AGENTS', () => {
+    const p = plateau(
+      [T('demo-a')],
+      [circuitLu('demo-a', { vivant: false, arret: 'arrete', raison: 'Le superviseur arrête' })]
+    ) as Plateau & { circuits: { ticket?: string; id?: string }[] };
+    expect(p.global.compteurs.fermes).toBe(1);
+    expect(p.global.compteurs.enCours).toBe(0);
+    expect(p.faitsDuJour.map(t => t.id)).toEqual(['demo-a']);
+    expect(p.circuits.map(c => c.ticket ?? c.id)).not.toContain('demo-a');
+  });
+
+  it('un ticket ouvert garde son circuit arrêté par le superviseur', () => {
+    const p = plateau(
+      [T('demo-a', { status: 'open', closed_at: undefined })],
+      [circuitLu('demo-a', { vivant: false, arret: 'arrete' })]
+    ) as Plateau & { circuits: { ticket?: string; id?: string }[] };
+    expect(p.global.compteurs.enCours).toBe(1);
+    expect(p.circuits.map(c => c.ticket ?? c.id)).toContain('demo-a');
   });
 
   it("le circuit vivant d'un autre ticket ne change pas son état", () => {
