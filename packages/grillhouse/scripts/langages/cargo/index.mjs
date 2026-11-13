@@ -79,8 +79,9 @@ export default {
   construireLesPaquets: () => {
     throw new Error('construction non prise en charge pour cargo');
   },
-  // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`).
-  outils: ['smol-toml'],
+  // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`), and
+  // Turborepo, which plays the tasks of the crates (./commandes.mjs).
+  outils: ['smol-toml', 'turbo'],
   // The programs the installer of Temporal requires in the PATH of the workers: cargo's folder is
   // also rustc's, nextest's and sccache's (rustup, `cargo install`).
   executables: ['cargo'],

@@ -445,7 +445,7 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       'yaml',
     ]);
     // The module typescript's, then the module cargo's (grillhouse-ool: smol-toml, the reader of
-    // a Cargo.toml).
+    // a Cargo.toml; turbo, shared).
     const outils = [
       '@microsoft/api-extractor',
       '@microsoft/api-extractor-model',
@@ -458,9 +458,10 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       'typescript',
       'vitest',
     ];
-    expect(OUTILS_CARGO).toEqual(['smol-toml']);
+    // Both play their tasks by Turborepo (grillhouse-x2w).
+    expect(OUTILS_CARGO).toEqual(['smol-toml', 'turbo']);
     // The module python's: smol-toml too, the reader of a pyproject.toml (grillhouse-ziy).
-    expect((python as unknown as { outils: string[] }).outils).toEqual(['smol-toml']);
+    expect((python as unknown as { outils: string[] }).outils).toEqual(['smol-toml', 'turbo']);
     expect(Object.keys(PKG.peerDependencies).sort()).toEqual(outils);
     for (const o of outils) {
       expect(PKG.peerDependenciesMeta?.[o], o).toEqual({ optional: true });

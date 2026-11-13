@@ -415,7 +415,8 @@ describe('grillhouse-ziy, critère 6 — maj installe uv à sa version exacte', 
       'test:forcer': 'grillhouse tests --force',
       verifier: 'grillhouse verifier',
     });
-    expect(part.bilan).toEqual({ scripts: ['test:forcer', 'verifier'] });
+    // No template of turbo.json under an empty source: none written.
+    expect(part.bilan).toEqual({ scripts: ['test:forcer', 'verifier'], turbo: null });
     expect(python.miseAJour.gabarit).toBe('templates/python');
   });
 });

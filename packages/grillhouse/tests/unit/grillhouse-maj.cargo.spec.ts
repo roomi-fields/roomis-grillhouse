@@ -60,6 +60,7 @@ type Pkg = {
   grillhouse?: Record<string, unknown>;
   scripts?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  packageManager?: string;
 };
 const pkgDe = (racine: string) => JSON.parse(lire(racine, 'package.json')) as Pkg;
 
@@ -135,19 +136,47 @@ describe('grillhouse-pkl.7, critère 1 — maj sert cargo, sans outil npm d’un
     expect(() => mettreAJour(racine, DEPOT)).toThrow(/ARCHITECTURE\.md.*« Langage »/);
   });
 
-  it('a project of Rust declared cargo receives no tool of npm of typescript', () => {
+  it('a project of Rust declared cargo receives its tools of npm, none of typescript alone', () => {
     const racine = rust();
     const b = mettreAJour(racine, DEPOT);
     const p = pkgDe(racine);
     expect(p.grillhouse).not.toHaveProperty('langages');
-    // grillhouse-ool: the one tool of npm of the module cargo, the reader of a Cargo.toml.
-    expect(b.dependances).toEqual(['smol-toml']);
-    expect(p.devDependencies?.['smol-toml']).toBe('1.9.1');
-    for (const o of OUTILS_TS) {
+    // The tools of npm of the module cargo: the reader of a Cargo.toml, and Turborepo, which plays
+    // the tasks of the crates.
+    expect(b.dependances).toEqual(['smol-toml', 'turbo']);
+    expect(p.devDependencies).toEqual({ 'smol-toml': '1.9.1', turbo: '2.11.8' });
+    for (const o of OUTILS_TS.filter(o => o !== 'turbo')) {
       expect(p.devDependencies?.[o], o).toBeUndefined();
     }
-    expect(readdirSync(racine)).not.toContain('turbo.json');
-    expect(Object.values(p.scripts ?? {}).join('\n')).not.toMatch(/turbo|vitest/);
+    expect(Object.values(p.scripts ?? {}).join('\n')).not.toMatch(/vitest/);
+  });
+
+  it('a project of Rust without the scaffold of Turborepo receives it: packageManager and turbo.json', () => {
+    const racine = rust();
+    const b = mettreAJour(racine, DEPOT);
+    const p = pkgDe(racine);
+    expect(p.packageManager).toBe('npm@11.20.0');
+    expect(b.turbo).toBe('templates/turbo/sans-paquets.json');
+    expect(lire(racine, 'turbo.json')).toBe(lire(DEPOT, 'templates/turbo/sans-paquets.json'));
+  });
+
+  it('a project of Rust keeps its own turbo.json, packageManager and version of turbo', () => {
+    const racine = rust({ 'turbo.json': '{"tasks":{}}\n' });
+    const pj = path.join(racine, 'package.json');
+    writeFileSync(
+      pj,
+      JSON.stringify({
+        ...pkgDe(racine),
+        packageManager: 'npm@10.0.0',
+        devDependencies: { turbo: '2.0.0' },
+      })
+    );
+    const b = mettreAJour(racine, DEPOT);
+    const p = pkgDe(racine);
+    expect(b.turbo).toBeNull();
+    expect(lire(racine, 'turbo.json')).toBe('{"tasks":{}}\n');
+    expect(p.packageManager).toBe('npm@10.0.0');
+    expect(p.devDependencies?.turbo).toBe('2.0.0');
   });
 
   it('a project of typescript receives no binary of cargo: cargo is never called', () => {
@@ -350,9 +379,10 @@ describe('grillhouse-pkl.7, critère 3 — le gabarit d’un projet cargo', () =
     expect(p.scripts?.test).toBe('grillhouse tests');
     expect(p.scripts?.verifier).toBe('grillhouse verifier');
     expect(p.scripts?.['grillhouse:gardes']).toBe('grillhouse gardes-du-cadre');
-    expect(JSON.stringify(p)).not.toMatch(/turbo|vitest|tsc\b/);
+    expect(JSON.stringify(p)).not.toMatch(/vitest|tsc\b/);
     // The version of each tool of npm of the module cargo, which the update installs (grillhouse-ool).
-    expect(p.devDependencies ?? {}).toEqual({ 'smol-toml': '1.9.1' });
+    expect(p.devDependencies ?? {}).toEqual({ 'smol-toml': '1.9.1', turbo: '2.11.8' });
+    expect(p.packageManager).toBe('npm@11.20.0');
   });
 
   it('the update copies the template’s files a project lacks, keeps its own, and writes its test scripts', () => {

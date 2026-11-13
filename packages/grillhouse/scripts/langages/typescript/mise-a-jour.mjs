@@ -46,11 +46,11 @@
 // - The generators: the boundaries' configuration (`.dependency-cruiser.cjs`), the index of the
 //   interfaces, and the turbo.json of each package in a repository with `workspaces`.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { CODE, paquets, TYPAGE } from '../../paquets.mjs';
-import { SCRIPT_DES_TESTS, sources } from '../../services-du-noyau.mjs';
+import { poserLeGabaritAbsent, SCRIPT_DES_TESTS, sources } from '../../services-du-noyau.mjs';
 import { estUnTest } from './regle-des-tests.mjs';
 
 // The frame's package, as a project declares it, and its base configuration of Vitest.
@@ -60,8 +60,11 @@ const CONFIG_VITEST = `${PAQUET_DU_CADRE}/vitest-config`;
 const SCRIPTS_DES_TESTS = ['test', SCRIPT_DES_TESTS, 'test:forcer', 'verifier'];
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 // The frame's templates of `turbo.json`, one per form of repository, read in the source.
-const TURBO_PAQUETS = 'templates/turbo/paquets.json';
-const TURBO_SANS_PAQUETS = 'templates/turbo/sans-paquets.json';
+const TURBO = {
+  fichier: 'turbo.json',
+  avecEspaces: 'templates/turbo/paquets.json',
+  sansEspaces: 'templates/turbo/sans-paquets.json',
+};
 
 const ecrireJson = (f, v) => writeFileSync(f, `${JSON.stringify(v, null, 2)}\n`);
 // <deps> written sorted by name, as npm writes them.
@@ -271,21 +274,6 @@ function poserTypage(projet, p, script) {
   return declarants.length > 0 ? { script, paquets: declarants } : null;
 }
 
-// Writes the `turbo.json` of the project at <projet>, when it has none, from the source's template
-// of its form (`workspaces` declared in <p>); the template written, or null.
-function poserTurbo(projet, p, source) {
-  const f = path.join(projet, 'turbo.json');
-  if (existsSync(f)) {
-    return null;
-  }
-  const gabarit = p.workspaces !== undefined ? TURBO_PAQUETS : TURBO_SANS_PAQUETS;
-  if (!existsSync(path.join(source, gabarit))) {
-    return null;
-  }
-  copyFileSync(path.join(source, gabarit), f);
-  return gabarit;
-}
-
 // The lines of the report of the share <b>.
 export function rapport(b) {
   const lignes = [];
@@ -343,7 +331,7 @@ function appliquer(projet, { p, modele, source, version }, joueDesTests) {
     dependanceDuCadre: declarerDependanceDuCadre(projet, p, version),
     configVitest: poserConfigVitest(projet, p, version, joueDesTests),
     typage: poserTypage(projet, p, modele.scripts?.[TYPAGE]),
-    turbo: poserTurbo(projet, p, source),
+    turbo: poserLeGabaritAbsent(projet, source, p, TURBO),
   };
   return {
     bilan,

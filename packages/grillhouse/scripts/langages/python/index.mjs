@@ -71,7 +71,9 @@ export default {
   sortieDuPaquet: () => {
     throw new Error('sortie non prise en charge pour python');
   },
-  outils: ['smol-toml'],
+  // The reader of TOML of a pyproject.toml, and Turborepo, which plays the tasks of the projects
+  // (./commandes.mjs).
+  outils: ['smol-toml', 'turbo'],
   // The programs the installer of Temporal requires in the PATH of the workers.
   executables: ['python3'],
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),

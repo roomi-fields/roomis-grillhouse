@@ -12,6 +12,8 @@
 //   leaves the frame's profile `grillhouse` to the frame (./nextest.toml); `rust-toolchain.toml`,
 //   the toolchain and its components clippy and rustfmt, which the guards run. A file the project
 //   holds is its own: never written again.
+// - `turbo.json`, which a project lacks, from the frame's template of its form (`TURBO`): the
+//   module plays the tasks of the crates by Turborepo.
 // - The root scripts `test`, `test:forcer` and `verifier` a project lacks become the template's:
 //   the agents run `npm test`, the integration and the night `npm run verifier`. A project's own
 //   script stays.
@@ -26,6 +28,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { poserLeGabaritAbsent } from '../../services-du-noyau.mjs';
 import { verrouNonVersionne } from './commandes.mjs';
 import { SORTIE } from './index-interfaces.mjs';
 
@@ -33,6 +36,13 @@ const BINAIRES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'binair
 
 const GABARIT = 'templates/cargo';
 const SCRIPTS_DES_TESTS = ['test', 'test:forcer', 'verifier'];
+// The frame's templates of `turbo.json`, one per form of repository: the module plays its tasks
+// by Turborepo (./commandes.mjs).
+const TURBO = {
+  fichier: 'turbo.json',
+  avecEspaces: 'templates/turbo/paquets.json',
+  sansEspaces: 'templates/turbo/sans-paquets.json',
+};
 
 // The files under <dossier>, as paths from it.
 const fichiers = (dossier, rel = '') =>
@@ -54,6 +64,7 @@ function appliquer(projet, { p, modele, source }) {
       copies.push(f);
     }
   }
+  const turbo = poserLeGabaritAbsent(projet, source, p, TURBO);
   p.scripts ??= {};
   const scripts = [];
   for (const nom of SCRIPTS_DES_TESTS) {
@@ -70,6 +81,11 @@ function appliquer(projet, { p, modele, source }) {
       `Gabarit cargo : ${copies.join(', ')} écrits ; ils sont au projet, la mise à jour n'y touche plus.`
     );
   }
+  if (turbo) {
+    lignes.push(
+      `turbo.json écrit depuis le gabarit du cadre ${turbo} ; il est au projet, la mise à jour n'y touche plus.`
+    );
+  }
   if (scripts.length > 0) {
     lignes.push(
       `Scripts des tests : ${scripts.map(n => `${n} (\`${p.scripts[n]}\`)`).join(', ')} écrits ; les agents lancent \`npm test\`, l'intégration et la nuit \`npm run verifier\`.`
@@ -80,6 +96,7 @@ function appliquer(projet, { p, modele, source }) {
     bilan: {
       gabarit: copies.length > 0 ? copies : null,
       scripts: scripts.length > 0 ? scripts : null,
+      turbo,
     },
     lignes,
     aFaire: verrou ? [verrou] : [],

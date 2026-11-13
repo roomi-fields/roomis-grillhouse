@@ -429,6 +429,17 @@ export function avecLeFichierDuPoste<T extends Record<string, string | undefined
 ): T;
 /** The path of the command <nom> in the PATH of <env>, or null (scripts/commandes-du-path.mjs). */
 export function trouverDansLePath(nom: string, env?: NodeJS.ProcessEnv): string | null;
+/**
+ * Writes <fichier> at the root of the project <projet> when it has none, from the template of
+ * <source> that fits its form (<avecEspaces> when its package.json <p> declares workspaces, else
+ * <sansEspaces>); the template written, or null.
+ */
+export function poserLeGabaritAbsent(
+  projet: string,
+  source: string,
+  p: Record<string, unknown>,
+  gabarits: { fichier: string; avecEspaces: string; sansEspaces: string }
+): string | null;
 /** The cache of `outil` for the build rooted at `racine`, swept once `racine` is gone. */
 export function cacheDeLaRacine(
   outil: string,

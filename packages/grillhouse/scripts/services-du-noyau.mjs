@@ -12,12 +12,13 @@ export * from './langages.mjs';
 // The services of the core to a module of language: the plan of an envelope, the progress of a
 // pass and its measure, the tasks of the graph of the packages, the base of a pass, the pressure of the machine, its place and its lock, the last
 // green, the arbitrages of a ticket, the source files of a project, the search of a command in the
-// PATH.
+// PATH, the copy of a template a project lacks.
 export { arbitrageTranche, estArbitrage } from './arbitrages.mjs';
 export { garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mjs';
 export { sources } from './sources.mjs';
 export { trouverDansLePath } from './commandes-du-path.mjs';
 export { paquetsSansPackageJson } from './paquet-npm.mjs';
+export { poserLeGabaritAbsent } from './gabarit-absent.mjs';
 export {
   cheminsDeLaTache,
   construireDepuisLesArguments,
