@@ -22,7 +22,9 @@
 //     responsable » comment after it): `refusArbitrage`, the one rule of the label, which the
 //     circuit plays too at its launch and at each resumption (scripts/circuit.mjs);
 //  2. the lots: the tests lot touches only what the testwriter writes (`estUnTest` of the module
-//     of the language: test files and the shared test material), the code lot none of it;
+//     of the language: test files and the shared test material), the code lot none of it; each
+//     file judged on the tree where it exists, the ticket's copy for a file present after the
+//     lot, the main tree for one the lot deletes or renames away;
 //  3. the main tree: every file of the lots is unmodified there; the ticket's copy is on its
 //     branch and carries the lot and nothing else: a modified or untracked file outside the lot
 //     refuses, named (what an ignored folder such as node_modules holds is not work);
@@ -153,11 +155,16 @@ export function refusArbitrage(ticket, comments) {
   return null;
 }
 
-// The refusal for the files of the lots, or null. The files are relative to the repository root
-// <racine>; the tests lot holds only what the testwriter writes, the code lot none of it.
-export function refusLots(tests, code, racine) {
-  const langage = langageDe(racine);
-  const testwriter = f => langage.estUnTest(f, racine) !== null;
+// The refusal for the files of the lots, or null; the tests lot holds only what the testwriter
+// writes, the code lot none of it. The files are relative to the repository root; each is judged
+// on the tree where it exists, as each side of a diff is read in its own tree: a file present
+// after the lot on <apres> (the ticket's copy), one the lot deletes or renames away on <avant>
+// (the main tree), so a lot that creates or moves a package is read with its own map.
+export function refusLots(tests, code, { avant, apres }) {
+  const testwriter = f => {
+    const racine = existsSync(path.join(apres, f)) ? apres : avant;
+    return langageDe(racine).estUnTest(f, racine) !== null;
+  };
   const horsTests = tests.filter(f => !testwriter(f));
   if (horsTests.length) {
     return `Le lot de tests touche du code : ${horsTests.join(', ')}.`;
@@ -395,7 +402,11 @@ function main(argv) {
     if (!tests || !code) {
       return refuser('Un patch du lot est illisible.');
     }
-    const r2 = refusLots(tests, code, racine);
+    // The ticket's copy holds the lot; a ticket without a copy (none was made, or it is gone) has
+    // its lot judged on the main tree alone, and nothing to check nor to remove.
+    const copieTicket = path.join(racine, '.claude', 'worktrees', o.ticket);
+    const avecCopie = existsSync(copieTicket);
+    const r2 = refusLots(tests, code, { avant: racine, apres: avecCopie ? copieTicket : racine });
     if (r2) {
       return refuser(r2);
     }
@@ -425,9 +436,6 @@ function main(argv) {
     }
     dire('✓ arbre principal libre');
     const branche = `agent/${o.ticket}`;
-    const copieTicket = path.join(racine, '.claude', 'worktrees', o.ticket);
-    // A ticket without a copy (none was made, or it is gone) has nothing to check nor to remove.
-    const avecCopie = existsSync(copieTicket);
     if (avecCopie) {
       const surBranche = spawnSync(
         'git',
