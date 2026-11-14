@@ -117,7 +117,7 @@ function depot() {
       );
     }
   }
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\nsonde.json\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\n.cache-outils/\nsonde.json\n');
   git(r, 'init', '-q');
   git(r, 'add', '-A');
   git(r, '-c', 'user.email=e@x', '-c', 'user.name=e', 'commit', '-q', '-m', 'essai');

@@ -154,9 +154,15 @@ describe('refusLots', () => {
   const repo = depotLots();
 
   it('keeps tests to the tests lot and code to the code lot', () => {
-    expect(refusLots(['tests/unit/a.spec.ts'], ['src/a/index.ts'], repo)).toBeNull();
-    expect(refusLots(['src/a/index.ts'], [], repo)).toMatch(/lot de tests touche du code/);
-    expect(refusLots([], ['packages/a/tests/x.ts'], repo)).toMatch(/lot de code touche/);
+    expect(
+      refusLots(['tests/unit/a.spec.ts'], ['src/a/index.ts'], { avant: repo, apres: repo })
+    ).toBeNull();
+    expect(refusLots(['src/a/index.ts'], [], { avant: repo, apres: repo })).toMatch(
+      /lot de tests touche du code/
+    );
+    expect(refusLots([], ['packages/a/tests/x.ts'], { avant: repo, apres: repo })).toMatch(
+      /lot de code touche/
+    );
   });
   it.each([
     ['packages/matiere/fixtures/cas/un.txt'],
@@ -164,7 +170,7 @@ describe('refusLots', () => {
     ['packages/matiere/package.json', 'packages/matiere/src/generer.ts'],
     ['packages/corpus/scenes/neuve.bps'],
   ])('passes a tests lot that touches the shared test material (%s)', (...tests) => {
-    expect(refusLots(tests, ['packages/a/src/x.ts'], repo)).toBeNull();
+    expect(refusLots(tests, ['packages/a/src/x.ts'], { avant: repo, apres: repo })).toBeNull();
   });
   it.each([
     'packages/matiere/fixtures/cas/un.txt',
@@ -172,7 +178,10 @@ describe('refusLots', () => {
     'packages/matiere/package.json',
     'packages/corpus/scenes/neuve.bps',
   ])('refuses a code lot that touches the shared test material (%s)', f => {
-    const r = refusLots(['tests/unit/a.spec.ts'], ['packages/a/src/x.ts', f], repo);
+    const r = refusLots(['tests/unit/a.spec.ts'], ['packages/a/src/x.ts', f], {
+      avant: repo,
+      apres: repo,
+    });
     expect(r).toMatch(/lot de code touche/);
     expect(r).toContain(f);
     expect(r).not.toContain('packages/a/src/x.ts');
@@ -183,7 +192,7 @@ describe('refusLots', () => {
     'package.json',
     'scripts/a.mjs',
   ])('still refuses a tests lot that touches %s, code outside the material', f => {
-    const r = refusLots(['packages/matiere/fixtures/un.txt', f], [], repo);
+    const r = refusLots(['packages/matiere/fixtures/un.txt', f], [], { avant: repo, apres: repo });
     expect(r).toMatch(/lot de tests touche du code/);
     expect(r).toContain(f);
     expect(r).not.toContain('packages/matiere/fixtures/un.txt');
@@ -192,10 +201,12 @@ describe('refusLots', () => {
     const vide = mkdtempSync(path.join(ESSAIS, 'lots-vide-'));
     writeFileSync(path.join(vide, 'package.json'), JSON.stringify({ name: 'vide' }));
     declarerLesLangages(vide);
-    expect(refusLots(['packages/matiere/fixtures/un.txt'], [], vide)).toMatch(
-      /lot de tests touche du code/
-    );
-    expect(refusLots([], ['packages/matiere/fixtures/un.txt'], vide)).toBeNull();
+    expect(
+      refusLots(['packages/matiere/fixtures/un.txt'], [], { avant: vide, apres: vide })
+    ).toMatch(/lot de tests touche du code/);
+    expect(
+      refusLots([], ['packages/matiere/fixtures/un.txt'], { avant: vide, apres: vide })
+    ).toBeNull();
   });
 });
 
@@ -459,26 +470,36 @@ describe('refusLots with an unreadable package.json', () => {
   writeFileSync(path.join(repo, 'packages/casse/package.json'), '{"name":"casse",');
 
   it('passes a code lot that repairs it or touches its component', () => {
-    expect(refusLots(['tests/unit/a.spec.ts'], ['packages/casse/package.json'], repo)).toBeNull();
-    expect(refusLots(['tests/unit/a.spec.ts'], ['packages/casse/src/x.ts'], repo)).toBeNull();
+    expect(
+      refusLots(['tests/unit/a.spec.ts'], ['packages/casse/package.json'], {
+        avant: repo,
+        apres: repo,
+      })
+    ).toBeNull();
+    expect(
+      refusLots(['tests/unit/a.spec.ts'], ['packages/casse/src/x.ts'], { avant: repo, apres: repo })
+    ).toBeNull();
   });
   it('passes a tests lot that touches the material and the tests of the component', () => {
     expect(
       refusLots(
         ['packages/matiere/fixtures/un.txt', 'packages/casse/tests/a.spec.ts'],
         ['packages/a/src/x.ts'],
-        repo
+        { avant: repo, apres: repo }
       )
     ).toBeNull();
   });
   it('refuses its component in a tests lot as code, not as an unreadable material', () => {
-    const r = refusLots(['packages/casse/src/x.ts'], [], repo);
+    const r = refusLots(['packages/casse/src/x.ts'], [], { avant: repo, apres: repo });
     expect(r).toMatch(/lot de tests touche du code/);
     expect(r).toContain('packages/casse/src/x.ts');
     expect(r).not.toMatch(/illisible/);
   });
   it('still refuses a code lot that touches the material', () => {
-    const r = refusLots([], ['packages/casse/src/x.ts', 'packages/corpus/scenes/x.bps'], repo);
+    const r = refusLots([], ['packages/casse/src/x.ts', 'packages/corpus/scenes/x.bps'], {
+      avant: repo,
+      apres: repo,
+    });
     expect(r).toMatch(/lot de code touche/);
     expect(r).toContain('packages/corpus/scenes/x.bps');
     expect(r).not.toContain('packages/casse/src/x.ts');

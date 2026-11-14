@@ -523,7 +523,7 @@ export function circuitEssai(
     }
     ecrire(
       path.join(REPO, '.gitignore'),
-      'node_modules\n.turbo/\ndist/\n.beads/\n.claude/worktrees/\n'
+      'node_modules\n.turbo/\n.cache-outils/\ndist/\n.beads/\n.claude/worktrees/\n'
     );
     ecrire(path.join(REPO, 'faux-claude.sh'), FAUX_CLAUDE, 0o755);
     installerEnveloppe();

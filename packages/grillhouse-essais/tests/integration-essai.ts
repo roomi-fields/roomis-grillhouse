@@ -356,7 +356,7 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     ecrire(repo, `src/${c}/index.ts`, `export const ${c} = 0;\n`);
   }
   ecrire(repo, '.beads/config.yaml', 'issue-prefix: "demo"\n');
-  ecrire(repo, '.gitignore', '.claude/worktrees/\nnode_modules\n');
+  ecrire(repo, '.gitignore', '.claude/worktrees/\nnode_modules\n.cache-outils/\n');
   ecrire(repo, '.github/workflows/ci.yml', 'on: push\n');
   git('init', '-q', '-b', 'main');
   git('add', '.');

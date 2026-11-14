@@ -152,7 +152,7 @@ describe.runIf(canWrap)('the envelope and the package of the shared test materia
   // Where a run of the material's tests writes in it, Turborepo's task logs and Vite's cache, every
   // other role gets an empty directory proper to the session: nothing reaches the copy.
   it('gives every other role an empty directory of its own where a run of its tests writes', () => {
-    const sorties = ['.turbo', 'node_modules/.vite'];
+    const sorties = ['.turbo', '.cache-outils'];
     for (const role of AUTRES_ROLES) {
       const ecrit = sorties.map(s => `touch ${m}/${s}/${role}`).join(' && ');
       expect(run(role, ecrit).status, role).toBe(0);

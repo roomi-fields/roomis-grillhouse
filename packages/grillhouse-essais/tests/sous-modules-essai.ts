@@ -154,7 +154,10 @@ export function sousModulesEssai(ESSAIS: string) {
     writeFileSync(path.join(repo, 'outils/turbo/turbo.mjs'), TURBO_FAUX, { mode: 0o755 });
     mkdirSync(path.join(repo, '.beads'));
     writeFileSync(path.join(repo, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
-    writeFileSync(path.join(repo, '.gitignore'), '.claude/worktrees/\nnode_modules\n');
+    writeFileSync(
+      path.join(repo, '.gitignore'),
+      '.claude/worktrees/\nnode_modules\n.cache-outils/\n'
+    );
     mkdirSync(path.join(repo, 'packages/a/src'), { recursive: true });
     writeFileSync(path.join(repo, 'packages/a/src/a.ts'), 'export const a = 1;\n');
     // The night runs from the repository's own scripts: they are copied whole, so the preparation

@@ -23,5 +23,5 @@ export function projetDuLanceur(repo: string) {
   );
   declarerLesLangages(repo);
   installerFauxTurbo(repo);
-  appendFileSync(path.join(repo, '.gitignore'), 'node_modules\n');
+  appendFileSync(path.join(repo, '.gitignore'), 'node_modules\n.cache-outils/\n');
 }

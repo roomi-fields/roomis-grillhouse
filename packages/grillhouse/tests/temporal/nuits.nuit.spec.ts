@@ -211,7 +211,10 @@ describe('the nights reserve the whole machine once, before the first night, and
     await resultat(client);
     const jeton = jetonDe(m.journal);
     expect(m.journal.filter(l => l.startsWith('reserver:'))).toHaveLength(1);
-    expect(m.journal.filter(l => l.startsWith('nuit:'))).toHaveLength(3);
+    // A night that fails is played again once (the retry of jouerLaNuit): three nights, each played.
+    expect(new Set(m.journal.filter(l => l.startsWith('nuit:')))).toEqual(
+      new Set([`nuit:/depot/a:${jeton}`, `nuit:/depot/b:${jeton}`, `nuit:/depot/c:${jeton}`])
+    );
     expect(m.journal.at(-1)).toBe(`lever:${jeton}`);
     expect(m.journal.filter(l => l.startsWith('lever:'))).toHaveLength(1);
   }, 120_000);
@@ -229,6 +232,8 @@ describe('the nights reserve the whole machine once, before the first night, and
     await attendre('la levée', () =>
       Promise.resolve(m.journal.includes(`lever:${jeton}`) ? true : undefined)
     );
+    // The held night ends, so the worker stops at the end of the test.
+    m.liberer('/depot/a');
   }, 120_000);
 
   it('reserves nothing when no night is to play', async () => {

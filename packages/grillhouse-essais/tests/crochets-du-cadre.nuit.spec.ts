@@ -183,6 +183,9 @@ function projet({ paquet = true, hooksPath = false } = {}) {
   // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
   declarerLesLangages(repo);
   writeFileSync(path.join(repo, '.gitignore'), 'node_modules/\n');
+  // The ticket prefix, which the commit-msg hook reads in .beads/config.yaml.
+  mkdirSync(path.join(repo, '.beads'), { recursive: true });
+  writeFileSync(path.join(repo, '.beads/config.yaml'), 'issue-prefix: "demo"\n');
   git(repo, 'init', '-q', '-b', 'main');
   if (hooksPath) {
     git(repo, 'config', 'core.hooksPath', '.beads/hooks');
