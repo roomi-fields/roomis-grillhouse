@@ -232,7 +232,7 @@ describe('aucune activité ne partage d’état de ctx', () => {
 
   it('no activity reads the memory of the circuit, which its caller gives', () => {
     const memoire =
-      /\bctx\.(constats|verifie|refus|regeneration|regenereSur|aRegenerer|controlesRouges|renvoiAuTestwriter|rienALivrer|reprise|mesureDeLaPreuve|numero|courant)\b/g;
+      /\bctx\.(constats|verifie|toursDeLaPasseFinale|refus|regeneration|regenereSur|aRegenerer|controlesRouges|renvoiAuTestwriter|rienALivrer|reprise|mesureDeLaPreuve|numero|courant)\b/g;
     expect(code.match(memoire) ?? []).toEqual([]);
   });
 

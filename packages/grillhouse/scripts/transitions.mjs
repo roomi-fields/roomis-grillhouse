@@ -9,7 +9,8 @@
 //
 // - `etat`, the run at its step: `{ etape, tentative, rapport, finale, relanceSurLeRefus }`;
 // - `memoire`, what the circuit keeps between steps (`controlesRouges`, `renvoiAuTestwriter`,
-//   `refus`, `rienALivrer`, `regeneration`, `regenereSur`, `aRegenerer`, `verifie`, `constats`);
+//   `refus`, `rienALivrer`, `regeneration`, `regenereSur`, `aRegenerer`, `verifie`,
+//   `toursDeLaPasseFinale`, `constats`);
 // - `ticket`, `{ id, paquets, sorte, copie }`;
 // - `reprend`, whether this step is the first of a `--reprendre`;
 // - `faits`, the facts read for this step, by their name.
@@ -52,6 +53,11 @@ export const [
 export const RELANCES_TESTWRITER = boucle('tests').max - 1;
 export const SEANCES_DEVELOPPEUR = boucle('code').max;
 export const RELECTURES = boucle('relecture').max;
+// The tours of the cycle ACCEPTÉ → final pass → review the circuit plays before it stops on a
+// question: a lot whose tree never settles between the final pass and the review (a
+// non-deterministic build artifact of the copy, a build output no task declares) would replay
+// the pass and the reviewer without end, so after this many the circuit goes up to the supervisor.
+export const TOURS_DE_LA_PASSE_FINALE = 2;
 
 // What changed for a developpeur relaunched on the integration's refusal of the lot he left as it was.
 export const CHANGE_DU_REFUS =
@@ -1097,13 +1103,37 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       // The review that accepts the lot closes every finding, each one it judged lifted
       // (`suiviDesConstats`).
       maj.constats = [];
-      if (!v.arbre || m('verifie') === v.arbre) {
+      // A green final pass stands behind this lot (`verifie`, set by the pass that routed to this
+      // review, with no session changing the copy since): the reviewer accepted the lot the final
+      // pass verified, so it goes to the integration, as a merge queue merges the commit it tested
+      // (bors, Zuul). The decision reads `verifie` as that fact, never re-hashing the live working
+      // tree, whose non-deterministic build artifact would differ between the pass and the review
+      // and keep the lot out of the integration for ever. A lot the review kept none of (`!v.arbre`,
+      // git could not commit it) goes there too.
+      if (!v.arbre || m('verifie')) {
+        maj.toursDeLaPasseFinale = null;
         commenter('relecture', 'ACCEPTÉ ; le lot va à l’intégration.');
         etape = INTEGRATION;
         return decision();
       }
-      // The final pass has not played on the lot accepted: its band plays once, then the
-      // integration.
+      // No final pass has verified this lot (a resumption, or git could not hash the copy): its
+      // band plays once, then the integration. The cycle is bounded — after
+      // `TOURS_DE_LA_PASSE_FINALE` tours without reaching the integration, the circuit stops on a
+      // question to the supervisor naming the probable cause, instead of replaying the pass and the
+      // reviewer without end.
+      const tours = (m('toursDeLaPasseFinale') ?? 0) + 1;
+      if (tours > TOURS_DE_LA_PASSE_FINALE) {
+        return arreter(
+          'relecture-arret',
+          `Le relecteur rend ACCEPTÉ, mais ${TOURS_DE_LA_PASSE_FINALE} passes finales n’ont pas mené le lot à l’intégration : l’arbre de la copie ne se stabilise pas entre la passe finale et la relecture.\n\nLe verdict :\n\n${v.texte}`,
+          {
+            piece: v.fiche.piece,
+            question:
+              'Un artefact de construction non déterministe dans la copie, ou une sortie de construction qu’aucune tâche ne déclare, empêche l’arbre de la copie de se stabiliser entre la passe finale et la relecture : qu’est-ce qui le déstabilise, et se lève-t-il pour reprendre ?',
+          }
+        );
+      }
+      maj.toursDeLaPasseFinale = tours;
       commenter(
         'relecture',
         'ACCEPTÉ ; la passe finale sur la bande du lot (sa base et ses dépendants), qui n’a pas joué sur ce lot, puis l’intégration.'
@@ -1149,6 +1179,10 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     tentative = 1;
     rapport = null;
     finale = false;
+    // Relaunching a role reworks the lot: its earlier final pass no longer verifies it, and the
+    // tours of the ACCEPTÉ ↔ final pass cycle start over.
+    maj.verifie = null;
+    maj.toursDeLaPasseFinale = null;
     commenter(
       'relecture',
       `RENDU (relecture ${rendus}) ; le circuit relance ${auTestwriter ? 'le testwriter' : 'le développeur'}, ses ${lus.constats.length} constat(s) ouvert(s) dans la consigne de chaque séance, puis la passe finale sur la bande du lot (sa base et ses dépendants), et le relecteur sur la différence.`

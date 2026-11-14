@@ -317,7 +317,7 @@
 //   (`laPasseFinale`): the circuit keeps the copy as it stands as a commit on the copy's HEAD,
 //   the base of the lot, and plays `npm run verifier --
 //   --filter=...[<base>...<copie>] --filter=//`, the root's tasks (the guards) with them; the
-//   complete one is the night's and the integration's. The final pass green on the band keeps the tree of its lot (`verifie`). A red of a package of the plan goes to the
+//   complete one is the night's and the integration's. The final pass green on the band marks its lot verified (`verifie`, the tree it played, read as a mark of that green pass, never re-hashed and compared — a non-deterministic build artifact of the copy would change it between the pass and the review). A red of a package of the plan goes to the
 //   developpeur, three sessions for the final pass, counted apart from those of the checks, the
 //   third on the strong model. A red in a package out of the plan, or that no package of the plan
 //   holds, stops at « controles », a question for the supervisor: he extends the plan to that
@@ -452,9 +452,13 @@
 //   (`arretDuTestwriterSaute`; OSC Bridge SH-13y.1: three RENDU « Agent : testwriter » on a
 //   package whose tests no command of the frame plays, the developpeur relaunched on an empty
 //   diff each time); its question, declare the tests of the package or settle the finding.
-// - ACCEPTÉ: the integration, once the final pass has played its band on the lot accepted (its tree
-//   is `verifie`); else that pass first, once, its red going to the developpeur and the lot then
-//   to the reviewer again. The circuit builds the lot from the copy: the files the copy changes
+// - ACCEPTÉ: the integration, as soon as a final pass has verified the lot accepted (`verifie` set
+//   by the pass that routed to this review, read as a mark and not compared to a re-hash of the
+//   live tree, which bors and Zuul teach: merge the commit tested, never a re-hash of a working
+//   tree a build artifact changes); else that pass first, once, its red going to the developpeur
+//   and the lot then to the reviewer again — a cycle bounded (`TOURS_DE_LA_PASSE_FINALE`), a lot
+//   whose tree never settles between the pass and the review stopping on a question to the
+//   supervisor. The circuit builds the lot from the copy: the files the copy changes
 //   against its HEAD, the testwriter's (`estUnTest`: test files and the shared test material)
 //   in one patch, the others in another, each file against HEAD and a new one against nothing
 //   (`git diff --no-index /dev/null`), the copy's index untouched; the message
@@ -512,7 +516,10 @@
 //   agent; `boucles` the counts of the bounded loops of the step under way, by their key (`tests`,
 //   the testwriter's sessions with their proofs; `code`, the developpeur's with their checks;
 //   `relecture`, the reviews), null at a step without one; `finale` whether the final pass has
-//   begun; `verifie` the tree of the lot the last final pass green played, null before;
+//   begun; `verifie` marks that the last final pass green verified the current lot (the tree it
+//   played), read as a mark and never compared to a re-hash of the live tree, null before;
+//   `toursDeLaPasseFinale` the tours of the ACCEPTÉ ↔ final pass cycle since the last integration
+//   or relaunch, which bounds it, null before;
 //   `mene` the start (an ISO date) of the step the circuit leads itself while it runs, null
 //   otherwise; `reprise` the session of the testwriter or developpeur its relaunches resume,
 //   `{ agent, seance }`, null before any; `refus` the integration's refusal of the lot (`{ rapport,
@@ -874,6 +881,7 @@ export function ecrireEtat(ctx, etat) {
     paquets: ctx.paquets,
     constats: ctx.constats ?? [],
     verifie: ctx.verifie ?? null,
+    toursDeLaPasseFinale: ctx.toursDeLaPasseFinale ?? null,
     seanceReprise: ctx.seanceReprise ?? null,
     verts: ctx.verts ?? null,
     reprise: ctx.reprise ?? null,
@@ -1351,6 +1359,7 @@ export const MEMOIRE = [
   'regenereSur',
   'aRegenerer',
   'verifie',
+  'toursDeLaPasseFinale',
   'constats',
   'verts',
   'reprise',
@@ -1614,6 +1623,7 @@ function depart(ctx, e) {
     ctx.reprise = null;
     ctx.relancesTestwriter = null;
     ctx.verifie = null;
+    ctx.toursDeLaPasseFinale = null;
     ctx.constats = [];
     ctx.refus = null;
     ctx.controlesRouges = null;
@@ -2226,6 +2236,7 @@ export async function arreter(ctx, e) {
   const lu = e;
   ctx.constats = [...(lu.constats ?? [])];
   ctx.verifie = lu.verifie ?? null;
+  ctx.toursDeLaPasseFinale = lu.toursDeLaPasseFinale ?? null;
   ctx.seanceReprise = lu.seanceReprise ?? null;
   ctx.verts = lu.verts ?? null;
   ctx.reprise = lu.reprise ?? null;

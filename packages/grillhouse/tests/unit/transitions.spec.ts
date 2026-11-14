@@ -49,6 +49,7 @@ const T = transitions as unknown as Record<string, string> & {
   RELANCES_TESTWRITER: number;
   SEANCES_DEVELOPPEUR: number;
   RELECTURES: number;
+  TOURS_DE_LA_PASSE_FINALE: number;
 };
 const { GESTE, TESTS, PREUVE, CODE, CONTROLES, REFERENCES, RELECTURE, INTEGRATION, EN_FILE, TRI } =
   T;
@@ -702,6 +703,65 @@ describe('un tableau de transitions par étape', () => {
         { relecture: v(), rendus: 1, constats: { constats: [] }, mecanique: true }
       ).d;
       expect(meca.arret?.nom).toBe('relecture-arret');
+    });
+  });
+
+  describe('la non-terminaison du cycle ACCEPTÉ ↔ passe finale', () => {
+    // A verdict ACCEPTÉ with the tree of the lot the reviewer read; a non-deterministic build
+    // artifact in the copy makes that tree re-hash differently at every pass.
+    const accepte = (arbre: string) => ({
+      verdict: 'ACCEPTÉ',
+      fiche: { piece: 'P' },
+      texte: 'V',
+      arbre,
+    });
+
+    it('intègre dès qu’une passe finale a vérifié le lot, même si l’arbre de travail a changé depuis', () => {
+      const d = jouer(
+        { etat: etat(RELECTURE), memoire: { verifie: 'T1', constats: [{}] } },
+        { relecture: accepte('T2') }
+      ).d;
+      expect(d.suivant.etape).toBe(INTEGRATION);
+      expect(d.memoire.constats).toEqual([]);
+      expect(d.memoire.toursDeLaPasseFinale).toBeNull();
+    });
+
+    it('sans passe finale derrière le lot accepté : la passe finale sur la bande, le tour compté', () => {
+      const d = jouer({ etat: etat(RELECTURE) }, { relecture: accepte('T') }).d;
+      expect(d.suivant).toMatchObject({ etape: CONTROLES, tentative: 0, finale: true });
+      expect(d.memoire.toursDeLaPasseFinale).toBe(1);
+    });
+
+    it('borne le cycle à deux tours : au troisième, relecture-arret nommant la cause', () => {
+      const d = jouer(
+        { etat: etat(RELECTURE), memoire: { toursDeLaPasseFinale: T.TOURS_DE_LA_PASSE_FINALE } },
+        { relecture: accepte('T') }
+      ).d;
+      expect(d.arret?.nom).toBe('relecture-arret');
+      expect(String(d.arret?.question)).toContain('non déterministe');
+      expect(d.suivant.etape).toBe(RELECTURE);
+    });
+
+    it('un arbre non déterministe mène à l’intégration en un nombre borné de tours, sans boucler', () => {
+      let st = etat(RELECTURE);
+      let mem: Record<string, unknown> = { verifie: 'A0' };
+      const vus: string[] = [];
+      for (let i = 1; i <= 6; i++) {
+        const { d } = jouer({ etat: st, memoire: mem }, { relecture: accepte(`A${i}`) });
+        vus.push(d.suivant.etape);
+        if (d.suivant.etape === INTEGRATION) {
+          break;
+        }
+        // The re-pass: a green final pass on a fresh volatile tree, the lot not yet accepted on it.
+        const p = jouer(
+          { etat: d.suivant, memoire: { ...mem, ...d.memoire } },
+          { passeFinale: { arbre: `B${i}`, restreinte: null }, controles: VERT, lotAccepte: false }
+        );
+        st = p.d.suivant;
+        mem = { ...mem, ...d.memoire, ...p.d.memoire };
+      }
+      expect(vus).toContain(INTEGRATION);
+      expect(vus.length).toBeLessThanOrEqual(2);
     });
   });
 

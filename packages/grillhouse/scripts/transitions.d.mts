@@ -116,6 +116,8 @@ export const TRI: string;
 export const RELANCES_TESTWRITER: number;
 export const SEANCES_DEVELOPPEUR: number;
 export const RELECTURES: number;
+/** The bound of the ACCEPTÉ ↔ final pass cycle before the circuit goes up to the supervisor. */
+export const TOURS_DE_LA_PASSE_FINALE: number;
 
 /** What changed for a developpeur relaunched on the integration's refusal of his lot unchanged. */
 export const CHANGE_DU_REFUS: string;
