@@ -104,7 +104,14 @@ Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-d
 un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Un
 test de jour valide le code en l'important : lancer la commande grillhouse (son binaire, un
 script du cadre) est réservé aux tests de bout-en-bout, sous un dossier `e2e/`, et la même garde
-refuse les autres. Ainsi le jour reste court, et la preuve longue tourne la nuit.
+refuse les autres. Un test qui a besoin d'un autre paquet construit — le binaire ou la
+bibliothèque d'un composant, dans quelque langage — le déclare en dépendance (ses `dependencies`,
+comme la `data` d'une cible Bazel) : le graphe le construit avant ses tests et le cache le garde,
+si bien qu'un lot qui ne touche pas ses sources le reprend sans le reconstruire. Un tel test reste
+un test de jour ; seul un test qui monte le produit entier dans un projet d'essai est un test de
+nuit. Un test qui lance le binaire d'un paquet sans déclarer qu'il en dépend plante le jour, faute
+de l'avoir construit. Ainsi le jour reste court, le petit CPU ne reconstruit que ce qui a changé,
+et la preuve longue tourne la nuit.
 
 **Un test porte le nom du comportement qu'il prouve**, jamais le numéro de son ticket, qui va au
 message du commit (Software Engineering at Google, chap. 12 : un test par comportement). Ainsi un
