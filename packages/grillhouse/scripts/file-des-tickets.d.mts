@@ -12,6 +12,9 @@ export interface TicketDeBeads {
   dependencies?: Array<{ type: string; depends_on_id: string }>;
 }
 
+/** Whether the description of <t> holds its section « ## Architecture ». */
+export function aSonArchitecture(t: { description?: string }): boolean;
+
 /** The tickets of <tous> that start now, in the order they start. */
 export function ticketsAPartir<T extends TicketDeBeads>(
   tous: T[],

@@ -149,6 +149,7 @@ import {
   nuitDuServeur,
 } from './circuits-du-serveur.mjs';
 import {
+  aSonArchitecture,
   attendDeLAutreProjet,
   enFileSansArchitecture,
   lireLesExternes,
@@ -183,6 +184,11 @@ export const roleDuMeta = m =>
 export const ETATS = [
   { cle: 'enCours', nom: 'en cours', sens: 'un agent y travaille' },
   { cle: 'enAttente', nom: 'en attente', sens: 'ton go, prêt à partir' },
+  {
+    cle: 'attendArchi',
+    nom: 'attend archi',
+    sens: 'ton go, sa section Architecture reste à écrire',
+  },
   { cle: 'fileDirecte', nom: 'en direct', sens: 'mené hors du circuit, pas encore pris' },
   { cle: 'bloques', nom: 'bloqué', sens: 'ton go, il attend un autre ticket' },
   { cle: 'sansGo', nom: 'sans go', sens: 'validé, il attend ton go' },
@@ -200,12 +206,13 @@ export const ETATS = [
 export const TONS = Object.freeze({
   // A ticket's state (ETATS).
   enCours: 'actif',
-  enAttente: undefined,
-  fileDirecte: undefined,
-  bloques: undefined,
+  enAttente: 'discret',
+  attendArchi: 'discret',
+  fileDirecte: 'discret',
+  bloques: 'discret',
   sansGo: 'attention',
   aValider: 'attention',
-  reportes: undefined,
+  reportes: 'discret',
   fermes: 'discret',
   // A circuit, a pass, a wait.
   attendUnePlace: 'discret',
@@ -902,7 +909,11 @@ export function assembler({
   // project by its name in Beads' `external_projects`).
   const attentesExternes = t => attendDeLAutreProjet(t, externes).map(a => a.attend);
   const prets = tous.filter(
-    t => t.status === 'open' && blocages(t).length === 0 && attentesExternes(t).length === 0
+    t =>
+      t.status === 'open' &&
+      blocages(t).length === 0 &&
+      attentesExternes(t).length === 0 &&
+      aSonArchitecture(t)
   );
   const aValider = tous.filter(
     t => t.status !== 'closed' && (t.labels ?? []).includes('a-valider')
@@ -972,13 +983,17 @@ export function assembler({
     if (!circuit(t)) {
       return 'sansGo';
     }
-    return pret.has(t.id) ? 'enAttente' : 'bloques';
+    if (pret.has(t.id)) {
+      return 'enAttente';
+    }
+    return bloquePar(t).length ? 'bloques' : 'attendArchi';
   };
 
   // Global.
   const compteurs = {
     enCours: 0,
     enAttente: 0,
+    attendArchi: 0,
     fileDirecte: 0,
     bloques: 0,
     fermes: 0,
@@ -1734,17 +1749,31 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   L(nom.toUpperCase(), TONS.titre);
   // The state of each ticket's line of AGENTS, which AGENTS draws and the head counts.
   const etats = etatsDAgents(t);
-  // The first line of the head, the signs of AGENTS counted (`comptesDAgents`) as AGENTS signs its
-  // lines, then the tickets done: « ▶ N · ⏸ N · ⛔ N · ✓ N ».
-  const ligneDesSignes = (a, fermes) =>
-    `▶ ${a.enCours} · ⏸ ${a.enAttente} · ⛔ ${a.arretes} · ✓ ${fermes}`;
-  // The line of the queues, under their signs: ● the tickets ready for the circuit, ✎ the direct
-  // queue, ⊘ the tickets blocked by an open ticket.
-  const ligneDeLaFile = c =>
-    `⏭ file : ● ${c.enAttente} · ✎ ${c.fileDirecte ?? 0} · ⊘ ${c.bloques ?? 0}`;
+  // The three lines of the head, grouped by who acts, each with its tone from TONS; an absent
+  // counter reads 0. « toi »: what the owner decides or validates (sans go, à valider, question: the
+  // circuits of AGENTS stopped on a question, `comptesDAgents`); « file »: the queues (● ready,
+  // ✎ direct, ⧗ attend archi, ⊘ blocked); « en cours »: where nobody acts (▶ in progress, ✓ done,
+  // ⏸ deferred).
+  const lignesDActeurs = (c, questions) => {
+    const n = k => c[k] ?? 0;
+    return [
+      {
+        texte: `toi : ${n('sansGo')} sans go · ${n('aValider')} à valider · ${questions} question`,
+        ton: n('sansGo') ? TONS.sansGo : n('aValider') || questions ? TONS.aValider : TONS.fermes,
+      },
+      {
+        texte: `file : ● ${n('enAttente')} · ✎ ${n('fileDirecte')} · ⧗ ${n('attendArchi')} · ⊘ ${n('bloques')}`,
+        ton: TONS.enAttente,
+      },
+      {
+        texte: `en cours : ▶ ${n('enCours')} · ✓ ${n('fermes')} · ⏸ ${n('reportes')}`,
+        ton: n('enCours') ? TONS.enCours : TONS.fermes,
+      },
+    ];
+  };
   if (plusieurs) {
-    // The three lines of states of each project, as one project's board says them: the first
-    // under its label, the two others aligned below it; or the fault that keeps its board out.
+    // The three lines of each project, as one project's board says them: the first under its
+    // label, the two others aligned below it; or the fault that keeps its board out.
     const retrait = ' '.repeat(large);
     for (const p of t.projets) {
       if (p.erreur) {
@@ -1752,21 +1781,8 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         continue;
       }
       const c = p.compteurs;
-      L(
-        cadre(
-          `${colonneDe(p.etiquette)}${ligneDesSignes(comptesDAgents(t, p.etiquette), c.fermes)}`,
-          '',
-          largeur
-        )
-      );
-      L(cadre(`${retrait}${ligneDeLaFile(c)}`, '', largeur));
-      L(
-        cadre(
-          `${retrait}${c.sansGo ?? 0} sans go · ${c.aValider ?? 0} à valider · ${c.reportes ?? 0} reportés`,
-          '',
-          largeur
-        ),
-        c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
+      lignesDActeurs(c, comptesDAgents(t, p.etiquette).arretes).forEach((x, i) =>
+        L(cadre(`${i ? retrait : colonneDe(p.etiquette)}${x.texte}`, '', largeur), x.ton)
       );
     }
     // The discoveries of the day, summed across the projects (grillhouse-3uv.96, criterion 14).
@@ -1782,14 +1798,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   } else {
     const g = t.global;
     const c = g.compteurs;
-    // Three lines of states: the signs of AGENTS and the tickets done, the queues (the circuit's,
-    // the direct one, the blocked), then those that wait for the owner.
-    L(cadre(ligneDesSignes(comptesDAgents(t), c.fermes), '', largeur));
-    L(cadre(ligneDeLaFile(c), '', largeur));
-    L(
-      cadre(`${c.sansGo} sans go · ${c.aValider} à valider · ${c.reportes} reportés`, '', largeur),
-      c.sansGo ? TONS.sansGo : c.aValider ? TONS.aValider : TONS.reportes
-    );
+    // Three lines of states, grouped by who acts.
+    for (const x of lignesDActeurs(c, comptesDAgents(t).arretes)) {
+      L(cadre(x.texte, '', largeur), x.ton);
+    }
     // The discoveries of the day, one count per case (grillhouse-3uv.96): always shown, at 0 when
     // nothing counts, like the other head lines.
     const d = g.decouvertes ?? { new: 0, check: 0, rejetes: 0, valides: 0 };
@@ -2162,8 +2174,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
             ? '? à valider'
             : n.etat === 'sansGo'
               ? 'sans go'
-              : n.etat === 'enAttente'
-                ? 'en attente'
+              : n.etat === 'attendArchi'
+                ? 'attend archi'
+                : n.etat === 'enAttente'
+                  ? 'en attente'
                 : n.etat === 'reportes'
                   ? 'reporté'
                   : n.etat === 'fermes'

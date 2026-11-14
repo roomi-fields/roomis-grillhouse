@@ -26,8 +26,9 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { ETAPES } from './etapes.mjs';
 
-// Whether the description of <t> holds its section « ## Architecture ».
-const aSonArchitecture = t => /^## Architecture\b/m.test(t.description ?? '');
+// Whether the description of <t> holds its section « ## Architecture »: the rule the queue and the
+// board both read.
+export const aSonArchitecture = t => /^## Architecture\b/m.test(t.description ?? '');
 
 // The tickets of <tous> in the queue: open, labelled `circuit` and not `direct`, those of
 // <enCours> aside.

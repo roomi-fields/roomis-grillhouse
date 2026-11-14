@@ -85,10 +85,10 @@ describe('the label of a project on the board of several projects', () => {
     const vite = await lire(dossier('depot'), [dossier('autre')]);
     const lente = await lire(dossier('depot'), [dossier('lent')]);
     expect(lente.alertes.some(x => /Préfixe/.test(x.texte))).toBe(false);
-    expect(vite.lignes[1]?.texte).toMatch(/^\[demo\]\s+▶ /);
-    expect(vite.lignes[4]?.texte).toMatch(/^\[demo\]\s+▶ /);
-    expect(lente.lignes[1]?.texte).toMatch(/^\[demo\]\s+▶ /);
-    expect(lente.lignes[4]?.texte).toMatch(/^\[demo\]\s+▶ /);
+    expect(vite.lignes[1]?.texte).toMatch(/^\[demo\]\s+toi : /);
+    expect(vite.lignes[4]?.texte).toMatch(/^\[demo\]\s+toi : /);
+    expect(lente.lignes[1]?.texte).toMatch(/^\[demo\]\s+toi : /);
+    expect(lente.lignes[4]?.texte).toMatch(/^\[demo\]\s+toi : /);
     expect(lente.lignes[0]?.texte).toMatch(/\+ DEMO$/);
   });
 
@@ -100,7 +100,9 @@ describe('the label of a project on the board of several projects', () => {
     const vu = await lire(racine, [echec]);
     expect(
       vu.lignes.some(x =>
-        new RegExp(`^\\[${echapper(nom)}\\]\\s+▶ \\d+ · ⏸ \\d+ · ⛔ \\d+ · ✓ \\d+`).test(x.texte)
+        new RegExp(`^\\[${echapper(nom)}\\]\\s+toi : \\d+ sans go · \\d+ à valider · \\d+ qu`).test(
+          x.texte
+        )
       )
     ).toBe(true);
     expect(

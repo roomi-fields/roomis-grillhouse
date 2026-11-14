@@ -155,7 +155,11 @@ describe('un ticket en file, non démarré, qui attend une place de la machine',
   it('sa ligne de chantier dit « attend une place », aucune ligne d’AGENTS', () => {
     const tous = [
       T('demo-e', 'e — Le chantier', { issue_type: 'epic' }),
-      T('demo-e.1', 'Le sujet en file', { status: 'open', parent: 'demo-e' }),
+      T('demo-e.1', 'Le sujet en file', {
+        status: 'open',
+        parent: 'demo-e',
+        description: '## Architecture\nLe modèle.',
+      }),
     ];
     const places: Places = { ...PLACES, attentes: [{ ticket: 'demo-e.1', depuis: MAINTENANT }] };
     const p = plateau(tous, { places });
@@ -170,7 +174,11 @@ describe('un ticket en file qui attend le disque de ses copies', () => {
   it('sa ligne de chantier dit « attend le disque », une ligne d’AGENTS dit ce qui l’occupe', () => {
     const tous = [
       T('demo-e', 'e — Le chantier', { issue_type: 'epic' }),
-      T('demo-e.1', 'Le sujet en file', { status: 'open', parent: 'demo-e' }),
+      T('demo-e.1', 'Le sujet en file', {
+        status: 'open',
+        parent: 'demo-e',
+        description: '## Architecture\nLe modèle.',
+      }),
     ];
     const raison = 'disque : 2,0 Go libres ; copies en pause : demo-e.9 7,0 Go';
     const places: Places = {

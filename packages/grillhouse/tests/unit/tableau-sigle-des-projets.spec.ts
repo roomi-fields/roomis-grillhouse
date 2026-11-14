@@ -59,7 +59,7 @@ const lire = async (racine: string, projets: string[] = []) =>
     circuitsDe: () => Promise.resolve([circuitLu('demo-5')]),
   })) as unknown as Vu;
 const etiquettes = (vu: Vu) =>
-  vu.lignes.map(l => /^\[([^\]]+)\]\s+▶ /.exec(l.texte)?.[1]).filter(Boolean);
+  vu.lignes.map(l => /^\[([^\]]+)\]\s+toi : /.exec(l.texte)?.[1]).filter(Boolean);
 
 describe('le panneau de plusieurs projets étiquette chaque projet par son sigle', () => {
   afterEach(() => {

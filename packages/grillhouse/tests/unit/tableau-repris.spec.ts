@@ -405,7 +405,8 @@ const sansRien = (p: Panneau, id: string) =>
   p.alertes.some(a => a.texte === `${id.replace(/^demo-/, '')} en cours sans rien qui tourne`);
 // A ticket claimed 40 minutes ago (past the 30 minutes of the alert), or open and ready.
 const reclame = (id: string) => T(id, { status: 'in_progress', started_at: ilYa(40 * MIN) });
-const ouvert = (id: string) => T(id, { status: 'open', started_at: undefined });
+const ouvert = (id: string) =>
+  T(id, { status: 'open', started_at: undefined, description: '## Architecture\nLe modèle.' });
 
 describe('3uv.40 critère 6 : the board has one definition of a running agent, for its tickets in progress and its alert', () => {
   it('3uv.40 critère 6 : a ticket in progress whose only sub-agent just finished raises the alert', () => {
@@ -539,9 +540,9 @@ describe('the board of several projects, read in their folders', () => {
     };
     const tete = t.lignes.slice(0, 5).map(x => [x.texte.trimEnd(), x.ton]);
     expect(tete[0]).toEqual([`${path.basename(racine).toUpperCase()} + ABSENT`, 'titre']);
-    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+▶ \d+ · ⏸ \d+ · ⛔ \d+ · ✓ \d+$/);
-    expect(tete[2]?.[0]).toMatch(/^\s+⏭ file : ● \d+ · ✎ \d+ · ⊘ \d+$/);
-    expect(tete[3]?.[0]).toMatch(/^\s+\d+ sans go · \d+ à valider · \d+ reportés$/);
+    expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+toi : \d+ sans go · \d+ à valider · \d+ question$/);
+    expect(tete[2]?.[0]).toMatch(/^\s+file : ● \d+ · ✎ \d+ · ⧗ \d+ · ⊘ \d+$/);
+    expect(tete[3]?.[0]).toMatch(/^\s+en cours : ▶ \d+ · ✓ \d+ · ⏸ \d+$/);
     expect(tete[4]?.[0]).toBe('[absent] ⚠ dossier introuvable');
     expect(tete[4]?.[1]).toBe('alerte');
     expect(t.lignes.some(x => /^\[demo\]\s+demo-5 {2}demo-5\b/.test(x.texte))).toBe(true);

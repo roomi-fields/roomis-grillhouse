@@ -220,7 +220,7 @@ describe('assembler', () => {
       labels: [],
       dependencies: [{ type: 'blocks', depends_on_id: 'demo-c.1.1' }],
     }),
-    T('demo-c.3', { parent: 'demo-c' }),
+    T('demo-c.3', { parent: 'demo-c', description: '## Architecture\nLe modèle mûr.' }),
     T('demo-c.4', { parent: 'demo-c', labels: ['a-valider'] }),
     T('demo-z', { issue_type: 'epic', title: 'z — Un autre — parent' }),
     T('demo-z.1', { parent: 'demo-z', status: 'closed', closed_at: '2026-10-01T09:00:00Z' }),
@@ -275,6 +275,7 @@ describe('assembler', () => {
       sansGo: 1,
       aValider: 1,
       reportes: 0,
+      attendArchi: 0,
     });
   });
   it('counts a ticket in progress as work, a discovery under it notwithstanding', () => {
@@ -391,12 +392,15 @@ describe('assembler', () => {
     expect(texte).toMatch(/✎ c\.1\.2 {2}demo-c\.1\.2/);
     expect(texte).toMatch(/\nAUTRES CHANTIERS +1\nz {2}Un autre +1\/1\n/);
   });
-  it('heads the board with three lines of states: the signs of AGENTS and the tickets done, the queues, then what waits for the owner', () => {
+  it('heads the board with three lines grouped by who acts: toi, file, en cours', () => {
     const l = dessin(t).map(x => x.texte);
-    expect(l[1]).toBe('▶ 1 · ⏸ 0 · ⛔ 0 · ✓ 2');
-    expect(l[2]).toBe('⏭ file : ● 1 · ✎ 0 · ⊘ 0');
-    expect(l[3]).toBe('1 sans go · 1 à valider · 0 reportés');
-    expect((dessin(t)[3] as { ton?: string }).ton).toBe('attention');
+    expect(l[1]).toBe('toi : 1 sans go · 1 à valider · 0 question');
+    expect(l[2]).toBe('file : ● 1 · ✎ 0 · ⧗ 0 · ⊘ 0');
+    expect(l[3]).toBe(`en cours : ▶ ${t.global.compteurs.enCours} · ✓ 2 · ⏸ 0`);
+    expect(t.global.compteurs.enCours).toBe(1);
+    expect((dessin(t)[1] as { ton?: string }).ton).toBe('attention');
+    expect((dessin(t)[2] as { ton?: string }).ton).toBe('discret');
+    expect((dessin(t)[3] as { ton?: string }).ton).toBe('actif');
   });
   it('lists each state, its meaning and the tickets of the chantier in progress one per line in the states view', () => {
     const v = lignesEtats(t) as { texte: string; ticket?: string; section: string }[];
@@ -404,6 +408,7 @@ describe('assembler', () => {
     expect(titres.map(x => x.texte.split(' — ')[0])).toEqual([
       'EN COURS',
       'EN ATTENTE',
+      'ATTEND ARCHI',
       'EN DIRECT',
       'BLOQUÉ',
       'SANS GO',

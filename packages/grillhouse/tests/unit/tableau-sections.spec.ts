@@ -177,7 +177,9 @@ describe('3uv.42 critère 1 : a closed ticket leaves CHANTIER, mother included, 
   it('3uv.42 critère 1 : the closed tickets stay counted in the « faits » of the head', () => {
     // Closed work: e.1.2, e.1.3, e.1.5.1, e.2.1, e.2.2, e.5, e.6, e.8.1, z.1.
     expect(T0.global.compteurs.fermes).toBe(9);
-    expect(L0.slice(0, indexAgents(L0)).some(x => /· ✓ 9$/.test(x.texte))).toBe(true);
+    expect(
+      L0.slice(0, indexAgents(L0)).some(x => /^en cours : ▶ \d+ · ✓ 9 · ⏸ \d+$/.test(x.texte))
+    ).toBe(true);
   });
 
   it('3uv.42 critère 1 : the closed tickets stay counted in the « faits » of the chantier', () => {
@@ -308,7 +310,9 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
   it('3uv.42 critère 4 : the head above AGENTS counts in agents', () => {
     const tete = L0.slice(0, indexAgents(L0));
     expect(tete.length).toBeGreaterThanOrEqual(4);
-    expect(tete.some(x => / sans go · \d+ à valider · /.test(x.texte))).toBe(true);
+    expect(
+      tete.some(x => /^toi : \d+ sans go · \d+ à valider · \d+ question\s*$/.test(x.texte))
+    ).toBe(true);
     for (const x of tete) {
       expect(x.section, x.texte).toBe('agents');
     }
@@ -457,7 +461,7 @@ describe('3uv.42 critère 5 : the text output stays readable, without the closed
   it('3uv.42 critère 5 : the text keeps its head, its chantier, its agents and its faits, no wider than the pane', () => {
     const l = texte.split('\n');
     expect(l[0]).toMatch(/^DEPOT-/);
-    expect(l.some(x => /^▶ \d+ · ⏸ \d+ · ⛔ \d+ · ✓ 2$/.test(x))).toBe(true);
+    expect(l.some(x => /^en cours : ▶ \d+ · ✓ 2 · ⏸ \d+$/.test(x))).toBe(true);
     expect(l.some(x => x.startsWith('CHANTIER e — Le chantier'))).toBe(true);
     expect(l.some(x => x.startsWith('AGENTS'))).toBe(true);
     expect(l.some(x => /^✎ e\.1\.2 {2}Fait ce jour/.test(x))).toBe(true);
@@ -678,10 +682,10 @@ const L9 = lignes(
     T('demo-e', { issue_type: 'epic', title: 'e — Le chantier' }),
     T('demo-e.1', { parent: 'demo-e' }),
     T('demo-e.1.1', { parent: 'demo-e.1', status: 'in_progress' }),
-    T('demo-e.1.2', { parent: 'demo-e.1' }),
+    T('demo-e.1.2', { parent: 'demo-e.1', description: '## Architecture\nLe modèle.' }),
     T('demo-e.1.2.1', { parent: 'demo-e.1.2', ...ferme(AVANT) }),
     T('demo-e.1.2.2', { parent: 'demo-e.1.2', ...ferme(AUJOURDHUI) }),
-    T('demo-e.2', { parent: 'demo-e' }),
+    T('demo-e.2', { parent: 'demo-e', description: '## Architecture\nLe modèle.' }),
     T('demo-e.2.1', { parent: 'demo-e.2', ...ferme(AVANT) }),
     T('demo-e.3', { parent: 'demo-e', ...ferme(AVANT) }),
     T('demo-e.3.1', { parent: 'demo-e.3', ...ferme(AVANT) }),
