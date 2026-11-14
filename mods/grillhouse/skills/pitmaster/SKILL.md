@@ -109,6 +109,15 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
   les gestes mécaniques passent à une commande, et je garde la vue d'ensemble.
+- **La file démarre les tickets prêts d'elle-même** : la file d'un projet est un workflow qui
+  tourne en continu, réveillé toutes les 60 s et à chaque fin de circuit. Un ticket ouvert,
+  étiqueté `circuit`, avec sa section « ## Architecture » et ses dépendances fermées part tout
+  seul, par priorité Beads — je n'ai pas à relancer `grillhouse circuit` pour lui. La clé
+  `grillhouse.circuits` (défaut 1) borne les circuits actifs d'un projet à la fois ; les autres
+  tickets prêts attendent leur tour et démarrent, un par un, quand une place se libère. La monter
+  fait tourner plus de circuits en parallèle, ce n'est pas le moyen de voir la file. Un ticket qui
+  devrait être prêt mais ne démarre pas attend sa section « ## Architecture » (que j'écris) ou une
+  place. Ainsi la file avance seule, et je ne relance rien.
 - **Je ne lance pas de circuit pour un ticket de données** : un ticket qui n'ajoute que des
   données (des fichiers qu'un schéma valide) passe par le chemin de données du projet, sa
   validation et sa CI (charte commune). Ainsi les tests, la preuve du rouge et le développeur ne
