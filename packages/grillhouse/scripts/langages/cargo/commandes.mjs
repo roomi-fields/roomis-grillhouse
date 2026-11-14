@@ -806,8 +806,8 @@ function sousLaBase(genre, env, jouer) {
 
 /**
  * The line that refuses the workspace at <racine> whose Cargo.lock git does not track, the
- * gesture named; null when git tracks it. <copie> is the root git reads (a tree of HEAD's version
- * has no `.git`: its copy's, where the same file is tracked).
+ * gesture named; null when git tracks it, and null for a tree with no git at all. <copie> is the
+ * git tree that reads the lock: the copy git tracks the file in (COPIE_DE_L_ARBRE), else <racine>.
  * @param {string} racine
  * @param {string} [copie]
  * @returns {string | null}
@@ -816,8 +816,16 @@ export function verrouNonVersionne(racine, copie = racine) {
   if (!existsSync(path.join(racine, VERROU))) {
     return `⛔ ${VERROU} absent : cargo generate-lockfile, puis git add ${VERROU}`;
   }
+  // A tree of HEAD's version the proof plays (`.travail/avant-…`) has no `.git`: its Cargo.lock is
+  // HEAD's, versioned by construction, and Turborepo's strict mode drops COPIE_DE_L_ARBRE, which
+  // would name its copy (grillhouse-uja). The check reads a real git tree: the copy if it is one,
+  // else <racine>; with no git tree at hand, the lock is HEAD's and nothing is unversioned.
+  const depot = [copie, racine].find(d => existsSync(path.join(d, '.git')));
+  if (!depot) {
+    return null;
+  }
   const r = spawnSync('git', ['ls-files', '--error-unmatch', '--', VERROU], {
-    cwd: copie,
+    cwd: depot,
     stdio: 'ignore',
   });
   return r.status === 0 ? null : `⛔ ${VERROU} non versionné : git add ${VERROU}`;

@@ -570,6 +570,23 @@ describe('grillhouse-rph, critère 1 — un Cargo.lock non versionné se signale
   });
 });
 
+// grillhouse-uja: the proof of the red plays a tree of HEAD's version (`.travail/avant-…`) for a
+// target `tests/<nom>.rs`; that tree has no `.git`, and Turborepo's strict mode drops the variable
+// that would name its copy, so the lock's check must not run git there — the lock is HEAD's,
+// versioned by construction. Witness: OSC Bridge's first circuit after the non-termination fix
+// refused « Cargo.lock non versionné » on such a tree, though its copy tracks the lock.
+describe('un arbre de HEAD sans .git ne compte pas son Cargo.lock non versionné', () => {
+  it('a tree with Cargo.lock but no git: tester is not refused, cargo runs', () => {
+    const arbre = mkdtempSync(path.join(ESSAIS, 'avant-'));
+    cpSync(d.seul, arbre, { recursive: true, filter: s => path.basename(s) !== '.git' });
+    expect(existsSync(path.join(arbre, '.git'))).toBe(false);
+    expect(existsSync(path.join(arbre, 'Cargo.lock'))).toBe(true);
+    const r = lancer(arbre, 'tester', []);
+    expect(r.code, r.stdout + r.stderr).toBe(0);
+    expect(r.stderr).not.toContain('Cargo.lock');
+  });
+});
+
 // grillhouse-egm: in TDD, a test that does not compile is a red (Kent Beck, TDD by Example), and
 // the proof of the red reads a failed build of a package of the plan as one (« construction de
 // <paquet> », constructionsEchouees of scripts/circuit.mjs: a task `script: 'build'` of the
