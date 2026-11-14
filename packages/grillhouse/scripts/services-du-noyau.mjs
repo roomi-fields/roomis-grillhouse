@@ -18,6 +18,7 @@ export { garderLeTotal, inscrireLePlan, ouvrirAvancement } from './avancement.mj
 export { sources } from './sources.mjs';
 export { trouverDansLePath } from './commandes-du-path.mjs';
 export { paquetsSansPackageJson } from './paquet-npm.mjs';
+export { fournisseursDuPaquet } from './donnees-cles.mjs';
 export { poserLeGabaritAbsent } from './gabarit-absent.mjs';
 export {
   cheminsDeLaTache,

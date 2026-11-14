@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // The reading of the `grillhouse.donnees` key of a package.json, the data of a package, as Bazel's
 // `data` declare the output of another target that a test runs (`data = ["//crates/service:bin"]`):
 // `{ "<VARIABLE>": "<paquet>#<sortie>" }`. The consumer lists the provider in its `devDependencies`,

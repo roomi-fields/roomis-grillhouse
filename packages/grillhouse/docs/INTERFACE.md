@@ -406,7 +406,7 @@ valeur), les fichiers sources d'un projet, les variables d'un fichier du poste (
 tableau des composants de `docs/ARCHITECTURE.md` déclare, chacun `{ langage, chemin, nom }`, `nom`
 celui du manifeste ; le `tester` du module typescript en exclut les tâches `test:unit`, que le
 `tester` de leur propre module joue, mais sa passe de vérification les joue toutes, avec le
-dernier vert qu'elle pose seule), les tâches du graphe des paquets (`lancerLesTaches` : les
+dernier vert qu'elle pose seule), les fournisseurs de `grillhouse.donnees` d'un paquet (`fournisseursDuPaquet(racine, chemin)` : leurs noms, une erreur qui nomme chaque faute de la clé), les tâches du graphe des paquets (`lancerLesTaches` : les
 tâches de Turborepo de paquets nommés, les chemins nommés dans la variable `GRILLHOUSE_TESTS` ; `empreintesDesTaches`, le hachage d'entrées des tâches de tests des paquets nommés et de leurs dépendants, que l'outil de tâches calcule, pour l'empreinte d'une étape ; `nomDuPaquet` ;
 `testsCibles` ; `cheminsDeLaTache` ; `construireDepuisLesArguments`, le lanceur de la copie d'un
 agent, le même pour tout langage, que le module appelle en lui donnant l'outil des tâches ;

@@ -42,7 +42,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { horsCadre } from '../../paquets.mjs';
+import { fournisseursDuPaquet } from '../../services-du-noyau.mjs';
+import { horsCadre, paquets as paquetsDuDepot } from '../../paquets.mjs';
 import { MODE, trancher } from '../../dette.mjs';
 import { isTestFile } from './regle-des-tests.mjs';
 
@@ -92,17 +93,57 @@ export function constats(texte, genres = Object.keys(GENRES)) {
 
 const liste = v => (v === undefined ? [] : [v].flat());
 
+// The providers of `grillhouse.donnees` of each consumer (`.` the root, else its folder), in the
+// consumers' order; a faulty key throws its faults.
+function fournisseursParConsommateur(racine) {
+  return ['.', ...paquetsDuDepot(racine).map(p => p.dossier)]
+    .map(dossier => [dossier, fournisseursDuPaquet(racine, dossier)])
+    .filter(([, noms]) => noms.length);
+}
+
+const sansDoublon = (...listes) => [...new Set(listes.flat())];
+
+// The settings with the providers of `grillhouse.donnees` in `ignoreDependencies`: a provider is
+// used as a datum of its consumer's tests, not dead. Each goes in its consumer's workspace
+// (`workspaces["<folder>"]`, the settings knip gives that folder kept), at the top level for the
+// root; a project without `workspaces` gets a `.` key holding its top-level settings, so they keep
+// their effect on the root.
+function avecLesFournisseurs(knipLu, r, consommateurs) {
+  const racineSeule = consommateurs.every(([d]) => d === '.');
+  if (racineSeule && !r.workspaces) {
+    return {
+      ...r,
+      ignoreDependencies: sansDoublon(liste(r.ignoreDependencies), consommateurs[0][1]),
+    };
+  }
+  const espaces = { ...r.workspaces };
+  if (!r.workspaces) {
+    espaces['.'] = reglagesDeEspace(knipLu, r, '.');
+  }
+  for (const [dossier, noms] of consommateurs) {
+    const base = espaces[dossier] ?? (dossier === '.' ? {} : reglagesDeEspace(knipLu, r, dossier));
+    espaces[dossier] = {
+      ...base,
+      ignoreDependencies: sansDoublon(liste(base.ignoreDependencies), noms),
+    };
+  }
+  return { ...r, workspaces: espaces };
+}
+
 // The knip settings of the repository at <racine> with its packages out of the frame skipped:
 // its `knip.json` (empty without one) plus `ignoreWorkspaces` for each listed directory under
-// `packages/` and `ignore` for each listed directory under `packages/` and `src/`; null when the
-// list names nothing.
-function reglages(racine) {
+// `packages/` and `ignore` for each listed directory under `packages/` and `src/`, and the
+// providers of `grillhouse.donnees` (`avecLesFournisseurs`); null when neither the list nor a
+// datum exists. A faulty `grillhouse.donnees` key throws its faults.
+function reglages(knipLu, racine) {
   const hors = [...horsCadre(racine)].sort();
-  if (!hors.length) {
+  const consommateurs = fournisseursParConsommateur(racine);
+  if (!hors.length && !consommateurs.length) {
     return null;
   }
   const fichier = path.join(racine, 'knip.json');
-  const r = existsSync(fichier) ? JSON.parse(readFileSync(fichier, 'utf8')) : {};
+  const lu = existsSync(fichier) ? JSON.parse(readFileSync(fichier, 'utf8')) : {};
+  const r = consommateurs.length ? avecLesFournisseurs(knipLu, lu, consommateurs) : lu;
   const espaces = [];
   const motifs = [];
   for (const nom of hors) {
@@ -115,6 +156,9 @@ function reglages(racine) {
       }
       motifs.push(`${parent}/${nom}/**`);
     }
+  }
+  if (!hors.length) {
+    return r;
   }
   return {
     ...r,
@@ -311,10 +355,7 @@ function knip(racine, config, include) {
 // is written, and the debt's mode is <env>'s `GRILLHOUSE_DETTE`.
 export async function codeMort(racine, env = process.env) {
   const lignes = [];
-  const hors = reglages(racine);
   const fichierKnip = path.join(racine, 'knip.json');
-  const config =
-    hors ?? (existsSync(fichierKnip) ? JSON.parse(readFileSync(fichierKnip, 'utf8')) : null);
   const DEPS = ['dependencies', 'devDependencies'];
   const { fichiers, dossiers, erreur } = fichiersTests(racine);
   if (erreur) {
@@ -328,6 +369,15 @@ export async function codeMort(racine, env = process.env) {
     );
     return { lignes, code: 1 };
   }
+  let hors;
+  try {
+    hors = reglages(knipLu, racine);
+  } catch (e) {
+    lignes.push(`⛔ CODE MORT — ${e.message.replace(/^⛔ /, '')}`);
+    return { lignes, code: 1 };
+  }
+  const config =
+    hors ?? (existsSync(fichierKnip) ? JSON.parse(readFileSync(fichierKnip, 'utf8')) : null);
   const premier = knip(racine, hors ?? config);
   const c1 = constats(premier.stdout ?? '');
   const second = fichiers.length

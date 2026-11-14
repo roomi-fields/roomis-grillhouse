@@ -18,7 +18,8 @@
 // - The internal dependencies of the package.json: the names of its `dependencies`,
 //   `devDependencies`, `optionalDependencies` and `peerDependencies` that are the name of a package
 //   of the project (the ones above and the workspaces'). An external dependency, on either side,
-//   is no gap.
+//   is no gap; nor is a provider of the package's `grillhouse.donnees` (./donnees-cles.mjs), a data
+//   dependency that no manifest of the language links. A faulty key fails the guard, its faults named.
 // - Refused, one finding per package, named with the dependencies in gap in each sense: the
 //   package.json that lacks a dependency its manifest links, or names an internal package its
 //   manifest does not link. Written in SARIF under the guard's name, and on the error stream after
@@ -26,6 +27,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fournisseursDuPaquet } from './donnees-cles.mjs';
 import { langage } from './langages.mjs';
 import { nomDuManifeste, paquetsSansPackageJson, sansPackageJson } from './paquet-npm.mjs';
 import { paquets } from './paquets.mjs';
@@ -79,8 +81,13 @@ export function constats(racine) {
     const liens = langage(p.langage).liensDuManifeste(racine, p.chemin, d => nomA(p.langage, d));
     const duManifeste = new Set(liens.noms);
     duManifeste.delete(p.nom);
+    // A provider of `grillhouse.donnees` is a data dependency across languages: it lives in the
+    // devDependencies only, for Turborepo's order, and no manifest of the language links it.
+    const donnees = new Set(fournisseursDuPaquet(racine, p.chemin));
     const duPackage = new Set(
-      CHAMPS.flatMap(c => Object.keys(pkg[c] ?? {})).filter(n => internes.has(n) && n !== p.nom)
+      CHAMPS.flatMap(c => Object.keys(pkg[c] ?? {})).filter(
+        n => internes.has(n) && n !== p.nom && !donnees.has(n)
+      )
     );
     const manquantes = [...duManifeste].filter(n => !duPackage.has(n)).sort();
     const enTrop = [...duPackage].filter(n => !duManifeste.has(n)).sort();

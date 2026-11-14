@@ -504,6 +504,10 @@ export function sources(racine: string, dossier?: string): string[];
 export function paquetsSansPackageJson(
   racine: string
 ): { langage: string; chemin: string; nom: string }[];
+/** The names of the providers of `grillhouse.donnees` of the consumer that holds `chemin` (its
+ * folder from the root), in the project at `dir` (scripts/donnees-cles.mjs); throws the faults of a
+ * faulty key, one per line. */
+export function fournisseursDuPaquet(dir: string, chemin: string): string[];
 /** The name of the script and of the task of the tests of a package, the same for every language. */
 export const SCRIPT_DES_TESTS: string;
 /** The name of the environment variable that carries the paths and the options of a targeted run
