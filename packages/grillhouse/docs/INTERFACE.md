@@ -308,6 +308,11 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
 - `verdict` : ce qu'un lancement a laissé dans son dossier de résultats (`GRILLHOUSE_RESULTATS`) :
   `{ rapports, taches }`, chaque fichier de test avec ses tests, chaque tâche avec son code, 0 vert,
   1 rouge, 75 « à repasser », et `tests` vrai pour la tâche qui joue les tests de son composant.
+- `echecDeCompilation` : vrai quand le journal d'une tâche porte un échec de compilation du langage,
+  pour que le circuit lise une cible de test qui ne compile pas comme une construction échouée
+  (« construction de <crate> »), quelle que soit la tâche qui le porte — la tâche de construction,
+  ou la tâche de test sans rapport. Chaque module y répond ; un langage sans étape de compilation
+  (TypeScript, Python ici) répond toujours faux.
 - `estUnTest` : ce que le testwriter écrit dans un fichier, `{ joue, test, matiere }` (un test que
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
   partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le

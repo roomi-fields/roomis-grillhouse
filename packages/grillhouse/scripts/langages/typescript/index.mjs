@@ -268,6 +268,8 @@ export default {
     ...Object.fromEntries(OUTILS.map(n => [n, { script: ici(`${n}.mjs`), args: [] }])),
   }),
   verdict,
+  // A build failure is already a red `build` task here; no test task bears a compilation failure.
+  echecDeCompilation: () => false,
   estUnTest,
   // A night test, a bench or a time witness (./vitest-config/cibles.mjs, `estHorsDuJour`).
   horsDuJour: (chemin, racine) => estHorsDuJour(path.resolve(racine, chemin)),

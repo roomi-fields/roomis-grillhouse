@@ -108,6 +108,8 @@ export default {
   empreintes: (racine, noms) => empreintesDesTaches('turbo', racine, noms),
   commandes,
   verdict,
+  // Python has no compilation step: no test task bears a compilation failure (jointure.d.ts).
+  echecDeCompilation: () => false,
   estUnTest,
   // A night test, `*_nuit_test.py` (`estDeNuit`).
   horsDuJour: chemin => estDeNuit(path.basename(chemin)),

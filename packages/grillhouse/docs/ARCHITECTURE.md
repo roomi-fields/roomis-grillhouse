@@ -1908,7 +1908,10 @@ garde `executables-de-tests` tient, la dette des crates existants inscrite à la
 déclare par `#[cfg(test)] mod tests;`, ligne que le testwriter écrit avec son test ; un test de nuit et un banc de temps reconnus au nom de leur cible, `<nom>_nuit` et `<nom>_budget` ; les tests par nextest puis les doctests, après la construction des cibles de
 test de chaque crate (`cargo test --no-run`), une tâche `build` du verdict avec son journal, comme
 la tâche `test` de Turborepo dépend de `build` : des tests qui ne compilent pas sont le rouge
-« construction de <crate> » de la preuve du rouge, et se jouent aux contrôles ; une fois ses tests
+« construction de <crate> » de la preuve du rouge, quel que soit l'étage cargo qui porte l'échec de
+compilation — la tâche `build`, ou la tâche de test (nextest), qui porte les erreurs du compilateur
+sans rapport JUnit quand une cible ne compile pas (`echecDeCompilation` lit le journal) —, et se
+jouent aux contrôles ; une fois ses tests
 et ses bancs joués, la tâche retire les exécutables de test que sa construction a produits, ceux
 que cargo déclare dans ses messages JSON (`--message-format=json-render-diagnostics`, l'`executable`
 d'un artefact d'un profil de test), comme le cache Rust de référence des CI (Swatinem/rust-cache)

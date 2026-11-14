@@ -1952,15 +1952,38 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
 // The builds that failed in the run whose results are under <dossier> (the summary of Turborepo,
 // task `<package>#build`) of a package of the plan: `{ nom, erreur }`, `erreur` its log file and
 // the beginning of its own output.
-function constructionsEchouees(ctx, liste, dossier) {
-  return langageDe(ctx.copie)
+// Whether the failed task <t> is a failed compilation, which renders « construction de <crate> »: a
+// build task (`cargo test --no-run`, grillhouse-egm), or a test task whose target did not compile —
+// code not 0, the compiler's errors in its log, which the module reads (`echecDeCompilation` of the
+// join) — reaching the circuit by the test task with no report (grillhouse-lv9, OSC Bridge OB-4gy).
+// A task that did not run, is green or « à repasser » is no failure; a test that failed at run time
+// or a binary that does not load shows no compiler error, and stays what it is.
+function echecDeConstruction(ctx, langage, t) {
+  if (t.code === null || t.code === 0 || t.code === A_REPASSER) {
+    return false;
+  }
+  if (t.script === 'build') {
+    return true;
+  }
+  if (!t.tests || typeof langage.echecDeCompilation !== 'function') {
+    return false;
+  }
+  const { chemin } = journalDeTache(ctx, t);
+  return Boolean(chemin) && langage.echecDeCompilation(sansCouleurs(lire(chemin)));
+}
+
+export function constructionsEchouees(ctx, liste, dossier) {
+  const langage = langageDe(ctx.copie);
+  const vus = new Set();
+  return langage
     .verdict(dossier)
-    .taches.filter(t => t.script === 'build' && t.code !== null && t.code !== 0)
+    .taches.filter(t => echecDeConstruction(ctx, langage, t))
     .flatMap(t => {
       const p = liste.find(x => x.pkg.name === t.paquet);
-      if (!p || !dansLePlan(ctx, p.dossier)) {
+      if (!p || !dansLePlan(ctx, p.dossier) || vus.has(t.paquet)) {
         return [];
       }
+      vus.add(t.paquet);
       const j = journalDeTache(ctx, t);
       return [{ nom: t.paquet, erreur: `son journal : ${j.chemin}\n\n${j.debut}\n` }];
     });
@@ -1994,7 +2017,7 @@ function situer(ctx, liste, chemin) {
 // shows without failing: `{ rouges, avertissements }`, `avertissements` the lines of the findings
 // of another level, which the report lists apart. A guards' task red without a finding of level
 // error keeps its line of a red task, with its log.
-function rougesDe(ctx, liste, c) {
+export function rougesDe(ctx, liste, c) {
   const lus = lireSarif(c.dossier).constats.filter(k => !estNoteDeDette(k));
   const vert = c.code === 0 || c.code === A_REPASSER;
   const gardesDuCadre = nomsDesGardes(ctx.copie);
@@ -2010,7 +2033,8 @@ function rougesDe(ctx, liste, c) {
   }
   const out = [];
   const testes = new Set();
-  for (const res of langageDe(ctx.copie).verdict(c.dossier).rapports) {
+  const langage = langageDe(ctx.copie);
+  for (const res of langage.verdict(c.dossier).rapports) {
     const f = path.relative(ctx.copie, res.fichier);
     const lieu = situer(ctx, liste, f);
     if (res.tests.length === 0 && res.etat === 'failed') {
@@ -2046,7 +2070,10 @@ function rougesDe(ctx, liste, c) {
   }
   // The guards of the project wrote findings when one comes from a guard out of the frame's.
   const duProjet = constats.some(k => !duCadre(k));
-  for (const t of langageDe(ctx.copie).verdict(c.dossier).taches) {
+  // The crates already rendered « construction de »: a failed build task and a test task that did
+  // not compile, both of one crate, give one red (grillhouse-lv9).
+  const construits = new Set();
+  for (const t of langage.verdict(c.dossier).taches) {
     if (t.code === null || t.code === 0 || t.code === A_REPASSER) {
       continue;
     }
@@ -2059,21 +2086,29 @@ function rougesDe(ctx, liste, c) {
     if (t.script === 'gardes' && duProjet) {
       continue;
     }
+    // A failed compilation (a build task, or a test task whose target does not compile) renders
+    // « construction de <crate> », once per crate (grillhouse-lv9).
+    const construction = echecDeConstruction(ctx, langage, t);
+    if (construction && construits.has(t.paquet)) {
+      continue;
+    }
     const p = liste.find(x => x.pkg.name === t.paquet);
     const lieu = p ? situer(ctx, liste, `${p.dossier}/`) : situer(ctx, liste, null);
     const j = journalDeTache(ctx, t);
     out.push({
-      texte:
-        t.script === 'build'
-          ? `construction de ${t.paquet} — son journal : ${j.chemin}`
-          : `tâche ${t.tache} rouge (code ${t.code}) — son journal : ${j.chemin}`,
-      detail: t.script === 'build' ? j.debut : '',
+      texte: construction
+        ? `construction de ${t.paquet} — son journal : ${j.chemin}`
+        : `tâche ${t.tache} rouge (code ${t.code}) — son journal : ${j.chemin}`,
+      detail: construction ? j.debut : '',
       ...lieu,
       // A red task of style (`<package>#lint`, `<package>#format:check`) is named by its task, as
       // the plan's package that holds it: the one out of the plan reads `<package>#lint`.
       horsTitre: lieu.horsTitre && STYLE.has(t.script) ? t.tache : lieu.horsTitre,
       joue: t.paquet,
     });
+    if (construction) {
+      construits.add(t.paquet);
+    }
   }
   if (out.length === 0) {
     out.push({

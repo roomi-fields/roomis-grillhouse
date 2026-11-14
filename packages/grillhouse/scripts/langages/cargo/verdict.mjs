@@ -10,6 +10,10 @@
 //   of the doctests; `journal`, from the root, the log of the task `build`, the build of a crate's
 //   test targets, which the circuit reads for a failed build), and the file of each test binary of nextest by its id (`ws-core`,
 //   `ws-core::integ`, `ws-core::bin/outil`), its target's source.
+// - `echecDeCompilation` reads a task's log: whether a test target did not compile (grillhouse-lv9),
+//   which the circuit reads as a failed build whatever the cargo task that bears it — the build of
+//   `cargo test --no-run` (grillhouse-egm), or the test task nextest, which bears the compiler's
+//   errors with no JUnit when a target does not compile.
 // - `<dossier>/nextest/<run>-<crate>.xml`, the JUnit report of each run of nextest: each
 //   `testsuite`, a test binary, gives a test file, each `testcase` a test, failed when it holds a
 //   `failure` or an `error`, skipped when it holds `skipped`; its message, the failure's. A unit
@@ -150,3 +154,13 @@ export function verdict(dossier) {
     ),
   };
 }
+
+// Whether the log <texte> of a task shows a cargo COMPILATION failure: a diagnostic of rustc with
+// its code (`error[E0599]`), or cargo's summary of a crate that did not build (`could not
+// compile`). A test that compiled then failed at run time, or a binary that does not load, shows
+// neither. The circuit reads a test target that does not compile as a failed build
+// (`construction de <crate> », scripts/activites.mjs), whatever the cargo task that bears it: the
+// build of `cargo test --no-run` (grillhouse-egm), or the test task nextest, which bears the
+// errors with no JUnit when a target does not compile (grillhouse-lv9, OSC Bridge OB-4gy).
+export const echecDeCompilation = texte =>
+  /error\[E\d+\]/.test(texte) || /could not compile/.test(texte);

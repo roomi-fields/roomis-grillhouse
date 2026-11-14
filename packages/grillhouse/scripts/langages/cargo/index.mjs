@@ -63,7 +63,7 @@ import * as taillesDesTests from './migrations/0.28.4-tailles-des-tests.mjs';
 import * as executablesDeTests from './migrations/0.34.0-executables-de-tests.mjs';
 import { squelette } from './squelette.mjs';
 import { CACHE, CIBLES } from './sccache.mjs';
-import { verdict } from './verdict.mjs';
+import { echecDeCompilation, verdict } from './verdict.mjs';
 
 // The scripts of this module, beside this file.
 const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
@@ -141,6 +141,7 @@ export default {
   empreintes: (racine, noms) => empreintesDesTaches('turbo', racine, noms),
   commandes,
   verdict,
+  echecDeCompilation,
   estUnTest,
   horsDuJour: fichierHorsDuJour,
   arbreDAvant,

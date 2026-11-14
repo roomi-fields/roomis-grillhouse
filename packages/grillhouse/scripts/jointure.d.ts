@@ -245,6 +245,11 @@ export interface Composition {
     racine: string
   ): { tester: Commande; verifier: Commande; typer: Commande } & Record<string, Commande>;
   verdict(dossier: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
+  /** Whether the log `texte` of a task shows a COMPILATION failure of the language, so the circuit
+   * reads a test target that does not compile as a failed build (« construction de <crate> »),
+   * whatever the task that bears it — the build task, or the test task with no report
+   * (grillhouse-lv9). Every module answers it; a language with no compilation step answers false. */
+  echecDeCompilation(texte: string): boolean;
   estUnTest(chemin: string, racine: string): ClasseDeTest;
   /** Whether the test file `chemin` (from `racine`) is out of the day, one that only the night
    * plays (a night test, a time budget bench, a time witness), by the module's own definitions;

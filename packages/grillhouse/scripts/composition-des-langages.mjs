@@ -265,6 +265,7 @@ export function composer(modules) {
         taches: parts.flatMap(p => p.taches),
       };
     },
+    echecDeCompilation: texte => modules.some(m => m.echecDeCompilation?.(texte) ?? false),
     estUnTest: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m => m.estUnTest(chemin, racine)),
     horsDuJour: (chemin, racine) =>
