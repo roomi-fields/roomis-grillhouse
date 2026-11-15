@@ -164,6 +164,7 @@ import { lireGroupe, projetsExternes } from './groupe-cles.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
 import { langageDe, langagesDe } from './langages.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
+import { CONFIG_BEADS, ecrireLePrefixe, prefixe, prefixeDuStore } from './prefixe-des-tickets.mjs';
 import { poserLesWorkflows } from './workflows-du-cadre.mjs';
 
 const SCRIPTS = {
@@ -372,6 +373,16 @@ function poserLesProjetsExternes(projet, groupe, bd) {
   return poses;
 }
 
+// Whether the `.beads/config.yaml` of <projet> holds an active key `issue-prefix`.
+function cleActive(projet) {
+  try {
+    prefixe(projet);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Brings the project at `projet` to the frame's files at `source` (CADRE, scripts/cadre.mjs; a
  * trial's own in the tests); <inscrite> is the version it records (the package's; null records
@@ -505,6 +516,11 @@ export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd }
   attribuer(projet);
   bilan.workflows = poserLesWorkflows(projet, source);
   bilan.projetsExternes = poserLesProjetsExternes(projet, groupe, bd);
+  // The key `issue-prefix`, when no active one exists: the store's value, never a guess.
+  if (existsSync(path.join(projet, CONFIG_BEADS)) && !cleActive(projet)) {
+    const valeur = prefixeDuStore(projet, bd);
+    bilan.prefixe = valeur === '' ? { manque: true } : { pose: ecrireLePrefixe(projet, valeur) };
+  }
   return bilan;
 }
 
@@ -562,6 +578,11 @@ export function rapport(b) {
   if (b.projetsExternes?.length > 0) {
     lignes.push(
       `Projets externes de Beads : ${b.projetsExternes.join(', ')} posé(s) depuis grillhouse.groupe.`
+    );
+  }
+  if (b.prefixe?.pose) {
+    lignes.push(
+      `Préfixe des tickets : ${CONFIG_BEADS} pose \`${b.prefixe.pose}\`, la valeur du store de Beads.`
     );
   }
   if (b.workflows?.length > 0) {
@@ -701,6 +722,12 @@ function mettreAJourLeProjet(projet, premiere) {
   const duLangage = b.duLangage.aFaire;
   for (const l of duLangage) {
     process.stderr.write(`${l}\n`);
+    process.exitCode = 1;
+  }
+  if (b.prefixe?.manque) {
+    process.stderr.write(
+      `Préfixe des tickets : le store de Beads n'en donne aucun ; pose \`issue-prefix: "<préfixe des tickets du projet>"\` dans ${CONFIG_BEADS}, le préfixe étant celui que le projet choisit.\n`
+    );
     process.exitCode = 1;
   }
   const binaires = installerBinaires(projet);

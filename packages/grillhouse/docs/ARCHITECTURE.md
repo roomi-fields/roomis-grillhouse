@@ -919,8 +919,9 @@ renomme, son contenu gardé à moitié au moins (`renommesDuLot`), reprend la de
 (`ecrireLePrefixe` de `packages/grillhouse/scripts/prefixe-des-tickets.mjs`, qui la lit aussi),
 que la préparation d'un projet neuf (`npx grillhouse init`) appelle après `bd init`, avec le
 préfixe donné. La mise à jour qui apporte la garde (`npx grillhouse maj`) écrit la clé depuis
-`bd config get issue_prefix` (migration 0.30.0 `préfixe des tickets`, un projet sans `.beads/`
-n'écrivant rien), puis inscrit dans sa dette les titres d'un projet qui nomment déjà un ticket
+`bd config get issue_prefix` quand aucune clé active n'existe (`mettreAJour`, pour tout projet ; un
+projet sans `.beads/config.yaml` n'écrit rien, et sans valeur du store elle n'écrit rien et dit la
+ligne à poser), puis inscrit dans sa dette les titres d'un projet qui nomment déjà un ticket
 (migration 0.30.0 `titres nommant un ticket`), sans qu'un test se réécrive.
 Ainsi le compte des titres qui nomment un ticket ne fait que baisser.
 

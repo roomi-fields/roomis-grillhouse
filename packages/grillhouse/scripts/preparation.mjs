@@ -22,7 +22,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { trouverDansLePath } from './commandes-du-path.mjs';
 import { installerGreffons } from './greffons.mjs';
-import { ecrireLePrefixe } from './prefixe-des-tickets.mjs';
+import { ecrireLePrefixe, prefixeDuStore } from './prefixe-des-tickets.mjs';
 
 // The prefix of the tickets: the one given, else the store's own, else the directory's name.
 function prefixeDe(projet, donne) {
@@ -30,13 +30,10 @@ function prefixeDe(projet, donne) {
     return donne;
   }
   if (existsSync(path.join(projet, '.beads'))) {
-    const r = spawnSync('bd', ['config', 'get', 'issue_prefix'], {
-      cwd: projet,
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-    });
-    const existant = (r.stdout ?? '').trim();
-    if (r.status === 0 && existant !== '' && !existant.includes('(')) {
+    const existant = prefixeDuStore(projet, (args, cwd) =>
+      spawnSync('bd', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+    );
+    if (existant !== '') {
       return existant;
     }
   }

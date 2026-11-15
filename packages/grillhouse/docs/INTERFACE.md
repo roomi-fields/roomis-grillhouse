@@ -383,9 +383,10 @@ doublon), l'état du dépôt et la place de ses fichiers par branche (`etat-du-d
 que le dernier vert et le registre partagent), les arbitrages d'un ticket, le préfixe des tickets (`CONFIG_BEADS`, le fichier commité de Beads,
 `.beads/config.yaml` ; `prefixe(racine)`, la clé `issue-prefix` lue là, jamais par `bd`, et une
 erreur qui nomme le fichier ou la clé manquants ; `ecrireLePrefixe(racine, valeur)`, son seul
-écrivain, que la préparation d'un projet neuf et la migration de `grillhouse maj` appellent : la
-clé vide remplacée, la clé absente ajoutée, la ligne écrite rendue, `null` pour une clé qui a sa
-valeur), les fichiers sources d'un projet, les variables d'un fichier du poste (`avecLeFichierDuPoste(env, { fichier, ajouts })` : celles de
+écrivain, que la préparation d'un projet neuf et la mise à jour de tout projet (`mettreAJour`) appellent :
+la clé vide remplacée, la clé absente ajoutée, la ligne écrite rendue, `null` pour une clé qui a sa
+valeur ; `prefixeDuStore(racine, bd)`, la valeur que le store de Beads donne, la chaîne vide sans
+valeur, en échec ou pour un espace réservé), les fichiers sources d'un projet, les variables d'un fichier du poste (`avecLeFichierDuPoste(env, { fichier, ajouts })` : celles de
 `$XDG_CONFIG_HOME/grillhouse/<fichier>`, `~/.config/grillhouse/<fichier>` sans lui, puis
 `ajouts`, `env` tel quel quand il nomme déjà l'une d'elles ou sans le fichier), la recherche d'une commande dans le PATH (`trouverDansLePath(nom, env?)` : le chemin du premier exécutable de ce nom, ou `null`, comme `command -v`), les paquets d'un langage sans
 `package.json` à lui (`paquetsSansPackageJson(racine)` : les crates et les projets Python que le

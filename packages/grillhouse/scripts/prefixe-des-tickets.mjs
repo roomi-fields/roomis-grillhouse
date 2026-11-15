@@ -2,8 +2,8 @@
 // `.beads/config.yaml`, the one place a CI reads it (it has no `bd`): the guard of the titles of the
 // tests reads it there (scripts/langages/typescript/titres-de-tests.mjs). `bd init` writes the key
 // commented out and keeps the prefix in its database, so the frame writes the key itself, by one
-// function: the preparation of a new project (./preparation.mjs) and the update of a project
-// (the migration 0.30.0 « préfixe des tickets »).
+// function: the preparation of a new project (./preparation.mjs) and the update of any project
+// (`mettreAJour`, which writes the key when no active one exists, the value being the store's).
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -42,6 +42,20 @@ export function prefixe(racine) {
     );
   }
   return valeur;
+}
+
+/**
+ * The prefix the store of Beads holds (`bd config get issue_prefix`, run in <racine> by <bd>, as
+ * `bd(args, cwd)` gives `{ status, stdout, stderr }`): '' without a value, on a failure, or when the
+ * output is a placeholder (it holds `(`).
+ * @param {string} racine
+ * @param {(args: string[], cwd: string) => { status: number | null, stdout?: string }} bd
+ * @returns {string}
+ */
+export function prefixeDuStore(racine, bd) {
+  const r = bd(['config', 'get', 'issue_prefix'], racine);
+  const valeur = (r.stdout ?? '').trim();
+  return r.status === 0 && valeur !== '' && !valeur.includes('(') ? valeur : '';
 }
 
 /**
