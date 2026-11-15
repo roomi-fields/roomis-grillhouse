@@ -35,30 +35,16 @@ describe('grillhouse-pkl.3, critère 1 — le module cargo passe la suite de con
   });
 
   it('it exports every member of the join, as the module typescript does', () => {
-    // grillhouse-3e2.3, criterion 8: soeurDAvant and the Turborepo summary members are typescript's alone.
+    // The Turborepo summary members are typescript's alone.
     expect(Object.keys(cargo).sort()).toEqual(
       Object.keys(typescript)
-        .filter(
-          m =>
-            !['soeurDAvant', 'resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m)
-        )
+        .filter(m => !['resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m))
         .sort()
     );
   });
 
   it('the suite finds no fault in it', () => {
     expect(echecs(cargo, exemples, { dans: ESSAIS })).toEqual([]);
-  });
-
-  // grillhouse-3e2, criterion 5: the names of HEAD's tests are the verdict's, their module path
-  // whole; a module that reads them bare fails the case of HEAD's version alone.
-  it('testsDeHead that drops the module path fails the case of HEAD’s version alone', () => {
-    const mutant = {
-      ...cargo,
-      testsDeHead: (chemin: string, racine: string, lire: (f: string) => string | null) =>
-        cargo.testsDeHead(chemin, racine, lire)?.map(n => n.split('::').at(-1) ?? n) ?? null,
-    } as Langage;
-    expect(echecs(mutant, exemples, { dans: ESSAIS }).map(e => e.nom)).toEqual(['versionDeHead']);
   });
 
   it('each case has a defective entry with faults', () => {

@@ -54,8 +54,8 @@ garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 - les composants sont ceux de chaque module ; un dossier que deux modules revendiquent est refusé,
   nommé avec les deux langages ;
 - un fichier va au module du composant qui le tient, le plus profond ; un fichier hors de tout
-  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`, `horsDuJour`, `soeurDAvant`, `arbreDAvant`,
-  `testsDeHead`, `manifestes.horsDesTests`) ;
+  composant, au premier module dont la réponse n'est pas nulle (`estUnTest`, `horsDuJour`,
+  `manifestes.horsDesTests`) ;
 - les lecteurs et les éléments d'un lot sont ceux de chaque module sur ses
   composants, réunis : un nom sans fournisseur l'est dans chaque module ; le verdict d'une passe, celui de chaque module, lu dans le même dossier
   de résultats ;
@@ -320,12 +320,6 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
 - `horsDuJour` (`chemin`, `racine`) : vrai quand le fichier de test est de ceux que seule la nuit
   joue (test de nuit, banc ou témoin de temps), selon les définitions du module ; faux pour tout
   autre fichier, absent compris. La preuve du rouge met ces fichiers de côté et les nomme.
-- `soeurDAvant` (facultatif, `typescript` seul) : le nom de la sœur d'un fichier de test, à côté de
-  lui, où la preuve du rouge écrit sa version de HEAD : un test que l'outil du langage joue dans le
-  même lancement, ses tests nommés comme ceux du fichier, de la même classe que lui, jour, nuit ou
-  banc, pour qu'elle se joue comme lui (`<nom>.circuit-avant.test.<ext>`,
-  `<nom>.circuit-avant.nuit.test.<ext>`, `<nom>.circuit-avant.budget.test.<ext>`), ou null pour un
-  fichier que l'outil ne joue pas.
 - `resumesDuLancement`, `garderLesResumes`, `lireLesResumes` (facultatifs, `typescript` seul, qui pilote
   Turborepo) : le résumé de passe que Turborepo écrit sous `--summarize`. `resumesDuLancement` nomme
   ceux d'une racine avant un lancement ; `garderLesResumes` range ceux qu'un lancement a écrits dans
@@ -334,29 +328,6 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
   `cargo` et `python` : `lancerLesTaches` demande le résumé et le range quand un dossier de résultats
   est nommé, et `tachesDuVerdict` joint les tâches du résumé à celles qu'un module a écrites (une
   tâche relue du cache paraît avec le code 0, sans rapport).
-- `arbreDAvant` (`chemin`, `racine`) : vrai quand la version de HEAD d'un fichier de test se joue dans un
-  arbre à elle (`cargo` : une cible `tests/<nom>.rs` ; `python` : un fichier que pytest joue), la
-  copie où ce seul fichier est remplacé par sa version de HEAD, sous son propre nom, jamais un
-  fichier de plus dans la copie ; faux pour un fichier que l'outil joue à côté de lui (`typescript`),
-  ne sait pas jouer ainsi (`cargo` : une cible `tests/<dossier>/main.rs`, un test unitaire de
-  `src/`) ou ne joue pas.
-- `envDArbre` (`chemin`, `racine`) : l'environnement sous lequel l'arbre d'un fichier se joue (`cargo` :
-  le dossier cible des compilations de la copie, que l'arbre partage — `target/` de la copie quand
-  elle est hors du dossier temporaire — et la copie elle-même, `GRILLHOUSE_COPIE_DE_L_ARBRE`, dont
-  git suit le `Cargo.lock` que l'arbre, sans `.git`, porte ; `python` : le dossier des environnements
-  uv de la copie, `<copie>/.venv`, sous `GRILLHOUSE_VENV_DE_LA_COPIE`, que l'arbre réutilise au lieu
-  d'en recréer un par fichier) ; vide pour `typescript` et pour un fichier hors de tout paquet python.
-- `testsDeHead` (`chemin`, `racine`, `lire`) : pour un fichier de test dont la preuve ne joue pas l'arbre,
-  les noms des tests de sa version de HEAD, lus sans les jouer, tels que le verdict les nomme ; la
-  preuve du rouge tient chacun pour un vert que HEAD tient déjà, puisque main reste vert. `lire`
-  rend le texte de HEAD d'un fichier depuis la racine. `cargo` : un test unitaire de `src/`, ses
-  tests marqués `#[test]` ou `#[<chemin>::test]` dans leurs modules en ligne, sous le chemin de
-  module que nextest rapporte (`server::tests::groupe::nom`) ; une cible `tests/<dossier>/main.rs`,
-  avec ses modules hors ligne (`mod aide;`) ; une cible `tests/<nom>.rs`, dont la preuve joue
-  l'arbre sauf quand lui seul casse la construction de son paquet (la version de HEAD ne compile
-  plus contre le `tests/common` du lot) : ses noms sans la cible, ses modules hors ligne lus,
-  `common::<fn>`. Null pour tout autre fichier, ou un fichier que HEAD ne tient pas ;
-  `typescript` et `python`, toujours null.
 - `manifestes` : ce que le testwriter écrit des manifestes, comme l'auteur d'un test de Bazel
   déclare les dépendances de sa cible. `verrous`, les fichiers de verrouillage des versions depuis
   la racine (cargo : `Cargo.lock` ; typescript : `package-lock.json` ; python : `uv.lock`, celui
@@ -398,8 +369,18 @@ puis le verrou ; aucune place dans la CI ni dans l'enveloppe d'un agent, que cou
 séance), les travailleurs d'une séance
 (`travailleursDeLaSeance(env)` : le nombre que donne `GRILLHOUSE_TRAVAILLEURS`, max(1, cœurs ÷
 places), que le module passe à son outil — `maxWorkers`, `-j`, `-n` — ou `null` pour une passe
-lourde, qui garde tous les cœurs ; une valeur fautive est refusée par son nom), le dernier vert,
-les arbitrages d'un ticket, le préfixe des tickets (`CONFIG_BEADS`, le fichier commité de Beads,
+lourde, qui garde tous les cœurs ; une valeur fautive est refusée par son nom), le dernier vert, le
+registre des résultats (`registre-des-resultats.mjs` : `garderLeRegistre(etat, rapports)`, les
+tests verts de chaque fichier d'une passe, que la passe complète écrit quand `GRILLHOUSE_RESULTATS`
+nomme son dossier de résultats ; `lireLeRegistre(racine)`, le registre de la branche quand son
+commit est un ancêtre de HEAD, celui de main sinon, `null` hors de ces cas ;
+`vertsDuRegistre(registre, fichier)`, les noms des tests verts d'un fichier, un ensemble vide pour
+un fichier absent ; `consignerLesRegressions(etat, rouges, registre, quand)`, un vert devenu rouge,
+avec son dernier commit vert et son premier HEAD rouge, sous `regressions/<branche>.json`, sans
+doublon), l'état du dépôt et la place de ses fichiers par branche (`etat-du-depot.mjs` :
+`etatDuDepot(racine)`, `{ racine, commit, arbre, branche, main }` ou `{ raison }` ;
+`fichierSous(racine, sous, branche)`, le fichier `<git common dir>/grillhouse/<sous>/<branche>.json`
+que le dernier vert et le registre partagent), les arbitrages d'un ticket, le préfixe des tickets (`CONFIG_BEADS`, le fichier commité de Beads,
 `.beads/config.yaml` ; `prefixe(racine)`, la clé `issue-prefix` lue là, jamais par `bd`, et une
 erreur qui nomme le fichier ou la clé manquants ; `ecrireLePrefixe(racine, valeur)`, son seul
 écrivain, que la préparation d'un projet neuf et la migration de `grillhouse maj` appellent : la
@@ -425,7 +406,7 @@ dernier, quel que soit l'ordre des langages du tableau des composants, si bien q
 hors du graphe rouge, `cargo deny check` par exemple, l'empêche de poser le dernier vert ; `TRACE`, `tracesDuPlan`), et la lecture unique
 (`luUneFois(cle, lire)` : ce qu'un module lit à grand coût, les métadonnées de cargo, ses
 composants, se lit une fois tant que le noyau tient une portée de lecture unique, un geste qui
-pose beaucoup de questions sur un arbre immobile, le balayage des sœurs ; à chaque appel hors
+pose beaucoup de questions sur un arbre immobile ; à chaque appel hors
 d'elle). Pour le dossier temporaire et les
 caches de compilation : `dansLeTemporaire(chemin, env)`, si un chemin est sous le dossier
 temporaire (`TMPDIR`, celui du système, `/tmp`) ; `cacheDeCompilation(outil, env)`, le cache d'un

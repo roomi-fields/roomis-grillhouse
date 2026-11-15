@@ -149,6 +149,12 @@ journal="$dossier/$(date +%Y-%m-%d).log"
 # The red tasks of the full pass, written by the verification of the module of the language.
 rouges="$dossier/rouges"
 rm -f "$rouges"
+# The results directory of the full pass: each language writes its reports there, and the pass reads
+# them to keep the registry of results (scripts/registre-des-resultats.mjs), which the proof of the
+# red reads to tell a test main holds green from a new one.
+resultats="$dossier/resultats"
+rm -rf "$resultats"
+mkdir -p "$resultats"
 
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"
@@ -282,7 +288,7 @@ process.exit(paquets(process.argv[2]).some(p => p.pkg.name === "@roomi-fields/gr
   # The full pass, played for real: the night replays no log of the cache. Each step plays even
   # when one before it is red; a step à repasser ends the night there, red if a step before it is.
   local code tache avant
-  GRILLHOUSE_ROUGES="$rouges" GRILLHOUSE_VERIFICATION_SORTE=Nuit monter npm --prefix "$copie" run verifier -- --force
+  GRILLHOUSE_ROUGES="$rouges" GRILLHOUSE_RESULTATS="$resultats" GRILLHOUSE_VERIFICATION_SORTE=Nuit monter npm --prefix "$copie" run verifier -- --force
   code=$?
   if [ "$code" -eq 75 ]; then
     echo "⏱ la passe complète est à repasser (code 75) : l'attente de la machine a atteint sa borne."

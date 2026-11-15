@@ -201,37 +201,6 @@ function resultats(dans, taches, rapports, cibles) {
   return dossier;
 }
 
-// HEAD's text of a unit test file of `src/`: two tests, one in an inline module, and braces and
-// a false test in a comment, a raw string and a character, which are not counted.
-const UNITAIRE = [
-  'use super::*;',
-  '// fn faux() { #[test]',
-  '#[test]',
-  'fn ancien() {',
-  '    let _ = r#"{ #[test] fn dans_la_chaine() {} "#;',
-  "    let _ = '{';",
-  '}',
-  '/* } #[test] fn commentee() {} */',
-  'mod groupe {',
-  '    #[test]',
-  '    #[ignore]',
-  '    fn interne() {}',
-  '}',
-  '',
-].join('\n');
-// HEAD's text of a target `tests/<dossier>/main.rs`: a test, one under `#[tokio::test]` in an
-// inline module, and an out-of-line module `aide`.
-const PRINCIPAL = [
-  'mod aide;',
-  '#[test]',
-  'fn principal() {}',
-  'mod m {',
-  '    #[tokio::test]',
-  '    async fn dedans() {}',
-  '}',
-  '',
-].join('\n');
-
 export default {
   // The trials under <dans>.
   preparer(dans) {
@@ -363,48 +332,6 @@ export default {
           'crates/core/tests/t.rs : joue, test',
           'crates/core/tests/common/mod.rs : test, matiere',
           'crates/matiere/src/lib.rs : matiere',
-        ],
-      },
-      versionDeHead: {
-        valide: [
-          'crates/core/src/lib.rs',
-          'crates/core/src/tests.rs',
-          'crates/core/tests/common/mod.rs',
-          'crates/core/tests/scenario/main.rs',
-          'Cargo.toml',
-        ],
-        // A target, a night test and a bench play in a tree, under their own name.
-        invalide: [
-          'crates/core/tests/t.rs',
-          'crates/core/tests/t_nuit.rs',
-          'crates/core/tests/t_budget.rs',
-          // A unit test of `src/` and a target `tests/<dossier>/main.rs` have no tree: the
-          // names of HEAD's tests are read, as nextest reports them (its module path), the
-          // braces of a comment, a string or a character not counted; each file of the target
-          // its own, as the verdict gives them: main.rs its tests, a module of it its own.
-          {
-            chemin: 'crates/core/src/rendu/tests.rs',
-            textes: { 'crates/core/src/rendu/tests.rs': UNITAIRE },
-          },
-          {
-            chemin: 'crates/core/tests/scenario/main.rs',
-            textes: {
-              'crates/core/tests/scenario/main.rs': PRINCIPAL,
-              'crates/core/tests/scenario/aide.rs': '#[test]\nfn aidant() {}\n',
-            },
-          },
-          {
-            chemin: 'crates/core/tests/scenario/aide.rs',
-            textes: { 'crates/core/tests/scenario/aide.rs': '#[test]\nfn aidant() {}\n' },
-          },
-        ],
-        attendu: [
-          'crates/core/tests/t.rs → un arbre',
-          'crates/core/tests/t_nuit.rs → un arbre',
-          'crates/core/tests/t_budget.rs → un arbre',
-          'crates/core/src/rendu/tests.rs : rendu::tests::ancien, rendu::tests::groupe::interne',
-          'crates/core/tests/scenario/main.rs : principal, m::dedans',
-          'crates/core/tests/scenario/aide.rs : aide::aidant',
         ],
       },
       fichiersEngendres: {

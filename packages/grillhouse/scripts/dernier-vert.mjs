@@ -47,19 +47,10 @@
 //   (the tests of a crate or a Python project are tasks of Turborepo, which its cache selects).
 //   The green is kept by the one pass of the verification (scripts/langages/typescript/verifier.mjs),
 //   once, when every task of every language of the graph is green, and never when one is red.
-import { spawnSync } from 'node:child_process';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { etatDuDepot, fichierSous, git, SHA, sortie } from './etat-du-depot.mjs';
 // The variable that names the file of the changes since the last green, which the runner of the
 // tests of the module of the language reads in each package.
 export const CHANGEMENTS = 'GRILLHOUSE_CHANGEMENTS';
@@ -67,84 +58,11 @@ export const DEPUIS_LE_VERT = 'GRILLHOUSE_DEPUIS_LE_VERT';
 // The variable that gives a pass of the circuit the base of its lot, against which it measures
 // itself, targeted.
 export const BASE_DU_LOT = 'GRILLHOUSE_BASE_DU_LOT';
-const SHA = /^[0-9a-f]{40,64}$/;
-
-const git = (racine, args, env = process.env) =>
-  spawnSync('git', ['-C', racine, ...args], {
-    encoding: 'utf8',
-    env,
-    maxBuffer: 256 * 1024 * 1024,
-  });
-const sortie = (racine, args, env) => {
-  const r = git(racine, args, env);
-  return r.status === 0 ? r.stdout.trim() : null;
-};
 
 // The file of the last green of the branch <branche> of the repository at <racine>, null out of
-// git.
+// git (`fichierSous` of scripts/etat-du-depot.mjs).
 function fichierDuVert(racine, branche) {
-  const commun = sortie(racine, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
-  return commun ? path.join(commun, 'grillhouse', 'dernier-vert', `${branche}.json`) : null;
-}
-
-// Main, the branch of the main tree of the repository at <racine> (HEAD of git's common
-// directory); null when that tree is detached.
-function brancheDeMain(racine) {
-  const commun = sortie(racine, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
-  return commun
-    ? sortie(racine, [`--git-dir=${commun}`, 'symbolic-ref', '--short', '-q', 'HEAD'])
-    : null;
-}
-
-// Whether a submodule of the repository at <racine> differs from the commit its parent records.
-function sousModuleModifie(racine) {
-  const r = git(racine, ['status', '--porcelain=v2', '-z', '--ignore-submodules=none']);
-  if (r.status !== 0) {
-    return true;
-  }
-  // An entry of a changed path: `1 <XY> <sub> …` (or `2` for a rename), <sub> `S<c><m><u>` for a
-  // submodule whose commit, tracked files or untracked files changed, `N...` for any other path.
-  return r.stdout.split('\0').some(e => /^[12] \S+ S/.test(e));
-}
-
-// The state of the repository at <racine> as it stands: `{ racine, commit, arbre, branche, main }`,
-// its top (its real path), HEAD, the tree of its working tree, the branch of HEAD (null when
-// detached) and main (brancheDeMain); `{ raison }` when no last green can count.
-function etatDuDepot(racine) {
-  const haut = sortie(racine, ['rev-parse', '--show-toplevel']);
-  if (!haut) {
-    return { raison: 'hors de git' };
-  }
-  const top = realpathSync(haut);
-  const commit = sortie(top, ['rev-parse', '--verify', '-q', 'HEAD^{commit}']);
-  if (!commit) {
-    return { raison: 'aucun commit' };
-  }
-  if (sousModuleModifie(top)) {
-    return { raison: 'un sous-module diffère de son commit' };
-  }
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'grillhouse-vert-'));
-  try {
-    const index = path.join(dir, 'index');
-    const reel = sortie(top, ['rev-parse', '--path-format=absolute', '--git-path', 'index']);
-    const env = { ...process.env, GIT_INDEX_FILE: index };
-    if (reel && existsSync(reel)) {
-      copyFileSync(reel, index);
-    } else if (git(top, ['read-tree', 'HEAD'], env).status !== 0) {
-      return { raison: 'git échoue' };
-    }
-    if (git(top, ['add', '-A'], env).status !== 0) {
-      return { raison: 'git échoue' };
-    }
-    const arbre = sortie(top, ['write-tree'], env);
-    if (!arbre) {
-      return { raison: 'git échoue' };
-    }
-    const branche = sortie(top, ['symbolic-ref', '--short', '-q', 'HEAD']);
-    return { racine: top, commit, arbre, branche, main: brancheDeMain(top) };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  return fichierSous(racine, 'dernier-vert', branche);
 }
 
 // The last green that a pass in the state <etat> (etatDuDepot) measures itself against: its

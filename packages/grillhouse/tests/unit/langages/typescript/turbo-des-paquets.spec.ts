@@ -926,6 +926,11 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'arbitrages.mjs',
       'avancement.mjs',
       'dernier-vert.mjs',
+      // What services-du-noyau.mjs imports for the registry of results (grillhouse-43l).
+      'registre-des-resultats.mjs',
+      // What dernier-vert.mjs and the registry import: the state of the repository and the place of
+      // its per-branch files (grillhouse-43l).
+      'etat-du-depot.mjs',
       'verrou-de-machine.mjs',
       // What verrou-de-machine.mjs imports to name the copies that hold the disk (grillhouse-k5y).
       'copies-finies.mjs',

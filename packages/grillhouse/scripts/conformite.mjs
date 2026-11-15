@@ -22,11 +22,6 @@
 // - verdict: each task neither green nor unplayed (« à repasser » at 75, red otherwise), the one
 //   that plays the tests marked, and each test failed;
 // - estUnTest: each path the testwriter writes, with what it is (`joue`, `test`, `matiere`);
-// - versionDeHead (`soeurDAvant`, `arbreDAvant`, `testsDeHead`): each path whose HEAD's version
-//   plays in a tree (`→ un arbre`), and each that has a sibling for it, with it, said when the sibling is the path itself or lies in another folder, and each path
-//   whose names of tests the module reads in HEAD's version (the entry a path, or `{ chemin,
-//   textes }`, HEAD's text of each file by its path), with them, said when it has both; the
-//   entry's expected siblings are names the module's tool plays, of their file's class;
 // - fichiersEngendres: each generated file whose check finds a gap;
 // - gardes: each guard named that the module does not play, and each script it plays that does
 //   not exist;
@@ -167,32 +162,6 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
           return [];
         }
         return [`${chemin} : ${['joue', 'test', 'matiere'].filter(k => c[k]).join(', ')}`];
-      }),
-    versionDeHead: entrees =>
-      entrees.flatMap(x => {
-        const { chemin, textes = {} } = typeof x === 'string' ? { chemin: x } : x;
-        const s =
-          typeof langage.soeurDAvant === 'function' ? langage.soeurDAvant(chemin, e.racine) : null;
-        const arbre =
-          typeof langage.arbreDAvant === 'function' && langage.arbreDAvant(chemin, e.racine);
-        const noms = langage.testsDeHead(chemin, e.racine, f => textes[f] ?? null);
-        if (s !== null && arbre) {
-          return [`${chemin} : une sœur et un arbre`];
-        }
-        if (arbre) {
-          return [`${chemin} → un arbre`];
-        }
-        if (s !== null && noms !== null) {
-          return [`${chemin} : une sœur et des noms lus`];
-        }
-        if (noms !== null) {
-          return [`${chemin} : ${noms.join(', ') || 'aucun test'}`];
-        }
-        if (s === null) {
-          return [];
-        }
-        const aCote = s !== chemin && path.dirname(s) === path.dirname(chemin);
-        return [aCote ? `${chemin} → ${s}` : `${chemin} → ${s} : pas à côté du fichier`];
       }),
     fichiersEngendres: racine =>
       langage

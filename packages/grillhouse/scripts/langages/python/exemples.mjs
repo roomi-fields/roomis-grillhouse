@@ -217,25 +217,6 @@ export default {
           'site/tests/donnees.json : test',
         ],
       },
-      versionDeHead: {
-        valide: [
-          'site/pages/generer.py',
-          'site/conftest.py',
-          'site/tests/donnees.json',
-          'README.md',
-        ],
-        // A test file plays in a tree, under its own name, a night test as a night test.
-        invalide: [
-          'site/pages/test_pages.py',
-          'site/pages/pages_test.py',
-          'site/pages/site_nuit_test.py',
-        ],
-        attendu: [
-          'site/pages/test_pages.py → un arbre',
-          'site/pages/pages_test.py → un arbre',
-          'site/pages/site_nuit_test.py → un arbre',
-        ],
-      },
       fichiersEngendres: {
         valide: aJour,
         invalide: enRetard,

@@ -1,6 +1,6 @@
 // The components of a project of Python, as uv finds a project (PEP 621, `pyproject.toml`): the
 // packages the module python answers the join with (scripts/jointure.d.ts, `composants`,
-// `composantDe`, `matieres`, `joueDesTests`, `lecteurs`, `estUnTest`, `arbreDAvant`, `manifestes`,
+// `composantDe`, `matieres`, `joueDesTests`, `lecteurs`, `estUnTest`, `manifestes`,
 // `entreesDeLIndex`).
 //
 // - A component is a folder that holds a pyproject.toml, found under the root, the folders whose
@@ -19,9 +19,7 @@
 //   any file under a folder `tests/` of a component, his helpers and his data. Of the manifests
 //   (`manifestes`): the group `test` of the table `[dependency-groups]` of a pyproject.toml (PEP
 //   735), what the tests depend on, and the uv.lock of a component, which uv brings in line with
-//   it; a change of any other part of a pyproject.toml is named by it. HEAD's version of a test
-//   file (`arbreDAvant`) plays in a tree of its own, under the file's name, which the proof of the
-//   red builds. The pyproject.toml is read
+//   it; a change of any other part of a pyproject.toml is named by it. The pyproject.toml is read
 //   with smol-toml, a tool of this module (`outils`), an optional peer of the package loaded when a
 //   manifest is judged.
 // - The readers of a package: none read by the module (a dependency between two packages of
@@ -144,15 +142,6 @@ export function estUnTest(chemin, racine) {
     return { joue: false, test: true, matiere: false };
   }
   return null;
-}
-
-/**
- * Whether HEAD's version of the test file <chemin> (from <racine>) plays in a tree of its own,
- * under the file's own name, so that its tests are named in its report as the file's, of its
- * kind (day, night); false for a file pytest does not play.
- */
-export function arbreDAvant(chemin, racine) {
-  return Boolean(estUnTest(chemin, racine)?.joue);
 }
 
 // The parts of the parsed manifests <a> and <b> that differ, out of the group of the tests: each

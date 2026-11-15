@@ -51,6 +51,7 @@
     "scripts/enveloppe/paquets-du-plan.mjs",
     "scripts/enveloppe/travail-de-la-copie.mjs",
     "scripts/etapes.mjs",
+    "scripts/etat-du-depot.mjs",
     "scripts/faits-du-circuit.mjs",
     "scripts/fichier-du-poste.mjs",
     "scripts/file-des-tickets.d.mts",
@@ -124,6 +125,7 @@
     "scripts/preparation.mjs",
     "scripts/recommencer.d.mts",
     "scripts/recommencer.mjs",
+    "scripts/registre-des-resultats.mjs",
     "scripts/registre.d.mts",
     "scripts/registre.mjs",
     "scripts/regles-des-places.d.mts",
@@ -247,7 +249,6 @@
     "scripts/langages/cargo/sccache.mjs",
     "scripts/langages/cargo/squelette.mjs",
     "scripts/langages/cargo/tailles-des-tests.mjs",
-    "scripts/langages/cargo/tests-de-head.mjs",
     "scripts/langages/cargo/verdict.mjs"
   ],
   "python": [

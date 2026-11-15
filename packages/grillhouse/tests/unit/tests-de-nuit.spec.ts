@@ -158,8 +158,6 @@ function testsDuDepot(): { f: string; s: string }[] {
 const tenant = (motif: RegExp) =>
   testsDuDepot()
     .filter(({ f }) => f !== path.relative(CADRE, __filename))
-    // the copy of a test as the proof of the red replays it before the code, not a test of the lot
-    .filter(({ f }) => !/\.circuit-avant\./.test(f))
     .filter(({ s }) => motif.test(s));
 
 describe('critère 4 — the test of critère 1 is a night test', () => {

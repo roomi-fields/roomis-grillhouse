@@ -228,22 +228,11 @@
 //   those in `portent_le_travail` (`fichier` from the root, `test` its full name or its title, or
 //   none for every test of the file). A green test the sheet names is a defect of the proof, named
 //   in the report; a green test it does not name is accepted with no reason, counted and listed
-//   under « Verts non nommés ». A green test HEAD already holds has
-//   nothing to prove: the version of HEAD of each file plays in the same proof, from a sibling
-//   file the module of its language names (`soeurDAvant` of the join, TypeScript: removed after
-//   it, a red included; one a killed process left is swept at the circuit's start and before each
-//   measure, `balayerLesSoeurs`), or in a tree of its own (`arbreDAvant` of the join, Rust and
-//   Python: the copy with that file alone replaced by its version of HEAD, in the temporary
-//   directory of the ticket, removed after the run, a red included, so that no test of the lot
-//   sees a file more), and a green test whose full name HEAD's version holds, green there too, is
-//   set aside, counted; a body changed under the same name is not told apart. A file its tool
-//   cannot play twice in a run (cargo: a unit test of `src/`, a target `tests/<dossier>/main.rs`)
-//   has neither: the module reads the names of the tests of its HEAD's version without playing
-//   them (`testsDeHead` of the join), and each is held for a green HEAD holds, as main stays
-//   green. A tree that no longer compiles (cargo: HEAD's version of a target against the lot's
-//   `tests/common`) is not a red of the lot: when the build fails with the trees and the lot
-//   alone builds, the package plays without them, the names of HEAD's tests of those files read
-//   (`testsDeHead`); a build the lot alone breaks stays a red (`jouerAvecLesVersionsDAvant`). The proof passes with a red (of the lot, existing or of a build), even without
+//   under « Verts non nommés ». A green test main already holds has nothing to prove: the registry
+//   of results (scripts/registre-des-resultats.mjs), written by the last complete green pass of
+//   main, holds the passed tests of each file by their full name; a green test of the lot whose
+//   full name the registry holds for its file is set aside, counted, as main stays green; a body
+//   changed under the same name is not told apart. The proof passes with a red (of the lot, existing or of a build), even without
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
 //   reds are enough. Under a plan « comportement changé » it fails without a red, with a broken file
 //   of the lot, or with a green the sheet names; under a plan « comportement
@@ -659,7 +648,6 @@ import {
 import { departDepuis } from './reprise.mjs';
 import {
   arbreDeLaCopie,
-  balayerLesSoeurs,
   controles,
   empreinte,
   empreinteDeLEtape,
@@ -2401,13 +2389,9 @@ export async function ouvrirJusquAuPlan(ctx, e) {
   return { debut: o.debut, plan: aEcrire ? planAuDebut(ctx) : null };
 }
 
-/** The end of the opening of <ctx> at the step <d>: the sort of the ticket, the siblings swept. `{ debut }`. */
+/** The end of the opening of <ctx> at the step <d>: the sort of the ticket. `{ debut }`. */
 export function finirLOuverture(ctx, d) {
   // The sort of the ticket its plan says, which the run reads at each step.
   ctx.sorte = sorteDuTicket(ctx);
-  // A sibling of HEAD's version a killed circuit left in the copy never enters the lot.
-  if (existsSync(ctx.copie)) {
-    balayerLesSoeurs(ctx);
-  }
   return { debut: d };
 }

@@ -536,6 +536,28 @@ export function circuitEssai(
     git('init', '-q', '-b', 'main');
     git('add', '.');
     git('commit', '-qm', 'init');
+    // The registry the night writes after a green pass of the whole repository
+    // (scripts/registre-des-resultats.mjs): main holds each package's `ancien` test green. The
+    // proof of a ticket's copy reads it to set the tests main already holds apart from the lot's own.
+    {
+      const commun = execFileSync(
+        'git',
+        ['-C', REPO, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+        { encoding: 'utf8' }
+      ).trim();
+      const commit = execFileSync('git', ['-C', REPO, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim();
+      const tests: Record<string, Record<string, string>> = {};
+      for (const [dossier] of lesPaquets) {
+        tests[`packages/${dossier}/test/ancien.test.mjs`] = {
+          'ancien — mesure rend un nombre': 'passed',
+        };
+      }
+      const f = path.join(commun, 'grillhouse', 'resultats', 'main.json');
+      mkdirSync(path.dirname(f), { recursive: true });
+      writeFileSync(f, `${JSON.stringify({ commit, tests }, null, 2)}\n`);
+    }
     execFileSync('git', ['init', '-q', '--bare', '-b', 'main', DISTANT]);
     git('remote', 'add', 'origin', DISTANT);
     git('push', '-q', 'origin', 'main');

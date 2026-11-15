@@ -141,10 +141,7 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     // The optional members are typescript's alone: cargo and python do not answer them.
     expect(
       membresDeLangage()
-        .filter(
-          m =>
-            !['soeurDAvant', 'resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m)
-        )
+        .filter(m => !['resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m))
         .sort()
     ).toEqual(Object.keys(cargo).sort());
     expect(REPARTITION.cargo).toContain('scripts/langages/cargo/index.mjs');
@@ -156,10 +153,7 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
   it('grillhouse-ziy: jointure.d.ts declares exactly what the module python answers, its files under its folder', () => {
     expect(
       membresDeLangage()
-        .filter(
-          m =>
-            !['soeurDAvant', 'resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m)
-        )
+        .filter(m => !['resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m))
         .sort()
     ).toEqual(Object.keys(python).sort());
     expect(REPARTITION.python).toContain('scripts/langages/python/index.mjs');

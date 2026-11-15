@@ -50,7 +50,7 @@ import { composants as lesComposants, matieres } from './consommateurs.mjs';
 import { elementsDuLot } from './elements-du-lot.mjs';
 import { estNoteDeDette, lireSarif, RESULTATS } from '../../resultats.mjs';
 import { lecteurs } from './lecteurs.mjs';
-import { estUnTest, manifestes, soeurDAvant } from './regle-des-tests.mjs';
+import { estUnTest, manifestes } from './regle-des-tests.mjs';
 import {
   avecLeFichierDuPoste,
   empreintesDesTaches,
@@ -273,16 +273,10 @@ export default {
   estUnTest,
   // A night test, a bench or a time witness (./vitest-config/cibles.mjs, `estHorsDuJour`).
   horsDuJour: (chemin, racine) => estHorsDuJour(path.resolve(racine, chemin)),
-  soeurDAvant,
   // The summary of a run of Turborepo, which the core serves to the other modules.
   resumesDuLancement,
   garderLesResumes,
   lireLesResumes,
-  // Its tool plays HEAD's version of each test file beside it (`soeurDAvant`): no tree, no name
-  // to read.
-  arbreDAvant: () => false,
-  envDArbre: () => ({}),
-  testsDeHead: () => null,
   manifestes,
   fichiersEngendres: () => [
     engendre(

@@ -1,7 +1,7 @@
 // The components of a workspace of cargo, as cargo itself describes them (`cargo metadata
 // --format-version 1 --no-deps --offline`): the crates the module cargo answers the join with
 // (scripts/jointure.d.ts, `composants`, `composantDe`, `matieres`, `joueDesTests`, `lecteurs`,
-// `estUnTest`, `arbreDAvant`, `testsDeHead`).
+// `estUnTest`).
 //
 // - A component is a member of the workspace (`workspace_members`): its folder, the manifest's;
 //   its name and its package, the crate's name. A directory without a Cargo.toml at its root holds
@@ -29,13 +29,6 @@
 //   `tests.rs` under `src/`, and any file of a folder `tests/` under `src/`, is a unit test file,
 //   played with its crate when it is Rust; a file of a crate of the shared test material is
 //   material; any other file of a crate (the code of `src/`) is none of them.
-// - HEAD's version of a test file plays in a tree of its own (`arbreDAvant`), never beside the
-//   file: a target `tests/<nom>.rs`, a target cargo finds by itself, its tree the copy's with that
-//   file replaced, built in the cargo target directory of the copy (`envDArbre`); none for
-//   `tests/<dossier>/main.rs` nor a unit test of `src/`, whose names of tests HEAD's version holds
-//   are read without playing them (`testsDeHead`, ./tests-de-head.mjs), the proof holding each for
-//   a green HEAD holds; those of a target `tests/<nom>.rs` too, when its tree no longer compiles
-//   (grillhouse-3e2.2).
 // - What the testwriter writes of the manifests (`manifestes`): the tables that declare what the
 //   tests of a crate depend on, `[dev-dependencies]` and `[target.<cible>.dev-dependencies]` of
 //   its Cargo.toml (cargo's book, « Development dependencies »), as the author of a test of Bazel
@@ -55,7 +48,6 @@ import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { luUneFois } from '../../services-du-noyau.mjs';
 import { cibleDeCompilation } from './sccache.mjs';
-import { nomsDeHead } from './tests-de-head.mjs';
 
 // The loader of the optional peers this module reads when it needs them (smol-toml), under the
 // name by which knip reads a dependency.
@@ -269,97 +261,6 @@ export function estUnTest(chemin, racine) {
  * `horsDuJour`). */
 export const DE_NUIT = '_nuit';
 export const BANC = '_budget';
-
-/**
- * Whether HEAD's version of the test file <chemin> (from the root <racine>) plays in a tree of its
- * own, in the same proof as the lot's: a test target `tests/<nom>.rs`, a target cargo finds by
- * itself (`autotests`), its `mod` of the same folder read as the file's; false for any other
- * file: a target `tests/<dossier>/main.rs` holds its modules beside it, and a unit test of
- * `src/` is compiled in its crate's module (`testsDeHead` reads their names).
- * @param {string} chemin
- * @param {string} racine
- */
-export function arbreDAvant(chemin, racine) {
-  const abs = path.resolve(racine, chemin);
-  const c = composantDans(
-    crates(racine).map(x => x.composant),
-    racine,
-    abs
-  );
-  const parts = c ? path.relative(c.dossier, abs).split(path.sep) : [];
-  return parts.length === 2 && parts[0] === 'tests' && parts[1].endsWith('.rs');
-}
-
-/** The variable that names, to the launcher, the copy whose git tracks the `Cargo.lock` of a tree. */
-export const COPIE_DE_L_ARBRE = 'GRILLHOUSE_COPIE_DE_L_ARBRE';
-
-/**
- * The environment a tree of HEAD's version plays under: the target directory of the copy's
- * compilations, so that the tree builds there, whatever its place (`cibleDeCompilation`
- * (./sccache.mjs) for a copy in the temporary directory, its `target/` otherwise; the caller's
- * own `CARGO_TARGET_DIR` stays), and the copy itself (`COPIE_DE_L_ARBRE`), where git tracks the
- * `Cargo.lock` the tree, which has no `.git`, carries.
- * @param {string} _chemin
- * @param {string} racine
- * @returns {NodeJS.ProcessEnv}
- */
-export function envDArbre(_chemin, racine) {
-  const cible = cibleDeCompilation(racine, process.env, { creer: false });
-  return {
-    ...(process.env.CARGO_TARGET_DIR || cible.CARGO_TARGET_DIR
-      ? cible
-      : { CARGO_TARGET_DIR: path.join(racine, 'target') }),
-    [COPIE_DE_L_ARBRE]: racine,
-  };
-}
-
-/**
- * The names of the tests of HEAD's version of the test file <chemin> (from the root <racine>),
- * read without playing them, for a file whose tree the proof does not play: a unit test file of
- * `src/` (`tests.rs`, a file of a folder `tests/` under `src/`, out of `src/bin/`) and each file
- * of a target `tests/<dossier>/main.rs`, its root and its modules (`tests/it/foo.rs`, the names
- * `foo::…`), each its own tests as the verdict gives them (./tests-de-head.mjs,
- * ./verdict.mjs), and a target `tests/<nom>.rs`, whose tree the
- * proof plays unless it no longer compiles (grillhouse-3e2.2): its names as nextest gives them,
- * without the target, its out-of-line modules read (`mod common;`, `common::<fn>`). <lire> gives
- * HEAD's text of a file from the root. Null for any other file, or one HEAD does not hold.
- * @param {string} chemin
- * @param {string} racine
- * @param {(f: string) => string | null} lire
- */
-export function testsDeHead(chemin, racine, lire) {
-  const abs = path.resolve(racine, chemin);
-  const c = composantDans(
-    crates(racine).map(x => x.composant),
-    racine,
-    abs
-  );
-  if (!c || !chemin.endsWith('.rs')) {
-    return null;
-  }
-  const parts = path.relative(c.dossier, abs).split(path.sep);
-  // A file of a target `tests/<dossier>/main.rs`, out of the helpers of `tests/common/`.
-  if (parts.length >= 3 && parts[0] === 'tests' && parts[1] !== 'common') {
-    const module = parts.slice(2);
-    module[module.length - 1] = module[module.length - 1].replace(/\.rs$/, '');
-    if (module.at(-1) === 'mod' || (module.length === 1 && module[0] === 'main')) {
-      module.pop();
-    }
-    return nomsDeHead(chemin, module, lire);
-  }
-  if (arbreDAvant(chemin, racine)) {
-    return nomsDeHead(chemin, null, lire);
-  }
-  if (!unitaire(parts) || parts[1] === 'bin') {
-    return null;
-  }
-  const module = parts.slice(1);
-  module[module.length - 1] = module[module.length - 1].replace(/\.rs$/, '');
-  if (module.at(-1) === 'mod') {
-    module.pop();
-  }
-  return nomsDeHead(chemin, module, lire);
-}
 
 // The tables of a manifest that declare what its tests depend on.
 const DES_TESTS = 'dev-dependencies';

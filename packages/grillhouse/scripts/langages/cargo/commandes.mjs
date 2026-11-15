@@ -158,7 +158,6 @@ import {
 } from '../../services-du-noyau.mjs';
 import {
   BANC,
-  COPIE_DE_L_ARBRE,
   composantDans,
   crates,
   DE_NUIT,
@@ -806,26 +805,21 @@ function sousLaBase(genre, env, jouer) {
 
 /**
  * The line that refuses the workspace at <racine> whose Cargo.lock git does not track, the
- * gesture named; null when git tracks it, and null for a tree with no git at all. <copie> is the
- * git tree that reads the lock: the copy git tracks the file in (COPIE_DE_L_ARBRE), else <racine>.
+ * gesture named; null when git tracks it, and null for a tree with no git at all.
  * @param {string} racine
- * @param {string} [copie]
  * @returns {string | null}
  */
-export function verrouNonVersionne(racine, copie = racine) {
+export function verrouNonVersionne(racine) {
   if (!existsSync(path.join(racine, VERROU))) {
     return `⛔ ${VERROU} absent : cargo generate-lockfile, puis git add ${VERROU}`;
   }
-  // A tree of HEAD's version the proof plays (`.travail/avant-…`) has no `.git`: its Cargo.lock is
-  // HEAD's, versioned by construction, and Turborepo's strict mode drops COPIE_DE_L_ARBRE, which
-  // would name its copy (grillhouse-uja). The check reads a real git tree: the copy if it is one,
-  // else <racine>; with no git tree at hand, the lock is HEAD's and nothing is unversioned.
-  const depot = [copie, racine].find(d => existsSync(path.join(d, '.git')));
-  if (!depot) {
+  // A tree with no `.git` carries HEAD's Cargo.lock, versioned by construction: nothing is
+  // unversioned. The check runs git only in <racine> when it is a real git tree (grillhouse-uja).
+  if (!existsSync(path.join(racine, '.git'))) {
     return null;
   }
   const r = spawnSync('git', ['ls-files', '--error-unmatch', '--', VERROU], {
-    cwd: depot,
+    cwd: racine,
     stdio: 'ignore',
   });
   return r.status === 0 ? null : `⛔ ${VERROU} non versionné : git add ${VERROU}`;
@@ -858,9 +852,8 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     }
   }
   const refus =
-    (VERROUILLEES.includes(nom)
-      ? verrouNonVersionne(racine, env[COPIE_DE_L_ARBRE] || racine)
-      : null) ?? (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
+    (VERROUILLEES.includes(nom) ? verrouNonVersionne(racine) : null) ??
+    (COMPILENT.includes(nom) ? sccacheAbsent(racine, env) : null);
   if (refus) {
     process.stderr.write(`${refus}\n`);
     return 2;

@@ -6,8 +6,9 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { sortie, ecrire, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
-// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the tests HEAD
-// already holds, in the proof and at the checks.
+// The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): the tests main
+// already holds green, read from the registry of results (scripts/registre-des-resultats.mjs),
+// in the proof and at the checks.
 // The trial repository and its stand-ins: ./circuit-essai.ts; each file of the circuit's tests
 // builds its own, in a trial directory of its own.
 
@@ -119,7 +120,8 @@ passation 'Test ajouté, rouge.'
     expect(preuve).toContain('1 rouge(s)');
     expect(preuve).toContain('0 vert(s) non nommé(s)');
     expect(preuve).not.toContain('› ancien — mesure rend un nombre');
-    // The version of HEAD it played leaves nothing in the lot: the commit holds the two files.
+    // The proof reads the registry, not a replay, so it leaves nothing in the lot: the commit
+    // holds the two files.
     expect(existsSync(copie)).toBe(false);
     const commit = gitRepo('show', '--name-status', '--format=', 'main');
     expect(commit.split('\n').filter(Boolean).sort()).toEqual(

@@ -146,16 +146,4 @@ describe('grillhouse-3e2.4, critère 7 — le rapport d’un test sous src/ est 
     const r = tester(crate({ banc: true, nuit: false }), [TESTS_RS, BANC], CAS);
     expect(duFichier(r.verdict)?.tests).toHaveLength(2);
   });
-
-  it('critère 7 : les noms de la version d’avant, lus dans HEAD sans les jouer, que le crate porte ou non un banc', () => {
-    const texte = '#[test]\nfn ancien() {}\nmod groupe {\n    #[test]\n    fn interne() {}\n}\n';
-    for (const avecBanc of [false, true]) {
-      const racine = crate({ banc: avecBanc, nuit: false });
-      const noms = cargo.testsDeHead(TESTS_RS, racine, () => texte);
-      expect(noms?.slice().sort(), `banc : ${avecBanc}`).toEqual([
-        'server::tests::ancien',
-        'server::tests::groupe::interne',
-      ]);
-    }
-  });
 });

@@ -629,21 +629,6 @@
         "count": 7
       }
     },
-    "packages/grillhouse/tests/unit/circuit.arbre-d-avant-joue.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/circuit.arbre-d-avant-tue.nuit.test.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/circuit.arbre-d-avant.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 4
-      }
-    },
     "packages/grillhouse/tests/unit/circuit.architecture.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 2
@@ -717,11 +702,6 @@
     "packages/grillhouse/tests/unit/circuit.testwriter-saute.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 2
-      }
-    },
-    "packages/grillhouse/tests/unit/circuit.versions-d-avant.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 3
       }
     },
     "packages/grillhouse/tests/unit/commandes-composees.spec.ts": {
@@ -971,7 +951,7 @@
     },
     "packages/grillhouse/tests/unit/langages/cargo/src-et-bancs.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 11
+        "count": 10
       }
     },
     "packages/grillhouse/tests/unit/langages/cargo/tailles-des-tests.spec.ts": {

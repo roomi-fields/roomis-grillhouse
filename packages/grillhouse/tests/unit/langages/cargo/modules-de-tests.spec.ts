@@ -2,19 +2,13 @@
 // module (scripts/langages/cargo/executables-de-tests.mjs). The proof of the red reads each test
 // under its own file: the verdict (scripts/langages/cargo/verdict.mjs) gives a test `foo::bar` of
 // the executable to the file of its module, `tests/it/foo.rs` or `tests/it/foo/mod.rs`, as it gives
-// a unit test to its `tests.rs`; and the names of HEAD's version of a file of the executable
-// (`testsDeHead`, scripts/langages/cargo/composants.mjs) are those of that file alone, as the
-// verdict gives them.
+// a unit test to its `tests.rs`.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Langage } from '../../../../scripts/jointure.js';
-import module from '../../../../scripts/langages/cargo/index.mjs';
 import { verdict } from '../../../../scripts/langages/cargo/verdict.mjs';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
-
-const cargo = module as unknown as Langage;
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'modules-de-tests-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -92,35 +86,5 @@ describe('the verdict gives each test of tests/it/main.rs to the file of its mod
     expect(verdictDe(r, 'tests/seul.rs', 'seul', ['foo::un', 'deux'])).toEqual([
       ['tests/seul.rs', 'failed', ['foo::un', 'deux']],
     ]);
-  });
-});
-
-describe('the names of HEAD’s version of a file of tests/it/main.rs are that file’s alone', () => {
-  const r = crate({
-    'tests/it/main.rs': 'mod foo;\n',
-    'tests/it/foo.rs': '#[test]\nfn un() {}\n',
-    'tests/it/foo/sous.rs': '#[test]\nfn deux() {}\n',
-    'tests/it/bar/mod.rs': '#[test]\nfn trois() {}\n',
-  });
-  const head: Record<string, string> = {
-    'tests/it/main.rs':
-      'mod foo;\nmod bar;\n#[test]\nfn racine() {}\nmod m {\n    #[test]\n    fn dedans() {}\n}\n',
-    'tests/it/foo.rs': 'mod sous;\n#[test]\nfn un() {}\n',
-    'tests/it/foo/sous.rs': '#[test]\nfn deux() {}\n',
-    'tests/it/bar/mod.rs': '#[test]\nfn trois() {}\n',
-  };
-  const lire = (f: string) => head[f] ?? null;
-
-  it.each([
-    ['tests/it/main.rs', ['racine', 'm::dedans']],
-    ['tests/it/foo.rs', ['foo::un']],
-    ['tests/it/foo/sous.rs', ['foo::sous::deux']],
-    ['tests/it/bar/mod.rs', ['bar::trois']],
-  ])('%s gives %j', (f, noms) => {
-    expect(cargo.testsDeHead(f, r, lire)).toEqual(noms);
-  });
-
-  it('a file HEAD does not hold gives none', () => {
-    expect(cargo.testsDeHead('tests/it/neuf.rs', r, lire)).toBeNull();
   });
 });

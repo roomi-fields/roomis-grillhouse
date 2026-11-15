@@ -111,10 +111,14 @@ import {
   avecLaMachineEtUnePlace,
   BASE_DU_LOT,
   CHANGEMENTS,
+  consignerLesRegressions,
+  garderLeRegistre,
   garderLeTotal,
   garderLeVert,
   LA_FORME,
+  langageDe,
   lireLaTranche,
+  lireLeRegistre,
   mesure,
   nommerLAvancement,
   ouvrirAvancement,
@@ -126,6 +130,7 @@ import {
   testsCibles,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
+import { RESULTATS } from '../../resultats.mjs';
 import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
 import { garderLesResumes } from './resume-du-lanceur.mjs';
 import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
@@ -341,6 +346,12 @@ function passe({ racine, demandes, env, dire, coeurs }) {
   if (m) {
     dire(m.ligne);
   }
+  // A complete pass plays every test for real: when its caller names a results directory
+  // (`GRILLHOUSE_RESULTATS`, which the night sets for its pass, scripts/nuit.sh), it keeps the
+  // registry of results test by test besides the last green, which the proof of the red reads
+  // (scripts/registre-des-resultats.mjs); a pass that names none writes no registry, so the pass
+  // itself opens none and its environment is unchanged.
+  const complet = tout && !gardesSeules && !sansTests && !tranche && !filtre(args);
   const taches = new Set();
   try {
     // A tranche writes its reports anew.
@@ -372,6 +383,25 @@ function passe({ racine, demandes, env, dire, coeurs }) {
       garder: garderLeVert,
       partielle: Boolean(tranche) || sansTests,
     });
+    // The registry of a complete pass whose caller named a results directory, from the reports of
+    // every language: green, it keeps the passed tests of its branch; red on main's own branch (the
+    // night, or a complete pass on main), it records as regressions the tests the registry held
+    // green that turned red, with the moment they did. A red pass on a ticket's branch records none:
+    // its reds are the ticket's work.
+    if (complet && env[RESULTATS] && m?.etat) {
+      const rapports = langageDe(racine).verdict(env[RESULTATS]).rapports;
+      if (code === 0) {
+        garderLeRegistre(m.etat, rapports);
+      } else if (!m.etat.branche || m.etat.branche === m.etat.main) {
+        const rouges = rapports.flatMap(r =>
+          (r.tests ?? [])
+            .filter(t => t.etat === 'failed')
+            .map(t => ({ fichier: path.relative(racine, r.fichier), nom: t.nom }))
+        );
+        const quand = env.GRILLHOUSE_VERIFICATION_SORTE === 'Nuit' ? 'nuit' : 'jour';
+        consignerLesRegressions(m.etat, rouges, lireLeRegistre(racine), quand);
+      }
+    }
     return code;
   } finally {
     m?.retirer();

@@ -391,13 +391,30 @@ fiche d'avant, une liste donnée la remplace, `[]` la vide ; un fichier que seul
 rapport, ni compté « ne se charge pas » ni exigé rouge : le rouge prouve le comportement que le
 ticket développe, et un banc se joue la nuit (décision du responsable, 2026-11-03) ; un lot dont
 les seuls fichiers de test sont hors du jour passe donc la preuve ; un test unitaire cargo sous
-`src/` (`tests.rs`, `src/**/tests/`) que le lot touche est joué, rapporté sous son propre fichier,
-sa version de HEAD comprise ; puis le développeur écrit le code
+`src/` (`tests.rs`, `src/**/tests/`) que le lot touche est joué, rapporté sous son propre fichier ;
+puis le développeur écrit le code
 (une réorganisation a du code), même sans rouge, avant les contrôles et la relecture
 (`apresLaPreuve`). Une sorte absente, hors de ses valeurs, sans sa raison, ou mécanique sans sa
 commande, vaut `comportement` : le circuit entier. Ainsi un geste sans comportement neuf ne coûte
 ni testwriter ni développeur (BP 320.16 : 38 outils déplacés par mv, 117 commentaires ; 320.40.1 :
 une variable inutilisée, 4 séances ; si61.8 : un seuil 77 → 95, 2 séances « aucun code à livrer »).
+
+**La preuve lit le registre des résultats** : pour distinguer un test que le lot ajoute (qui doit
+rougir avant le code) d'un test que main tient déjà vert (dont le vert est accepté), la preuve lit
+le registre des résultats (`scripts/registre-des-resultats.mjs`, `vertsDuRegistre`) au lieu de
+rejouer la version de HEAD de chaque fichier de test, comme ResultDB de Chromium et Treeherder de
+Mozilla gardent le résultat de chaque test par version de main. La passe complète de la vérification
+(la nuit) l'écrit sous `<git common dir>/grillhouse/resultats/<branche>.json` (`garderLeRegistre`,
+quand `GRILLHOUSE_RESULTATS` nomme son dossier de résultats, `scripts/nuit.sh`), à côté du dernier
+vert — tous deux lisant l'état du dépôt et la place de leur fichier par branche dans un même module
+(`scripts/etat-du-depot.mjs`, `etatDuDepot`, `fichierSous`). Une copie lit le registre de sa branche
+quand son commit est un ancêtre de HEAD, sinon celui de main, comme le dernier vert mesure : la
+preuve d'une copie lit ainsi ce que main tient vert. Un test que le registre tient vert et qu'une
+passe du jour ou de la nuit fait rougir est une régression, consignée sous
+`regressions/<branche>.json` avec le moment où il a rougi (son dernier commit vert, son premier HEAD
+rouge), que la nuit classe et corrige (« Main reste vert »). Sans registre — avant la première nuit
+verte — la preuve accepte chaque vert qu'elle ne sait pas encore nommer. Ainsi la preuve lit ce que
+main tient, sans qu'aucun langage rejoue rien.
 
 **Le plan fixe les noms publiés** : comme l'approbation d'un propriétaire de code (CODEOWNERS)
 porte sur ce qu'il a relu, la fiche du plan porte les noms qu'un composant publie à un autre et
@@ -1832,29 +1849,7 @@ porte un nom neutre, `test:unit`, le même pour chaque langage), et la lecture d
 (le verrou du testwriter), et celle qui dit qu'un fichier de test est hors du jour, que la nuit
 seule joue (`horsDuJour` : les définitions que le module a déjà, `horsDuJour` de cargo,
 `estDeNuit` de python, `horsDuJour` et `estTemoin` de typescript, sans seconde liste ; un nom
-qui ne les suit pas est du jour), que la preuve du rouge met de côté ; où la preuve du rouge joue
-la version de HEAD d'un fichier de test :
-dans un arbre à elle pour Rust et Python (`arbreDAvant`, `envDArbre` : la copie, code du lot
-compris, où ce seul fichier est remplacé par sa version de HEAD sous son propre nom, bâtie dans le
-dossier temporaire du ticket sans `.git`, `target`, `node_modules` ni `.venv`, retirée à la fin de
-la preuve, un rouge compris ; comme `git bisect run`, jamais un fichier de plus dans le dossier de
-tests qu'un autre test parcourt), ou, pour TypeScript, à côté de lui, dans le même lancement que
-lui (`soeurDAvant` : un nom que l'outil du langage
-joue de lui-même, ses tests nommés comme ceux du fichier, de sa classe, jour, nuit ou banc ; le
-circuit ne bâtit aucun nom de langage ; une sœur qu'un processus tué a laissée, un fichier non
-suivi par git, sœur d'un fichier suivi de son dossier qui existe, est retirée au départ du
-circuit et avant chaque mesure, donc n'entre jamais au lot, nommée au journal du ticket ; le
-balayage tient une portée de lecture unique (`scripts/lecture-unique.mjs`), où les composants
-de la composition et ce qu'un module lit à grand coût, les métadonnées de cargo, se lisent une
-fois, quel que soit le nombre de fichiers ; pour un fichier que l'outil ne sait pas jouer en deux
-versions, un test unitaire Rust de `src/` ou un fichier d'une cible `tests/<dossier>/main.rs`, pas
-d'arbre : `testsDeHead` lit sans les jouer les noms des tests de sa version de HEAD, que la preuve
-tient pour des verts que HEAD tient déjà ; chaque fichier porte ses propres tests, comme le verdict
-les lui donne : un test `foo::bar` de `tests/it/main.rs` va au fichier de son module,
-`tests/it/foo.rs` (ou `foo/mod.rs`), comme un test unitaire va à son `tests.rs` ; un arbre qui ne compile plus n'est pas un rouge du lot : quand la
-construction échoue avec les arbres et que le lot seul construit, la preuve rejoue le paquet sans
-eux et lit de même les noms de HEAD de ces fichiers, `testsDeHead` ; une
-construction que le lot seul casse reste un rouge), et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
+qui ne les suit pas est du jour), que la preuve du rouge met de côté ; et la partie d'un manifeste qui déclare ce dont ses tests dépendent,
 avec le fichier de verrouillage des versions (`manifestes` : le testwriter les écrit, comme
 l'auteur d'un test de Bazel déclare les dépendances de sa cible ; le verrou refuse tout autre
 changement du manifeste, chaque partie nommée ; en cargo, d'un fichier de code, le testwriter
@@ -1872,7 +1867,7 @@ commande joue dans chaque module qui la décrit, avec son outil, et les verdicts
 un seul fichier, assemblé par le noyau des entrées de chaque module (`scripts/index-interfaces.mjs`) ;
 le verrou des rôles, l'enveloppe et `maj` prennent l'union de ce que demandent les modules. Passent par elle : les
 composants et leurs lecteurs du relevé des composants ; la règle d'un fichier de test des verrous,
-des lots de l'intégration et du circuit ; la sœur de la version de HEAD de la preuve du rouge ; les commandes de `grillhouse tests` et `grillhouse
+des lots de l'intégration et du circuit ; les commandes de `grillhouse tests` et `grillhouse
 verifier` ; le verdict que le circuit lit, et les paquets du plan qui portent des tests ; les fichiers engendrés du circuit ; les gardes de
 `grillhouse gardes-du-cadre` ; les sous-commandes du module, chacune de son nom (`grillhouse
 frontieres`) ; les éléments du lot que le circuit donne au relecteur ; la matière de test que

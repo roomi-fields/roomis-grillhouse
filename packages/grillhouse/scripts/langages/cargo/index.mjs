@@ -45,9 +45,6 @@ import {
   composantDans,
   composants,
   estUnTest,
-  arbreDAvant,
-  envDArbre,
-  testsDeHead,
   joueDesTests,
   lecteurs,
   liensDuManifeste,
@@ -144,9 +141,6 @@ export default {
   echecDeCompilation,
   estUnTest,
   horsDuJour: fichierHorsDuJour,
-  arbreDAvant,
-  envDArbre,
-  testsDeHead,
   manifestes,
   fichiersEngendres: () => [
     {
