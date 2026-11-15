@@ -9,6 +9,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   rmSync,
   statSync,
@@ -148,5 +149,19 @@ describe('grillhouse-3e2.3 — the tree played for real, in cargo', () => {
     expect(rapport.map(r => path.relative(racineDeLArbre, r.fichier))).toContain(CIBLE);
     expect(rapport.map(r => r.fichier)).not.toContain(path.join(racine, CIBLE));
     expect(existsSync(racineDeLArbre)).toBe(false);
+  });
+
+  it('reverts the whole lot in the tree, not only the measured file', () => {
+    const { racine, ctx } = depotCargo(DEHORS);
+    // The lot also changes the module the target calls (crates/service/src/lib.rs): HEAD has `un`,
+    // the copy `deux`. The tree of HEAD's version must hold HEAD's lib.rs, so the target and the
+    // module it calls agree; the former tree kept the copy's lib.rs beside HEAD's target.
+    ecrire(racine, 'crates/service/src/lib.rs', 'pub fn deux() -> i32 { 2 }\n');
+    let libDansLArbre = '';
+    avecLesVersionsDAvant(ctx, [CIBLE], (_a, _l, arbres) => {
+      const arbre = arbres.get(CIBLE) as Arbre;
+      libDansLArbre = readFileSync(path.join(arbre.racine, 'crates/service/src/lib.rs'), 'utf8');
+    });
+    expect(libDansLArbre).toBe(CARGO['crates/service/src/lib.rs']);
   });
 });

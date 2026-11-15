@@ -1539,10 +1539,14 @@ function balayerLesArbres(ctx) {
   }
 }
 
-// Builds under the temporary directory of the ticket the tree of HEAD's version of <f>: the copy
-// (the code of the lot included), without `.git`, `target`, `node_modules` and `.venv`, where <f>
-// alone holds <texte>, HEAD's text, under its own name. Returns its root.
-function batirLArbre(ctx, f, texte) {
+// Builds under the temporary directory of the ticket the tree of HEAD's version: the copy with the
+// whole lot reverted to HEAD, without `.git`, `target`, `node_modules` and `.venv`. Every path the
+// lot changed or deleted takes HEAD's bytes, every path the lot adds goes: so a file of the lot
+// compiles against the lot's other files at HEAD, not at the copy — a lot that changes a test file
+// and the module it calls no longer mixes the two (grillhouse-a6a). The files out of the lot are
+// HEAD's already, so the tree is HEAD's: one tree serves every file the proof plays in a tree.
+// Returns its root.
+function batirLArbreDeHead(ctx) {
   const racine = mkdtempSync(path.join(ctx.tmp, `avant-${process.pid}-`));
   try {
     cpSync(ctx.copie, racine, {
@@ -1551,7 +1555,31 @@ function batirLArbre(ctx, f, texte) {
         src === ctx.copie ||
         (!HORS_DE_L_ARBRE.has(path.basename(src)) && path.resolve(src) !== path.resolve(ctx.tmp)),
     });
-    writeFileSync(path.join(racine, f), texte);
+    const git = (...a) => spawnSync('git', ['-C', ctx.copie, ...a], { maxBuffer: 64 * 1024 * 1024 });
+    // Each path the lot changed or removed (its rename counted as both): HEAD's bytes, or gone when
+    // HEAD does not hold it. The bytes come as a buffer, so a binary file survives.
+    const changes = git('diff', '--name-only', '--no-renames', '-z', 'HEAD');
+    if (changes.status !== 0) {
+      throw new Error(`git diff HEAD : ${changes.stderr}`);
+    }
+    for (const p of changes.stdout.toString('utf8').split('\0').filter(Boolean)) {
+      const dest = path.join(racine, p);
+      const show = git('show', `HEAD:${p}`);
+      if (show.status === 0) {
+        mkdirSync(path.dirname(dest), { recursive: true });
+        writeFileSync(dest, show.stdout);
+      } else {
+        rmSync(dest, { force: true });
+      }
+    }
+    // Each path the lot adds without committing it: out of HEAD, so out of the tree.
+    const neufs = git('ls-files', '--others', '--exclude-standard', '-z');
+    if (neufs.status !== 0) {
+      throw new Error(`git ls-files --others : ${neufs.stderr}`);
+    }
+    for (const p of neufs.stdout.toString('utf8').split('\0').filter(Boolean)) {
+      rmSync(path.join(racine, p), { force: true });
+    }
   } catch (e) {
     rmSync(racine, { recursive: true, force: true });
     throw e;
@@ -1562,10 +1590,10 @@ function batirLArbre(ctx, f, texte) {
 // Runs <jouer> with HEAD's version of each file of <fichiers> that HEAD holds, where the module
 // of its language puts it: a sibling written beside the file in the copy (`soeurDAvant` of the
 // join: TypeScript, whose tool plays it in the same run), swept first (`balayerLesSoeurs`) and
-// removed after the run, a red included; or a tree of its own (`arbreDAvant` of the join: Rust,
-// Python), the copy's with that file alone replaced by its version of HEAD, under its own name, in
-// the temporary directory of the ticket (`batirLArbre`), removed after the run, a red included,
-// the copy getting no file. <jouer> gets the Map file → sibling (from the copy), the Map file →
+// removed after the run, a red included; or one tree of HEAD's version (`arbreDAvant` of the join:
+// Rust, Python), the whole lot reverted to HEAD (`batirLArbreDeHead`), shared by every file that
+// plays in a tree, in the temporary directory of the ticket, removed after the run, a red
+// included, the copy getting no file. <jouer> gets the Map file → sibling (from the copy), the Map file →
 // names of the tests of HEAD's version, read without playing them, of each file its tool cannot
 // play twice (`testsDeHead` of the join), and the Map file → `{ racine, env }`, the root of its
 // tree and the environment it plays under (`envDArbre` of the join). With <sansArbres>, no tree
@@ -1578,6 +1606,9 @@ export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansArbres = false
     const avant = new Map();
     const lus = new Map();
     const arbres = new Map();
+    // The one tree of HEAD's version, built when the first file that plays in a tree appears, and
+    // shared by them all: they are all HEAD's.
+    let arbreHead = null;
     const deHead = f => {
       const r = spawnSync('git', ['-C', ctx.copie, 'show', `HEAD:${f}`], {
         encoding: 'utf8',
@@ -1599,13 +1630,14 @@ export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansArbres = false
           continue;
         }
         if (arbreDe(langage, f, ctx.copie) && !sansArbres) {
-          const texte = deHead(f);
-          if (texte === null) {
+          // A file HEAD does not hold has no version of HEAD to play; its tests are all new.
+          if (deHead(f) === null) {
             continue;
           }
           const env =
             typeof langage.envDArbre === 'function' ? langage.envDArbre(f, ctx.copie) : {};
-          arbres.set(f, { racine: batirLArbre(ctx, f, texte), env });
+          arbreHead ??= batirLArbreDeHead(ctx);
+          arbres.set(f, { racine: arbreHead, env });
           continue;
         }
         const noms = langage.testsDeHead(f, ctx.copie, deHead);
@@ -1618,8 +1650,8 @@ export function avecLesVersionsDAvant(ctx, fichiers, jouer, { sansArbres = false
       for (const soeur of avant.values()) {
         rmSync(path.join(ctx.copie, soeur), { force: true });
       }
-      for (const { racine } of arbres.values()) {
-        rmSync(racine, { recursive: true, force: true });
+      if (arbreHead) {
+        rmSync(arbreHead, { recursive: true, force: true });
       }
     }
   });
