@@ -10,9 +10,10 @@
 // (the real activities).
 // The circuits it starts are true workflows of a ticket whose opening stops on a question, so
 // that each stays alive until the test stops it (--arreter). Criteria 1 (by priority), 2 (never
-// without the label), 3 (the bound, the next one at the end of the previous), 4 (a ticket that has a
-// workflow does not start again, and a circuit stopped without its integration holds its ticket
-// until the supervisor's word, the server holding it) and 5 (the queue survives a stop
+// without the label), 3 (the bound, the next one at the end of the previous), 4 (a ticket whose
+// circuit is alive does not start again; a finished circuit not integrated counts no more, the
+// Beads register — the label taken off, the ticket closed — keeping it from starting, grillhouse-d0t)
+// and 5 (the queue survives a stop
 // of the server); the circuits it has just started count while the server's visibility does not
 // show them yet; its recorded history replays on the current code
 // (./histoires/tickets-du-projet.json).
@@ -294,26 +295,51 @@ describe('la file survit à un arrêt du serveur', () => {
   }, 180_000);
 });
 
-describe('un circuit arrêté sans intégration tient son ticket', () => {
-  it('a circuit stopped by the supervisor, its ticket still open: it does not start again, the next ticket does', async () => {
+describe('un circuit arrêté : le registre Beads tient son ticket', () => {
+  it('a circuit stopped by the supervisor, the label circuit taken off: it does not start again, the next ticket does', async () => {
     const racine = RACINE;
     const p = projet([T('d-1', { priority: 0 }), T('d-2', { priority: 1 })], 1);
-    // The stop on the supervisor's word gives back the state it writes (scripts/circuit.mjs
-    // `arreter`), which the workflow publishes in its memo: the server holds the circuit closed,
-    // not integrated (`circuitsNonIntegres`, the real activity).
-    const s = await serveur({
-      ...p.lecture,
-      arreterLeTicket: ({ etat }: { etat: object }) =>
-        Promise.resolve({
-          effets: [{ genre: 'etat', etat: { ...etat, code: null, raison: 'arrete' } }],
-        }),
-    });
+    // The stop on the supervisor's word takes the label `circuit` off the ticket in Beads (the
+    // durable register): it is what keeps a finished circuit's ticket from starting again, not the
+    // finished workflow lingering on the server (grillhouse-d0t).
+    const s = await serveur({ ...p.lecture, ...ACTIFS });
     await demarrerLesTickets(s.client, { racine, reveilMs: 200 }, FILE);
     await enAttente(s.client, ['d-1'], undefined, racine);
+    // The circuit still alive holds its place: the label taken off now does not restart it.
+    p.etat.tickets = p.etat.tickets.map(t => (t.id === 'd-1' ? { ...t, labels: [] } : t));
     await arreterLeCircuit(s.client, racine, 'd-1', null);
     await enAttente(s.client, ['d-2'], undefined, racine);
     await new Promise(r => setTimeout(r, 1500));
     expect(await lances(s.client, 'd-1', racine)).toBe(1);
+  }, 120_000);
+});
+
+describe('un circuit fini non intégré ne gèle plus la file', () => {
+  it('a finished circuit, its ticket still open and labelled: the queue counts only the alive and restarts it', async () => {
+    // d-1 opens, then is stopped (COMPLETED, not integrated); its ticket stays open and labelled
+    // `circuit`. The old count held it in enCours through `circuitsNonIntegres` and kept it out of
+    // the queue for ever; now the queue counts only the alive, so d-1 restarts (grillhouse-d0t).
+    const p = projet([T('d-1', { priority: 0 })], 1);
+    const s = await serveur({ ...p.lecture, ...ACTIFS });
+    await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);
+    await enAttente(s.client, ['d-1']);
+    await arreterLeCircuit(s.client, RACINE, 'd-1', null);
+    await attendre('le circuit de d-1 relancé', async () =>
+      (await lances(s.client, 'd-1')) >= 2 ? true : undefined
+    );
+    await enAttente(s.client, ['d-1']);
+  }, 120_000);
+
+  it('a closed ticket whose finished circuit lingers on the server does not freeze the queue', async () => {
+    // d-1 opens, its ticket is closed and its circuit stopped (COMPLETED, not integrated); d-2 is
+    // ready. The lingering finished circuit holds no place: d-2 starts.
+    const p = projet([T('d-1', { priority: 0 }), T('d-2', { priority: 1 })], 1);
+    const s = await serveur({ ...p.lecture, ...ACTIFS });
+    await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);
+    await enAttente(s.client, ['d-1']);
+    p.etat.tickets = p.etat.tickets.map(t => (t.id === 'd-1' ? { ...t, status: 'closed' } : t));
+    await arreterLeCircuit(s.client, RACINE, 'd-1', null);
+    await enAttente(s.client, ['d-2']);
   }, 120_000);
 });
 

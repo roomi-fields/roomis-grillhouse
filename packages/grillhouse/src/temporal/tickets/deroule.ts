@@ -13,8 +13,12 @@
 // on the supervisor's word (`--arreter`, the label `circuit` taken off): Beads, the durable
 // register, keeps it from starting again. A circuit alive whose ticket was closed outside it
 // (delivered directly) before its integration counts no more: the queue stops it (ARRETER) at its
-// next wake, as Zuul drops from its pipeline a change abandoned or merged. The circuits the server holds not integrated
-// (`circuitsNonIntegres`, one call) hold their ticket too, one ended without its issue among them.
+// next wake, as Zuul drops from its pipeline a change abandoned or merged. Only the circuits alive
+// (the server's Running: in progress or paused on a question, a place) hold their ticket out of the
+// queue (grillhouse-d0t); a finished circuit not integrated — integrated, stopped, closed outside
+// it, interrupted — holds it no more, as a merge queue counts no finished try. The server keeps the
+// finished circuits readable for the table and the supervisor, only the decision to start stops
+// counting them.
 // Each circuit is a child that outlives the queue and that its cancellation does not reach; a
 // ticket whose circuit runs already, visible or not yet, does not start again. A fault (the
 // setting, the package.json, Beads) starts nothing, named in the query. Past its length of
@@ -65,6 +69,10 @@ const PLACES_DE_LA_MACHINE = 'places-de-la-machine';
 // The patch of the journal of states (grillhouse-4nr.20): a run that recorded its starts and ends
 // before the change replays them without their line.
 const TRACE_DE_LA_FILE = 'trace-de-la-file';
+// The patch of the queue that counts only the circuits alive (grillhouse-d0t): a run that recorded
+// its starts counting the finished circuits not integrated replays them so; a new run counts only
+// the alive, so a finished circuit never holds a ticket out of the queue.
+const CIRCUITS_VIVANTS_SEULS = 'circuits-vivants-seuls';
 
 const REVEIL_MS = 60_000;
 const LIMITE_D_HISTOIRE = 10_000;
@@ -117,8 +125,12 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
     }
     arretes = new Set(fermes);
     vivants = [...new Set([...surLeServeur, ...lances])].filter(t => !arretes.has(t)).sort();
-    // A ticket whose circuit is not integrated, alive or stopped, does not start.
-    const tenus = await actes.circuitsNonIntegres({ racine });
+    // A ticket whose circuit is alive (Running: in progress or paused) does not start again; a
+    // finished circuit not integrated holds no place, as a merge queue drops a change merged or
+    // abandoned. circuitsNonIntegres stays for a history in flight that replays it.
+    const tenus = patched(CIRCUITS_VIVANTS_SEULS)
+      ? []
+      : await actes.circuitsNonIntegres({ racine });
     const r = await actes.ticketsAPartir({
       racine,
       enCours: [...new Set([...vivants, ...tenus])].sort(),
