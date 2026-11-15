@@ -85,7 +85,12 @@ change, et ceux qu'il peut casser.
      aucun comportement que ses tests mesurent (un test adapté, un seuil relevé dans un test)
      porte `comportement` `inchangé`, le plan « comportement inchangé » : sa preuve accepte chaque
      vert de son lot, puis le développeur écrit le code (une réorganisation en a), les contrôles
-     et la relecture. Une sorte absente, ou sans sa raison, ou mécanique sans sa commande, vaut
+     et la relecture. Un ticket dont le lot vit entièrement dans la matière de test (le produit ne
+     change pas : l'isolation des tests, une aide partagée, la couverture neuve d'un comportement
+     existant) porte aussi `comportement` `inchangé`, mais sans développeur : le testwriter livre
+     les tests et les aides, puis les contrôles et la relecture ; aucun rouge-d'abord n'est attendu,
+     car aucun comportement produit n'est neuf. Je le reconnais dès l'étape 1 et ne le classe pas
+     `comportement`. Une sorte absente, ou sans sa raison, ou mécanique sans sa commande, vaut
      `comportement` : le circuit entier ;
    - `ecartes` : chaque composant du relevé que le plan ne touche pas, avec sa raison (il n'a
      rien à changer, par exemple) ; le circuit l'écrit au ticket. Le circuit rejoue le relevé sur
