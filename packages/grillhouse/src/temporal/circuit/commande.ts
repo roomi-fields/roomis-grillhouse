@@ -22,10 +22,12 @@
 // - `--reprendre`, `--depuis` and `--etendre` answer the stop of the circuit (the updates of its
 //   workflow, or a new workflow on the state a stopped one gave back), `--arreter` stops it (its
 //   signal); a package of `--etendre` the repository does not hold is refused before, by its name; `--contexte` gives the supervisor's text to each, and `--depuis` requires it.
-// - `--recommencer` starts a stopped circuit over, as a reset of Temporal: its copy (with any work
-//   it carries), its sheets and its journal are removed, then the ticket goes in the queue and its
-//   circuit starts from the testwriter in a fresh copy; the ticket, its plan and its comments stay.
-//   A circuit that runs is refused; it goes alone (./appel.ts).
+// - `--recommencer` starts a stopped circuit over, resetting its copy, not Temporal: its copy (with
+//   any work it carries), its sheets and its journal are removed, then the ticket goes in the queue
+//   and its circuit starts from the testwriter in a fresh copy; the ticket, its plan and its
+//   comments stay. The finished workflow stays on the server, but the queue counts only the live
+//   circuits and no more holds the ticket back (grillhouse-d0t). A circuit that runs is refused; it
+//   goes alone (./appel.ts).
 // - Each writes one line on the standard output, exit 0. A malformed call writes the usage, a
 //   refusal (`ReponseRefusee`, the ticket refused) its reason, on the error stream, exit 2. A
 //   server that does not answer, or Beads that fails, is said on the error stream, exit 1.

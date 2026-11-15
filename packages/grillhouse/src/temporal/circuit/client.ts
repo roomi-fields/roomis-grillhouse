@@ -230,9 +230,10 @@ export async function reprendreLeCircuit(
 
 /**
  * Starts the circuit of <ticket> over (`--recommencer`): <retirer> removes its copy, sheets and
- * journal, and its line names the copy removed. A circuit that runs is refused by its name
- * (`ReponseRefusee`) and nothing is removed; a ticket the server no longer holds is removed all the
- * same.
+ * journal, and its line names the copy removed. It resets the copy, not Temporal: the finished
+ * workflow stays on the server, which the queue, counting only the live circuits, no more holds the
+ * ticket back for (grillhouse-d0t). A circuit that runs is refused by its name (`ReponseRefusee`)
+ * and nothing is removed; a ticket the server no longer holds is removed all the same.
  */
 export async function recommencerLeCircuit(
   client: Client,
