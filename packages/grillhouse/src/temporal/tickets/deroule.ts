@@ -34,7 +34,6 @@ import {
   defineSignal,
   getExternalWorkflowHandle,
   ParentClosePolicy,
-  patched,
   proxyActivities,
   setHandler,
   startChild,
@@ -59,20 +58,6 @@ const lEtat = defineQuery<VueDesTickets>(L_ETAT_DES_TICKETS);
 const laSeance = defineSignal<[string | null]>(SEANCE_DU_SUPERVISEUR);
 
 const arreterLeCircuit = defineSignal<[string | null]>(ARRETER);
-
-// The patch of the circuits closed outside them (Temporal's patching): a run that recorded its
-// wakes before the change replays them without the reading.
-const FERMES_HORS_CIRCUIT = 'fermes-hors-circuit';
-// The patch of the places of the machine: a run that recorded its starts on its own setting alone
-// replays them so.
-const PLACES_DE_LA_MACHINE = 'places-de-la-machine';
-// The patch of the journal of states (grillhouse-4nr.20): a run that recorded its starts and ends
-// before the change replays them without their line.
-const TRACE_DE_LA_FILE = 'trace-de-la-file';
-// The patch of the queue that counts only the circuits alive (grillhouse-d0t): a run that recorded
-// its starts counting the finished circuits not integrated replays them so; a new run counts only
-// the alive, so a finished circuit never holds a ticket out of the queue.
-const CIRCUITS_VIVANTS_SEULS = 'circuits-vivants-seuls';
 
 const REVEIL_MS = 60_000;
 const LIMITE_D_HISTOIRE = 10_000;
@@ -100,16 +85,12 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
   const finis: string[] = [];
   for (;;) {
     for (const ticket of finis.splice(0)) {
-      if (patched(TRACE_DE_LA_FILE)) {
-        await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
-      }
+      await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
     }
     const surLeServeur = await actes.circuitsVivants({ racine });
     // A circuit whose ticket was closed outside it (delivered directly) holds no place: the queue
     // stops it (ARRETER), once, and says it ended; a child of this run says it at its end.
-    const fermes = patched(FERMES_HORS_CIRCUIT)
-      ? await actes.fermesHorsCircuit({ racine, vivants: surLeServeur })
-      : [];
+    const fermes = await actes.fermesHorsCircuit({ racine, vivants: surLeServeur });
     for (const ticket of fermes.filter(t => !arretes.has(t))) {
       try {
         await getExternalWorkflowHandle(idDuCircuit(racine, ticket)).signal(
@@ -119,7 +100,7 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
       } catch {
         // Ended meanwhile: nothing to stop.
       }
-      if (!lances.has(ticket) && patched(TRACE_DE_LA_FILE)) {
+      if (!lances.has(ticket)) {
         await actes.tracerLaFile({ racine, ticket, evenement: 'termine' });
       }
     }
@@ -127,29 +108,23 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
     vivants = [...new Set([...surLeServeur, ...lances])].filter(t => !arretes.has(t)).sort();
     // A ticket whose circuit is alive (Running: in progress or paused) does not start again; a
     // finished circuit not integrated holds no place, as a merge queue drops a change merged or
-    // abandoned. circuitsNonIntegres stays for a history in flight that replays it.
-    const tenus = patched(CIRCUITS_VIVANTS_SEULS)
-      ? []
-      : await actes.circuitsNonIntegres({ racine });
+    // abandoned, so the queue counts only the circuits alive.
     const r = await actes.ticketsAPartir({
       racine,
-      enCours: [...new Set([...vivants, ...tenus])].sort(),
+      enCours: vivants,
     });
     faute = r.faute;
     // The machine bounds every project: a ticket starts once it holds a place of the machine, in
     // the order of arrival of every project, its disk of copies with room; the others stay in the
     // queue, not started. A circuit paused on a question, or resumed and waiting for its place,
     // is not active and holds none: the places are the setting less the circuits active.
-    const machine = patched(PLACES_DE_LA_MACHINE);
-    const enPause = new Set(machine ? await actes.circuitsEnPause({ racine }) : []);
+    const enPause = new Set(await actes.circuitsEnPause({ racine }));
     const actifs = vivants.filter(t => !enPause.has(t));
     const places = r.max === null ? 0 : r.max - actifs.length;
     let partir = r.partir.slice(0, Math.max(0, places));
-    if (machine) {
-      const m = await actes.placesDeLaMachine({ racine, vivants: actifs, candidats: partir });
-      partir = m.accordes;
-      faute = faute ?? m.faute;
-    }
+    const m = await actes.placesDeLaMachine({ racine, vivants: actifs, candidats: partir });
+    partir = m.accordes;
+    faute = faute ?? m.faute;
     for (const ticket of partir) {
       try {
         const enfant = await startChild(circuitDuTicket, {
@@ -159,9 +134,7 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
           cancellationType: ChildWorkflowCancellationType.ABANDON,
         });
         lances.add(ticket);
-        if (patched(TRACE_DE_LA_FILE)) {
-          await actes.tracerLaFile({ racine, ticket, evenement: 'lance' });
-        }
+        await actes.tracerLaFile({ racine, ticket, evenement: 'lance' });
         // The end of the circuit wakes the queue, and its line to the journal is written at the
         // next wake (a workflow awaits no activity in a callback).
         const fini = () => {

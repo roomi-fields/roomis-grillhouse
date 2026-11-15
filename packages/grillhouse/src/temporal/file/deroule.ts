@@ -13,17 +13,9 @@
 // so that the death of the worker loses none of its wait: its run looked for during `rechercheMs`
 // (2 min), then read every `pasMs` (10 s) for `attenteMs` (30 min) at most, counted on the
 // workflow's clock. Past its length of history, the queue continues as new between two entries,
-// with those that wait. Deterministic: it imports the workflow API and the contract.
-//
-// The CI of the branch replaced the CI of main read after the push (grillhouse-44b.12.5), as
-// Temporal changes the code of a running workflow (« Patching », TypeScript SDK,
-// https://docs.temporal.io/develop/typescript/versioning#patching): an entry asks
-// `patched(CI_DE_LA_BRANCHE)` at its start; a run that recorded its entries before the change
-// replays them on the code of before (`entreeDAvant`, `lireEtConclureLaCI`), and each new entry
-// takes the new path, the marker written in the history. Once no run holds an entry of before
-// (each queue continues as new past its length of history, a ticket's circuit ends), the next
-// version calls `deprecatePatch(CI_DE_LA_BRANCHE)` and removes the code of before, then the one
-// after removes the call, as the documentation's three steps.
+// with those that wait. The CI of the branch gates main: main moves onto the candidate its CI
+// judged green (grillhouse-44b.12.5), never read after the push. Deterministic: it imports the
+// workflow API and the contract.
 import {
   allHandlersFinished,
   ChildWorkflowCancellationType,
@@ -35,7 +27,6 @@ import {
   getExternalWorkflowHandle,
   isCancellation,
   ParentClosePolicy,
-  patched,
   proxyActivities,
   setHandler,
   sleep,
@@ -55,7 +46,6 @@ import {
   type EntreeDeLaFile,
   type EntreeDeLaFileDuProjet,
   type IssueDeLaFile,
-  type LectureDeLaCI,
   type LectureDesPassages,
   type VerdictDeLaCI,
   type VueDeLaFile,
@@ -99,15 +89,6 @@ const DELAIS: Required<DelaisDeLaCI> = {
   pasMs: 10_000,
 };
 const LIMITE_D_HISTOIRE = 10_000;
-/** The patch of the CI of the branch (Temporal's patching), which the circuit's step 5.2 reads too. */
-export const CI_DE_LA_BRANCHE = 'ci-de-la-branche';
-/**
- * The patch of the CI of every expected workflow: `ciDuCommit` reads all the runs of the commit
- * (`lireLesPassagesDeLaCI`), where it read the first one (`lireLaCI`).
- */
-const CI_TOUS_LES_FLUX = 'ci-tous-les-flux';
-/** The patch of the reading of the workflows of main after the push of a lot. */
-const FLUX_DE_MAIN = 'flux-de-main';
 // The judgements of one entry at most, main moving between its CI and its entry.
 const ESSAIS = 5;
 
@@ -133,13 +114,9 @@ function messageDe(e: unknown): string {
  * Every expected workflow is read at each reading (`lireLesPassagesDeLaCI`), which keeps nothing:
  * green when all are green, red as soon as one is, whatever the others do; the runs are looked for
  * during `rechercheMs` from the start, then waited for during `attenteMs` from the moment each
- * workflow has its run. A run that recorded its history before this path (`CI_TOUS_LES_FLUX`)
- * replays the loop of before (`ciDuCommitDUnPassage`).
+ * workflow has its run.
  */
 export async function ciDuCommit(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
-  if (!patched(CI_TOUS_LES_FLUX)) {
-    return ciDuCommitDUnPassage(e);
-  }
   const { rechercheMs, attenteMs, pasMs } = { ...DELAIS, ...e.ci };
   const debut = Date.now();
   let limite = Infinity;
@@ -181,83 +158,6 @@ export async function ciDuCommit(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
     }
     await sleep(Math.min(pasMs, reste));
   }
-}
-
-// The CI of a commit as the queue read it before the CI of every workflow (`CI_TOUS_LES_FLUX`): the
-// first run of the commit alone, kept for the replay of the histories that recorded it.
-async function ciDuCommitDUnPassage(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
-  const { rechercheMs, attenteMs, pasMs } = { ...DELAIS, ...e.ci };
-  const debut = Date.now();
-  let passage: string | null = null;
-  let limite = Infinity;
-  const nonLue = (raison: string): VerdictDeLaCI => ({ verdict: 'non-lue', passage, raison });
-  for (;;) {
-    const l: LectureDeLaCI = await actes.lireLaCI({
-      racine: e.racine,
-      ticket: e.ticket,
-      sha: e.sha,
-      branche: e.branche,
-      passage,
-    });
-    if (l.etat === 'sans-ci') {
-      return { verdict: 'sans-ci', passage: null, raison: null };
-    }
-    if (l.etat === 'non-lue') {
-      return nonLue(l.raison);
-    }
-    if (l.etat === 'finie') {
-      const verdict = l.conclusion === 'success' ? 'verte' : 'rouge';
-      return { verdict, passage: l.passage, raison: null };
-    }
-    if (l.etat === 'en-cours' && passage === null) {
-      passage = l.passage;
-      limite = Date.now() + attenteMs;
-    }
-    const reste = passage === null ? debut + rechercheMs - Date.now() : limite - Date.now();
-    if (reste <= 0) {
-      return nonLue(
-        passage === null
-          ? `aucun passage de la CI pour ce commit en ${Math.round(rechercheMs / 1000)} s.`
-          : `le passage ${passage} n'a pas fini en ${Math.round(attenteMs / 60_000)} min.`
-      );
-    }
-    await sleep(Math.min(pasMs, reste));
-  }
-}
-
-// The CI of <sha> pushed to <branche> for <ticket> read as a child workflow of the caller, then
-// concluded at the ticket (<relue>, a reading again on `--reprendre`): the code of before the CI of
-// the branch, kept for the replay of the runs that recorded it (`CI_DE_LA_BRANCHE`); its acts
-// called by their names of then, their answers read from the history.
-export async function lireEtConclureLaCI(
-  e: EntreeDeLaCI & { relue: boolean },
-  id: string
-): Promise<IssueDeLaFile> {
-  let verdict: VerdictDeLaCI;
-  try {
-    verdict = await executeChild(ciDuCommit, {
-      workflowId: id,
-      args: [{ racine: e.racine, ticket: e.ticket, sha: e.sha, branche: e.branche, ci: e.ci }],
-    });
-  } catch (x) {
-    if (isCancellation(x)) {
-      throw x;
-    }
-    verdict = { verdict: 'non-lue', passage: null, raison: `sa lecture échoue : ${messageDe(x)}` };
-  }
-  const c = (await actes.conclureLaCI({
-    racine: e.racine,
-    ticket: e.ticket,
-    sha: e.sha,
-    branche: e.branche,
-    relue: e.relue,
-    ...verdict,
-  } as Parameters<ActivitesDeLaFile['conclureLaCI']>[0])) as unknown as IssueDeLaFile & {
-    effets: EffetDeLaFile[];
-  };
-  const { effets, ...issue } = c;
-  await jouerLesEffets(e.racine, effets, `${id}:conclure`);
-  return issue;
 }
 
 /**
@@ -371,43 +271,11 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
       raison: `${e.branche} reste en file : main bouge sans cesse, ${ESSAIS} jugements de sa CI n'ont pas suffi.`,
     };
   };
-  // The entry <e> as the queue played it before the CI of the branch (`CI_DE_LA_BRANCHE`): main
-  // moved onto the branch, the ticket closed and main pushed, then the CI of the commit read.
-  const entreeDAvant = async (e: EntreeDeLaFile, lieu: string): Promise<IssueDeLaFile> => {
-    const r = (await actes.avancerMain({
-      racine,
-      ticket: e.ticket,
-      branche: e.branche,
-    } as Parameters<ActivitesDeLaFile['avancerMain']>[0])) as unknown as (
-      { entre: { commit: string } } | { issue: IssueDeLaFile }
-    ) & { effets: EffetDeLaFile[] };
-    await jouerLesEffets(racine, r.effets, `${lieu}:avancer`);
-    if ('issue' in r) {
-      return r.issue;
-    }
-    const { commit } = r.entre;
-    avance = commit;
-    const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
-    await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
-    if (!f.poussee) {
-      const ferme = `intégré : ${commit.slice(0, 7)}`;
-      return { etat: 'ferme', raison: [ferme, f.raison, f.livraison].filter(Boolean).join(' ; ') };
-    }
-    avance = null;
-    n += 1;
-    return lireEtConclureLaCI(
-      { racine, ticket: e.ticket, sha: commit, branche: f.poussee, ci: entree.ci, relue: false },
-      `${workflowInfo().workflowId}:ci:${workflowInfo().runId}:${n}`
-    );
-  };
   // The entry <e> to its issue.
   const traiter = async (e: EntreeDeLaFile): Promise<IssueDeLaFile> => {
     avance = null;
     entrees += 1;
     const lieu = `entree:${entrees}`;
-    if (!patched(CI_DE_LA_BRANCHE)) {
-      return entreeDAvant(e, lieu);
-    }
     const m = await surMain(e, lieu);
     if ('etat' in m) {
       return m;
@@ -418,7 +286,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     avance = null;
     // The push done, the reading of the workflows of main is recorded as due, not waited for.
-    if (f.poussee && patched(FLUX_DE_MAIN)) {
+    if (f.poussee) {
       await actes.inscrireLesFluxDeMain({
         racine,
         ticket: e.ticket,
@@ -458,7 +326,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
   // at its start (the file of the readings outlives the workflow), then while one is due.
   // The bounds of the CI of the branch, the same for the workflows of main.
   const delais = { ...DELAIS, ...entree.ci };
-  let dues = patched(FLUX_DE_MAIN);
+  let dues = true;
   let lectures = 0;
   const relireLesFluxDeMain = async () => {
     lectures += 1;

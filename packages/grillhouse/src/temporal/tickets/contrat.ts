@@ -70,12 +70,6 @@ export interface ActivitesDesTickets {
     candidats: string[];
   }): Promise<{ accordes: string[]; faute: string | null }>;
   /**
-   * The tickets of the project whose circuit the server holds, not integrated (`lireLesCircuits`
-   * of ../circuit/client.ts, one call): a circuit stopped on a question, its workflow running, or
-   * ended without its issue holds its ticket.
-   */
-  circuitsNonIntegres(e: { racine: string }): Promise<string[]>;
-  /**
    * The line of the journal of states for a circuit of the queue launched (`lance`) or ended
    * (`termine`) (`traceDeLaFile` of scripts/journal-des-etats.mjs); a line that cannot be written
    * never fails the act.

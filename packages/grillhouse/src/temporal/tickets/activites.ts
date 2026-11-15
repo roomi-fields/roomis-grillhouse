@@ -188,12 +188,3 @@ export function tracerLaFile(e: Entree<'tracerLaFile'>): Promise<void> {
   ecrireLaTrace(e.racine, traceDeLaFile({ ticket: e.ticket, evenement: e.evenement }));
   return Promise.resolve();
 }
-
-export async function circuitsNonIntegres(e: Entree<'circuitsNonIntegres'>): Promise<string[]> {
-  const c = ouvrirLeClient();
-  try {
-    return (await lireLesCircuits(c.client, e.racine)).map(x => x.ticket).sort();
-  } finally {
-    await c.fermer();
-  }
-}

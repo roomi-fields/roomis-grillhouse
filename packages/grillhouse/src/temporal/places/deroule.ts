@@ -29,7 +29,6 @@ import {
   defineQuery,
   defineSignal,
   defineUpdate,
-  patched,
   proxyActivities,
   setHandler,
   workflowInfo,
@@ -45,7 +44,6 @@ import {
   BATTRE_LA_RESERVATION,
   LA_DEMANDE,
   LEVER_LA_RESERVATION,
-  RESERVATION_DE_LA_NUIT,
   RESERVER_LA_MACHINE,
   LES_PLACES,
   PRENDRE,
@@ -86,9 +84,6 @@ const laDemande = defineQuery<EtatDeLaDemande, [string]>(LA_DEMANDE);
 class BesoinDeLaMesure extends Error {}
 
 const LIMITE_D_HISTOIRE = 2000;
-// The patch of the ceiling read from the poste (Temporal's patching): a run that recorded its
-// judgements on the ceiling of its entry replays them on it.
-const PLAFOND_DU_POSTE = 'plafond-du-poste';
 // The ceiling before the first reading of a run with none in its entry.
 const PLAFOND_AVANT_LECTURE = 3;
 
@@ -105,9 +100,6 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
   let plafond = entree.plafond ?? PLAFOND_AVANT_LECTURE;
   let faute: string | null = null;
   const lireLePlafond = async () => {
-    if (!patched(PLAFOND_DU_POSTE)) {
-      return;
-    }
     const r = await plafondDeLaMachine();
     faute = r.faute;
     if (r.plafond !== null) {
@@ -322,11 +314,7 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
     await condition(() => version !== jugee || aContinuer(), entree.veilleMs);
     jugee = version;
     // A reservation whose night no longer beats is lifted, as a place of a circuit is gone.
-    if (
-      patched(RESERVATION_DE_LA_NUIT) &&
-      etat.reservation &&
-      reservationPerimee(etat.reservation, Date.now())
-    ) {
+    if (etat.reservation && reservationPerimee(etat.reservation, Date.now())) {
       etat.reservation = null;
       changer();
     }
@@ -340,9 +328,7 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
       await condition(allHandlersFinished);
       // The ceiling is read from the poste from then on, never carried.
       const { plafond: _lu, ...suite } = entree;
-      await continueAsNew<typeof placesDeLaMachine>(
-        patched(PLAFOND_DU_POSTE) ? { ...suite, etat } : { ...entree, etat }
-      );
+      await continueAsNew<typeof placesDeLaMachine>({ ...suite, etat });
     }
   }
 }

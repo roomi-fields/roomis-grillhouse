@@ -51,8 +51,9 @@
 //   activity;
 // - the acts of the queue of a project (scripts/integration/file.mjs, grillhouse-4nr.8): `situer`,
 //   where the lot of a ticket stands (`situerLeLot`); `brancher`, the branch made the candidate its
-//   CI judges and pushed (`preparerLaBranche`); `ci`, one reading of the CI of a commit
-//   (`lireUneFoisLaCI`); `conclure`, the CI concluded at the ticket (`conclureLaCI`); `avancer`,
+//   CI judges and pushed (`preparerLaBranche`); `passages`, one reading of the CI of a commit, its
+//   expected workflows together (`lireLesPassagesDeLaCI`); `conclure`, the CI concluded at the
+//   ticket (`conclureLaCI`); `avancer`,
 //   main moved onto the candidate (`avancerMain`); each of `brancher` and `avancer` telling the
 //   ticket of a branch out of the queue or kept (`direLIssue`); `fermer`, the ticket closed and main
 //   pushed (`fermerLEntree`); `effet-de-la-file`, one effect they gave back, under the key of its
@@ -89,7 +90,6 @@ import {
   inscrireLesFluxDeMain,
   lireLesPassagesDeLaCI,
   relireLesLecturesDues,
-  lireUneFoisLaCI,
   outilsDeLaFile,
   preparerLaBranche,
   situerLeLot,
@@ -439,14 +439,6 @@ Object.assign(ACTES, {
   async fermer({ racine, ticket, branche, commit }) {
     const o = laFile(racine);
     return { ...fermerLEntree(o, { ticket, branche, commit }), effets: o.rendus };
-  },
-  // A reading of the CI writes the steps of its run done over planned in the working directory of
-  // the ticket, where the board reads them (scripts/avancement.mjs `avancementDeLaCI`); one that
-  // looks for its run (no run found yet) empties the records of another.
-  async ci({ racine, ticket, sha, branche, passage }) {
-    const travail = path.join(racine, '.claude', 'worktrees', `${ticket}.travail`);
-    const avancement = avancementDeLaCI(travail, { nouvelle: passage === null });
-    return lireUneFoisLaCI(laFile(racine, avancement), { sha, branche, passage });
   },
   // A reading of the CI of every expected workflow of the commit (`lireLesPassagesDeLaCI`), its
   // steps written to the progress directory of the ticket.

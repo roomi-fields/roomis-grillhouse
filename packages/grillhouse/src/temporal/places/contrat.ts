@@ -34,8 +34,6 @@ export const RESERVER_LA_MACHINE = 'reserverLaMachine';
 export const BATTRE_LA_RESERVATION = 'battreLaReservation';
 /** The update by which the nights lift their reservation, by its jeton. */
 export const LEVER_LA_RESERVATION = 'leverLaReservation';
-/** The patch of the reservation of the machine (Temporal's patching). */
-export const RESERVATION_DE_LA_NUIT = 'reservation-de-la-nuit';
 
 /** The reservation of the whole machine by the night. */
 interface Reservation {

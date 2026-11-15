@@ -39,9 +39,9 @@
 // and `*.yaml`, their `on` and its filters as GitHub reads them); with none, no run is looked for,
 // and the branch stays in the queue, the ticket told that the CI of the project must listen to
 // `agent/**`. A workflow the queue cannot judge (a file it cannot read, a filter on the paths)
-// counts as one that runs. With one, each reading (`lireUneFoisLaCI`) looks for its run
-// (`gh run list --commit <sha> --branch <branche> --json databaseId,status,conclusion`), then
-// reads it (`gh run view <id> --json status,conclusion,jobs`), as `gh run watch` does; the
+// counts as one that runs. With one, each reading (`lireLesPassagesDeLaCI`) looks for the runs of
+// its expected workflows (`gh run list --commit <sha> --branch <branche> --json ...`), then
+// reads each (`gh run view <id> --json status,conclusion,jobs`), as `gh run watch` does; the
 // workflow of the CI of the commit spaces the readings and bounds the search and the wait
 // (`ciDuCommit`). Green on the conclusion `success`, red on any other. Under the circuit's progress
 // directory (scripts/avancement.mjs), each reading writes there the steps of the run done over
@@ -219,7 +219,7 @@ export function fluxDeLaBranche(fichiers, branche) {
     .map(({ chemin }) => chemin);
 }
 
-// The verdicts of a reading of the CI (`lireUneFoisLaCI`, then the workflow `ciDuCommit`).
+// The verdicts of a reading of the CI (`lireLesPassagesDeLaCI`, then the workflow `ciDuCommit`).
 const VERTE = 'verte';
 const SANS_CI = 'sans-ci';
 const NON_LUE = 'non-lue';
@@ -481,77 +481,6 @@ export function outilsDeLaFile(racine, dire, avancement = null) {
       encoding: 'utf8',
     }).stdout.trim() || null;
   return { racine, principale, bd, gh: ghDans(racine), dire, avancement };
-}
-
-/**
- * One reading of the CI of the commit <sha> pushed to <branche>, with the tools <o> (`outilsDeLaFile`),
- * the run <passage> found by a reading before (null while it is looked for): `{ etat: 'sans-ci' }`
- * (no workflow runs on a push to the branch), `{ etat: 'cherche' }` (no run yet), `{ etat:
- * 'en-cours', passage }`, `{ etat: 'finie', passage, conclusion }`, or `{ etat: 'non-lue', raison
- * }` (gh absent, refusing, or its output unreadable). The run is the one of <sha> on <branche>,
- * read at its current attempt (`gh run view <id>` without `--attempt`). A run found is read at
- * once. It writes nothing to the ticket: `conclureLaCI` does.
- */
-export function lireUneFoisLaCI(o, { sha, branche, passage = null }) {
-  const { gh } = o;
-  let id = passage;
-  if (id === null) {
-    if (fluxDuCommit(o.racine, sha, branche).length === 0) {
-      // (the reading of before the CI of every workflow, kept for the replay of `lireLaCI`)
-      return { etat: SANS_CI };
-    }
-    const r = gh([
-      'run',
-      'list',
-      '--commit',
-      sha,
-      '--branch',
-      branche,
-      '--json',
-      'databaseId,status,conclusion',
-    ]);
-    if (r.error) {
-      return { etat: NON_LUE, raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
-    }
-    if (r.status !== 0) {
-      return { etat: NON_LUE, raison: `gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}` };
-    }
-    let passages = [];
-    try {
-      passages = JSON.parse(r.stdout || '[]');
-    } catch {
-      return {
-        etat: NON_LUE,
-        raison: `gh run list rend une sortie illisible :\n${r.stdout.trim()}`,
-      };
-    }
-    const trouve = passages.find(x => x?.databaseId);
-    if (!trouve) {
-      return { etat: 'cherche' };
-    }
-    id = String(trouve.databaseId);
-  }
-  const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
-    timeout: 60_000,
-    killSignal: 'SIGKILL',
-  });
-  if (v.error) {
-    return { etat: NON_LUE, raison: `gh ne se lance pas (${v.error.code ?? v.error.message}).` };
-  }
-  if (v.status !== 0) {
-    return { etat: NON_LUE, raison: `gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}` };
-  }
-  let vue;
-  try {
-    vue = JSON.parse(v.stdout || '{}');
-  } catch {
-    return { etat: NON_LUE, raison: `gh run view rend une sortie illisible :\n${v.stdout.trim()}` };
-  }
-  ecrireLesEtapes(o.avancement, vue);
-  if (vue?.status === 'completed') {
-    return { etat: 'finie', passage: id, conclusion: vue.conclusion ?? null };
-  }
-  return { etat: 'en-cours', passage: id };
 }
 
 /**

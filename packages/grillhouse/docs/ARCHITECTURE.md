@@ -751,11 +751,10 @@ travailleur), comme l'interface de Temporal liste ses déroulés : le déroulé 
 le résumé du dernier état qu'il écrit (étape, tentative, arrêt et première ligne du rapport,
 objet du questionnement, boucles, début de l'étape menée) et sa question, numérotée dans son run ;
 de son ouverture à son plan passé, ce résumé est l'étape `plan`, publié dès l'ouverture et à
-chaque pas du plan, que le panneau montre en « 1 Plan » (`patched('etat-au-plan')`, comme la file) ;
+chaque pas du plan, que le panneau montre en « 1 Plan » ;
 l'étape `plan` n'est aucune étape de la table des transitions : un arrêt pendant le plan s'écrit à
 l'état que le plan écrit (le testwriter, le travail sur le plan nommé), d'où une réponse rouvre le
-plan, l'explorateur puis le questionneur (`etatDeReprise` de `transitions.mjs`,
-`patched('reprise-au-plan')`) ;
+plan, l'explorateur puis le questionneur (`etatDeReprise` de `transitions.mjs`) ;
 un circuit tourne quand son déroulé tourne sans question en attente, et finit sans son issue
 quand il est terminé, en échec ou expiré sans question. L'avancement d'une passe se lit dans le
 dossier de travail du ticket (`<copie>.travail/avancement-*`), où chaque passe du circuit ouvre le
@@ -1504,10 +1503,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   d'entrée, comme bors sans son statut requis ; la branche reste en file, le ticket dit que la CI
   du projet doit écouter `agent/**`, que l'ouverture de séance signale (rubrique « Manque »,
   `scripts/ci-des-branches.mjs`) et que `npx grillhouse maj` ajoute au push du flux de la CI des
-  lots (migration 0.33.0). Le changement du code du déroulé suit le « patching » de Temporal
-  (`patched('ci-de-la-branche')`) : un run qui a enregistré ses entrées avant lui les rejoue sur le
-  code d'avant, chaque entrée neuve prend le chemin neuf ; la version suivante passe à
-  `deprecatePatch`, puis retire le code d'avant. Rien ne se vérifie sur le poste : ni l'intégration ni la file ne jouent `npm run
+  lots (migration 0.33.0). Rien ne se vérifie sur le poste : ni l'intégration ni la file ne jouent `npm run
   verifier`. Son issue revient au déroulé du ticket, le fait `file` de ses décisions. La CI d'un
   commit (`ciDuCommit`, un déroulé enfant) se lit une lecture à la fois, un minuteur durable entre
   deux (10 s), sa recherche (2 min) et son attente (30 min) comptées sur l'horloge du déroulé : la
@@ -1524,11 +1520,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   quand un flux n'a aucun passage au bout de la recherche, ou un passage sans fin au bout de
   l'attente, chaque flux nommé. Un passage d'un autre nom ne compte pas ; plusieurs flux de même nom
   comptent pour un seul, `gh run list` ne les distinguant pas. Les flux qui ne tournent qu'après
-  l'entrée, sur main, se lisent après la poussée, sans bloquer la file (ticket grillhouse-bf5.7) : la file inscrit une lecture due (le ticket, le commit, les flux de main absents de la branche, l'heure de la poussée), la relit à chaque passage avec les délais de la CI de la branche, comptés depuis la poussée ; un flux rouge rouvre le ticket sous l'étiquette `flux-rouge` avec l'adresse du passage, comme GitHub notifie l'échec d'un flux de la branche par défaut et que le pipeline « post » de Zuul signale le sien ; un flux non jugé se commente, jamais rouvert. Le changement suit le « patching »
-  (`patched('ci-tous-les-flux')`) : l'acte `lireLaCI`, sa boucle et `lireEtConclureLaCI` restent pour
-  rejouer les histoires d'avant ; ils sont retirés avec le patch (`deprecatePatch` puis son
-  retrait) une fois qu'aucun run n'en porte l'histoire, dans la version qui suit celle-ci puis la
-  suivante. Les gestes sont ceux de
+  l'entrée, sur main, se lisent après la poussée, sans bloquer la file (ticket grillhouse-bf5.7) : la file inscrit une lecture due (le ticket, le commit, les flux de main absents de la branche, l'heure de la poussée), la relit à chaque passage avec les délais de la CI de la branche, comptés depuis la poussée ; un flux rouge rouvre le ticket sous l'étiquette `flux-rouge` avec l'adresse du passage, comme GitHub notifie l'échec d'un flux de la branche par défaut et que le pipeline « post » de Zuul signale le sien ; un flux non jugé se commente, jamais rouvert. Les gestes sont ceux de
   `scripts/integration/file.mjs`, que ses actes appellent ; un lot déjà sur main est entré, pas
   écarté (la branche pointe sur le commit de main qui livre son ticket, ou chacun de ses commits a
   son équivalent sur main, même patch selon `git cherry`, le rejeu qu'écrit un rebase, ou la
@@ -1590,9 +1582,10 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   direct), avant son intégration, ne compte plus : la file l'arrête (`ARRETER`) à son réveil
   suivant et écrit sa ligne « termine » au journal des états (`fermesHorsCircuit` de
   `scripts/file-des-tickets.mjs`), comme Zuul retire de son pipeline un changement abandonné ou
-  fusionné ; un circuit à son intégration (5.1 à 5.3) a fermé son ticket lui-même, et reste. Les circuits que le serveur tient sans les avoir intégrés
-  (`circuitsNonIntegres`, sur `lireLesCircuits`, un appel) tiennent aussi leur ticket, un circuit
-  fini sans son issue compris. Chaque circuit est un enfant détaché ; un ticket dont le circuit tourne
+  fusionné ; un circuit à son intégration (5.1 à 5.3) a fermé son ticket lui-même, et reste. Seuls
+  les circuits vivants (en cours ou arrêtés sur une question, une place) tiennent leur ticket hors
+  de la file ; un circuit fini non intégré — intégré, arrêté, fermé hors de lui, interrompu — ne le
+  tient plus, comme une file de fusion ne compte aucun essai fini (grillhouse-d0t). Chaque circuit est un enfant détaché ; un ticket dont le circuit tourne
   déjà, visible ou pas encore, ne repart pas. Une faute (le réglage, un `package.json` qui ne se
   lit pas, une Beads qui échoue) ne lance rien, nommée dans la requête. Après une reprise à neuf
   (Continue-As-New), la fin d'un circuit lancé avant se lit au réveil suivant.

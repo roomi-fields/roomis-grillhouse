@@ -31,7 +31,6 @@ import {
   defineUpdate,
   isCancellation,
   makeContinueAsNewFunc,
-  patched,
   proxyActivities,
   setHandler,
   upsertMemo,
@@ -50,21 +49,7 @@ import {
 import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
 import type { ActivitesDeLaFile, IssueDeLaFile } from '../file/contrat.js';
 
-// The place of a lot as `situerLeLot` gave it before the CI of the branch, which a run recorded
-// before that change reads from its history (`laFileDAvant`).
-interface LotDAvant {
-  aEntrer?: boolean;
-  commit?: string | null;
-  branche?: string | null;
-  surOrigin?: 'oui' | 'non' | 'inconnu';
-  raisonOrigin?: string | null;
-}
-import {
-  CI_DE_LA_BRANCHE,
-  entrerDansLaFile,
-  issueDeLaFile,
-  lireEtConclureLaCI,
-} from '../file/deroule.js';
+import { entrerDansLaFile, issueDeLaFile } from '../file/deroule.js';
 import {
   ARRETER,
   DEPUIS,
@@ -148,29 +133,15 @@ const lEtat = defineQuery<VueDuCircuit>(L_ETAT);
 const REPASSER_MS = 10 * 60_000;
 const REPASSES_MAX = 6;
 const LIMITE_D_HISTOIRE = 10_000;
-// The patch of the state of the plan (Temporal's patching, as `CI_DE_LA_BRANCHE`,
-// grillhouse-bf5.6): a run at its plan publishes the step `plan` from its opening (`auPlan`); a
-// run that recorded its opening before the change replays it without the marker, its plan
-// published as its states said.
-const ETAT_AU_PLAN = 'etat-au-plan';
-// The patch of the stop at the plan (grillhouse-d4n.11): a stop of a run at its plan (AU_PLAN, no
-// step of the table of transitions) is written at the plan's state, and an answer reopens the
-// plan from it (`etatDeReprise` of scripts/transitions.mjs); a run that recorded such a stop or
-// opening before the change replays it at the step `plan`.
-const REPRISE_AU_PLAN = 'reprise-au-plan';
-// The state <e> of a stop or of a reopening as a resumption reads it, under REPRISE_AU_PLAN.
+// The state <e> of a stop or of a reopening as a resumption reads it: a stop of a run at its plan
+// (AU_PLAN, no step of the table of transitions) is written at the plan's state, and an answer
+// reopens the plan from it (`etatDeReprise` of scripts/transitions.mjs).
 const aLaReprise = <E extends EtatDeLEtape>(e: E): E =>
-  e.etape === AU_PLAN && patched(REPRISE_AU_PLAN) ? etatDeReprise(e) : e;
-// The patch of the wait for a place (Temporal's patching): a « a-repasser » the checks give on a
-// wait for a place, the lock or room at its bound (`attente`) plays again at once, without limit
-// and without counting, as a job of Buildkite waits for an agent; a run that recorded such a stop
-// before the change replays it as it was.
-const ATTENTE_DE_PLACE = 'attente-de-place';
-// The patch of the pause (grillhouse-4nr.27): a circuit stopped on a question gives its place of
-// a circuit back, its copy measured once; resumed, it asks its place again by itself
-// (`reserverDesCircuits`, its rank of arrival kept), the step EN_ATTENTE_DE_PLACE published,
-// every ATTENTE_DE_PLACE_MS until it holds one, before it reopens.
-const PAUSE_REND_SA_PLACE = 'pause-rend-sa-place';
+  e.etape === AU_PLAN ? etatDeReprise(e) : e;
+// A circuit stopped on a question gives its place of a circuit back, its copy measured once;
+// resumed, it asks its place again by itself (`reserverDesCircuits`, its rank of arrival kept),
+// the step EN_ATTENTE_DE_PLACE published, every ATTENTE_DE_PLACE_MS until it holds one, before it
+// reopens.
 const ATTENTE_DE_PLACE_MS = 60_000;
 
 // How a run of steps ends.
@@ -316,33 +287,6 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   setHandler(issueDeLaFile, i => {
     issue = i;
   });
-  let relectures = 0;
-  // The fact `file` of the step 5.2 as the circuit read it before the CI of the branch
-  // (`CI_DE_LA_BRANCHE`, Temporal's patching, ../file/deroule.ts): a lot on main and on origin had
-  // the CI of its commit read again; kept for the replay of the runs that recorded it, the place of
-  // the lot read from the answer the history holds.
-  const laFileDAvant = (lot: LotDAvant): Promise<IssueDeLaFile> | null => {
-    const { racine, ticket } = entree;
-    if (!lot.aEntrer && lot.commit && lot.branche && lot.surOrigin === 'inconnu') {
-      throw new Error(
-        `la place du lot ${lot.commit.slice(0, 7)} sur origin ne se lit pas (${lot.raisonOrigin ?? 'sans raison'}) : il ne retourne pas en file.`
-      );
-    }
-    if (!lot.aEntrer && lot.commit && (lot.surOrigin === 'oui' || !lot.branche)) {
-      if (!lot.branche) {
-        return Promise.resolve({
-          etat: 'rouvert',
-          raison: 'grillhouse.poussee.commit ne nomme pas une branche : la CI ne se relit pas.',
-        });
-      }
-      relectures += 1;
-      return lireEtConclureLaCI(
-        { racine, ticket, sha: lot.commit, branche: lot.branche, ci: entree.ci, relue: true },
-        `${workflowInfo().workflowId}:ci:${workflowInfo().runId}:${relectures}`
-      );
-    }
-    return null;
-  };
   // The fact `file` of the step 5.2: a ticket closed is done, any other lot goes to the queue,
   // which enters a lot already on main without moving main again.
   const laFile = async (): Promise<IssueDeLaFile> => {
@@ -350,12 +294,6 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     const lot = await actesDeLaFile.situerLeLot({ racine, ticket });
     if (lot.statut === 'closed') {
       return { etat: 'ferme', raison: lot.raison ?? 'ticket fermé' };
-    }
-    if (!patched(CI_DE_LA_BRANCHE)) {
-      const avant = laFileDAvant(lot as LotDAvant);
-      if (avant) {
-        return avant;
-      }
     }
     issue = null;
     await entrerDansLaFile(
@@ -429,9 +367,9 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   // summary, which the board reads (`resumeDeLEtat`). ARRETER does not cut them: they are written to their end, out of the scope
   // it cancels, and the run stops at its next act.
   let effetsJoues = 0;
-  // The run at its plan, from its opening to its plan passed (`ETAT_AU_PLAN`): the summary it
-  // publishes is the step `plan` (`resumeDeLEtat`), the state its plan writes (the testwriter's,
-  // where a resumption starts) kept whole in `ecrit`.
+  // The run at its plan, from its opening to its plan passed: the summary it publishes is the step
+  // `plan` (`resumeDeLEtat`), the state its plan writes (the testwriter's, where a resumption
+  // starts) kept whole in `ecrit`.
   let auPlan = false;
   const jouerLesEffets = (effets: Effet[] | undefined) =>
     CancellationScope.nonCancellable(async () => {
@@ -476,12 +414,9 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       // The plan published at once: at the opening of a run with no state to resume from, then at
       // each step of the plan, before the activity whose effects come at its end.
       auPlan = false;
-      const lePlanSePublie = patched(ETAT_AU_PLAN);
       const publierLePlan = () => {
-        if (lePlanSePublie) {
-          auPlan = true;
-          upsertMemo({ etat: resumeDeLEtat(null, true) });
-        }
+        auPlan = true;
+        upsertMemo({ etat: resumeDeLEtat(null, true) });
       };
       if (!etatEcrit) {
         publierLePlan();
@@ -613,12 +548,10 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         return { arreter: arret, etat: ecrit, menee };
       }
       if (d.fin) {
-        if (patched(PAUSE_REND_SA_PLACE)) {
-          await actesDeLaPause.mesurerLaCopieDuTicket({
-            racine: entree.racine,
-            ticket: entree.ticket,
-          });
-        }
+        await actesDeLaPause.mesurerLaCopieDuTicket({
+          racine: entree.racine,
+          ticket: entree.ticket,
+        });
         const f = await actes.finirLeTicket({ ...lieu(), etat, paquets: ticket.paquets });
         await jouerLesEffets(f.effets);
         return { fin: true };
@@ -638,7 +571,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       return { publie: issue.arret, rejoue: false, place: false };
     }
     const aRepasser = nomDe(issue.arreter) === 'a-repasser';
-    const place = aRepasser && issue.arreter.attente === true && patched(ATTENTE_DE_PLACE);
+    const place = aRepasser && issue.arreter.attente === true;
     const rejoue = aRepasser && (place || repasses < repassesMax);
     try {
       const publie = await actes.publierLArret({
@@ -714,7 +647,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       const { publie, rejoue, place } = await ecrire(suite);
       // A stop whose question waits is a pause: the circuit gives its place of a circuit back
       // (the queue no longer counts it), its copy measured once.
-      const enPause = !place && !rejoue && !arretDemande && patched(PAUSE_REND_SA_PLACE);
+      const enPause = !place && !rejoue && !arretDemande;
       suite = { arret: publie };
       // ARRETER while the stop was written.
       if (arretDemande) {

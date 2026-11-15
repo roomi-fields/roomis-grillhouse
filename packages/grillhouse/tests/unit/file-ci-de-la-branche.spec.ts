@@ -1,7 +1,7 @@
 // The queue gates main on the CI of the ticket's branch, as bors and Zuul gate a merge on the CI
 // of the tree that enters (scripts/integration/file.mjs): the branch `agent/<ticket>` made the
 // candidate on top of main and pushed to origin (`preparerLaBranche`), its run read on that branch
-// whatever runs it (`lireUneFoisLaCI`), its CI concluded (`conclureLaCI`), then main moved by
+// whatever runs it (`lireLesPassagesDeLaCI`), its CI concluded (`conclureLaCI`), then main moved by
 // fast-forward onto the tree the CI judged (`avancerMain`), and the entry closed (`fermerLEntree`).
 // Nothing is verified on the machine.
 //
@@ -19,7 +19,6 @@ import {
   avancerMain,
   conclureLaCI,
   fermerLEntree,
-  lireUneFoisLaCI,
   preparerLaBranche,
   situerLeLot,
 } from '../../scripts/integration/file.mjs';
@@ -99,13 +98,6 @@ function github(s: Scenario) {
   };
   return { gh, appels };
 }
-
-// A view of a run completed with <conclusion>, its one job of two steps done.
-const fini = (conclusion: string) => ({
-  status: 'completed',
-  conclusion,
-  jobs: [{ status: 'completed', steps: [{ status: 'completed' }, { status: 'completed' }] }],
-});
 
 // A repository whose main holds a CI that runs on every push, pushed to its origin, and the branch
 // agent/demo-1 one commit ahead of main, which names the ticket.
@@ -200,37 +192,6 @@ describe('la file pousse agent/<ticket> et juge sa CI avant que main avance', ()
     expect(d.git('merge-base', '--is-ancestor', 'main', nouveau)).toBe('');
     expect(d.git('rev-parse', 'agent/demo-1')).toBe(nouveau);
     expect(d.surOrigin('agent/demo-1')).toBe(nouveau);
-  });
-
-  it('the run is the one of the candidate on its branch, read at its current attempt', () => {
-    const d = depot();
-    const { o, gh } = outils(d, enFile(), {
-      runs: [{ databaseId: 41, status: 'completed', conclusion: 'success' }],
-      vues: [fini('success')],
-    });
-    expect(lireUneFoisLaCI(o, { sha: d.tip, branche: 'agent/demo-1' })).toEqual({
-      etat: 'finie',
-      passage: '41',
-      conclusion: 'success',
-    });
-    expect(gh).toEqual([
-      `run list --commit ${d.tip} --branch agent/demo-1 --json databaseId,status,conclusion`,
-      'run view 41 --json status,conclusion,jobs',
-    ]);
-  });
-
-  it('no workflow runs on a push to the branch: no run is looked for', () => {
-    const d = depot();
-    writeFileSync(
-      path.join(d.racine, '.github', 'workflows', 'ci.yml'),
-      'on:\n  push:\n    branches: [main]\n'
-    );
-    d.git('commit', '-qam', 'ci sur main seul');
-    d.git('branch', '-f', 'agent/demo-1', 'main');
-    const { o, gh } = outils(d, enFile());
-    const sha = d.git('rev-parse', 'main');
-    expect(lireUneFoisLaCI(o, { sha, branche: 'agent/demo-1' })).toEqual({ etat: 'sans-ci' });
-    expect(gh).toEqual([]);
   });
 
   it('green: main moves by fast-forward onto the tree the CI judged', () => {
@@ -365,48 +326,6 @@ describe('l’entrée fermée : le ticket, la branche, main poussé, le travail 
 // run done over planned in the working directory of the ticket, where the board reads them while
 // the circuit waits (scripts/avancement.mjs `avancementDeLaCI`, `avancementDuTravail`).
 describe('the progress of the CI goes to the working directory of the ticket', () => {
-  const etape = (status: string) => ({ status });
-  const enCours = {
-    status: 'in_progress',
-    conclusion: '',
-    jobs: [
-      { status: 'completed', steps: [etape('completed'), etape('completed')] },
-      { status: 'in_progress', steps: [etape('completed'), etape('in_progress'), etape('queued')] },
-    ],
-  };
-  const finie = {
-    status: 'completed',
-    conclusion: 'success',
-    jobs: enCours.jobs.map(j => ({
-      status: 'completed',
-      steps: j.steps.map(() => etape('completed')),
-    })),
-  };
-
-  it('each reading writes in one directory of the working directory, which the board reads', () => {
-    const d = depot();
-    const travail = path.join(d.racine, '.claude', 'worktrees', 'demo-1.travail');
-    mkdirSync(travail, { recursive: true });
-    const g = github({ vues: [enCours, finie] });
-    // Each reading is a process of its own: it opens the directory again.
-    const lire = () =>
-      lireUneFoisLaCI(
-        {
-          racine: d.racine,
-          principale: 'main',
-          bd: beads(enFile()).bd,
-          gh: g.gh,
-          dire: () => {},
-          avancement: avancementDeLaCI(travail),
-        },
-        { sha: d.tip, branche: 'agent/demo-1', passage: '43' }
-      );
-    expect(lire()).toMatchObject({ etat: 'en-cours', passage: '43' });
-    expect(avancementDuTravail(travail)).toMatchObject({ faits: 3, prevus: 5 });
-    expect(lire()).toMatchObject({ etat: 'finie', conclusion: 'success' });
-    expect(avancementDuTravail(travail)).toMatchObject({ faits: 5, prevus: 5 });
-  });
-
   it('a reading that looks for its run again empties the records of the run before', () => {
     const travail = path.join(ESSAIS, 'demo-2.travail');
     mkdirSync(travail, { recursive: true });

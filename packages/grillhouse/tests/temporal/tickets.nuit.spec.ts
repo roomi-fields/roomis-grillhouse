@@ -32,7 +32,6 @@ import {
 } from '../../src/temporal/circuit/contrat.js';
 import {
   circuitsEnPause,
-  circuitsNonIntegres,
   circuitsVivants,
   placesDeLaMachine,
   tracerLaFile,
@@ -144,7 +143,6 @@ async function serveur(activites: object, db = path.join(dossier('tickets'), 'te
       ...circuit,
       circuitsVivants,
       circuitsEnPause,
-      circuitsNonIntegres,
       tracerLaFile,
       fermesHorsCircuit: () => Promise.resolve([]),
       placesDeLaMachine,
@@ -317,8 +315,9 @@ describe('un circuit arrêté : le registre Beads tient son ticket', () => {
 describe('un circuit fini non intégré ne gèle plus la file', () => {
   it('a finished circuit, its ticket still open and labelled: the queue counts only the alive and restarts it', async () => {
     // d-1 opens, then is stopped (COMPLETED, not integrated); its ticket stays open and labelled
-    // `circuit`. The old count held it in enCours through `circuitsNonIntegres` and kept it out of
-    // the queue for ever; now the queue counts only the alive, so d-1 restarts (grillhouse-d0t).
+    // `circuit`. An old count held it in enCours by counting the finished circuits not integrated
+    // and kept it out of the queue for ever; now the queue counts only the alive, so d-1 restarts
+    // (grillhouse-d0t).
     const p = projet([T('d-1', { priority: 0 })], 1);
     const s = await serveur({ ...p.lecture, ...ACTIFS });
     await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 200 }, FILE);

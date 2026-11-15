@@ -189,11 +189,6 @@ function actes(
         effets: [{ genre: 'commentaire', ticket, texte: `${ticket} fermé` }],
       });
     },
-    // The act of before the change, kept for the replay of the histories that recorded it: never
-    // called by a run that takes the new path.
-    lireLaCI() {
-      return Promise.reject(new Error('lireLaCI : le chemin neuf lit les passages de la CI'));
-    },
     lireLesPassagesDeLaCI({ ticket, sha }) {
       journal.lectures.push({ ticket, sha });
       const n = (lus.get(ticket) ?? 0) + 1;

@@ -27,10 +27,6 @@ export async function fermerLEntree(e: Entree<'fermerLEntree'>): Promise<Sortie<
   return jouer('fermer', e, e.racine);
 }
 
-export async function lireLaCI(e: Entree<'lireLaCI'>): Promise<Sortie<'lireLaCI'>> {
-  return jouer('ci', e, e.racine);
-}
-
 export async function lireLesPassagesDeLaCI(
   e: Entree<'lireLesPassagesDeLaCI'>
 ): Promise<Sortie<'lireLesPassagesDeLaCI'>> {

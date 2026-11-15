@@ -117,14 +117,6 @@ export interface ActivitesDeLaFile {
     ({ candidat: { commit: string } } | { entre: { commit: string } } | { issue: IssueDeLaFile }) &
       Rendus
   >;
-  /** One reading of the CI of <sha> on <branche>, the run <passage> found before (`lireUneFoisLaCI`). */
-  lireLaCI(e: {
-    racine: string;
-    ticket: string;
-    sha: string;
-    branche: string;
-    passage: string | null;
-  }): Promise<LectureDeLaCI>;
   /**
    * One reading of the CI of <sha> on <branche>, every expected workflow together
    * (`lireLesPassagesDeLaCI`); it keeps nothing from one reading to the next.
