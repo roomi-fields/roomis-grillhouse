@@ -1,8 +1,9 @@
 // grillhouse-pkl.7 — the update and the template of a project of Rust: `grillhouse maj` declares
 // cargo for a Cargo.toml at the root, writes no tool of npm of another language,
 // installs the binaries of the declared language that the machine lacks (`binaires`, by
-// `cargo binstall`, as `cargo install --list` reads what is installed), and ignores what the
-// language's tools write (`ignorer`: cargo's `target/`, typescript's `.turbo` and `.vitest-reports`), in the source files
+// `cargo binstall`, as `cargo install --list` reads what is installed), and ignores what the frame
+// writes (Turborepo's `.turbo`, every language playing by it) and what the language's tools write
+// (`ignorer`: cargo's `target/`, typescript's `.vitest-reports`), in the source files
 // the migrations read and in the `.gitignore` it writes. The template of a project of cargo
 // (`templates/cargo/`) gives its deny.toml, its nextest configuration, its toolchain and its
 // package.json, which the update copies where the project has none. The calls of cargo go to the
@@ -437,11 +438,13 @@ describe('grillhouse-rph, critère 1 — maj signale un Cargo.lock non versionn�
   });
 });
 
-describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écrivent est ignoré', () => {
-  it('each module names what its tools write: cargo target, typescript .turbo and .vitest-reports', () => {
+describe('grillhouse-pkl.7, critère 4 — ce que le cadre et les outils du langage écrivent est ignoré', () => {
+  it('the frame names .turbo (Turborepo, every language), each module its tools: cargo target, typescript .vitest-reports', () => {
+    // grillhouse-ziw: `.turbo` is the frame's (every language plays by Turborepo), not the module
+    // typescript's; `.vitest-reports` and `.cache-outils` stay the module typescript's.
+    expect(IGNORES_DU_CADRE).toContain('.turbo');
     expect((cargo as unknown as { ignorer: string[] }).ignorer).toEqual(['target']);
     expect((typescript as unknown as { ignorer: string[] }).ignorer).toEqual([
-      '.turbo',
       '.vitest-reports',
       '.cache-outils',
     ]);
@@ -461,21 +464,23 @@ describe('grillhouse-pkl.7, critère 4 — ce que les outils du langage écriven
     expect(sources(t).sort()).toEqual(['src/a.ts', 'target/a.mjs']);
   });
 
-  it('the .gitignore the update writes ignores target/ for a project of Rust, .turbo/ for typescript', () => {
+  it('the .gitignore the update writes ignores .turbo/ for every project, target/ for Rust, no target/ for typescript', () => {
+    // grillhouse-ziw: `.turbo/` is laid for a cargo project too, which plays its tasks by Turborepo.
     const r = rust();
     mettreAJour(r, DEPOT);
     expect(lire(r, '.gitignore').split('\n')).toContain('target/');
-    expect(lire(r, '.gitignore')).not.toMatch(/turbo/);
+    expect(lire(r, '.gitignore').split('\n')).toContain('.turbo/');
     const t = ts();
     mettreAJour(t, DEPOT);
     expect(lire(t, '.gitignore').split('\n')).toContain('.turbo/');
     expect(lire(t, '.gitignore')).not.toMatch(/target/);
   });
 
-  it('a .gitignore that already ignores target (/target) stays as it is', () => {
-    const r = rust({ '.gitignore': '/target\n/.claude/worktrees\n' });
+  it('a .gitignore that already ignores target, .turbo and the copies stays as it is (idempotent)', () => {
+    // grillhouse-ziw: `.turbo` is laid by the update too; a line already ignoring it is not doubled.
+    const r = rust({ '.gitignore': '/target\n/.claude/worktrees\n.turbo/\n' });
     mettreAJour(r, DEPOT);
-    expect(lire(r, '.gitignore')).toBe('/target\n/.claude/worktrees\n');
+    expect(lire(r, '.gitignore')).toBe('/target\n/.claude/worktrees\n.turbo/\n');
   });
 });
 
@@ -528,10 +533,13 @@ describe('grillhouse-icj — la montée ignore les copies de tickets, d’une se
     expect(lire(r, '.gitignore').split('\n')).toContain('.claude/worktrees/');
   });
 
+  // The other frame lines the update lays, .claude/worktrees aside (it is the form under test).
+  const AUTRES_CADRE = IGNORES_DU_CADRE.filter(n => n !== '.claude/worktrees');
+
   it.each(formes('.claude/worktrees'))(
     'critère 2 — a .gitignore that ignores it as %s stays as it is',
     forme => {
-      const texte = `${forme}\n${IGNORES_TS.map(n => `${n}/\n`).join('')}`;
+      const texte = `${forme}\n${[...AUTRES_CADRE, ...IGNORES_TS].map(n => `${n}/\n`).join('')}`;
       const t = ts({ '.gitignore': texte });
       mettreAJour(t, DEPOT);
       expect(lire(t, '.gitignore')).toBe(texte);
@@ -539,7 +547,7 @@ describe('grillhouse-icj — la montée ignore les copies de tickets, d’une se
   );
 
   it('critère 3 — the frame’s lines come from the update alone: the template lists none, a new project has each once', () => {
-    expect(IGNORES_DU_CADRE).toEqual(['.claude/worktrees']);
+    expect(IGNORES_DU_CADRE).toEqual(['.claude/worktrees', '.turbo']);
     const gabarit = readFileSync(path.join(DEPOT, 'templates/projet/_gitignore'), 'utf8');
     const duGabarit = gabarit.split('\n').map(l => l.trim());
     // `.cache-outils/` is the one line the template carries itself (the cache of the root's tools).

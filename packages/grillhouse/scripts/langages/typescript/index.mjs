@@ -208,10 +208,11 @@ export default {
   binaires: {},
   // No program the installer of Temporal looks for: Node is a tool of the account.
   executables: [],
-  // What its tools write in a project: Turborepo's runs and cache, and Vitest's reports of the
-  // tranches of a pass (./tranches.mjs), and the cache of the lint and of the format check of the
-  // project (`.cache-outils/`).
-  ignorer: ['.turbo', '.vitest-reports', '.cache-outils'],
+  // What its tools write in a project: Vitest's reports of the tranches of a pass (./tranches.mjs),
+  // and the cache of the lint and of the format check of the project (`.cache-outils/`). Turborepo's
+  // runs and cache (`.turbo`) are the frame's, every language playing by it: IGNORES_DU_CADRE of
+  // scripts/grillhouse-maj.mjs ignores them.
+  ignorer: ['.vitest-reports', '.cache-outils'],
   // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
   // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
   // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of

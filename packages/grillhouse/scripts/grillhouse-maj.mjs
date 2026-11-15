@@ -92,8 +92,9 @@
 //   names each tool added and `npm install`, which installs them. A project without
 //   `packageManager` receives the template's.
 // - What the frame writes in a project (IGNORES_DU_CADRE: the copies of the tickets,
-//   `.claude/worktrees`) and what the tools of the declared language write there (`ignorer` of its
-//   module: typescript's `.turbo`, cargo's `target`): a `.gitignore` that does not ignore one
+//   `.claude/worktrees`, and Turborepo's `.turbo`, the tool every language plays its tasks by) and
+//   what the tools of the declared language write there (`ignorer` of its module: typescript's
+//   `.vitest-reports`, cargo's `target`): a `.gitignore` that does not ignore one
 //   receives its line, `<nom>/`. The template's `.gitignore` lists none of them: the update is
 //   their one source, for a project `init` creates as for an existing one.
 // - The binaries of the declared language (`binaires` of its module: cargo's nextest and
@@ -199,11 +200,13 @@ const lireJson = (f, defaut) => {
 };
 
 /**
- * The directories the frame itself writes in a project, which its `.gitignore` ignores: the
- * copies of the tickets. The template's `.gitignore` lists none of them, nor what the tools of its
- * language write: the update lays both, in a new project as in an existing one.
+ * The directories the frame itself writes in a project, which its `.gitignore` ignores: the copies
+ * of the tickets, and the runs and cache of Turborepo (`.turbo`), the tool every language of the
+ * frame plays its tasks by (grillhouse-x2w), written whatever the project's language. The template's
+ * `.gitignore` lists none of them, nor what the tools of its language write: the update lays both,
+ * in a new project as in an existing one.
  */
-export const IGNORES_DU_CADRE = ['.claude/worktrees'];
+export const IGNORES_DU_CADRE = ['.claude/worktrees', '.turbo'];
 
 // Adds to the `.gitignore` of the project at <projet> each directory the frame writes
 // (IGNORES_DU_CADRE) and each its language's tools write (`ignorer` of its module), as `<nom>/`,

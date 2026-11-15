@@ -37,6 +37,6 @@ describe('the cache of Vite of the typescript module', () => {
 
   it('the module ignores .cache-outils as a whole, with no pattern more for the cache of Vite', () => {
     expect(typescript.ignorer).toContain('.cache-outils');
-    expect([...typescript.ignorer].sort()).toEqual(['.cache-outils', '.turbo', '.vitest-reports']);
+    expect([...typescript.ignorer].sort()).toEqual(['.cache-outils', '.vitest-reports']);
   });
 });

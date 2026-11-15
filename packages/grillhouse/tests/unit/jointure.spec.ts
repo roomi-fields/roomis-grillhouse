@@ -6,10 +6,12 @@
 //
 // - The share of each file of `scripts/` and `bin/` between the core and the module typescript is
 //   tests/temoins/repartition.json, exhaustive (grillhouse-3dr.2.2 moves the module's files by it).
-// - A word of a tool (turbo, vitest, knip, dependency-cruiser, tsc; cargo since grillhouse-pkl.7)
-//   in the code of the core is a rest that its ticket takes out, inscribed below: the comments,
-//   which name the mature models (« as Turborepo does »), are not read, nor the join itself,
-//   scripts/langages.mjs, whose list names each language by its module.
+// - A word of a tool of a language (vitest, knip, dependency-cruiser, tsc; cargo since
+//   grillhouse-pkl.7; uv and pytest for python) in the code of the core is a rest that its ticket
+//   takes out, inscribed below. Turborepo is not among them: it is the frame's orchestrator, common
+//   to every language since grillhouse-x2w (0.36.0), so the core names `.turbo` (grillhouse-ziw).
+//   The comments, which name the mature models (« as Turborepo does »), are not read, nor the join
+//   itself, scripts/langages.mjs, whose list names each language by its module.
 // - grillhouse-pkl.3: the module cargo, under scripts/langages/cargo/, takes its share of the
 //   files, answers each member of the join, and names of the core its published entries alone.
 // - grillhouse-ziy: the module python, under scripts/langages/python/, takes its share too, and
@@ -99,7 +101,11 @@ const membresDeLangage = () => {
   return [...corps.matchAll(/^\s{2}(\w+)\??(?:\(|:)/gm)].map(m => m[1]);
 };
 
-const MOT = /turbo|vitest|knip|dependency-cruiser|\btsc\b|cargo|pytest|\buv\b/i;
+// Turborepo is the frame's orchestrator, common to every language since grillhouse-x2w (0.36.0, « un
+// seul graphe pour tous les langages ») — infrastructure of the core, not a tool of a language — so
+// the core names it (`.turbo`). The other words stay per-language: vitest and tsc for typescript,
+// cargo for Rust, uv and pytest for python.
+const MOT = /vitest|knip|dependency-cruiser|\btsc\b|cargo|pytest|\buv\b/i;
 // The rests of the core that name a tool, each with the ticket that takes it out: the file, and
 // the pieces of its lines that may name one, in any case.
 const RESTES: Record<string, { ticket: string; morceaux: string[] }> = {};

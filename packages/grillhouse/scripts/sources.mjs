@@ -3,9 +3,10 @@
 // text imports a package (`importe`).
 //
 // - Left out: the directories of the frame's tools and of what npm installs (node_modules, .git,
-//   dist, coverage, .claude, .beads, .codegraph, .rtfm), and what the tools of the project's
-//   language write (`ignorer` of its module, scripts/jointure.d.ts: typescript's `.turbo`, cargo's
-//   `target`), as git leaves out what a `.gitignore` names. A project that declares no language
+//   dist, coverage, .claude, .beads, .codegraph, .rtfm, and Turborepo's `.turbo`, the tool every
+//   language plays its tasks by), and what the tools of the project's language write (`ignorer` of
+//   its module, scripts/jointure.d.ts: typescript's `.vitest-reports`, cargo's `target`), as git
+//   leaves out what a `.gitignore` names. A project that declares no language
 //   (the column « Langage » of its docs/ARCHITECTURE.md) leaves out what every language of the
 //   frame writes.
 import { readdirSync } from 'node:fs';
@@ -22,6 +23,7 @@ const HORS = [
   '.beads',
   '.codegraph',
   '.rtfm',
+  '.turbo',
 ];
 
 /** The directories left out in the project at <racine>: the frame's, and what its language's tools
