@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-11-15
+
+- **The Temporal versioning markers of the drained paths are removed, their legacy paths with them** (grillhouse-54f.3): the versioning of the Temporal workflows (`patched` → `deprecatePatch` → removal) had accumulated thirteen `patched` markers with no `deprecatePatch` across the file, circuit, places and tickets queues, their transition paths made permanent (audit grillhouse-54f, foyer #2). Each marker is converged to its current path and removed, with the legacy branch it guarded and the acts only it kept (`ciDuCommitDUnPassage`, `lireLaCI`, `lireEtConclureLaCI`, `entreeDAvant`, `laFileDAvant`, `circuitsNonIntegres`); the recorded replay histories, no longer deterministic against the converged code, are removed and re-recorded by the next night. **Action for projects**: none of its own; the supervisor terminates the running queue, places and night workflows and restarts the workers on this version at a calm window (no circuit or integration in flight).
+
 ## [0.39.0] - 2026-11-15
 
 - **The queue of the tickets counts only the circuits alive, not a finished circuit a ticket still carries** (grillhouse-d0t): the queue held a ticket out of the ready set while any `circuitDuTicket` workflow of it remained un-integrated, whatever its status — a circuit COMPLETED, TERMINATED or FAILED, even one of a ticket already closed (OSC Bridge OB-k7o), kept its ticket frozen out of the queue until Temporal's retention swept it, and the three groups (OSC Bridge, SyntHub, OSD) stalled with `partir:[]`. The queue now counts a ticket in progress only for a circuit alive (`circuits-vivants-seuls`, a Temporal patch so in-flight histories replay unchanged), a finished workflow no longer holding its ticket; the activity `circuitsNonIntegres` stays for the histories still replaying. **Action for projects**: none; a ticket a finished circuit held comes back to the queue on the next measure.
