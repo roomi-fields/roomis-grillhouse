@@ -238,6 +238,11 @@ dossier.
   poser un correctif local de plus ; une deuxième retouche du même mécanisme signale qu'il a
   dérivé, et se re-dérive ou monte au responsable. Ainsi un mécanisme suit sa référence, et non la
   somme de ses rustines.
+- **L'ancien chemin qu'une exécution en vol porte encore se retire à son tour** : quand le remplacé
+  ne peut pas partir dans le même commit parce qu'une orchestration en vol en a besoin pour rejouer
+  son histoire (le versionnage d'un flux Temporal, `patched`), le ticket qui pose le nouveau chemin
+  crée aussitôt le ticket de suppression de l'ancien, joué une fois l'ancienne histoire drainée
+  (`deprecatePatch`, puis le retrait). Ainsi un chemin de transition ne devient pas permanent.
 - **Un commentaire dit ce que la chose est**, au présent. Ainsi il reste vrai tant que le code ne
   change pas.
 
