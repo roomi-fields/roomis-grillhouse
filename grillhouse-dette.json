@@ -494,11 +494,6 @@
         "count": 27
       }
     },
-    "packages/grillhouse-essais/tests/lancer-modele.seance.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 3
-      }
-    },
     "packages/grillhouse-essais/tests/nouveau-projet.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 5

@@ -1,16 +1,6 @@
-// @poste: l'enveloppe bwrap, un serveur Temporal, une séance de claude
+// @poste: l'enveloppe bwrap, un lanceur, un claude de remplacement (aucun vrai Claude, aucun token)
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  accessSync,
-  constants,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { userInfo } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
@@ -18,29 +8,36 @@ import { RACINE } from './cadre.js';
 import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
 import { temporaireDuFichier } from './temporaire-du-fichier.js';
 
-// Ticket grillhouse-3uv.46, critère 3: a real session launched with --modele runs on the model
-// asked, over the model of the role's definition; its transcript says so in the model field of
-// its messages. A real claude answers, on the real home, so the night plays it.
+// Ticket grillhouse-3uv.46: the circuit names an explicit model for every session (scripts/seances.mjs:
+// Sonnet for the testwriter and the developpeur, Opus for the developpeur's last session), so a
+// session never runs without one. The launcher forwards that model to the claude command as --model
+// (scripts/enveloppe/lancer.sh, « [ -z "$modele" ] || surcharge+=(--model "$modele") »). The proof
+// reads the --model the launcher passes for each imposed model, recorded by a stand-in (CLAUDE_BIN
+// replaces claude): no real session, no token. Which model the circuit names for each session is a
+// day test of its own, packages/grillhouse/tests/unit/seances.modeles.spec.ts.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-nuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 // The temporary directory of this file, under which the launcher opens each ticket's own.
 temporaireDuFichier();
 
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
-const projetsReels = path.join(userInfo().homedir, '.claude/projects');
-const enTirets = (p: string) => p.replace(/[^A-Za-z0-9]/g, '-');
-const ecrivable = (p: string) => {
-  try {
-    accessSync(p, constants.W_OK);
-    return true;
-  } catch {
-    return false;
-  }
-};
-const connecte = (() => {
-  const r = spawnSync('claude', ['auth', 'status'], { encoding: 'utf8', timeout: 60000 });
-  return r.status === 0 && r.stdout.includes('"loggedIn": true');
-})();
+
+// The stand-in claude: it records the model the launcher passes it (--model) at the root of the
+// session's copy, then answers as the developpeur with a FAIT sheet so the launcher ends green. It
+// launches nothing and reaches no network, so the night plays it without a token.
+const FAUX_CLAUDE = `#!/bin/bash
+copie=$(git rev-parse --show-toplevel)
+prec= modele= format=
+for a in "$@"; do
+  [ "$prec" = --model ] && modele=$a
+  [ "$prec" = --output-format ] && format=$a
+  prec=$a
+done
+printf '%s' "$modele" > "$copie/.modele-vu"
+cat > /dev/null
+[ "$format" = json ] && printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok","structured_output":{"statut":"FAIT"}}'
+exit 0
+`;
 
 // The envelope as a test repository holds it: enveloppe.mjs and every module it imports.
 function installerEnveloppe(repo: string) {
@@ -64,12 +61,12 @@ function installerEnveloppe(repo: string) {
 }
 
 // Vitest runs no hook of a file whose tests are all skipped: the root goes at once then.
-const actif = canWrap && connecte && ecrivable(projetsReels);
+const actif = canWrap;
 if (!actif) {
   rmSync(ESSAIS, { recursive: true, force: true });
 }
 
-describe.runIf(actif)('critère 3 — the transcript of a real session', () => {
+describe.runIf(actif)('le lanceur passe le modèle à la commande claude', () => {
   // The developpeur's definition sets sonnet; the override asks for haiku. The repository is a
   // project the launcher prepares: its language declared, Turborepo the trial's stand-in.
   const repo = path.join(ESSAIS, 'depot');
@@ -81,6 +78,7 @@ describe.runIf(actif)('critère 3 — the transcript of a real session', () => {
       path.join(repo, '.claude/agents/developpeur.md'),
       '---\nname: developpeur\ndescription: essai\nmodel: sonnet\neffort: low\n---\nRéponds en un mot.\n'
     );
+    writeFileSync(path.join(repo, 'faux-claude.sh'), FAUX_CLAUDE, { mode: 0o755 });
     projetDuLanceur(repo);
     installerEnveloppe(repo);
     execFileSync('git', ['init', '-q', repo]);
@@ -98,45 +96,34 @@ describe.runIf(actif)('critère 3 — the transcript of a real session', () => {
     ]);
   });
 
-  const projets: string[] = [];
-  afterAll(() => projets.forEach(p => rmSync(p, { recursive: true, force: true })));
-
-  // One real session; the models of its assistant messages, read in its transcript.
-  const modeles = (ticket: string, options: string[]) => {
+  // The model the launcher passes to the claude command on ticket <ticket>, read from what the
+  // stand-in recorded at the root of its copy; no real session is launched.
+  const modele = (ticket: string, options: string[]): string => {
     const consigne = path.join(repo, `${ticket}.txt`);
     writeFileSync(consigne, `TON TICKET : ${ticket} — réponds seulement : OK.`);
     const copie = path.join(repo, '.claude/worktrees', ticket);
-    const projet = path.join(projetsReels, enTirets(copie));
-    projets.push(projet);
     const r = spawnSync(
       'bash',
       [LAUNCHER, ...options, ticket, 'developpeur', 'packages/a', consigne],
-      { cwd: repo, encoding: 'utf8', timeout: 300000 }
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_BIN: path.join(repo, 'faux-claude.sh') },
+        timeout: 120000,
+      }
     );
     expect(
       r.status,
       `${r.stderr}\n${existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : ''}`
     ).toBe(0);
-    const lignes = readdirSync(projet)
-      .filter(f => f.endsWith('.jsonl'))
-      .flatMap(f => readFileSync(path.join(projet, f), 'utf8').split('\n').filter(Boolean))
-      .map(l => JSON.parse(l) as { type?: string; message?: { model?: string } });
-    return lignes.filter(l => l.type === 'assistant').map(l => l.message?.model ?? '');
+    return readFileSync(path.join(copie, '.modele-vu'), 'utf8');
   };
 
-  it('critère 3 — a session launched with --modele haiku runs on haiku, over the sonnet of the role', () => {
-    const vus = modeles('demo-haiku', ['--modele', 'haiku']);
-    expect(vus.length).toBeGreaterThan(0);
-    for (const m of vus) {
-      expect(m).toMatch(/haiku/);
-    }
-  }, 330000);
-
-  it('critère 2 — a session launched without an option runs on the model of the role', () => {
-    const vus = modeles('demo-role', []);
-    expect(vus.length).toBeGreaterThan(0);
-    for (const m of vus) {
-      expect(m).toMatch(/sonnet/);
-    }
-  }, 330000);
+  // Le circuit impose Sonnet et Opus ; haiku vaut pour tout autre modèle que le responsable nomme.
+  // Le lanceur passe chacun comme --model, par-dessus le modèle de la définition du rôle.
+  for (const m of ['sonnet', 'opus', 'haiku']) {
+    it(`--modele ${m} fait passer --model ${m} à la commande claude`, () => {
+      expect(modele(`demo-${m}`, ['--modele', m])).toBe(m);
+    });
+  }
 });
