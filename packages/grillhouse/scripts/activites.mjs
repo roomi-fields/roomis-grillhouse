@@ -930,6 +930,27 @@ export function preuveReussie(
   return rouges > 0;
 }
 
+// Whether a changed test file of the lot, without a result of its own, is a casse — a real failure
+// to load, the only cause of refusal on `casses`. Before the build (<constructions> present) it
+// cannot load yet and plays at the checks, not a casse. With no result (<res> absent) on a run that
+// ended well (<code> 0, the binary compiled and played), the file loaded and simply holds no test
+// of its own — an aggregator harness (tests/it/main.rs, `mod …;`) or shared test matter; not a
+// casse. With a result but no test (<res> present, 0 tests), it is a casse only when that result
+// itself failed. Returns the kind of casse (`non-joue`, `ne-charge-pas`) or null when there is none.
+export function casseDeChargement({ res, code, constructions }) {
+  const tests = res?.tests ?? [];
+  if (constructions.length && (!res || tests.length === 0)) {
+    return null;
+  }
+  if (!res) {
+    return code === 0 ? null : 'non-joue';
+  }
+  if (tests.length === 0) {
+    return res.etat === 'failed' ? 'ne-charge-pas' : null;
+  }
+  return null;
+}
+
 // The files <fichiers> of the lot, in the copy, split into the ones the day plays (`jour`), the
 // ones only the night plays (`misDeCote`: a night test, a bench, a time witness), by each module's
 // own definition (`horsDuJour` of the join), and the ones out of every package of the language
@@ -1586,13 +1607,12 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];
       const deHead = vertsDuRegistre(registre, f);
-      if (constructions.length && (!res || tests.length === 0)) {
-        // It cannot load before the build: it plays at the checks.
-      } else if (!res) {
+      const casse = casseDeChargement({ res, code, constructions });
+      if (casse === 'non-joue') {
         casses.push(
           `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`
         );
-      } else if (tests.length === 0) {
+      } else if (casse === 'ne-charge-pas') {
         casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);
       }
       for (const a of tests) {
