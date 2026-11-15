@@ -40,8 +40,9 @@
 //   day leaves out, through the plugin `nuit`: the night tests, the benches and the witnesses; the
 //   variable `GRILLHOUSE_TESTS_DE_NUIT` (NUIT_VARIABLE) chooses `nuit`, the night tests alone,
 //   `hors-poste`, the night tests but those that bear the tag `@poste` at their head (the night of
-//   a shared machine), or `mesures`, the benches and the witnesses alone, one file at a time
-//   (`fileParallelism: false`), as scripts/langages/typescript/tests-de-nuit.mjs plays them; the
+//   a shared machine), or `mesures`, the benches and the witnesses alone; every choice plays one
+//   file at a time (`fileParallelism: false`, the night at rest: a night test mounts a trial, a
+//   measure is taken under no load), as scripts/langages/typescript/tests-de-nuit.mjs plays them; the
 //   variable `GRILLHOUSE_TRANCHE_DE_NUIT` (NUIT_TRANCHE) gives the run its tranche, as a tranche of
 //   the day (`trancher`, ../tranches.mjs).
 // - A tranche of a pass (`tranche`, `i/n`, and `rapports` in the value, `npm run verifier --
@@ -303,8 +304,9 @@ export function testsDuPoste(dir) {
  * The plugin of the night's configuration: the night tests, the benches and the time witnesses
  * under its directory, or, as <env> chooses in NUIT_VARIABLE, the night tests alone (`nuit`), the
  * night tests but those tagged `@poste` (`hors-poste`, the night of a shared machine: a CI), or the
- * measures alone, one file at a time (`mesures`), the benches and the witnesses; with
- * NUIT_TRANCHE, the tranche it carries of these files.
+ * measures alone (`mesures`), the benches and the witnesses; every choice plays one file at a time
+ * (`fileParallelism: false`), the night at rest; with NUIT_TRANCHE, the tranche it carries of these
+ * files.
  * @param {NodeJS.ProcessEnv} [env] the environment that holds the choice
  */
 export const nuit = (env = process.env) => ({
@@ -316,6 +318,10 @@ export const nuit = (env = process.env) => ({
     delete env[NUIT_TRANCHE];
     const test = (config.test ??= {});
     const temoins = temoinsDe(config, { ...test, include: INCLUDE });
+    // The night plays one file at a time, at rest, without the files competing: a night test mounts
+    // a trial (a Temporal server, a copy) and a measure is taken under no load, so neither saturates
+    // the machine against the other.
+    test.fileParallelism = false;
     if (choix === 'nuit') {
       test.include = [NUIT];
     } else if (choix === 'hors-poste') {
@@ -329,7 +335,6 @@ export const nuit = (env = process.env) => ({
       }
     } else if (choix === 'mesures') {
       test.include = [BUDGET, ...temoins];
-      test.fileParallelism = false;
     } else {
       test.include = [...HORS_DU_JOUR, ...temoins];
     }
