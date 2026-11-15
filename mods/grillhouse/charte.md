@@ -230,6 +230,14 @@ dossier.
   entrent tous deux.
 - **Un remplacement supprime le remplacé** dans le même commit, avec ses consommateurs et ses
   gardes. Ainsi le produit garde une seule façon de faire chaque chose.
+- **Une règle retirée emporte ce qu'elle seule tenait** : retirer une règle supprime, dans le même
+  commit, le mécanisme, les gardes et les données qui n'existaient que pour elle ; ce qui sert
+  encore une autre règle reste, nommé. Ainsi un mécanisme ne survit pas à la règle qu'il servait.
+- **Un mécanisme se re-dérive, il ne se rapièce pas** : corriger un mécanisme nommé (la preuve du
+  rouge, la file, l'intégration) repart de sa référence mature et le reprend entier, au lieu de
+  poser un correctif local de plus ; une deuxième retouche du même mécanisme signale qu'il a
+  dérivé, et se re-dérive ou monte au responsable. Ainsi un mécanisme suit sa référence, et non la
+  somme de ses rustines.
 - **Un commentaire dit ce que la chose est**, au présent. Ainsi il reste vrai tant que le code ne
   change pas.
 
