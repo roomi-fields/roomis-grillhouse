@@ -104,7 +104,21 @@ function depot() {
   );
   paquet('c');
   ecrire('packages/c/test/c.test.mjs', fichierDeTest(trace, 'c'));
-  ecrire('.gitignore', 'node_modules\n.turbo/\njoues.txt\nmesure.lock\n');
+  // Each package declares its language, as a real repository does: the complete pass (--tout) reads
+  // it to keep the registry of results, and the guard of the languages refuses a repository that
+  // declares none.
+  ecrire(
+    'docs/ARCHITECTURE.md',
+    '# Architecture\n\n| Composant | Langage |\n| --- | --- |\n' +
+      '| `packages/a` | typescript |\n| `packages/c` | typescript |\n'
+  );
+  // The cache of Vitest (`.cache-outils/vite`) and its reports (`.vitest-reports`) are a package's
+  // outputs, ignored as a real repository ignores them: a report written inside a package must not
+  // change its Turborepo hash, so an untouched package replays from the cache.
+  ecrire(
+    '.gitignore',
+    'node_modules\n.turbo/\n.cache-outils/\n.vitest-reports/\njoues.txt\nmesure.lock\n'
+  );
   const env: Record<string, string | undefined> = {
     ...Object.fromEntries(
       Object.entries(process.env).filter(
