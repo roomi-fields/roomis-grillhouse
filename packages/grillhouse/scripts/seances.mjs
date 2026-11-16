@@ -893,9 +893,12 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
       r.seance === 0
         ? lireSaFiche(ctx, reste.fiche ?? role, r.sortie)
         : { erreur: `la séance finit en erreur (code ${r.seance})` };
-    const faute = lu.fiche ? valider(lu.fiche, essai) : null;
+    // The session's own validation judges a sheet that holds its schema, refused or not for what
+    // it lacks: every fault goes to the one resumption (scripts/resultats.mjs `lireFiche`).
+    const lue = lu.fiche ?? lu.lue ?? null;
+    const faute = lue ? valider(lue, essai) : null;
     if (faute) {
-      lu = { erreur: `fiche non conforme : ${faute}` };
+      lu = { erreur: lu.erreur ? `${lu.erreur} ; ${faute}` : `fiche non conforme : ${faute}` };
     }
     if (lu.fiche) {
       // The session that gave it, which a resumption of it names (the plan's answer).

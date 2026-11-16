@@ -946,6 +946,10 @@ function manques(role, f) {
 // seance }`, or `{ erreur }` naming what lacks or does not conform; with <copie>, the directory
 // of the copy, each file piece of the sheet stands in it, its file and its line; with <ticket>,
 // the description of the ticket, each piece of the ticket names a criterion or a section of it.
+// A sheet that holds its schema is judged whole: what it lacks, its pieces not found and those out
+// of the ticket are named together, and the sheet read comes back beside its faults (`lue`), so
+// that its session's own validation names its faults in the same refusal — a session is taken up
+// once on a refused sheet, as a linter reports every finding of a file in one run.
 export function lireFiche(role, sortie, { copie, ticket } = {}) {
   const schema = schemaDeFiche(role);
   if (!schema) {
@@ -962,17 +966,18 @@ export function lireFiche(role, sortie, { copie, ticket } = {}) {
   }
   const fiche = resultat.structured_output;
   const fautes = erreurs(schema, fiche, '');
-  if (!fautes.length) {
-    fautes.push(...manques(role, fiche));
+  if (fautes.length) {
+    return { erreur: `fiche non conforme : ${fautes.join(' ; ')}` };
   }
-  if (!fautes.length && copie) {
+  fautes.push(...manques(role, fiche));
+  if (copie) {
     fautes.push(...introuvables(fiche, copie));
   }
-  if (!fautes.length && typeof ticket === 'string') {
+  if (typeof ticket === 'string') {
     fautes.push(...horsDuTicket(fiche, ticket));
   }
   if (fautes.length) {
-    return { erreur: `fiche non conforme : ${fautes.join(' ; ')}` };
+    return { erreur: `fiche non conforme : ${fautes.join(' ; ')}`, lue: fiche };
   }
   return { fiche, seance: resultat.session_id ?? null };
 }
