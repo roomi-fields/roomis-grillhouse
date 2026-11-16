@@ -22,18 +22,19 @@ temporaireDuFichier();
 
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
 
-// The stand-in claude: it records the model the launcher passes it (--model) at the root of the
-// session's copy, then answers as the developpeur with a FAIT sheet so the launcher ends green. It
-// launches nothing and reaches no network, so the night plays it without a token.
+// The stand-in claude: it records the model the launcher passes it (--model) in the plan's package
+// (the agent's copy is read-only at its root under the envelope; the plan's packages are writable,
+// GRILLHOUSE_ENVELOPPE joins them by `:`), then answers as the developpeur with a FAIT sheet so the
+// launcher ends green. It launches nothing and reaches no network, so the night plays it without a token.
 const FAUX_CLAUDE = `#!/bin/bash
-copie=$(git rev-parse --show-toplevel)
 prec= modele= format=
 for a in "$@"; do
   [ "$prec" = --model ] && modele=$a
   [ "$prec" = --output-format ] && format=$a
   prec=$a
 done
-printf '%s' "$modele" > "$copie/.modele-vu"
+paquet=$(printf '%s' "$GRILLHOUSE_ENVELOPPE" | cut -d: -f1)
+printf '%s' "$modele" > "$paquet/.modele-vu"
 cat > /dev/null
 [ "$format" = json ] && printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok","structured_output":{"statut":"FAIT"}}'
 exit 0
@@ -97,7 +98,7 @@ describe.runIf(actif)('le lanceur passe le modèle à la commande claude', () =>
   });
 
   // The model the launcher passes to the claude command on ticket <ticket>, read from what the
-  // stand-in recorded at the root of its copy; no real session is launched.
+  // stand-in recorded in the plan's package (packages/a); no real session is launched.
   const modele = (ticket: string, options: string[]): string => {
     const consigne = path.join(repo, `${ticket}.txt`);
     writeFileSync(consigne, `TON TICKET : ${ticket} — réponds seulement : OK.`);
@@ -116,7 +117,7 @@ describe.runIf(actif)('le lanceur passe le modèle à la commande claude', () =>
       r.status,
       `${r.stderr}\n${existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : ''}`
     ).toBe(0);
-    return readFileSync(path.join(copie, '.modele-vu'), 'utf8');
+    return readFileSync(path.join(copie, 'packages/a', '.modele-vu'), 'utf8');
   };
 
   // Le circuit impose Sonnet et Opus ; haiku vaut pour tout autre modèle que le responsable nomme.
