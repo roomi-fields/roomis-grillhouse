@@ -251,8 +251,15 @@ function cheminsDuScript(script) {
   return chemins.map(m => m.replace(/^\.\//, ''));
 }
 
-// The refusals of the root's format and lint scripts at <racine> that name a file a package holds:
-// the root keeps its own files (grillhouse-44b.9), a package plays its own.
+// Whether a root script launches the packages' own scripts again: npm's workspaces (`--workspaces`,
+// `-ws`, `--workspace`, `-w`) or a run of Turborepo, which already plays each package's task.
+const relanceLesPaquets = script =>
+  /(^|\s)(--workspaces?|-ws|-w)(=|\s|$)/.test(String(script)) ||
+  /(^|[\s;&|])(npx\s+)?turbo\s+run(\s|$)/.test(String(script));
+
+// The refusals of the root's format and lint scripts at <racine> that name a file a package holds,
+// or launch the packages' scripts again: the root keeps its own files (grillhouse-44b.9), a package
+// plays its own.
 function controlesDeRacineRefuses(racine) {
   const dossiers = paquets(racine)
     .filter(p => !p.hors)
@@ -269,6 +276,12 @@ function controlesDeRacineRefuses(racine) {
     return refus;
   }
   for (const c of CONTROLES) {
+    if (relanceLesPaquets(scripts?.[c] ?? '')) {
+      refus.push(
+        `⛔ package.json : le script \`${c}\` de la racine (tâche \`//#${c}\`) relance les paquets (\`${scripts[c]}\`) ; Turborepo joue déjà le script \`${c}\` de chaque paquet du cadre : retire ce script, ou réduis-le aux fichiers de la racine.`
+      );
+      continue;
+    }
     for (const chemin of cheminsDuScript(scripts?.[c] ?? '')) {
       const { fixe, glob } = partieFixe(chemin);
       // A glob at the root's top (`*.mjs`) names the root's files; `**` reaches the packages.

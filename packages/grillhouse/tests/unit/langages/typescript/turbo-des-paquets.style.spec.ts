@@ -130,6 +130,18 @@ describe('critère 11 — la racine ne garde que ses propres fichiers', () => {
     expect(l.some(x => x.includes('//#lint'))).toBe(true);
     expect(l.some(x => x.includes('//#format:check'))).toBe(true);
   });
+  it.each([
+    'npm run lint --workspaces --if-present',
+    'npm run lint -ws --if-present',
+    'npm run lint --if-present -w a -w b',
+    'npm run lint --workspace=a',
+    'turbo run lint --filter=a',
+  ])('la garde refuse un script de racine qui relance les paquets : %s', script => {
+    const r = depot({ lint: script }, { a: DE_PAQUET, b: DE_PAQUET });
+    ecrire(r);
+    const l = refus(r);
+    expect(l.some(x => x.includes('//#lint') && x.includes('relance les paquets'))).toBe(true);
+  });
   it('un script de racine sur ses seuls fichiers (templates, mods, racine) n’est pas refusé', () => {
     const r = depot(
       {
