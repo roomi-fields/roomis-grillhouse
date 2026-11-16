@@ -14,7 +14,9 @@
 //   (./commandes.mjs), and uv's cache, `~/.cache/grillhouse/uv` (UV_CACHE_DIR, ./commandes.mjs: the
 //   frame's caches of compilation, never in the temporary directory); proper to the session, the
 //   tree of the bytecode at the root, `__pycache__` (PYTHONPYCACHEPREFIX, ./commandes.mjs); read,
-//   the Pythons uv installs, `~/.local/share/uv/python`. The version of Python is uv's choice, from
+//   uv itself where its installer lays it, `~/.local/bin/uv` (./binaires.mjs: without it a session
+//   of the envelope, whose home shows only what is declared, cannot play `npm test` on a package of
+//   Python), and the Pythons uv installs, `~/.local/share/uv/python`. The version of Python is uv's choice, from
 //   `requires-python` and `.python-version`. The rules that refuse a role that writes pytest run
 //   directly (`droits`).
 // - The packages, a file's, the test files, what the testwriter writes, of the manifests too, the
@@ -79,7 +81,7 @@ export default {
   sorties: {
     ecrites: ['.venv/', '.pytest_cache/', '~/.cache/grillhouse/uv/'],
     propres: [PYCACHE],
-    lues: ['~/.local/share/uv/python/'],
+    lues: ['~/.local/bin/uv', '~/.local/share/uv/python/'],
   },
   // pytest run directly, by itself, by Python or by uv: `npm test` and `npm run verifier` play it.
   droits: [

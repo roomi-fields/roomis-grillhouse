@@ -200,8 +200,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   écrits ; `~/.cargo/` (son `env`, que les shells sourcent, sa configuration, ses binaires) et
   `~/.rustup/` lus ; `python` : `.venv/` et `.pytest_cache/`, où ses commandes font écrire uv et pytest pour chaque
   paquet, et `~/.cache/grillhouse/uv/` écrits,
-  `__pycache__` propre (le code-octet de Python, sous un seul arbre à la racine), les Python de uv,
-  `~/.local/share/uv/python/`, lus.
+  `__pycache__` propre (le code-octet de Python, sous un seul arbre à la racine), uv lui-même, là où son
+  installeur le pose (`~/.local/bin/uv`), et les Python de uv, `~/.local/share/uv/python/`, lus.
 - `droits` : les règles de Claude Code qui refusent à un rôle qui écrit l'outil de test lancé
   directement ; `typescript`, Vitest et Turborepo ; `cargo`, `cargo test` et `cargo nextest` ;
   `python`, pytest, seul, par Python ou par `uv run`.
