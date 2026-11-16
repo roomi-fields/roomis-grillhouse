@@ -27,7 +27,8 @@
 // - `resume-du-tri` `{ ticket, debut, ecritures }`: the line of the tri at the ticket, which reads
 //   each discovery's writings when it is written (`{ decouverte, verdict, etiquettes, rouvre }`:
 //   its comment, its labels, its reopening), its key in the comment;
-// - `etiquettes` `{ ticket, etiquettes }`: labels added to a ticket;
+// - `etiquettes` `{ ticket, etiquettes, retirees }`: labels added to a ticket, and those taken off
+//   it (`retirees`, none when absent);
 // - `reouverture` `{ ticket }`: a ticket reopened.
 //
 // An effect that does not replay without harm carries the key it is played under (`AVEC_CLE`),
@@ -286,8 +287,13 @@ const JOUEURS = {
     const texte = `${debut} ; ${rouvertes.length ? `rouvertes sous a-valider : ${rouvertes.join(', ')}` : 'aucune rouverte'}${rates.length ? ` ; écritures en échec : ${rates.join(' ; ')}` : ''}.`;
     return commenterUneFois(ctx, { ticket, texte, auteur: AUTEUR_DU_CIRCUIT }, cle);
   },
-  etiquettes(ctx, { ticket, etiquettes }) {
-    return ctx.bd('update', ticket, ...etiquettes.flatMap(e => ['--add-label', e]));
+  etiquettes(ctx, { ticket, etiquettes, retirees = [] }) {
+    return ctx.bd(
+      'update',
+      ticket,
+      ...etiquettes.flatMap(e => ['--add-label', e]),
+      ...retirees.flatMap(e => ['--remove-label', e])
+    );
   },
   reouverture(ctx, { ticket }) {
     const r = ctx.bd('show', ticket, '--json');

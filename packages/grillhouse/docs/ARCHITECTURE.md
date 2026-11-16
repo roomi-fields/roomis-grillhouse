@@ -1578,7 +1578,8 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   reste comptée par le disque libre réel. Repris, il redemande lui-même sa place
   (`reserverDesCircuits`, son rang d'arrivée gardé) et attend, à l'étape `attend-une-place`, avant
   de rouvrir. À 1, le suivant part quand le précédent finit ou se met en pause. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
-  mot du superviseur (`--arreter`, l'étiquette `circuit` retirée) : Beads, le registre durable,
+  mot du superviseur (`--arreter`, l'étiquette `circuit` retirée par l'acte de l'arrêt, `sortirDeLaFile` de
+  `scripts/circuit.mjs`, et remise par le run qui s'ouvre sur sa réponse, `rentrerDansLaFile`) : Beads, le registre durable,
   le garde de repartir. Un circuit vivant dont le ticket est fermé hors de son circuit (livré en
   direct), avant son intégration, ne compte plus : la file l'arrête (`ARRETER`) à son réveil
   suivant et écrit sa ligne « termine » au journal des états (`fermesHorsCircuit` de

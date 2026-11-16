@@ -87,4 +87,31 @@ describe('un effet rejoué sous la clé de son activité ne s’écrit qu’une 
     ]);
     expect(appels.filter(a => a[0] === 'reopen')).toHaveLength(1);
   });
+
+  it('labels taken off a ticket go to bd beside those added, none without the field', async () => {
+    const { effets } = await charger();
+    const appels: string[][] = [];
+    const ctx = {
+      bd: (...a: string[]): Reponse => {
+        appels.push(a);
+        return { status: 0, stdout: '', stderr: '' };
+      },
+    } as never;
+    effets.jouerLEffet(
+      ctx,
+      { genre: 'etiquettes', ticket: 'demo-3', etiquettes: [], retirees: ['circuit'] },
+      null
+    );
+    effets.jouerLEffet(
+      ctx,
+      { genre: 'etiquettes', ticket: 'demo-3', etiquettes: ['x'], retirees: ['y'] },
+      null
+    );
+    effets.jouerLEffet(ctx, { genre: 'etiquettes', ticket: 'demo-3', etiquettes: ['x'] }, null);
+    expect(appels).toEqual([
+      ['update', 'demo-3', '--remove-label', 'circuit'],
+      ['update', 'demo-3', '--add-label', 'x', '--remove-label', 'y'],
+      ['update', 'demo-3', '--add-label', 'x'],
+    ]);
+  });
 });

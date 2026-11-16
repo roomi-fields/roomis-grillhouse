@@ -553,7 +553,9 @@
 //   cancels the act under way, its session with it, then the state keeps its step, its stop
 //   « arrete », its question lifted, its motive (`--contexte`) as its report, said at the ticket
 //   (`Circuit · arret : le superviseur arrête le circuit : <motif>`), and the workflow ends, giving
-//   that state back, which an answer reopens from.
+//   that state back, which an answer reopens from. The ticket leaves the queue of the tickets, its
+//   label `circuit` taken off (`sortirDeLaFile`): the queue does not start it again, and the run
+//   that opens on the supervisor's answer puts the label back (`rentrerDansLaFile`).
 // - On a stop other than 0, the circuit applies its gesture when one settles it (`a-repasser`:
 //   it ends at 75), the gesture written at the ticket and in the log; every other stop goes up to
 //   the supervisor (`monter`): its question (MONTEES of scripts/etapes.mjs, or the agent's own
@@ -2241,7 +2243,24 @@ export async function arreter(ctx, e) {
   });
   const pourquoi = ctx.contexte ? ` : ${ctx.contexte}` : '.';
   commenter(ctx, 'arret', `le superviseur arrête le circuit${pourquoi}`);
+  sortirDeLaFile(ctx);
   return 0;
+}
+
+// The label `circuit` is the ticket's place in the queue of the tickets of its project
+// (scripts/file-des-tickets.mjs `enFile`), which starts every open ticket that holds it and whose
+// circuit does not run. A circuit stopped on the supervisor's word leaves that queue, its label
+// taken off, as a change whose approval is withdrawn leaves a merge queue (bors `r-`, Zuul's
+// dequeue): Beads keeps the ticket from starting again until his word reopens it.
+export const sortirDeLaFile = ctx =>
+  emettre(ctx, { genre: 'etiquettes', ticket: ctx.ticket, etiquettes: [], retirees: ['circuit'] });
+
+// The run of <ctx> that opens on the supervisor's answer to that stop (the state <e> it resumes
+// from, its stop « arrete ») is in the circuit again: its label put back.
+export function rentrerDansLaFile(ctx, e) {
+  if (e?.raison === 'arrete') {
+    emettre(ctx, { genre: 'etiquettes', ticket: ctx.ticket, etiquettes: ['circuit'] });
+  }
 }
 
 // The plan <paquets> of the repository at <base>, each a directory relative to it, extended by
@@ -2310,6 +2329,7 @@ function etendre(ctx, e) {
 
 // The opening of <ctx> on <e> before its plan: `{ debut }`, or `{ code }`, a stop gone up.
 async function avantLePlan(ctx, e) {
+  rentrerDansLaFile(ctx, e);
   if (ctx.etendre) {
     if (e?.etape === 'integre') {
       throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
