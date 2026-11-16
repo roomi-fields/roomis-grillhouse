@@ -9,7 +9,14 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { assembler, duree, k, lignes as lignesRepliees, LARGEUR } from '../../scripts/tableau.mjs';
+import {
+  assembler,
+  duree,
+  ensemble,
+  k,
+  lignes as lignesRepliees,
+  LARGEUR,
+} from '../../scripts/tableau.mjs';
 // The board's lines with each folded group unfolded in place: the lines the tests of the tree read.
 const lignes = (t: unknown, nom: string, largeur?: number) => {
   const groupes: Record<string, { groupe?: string }[]> = {};
@@ -114,6 +121,32 @@ const plateau = (tous: object[] = TOUS) =>
   }) as Board;
 const T0 = plateau();
 const L0 = lignes(T0, 'demo') as Ligne[];
+
+describe('un panneau de plusieurs projets somme le temps et les jetons du jour et du cumul', () => {
+  type Mesure = { travail: number; jetons: number };
+  type AvecGlobal = { global: { jour: Mesure; cumul: Mesure } };
+  it('ensemble somme global.jour et global.cumul, et la vue d’ensemble montre la ligne jour/cumul sommée', () => {
+    const a = plateau() as unknown as AvecGlobal;
+    const b = plateau() as unknown as AvecGlobal;
+    const e = ensemble([
+      { etiquette: 'AA', t: a },
+      { etiquette: 'BB', t: b },
+    ]) as { jour: Mesure; cumul: Mesure };
+    expect(e.jour).toEqual({
+      travail: a.global.jour.travail + b.global.jour.travail,
+      jetons: a.global.jour.jetons + b.global.jour.jetons,
+    });
+    expect(e.cumul).toEqual({
+      travail: a.global.cumul.travail + b.global.cumul.travail,
+      jetons: a.global.cumul.jetons + b.global.cumul.jetons,
+    });
+    const l = lignes(e, 'AA + BB') as Ligne[];
+    const ligne = l.find(x => /^jour .+ · cumul /.test(x.texte));
+    expect(ligne?.texte.trim()).toBe(
+      `jour ${duree(e.jour.travail)} · ${k(e.jour.jetons)} · cumul ${duree(e.cumul.travail)} · ${k(e.cumul.jetons)}`
+    );
+  });
+});
 
 // The board's parts, by position: the head down to the AGENTS title, AGENTS down to the first
 // CHANTIER line (the blank line before it, or before « CHANTIERS »), CHANTIER down to FAITS

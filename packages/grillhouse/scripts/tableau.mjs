@@ -1803,6 +1803,18 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ),
       TONS.mesure
     );
+    // The day's and the cumulative work time and tokens, summed across the projects, as one
+    // project's board shows its own: a multi-root board sums the figures of its roots.
+    const m = t.jour ?? { travail: 0, jetons: 0 };
+    const mc = t.cumul ?? { travail: 0, jetons: 0 };
+    L(
+      cadre(
+        `jour ${duree(m.travail)} · ${k(m.jetons)} · cumul ${duree(mc.travail)} · ${k(mc.jetons)}`,
+        '',
+        largeur
+      ),
+      TONS.mesure
+    );
   } else {
     const g = t.global;
     const c = g.compteurs;
@@ -2722,6 +2734,16 @@ export function ensemble(lus) {
   const marquer = projet => x => ({ ...x, projet });
   const noeud = projet => n => ({ ...n, projet, enfants: n.enfants.map(noeud(projet)) });
   const tous = cle => lisibles.flatMap(l => (l.t[cle] ?? []).map(marquer(l.etiquette)));
+  // The sum, across the projects, of a measure of `global` (`jour` or `cumul`): its work time and
+  // its tokens added.
+  const sommeDesMesures = cle =>
+    lisibles.reduce(
+      (s, l) => ({
+        travail: s.travail + (l.t.global[cle]?.travail ?? 0),
+        jetons: s.jetons + (l.t.global[cle]?.jetons ?? 0),
+      }),
+      { travail: 0, jetons: 0 }
+    );
   return {
     projets: lus.map(l =>
       l.t
@@ -2757,6 +2779,10 @@ export function ensemble(lus) {
       },
       { new: 0, check: 0, rejetes: 0, valides: 0 }
     ),
+    // The day's and the cumulative work time and tokens, summed across the projects (each project's
+    // own `global.jour`/`global.cumul`), for the board's time-and-token line of several projects.
+    jour: sommeDesMesures('jour'),
+    cumul: sommeDesMesures('cumul'),
     etats: premier.t.etats.map(e => ({
       ...e,
       tickets: lisibles.flatMap(l =>

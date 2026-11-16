@@ -122,7 +122,7 @@ const textes = (l: Ligne[]) => l.map(x => x.texte.trimEnd());
 describe('critère 1 : the usual board, each project prefixed', () => {
   it('the head names the projects, then the three lines of states of each project, then the alerts prefixed', () => {
     const l = textes(lignes(trois(), NOM) as Ligne[]);
-    expect(l.slice(0, 12)).toEqual([
+    expect(l.slice(0, 13)).toEqual([
       'OSC-BRIDGE + SH + OSD',
       '[OB]  toi : 0 sans go · 1 à valider · 0 question',
       '      file : ● 0 · ✎ 0 · ⧗ 0 · ⊘ 0',
@@ -134,6 +134,7 @@ describe('critère 1 : the usual board, each project prefixed', () => {
       '      file : ● 0 · ✎ 0 · ⧗ 0 · ⊘ 0',
       '      en cours : ▶ 0 · ✓ 0 · ⏸ 0',
       '🔍 0 new · 0 →check · 0 rejetés · 0 validés',
+      expect.stringMatching(/^jour .+ · .+ · cumul .+ · .+$/),
       expect.stringMatching(/^🌙 \[SH\] Nuit rouge depuis le 01\/11 +SH-zq7$/),
     ]);
   });
