@@ -25,7 +25,7 @@ interface Rouge {
 const ADRESSE =
   'Deploy hosted server : https://github.com/demo/demo/actions/runs/9 (commit abc1234)';
 
-const monde = (rouges: Rouge[] = []) => {
+const monde = (rouges: Rouge[] | null = []) => {
   const m = { rouges, lire: () => m.rouges };
   return m;
 };
@@ -71,6 +71,34 @@ describe('un ticket rouvert par un flux de main rouge réveille le superviseur',
     const m = monde([{ ticket: 'demo-1', adresse: ADRESSE }]);
     expect((await attendre(racine, m)) as unknown[]).toHaveLength(1);
     expect(await attendre(racine, m, 400)).toEqual([]);
+  });
+
+  it('a reading that fails keeps the red given: it is not given again once bd reads', async () => {
+    const racine = depot();
+    const rouge = [{ ticket: 'demo-1', adresse: ADRESSE }];
+    const m = monde(rouge);
+    expect((await attendre(racine, m)) as unknown[]).toHaveLength(1);
+    m.rouges = null;
+    expect(await attendre(racine, m, 300)).toEqual([]);
+    m.rouges = rouge;
+    expect(await attendre(racine, m, 400)).toEqual([]);
+  });
+
+  it('a reading that throws keeps the red given, and the wait reads again', async () => {
+    const racine = depot();
+    const rouge = [{ ticket: 'demo-1', adresse: ADRESSE }];
+    const m = monde(rouge);
+    expect((await attendre(racine, m)) as unknown[]).toHaveLength(1);
+    let lectures = 0;
+    m.lire = () => {
+      lectures += 1;
+      if (lectures === 1) {
+        throw new Error('bd : délai dépassé');
+      }
+      return rouge;
+    };
+    expect(await attendre(racine, m, 500)).toEqual([]);
+    expect(lectures).toBeGreaterThan(1);
   });
 
   it('a ticket taken up again or closed (no longer read) is not given', async () => {

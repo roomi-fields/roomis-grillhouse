@@ -779,7 +779,7 @@ chaque lot traité, sans tube ni veille à durée (grillhouse-d4n.9 : une attent
 derrière `| tail` n'a été lue par personne pendant 40 min). Une question toujours sans réponse
 (le circuit est arrêté sur la même clé) est re-présentée toutes les 5 min
 (`--rappel <minutes>`), comme SQS redonne un message non acquitté après son délai de visibilité,
-jusqu'à ce que le circuit quitte l'arrêt ; un ticket que la file a rouvert pour un flux de main rouge (étiquette `flux-rouge`, ouvert) se rend aussi comme un lot, une fois, avec l'adresse du passage, et plus une fois repris ou refermé ; une clé qui change est une question neuve, rendue
+jusqu'à ce que le circuit quitte l'arrêt ; un ticket que la file a rouvert pour un flux de main rouge (étiquette `flux-rouge`, ouvert) se rend aussi comme un lot, une fois, avec l'adresse du passage, et plus une fois repris ou refermé (une lecture de bd en échec ne dit rien des rouges, et laisse tels quels ceux déjà rendus) ; une clé qui change est une question neuve, rendue
 aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
 remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
 clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte par

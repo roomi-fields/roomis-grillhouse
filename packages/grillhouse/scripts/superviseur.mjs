@@ -179,7 +179,7 @@ function lireLesIntegrations(racine, maintenant) {
 }
 // The tickets the queue reopened for a red workflow of main (label `flux-rouge`) that wait open, with
 // the address of the run, which the title of the queue's comment (scripts/integration/file.mjs)
-// gives in its second paragraph; none when bd does not read them.
+// gives in its second paragraph; null when bd does not read them, which says nothing of the reds.
 export async function fluxRougesDe(racine) {
   // A repository without its base of tickets has no ticket to give, and bd is never launched.
   if (!existsSync(path.join(racine, '.beads'))) {
@@ -205,7 +205,8 @@ export async function fluxRougesDe(racine) {
     );
     return lots.flat();
   } catch {
-    return [];
+    // A reading that fails says nothing of the reds: null, never « none ».
+    return null;
   }
 }
 
@@ -438,7 +439,7 @@ const aucunFerme = () => new Set();
  * <fluxRouges>: bd by default) is given as a batch of its own, once per run (`adresse`: the
  * workflow, the URL of the run, the commit), and again at another run; taken up or closed, it is
  * no longer given.
- * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string> | null, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, fluxRouges?: (racine: string) => { ticket: string, adresse: string }[] | Promise<{ ticket: string, adresse: string }[]>, maintenant?: () => number, rappel?: number }} options
+ * @param {{ racine: string, fermes?: (racine: string, ids: string[]) => Set<string> | null, pas?: number, signal?: AbortSignal, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>, fluxRouges?: (racine: string) => { ticket: string, adresse: string }[] | null | Promise<{ ticket: string, adresse: string }[] | null>, maintenant?: () => number, rappel?: number }} options
  * @returns {Promise<{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[]>}
  * @throws {Error} another wait runs
  */
@@ -469,7 +470,8 @@ export async function attendreUneQuestion({
   const { depuis: debut, rendues } = lireLesIntegrations(racine, maintenant());
   let lue = debut;
   let lectureDesRouges = null;
-  let rougesLus = null;
+  // The reds read: undefined while the reading runs, null when it failed.
+  let rougesLus;
   try {
     while (!signal?.aborted) {
       const avant = maintenant();
@@ -479,8 +481,8 @@ export async function attendreUneQuestion({
       lectureDesRouges ??= Promise.resolve()
         .then(() => fluxRouges(racine))
         .then(
-          r => (rougesLus = Array.isArray(r) ? r : []),
-          () => (rougesLus = [])
+          r => (rougesLus = Array.isArray(r) ? r : null),
+          () => (rougesLus = null)
         );
       try {
         circuits = await circuitsDe(racine, { integres: true });
@@ -489,9 +491,12 @@ export async function attendreUneQuestion({
       }
       await new Promise(resolve => setImmediate(resolve));
       let rouges = [];
-      if (rougesLus) {
-        rouges = releverLesFluxRouges(racine, rougesLus);
-        rougesLus = null;
+      if (rougesLus !== undefined) {
+        // A failed reading leaves the reds given as they are: the next one judges them.
+        if (rougesLus) {
+          rouges = releverLesFluxRouges(racine, rougesLus);
+        }
+        rougesLus = undefined;
         lectureDesRouges = null;
       }
       if (signal?.aborted) {
