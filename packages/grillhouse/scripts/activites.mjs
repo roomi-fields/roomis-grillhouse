@@ -937,13 +937,17 @@ export function preuveReussie(
 // of its own — an aggregator harness (tests/it/main.rs, `mod …;`) or shared test matter; not a
 // casse. With a result but no test (<res> present, 0 tests), it is a casse only when that result
 // itself failed. Returns the kind of casse (`non-joue`, `ne-charge-pas`) or null when there is none.
-export function casseDeChargement({ res, code, constructions }) {
+export function casseDeChargement({ res, code, constructions, aDesResultats = false }) {
   const tests = res?.tests ?? [];
   if (constructions.length && (!res || tests.length === 0)) {
     return null;
   }
   if (!res) {
-    return code === 0 ? null : 'non-joue';
+    // No result at this file's name: an aggregator harness (tests/it/main.rs, `mod …;`) with no test
+    // of its own. A casse only when the binary did not run — code ≠ 0 and the run produced no result
+    // at all. When the run produced results (its modules played, some may have failed, so the single
+    // binary exits non-zero), the harness ran: not a casse, its modules' reds carry the proof.
+    return code === 0 || aDesResultats ? null : 'non-joue';
   }
   if (tests.length === 0) {
     return res.etat === 'failed' ? 'ne-charge-pas' : null;
@@ -1603,11 +1607,23 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
         }
       }
     }
-    for (const f of groupe) {
+    // The files judged: those of the lot in the group, and, for a single integration binary that
+    // plays its modules (Rust `tests/it/main.rs`), each module file the run reports — the group names
+    // the binary, the results name the modules, so a module's reds are credited to the lot, and the
+    // aggregator is no false casse. A package played whole (`entier`) keeps its own branch above.
+    const fichiersDuGroupe = entier
+      ? groupe
+      : [...new Set([...groupe, ...resultats.map(r => path.relative(ctx.copie, r.fichier))])];
+    for (const f of fichiersDuGroupe) {
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];
       const deHead = vertsDuRegistre(registre, f);
-      const casse = casseDeChargement({ res, code, constructions });
+      const casse = casseDeChargement({
+        res,
+        code,
+        constructions,
+        aDesResultats: resultats.length > 0,
+      });
       if (casse === 'non-joue') {
         casses.push(
           `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`

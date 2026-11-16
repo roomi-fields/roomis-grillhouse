@@ -124,7 +124,7 @@ const copieAvec = (roles: string[], production: boolean) => {
 };
 
 describe('la preuve rejouée sur une copie qui porte ou non le code de production du développeur', () => {
-  const preuve = activites.preuve as (
+  const preuve = activites.preuve as unknown as (
     ctx: { copie: string; fiches: string; paquets: string[]; journal: string },
     o: { mesure: { cle: string; runs: unknown[] } }
   ) => { ok: boolean; rouges: number; texte: string };
@@ -160,6 +160,35 @@ describe('la preuve rejouée sur une copie qui porte ou non le code de productio
   it('does not raise the sign when a developpeur ran but no production code is in the copy', () => {
     const r = rejouer(['explorateur', 'testwriter', 'developpeur'], false);
     expect(r.texte).not.toContain('Le code du développeur est déjà dans la copie');
+  });
+
+  // A single Rust integration binary (tests/it/main.rs) plays its modules; the lot's group names the
+  // binary, the run's results name the modules. The wanted reds make the binary exit non-zero: the
+  // aggregator is no false casse, and each module's reds are credited to the lot.
+  it('credits the reds of the modules of a single integration binary that exits non-zero', () => {
+    const c = copieAvec(['explorateur', 'testwriter'], false);
+    const resultat = (nom: string) => ({
+      fichier: path.join(c.copie, `crates/service/tests/it/${nom}.rs`),
+      etat: 'failed',
+      message: '',
+      tests: [{ titre: `${nom}::cas`, nom: `${nom}::cas`, etat: 'failed', message: 'panicked' }],
+    });
+    const mesure = {
+      cle: cleDuLot(c),
+      runs: [
+        {
+          groupe: ['crates/service/tests/it/main.rs'],
+          entier: false,
+          code: 1,
+          resultats: [resultat('anonymous_reads'), resultat('access_identifier')],
+          constructions: [],
+        },
+      ],
+    };
+    const r = preuve(c, { mesure });
+    expect(r.rouges).toBe(2);
+    expect(r.ok).toBe(true);
+    expect(r.texte).not.toContain('ne se charge pas');
   });
 });
 

@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { casseDeChargement } from '../../scripts/activites.mjs';
 
 type Res = { tests: { nom: string; etat: string }[]; etat?: string; message?: string };
-type Arg = { res?: Res; code: number; constructions: { nom: string }[] };
+type Arg = { res?: Res; code: number; constructions: { nom: string }[]; aDesResultats?: boolean };
 const casse = casseDeChargement as (a: Arg) => string | null;
 
 describe('casseDeChargement — un fichier de test sans résultat propre', () => {
@@ -18,8 +18,16 @@ describe('casseDeChargement — un fichier de test sans résultat propre', () =>
     expect(casse({ res: undefined, code: 0, constructions: [] })).toBe(null);
   });
 
-  it('un vrai échec de chargement (code ≠ 0, sans résultat) reste un casse', () => {
-    expect(casse({ res: undefined, code: 101, constructions: [] })).toBe('non-joue');
+  it('un vrai échec de chargement (code ≠ 0, aucun résultat produit) reste un casse', () => {
+    expect(casse({ res: undefined, code: 101, constructions: [], aDesResultats: false })).toBe(
+      'non-joue'
+    );
+  });
+
+  it('un harnais sur un run code ≠ 0 dont les modules ont produit des résultats a joué : pas un casse', () => {
+    // tests/it/main.rs : le binaire unique a compilé et joué, ses modules ont rougi (le travail du
+    // ticket), donc le binaire sort en code ≠ 0 — ce n’est pas un échec de chargement.
+    expect(casse({ res: undefined, code: 1, constructions: [], aDesResultats: true })).toBe(null);
   });
 
   it('un fichier avant la construction du paquet (constructions présentes) joue aux contrôles, pas un casse', () => {
