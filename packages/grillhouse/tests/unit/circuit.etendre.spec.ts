@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages, architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import * as circuit from '../../scripts/circuit.mjs';
+import * as duTicket from '../../scripts/ticket-du-circuit.mjs';
 import { ordonnerLePlan } from '../../scripts/circuit.mjs';
 import type { Langage } from '../../scripts/jointure.js';
 import moduleCargo from '../../scripts/langages/cargo/index.mjs';
@@ -123,6 +125,72 @@ describe('grillhouse-x7c.1, critère 2 — un projet typescript s’ordonne comm
 
 // Discovery of the reviewer of grillhouse-x7c.1: `lecteurs` built TypeScript's language service
 // with no element to resolve (7.9 s on BPScript), on each `--etendre`.
+// OSC Bridge OB-20q.1: its developpeur wrote `osd.workspace = true` in a crate of the plan, the
+// line of the root's `[workspace.dependencies]` out of the plan; the copy no longer loaded
+// (`cargo metadata`, code 101), and `--etendre .`, the answer that repairs it, failed on it.
+describe('un plan s’étend même quand la copie du ticket ne se charge pas', () => {
+  const planEtendu = circuit.planEtendu as (
+    ctx: { copie: string; racine: string },
+    paquets: string[],
+    gagnes: string[]
+  ) => { plan: string[]; lu: string };
+  // A project of TypeScript whose package a imports its package b.
+  const projet = depot('typescript-etendu', {
+    'package.json': JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }),
+    'docs/ARCHITECTURE.md': architecture(),
+    'packages/a/package.json': JSON.stringify({
+      name: '@essai/a',
+      dependencies: { '@essai/b': '*' },
+    }),
+    'packages/a/src/index.ts': "import { b } from '@essai/b';\nexport const a = b;\n",
+    'packages/b/package.json': JSON.stringify({ name: '@essai/b' }),
+    'packages/b/src/index.ts': 'export const b = 1;\n',
+  });
+  // A copy that declares no language: its tree does not load (scripts/langages.mjs refuses it).
+  const cassee = depot('copie-cassee', { 'package.json': JSON.stringify({ name: 'cassee' }) });
+
+  it('a copy that loads gives the order', () => {
+    expect(planEtendu({ copie: projet, racine: cassee }, ['packages/a'], ['packages/b'])).toEqual({
+      plan: ['packages/b', 'packages/a'],
+      lu: 'copie',
+    });
+  });
+
+  it('a copy that does not load: the order is read in the main tree', () => {
+    expect(() => ordonnerLePlan(cassee, ['packages/a'], ['packages/b'])).toThrow();
+    expect(planEtendu({ copie: cassee, racine: projet }, ['packages/a'], ['packages/b'])).toEqual({
+      plan: ['packages/b', 'packages/a'],
+      lu: 'principal',
+    });
+  });
+
+  it('without a copy, the main tree gives the order', () => {
+    const absente = path.join(ESSAIS, 'copie-absente');
+    expect(planEtendu({ copie: absente, racine: projet }, ['packages/a'], ['packages/b'])).toEqual({
+      plan: ['packages/b', 'packages/a'],
+      lu: 'principal',
+    });
+  });
+
+  it('the title names its packages from the main tree when the copy does not load, by their path when neither does', () => {
+    const nomsDe = duTicket.nomsDe as (
+      ctx: { copie: string; racine: string },
+      dossiers: string[]
+    ) => string[];
+    const plan = ['packages/b', 'packages/a'];
+    expect(nomsDe({ copie: projet, racine: cassee }, plan)).toEqual(['@essai/b', '@essai/a']);
+    expect(nomsDe({ copie: cassee, racine: projet }, plan)).toEqual(['@essai/b', '@essai/a']);
+    expect(nomsDe({ copie: cassee, racine: cassee }, plan)).toEqual(plan);
+  });
+
+  it('neither tree loads: the gained package goes to the end of the plan', () => {
+    expect(planEtendu({ copie: cassee, racine: cassee }, ['packages/a'], ['packages/b'])).toEqual({
+      plan: ['packages/a', 'packages/b'],
+      lu: 'aucun',
+    });
+  });
+});
+
 describe('grillhouse-x7c.1 — sans élément à résoudre, aucun service de langage', () => {
   it('the survey by the types of no element is done, in a folder no service could read', () => {
     const vide = depot('sans-tsconfig', { 'README.md': 'rien\n' });

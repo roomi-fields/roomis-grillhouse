@@ -2292,6 +2292,39 @@ export function ordonnerLePlan(base, paquets, gagnes) {
   return plan;
 }
 
+/**
+ * The plan <paquets> of <ctx> extended by <gagnes>, in the order `ordonnerLePlan` reads: in the
+ * ticket's copy; when the copy does not load (a manifest a session left broken: `cargo metadata`
+ * refuses a workspace whose member names a dependency its root does not declare), in the main
+ * tree; when neither loads, each gained package at the plan's end. The supervisor's answer to a
+ * stopped circuit never fails on the tree it comes to repair, as a command that answers a workflow
+ * does not need its working tree to build. `{ plan, lu }`: where the order was read, `copie`,
+ * `principal`, or `aucun`.
+ */
+export function planEtendu(ctx, paquets, gagnes) {
+  const bases = [
+    ...(existsSync(ctx.copie) ? [['copie', ctx.copie]] : []),
+    ['principal', ctx.racine],
+  ];
+  for (const [lu, base] of bases) {
+    try {
+      return { plan: ordonnerLePlan(base, paquets, gagnes), lu };
+    } catch {
+      // This tree does not load: the next one is read.
+    }
+  }
+  return { plan: [...paquets, ...gagnes], lu: 'aucun' };
+}
+
+// What the line of the plan at the ticket says of the tree its order was read in, when the copy of
+// the ticket exists and does not load.
+const ORDRE_LU = {
+  copie: '',
+  principal: " (l'ordre du plan est lu dans l'arbre principal : la copie ne se charge pas)",
+  aucun:
+    " (le paquet gagné va en fin de plan : ni la copie ni l'arbre principal ne se chargent pour l'ordonner)",
+};
+
 // The plan extended by the supervisor to the packages of `--etendre` (each a path or a package
 // name of the repository, else a Usage): each one enters the title in the order of
 // `ordonnerLePlan`, written by bd and said at the ticket. With the state <e>, the run then resumes
@@ -2302,15 +2335,14 @@ export function ordonnerLePlan(base, paquets, gagnes) {
 // the plan extended. The state the run resumes from.
 function etendre(ctx, e) {
   const gagnes = [...new Set(ctx.etendre.map(ctx.resoudre))].filter(c => !ctx.paquets.includes(c));
-  const base = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
-  const plan = ordonnerLePlan(base, ctx.paquets, gagnes);
+  const { plan, lu } = planEtendu(ctx, ctx.paquets, gagnes);
   const titre = ecrireLePlan(ctx, plan);
   // The plan the supervisor extends has passed: it is written, questioned no more.
   inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte: empreinteDuPlan(leTicket(ctx)) } });
   commenter(
     ctx,
     'plan',
-    `le superviseur étend le plan à ${ctx.etendre.join(', ')} : ${titre.split(' — ').at(-1)}.`
+    `le superviseur étend le plan à ${ctx.etendre.join(', ')} : ${titre.split(' — ').at(-1)}${ORDRE_LU[lu]}.`
   );
   if (!e) {
     return e;

@@ -244,8 +244,19 @@ export const entete = (ctx, etape) =>
   appendFileSync(ctx.journal, `=== ${heureLocale()} · circuit · ${etape} ===\n`);
 
 // The name of each package of <dossiers> as a title writes it: its component's name, or its path.
+// The components are read in the ticket's copy; when the copy does not load (a manifest a session
+// left broken), in the main tree; when neither loads, each package keeps its path — a title is
+// written whatever the state of the tree (scripts/circuit.mjs `planEtendu`).
 export function nomsDe(ctx, dossiers) {
-  const liste = composantsDe(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
+  let liste = [];
+  for (const base of [...(existsSync(ctx.copie) ? [ctx.copie] : []), ctx.racine]) {
+    try {
+      liste = composantsDe(base);
+      break;
+    } catch {
+      // This tree does not load: the next one is read.
+    }
+  }
   return dossiers.map(d => liste.find(p => p.dossier === d)?.pkg.name ?? d);
 }
 
