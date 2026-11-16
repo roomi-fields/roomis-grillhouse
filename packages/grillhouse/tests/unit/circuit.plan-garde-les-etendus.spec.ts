@@ -31,7 +31,10 @@ function ctx(fiches: object[]): Ctx {
   for (const [rel, texte] of Object.entries({
     'package.json': JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }),
     'docs/ARCHITECTURE.md': architecture(),
-    'packages/a/package.json': JSON.stringify({ name: '@essai/a', dependencies: { '@essai/b': '*' } }),
+    'packages/a/package.json': JSON.stringify({
+      name: '@essai/a',
+      dependencies: { '@essai/b': '*' },
+    }),
     'packages/a/src/index.ts': "import { b } from '@essai/b';\nexport const a = b;\n",
     'packages/b/package.json': JSON.stringify({ name: '@essai/b' }),
     'packages/b/src/index.ts': 'export const b = 1;\n',
@@ -66,9 +69,15 @@ describe('un plan réécrit garde les paquets que le superviseur lui a donnés',
 
   it('a package the new plan already holds, and a plan no extension touched, stay as they are', () => {
     const tenu = ctx([etendu('packages/b'), etendu('packages/b', 'packages/a')]);
-    expect(avecLesEtendus(tenu, ['packages/b', 'packages/a'])).toEqual(['packages/b', 'packages/a']);
+    expect(avecLesEtendus(tenu, ['packages/b', 'packages/a'])).toEqual([
+      'packages/b',
+      'packages/a',
+    ]);
     expect(tenu.rendus).toEqual([]);
-    const sans = ctx([{ role: 'circuit', plan: { empreinte: 'e' } }, { role: 'explorateur', fiche: {} }]);
+    const sans = ctx([
+      { role: 'circuit', plan: { empreinte: 'e' } },
+      { role: 'explorateur', fiche: {} },
+    ]);
     expect(avecLesEtendus(sans, ['packages/a'])).toEqual(['packages/a']);
     expect(sans.rendus).toEqual([]);
   });

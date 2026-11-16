@@ -24,7 +24,12 @@ const jusquALaFiche = seances.jusquALaFiche as (
 
 // What claude prints for the sheet <fiche>.
 const sortie = (fiche: unknown) =>
-  JSON.stringify({ type: 'result', subtype: 'success', session_id: 'abc', structured_output: fiche });
+  JSON.stringify({
+    type: 'result',
+    subtype: 'success',
+    session_id: 'abc',
+    structured_output: fiche,
+  });
 // A reviewer's sheet that holds its schema and lacks its blocking finding.
 const RENDU_SANS_BLOQUANT = { verdict: 'RENDU' };
 const SANS_LIGNE = 'conformite : sans ligne pour crates/service/Cargo.toml#service';
@@ -39,7 +44,9 @@ describe('une fiche refusée dit toutes ses fautes à la fois', () => {
     expect(lu.erreur).toMatch(/verdict : RENDU sans constat bloquant/);
     expect(lu.lue).toEqual(RENDU_SANS_BLOQUANT);
     expect(lu.fiche).toBeUndefined();
-    const horsSchema = lireFiche('relecteur', sortie({ verdict: 'PEUT-ÊTRE' })) as { lue?: unknown };
+    const horsSchema = lireFiche('relecteur', sortie({ verdict: 'PEUT-ÊTRE' })) as {
+      lue?: unknown;
+    };
     expect(horsSchema.lue).toBeUndefined();
   });
 

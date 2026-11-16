@@ -157,7 +157,9 @@ describe('un plan s’étend même quand la copie du ticket ne se charge pas', (
   });
 
   it('a copy that does not load: the order is read in the main tree', () => {
-    expect(() => ordonnerLePlan(cassee, ['packages/a'], ['packages/b'])).toThrow();
+    expect(() => {
+      ordonnerLePlan(cassee, ['packages/a'], ['packages/b']);
+    }).toThrow();
     expect(planEtendu({ copie: cassee, racine: projet }, ['packages/a'], ['packages/b'])).toEqual({
       plan: ['packages/b', 'packages/a'],
       lu: 'principal',
