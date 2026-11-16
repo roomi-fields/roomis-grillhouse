@@ -39,6 +39,10 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # The submodules of the project, a private one read by the repository's secret SOUS_MODULES
+          # (a token that reads it); without the secret, the workflow's own token.
+          submodules: recursive
+          token: ${{ secrets.SOUS_MODULES || github.token }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v5
@@ -93,6 +97,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # The submodules of the project, a private one read by the repository's secret SOUS_MODULES
+          # (a token that reads it); without the secret, the workflow's own token.
+          submodules: recursive
+          token: ${{ secrets.SOUS_MODULES || github.token }}
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v5

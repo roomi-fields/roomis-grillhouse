@@ -1118,7 +1118,8 @@ aussi les branches `agent/**` que pousse la file), et `nuit.yml`, les tests de n
 poste, tels que Grillhouse les joue chez lui. Chaque job tourne sur la variable `RUNNER` du dépôt
 (`fromJSON(vars.RUNNER || '"ubuntu-latest"')`, une étiquette ou une liste d'étiquettes en JSON,
 la convention de SyntHub), qui vit dans les réglages du dépôt sur GitHub et qu'aucun fichier
-n'écrit. Les tranches couvrent chaque langage, chaque test joué une fois dans leur union :
+n'écrit. Chaque récupération du dépôt prend ses sous-modules (`submodules: recursive`), un
+sous-module privé par le secret `SOUS_MODULES` du dépôt, sinon par le jeton du flux. Les tranches couvrent chaque langage, chaque test joué une fois dans leur union :
 Vitest par son découpage (`--shard`), cargo par celui de nextest (`--partition hash:i/n`, ses
 doctests dans la première tranche), Python, que pytest ne découpe pas, dans la première tranche
 seule ; la fusion ne relit que les rapports de Vitest, et un rouge de cargo ou de Python est le
