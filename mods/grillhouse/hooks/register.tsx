@@ -511,11 +511,20 @@ export const register: Register = on => {
     const [geste = '', ...reste] = (e.args ?? '').trim().split(/\s+/)
     if (geste === 'ajouter' || geste === 'retirer') return { text: await changerLaListe($, geste, reste.join(' ')) }
     // newday sets the day's marker to now: FAITS AUJOURD'HUI and the « rejetés »/« validés » cases
-    // of the board restart from zero (grillhouse-3uv.96).
+    // of the board restart from zero (grillhouse-3uv.96). The board shows this project and those
+    // added (`ajouter`), so newday moves the marker of every one, each in its own copy.
     if (geste === 'newday') {
-      const r = await $.process.run([GRILLHOUSE, 'newday'], { cwd, timeoutMs: 20_000 })
-      // The follower watches the marker's file and measures again.
-      return { text: `${r.stdout || ''}${r.stderr || ''}`.trim() || 'Repère de journée posé.' }
+      const { projets } = await read($, etat)
+      const dossiers = [cwd, ...projets]
+      const echecs: string[] = []
+      for (const d of dossiers) {
+        const r = await $.process.run([GRILLHOUSE, 'newday'], { cwd: d, timeoutMs: 20_000 })
+        if (r.exitCode !== 0) echecs.push(`${d} : ${(r.stderr || '').trim() || `code ${r.exitCode}`}`)
+      }
+      // The follower watches each marker's file and measures again.
+      const poses = dossiers.length - echecs.length
+      const tete = `Repère de journée posé pour ${poses}/${dossiers.length} projet(s) : FAITS AUJOURD’HUI et les cases « rejetés »/« validés » repartent de zéro.`
+      return { text: [tete, ...echecs.map(x => `⛔ ${x}`)].join('\n') }
     }
     if (geste) return { text: 'Usage : /grillhouse, /grillhouse newday, /grillhouse ajouter <chemin>, /grillhouse retirer <chemin>.' }
     // A narrow column docked beside the transcript; a short block when seated above the prompt.
