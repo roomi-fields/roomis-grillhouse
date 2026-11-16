@@ -1908,6 +1908,31 @@ function ecrireLePlan(ctx, plan, description = null) {
   return titre;
 }
 
+/**
+ * The plan <paquets> the explorateur writes for <ctx>, with each package the supervisor gave the
+ * plan (`--etendre`, kept among the sheets, `etendus`) that it leaves out, in its order
+ * (`planEtendu`), said at the ticket: the supervisor's word on the plan stands until he changes
+ * it, as a reviewer's requested change stays on a pull request its author pushes again, and a plan
+ * written again (a description the responsable changed) does not send the developpeur back to the
+ * stop « hors-plan » the extension had lifted. `--recommencer`, which removes the sheets, starts
+ * the plan over without them.
+ */
+export function avecLesEtendus(ctx, paquets) {
+  const donnes = lesFiches(ctx).flatMap(e =>
+    e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.etendus ?? []) : []
+  );
+  const gardes = [...new Set(donnes)].filter(c => !paquets.includes(c));
+  if (!gardes.length) {
+    return paquets;
+  }
+  commenter(
+    ctx,
+    'plan',
+    `le plan garde ${nomsDe(ctx, gardes).join(', ')}, que le superviseur lui a donné (\`--etendre\`).`
+  );
+  return planEtendu(ctx, paquets, gardes).plan;
+}
+
 // What makes the packages of the sheet <fiche> of the explorateur out of conformity, or null: a
 // package that names neither a package nor a path of the repository, one package named twice
 // (by its name and by its path), or a component of the survey of the plan's description
@@ -2071,7 +2096,7 @@ const PAS_DU_PLAN = {
     );
     ecrireLePlan(
       ctx,
-      plan.paquets.map(ctx.resoudre),
+      avecLesEtendus(ctx, plan.paquets.map(ctx.resoudre)),
       decrireLePlan(e.avant, plan.criteres, plan.questions, sorteEcrite(plan), plan.noms_publies)
     );
     const ouvertes = plan.questions.length ? `\n${lignesOuvertes(plan.questions)}` : 'aucune';
@@ -2170,7 +2195,7 @@ const PAS_DU_PLAN = {
       const plans = [{ fiche: premier }, { fiche: plan, reponse: true }];
       ecrireLePlan(
         ctx,
-        plan.paquets.map(ctx.resoudre),
+        avecLesEtendus(ctx, plan.paquets.map(ctx.resoudre)),
         decrireLePlan(
           e.avant,
           plan.criteres,
@@ -2337,8 +2362,16 @@ function etendre(ctx, e) {
   const gagnes = [...new Set(ctx.etendre.map(ctx.resoudre))].filter(c => !ctx.paquets.includes(c));
   const { plan, lu } = planEtendu(ctx, ctx.paquets, gagnes);
   const titre = ecrireLePlan(ctx, plan);
-  // The plan the supervisor extends has passed: it is written, questioned no more.
-  inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte: empreinteDuPlan(leTicket(ctx)) } });
+  // The plan the supervisor extends has passed: it is written, questioned no more. The packages
+  // he gives it are kept with it (`etendus`): a plan the explorateur writes again keeps them
+  // (`avecLesEtendus`).
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    plan: {
+      empreinte: empreinteDuPlan(leTicket(ctx)),
+      etendus: [...new Set(ctx.etendre.map(ctx.resoudre))],
+    },
+  });
   commenter(
     ctx,
     'plan',
