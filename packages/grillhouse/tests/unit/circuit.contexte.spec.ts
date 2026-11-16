@@ -30,7 +30,8 @@ interface DeLaSeance {
 const constatsDeLaSeance = seances.constatsDeLaSeance as (
   contexte: string | null,
   constats: Constat[],
-  role: string
+  role: string,
+  destinataire?: string | null
 ) => DeLaSeance;
 const consigne = seances.consigne as (valeurs: Record<string, unknown>, rang: number) => string;
 const auLancement = seances.auLancement as (
@@ -249,5 +250,34 @@ describe('y42 — an answer titled as the instruction numbers its finding is pai
         ANCIEN,
       ]);
     }
+  });
+});
+
+// SyntHub SH-ae6.6.1 under 0.40.0: `--depuis testwriter --contexte "écris les tests de la règle…"`;
+// the developpeur, launched after the proof, read that text as his own task, refused it (his role
+// writes no test) and sent the lot back to the testwriter, twice: the stop « sans-livraison ».
+describe('le contexte donné à un rôle dit son destinataire aux autres', () => {
+  const AU_TESTWRITER = 'Écris les tests de la règle des trois étages.';
+
+  it('the role the context was given to reads it as its task', () => {
+    for (const destinataire of ['testwriter', null, undefined]) {
+      const { tache } = constatsDeLaSeance(AU_TESTWRITER, [], 'testwriter', destinataire);
+      expect(tache).toMatch(/^TA TÂCHE, que le superviseur te donne ; /);
+      expect(tache).toContain(AU_TESTWRITER);
+    }
+  });
+
+  it('another role reads whom it was given to, and that its own share is its role’s', () => {
+    const { tache } = constatsDeLaSeance(AU_TESTWRITER, [], 'developpeur', 'testwriter');
+    expect(tache).not.toContain('TA TÂCHE');
+    expect(tache).toMatch(
+      /^LA TÂCHE DU SUPERVISEUR, donnée au testwriter en relançant le circuit depuis son étape \(`--depuis testwriter`\) ; /
+    );
+    expect(tache).toContain('ta part est celle de ton rôle');
+    expect(tache).toContain(AU_TESTWRITER);
+  });
+
+  it('without a context, no task, whoever it would be given to', () => {
+    expect(constatsDeLaSeance(null, [], 'developpeur', 'testwriter').tache).toBe('');
   });
 });

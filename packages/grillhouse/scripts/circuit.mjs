@@ -529,7 +529,9 @@
 //   change since its last green is read back (scripts/transitions.mjs). With the developpeur's
 //   or the testwriter's step, it has the lot corrected: the whole ticket from
 //   that step, the text of `--contexte` the task at the head of each agent's instruction in the
-//   run, the reviewer's line CONTEXTE (after a stop
+//   run (the agent whose step `--depuis` names reads it as his task; the other one reads whom it
+//   was given to, and does his own role's share: `constatsDeLaSeance` of scripts/seances.mjs),
+//   the reviewer's line CONTEXTE (after a stop
 //   « integration », from the developpeur, the refusal as his report, the red to lift, as a merge
 //   queue sends the lot back to its author with the log of its check; from the testwriter, the
 //   refusal dropped), as a retry

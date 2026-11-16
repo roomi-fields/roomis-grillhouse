@@ -103,8 +103,9 @@ import { Arret, geste } from './ticket-du-circuit.mjs';
 // resumes, the rank of arrival, the sort of the ticket, what the opening reads of the project's
 // package.json (its tools, its data, its generated files), which every pass of a later act plays
 // with, each act in a process of its own, and the supervisor's context of the
-// run (`contexte`), which each session of the run reads at the head of its instruction; a context
-// the act is given (an answer's, a motive) is kept over it.
+// run (`contexte`), which each session of the run reads at the head of its instruction, with the
+// role it was given to (`destinataire`, the role `--depuis` names); a context the act is given
+// (an answer's, a motive) is kept over it.
 const GARDEE = [
   ...MEMOIRE,
   'seanceReprise',
@@ -114,6 +115,7 @@ const GARDEE = [
   'donnees',
   'engendres',
   'contexte',
+  'destinataire',
 ];
 
 // The bases of the passes of the contexts this act opened, which its end removes, its death
@@ -183,13 +185,19 @@ const optionsDe = reponse => {
     return {};
   }
   const contexteDuSuperviseur = reponse.contexte ?? null;
+  // The role the supervisor's context is given to: the agent whose step `--depuis` names; every
+  // other answer gives it to the step under way, no role named.
   if (reponse.genre === 'reprendre') {
-    return { reprendre: true, contexte: contexteDuSuperviseur };
+    return { reprendre: true, contexte: contexteDuSuperviseur, destinataire: null };
   }
   if (reponse.genre === 'depuis') {
-    return { depuis: reponse.role, contexte: contexteDuSuperviseur };
+    return {
+      depuis: reponse.role,
+      contexte: contexteDuSuperviseur,
+      destinataire: ['testwriter', 'developpeur'].includes(reponse.role) ? reponse.role : null,
+    };
   }
-  return { etendre: reponse.paquets, contexte: contexteDuSuperviseur };
+  return { etendre: reponse.paquets, contexte: contexteDuSuperviseur, destinataire: null };
 };
 
 // The act <f> on the context <ctx>: its outcome and the effects it emitted (`effets`), its bases

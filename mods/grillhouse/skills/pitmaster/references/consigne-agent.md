@@ -5,7 +5,7 @@ de lui : le premier pour chaque séance neuve du testwriter et du développeur, 
 tout le ticket, dans l'enveloppe du plan du ticket, le lanceur ajoutant ses sections, chaque
 consigne portant les constats du relecteur qui restent ouverts pour son rôle, et, quand le
 superviseur relance le circuit avec `--contexte`, ce contexte en tête, comme sa tâche
-(`{{tache}}`), les constats ouverts au lancement de la passe devenant son contexte, après
+(`{{tache}}` ; donné à un autre rôle par `--depuis <rôle>`, il se lit sous le nom de ce rôle, « LA TÂCHE DU SUPERVISEUR, donnée au … », et la séance en fait la part de son propre rôle), les constats ouverts au lancement de la passe devenant son contexte, après
 ceux qu'un `RENDU` pose dans la passe (`{{ouverts}}`, leur titre, et `{{constats}}`) ; le second pour chaque séance du relecteur, hors
 enveloppe, après la passe finale verte, qui porte la liste des éléments du lot, et après un `RENDU` la relecture d'avant (la
 commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, les

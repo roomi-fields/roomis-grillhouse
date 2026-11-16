@@ -33,4 +33,13 @@ describe('la mémoire d’un acte du circuit', () => {
     expect(laMemoireReprise(memoire, { contexte: 'donné' })).not.toHaveProperty('contexte');
     expect(laMemoireReprise(memoire)).toMatchObject({ outils: OUTILS, contexte: 'gardé' });
   });
+
+  it('keeps the role the context was given to, which the answer that follows names again', () => {
+    const memoire = laMemoire({ contexte: 'écris les tests', destinataire: 'testwriter' });
+    expect(laMemoireReprise(memoire)).toMatchObject({ destinataire: 'testwriter' });
+    // An answer gives its own context and its own role, none among them: the kept ones go.
+    const reprise = laMemoireReprise(memoire, { contexte: 'autre', destinataire: null });
+    expect(reprise).not.toHaveProperty('destinataire');
+    expect(reprise).not.toHaveProperty('contexte');
+  });
 });

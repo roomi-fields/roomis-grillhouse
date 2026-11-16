@@ -592,7 +592,8 @@ export async function seance(
   const { tache, ouverts, constats, valider, repondre } = constatsDeLaSeance(
     ctx.contexte,
     gardes,
-    role
+    role,
+    ctx.destinataire ?? null
   );
   // The last sign of life of a launch of this session, which a fresh session after a failed
   // resumption waits for while its group runs.
@@ -701,7 +702,12 @@ export async function seance(
 // task, and his sheet FAIT answers each by its title, refused without one (`valider`,
 // `reponsesAuxConstats`). Either way, each answer a developpeur's sheet gives is kept with its
 // finding (`repondre`, `avecLesReponses`).
-export function constatsDeLaSeance(contexte, constats, role) {
+// A context the supervisor gave to another role (<destinataire>, the role `--depuis` names: the
+// run plays that role's step, then the ones after it) heads the instruction under that role's
+// name: what it asks of him is his session's work, and this session does its own role's share, as
+// a job of a pipeline replayed with the variables of the retry reads those meant for another job
+// without taking them for its own.
+export function constatsDeLaSeance(contexte, constats, role, destinataire = null) {
   const siens = (constats ?? []).filter(c => c.role === role);
   const anciens = siens.filter(c => c.enContexte);
   const neufs = siens.filter(c => !c.enContexte);
@@ -714,9 +720,13 @@ export function constatsDeLaSeance(contexte, constats, role) {
     anciens.length && neufs.length
       ? `${texteDesOuverts(neufs)}\n\nPUIS ${enContexte} :\n\n${texteDesOuverts(anciens, neufs.length)}`
       : texteDesOuverts(siens);
+  const avant = `elle passe avant le ticket, le rapport${anciens.length ? ' et les constats donnés en contexte' : ''} ci-dessous`;
+  const autre = destinataire && destinataire !== role ? destinataire : null;
   return {
     tache: contexte
-      ? `TA TÂCHE, que le superviseur te donne ; elle passe avant le ticket, le rapport${anciens.length ? ' et les constats donnés en contexte' : ''} ci-dessous :\n\n${contexte}\n\n`
+      ? autre
+        ? `LA TÂCHE DU SUPERVISEUR, donnée au ${nomDuRole(autre)} en relançant le circuit depuis son étape (\`--depuis ${autre}\`) ; ${avant}. Elle s'adresse à lui : ce qu'elle lui demande est le travail de sa séance, déjà jouée ; ta part est celle de ton rôle sur ce qu'elle vise, et tu ne lui renvoies pas ce qu'elle lui demandait :\n\n${contexte}\n\n`
+        : `TA TÂCHE, que le superviseur te donne ; ${avant} :\n\n${contexte}\n\n`
       : '',
     ouverts: titre,
     constats: texte,
