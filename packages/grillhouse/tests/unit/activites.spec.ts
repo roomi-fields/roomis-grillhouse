@@ -108,6 +108,24 @@ describe('un rejeu de l’intégration sur un lot déjà commité ne fait pas de
     expect(r.sortie).toContain('déjà commité');
     expect(git(ctx.racine, 'rev-list', '--all', '--count')).toBe(avant);
   });
+
+  // SyntHub SH-ae6.6.1 under 0.40.0: its lot committed (0ca59d9) and in the queue, the circuit went
+  // back to its plan and wrote a new lot in a new copy; the integration, reading the label alone,
+  // said « déjà commité » and announced the tip of the branch, main's own commit, the 13 files of
+  // the copy left uncommitted.
+  it('the ticket labelled en-file whose copy holds a lot again: the integrator is called on that lot', () => {
+    const bd = (...a: string[]) => ({
+      status: 0,
+      stdout: a[0] === 'show' ? JSON.stringify([{ id: 'demo-1', labels: ['en-file'] }]) : '',
+      stderr: '',
+    });
+    const ctx = { ...projet(), bd };
+    writeFileSync(path.join(ctx.copie, 'packages/outil/a.txt'), 'le lot écrit depuis le commit\n');
+    const r = integrer(ctx) as ReturnType<typeof integrer> & { args: string[] };
+    expect(r.deja).toBeUndefined();
+    expect(r.sortie).not.toContain('déjà commité');
+    expect(r.args).toEqual(expect.arrayContaining(['--ticket', 'demo-1', '--code']));
+  });
 });
 
 // grillhouse-bf5.2: the resumption of the integration of a lot already on main finishes the ticket

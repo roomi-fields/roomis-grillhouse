@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The integration commits the lot the copy holds, even under a stale label `en-file`** (grillhouse-d4n.20): the integration read the label `en-file` alone as « the lot is already committed », and skipped its commit; a circuit whose branch waited in the queue and that went back to its plan, its tests or its code wrote a new lot in a new copy, which the integration then left uncommitted while it announced the tip of the branch — SyntHub SH-ae6.6.1 announced main's own commit, « la branche n'a rien en avance sur main », 13 files of the copy uncommitted. The label now skips the commit only when the copy holds no file of the lot (the integrator removes the copy of a lot it commits); a copy that holds one is committed, the branch set on it. **Action for projects**: none.
+
 - **A circuit stopped on the supervisor's word leaves the queue of the tickets** (grillhouse-d4n.14, grillhouse-d4n.15): since the queue counts only the circuits alive (grillhouse-d0t, 0.39.0), a ticket stopped by `--arreter` stayed open and labelled `circuit`, its workflow ended, so the queue started it again at its next turn — SyntHub SH-ae6.6.1 stopped at 11:15 after its review, started again alone at 11:16, committed its lot and sent it to the CI. The act of the stop now takes the label `circuit` off the ticket (`sortirDeLaFile`), as the architecture already said, and the run that opens on the supervisor's answer (`--reprendre`, `--depuis`, `--etendre`) puts it back (`rentrerDansLaFile`); the effect `etiquettes` carries the labels taken off (`retirees`). **Action for projects**: none.
 
 ## [0.41.0] - 2026-11-16

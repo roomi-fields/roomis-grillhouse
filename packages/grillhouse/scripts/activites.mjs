@@ -1024,7 +1024,8 @@ export function integrer(ctx) {
   // when the ticket is labelled `en-file` (the queue takes it off) or the copy holds no file of the
   // lot (a copy that holds one still has a lot to commit — a second commit of a reopened ticket, for
   // example).
-  if (enFile || !(tests.length || code.length)) {
+  const sansLot = !(tests.length || code.length);
+  if (enFile || sansLot) {
     // A lot already on main (`lotSurMain`, the one rule the integrator publishes): the ticket
     // finishes at integre, and its copy goes with its working directory, as the integrator removes
     // the copy after a commit (here the ticket is done, so `.travail` goes too — no `--garder-travail`).
@@ -1059,7 +1060,7 @@ export function integrer(ctx) {
     // A lot already committed but not yet on main: its ticket is labelled `en-file`
     // (scripts/integration/integrer.mjs) until the queue takes it off, as a job of a CI keyed by its
     // commit is not run twice. The integration plays again without a second commit, then the queue.
-    if (enFile) {
+    if (enFile && sansLot) {
       return finir(
         `la branche ${branche} est déjà en file : le lot est déjà commité, aucun second commit.\n`,
         { code: 0, deja: true, enFile: true }
@@ -1067,7 +1068,14 @@ export function integrer(ctx) {
     }
     // No lot to apply and no commit on main: refused by its name, as the integrator refuses a direct
     // call in the same case (the one rule `lotSurMain` deciding).
-    return finir(`${refusLotAbsent(ctx.ticket)}\n`, { code: 1, nom: 'lot-absent' });
+    if (sansLot) {
+      return finir(`${refusLotAbsent(ctx.ticket)}\n`, { code: 1, nom: 'lot-absent' });
+    }
+    // Labelled `en-file`, not on main, and the copy holds a lot: the lot was written after the
+    // commit the label names (the circuit went back to its plan, its tests or its code while the
+    // branch waited for its CI), and the integrator removes the copy of a lot it commits. The label
+    // is stale: the lot of the copy is committed below, the branch set on it, as a new push to a
+    // pull request replaces the commit its merge queue holds.
   }
   const dansCopie = (...a) =>
     spawnSync('git', ['-C', ctx.copie, ...a], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
