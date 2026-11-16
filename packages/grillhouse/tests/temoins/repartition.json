@@ -159,6 +159,7 @@
     "scripts/transitions.d.mts",
     "scripts/transitions.mjs",
     "scripts/un-commit-par-ticket.mjs",
+    "scripts/verdict-de-la-nuit.mjs",
     "scripts/verrou-de-fichier.mjs",
     "scripts/verrou-de-machine.mjs",
     "scripts/verrous/commande.mjs",

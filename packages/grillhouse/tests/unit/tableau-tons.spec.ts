@@ -109,6 +109,7 @@ describe('each alert', () => {
         }),
       ],
       circuits: [enQuestion('demo-1')],
+      verdictDeLaNuit: 'rouge',
       remontees: [{ cle: cle('demo-1'), depuis: MAINTENANT - 30 * MIN }],
       attenteVivante: false,
       outil: { version: '0.29.0', raison: 'npm : ENOTFOUND' },

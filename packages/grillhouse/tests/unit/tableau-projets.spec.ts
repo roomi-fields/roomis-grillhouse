@@ -74,9 +74,10 @@ const circuit = (ticket: string) => ({
 const plateau = (
   prefix: string,
   tous: object[],
-  o: { vivants?: object[]; circuits?: object[] } = {}
+  o: { vivants?: object[]; circuits?: object[]; verdict?: 'rouge' | 'vert' } = {}
 ) =>
   assembler({
+    verdictDeLaNuit: o.verdict ?? null,
     tous,
     prefix,
     registre: [],
@@ -105,7 +106,7 @@ const SH = plateau(
       created_at: '2026-11-01T03:00:00Z',
     }),
   ],
-  { vivants: [vivant('e1', 'SH-13y.6', 'explorateur', 12)] }
+  { vivants: [vivant('e1', 'SH-13y.6', 'explorateur', 12)], verdict: 'rouge' }
 );
 const OSD = plateau('OSD', []);
 

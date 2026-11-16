@@ -82,11 +82,12 @@ type Machine = Parameters<typeof assembler>[0]['machine'];
 const plateau = (
   prefix: string,
   tous: object[],
-  o: { circuits?: object[]; machine?: Machine } = {}
+  o: { circuits?: object[]; machine?: Machine; verdict?: 'rouge' | 'vert' } = {}
 ) =>
   assembler({
     tous,
     prefix,
+    verdictDeLaNuit: o.verdict ?? null,
     registre: [],
     vivants: [],
     circuits: o.circuits ?? [],
@@ -264,6 +265,7 @@ describe('critère 5 : one sign per kind of state, on the board of several proje
       }),
     ],
     {
+      verdict: 'rouge',
       circuits: [
         circuit('bp-mono-vbwf.320.6.2.1', {
           vivant: false,
@@ -332,7 +334,7 @@ describe('critère 4 : the status line says the same', () => {
           created_at: '2026-10-29T03:00:00',
         }),
       ],
-      { machine: { detenteur: MESURE, attentes: [ATTENTE] } }
+      { verdict: 'rouge', machine: { detenteur: MESURE, attentes: [ATTENTE] } }
     );
     expect(ligneEtat(t)).toMatch(
       /^🌙 1 · 💤 1 · 🔒 Mesure · roomis-grillhouse · ⏳ 1 · Grillhouse : /
@@ -351,7 +353,10 @@ describe('critère 4 : the status line says the same', () => {
         created_at: '2026-10-29T03:00:00',
       });
     const ici = plateau('demo', []);
-    const voisins = [plateau('osd', [nuitRouge('osd-1')]), plateau('sh', [nuitRouge('sh-1')])];
+    const voisins = [
+      plateau('osd', [nuitRouge('osd-1')], { verdict: 'rouge' }),
+      plateau('sh', [nuitRouge('sh-1')], { verdict: 'rouge' }),
+    ];
     expect(ligneEtat(ici, voisins)).toMatch(/^🌙 2 · Grillhouse : /);
     expect(ligneEtat(ici, voisins)).toContain(ligneEtat(ici));
   });

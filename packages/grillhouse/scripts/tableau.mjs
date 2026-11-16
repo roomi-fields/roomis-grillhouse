@@ -148,6 +148,7 @@ import {
   circuitsDuServeur,
   nuitDuServeur,
 } from './circuits-du-serveur.mjs';
+import { lireLeVerdict } from './verdict-de-la-nuit.mjs';
 import {
   aSonArchitecture,
   attendDeLAutreProjet,
@@ -870,6 +871,7 @@ export function assembler({
   outil = null,
   places: placesDeLaMachine = null,
   nuit: nuitEnCours = null,
+  verdictDeLaNuit = null,
   muet = false,
   faute = null,
   circuitsLusA = null,
@@ -1290,7 +1292,13 @@ export function assembler({
   // A red night says the night it turned red, short enough to stand whole on its line: the local
   // day and month its ticket was opened, the night's date (scripts/nuit.sh), whatever its title names, a
   // commit in older ones.
-  for (const t of nuit) {
+  // The alert follows the verdict of the project's last night (`verdictDeLaNuit`), not the presence
+  // of a night ticket: it stands while the verdict is red and falls on green or without a known night.
+  // It names each open night ticket, or says « Nuit rouge » alone when none is open.
+  if (verdictDeLaNuit === 'rouge' && nuit.length === 0) {
+    alerter('nuitRouge', { signe: '🌙', texte: 'Nuit rouge' });
+  }
+  for (const t of verdictDeLaNuit === 'rouge' ? nuit : []) {
     const { sujet: titreLu, numero: n } = titre(t);
     const ouvert = Date.parse(t.created_at ?? '');
     const sujet =
@@ -2675,6 +2683,7 @@ function lire(
     machine,
     places,
     nuit,
+    verdictDeLaNuit: lireLeVerdict(commun),
     muet,
     faute,
     circuitsLusA: lesCircuitsLus.lu,

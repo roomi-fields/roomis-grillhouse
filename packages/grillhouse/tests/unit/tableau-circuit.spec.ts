@@ -468,6 +468,7 @@ describe('the Temporal server on the board', () => {
       maintenant: MAINTENANT,
       jour: MAINTENANT - 24 * 60 * MIN,
       muet,
+      verdictDeLaNuit: 'rouge',
     }) as Board;
 
   it('a server that does not answer is the first alert, before a red night, its line in the head', () => {

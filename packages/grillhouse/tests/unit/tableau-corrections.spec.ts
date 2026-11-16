@@ -614,6 +614,7 @@ const plateau = (tous: object[]) =>
     vivants: [],
     maintenant: MAINTENANT,
     jour: MAINTENANT - 24 * 60 * MIN,
+    verdictDeLaNuit: 'rouge',
   }) as { alertes: Alerte[] };
 const rouges = (tous: object[]) => plateau(tous).alertes.filter(a => a.ton === 'alerte');
 const ROUGE = nuit('demo-87', '87 — La nuit est rouge depuis la nuit du 2026-10-17 — parent', {
@@ -681,6 +682,7 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
       vivants: [],
       maintenant: MAINTENANT,
       jour: MAINTENANT - 24 * 60 * MIN,
+      verdictDeLaNuit: 'rouge',
     });
     const l = (lignes(t, 'depot') as { texte: string }[]).map(x => x.texte);
     expect(l).toContainEqual(expect.stringMatching(/^🌙 Nuit rouge depuis le 16\/10 +si61$/));

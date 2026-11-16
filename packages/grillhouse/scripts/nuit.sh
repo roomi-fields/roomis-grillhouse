@@ -352,6 +352,9 @@ verdict=$?
 # The copies whose content is on main go once the steps are played, the night's own kept and
 # pruned of its tools' outputs; their removal never changes the verdict.
 (cd "$racine" && node "$ici/retirer-les-copies-finies.mjs" "$copie") >> "$journal" 2>&1 || true
+# The project's durable verdict, read by the board: green on 0, red on any other code but 75, which
+# writes nothing (the previous verdict stays).
+node "$ici/verdict-de-la-nuit.mjs" "$commun" "$verdict" >> "$journal" 2>&1 || true
 
 if [ "$verdict" -eq 75 ]; then
   echo "⏱ à repasser : ${tete:0:7} n'est ni vert ni rouge, la machine est restée chargée ; le dernier vert reste, aucun ticket, la nuit suivante rejoue." >> "$journal"
