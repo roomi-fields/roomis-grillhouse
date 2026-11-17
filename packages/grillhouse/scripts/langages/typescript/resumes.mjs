@@ -15,13 +15,14 @@
 //   written in the documentation comment of the export, and `npm run api` carries it over.
 // - A refusal inscribed in the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes,
 //   keyed by the interface and `resume-trop-long`.
-// - In an envelope (`GRILLHOUSE_ENVELOPPE`), the components of its plan alone are judged.
+// - In an envelope (`GRILLHOUSE_ENVELOPPE`), the components of its plan alone are judged, and the
+//   debt of the others is left as it is (`mesureDe`).
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MODE, trancher } from '../../dette.mjs';
 import { lire } from './index-interfaces.mjs';
-import { aVerifier } from './interfaces-contre-code.mjs';
+import { aVerifier, mesureDe } from './interfaces-contre-code.mjs';
 
 // The longest first sentence of a summary, in characters.
 export const LONGUEUR_MAX = 80;
@@ -57,7 +58,14 @@ export function verifier(racine, env = process.env) {
 // `trancher` under the results directory <env> names (scripts/resultats.mjs); without it none is
 // written, and the debt's mode is <env>'s `GRILLHOUSE_DETTE`.
 export function rapport(racine, env = process.env) {
-  const { refus, lignes } = trancher(racine, 'resumes', verifier(racine, env), env[MODE] || undefined, env);
+  const { refus, lignes } = trancher(
+    racine,
+    'resumes',
+    verifier(racine, env),
+    env[MODE] || undefined,
+    env,
+    mesureDe(racine, env)
+  );
   return {
     lignes: [...refus.map(r => `⛔ ${r.message}`), ...lignes],
     code: refus.length ? 1 : 0,

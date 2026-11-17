@@ -41,7 +41,7 @@ import { pathToFileURL } from 'node:url';
 import { lireLigne } from './consommateurs.mjs';
 import { trancher } from '../../dette.mjs';
 import { arbitrageTranche, estArbitrage } from '../../services-du-noyau.mjs';
-import { aVerifier, marques } from './interfaces-contre-code.mjs';
+import { aVerifier, marques, mesureDe } from './interfaces-contre-code.mjs';
 
 const REGLE = 'consommateur-sans-arbitrage';
 
@@ -244,7 +244,14 @@ export function juger(ticket, interfaces, commentaires, ticketLu) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
-  const { refus, lignes } = trancher(racine, 'consommateurs-arbitres', verifier(racine));
+  const { refus, lignes } = trancher(
+    racine,
+    'consommateurs-arbitres',
+    verifier(racine),
+    undefined,
+    undefined,
+    mesureDe(racine)
+  );
   for (const r of refus) {
     process.stderr.write(`⛔ ${r.message}\n`);
   }

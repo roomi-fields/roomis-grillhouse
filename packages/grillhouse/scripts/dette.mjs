@@ -80,22 +80,42 @@ export function lire(racine) {
   }
 }
 
-// <dette> with the section of <garde> replaced by what <constats> count; the guard leaves the file
-// when it finds nothing.
-export function inscrire(dette, garde, constats) {
-  const reste = { ...dette };
-  delete reste[garde];
-  const comptes = compter(constats);
+// Every file is measured: the answer of a guard that reads the whole repository.
+const TOUT = () => true;
+
+// The keys of the section <ancienne> of a guard, as counts, that a run did not measure (<mesure>,
+// whether it read a file): a guard that reads a part of the repository (the components of a plan,
+// in an envelope) knows nothing of the others, as a baseline of PHPStan is pruned of the files
+// analysed only.
+function nonMesurees(ancienne, mesure) {
+  const out = new Map();
+  for (const [fichier, regles] of Object.entries(ancienne)) {
+    if (!mesure(fichier)) {
+      out.set(fichier, new Map(Object.entries(regles).map(([regle, { count }]) => [regle, count])));
+    }
+  }
+  return out;
+}
+
+// <dette> with the section of <garde> replaced by what <constats> count, the keys of the files the
+// run did not measure (<mesure>) kept; the guard leaves the file when nothing remains.
+export function inscrire(dette, garde, constats, mesure = TOUT) {
+  const { [garde]: ancienne = {}, ...reste } = dette;
+  const comptes = new Map([...nonMesurees(ancienne, mesure), ...compter(constats)]);
   return comptes.size ? { ...reste, [garde]: section(comptes) } : reste;
 }
 
 // <dette> with each count of <garde> lowered to what <constats> count, the keys at zero dropped;
-// a count never rises and no key is added.
-export function elaguer(dette, garde, constats) {
+// a count never rises and no key is added. The keys of the files the run did not measure
+// (<mesure>) stay as they are.
+export function elaguer(dette, garde, constats, mesure = TOUT) {
   const { [garde]: ancienne = {}, ...reste } = dette;
   const comptes = compter(constats);
-  const garde2 = new Map();
+  const garde2 = nonMesurees(ancienne, mesure);
   for (const [fichier, regles] of Object.entries(ancienne)) {
+    if (!mesure(fichier)) {
+      continue;
+    }
     for (const [regle, { count }] of Object.entries(regles)) {
       const n = Math.min(count, comptes.get(fichier)?.get(regle) ?? 0);
       if (n === 0) {
@@ -112,9 +132,9 @@ export function elaguer(dette, garde, constats) {
 
 // <constats> of <garde> judged against <dette>: `refus` the findings the guard refuses (those
 // without key, and every finding of a key beyond its count), `depasses` the keys beyond a non-zero
-// count, `corriges` the keys inscribed above what is found, `tus` the number of findings the debt
-// covers.
-export function juger(dette, garde, constats) {
+// count, `corriges` the keys inscribed above what is found, among the files the run measured
+// (<mesure>), `tus` the number of findings the debt covers.
+export function juger(dette, garde, constats, mesure = TOUT) {
   const inscrite = dette[garde] ?? {};
   const comptes = compter(constats);
   const permis = (fichier, regle) => inscrite[fichier]?.[regle]?.count ?? 0;
@@ -132,6 +152,9 @@ export function juger(dette, garde, constats) {
   }
   const corriges = [];
   for (const [fichier, regles] of Object.entries(inscrite)) {
+    if (!mesure(fichier)) {
+      continue;
+    }
     for (const [regle, { count }] of Object.entries(regles)) {
       const trouve = comptes.get(fichier)?.get(regle) ?? 0;
       if (trouve < count) {
@@ -150,9 +173,18 @@ export function juger(dette, garde, constats) {
 // guard's findings in SARIF too, under the results directory <env> names (scripts/resultats.mjs),
 // each with its file, its line when the guard gives one, and its rule; beside them, each key
 // inscribed above what the guard finds is a note (`a-elaguer`, level `note`), no red, by which the
-// circuit lowers the debt d'office at the final pass (scripts/circuit.mjs, 4.2).
-export function trancher(racine, garde, constats, mode = process.env[MODE] || undefined, env) {
-  const { refus, lignes, corriges } = juge(racine, garde, constats, mode);
+// circuit lowers the debt d'office at the final pass (scripts/circuit.mjs, 4.2). A guard that
+// reads a part of the repository gives <mesure>, whether it read a file (from the root): the keys
+// of the others are neither judged corrected, nor pruned, nor written again.
+export function trancher(
+  racine,
+  garde,
+  constats,
+  mode = process.env[MODE] || undefined,
+  env,
+  mesure = TOUT
+) {
+  const { refus, lignes, corriges } = juge(racine, garde, constats, mode, mesure);
   const notes = corriges.map(c => ({
     fichier: c.fichier,
     regle: c.regle,
@@ -255,7 +287,7 @@ export function abaisser(racine, notes) {
   return change;
 }
 
-function juge(racine, garde, constats, mode) {
+function juge(racine, garde, constats, mode, mesure) {
   let avant;
   try {
     if (mode !== undefined && !MODES.has(mode)) {
@@ -269,7 +301,9 @@ function juge(racine, garde, constats, mode) {
   const lignes = [];
   if (mode) {
     dette =
-      mode === 'inscrire' ? inscrire(avant, garde, constats) : elaguer(avant, garde, constats);
+      mode === 'inscrire'
+        ? inscrire(avant, garde, constats, mesure)
+        : elaguer(avant, garde, constats, mesure);
     if (JSON.stringify(dette) !== JSON.stringify(avant)) {
       ecrire(racine, dette);
       lignes.push(
@@ -277,7 +311,7 @@ function juge(racine, garde, constats, mode) {
       );
     }
   }
-  const { refus, depasses, corriges, tus } = juger(dette, garde, constats);
+  const { refus, depasses, corriges, tus } = juger(dette, garde, constats, mesure);
   for (const d of depasses) {
     lignes.push(
       `⛔ ${garde} : ${d.fichier} · ${d.regle} — ${d.trouve} constat(s) pour ${d.inscrit} inscrit(s) dans ${FICHIER} : un constat est neuf.`

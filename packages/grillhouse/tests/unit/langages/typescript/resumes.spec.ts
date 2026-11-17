@@ -101,6 +101,38 @@ describe('resumes — the first sentence of a summary holds in 80 characters', (
     expect(r.stderr).toContain('npm run api');
   });
 
+  // In an envelope the guard reads the components of the plan alone: the debt of another
+  // component is not judged corrected, nor pruned (BPScript, 2026-11-17, 320.42: the debt of
+  // every package out of the plan lowered by the checks of one).
+  it('in an envelope, leaves the debt of a component out of its plan as it is', () => {
+    const dette = {
+      resumes: {
+        'packages/a/docs/INTERFACE.md': { 'resume-trop-long': { count: 2 } },
+        'packages/b/docs/INTERFACE.md': { 'resume-trop-long': { count: 3 } },
+      },
+    };
+    const racine = depot(
+      { duree: phrase(81) },
+      {
+        'packages/b/package.json': JSON.stringify({ name: '@demo/b' }),
+        'grillhouse-dette.json': JSON.stringify(dette),
+      }
+    );
+    const r = jouer(racine, { GRILLHOUSE_ENVELOPPE: 'packages/a' });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toContain('packages/a/docs/INTERFACE.md · resume-trop-long — 1 constat(s)');
+    expect(r.stderr).not.toContain('packages/b/');
+    jouer(racine, { GRILLHOUSE_ENVELOPPE: 'packages/a', GRILLHOUSE_DETTE: 'elaguer' });
+    expect(JSON.parse(readFileSync(path.join(racine, 'grillhouse-dette.json'), 'utf8'))).toEqual({
+      resumes: {
+        'packages/a/docs/INTERFACE.md': { 'resume-trop-long': { count: 1 } },
+        'packages/b/docs/INTERFACE.md': { 'resume-trop-long': { count: 3 } },
+      },
+    });
+    // Out of an envelope every component is read: the debt of b, corrected, is said to prune.
+    expect(jouer(racine).stderr).toContain('packages/b/docs/INTERFACE.md · resume-trop-long — 0');
+  });
+
   it('a first sentence of 80 characters passes, and the guard says nothing', () => {
     const r = jouer(depot({ duree: phrase(80) }));
     expect(r.status).toBe(0);
