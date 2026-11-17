@@ -674,6 +674,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
       silence: dernier ? maintenant - dernier.mtime : null,
       entre: lu?.entre ?? null,
       jetons: lu?.jetons ?? 0,
+      minutes: lu?.minutes,
       travail: lu?.travail ?? 0,
       tours: lu?.tours ?? [],
     });
@@ -690,6 +691,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         depuis: lu.premier ?? maintenant,
         entre: lu.entre,
         jetons: lu.jetons,
+        minutes: lu.minutes,
         travail: lu.travail,
         tours: lu.tours,
       });
@@ -714,6 +716,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
         depuis: lu.premier ?? maintenant,
         entre: lu.entre,
         jetons: lu.jetons,
+        minutes: lu.minutes,
         travail: lu.travail,
         tours: lu.tours,
       });
@@ -1068,13 +1071,24 @@ export function assembler({
     travail: l.reduce((s, x) => s + (x.travail ?? 0), 0),
     jetons: l.reduce((s, x) => s + (x.jetons ?? 0), 0),
   });
-  // A measure with its turns counts in the day the parts since midnight of their union; a register
-  // line written without them counts whole in the day it ended.
+  // A measure with its turns counts in the day the parts since the day's marker of their union,
+  // and, with its tokens by minute, those spent since it: a session opened days ago counts in the
+  // day what it did today, time and tokens alike. A register line written without them counts
+  // whole in the day it ended.
   const partDuJour = tours =>
     reunir(tours).reduce((s, [debut, fin]) => s + Math.max(0, fin - Math.max(debut, jour)), 0);
+  const jetonsDuJour = minutes =>
+    Object.entries(minutes).reduce(
+      (s, [minute, n]) => s + (Number(minute) >= Math.floor(jour / MINUTE) ? n : 0),
+      0
+    );
   const duJour = mesures
     .filter(m => m.quand >= jour)
-    .map(m => (m.tours ? { ...m, travail: partDuJour(m.tours) } : m));
+    .map(m => ({
+      ...m,
+      ...(m.tours ? { travail: partDuJour(m.tours) } : {}),
+      ...(m.minutes ? { jetons: jetonsDuJour(m.minutes) } : {}),
+    }));
   // The discoveries (label `decouverte`, grillhouse-3uv.96): each counts in one case, the first that
   // applies. « rejetés » and « validés » count only since the day's marker <jour>; « new » and
   // « →check », states that await the owner, do not filter by it.

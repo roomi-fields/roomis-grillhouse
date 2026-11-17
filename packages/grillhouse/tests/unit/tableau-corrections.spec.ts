@@ -701,3 +701,35 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
     expect(alerte[0].texte.endsWith('91')).toBe(true);
   });
 });
+
+describe('le jour compte les jetons depuis le repère, comme le temps', () => {
+  it('a session opened before the marker counts in the day the tokens of its minutes since it', () => {
+    const minute = (h: string) => Math.floor(ms(h) / 60_000);
+    const t = assembler({
+      tous: [],
+      prefix: 'demo',
+      registre: [],
+      vivants: [
+        {
+          agent: 'seance',
+          ticket: null,
+          role: null,
+          ligne: false,
+          depuis: ms('08:00'),
+          entre: ms('08:00'),
+          jetons: 1000,
+          minutes: { [minute('08:30')]: 900, [minute('11:02')]: 100 },
+          travail: 15 * MIN,
+          tours: [
+            [ms('08:30'), ms('08:40')],
+            [ms('11:00'), ms('11:05')],
+          ],
+        },
+      ],
+      maintenant: ms('12:00'),
+      jour: ms('10:00'),
+    }) as { global: Record<'jour' | 'cumul', { travail: number; jetons: number }> };
+    expect(t.global.jour).toEqual({ travail: 5 * MIN, jetons: 100 });
+    expect(t.global.cumul).toEqual({ travail: 15 * MIN, jetons: 1000 });
+  });
+});

@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The day of the board counts the tokens since the day's marker, as it counts the time** (grillhouse-38t): a session still open counted in the day the part of its turns since the marker, but all the tokens of its transcript — a supervisor's session opened days ago read « jour 6 min · 37,0 M » right after `/grillhouse newday` (OSC Bridge). A measure that holds its tokens by minute now counts in the day those of the minutes since the marker (`jetonsDuJour`); a register line without them counts whole in the day it ended, as before. **Action for projects**: none.
+
 - **A crate without a test does not turn the pass of its project red** (grillhouse-jhf): the skeleton of a crate (`npx grillhouse paquet`) declares its target of integration tests, `tests/it/main.rs`, with no test in it, as the charter has it; nextest, played on the whole crate, ended in error (« no tests to run »), so two crates born out of the circuit turned red the final pass of every circuit of their project until their own ticket of code entered (OSD, osd-cli and osd-formats, circuit OSD-b91.7). The day of a whole crate now plays nextest with `--no-tests=pass`; a target or a module named that plays no test stays an error. **Action for projects**: none.
 
 - **The board writes a duration of an hour or more without spaces, and a billion tokens in G** : « 1h16 », not « 1 h 16 » (`duree` of `scripts/tableau.mjs`), on every line of the board and of the status line; a count of tokens of a billion or more is written « 1,2 G » (`k`), where it read « 1234,5 M », and a count that would round to a thousand of its unit takes the next one. **Action for projects**: none.
