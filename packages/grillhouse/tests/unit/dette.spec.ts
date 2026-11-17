@@ -194,6 +194,60 @@ describe('the judgement of the debt', () => {
     ).toEqual({ g: { 'a.ts': { r: { count: 1 } } } });
     expect(elaguer(dette, 'g', [])).toEqual({});
   });
+  // A guard that reads a part of the repository (the components of a plan, in an envelope) says
+  // which files it read: the debt of the others is neither judged corrected, nor pruned, nor
+  // written again. Witness: BPScript, 2026-11-17, 320.42, whose checks under the envelope of
+  // packages/050-emitter lowered the debt of every other package (246 lines of
+  // grillhouse-dette.json), then a final pass red on 169 findings out of the plan.
+  describe('a guard that measured a part of the repository', () => {
+    const dette = {
+      g: {
+        'packages/a/x.ts': { r: { count: 3 } },
+        'packages/b/y.ts': { r: { count: 76 }, s: { count: 2 } },
+      },
+    };
+    const mesure = (fichier: string) => fichier.startsWith('packages/a/');
+    const constats = [c('packages/a/x.ts', 'r')];
+    it('judges corrected the keys of the files it measured only', () => {
+      expect(juger(dette, 'g', constats, mesure).corriges).toEqual([
+        { fichier: 'packages/a/x.ts', regle: 'r', trouve: 1, inscrit: 3 },
+      ]);
+      expect(juger(dette, 'g', constats).corriges).toHaveLength(3);
+    });
+    it('prunes and inscribes the files it measured, the others as they are', () => {
+      expect(elaguer(dette, 'g', constats, mesure)).toEqual({
+        g: {
+          'packages/a/x.ts': { r: { count: 1 } },
+          'packages/b/y.ts': dette.g['packages/b/y.ts'],
+        },
+      });
+      expect(elaguer(dette, 'g', [], mesure)).toEqual({
+        g: { 'packages/b/y.ts': dette.g['packages/b/y.ts'] },
+      });
+      expect(inscrire(dette, 'g', [...constats, c('packages/a/z.ts', 'r')], mesure)).toEqual({
+        g: {
+          'packages/a/x.ts': { r: { count: 1 } },
+          'packages/a/z.ts': { r: { count: 1 } },
+          'packages/b/y.ts': dette.g['packages/b/y.ts'],
+        },
+      });
+    });
+    it('says nothing to prune of a file it did not measure, through the guard’s own call', () => {
+      const dir = repo({ [FICHIER]: JSON.stringify(dette) });
+      const r = trancher(dir, 'g', constats, undefined, {}, mesure);
+      expect(r.refus).toEqual([]);
+      expect(r.lignes.filter(l => l.includes('elaguer'))).toEqual([
+        expect.stringContaining('packages/a/x.ts · r — 1 constat(s) pour 3 inscrit(s)'),
+      ]);
+      trancher(dir, 'g', constats, 'elaguer', {}, mesure);
+      expect(JSON.parse(readFileSync(path.join(dir, FICHIER), 'utf8'))).toEqual({
+        g: {
+          'packages/a/x.ts': { r: { count: 1 } },
+          'packages/b/y.ts': dette.g['packages/b/y.ts'],
+        },
+      });
+    });
+  });
   it('refuses a mode it does not know, or a debt that is not JSON, in plain words', () => {
     const dir = repo({});
     const constat = { fichier: 'a.ts', regle: 'r', message: 'a.ts r' };

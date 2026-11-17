@@ -602,6 +602,25 @@ export function aVerifier(racine, env = process.env) {
   return siens.length ? siens : tous;
 }
 
+/**
+ * Whether a run at <racine> in <env> read the file <fichier> (from the root), for the known debt
+ * (`trancher` of scripts/dette.mjs): a file of a component it reads (`aVerifier`). Undefined when
+ * it reads every component.
+ * @param {string} racine
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {((fichier: string) => boolean) | undefined}
+ */
+export function mesureDe(racine, env = process.env) {
+  const lus = aVerifier(racine, env).map(c => path.resolve(c.dir));
+  if (lus.length === composants(racine).length) {
+    return undefined;
+  }
+  return fichier => {
+    const f = path.resolve(racine, fichier);
+    return lus.some(d => f === d || f.startsWith(d + path.sep));
+  };
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const racine = process.cwd();
   const ecrire = process.argv.includes('--ecrire');
@@ -613,7 +632,14 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     }
     constats.push(...refus);
   }
-  const { refus, lignes } = trancher(racine, 'interfaces-contre-code', constats);
+  const { refus, lignes } = trancher(
+    racine,
+    'interfaces-contre-code',
+    constats,
+    undefined,
+    undefined,
+    mesureDe(racine)
+  );
   for (const r of refus) {
     process.stderr.write(`⛔ ${r.message}\n`);
   }
