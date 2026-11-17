@@ -9,6 +9,7 @@ export default mergeConfig(
     test: {
       globals: true,
       include: ['tests/**/*.{test,spec}.{ts,js,mjs}'],
+      setupFiles: ['tests/travailleurs-herites.setup.ts'],
       testTimeout: 10000,
       pool: 'threads',
       poolOptions: {
