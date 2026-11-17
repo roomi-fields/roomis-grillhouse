@@ -22,7 +22,7 @@
 //   [bp-mono]    bp-mono-vbwf.320.6.2.1… ⏸ 3 min · 135 k
 //   ▾ 3 · Code · développeur
 //     3.1 · Contrôles · auto
-//   [bp-mono]    bp-mono-vbwf.3.11  … ⏳ 4 h 59 · 1,2 M
+//   [bp-mono]    bp-mono-vbwf.3.11  … ⏳ 4h59 · 1,2 M
 //
 // The reading of the lock itself (scripts/verrou-de-machine.mjs) is tests/unit/verrou-de-machine.spec.ts's.
 import { describe, expect, it } from 'vitest';

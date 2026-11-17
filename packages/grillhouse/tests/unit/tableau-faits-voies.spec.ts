@@ -118,7 +118,7 @@ describe('chaque ligne porte « <durée> · <jetons> », les trois voies compris
 
   it('un ticket direct : de sa prise à sa fermeture, et les jetons de ses agents', () => {
     const p = plateau([T('demo-3')], { registre: [agent('demo-3', 'explorateur', MIN, 4_000)] });
-    expect(duTicket(p, 'demo-3').texte).toMatch(/ 1 h 30 · 4 k$/);
+    expect(duTicket(p, 'demo-3').texte).toMatch(/ 1h30 · 4 k$/);
   });
 
   it('un ticket direct sans prise : « — », et 0 jeton sans agent', () => {

@@ -18,7 +18,7 @@
 //   ▸ 5 · Intégration
 //
 //   CHANTIER [OB] k — Le pont MIDI
-//     12/18 faits · 4 h 10 · 3,1 M jetons
+//     12/18 faits · 4h10 · 3,1 M jetons
 //
 // Each line holds in the pane's width, as one project's board does (critère 7).
 import { describe, expect, it } from 'vitest';
@@ -263,6 +263,6 @@ describe('critère 7 : every line holds in the width, a line with a right part f
     ) as Ligne[];
     const x = l.find(y => y.ticket === 'OPEN-SYNTH-b91.2.9');
     expect(x?.texte.length).toBe(LARGEUR);
-    expect(x?.texte).toMatch(/…\s+▶ 1 h 15 · 40 k$/);
+    expect(x?.texte).toMatch(/…\s+▶ 1h15 · 40 k$/);
   });
 });

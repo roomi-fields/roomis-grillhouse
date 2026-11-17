@@ -30,7 +30,7 @@ function tableau(n: number, m: number, p: number) {
   const chantier: L[] = [
     { texte: '', section: 'chantier' },
     { texte: 'CHANTIER 1 — Le sujet', ton: 'titre', ticket: 'ch-1', chantier: true, section: 'chantier' },
-    { texte: '  4/40 faits · 3 h 00 · 1,2 M jetons', ton: 'discret', section: 'chantier' },
+    { texte: '  4/40 faits · 3h00 · 1,2 M jetons', ton: 'discret', section: 'chantier' },
     ...arbre,
   ]
   const faits: L[] = p

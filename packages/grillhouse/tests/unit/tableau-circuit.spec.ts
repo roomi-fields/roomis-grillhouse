@@ -140,7 +140,7 @@ describe("a circuit's line carries its ticket's working time and tokens", () => 
     const t = plateau([T('demo-12')], registre, [], circuits(racine, 'demo-12'));
     const a = agents(t);
     expect(a[a.indexOf('▾ 3 · Code · développeur') + 1]).toMatch(
-      /^▶ 12 {2}Le sujet de demo-12 +1 h 00 · 10$/
+      /^▶ 12 {2}Le sujet de demo-12 +1h00 · 10$/
     );
   });
 
@@ -158,7 +158,7 @@ describe("a circuit's line carries its ticket's working time and tokens", () => 
     const a = agents(t);
     const i = a.indexOf('  3.1 · Contrôles · auto');
     expect(a[i + 1]).toBe(QUESTION);
-    expect(a[i + 2]).toMatch(/^⏸ 12 {2}Le su.* · question au superviseur +1 h 00 · 10$/);
+    expect(a[i + 2]).toMatch(/^⏸ 12 {2}Le su.* · question au superviseur +1h00 · 10$/);
   });
 });
 

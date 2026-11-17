@@ -62,7 +62,7 @@ describe('la nuit en cours dans AGENTS', () => {
 
   it('une nuit de plus d’une heure dit ses heures', () => {
     const nuit = { racine: '/d/kanopi', depuis: MAINTENANT - 75 * MIN };
-    expect(tete(agents(plateau({ nuit })))[1].texte).toBe('🌙 nuit · kanopi · depuis 1 h 15');
+    expect(tete(agents(plateau({ nuit })))[1].texte).toBe('🌙 nuit · kanopi · depuis 1h15');
   });
 
   it('sans les places, la nuit tient la tête d’AGENTS', () => {

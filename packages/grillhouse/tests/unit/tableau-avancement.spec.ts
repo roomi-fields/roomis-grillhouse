@@ -146,7 +146,7 @@ describe('the line of a ticket at an automatic step gives the progress of its pa
     expect(large.texte).toMatch(/^▶ 12 {2}Le sujet de dem.* · essai 2\/3 · 87\/123 · 20 min$/);
     const serre = duTicket(agents(depot(etat), { registre: [fin] }));
     expect(serre.texte.length).toBeLessThanOrEqual(LARGEUR);
-    expect(serre.texte).toMatch(/ · 87\/123 · 20 min +1 h 00 · 10$/);
+    expect(serre.texte).toMatch(/ · 87\/123 · 20 min +1h00 · 10$/);
     expect(serre.texte).not.toContain('essai 2/3');
   });
 

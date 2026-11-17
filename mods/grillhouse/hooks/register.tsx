@@ -71,10 +71,16 @@ const etat = atom({ plugin: 'grillhouse', key: 'etat' } as const, {
 } as Etat)
 
 export const k = (n: number) =>
-  n >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} M` : n >= 1e3 ? `${Math.round(n / 1e3)} k` : `${n}`
+  n >= 999.95e6
+    ? `${(n / 1e9).toFixed(1).replace('.', ',')} G`
+    : n >= 999.5e3
+      ? `${(n / 1e6).toFixed(1).replace('.', ',')} M`
+      : n >= 1e3
+        ? `${Math.round(n / 1e3)} k`
+        : `${n}`
 export const duree = (ms: number) => {
   const min = Math.round(ms / 60_000)
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`
 }
 const STATUTS: Record<string, string> = {
   open: 'ouvert',

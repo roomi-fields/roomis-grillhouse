@@ -1462,15 +1462,19 @@ export function assembler({
   };
 }
 
+// A count of tokens as a line says it: « 512 », « 40 k », « 3,1 M », « 1,2 G »; a count that would
+// round to a thousand of its unit takes the next one.
 export const k = n =>
-  n >= 1e6
-    ? `${(n / 1e6).toFixed(1).replace('.', ',')} M`
-    : n >= 1e3
-      ? `${Math.round(n / 1e3)} k`
-      : `${n}`;
+  n >= 999.95e6
+    ? `${(n / 1e9).toFixed(1).replace('.', ',')} G`
+    : n >= 999.5e3
+      ? `${(n / 1e6).toFixed(1).replace('.', ',')} M`
+      : n >= 1e3
+        ? `${Math.round(n / 1e3)} k`
+        : `${n}`;
 export const duree = ms => {
   const min = Math.round(ms / MINUTE);
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
 };
 
 // The local day and month of the instant <t>, « 16/10 ».
