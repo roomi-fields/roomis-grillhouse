@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.43.1] - 2026-11-17
+
 - **A lot that removes a generated file with its command enters main** (grillhouse-1k7): the integration, the queue and the move of a copy onto main played the command of every generated file a lot touches, read in main's `package.json`, even when the lot removes that file, its script and its entry of `grillhouse.engendres`: the command, whose script the lot deletes, failed, and the lot was refused (SyntHub, SH-br0.3, « python3 scripts/build_device_index.py … can't open file »). An entry the tree where the lot is applied no longer declares (`encoreDeclares` of `scripts/engendres.mjs`) is not played, and its files follow the lot: a deletion is done whatever main wrote since, any other change is applied as a file of the lot (`poserLesRetires`, `prendreLesEngendres`). The command line stays main's: a lot removes one, it writes none. **Action for projects**: none; a circuit stopped on that refusal resumes (`--reprendre`).
 
 ## [0.43.0] - 2026-11-17
