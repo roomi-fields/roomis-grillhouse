@@ -162,8 +162,8 @@ export function veiller({
       releves = relever([...nes]);
       signaler(releves, 'SIGTERM');
       finDeLaCoupe = new Promise(fin => {
-        // SIGKILL at the delay to those SIGTERM did not end; the end once none lives, or DELAI ms
-        // after SIGKILL at the latest.
+        // SIGKILL at the delay to those SIGTERM did not end; the end once none lives, or as long
+        // again after SIGKILL at the latest.
         const limite = Date.now() + delai;
         let tues = false;
         const voir = setInterval(() => {
@@ -172,7 +172,7 @@ export function veiller({
             tues = true;
             signaler(vivants, 'SIGKILL');
           }
-          if (vivants.length === 0 || Date.now() >= limite + DELAI) {
+          if (vivants.length === 0 || Date.now() >= limite + delai) {
             clearInterval(voir);
             fin();
           }

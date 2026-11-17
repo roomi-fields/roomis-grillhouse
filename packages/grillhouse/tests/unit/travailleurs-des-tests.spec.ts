@@ -60,7 +60,7 @@ const sansLaVariable = () => {
 };
 
 describe('grillhouse-9kq critères 5 et 17 — Vitest (module typescript)', () => {
-  const maxWorkers = (travailleurs?: string) => {
+  const lire = (cle: 'maxWorkers' | 'minWorkers', travailleurs?: string) => {
     const env = {
       ...sansLaVariable(),
       ...(travailleurs ? { GRILLHOUSE_TRAVAILLEURS: travailleurs } : {}),
@@ -70,7 +70,7 @@ describe('grillhouse-9kq critères 5 et 17 — Vitest (module typescript)', () =
       [
         '--input-type=module',
         '-e',
-        `import b from ${JSON.stringify(BASE)}; console.log(JSON.stringify(b.test.maxWorkers ?? null));`,
+        `import b from ${JSON.stringify(BASE)}; console.log(JSON.stringify(b.test.${cle} ?? null));`,
       ],
       { encoding: 'utf8', env }
     );
@@ -78,9 +78,16 @@ describe('grillhouse-9kq critères 5 et 17 — Vitest (module typescript)', () =
     return JSON.parse(r.stdout.trim().split('\n').pop() ?? 'null');
   };
 
+  const maxWorkers = (travailleurs?: string) => lire('maxWorkers', travailleurs);
+
   it('la configuration de base passe GRILLHOUSE_TRAVAILLEURS à maxWorkers', () => {
     expect(maxWorkers('4')).toBe(4);
     expect(maxWorkers('1')).toBe(1);
+  });
+
+  it('le minimum suit : Vitest refuse un maximum sous son minimum, qui suit les cœurs', () => {
+    expect(lire('minWorkers', '2')).toBe(1);
+    expect(lire('minWorkers')).toBeNull();
   });
 
   it('sans la variable, maxWorkers reste celui de Vitest : tous les cœurs', () => {

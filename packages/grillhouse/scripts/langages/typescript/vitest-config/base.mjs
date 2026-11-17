@@ -178,5 +178,7 @@ export default {
 // its tasks of tests, ./verifier.mjs) set; without it, Vitest's own default stands: every core.
 function travailleurs() {
   const n = travailleursDeLaSeance(process.env);
-  return n === null ? {} : { maxWorkers: n };
+  // Vitest's own least number of workers follows the cores of the machine, and refuses a most
+  // under it: the least goes with the most.
+  return n === null ? {} : { maxWorkers: n, minWorkers: 1 };
 }
