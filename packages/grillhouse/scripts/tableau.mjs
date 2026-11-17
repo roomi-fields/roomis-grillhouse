@@ -1121,7 +1121,16 @@ export function assembler({
       decouvertes[c]++;
     }
   }
-  const global = { compteurs, jour: somme(duJour), cumul: somme(mesures), decouvertes };
+  // The time of the day and of the cumul is the work of the agents and of the circuits: the
+  // supervisor's own session, a measure with neither ticket nor role, open for weeks and counting
+  // its waits, gives its tokens to both, never its time.
+  const sansLeTempsDuSuperviseur = l => l.map(m => (m.ticket || m.role ? m : { ...m, travail: 0 }));
+  const global = {
+    compteurs,
+    jour: somme(sansLeTempsDuSuperviseur(duJour)),
+    cumul: somme(sansLeTempsDuSuperviseur(mesures)),
+    decouvertes,
+  };
 
   // Chantiers.
   const sous = t => [t, ...(enfants.get(t.id) ?? []).flatMap(sous)];

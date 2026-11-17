@@ -702,34 +702,43 @@ describe('3uv.44 critère 7 : each open night ticket raises its red alert, its s
   });
 });
 
-describe('le jour compte les jetons depuis le repère, comme le temps', () => {
-  it('a session opened before the marker counts in the day the tokens of its minutes since it', () => {
-    const minute = (h: string) => Math.floor(ms(h) / 60_000);
-    const t = assembler({
-      tous: [],
-      prefix: 'demo',
-      registre: [],
-      vivants: [
-        {
-          agent: 'seance',
-          ticket: null,
-          role: null,
-          ligne: false,
-          depuis: ms('08:00'),
-          entre: ms('08:00'),
-          jetons: 1000,
-          minutes: { [minute('08:30')]: 900, [minute('11:02')]: 100 },
-          travail: 15 * MIN,
-          tours: [
-            [ms('08:30'), ms('08:40')],
-            [ms('11:00'), ms('11:05')],
-          ],
-        },
-      ],
-      maintenant: ms('12:00'),
-      jour: ms('10:00'),
-    }) as { global: Record<'jour' | 'cumul', { travail: number; jetons: number }> };
-    expect(t.global.jour).toEqual({ travail: 5 * MIN, jetons: 100 });
-    expect(t.global.cumul).toEqual({ travail: 15 * MIN, jetons: 1000 });
+describe('le jour et le cumul comptent les jetons du superviseur, pas son temps', () => {
+  const seance = (ticket: string | null, role: string | null) => ({
+    agent: `seance-${ticket ?? 'superviseur'}`,
+    ticket,
+    role,
+    ligne: false,
+    depuis: ms('08:00'),
+    entre: ms('08:00'),
+    jetons: 1000,
+    minutes: { [Math.floor(ms('08:30') / 60_000)]: 900, [Math.floor(ms('11:02') / 60_000)]: 100 },
+    travail: 15 * MIN,
+    tours: [
+      [ms('08:30'), ms('08:40')],
+      [ms('11:00'), ms('11:05')],
+    ],
+  });
+  const lire = (vivants: unknown[]) =>
+    (
+      assembler({
+        tous: [{ id: 'demo-5', title: '5 — Le lot — tableau', status: 'in_progress', priority: 1 }],
+        prefix: 'demo',
+        registre: [],
+        vivants,
+        maintenant: ms('12:00'),
+        jour: ms('10:00'),
+      }) as { global: Record<'jour' | 'cumul', { travail: number; jetons: number }> }
+    ).global;
+
+  it('the session of the supervisor, with neither ticket nor role, gives its tokens and no time', () => {
+    const g = lire([seance(null, null)]);
+    expect(g.jour).toEqual({ travail: 0, jetons: 100 });
+    expect(g.cumul).toEqual({ travail: 0, jetons: 1000 });
+  });
+
+  it('an agent of a ticket counts in the day the time and the tokens since the marker, whole in the cumul', () => {
+    const g = lire([seance(null, null), seance('demo-5', 'developpeur')]);
+    expect(g.jour).toEqual({ travail: 5 * MIN, jetons: 200 });
+    expect(g.cumul).toEqual({ travail: 15 * MIN, jetons: 2000 });
   });
 });
