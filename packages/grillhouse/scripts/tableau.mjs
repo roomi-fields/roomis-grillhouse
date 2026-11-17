@@ -2485,8 +2485,25 @@ export function ligneEtat(t, voisins = []) {
   return `${alerte}${ch.numero} ${ch.faits}/${ch.total} · ${dAgents} · ${k(t.global.jour.jetons)} aujourd'hui`;
 }
 
-// The answer of Beads to <args> in the repository at <racine>, as JSON (`liste`), or the first line
-// of its fault (`faute`), its error output first.
+/**
+ * The fault of a call of Beads that threw <e>, as an alert says it: the command `bd` missing from
+ * the PATH with its gesture, as the session start names it; else the first line of its error
+ * output, else of its message.
+ * @param {unknown} e
+ * @returns {string}
+ */
+export function fauteDeBeads(e) {
+  if (/** @type {{ code?: string }} */ (e)?.code === 'ENOENT') {
+    return 'la commande bd est absente du PATH de cette séance : `npm install -g @beads/bd`';
+  }
+  const message =
+    String(/** @type {{ stderr?: unknown }} */ (e)?.stderr ?? '').trim() ||
+    String(/** @type {{ message?: unknown }} */ (e)?.message ?? e);
+  return message.split('\n')[0];
+}
+
+// The answer of Beads to <args> in the repository at <racine>, as JSON (`liste`), or its fault
+// (`faute`, `fauteDeBeads`).
 const bdJson = (racine, ...args) => {
   try {
     return {
@@ -2501,8 +2518,7 @@ const bdJson = (racine, ...args) => {
       faute: null,
     };
   } catch (e) {
-    const message = String(e?.stderr ?? '').trim() || String(e?.message ?? e);
-    return { liste: [], faute: message.split('\n')[0] };
+    return { liste: [], faute: fauteDeBeads(e) };
   }
 };
 

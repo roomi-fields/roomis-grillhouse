@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The board says the gesture when the command `bd` is missing** (grillhouse-4t9): a session opened under a Node where Beads is not installed (a global package of npm follows its Node: the move to Node 26 leaves it behind) showed « Tickets illisibles : spawnSync bd ENOENT » on every board, the error of the system and no gesture. The alert now says « la commande bd est absente du PATH de cette séance » with its command (`npm install -g @beads/bd`), as the session start names it under « Manque » ; any other fault of Beads keeps its first line. **Action for projects**: none; after a change of Node, install Beads again under it (`npm install -g @beads/bd`).
+
 ## [0.42.0] - 2026-11-16
 
 - **The guard refuses a style script of the root that launches the packages again** (grillhouse-6dt): the root keeps its own files (grillhouse-44b.9), and the guard `turbo-des-paquets` refused a root `lint` or `format:check` that names a file a package holds, but read paths alone; a script that delegates to the packages (`npm run lint --workspaces --if-present`, `-w <paquet>`, `turbo run lint`) names none and passed, so the root task `//#lint` played the style of every package a second time, the packages out of the frame included — BPScript's update went red on « ⛔ //#lint (code 1) », no guard naming the script. The guard now refuses such a script by its name, with the gesture. **Action for projects**: a project whose root `lint` or `format:check` launches its packages removes it, or reduces it to the files of the root; Turborepo plays the script of each package.
