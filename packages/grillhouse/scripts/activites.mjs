@@ -26,7 +26,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { avecLAvancementDuTravail } from './avancement.mjs';
-import { A_REPASSER } from './codes-de-sortie.mjs';
+import { A_REPASSER, MEMOIRE_COUPEE } from './codes-de-sortie.mjs';
 import { ecouteLesBranchesDeTicket } from './ci-des-branches.mjs';
 import { BASE_DU_LOT, DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { empreinteDEtape } from './empreinte-d-etape.mjs';
@@ -1405,7 +1405,7 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
             const oublier = nommerLAvancement({ env: envMachine, dossier: avancement });
             try {
               // A targeted pass plays on its share of the cores under nice and ionice; a heavy one
-              // keeps every core.
+              // shares the cores between its own tasks of tests.
               const lancement = lancementDeLaPasse({
                 lourde,
                 cmd: 'npm',
@@ -1440,8 +1440,11 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
       }
     );
     const code = r.status ?? 1;
-    // The 75 of `npm run verifier` is its wait for the lock or for room under /tmp at its bound.
-    return { code, dossier, attente: finale && code === A_REPASSER };
+    // The 75 of `npm run verifier` is its wait for the lock or for room under /tmp at its bound,
+    // which waits again without counting; cut by the watch of its memory (MEMOIRE_COUPEE in its
+    // results), it is a replay that counts.
+    const coupee = existsSync(path.join(dossier, MEMOIRE_COUPEE));
+    return { code, dossier, attente: finale && code === A_REPASSER && !coupee };
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) {
       throw e;
@@ -1949,7 +1952,8 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
         : commandesDuPlan(ctx, liste, fichiers);
   const resultats = commandes.map(({ args, env }) => {
     let r = npm(ctx, 'controles', args, env);
-    // The 75 of verifier is final (its wait for the lock reached its bound); a command of the
+    // The 75 of verifier is final (its wait for the lock reached its bound, or the watch of its
+    // memory cut it); a command of the
     // checks plays once more, the gesture `rejeu`.
     if (r.code === A_REPASSER && !finale) {
       geste(ctx, 'rejeu');

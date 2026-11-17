@@ -7,6 +7,8 @@
 //   repository).
 // - The core imports ./langages.mjs, never this entry: the command (bin/grillhouse.mjs) loads it
 //   at each call, and a script of the core it loads before running one would not run again.
+import { fileURLToPath } from 'node:url';
+
 export * from './langages.mjs';
 
 // The services of the core to a module of language: the plan of an envelope, the progress of a
@@ -57,12 +59,17 @@ export {
   ouvrirBase,
   retirerALInterruption,
 } from './mesure/base-de-passe.mjs';
-export { A_REPASSER } from './codes-de-sortie.mjs';
+export { A_REPASSER, MEMOIRE_COUPEE } from './codes-de-sortie.mjs';
+/** The watch of the memory of a pass (./garde-de-la-memoire.mjs), the script a pass runs under. */
+export const GARDE_DE_LA_MEMOIRE = fileURLToPath(
+  new URL('./garde-de-la-memoire.mjs', import.meta.url)
+);
 export { ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
 export {
   avecLaMachineEtUnePlace,
   surUnePlace,
   travailleursDeLaSeance,
+  VARIABLE_TRAVAILLEURS,
 } from './places-de-la-machine.mjs';
 export { attendreDeLaPlace, AttenteDeLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
 export { CONFIG_BEADS, ecrireLePrefixe, prefixe } from './prefixe-des-tickets.mjs';

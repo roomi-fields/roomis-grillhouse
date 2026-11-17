@@ -291,7 +291,7 @@ process.exit(paquets(process.argv[2]).some(p => p.pkg.name === "@roomi-fields/gr
   GRILLHOUSE_ROUGES="$rouges" GRILLHOUSE_RESULTATS="$resultats" GRILLHOUSE_VERIFICATION_SORTE=Nuit monter npm --prefix "$copie" run verifier -- --force
   code=$?
   if [ "$code" -eq 75 ]; then
-    echo "⏱ la passe complète est à repasser (code 75) : l'attente de la machine a atteint sa borne."
+    echo "⏱ la passe complète est à repasser (code 75) : l'attente de la machine a atteint sa borne, ou la veille de la mémoire a coupé la passe."
     return 75
   fi
   if [ "$code" -ne 0 ]; then

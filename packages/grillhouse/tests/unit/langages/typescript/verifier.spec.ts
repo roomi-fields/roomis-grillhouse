@@ -18,7 +18,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandeDe } from '../../../../scripts/sous-commandes.mjs';
@@ -142,6 +142,56 @@ function lancer(
 
 // A package whose script of the tests exits 75.
 const A_75 = { 'test:unit': 'node -e "process.exit(75)"' };
+
+// The root's turbo.json of <d> passes <variable> on to every task besides its own.
+function transmettre(d: ReturnType<typeof depot>, variable: string) {
+  const f = path.join(d.racine, 'turbo.json');
+  const conf = JSON.parse(readFileSync(f, 'utf8')) as { globalPassThroughEnv: string[] };
+  conf.globalPassThroughEnv.push(variable);
+  writeFileSync(f, json(conf));
+}
+
+describe('npm run verifier borne ses tests et sa mémoire', { timeout: 180_000 }, () => {
+  it('each task of tests receives the cores shared between the tasks of tests side by side', async () => {
+    const ecrit = {
+      'test:unit':
+        "node -e \"require('node:fs').writeFileSync('travailleurs.txt', String(process.env.GRILLHOUSE_TRAVAILLEURS))\"",
+    };
+    const d = depot('vert', 'vert', 0, { a: ecrit, b: ecrit });
+    transmettre(d, 'GRILLHOUSE_TRAVAILLEURS');
+    const r = await lancer(d);
+    expect(r.status, r.sortie).toBe(0);
+    // Two packages play tests: the tasks of tests side by side are two at most.
+    const coeurs = availableParallelism();
+    const attendu = String(
+      Math.max(1, Math.floor(coeurs / Math.min(Math.max(1, Math.floor(coeurs / 2)), 2)))
+    );
+    const lus = ['a', 'b'].map(n =>
+      readFileSync(path.join(d.racine, 'packages', n, 'travailleurs.txt'), 'utf8')
+    );
+    expect(lus).toEqual([attendu, attendu]);
+  });
+
+  it('memory run out, the pass is cut: 75, its reason said, and its results say the cut', async () => {
+    const attend = { 'test:unit': 'node -e "setTimeout(() => {}, 120000)"' };
+    const d = depot('vert', 'vert', 0, { a: attend });
+    const resultats = path.join(d.racine, 'resultats');
+    mkdirSync(resultats);
+    const r = await lancer({
+      ...d,
+      env: {
+        ...d.env,
+        GRILLHOUSE_RESULTATS: resultats,
+        GRILLHOUSE_MEMOIRE_D_ESSAI: JSON.stringify({ disponible: 0, echange: 0 }),
+      },
+    });
+    expect(r.status, r.sortie).toBe(75);
+    expect(r.sortie).toContain('mémoire épuisée');
+    expect(readFileSync(path.join(resultats, 'memoire-coupee.txt'), 'utf8')).toContain(
+      'mémoire épuisée'
+    );
+  });
+});
 
 describe('npm run verifier', { timeout: 180_000 }, () => {
   it('bd7 critère 4: a delay past under load is a red at once, named; nothing waits for rest, nothing plays again', async () => {

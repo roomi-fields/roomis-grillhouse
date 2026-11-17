@@ -7,3 +7,9 @@
 //   wait of the lock of the machine at its bound (scripts/verrou-de-machine.mjs), a stop of the
 //   circuit that a gesture settles (scripts/etapes.mjs, ARRETS).
 export const A_REPASSER = 75;
+
+/**
+ * The file a pass cut by the watch of its memory (scripts/garde-de-la-memoire.mjs) leaves in its
+ * results directory, its reason inside: its 75 is no wait of the machine, and counts as a replay.
+ */
+export const MEMOIRE_COUPEE = 'memoire-coupee.txt';

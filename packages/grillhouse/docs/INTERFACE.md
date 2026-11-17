@@ -366,10 +366,11 @@ l'interruption), la pression de la machine et son verrou, les places de la machi
 l'environnement de ses enfants, son code de sortie, ou celui de l'attente qui s'arrête, 75 à sa
 borne, 1 pour un serveur qui ne répond pas ; `avecLaMachineEtUnePlace` : une passe lourde, la place
 puis le verrou ; aucune place dans la CI ni dans l'enveloppe d'un agent, que couvre la place de sa
-séance), les travailleurs d'une séance
-(`travailleursDeLaSeance(env)` : le nombre que donne `GRILLHOUSE_TRAVAILLEURS`, max(1, cœurs ÷
-places), que le module passe à son outil — `maxWorkers`, `-j`, `-n` — ou `null` pour une passe
-lourde, qui garde tous les cœurs ; une valeur fautive est refusée par son nom), le dernier vert, le
+séance), les travailleurs des tests d'une tâche
+(`travailleursDeLaSeance(env)` : le nombre que donne `GRILLHOUSE_TRAVAILLEURS`, que posent une
+séance (max(1, cœurs ÷ places)) et une passe lourde (les cœurs partagés entre ses tâches de tests
+côte à côte), et que le module passe à son outil — `maxWorkers`, `-j`, `-n` — ou `null` sans la
+variable, l'outil gardant son défaut ; une valeur fautive est refusée par son nom), le dernier vert, le
 registre des résultats (`registre-des-resultats.mjs` : `garderLeRegistre(etat, rapports)`, les
 tests verts de chaque fichier d'une passe, que la passe complète écrit quand `GRILLHOUSE_RESULTATS`
 nomme son dossier de résultats ; `lireLeRegistre(racine)`, le registre de la branche quand son

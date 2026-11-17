@@ -446,8 +446,8 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
   const junit = path.join(m.workspace_root, 'target', 'nextest', PROFIL, 'junit.xml');
   const nextest = ['nextest', 'run', '--tool-config-file', `${PROFIL}:${NEXTEST}`];
   nextest.push('--profile', PROFIL, '--no-fail-fast');
-  // The workers of a session of an agent (GRILLHOUSE_TRAVAILLEURS): `-j` of cargo and of nextest;
-  // a heavy pass, without it, keeps every core.
+  // The workers of the task (GRILLHOUSE_TRAVAILLEURS, which a session and a pass set): `-j` of
+  // cargo and of nextest; without the variable, their own default.
   const travailleurs = travailleursDeLaSeance(process.env);
   const j = travailleurs === null ? [] : ['-j', String(travailleurs)];
   // A bench plays on one thread (`--test-threads 1`, which `-j` of nextest is the alias of): it

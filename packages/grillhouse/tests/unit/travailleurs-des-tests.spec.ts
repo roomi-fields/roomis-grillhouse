@@ -2,8 +2,9 @@
 // grillhouse-9kq critères 5 et 17 — le parallélisme des tests d'une séance d'agent : chaque séance
 // reçoit max(1, cœurs ÷ places) travailleurs (GRILLHOUSE_TRAVAILLEURS), que le module de chaque
 // langage passe à son outil (Vitest `maxWorkers`, nextest et cargo `-j`, pytest `-n`) ; la séance
-// joue sous nice et ionice. Une passe lourde, sans la variable, garde tous les cœurs (l'outil
-// décide). Modèle : `make -jN`, Bazel `--local_cpu_resources`, Slurm (cœurs réservés par tâche).
+// joue sous nice et ionice. Une passe lourde ne garde pas la variable héritée : elle pose la
+// sienne, les cœurs partagés entre ses tâches de tests (verifier.mjs). Sans la variable, l'outil
+// décide. Modèle : `make -jN`, Bazel `--local_cpu_resources`, Slurm (cœurs réservés par tâche).
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
@@ -82,7 +83,7 @@ describe('grillhouse-9kq critères 5 et 17 — Vitest (module typescript)', () =
     expect(maxWorkers('1')).toBe(1);
   });
 
-  it('sans la variable (une passe lourde), maxWorkers reste celui de Vitest : tous les cœurs', () => {
+  it('sans la variable, maxWorkers reste celui de Vitest : tous les cœurs', () => {
     expect(maxWorkers()).toBeNull();
   });
 });
@@ -281,7 +282,7 @@ describe('grillhouse-9kq critères 5 et 18 — le lancement de chaque séance et
     });
   });
 
-  describe('une passe lourde (lancementDeLaPasse, lourde: true) garde tous les cœurs', () => {
+  describe('une passe lourde (lancementDeLaPasse, lourde: true) ne garde pas la variable héritée', () => {
     const lancer = (env: Record<string, string>) =>
       lancementDeLaPasse({ lourde: true, cmd: 'npm', args: ['run', 'verifier'], env });
 

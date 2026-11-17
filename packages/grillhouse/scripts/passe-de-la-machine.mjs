@@ -21,7 +21,8 @@ export function passeLourde({ args }) {
 
 /**
  * What a pass or a session out of the envelope launches: a heavy pass runs its command as it is,
- * every core kept (no GRILLHOUSE_TRAVAILLEURS, even inherited); any other runs under `nice` and
+ * without the workers it inherits (GRILLHOUSE_TRAVAILLEURS): it shares the cores between its own
+ * tasks of tests (scripts/langages/typescript/verifier.mjs); any other runs under `nice` and
  * `ionice`, GRILLHOUSE_TRAVAILLEURS set to max(1, cores ÷ places).
  * @param {{ lourde: boolean, cmd: string, args: string[], env: Record<string, string | undefined> }} o
  * @returns {{ cmd: string, args: string[], env: Record<string, string | undefined> }}

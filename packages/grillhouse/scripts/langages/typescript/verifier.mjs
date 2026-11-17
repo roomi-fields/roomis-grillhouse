@@ -44,7 +44,13 @@
 //   every task whose prerequisites passed plays, and each red is named. <n>, the tasks side by
 //   side, is half the cores of the machine, one at least (`concurrence`): each task of tests is
 //   itself parallel (Vitest's workers), as make's `-j` and Bazel's `--local_cpu_resources` bound a
-//   build by the machine; a `--concurrency` among the arguments replaces it.
+//   build by the machine; a `--concurrency` among the arguments replaces it. The workers of each
+//   task of tests are the cores shared between the tasks of tests side by side
+//   (`travailleursDeLaPasse`, GRILLHOUSE_TRAVAILLEURS): the test processes of a pass never
+//   outnumber the cores.
+// - The run of Turborepo plays under the watch of the memory (scripts/garde-de-la-memoire.mjs): cut
+//   when the memory available and the free swap run out, or when the machine waits for its memory
+//   half of the time, the pass says why and ends at 75, « à repasser », no task judged.
 // - The pass plays no measure of time (grillhouse-bd7): the time budget benches and the time
 //   witnesses (a test file that imports `mesurerAuRepos`) are out of the day, as the night tests
 //   are, and the night plays them (scripts/langages/typescript/vitest-config/cibles.mjs,
@@ -106,6 +112,7 @@ import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
+  A_REPASSER,
   AttenteDeLaMachine,
   AVANCEMENT,
   avecLaMachineEtUnePlace,
@@ -115,8 +122,10 @@ import {
   garderLeRegistre,
   garderLeTotal,
   garderLeVert,
+  GARDE_DE_LA_MEMOIRE,
   LA_FORME,
   langageDe,
+  MEMOIRE_COUPEE,
   lireLaTranche,
   lireLeRegistre,
   mesure,
@@ -128,6 +137,7 @@ import {
   SCRIPT_DES_TESTS,
   TESTS_CIBLES,
   testsCibles,
+  VARIABLE_TRAVAILLEURS,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { RESULTATS } from '../../resultats.mjs';
@@ -152,9 +162,29 @@ const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
 // The tasks a pass plays side by side on a machine of <coeurs> cores: half of them, one at least.
 const concurrence = (coeurs = availableParallelism()) => Math.max(1, Math.floor(coeurs / 2));
 
+// The tasks side by side <args> ask for (`--concurrency=<n>`, `--concurrency <n>`), null without
+// a whole number.
+function concurrenceDemandee(args) {
+  const i = args.findIndex(a => CONCURRENCE.test(a));
+  if (i < 0) {
+    return null;
+  }
+  const v = args[i].includes('=') ? args[i].split('=')[1] : args[i + 1];
+  return /^[1-9]\d*$/.test(v ?? '') ? Number(v) : null;
+}
+
+/**
+ * The workers of each task of tests of a pass: the <coeurs> shared between the tasks of tests
+ * played side by side, at most <coteACote> and at most the <paquets> that play tests; one at least.
+ * @param {{ coeurs: number, coteACote: number, paquets: number }} o
+ * @returns {number}
+ */
+export const travailleursDeLaPasse = ({ coeurs, coteACote, paquets: n }) =>
+  Math.max(1, Math.floor(coeurs / Math.max(1, Math.min(coteACote, n))));
+
 // The full pass in <racine>, its arguments <args> (`--gardes` among them: the guards alone), under
 // <env> and the lock of the machine; its verdict, 0 or 1, or 75 when the wait for the lock, or for
-// room in the temporary directory, reaches its bound. `dire` writes a line; `coeurs`, the cores of the machine.
+// room in the temporary directory, reaches its bound, or when the watch of the memory cuts the run. `dire` writes a line; `coeurs`, the cores of the machine.
 export function verifier({
   racine = process.cwd(),
   args: demandes = [],
@@ -211,22 +241,24 @@ export function verifier({
   }
 }
 
-// Whether a package of <racine>, or its root, plays tests (a script `test:unit`).
-function depotAvecTests(racine) {
+// The packages of <racine> that play tests (a script `test:unit`), its root for a repository
+// without packages.
+function paquetsAvecTests(racine) {
   const liste = paquets(racine);
   if (liste.length === 0) {
     try {
-      return Boolean(
-        JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts?.[
-          SCRIPT_DES_TESTS
-        ]
-      );
+      return JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts?.[
+        SCRIPT_DES_TESTS
+      ]
+        ? 1
+        : 0;
     } catch {
-      return false;
+      return 0;
     }
   }
-  return liste.some(p => !p.hors && p.pkg.scripts?.[SCRIPT_DES_TESTS]);
+  return liste.filter(p => !p.hors && p.pkg.scripts?.[SCRIPT_DES_TESTS]).length;
 }
+const depotAvecTests = racine => paquetsAvecTests(racine) > 0;
 
 // Whether <args> hold a filter of Turborepo (`--filter=<f>`, `--filter <f>`, `-F <f>`).
 const filtre = args => args.some(a => a.startsWith('--filter=') || a === '--filter' || a === '-F');
@@ -418,11 +450,22 @@ function jouerLaPasse({ racine, demandes, args, tout, ajouts, env, dire, coeurs,
     : tout
       ? testsCibles({ arguments: [], force: true })
       : undefined;
+  const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
+  // The workers of each task of tests: the cores shared between those played side by side.
+  const travailleurs = travailleursDeLaPasse({
+    coeurs,
+    coteACote: concurrenceDemandee(args) ?? concurrence(coeurs),
+    paquets: paquetsAvecTests(racine),
+  });
   const e =
     gardesSeules || sansTests
       ? propre
-      : { ...propre, ...ajouts, ...(cibles ? { [TESTS_CIBLES]: JSON.stringify(cibles) } : {}) };
-  const borne = args.some(a => CONCURRENCE.test(a)) ? [] : [`--concurrency=${concurrence(coeurs)}`];
+      : {
+          ...propre,
+          ...ajouts,
+          ...(cibles ? { [TESTS_CIBLES]: JSON.stringify(cibles) } : {}),
+          [VARIABLE_TRAVAILLEURS]: String(travailleurs),
+        };
   const a = [
     ...tachesDeLaPasse(demandes, controlesDuDepot(racine)),
     '--continue=dependencies-successful',
@@ -437,11 +480,25 @@ function jouerLaPasse({ racine, demandes, args, tout, ajouts, env, dire, coeurs,
   const runs = path.join(racine, '.turbo', 'runs');
   const existait = existsSync(runs);
   const avant = new Set(lister(runs));
-  const r = spawnSync('turbo', ['run', ...a, '--summarize'], {
-    cwd: racine,
-    env: e,
-    stdio: 'inherit',
-  });
+  // Under the watch of the memory, which writes in its witness why it cut the run.
+  const temoin = path.join(e.TMPDIR || tmpdir(), `memoire-coupee-${process.pid}`);
+  rmSync(temoin, { force: true });
+  const r = spawnSync(
+    process.execPath,
+    [GARDE_DE_LA_MEMOIRE, '--temoin', temoin, '--', 'turbo', 'run', ...a, '--summarize'],
+    { cwd: racine, env: e, stdio: 'inherit' }
+  );
+  if (existsSync(temoin)) {
+    const raison = readFileSync(temoin, 'utf8').trim();
+    rmSync(temoin, { force: true });
+    garderLesResumes(racine, avant, e);
+    // Said to whoever reads the results of the pass: its 75 is a cut, no wait of the machine.
+    if (e[RESULTATS]) {
+      writeFileSync(path.join(e[RESULTATS], MEMOIRE_COUPEE), `${raison}\n`);
+    }
+    dire(`⛔ ${raison}`);
+    return A_REPASSER;
+  }
   const nouveaux = lister(runs).filter(f => !avant.has(f) && f.endsWith('.json'));
   let resume = null;
   if (nouveaux.length === 1) {

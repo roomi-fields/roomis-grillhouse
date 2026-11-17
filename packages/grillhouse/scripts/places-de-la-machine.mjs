@@ -78,9 +78,9 @@ export function travailleursDe({
 }
 
 /**
- * The workers a session of an agent plays its tests on, as its environment gives them
- * (GRILLHOUSE_TRAVAILLEURS, set by the envelope): what the module of each language passes to its
- * tool. Null without the variable (a heavy pass): the tool keeps every core.
+ * The workers a task plays its tests on, as its environment gives them (GRILLHOUSE_TRAVAILLEURS,
+ * set by the envelope for a session, by the pass for a heavy pass): what the module of each
+ * language passes to its tool. Null without the variable: the tool keeps its own default.
  * @param {Record<string, string | undefined>} [env]
  * @returns {number | null}
  * @throws {Error} naming GRILLHOUSE_TRAVAILLEURS when its value is not a positive integer

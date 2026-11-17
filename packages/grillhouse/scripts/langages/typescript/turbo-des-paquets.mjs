@@ -139,7 +139,7 @@
 // inherits the root's. The generator adds the variable to the `env` of the root's `test:unit`,
 // the project's entries kept, and the check refuses a `test:unit` of the root without it.
 //
-// Four variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
+// Some variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
 // names them, Turborepo's strict mode of the variables keeping out of a task every variable its
 // configuration does not name. The results directory of a run (`GRILLHOUSE_RESULTATS`,
 // scripts/resultats.mjs), where the guards write their SARIF, Turborepo its summaries and Vitest
@@ -149,7 +149,9 @@
 // progress directory of a pass (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), where Vitest
 // writes the files done and planned of each task, which the board reads; the temporary directory
 // (`TMPDIR`), the base of a pass (scripts/mesure/base-de-passe.mjs), where every task writes
-// its temporary files and which goes at the end of the pass. The generator adds each
+// its temporary files and which goes at the end of the pass; the workers of the tests of a task
+// (`GRILLHOUSE_TRAVAILLEURS`, scripts/places-de-la-machine.mjs), the bound a session or a pass
+// sets, which the tool of each language reads. The generator adds each
 // one the root lacks, the project's entries kept, and the check refuses a
 // root without one.
 //
@@ -169,6 +171,7 @@ import {
   inscrireLePlan,
   paquetsSansPackageJson,
   TRACE,
+  VARIABLE_TRAVAILLEURS as TRAVAILLEURS,
 } from '../../services-du-noyau.mjs';
 import { matieres } from './consommateurs.mjs';
 import { parcourir } from './parcours.mjs';
@@ -307,7 +310,7 @@ const attenteDuTypage = racine => (paquets(racine).length ? ['build', '^build'] 
 // The temporary directory of a process, which names the base of its pass.
 const TEMPORAIRE = 'TMPDIR';
 // The variables the root's `globalPassThroughEnv` names, and why, as the check says it.
-const PASSAGES = [RESULTATS, CHANGEMENTS, AVANCEMENT, TEMPORAIRE];
+const PASSAGES = [RESULTATS, CHANGEMENTS, AVANCEMENT, TEMPORAIRE, TRAVAILLEURS];
 const POURQUOI = {
   [RESULTATS]: "où les gardes, Turborepo et Vitest écrivent les résultats qu'un circuit lit",
   [CHANGEMENTS]:
@@ -316,6 +319,8 @@ const POURQUOI = {
     "le dossier d'avancement d'une passe, où Vitest écrit ses fichiers faits et prévus que lit le tableau",
   [TEMPORAIRE]:
     'la base de la passe, où chaque tâche écrit ses fichiers temporaires, effacée à sa fin',
+  [TRAVAILLEURS]:
+    "les travailleurs des tests d'une tâche, la borne que posent une séance et une passe",
 };
 // The variables of the tools of the project at <racine> (`grillhouse.outils` of its package.json,
 // scripts/outils-cles.mjs), in the order it declares them: the paths of tools outside the

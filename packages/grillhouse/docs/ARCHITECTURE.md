@@ -963,7 +963,10 @@ nombre de cœurs et si 4 Go au moins sont libres, deux départs étant espacés 
 espacement), garde le rang d'arrivée du circuit (pris à son lancement) et s'arrête à la borne de
 l'attente du verrou, 75. Chaque séance joue ses tests sur max(1, cœurs ÷ places) travailleurs
 (`GRILLHOUSE_TRAVAILLEURS`, lu par le module de chaque langage : `maxWorkers` de Vitest, `-j` de
-cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; une passe lourde garde tous les cœurs.
+cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; la variable atteint chaque tâche par le
+`globalPassThroughEnv` de la racine, que le mode strict de Turborepo exige. Une passe lourde partage
+les cœurs entre ses tâches de tests côte à côte : les processus de tests d'une passe ne dépassent
+jamais le nombre de cœurs.
 Une passe lourde prend sa place, puis le verrou exclusif de la machine ; une passe ciblée part
 pendant qu'une passe lourde tient le verrou.
 
@@ -996,7 +999,14 @@ reprend, comme le serveur de tâches de GNU make. L'attente a une borne, 60 min
 (`GRILLHOUSE_ATTENTE_MACHINE_MS`), plus longue que la plus longue passe complète mesurée : au-delà,
 la mesure s'arrête « à repasser » (code 75), comme `flock -w`. Un verrou tenu par un ancêtre de
 celui qui attend est un blocage : l'attente le dit tout de suite et s'arrête, rouge. La passe
-borne ses tâches côte à côte à la moitié des cœurs. Ainsi une mesure rend le résultat du code, et
+borne ses tâches côte à côte à la moitié des cœurs, et les travailleurs de chaque tâche de tests aux
+cœurs partagés entre elles (`travailleursDeLaPasse`). Elle joue sous la veille de la mémoire
+(`scripts/garde-de-la-memoire.mjs`, comme earlyoom et systemd-oomd) : quand la mémoire disponible et
+l'échange libre passent ensemble sous 4 Go, ou que la machine attend sa mémoire la moitié du temps
+(`/proc/pressure/memory`, `full avg10` à 50 %), la veille arrête la commande et chaque processus
+qu'elle a lancé ; la passe dit pourquoi et finit « à repasser » (75), avant que le noyau ne tue. Ce
+75 n'est pas une attente de la machine : le circuit le compte comme un rejeu (`memoire-coupee.txt`
+dans les résultats de la passe), et une passe coupée de nouveau monte au superviseur. Ainsi une mesure rend le résultat du code, et
 non celui d'une autre mesure à côté, et aucune passe ne reste figée sans le dire.
 
 **Le cadre passe avant les projets** : une mesure jouée dans le dépôt du cadre lui-même (le

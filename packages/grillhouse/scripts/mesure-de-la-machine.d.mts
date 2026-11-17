@@ -5,6 +5,12 @@ import type { MesureDeLaMachine } from './regles-des-places.mjs';
 /** The memory available now, in bytes. */
 export function memoireDisponible(): number;
 
+/** What <texte> (/proc/meminfo) says the machine still gives, in bytes. */
+export function lireLaMemoire(texte: string): { disponible: number | null; echange: number };
+
+/** What the machine still gives now: the memory available and the free swap, in bytes. */
+export function memoireRestante(): { disponible: number | null; echange: number };
+
 /** The machine now: its cores, its load over one minute, its free memory in bytes. */
 export function mesureDeLaMachine(): MesureDeLaMachine;
 

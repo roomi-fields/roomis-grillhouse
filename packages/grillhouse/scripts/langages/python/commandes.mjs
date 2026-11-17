@@ -259,8 +259,8 @@ function jouerLesTests(p, choix, options) {
     const cache = path.join(p.racine, CACHE_DE_PYTEST, path.relative(p.racine, c.dossier));
     const args = [...UV_RUN, '--group', GROUPE, 'pytest', '-o', `cache_dir=${cache}`];
     args.push(...p.junit(c.nom, c.dossier));
-    // The workers of a session of an agent (GRILLHOUSE_TRAVAILLEURS): `-n` of pytest-xdist, for a
-    // package whose test group declares it; a heavy pass, without the variable, plays alone.
+    // The workers of the task (GRILLHOUSE_TRAVAILLEURS, which a session and a pass set): `-n` of
+    // pytest-xdist, for a package whose test group declares it; without the variable, one process.
     const travailleurs = travailleursDeLaSeance(process.env);
     if (travailleurs !== null && declareXdist(c.dossier)) {
       args.push('-n', String(travailleurs));

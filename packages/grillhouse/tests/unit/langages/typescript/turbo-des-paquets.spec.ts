@@ -871,6 +871,7 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
+      'GRILLHOUSE_TRAVAILLEURS',
     ]);
     const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
     ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
@@ -881,6 +882,7 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
+      'GRILLHOUSE_TRAVAILLEURS',
     ]);
   });
 
@@ -901,6 +903,7 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
+      'GRILLHOUSE_TRAVAILLEURS',
     ]);
     expect(lancer(racine, []).status).toBe(0);
   });
@@ -964,6 +967,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'mesure/pression.mjs',
       // What pression.mjs imports: the exit codes (grillhouse-4nr.5).
       'codes-de-sortie.mjs',
+      // What services-du-noyau.mjs passes on: the watch of the memory of a pass.
+      'garde-de-la-memoire.mjs',
       // What services-du-noyau.mjs re-exports: the prefix of the tickets (grillhouse-4nr.12).
       'prefixe-des-tickets.mjs',
       // What services-du-noyau.mjs re-exports: the providers of grillhouse.donnees, and what it imports.

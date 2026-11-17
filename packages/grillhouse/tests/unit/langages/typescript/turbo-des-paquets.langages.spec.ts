@@ -349,6 +349,7 @@ describe('grillhouse-44b.4, critères 5 et 12 — les outils du projet dans glob
       'GRILLHOUSE_CHANGEMENTS',
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
+      'GRILLHOUSE_TRAVAILLEURS',
       'MON_OUTIL',
       'AUTRE_OUTIL',
     ]);

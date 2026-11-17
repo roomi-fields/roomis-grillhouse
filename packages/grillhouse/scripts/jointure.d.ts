@@ -433,6 +433,12 @@ export function retirerALInterruption(retirer: () => void): () => void;
 export const SEUIL_PRESSION: number;
 /** The exit code of a pass « à repasser » (scripts/codes-de-sortie.mjs). */
 export const A_REPASSER: number;
+/** The file a pass cut by the watch of its memory leaves in its results directory. */
+export const MEMOIRE_COUPEE: string;
+/** The script of the watch of the memory, which a pass runs under (scripts/garde-de-la-memoire.mjs). */
+export const GARDE_DE_LA_MEMOIRE: string;
+/** The variable of the workers of the tests of a task (scripts/places-de-la-machine.mjs). */
+export const VARIABLE_TRAVAILLEURS: string;
 /** The file of Beads that holds the prefix of the tickets (scripts/prefixe-des-tickets.mjs). */
 export const CONFIG_BEADS: string;
 /** The prefix of the tickets, read from the key `issue-prefix`; throws when it is missing. */
@@ -456,8 +462,9 @@ export const PASSE_ROUGE: string;
 export function garderLeVert(etat: unknown): void;
 /** The measure of the repository at `racine` against its last green. */
 export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): unknown;
-/** The workers a session of an agent plays its tests on (`GRILLHOUSE_TRAVAILLEURS` of `env`), or
- * null in a heavy pass (every core); refuses a value that is not a positive integer, by name. */
+/** The workers a task plays its tests on (`GRILLHOUSE_TRAVAILLEURS` of `env`, which a session
+ * and a pass set), or null without the variable (the tool's own default); refuses a value that is
+ * not a positive integer, by name. */
 export function travailleursDeLaSeance(env?: NodeJS.ProcessEnv): number | null;
 /** The wait for the lock of the machine, ended without it (scripts/verrou-de-machine.mjs). */
 export class AttenteDeLaMachine extends Error {}

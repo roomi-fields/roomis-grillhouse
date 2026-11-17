@@ -59,6 +59,7 @@
     "scripts/flux-des-paquets.mjs",
     "scripts/fusion-du-changelog.mjs",
     "scripts/gabarit-absent.mjs",
+    "scripts/garde-de-la-memoire.mjs",
     "scripts/gardes-du-cadre.mjs",
     "scripts/greffons.mjs",
     "scripts/groupe-cles.mjs",

@@ -173,9 +173,9 @@ export default {
   },
 };
 
-// The workers of a session of an agent: `maxWorkers` of Vitest is GRILLHOUSE_TRAVAILLEURS
-// (max(1, cores ÷ places), scripts/places-de-la-machine.mjs); without it (a heavy pass), Vitest's
-// own default stands: every core.
+// The workers of a task: `maxWorkers` of Vitest is GRILLHOUSE_TRAVAILLEURS, which a session
+// (max(1, cores ÷ places), scripts/places-de-la-machine.mjs) and a pass (the cores shared between
+// its tasks of tests, ./verifier.mjs) set; without it, Vitest's own default stands: every core.
 function travailleurs() {
   const n = travailleursDeLaSeance(process.env);
   return n === null ? {} : { maxWorkers: n };

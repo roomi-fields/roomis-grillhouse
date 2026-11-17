@@ -12,19 +12,39 @@ import { departDe, leMemeVivant, vivant } from './mesure/base-de-passe.mjs';
 export { departDe };
 
 /**
+ * What <texte> (/proc/meminfo) says the machine still gives, in bytes: the memory available
+ * (MemAvailable, null when it does not say it) and the free swap (SwapFree, 0 without swap).
+ * @param {string} texte
+ * @returns {{ disponible: number | null, echange: number }}
+ */
+export function lireLaMemoire(texte) {
+  const kio = cle => new RegExp(`^${cle}:\\s+(\\d+) kB`, 'm').exec(texte)?.[1];
+  const disponible = kio('MemAvailable');
+  return {
+    disponible: disponible === undefined ? null : Number(disponible) * 1024,
+    echange: Number(kio('SwapFree') ?? 0) * 1024,
+  };
+}
+
+/**
+ * What the machine still gives now, as `lireLaMemoire`; nothing known where /proc/meminfo does
+ * not read.
+ * @returns {{ disponible: number | null, echange: number }}
+ */
+export function memoireRestante() {
+  try {
+    return lireLaMemoire(readFileSync('/proc/meminfo', 'utf8'));
+  } catch {
+    return { disponible: null, echange: 0 };
+  }
+}
+
+/**
  * The memory available now, in bytes (MemAvailable of the kernel, else the free memory of node).
  * @returns {number}
  */
 export function memoireDisponible() {
-  try {
-    const kio = /^MemAvailable:\s+(\d+) kB/m.exec(readFileSync('/proc/meminfo', 'utf8'))?.[1];
-    if (kio) {
-      return Number(kio) * 1024;
-    }
-  } catch {
-    // no /proc/meminfo: the free memory of node
-  }
-  return freemem();
+  return memoireRestante().disponible ?? freemem();
 }
 
 /**
