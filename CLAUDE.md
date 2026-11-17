@@ -59,8 +59,9 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   chaque motif depuis la racine : un fichier qu'un lecteur ne peut pas construire, une page lue
   sur GitHub ou une somme de contrôle publiée ; l'intégration, la file et l'avance d'une copie
   sur main ne le fusionnent pas, elles prennent la version de main et rejouent sa commande sur le
-  lot appliqué ; lue dans l'arbre principal ; une clé sans commande, sans fichiers ou avec un
-  motif hors du dépôt est refusée par son nom avant tout travail).
+  lot appliqué ; lue dans l'arbre principal ; une entrée que le lot retire de la clé n'est plus
+  rejouée, et ses fichiers suivent le lot, leur suppression comprise ; une clé sans commande, sans
+  fichiers ou avec un motif hors du dépôt est refusée par son nom avant tout travail).
 - Le nombre de circuits à la fois : la clé `grillhouse.circuits` du `package.json` (un entier
   ≥ 1, **1** quand elle est absente : les circuits actifs du projet à la fois, que la file des
   tickets tient ; un circuit arrêté sur une question rend sa place, et repris, la redemande avant

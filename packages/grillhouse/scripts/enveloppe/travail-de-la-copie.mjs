@@ -70,7 +70,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import { couvertPar, encoreDeclares, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 
@@ -121,7 +121,9 @@ function lesCles(copie) {
  * deletion of a file main changed), whose patches are `restant`. With <cles> (`lesCles`), the
  * generated files the lot (or one of <autres>, the copy's untracked files) touches are left out,
  * then written again by their command once the lot applies without conflict; `refus`, a command
- * that fails.
+ * that fails. A generated file the lot removes from the key (`encoreDeclares`) follows the lot
+ * instead: its deletion is done, any other change applied as a file of the lot, its command not
+ * played.
  * @param {string} copie
  * @param {Buffer} lot
  * @param {{ engendres: any[], env: NodeJS.ProcessEnv } | null} [cles]
@@ -136,14 +138,11 @@ function appliquer(copie, lot, cles = null, autres = []) {
   const conflits = [];
   const enAttente = [];
   const gardes = [];
-  for (const morceau of morceauxDuLot(lot)) {
-    const noms = fichiersDuLot(copie, morceau);
-    if (noms.length && noms.every(f => exclus.includes(f))) {
-      continue;
-    }
+  const laisses = [];
+  const poser = (morceau, noms) => {
     const r = git(copie, ['apply', '--3way', '--allow-empty', '-'], morceau);
     if (r.status === 0) {
-      continue;
+      return;
     }
     const marques = enConflit(copie).filter(f => noms.includes(f));
     if (marques.length) {
@@ -152,13 +151,38 @@ function appliquer(copie, lot, cles = null, autres = []) {
       enAttente.push(...noms.slice(-1));
       gardes.push(morceau);
     }
+  };
+  for (const morceau of morceauxDuLot(lot)) {
+    const noms = fichiersDuLot(copie, morceau);
+    if (noms.length && noms.every(f => exclus.includes(f))) {
+      laisses.push({ morceau, noms });
+      continue;
+    }
+    poser(morceau, noms);
+  }
+  // The generated files the lot removes from the key follow the lot: main's version is not kept.
+  // A package.json left in conflict is read at the two versions of its conflict in the index.
+  const etage = n => String(git(copie, ['show', `:${n}:package.json`]).stdout);
+  const vivants = encoreDeclares(touches, copie, () => ({ base: etage(1), lot: etage(3) }));
+  for (const { morceau, noms } of laisses) {
+    if (noms.every(f => vivants.some(e => couvertPar(e.entiers, f)))) {
+      continue;
+    }
+    if (/^deleted file mode /m.test(morceau.toString('latin1'))) {
+      if (git(copie, ['rm', '-q', '-f', '--ignore-unmatch', '--', ...noms]).status !== 0) {
+        enAttente.push(...noms.slice(-1));
+        gardes.push(morceau);
+      }
+    } else {
+      poser(morceau, noms);
+    }
   }
   const restant = Buffer.concat(gardes);
-  if (conflits.length || enAttente.length || !touches.length || !cles) {
+  if (conflits.length || enAttente.length || !vivants.length || !cles) {
     return { conflits, enAttente, restant };
   }
   const refus = regenerer({
-    refs: touches.map(e => ({ ...e, cadre: false })),
+    refs: vivants.map(e => ({ ...e, cadre: false })),
     lancer: commande =>
       spawnSync('bash', ['-c', commande], {
         cwd: copie,

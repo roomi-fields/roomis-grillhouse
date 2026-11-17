@@ -22,6 +22,10 @@
 //   (scripts/integration/file.mjs) and the move of a copy onto main
 //   (scripts/enveloppe/travail-de-la-copie.mjs) call it on the tree where they applied the lot,
 //   main's version of each file taken.
+// - `encoreDeclares` keeps the generated files the tree where the lot is applied still declares, by
+//   their names: as a genrule of Bazel removed with its output in one change plays no more, the
+//   one a lot removes from the key is not played, and its files follow the lot, their deletion
+//   too. The command line stays main's: a lot removes one, it writes none.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { arbrePrincipal } from './outils-cles.mjs';
@@ -122,6 +126,134 @@ export function engendresDe(dir) {
     throw new Error(fautes.join('\n'));
   }
   return engendres;
+}
+
+// The names the text <texte> of a package.json declares under `grillhouse.engendres`, or null when
+// it does not read.
+function nomsDeclares(texte) {
+  try {
+    const declares = JSON.parse(texte)?.grillhouse?.engendres;
+    return new Set(
+      declares && typeof declares === 'object' && !Array.isArray(declares)
+        ? Object.keys(declares)
+        : []
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The generated files of <engendres> that the package.json of the tree <arbre>, where a lot is
+ * applied, still declares under their names. When it does not read (absent, or in conflict), the
+ * two versions of the conflict decide (<etages>, `{ base, lot }`, the text of the package.json
+ * before the lot and with it): the lot removes the ones its base declares and it does not. All of
+ * them when nothing reads.
+ * @template {{ nom: string }} E
+ * @param {E[]} engendres
+ * @param {string} arbre
+ * @param {(() => { base: string, lot: string }) | null} [etages]
+ * @returns {E[]}
+ */
+export function encoreDeclares(engendres, arbre, etages = null) {
+  let texte = null;
+  try {
+    texte = readFileSync(path.join(arbre, 'package.json'), 'utf8');
+  } catch {
+    return engendres;
+  }
+  const noms = nomsDeclares(texte);
+  if (noms) {
+    return engendres.filter(e => noms.has(e.nom));
+  }
+  const { base, lot } = etages?.() ?? { base: '', lot: '' };
+  const avant = nomsDeclares(base);
+  const avec = nomsDeclares(lot);
+  return avant && avec ? engendres.filter(e => !avant.has(e.nom) || avec.has(e.nom)) : engendres;
+}
+
+/**
+ * What the lots applied in the tree <arbre> ask of the references <references> (`{ nom, entiers }`,
+ * those of the project, <duProjet>, among them): `suivis`, the files of <entiers> (the files of
+ * the lots a reference writes in full, left out of their application) that follow the lots, the
+ * ones no reference still declared writes; `rejouees`, the references of <touchees> (those the
+ * lots touch) still declared, whose commands play. A reference of the frame is always declared.
+ * @template {{ nom: string, entiers: string[] }} R
+ * @param {{ references: R[], duProjet: R[], entiers: string[], touchees: R[], arbre: string }} o
+ * @returns {{ suivis: string[], rejouees: R[] }}
+ */
+export function partDesLots({ references, duProjet, entiers, touchees, arbre }) {
+  const declares = encoreDeclares(duProjet, arbre);
+  const retire = r => duProjet.includes(r) && !declares.includes(r);
+  return {
+    suivis: entiers.filter(f => !references.some(r => !retire(r) && couvertPar(r.entiers, f))),
+    rejouees: touchees.filter(r => !retire(r)),
+  };
+}
+
+/**
+ * The generated files of <engendres> still declared in the tree <arbre> that the lot of
+ * <fichiers> touches: those whose commands play once the lot is applied there.
+ * @template {{ nom: string, entiers: string[], lit: string[] }} E
+ * @param {E[]} engendres
+ * @param {string} arbre
+ * @param {string[]} fichiers
+ * @returns {E[]}
+ */
+export const aRejouer = (engendres, arbre, fichiers) =>
+  touchesPar(encoreDeclares(engendres, arbre), fichiers);
+
+/**
+ * Applies to the tree of <dansCopie> (git in the tree) the files <fichiers> of the lots <lots>
+ * (patch files) that an earlier application left out, those of a generated file the lots remove
+ * from the key: a deletion is done whatever main's version is, any other change is applied three
+ * ways, to the index too. Null, or the refusal.
+ * @param {{ lots: string[], fichiers: string[], dansCopie: (...args: string[]) => import('node:child_process').SpawnSyncReturns<string> }} o
+ * @returns {string | null}
+ */
+export function poserLesRetires({ lots, fichiers, dansCopie }) {
+  if (!fichiers.length) {
+    return null;
+  }
+  const seuls = fichiers.map(f => `--include=${f}`);
+  for (const p of lots) {
+    const supprimes = dansCopie('apply', '--summary', ...seuls, p)
+      .stdout.split('\n')
+      .map(l => /^ delete mode \d+ (.+)$/.exec(l)?.[1])
+      .filter(f => f !== undefined && fichiers.includes(f));
+    if (
+      supprimes.length &&
+      dansCopie('rm', '-q', '-f', '--ignore-unmatch', '--', ...supprimes).status !== 0
+    ) {
+      return `Les fichiers que le lot ${p} supprime ne se retirent pas :\n${supprimes.map(f => `  ${f}`).join('\n')}`;
+    }
+    const restent = fichiers.filter(f => !supprimes.includes(f)).map(f => `--include=${f}`);
+    if (restent.length) {
+      const r = dansCopie('apply', '--3way', '--index', '--allow-empty', ...restent, p);
+      if (r.status !== 0) {
+        return `Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolves the conflicts <conflits> of a rebase stopped in the tree of <dansCopie>, each on a file
+ * a generated file writes in full: main's version (`--ours`, the base of the rebase) for one of
+ * <vivants>, the generated files the tree still declares; the branch's version, its deletion too,
+ * for the others. Whether every conflict is resolved.
+ * @param {{ conflits: string[], vivants: { entiers: string[] }[], dansCopie: (...args: string[]) => import('node:child_process').SpawnSyncReturns<string> }} o
+ */
+export function prendreLesEngendres({ conflits, vivants, dansCopie }) {
+  const prendre = (cote, f) =>
+    dansCopie('checkout', cote, '--', f).status === 0 && dansCopie('add', '--', f).status === 0;
+  return conflits.every(f =>
+    vivants.some(e => couvertPar(e.entiers, f))
+      ? prendre('--ours', f)
+      : prendre('--theirs', f) ||
+        dansCopie('rm', '-q', '-f', '--ignore-unmatch', '--', f).status === 0
+  );
 }
 
 /**

@@ -352,3 +352,82 @@ describe('grillhouse-527 — `preparer`, the one preparation of a copy', () => {
     expect(r.message).toMatch(/^ {2}a\.txt$/m);
   });
 });
+
+// A generated file the lot removes from the key, with its command and its script, follows the lot:
+// the tree where the lot is applied no longer declares it, so its command is not played and its
+// deletion enters, even when main wrote the file again since. Witness: SyntHub, 2026-11-17,
+// SH-br0.3, refused at the integration on « python3 scripts/build_device_index.py … can't open
+// file », the script its lot deletes with docs/devices.json and its entry of the key.
+describe('a generated file the lot removes from the key follows the lot', () => {
+  // The work of the copy: the list, its script and its entry of the key removed.
+  const retirer = (d: ReturnType<typeof depotEngendre>) => {
+    rmSync(path.join(d.copie, 'liste.txt'));
+    rmSync(path.join(d.copie, 'liste.mjs'));
+    d.ecrire('package.json', JSON.stringify({ name: 'essai' }));
+  };
+
+  it('moves the copy onto main: the list main wrote again is deleted, its command not played', () => {
+    const d = depotEngendre();
+    retirer(d);
+    const main = d.ajouterSurMain();
+    const r = avancer(d.copie, main);
+    expect(r, r.message).toEqual({ ok: true, message: '' });
+    expect(git(d.copie, 'rev-parse', 'HEAD')).toBe(main);
+    expect(existsSync(path.join(d.copie, 'liste.txt'))).toBe(false);
+    expect(existsSync(path.join(d.copie, 'liste.mjs'))).toBe(false);
+    expect(d.lire('src/b.txt')).toBe('b\n');
+    expect(git(d.copie, 'diff', '--name-only', '--diff-filter=U')).toBe('');
+    expect(git(d.copie, 'diff', '--cached', '--name-only')).toBe('');
+  });
+
+  it('brings back the lot of a branch sent back the same way', () => {
+    const d = depotEngendre();
+    const base = git(d.racine, 'rev-parse', 'HEAD');
+    retirer(d);
+    git(d.copie, 'add', '-A');
+    git(d.copie, 'commit', '-qm', 'lot');
+    const pointe = git(d.copie, 'rev-parse', 'HEAD');
+    const main = d.ajouterSurMain();
+    git(d.copie, 'reset', '-q', '--hard', main);
+    const r = reporter(d.copie, { base, pointe });
+    expect(r.ok, r.message).toBe(true);
+    expect(existsSync(path.join(d.copie, 'liste.txt'))).toBe(false);
+    expect(git(d.copie, 'diff', '--cached', '--name-only')).toBe('');
+  });
+
+  it('deletes the list even when the package.json comes out in conflict, read at its two versions', () => {
+    const d = depotEngendre();
+    retirer(d);
+    writeFileSync(
+      path.join(d.racine, 'package.json'),
+      JSON.stringify({
+        name: 'essai',
+        grillhouse: {
+          engendres: {
+            liste: { commande: 'node liste.mjs --tri', fichiers: ['liste.txt'], lit: ['src/**'] },
+          },
+        },
+      })
+    );
+    const main = d.ajouterSurMain();
+    const r = avancer(d.copie, main);
+    expect(r.ok).toBe(false);
+    expect(r.conflits).toEqual(['package.json']);
+    expect(existsSync(path.join(d.copie, 'liste.txt'))).toBe(false);
+    expect(existsSync(path.join(d.copie, 'liste.mjs'))).toBe(false);
+  });
+
+  it('applies the hand-written change of a file the lot keeps, removed from the key', () => {
+    const d = depotEngendre();
+    rmSync(path.join(d.copie, 'liste.mjs'));
+    d.ecrire('package.json', JSON.stringify({ name: 'essai' }));
+    d.ecrire('liste.txt', 'a.txt\n# tenue à la main\n');
+    const main = git(d.racine, 'rev-parse', 'HEAD');
+    writeFileSync(path.join(d.racine, 'b.txt'), 'B\n');
+    git(d.racine, 'commit', '-qam', 'main b');
+    const r = avancer(d.copie, git(d.racine, 'rev-parse', 'HEAD'));
+    expect(main).not.toBe(git(d.copie, 'rev-parse', 'HEAD'));
+    expect(r, r.message).toEqual({ ok: true, message: '' });
+    expect(d.lire('liste.txt')).toBe('a.txt\n# tenue à la main\n');
+  });
+});

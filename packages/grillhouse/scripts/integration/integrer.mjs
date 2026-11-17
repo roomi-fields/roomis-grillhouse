@@ -64,7 +64,9 @@
 // of synthhub and open-synth-descriptors). A command of the project at another code than 0, one of
 // the frame on a real failure (126, 127, a signal), or a file it changes that its `fichiers` do not
 // cover, refuses the lot, the command, its code and its output named. A conflict on any other file
-// refuses it, as the three-way application says.
+// refuses it, as the three-way application says. A generated file of the project the lot removes
+// from the key (`encoreDeclares` of scripts/engendres.mjs, read in the copy once the lots are
+// applied) follows the lot: its deletion is done, any other change applied, its command not played.
 //
 // What steps 2, 3 and 5 read of a lot is its files: each file added, modified or deleted, a
 // rename counting its source and its destination (named as the file is, not as git quotes it in
@@ -84,7 +86,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
-import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import {
+  couvertPar,
+  engendresDe,
+  partDesLots,
+  poserLesRetires,
+  regenerer,
+  touchesPar,
+} from '../engendres.mjs';
 import { langageDe } from '../langages.mjs';
 import { prefixe } from '../prefixe-des-tickets.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
@@ -427,10 +436,8 @@ function main(argv) {
         return refuser(`Les références ${o.references} ne se lisent pas : ${e.message}`);
       }
     }
-    const references = [
-      ...engendres.map(e => ({ ...e, cadre: false })),
-      ...duCircuit.map(r => ({ ...r, lit: r.lit ?? [] })),
-    ];
+    const duProjet = engendres.map(e => ({ ...e, cadre: false }));
+    const references = [...duProjet, ...duCircuit.map(r => ({ ...r, lit: r.lit ?? [] }))];
     // The files of the lot a reference writes in full, and the references the lot touches.
     const entiers = fichiers.filter(f => references.some(r => couvertPar(r.entiers, f)));
     const aRegenerer = touchesPar(references, fichiers);
@@ -482,6 +489,18 @@ function main(argv) {
         return refuser(`Le lot ${p} ne s'applique pas :\n${r.stdout}${r.stderr}`);
       }
     }
+    // The generated files the lots remove from the key follow the lots: main's version is not kept.
+    const part = partDesLots({
+      references,
+      duProjet,
+      entiers,
+      touchees: aRegenerer,
+      arbre: copie,
+    });
+    const suivis = poserLesRetires({ lots, fichiers: part.suivis, dansCopie });
+    if (suivis) {
+      return refuser(suivis);
+    }
     const divergents = avecCopie ? differents(copieTicket, lots, fichiers, tmp) : [];
     if (divergents.length) {
       return refuser(
@@ -493,10 +512,11 @@ function main(argv) {
     if (installation) {
       return refuser(installation);
     }
-    if (aRegenerer.length) {
+    const aRejouer = part.rejouees;
+    if (aRejouer.length) {
       const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env));
       const refus = regenerer({
-        refs: aRegenerer,
+        refs: aRejouer,
         dansCopie,
         lancer: commande =>
           spawnSync('bash', monter('sh', '-c', commande), {
@@ -509,7 +529,7 @@ function main(argv) {
       if (refus) {
         return refuser(refus);
       }
-      dire(`✓ références régénérées sur main à jour : ${aRegenerer.map(r => r.nom).join(', ')}`);
+      dire(`✓ références régénérées sur main à jour : ${aRejouer.map(r => r.nom).join(', ')}`);
     }
 
     // 6. The commit, in the copy: the commit committed is the commit the CI of the branch judges.

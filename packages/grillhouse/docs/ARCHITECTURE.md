@@ -298,7 +298,8 @@ L'intégration, la file qui replace une branche sur main et l'avance d'une copie
 (`travail-de-la-copie.mjs`, comme le report d'une branche renvoyée) ne fusionnent pas ces
 fichiers : un lot qui touche l'un d'eux ou ce qu'il lit prend la version de main, puis la commande
 rejoue hors de l'enveloppe, avec les outils du projet, sur le lot appliqué, et ce qu'elle écrit
-entre dans le lot ; la passe finale (4.2) ne les régénère que si un rouge d'une passe tombe
+entre dans le lot ; une entrée que le lot retire de la clé ne se rejoue pas, et ses fichiers
+suivent le lot, leur suppression comprise, comme un genrule de Bazel retiré avec sa sortie ; la passe finale (4.2) ne les régénère que si un rouge d'une passe tombe
 dans leurs fichiers. L'intégration régénère aussi une référence du cadre dès que le lot touche ce
 qu'elle lit : l'index des interfaces se refait quand un `INTERFACE.md` change. Un conflit sur tout autre fichier
 refuse le lot ; une commande en échec, sa commande et sa sortie nommées, ou un fichier changé

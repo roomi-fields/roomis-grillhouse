@@ -5,12 +5,23 @@
 // the command fails. Witness: OSC Bridge, 2026-10-31, four conflicts in one day on the generated
 // files of synthhub (docs/SUPPORTED_DEVICES.md, docs/devices.json) and open-synth-descriptors
 // (schemas/SHA256SUMS), each resolved by hand.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ARRETS, engendresAuLancement } from '../../scripts/circuit.mjs';
-import { engendresDe, lireEngendres, regenerer, touchesPar } from '../../scripts/engendres.mjs';
+import {
+  aRejouer,
+  encoreDeclares,
+  engendresDe,
+  lireEngendres,
+  partDesLots,
+  poserLesRetires,
+  prendreLesEngendres,
+  regenerer,
+  touchesPar,
+} from '../../scripts/engendres.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'engendres-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -167,5 +178,162 @@ describe('critère 3 — a command that fails stops, the command and its output 
     });
     expect(refus).toContain('autre.txt');
     expect(autre.appels.some(a => a[0] === 'add')).toBe(false);
+  });
+});
+
+// A generated file a lot removes from the key, with its command, is not played on the tree where
+// the lot is applied, and its files follow the lot. Witness: SyntHub, 2026-11-17, SH-br0.3, refused
+// at the integration on the command of « devices-json », whose script its lot deletes.
+describe('a generated file the applied tree no longer declares follows the lot', () => {
+  const git = (dossier: string, ...args: string[]) =>
+    spawnSync('git', ['-C', dossier, ...args], { encoding: 'utf8' });
+  const ok = (dossier: string, ...args: string[]) => {
+    const r = git(dossier, ...args);
+    if (r.status !== 0) {
+      throw new Error(`git ${args.join(' ')} : ${r.stderr}`);
+    }
+    return r.stdout.trim();
+  };
+  const DEUX = [
+    { nom: 'liste', entiers: ['docs/liste.txt'] },
+    { nom: 'index', entiers: ['docs/index.json'] },
+  ];
+  // A repository of trial: the two generated files committed, then main writes the list again.
+  function depot(nom: string) {
+    const dir = path.join(ESSAIS, nom);
+    mkdirSync(path.join(dir, 'docs'), { recursive: true });
+    ok(dir, 'init', '-q', '-b', 'main');
+    ok(dir, 'config', 'user.email', 'essai@example.com');
+    ok(dir, 'config', 'user.name', 'essai');
+    writeFileSync(path.join(dir, 'docs/liste.txt'), 'a\n');
+    writeFileSync(path.join(dir, 'docs/index.json'), '{"a":1}\n');
+    ok(dir, 'add', '-A');
+    ok(dir, 'commit', '-qm', 'base');
+    return dir;
+  }
+  const surMain = (dir: string) => {
+    writeFileSync(path.join(dir, 'docs/liste.txt'), 'a\nb\n');
+    writeFileSync(path.join(dir, 'docs/index.json'), '{"a":1,"b":2}\n');
+    ok(dir, 'commit', '-qam', 'main');
+  };
+
+  it('keeps the generated files the tree declares by name, all of them when it does not read', () => {
+    const tous = projet('declares-tous', { liste: LISTE, index: LISTE });
+    const un = projet('declares-un', { index: LISTE });
+    const sansCle = path.join(ESSAIS, 'declares-sans-cle');
+    mkdirSync(sansCle, { recursive: true });
+    writeFileSync(path.join(sansCle, 'package.json'), '{"name":"essai"}');
+    const illisible = path.join(ESSAIS, 'declares-illisible');
+    mkdirSync(illisible, { recursive: true });
+    writeFileSync(path.join(illisible, 'package.json'), '<<<<<<< ours\n{}\n');
+    expect(encoreDeclares(DEUX, tous)).toEqual(DEUX);
+    expect(encoreDeclares(DEUX, un)).toEqual([DEUX[1]]);
+    expect(encoreDeclares(DEUX, sansCle)).toEqual([]);
+    expect(encoreDeclares(DEUX, illisible)).toEqual(DEUX);
+    expect(encoreDeclares(DEUX, path.join(ESSAIS, 'declares-absent'))).toEqual(DEUX);
+  });
+
+  it('reads a package.json in conflict at its two versions: the lot removes what its base declares and it does not', () => {
+    const conflit = path.join(ESSAIS, 'declares-conflit');
+    mkdirSync(conflit, { recursive: true });
+    writeFileSync(path.join(conflit, 'package.json'), '<<<<<<< ours\n{}\n');
+    const texte = (noms: string[]) =>
+      JSON.stringify(pkg(Object.fromEntries(noms.map(n => [n, LISTE]))));
+    const etages = (base: string[], lot: string[]) => () => ({
+      base: texte(base),
+      lot: texte(lot),
+    });
+    expect(encoreDeclares(DEUX, conflit, etages(['liste', 'index'], ['index']))).toEqual([DEUX[1]]);
+    // An entry main added since the base of the lot stays declared.
+    expect(encoreDeclares(DEUX, conflit, etages(['index'], ['index']))).toEqual(DEUX);
+    expect(encoreDeclares(DEUX, conflit, () => ({ base: '', lot: '' }))).toEqual(DEUX);
+  });
+
+  it('gives the integration its part: the files that follow the lots, the references whose commands play', () => {
+    const arbre = projet('part-des-lots', { index: LISTE });
+    const liste = { nom: 'liste', entiers: ['docs/liste.txt', 'docs/commun.txt'] };
+    const index = { nom: 'index', entiers: ['docs/index.json'] };
+    // A reference of the frame under the name of a generated file the tree does not declare.
+    const cadre = { nom: 'liste', entiers: ['docs/INTERFACES.md', 'docs/commun.txt'] };
+    const part = partDesLots({
+      references: [liste, index, cadre],
+      duProjet: [liste, index],
+      entiers: ['docs/liste.txt', 'docs/commun.txt', 'docs/index.json', 'docs/INTERFACES.md'],
+      touchees: [liste, index, cadre],
+      arbre,
+    });
+    expect(part.suivis).toEqual(['docs/liste.txt']);
+    expect(part.rejouees).toEqual([index, cadre]);
+  });
+
+  it('gives the queue the generated files to play: those the lot touches that the tree still declares', () => {
+    const arbre = projet('a-rejouer', { index: LISTE });
+    const liste = { nom: 'liste', entiers: ['docs/liste.txt'], lit: ['src/**'] };
+    const index = { nom: 'index', entiers: ['docs/index.json'], lit: ['src/**'] };
+    expect(aRejouer([liste, index], arbre, ['src/a.txt'])).toEqual([index]);
+    expect(aRejouer([liste, index], arbre, ['autre.txt'])).toEqual([]);
+  });
+
+  it('applies the files a lot left out: a deletion whatever main wrote since, another change three ways', () => {
+    const dir = depot('poser');
+    const base = ok(dir, 'rev-parse', 'HEAD');
+    ok(dir, 'rm', '-q', 'docs/liste.txt');
+    writeFileSync(path.join(dir, 'docs/index.json'), '{"a":1}\n{"main":0}\n');
+    ok(dir, 'commit', '-qam', 'lot');
+    const lot = path.join(ESSAIS, 'poser.patch');
+    writeFileSync(lot, git(dir, 'diff', '--binary', base, 'HEAD').stdout);
+    ok(dir, 'reset', '-q', '--hard', base);
+    writeFileSync(path.join(dir, 'docs/liste.txt'), 'a\nb\n');
+    ok(dir, 'commit', '-qam', 'main');
+    const refus = poserLesRetires({
+      lots: [lot],
+      fichiers: ['docs/liste.txt', 'docs/index.json'],
+      dansCopie: (...args) => git(dir, ...args),
+    });
+    expect(refus).toBeNull();
+    expect(ok(dir, 'status', '--porcelain')).toBe('M  docs/index.json\nD  docs/liste.txt');
+    expect(
+      poserLesRetires({ lots: [lot], fichiers: [], dansCopie: () => git(dir, 'x') })
+    ).toBeNull();
+  });
+
+  it('refuses, the lot named, a change that does not apply to main’s version', () => {
+    const dir = depot('poser-conflit');
+    const base = ok(dir, 'rev-parse', 'HEAD');
+    writeFileSync(path.join(dir, 'docs/liste.txt'), 'lot\n');
+    ok(dir, 'commit', '-qam', 'lot');
+    const lot = path.join(ESSAIS, 'poser-conflit.patch');
+    writeFileSync(lot, git(dir, 'diff', '--binary', base, 'HEAD').stdout);
+    ok(dir, 'reset', '-q', '--hard', base);
+    surMain(dir);
+    const refus = poserLesRetires({
+      lots: [lot],
+      fichiers: ['docs/liste.txt'],
+      dansCopie: (...args) => git(dir, ...args),
+    });
+    expect(refus).toContain(`Le lot ${lot} ne s'applique pas`);
+  });
+
+  it('resolves the conflicts of a rebase: main’s version for a file still declared, the branch’s deletion for one removed', () => {
+    const dir = depot('prendre');
+    ok(dir, 'checkout', '-q', '-b', 'agent/demo-1');
+    ok(dir, 'rm', '-q', 'docs/liste.txt');
+    writeFileSync(path.join(dir, 'docs/index.json'), '{"a":1,"c":3}\n');
+    ok(dir, 'commit', '-qam', 'lot');
+    ok(dir, 'checkout', '-q', 'main');
+    surMain(dir);
+    ok(dir, 'checkout', '-q', 'agent/demo-1');
+    expect(git(dir, 'rebase', 'main').status).not.toBe(0);
+    const conflits = ok(dir, 'diff', '--name-only', '--diff-filter=U').split('\n').sort();
+    expect(conflits).toEqual(['docs/index.json', 'docs/liste.txt']);
+    const resolu = prendreLesEngendres({
+      conflits,
+      vivants: [DEUX[1]],
+      dansCopie: (...args) => git(dir, ...args),
+    });
+    expect(resolu).toBe(true);
+    expect(git(dir, '-c', 'core.editor=true', 'rebase', '--continue').status).toBe(0);
+    expect(existsSync(path.join(dir, 'docs/liste.txt'))).toBe(false);
+    expect(readFileSync(path.join(dir, 'docs/index.json'), 'utf8')).toBe('{"a":1,"b":2}\n');
   });
 });

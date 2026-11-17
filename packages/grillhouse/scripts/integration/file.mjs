@@ -74,7 +74,14 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { couvertPar, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
+import {
+  aRejouer,
+  couvertPar,
+  encoreDeclares,
+  engendresDe,
+  prendreLesEngendres,
+  regenerer,
+} from '../engendres.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
@@ -672,7 +679,9 @@ function remplacer(o, tip, tete) {
     return { garde: `la copie ne prend pas ${tip.slice(0, 7)}` };
   }
   // A conflict on generated files the project declares only is no conflict: main's version is
-  // taken, and their command writes them again once the branch is replaced (below).
+  // taken, and their command writes them again once the branch is replaced (below). One the branch
+  // removes from the key (`encoreDeclares`, read in the copy) takes the branch's version, its
+  // deletion too, and its command is not played.
   let rebase = dansCopie('rebase', tete);
   let tours = Number(dansCopie('rev-list', '--count', `${tete}..${tip}`).stdout.trim()) || 1;
   while (rebase.status !== 0) {
@@ -683,8 +692,7 @@ function remplacer(o, tip, tete) {
       tours-- > 0 &&
       conflits.length > 0 &&
       conflits.every(f => engendres.some(e => couvertPar(e.entiers, f))) &&
-      dansCopie('checkout', '--ours', '--', ...conflits).status === 0 &&
-      dansCopie('add', '--', ...conflits).status === 0;
+      prendreLesEngendres({ conflits, vivants: encoreDeclares(engendres, copie), dansCopie });
     if (!engendresSeuls) {
       dansCopie('rebase', '--abort');
       return {
@@ -702,8 +710,9 @@ function remplacer(o, tip, tete) {
   if (installation) {
     return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
   }
-  const touches = touchesPar(
+  const touches = aRejouer(
     engendres,
+    copie,
     dansCopie('diff', '--name-only', '--no-renames', '-z', tete, 'HEAD')
       .stdout.split('\0')
       .filter(Boolean)
