@@ -495,7 +495,10 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
               ? [...duC, ...nommes]
               : []
             : [...nommes, ...filtreDesModules(nom, autres, modules)];
-        const args = [...nextest, '-p', nom, ...selection, ...options];
+        // The day of a whole crate with no test at all is green (a crate born of its skeleton,
+        // its target of tests empty); a target or a module named that plays none stays an error.
+        const sansTest = cibles.length === 0 && !tranche ? ['--no-tests=pass'] : [];
+        const args = [...nextest, '-p', nom, ...selection, ...options, ...sansTest];
         prevues.push([
           p.prevoir(nom, d, 'nextest', true, args),
           { junit, temporaire: temporaire(nom) },

@@ -162,10 +162,10 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     expect(r.code).toBe(0);
     expect(r.appels).toEqual([
       'test --no-run -p ws-app',
-      'nextest run --no-fail-fast -p ws-app',
+      'nextest run --no-fail-fast -p ws-app --no-tests=pass',
       'test --doc -p ws-app',
       'test --no-run -p ws-core',
-      'nextest run --no-fail-fast -p ws-core',
+      'nextest run --no-fail-fast -p ws-core --no-tests=pass',
       'test --doc -p ws-core',
       'test --doc -p ws-matiere',
       'test --doc -p ws-outil',
@@ -179,7 +179,7 @@ describe('grillhouse-pkl.3, critère 7 — les commandes du module cargo', () =>
     ]);
     expect(lancer(d.espace, 'tester', ['crates/app']).appels).toEqual([
       'test --no-run -p ws-app',
-      'nextest run --no-fail-fast -p ws-app',
+      'nextest run --no-fail-fast -p ws-app --no-tests=pass',
       'test --doc -p ws-app',
     ]);
     const refus = lancer(d.espace, 'tester', ['README.md', 'crates/outil/src/lib.rs']);
@@ -640,7 +640,7 @@ describe('grillhouse-egm, critères 1 et 2 — la compilation des tests d’une 
     const r = lancer(d.espace, 'tester', [], { 'build ws-core': 101 });
     expect(r.appels).toEqual([
       'test --no-run -p ws-app',
-      'nextest run --no-fail-fast -p ws-app',
+      'nextest run --no-fail-fast -p ws-app --no-tests=pass',
       'test --doc -p ws-app',
       'test --no-run -p ws-core',
       'test --doc -p ws-matiere',
@@ -995,7 +995,7 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     expect(r.code, r.stderr).toBe(0);
     expect(r.appels).toEqual([
       'test --no-run -p seul',
-      `${NEXTEST} --lib --bins --test bout`,
+      `${NEXTEST} --lib --bins --test bout --no-tests=pass`,
       'test --doc -p seul',
     ]);
   });
@@ -1003,7 +1003,7 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
   it('critère 1 — a crate named by its folder leaves them out too, as the day', () => {
     expect(lancer(racine, 'tester', ['src']).appels).toEqual([
       'test --no-run -p seul',
-      `${NEXTEST} --lib --bins --test bout`,
+      `${NEXTEST} --lib --bins --test bout --no-tests=pass`,
       'test --doc -p seul',
     ]);
   });
@@ -1015,7 +1015,7 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     writeFileSync(path.join(sansLib, 'tests/lourd_nuit.rs'), '#[test]\nfn long() {}\n');
     expect(lancer(sansLib, 'tester').appels).toEqual([
       'test --no-run -p seul',
-      `${NEXTEST} --bins --test bout`,
+      `${NEXTEST} --bins --test bout --no-tests=pass`,
     ]);
   });
 
@@ -1026,7 +1026,7 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     writeFileSync(path.join(enDossier, 'tests/gros_nuit/main.rs'), '#[test]\nfn long() {}\n');
     expect(lancer(enDossier, 'tester').appels).toEqual([
       'test --no-run -p seul',
-      `${NEXTEST} --lib --bins --test bout`,
+      `${NEXTEST} --lib --bins --test bout --no-tests=pass`,
       'test --doc -p seul',
     ]);
     expect(lancer(enDossier, 'tester', ['tests/gros_nuit/main.rs']).appels).toEqual([]);

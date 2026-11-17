@@ -175,7 +175,7 @@ describe('grillhouse-44b.5, critère 7 — le corps de la tâche est une command
       )
     ).toEqual([
       'test --no-run -p ws-app',
-      'nextest run --no-fail-fast -p ws-app',
+      'nextest run --no-fail-fast -p ws-app --no-tests=pass',
       'test --doc -p ws-app',
     ]);
   });
