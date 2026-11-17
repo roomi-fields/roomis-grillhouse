@@ -18,7 +18,7 @@ import {
   paquetsDeLEnveloppe,
   VARIABLE as VARIABLE_NUE,
 } from '../../scripts/enveloppe/paquets-du-plan.mjs';
-import { aVerifier } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
+import { aVerifier, mesureDe } from '../../scripts/langages/typescript/interfaces-contre-code.mjs';
 
 const VARIABLE = VARIABLE_NUE as string;
 const ecrireLaListe = (paquets: string[]) => ecrireLaListeNue(paquets) as string;
@@ -165,5 +165,15 @@ describe('grillhouse-3uv.95.3 — les composants que juge une garde dans l’env
     const env = { [VARIABLE]: ecrireLaListe(['packages/a', 'packages/c']) };
     expect(aVerifier(repo, env).map(c => path.basename(c.dir))).toEqual(['a', 'c']);
     expect(aVerifier(repo, {}).map(c => path.basename(c.dir))).toEqual(['a', 'b', 'c']);
+  });
+  it('the debt of a guard in the envelope is judged on the files of its components only', () => {
+    const mesure = mesureDe(repo, { [VARIABLE]: ecrireLaListe(['packages/a', 'packages/c']) });
+    expect(mesure?.('packages/a/docs/INTERFACE.md')).toBe(true);
+    expect(mesure?.('packages/c/dist/src/x.d.ts')).toBe(true);
+    expect(mesure?.('packages/b/docs/INTERFACE.md')).toBe(false);
+    expect(mesure?.('packages/ab/docs/INTERFACE.md')).toBe(false);
+    // Out of an envelope, or with a plan that names no component, every file is measured.
+    expect(mesureDe(repo, {})).toBeUndefined();
+    expect(mesureDe(repo, { [VARIABLE]: ecrireLaListe(['.']) })).toBeUndefined();
   });
 });

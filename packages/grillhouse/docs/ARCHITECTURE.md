@@ -251,7 +251,9 @@ le code de sortie d'un générateur du cadre, qui juge aussi les rouges qu'il la
 refuse à côté d'eux) : il juge la régénération sur ce qu'elle écrit, puis sur la passe restreinte
 qui suit, et seule une vraie panne l'arrête (la commande introuvable, ou tuée par un signal). La dette s'abaisse depuis les notes de la passe finale et depuis celles des contrôles du plan
 (3.1), qui lisent leurs notes `a-elaguer` (une note du SARIF d'une garde, chaque clé inscrite
-au-dessus de ce qu'elle trouve) et régénèrent la dette, par
+au-dessus de ce qu'elle trouve, parmi les fichiers qu'elle a mesurés : une garde qui lit une
+partie du dépôt, les composants du plan sous l'enveloppe, ne note rien des autres, comme une ligne
+de base de PHPStan ne s'élague que des fichiers analysés) et régénèrent la dette, par
 `dette.mjs --abaisser`, sans rejouer les gardes. Elle inscrit aussi la dette d'une garde que le lot
 ajoute, absente des gardes de main (le circuit les nomme à la passe par `GRILLHOUSE_GARDES_DE_LA_BASE`) :
 chaque fichier et règle de ses constats est une note `a-inscrire`, au compte trouvé, que la
