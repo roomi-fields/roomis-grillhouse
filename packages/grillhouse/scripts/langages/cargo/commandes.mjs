@@ -75,7 +75,7 @@
 //   scripts/langages/typescript/verifier.mjs). Beside the module of package.json, whose pass plays
 //   every task of the graph, the composed command sets `GRAPHE_JOUE` and `verifier` plays `cargo
 //   deny check` alone (scripts/commandes-composees.mjs). It plays on a place of the machine and under its lock,
-//   one heavy measure at a time (`avecLaMachineEtUnePlace` of ./jointure, as the module typescript's verifier): a
+//   one heavy measure at a time (`avecLaPasse` of ./jointure, as the module typescript's verifier): a
 //   measure that holds it makes it wait, and the bound of the wait reached, it stops at 75 without
 //   running cargo.
 // - `verifier --gardes` plays the guards alone, the same verdict as the module typescript's: the
@@ -139,7 +139,7 @@ import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
   surUnePlace,
-  avecLaMachineEtUnePlace,
+  avecLaPasse,
   cheminsDeLaTache,
   construireDepuisLesArguments,
   ecrirePression,
@@ -876,7 +876,8 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     const dire = l => process.stdout.write(`${l}\n`);
     try {
       return sousLaBase('verification', env, envBase =>
-        avecLaMachineEtUnePlace(envMachine => verifier(racine, args, envMachine), {
+        avecLaPasse(envMachine => verifier(racine, args, envMachine), {
+          lourde: true,
           env: envBase,
           racine,
           dire,

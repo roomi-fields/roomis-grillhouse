@@ -1006,6 +1006,25 @@ et l'ouverture de la séance du superviseur (« ## La file des tickets ») le no
 architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Le déroulé de la file des tickets sous
 Temporal la mène (ci-dessous).
 
+**Une passe lourde garde ce qu'elle consomme** (comme Bazel garde le profil de chaque action et
+Slurm la comptabilité de chaque travail) : une fois le verrou pris, `avecLaPasse`
+(`scripts/passe-de-la-machine.mjs`) déplace son processus dans un scope transitoire du gestionnaire
+systemd de l'utilisateur (`StartTransientUnit`), que ses enfants héritent ; l'attente du verrou et
+de la place ne compte pas. Avant que le verrou ne se rende, elle lit du scope `CPUUsageNSec` et
+`MemoryPeak` et ajoute une ligne au registre `consommation.jsonl` sous le dossier commun de git du
+projet (`grillhouse/`) : sorte (l'étape du circuit, `verification`, `nuit`), ticket (absent hors
+ticket), durée, temps de processeur, pic de mémoire, cœurs de la machine, issue (verte, rouge,
+interrompue) et date de fin. Un échantillonneur détaché, hors du scope
+(`scripts/echantillonneur-de-la-passe.mjs`), relit le scope pendant la passe : une passe tuée sans
+rendre la main (SIGKILL, veille de la mémoire) garde sa dernière lecture dans une ligne
+« interrompue » ; systemd retire le scope quand il est vide. Une passe sous le verrou que son
+parent tient ne se mesure pas deux fois ; une passe ciblée ne garde rien. Sans le moyen de mesurer
+(aucun gestionnaire utilisateur joignable, l'enveloppe d'un agent), la passe joue comme avant, dit
+« consommation non mesurée : <raison> » une fois et n'écrit aucune ligne. `npx grillhouse
+consommation [--json]` rend, pour le projet courant et par sorte, le nombre de passes, la médiane et
+le maximum des cœurs occupés (temps de processeur ÷ durée) et du pic de mémoire ; une mesure sans
+temps de processeur lisible n'y entre pas.
+
 **Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
 lourde du circuit (la passe finale, la vérification, la nuit) prennent le verrou de la machine,
 partagé par tous ses dépôts (`~/.cache/grillhouse/mesure-lourde.lock`) ; une seconde mesure

@@ -57,6 +57,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'bilan',
         'circuit',
         'commande',
+        'consommation',
         'droits',
         'enveloppe',
         'integrer',

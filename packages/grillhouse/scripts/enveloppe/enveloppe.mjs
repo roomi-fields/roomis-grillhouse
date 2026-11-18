@@ -130,7 +130,7 @@ import {
 export { paquetsDuLangage };
 import { cacheDesOutils, installer, versionDeLOutil } from '../aiguillage.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
-import { travailleursDe, VARIABLE_TENUE } from '../places-de-la-machine.mjs';
+import { sousNiceEtIonice, travailleursDe, VARIABLE_TENUE } from '../places-de-la-machine.mjs';
 import { donneesDe } from '../donnees-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
@@ -297,16 +297,6 @@ export function environnementDeLaSeance(
     [VARIABLE]: ecrireLaListe(paquets),
     ...(travailleurs === undefined ? {} : { GRILLHOUSE_TRAVAILLEURS: String(travailleurs) }),
   };
-}
-
-/**
- * The command <commande> placed under `nice` then `ionice`, so a session of an agent yields the
- * CPU and the disk to the rest of the machine (its command kept whole at the end).
- * @param {string[]} commande
- * @returns {string[]}
- */
-export function sousNiceEtIonice(commande) {
-  return ['nice', '-n', '10', 'ionice', '-c', '2', '-n', '7', ...commande];
 }
 
 /**

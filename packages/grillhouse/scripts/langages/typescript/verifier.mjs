@@ -115,7 +115,7 @@ import {
   A_REPASSER,
   AttenteDeLaMachine,
   AVANCEMENT,
-  avecLaMachineEtUnePlace,
+  avecLaPasse,
   BASE_DU_LOT,
   CHANGEMENTS,
   consignerLesRegressions,
@@ -203,7 +203,7 @@ export function verifier({
   const base = ouvrirBase('verification', { dans: env.TMPDIR || tmpdir() });
   const lacher = retirerALInterruption(base.fermer);
   try {
-    return avecLaMachineEtUnePlace(
+    return avecLaPasse(
       envMachine => {
         // The progress of the pass: the directory its caller names (the circuit's), else its own,
         // named beside the lock of the machine, which it holds, while it plays.
@@ -227,7 +227,7 @@ export function verifier({
           }
         }
       },
-      { env, racine, dire }
+      { lourde: true, env, racine, dire }
     );
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) {

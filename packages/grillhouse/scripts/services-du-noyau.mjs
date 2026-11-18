@@ -65,8 +65,8 @@ export const GARDE_DE_LA_MEMOIRE = fileURLToPath(
   new URL('./garde-de-la-memoire.mjs', import.meta.url)
 );
 export { ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
+export { avecLaPasse } from './passe-de-la-machine.mjs';
 export {
-  avecLaMachineEtUnePlace,
   surUnePlace,
   travailleursDeLaSeance,
   VARIABLE_TRAVAILLEURS,

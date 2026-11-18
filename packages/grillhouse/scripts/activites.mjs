@@ -84,7 +84,6 @@ import {
 import { emettre } from './effets.mjs';
 import { PREUVE, TRI } from './transitions.mjs';
 import { AttenteDeLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
-import { avecLaMachineEtUnePlace } from './places-de-la-machine.mjs';
 
 const ici = import.meta.dirname;
 // The sessions out of the envelope (the reviewer, the explorateur and the questionneur, all on
@@ -855,7 +854,7 @@ function commandeDeReference(ctx, commande) {
   const sortie = () => readFileSync(ctx.journal).subarray(debut).toString('utf8');
   const fd = openSync(ctx.journal, 'a');
   try {
-    const r = avecLaMachineEtUnePlace(
+    const r = avecLaPasse(
       env =>
         spawnSync('sh', ['-c', commande], {
           cwd: ctx.copie,
@@ -863,6 +862,7 @@ function commandeDeReference(ctx, commande) {
           env: environnementDeLaPasse(ctx, env),
         }),
       {
+        lourde: true,
         racine: ctx.copie,
         dire: l => appendFileSync(ctx.journal, `${l}\n`),
         ticket: ctx.ticket,
@@ -1379,7 +1379,7 @@ function paquetDe(liste, fichier) {
 // `{ code, dossier }`. The circuit reads its results, never its output. A heavy pass (the final
 // pass, `npm run verifier`) holds the lock of the machine (scripts/verrou-de-machine.mjs) and
 // passes it to the `npm run verifier` it runs, on a place of the machine taken first
-// (`avecLaMachineEtUnePlace` of scripts/places-de-la-machine.mjs); a targeted one (the proof of the
+// (`avecLaPasse` of scripts/passe-de-la-machine.mjs); a targeted one (the proof of the
 // red, the checks on the tests of the ticket) takes a place like a session of an agent
 // (scripts/passe-de-la-machine.mjs); its wait is written to the log. A wait that stops (its bound,
 // 75; a lock held by an ancestor or a server of the places that does not answer, 1) is the

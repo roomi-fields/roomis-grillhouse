@@ -53,6 +53,16 @@ export {
   VARIABLE_JETON,
 } from './regles-des-places.mjs';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
+
+/**
+ * The command <commande> placed under `nice` then `ionice`, so a session or a pass yields the CPU
+ * and the disk to the rest of the machine (its command kept whole at the end).
+ * @param {string[]} commande
+ * @returns {string[]}
+ */
+export function sousNiceEtIonice(commande) {
+  return ['nice', '-n', '10', 'ionice', '-c', '2', '-n', '7', ...commande];
+}
 /** The mark of a place held, which the children of its holder inherit. */
 export const VARIABLE_TENUE = 'GRILLHOUSE_PLACE_TENUE';
 /** The measure of the machine a trial fixes, in JSON `{ coeurs, charge, memoireLibre, memoireTotale }`. */

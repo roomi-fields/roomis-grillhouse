@@ -47,7 +47,7 @@
 //   (scripts/dernier-vert.mjs, scripts/langages/typescript/verifier.mjs). Beside the module of
 //   package.json, whose pass plays every task of the graph, the composed command sets
 //   `GRAPHE_JOUE` and `verifier` plays nothing again. It plays on a place of
-//   the machine and under its lock (`avecLaMachineEtUnePlace` of ./jointure), as the module cargo's. `verifier --gardes` plays
+//   the machine and under its lock (`avecLaPasse` of ./jointure), as the module cargo's. `verifier --gardes` plays
 //   the guards alone: the project's root scripts `grillhouse:gardes` then `gardes` the package.json
 //   holds.
 // - `typer`: `uv run --locked python -m compileall`, the folders whose name begins with a dot (the
@@ -88,7 +88,7 @@ import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
   surUnePlace,
-  avecLaMachineEtUnePlace,
+  avecLaPasse,
   cacheDeCompilation,
   cheminsDeLaTache,
   construireDepuisLesArguments,
@@ -516,7 +516,8 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     const dire = l => process.stdout.write(`${l}\n`);
     try {
       return sousLaBase('verification', env, envBase =>
-        avecLaMachineEtUnePlace(envMachine => verifier(racine, args, envMachine), {
+        avecLaPasse(envMachine => verifier(racine, args, envMachine), {
+          lourde: true,
           env: envBase,
           racine,
           dire,

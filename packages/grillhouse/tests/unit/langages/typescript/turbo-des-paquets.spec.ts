@@ -935,6 +935,9 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       // its per-branch files (grillhouse-43l).
       'etat-du-depot.mjs',
       'verrou-de-machine.mjs',
+      // What services-du-noyau.mjs re-exports: the pass of the machine and the keeping of its consumption.
+      'passe-de-la-machine.mjs',
+      'consommation-des-passes.mjs',
       // What verrou-de-machine.mjs imports to name the copies that hold the disk (grillhouse-k5y).
       'copies-finies.mjs',
       // What services-du-noyau.mjs imports for the workers of a session (grillhouse-9kq).

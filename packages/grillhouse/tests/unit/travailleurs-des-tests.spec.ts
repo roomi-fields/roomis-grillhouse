@@ -14,8 +14,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   environnementDeLaSeance,
   lancementDeLaSeance,
-  sousNiceEtIonice,
 } from '../../scripts/enveloppe/enveloppe.mjs';
+import { sousNiceEtIonice } from '../../scripts/places-de-la-machine.mjs';
 import { lancementDeLaPasse } from '../../scripts/passe-de-la-machine.mjs';
 import cargoModule from '../../scripts/langages/cargo/index.mjs';
 import exemplesCargo from '../../scripts/langages/cargo/exemples.mjs';

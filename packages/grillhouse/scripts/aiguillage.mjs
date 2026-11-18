@@ -63,6 +63,7 @@ export const REDIRIGEES = new Set([
   'bilan',
   'circuit',
   'commande',
+  'consommation',
   'droits',
   'enveloppe',
   'integrer',

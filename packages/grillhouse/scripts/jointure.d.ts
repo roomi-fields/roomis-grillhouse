@@ -468,8 +468,11 @@ export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): u
 export function travailleursDeLaSeance(env?: NodeJS.ProcessEnv): number | null;
 /** The wait for the lock of the machine, ended without it (scripts/verrou-de-machine.mjs). */
 export class AttenteDeLaMachine extends Error {}
-/** Runs `faire` on a place of the machine, then under its lock (scripts/places-de-la-machine.mjs). */
-export function avecLaMachineEtUnePlace(...args: unknown[]): unknown;
+/**
+ * Plays a pass on a place of the machine, and under its lock when heavy, keeping its consumption
+ * (scripts/passe-de-la-machine.mjs).
+ */
+export function avecLaPasse(...args: unknown[]): unknown;
 /** Plays a pass on a place of the machine: its exit code, or the code of the wait that stops. */
 export function surUnePlace(
   passe: (env: NodeJS.ProcessEnv) => number,

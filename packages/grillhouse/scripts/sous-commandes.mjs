@@ -36,6 +36,7 @@ export const SOUS_COMMANDES = {
   circuit: '../dist/temporal/circuit/commande.js',
   commande: 'verrous/commande.mjs',
   'composants-affectes': 'composants-affectes.mjs',
+  consommation: 'consommation.mjs',
   'dependances-internes': 'dependances-internes.mjs',
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
