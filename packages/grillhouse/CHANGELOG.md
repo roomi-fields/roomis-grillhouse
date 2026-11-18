@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.43.2] - 2026-11-18
+
 - **A guard that reads a part of the repository lowers the debt of what it read only** (grillhouse-8if): in the envelope of a plan, the check of the interfaces, the one of the consumers' arbitrations and the one of the summaries read the components of the plan alone (`aVerifier`), but the known debt judged their findings against the whole section of the guard: every key of a component they did not read counted « 0 constat(s) pour N inscrit(s) », became a note « à élaguer », and the circuit, lowering the debt from the notes of its checks, removed the debt of every other package (BPScript, 320.42: 246 lines of `grillhouse-dette.json`, then a final pass red on 169 findings out of the plan). Such a guard now says which files it read (`mesureDe`, the sixth argument of `trancher` of `scripts/dette.mjs`), as a baseline of PHPStan is pruned of the files analysed only: the keys of the others are neither judged corrected, nor pruned, nor written again. **Action for projects**: a `grillhouse-dette.json` a circuit emptied this way is restored from main, then `npm run grillhouse:dette:elaguer` out of any envelope.
 
 ## [0.43.1] - 2026-11-17
