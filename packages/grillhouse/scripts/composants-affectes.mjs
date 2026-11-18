@@ -427,7 +427,9 @@ export function commande(racine, args) {
     maxBuffer: 256 * 1024 * 1024,
   });
   if (show.status !== 0) {
-    process.stderr.write(`⛔ ticket ${ticket} illisible : ${show.stderr}\n`);
+    process.stderr.write(
+      `⛔ ticket ${ticket} illisible : ${show.error?.message ?? show.stderr ?? ''}\n`
+    );
     return 2;
   }
   const t = JSON.parse(show.stdout)[0] ?? {};

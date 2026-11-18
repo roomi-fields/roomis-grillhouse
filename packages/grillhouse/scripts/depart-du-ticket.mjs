@@ -107,7 +107,9 @@ export function ticketAuLancement(racine, id, { arreter = false, bd = null, plan
     ((...a) => spawnSync('bd', a, { cwd: racine, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }))
   )('show', id, '--json');
   if (show.status !== 0) {
-    throw new DepartRefuse(`ticket ${id} illisible : ${show.stderr}`);
+    throw new DepartRefuse(
+      `ticket ${id} illisible : ${show.error?.message ?? show.stderr ?? ''}`.trim()
+    );
   }
   const ticket = ticketAuDepart(id, show.stdout, { arreter });
   const copie = path.join(racine, '.claude', 'worktrees', id);

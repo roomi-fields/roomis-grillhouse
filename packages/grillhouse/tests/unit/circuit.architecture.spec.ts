@@ -85,6 +85,12 @@ describe('le départ d’un ticket lit son titre, sauf l’arrêt du superviseur
       new DepartRefuse('le titre de demo-1 ne nomme pas ses composants.')
     );
   });
+  it('a bd that does not launch is named by its error, not by an empty output', () => {
+    const introuvable = () => ({ status: null, error: new Error('spawnSync bd ENOENT') });
+    expect(() => ticketAuLancement(RACINE, 'demo-1', { bd: introuvable })).toThrow(
+      'ticket demo-1 illisible : spawnSync bd ENOENT'
+    );
+  });
   it('a launch that does not check the title keeps it whole: no plan, no refusal', () => {
     expect(
       ticketAuLancement(RACINE, 'demo-1', { arreter: true, bd: bd('un sujet seul', SANS) })
