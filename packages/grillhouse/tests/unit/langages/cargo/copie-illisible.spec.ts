@@ -9,6 +9,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { sansTests, testsDuLot } from '../../../../scripts/activites.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
 import { langageDe, langageDeLaCopie } from '../../../../scripts/langages.mjs';
 import { composantsDe, composantsLisibles } from '../../../../scripts/ticket-du-circuit.mjs';
@@ -143,5 +144,26 @@ describe('the components an act of the circuit reads to open on its ticket', () 
     expect(() => composantsDe(copie)).toThrow(/cargo metadata/);
     expect(composantsLisibles(copie)).toEqual(composantsLisibles(saine));
     expect(composantsLisibles(copie).map(p => p.dossier)).toContain('crates/app');
+  });
+});
+
+describe('the tests of the lot the launch of a session reads', () => {
+  it('are read in a copy cargo no longer loads, where the strict reading throws', () => {
+    const neuf = 'crates/app/tests/neuf.rs';
+    for (const dans of [saine, copie]) {
+      writeFileSync(path.join(dans, neuf), '#[test]\nfn neuf() {}\n');
+    }
+    expect(() => testsDuLot({ copie })).toThrow(/cargo metadata/);
+    expect(testsDuLot({ copie }, langageDeLaCopie)).toEqual(testsDuLot({ copie: saine }));
+    expect(testsDuLot({ copie }, langageDeLaCopie)).toContain(neuf);
+  });
+
+  it('a plan is said to carry tests before the session of the testwriter, as in a copy that loads', () => {
+    const plan = (dans: string, paquets: string[]) =>
+      sansTests({ copie: dans, racine: principal, paquets });
+    for (const paquets of [['crates/app'], ['crates/outil'], ['.']]) {
+      expect(plan(copie, paquets), paquets.join()).toBe(plan(saine, paquets));
+    }
+    expect(plan(copie, ['crates/app'])).toBe(false);
   });
 });

@@ -538,8 +538,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const reste = iRole >= 0 ? tout.filter((_, i) => i !== iRole && i !== iRole + 1) : tout;
   let ecrit;
   if (geste === 'preparer' && role) {
-    const { langageDe } = await import('../langages.mjs');
-    ecrit = ecritPar(role, f => langageDe(copie).estUnTest(f, copie));
+    // The launch of a session goes on in a copy its tool no longer loads (`langageDeLaCopie`).
+    const { langageDeLaCopie } = await import('../langages.mjs');
+    ecrit = ecritPar(role, f => langageDeLaCopie(copie).estUnTest(f, copie));
   }
   const r =
     geste === 'reporter' && reste.length === 2

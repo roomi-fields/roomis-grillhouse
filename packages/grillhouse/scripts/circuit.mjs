@@ -709,7 +709,7 @@ import {
 import { preparer, rolesDuConflit } from './enveloppe/travail-de-la-copie.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { prendreUnRang } from './places-de-la-machine.mjs';
-import { langageDe } from './langages.mjs';
+import { langageDe, langageDeLaCopie } from './langages.mjs';
 import { leTitre, ticketAuLancement } from './depart-du-ticket.mjs';
 import { ouvrirBase } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
@@ -1411,7 +1411,10 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
         },
         signeDeVie: ctx.ports?.signeDeVie,
         seanceId: idDeSeance(ctx, `neuve:${role}`),
-        lectures: { lots: () => testsDuLot(ctx), references: () => lesReferences(ctx) },
+        lectures: {
+          lots: () => testsDuLot(ctx, langageDeLaCopie),
+          references: () => lesReferences(ctx),
+        },
       });
       ctx.constats = constats;
       return fiche;

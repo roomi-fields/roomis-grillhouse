@@ -68,6 +68,7 @@ import {
   codeDejaPresent,
   commenter,
   composantsDe,
+  composantsLisibles,
   entete,
   fichesDe,
   fin,
@@ -1358,12 +1359,15 @@ function changements(ctx) {
 const duTestwriter = (ctx, fichier) => langageDe(ctx.copie).estUnTest(fichier, ctx.copie) !== null;
 
 // The test files of the lot that the testwriter writes, present in the copy: in the packages of
-// the plan and in the shared test material.
-export function testsDuLot(ctx) {
+// the plan and in the shared test material. <langage> reads the class of a file: the strict join
+// by default, the join of the copy (`langageDeLaCopie`) for the launch of a session, which must
+// go on in a copy its tool no longer loads.
+export function testsDuLot(ctx, langage = langageDe) {
+  const l = langage(ctx.copie);
   return changements(ctx)
     .filter(c => !c.supprime)
     .map(c => c.fichier)
-    .filter(f => langageDe(ctx.copie).estUnTest(f, ctx.copie)?.joue)
+    .filter(f => l.estUnTest(f, ctx.copie)?.joue)
     .sort();
 }
 
@@ -2139,10 +2143,11 @@ function paquetsDuPlan(ctx, liste) {
 // Whether the plan carries no test: in a repository of packages, no package of the frame that
 // plays tests (`joueDesTests`) lies in a path of the plan or holds it, as `npm test -- <chemin>`
 // refuses a path out of every package or in a package without tests. A repository without
-// packages plays its tests at its root: each plan has them.
+// packages plays its tests at its root: each plan has them. Read before each session of the
+// testwriter, so in a copy its tool no longer loads too (`composantsLisibles`).
 export function sansTests(ctx) {
   const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
-  const liste = composantsDe(racine).filter(p => !p.hors);
+  const liste = composantsLisibles(racine).filter(p => !p.hors);
   if (liste.length === 0) {
     return false;
   }
