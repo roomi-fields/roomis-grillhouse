@@ -3,7 +3,7 @@
 // computation, for the version `grillhouse.outil` names. Without a process: a trial home, a trial
 // directory of units, systemctl and the account's tools stand-ins; the detection runs none, writes
 // nothing, and never lays the published version down.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { describe, expect, it } from 'vitest';
@@ -12,6 +12,8 @@ import {
   installer,
   lieuxDe,
   travailleurPerime,
+  UNITE_DE_LA_MACHINE,
+  uniteDuProjet,
 } from '../../src/temporal/installation.js';
 import { cacheDesOutils } from '../../scripts/aiguillage.mjs';
 import { dossier } from './essai.js';
@@ -186,5 +188,139 @@ describe('the stale worker, grillhouse.outil absent or a tool missing', () => {
     expect(detecter(l)).toBe(false);
     expect(() => detecter(l, nom => (nom === 'cargo' ? null : tous(nom)))).not.toThrow();
     expect(detecter(l, nom => (nom === 'cargo' ? null : tous(nom)))).toBe(true);
+  });
+});
+
+// Another project of the same account, which names <outil>: the home and the directory of units
+// of <l>, its own root.
+function voisin(l: ReturnType<typeof monde>['l'], outil: string) {
+  const racine = dossier('voisin');
+  declarerLesLangages(racine, ['typescript']);
+  writeFileSync(
+    path.join(racine, 'package.json'),
+    JSON.stringify({ name: 'voisin', grillhouse: { outil } })
+  );
+  return lieuxDe({ maison: l.maison, unites: l.unites, racine });
+}
+
+describe('several projects of one account, each installed in its turn', () => {
+  const machine = (l: { unites: string }) =>
+    readFileSync(path.join(l.unites, UNITE_DE_LA_MACHINE), 'utf8');
+
+  it('a project up to date is not stale after another project installed', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    await poserLesUnites(l);
+    await poserLesUnites(voisin(l, '1.0.0'));
+    expect(detecter(l)).toBe(false);
+  });
+
+  it('keeps the sums applied for the units of the other projects', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    await poserLesUnites(l);
+    const v = voisin(l, '1.0.0');
+    await poserLesUnites(v);
+    const sommes = JSON.parse(readFileSync(cheminsDe(l, VERSION).appliquees, 'utf8')) as object;
+    expect(Object.keys(sommes)).toEqual(
+      expect.arrayContaining([uniteDuProjet(l.racine), uniteDuProjet(v.racine)])
+    );
+  });
+
+  it('leaves the unit of the machine as it is when it plays the same version of the frame', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    await poserLesUnites(l);
+    const avant = machine(l);
+    const r = await poserLesUnites(voisin(l, '1.0.0'));
+    expect(machine(l)).toBe(avant);
+    expect(r.unites).not.toContain(UNITE_DE_LA_MACHINE);
+    expect(r.appliquees).not.toContain(UNITE_DE_LA_MACHINE);
+  });
+
+  it('leaves the unit of the machine as it is when it plays a later version of the frame', async () => {
+    const { l } = monde('2.0.0');
+    poserLeTravailleur(l, '2.0.0');
+    poserLeTravailleur(l, '1.9.0');
+    await poserLesUnites(l);
+    const avant = machine(l);
+    const v = voisin(l, '1.9.0');
+    await poserLesUnites(v);
+    expect(machine(l)).toBe(avant);
+    expect(detecter(v)).toBe(false);
+  });
+
+  it('moves the unit of the machine onto a later version of the frame, the earlier project up to date still', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    poserLeTravailleur(l, '1.10.0');
+    await poserLesUnites(l);
+    const r = await poserLesUnites(voisin(l, '1.10.0'));
+    expect(machine(l)).toContain(`${path.sep}1.10.0${path.sep}`);
+    expect(r.appliquees).toContain(UNITE_DE_LA_MACHINE);
+    expect(detecter(l)).toBe(false);
+  });
+});
+
+describe('the unit of the machine, which belongs to the project that wrote it', () => {
+  const machine = (l: { unites: string }) =>
+    readFileSync(path.join(l.unites, UNITE_DE_LA_MACHINE), 'utf8');
+
+  it('is applied at the next run when systemd failed on it, its version read', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    const appels: string[][] = [];
+    const options = (status: number) => ({
+      lieux: l,
+      epingle: EPINGLE_ESSAI,
+      systemctl: (args: string[]) => {
+        appels.push(args);
+        return { status, stdout: '', stderr: status ? 'Failed to connect to bus' : '' };
+      },
+      node: '/usr/bin/node',
+      trouver: tous,
+      outil: (v: string) => path.join(cacheDesOutils(l.maison), v),
+    });
+    await expect(installer(options(1))).rejects.toThrow(/daemon-reload échoue/);
+    appels.length = 0;
+    const r = await installer(options(0));
+    expect(r.appliquees).toContain(UNITE_DE_LA_MACHINE);
+    expect(appels.find(a => a[0] === 'restart')).toContain(UNITE_DE_LA_MACHINE);
+    const sommes = JSON.parse(readFileSync(cheminsDe(l, VERSION).appliquees, 'utf8')) as object;
+    expect(Object.keys(sommes)).toContain(UNITE_DE_LA_MACHINE);
+  });
+
+  it('is rewritten by its project when the PATH of the account changed, the version the same', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    await poserLesUnites(l);
+    const neuf = (nom: string) => `/neuf/bin/${nom}`;
+    expect(detecter(l, neuf)).toBe(true);
+    const r = await poserLesUnites(l, neuf);
+    expect(r.unites).toContain(UNITE_DE_LA_MACHINE);
+    expect(machine(l)).toContain('/neuf/bin');
+  });
+
+  it('keeps the PATH of its project when another project of the same version installs', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    await poserLesUnites(l);
+    const neuf = (nom: string) => `/neuf/bin/${nom}`;
+    const v = voisin(l, '1.0.0');
+    await poserLesUnites(v, neuf);
+    expect(machine(l)).not.toContain('/neuf/bin');
+    expect(machine(l)).toContain(`WorkingDirectory=${l.racine}`);
+    expect(detecter(v, neuf)).toBe(false);
+  });
+
+  it('is taken by another project once the project it belonged to is gone', async () => {
+    const { l } = monde('1.0.0');
+    poserLeTravailleur(l, '1.0.0');
+    await poserLesUnites(l);
+    const v = voisin(l, '1.0.0');
+    rmSync(l.racine, { recursive: true });
+    const r = await poserLesUnites(v);
+    expect(r.unites).toContain(UNITE_DE_LA_MACHINE);
+    expect(machine(l)).toContain(`WorkingDirectory=${v.racine}`);
   });
 });

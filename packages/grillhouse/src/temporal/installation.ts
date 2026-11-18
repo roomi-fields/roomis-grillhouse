@@ -32,6 +32,11 @@
 //   restart of those units). What systemd applied is kept apart from what is written: the sum of
 //   each unit's text once systemctl succeeded (~/.local/state/grillhouse/temporal/
 //   unites-appliquees.json), so that a systemctl that failed is played again at the next run.
+// - An account holds several projects: the server and the worker of the machine are the account's,
+//   a project's worker is the project's. An installation keeps the sums applied for the units of
+//   the other projects. The unit of the machine belongs to the project that wrote it, which
+//   answers for its whole text; another project takes it only to raise it to a later version of
+//   the frame (`textesDuProjet`).
 // - `poserLeProgramme` lays down the program alone, no unit, no package.json, no systemd: the mode
 //   `--programme-seul` of the command, by which the night gets the pinned program as a user does.
 // - The home, the directory of the units and the project are parameters (`lieuxDe`), as systemctl,
@@ -533,6 +538,102 @@ function textesAttendus({
   return { programme, textes };
 }
 
+// The frame's worker a unit's text <texte> runs: the argument of its ExecStart that ends with the
+// worker's path, quoted or not; null without one.
+function travailleurDeLUnite(texte: string): string | null {
+  const ligne = texte.split('\n').find(l => l.startsWith('ExecStart='));
+  for (const m of (ligne ?? '').matchAll(/"((?:[^"\\]|\\.)*)"|(\S+)/g)) {
+    const a = m[1] !== undefined ? m[1].replace(/\\(.)/g, '$1') : m[2]!;
+    if (a.endsWith(TRAVAILLEUR)) {
+      return a;
+    }
+  }
+  return null;
+}
+
+// The version of the frame the worker <travailleur> belongs to: the version its package declares,
+// else the folder of its published version in the cache of the home
+// (`…/<version>/node_modules/@roomi-fields/grillhouse/…`); null when neither reads.
+function versionDuTravailleur(travailleur: string): string | null {
+  const paquet = path.resolve(travailleur, '../../..');
+  const cache = `${path.sep}node_modules${path.sep}@roomi-fields${path.sep}grillhouse`;
+  try {
+    const v = (
+      JSON.parse(readFileSync(path.join(paquet, 'package.json'), 'utf8')) as {
+        version?: unknown;
+      }
+    ).version;
+    if (typeof v === 'string' && v) {
+      return v;
+    }
+  } catch {
+    // no package.json: the folder of the published version
+  }
+  if (paquet.endsWith(cache)) {
+    const v = path.basename(paquet.slice(0, -cache.length));
+    return /^\d+\.\d+\.\d+/.test(v) ? v : null;
+  }
+  return null;
+}
+
+// Whether the version <a> is at least <b>: their three numbers compared in their order, then a
+// version before a prerelease of the same numbers (semver: 1.0.0-rc.1 comes before 1.0.0).
+function auMoins(a: string, b: string): boolean {
+  const lue = (v: string) => {
+    const [coeur = '', ...pre] = v.split('+')[0]!.split('-');
+    return { n: coeur.split('.').map(x => Number.parseInt(x, 10) || 0), pre: pre.length > 0 };
+  };
+  const [x, y] = [lue(a), lue(b)];
+  for (let i = 0; i < 3; i++) {
+    if ((x.n[i] ?? 0) !== (y.n[i] ?? 0)) {
+      return (x.n[i] ?? 0) > (y.n[i] ?? 0);
+    }
+  }
+  return !x.pre || y.pre;
+}
+
+// The root of the project a worker's unit <texte> was written for: its WorkingDirectory; null
+// without one.
+function racineDeLUnite(texte: string): string | null {
+  const ligne = texte.split('\n').find(l => l.startsWith('WorkingDirectory='));
+  if (!ligne) {
+    return null;
+  }
+  const v = ligne.slice('WorkingDirectory='.length);
+  return /^".*"$/.test(v) ? v.slice(1, -1).replace(/\\(.)/g, '$1') : v;
+}
+
+/**
+ * The texts of <textes> the project at <lieux> answers for: its own units, and the unit of the
+ * machine while that unit is its own. The worker of the machine is the account's, one for every
+ * project, as one agent of a cluster serves every job; its unit belongs to the project that wrote
+ * it (its WorkingDirectory), which answers for its whole text (Node, PATH, tools) and for what
+ * systemd applied of it. Another project takes it only to raise it: when it plays an earlier
+ * version of the frame than that project's, when its version does not read, or when the project
+ * it belongs to is gone. So the worker of the machine plays the highest version a project of the
+ * account installed, whatever the order of the installations.
+ */
+function textesDuProjet(lieux: Lieux, textes: Record<string, string>): Record<string, string> {
+  const f = path.join(lieux.unites, UNITE_DE_LA_MACHINE);
+  if (!existsSync(f)) {
+    return textes;
+  }
+  const posee = readFileSync(f, 'utf8');
+  const racine = racineDeLUnite(posee);
+  if (racine === null || path.resolve(racine) === lieux.racine || !existsSync(racine)) {
+    return textes;
+  }
+  const version = (texte: string) => {
+    const t = travailleurDeLUnite(texte);
+    return t === null ? null : versionDuTravailleur(t);
+  };
+  const [tenue, voulue] = [version(posee), version(textes[UNITE_DE_LA_MACHINE] ?? '')];
+  if (tenue === null || voulue === null || !auMoins(tenue, voulue)) {
+    return textes;
+  }
+  return Object.fromEntries(Object.entries(textes).filter(([n]) => n !== UNITE_DE_LA_MACHINE));
+}
+
 /**
  * Whether the worker the account runs is stale: the units applied by `installer` (the sums of
  * unites-appliquees.json) differ from the texts `installer` would write now, for the version
@@ -565,7 +666,7 @@ export function travailleurPerime({
       travailleur: () =>
         travailleurDe(lieux.racine, v => path.join(cacheDesOutils(lieux.maison), v), false),
     });
-    return Object.entries(textes).some(([n, t]) => deja[n] !== sommeDe(t));
+    return Object.entries(textesDuProjet(lieux, textes)).some(([n, t]) => deja[n] !== sommeDe(t));
   } catch {
     return true;
   }
@@ -587,13 +688,14 @@ export async function installer({
   // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
   // version down in its cache first.
   const { programme, contenu } = await obtenirLeProgramme({ lieux, epingle, plateforme, obtenir });
-  const { textes } = textesAttendus({
+  const { textes: tous } = textesAttendus({
     lieux,
     epingle,
     node,
     trouver,
     travailleur: () => travailleur ?? travailleurDe(lieux.racine, outil),
   });
+  const textes = textesDuProjet(lieux, tous);
   const pose = contenu !== null;
   if (contenu) {
     poser(contenu, programme);
@@ -611,13 +713,19 @@ export async function installer({
   }
   const deja = lireLesAppliquees(fichierDesAppliquees);
   const enAttente = Object.keys(textes).filter(n => deja[n] !== sommeDe(textes[n]!));
-  const appliquees = pose ? unitesDe(lieux.racine) : enAttente;
+  // A program newly laid down starts again the units of this project, the machine's when it is
+  // its own.
+  const appliquees = pose ? Object.keys(textes) : enAttente;
   if (appliquees.length) {
     systemd(systemctl, ['daemon-reload']);
     systemd(systemctl, ['enable', ...unitesDe(lieux.racine)]);
     systemd(systemctl, ['restart', ...appliquees]);
     mkdirSync(path.dirname(fichierDesAppliquees), { recursive: true });
-    const sommes = Object.fromEntries(Object.entries(textes).map(([n, t]) => [n, sommeDe(t)]));
+    // The sums of this project's units, beside those of the other projects of the account.
+    const sommes = {
+      ...deja,
+      ...Object.fromEntries(Object.entries(textes).map(([n, t]) => [n, sommeDe(t)])),
+    };
     writeFileSync(fichierDesAppliquees, `${JSON.stringify(sommes, null, 2)}\n`);
   }
   return {

@@ -1317,7 +1317,7 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   garder un déroulé fermé 30 jours, `temporal operator namespace update --retention 720h`, là où
   start-dev donne 24 h) ; `grillhouse-travailleur-<projet>.service`, le travailleur du projet sur
   la file `grillhouse-projet-<projet>` ; `grillhouse-travailleur-machine.service`, le travailleur
-  de la machine sur la file `grillhouse-machine`. Chaque travailleur joue la version publiée que le
+  de la machine sur la file `grillhouse-machine`. Le travailleur d'un projet joue la version publiée que le
   projet nomme (`grillhouse.outil`), posée sous `~/.cache/grillhouse/outil/<version>/` quand elle
   manque, comme la commande du circuit, une version sans travailleur refusée par son nom (la
   version se pose dans son cache avant ce refus, qui l'y lit : seule écriture avant un refus) ; sans clé,
@@ -1336,6 +1336,17 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   systemd n'a pas appliquée (un `systemctl` en échec) l'est au passage suivant. Rejouée sur une
   installation à jour et appliquée, l'installation ne change rien : rien ne se télécharge, aucun
   fichier ne s'écrit, systemd n'est pas appelé.
+- **Un compte porte plusieurs projets** : le serveur et le travailleur de la machine sont au
+  compte, le travailleur d'un projet est au projet. L'installation d'un projet garde, dans l'état
+  appliqué, les sommes des unités des autres projets. L'unité du travailleur de la machine est
+  au projet qui l'a écrite (son `WorkingDirectory`) : lui seul répond de tout son texte (Node,
+  PATH, outils) et de ce que systemd en a appliqué, et sa propre installation la répare. Un autre
+  projet ne la prend que pour la monter : quand elle joue une version du cadre antérieure à la
+  sienne, quand sa version ne se lit pas, ou quand le projet qui la tenait n'existe plus
+  (`textesDuProjet`). Le travailleur de la machine joue donc la plus haute version qu'un projet
+  du compte a installée, quel que soit l'ordre des installations, comme un agent de Nomad sert
+  tous les jobs de sa machine. Ainsi un projet à jour ne lit pas « périmé » après l'installation
+  d'un autre, et un autre projet ne relance le travailleur commun que pour le monter.
 - **La montée de version est transparente** : quand `grillhouse.outil` change de version, l'unité du
   travailleur reste sur l'ancienne jusqu'à `npx grillhouse temporal installer`. L'ouverture de séance
   le détecte (`travailleurPerime`, lue par `grillhouse temporal perime`) : les sommes appliquées
