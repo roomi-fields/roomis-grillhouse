@@ -17,6 +17,14 @@ import {
   WorkflowExecutionAlreadyStartedError,
 } from '@temporalio/common';
 import { fileDuProjet } from '../installation.js';
+
+/**
+ * The workflows a page of a list of the server gives at most. The server pages by 1000 by default,
+ * and a page of circuits, each with its memo, passes the 4 MB a gRPC message of the client takes
+ * (« Received message larger than max », which the client retries until its deadline, read as
+ * « Temporal ne répond pas en 5 s »): every list of the frame asks for pages of PAGE.
+ */
+export const PAGE = 100;
 import {
   ARRETER,
   CIRCUIT,
@@ -415,7 +423,10 @@ export async function lireLesCircuits(
     status: { name: string };
     memo?: Record<string, unknown>;
   }[] = [];
-  for await (const w of client.workflow.list({ query: `WorkflowType = '${CIRCUIT}'` })) {
+  for await (const w of client.workflow.list({
+    query: `WorkflowType = '${CIRCUIT}'`,
+    pageSize: PAGE,
+  })) {
     if (w.workflowId.startsWith(prefixe)) {
       lus.push(w);
     }
