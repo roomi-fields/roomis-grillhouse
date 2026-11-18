@@ -1011,7 +1011,49 @@ elle prend sa part, que rien d'autre ne double.
   déclaration, la part par défaut vaut 4 cœurs au moins (le tiers du budget, arrondi en haut, quand il est plus
   grande), sa mémoire en proportion de ses cœurs ; une part déclarée ou par défaut plus grande que le
   budget vaut le budget (une seule passe à la fois, comme sous le verrou), et jamais moins d'un
-  cœur. La nuit et une mesure de temps nommée demandent le budget entier : elles jouent seules.
+  cœur. La nuit demande le budget entier : elle joue seule.
+- **Les cœurs dédiés d'une mesure de temps** (`scripts/coeurs-dedies.mjs`, des fonctions pures,
+  le système en entrée ; modèle : `pyperf system tune`, `cset shield`, la politique `static` du CPU
+  Manager de Kubernetes, qui isolent des cœurs et y attachent la mesure) : une mesure de temps
+  (un banc, un témoin de temps, nommée par `npm test`) ne prend plus la machine entière : elle
+  réserve des cœurs précis et y joue, le reste de la machine continuant de travailler. Leur nombre
+  se déclare par projet dans la clé `grillhouse.mesure` (`{ "coeurs": <entier ≥ 1> }`, lue dans
+  l'arbre principal, comme `grillhouse.part` ; une clé fautive est refusée par son nom avant tout
+  travail, code 1) ; sans clé, c'est la part par défaut du budget (4 cœurs au moins, le tiers du
+  budget arrondi en haut), jamais plus que le budget. Une unité de cœur dédié est un cœur physique
+  entier : le cadre lit la topologie du système (`thread_siblings_list`, les nœuds mémoire) et
+  donne à la mesure des groupes entiers de fils frères, arrondis au-dessus de la demande tant que
+  le budget le permet, au-dessous sinon, d'un seul nœud mémoire quand il en reste un qui tient ;
+  le compte reste en fils, comme le budget (8 cœurs et 16 fils, réserve 4, budget 12 : la mesure
+  par défaut reçoit 4 fils, soit 2 cœurs avec leurs frères, et les passes ordinaires les 8 fils
+  restants) ; une topologie illisible compte chaque fil pour un cœur et le dit une fois. Chaque
+  part tenue inscrit ses fils précis dans son fichier d'état (`choisirLesCoeurs`, une fonction
+  pure du budget, de la topologie, des fils tenus et de la demande) : aucune passe ne reçoit un
+  fil tenu par une autre, ni le frère d'un cœur dédié. Une mesure qui attend ses cœurs garde son
+  rang et dit « cœurs dédiés » et les passes qui les tiennent ; une passe ordinaire arrivée
+  après elle attend derrière elle (rang réservé), de sorte qu'aucune suite de passes ne l'affame,
+  et l'attente, bornée comme toute attente de part, finit par « à repasser » (75) ; une passe déjà
+  en jeu garde ses cœurs ; une seule mesure joue à la fois. Une fois la mesure en jeu, une passe
+  dont la part tient dans les cœurs restants part et joue.
+  - **L'attache** (`attacheDesCoeurs`) : avec la délégation du contrôleur `cpuset` au compte de
+    l'utilisateur (`Delegate=cpuset …` d'un fichier de `user@.service.d/`, que dit
+    `cgroup.controllers` du service de l'utilisateur), la mesure et les passes ordinaires jouent
+    dans des groupes de contrôle aux cœurs fixés (`AllowedCPUs`, listes disjointes, sous la
+    tranche `grillhouse.slice`), et les programmes hors du cadre (`app.slice`) sont tenus à
+    l'écart des cœurs dédiés le temps de la mesure. Sans la délégation, sur un système qui donne
+    l'affinité de lancement, le cadre attache la mesure et les passes à leurs cœurs par `taskset`,
+    enfants compris, et dit une fois que les programmes hors du cadre ne sont pas tenus à l'écart,
+    avec le réglage du poste qui donne la délégation. Dans l'enveloppe d'un agent, ou sur un
+    système sans aucune des deux voies, la mesure ne réserve ni n'attache rien, joue sans part
+    tenue et le dit une fois ; elle n'est jamais refusée pour cela.
+  - **Le repos des cœurs dédiés** : lu sur eux seuls, par le temps occupé de chaque cœur
+    (`/proc/stat`, deux relevés espacés d'une seconde). Avant de partir, la mesure attend que
+    leur charge, hors elle, passe sous 10 % de leur capacité, dans la borne de l'attente (75 à
+    son terme, avec la charge relevée) ; à la fin d'une mesure rouge, si la charge des cœurs
+    dédiés hors la mesure (son temps tiré de son propre groupe) a dépassé 10 % sur la durée de son
+    jeu, son échec vaut « à repasser » (75) au lieu de 1 (`codeDeLaMesure`). Sans lecture possible,
+    la mesure ne juge pas cette charge et le dit une fois. « Au repos » se lit ainsi : des cœurs
+    que personne d'autre ne touche.
 - **L'admission** (`admissionDePart`, `refusDePart` de `scripts/regles-des-places.mjs`, règles
   pures) : une passe part quand sa part tient dans ce que les parts tenues laissent du budget
   (cœurs, puis mémoire) et que les seuils d'`admission` tiennent (charge sur 1 min sous le nombre
@@ -1178,7 +1220,8 @@ depuis son dernier signe, « ⚠ figée » au-delà de 5 min, comme le compteur 
 Ainsi une passe qui fige se voit.
 
 **Une mesure de temps joue la nuit** : le jour sert l'activité, et la machine y est toujours
-chargée ; toute mesure qui demande une machine au repos joue la nuit, dans chaque langage, comme
+chargée ; toute mesure qui demande des cœurs au repos (dédiés : la nuit les prend seule, un
+lancement ciblé les réserve, voir « Les cœurs dédiés d'une mesure de temps ») joue la nuit, dans chaque langage, comme
 Bazel laisse une cible `manual` hors de tout motif et joue seul un test `exclusive`, et comme les
 bancs de performance de Chromium et de rustc-perf quittent la CI de chaque commit pour une
 machine au repos (grillhouse-bd7). Une mesure de temps est un banc de temps (en TypeScript un

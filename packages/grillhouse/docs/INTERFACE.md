@@ -375,7 +375,7 @@ qu'il emploie, et `scripts/jointure.d.ts` les type : le plan d'une enveloppe, l'
 passe et sa mesure, la base d'une passe (son dossier temporaire, nommé dans `TMPDIR`, `TMP` et
 `TEMP` ; la ligne de sa garde, qui nomme ce que les tests y laissent ; son retrait à
 l'interruption), la pression de la machine et les parts de ses passes, les parts de la machine
-(`surUnePart(passe, { env?, racine?, entiere?, dire? })` : la passe jouée sur sa part, la marque de
+(`surUnePart(passe, { env?, racine?, entiere?, mesure?, dire? })` : la passe jouée sur sa part (`mesure` : une mesure de temps, jouée sur des cœurs dédiés), la marque de
 la part dans l'environnement de ses enfants, son code de sortie, ou celui de l'attente qui
 s'arrête, 75 à sa borne, 1 pour une clé ou une réserve fautive ; `avecLaPasse(mesure, { lourde, … })` :
 une passe jouée sur sa part, tenue par le système dans un groupe de contrôle à elle, sa

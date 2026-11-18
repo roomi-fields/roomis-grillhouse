@@ -942,6 +942,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'copies-finies.mjs',
       // What services-du-noyau.mjs imports for the workers of a session (grillhouse-9kq).
       'places-de-la-machine.mjs',
+      // What places-de-la-machine.mjs imports for the dedicated cores of a timing measure (grillhouse-mnn.3).
+      'coeurs-dedies.mjs',
       // What services-du-noyau.mjs imports for the update of a module (grillhouse-x2w).
       'gabarit-absent.mjs',
       // What places-de-la-machine.mjs imports: its rule and its measure (grillhouse-4nr.7).

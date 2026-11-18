@@ -84,7 +84,10 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   fois. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
   (poids de processeur et plafond de mémoire tirés de la part, sans plafond dur de processeur), et
   elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; la
-  nuit et une mesure de temps demandent le budget entier et jouent seules.
+  nuit demande le budget entier et joue seule ; une mesure de temps joue sur des cœurs dédiés que
+  personne d'autre ne touche (la clé `grillhouse.mesure`, `{ "coeurs": <entier ≥ 1> }`, comme
+  `grillhouse.part` ; par défaut la part par défaut du budget), le reste de la machine continuant
+  de travailler.
 - Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
   espace, le nom court du projet aux affichages partagés entre projets : la ligne des places, qui
   nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets

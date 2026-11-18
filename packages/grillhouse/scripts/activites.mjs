@@ -845,8 +845,10 @@ export const environnementDeLaPasse = (ctx, base, env = {}) => ({
 
 // What a pass of the circuit launches: its command under its part (`lancementSousPart`: in its
 // control group, the workers of its tools the cores of its part), as it is where no part is held.
-const lancerSousSaPart = ({ part, groupe, unite }, cmd, args, env) =>
-  part ? lancementSousPart({ part, cmd, args, env, groupe, unite }) : { cmd, args, env };
+const lancerSousSaPart = ({ part, groupe, unite, fils, affinite }, cmd, args, env) =>
+  part
+    ? lancementSousPart({ part, cmd, args, env, groupe, unite, fils, affinite })
+    : { cmd, args, env };
 
 // One command of a reference, run by the shell at the root of the copy, out of the envelope,
 // on a part of the machine, its output added to the log: `{ code, panne, sortie }`, its exit

@@ -21,6 +21,7 @@
 //   the board and to the figures (`depasseLaPart`).
 // - A pass under the part its parent holds (GRILLHOUSE_PART_TENUE) takes none of its own.
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import {
   coeursDeLaMachine,
   depasseLaPart,
@@ -31,6 +32,16 @@ import {
   sorteDeLaPasse,
 } from './consommation-des-passes.mjs';
 import { AttenteDeLaMachine } from './attente-de-la-machine.mjs';
+import {
+  attacheDesCoeurs,
+  chargeHorsMesure,
+  codeDeLaMesure,
+  ecartDesProgrammes,
+  listeDeCoeurs,
+  lireLesTempsOccupes,
+  OUTIL_D_AFFINITE,
+  tempsDuSysteme,
+} from './coeurs-dedies.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import {
   dossierDesParts,
@@ -42,6 +53,9 @@ import {
 
 // The launcher of a command in a control group of the manager of the user.
 const LANCEUR_DE_GROUPE = 'systemd-run';
+// The slice of the user's manager the groups of the frame live under, beside `app.slice`, which the
+// programs out of the frame are in: the cores kept from them are not kept from the frame's groups.
+const TRANCHE_DU_CADRE = 'grillhouse.slice';
 
 /**
  * Whether the npm command of a step is a heavy pass: `npm run verifier`, whatever its step.
@@ -75,12 +89,15 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
  * The command line that runs <cmd> in a control group of its own under the part <part>: `systemd-run
  * --user --scope` (the manager of the user, no privilege), its CPU weight and its memory bound
  * drawn from the part, no hard ceiling of CPU, the command of the pass whole at the end after
- * `--`. <unite> names the scope, which a sampler reads.
+ * `--`. <unite> names the scope, which a sampler reads. With <fils> (the precise threads of the
+ * part, the system delegating the cpuset controller to the account) the group allows those
+ * threads only (`AllowedCPUs`), under the slice of the frame, which the programs out of the frame
+ * are kept out of.
  * @param {{ part: { coeurs: number, memoire: number }, cmd: string, args: string[],
- *   unite?: string | null }} o
+ *   unite?: string | null, fils?: number[] | null }} o
  * @returns {{ cmd: string, args: string[] }}
  */
-export function commandeDuGroupe({ part, cmd, args, unite = null }) {
+export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null }) {
   return {
     cmd: LANCEUR_DE_GROUPE,
     args: [
@@ -88,6 +105,7 @@ export function commandeDuGroupe({ part, cmd, args, unite = null }) {
       '--scope',
       '--quiet',
       ...(unite ? [`--unit=${unite}`] : []),
+      ...(fils ? [`--slice=${TRANCHE_DU_CADRE}`] : []),
       '-p',
       'CPUAccounting=yes',
       '-p',
@@ -96,6 +114,7 @@ export function commandeDuGroupe({ part, cmd, args, unite = null }) {
       `CPUWeight=${poidsDeLaPart(part)}`,
       '-p',
       `MemoryMax=${Math.floor(part.memoire)}`,
+      ...(fils ? ['-p', `AllowedCPUs=${listeDeCoeurs(fils)}`] : []),
       '--',
       cmd,
       ...args,
@@ -105,15 +124,35 @@ export function commandeDuGroupe({ part, cmd, args, unite = null }) {
 
 /**
  * What a pass under its part launches: its command, in its control group when the system gives
- * one (<groupe>), as it is otherwise, GRILLHOUSE_TRAVAILLEURS set to the cores of its part.
+ * one (<groupe>), as it is otherwise, GRILLHOUSE_TRAVAILLEURS set to the cores of its part. Its
+ * precise threads <fils> hold it to them: the allowed cores of its group (the cpuset controller
+ * delegated to the account), or, with <affinite>, the affinity of the launch (`taskset`, which its
+ * children inherit); without either of the two, nothing is attached.
  * @param {{ part: { coeurs: number, memoire: number }, cmd: string, args: string[],
- *   env: Record<string, string | undefined>, groupe: boolean, unite?: string | null }} o
+ *   env: Record<string, string | undefined>, groupe: boolean, unite?: string | null,
+ *   fils?: number[] | null, affinite?: boolean }} o
  * @returns {{ cmd: string, args: string[], env: Record<string, string | undefined> }}
  */
-export function lancementSousPart({ part, cmd, args, env, groupe, unite = null }) {
+export function lancementSousPart({
+  part,
+  cmd,
+  args,
+  env,
+  groupe,
+  unite = null,
+  fils = null,
+  affinite = false,
+}) {
   const { [VARIABLE_TRAVAILLEURS]: _herite, ...sans } = env;
   const e = { ...sans, [VARIABLE_TRAVAILLEURS]: String(part.coeurs) };
-  return groupe ? { ...commandeDuGroupe({ part, cmd, args, unite }), env: e } : { cmd, args, env: e };
+  const attachee =
+    affinite && fils ? { cmd: OUTIL_D_AFFINITE, args: ['-c', listeDeCoeurs(fils), cmd, ...args] } : { cmd, args };
+  return groupe
+    ? {
+        ...commandeDuGroupe({ part, ...attachee, unite, fils: affinite ? null : fils }),
+        env: e,
+      }
+    : { ...attachee, env: e };
 }
 
 // Whether the manager of the user starts a scope: the probe of the system, asked once.
@@ -237,7 +276,9 @@ function jouerMesuree(jouer, { ouvert, racine, ticket, sorte, part, horloge, coe
  *   dire?: (l: string) => void, borneMs?: number, rappelMs?: number, scope?: object,
  *   horloge?: () => number, coeurs?: number, sonde?: () => boolean } & Record<string, unknown>} options
  *   `mode` « processus » (by default): the pass is the process itself, which enters its group;
- *   `entiere`: the whole budget, the night's and a measure of time's part
+ *   `entiere`: the whole budget, the night's part; `mesure`: a measure of time, which plays on
+ *   dedicated cores (scripts/coeurs-dedies.mjs), attached to them (`contexte.fils`,
+ *   `contexte.affinite`) and judged on the load of those cores out of it
  * @returns {T}
  */
 export function avecLaPasse(
@@ -254,15 +295,37 @@ export function avecLaPasse(
     horloge = Date.now,
     coeurs = coeursDeLaMachine(),
     sonde,
+    delegation,
+    affinite,
+    ecarter = ecarterLesProgrammes,
     ...options
   } = {}
 ) {
   const prise = prendreUnePart({ ...options, env, racine, ticket, sorte, dire });
   try {
     const direSansPart = direUneFois(dire);
+    // How the precise threads of the part are held: the allowed cores of a group, the affinity of
+    // the launch, or not at all; a measure of time says it once.
+    const attache = prise.fils
+      ? attacheDesCoeurs({
+          env,
+          ...(delegation ? { delegation } : {}),
+          ...(affinite ? { affinite } : {}),
+        })
+      : null;
+    if (attache?.dit && prise.dediee) {
+      dire(attache.dit);
+    }
+    const contexteDe = (groupe, unite) => ({
+      part: prise.part,
+      groupe,
+      unite,
+      fils: attache && attache.voie !== 'aucune' ? prise.fils : null,
+      affinite: attache?.voie === 'affinite',
+    });
     const sans = raison => {
       direSansPart(`joue sans part tenue : ${raison}`);
-      return mesure(prise.env, { part: prise.part, groupe: false, unite: null });
+      return mesure(prise.env, contexteDe(false, null));
     };
     if (prise.part === null) {
       return prise.raison === "dans l'enveloppe d'un agent"
@@ -273,6 +336,19 @@ export function avecLaPasse(
     if (indisponible !== null) {
       return sans(indisponible);
     }
+    // The programs out of the frame kept away from the dedicated cores while a measure plays (the
+    // cpuset controller delegated), and the cores given back at its end; the pass plays as it is
+    // when the system refuses it, which it says.
+    let rendreLesCoeurs = () => {};
+    if (attache?.voie === 'groupe' && prise.dediee) {
+      const tous = prise.topologie.coeurs.flatMap(c => c.fils);
+      if (!ecarter({ dedies: prise.fils, fils: tous })) {
+        dire(
+          'les programmes hors du cadre ne sont pas tenus à l’écart des cœurs dédiés : le système refuse de régler leur groupe.'
+        );
+      }
+      rendreLesCoeurs = () => void ecarter({ dedies: [], fils: tous });
+    }
     const identite = {
       racine,
       sorte: sorteDeLaPasse(sorte ?? (env.GRILLHOUSE_VERIFICATION_SORTE || 'verification')),
@@ -282,22 +358,101 @@ export function avecLaPasse(
       mesurer: lourde,
     };
     const mesuree = { racine, ticket: identite.ticket, sorte: identite.sorte, part: prise.part, horloge, coeurs, lourde };
-    if (mode === 'commande') {
-      const ouvert = (scope ?? scopeDeCommande(identite)).ouvrir();
-      const contexte = { part: prise.part, groupe: true, unite: ouvert.unite ?? null };
-      return jouerMesuree(() => mesure(prise.env, contexte), { ...mesuree, ouvert });
+    // A measure of time judges the load of its dedicated cores while it plays: the busy time of
+    // those cores out of its own (read from its group), a red on loaded cores « à repasser ».
+    const jugee = (jouer, ouvert) => () => {
+      if (!prise.dediee || !attache || attache.voie === 'aucune') {
+        return jouer();
+      }
+      const avant = lireLesTempsOccupes(tempsDuSysteme());
+      const r = jouer();
+      let cpuNs = null;
+      try {
+        cpuNs = ouvert.lire?.()?.cpuNs ?? null;
+      } catch {
+        // an unreadable group gives no measure's own time
+      }
+      const charge =
+        cpuNs === null
+          ? null
+          : chargeHorsMesure({
+              avant,
+              apres: lireLesTempsOccupes(tempsDuSysteme()),
+              fils: prise.fils,
+              mesureNs: cpuNs,
+            });
+      if (charge === null) {
+        dire('la charge des cœurs dédiés pendant la mesure ne se lit pas : la mesure ne la juge pas.');
+        return r;
+      }
+      const code = typeof r === 'number' ? r : (r?.status ?? 0);
+      const juge = codeDeLaMesure({ code, charge });
+      if (juge === code) {
+        return r;
+      }
+      dire(
+        `les cœurs dédiés étaient chargés à ${Math.round(charge * 100)} % hors la mesure pendant son jeu : son échec est à repasser (code ${juge}).`
+      );
+      return typeof r === 'number' ? juge : { ...r, status: juge };
+    };
+    try {
+      if (mode === 'commande') {
+        const ouvert = (scope ?? scopeDeCommande(identite)).ouvrir();
+        const contexte = contexteDe(true, ouvert.unite ?? null);
+        return jouerMesuree(jugee(() => mesure(prise.env, contexte), ouvert), { ...mesuree, ouvert });
+      }
+      const ouvert = (
+        scope ??
+        scopeSystemd({ ...identite, ...(attache?.voie === 'groupe' ? { fils: prise.fils } : {}) })
+      ).ouvrir();
+      if ('raison' in ouvert) {
+        return sans(ouvert.raison);
+      }
+      // The pass is the process itself: under the affinity of the launch, it takes its cores and
+      // gives its own back at its end, its children inheriting them in between.
+      const rendreLAffinite =
+        attache?.voie === 'affinite' ? attacherLeProcessus(prise.fils) : () => {};
+      try {
+        return jouerMesuree(
+          jugee(() => mesure(prise.env, contexteDe(false, null)), ouvert),
+          { ...mesuree, ouvert }
+        );
+      } finally {
+        rendreLAffinite();
+      }
+    } finally {
+      rendreLesCoeurs();
     }
-    const ouvert = (scope ?? scopeSystemd(identite)).ouvrir();
-    if ('raison' in ouvert) {
-      return sans(ouvert.raison);
-    }
-    return jouerMesuree(() => mesure(prise.env, { part: prise.part, groupe: false, unite: null }), {
-      ...mesuree,
-      ouvert,
-    });
   } finally {
     prise.rendre();
   }
+}
+
+// Sets the programs out of the frame away from the dedicated cores (`ecartDesProgrammes`): whether
+// the system took it.
+function ecarterLesProgrammes({ dedies, fils }) {
+  const l = ecartDesProgrammes({ dedies, fils });
+  return spawnSync(l.cmd, l.args, { stdio: 'ignore', timeout: 20_000 }).status === 0;
+}
+
+// Pins this process, its threads and its future children to <fils> (`taskset`); a function that
+// gives it its former cores back. Nothing changes when the system refuses.
+function attacherLeProcessus(fils) {
+  let avant = null;
+  try {
+    avant = /^Cpus_allowed_list:\s*(\S+)/m.exec(readFileSync('/proc/self/status', 'utf8'))?.[1] ?? null;
+  } catch {
+    // unreadable: the former cores are not given back
+  }
+  const poser = liste =>
+    spawnSync(OUTIL_D_AFFINITE, ['-a', '-p', '-c', liste, String(process.pid)], {
+      stdio: 'ignore',
+      timeout: 20_000,
+    }).status === 0;
+  if (!poser(listeDeCoeurs(fils)) || avant === null) {
+    return () => {};
+  }
+  return () => void poser(avant);
 }
 
 /**
@@ -308,7 +463,8 @@ export function avecLaPasse(
  * @param {(env: Record<string, string | undefined>,
  *   part: { coeurs: number, memoire: number } | null) => number} passe
  * @param {{ env?: Record<string, string | undefined>, racine?: string, entiere?: boolean,
- *   dire?: (l: string) => void }} [o] `entiere`: the whole budget as its part (a measure of time)
+ *   mesure?: boolean, dire?: (l: string) => void }} [o] `entiere`: the whole budget as its part
+ *   (the night); `mesure`: dedicated physical cores as its part (a measure of time)
  * @returns {number}
  */
 export function surUnePart(
@@ -317,6 +473,7 @@ export function surUnePart(
     env = process.env,
     racine = process.cwd(),
     entiere = false,
+    mesure = false,
     dire = l => process.stderr.write(`${l}\n`),
   } = {}
 ) {
@@ -324,6 +481,7 @@ export function surUnePart(
     return avecLaPasse((e, { part }) => passe(e, part), {
       lourde: false,
       entiere,
+      mesure,
       env,
       racine,
       dire,

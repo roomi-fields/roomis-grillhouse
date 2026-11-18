@@ -161,19 +161,31 @@ export function admissionDePart({ part, budget, prises, mesure }) {
  * (`prises`, `attentes`), null when it does: its part does not fit in the <budget>; a wait of a
  * lower rank, alive, which keeps its turn (the measure of the frame has the lower rank of a
  * project's, then the order of arrival); the admission at the load and the memory <mesurer> gives
- * (read only when the part and the turn pass). The night and a measure of time ask for the whole
- * budget as their part: they play alone.
- * @param {{ prises: { id?: string, coeurs: number, memoire: number }[],
+ * (read only when the part and the turn pass). The night asks for the whole budget as its part: it
+ * plays alone. A measure of time (<dediee>) asks for dedicated cores: when they lack, its refusal
+ * says « cœurs dédiés » and names the passes that hold them; a pass that comes after it waits
+ * behind it, its rank reserved, and one measure plays at a time, whatever its part would fit in the free cores; once it plays, an
+ * ordinary pass whose part fits in the cores left goes on.
+ * @param {{ prises: { id?: string, coeurs: number, memoire: number, ticket?: string | null }[],
  *   attentes: { id: string, rang: number, ticket?: string | null, raison?: string }[] }} etat
  * @param {{ id: string, rang: number, part: { coeurs: number, memoire: number },
- *   budget: { coeurs: number, memoire: number },
+ *   budget: { coeurs: number, memoire: number }, dediee?: boolean,
  *   mesurer: () => { coeurs: number, charge: number, memoireLibre: number } }} o
  * @returns {string | null}
  */
-export function refusDePart(etat, { id, rang, part, budget, mesurer }) {
+export function refusDePart(etat, { id, rang, part, budget, mesurer, dediee = false }) {
   const prises = etat.prises.filter(p => p.id !== id);
+  // Two measures of time never play side by side: each would be the load the other is judged on.
+  const autre = dediee ? prises.find(p => p.dediee) : undefined;
+  if (autre) {
+    return `cœurs dédiés : la mesure de ${autre.ticket ?? 'une passe'} les tient, une mesure à la fois`;
+  }
   const tient = partDansLeBudget({ part, budget, prises });
   if (!tient.ok) {
+    if (dediee && tient.attend === 'cœurs') {
+      const tenues = prises.map(p => p.ticket ?? 'une passe').join(', ');
+      return `cœurs dédiés${tient.raison.slice('cœurs'.length)}${tenues ? ` ; tenus par ${tenues}` : ''}`;
+    }
     return tient.raison;
   }
   const avant = etat.attentes.find(a => a.id !== id && a.rang < rang);

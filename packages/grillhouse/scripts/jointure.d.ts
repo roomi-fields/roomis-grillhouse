@@ -482,6 +482,7 @@ export function surUnePart(
     env?: NodeJS.ProcessEnv;
     racine?: string;
     entiere?: boolean;
+    mesure?: boolean;
     dire?: (l: string) => void;
   }
 ): number;

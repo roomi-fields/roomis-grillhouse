@@ -48,6 +48,12 @@
 //   another, which the base configuration of the tests gives to each test file): the part held
 //   or waited for, its project, ticket, kind, rank and, once it names it, its progress directory,
 //   which the board reads (`lireLesParts`). A pass whose process is gone frees its part.
+// - A part holds precise threads (`fils` of its file): the passes choose them on the topology of the
+//   system (./coeurs-dedies.mjs `choisirLesCoeurs`), none held by another. A measure of time
+//   (`mesure`) takes dedicated cores, physical cores whole (its sibling threads with them), the
+//   number its project declares (`grillhouse.mesure`) or the default part of the budget, and the
+//   other passes go on on the cores left; it waits for its cores, keeping its rank, then for the
+//   rest of them (their load, out of it, under 10 %), within the bound of the wait.
 // - A pass that holds a part carries its mark to its children (GRILLHOUSE_PART_TENUE): a pass they
 //   play takes no second part, and the workers of its tools are the cores of its part
 //   (GRILLHOUSE_TRAVAILLEURS).
@@ -67,6 +73,16 @@ import {
   racineDuDepot,
   rangDeLaMesure,
 } from './attente-de-la-machine.mjs';
+import {
+  budgetEnFils,
+  chargeDesCoeursDuSysteme,
+  choisirLesCoeurs,
+  coeursDeLaMesureDe,
+  filsDeLaMesure,
+  lireLaTopologie,
+  mesureDeclareeDe,
+  SEUIL_DE_CHARGE,
+} from './coeurs-dedies.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { ecrireLaTrace, traceDesPlaces } from './journal-des-etats.mjs';
 import { mesureDeLaMachine, processusVivant } from './mesure-de-la-machine.mjs';
@@ -449,17 +465,36 @@ export function budgetDeLaPasse(env = process.env) {
  * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
  */
 export function partDeLaPasse({ racine, env = process.env }) {
-  let pkg = {};
-  try {
-    pkg = JSON.parse(readFileSync(path.join(racineDuDepot(racine), 'package.json'), 'utf8'));
-  } catch {
-    // a repository without a package.json declares no part
-  }
-  const { declaree, faute } = partDeclareeDe(pkg);
+  const { declaree, faute } = partDeclareeDe(packageDuDepot(racine));
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
   }
   return partDe({ declaree, budget: budgetDeLaPasse(env) });
+}
+
+// The `package.json` of the main tree of the repository at <racine>; empty without one (a
+// repository without a package.json declares neither part nor measure).
+function packageDuDepot(racine) {
+  try {
+    return JSON.parse(readFileSync(path.join(racineDuDepot(racine), 'package.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The cores a measure of time of the project at <racine> asks for, in threads: the key
+ * `grillhouse.mesure` of its main tree's `package.json`, else the default part of the budget.
+ * @param {{ racine: string, budget: { coeurs: number } }} o
+ * @returns {number}
+ * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
+ */
+function coeursDeLaMesure({ racine, budget }) {
+  const { declaree, faute } = mesureDeclareeDe(packageDuDepot(racine));
+  if (faute) {
+    throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
+  }
+  return coeursDeLaMesureDe({ declaree, budget });
 }
 
 const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
@@ -487,7 +522,9 @@ function sousLAdmission(dossier, f) {
  * leave of the budget and the load and the memory of the machine admit it, the waits of a smaller
  * rank passing first. Its state is one file of the parts (`poserLaPart`), « attend » then
  * « tient ». The night (VARIABLE_JETON) and a pass that asks for the <entiere> budget take the
- * whole budget: they play alone. Where no part is taken (the envelope of an agent, a part already
+ * whole budget: they play alone. A <mesure> of time takes dedicated cores (`fils`, whole physical
+ * cores), waits for them and for their rest (<chargeDesCoeurs>: the load of the threads it gives,
+ * null without a reading; <topologie>, the topology of the system, for a trial). Where no part is taken (the envelope of an agent, a part already
  * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
  *   sorte?: string, entiere?: boolean, borneMs?: number, rappelMs?: number,
@@ -507,6 +544,9 @@ export function prendreUnePart({
   ticket,
   sorte,
   entiere = false,
+  mesure = false,
+  topologie,
+  chargeDesCoeurs = chargeDesCoeursDuSysteme,
   borneMs = borneDe(env),
   rappelMs = RAPPEL_MS,
   dire = l => process.stdout.write(`${l}\n`),
@@ -514,7 +554,7 @@ export function prendreUnePart({
   dormir = attendreUnPeu,
   ...disques
 } = {}) {
-  const sans = raison => ({ id: null, part: null, env, rendre: () => {}, raison });
+  const sans = raison => ({ id: null, part: null, fils: null, env, rendre: () => {}, raison });
   if (paquetsDeLEnveloppe(env)) {
     return sans("dans l'enveloppe d'un agent");
   }
@@ -528,9 +568,26 @@ export function prendreUnePart({
   const dossier = dossierDesParts(env);
   let budget;
   let part;
+  // The precise threads of the budget and the topology they are chosen on.
+  let budgetFils;
+  let topo;
   try {
     budget = budgetDeLaPasse(env);
-    part = entiere || env[VARIABLE_JETON] ? budget : partDeLaPasse({ racine, env });
+    topo = topologie ?? lireLaTopologie({ nombreDeFils: machineDe(env).coeurs });
+    budgetFils = budgetEnFils({ topologie: topo, budget: budget.coeurs });
+    if (mesure) {
+      const demande = coeursDeLaMesure({ racine, budget });
+      let fils = filsDeLaMesure({ budget: budgetFils, topologie: topo, demande });
+      if (fils === null || !topo.lisible) {
+        // No whole core in the budget, or a topology that does not read: each thread is a core.
+        topo = { lisible: false, coeurs: topo.coeurs.flatMap(c => c.fils.map(f => ({ fils: [f], noeud: c.noeud }))) };
+        fils = filsDeLaMesure({ budget: budgetFils, topologie: topo, demande });
+        dire('la topologie des cœurs ne se lit pas : chaque fil compte pour un cœur.');
+      }
+      part = { coeurs: fils, memoire: Math.floor((budget.memoire * fils) / budget.coeurs) };
+    } else {
+      part = entiere || env[VARIABLE_JETON] ? budget : partDeLaPasse({ racine, env });
+    }
   } catch (e) {
     throw e instanceof AttenteDeLaMachine ? e : new AttenteDeLaMachine(`✗ ${e.message}`, 1);
   }
@@ -548,8 +605,10 @@ export function prendreUnePart({
     rang: rangDeLaPasse * ECHELLE_DES_RANGS + maintenant(),
     coeurs: part.coeurs,
     memoire: part.memoire,
+    dediee: mesure,
     depuis: maintenant(),
   };
+  let tenus = null;
   try {
     attendreDeLaPlace({
       env,
@@ -570,11 +629,32 @@ export function prendreUnePart({
     for (;;) {
       const refus = sousLAdmission(dossier, () => {
         const { prises, attentes } = lireLesParts(dossier);
-        const r = refusDePart(
+        let r = refusDePart(
           { prises, attentes },
-          { id: moi.id, rang: moi.rang, part, budget, mesurer: () => machineDe(env) }
+          { id: moi.id, rang: moi.rang, part, budget, mesurer: () => machineDe(env), dediee: mesure }
         );
-        poserLaPart(dossier, r === null ? { ...moi, etat: 'tient' } : { ...moi, etat: 'attend', raison: r });
+        let fils = null;
+        if (r === null) {
+          // The count fits: the precise threads, none held by another pass (a measure's whole
+          // cores, a free core cut by an ordinary pass's threads does not give one).
+          fils = choisirLesCoeurs({
+            budget: budgetFils,
+            topologie: topo,
+            tenus: prises.filter(p => p.id !== moi.id).flatMap(p => p.fils ?? []),
+            demande: part.coeurs,
+            dedies: mesure,
+          });
+          if (fils === null) {
+            r = mesure
+              ? `cœurs dédiés : ${part.coeurs} demandés, aucun cœur entier libre`
+              : `cœurs : ${part.coeurs} demandés, pas assez de fils libres`;
+          }
+        }
+        poserLaPart(
+          dossier,
+          r === null ? { ...moi, fils, etat: 'tient' } : { ...moi, etat: 'attend', raison: r }
+        );
+        tenus = r === null ? fils : null;
         return r;
       });
       if (refus === null) {
@@ -599,6 +679,34 @@ export function prendreUnePart({
       }
       dormir(Math.max(1, Math.min(200, borneMs - (maintenant() - debut))));
     }
+    // The rest of the dedicated cores: a measure goes once their load, out of it, is under the
+    // threshold, within the bound of the wait; without a reading it does not judge that load.
+    if (mesure) {
+      let ditCharge = null;
+      for (;;) {
+        const charge = chargeDesCoeurs(tenus);
+        if (charge === null) {
+          dire('la charge des cœurs dédiés ne se lit pas : la mesure ne la juge pas.');
+          break;
+        }
+        if (charge < SEUIL_DE_CHARGE) {
+          break;
+        }
+        const t = maintenant();
+        const pct = `${Math.round(charge * 100)} %`;
+        if (t - debut >= borneMs) {
+          throw new AttenteDeLaMachine(
+            `⏱ attente du repos des cœurs dédiés bornée à ${duree(borneMs)} (GRILLHOUSE_ATTENTE_MACHINE_MS), ${RANGS[rangDeLaPasse]} : charge de ${pct} des cœurs dédiés hors la mesure, ${Math.round(SEUIL_DE_CHARGE * 100)} % au plus ; à repasser (code ${A_REPASSER}).`,
+            A_REPASSER
+          );
+        }
+        if (ditCharge === null || t - ditCharge >= rappelMs) {
+          dire(`⏳ les cœurs dédiés ne sont pas au repos : charge de ${pct} hors la mesure, ${Math.round(SEUIL_DE_CHARGE * 100)} % au plus.`);
+          ditCharge = t;
+        }
+        dormir(Math.max(1, Math.min(200, borneMs - (maintenant() - debut))));
+      }
+    }
     if (dit !== null) {
       dire(`✓ part prise après ${duree(maintenant() - debut)}.`);
     }
@@ -614,6 +722,10 @@ export function prendreUnePart({
   return {
     id: moi.id,
     part,
+    fils: tenus,
+    dediee: mesure,
+    budgetFils,
+    topologie: topo,
     env: {
       ...enfant,
       [VARIABLE_PART_TENUE]: moi.id,

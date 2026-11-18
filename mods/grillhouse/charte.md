@@ -120,8 +120,9 @@ test vit autant que son comportement, pas que son ticket.
 **Une mesure de temps joue la nuit** (les tests `manual` de Bazel, les bancs de rustc-perf hors de
 la CI de chaque commit) : le jour sert l'activité, et sa machine est toujours chargée. Un test qui
 mesure un temps (un banc de temps, un témoin de temps) est hors du jour dans chaque langage, comme
-un test de nuit ; la nuit le joue seul, au repos, et un échec sous charge y est « à repasser »
-(75). Le jour n'attend aucun repos : un délai de test est un garde-fou, pas une mesure ; dépassé,
+un test de nuit ; la nuit le joue seul, sur des cœurs au repos (des cœurs dédiés que personne
+d'autre ne touche, le reste de la machine continuant de travailler), et un échec sous charge y est
+« à repasser » (75). Le jour n'attend aucun repos : un délai de test est un garde-fou, pas une mesure ; dépassé,
 il est rouge, et un délai trop juste s'élargit, très au-dessus de la durée normale du test. Ainsi
 le jour avance, et une mesure se prend au repos.
 

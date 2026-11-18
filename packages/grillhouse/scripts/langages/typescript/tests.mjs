@@ -267,8 +267,8 @@ const lancer = () => {
 
 try {
   // The run takes its part of the machine (scripts/passe-de-la-machine.mjs `surUnePart`), whose
-  // mark every run of Turborepo carries to its tasks; a night test or a measure of time named
-  // plays alone, on the whole budget.
+  // mark every run of Turborepo carries to its tasks; a measure of time named plays on dedicated
+  // cores (`mesure`), the rest of the machine going on.
   const mesureDeTemps = chemins.some(c => {
     const abs = path.resolve(racine, c);
     return existsSync(abs) && statSync(abs).isFile() && estHorsDuJour(abs);
@@ -278,7 +278,7 @@ try {
       Object.assign(process.env, env);
       return lancer();
     },
-    { racine, entiere: mesureDeTemps }
+    { racine, mesure: mesureDeTemps }
   );
 } finally {
   lacher();

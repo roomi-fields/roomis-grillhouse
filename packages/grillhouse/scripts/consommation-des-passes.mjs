@@ -9,6 +9,8 @@ import { cpus } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const TRANCHE_DU_CADRE = 'grillhouse.slice';
+
 const REGISTRE = 'consommation.jsonl';
 // The client of the D-Bus of the user's systemd manager, which starts the transient scope.
 const CLIENT_DBUS = 'busctl';
@@ -274,7 +276,27 @@ export function scopeDeCommande({ racine, sorte, ticket, coeurs, part, mesurer =
  * @returns {{ ouvrir: () => { lire: () => ({ cpuNs: number | null, memoirePic: number | null } | null),
  *   clore: () => void } | { raison: string } }}
  */
-export function scopeSystemd({ racine, sorte, ticket, coeurs, part = null, mesurer = true }) {
+export function scopeSystemd({
+  racine,
+  sorte,
+  ticket,
+  coeurs,
+  part = null,
+  mesurer = true,
+  fils = null,
+}) {
+  // `AllowedCPUs` of systemd is a bit mask of the threads, a byte array, the first byte the
+  // threads 0 to 7.
+  const masque = (() => {
+    if (!fils || fils.length === 0) {
+      return [];
+    }
+    const octets = new Array(Math.floor(Math.max(...fils) / 8) + 1).fill(0);
+    for (const f of fils) {
+      octets[Math.floor(f / 8)] |= 1 << f % 8;
+    }
+    return octets.map(String);
+  })();
   return {
     ouvrir() {
       const id = `${process.pid}-${Date.now()}`;
@@ -294,7 +316,7 @@ export function scopeSystemd({ racine, sorte, ticket, coeurs, part = null, mesur
           'ssa(sv)a(sa(sv))',
           unite,
           'fail',
-          String(4 + (part ? 2 : 0)),
+          String(4 + (part ? 2 : 0) + (masque.length > 0 ? 2 : 0)),
           'PIDs',
           'au',
           '1',
@@ -316,6 +338,18 @@ export function scopeSystemd({ racine, sorte, ticket, coeurs, part = null, mesur
                 'MemoryMax',
                 't',
                 String(Math.floor(part.memoire)),
+              ]
+            : []),
+          // Under the framework slice, whose cores are not those withdrawn from the user's `app.slice`.
+          ...(masque.length > 0
+            ? [
+                'Slice',
+                's',
+                TRANCHE_DU_CADRE,
+                'AllowedCPUs',
+                'ay',
+                String(masque.length),
+                ...masque,
               ]
             : []),
           '0',
