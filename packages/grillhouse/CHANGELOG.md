@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.45.1] - 2026-11-18
+
 - **The first session of the testwriter starts again** : 0.45.0 read the language of the copy before the tests of the lot (grillhouse-nwb), eagerly, and a copy not made yet, at the launch of the first session of the testwriter, threw « docs/ARCHITECTURE.md ne déclare aucun langage » (Grillhouse 3uv.109 and 3uv.110, 2026-11-18): every new circuit stopped at 2 Tests. The language is now read only when the lot has a file to class. **Action for projects**: none.
 
 - **The compaction of Temporal's database reads its schema** : on pc3 (2026-11-18), the first application of the server's unit of 0.45.0 failed on « no such column: "$.TemporalKeywordList02" »: Temporal's schema writes its JSON paths between double quotes, which the runtime's SQLite reads as columns, and VACUUM parses the schema again. The compaction now opens the database with double-quoted strings read as strings (`enableDoubleQuotedStringLiterals`, `node:sqlite`). **Action for projects**: none; the next `npx grillhouse temporal installer` applies the server's unit and compacts.
