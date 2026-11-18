@@ -123,13 +123,13 @@ describe('the units of the account (criterion 9)', () => {
     expect(m).toMatch(new RegExp(`^After=${UNITE_DU_SERVEUR}$`, 'm'));
   });
 
-  it('the server keeps a closed workflow 30 days, set once it answers at each start', () => {
+  it('the server keeps a closed workflow 7 days, set once it answers at each start', () => {
     const t = textes[UNITE_DU_SERVEUR]!;
     const { programme } = cheminsDe(l, '1.9.1');
     const post = t.split('\n').find(x => x.startsWith('ExecStartPost='));
     expect(post).toContain('/bin/sh -c');
     expect(post).toContain(
-      `'${programme}' operator namespace update --namespace default --retention 720h --address 127.0.0.1:7233`
+      `'${programme}' operator namespace update --namespace default --retention 168h --address 127.0.0.1:7233`
     );
     // systemd reads `$$` as `$`: the loop counts its tries, 60 at most, one a second.
     expect(post).toContain('i=$$((i+1)); [ $$i -ge 60 ] && exit 1; sleep 1');

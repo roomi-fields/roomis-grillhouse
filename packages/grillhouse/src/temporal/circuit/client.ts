@@ -5,7 +5,7 @@
 // L_ETAT). A circuit stopped on the supervisor's word has ended its workflow, which gave back the
 // state it wrote last (`FinDuCircuit`): his answer starts a new one on the same id, which reopens
 // from that state (`reprise`, `etatDArret`), not as a first launch, the bounds of the entry it
-// follows kept. The server holds a workflow for the retention of its namespace (30 days, the
+// follows kept. The server holds a workflow for the retention of its namespace (7 days, the
 // installation's); past it, the state is gone with it, and only `--depuis` reopens the circuit,
 // from the step of its agent, on the task queue of the project's worker (decision Q2 of
 // grillhouse-4nr.12).

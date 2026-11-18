@@ -55,6 +55,7 @@ function poserLesUnites(l: ReturnType<typeof monde>['l'], trouver = tous) {
     lieux: l,
     epingle: EPINGLE_ESSAI,
     systemctl: () => ({ status: 0, stdout: '', stderr: '' }),
+    circuitsEnVol: () => [],
     node: '/usr/bin/node',
     trouver,
     outil: v => path.join(cacheDesOutils(l.maison), v),
@@ -277,6 +278,7 @@ describe('the unit of the machine, which belongs to the project that wrote it', 
         appels.push(args);
         return { status, stdout: '', stderr: status ? 'Failed to connect to bus' : '' };
       },
+      circuitsEnVol: () => [],
       node: '/usr/bin/node',
       trouver: tous,
       outil: (v: string) => path.join(cacheDesOutils(l.maison), v),

@@ -9,10 +9,18 @@
 //   refused before anything is laid down, the expected and the read sums named.
 // - The server is Temporal's development server (`temporal server start-dev`), on the loopback
 //   only, its state in a file of the machine (~/.local/share/grillhouse/temporal/temporal.db), the
-//   frame's search attributes registered, its web interface on Temporal's port plus 1000. Its
-//   namespace `default` keeps a closed workflow 30 days (RETENTION), set at each start of the
-//   unit once the server answers (`temporal operator namespace update --retention`), where
-//   start-dev gives 24 h: a circuit stopped on a Friday reopens from its state on the Monday.
+//   frame's search attributes registered, its web interface on Temporal's port plus 1000. Under
+//   load it takes the processor first (`CPUWeight=1000` against the workers' 100, no cap) and opens
+//   its database in WAL with a normal synchronous write (`--sqlite-pragma`). Its namespace
+//   `default` keeps a closed workflow 7 days (RETENTION), set at each start of the unit once the
+//   server answers (`temporal operator namespace update --retention`), where start-dev gives 24 h:
+//   a circuit stopped for more than 7 days reopens by `--depuis`.
+// - Applying the server's unit (its text changed, or the program newly laid down) asks the server
+//   for the circuits in flight before any writing and refuses, naming their tickets, when there is
+//   one (`circuitsEnVol`; a server that does not answer has none); then stops the server, compacts
+//   its database (`compacterLaBase`, `VACUUM` by the runtime's `node:sqlite`) and starts it again,
+//   and the report says the sizes before and after. A failed compaction starts the server again and
+//   refuses the installation by its name, the unit not recorded as applied.
 // - Each worker runs the frame's worker (dist/temporal/travailleur.js) on its task queue:
 //   `grillhouse-projet-<projet>` for the project's, `grillhouse-machine` for the machine's. A
 //   project that names its version of the frame (`grillhouse.outil`, scripts/aiguillage.mjs) runs
@@ -53,8 +61,10 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -90,8 +100,12 @@ export const EPINGLE: Epingle = {
 
 /** The port of the account's server, Temporal's, on the loopback. */
 const PORT_DU_SERVEUR = 7233;
-/** How long the server keeps a closed workflow: 30 days. */
-const RETENTION = '720h';
+/** How long the server keeps a closed workflow: 7 days. */
+const RETENTION = '168h';
+/** The processor weight of the server's unit, above the passes' and the workers' (100). */
+const POIDS_DU_SERVEUR = 1000;
+/** The pragmas of SQLite the server opens its database with: WAL, the synchronous write WAL advises. */
+const PRAGMAS_DU_SERVEUR = ['journal_mode=wal', 'synchronous=NORMAL'];
 /** The account's tools a circuit runs, whose folders each worker's PATH names. */
 const OUTILS_DU_COMPTE = ['node', 'npm', 'claude', 'bd', 'gh'] as const;
 // The folders of the system, after the tools' own.
@@ -211,6 +225,7 @@ export function textesDesUnites(
     'start-dev',
     '--db-filename',
     donnees,
+    ...PRAGMAS_DU_SERVEUR.flatMap(p => ['--sqlite-pragma', p]),
     '--ip',
     '127.0.0.1',
     '--port',
@@ -255,7 +270,11 @@ export function textesDesUnites(
   return {
     [UNITE_DU_SERVEUR]: service(
       `Grillhouse : le serveur Temporal du compte (temporal ${version})`,
-      [`ExecStart=${serveur.map(arg).join(' ')}`, `ExecStartPost=/bin/sh -c ${arg(retenir)}`]
+      [
+        `CPUWeight=${POIDS_DU_SERVEUR}`,
+        `ExecStart=${serveur.map(arg).join(' ')}`,
+        `ExecStartPost=/bin/sh -c ${arg(retenir)}`,
+      ]
     ),
     [uniteDuProjet(lieux.racine)]: service(
       `Grillhouse : le travailleur du projet ${nomDuProjet(lieux.racine)}`,
@@ -380,6 +399,19 @@ export interface OptionsDInstallation extends OptionsDuProgramme {
   outil?: (version: string) => string;
   /** The path of an account's tool, or null (`trouverDansLePath`). */
   trouver?: (nom: string) => string | null;
+  /**
+   * The tickets whose circuit runs on the server (`circuitDuTicket`, status Running); none when the
+   * server does not answer (`circuitsEnVolDuServeur`).
+   */
+  circuitsEnVol?: () => string[];
+  /** Compacts the database file <base> and gives its size before and after (`compacterLaBase`). */
+  compacter?: (base: string) => Compactage;
+}
+
+/** The size of the database before and after its compaction, in bytes. */
+export interface Compactage {
+  avant: number;
+  apres: number;
 }
 
 /** What the installation did. */
@@ -393,6 +425,64 @@ export interface RapportDInstallation {
   appliquees: string[];
   /** Whether anything changed. */
   change: boolean;
+  /** The size of the database before and after its compaction; absent when it was not compacted. */
+  compactage?: Compactage;
+}
+
+/**
+ * Compacts the SQLite database <base> (`VACUUM`, by the runtime's `node:sqlite`, no tool of the
+ * PATH), its journal folded into it first; its size before and after. SQLite's own message refuses
+ * a file that is not a database.
+ */
+export function compacterLaBase(base: string): Compactage {
+  const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as {
+    DatabaseSync: new (f: string) => { exec(sql: string): void; close(): void };
+  };
+  const avant = statSync(base).size;
+  const db = new DatabaseSync(base);
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    db.exec('VACUUM');
+  } finally {
+    db.close();
+  }
+  return { avant, apres: statSync(base).size };
+}
+
+/**
+ * The tickets whose circuit runs on the account's server: `temporal workflow list` of the program
+ * <programme>, the workflows `circuitDuTicket` Running (their id `circuit:<racine>:<ticket>`). A
+ * server that does not answer, or an answer that does not read, is no circuit in flight.
+ */
+function circuitsEnVolDuServeur(programme: string): string[] {
+  const r = spawnSync(
+    programme,
+    [
+      'workflow',
+      'list',
+      '--address',
+      `127.0.0.1:${PORT_DU_SERVEUR}`,
+      '--query',
+      "WorkflowType='circuitDuTicket' AND ExecutionStatus='Running'",
+      '--output',
+      'json',
+    ],
+    { encoding: 'utf8', timeout: 30_000 }
+  );
+  if (r.status !== 0) {
+    return [];
+  }
+  try {
+    const lus = JSON.parse(r.stdout) as unknown;
+    const ids = (Array.isArray(lus) ? lus : [])
+      .map((w: { workflowId?: string; execution?: { workflowId?: string } }) =>
+        String(w.workflowId ?? w.execution?.workflowId ?? '')
+      )
+      .filter(Boolean);
+    return [...new Set(ids.map(id => id.slice(id.lastIndexOf(':') + 1)))].sort();
+  } catch {
+    return [];
+  }
 }
 
 // Lays down the program `temporal` of the archive <contenu> as <programme>: extracted under a
@@ -683,6 +773,8 @@ export async function installer({
   outil = v => installerLOutil(v, { cache: cacheDesOutils(lieux.maison) }).dossier,
   travailleur,
   trouver = nom => trouverDansLePath(nom),
+  circuitsEnVol = () => circuitsEnVolDuServeur(cheminsDe(lieux, epingle.version).programme),
+  compacter = compacterLaBase,
 }: OptionsDInstallation): Promise<RapportDInstallation> {
   const { donnees, appliquees: fichierDesAppliquees } = cheminsDe(lieux, epingle.version);
   // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
@@ -697,6 +789,19 @@ export async function installer({
   });
   const textes = textesDuProjet(lieux, tous);
   const pose = contenu !== null;
+  const deja = lireLesAppliquees(fichierDesAppliquees);
+  const enAttente = Object.keys(textes).filter(n => deja[n] !== sommeDe(textes[n]!));
+  // The server's unit is applied when a program is laid down, or when it is still to apply.
+  const serveurApplique = pose || enAttente.includes(UNITE_DU_SERVEUR);
+  // Before any writing: a circuit in flight refuses the stop of the server.
+  if (serveurApplique) {
+    const enVol = circuitsEnVol();
+    if (enVol.length > 0) {
+      throw new Error(
+        `temporal : l'unité du serveur ne s'applique pas sous un circuit en vol (${enVol.join(', ')}) ; rien n'est écrit, à rejouer quand ils sont arrêtés.`
+      );
+    }
+  }
   if (contenu) {
     poser(contenu, programme);
   }
@@ -711,14 +816,29 @@ export async function installer({
     writeFileSync(f, texte);
     unites.push(nom);
   }
-  const deja = lireLesAppliquees(fichierDesAppliquees);
-  const enAttente = Object.keys(textes).filter(n => deja[n] !== sommeDe(textes[n]!));
   // A program newly laid down starts again the units of this project, the machine's when it is
   // its own.
   const appliquees = pose ? Object.keys(textes) : enAttente;
+  let compactage: Compactage | undefined;
   if (appliquees.length) {
     systemd(systemctl, ['daemon-reload']);
-    systemd(systemctl, ['enable', ...unitesDe(lieux.racine)]);
+    systemd(systemctl, ['enable', ...unitesDe(lieux.racine).filter(n => appliquees.includes(n))]);
+    if (serveurApplique) {
+      // The server stopped, its database compacted, then every unit applied started again; without
+      // a database file there is nothing to compact, and the server is not stopped.
+      if (existsSync(donnees)) {
+        systemd(systemctl, ['stop', UNITE_DU_SERVEUR]);
+        try {
+          compactage = compacter(donnees);
+        } catch (e) {
+          systemd(systemctl, ['start', UNITE_DU_SERVEUR]);
+          throw new Error(
+            `temporal : le compactage de la base ${donnees} échoue : ${e instanceof Error ? e.message : String(e)} ; le serveur est redémarré, l'unité sera appliquée au prochain passage.`,
+            { cause: e }
+          );
+        }
+      }
+    }
     systemd(systemctl, ['restart', ...appliquees]);
     mkdirSync(path.dirname(fichierDesAppliquees), { recursive: true });
     // The sums of this project's units, beside those of the other projects of the account.
@@ -734,5 +854,6 @@ export async function installer({
     unites,
     appliquees,
     change: pose || unites.length > 0 || appliquees.length > 0,
+    ...(compactage ? { compactage } : {}),
   };
 }

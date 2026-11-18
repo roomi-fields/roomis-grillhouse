@@ -1409,8 +1409,20 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   (`temporal server start-dev`, sur `127.0.0.1` seulement, son état dans
   `~/.local/share/grillhouse/temporal/temporal.db`, les attributs du cadre enregistrés, le tableau
   web sur le port 8233, son espace `default` réglé à chaque départ, une fois le serveur prêt, pour
-  garder un déroulé fermé 30 jours, `temporal operator namespace update --retention 720h`, là où
-  start-dev donne 24 h) ; `grillhouse-travailleur-<projet>.service`, le travailleur du projet sur
+  garder un déroulé fermé 7 jours, `temporal operator namespace update --retention 168h`, là où
+  start-dev donne 24 h ; son unité porte `CPUWeight=1000`, au-dessus du poids 100 des passes et
+  des travailleurs et sans plafond, et il ouvre sa base en journal WAL avec l'écriture synchrone
+  que SQLite conseille pour WAL, `--sqlite-pragma journal_mode=wal` et `synchronous=NORMAL`).
+  Quand l'installation applique l'unité du serveur (texte changé, programme posé), elle interroge
+  d'abord le serveur sur les circuits en vol et refuse, leurs tickets nommés, s'il y en a ; puis
+  elle arrête le serveur, compacte sa base (`VACUUM`, par le SQLite du runtime, `node:sqlite`),
+  le redémarre, et son rapport dit la taille avant et après ; un compactage qui échoue redémarre le
+  serveur et refuse l'installation par son nom. **Écart à la référence** : Temporal réserve le
+  serveur de développement (SQLite) au développement local et tient un serveur qui dure sur
+  PostgreSQL. Le serveur de développement reste : l'historique de 7 jours, le journal WAL et la
+  priorité du processeur sont posés d'abord, et PostgreSQL est le pas suivant s'ils ne suffisent pas
+  (décision du responsable, 2026-11-18, ticket grillhouse-3uv.108). Les deux autres unités :
+  `grillhouse-travailleur-<projet>.service`, le travailleur du projet sur
   la file `grillhouse-projet-<projet>` ; `grillhouse-travailleur-machine.service`, le travailleur
   de la machine sur la file `grillhouse-machine`. Le travailleur d'un projet joue la version publiée que le
   projet nomme (`grillhouse.outil`), posée sous `~/.cache/grillhouse/outil/<version>/` quand elle
@@ -1473,7 +1485,7 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   fichier un jour après son enregistrement. Il se réenregistre (`tests/temporal/
 enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand son déroulé de
   sonde change de forme au point que la relecture ne le reconnaît plus, jamais à une montée
-  d'épingle. Le serveur du compte, lui, garde un déroulé fermé 30 jours (`RETENTION` de
+  d'épingle. Le serveur du compte, lui, garde un déroulé fermé 7 jours (`RETENTION` de
   `installation.ts`) : un circuit arrêté sur le mot du superviseur se rouvre de son état dans ce
   délai, et au-delà par `--depuis` ; ce qui doit durer plus vit au ticket. Les tests démarrent leur serveur d'essai quand son
   frontal se dit en service et décrit son espace, non quand son port s'ouvre.
@@ -1571,7 +1583,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     avec les bornes de l'entrée qu'il suit (`repasserMs`, `repassesMax`, `ci`), qui s'ouvre sur
     elle depuis l'état que le déroulé arrêté a rendu (`reprise` et `etatDArret` de son entrée),
     et non comme un premier lancement ; un déroulé fini sans son issue se rouvre de même depuis
-    l'état que son mémo garde entier (`ecrit`). Au-delà de la rétention du serveur (30 jours),
+    l'état que son mémo garde entier (`ecrit`). Au-delà de la rétention du serveur (7 jours),
     seul `--depuis` rouvre un circuit, sur la file du travailleur du projet. Le client refuse,
     avant tout déroulé, `--reprendre` sur un état absent ou intégré, `--etendre` sur un état
     intégré ou un déroulé fini sans son issue, jamais `--depuis`. Ces refus, le refus

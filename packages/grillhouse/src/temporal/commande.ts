@@ -103,7 +103,11 @@ async function principal(args: string[]): Promise<number> {
     r.change
       ? `temporal : ${r.pose ? 'programme posé' : 'programme à jour'} (${r.programme}) ; ` +
           `unités écrites : ${r.unites.join(', ') || 'aucune'} ; ` +
-          `appliquées : ${r.appliquees.join(', ') || 'aucune'}.\n`
+          `appliquées : ${r.appliquees.join(', ') || 'aucune'}` +
+          (r.compactage
+            ? ` ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
+            : '') +
+          '.\n'
       : 'temporal : l’installation est à jour, rien ne change.\n'
   );
   return 0;

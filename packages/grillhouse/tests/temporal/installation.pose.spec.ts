@@ -64,6 +64,7 @@ describe('the installation from an archive whose sum is the pinned one', () => {
     plateforme: 'linux_amd64' as const,
     obtenir,
     systemctl,
+    circuitsEnVol: () => [],
     node: '/usr/bin/node',
     travailleur: '/paquet/dist/temporal/travailleur.js',
     trouver: (nom: string) => `/compte/bin/${nom}`,
@@ -92,7 +93,7 @@ describe('the installation from an archive whose sum is the pinned one', () => {
     expect(travail).toContain('Environment=PATH=/usr/bin:/compte/bin:/usr/local/bin:/bin\n');
     expect(travail).toContain(`Environment=TEMPORAL=${programme}\n`);
     expect(readFileSync(path.join(l.unites, UNITE_DU_SERVEUR), 'utf8')).toContain(
-      '--retention 720h'
+      '--retention 168h'
     );
   });
 
