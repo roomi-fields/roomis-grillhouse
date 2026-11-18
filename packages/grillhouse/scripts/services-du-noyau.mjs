@@ -65,11 +65,11 @@ export const GARDE_DE_LA_MEMOIRE = fileURLToPath(
   new URL('./garde-de-la-memoire.mjs', import.meta.url)
 );
 export { ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
-export { avecLaPasse } from './passe-de-la-machine.mjs';
+export { avecLaPasse, surUnePart } from './passe-de-la-machine.mjs';
 export {
-  surUnePlace,
+  nommerLAvancement,
   travailleursDeLaSeance,
   VARIABLE_TRAVAILLEURS,
 } from './places-de-la-machine.mjs';
-export { attendreDeLaPlace, AttenteDeLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
+export { attendreDeLaPlace, AttenteDeLaMachine } from './attente-de-la-machine.mjs';
 export { CONFIG_BEADS, ecrireLePrefixe, prefixe } from './prefixe-des-tickets.mjs';

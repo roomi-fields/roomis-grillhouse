@@ -74,10 +74,9 @@
 //   green: the one pass of the verification keeps it (scripts/dernier-vert.mjs,
 //   scripts/langages/typescript/verifier.mjs). Beside the module of package.json, whose pass plays
 //   every task of the graph, the composed command sets `GRAPHE_JOUE` and `verifier` plays `cargo
-//   deny check` alone (scripts/commandes-composees.mjs). It plays on a place of the machine and under its lock,
-//   one heavy measure at a time (`avecLaPasse` of ./jointure, as the module typescript's verifier): a
-//   measure that holds it makes it wait, and the bound of the wait reached, it stops at 75 without
-//   running cargo.
+//   deny check` alone (scripts/commandes-composees.mjs). It plays on its part of the machine
+//   (`avecLaPasse` of ./jointure, as the module typescript's verifier): a pass whose part does not
+//   fit makes it wait, and the bound of the wait reached, it stops at 75 without running cargo.
 // - `verifier --gardes` plays the guards alone, the same verdict as the module typescript's: the
 //   project's root scripts `grillhouse:gardes` (the frame's guards) then `gardes` (its own), each
 //   one the package.json holds a task of the root, by npm, without its tests nor cargo deny, and
@@ -138,7 +137,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
-  surUnePlace,
+  surUnePart,
   avecLaPasse,
   cheminsDeLaTache,
   construireDepuisLesArguments,
@@ -893,7 +892,7 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   }
   const tous = crates(racine);
   if (nom === 'tester') {
-    return surUnePlace(e => tester(racine, tous, args, e), { env });
+    return surUnePart(e => tester(racine, tous, args, e), { env, racine });
   }
   if (nom === 'tests-du-paquet') {
     return sousLaBase('tests', env, (envBase, pp) =>

@@ -1,6 +1,6 @@
 // The trials of the verdicts of the witnesses (grillhouse-3dr.2.1): `depotDeVerdict`, two packages,
 // `a` of the sort given (`vert`, `rouge`, `delai`: past its delay every time; `tenu`: green, the
-// lock of the machine held by another measure), `b` green, played by the real Turborepo and the
+// budget of the machine held by another pass), `b` green, played by the real Turborepo and the
 // real Vitest of the repository; what ./enregistrer.mjs records and the night's specification
 // compares, built the same way on both sides.
 import { spawn } from 'node:child_process';
@@ -10,7 +10,7 @@ import { ARCHITECTURE_TYPESCRIPT, DEPOT, ecrireDans, git, initialiser, json } fr
 
 // The trial of a verdict, its package `a` of <sorte>, its tests under the base configuration
 // <base> (the `vitest-config/base.mjs` of the code measured): `{ racine, env }`, the environment
-// with the pressure at <pression> and the lock of the machine of its own.
+// with the pressure at <pression> and the parts of the machine of its own.
 export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
   const ecrire = ecrireDans(racine);
   symlinkSync(path.join(DEPOT, 'node_modules'), path.join(racine, 'node_modules'), 'dir');
@@ -31,7 +31,8 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
       globalPassThroughEnv: [
         'GRILLHOUSE_PRESSION_CPU',
         'GRILLHOUSE_RESULTATS',
-        'GRILLHOUSE_VERROU_MACHINE',
+        'GRILLHOUSE_PARTS_DE_LA_MACHINE',
+        'GRILLHOUSE_MESURE_D_ESSAI',
       ],
       tasks: {
         build: { outputs: [] },
@@ -83,24 +84,31 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
     TURBO_TELEMETRY_DISABLED: '1',
     DO_NOT_TRACK: '1',
     GRILLHOUSE_PRESSION_CPU: path.join(racine, 'pression'),
-    GRILLHOUSE_VERROU_MACHINE: path.join(racine, 'mesure.lock'),
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(racine, 'parts'),
+    // A machine of 12 cores and 32 GB at rest: the budget is 8 cores and 28 GB, the part 4 cores.
+    GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+      coeurs: 12,
+      charge: 1,
+      memoireLibre: 16 * 1024 ** 3,
+      memoireTotale: 32 * 1024 ** 3,
+    }),
   };
   return { racine, env };
 }
 
-// A process that holds the lock of the machine of the trial <env> names, by the module
-// <verrou> (the `verrou-de-machine.mjs` of the code measured), until `liberer`: `{ pret, liberer,
-// fin }`, `pret` resolved once it holds it.
-export function tenirLaMachine(verrou, env, dossier) {
+// A process that holds the whole budget of the machine of the trial <env> names, by the module
+// <places> (the `places-de-la-machine.mjs` of the code measured), until `liberer`: `{ pret,
+// liberer, fin }`, `pret` resolved once it holds it.
+export function tenirLaMachine(places, env, dossier) {
   const tenu = path.join(dossier, 'tenu');
   const libere = path.join(dossier, 'libere');
   const code = `
     import { existsSync, writeFileSync } from 'node:fs';
-    import { avecLaMachine } from ${JSON.stringify(verrou)};
-    avecLaMachine(() => {
-      writeFileSync(${JSON.stringify(tenu)}, '');
-      while (!existsSync(${JSON.stringify(libere)})) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
-    }, { racine: ${JSON.stringify(dossier)} });
+    import { prendreUnePart } from ${JSON.stringify(places)};
+    const part = prendreUnePart({ racine: ${JSON.stringify(dossier)}, entiere: true });
+    writeFileSync(${JSON.stringify(tenu)}, '');
+    while (!existsSync(${JSON.stringify(libere)})) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+    part.rendre();
   `;
   const p = spawn(process.execPath, ['--input-type=module', '-e', code], { env, stdio: 'ignore' });
   const fin = new Promise(resolve => p.on('close', resolve));
@@ -113,7 +121,7 @@ export function tenirLaMachine(verrou, env, dossier) {
     }, 50);
     p.on('close', c => {
       clearInterval(t);
-      reject(new Error(`le détenteur du verrou s'arrête (code ${c})`));
+      reject(new Error(`le détenteur de la machine s'arrête (code ${c})`));
     });
   });
   return { pret, fin, liberer: () => writeFileSync(libere, '') };

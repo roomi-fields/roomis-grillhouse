@@ -372,11 +372,11 @@
 //   (no real failure), its only deviation, after a pass (the checks of the plan or the final pass) that carries reds of the plan,
 //   judges the lot, as a ceiling refuses a lot beyond it: the copy restored, those reds go to the
 //   developpeur with the end of its output, within his sessions, then that pass again.
-// - The proof, the checks and the final pass are heavy passes: each holds the lock of the machine
-//   (scripts/verrou-de-machine.mjs), shared by every repository of the machine, and waits, the
-//   wait written to the log, while another measure holds it; the wait bounded, the pass is at 75,
-//   « à repasser ». The pass names itself beside the lock, its ticket and its step's title, and
-//   its progress while it holds it, which the board of every project shows.
+// - The proof, the checks and the final pass each take their part of the budget of the machine
+//   (scripts/passe-de-la-machine.mjs), shared by every repository of the machine, and wait, the
+//   wait written to the log, while the parts held leave too little; the wait bounded, the pass is
+//   at 75, « à repasser ». The pass names itself in the file of its part, its ticket and its
+//   step's title, and its progress while it holds it, which the board of every project shows.
 // - The report a developpeur receives names his reds first, each on its line (test or finding,
 //   file and line, message, the beginning of a failed build's own log), then the count of the
 //   others and the path of the log; the report of a stop names every red with its package.

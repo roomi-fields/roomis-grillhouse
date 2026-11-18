@@ -203,36 +203,6 @@ describe('une place tenue passe sa marque aux passes qu’elle joue', () => {
   }, 120_000);
 });
 
-describe('une commande lancée à la main joue sur une place', () => {
-  it('surUnePlace plays the pass on a place carrying its mark, and gives back its code', async () => {
-    const { env } = await machine(1);
-    const vus: unknown[] = [];
-    const code = P().surUnePlace(
-      (e: Record<string, string>) => {
-        vus.push(e.GRILLHOUSE_PLACE_TENUE, P().lirePlaces({ env }).prises.length);
-        return 3;
-      },
-      { env, dire: () => {} }
-    );
-    expect(code).toBe(3);
-    expect(vus).toEqual([expect.any(String), 1]);
-    expect(P().lirePlaces({ env }).prises).toEqual([]);
-  }, 120_000);
-
-  it('the places all taken, the command says why it stops and ends at 75', async () => {
-    const { env } = await machine(1);
-    const tenue = P().prendreUnePlace({ env, dire: () => {} });
-    const dit: string[] = [];
-    const code = P().surUnePlace(() => 0, {
-      env: { ...env, GRILLHOUSE_ATTENTE_MACHINE_MS: '1500' },
-      dire: (l: string) => dit.push(l),
-    });
-    tenue.rendre();
-    expect(code).toBe(75);
-    expect(dit.at(-1)).toMatch(/à repasser/);
-  }, 120_000);
-});
-
 describe('le serveur des places est requis sur le poste', () => {
   it('a place that does not go back is said, and its pass keeps its code', async () => {
     const { env, tuerLeServeur } = await machine(1);
@@ -249,7 +219,7 @@ describe('le serveur des places est requis sur le poste', () => {
     const port = await portLibre();
     const env = {
       PATH: process.env.PATH ?? '',
-      GRILLHOUSE_VERROU_MACHINE: process.env.GRILLHOUSE_VERROU_MACHINE ?? '',
+      GRILLHOUSE_PARTS_DE_LA_MACHINE: process.env.GRILLHOUSE_PARTS_DE_LA_MACHINE ?? '',
       GRILLHOUSE_PLACES_D_ESSAI: `127.0.0.1:${port}`,
     };
     let erreur: { code?: number; message?: string } | null = null;

@@ -97,6 +97,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { REGISTRE } from './adresse-du-registre.mjs';
+import { lireLaConsommation } from './consommation-des-passes.mjs';
 import { pathToFileURL } from 'node:url';
 import {
   AGENTS_DU_LOT,
@@ -531,9 +532,24 @@ const millions = x => ((x ?? 0) / 1e6).toFixed(2).replace('.', ',');
 export const enBref = b =>
   `Bilan : ${minutes(b.mur)} min, ${pourcent(b.perdu, b.mur)} % perdus, ${b.seances.total} séances, ${dollars(b.cout)} $.`;
 
+/**
+ * The passes of <ticket> that consumed clearly more than their part, from the register of the
+ * consumption of the project at <racine> (scripts/consommation-des-passes.mjs): each `{ sorte,
+ * depasse }`, `depasse` saying what exceeds (« cœurs : 7,5 mesurés pour 4 »).
+ * @param {string} racine
+ * @param {string} ticket
+ * @returns {{ sorte: string, depasse: string }[]}
+ */
+export function depassementsDuTicket(racine, ticket) {
+  return lireLaConsommation(racine)
+    .filter(l => l.ticket === ticket && typeof l.depasse === 'string')
+    .map(l => ({ sorte: l.sorte, depasse: l.depasse }));
+}
+
 // The text of the bilan <b> at the ticket, short and in figures, compared with the bilan
-// <avant> (another ticket's, computed again, or null).
-export function texteDuBilan(b, avant) {
+// <avant> (another ticket's, computed again, or null); <depassent>, the passes of the ticket that
+// consumed clearly more than their part (`depassementsDuTicket`), said on a line of their own.
+export function texteDuBilan(b, avant, depassent = []) {
   const lesRoles = parRole =>
     Object.entries(parRole)
       .map(([r, n]) => `${n} ${nomDuRole(r)}`)
@@ -582,7 +598,14 @@ export function texteDuBilan(b, avant) {
       .map(([nom, ms]) => `${nom} ${minutes(ms)} min`)
       .join(', ');
   const reprise = `Reprise après un rouge : ${minutes(b.reprise.rejoue.ms)} min rejouées${b.reprise.rejoue.ms ? ` (${parEtape(b.reprise.rejoue)})` : ''}, ${minutes(b.reprise.relu.ms)} min relues sans rejouer${b.reprise.relu.ms ? ` (${parEtape(b.reprise.relu)})` : ''}.`;
-  return [tete, ...lignes, ...tri, reprise, `Arrêts : ${arrets || 'aucun'}.`, base].join('\n');
+  const parts = depassent.length
+    ? [
+        `Passes au-delà de leur part : ${depassent.length} (${depassent.map(d => `${d.sorte}, ${d.depasse}`).join(' ; ')}).`,
+      ]
+    : [];
+  return [tete, ...lignes, ...tri, reprise, ...parts, `Arrêts : ${arrets || 'aucun'}.`, base].join(
+    '\n'
+  );
 }
 
 const dossier = racine => path.join(racine, '.claude', 'worktrees');
@@ -738,7 +761,7 @@ export function ecrireLeBilan(racine, ticket, fin) {
   const b = calculer(racine, ticket, fin);
   const avant = precedent(racine, ticket);
   garder(racine, b);
-  return texteDuBilan(b, avant);
+  return texteDuBilan(b, avant, depassementsDuTicket(racine, ticket));
 }
 
 // Where the circuit of <ticket> in the repository at <racine> ended, as its workflow's memo on the
@@ -775,7 +798,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const racine = commun.status === 0 ? path.dirname(commun.stdout.trim()) : process.cwd();
     void finSurLeServeur(racine, ticket).then(fin => {
       const b = calculer(racine, ticket, fin);
-      process.stdout.write(`${texteDuBilan(b, precedent(racine, ticket))}\n`);
+      process.stdout.write(
+        `${texteDuBilan(b, precedent(racine, ticket), depassementsDuTicket(racine, ticket))}\n`
+      );
       if (options.includes('--garder')) {
         garder(racine, b);
       }

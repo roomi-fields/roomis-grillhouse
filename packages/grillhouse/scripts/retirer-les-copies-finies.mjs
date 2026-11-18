@@ -9,7 +9,7 @@
 //   answer, a client not built or any other fault of that reading leaves them unread (null), and
 //   the removal of ./copies-finies.mjs then keeps each copy beside its `.travail`.
 // - The removal lives in ./copies-finies.mjs, which imports nothing of the built `dist/`: the lock
-//   of the machine (./verrou-de-machine.mjs) and the base configuration of the tests import it,
+//   of the machine (./attente-de-la-machine.mjs) and the base configuration of the tests import it,
 //   and a project of trial holds the frame's scripts without `dist/`.
 import { circuitsDuServeur } from './circuits-du-serveur.mjs';
 import { retirerLesCopiesDuDepot } from './copies-finies.mjs';

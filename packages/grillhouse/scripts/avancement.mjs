@@ -29,17 +29,16 @@
 //   copies included, beside the last green (scripts/dernier-vert.mjs): `{ passes, taches }`, the
 //   total of the last pass of each kind and the files planned of each task by its hash (the
 //   latest TACHES_GARDEES); each pass keeps its own at its end (`garderLeTotal`).
-// - The holder of the lock of the machine (scripts/verrou-de-machine.mjs: a measure out of a
-//   ticket, `npm run verifier` of a supervisor, or a heavy pass of the
-//   circuit of a ticket) names its progress directory beside the lock (`nommerLAvancement`); the
-//   board reads the holder with its progress, and the waits for the lock or for room
-//   (`lireLaMesure`).
+// - Each pass that holds a part of the machine (scripts/places-de-la-machine.mjs: a measure out of
+//   a ticket, `npm run verifier` of a supervisor, or a pass of the circuit of a ticket) names its
+//   progress directory in the file of its part (`nommerLAvancement`); the board reads the parts
+//   held with their progress, and the waits for a part or for room (`lireLaMesure`).
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { AVANCEMENT, ecrireAtomique, TACHES } from './mesure/avancement.mjs';
-import { lireLeVerrou } from './verrou-de-machine.mjs';
+import { budgetDeLaPasse, dossierDesParts, lireLesParts } from './places-de-la-machine.mjs';
 
 const PASSE = 'passe.json';
 const PLAN = 'plan';
@@ -300,35 +299,43 @@ export function garderLeTotal(dossier) {
 }
 
 /**
- * Who holds the lock of the machine under <env> and who waits for it, as the board shows them
- * (scripts/tableau.mjs): `detenteur`, its repository (`depot`, the root of its main tree, and
- * `projet`, its folder), its working tree (`copie`, the main tree or a copy), ticket, kind, since when and progress
- * (`avancement`, its files done and planned and its last sign; null while it names no progress
- * directory, or that directory does not read), null when the lock is free or its process gone;
- * `attentes`, each live wait, the oldest first, its project, copy, ticket, kind, what it waits for
- * (`quoi`) and since when (`lireLeVerrou` of scripts/verrou-de-machine.mjs).
+ * The parts of the machine under <env>, as the board shows them (scripts/tableau.mjs): `budget`
+ * (the cores and the memory the parts share, null when the reserve of the user is faulty, `faute`
+ * then naming it), `prises`, each pass that holds a part (its repository `depot`, the root of its
+ * main tree, and `projet`, its folder; its working tree `copie`; ticket, kind, `coeurs` and
+ * `memoire` of its part, since when, what it consumes beyond its part `depasse`, and its progress
+ * `avancement`: its files done and planned and its last sign, null while it names no progress
+ * directory, or that directory does not read), and `attentes`, each live wait in the order of
+ * its rank, with what it waits for (`raison`) (`lireLesParts` of scripts/places-de-la-machine.mjs).
  * @param {Record<string, string | undefined>} [env]
  */
 export function lireLaMesure(env = process.env) {
-  const { detenteur: d, attentes } = lireLeVerrou(env);
+  const { prises, attentes } = lireLesParts(dossierDesParts(env));
+  let budget = null;
+  let faute = null;
+  try {
+    budget = budgetDeLaPasse(env);
+  } catch (e) {
+    faute = e.message;
+  }
+  const nom = ({ depot, copie, projet, ticket, sorte, depuis }) => ({
+    depot,
+    copie: copie ?? null,
+    projet,
+    ticket: ticket ?? null,
+    sorte,
+    depuis,
+  });
   return {
-    detenteur: d && {
-      depot: d.depot,
-      copie: d.copie ?? null,
-      projet: d.projet,
-      ticket: d.ticket,
-      sorte: d.sorte,
-      depuis: d.depuis,
-      avancement: typeof d.dossier === 'string' ? lireAvancement(d.dossier) : null,
-    },
-    attentes: attentes.map(({ depot, copie, projet, ticket, sorte, quoi, depuis }) => ({
-      depot,
-      copie: copie ?? null,
-      projet,
-      ticket,
-      sorte,
-      quoi,
-      depuis,
+    budget,
+    faute,
+    prises: prises.map(p => ({
+      ...nom(p),
+      coeurs: p.coeurs,
+      memoire: p.memoire,
+      depasse: p.depasse ?? null,
+      avancement: typeof p.dossier === 'string' ? lireAvancement(p.dossier) : null,
     })),
+    attentes: attentes.map(a => ({ ...nom(a), rang: a.rang, raison: a.raison ?? '' })),
   };
 }

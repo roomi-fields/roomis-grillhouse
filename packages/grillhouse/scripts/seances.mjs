@@ -47,7 +47,7 @@ import {
   nomsDe,
 } from './ticket-du-circuit.mjs';
 import { emettre } from './effets.mjs';
-import { AttenteDeLaMachine } from './verrou-de-machine.mjs';
+import { AttenteDeLaMachine } from './attente-de-la-machine.mjs';
 
 // The number of the next files of a session in the working directory <dossier> of the ticket: one
 // past the highest its files carry (`consigne-<n>.md`, `erreurs-<n>.txt`), read
@@ -324,8 +324,9 @@ export async function lancer(
     }
     throw new Arret('a-repasser', e.message);
   }
-  // The session writes at the ticket under the author of its role, and its passes play on its
-  // place (the mark of the place, `place.env`), taking none of their own.
+  // The session writes at the ticket under the author of its role (the mark of its place,
+  // `place.env`); the passes it plays out of the envelope take their own part of the machine,
+  // those it plays in its envelope none (its place covers them).
   // A session out of the envelope (the relecteur, which plays tests) plays them on its share of
   // the cores, under nice and ionice; the launcher of an enveloped one does it in the envelope.
   const lancement = horsEnveloppe

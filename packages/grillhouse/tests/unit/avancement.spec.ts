@@ -21,7 +21,7 @@ import {
   lireLaMesure,
   ouvrirAvancement,
 } from '../../scripts/avancement.mjs';
-import { avecLaMachine, nommerLAvancement } from '../../scripts/verrou-de-machine.mjs';
+import { nommerLAvancement, prendreUnePart } from '../../scripts/places-de-la-machine.mjs';
 import { AVANCEMENT } from '../../scripts/mesure/avancement.mjs';
 import AvancementReporter, {
   rapportAvancement,
@@ -195,35 +195,44 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
   });
 });
 
-// The holder of the lock of the machine and its progress (grillhouse-wui): the measure that holds
-// the lock names itself beside it (scripts/verrou-de-machine.mjs), then names its progress
-// directory (`nommerLAvancement`); the board reads both (`lireLaMesure`), the holder's figures
-// while its directory is named. The pass of `npm run verifier` itself is the night's.
-describe('the holder of the lock of the machine gives its progress', () => {
-  it('named, read with its figures, then without them, then gone with the lock', () => {
+// The holder of a part of the machine and its progress (grillhouse-wui): the pass that holds a part
+// is named in its file of the parts (`prendreUnePart`, scripts/places-de-la-machine.mjs), then
+// names its progress directory (`nommerLAvancement`); the board reads both (`lireLaMesure`), the
+// holder's figures while its directory is named. The pass of `npm run verifier` itself is the
+// night's.
+describe('the holder of a part of the machine gives its progress', () => {
+  it('named, read with its figures, then without them, then gone with the part', () => {
     const d = mkdtempSync(path.join(ESSAIS, 'lue-'));
-    const verrou = path.join(d, 'mesure-lourde.lock');
-    const env = { GRILLHOUSE_VERROU_MACHINE: verrou, GRILLHOUSE_TEMPORAIRE_LIBRE: '0' };
+    const env = {
+      GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(d, 'parts'),
+      GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+        coeurs: 12,
+        charge: 1,
+        memoireLibre: 16 * 1024 ** 3,
+        memoireTotale: 32 * 1024 ** 3,
+      }),
+      GRILLHOUSE_TEMPORAIRE_LIBRE: '0',
+      GRILLHOUSE_COPIE_LIBRE: '0',
+    };
     const dossier = ouvrirAvancement({ racine: d, genre: null, dans: d });
     ecrire(dossier, 'taches/x.json', json({ hash: null, faits: 51, prevus: 123, a: 1_000 }));
-    const lu: unknown[] = [];
-    avecLaMachine(
-      (envMachine: Record<string, string | undefined>) => {
-        lu.push(lireLaMesure(envMachine));
-        const effacer = nommerLAvancement({ env: envMachine, dossier });
-        lu.push(lireLaMesure(envMachine));
-        effacer();
-        lu.push(lireLaMesure(envMachine));
-      },
-      { env, racine: d, sorte: 'Mesure', dire: () => {} }
-    );
-    const [avant, pendant, apres] = lu;
-    expect(avant).toMatchObject({
-      detenteur: { projet: path.basename(d), ticket: null, sorte: 'Mesure', avancement: null },
-      attentes: [],
+    const prise = prendreUnePart({ env, racine: d, sorte: 'Mesure', dire: () => {} });
+    const avant = lireLaMesure(env);
+    const effacer = nommerLAvancement({ env: prise.env, dossier });
+    const pendant = lireLaMesure(env);
+    effacer();
+    const apres = lireLaMesure(env);
+    prise.rendre();
+    expect(avant.prises).toHaveLength(1);
+    expect(avant.prises[0]).toMatchObject({
+      projet: path.basename(d),
+      ticket: null,
+      sorte: 'Mesure',
+      avancement: null,
     });
-    expect(pendant).toMatchObject({ detenteur: { avancement: { faits: 51, prevus: 123 } } });
-    expect(apres).toMatchObject({ detenteur: { avancement: null } });
-    expect(lireLaMesure(env)).toEqual({ detenteur: null, attentes: [] });
+    expect(avant.attentes).toEqual([]);
+    expect(pendant.prises[0]).toMatchObject({ avancement: { faits: 51, prevus: 123 } });
+    expect(apres.prises[0]).toMatchObject({ avancement: null });
+    expect(lireLaMesure(env)).toMatchObject({ prises: [], attentes: [] });
   });
 });

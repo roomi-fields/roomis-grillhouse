@@ -105,6 +105,85 @@ export function refusDeLaPlace(
   return null;
 }
 
+const go = octets => `${nombre(octets / 1024 ** 3)} Go`;
+
+/**
+ * Whether the part <part> (`{ coeurs, memoire }`, bytes) fits in what the parts <prises> leave of
+ * the <budget> of the machine: cores, then memory. A refusal says what it waits for (`attend`:
+ * « cœurs » or « mémoire ») and its figures, « cœurs : 6 demandés, 4 libres sur 8 ».
+ * @param {{ part: { coeurs: number, memoire: number }, budget: { coeurs: number, memoire: number },
+ *   prises: { coeurs: number, memoire: number }[] }} o
+ * @returns {{ ok: true } | { ok: false, attend: 'cœurs' | 'mémoire', raison: string }}
+ */
+export function partDansLeBudget({ part, budget, prises }) {
+  const coeursLibres = budget.coeurs - prises.reduce((n, p) => n + p.coeurs, 0);
+  if (part.coeurs > coeursLibres) {
+    return {
+      ok: false,
+      attend: 'cœurs',
+      raison: `cœurs : ${part.coeurs} demandés, ${Math.max(0, coeursLibres)} libres sur ${budget.coeurs}`,
+    };
+  }
+  const memoireLibre = budget.memoire - prises.reduce((n, p) => n + p.memoire, 0);
+  if (part.memoire > memoireLibre) {
+    return {
+      ok: false,
+      attend: 'mémoire',
+      raison: `mémoire : ${go(part.memoire)} demandés, ${go(Math.max(0, memoireLibre))} libres sur ${go(budget.memoire)}`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Whether a pass of the part <part> is admitted: its part fits in what the parts <prises> leave of
+ * the <budget> (`partDansLeBudget`), then the thresholds of `admission` hold on the machine
+ * <mesure> (load under the cores, MEMOIRE_MIN free). A refusal says what it waits for (`attend`:
+ * « cœurs », « mémoire » or « charge ») and its figures.
+ * @param {{ part: { coeurs: number, memoire: number }, budget: { coeurs: number, memoire: number },
+ *   prises: { coeurs: number, memoire: number }[],
+ *   mesure: { coeurs: number, charge: number, memoireLibre: number } }} o
+ * @returns {{ ok: true } | { ok: false, attend: 'cœurs' | 'mémoire' | 'charge', raison: string }}
+ */
+export function admissionDePart({ part, budget, prises, mesure }) {
+  const tient = partDansLeBudget({ part, budget, prises });
+  if (!tient.ok) {
+    return tient;
+  }
+  const a = admission(mesure);
+  return a.ok
+    ? a
+    : { ...a, attend: mesure.charge >= mesure.coeurs ? 'charge' : 'mémoire' };
+}
+
+/**
+ * Why the pass <id> of the rank <rang> does not take its part <part> now on the state <etat>
+ * (`prises`, `attentes`), null when it does: its part does not fit in the <budget>; a wait of a
+ * lower rank, alive, which keeps its turn (the measure of the frame has the lower rank of a
+ * project's, then the order of arrival); the admission at the load and the memory <mesurer> gives
+ * (read only when the part and the turn pass). The night and a measure of time ask for the whole
+ * budget as their part: they play alone.
+ * @param {{ prises: { id?: string, coeurs: number, memoire: number }[],
+ *   attentes: { id: string, rang: number, ticket?: string | null, raison?: string }[] }} etat
+ * @param {{ id: string, rang: number, part: { coeurs: number, memoire: number },
+ *   budget: { coeurs: number, memoire: number },
+ *   mesurer: () => { coeurs: number, charge: number, memoireLibre: number } }} o
+ * @returns {string | null}
+ */
+export function refusDePart(etat, { id, rang, part, budget, mesurer }) {
+  const prises = etat.prises.filter(p => p.id !== id);
+  const tient = partDansLeBudget({ part, budget, prises });
+  if (!tient.ok) {
+    return tient.raison;
+  }
+  const avant = etat.attentes.find(a => a.id !== id && a.rang < rang);
+  if (avant) {
+    return `rang réservé : ${avant.ticket ?? 'une passe'} est arrivée avant et attend (${avant.raison})`;
+  }
+  const a = admissionDePart({ part, budget, prises, mesure: mesurer() });
+  return a.ok ? null : a.raison;
+}
+
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS = 10 * 60_000;
 

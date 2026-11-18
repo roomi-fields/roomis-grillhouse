@@ -29,12 +29,13 @@
 // - `--tout`, and `--force` (the night, scripts/nuit.sh), play the complete pass: no measure
 //   against the last green, and each task of tests played for real (the variable of the tests
 //   carries the moment of the pass, `rejouer`, which no cached run holds).
-// - The pass holds the lock of the machine for the heavy measure (scripts/verrou-de-machine.mjs),
-//   shared by every repository of the machine: a pass that finds it held waits for the end of the
-//   other measure, and says so every 30 s with who holds it. The wait bounded (60 min), the pass
-//   ends at 75, « à repasser »; a lock held by an ancestor of the pass ends it at once, red (1);
-//   either way without playing, the holder named. A pass in the frame's own repository is of the
-//   second rank: it waits while a project's measure waits too.
+// - The pass takes its part of the budget of the machine (scripts/places-de-la-machine.mjs,
+//   `avecLaPasse`), shared by every repository of the machine: a pass whose part does not fit in
+//   what the parts held leave, or that the load and the memory refuse, waits, and says so, with
+//   what it waits for, when it begins and every 30 s. The wait bounded (60 min), the pass ends at
+//   75, « à repasser »; a key `grillhouse.part` or a reserve that is faulty ends it at once, red
+//   (1); either way without playing. A pass in the frame's own repository passes before a
+//   project's. It plays held to its part by the system, in a control group of its own.
 // - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
 //   project's own, its root script `gardes`), the typing of each package (`typecheck`, its
 //   sources and its tests, cached per package: scripts/langages/typescript/turbo-des-paquets.mjs) and the tests
@@ -42,7 +43,7 @@
 //   `turbo run grillhouse:gardes gardes typecheck test:unit --continue=dependencies-successful
 //   --concurrency=<n> --summarize`, each argument given after it. A red does not stop the pass:
 //   every task whose prerequisites passed plays, and each red is named. <n>, the tasks side by
-//   side, is half the cores of the machine, one at least (`concurrence`): each task of tests is
+//   side, is half the cores of the pass's part, one at least (`concurrence`): each task of tests is
 //   itself parallel (Vitest's workers), as make's `-j` and Bazel's `--local_cpu_resources` bound a
 //   build by the machine; a `--concurrency` among the arguments replaces it. The workers of each
 //   task of tests are the cores shared between the tasks of tests side by side
@@ -75,8 +76,8 @@
 // - A task at 0 is green. A task at any other code, 75 included, and a summary that does not read
 //   while Turborepo failed: red, code 1, each task named.
 // - The progress of the pass (scripts/avancement.mjs): the directory its caller names in
-//   GRILLHOUSE_AVANCEMENT (the circuit's), else one of its own, which it names beside the lock of
-//   the machine it holds while it plays (`nommerLAvancement`), as the board shows its holder, and
+//   GRILLHOUSE_AVANCEMENT (the circuit's), else one of its own, which it names in the file of the
+//   part it holds while it plays (`nommerLAvancement`), as the board shows its holder, and
 //   removes at its end, its total kept. Before its run of Turborepo, the plan of
 //   the run (`turbo run … --dry=json`) names its tasks of tests and counts done the files of those
 //   Turborepo replays from its cache.
@@ -137,6 +138,7 @@ import {
   SCRIPT_DES_TESTS,
   TESTS_CIBLES,
   testsCibles,
+  travailleursDeLaSeance,
   VARIABLE_TRAVAILLEURS,
 } from '../../services-du-noyau.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
@@ -183,8 +185,10 @@ export const travailleursDeLaPasse = ({ coeurs, coteACote, paquets: n }) =>
   Math.max(1, Math.floor(coeurs / Math.max(1, Math.min(coteACote, n))));
 
 // The full pass in <racine>, its arguments <args> (`--gardes` among them: the guards alone), under
-// <env> and the lock of the machine; its verdict, 0 or 1, or 75 when the wait for the lock, or for
-// room in the temporary directory, reaches its bound, or when the watch of the memory cuts the run. `dire` writes a line; `coeurs`, the cores of the machine.
+// <env> and its part of the machine; its verdict, 0 or 1, or 75 when the wait for the part, or for
+// room in the temporary directory, reaches its bound, or when the watch of the memory cuts the run.
+// `dire` writes a line; `coeurs`, the cores the pass shares between its tasks when no part is
+// held (the part's cores otherwise, or those its parent's part gives: GRILLHOUSE_TRAVAILLEURS).
 export function verifier({
   racine = process.cwd(),
   args: demandes = [],
@@ -204,9 +208,11 @@ export function verifier({
   const lacher = retirerALInterruption(base.fermer);
   try {
     return avecLaPasse(
-      envMachine => {
+      (envMachine, { part }) => {
+        // The cores the pass shares between its tasks: its part's, else its parent's part's.
+        const sesCoeurs = part?.coeurs ?? travailleursDeLaSeance(envMachine) ?? coeurs;
         // The progress of the pass: the directory its caller names (the circuit's), else its own,
-        // named beside the lock of the machine, which it holds, while it plays.
+        // named in the file of its part while it plays.
         const propre = !envMachine[AVANCEMENT];
         const dossier =
           envMachine[AVANCEMENT] || ouvrirAvancement({ racine, genre: 'verification' });
@@ -217,7 +223,7 @@ export function verifier({
             demandes,
             env: { ...envMachine, [AVANCEMENT]: dossier, ...base.env },
             dire,
-            coeurs,
+            coeurs: sesCoeurs,
           });
         } finally {
           effacer();

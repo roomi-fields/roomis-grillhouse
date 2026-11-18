@@ -86,7 +86,7 @@ try {
 
   const { lireRapportsVitest, lireResumes } = await module('resultats.mjs');
   const base = path.join(paquet, 'scripts/vitest-config/base.mjs');
-  const verrou = path.join(paquet, 'scripts/verrou-de-machine.mjs');
+  const places = path.join(paquet, 'scripts/places-de-la-machine.mjs');
   const verdicts = [];
   for (const v of VERDICTS) {
     const d = depotDeVerdict(mkdtempSync(path.join(essais, `${v.commande}-${v.sorte}-`)), v.sorte, {
@@ -99,7 +99,7 @@ try {
       GRILLHOUSE_RESULTATS: resultats,
       GRILLHOUSE_ATTENTE_MACHINE_MS: '1500',
     };
-    const tenu = v.sorte === 'tenu' ? tenirLaMachine(verrou, d.env, d.racine) : null;
+    const tenu = v.sorte === 'tenu' ? tenirLaMachine(places, d.env, d.racine) : null;
     await tenu?.pret;
     const r = spawnSync(process.execPath, [path.join(paquet, 'bin/grillhouse.mjs'), v.commande], {
       cwd: d.racine,

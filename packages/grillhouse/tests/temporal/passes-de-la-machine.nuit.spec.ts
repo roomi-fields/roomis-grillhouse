@@ -1,11 +1,11 @@
 // @poste: un serveur Temporal
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
-// grillhouse-9kq, critères 6 et 21, et grillhouse-4nr.12 (décision 2) : chaque passe du circuit
-// prend une place de la machine, comme une séance d'agent ; une passe lourde (la passe finale, la
-// vérification, les références) tient en plus le verrou exclusif de la machine, une fois sa place
-// donnée. Interface : scripts/passe-de-la-machine.mjs, `avecLaPasse(mesure, { lourde, env, racine,
-// ...options })`, qui passe à <mesure> l'environnement de ses enfants. Les places vivent sur un
-// serveur d'essai (./machine-d-essai.ts), le verrou dans le fichier de la machine d'essai.
+// Une passe (ciblée ou lourde) prend sa part de la machine, jamais une place : les places sont
+// celles des séances d'agent et des circuits, la part seule borne une passe. Interface :
+// scripts/passe-de-la-machine.mjs, `avecLaPasse(mesure, { lourde, env, racine, ...options })`, qui
+// passe à <mesure> l'environnement de ses enfants, et scripts/places-de-la-machine.mjs
+// (`prendreUnePart`, `lirePlaces`, `lireLesParts`). Les places vivent sur un serveur d'essai
+// (./machine-d-essai.ts), les parts dans le dossier d'état de la machine d'essai.
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -17,25 +17,27 @@ import { machineDesPlaces } from './machine-d-essai.js';
 
 const MODULE = path.resolve(__dirname, '../../scripts/passe-de-la-machine.mjs');
 const PLACES = path.resolve(__dirname, '../../scripts/places-de-la-machine.mjs');
-const VERROU = path.resolve(__dirname, '../../scripts/verrou-de-machine.mjs');
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const charger = (f: string): any => createRequire(path.join(__dirname, 'x.cjs'))(f);
 const avecLaPasse = (...a: any[]) => charger(MODULE).avecLaPasse(...a);
 const lirePlaces = (...a: any[]) => charger(PLACES).lirePlaces(...a);
+const lireLesParts = (...a: any[]) => charger(PLACES).lireLesParts(...a);
+const dossierDesParts = (...a: any[]) => charger(PLACES).dossierDesParts(...a);
 const prendreUnePlace = (...a: any[]) => charger(PLACES).prendreUnePlace(...a);
 /* eslint-enable @typescript-eslint/no-explicit-any */
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'passes-de-la-machine-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
-const MUET = { dire: () => {} };
+// Sans groupe de contrôle : la passe joue sur sa part seule, ce que ces cas mesurent.
+const SANS_GROUPE = { sonde: () => false };
+const MUET = { dire: () => {}, ...SANS_GROUPE };
 
-// A child that holds the lock of the machine <env> until its death (a heavy pass under way).
-async function passeLourdeEnCours(env: Record<string, string>): Promise<ChildProcess> {
-  const source = `import * as V from ${JSON.stringify(pathToFileURL(VERROU).href)};
-V.avecLaMachine(() => {
-  process.stdout.write('tenu\\n');
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120000);
-}, { env: process.env, racine: ${JSON.stringify(ESSAIS)}, dire() {} });`;
+// A child that holds the whole budget of the machine <env> until its death (a pass under way).
+async function passeEnCours(env: Record<string, string>): Promise<ChildProcess> {
+  const source = `import * as P from ${JSON.stringify(pathToFileURL(PLACES).href)};
+P.prendreUnePart({ env: process.env, racine: ${JSON.stringify(ESSAIS)}, entiere: true, dire() {} });
+process.stdout.write('tenu\\n');
+Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120000);`;
   const e = spawn(process.execPath, ['--input-type=module', '-e', source], {
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -46,7 +48,7 @@ V.avecLaMachine(() => {
   const fin = Date.now() + 60_000;
   while (!texte.includes('tenu')) {
     if (Date.now() > fin || e.exitCode !== null) {
-      throw new Error(`le verrou n'est pas tenu : ${texte}`);
+      throw new Error(`le budget n'est pas tenu : ${texte}`);
     }
     await attendre(25);
   }
@@ -61,86 +63,96 @@ const tuer = (e: ChildProcess) =>
     e.kill('SIGKILL');
   });
 
-describe('une passe ciblée prend une place, pas le verrou', () => {
-  it('while a heavy pass holds the lock, a targeted pass plays on a place', async () => {
-    const { env } = await machineDesPlaces({ plafond: 3 });
-    const lourde = await passeLourdeEnCours(env);
+describe.each([
+  ['ciblée', false],
+  ['lourde', true],
+])('une passe %s prend sa part, pas une place', (_nom, lourde) => {
+  it('plays on its part, with no place taken, and gives the part back at its end', async () => {
+    const { env } = await machineDesPlaces({ plafond: 1 });
+    let places = -1;
+    let parts = -1;
+    const r = avecLaPasse(
+      () => {
+        places = lirePlaces({ env }).prises.length;
+        parts = lireLesParts(dossierDesParts(env)).prises.length;
+        return 'jouee';
+      },
+      { ...MUET, lourde, env, racine: ESSAIS, borneMs: 5_000 }
+    );
+    expect(r).toBe('jouee');
+    expect(places).toBe(0);
+    expect(parts).toBe(1);
+    expect(lireLesParts(dossierDesParts(env)).prises).toHaveLength(0);
+  }, 120_000);
+
+  it('plays at the ceiling of the places all taken: the places are not its', async () => {
+    const { env } = await machineDesPlaces({ plafond: 1 });
+    const prise = prendreUnePlace({ ...MUET, env });
     try {
-      let vue: unknown[] = [];
-      const r = avecLaPasse(
-        () => {
-          vue = lirePlaces({ env }).prises;
-          return 'jouee';
-        },
-        { ...MUET, lourde: false, env, racine: ESSAIS, borneMs: 5_000 }
-      );
+      const r = avecLaPasse(() => 'jouee', {
+        ...MUET,
+        lourde,
+        env,
+        racine: ESSAIS,
+        borneMs: 5_000,
+      });
       expect(r).toBe('jouee');
-      expect(vue).toHaveLength(1);
-      expect(lirePlaces({ env }).prises).toHaveLength(0);
     } finally {
-      await tuer(lourde);
+      prise.rendre();
     }
   }, 120_000);
 
-  it('a targeted pass gives its place back when it throws', async () => {
-    const { env } = await machineDesPlaces({ plafond: 3 });
+  it('gives its part back when it throws', async () => {
+    const { env } = await machineDesPlaces({ plafond: 1 });
     expect(() =>
       avecLaPasse(
         () => {
           throw new Error('rouge');
         },
-        { ...MUET, lourde: false, env, racine: ESSAIS }
+        { ...MUET, lourde, env, racine: ESSAIS }
       )
     ).toThrow('rouge');
-    expect(lirePlaces({ env }).prises).toHaveLength(0);
+    expect(lireLesParts(dossierDesParts(env)).prises).toHaveLength(0);
   }, 120_000);
 
-  it('a heavy pass played inside a targeted one takes the lock on its place, without a second', async () => {
-    const { env } = await machineDesPlaces({ plafond: 1 });
-    let interieure = '';
-    avecLaPasse(
-      (envDeLaPasse: Record<string, string>) => {
-        interieure = avecLaPasse(() => 'lourde-jouee', {
-          ...MUET,
-          lourde: true,
-          env: envDeLaPasse,
-          racine: ESSAIS,
-          borneMs: 3_000,
-        });
-      },
-      { ...MUET, lourde: false, env, racine: ESSAIS }
-    );
-    expect(interieure).toBe('lourde-jouee');
-  }, 120_000);
-
-  it('a targeted pass at the ceiling waits, says « place », then stops at 75', async () => {
-    const { env } = await machineDesPlaces({ plafond: 1 });
-    const prise = prendreUnePlace({ ...MUET, env });
+  it('waits while the budget is held, says what it waits for, then stops at 75', async () => {
+    const { env } = await machineDesPlaces({ plafond: 3 });
+    const tenue = await passeEnCours(env);
     const dit: string[] = [];
-    let erreur: { code?: number; message?: string } | null = null;
+    let code: number | undefined;
+    let joue = false;
     try {
-      avecLaPasse(() => 'jamais', {
-        lourde: false,
-        env,
-        racine: ESSAIS,
-        borneMs: 1_500,
-        dire: (l: string) => dit.push(l),
-      });
+      avecLaPasse(
+        () => {
+          joue = true;
+        },
+        {
+          ...SANS_GROUPE,
+          lourde,
+          env,
+          racine: ESSAIS,
+          borneMs: 1_500,
+          dire: (l: string) => dit.push(l),
+        }
+      );
     } catch (e) {
-      erreur = e as { code: number; message: string };
+      code = (e as { code?: number }).code;
+    } finally {
+      await tuer(tenue);
     }
-    prise.rendre();
-    expect(erreur?.code).toBe(75);
-    expect(dit.join('\n') + (erreur?.message ?? '')).toMatch(/place/);
+    expect(code).toBe(75);
+    expect(joue).toBe(false);
+    expect(dit.join('\n')).toMatch(/cœurs/);
   }, 120_000);
 
-  it('a targeted pass under a load that reaches the cores waits and says « charge »', async () => {
+  it('under a load that reaches the cores waits and says « charge »', async () => {
     const { env } = await machineDesPlaces({ plafond: 3, charge: 12 });
     const dit: string[] = [];
     let code: number | undefined;
     try {
       avecLaPasse(() => 'jamais', {
-        lourde: false,
+        ...SANS_GROUPE,
+        lourde,
         env,
         racine: ESSAIS,
         borneMs: 1_500,
@@ -151,42 +163,5 @@ describe('une passe ciblée prend une place, pas le verrou', () => {
     }
     expect(code).toBe(75);
     expect(dit.join('\n')).toMatch(/charge/);
-  }, 120_000);
-});
-
-describe('une passe lourde prend sa place, puis le verrou', () => {
-  it('a heavy pass plays on a place of its own, then holds the lock', async () => {
-    const { env } = await machineDesPlaces({ plafond: 2 });
-    let vue = -1;
-    const r = avecLaPasse(
-      () => {
-        vue = lirePlaces({ env }).prises.length;
-        return 'jouee';
-      },
-      { ...MUET, lourde: true, env, racine: ESSAIS, borneMs: 5_000 }
-    );
-    expect(r).toBe('jouee');
-    expect(vue).toBe(1);
-    expect(lirePlaces({ env }).prises).toHaveLength(0);
-  }, 120_000);
-
-  it('the places all taken, a heavy pass waits for one and stops at 75, its lock never taken', async () => {
-    const { env } = await machineDesPlaces({ plafond: 2 });
-    const prises = [1, 2].map(() => prendreUnePlace({ ...MUET, env }));
-    let joue = false;
-    let code: number | undefined;
-    try {
-      avecLaPasse(
-        () => {
-          joue = true;
-        },
-        { ...MUET, lourde: true, env, racine: ESSAIS, borneMs: 1_500 }
-      );
-    } catch (e) {
-      code = (e as { code?: number }).code;
-    }
-    prises.forEach(p => p.rendre());
-    expect(code).toBe(75);
-    expect(joue).toBe(false);
   }, 120_000);
 });

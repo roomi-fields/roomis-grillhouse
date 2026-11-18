@@ -77,7 +77,10 @@ describe('grillhouse-9kq critères 3 et 16 — l’admission à la charge, comme
 describe('aucune place ne se prend là où le serveur n’est pas celui des places', () => {
   const lieux: [string, Record<string, string>][] = [
     ['la CI', { CI: 'true' }],
-    ['une machine d’essai sans son serveur', { GRILLHOUSE_VERROU_MACHINE: '/tmp/essai.lock' }],
+    [
+      'une machine d’essai sans son serveur',
+      { GRILLHOUSE_PARTS_DE_LA_MACHINE: '/tmp/essai-parts' },
+    ],
     ['une place déjà tenue', { GRILLHOUSE_PLACE_TENUE: 'une-place' }],
     // The place of the session, taken out of the envelope, covers its commands.
     [

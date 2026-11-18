@@ -75,7 +75,7 @@ function depot(temoins: ('a' | 'b')[], some: number) {
     'turbo.json',
     json({
       $schema: 'https://turborepo.com/schema.json',
-      globalPassThroughEnv: ['GRILLHOUSE_PRESSION_CPU', 'GRILLHOUSE_VERROU_MACHINE'],
+      globalPassThroughEnv: ['GRILLHOUSE_PRESSION_CPU', 'GRILLHOUSE_PARTS_DE_LA_MACHINE'],
       tasks: {
         build: { outputs: [] },
         'grillhouse:gardes': { dependsOn: ['build'], outputs: [] },
@@ -110,7 +110,13 @@ function depot(temoins: ('a' | 'b')[], some: number) {
     TURBO_TELEMETRY_DISABLED: '1',
     DO_NOT_TRACK: '1',
     GRILLHOUSE_PRESSION_CPU: fichierPression,
-    GRILLHOUSE_VERROU_MACHINE: path.join(r, 'mesure.lock'),
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(r, 'parts'),
+    GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+      coeurs: 12,
+      charge: 1,
+      memoireLibre: 16 * 1024 ** 3,
+      memoireTotale: 32 * 1024 ** 3,
+    }),
   };
   const joues = () =>
     existsSync(trace) ? readFileSync(trace, 'utf8').split('\n').filter(Boolean) : [];

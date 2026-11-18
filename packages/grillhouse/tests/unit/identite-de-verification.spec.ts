@@ -1,7 +1,7 @@
-// grillhouse-6ay — la phase et le ticket d'une vérification, de son appelant au verrou de la machine.
+// grillhouse-6ay — la phase et le ticket d'une vérification, de son appelant à la part de la machine.
 // La nuit (scripts/nuit.sh) pose l'identité dans l'environnement de `npm run verifier`, « Nuit »
-// sans ticket. La lecture par le verrou est dans
-// tests/unit/verrou-de-machine.spec.ts, la ligne du panneau dans tests/unit/tableau-verrou.spec.ts.
+// sans ticket. La lecture par les parts est dans
+// tests/unit/etat-des-parts.spec.ts, la ligne du panneau dans tests/unit/parts-au-tableau.spec.ts.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

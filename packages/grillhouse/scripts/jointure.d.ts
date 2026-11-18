@@ -385,8 +385,9 @@ export function ouvrirAvancement(o: {
 export function inscrireLePlan(dossier: string, o: { racine: string; taches: unknown[] }): void;
 /** Keeps the total of a pass that ended, for the next one's measure. */
 export function garderLeTotal(dossier: string): void;
-/** Names the progress directory of the measure that holds the lock of the machine under `env`,
- * beside the lock (scripts/verrou-de-machine.mjs); the function that takes it out. */
+/** Names the progress directory of the pass that holds the part its `env` marks, in the file of its
+ * part (scripts/places-de-la-machine.mjs), where the board reads it; the function that takes it
+ * out. */
 export function nommerLAvancement(o: { env?: NodeJS.ProcessEnv; dossier: string }): () => void;
 /** Opens the base of a pass of the kind `genre` (scripts/mesure/base-de-passe.mjs). */
 export function ouvrirBase(genre: string, o?: { dans?: string }): unknown;
@@ -466,17 +467,23 @@ export function mesure(racine: string, o?: { tout?: boolean; dans?: string }): u
  * and a pass set), or null without the variable (the tool's own default); refuses a value that is
  * not a positive integer, by name. */
 export function travailleursDeLaSeance(env?: NodeJS.ProcessEnv): number | null;
-/** The wait for the lock of the machine, ended without it (scripts/verrou-de-machine.mjs). */
+/** The wait of a pass for the room or the part of the machine, ended without it
+ * (scripts/attente-de-la-machine.mjs). */
 export class AttenteDeLaMachine extends Error {}
 /**
- * Plays a pass on a place of the machine, and under its lock when heavy, keeping its consumption
- * (scripts/passe-de-la-machine.mjs).
+ * Plays a pass on its part of the machine, held to it by the system, keeping its consumption when
+ * heavy (scripts/passe-de-la-machine.mjs).
  */
 export function avecLaPasse(...args: unknown[]): unknown;
-/** Plays a pass on a place of the machine: its exit code, or the code of the wait that stops. */
-export function surUnePlace(
-  passe: (env: NodeJS.ProcessEnv) => number,
-  o?: { env?: NodeJS.ProcessEnv; dire?: (l: string) => void }
+/** Plays a pass on its part of the machine: its exit code, or the code of the wait that stops. */
+export function surUnePart(
+  passe: (env: NodeJS.ProcessEnv, part: { coeurs: number; memoire: number } | null) => number,
+  o?: {
+    env?: NodeJS.ProcessEnv;
+    racine?: string;
+    entiere?: boolean;
+    dire?: (l: string) => void;
+  }
 ): number;
 /** Waits for room in the temporary directory, as a heavy pass does before it plays. */
 export function attendreDeLaPlace(o?: Record<string, unknown>): void;

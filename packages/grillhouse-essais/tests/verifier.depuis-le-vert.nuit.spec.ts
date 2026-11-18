@@ -117,7 +117,7 @@ function depot() {
   // change its Turborepo hash, so an untouched package replays from the cache.
   ecrire(
     '.gitignore',
-    'node_modules\n.turbo/\n.cache-outils/\n.vitest-reports/\njoues.txt\nmesure.lock\n'
+    'node_modules\n.turbo/\n.cache-outils/\n.vitest-reports/\njoues.txt\nparts/\n'
   );
   const env: Record<string, string | undefined> = {
     ...Object.fromEntries(
@@ -128,9 +128,15 @@ function depot() {
     PATH: `${path.join(DEPOT, 'node_modules/.bin')}${path.delimiter}${process.env.PATH ?? ''}`,
     TURBO_TELEMETRY_DISABLED: '1',
     DO_NOT_TRACK: '1',
-    // The trial repository's own lock of the heavy measure: the machine's is held by the pass this
-    // test plays in.
-    GRILLHOUSE_VERROU_MACHINE: path.join(r, 'mesure.lock'),
+    // The trial repository's own parts of the machine, on a machine at rest: the user's are held
+    // by the pass this test plays in.
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(r, 'parts'),
+    GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+      coeurs: 12,
+      charge: 1,
+      memoireLibre: 16 * 1024 ** 3,
+      memoireTotale: 32 * 1024 ** 3,
+    }),
     GIT_AUTHOR_NAME: 'essai',
     GIT_AUTHOR_EMAIL: 'essai@essai.invalid',
     GIT_COMMITTER_NAME: 'essai',

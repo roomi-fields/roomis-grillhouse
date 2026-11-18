@@ -4,7 +4,7 @@
 //
 // - A_REPASSER, 75, is the exit code of « à repasser » (EX_TEMPFAIL of sysexits.h: try again
 //   later), neither green nor red: a measure of time under load (scripts/mesure/pression.mjs), the
-//   wait of the lock of the machine at its bound (scripts/verrou-de-machine.mjs), a stop of the
+//   wait for the part of the machine at its bound (scripts/places-de-la-machine.mjs), a stop of the
 //   circuit that a gesture settles (scripts/etapes.mjs, ARRETS).
 export const A_REPASSER = 75;
 

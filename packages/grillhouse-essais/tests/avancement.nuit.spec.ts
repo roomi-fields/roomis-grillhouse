@@ -192,22 +192,21 @@ describe('the total planned: the tasks started, the cache, the previous pass of 
   );
 });
 
-// A measure out of a ticket: `npm run verifier`, holder of the lock of the machine, names itself
-// and its progress directory beside the lock (a neighbouring file, not the lock itself), read by
-// the board, removed at its end (grillhouse-wui). A stand-in of Turborepo, first on the PATH,
-// copies that file to its trace.
-describe('a measure out of a ticket names itself and its progress beside the lock of the machine', () => {
+// A measure out of a ticket: `npm run verifier`, holder of a part of the machine, names itself
+// and its progress directory in its file of the parts, read by the board, removed at its end
+// (grillhouse-wui). A stand-in of Turborepo, first on the PATH, copies that file to its trace.
+describe('a measure out of a ticket names itself and its progress in its file of the parts', () => {
   it(
     'npm run verifier writes it during its pass, its project and its kind named, and removes it at its end',
     () => {
       const d = mkdtempSync(path.join(ESSAIS, 'mesure-'));
       const bin = path.join(d, 'bin');
       mkdirSync(bin);
-      const verrou = path.join(d, 'mesure-lourde.lock');
+      const parts = path.join(d, 'parts');
       const trace = path.join(d, 'trace');
       writeFileSync(
         path.join(bin, 'turbo'),
-        `#!/bin/sh\ncase "$*" in *--dry*) exit 0;; esac\ncat ${JSON.stringify(`${verrou}.detenteur.json`)} >> ${JSON.stringify(trace)} 2>/dev/null\nexit 0\n`
+        `#!/bin/sh\ncase "$*" in *--dry*) exit 0;; esac\ncat ${JSON.stringify(parts)}/*.json >> ${JSON.stringify(trace)} 2>/dev/null\nexit 0\n`
       );
       chmodSync(path.join(bin, 'turbo'), 0o755);
       const projet = path.join(d, 'mon-depot');
@@ -215,7 +214,13 @@ describe('a measure out of a ticket names itself and its progress beside the loc
       writeFileSync(path.join(projet, 'package.json'), '{ "name": "essai", "private": true }\n');
       const env = {
         ...ENV,
-        GRILLHOUSE_VERROU_MACHINE: verrou,
+        GRILLHOUSE_PARTS_DE_LA_MACHINE: parts,
+        GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+          coeurs: 12,
+          charge: 1,
+          memoireLibre: 16 * 1024 ** 3,
+          memoireTotale: 32 * 1024 ** 3,
+        }),
         PATH: `${bin}${path.delimiter}${ENV.PATH}`,
       };
       const r = spawnSync(process.execPath, [VERIFIER, '--gardes'], {
@@ -227,9 +232,8 @@ describe('a measure out of a ticket names itself and its progress beside the loc
       const vu = JSON.parse(readFileSync(trace, 'utf8')) as Record<string, unknown>;
       expect(vu).toMatchObject({ depot: projet, ticket: null, sorte: 'Vérification' });
       expect(typeof vu.dossier).toBe('string');
-      expect(existsSync(`${verrou}.detenteur.json`)).toBe(false);
       expect(existsSync(vu.dossier as string)).toBe(false);
-      expect(lireLaMesure(env)).toEqual({ detenteur: null, attentes: [] });
+      expect(lireLaMesure(env)).toMatchObject({ prises: [], attentes: [] });
     },
     LONG
   );

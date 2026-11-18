@@ -160,7 +160,7 @@ describe('the night', () => {
     expect(m.nuit().status).toBe(0);
     expect(m.lire(recu)).toBe('--force');
   });
-  // « À repasser » (75, scripts/verrou-de-machine.mjs): the wait for the lock of the machine, or for
+  // « À repasser » (75, scripts/attente-de-la-machine.mjs): the wait for the part of the machine, or for
   // room in the temporary directory, reached its bound. Neither green nor red: the
   // last green stays, no ticket opens, nothing is pushed, and the next night plays again.
   it('a npm run verifier à repasser (75): exit 75, no last green, no ticket, the log says so', () => {

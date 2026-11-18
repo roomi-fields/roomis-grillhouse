@@ -3,8 +3,8 @@
 // number, and as the job server of GNU make shares its slots between every make of one build.
 // Each session of an agent (testwriter, developer, reviewer…) takes a place at its start and gives
 // it back at its end; a circuit that waits for a question, or between two sessions, holds none.
-// Each pass takes one too (scripts/passe-de-la-machine.mjs: a targeted pass, and a heavy one
-// besides the exclusive lock of the machine, scripts/verrou-de-machine.mjs). Witness: 2026-11-02,
+// A pass takes no place: it takes its part of the budget of the machine (below), which alone
+// bounds it. A place is a session of an agent or a circuit; a part is a pass. Witness: 2026-11-02,
 // load 39 on 12 cores with five circuits at once (grillhouse-9kq).
 //
 // - The places live on the Temporal server, in the one workflow of the machine
@@ -13,13 +13,12 @@
 //   the memory as `make -l`'s, the spacing of the starts) and frees the place of a process gone. A
 //   synchronous caller reads and takes them by ./places-du-serveur.mjs, in a process of its own.
 // - The server is required on the workstation: one that does not answer stops the taking, named.
-//   In the CI (CI set) no place is taken. A trial machine (GRILLHOUSE_VERROU_MACHINE, the base
-//   configuration of the tests) takes its places on the server GRILLHOUSE_PLACES_D_ESSAI names,
-//   and none without it, so that no test takes a place of the user's machine.
-// - A pass or a session that holds a place carries its mark to its children
-//   (GRILLHOUSE_PLACE_TENUE): a pass they play takes no second place. In the envelope of an agent
-//   (GRILLHOUSE_ENVELOPPE set, ./enveloppe/paquets-du-plan.mjs) no place is taken, as no lock is
-//   (./verrou-de-machine.mjs): the place of the session, taken out of it by the circuit, covers its
+//   In the CI (CI set) no place is taken. A trial machine (GRILLHOUSE_PARTS_DE_LA_MACHINE, the
+//   base configuration of the tests) takes its places on the server GRILLHOUSE_PLACES_D_ESSAI
+//   names, and none without it, so that no test takes a place of the user's machine.
+// - A session that holds a place carries its mark to its children (GRILLHOUSE_PLACE_TENUE). In
+//   the envelope of an agent (GRILLHOUSE_ENVELOPPE set, ./enveloppe/paquets-du-plan.mjs) no place
+//   and no part is taken: the place of the session, taken out of it by the circuit, covers its
 //   commands, and the envelope passes on its mark; a number of process there means nothing on
 //   the machine.
 // - The ceiling is a configuration of the poste (`plafondDe` of ./plafond-de-la-machine.mjs:
@@ -27,23 +26,59 @@
 //   reads again at each judgement; two starts are spaced by ESPACEMENT_MS
 //   (GRILLHOUSE_ESPACEMENT_MS names another, in ms), which the workflow reads when it starts.
 // - A wait says its reason (place, rank, load, memory or spacing) when it begins and every 30 s,
-//   and is bounded as the wait for the lock of the machine, GRILLHOUSE_ATTENTE_MACHINE_MS: at the
-//   bound, « à repasser » (75), the request withdrawn.
+//   and is bounded, GRILLHOUSE_ATTENTE_MACHINE_MS: at the bound, « à repasser » (75), the request
+//   withdrawn.
 // - A wait keeps the rank of its arrival, as the queue of a merge train keeps its order: the rank
 //   is drawn when the circuit is launched (`prendreUnRang`) and kept from one session to the next.
 // - The number of workers of the tests of a session is `travailleursDe`: max(1, cores ÷ places),
 //   passed to the tool of each language (GRILLHOUSE_TRAVAILLEURS).
+//
+// The parts of the passes, as Slurm reserves the cores and the memory of a job and waits while
+// they lack, and as the job server of GNU make shares its slots between every make of a build:
+// - The budget of the machine (its hardware less the reserve of the user,
+//   ./plafond-de-la-machine.mjs) is shared in parts, which every pass of the machine takes, whatever
+//   repository it plays in: the heavy pass of a circuit, `npm run verifier`, a targeted
+//   `npm test`, a slice of the CI on a machine of ours, the night. A pass starts when its part
+//   fits in what the parts held leave of the budget and the machine admits it (the load under the
+//   cores, 4 GB free: `admissionDePart` of ./regles-des-places.mjs); else it waits, says what it
+//   waits for when it begins and every 30 s, keeps its rank (the measure of the frame before a
+//   project's, then the order of arrival) and stops at « à repasser » (75) at the bound of the wait.
+// - The state is shared by the machine, one file per pass in the directory of the user's state
+//   (`${XDG_STATE_HOME:-~/.local/state}/grillhouse/parts`; GRILLHOUSE_PARTS_DE_LA_MACHINE names
+//   another, which the base configuration of the tests gives to each test file): the part held
+//   or waited for, its project, ticket, kind, rank and, once it names it, its progress directory,
+//   which the board reads (`lireLesParts`). A pass whose process is gone frees its part.
+// - A pass that holds a part carries its mark to its children (GRILLHOUSE_PART_TENUE): a pass they
+//   play takes no second part, and the workers of its tools are the cores of its part
+//   (GRILLHOUSE_TRAVAILLEURS).
+import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { availableParallelism } from 'node:os';
+import { mkdirSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
+import { availableParallelism, homedir } from 'node:os';
 import path from 'node:path';
 import { departDe } from './mesure/base-de-passe.mjs';
+import { ecrireAtomique } from './mesure/avancement.mjs';
 import { A_REPASSER } from './codes-de-sortie.mjs';
+import {
+  AttenteDeLaMachine,
+  attendreDeLaPlace,
+  borneDe,
+  racineDeLaCopie,
+  racineDuDepot,
+  rangDeLaMesure,
+} from './attente-de-la-machine.mjs';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { ecrireLaTrace, traceDesPlaces } from './journal-des-etats.mjs';
-import { mesureDeLaMachine } from './mesure-de-la-machine.mjs';
-import { plafondDe } from './plafond-de-la-machine.mjs';
-import { VARIABLE_JETON } from './regles-des-places.mjs';
-import { AttenteDeLaMachine, avecLaMachine, borneDe, racineDuDepot } from './verrou-de-machine.mjs';
+import { mesureDeLaMachine, processusVivant } from './mesure-de-la-machine.mjs';
+import {
+  budgetDe,
+  partDe,
+  partDeclareeDe,
+  plafondDe,
+  reserveDe,
+} from './plafond-de-la-machine.mjs';
+import { duree, refusDePart, VARIABLE_JETON } from './regles-des-places.mjs';
+import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 // The spacing and the jeton of the night are rules (./regles-des-places.mjs), published here too.
 export {
@@ -67,6 +102,10 @@ export function sousNiceEtIonice(commande) {
 export const VARIABLE_TENUE = 'GRILLHOUSE_PLACE_TENUE';
 /** The measure of the machine a trial fixes, in JSON `{ coeurs, charge, memoireLibre, memoireTotale }`. */
 export const VARIABLE_MESURE_D_ESSAI = 'GRILLHOUSE_MESURE_D_ESSAI';
+/** The directory of the state of the parts a trial names, in place of the user's. */
+export const VARIABLE_PARTS = 'GRILLHOUSE_PARTS_DE_LA_MACHINE';
+/** The mark of a part held, which the children of its holder inherit. */
+export const VARIABLE_PART_TENUE = 'GRILLHOUSE_PART_TENUE';
 // The server of the places of a trial machine.
 const VARIABLE_ESSAI = 'GRILLHOUSE_PLACES_D_ESSAI';
 
@@ -118,7 +157,7 @@ export function surLeServeur(env) {
   if (env.CI || paquetsDeLEnveloppe(env)) {
     return null;
   }
-  if (env.GRILLHOUSE_VERROU_MACHINE) {
+  if (env[VARIABLE_PARTS]) {
     return env[VARIABLE_ESSAI] ? { ...env, TEMPORAL_ADDRESS: env[VARIABLE_ESSAI] } : null;
   }
   return env;
@@ -297,20 +336,336 @@ export function avecUnePlace(seance, options) {
 }
 
 /**
- * Plays the pass <passe> on a place of the machine, as a command a person or an agent runs (`npm
- * test`): its exit code, or, a wait that stops (its bound, 75; a server that does not answer, 1),
- * its reason said and its code. <passe> receives the environment of its children, with the mark
- * of the place.
- * @param {(env: Record<string, string | undefined>) => number} passe
- * @param {{ env?: Record<string, string | undefined>, dire?: (l: string) => void }} [o]
+ * The directory of the state of the parts under <env>: GRILLHOUSE_PARTS_DE_LA_MACHINE, else
+ * `grillhouse/parts` under the state directory of the user (`XDG_STATE_HOME`, else
+ * `~/.local/state`), common to every project of the machine.
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {string}
+ */
+export function dossierDesParts(env = process.env) {
+  if (env[VARIABLE_PARTS]) {
+    return env[VARIABLE_PARTS];
+  }
+  const etat = env.XDG_STATE_HOME || path.join(env.HOME || homedir(), '.local', 'state');
+  return path.join(etat, 'grillhouse', 'parts');
+}
+
+/**
+ * The state of a pass in its file of the parts: `etat` « tient » (its part is held) or « attend »
+ * (`raison`: what it waits for), and what the board reads besides (`depot`, `copie`, `depuis`,
+ * `dossier` its progress directory, `depasse` what it consumes beyond its part).
+ * @typedef {{ id: string, pid: number, depart: any, projet: string, ticket: string | null,
+ *   sorte: string, rang: number, coeurs: number, memoire: number, etat: string, raison?: string,
+ *   depot?: string, copie?: string, depuis?: number, dossier?: string | null,
+ *   depasse?: string | null }} PartDUnePasse
+ */
+
+/**
+ * Writes the state of the pass <passe> in its file of <dossier>, whole or not at all. The file of a
+ * pass is one: a new state replaces it.
+ * @param {string} dossier
+ * @param {{ id: string } & Record<string, unknown>} passe
+ */
+export function poserLaPart(dossier, passe) {
+  ecrireAtomique(path.join(dossier, `${passe.id}.json`), passe);
+}
+
+/**
+ * Gives back the part of the pass <id>: its file goes, and the directory when it is empty. A part
+ * that is not there changes nothing.
+ * @param {string} dossier
+ * @param {string} id
+ */
+export function rendreLaPart(dossier, id) {
+  rmSync(path.join(dossier, `${id}.json`), { force: true });
+  try {
+    rmdirSync(dossier);
+  } catch {
+    // other parts stand there, or the directory is gone
+  }
+}
+
+/**
+ * The parts of <dossier> as the machine holds them: `prises` (the passes that hold their part)
+ * and `attentes` (those that wait, in the order of their rank). A pass whose process is gone
+ * (`vivant`, `processusVivant` by default: its pid and its start) frees its part, its file
+ * removed. A directory that is not there holds none.
+ * @param {string} dossier
+ * @param {{ vivant?: (p: PartDUnePasse) => boolean }} [o]
+ * @returns {{ prises: PartDUnePasse[], attentes: PartDUnePasse[] }}
+ */
+export function lireLesParts(dossier, { vivant = processusVivant } = {}) {
+  let noms;
+  try {
+    noms = readdirSync(dossier).filter(n => n.endsWith('.json'));
+  } catch {
+    return { prises: [], attentes: [] };
+  }
+  const prises = [];
+  const attentes = [];
+  for (const nom of noms) {
+    let p;
+    try {
+      p = JSON.parse(readFileSync(path.join(dossier, nom), 'utf8'));
+    } catch {
+      continue;
+    }
+    if (!p || typeof p.id !== 'string') {
+      continue;
+    }
+    if (!vivant(p)) {
+      rmSync(path.join(dossier, nom), { force: true });
+      continue;
+    }
+    (p.etat === 'attend' ? attentes : prises).push(p);
+  }
+  return { prises, attentes: attentes.sort((a, b) => a.rang - b.rang) };
+}
+
+/**
+ * The machine a pass is judged on under <env>: the one a trial fixes (GRILLHOUSE_MESURE_D_ESSAI),
+ * else the real one.
+ * @param {Record<string, string | undefined>} env
+ */
+const machineDe = env => mesureDEssai(env) ?? mesureDeLaMachine();
+
+/**
+ * The budget of the machine under <env>: its hardware (the one a trial fixes, else the real one)
+ * less the reserve of the user.
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {{ coeurs: number, memoire: number }}
+ * @throws {Error} naming the variable of the reserve when it is faulty or leaves nothing
+ */
+export function budgetDeLaPasse(env = process.env) {
+  const m = machineDe(env);
+  return budgetDe({ coeurs: m.coeurs, memoireTotale: m.memoireTotale }, reserveDe(env, { coeurs: m.coeurs }));
+}
+
+/**
+ * The part of a pass of the project at <racine> under <env>: the one the key `grillhouse.part` of
+ * its main tree's `package.json` declares, else the default part of the budget.
+ * @param {{ racine: string, env?: Record<string, string | undefined> }} o
+ * @returns {{ coeurs: number, memoire: number }}
+ * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
+ */
+export function partDeLaPasse({ racine, env = process.env }) {
+  let pkg = {};
+  try {
+    pkg = JSON.parse(readFileSync(path.join(racineDuDepot(racine), 'package.json'), 'utf8'));
+  } catch {
+    // a repository without a package.json declares no part
+  }
+  const { declaree, faute } = partDeclareeDe(pkg);
+  if (faute) {
+    throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
+  }
+  return partDe({ declaree, budget: budgetDeLaPasse(env) });
+}
+
+const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
+// The rank of a pass among the parts: the kind of its measure first (the frame's before a
+// project's), then its time of arrival, so that a smaller rank passes first.
+const ECHELLE_DES_RANGS = 1e14;
+
+// Plays <f> holding the short lock of the admission of <dossier>, so that two passes never judge
+// the same free budget at once.
+function sousLAdmission(dossier, f) {
+  mkdirSync(dossier, { recursive: true });
+  const verrou = path.join(dossier, '.admission');
+  prendreVerrou(verrou, { attendre: true });
+  try {
+    return f();
+  } finally {
+    lacherVerrou(verrou);
+  }
+}
+
+/**
+ * Takes the part of a pass of the project at <racine>, waiting for it, saying what it waits for
+ * (`dire`) when it begins and every <rappelMs>, and returns it. Room first on the disks the pass
+ * writes on (`attendreDeLaPlace`), then the part: it is taken once it fits in what the parts held
+ * leave of the budget and the load and the memory of the machine admit it, the waits of a smaller
+ * rank passing first. Its state is one file of the parts (`poserLaPart`), « attend » then
+ * « tient ». The night (VARIABLE_JETON) and a pass that asks for the <entiere> budget take the
+ * whole budget: they play alone. Where no part is taken (the envelope of an agent, a part already
+ * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
+ * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
+ *   sorte?: string, entiere?: boolean, borneMs?: number, rappelMs?: number,
+ *   dire?: (l: string) => void, maintenant?: () => number, dormir?: (ms: number) => void,
+ *   libre?: (d: string) => number, occupe?: (d: string) => string,
+ *   occupeLaCopie?: (r: string) => string }} [o]
+ * @returns {{ id: string | null, part: { coeurs: number, memoire: number } | null,
+ *   env: Record<string, string | undefined>, rendre: () => void, raison: string | null }}
+ *   `env`, the environment of its holder's children, with the mark of the part and the workers of
+ *   its tools; `raison`, why no part is held, null when one is
+ * @throws {AttenteDeLaMachine} at the bound of the wait (code 75), or on a faulty key or reserve
+ *   (code 1), its reason named
+ */
+export function prendreUnePart({
+  env = process.env,
+  racine = process.cwd(),
+  ticket,
+  sorte,
+  entiere = false,
+  borneMs = borneDe(env),
+  rappelMs = RAPPEL_MS,
+  dire = l => process.stdout.write(`${l}\n`),
+  maintenant = Date.now,
+  dormir = attendreUnPeu,
+  ...disques
+} = {}) {
+  const sans = raison => ({ id: null, part: null, env, rendre: () => {}, raison });
+  if (paquetsDeLEnveloppe(env)) {
+    return sans("dans l'enveloppe d'un agent");
+  }
+  if (env[VARIABLE_PART_TENUE]) {
+    return sans('sous la part de son parent');
+  }
+  // The caller names who the pass is, else its environment does (GRILLHOUSE_VERIFICATION_TICKET,
+  // GRILLHOUSE_VERIFICATION_SORTE, empty as absent), else « Vérification » and no ticket.
+  ticket = ticket ?? (env.GRILLHOUSE_VERIFICATION_TICKET || null);
+  sorte = sorte ?? (env.GRILLHOUSE_VERIFICATION_SORTE || 'Vérification');
+  const dossier = dossierDesParts(env);
+  let budget;
+  let part;
+  try {
+    budget = budgetDeLaPasse(env);
+    part = entiere || env[VARIABLE_JETON] ? budget : partDeLaPasse({ racine, env });
+  } catch (e) {
+    throw e instanceof AttenteDeLaMachine ? e : new AttenteDeLaMachine(`✗ ${e.message}`, 1);
+  }
+  const depot = racineDuDepot(racine);
+  const rangDeLaPasse = rangDeLaMesure(racine);
+  const moi = {
+    id: randomUUID(),
+    pid: process.pid,
+    depart: departDe(process.pid),
+    projet: path.basename(depot),
+    depot,
+    copie: racineDeLaCopie(racine),
+    ticket,
+    sorte,
+    rang: rangDeLaPasse * ECHELLE_DES_RANGS + maintenant(),
+    coeurs: part.coeurs,
+    memoire: part.memoire,
+    depuis: maintenant(),
+  };
+  try {
+    attendreDeLaPlace({
+      env,
+      dire,
+      borneMs,
+      rappelMs,
+      racine,
+      maintenant,
+      dormir,
+      ...disques,
+      inscrire: raison => {
+        poserLaPart(dossier, { ...moi, etat: 'attend', raison });
+        return () => {};
+      },
+    });
+    const debut = maintenant();
+    let dit = null;
+    for (;;) {
+      const refus = sousLAdmission(dossier, () => {
+        const { prises, attentes } = lireLesParts(dossier);
+        const r = refusDePart(
+          { prises, attentes },
+          { id: moi.id, rang: moi.rang, part, budget, mesurer: () => machineDe(env) }
+        );
+        poserLaPart(dossier, r === null ? { ...moi, etat: 'tient' } : { ...moi, etat: 'attend', raison: r });
+        return r;
+      });
+      if (refus === null) {
+        break;
+      }
+      const t = maintenant();
+      if (t - debut >= borneMs) {
+        throw new AttenteDeLaMachine(
+          `⏱ attente de la part bornée à ${duree(borneMs)} (GRILLHOUSE_ATTENTE_MACHINE_MS), ${RANGS[rangDeLaPasse]} : ${refus} ; à repasser (code ${A_REPASSER}).`,
+          A_REPASSER
+        );
+      }
+      if (dit === null) {
+        dire(
+          `⏳ ${RANGS[rangDeLaPasse]}, la passe attend sa part (${part.coeurs} cœurs) : ${refus} ; ${duree(borneMs)} au plus.`
+        );
+      } else if (t - dit >= rappelMs) {
+        dire(`⏳ la passe attend sa part depuis ${duree(t - debut)} : ${refus}.`);
+      }
+      if (dit === null || t - dit >= rappelMs) {
+        dit = t;
+      }
+      dormir(Math.max(1, Math.min(200, borneMs - (maintenant() - debut))));
+    }
+    if (dit !== null) {
+      dire(`✓ part prise après ${duree(maintenant() - debut)}.`);
+    }
+  } catch (e) {
+    rendreLaPart(dossier, moi.id);
+    throw e;
+  }
+  const {
+    GRILLHOUSE_VERIFICATION_SORTE: _sorte,
+    GRILLHOUSE_VERIFICATION_TICKET: _ticket,
+    ...enfant
+  } = env;
+  return {
+    id: moi.id,
+    part,
+    env: {
+      ...enfant,
+      [VARIABLE_PART_TENUE]: moi.id,
+      [VARIABLE_TRAVAILLEURS]: String(part.coeurs),
+    },
+    rendre: () => rendreLaPart(dossier, moi.id),
+    raison: null,
+  };
+}
+
+/**
+ * Names the progress directory <dossier> of the pass that holds the part its environment
+ * <env> marks (GRILLHOUSE_PART_TENUE), in its file of the parts, where the board reads it; a
+ * function that takes it out. Nothing without a part held (the envelope of an agent).
+ * @param {{ env?: Record<string, string | undefined>, dossier: string }} o
+ * @returns {() => void}
+ */
+export function nommerLAvancement({ env = process.env, dossier }) {
+  const id = env[VARIABLE_PART_TENUE];
+  if (!id) {
+    return () => {};
+  }
+  const f = path.join(dossierDesParts(env), `${id}.json`);
+  const ecrire = d => {
+    try {
+      const p = JSON.parse(readFileSync(f, 'utf8'));
+      ecrireAtomique(f, { ...p, dossier: d });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return ecrire(dossier) ? () => void ecrire(null) : () => {};
+}
+
+/**
+ * Plays <passe> holding a part of the machine, given back at its end, whether it returns or
+ * throws: its exit code, or, a wait that stops (its bound, 75; a faulty key, 1), its reason said
+ * and its code. <passe> receives the environment of its children and the part (null where none is
+ * held); the pass is a command a person runs (`npm test`) and the process itself.
+ * @param {(env: Record<string, string | undefined>, part: { coeurs: number, memoire: number } | null) => number} passe
+ * @param {{ env?: Record<string, string | undefined>, racine?: string,
+ *   dire?: (l: string) => void }} [o]
  * @returns {number}
  */
-export function surUnePlace(
+export function surUnePart(
   passe,
-  { env = process.env, dire = l => process.stderr.write(`${l}\n`) } = {}
+  { env = process.env, racine = process.cwd(), dire = l => process.stderr.write(`${l}\n`) } = {}
 ) {
+  let prise;
   try {
-    return avecUnePlace(place => passe(place.env), { env, dire });
+    prise = prendreUnePart({ env, racine, dire, sorte: 'Tests' });
   } catch (e) {
     if (!(e instanceof AttenteDeLaMachine)) {
       throw e;
@@ -318,41 +673,11 @@ export function surUnePlace(
     dire(e.message);
     return e.code;
   }
-}
-
-/**
- * Plays the heavy measure <mesure> on a place of the machine, then under its exclusive lock
- * (`avecLaMachine` of ./verrou-de-machine.mjs), and returns what it returns: the place first, so
- * that a pass that waits for its place holds no lock. <mesure> receives the environment of its
- * children, which carries the marks of both.
- * @param {(env: Record<string, string | undefined>) => T} mesure
- * @param {Parameters<typeof avecLaMachine>[1] & { rang?: number }} [options] those of the lock,
- *   whose `env`, `ticket`, `dire`, `borneMs` and `rappelMs` the place reads too, and `rang`, the
- *   rank of the circuit of the pass
- * @returns {T}
- * @template T
- */
-export function avecLaMachineEtUnePlace(mesure, options = {}) {
-  const { env = process.env, ticket, rang, dire, borneMs, rappelMs, ...verrou } = options;
-  return avecUnePlace(
-    place =>
-      avecLaMachine(mesure, {
-        ...verrou,
-        env: place.env,
-        ...(ticket === undefined ? {} : { ticket }),
-        ...(dire ? { dire } : {}),
-        ...(borneMs === undefined ? {} : { borneMs }),
-        ...(rappelMs === undefined ? {} : { rappelMs }),
-      }),
-    {
-      env,
-      ticket: ticket ?? null,
-      ...(rang === undefined ? {} : { rang }),
-      ...(dire ? { dire } : {}),
-      ...(borneMs === undefined ? {} : { borneMs }),
-      ...(rappelMs === undefined ? {} : { rappelMs }),
-    }
-  );
+  try {
+    return passe(prise.env, prise.part);
+  } finally {
+    prise.rendre();
+  }
 }
 
 /**

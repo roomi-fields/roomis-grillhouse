@@ -266,7 +266,8 @@ describe('grillhouse-nt4, 1js a et c — npm test sous le dossier temporaire de 
         // The trial machine of the file, so that the run takes no place of the user's machine.
         env: {
           ...ENV,
-          GRILLHOUSE_VERROU_MACHINE: process.env.GRILLHOUSE_VERROU_MACHINE ?? '',
+          GRILLHOUSE_PARTS_DE_LA_MACHINE: process.env.GRILLHOUSE_PARTS_DE_LA_MACHINE ?? '',
+          GRILLHOUSE_MESURE_D_ESSAI: process.env.GRILLHOUSE_MESURE_D_ESSAI ?? '',
           TMPDIR: dans,
           PATH: `${bin}${path.delimiter}${ENV.PATH ?? ''}`,
         },

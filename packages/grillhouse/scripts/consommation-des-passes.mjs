@@ -163,40 +163,125 @@ export const lireLUnite = unite => {
 };
 
 /**
- * The real scope of a pass: `ouvrir()` moves this process into a transient scope of the user's
- * systemd manager (`StartTransientUnit` with its PID, which its children inherit), after having
- * started the sampler outside it, and returns `{ lire, clore }`; `{ raison }` when nothing can
- * measure (no manager of the user reachable). The scope goes when empty.
- * @param {{ racine: string, sorte: string, ticket?: string, coeurs: number }} o
+ * The weight of a part for the CPU: 100 per core, within the 1 to 10000 range of `CPUWeight`, so
+ * that the weights of two parts share the cores in proportion of their cores.
+ * @param {{ coeurs: number }} part
+ * @returns {number}
+ */
+export const poidsDeLaPart = part => Math.max(1, Math.min(10_000, part.coeurs * 100));
+
+const un = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
+
+/**
+ * What a pass consumes beyond its part, said, null when it holds to it: the cores it occupied
+ * (processor time ÷ duration, once the pass has played SEUIL_DE_DEPASSEMENT_MS) above
+ * DEPASSEMENT times its cores, or a peak of memory above its memory.
+ * @param {{ part: { coeurs: number, memoire: number }, cpuNs: number | null, dureeMs: number,
+ *   memoirePic: number | null }} o
+ * @returns {string | null}
+ */
+export function depasseLaPart({ part, cpuNs, dureeMs, memoirePic }) {
+  if (typeof cpuNs === 'number' && dureeMs >= SEUIL_DE_DEPASSEMENT_MS) {
+    const occupes = cpuNs / 1e6 / dureeMs;
+    if (occupes > part.coeurs * DEPASSEMENT) {
+      return `cœurs : ${un(Math.round(occupes * 10) / 10)} mesurés pour ${part.coeurs}`;
+    }
+  }
+  if (typeof memoirePic === 'number' && memoirePic > part.memoire) {
+    return `mémoire : ${un(Math.round((memoirePic / 1024 ** 3) * 10) / 10)} Go mesurés pour ${un(Math.round((part.memoire / 1024 ** 3) * 10) / 10)}`;
+  }
+  return null;
+}
+
+/** A pass consumes clearly more than its part above this ratio of its cores. */
+export const DEPASSEMENT = 1.5;
+/** A pass is judged on its cores once it has played this long, in ms. */
+export const SEUIL_DE_DEPASSEMENT_MS = 5_000;
+
+// Starts the sampler of a pass outside its group (./echantillonneur-de-la-passe.mjs): it reads the
+// group <unite> while the pass lives, notes its last reading beside the marker, and, given the part
+// of the pass, says in the file of the part when the pass exceeds it. Without a register for the
+// project, nothing is started.
+function demarrerLEchantillonneur({ racine, sorte, ticket, coeurs, part, unite, id }) {
+  const registre = fichierDeConsommation(racine);
+  const marqueur = registre === null ? null : path.join(path.dirname(registre), `${id}.fin`);
+  if (marqueur === null) {
+    return { marqueur, echantillonneur: null };
+  }
+  mkdirSync(path.dirname(marqueur), { recursive: true });
+  const echantillonneur = spawn(
+    process.execPath,
+    [
+      SAMPLEUR,
+      JSON.stringify({
+        unite,
+        pid: process.pid,
+        racine,
+        marqueur,
+        part,
+        base: { sorte, ...(ticket ? { ticket } : {}), coeurs, debut: Date.now() },
+      }),
+    ],
+    { detached: true, stdio: 'ignore' }
+  );
+  echantillonneur.unref();
+  return { marqueur, echantillonneur };
+}
+
+/**
+ * The group of a pass whose command is launched in it (`commandeDuGroupe` of
+ * ./passe-de-la-machine.mjs): `ouvrir()` starts the sampler, which reads the group named after the
+ * part of the pass while its command runs, and returns `{ unite, lire, clore }`: `lire()` the last
+ * reading the sampler noted, null without one.
+ * @param {{ racine: string, sorte: string, ticket?: string, coeurs: number,
+ *   part: { id: string, coeurs: number, memoire: number, dossier: string }, mesurer?: boolean }} o
+ */
+export function scopeDeCommande({ racine, sorte, ticket, coeurs, part, mesurer = true }) {
+  return {
+    ouvrir() {
+      const unite = `grillhouse-passe-${part.id}.scope`;
+      const { marqueur } = mesurer
+        ? demarrerLEchantillonneur({ racine, sorte, ticket, coeurs, part, unite, id: part.id })
+        : { marqueur: null };
+      return {
+        unite,
+        lire: () => {
+          try {
+            return marqueur === null ? null : JSON.parse(readFileSync(`${marqueur}.lecture`, 'utf8'));
+          } catch {
+            return null;
+          }
+        },
+        clore: () => {
+          if (marqueur !== null) {
+            writeFileSync(marqueur, '');
+          }
+        },
+      };
+    },
+  };
+}
+
+/**
+ * The real scope of a pass that is the process itself: `ouvrir()` moves this process into a
+ * transient scope of the user's systemd manager (`StartTransientUnit` with its PID, which its
+ * children inherit), the CPU weight and the memory bound of its part among its properties, after
+ * having started the sampler outside it (<mesurer>), and returns `{ lire, clore }`; `{ raison }`
+ * when no manager of the user is reachable. The scope goes when empty.
+ * @param {{ racine: string, sorte: string, ticket?: string, coeurs: number,
+ *   part?: { id: string, coeurs: number, memoire: number, dossier: string } | null,
+ *   mesurer?: boolean }} o
  * @returns {{ ouvrir: () => { lire: () => ({ cpuNs: number | null, memoirePic: number | null } | null),
  *   clore: () => void } | { raison: string } }}
  */
-export function scopeSystemd({ racine, sorte, ticket, coeurs }) {
+export function scopeSystemd({ racine, sorte, ticket, coeurs, part = null, mesurer = true }) {
   return {
     ouvrir() {
-      const registre = fichierDeConsommation(racine);
       const id = `${process.pid}-${Date.now()}`;
       const unite = `grillhouse-passe-${id}.scope`;
-      const marqueur = registre === null ? null : path.join(path.dirname(registre), `${id}.fin`);
-      let echantillonneur = null;
-      if (marqueur !== null) {
-        mkdirSync(path.dirname(marqueur), { recursive: true });
-        echantillonneur = spawn(
-          process.execPath,
-          [
-            SAMPLEUR,
-            JSON.stringify({
-              unite,
-              pid: process.pid,
-              racine,
-              marqueur,
-              base: { sorte, ...(ticket ? { ticket } : {}), coeurs, debut: Date.now() },
-            }),
-          ],
-          { detached: true, stdio: 'ignore' }
-        );
-        echantillonneur.unref();
-      }
+      const { marqueur, echantillonneur } = mesurer
+        ? demarrerLEchantillonneur({ racine, sorte, ticket, coeurs, part, unite, id })
+        : { marqueur: null, echantillonneur: null };
       const r = spawnSync(
         CLIENT_DBUS,
         [
@@ -209,7 +294,7 @@ export function scopeSystemd({ racine, sorte, ticket, coeurs }) {
           'ssa(sv)a(sa(sv))',
           unite,
           'fail',
-          '4',
+          String(4 + (part ? 2 : 0)),
           'PIDs',
           'au',
           '1',
@@ -223,6 +308,16 @@ export function scopeSystemd({ racine, sorte, ticket, coeurs }) {
           'MemoryAccounting',
           'b',
           'true',
+          ...(part
+            ? [
+                'CPUWeight',
+                't',
+                String(poidsDeLaPart(part)),
+                'MemoryMax',
+                't',
+                String(Math.floor(part.memoire)),
+              ]
+            : []),
           '0',
         ],
         { encoding: 'utf8', timeout: 20_000 }

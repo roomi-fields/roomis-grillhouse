@@ -20,7 +20,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { langagesDe } from './langages.mjs';
-import { LIBRE_MIN } from './verrou-de-machine.mjs';
+import { LIBRE_MIN } from './attente-de-la-machine.mjs';
 
 const GO = 1024 ** 3;
 /** The expected size of a copy of a project that declares no language, before any measure. */

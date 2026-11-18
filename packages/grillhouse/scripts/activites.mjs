@@ -47,7 +47,7 @@ import { AVANCEMENT } from './mesure/avancement.mjs';
 import { avecLesOutils } from './outils-cles.mjs';
 import { avecLesDonnees } from './donnees-cles.mjs';
 import { consigneDesFlux } from './flux-des-paquets.mjs';
-import { avecLaPasse, lancementDeLaPasse, passeLourde } from './passe-de-la-machine.mjs';
+import { avecLaPasse, lancementSousPart, passeLourde } from './passe-de-la-machine.mjs';
 import {
   A_INSCRIRE,
   bloquantsDeLaFiche,
@@ -84,7 +84,8 @@ import {
 } from './ticket-du-circuit.mjs';
 import { emettre } from './effets.mjs';
 import { PREUVE, TRI } from './transitions.mjs';
-import { AttenteDeLaMachine, nommerLAvancement } from './verrou-de-machine.mjs';
+import { AttenteDeLaMachine } from './attente-de-la-machine.mjs';
+import { nommerLAvancement } from './places-de-la-machine.mjs';
 
 const ici = import.meta.dirname;
 // The sessions out of the envelope (the reviewer, the explorateur and the questionneur, all on
@@ -834,19 +835,24 @@ export function restaurerLaCopie(ctx, commit) {
 }
 
 // The environment of a pass of the circuit (the proof, the checks, the final pass, a command of a
-// reference): <base>, the launcher's under the lock of the machine, with the tools of the project
-// (`ctx.outils`, `grillhouse.outils`) and its data (`ctx.donnees`, `grillhouse.donnees`), read at
-// the launch, whatever <base> holds, then <env>.
+// reference): <base>, the launcher's carrying the mark of its part of the machine, with the tools
+// of the project (`ctx.outils`, `grillhouse.outils`) and its data (`ctx.donnees`,
+// `grillhouse.donnees`), read at the launch, whatever <base> holds, then <env>.
 export const environnementDeLaPasse = (ctx, base, env = {}) => ({
   ...avecLesDonnees(ctx.donnees ?? {}, avecLesOutils(ctx.outils ?? {}, base)),
   ...env,
 });
 
+// What a pass of the circuit launches: its command under its part (`lancementSousPart`: in its
+// control group, the workers of its tools the cores of its part), as it is where no part is held.
+const lancerSousSaPart = ({ part, groupe, unite }, cmd, args, env) =>
+  part ? lancementSousPart({ part, cmd, args, env, groupe, unite }) : { cmd, args, env };
+
 // One command of a reference, run by the shell at the root of the copy, out of the envelope,
-// under the lock of the machine, its output added to the log: `{ code, panne, sortie }`, its exit
+// on a part of the machine, its output added to the log: `{ code, panne, sortie }`, its exit
 // code, whether it failed for real, whatever it judges (the command not found or not executable,
-// 126, 127, as the shell says it; killed by a signal, the shell's 128 + its number; or the lock of
-// the machine not taken), and what it wrote to the log. It runs in the environment of a pass
+// 126, 127, as the shell says it; killed by a signal, the shell's 128 + its number; or the part
+// of the machine not taken), and what it wrote to the log. It runs in the environment of a pass
 // (`environnementDeLaPasse`).
 function commandeDeReference(ctx, commande) {
   entete(ctx, 'references');
@@ -856,14 +862,18 @@ function commandeDeReference(ctx, commande) {
   const fd = openSync(ctx.journal, 'a');
   try {
     const r = avecLaPasse(
-      env =>
-        spawnSync('sh', ['-c', commande], {
-          cwd: ctx.copie,
-          stdio: ['ignore', fd, fd],
-          env: environnementDeLaPasse(ctx, env),
-        }),
+      (env, contexte) => {
+        const l = lancerSousSaPart(
+          contexte,
+          'sh',
+          ['-c', commande],
+          environnementDeLaPasse(ctx, env)
+        );
+        return spawnSync(l.cmd, l.args, { cwd: ctx.copie, stdio: ['ignore', fd, fd], env: l.env });
+      },
       {
         lourde: true,
+        mode: 'commande',
         racine: ctx.copie,
         dire: l => appendFileSync(ctx.journal, `${l}\n`),
         ticket: ctx.ticket,
@@ -1380,17 +1390,16 @@ function paquetDe(liste, fichier) {
 // One npm command in the copy, under <env> added to the circuit's environment, its results written
 // to a directory of its own (RESULTATS, scripts/resultats.mjs: the summaries of Turborepo, the
 // JSON reports of Vitest, the SARIF of the guards), its output added to the log for the human:
-// `{ code, dossier }`. The circuit reads its results, never its output. A heavy pass (the final
-// pass, `npm run verifier`) holds the lock of the machine (scripts/verrou-de-machine.mjs) and
-// passes it to the `npm run verifier` it runs, on a place of the machine taken first
-// (`avecLaPasse` of scripts/passe-de-la-machine.mjs); a targeted one (the proof of the
-// red, the checks on the tests of the ticket) takes a place like a session of an agent
-// (scripts/passe-de-la-machine.mjs); its wait is written to the log. A wait that stops (its bound,
-// 75; a lock held by an ancestor or a server of the places that does not answer, 1) is the
-// command's code, its message in the log; `attente`, a 75 that is a wait for a place, the lock or
-// room at its bound (the pass's own, or that of the `npm run verifier` it runs). Once it holds the lock, the pass plays under a
-// progress directory of its own (`avancement`), of the kind `genreDeLaPasse` names. It plays in
-// the environment of a pass (`environnementDeLaPasse`).
+// `{ code, dossier }`. The circuit reads its results, never its output. Every pass (the proof of
+// the red, the checks, the final pass `npm run verifier`) takes its part of the budget of the
+// machine (`avecLaPasse` of scripts/passe-de-la-machine.mjs) and plays held to it, in a control
+// group of its own, its command launched by the circuit (`lancementSousPart`); it passes the mark
+// of its part to the `npm run verifier` it runs, which takes none of its own; its wait is written
+// to the log. A wait that stops (its bound, 75; a faulty key or reserve, 1) is the command's
+// code, its message in the log; `attente`, a 75 that is a wait for a part or for room at its
+// bound (the pass's own, or that of the `npm run verifier` it runs). Once it holds its part, the
+// pass plays under a progress directory of its own (`avancement`), of the kind `genreDeLaPasse`
+// names. It plays in the environment of a pass (`environnementDeLaPasse`).
 function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
   entete(ctx, etape);
   const dossier = mkdtempSync(path.join(ctx.base.dossier, 'resultats-'));
@@ -1401,28 +1410,28 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
     const finale = etape === 'controles' && args[1] === 'verifier';
     const lourde = passeLourde({ etape, args });
     const r = avecLaPasse(
-      envMachine =>
+      (envMachine, contexte) =>
         avecLAvancementDuTravail(
           ctx.tmp,
           { racine: ctx.copie, genre: genreDeLaPasse(ctx, etape, args) },
           avancement => {
             const oublier = nommerLAvancement({ env: envMachine, dossier: avancement });
             try {
-              // A targeted pass plays on its share of the cores under nice and ionice; a heavy one
-              // shares the cores between its own tasks of tests.
-              const lancement = lancementDeLaPasse({
-                lourde,
-                cmd: 'npm',
+              // The pass plays on its part: in its control group, its tools on the cores of its
+              // part.
+              const lancement = lancerSousSaPart(
+                contexte,
+                'npm',
                 args,
-                env: environnementDeLaPasse(ctx, envMachine, {
+                environnementDeLaPasse(ctx, envMachine, {
                   ...env,
                   [RESULTATS]: dossier,
                   [AVANCEMENT]: avancement,
                   [GARDES_DE_LA_BASE]: gardesDeLaBase(ctx),
                   ...(args[0] === 'test' ? { [DEPUIS_LE_VERT]: '1' } : {}),
                   ...(args[0] === 'test' || args[1] === 'verifier' ? mesureDesPasses(ctx) : {}),
-                }),
-              });
+                })
+              );
               return spawnSync(lancement.cmd, lancement.args, {
                 cwd,
                 stdio: ['ignore', fd, fd],
@@ -1435,16 +1444,16 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
         ),
       {
         lourde,
+        mode: 'commande',
         env: process.env,
         racine: ctx.copie,
         dire: l => appendFileSync(ctx.journal, `${l}\n`),
         ticket: ctx.ticket,
-        rang: ctx.rang ?? undefined,
         sorte: etapeDuCircuit({ etape, finale })?.titre ?? etape,
       }
     );
     const code = r.status ?? 1;
-    // The 75 of `npm run verifier` is its wait for the lock or for room under /tmp at its bound,
+    // The 75 of `npm run verifier` is its wait for room under /tmp at its bound,
     // which waits again without counting; cut by the watch of its memory (MEMOIRE_COUPEE in its
     // results), it is a replay that counts.
     const coupee = existsSync(path.join(dossier, MEMOIRE_COUPEE));

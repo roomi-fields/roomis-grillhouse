@@ -89,7 +89,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     writeFileSync(path.join(repo, '.git/hooks/pre-push'), PRE_PUSH_BEADS, { mode: 0o755 });
   }
   // The night runs from the project's own scripts, as in a project the frame installed, its
-  // package.json beside them as the package carries it (scripts/verrou-de-machine.mjs reads its name).
+  // package.json beside them as the package carries it (scripts/attente-de-la-machine.mjs reads its name).
   cpSync(path.dirname(NUIT), path.join(repo, 'packages/grillhouse/scripts'), { recursive: true });
   cpSync(
     path.join(path.dirname(NUIT), '../package.json'),

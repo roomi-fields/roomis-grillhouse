@@ -59,7 +59,7 @@ describe('grillhouse-3dr.2.1 — les verdicts comme avant', { timeout: 300_000 }
       const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
       const tenu =
         v.sorte === 'tenu'
-          ? tenirLaMachine(path.join(PAQUET, 'scripts/verrou-de-machine.mjs'), d.env, d.racine)
+          ? tenirLaMachine(path.join(PAQUET, 'scripts/places-de-la-machine.mjs'), d.env, d.racine)
           : null;
       await tenu?.pret;
       const r = spawnSync(process.execPath, [path.join(PAQUET, 'bin/grillhouse.mjs'), v.commande], {

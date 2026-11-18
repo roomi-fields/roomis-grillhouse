@@ -20,7 +20,8 @@ import {
   retirerLesCopiesDuDepot,
   retirerLesCopiesFinies,
 } from '../../scripts/copies-finies.mjs';
-import { attendreDeLaPlace, avecLaMachine } from '../../scripts/verrou-de-machine.mjs';
+import { attendreDeLaPlace } from '../../scripts/attente-de-la-machine.mjs';
+import { prendreUnePart } from '../../scripts/places-de-la-machine.mjs';
 
 const DEPOT = path.resolve(import.meta.dirname, '../../../..');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'place-des-copies-'));
@@ -133,10 +134,10 @@ function cible(c: string, ko: number) {
 }
 
 describe('grillhouse-k5y, critère 3 — une passe lourde attend la place sur le disque de sa copie', () => {
-  // The environment of a wait: a temporary directory apart from the copy, a lock of its own.
+  // The environment of a wait: a temporary directory apart from the copy, parts of its own.
   const environnement = (ajouts: Record<string, string> = {}) => ({
     TMPDIR: unDossier('tmp'),
-    GRILLHOUSE_VERROU_MACHINE: path.join(unDossier('verrou'), 'mesure.lock'),
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(unDossier('parts'), 'etat'),
     ...ajouts,
   });
   // The stop of a wait that throws: its message and its code.
@@ -235,27 +236,20 @@ describe('grillhouse-k5y, critère 3 — une passe lourde attend la place sur le
     expect(lignes).toEqual([]);
   });
 
-  it('the lock of the machine waits for room on the disk of the copy it plays in before it plays', () => {
+  it('a pass waits for room on the disk of the copy it plays in before it takes its part', () => {
     const racine = depot();
     const env = environnement();
-    let joue = false;
-    const r = arret(() =>
-      avecLaMachine(
-        () => {
-          joue = true;
-        },
-        {
-          env,
-          racine,
-          libre: (d: string) => (d === env.TMPDIR ? Infinity : 0),
-          borneMs: 0,
-          dire: () => {},
-        }
-      )
-    );
+    const r = arret(() => {
+      prendreUnePart({
+        env,
+        racine,
+        libre: (d: string) => (d === env.TMPDIR ? Infinity : 0),
+        borneMs: 0,
+        dire: () => {},
+      });
+    });
     expect(r?.code).toBe(75);
     expect(r?.message).toMatch(/le disque de la copie/);
-    expect(joue).toBe(false);
   });
 
   it(

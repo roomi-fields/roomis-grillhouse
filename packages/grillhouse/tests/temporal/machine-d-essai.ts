@@ -54,7 +54,14 @@ export async function machineDesPlaces({ plafond = 2, charge = 1 } = {}) {
   const env: Record<string, string> = {
     PATH: process.env.PATH ?? '',
     HOME: process.env.HOME ?? '',
-    GRILLHOUSE_VERROU_MACHINE: process.env.GRILLHOUSE_VERROU_MACHINE ?? '',
+    // The parts of the machine of the file, and its hardware and load fixed: 12 cores, 32 GB.
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: dossier('parts-de-la-machine'),
+    GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+      coeurs: 12,
+      charge,
+      memoireLibre: 16 * GO,
+      memoireTotale: 32 * GO,
+    }),
     GRILLHOUSE_TEMPORAIRE_LIBRE: process.env.GRILLHOUSE_TEMPORAIRE_LIBRE ?? '0',
     GRILLHOUSE_COPIE_LIBRE: process.env.GRILLHOUSE_COPIE_LIBRE ?? '0',
     GRILLHOUSE_PLACES_D_ESSAI: s.adresse,

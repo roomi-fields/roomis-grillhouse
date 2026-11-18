@@ -4,7 +4,7 @@
 // and nextest for each crate with tests, then its doctests), typer (cargo check --all-targets), verifier (the tests, then cargo
 // deny check); the verdict of a run reads the JUnit report of
 // nextest and the code of each task, and a red makes verifier's code 1. Verifier plays under the
-// lock of the machine: a lock held makes it wait, and the bound of the wait reached it stops at 75
+// part of the machine: a part that does not fit makes it wait, and the bound of the wait reached it stops at 75
 // without running cargo; it plays the crates the changes since the last green touch and their
 // dependents.
 import { spawn, spawnSync } from 'node:child_process';
@@ -298,17 +298,42 @@ describe('grillhouse-akd — verifier --gardes, les gardes seules', () => {
   });
 });
 
-describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
-  // A lock of the machine held by a live process of its own, as another measure holds it.
+describe('verifier sous une part de la machine', () => {
+  const GO = 1024 ** 3;
+  // The machine of the trial: 12 cores and 32 GB, so a budget of 8 cores and 28 GB under the
+  // default reserve (4 cores, 4 GB).
+  const MACHINE = JSON.stringify({
+    coeurs: 12,
+    charge: 1,
+    memoireLibre: 16 * GO,
+    memoireTotale: 32 * GO,
+  });
+  // The whole budget of the machine held by a live process of its own, as another pass holds it:
+  // its file of the parts, in a directory of its own.
   function tenu() {
-    const verrou = path.join(mkdtempSync(path.join(ESSAIS, 'verrou-')), 'mesure.lock');
+    const parts = path.join(mkdtempSync(path.join(ESSAIS, 'parts-')), 'etat');
     const dormeur = spawn('sleep', ['60'], { stdio: 'ignore' });
-    writeFileSync(verrou, `${dormeur.pid}:tenu`);
-    return { verrou, dormeur };
+    mkdirSync(parts, { recursive: true });
+    writeFileSync(
+      path.join(parts, 'autre.json'),
+      JSON.stringify({
+        id: 'autre',
+        pid: dormeur.pid,
+        depart: null,
+        projet: 'autre',
+        ticket: 'gh-9',
+        sorte: 'Vérification',
+        rang: 1,
+        coeurs: 8,
+        memoire: 28 * GO,
+        etat: 'tient',
+      })
+    );
+    return { parts, dormeur };
   }
 
-  it('the bound of the wait reached: 75, the holder named, cargo never run', () => {
-    const { verrou, dormeur } = tenu();
+  it('the bound of the wait reached: 75, what it waits for named, cargo never run', () => {
+    const { parts, dormeur } = tenu();
     try {
       const r = lancer(
         d.seul,
@@ -316,20 +341,21 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
         ['--tout'],
         {},
         {
-          GRILLHOUSE_VERROU_MACHINE: verrou,
+          GRILLHOUSE_PARTS_DE_LA_MACHINE: parts,
+          GRILLHOUSE_MESURE_D_ESSAI: MACHINE,
           GRILLHOUSE_ATTENTE_MACHINE_MS: '1000',
         }
       );
       expect(r.code, r.stdout + r.stderr).toBe(75);
-      expect(r.stdout).toContain(String(dormeur.pid));
+      expect(r.stdout).toMatch(/attente de la part bornée.*cœurs/);
       expect(readFileSync(JOURNAL, 'utf8')).toBe('');
     } finally {
       dormeur.kill();
     }
   });
 
-  it('a lock held makes verifier wait, then it plays once the lock is let go', async () => {
-    const { verrou, dormeur } = tenu();
+  it('a part that does not fit makes verifier wait, then it plays once the part is given back', async () => {
+    const { parts, dormeur } = tenu();
     writeFileSync(JOURNAL, '');
     const resultats = mkdtempSync(path.join(ESSAIS, 'resultats-'));
     const c = cargo.commandes(d.seul).verifier;
@@ -341,7 +367,8 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
         HOME: MAISON_DES_ESSAIS,
         XDG_CACHE_HOME: '',
         GRILLHOUSE_RESULTATS: resultats,
-        GRILLHOUSE_VERROU_MACHINE: verrou,
+        GRILLHOUSE_PARTS_DE_LA_MACHINE: parts,
+        GRILLHOUSE_MESURE_D_ESSAI: MACHINE,
       },
     });
     let sortie = '';
@@ -351,7 +378,7 @@ describe('grillhouse-pkl.3 — verifier sous le verrou de la machine', () => {
     expect(readFileSync(JOURNAL, 'utf8')).toBe('');
     dormeur.kill();
     expect(await fin, sortie).toBe(0);
-    expect(sortie).toMatch(/verrou de la machine pris après/);
+    expect(sortie).toMatch(/part prise après/);
     expect(lu(resultats).appels).toEqual(['deny check']);
   }, 30_000);
 });

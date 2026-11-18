@@ -48,7 +48,7 @@
 //   unread, or the end of a circuit, whose act reads no server), its line says only that its
 //   circuit has its working directory.
 // - The count of what holds the disk of a copy (`occupantsDesCopies`), which the wait for room of
-//   a heavy pass names (scripts/verrou-de-machine.mjs): the copies of its repository, the five
+//   a pass names (scripts/attente-de-la-machine.mjs): the copies of its repository, the five
 //   largest first, each with its ticket (the copy's folder, but the frame's copies that last and
 //   Claude Code's `agent-*`), its place and that of its tools' outputs.
 // - A copy whose commits are not on main stays, its line naming the first path that has not
@@ -273,7 +273,7 @@ function ticketDeLaCopie(chemin) {
  * main tree left out, the five largest first, each with its ticket, its place and the place of
  * its tools' outputs (<ignorer>, by default the directories the module of the project's language
  * names): « .claude/worktrees/SH-ae6.2.7 (le ticket SH-ae6.2.7, 5,0 Go, dont target 4,8 Go) ».
- * What the wait for room on the disk of a copy names (scripts/verrou-de-machine.mjs).
+ * What the wait for room on the disk of a copy names (scripts/attente-de-la-machine.mjs).
  * @param {string} racine
  * @param {string[]} [ignorer]
  * @returns {string}

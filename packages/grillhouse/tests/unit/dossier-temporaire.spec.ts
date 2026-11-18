@@ -39,7 +39,7 @@ import { avecSccache, cibleDeCompilation } from '../../scripts/langages/cargo/sc
 const DEPOT = path.resolve(import.meta.dirname, '../..');
 const BASE = path.join(DEPOT, 'scripts/mesure/base-de-passe.mjs');
 const NUIT = path.join(DEPOT, 'scripts/langages/typescript/tests-de-nuit.mjs');
-const VERROU = pathToFileURL(path.join(DEPOT, 'scripts/verrou-de-machine.mjs')).href;
+const PLACES = pathToFileURL(path.join(DEPOT, 'scripts/places-de-la-machine.mjs')).href;
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'temporaire-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
@@ -208,17 +208,17 @@ describe('grillhouse-xv9, critère 3 — les caches de compilation vont sous ~/.
 });
 
 describe('grillhouse-xv9, critère 4 — une passe lourde attend la place au lieu d’échouer', () => {
-  // A child that runs a measure under the lock of the machine, its options <options> (JavaScript),
-  // in the temporary directory <dans>: « joue » when the measure plays, the message and the code
-  // of a wait that stops.
+  // A child that takes the part of a pass of the machine, its options <options> (JavaScript), in
+  // the temporary directory <dans>: « joue » when the part is taken, the message and the code of a
+  // wait that stops.
   const mesurer = (dans: string, options: string, env: Record<string, string> = {}) =>
     spawnSync(
       process.execPath,
       [
         '--input-type=module',
         '-e',
-        `import { avecLaMachine } from ${JSON.stringify(VERROU)};
-        try { avecLaMachine(() => console.log('joue'), ${options}); }
+        `import { prendreUnePart } from ${JSON.stringify(PLACES)};
+        try { prendreUnePart(${options}).rendre(); console.log('joue'); }
         catch (e) { if (e?.name !== 'AttenteDeLaMachine') throw e; console.log(e.message); process.exitCode = e.code; }`,
       ],
       {
@@ -226,7 +226,14 @@ describe('grillhouse-xv9, critère 4 — une passe lourde attend la place au lie
         env: {
           ...ENV,
           TMPDIR: dans,
-          GRILLHOUSE_VERROU_MACHINE: path.join(unDossier('verrou'), 'mesure.lock'),
+          GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(unDossier('parts'), 'etat'),
+          // A machine at rest, that admits the part: the wait of these cases is the room's.
+          GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+            coeurs: 12,
+            charge: 1,
+            memoireLibre: 16 * 1024 ** 3,
+            memoireTotale: 32 * 1024 ** 3,
+          }),
           // The disk of the copy is grillhouse-k5y's (place-des-copies.spec.ts): no floor here.
           GRILLHOUSE_COPIE_LIBRE: '0',
           ...env,
@@ -298,6 +305,13 @@ describe('grillhouse-xv9, critère 4 — une passe lourde attend la place au lie
       env: {
         ...ENV,
         TMPDIR: racine,
+        GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(unDossier('parts'), 'etat'),
+        GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+          coeurs: 12,
+          charge: 1,
+          memoireLibre: 16 * 1024 ** 3,
+          memoireTotale: 32 * 1024 ** 3,
+        }),
         GRILLHOUSE_TEMPORAIRE_LIBRE: String(2 ** 60),
         GRILLHOUSE_ATTENTE_MACHINE_MS: '0',
       },

@@ -93,11 +93,12 @@ import {
   paquetsDeLEnveloppe,
   retirerALInterruption,
   SCRIPT_DES_TESTS,
-  surUnePlace,
+  surUnePart,
   TESTS_CIBLES,
   testsCibles,
   tracesDuPlan,
 } from '../../services-du-noyau.mjs';
+import { estHorsDuJour } from './vitest-config/cibles.mjs';
 import { paquets } from '../../paquets.mjs';
 import { RESULTATS } from '../../resultats.mjs';
 import { garderLesResumes } from './resume-du-lanceur.mjs';
@@ -265,12 +266,20 @@ const lancer = () => {
 };
 
 try {
-  // The run takes a place of the machine (scripts/places-de-la-machine.mjs), whose mark every run
-  // of Turborepo carries to its tasks.
-  process.exitCode = surUnePlace(env => {
-    Object.assign(process.env, env);
-    return lancer();
+  // The run takes its part of the machine (scripts/passe-de-la-machine.mjs `surUnePart`), whose
+  // mark every run of Turborepo carries to its tasks; a night test or a measure of time named
+  // plays alone, on the whole budget.
+  const mesureDeTemps = chemins.some(c => {
+    const abs = path.resolve(racine, c);
+    return existsSync(abs) && statSync(abs).isFile() && estHorsDuJour(abs);
   });
+  process.exitCode = surUnePart(
+    env => {
+      Object.assign(process.env, env);
+      return lancer();
+    },
+    { racine, entiere: mesureDeTemps }
+  );
 } finally {
   lacher();
   depuis?.retirer();

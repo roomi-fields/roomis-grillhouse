@@ -18,7 +18,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { availableParallelism, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandeDe } from '../../../../scripts/sous-commandes.mjs';
@@ -161,8 +161,10 @@ describe('npm run verifier borne ses tests et sa mémoire', { timeout: 180_000 }
     transmettre(d, 'GRILLHOUSE_TRAVAILLEURS');
     const r = await lancer(d);
     expect(r.status, r.sortie).toBe(0);
+    // The workers share the cores of the part of the pass, not those of the machine: the trial
+    // machine (12 cores, 32 GB, a reserve of 4 cores and 4 GB) gives a default part of 4 cores.
     // Two packages play tests: the tasks of tests side by side are two at most.
-    const coeurs = availableParallelism();
+    const coeurs = 4;
     const attendu = String(
       Math.max(1, Math.floor(coeurs / Math.min(Math.max(1, Math.floor(coeurs / 2)), 2)))
     );

@@ -667,8 +667,8 @@ la copie du ticket ou sa passation, jamais dans le seul dossier temporaire. Les 
 `~/.cache/grillhouse/` (`cacheDeCompilation`), comme l'output_base de Bazel, et un espace cargo
 enraciné dans le dossier temporaire compile sous `~/.cache/grillhouse/cargo/`, balayé quand sa
 racine n'est plus, vue de l'espace de processus qui l'a ouvert, ou, depuis l'hôte, après 7 jours
-sans usage, comme un cache de GitHub Actions. Une passe lourde (le verrou de la machine, les tests de nuit) qui trouve moins
-de 4 Go libres dans le dossier temporaire attend la place sous la borne du verrou et dit ce qui
+sans usage, comme un cache de GitHub Actions. Une passe (sa part de la machine, les tests de nuit) qui trouve moins
+de 4 Go libres dans le dossier temporaire attend la place sous la borne de l'attente de la machine et dit ce qui
 l'occupe, le ticket dont le dossier tient la place nommé, au lieu d'échouer faute de place (la nuit du 2026-11-01 : 25 rouges, 8 Go de
 scratchpads sur 16). Ainsi le disque en mémoire du poste ne sature jamais.
 
@@ -690,8 +690,8 @@ intégration. Ainsi une séance qui survit à son circuit garde ce qu'il lui a r
 
 **La nuit et la fin de chaque circuit retirent les copies finies**
 (`packages/grillhouse/scripts/copies-finies.mjs`, que la nuit lance par sa commande
-`retirer-les-copies-finies.mjs` ; le module n'importe rien du `dist/` construit, car le verrou
-de la machine et la configuration de base des tests l'importent) : après ses étapes, quel que soit son verdict,
+`retirer-les-copies-finies.mjs` ; le module n'importe rien du `dist/` construit, car l'attente
+de place de la machine et la configuration de base des tests l'importent) : après ses étapes, quel que soit son verdict,
 la nuit passe chaque copie que `git worktree list` nomme, hors
 l'arbre principal et sa propre copie, par `retirer-copie.sh` sans `--jetable`, comme une CI
 nettoie ses espaces de travail à la fin d'un pipeline et comme `git worktree prune`, qu'elle joue
@@ -953,16 +953,18 @@ chemin entier, ou son paquet le déclare. Les constats d'un projet s'inscrivent 
 mise à jour qui apporte la garde (migration 0.25.0). Ainsi aucun script lancé par un test ne se
 perd en silence, et un changement d'un script ne rejoue que les tests qui le lisent.
 
-**Des places bornées pour les séances et les passes** (grillhouse-9kq, grillhouse-4nr.12 ; modèles :
+**Des places bornées pour les séances et les circuits** (grillhouse-9kq, grillhouse-4nr.12 ; modèles :
 les agents de Buildkite, le serveur de tâches de GNU make, l'admission de `make -l`) : chaque séance
-d'agent, et chaque passe (preuve du rouge, contrôles, passe finale, vérification, références),
-prend une place à son départ et la rend à sa fin ; un circuit qui attend une question ou une séance
-n'en tient aucune, et une passe jouée sous une place tenue (`GRILLHOUSE_PLACE_TENUE`) n'en prend pas
-une seconde. Les places vivent sur le serveur Temporal, dans le déroulé de la machine (ci-dessous),
+d'agent prend une place à son départ et la rend à sa fin, et chaque circuit tient la sienne ; un
+circuit qui attend une question ou une séance n'en tient aucune. **La frontière entre place et
+part** : une place est une séance d'agent ou un circuit ; une part est une passe (preuve du rouge,
+contrôles, passe finale, vérification, références, nuit, une tranche de la CI sur une machine à
+nous). Une passe ne prend aucune place : sa part seule la borne (« Les parts des passes »,
+ci-dessous). Les places vivent sur le serveur Temporal, dans le déroulé de la machine (ci-dessous),
 que `scripts/places-de-la-machine.mjs` lit et prend par un processus à lui
 (`scripts/places-du-serveur.mjs`) ; le serveur est requis sur le poste, et la CI n'en prend aucune.
-Une machine d'essai des tests ne prend que les places du serveur d'essai que nomme
-`GRILLHOUSE_PLACES_D_ESSAI`. `GRILLHOUSE_MESURE_D_ESSAI` fixe la mesure de la machine en JSON
+Une machine d'essai des tests (celle qui nomme `GRILLHOUSE_PARTS_DE_LA_MACHINE`) ne prend que les
+places du serveur d'essai que nomme `GRILLHOUSE_PLACES_D_ESSAI`. `GRILLHOUSE_MESURE_D_ESSAI` fixe la mesure de la machine en JSON
 `{ coeurs, charge, memoireLibre, memoireTotale }` (la forme de `Mesure`, et la mémoire totale) :
 posée, l'état des places en tire sa charge, ses cœurs et ses mémoires, au lieu de lire la machine ; une valeur fautive (JSON illisible,
 champ manquant ou non numérique) est refusée en nommant la variable, et le tableau n'affiche alors
@@ -979,14 +981,66 @@ processus n'existe plus, sans bail. Un départ n'est admis que si la charge sur 
 nombre de cœurs et si 4 Go au moins sont libres, deux départs étant espacés de 10 s
 (`GRILLHOUSE_ESPACEMENT_MS`) ; l'attente dit sa raison (place, charge, mémoire,
 espacement), garde le rang d'arrivée du circuit (pris à son lancement) et s'arrête à la borne de
-l'attente du verrou, 75. Chaque séance joue ses tests sur max(1, cœurs ÷ places) travailleurs
-(`GRILLHOUSE_TRAVAILLEURS`, lu par le module de chaque langage : `maxWorkers` de Vitest, `-j` de
-cargo et nextest, `-n` de pytest), sous `nice` et `ionice` ; la variable atteint chaque tâche par le
-`globalPassThroughEnv` de la racine, que le mode strict de Turborepo exige. Une passe lourde partage
-les cœurs entre ses tâches de tests côte à côte : les processus de tests d'une passe ne dépassent
-jamais le nombre de cœurs.
-Une passe lourde prend sa place, puis le verrou exclusif de la machine ; une passe ciblée part
-pendant qu'une passe lourde tient le verrou.
+l'attente de la machine (`GRILLHOUSE_ATTENTE_MACHINE_MS`, 60 min), 75. Chaque séance joue ses tests
+sur max(1, cœurs ÷ places) travailleurs (`GRILLHOUSE_TRAVAILLEURS`, lu par le module de chaque
+langage : `maxWorkers` de Vitest, `-j` de cargo et nextest, `-n` de pytest), sous `nice` et
+`ionice` ; la variable atteint chaque tâche par le `globalPassThroughEnv` de la racine, que le mode
+strict de Turborepo exige. Une passe, elle, joue sur les cœurs de sa part (« Les parts des
+passes ») : les processus de tests d'une passe ne dépassent jamais le nombre de cœurs de sa part.
+
+**Les parts des passes remplacent le verrou de la machine** (grillhouse-mnn.2 ; modèles : Slurm, où
+un travail réserve ses cœurs et sa mémoire, attend quand ils manquent et garde son rang ; Bazel,
+`--local_resources` et les ressources déclarées d'un test ; le serveur de jetons de GNU make, qui
+partage des créneaux entre tous les make d'un build) : le budget de la machine, son matériel
+(cœurs, mémoire) moins la réserve de l'utilisateur, se partage en parts, que prend chaque passe de
+la machine, quel que soit son dépôt : la passe lourde d'un circuit (lancée par le circuit
+lui-même), `npm run verifier`, un `npm test` ciblé, une tranche de la CI sur une machine à nous, la
+nuit. Une passe ne prend plus de place de circuit ni le verrou exclusif de la machine, supprimé :
+elle prend sa part, que rien d'autre ne double.
+- **Le budget** (`scripts/plafond-de-la-machine.mjs`, des fonctions pures, matériel et réglages en
+  entrée) : les cœurs de la machine moins la réserve de l'utilisateur (`GRILLHOUSE_RESERVE_COEURS`,
+  par défaut min(4, max(0, cœurs − 4)) : 0 sur 4 cœurs ou moins, 2 sur 6, 4 à partir de 8), la
+  mémoire moins sa réserve (`GRILLHOUSE_RESERVE_MEMOIRE_GO`, 4 Go), réglables par
+  poste dans `~/.config/grillhouse/machine.env`, l'environnement l'emportant, zéro admis ; une
+  valeur qui n'est pas un entier ≥ 0, ou une réserve réglée qui ne laisse aucun cœur ni aucune
+  mémoire (budget nul), est refusée par son nom, avant tout travail. Ainsi un poste de 4 cœurs
+  (l'exécuteur de GitHub) joue une passe à la fois, comme sous le verrou.
+- **La part** : ses cœurs et sa mémoire. Un projet la déclare dans la clé `grillhouse.part` de son
+  `package.json` (`{ "coeurs": <entier ≥ 1>, "memoireGo": <nombre > 0> }`, chacun facultatif), lue
+  dans l'arbre principal ; une clé fautive est refusée par son nom avant tout travail. Sans
+  déclaration, la part par défaut vaut 4 cœurs au moins (le tiers du budget, arrondi en haut, quand il est plus
+  grande), sa mémoire en proportion de ses cœurs ; une part déclarée ou par défaut plus grande que le
+  budget vaut le budget (une seule passe à la fois, comme sous le verrou), et jamais moins d'un
+  cœur. La nuit et une mesure de temps nommée demandent le budget entier : elles jouent seules.
+- **L'admission** (`admissionDePart`, `refusDePart` de `scripts/regles-des-places.mjs`, règles
+  pures) : une passe part quand sa part tient dans ce que les parts tenues laissent du budget
+  (cœurs, puis mémoire) et que les seuils d'`admission` tiennent (charge sur 1 min sous le nombre
+  de cœurs de la machine, au moins 4 Go libres) ; sinon elle attend, dit ce qu'elle attend (cœurs,
+  mémoire, charge) avec ses chiffres, à son début puis toutes les 30 s, garde son rang et s'arrête
+  « à repasser » (75) à la borne de l'attente. Deux passes dont les parts tiennent ensemble jouent
+  côte à côte, de deux projets comme d'un même. Les rangs tiennent : une mesure du cadre passe
+  avant celle d'un projet, puis l'ordre d'arrivée.
+- **L'état partagé** (`scripts/places-de-la-machine.mjs`, `dossierDesParts`) : un fichier par passe
+  dans `${XDG_STATE_HOME:-~/.local/state}/grillhouse/parts` (`GRILLHOUSE_PARTS_DE_LA_MACHINE` en
+  nomme un autre : la configuration de base des tests en donne un à chaque fichier de test), qui dit
+  si la passe tient sa part ou ce qu'elle attend, son projet, son ticket, sa sorte, son rang et son
+  dossier d'avancement ; une passe dont le processus a disparu libère sa part, son fichier retiré à
+  la lecture. Un verrou de fichier court juge l'admission, pour que deux passes ne jugent pas le
+  même budget libre à la fois.
+- **La part tenue par le système** (`scripts/passe-de-la-machine.mjs`) : la passe joue dans un
+  groupe de contrôle de Linux à elle (`systemd-run --user --scope`, `commandeDuGroupe`, ou, pour
+  une passe qui est le processus lui-même, `StartTransientUnit` du gestionnaire de l'utilisateur),
+  son poids de processeur (`CPUWeight`, 100 par cœur) et son plafond de mémoire (`MemoryMax`) tirés
+  de sa part, sans plafond dur de processeur : un plafond met la passe en pause par à-coups, un poids
+  ne ralentit rien sur une machine libre. Ses outils reçoivent les cœurs de sa part
+  (`GRILLHOUSE_TRAVAILLEURS`). Seules les commandes qu'un agent lance dans son enveloppe ne prennent
+  pas de part (la place de sa séance les couvre) et jouent sans groupe, comme un système sans
+  gestionnaire de groupes de l'utilisateur : la passe dit « joue sans part tenue : <raison> » une
+  fois. Une passe jouée sous la part de son parent (`GRILLHOUSE_PART_TENUE`) n'en prend pas de
+  seconde.
+- **Une passe qui consomme nettement plus que sa part** (au-delà de 1,5 fois ses cœurs, ou de sa
+  mémoire) le dit : à sa ligne du tableau et à la ligne de `npx grillhouse consommation`.
+Ainsi une passe ne prend que ce que sa part lui donne, et une machine libre ne ralentit aucune.
 
 **La file des tickets** : chaque projet garde la sienne, ses tickets `circuit`, hors de ceux
 étiquetés `direct`, menés hors du circuit, qu'elle ne prend jamais ; ceux dont la
@@ -1009,56 +1063,55 @@ architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur 
 Temporal la mène (ci-dessous).
 
 **Une passe lourde garde ce qu'elle consomme** (comme Bazel garde le profil de chaque action et
-Slurm la comptabilité de chaque travail) : une fois le verrou pris, `avecLaPasse`
-(`scripts/passe-de-la-machine.mjs`) déplace son processus dans un scope transitoire du gestionnaire
-systemd de l'utilisateur (`StartTransientUnit`), que ses enfants héritent ; l'attente du verrou et
-de la place ne compte pas. Avant que le verrou ne se rende, elle lit du scope `CPUUsageNSec` et
+Slurm la comptabilité de chaque travail) : une fois sa part prise, `avecLaPasse`
+(`scripts/passe-de-la-machine.mjs`) joue dans le groupe de contrôle de sa part (un scope transitoire
+du gestionnaire systemd de l'utilisateur, où son processus entre par `StartTransientUnit`, ou la
+commande que le circuit lance, `scopeDeCommande`) ; l'attente de la part et de la place ne compte
+pas. Avant que la part ne se rende, elle lit du scope `CPUUsageNSec` et
 `MemoryPeak` et ajoute une ligne au registre `consommation.jsonl` sous le dossier commun de git du
 projet (`grillhouse/`) : sorte (l'étape du circuit, `verification`, `nuit`), ticket (absent hors
-ticket), durée, temps de processeur, pic de mémoire, cœurs de la machine, issue (verte, rouge,
-interrompue) et date de fin. Un échantillonneur détaché, hors du scope
+ticket), durée, temps de processeur, pic de mémoire, cœurs de la machine, sa part (cœurs, mémoire),
+ce qu'elle consomme au-delà de sa part (`depasse`), issue (verte, rouge, interrompue) et date de
+fin. Un échantillonneur détaché, hors du scope
 (`scripts/echantillonneur-de-la-passe.mjs`), relit le scope pendant la passe : une passe tuée sans
 rendre la main (SIGKILL, veille de la mémoire) garde sa dernière lecture dans une ligne
-« interrompue » ; systemd retire le scope quand il est vide. Une passe sous le verrou que son
+« interrompue » ; il dit aussi, dans le fichier de la part, ce que la passe consomme au-delà d'elle,
+que lit le tableau ; systemd retire le scope quand il est vide. Une passe sous la part que son
 parent tient ne se mesure pas deux fois ; une passe ciblée ne garde rien. Sans le moyen de mesurer
-(aucun gestionnaire utilisateur joignable, l'enveloppe d'un agent), la passe joue comme avant, dit
-« consommation non mesurée : <raison> » une fois et n'écrit aucune ligne. `npx grillhouse
+(aucun gestionnaire utilisateur joignable, l'enveloppe d'un agent), la passe joue sans groupe, dit
+« joue sans part tenue : <raison> » une fois et n'écrit aucune ligne. `npx grillhouse
 consommation [--json]` rend, pour le projet courant et par sorte, le nombre de passes, la médiane et
 le maximum des cœurs occupés (temps de processeur ÷ durée) et du pic de mémoire ; une mesure sans
 temps de processeur lisible n'y entre pas.
 
-**Une mesure lourde à la fois sur la machine** : chaque `npm run verifier` et chaque passe
-lourde du circuit (la passe finale, la vérification, la nuit) prennent le verrou de la machine,
-partagé par tous ses dépôts (`~/.cache/grillhouse/mesure-lourde.lock`) ; une seconde mesure
-attend la fin de la première et le redit toutes les 30 s, en nommant qui tient le verrou (le
-processus, son dossier, sa commande, depuis quand) ; un verrou dont le processus est mort se
-reprend, comme le serveur de tâches de GNU make. L'attente a une borne, 60 min
-(`GRILLHOUSE_ATTENTE_MACHINE_MS`), plus longue que la plus longue passe complète mesurée : au-delà,
-la mesure s'arrête « à repasser » (code 75), comme `flock -w`. Un verrou tenu par un ancêtre de
-celui qui attend est un blocage : l'attente le dit tout de suite et s'arrête, rouge. La passe
-borne ses tâches côte à côte à la moitié des cœurs, et les travailleurs de chaque tâche de tests aux
-cœurs partagés entre elles (`travailleursDeLaPasse`). Elle joue sous la veille de la mémoire
+**Une passe attend sa part, borne ses tâches** : l'attente de la part (« Les parts des passes »)
+a une borne, 60 min (`GRILLHOUSE_ATTENTE_MACHINE_MS`), plus longue que la plus longue passe
+complète mesurée : au-delà, la passe s'arrête « à repasser » (code 75), comme `flock -w`. La passe
+borne ses tâches côte à côte à la moitié des cœurs de sa part, et les travailleurs de chaque tâche
+de tests aux cœurs de sa part partagés entre elles (`travailleursDeLaPasse`). Elle joue sous la veille de la mémoire
 (`scripts/garde-de-la-memoire.mjs`, comme earlyoom et systemd-oomd) : quand la mémoire disponible et
 l'échange libre passent ensemble sous 4 Go, ou que la machine attend sa mémoire la moitié du temps
 (`/proc/pressure/memory`, `full avg10` à 50 %), la veille arrête la commande et chaque processus
 qu'elle a lancé ; la passe dit pourquoi et finit « à repasser » (75), avant que le noyau ne tue. Ce
 75 n'est pas une attente de la machine : le circuit le compte comme un rejeu (`memoire-coupee.txt`
-dans les résultats de la passe), et une passe coupée de nouveau monte au superviseur. Ainsi une mesure rend le résultat du code, et
-non celui d'une autre mesure à côté, et aucune passe ne reste figée sans le dire.
+dans les résultats de la passe), et une passe coupée de nouveau monte au superviseur. Ainsi une passe rend le résultat du code sur sa part, et
+aucune passe ne reste figée sans le dire.
 
 **Le cadre passe avant les projets** : une mesure jouée dans le dépôt du cadre lui-même (le
 paquet en développement, ses copies d'agents comprises) est de premier rang, « mesure du cadre » ;
-celle d'un projet, de second rang, « mesure d'un projet ». Une mesure d'un projet ne prend pas le
-verrou, même libre, tant qu'une mesure du cadre attend ; la mesure en cours finit toujours. L'attente
-dit son rang et qui elle attend, sous la même borne. Ainsi la version suivante du cadre, que tous
-les projets attendent, ne reste pas derrière leurs mesures, comme une file à priorités de Slurm et
-comme Bazel ordonne ses tests par priorité.
+celle d'un projet, de second rang, « mesure d'un projet ». Le rang d'une passe est son rang de
+mesure, puis son heure d'arrivée : une passe attend d'abord celles de rang plus petit qui
+attendent ; la passe en cours finit toujours. L'attente dit son rang et ce qu'elle attend, sous la
+même borne. Ainsi la version suivante du cadre, que tous les projets attendent, ne reste pas
+derrière leurs mesures, comme une file à priorités de Slurm et comme Bazel ordonne ses tests par
+priorité.
 
-**Le panneau montre qui tient le verrou et qui l'attend** : celui qui prend le verrou de la
-machine, quel qu'il soit (une passe hors ticket, le circuit d'un ticket, de n'importe quel projet
-de la machine), se nomme à côté (la racine de son dépôt, celle de sa copie de travail, son ticket
-s'il en a un, sa sorte, depuis quand, puis son avancement) ; chaque passe qui attend le verrou ou la place sous /tmp s'y inscrit, une par
-processus. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · <qui> · charge x/c ·
+**Le panneau montre le budget pris, qui tient une part et qui attend quoi** : chaque passe qui
+prend une part, quelle qu'elle soit (une passe hors ticket, le circuit d'un ticket, de n'importe
+quel projet de la machine), s'inscrit dans son fichier de l'état des parts (la racine de son dépôt,
+celle de sa copie de travail, son ticket s'il en a un, sa sorte, sa part, son rang, depuis quand,
+puis son avancement) ; chaque passe qui attend sa part ou la place sous /tmp s'y inscrit aussi, avec
+ce qu'elle attend. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · <qui> · charge x/c ·
 mémoire m/M Go », la mémoire disponible sur la mémoire totale du poste. Chaque prise porte sa
 racine (celle du dépôt principal de son projet, que la demande de place donne au serveur avec son
 ticket) : `<qui>` nomme chaque prise, celle du projet du panneau par le numéro court de son ticket,
@@ -1076,24 +1129,23 @@ le superviseur a arrêté n'en tient aucun), et chaque ticket étiqueté `direct
 travaillé en direct : une ligne, une seule, hors des étapes,
 « ✎ <numéro>  <sujet> · en direct · <assignee> », de sa prise à sa fermeture (aucune tant que les
 circuits ne se lisent pas) ; puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
-dépendance ouverte, « attend <ticket> ». Le détenteur ou l'attente d'un circuit que montrent les
+dépendance ouverte, « attend <ticket> ». La part ou l'attente d'un circuit que montrent les
 agents tient sur la ligne de ce circuit, une ligne par ticket, à la place de l'avancement de sa
-passe : « · 🔒 <sorte> faits/prévus · <durée> », « · ⏳ <sorte> · <durée> », la sorte en minuscules.
-Les autres vont en tête des agents : « 🔒 <sorte> · <projet> · <qui> · faits/prévus · <durée> »
-pour le détenteur, « ⏳ <sorte> · <projet> · <qui> · attend · <durée> » pour chaque attente.
-<qui> est son ticket, sinon le dossier de sa copie (sous .claude/worktrees/). Le projet, nommé
-comme le tableau le nomme (son étiquette pour un autre projet du tableau, son dossier hors du
-tableau), s'omet pour le projet du panneau, le verrou valant pour tout le poste. La largeur coupe
-d'abord le sujet, puis le projet, puis omet « attend », puis coupe <qui> en dernier ; jamais la
-sorte, les chiffres ni la durée. Un circuit qui
-attend montre aussi ⏳ en tête de sa ligne. Une ligne part avec son processus, et un détenteur mort ne s'affiche pas ; un verrou tenu
-par un cadre plus ancien, qui ne se nomme pas, se montre « 🔒 Verrou · <projet> ». La ligne d'état
-compte les alertes par leur signe, puis nomme le détenteur et le nombre des attentes. Comme
-lslocks nomme qui tient un verrou et comme cargo dit qui bloque son attente (« Blocking waiting
-for file lock »). Ainsi une attente se voit, avec ce qui la bloque, depuis n'importe quel projet.
+passe : « · <sorte> faits/prévus · <durée> », « · part <sorte> · <durée> », la sorte en minuscules.
+Les autres vont en tête des agents (`lignesDesParts` de `scripts/tableau.mjs`) : d'abord le budget
+pris, « Parts · 2 passes · 6 sur 8 cœurs · 11 sur 16 Go » (les passes en cours, les cœurs et la
+mémoire réservés sur le total) ; puis « 🔒 <sorte> · <projet> · <qui> · 4 cœurs · 8 Go » pour
+chaque passe qui tient une part, suivi de « ⚠ » et de ce qu'elle consomme au-delà de sa part quand
+elle le fait ; puis « ⏳ <sorte> · <projet> · <qui> · attend <raison> » pour chaque passe qui
+attend, dans l'ordre de son rang, ce qu'elle attend (cœurs, mémoire, charge) avec ses chiffres.
+<qui> est son ticket sans son préfixe. Un circuit qui attend montre aussi ⏳ en tête de sa ligne. Une
+ligne part avec son processus, et une passe morte ne s'affiche pas. La ligne d'état compte les
+alertes par leur signe, puis le nombre de passes qui tiennent une part et de celles qui attendent.
+Comme `squeue` de Slurm nomme qui tient quoi et ce qu'un travail attend. Ainsi une attente se voit,
+avec ce qui la bloque, depuis n'importe quel projet.
 
 **Un signe par sorte d'état** (décision du responsable, 2026-11-01) : ▶ en cours ; ⏸ circuit
-arrêté ; 🔒 tient le verrou de la machine ; ⏳ attend le verrou, une place ou la place sous /tmp ; 💤 ticket
+arrêté ; 🔒 tient une part de la machine ; ⏳ attend sa part, une place ou la place sous /tmp ; 💤 ticket
 pris sans rien qui tourne ; ✎ ticket travaillé en direct, hors circuit ; 🌙 la nuit, rouge en
 alerte, en cours dans les agents ; ⚠ les alertes sans sorte à elles (une passe figée, un
 projet illisible, un agent silencieux). Un signe large se cale comme les autres, un signe puis une
@@ -1539,7 +1591,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     tombé, sa réponse attendue ; quand l'acte de l'arrêt
     échoue lui aussi, l'arrêt tient dans le seul mémo (`arretSansActe` de `scripts/transitions.mjs`). Un « a-repasser » (75) se rejoue seul après
     10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Un « a-repasser » des
-    contrôles qui est une attente de place, du verrou de la machine ou de place disque à sa borne
+    contrôles qui est une attente de place, de part de la machine ou de place disque à sa borne
     (`attente` des contrôles) se rejoue tout de suite, sans limite et sans compter, et ne monte
     jamais en question, comme un job de Buildkite attend un agent : l'attente elle-même le cadence,
     et le panneau le montre « attend une place » (grillhouse-4nr.26). Les effets qu'une étape a
@@ -1971,7 +2023,7 @@ manque ; les dépendances, les bibliothèques et les binaires de `cargo build` (
 que les tests d'un autre paquet lancent, `grillhouse.donnees`) restent, et seule la tâche du crate
 joue ses exécutables de test ; ces tests sont la
 tâche `test:unit` de chaque crate, jouée par Turborepo (`tests-du-paquet`, grillhouse-44b.5) ; la
-vérification par cargo-deny, après les tâches de Turborepo des crates, sous le verrou de la machine ; chaque commande qui compile (tests, vérification, typage, clippy)
+vérification par cargo-deny, après les tâches de Turborepo des crates, sur la part de la machine de la passe ; chaque commande qui compile (tests, vérification, typage, clippy)
 sans compilation incrémentale (`CARGO_INCREMENTAL=0`, comme la CI de Rust : une copie compile une
 fois, et son `target/debug/incremental` tenait 1,1 Go d'un `target/` de 5,0 Go chez synthhub),
 sauf quand l'appelant la décide (`CARGO_INCREMENTAL`, `CARGO_BUILD_INCREMENTAL`, un
@@ -2013,7 +2065,7 @@ vrai à la nuit ; les entrées publiées (`./consommateurs`,
 `./vitest-config`, `./vitest-config/mesure`, `./vitest-config/duree`, `./tsdoc-base.json`) mènent au module. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une
-enveloppe, l'avancement et la mesure d'une passe, la pression et le verrou de la machine, le
+enveloppe, l'avancement et la mesure d'une passe, la pression et la part de la machine, le
 dernier vert, les arbitrages d'un ticket, le préfixe des tickets, lu et écrit dans le fichier
 commité de Beads, les fichiers sources d'un projet).
 La garde des frontières refuse aussi un import que le `package.json` du paquet importateur ne

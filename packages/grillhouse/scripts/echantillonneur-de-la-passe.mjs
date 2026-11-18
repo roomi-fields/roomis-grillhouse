@@ -3,9 +3,11 @@
 // (SIGKILL, the watch of the memory), it writes the line « interrompue » with that reading. Started
 // by `scopeSystemd` (./consommation-des-passes.mjs); a pass that ends by itself leaves the marker
 // file `<id>.fin` the sampler removes.
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { garderLaConsommation, lireLUnite } from './consommation-des-passes.mjs';
+import { depasseLaPart, garderLaConsommation, lireLUnite } from './consommation-des-passes.mjs';
+import { ecrireAtomique } from './mesure/avancement.mjs';
 
 const PERIODE_MS = 1000;
 
@@ -57,15 +59,41 @@ const vit = pid => {
   }
 };
 
+// Says in the file of the part <part> (`{ dossier, id, coeurs, memoire }` of the parts of the
+// machine) what the pass consumes beyond it, from the reading <l> and the start of the pass; the
+// file is left as it is when the pass holds to its part or its file is gone.
+function signalerLeDepassement(part, base, l) {
+  const f = path.join(part.dossier, `${part.id}.json`);
+  try {
+    const p = JSON.parse(readFileSync(f, 'utf8'));
+    const depasse = depasseLaPart({
+      part,
+      cpuNs: l.cpuNs,
+      dureeMs: Date.now() - base.debut,
+      memoirePic: l.memoirePic,
+    });
+    if (depasse !== (p.depasse ?? null)) {
+      ecrireAtomique(f, depasse === null ? { ...p, depasse: undefined } : { ...p, depasse });
+    }
+  } catch {
+    // the part is given back: nothing to say
+  }
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const { unite, pid, racine, marqueur, base } = JSON.parse(process.argv[2]);
+  const { unite, pid, racine, marqueur, base, part } = JSON.parse(process.argv[2]);
   const attente = new Int32Array(new SharedArrayBuffer(4));
   echantillonner({
     base,
     lire: () => lireLUnite(unite),
     vivante: () => vit(pid) && !existsSync(marqueur),
     finale: () => existsSync(marqueur),
-    noter: l => writeFileSync(`${marqueur}.lecture`, JSON.stringify(l)),
+    noter: l => {
+      writeFileSync(`${marqueur}.lecture`, JSON.stringify(l));
+      if (part) {
+        signalerLeDepassement(part, base, l);
+      }
+    },
     garder: l => garderLaConsommation(racine, l),
     maintenant: Date.now,
     dormir: () => Atomics.wait(attente, 0, 0, PERIODE_MS),

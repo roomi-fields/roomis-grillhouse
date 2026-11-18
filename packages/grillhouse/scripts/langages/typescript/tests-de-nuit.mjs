@@ -36,15 +36,16 @@
 // - The exit code: 0 when every run is green; 75, « à repasser », when every red run is at 75
 //   (every failure depended on a duration, one under load, ./vitest-config/duree.reporter.mjs);
 //   else the code of the first red run.
-// - They play once the temporary directory has room, as every heavy pass
-//   (`attendreDeLaPlace` of scripts/verrou-de-machine.mjs): a wait that reaches its bound ends at 75.
+// - They play on the whole budget of the machine as their part (`avecLaPasse` of
+//   scripts/passe-de-la-machine.mjs, `entiere`), alone, once the temporary directory and the disk of
+//   the copy have room, as every pass: a wait that reaches its bound ends at 75.
 import { spawnSync } from 'node:child_process';
 import { readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   A_REPASSER,
-  attendreDeLaPlace,
+  avecLaPasse,
   LA_FORME,
   lireLaTranche,
 } from '../../services-du-noyau.mjs';
@@ -135,8 +136,15 @@ export function testsDeNuit(racine, options = {}) {
   if (runs.length === 0) {
     return 0;
   }
+  // The night tests and the measures of time ask for the whole budget as their part: they play
+  // alone, once the room of the temporary directory and of the copy is there.
   try {
-    attendreDeLaPlace();
+    return avecLaPasse(() => jouerLesRuns(racine, runs, options), {
+      lourde: false,
+      entiere: true,
+      racine,
+      sorte: 'Tests de nuit',
+    });
   } catch (e) {
     if (e?.name !== 'AttenteDeLaMachine') {
       throw e;
@@ -144,6 +152,11 @@ export function testsDeNuit(racine, options = {}) {
     process.stdout.write(`${e.message}\n`);
     return e.code;
   }
+}
+
+// The runs <runs> of Vitest of the night, in the copy at <racine>: the code of the first red one,
+// 75 when every red is « à repasser ».
+function jouerLesRuns(racine, runs, options) {
   const { tranche } = options;
   const rapports = path.join(racine, RAPPORTS);
   if (tranche) {

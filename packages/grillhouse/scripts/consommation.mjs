@@ -14,16 +14,22 @@ const coeurs = c => c.toFixed(1);
  * @returns {number}
  */
 export function consommation({ args, racine, ecrire }) {
-  const rangs = bilanDeLaConsommation(lireLaConsommation(racine));
+  const lignes = lireLaConsommation(racine);
+  const rangs = bilanDeLaConsommation(lignes);
   if (args.includes('--json')) {
     ecrire(`${JSON.stringify(rangs)}\n`);
   } else if (rangs.length === 0) {
     ecrire('aucune mesure\n');
   } else {
     for (const r of rangs) {
+      // The passes of this kind that consumed clearly more than their part, the last one said.
+      const depassent = lignes.filter(l => l.sorte === r.sorte && l.depasse);
+      const depasse = depassent.length
+        ? ` ; ⚠ ${depassent.length} dépassent leur part (la dernière, ${depassent.at(-1).depasse})`
+        : '';
       ecrire(
         `${r.sorte} : ${r.passes} passes, cœurs occupés médiane ${coeurs(r.coeursMediane)} max ${coeurs(r.coeursMax)}, ` +
-          `pic de mémoire médiane ${go(r.memoireMediane)} max ${go(r.memoireMax)}\n`
+          `pic de mémoire médiane ${go(r.memoireMediane)} max ${go(r.memoireMax)}${depasse}\n`
       );
     }
   }

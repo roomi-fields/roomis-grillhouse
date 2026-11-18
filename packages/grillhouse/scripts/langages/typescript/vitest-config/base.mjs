@@ -43,9 +43,9 @@
 //   `@roomi-fields/grillhouse/vitest-config/mesure`). `mergeConfig` adds the reporters and the setup files of
 //   a configuration that extends this one to these; a reporter named on the command line
 //   (`--reporter`) replaces them, and Vitest's code then stands.
-// - The machine of a test file is its own: a setup file gives it a lock of the heavy measure of
-//   its own, so that a `npm run verifier` a test plays in a repository of trial neither waits for
-//   the lock of the machine nor holds it (./machine.setup.mjs, scripts/verrou-de-machine.mjs).
+// - The machine of a test file is its own: a setup file gives it a directory of the state of the
+//   parts of its own, so that a `npm run verifier` a test plays in a repository of trial takes its
+//   part among its own parts alone (./machine.setup.mjs, scripts/places-de-la-machine.mjs).
 // - While a run names its results directory (`GRILLHOUSE_RESULTATS`, ./resultats.mjs), the JSON
 //   reporter writes Vitest's report there too, which the circuit reads (scripts/resultats.mjs); a
 //   setup file gives each test file's processes a results directory of their own, so that a run a

@@ -51,6 +51,46 @@ export function refusDeLaPlace(
   }
 ): string | null;
 
+/** The part of a pass: its cores and its memory (bytes). */
+export interface PartDeLaPasse {
+  coeurs: number;
+  memoire: number;
+}
+
+/** What a pass waits for: the cores or the memory of the budget, or the load of the machine. */
+export type CeQueAttendUnePart = 'cœurs' | 'mémoire' | 'charge';
+
+/** Whether a part fits in what the parts held leave of the budget; a refusal says what it waits for. */
+export function partDansLeBudget(o: {
+  part: PartDeLaPasse;
+  budget: PartDeLaPasse;
+  prises: readonly PartDeLaPasse[];
+}): { ok: boolean; attend?: CeQueAttendUnePart; raison?: string };
+
+/** Whether a pass of the part <part> is admitted: its part fits in the budget left, then the load and
+ * the memory of the machine admit it; a refusal says what it waits for, with its figures. */
+export function admissionDePart(o: {
+  part: PartDeLaPasse;
+  budget: PartDeLaPasse;
+  prises: readonly PartDeLaPasse[];
+  mesure: MesureDeLaMachine;
+}): { ok: boolean; attend?: CeQueAttendUnePart; raison?: string };
+
+/** Why a pass does not take its part now on a state of the parts, null when it does. */
+export function refusDePart(
+  etat: {
+    prises: readonly { id?: string; coeurs: number; memoire: number }[];
+    attentes: readonly { id: string; rang: number; ticket?: string | null; raison?: string }[];
+  },
+  o: {
+    id: string;
+    rang: number;
+    part: PartDeLaPasse;
+    budget: PartDeLaPasse;
+    mesurer: () => MesureDeLaMachine;
+  }
+): string | null;
+
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS: number;
 

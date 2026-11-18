@@ -44,9 +44,9 @@ function importsDuGraphe(entrees: string[]): { de: string; vers: string; chemin:
 describe('the configurations of the tests load without the built dist/', () => {
   it('no module their imports reach imports dist/', () => {
     const graphe = importsDuGraphe(ENTREES);
-    // The walk reaches the lock of the machine and the removal of the finished copies.
+    // The walk reaches the waits of the machine and the removal of the finished copies.
     expect(graphe.map(x => x.de)).toEqual(
-      expect.arrayContaining(['verrou-de-machine.mjs', 'copies-finies.mjs'])
+      expect.arrayContaining(['attente-de-la-machine.mjs', 'copies-finies.mjs'])
     );
     const versDist = graphe
       .filter(x => x.chemin.split(path.sep).includes('dist'))

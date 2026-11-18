@@ -412,7 +412,7 @@ export function dansLeTemporaire(chemin, env = process.env) {
 
 /**
  * The cache of compilation of <outil> under <env>: `${XDG_CACHE_HOME:-$HOME/.cache}/grillhouse/
- * <outil>`, as the lock of the machine lives there (scripts/verrou-de-machine.mjs).
+ * <outil>`, never in the temporary directory.
  * @param {string} outil `sccache`, `uv`, `cargo`…
  * @param {Record<string, string | undefined>} [env]
  */
