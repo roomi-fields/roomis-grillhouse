@@ -18,8 +18,9 @@
 //   refused. Nothing is written when a check fails.
 // - Tagging creates the annotated tag `v<version>` on HEAD, once the release commit is made and
 //   the working tree holds no change. Nothing is pushed: the owner validates the push, whose
-//   command the script names; `.github/workflows/release.yml` then plays the CI on the tagged
-//   commit and, once it is green, checks the tag (`--verifier-etiquette`), publishes the package
+//   command the script names; `.github/workflows/release.yml` then calls the CI on the tagged
+//   commit (which plays nothing again when a branch agent/** already judged that commit) and, once
+//   it is green or skipped, checks the tag (`--verifier-etiquette`), publishes the package
 //   on the npm registry (trusted publishing, no token stored) and the release on GitHub. The git
 //   it runs is passed in (`etiqueter`'s `git`): the command runs git in the repository.
 // - The marketplace roomi-fields (GitHub, roomi-fields/claude-plugins, a repository of its own)

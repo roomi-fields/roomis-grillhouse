@@ -17,11 +17,13 @@ permissions:
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
-    with:
-      node-versions: '["24.x","26.x"]'
 
+  # The CI plays the pass unless a green run of a branch agent/** already judged the tagged commit
+  # (its job judged then skips the pass: the result of the call is « skipped » or « success »). A
+  # failure or a cancellation of the pass never publishes.
   release:
     needs: ci
+    if: ${{ always() && (needs.ci.result == 'success' || needs.ci.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

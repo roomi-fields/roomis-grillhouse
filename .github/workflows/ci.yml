@@ -7,17 +7,12 @@ on:
     branches: [main, develop, 'agent/**']
   pull_request:
     branches: [main, develop]
-  # Once a night, on the default branch: Node 24 and 26.
+  # Once a night, on the default branch.
   schedule:
     - cron: '0 2 * * *'
-  # The release (release.yml) plays the CI on the tagged commit before it publishes, on the
-  # versions of Node its call names.
+  # The release (release.yml) plays the CI on the tagged commit before it publishes, unless a
+  # branch agent/** already judged that commit.
   workflow_call:
-    inputs:
-      node-versions:
-        description: 'The versions of Node to play, a JSON array'
-        type: string
-        default: '["26.x"]'
 
 # The pass of the verification in n + 2 jobs per version of Node, as Vitest shards a run
 # (https://vitest.dev/guide/improving-performance#sharding): `gardes` plays every task but the
@@ -43,10 +38,10 @@ env:
 jobs:
   # A tree already judged plays nothing again, as bors and Zuul test once the tree that enters
   # main: the queue of the frame (scripts/integration/file.mjs) moves main by fast-forward onto the
-  # commit the CI of the ticket's branch judged green, so a push to main whose commit a run of this
+  # commit the CI of the ticket's branch judged green, so a push to main, or of a tag v<x.y.z> (the
+  # call by a release, whose event is the caller's push of the tag), whose commit a run of this
   # workflow on a branch agent/** concluded green skips every job of the pass. Every other event (a
-  # pull request, the schedule, the call by a release, whose event is the caller's push of a tag, a
-  # push to develop or to agent/**) plays as before. The job itself always runs, so that its
+  # pull request, the schedule, a push to develop or to agent/**) plays as before. The job itself always runs, so that its
   # dependents read its output; a search that fails says nothing judged, and the pass plays. A job
   # skipped by its condition reports « Success », and the run concludes in success (docs.github.com,
   # « Using conditions to control job execution »). It reads the runs of the repository: a workflow
@@ -63,7 +58,7 @@ jobs:
     steps:
       - name: A green run of a ticket's branch on this commit
         id: search
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -76,11 +71,10 @@ jobs:
     if: needs.judged.outputs.judged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
-    # The versions come from the input of the call; push and pull request play Node 26 alone,
-    # the nightly schedule plays Node 24 and 26.
+    # Node 26 alone, whatever the trigger.
     strategy:
       matrix:
-        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
+        node-version: ['26.x']
 
     steps:
       - name: Checkout
@@ -121,7 +115,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
+        node-version: ['26.x']
         tranche: [1, 2, 3]
 
     steps:
@@ -182,7 +176,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: ${{ fromJSON(inputs.node-versions || (github.event_name == 'schedule' && '["24.x","26.x"]' || '["26.x"]')) }}
+        node-version: ['26.x']
 
     steps:
       - name: Checkout

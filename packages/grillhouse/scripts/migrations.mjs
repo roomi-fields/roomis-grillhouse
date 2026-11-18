@@ -40,6 +40,7 @@ import * as node26 from './migrations/0.33.0-node-26.mjs';
 import * as ciDuCadre from './migrations/0.33.0-ci-du-cadre.mjs';
 import * as cacheDistant from './migrations/0.33.0-cache-distant.mjs';
 import * as greffonMattpocockRetire from './migrations/0.35.0-greffon-mattpocock-retire.mjs';
+import * as node26Seul from './migrations/0.44.0-node-26-seul.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -59,6 +60,7 @@ export const MIGRATIONS = [
   ciDuCadre,
   cacheDistant,
   greffonMattpocockRetire,
+  node26Seul,
 ];
 
 /**

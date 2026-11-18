@@ -55,9 +55,9 @@ describe('the night of the frame on GitHub', () => {
     expect((flux.jobs.fusion as unknown as { needs: string }).needs).toBe('tranches');
   });
 
-  it('plays the versions of Node the nightly CI plays', () => {
+  it('plays Node 26 alone', () => {
     for (const j of jobs) {
-      expect(j.strategy?.matrix?.['node-version']).toEqual(['24.x', '26.x']);
+      expect(j.strategy?.matrix?.['node-version']).toEqual(['26.x']);
     }
   });
 });

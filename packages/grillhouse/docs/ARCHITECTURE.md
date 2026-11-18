@@ -837,9 +837,13 @@ lu sur un mot du responsable).
 
 **Main reste vert** : la file n'avance main que sur l'arbre que la CI de la branche du ticket a
 jugé vert, sans rouge admis (bors, Zuul), et la CI de main ne rejoue pas cet arbre : son premier
-job (`judged` de `ci.yml`, du dépôt et du gabarit) cherche, sur un push vers main seul, un run vert
-du même workflow sur une branche `agent/**` pour le même commit, et chaque job de la passe est sauté
-quand il le trouve ; tout autre événement joue la passe. Rien d'autre n'avance main : dans un
+job (`judged` de `ci.yml`, du dépôt et du gabarit) cherche, sur un push vers main ou vers une
+étiquette `v<x.y.z>` seuls, un run vert du même workflow sur une branche `agent/**` pour le même
+commit exact (le SHA du push), et chaque job de la passe est sauté quand il le trouve ; tout autre
+événement, ou une recherche en erreur, joue la passe. La publication (`release.yml`) appelle cette
+CI et publie quand son résultat est `success` ou `skipped`, jamais sur un échec ni une annulation
+(bors et Zuul testent une fois l'arbre qui entre ; `cargo release` et le trusted publishing de npm
+publient le commit déjà jugé) : entre « corrigé » et « archive npm servie », une seule CI. Rien d'autre n'avance main : dans un
 projet dont la CI écoute les branches de ticket, le crochet pre-push du cadre
 (`refusSurMain` de `scripts/branche-de-nuit.mjs`) refuse de pousser sur origin la branche de
 `grillhouse.poussee.commit` un commit qu'aucun run n'a conclu vert sur une branche `agent/**`, et
@@ -1221,11 +1225,12 @@ comprise ; l'ouverture de séance nomme sous « Manque » une marque d'un autre 
 `npm ci`. Ainsi un module natif construit pour un autre Node se reconstruit au lieu de refuser
 de charger.
 
-**Le cadre tourne sur le support long actif de Node** (le calendrier de nodejs.org) : le poste et
-la CI de chaque lot sur Node 26, la nuit de GitHub et la sortie sur Node 24 et 26, le plus ancien
-support long encore maintenu ; `engines.node` vaut `>=24.0.0` à la racine, dans le paquet et dans
-le gabarit, dont le `packageManager` nomme le npm livré avec Node 26. Ainsi un projet ne dépend
-jamais d'un Node en fin de vie.
+**Le cadre tourne sur Node 26 seul**, le support long actif (le calendrier de nodejs.org), comme
+un produit qui épingle sa chaîne (`rust-toolchain.toml`) : le poste, la CI de chaque lot, la nuit
+de GitHub et la sortie jouent Node 26, dans le dépôt et dans le gabarit ; `engines.node` vaut
+`>=26.0.0` à la racine, dans le paquet et dans le gabarit, dont le `packageManager` nomme le npm
+livré avec Node 26. `npx grillhouse maj` porte `engines.node` d'un projet de `>=22.0.0` ou
+`>=24.0.0` à `>=26.0.0` et réécrit ses workflows ; toute autre valeur reste, nommée dans une ligne.
 
 **Le dépôt du cadre se mène avec une version publiée** : comme rustc se construit avec son
 stage0 (un compilateur publié, fixé dans `src/stage0`, téléchargé dans un cache) et Bazel avec un

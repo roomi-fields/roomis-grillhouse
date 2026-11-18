@@ -49,10 +49,11 @@ describe('the CI of Grillhouse plays the verification in tranches', () => {
     ]);
   });
 
-  it('keeps its name and the input of its call by the release', () => {
+  it('keeps its name and its call by the release, which gives it no input', () => {
     expect(ci.name).toBe('CI');
-    const appel = ci.on.workflow_call as { inputs: Record<string, unknown> };
-    expect(Object.keys(appel.inputs)).toEqual(['node-versions']);
+    expect(ci.on).toHaveProperty('workflow_call');
+    const appel = ci.on.workflow_call as { inputs?: Record<string, unknown> } | null;
+    expect(appel?.inputs).toBeUndefined();
   });
 
   it('runs every job on the machine of the variable RUNNER, ubuntu-latest without it', () => {

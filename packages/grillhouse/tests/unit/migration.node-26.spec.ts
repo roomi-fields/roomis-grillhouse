@@ -43,8 +43,8 @@ describe('migration 0.33.0 — the frame runs on Node 24 and 26', () => {
     expect(MIGRATIONS).toContain(migration);
   });
 
-  it('the template declares Node 24 and later, and the npm of Node 26', () => {
-    expect(GABARIT.engines.node).toBe('>=24.0.0');
+  it('the template declares Node 26 and later, and the npm of Node 26', () => {
+    expect(GABARIT.engines.node).toBe('>=26.0.0');
     expect(GABARIT.packageManager).toMatch(/^npm@11\./);
   });
 
