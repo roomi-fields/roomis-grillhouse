@@ -85,6 +85,7 @@ export function preparer(projet, prefixe) {
     '--prefix',
     lePrefixe,
   ]);
+  lancer(projet, 'bd', ['config', 'set', 'max_collision_prob', '0.99']);
   ecrireLePrefixe(projet, lePrefixe);
   lancer(projet, 'git', ['config', 'beads.role', 'maintainer']);
   const r = spawnSync('git', ['-C', projet, 'config', 'core.hooksPath'], { encoding: 'utf8' });

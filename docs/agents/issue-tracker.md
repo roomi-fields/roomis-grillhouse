@@ -1,6 +1,6 @@
 # Issue tracker: Beads (`bd`)
 
-Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, commands via the `bd` CLI, ids `<prefix>-xxx` (the prefix is set by `grillhouse init`). No remote service. The project owner opens the work; agents take tickets, never invent them.
+Issues for this repo live in Beads, a git-backed tracker: data under `.beads/`, commands via the `bd` CLI, ids `<prefix>-xxx` (the prefix is set by `grillhouse init`). No remote service. The project owner opens the work; agents take tickets, never invent them. The codes of the tickets stay at three characters: `grillhouse init` sets the Beads threshold `max_collision_prob` to 0.99 right after `bd init`, and `grillhouse maj` sets it in a project that has no value (a project that chose another value keeps it; the report names it and the command that aligns it, `bd config set max_collision_prob 0.99`).
 
 ## Conventions
 
