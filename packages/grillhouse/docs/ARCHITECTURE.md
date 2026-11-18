@@ -110,6 +110,15 @@ copie que fait le circuit juste après la séance du testwriter ou du développe
 par l'appel commun du module de langage, `langageDe`, quel que soit le langage) est un rouge rendu
 à cet agent avec la sortie de l'outil, qui consomme une tentative comme une construction rouge et,
 les tentatives épuisées, monte à `controles` ; toute autre lecture qui échoue est `inattendu`.
+Ce qui doit continuer sur une copie que l'outil du langage ne charge plus (le contrôle d'écriture
+d'une séance, son enveloppe et son lancement, l'ouverture de chaque acte du circuit sur son
+ticket) lit le module de langage par `langageDeLaCopie` (`scripts/langages.mjs`) : ses lectures de
+l'arbre (les composants, la matière de test, la classe d'un fichier, la part d'un manifeste qui
+revient aux tests) se jouent dans l'arbre principal du dépôt quand elles lèvent dans la copie, les
+chemins portés d'un arbre à l'autre, comme rust-analyzer garde le dernier graphe chargé. Une
+écriture y est jugée sur le plan comme une autre, celle qui répare la copie comprise, et l'arrêt
+d'une étape s'écrit au ticket. `langageDe` reste strict : une garde, une construction et le rouge
+de lecture lisent l'arbre tel qu'il est.
 
 **Les outils du projet se déclarent** : comme Bazel déclare ce qu'une action voit hors de son bac
 à sable (`--sandbox_add_mount_pair`) et l'environnement qu'elle reçoit (`--action_env`), un projet

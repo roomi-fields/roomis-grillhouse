@@ -15,8 +15,18 @@
 //   `langageDe` their join (./composition-des-langages.mjs), which gives each file to the module
 //   of its component, the module itself when one is declared. A name out of the list is refused,
 //   named.
+// - A copy its tool no longer loads is still read: `langageDeLaCopie` gives the join whose
+//   readings of the tree (LECTURES: the components, the test material, the class of a file; and
+//   the part of a manifest its tests own) are
+//   played in the main tree of the repository when they throw in the copy, the paths carried from
+//   one tree to the other. A session leaves such a copy between two writes of one change (cargo:
+//   a dependency moved in the manifest of the workspace and not yet in a crate's, osc-bridge
+//   OB-ud1.6); the lock of its writes, its envelope and the acts of its circuit read on, as
+//   rust-analyzer keeps the last graph that loaded, and the write that repairs the copy passes.
+//   `langageDe` stays strict: a guard, a build and the red of a reading read the tree as it is.
 // - A module is loaded once per process, synchronously (`require` of an ES module, Node 22): the
 //   locks and the guards ask it in a hook, where nothing waits.
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { composer } from './composition-des-langages.mjs';
@@ -101,4 +111,73 @@ export function langageDe(racine) {
     composes.set(cle, composer(modules));
   }
   return composes.get(cle);
+}
+
+// The main tree of the repository the copy <copie> belongs to, from git's common directory; null
+// out of git.
+function arbrePrincipal(copie) {
+  const r = spawnSync(
+    'git',
+    ['-C', copie, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }
+  );
+  return r.status === 0 && r.stdout.trim() ? path.dirname(r.stdout.trim()) : null;
+}
+
+// <v> with each path under the tree <de> carried under the tree <vers>, in its strings, its arrays
+// and its objects; a path under <sauf> (the copy, which lies under the main tree) is left.
+function porter(v, de, vers, sauf = null) {
+  const sous = (p, d) => p === d || p.startsWith(d + path.sep);
+  if (typeof v === 'string') {
+    return sous(v, de) && !(sauf && sous(v, sauf)) ? vers + v.slice(de.length) : v;
+  }
+  if (Array.isArray(v)) {
+    return v.map(x => porter(x, de, vers, sauf));
+  }
+  if (v !== null && typeof v === 'object') {
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, porter(x, de, vers, sauf)]));
+  }
+  return v;
+}
+
+/**
+ * The readings of the tree a copy its tool no longer loads still answers (see the header), and
+ * with them the part of a manifest its tests own (`manifestes.horsDesTests`).
+ */
+const LECTURES = ['composants', 'matieres', 'estUnTest'];
+
+/**
+ * The join of the languages of the copy <copie> (`langageDe`), each of its readings of the tree
+ * (LECTURES) played in the main tree <principal> of its repository when it throws in the copy:
+ * the paths of its arguments carried to the main tree, those of its answer back to the copy.
+ * Without a main tree, in the main tree itself, or when the main tree throws too, the error of
+ * the copy is thrown.
+ * @param {string} copie the root of the copy
+ * @param {() => string | null} [principal] the main tree of its repository, read when needed
+ * @returns {import('./jointure.js').Composition}
+ */
+export function langageDeLaCopie(copie, principal = () => arbrePrincipal(copie)) {
+  const langage = langageDe(copie);
+  const ici = path.resolve(copie);
+  const tolerer = lecture =>
+    function (...args) {
+      try {
+        return lecture.apply(langage, args);
+      } catch (e) {
+        const p = principal();
+        const la = p === null ? null : path.resolve(p);
+        if (la === null || la === ici) {
+          throw e;
+        }
+        try {
+          return porter(lecture.apply(langage, porter(args, ici, la)), la, ici, ici);
+        } catch {
+          throw e;
+        }
+      }
+    };
+  return Object.assign(Object.create(langage), {
+    ...Object.fromEntries(LECTURES.map(n => [n, tolerer(langage[n])])),
+    manifestes: { ...langage.manifestes, horsDesTests: tolerer(langage.manifestes.horsDesTests) },
+  });
 }

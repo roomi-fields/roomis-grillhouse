@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { gesteDe } from './etapes.mjs';
 import { paquetsDuLangage } from './enveloppe/paquets-du-plan.mjs';
-import { langageDe } from './langages.mjs';
+import { langageDe, langageDeLaCopie } from './langages.mjs';
 import { AUTEUR_DU_CIRCUIT, PREFIXE, emettre, rendusDe, sansCouleurs } from './effets.mjs';
 
 // The author of a comment, the circuit's, and the start of its lines: those of its one writer.
@@ -64,6 +64,10 @@ export const enUneLigne = t =>
 // `{ dossier, pkg: { name }, hors }`, `dossier` relative to <racine>, `.` for a component at its
 // root (a crate whose workspace is its own, as OSC Bridge's).
 export const composantsDe = racine => paquetsDuLangage(langageDe(racine), racine);
+
+// The same components, still read in a copy its tool no longer loads (`langageDeLaCopie`): what
+// an act of the circuit reads to open on its ticket, so that it writes its stop and resumes.
+export const composantsLisibles = racine => paquetsDuLangage(langageDeLaCopie(racine), racine);
 
 // Every comment at the ticket, in their order, `{ author, text }` as Beads gives them, then those
 // emitted and not yet played; a failed read throws.
