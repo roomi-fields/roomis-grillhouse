@@ -255,8 +255,8 @@ describe('un flux de main rouge rouvre le ticket du lot', () => {
     expect(t.gh.find(l => l.startsWith('run list'))).toContain('--branch main');
   });
 
-  it('any conclusion but success is red', () => {
-    for (const conclusion of ['cancelled', 'timed_out', 'startup_failure']) {
+  it('any conclusion but success and cancelled is red', () => {
+    for (const conclusion of ['failure', 'timed_out', 'startup_failure']) {
       const d = depot(FLUX);
       inscrire(d, { runs: [] });
       const t = outils(d.racine, { runs: [passage(9, DEPLOY, conclusion)] });
@@ -387,6 +387,33 @@ describe('une lecture due ne bloque pas et reste due jusqu’à la borne', () =>
 });
 
 describe('un flux que la file ne peut pas juger n’est pas pris pour rouge', () => {
+  it('a run cancelled, as one a later commit replaces: a comment names the workflow and the run, nothing reopened, the reading closed', () => {
+    const d = depot(FLUX);
+    inscrire(d, { runs: [] });
+    const t = outils(d.racine, { runs: [passage(9, DEPLOY, 'cancelled')] });
+    relire(t, MIN);
+    expect(t.comments).toHaveLength(1);
+    expect(t.comments[0]!.texte).toContain('## Flux de main non jugé');
+    expect(t.comments[0]!.texte).toContain(DEPLOY);
+    expect(t.comments[0]!.texte).toMatch(/le passage 9 a été annulé/);
+    expect(reouvre(t.bd, 'demo-1')).toBe(false);
+    expect(t.bd.some(a => a[0] === 'update')).toBe(false);
+    expect(dus(d)).toEqual([]);
+  });
+
+  it('cancelled beside a red workflow of main: the red one still reopens the ticket', () => {
+    const d = depot({ ...FLUX, 'docs.yml': sur('Docs', '[main]') });
+    inscrire(d, { runs: [] });
+    const t = outils(d.racine, {
+      runs: [passage(9, DEPLOY, 'cancelled'), passage(10, 'Docs', 'failure')],
+    });
+    relire(t, MIN);
+    expect(reouvre(t.bd, 'demo-1')).toBe(true);
+    const rouge = t.comments.find(c => c.texte.includes('## Flux de main rouge'));
+    expect(rouge?.texte).toContain('Docs');
+    expect(rouge?.texte).not.toContain(DEPLOY);
+  });
+
   it('no run by the search bound: a comment names the workflow and why, nothing reopened, the reading closed', () => {
     const d = depot(FLUX);
     inscrire(d, { runs: [] });

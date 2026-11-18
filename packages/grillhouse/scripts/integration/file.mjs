@@ -372,10 +372,11 @@ export const TITRE_DU_FLUX_ROUGE = '## Flux de main rouge';
 /**
  * Each reading due of the workflows of main read once, without waiting, with the tools <o> at
  * <maintenant> ms and the bounds <ci> (`rechercheMs`, `attenteMs`, from the push of main). A workflow
- * red (any conclusion but `success`) reopens the ticket of the commit pushed under the label
- * `flux-rouge`, a comment giving the address of the run, and closes the reading; green, it says
- * nothing; with no run past the search bound, a run unfinished past the wait bound, or `gh`
- * failing, a comment names the workflow and why, nothing is reopened. A reading with a workflow
+ * red (any conclusion but `success` and `cancelled`) reopens the ticket of the commit pushed
+ * under the label `flux-rouge`, a comment giving the address of the run, and closes the reading;
+ * green, it says nothing; with no run past the search bound, a run unfinished past the wait bound,
+ * a run cancelled (a later run of its concurrency group replaced it, or a person stopped it), or
+ * `gh` failing, a comment names the workflow and why, nothing is reopened. A reading with a workflow
  * still to come stays due. `{ dues }`: the readings still due.
  */
 export function relireLesLecturesDues(o, { maintenant, ci }) {
@@ -429,6 +430,11 @@ export function relireLesLecturesDues(o, { maintenant, ci }) {
         } else {
           encore.push(f);
         }
+      } else if (v.conclusion === 'cancelled') {
+        nonJuge(
+          f.nom,
+          `le passage ${id} a été annulé (remplacé par un passage plus récent, ou arrêté à la main).`
+        );
       } else if (v.conclusion !== 'success') {
         rouge = { nom: f.nom, id };
         break;
