@@ -292,7 +292,7 @@ describe('critère 4 — the copy of the files, its list, its fingerprints and t
     maj.mettreAJour(p, DEPOT);
     expect(JSON.parse(readFileSync(path.join(p, '.claude/settings.json'), 'utf8'))).toEqual({
       model: 'opus',
-      statusLine: { type: 'command', command: maj.LIGNE_ETAT },
+      statusLine: { type: 'command', command: maj.LIGNE_ETAT, refreshInterval: 10 },
       enabledPlugins: { 'grillhouse@roomi-fields': true },
       extraKnownMarketplaces: {
         'roomi-fields': { source: { source: 'github', repo: 'roomi-fields/claude-plugins' } },

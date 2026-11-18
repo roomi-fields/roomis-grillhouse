@@ -1144,6 +1144,14 @@ alertes par leur signe, puis le nombre de passes qui tiennent une part et de cel
 Comme `squeue` de Slurm nomme qui tient quoi et ce qu'un travail attend. Ainsi une attente se voit,
 avec ce qui la bloque, depuis n'importe quel projet.
 
+**La barre d'état se redessine sur une horloge** : le réglage `statusLine` que le cadre pose
+(gabarit d'un projet, Grillhouse, `npx grillhouse maj`) porte `refreshInterval: 10`. Sans lui,
+Claude Code ne lance la commande que sur les événements de la séance, qui se taisent au repos, et
+la barre garde sa dernière valeur (un cadenas affiché longtemps après la fin d'une passe). Comme
+`status-interval` de tmux. `maj` réécrit la barre du cadre entière (un autre intervalle, une clé
+inconnue) et laisse une barre propre au projet (sans `ligne-etat`). Ainsi la barre suit la
+mesure même dans une séance au repos.
+
 **Un signe par sorte d'état** (décision du responsable, 2026-11-01) : ▶ en cours ; ⏸ circuit
 arrêté ; 🔒 tient une part de la machine ; ⏳ attend sa part, une place ou la place sous /tmp ; 💤 ticket
 pris sans rien qui tourne ; ✎ ticket travaillé en direct, hors circuit ; 🌙 la nuit, rouge en

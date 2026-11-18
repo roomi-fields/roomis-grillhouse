@@ -41,9 +41,10 @@
 //   project's own an earlier update wrote (scripts/migrations/0.23.0-marche-du-projet.mjs).
 // - The status line is a setting of the project, as Husky writes the project's own configuration:
 //   in a project whose `.claude/settings.json` exists, `statusLine` becomes the frame's
-//   (`"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat`) when it is absent or names
-//   the frame's status line (`ligne-etat`, whatever its former form); a status line of the
-//   project's own stays. The settings keep their other keys, in their order.
+//   (`"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat`, `refreshInterval` 10: the line
+//   redraws on a clock, as a session at rest sends no event) when it is absent or names the
+//   frame's status line (`ligne-etat`, whatever its former form), which is then rewritten whole;
+//   a status line of the project's own stays. The settings keep their other keys, in their order.
 // - `package.json`, when there is one: the version of the frame it is brought to
 //   (`grillhouse.version`, the package's version once no migration leaves anything to do), the
 //   frame's npm scripts (`tableau`,
@@ -176,6 +177,9 @@ const PREPARE = 'grillhouse hooks';
 
 /** The frame's status line, as the settings of a project run it. */
 export const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat';
+// Seconds between two redraws of the status line: at rest a session sends no event (`refreshInterval`
+// of Claude Code's `statusLine`).
+const REDESSIN_LIGNE_ETAT = 10;
 
 const CHAMPS_INSTALLES = ['dependencies', 'devDependencies', 'optionalDependencies'];
 
@@ -260,7 +264,7 @@ function reglerLigneEtat(projet) {
   if (actuelle !== undefined && !commande.includes('ligne-etat')) {
     return false;
   }
-  const voulue = { type: 'command', command: LIGNE_ETAT };
+  const voulue = { type: 'command', command: LIGNE_ETAT, refreshInterval: REDESSIN_LIGNE_ETAT };
   if (JSON.stringify(actuelle) === JSON.stringify(voulue)) {
     return false;
   }

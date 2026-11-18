@@ -13,6 +13,11 @@
     ],
     "deny": []
   },
+  "statusLine": {
+    "type": "command",
+    "command": "\"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse\" ligne-etat",
+    "refreshInterval": 10
+  },
   "enabledPlugins": {
     "rtfm@roomi-fields": true,
     "grillhouse@roomi-fields": true

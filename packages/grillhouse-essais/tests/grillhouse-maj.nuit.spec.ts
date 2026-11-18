@@ -1867,7 +1867,7 @@ describe('grillhouse-3uv.84.4 critère 6 — the update keeps the project’s st
   it('settings without a status line receive the frame’s, their keys kept in their order', () => {
     const projet = avecReglages({ model: 'opus', enabledPlugins: {} });
     expect(mettreAJour(projet, DEPOT).ligneEtat).toBe(true);
-    expect(ligne(projet)).toEqual({ type: 'command', command: LIGNE_ETAT });
+    expect(ligne(projet)).toEqual({ type: 'command', command: LIGNE_ETAT, refreshInterval: 10 });
     // The frame's plugin, grillhouse@roomi-fields, is declared after it (grillhouse-3uv.84.7
     // critère 2).
     expect(Object.keys(json(projet, REGLAGES))).toEqual([
@@ -1885,7 +1885,7 @@ describe('grillhouse-3uv.84.4 critère 6 — the update keeps the project’s st
       },
     });
     mettreAJour(projet, DEPOT);
-    expect(ligne(projet)).toEqual({ type: 'command', command: LIGNE_ETAT });
+    expect(ligne(projet)).toEqual({ type: 'command', command: LIGNE_ETAT, refreshInterval: 10 });
   });
   it('a status line of the project’s own stays', () => {
     const propre = { type: 'command', command: 'bash ~/ma-ligne.sh' };

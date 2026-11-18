@@ -254,7 +254,11 @@ describe('grillhouse-3uv.84.4 critère 1 — grillhouse init creates a project f
 describe('grillhouse-3uv.84.4 critère 6 — init writes the status line in the project’s settings', () => {
   it('the status line runs the project’s command, ligne-etat; the settings hold no hook of the frame', () => {
     const reglages = json('.claude/settings.json');
-    expect(reglages.statusLine).toEqual({ type: 'command', command: LIGNE_ETAT });
+    expect(reglages.statusLine).toEqual({
+      type: 'command',
+      command: LIGNE_ETAT,
+      refreshInterval: 10,
+    });
     expect(reglages).not.toHaveProperty('hooks');
   });
 
