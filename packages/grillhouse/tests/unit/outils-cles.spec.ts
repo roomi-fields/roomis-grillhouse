@@ -226,6 +226,31 @@ describe('critère 2 — the passes play with the variables of the key', () => {
     });
     expect(environnementDe('tableau', dir, { PATH: '/bin' })).toEqual({ PATH: '/bin' });
   });
+  it('every subcommand of the language module runs with the tools of the key, whatever its launcher holds', () => {
+    const outil = path.join(ESSAIS, 'outil-l');
+    mkdirSync(outil, { recursive: true });
+    const dir = projet('langage', { X_OUTIL: outil });
+    for (const nom of ['tests', 'construire', 'typer', 'tests-de-nuit']) {
+      expect(environnementDe(nom, dir, { PATH: '/bin', X_OUTIL: '/ailleurs' }), nom).toEqual({
+        PATH: '/bin',
+        X_OUTIL: outil,
+      });
+    }
+  });
+  it('every subcommand of the language module refuses a faulty key, naming it', () => {
+    const dir = projet('langage-fautive', { X_OUTIL: '/nulle/part/outil' });
+    for (const nom of ['tests', 'construire', 'typer']) {
+      expect(() => environnementDe(nom, dir, {}), nom).toThrow(
+        /grillhouse\.outils\.X_OUTIL nomme \/nulle\/part\/outil/
+      );
+    }
+  });
+  it('a subcommand of the core keeps the environment of its launcher, without tools, even with a faulty key', () => {
+    const dir = projet('noyau', { X_OUTIL: '/nulle/part/outil' });
+    for (const nom of ['tableau', 'ticket', 'maj']) {
+      expect(environnementDe(nom, dir, { PATH: '/bin' }), nom).toEqual({ PATH: '/bin' });
+    }
+  });
   it('`verifier` refuses a faulty key, naming it', () => {
     const dir = projet('verifier-fautive', { X_OUTIL: '/nulle/part/outil' });
     expect(() => environnementDe('verifier', dir, {})).toThrow(

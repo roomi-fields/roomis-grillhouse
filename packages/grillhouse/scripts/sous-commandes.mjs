@@ -141,23 +141,21 @@ export function scriptAbsent(nom, script) {
  * command of the module of the project's language (`tests`, `verifier`, `construire`…), the
  * ones that run its task runner, gets the module's environment of the poste
  * (`environnementDuPoste`, scripts/jointure.d.ts: the remote cache read-only, when the poste holds
- * its file); `verifier` also gets the tools of the project (`grillhouse.outils`,
- * scripts/outils-cles.mjs) and its data (`grillhouse.donnees`, scripts/donnees-cles.mjs), each
- * variable set to its path, whatever <env> holds; a subcommand of the core gets <env>.
+ * its file), and also the tools of the project (`grillhouse.outils`, scripts/outils-cles.mjs) and
+ * its data (`grillhouse.donnees`, scripts/donnees-cles.mjs), each variable set to its path,
+ * whatever <env> holds; a subcommand of the core gets <env> as it is.
  * @param {string} nom the subcommand
  * @param {string} [racine] the root of the project, the working directory by default
  * @param {Record<string, string | undefined>} [env]
  * @returns {Record<string, string | undefined>}
- * @throws {Error} the faults of the key, for `verifier`
+ * @throws {Error} the faults of the key, for a subcommand of the module of the language
  */
 export function environnementDe(nom, racine = process.cwd(), env = process.env) {
   if (typeof SOUS_COMMANDES[nom] === 'string') {
     return env;
   }
   const poste = langageDe(racine).environnementDuPoste(env);
-  return nom === 'verifier'
-    ? avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), poste))
-    : poste;
+  return avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), poste));
 }
 
 // The script of each subcommand in the project at <racine>, where a former copy of the frame lay

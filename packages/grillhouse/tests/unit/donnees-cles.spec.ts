@@ -348,9 +348,25 @@ describe('grillhouse-3dr.5, critère 2 — les passes jouent avec les variables 
     expect(() => environnementDe('verifier', r, {})).toThrow(/grillhouse\.donnees\.SYNTHHUB_BIN/);
   });
 
-  it('une autre sous-commande garde l’environnement du lanceur', () => {
+  it('toute sous-commande du module du langage porte la variable, quoi que tienne le lanceur', () => {
     const r = projet();
-    expect(environnementDe('tests', r, { PATH: '/bin' })).toEqual({ PATH: '/bin' });
+    for (const nom of ['tests', 'construire', 'typer']) {
+      const env = environnementDe(nom, r, { PATH: '/bin', SYNTHHUB_BIN: '/ailleurs' });
+      expect(env.SYNTHHUB_BIN, nom).toBe(path.join(r, 'cible/debug/synthhub'));
+      expect(env.PATH, nom).toBe('/bin');
+    }
+  });
+
+  it('une sous-commande du langage refuse une déclaration fautive avant toute tâche', () => {
+    const r = projet({ donnees: { SYNTHHUB_BIN: 'fantome#synthhub' } });
+    for (const nom of ['tests', 'construire']) {
+      expect(() => environnementDe(nom, r, {}), nom).toThrow(/grillhouse\.donnees\.SYNTHHUB_BIN/);
+    }
+  });
+
+  it('une sous-commande du noyau garde l’environnement du lanceur, sans données', () => {
+    const r = projet();
+    expect(environnementDe('tableau', r, { PATH: '/bin' })).toEqual({ PATH: '/bin' });
   });
 
   it('le circuit : l’environnement d’une passe porte les données du contexte', () => {

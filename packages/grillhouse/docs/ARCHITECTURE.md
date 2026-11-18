@@ -128,7 +128,9 @@ déclare ses outils hors du dépôt dans `grillhouse.outils` de son `package.jso
 copie : un agent ne s'ouvre pas un chemin pour sa séance suivante. L'enveloppe monte chaque chemin
 en lecture seule, avant la copie et ses paquets en écriture, et passe chaque variable à la séance ;
 les passes du circuit (environnementDeLaPasse : preuve, contrôles, passe finale, régénération des
-références), `npm run verifier` et la nuit jouent avec les mêmes variables, prises de la clé, quel
+références), toute sous-commande du module du langage (`npm test`, `npm test -- <chemins>`,
+`construire`, `typecheck`, `npm run verifier`…, par `environnementDe`, une clé fautive la refusant
+par son nom avant toute tâche) et la nuit jouent avec les mêmes variables, prises de la clé, quel
 que soit l'environnement de leur lanceur. Un outil ne défait jamais l'enveloppe : un chemin est
 refusé, sa variable et son chemin nommés, quand il est `/`, la maison ou un chemin qui la contient,
 un chemin qui contient un montage de l'enveloppe (l'arbre principal et ses copies, `/tmp` et les
