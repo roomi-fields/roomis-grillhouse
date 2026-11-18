@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { maxDuProjet, reglageDesCircuits } from '../../../scripts/circuits-cles.mjs';
 import {
+  circuitsDeLaLimite as lesDeLaLimite,
   fermesHorsCircuit as lesFermes,
   lireLesExternes,
   lireLesTickets,
@@ -130,6 +131,42 @@ export async function circuitsEnPause(e: Entree<'circuitsEnPause'>): Promise<str
   } finally {
     await c.fermer();
   }
+}
+
+export async function circuitsDeLaLimite(
+  e: Entree<'circuitsDeLaLimite'>
+): Promise<Sortie<'circuitsDeLaLimite'>> {
+  const prefixe = idDuCircuit(e.racine, '');
+  const c = ouvrirLeClient();
+  const circuits: { ticket: string; etape: string | null; question: { qui?: string } | null }[] =
+    [];
+  try {
+    for await (const w of c.client.workflow.list({
+      query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
+      pageSize: PAGE,
+    })) {
+      if (w.workflowId.startsWith(prefixe)) {
+        const memo = (w.memo ?? {}) as { question?: { qui?: string } | null; etape?: string };
+        circuits.push({
+          ticket: w.workflowId.slice(prefixe.length),
+          etape: memo.etape ?? null,
+          question: memo.question ?? null,
+        });
+      }
+    }
+  } finally {
+    await c.fermer();
+  }
+  let tickets: ReturnType<typeof lireLesTickets> = [];
+  let externes: ReturnType<typeof lireLesExternes> = {};
+  try {
+    tickets = lireLesTickets(e.racine);
+    externes = lireLesExternes(e.racine, tickets);
+  } catch {
+    // Beads fails: no ticket deferred nor waiting known, every circuit keeps its place; the queue
+    // names the fault (`ticketsAPartir`).
+  }
+  return { ...lesDeLaLimite(circuits, tickets, { externes }), lus: circuits.map(x => x.ticket) };
 }
 
 // The group of the project and the priority and creation of each candidate, which order its tickets

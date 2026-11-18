@@ -31,6 +31,18 @@ export function attentesExternes(
   o?: { enCours?: Set<string>; externes?: Record<string, TicketDeBeads[]> }
 ): Array<{ ticket: string; attend: string; faute: string | null }>;
 
+/**
+ * The circuits that hold a place in the limit of the project: those that work, those resumed and
+ * waiting for their place of the machine, and those stopped on a question to the supervisor (no
+ * recipient, or « superviseur »); the question to the owner, the ticket deferred and the wait for
+ * another project release it. `superviseur`: those of `tenant` that wait for the supervisor.
+ */
+export function circuitsDeLaLimite(
+  circuits: Array<{ ticket: string; etape?: string | null; question?: { qui?: string } | null }>,
+  tous: TicketDeBeads[],
+  o?: { externes?: Record<string, TicketDeBeads[]> }
+): { tenant: string[]; superviseur: string[] };
+
 /** The tickets of <tous> in the queue that never start for want of their section « ## Architecture ». */
 export function enFileSansArchitecture<T extends TicketDeBeads>(
   tous: T[],

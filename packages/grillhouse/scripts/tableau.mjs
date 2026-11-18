@@ -136,6 +136,7 @@ import {
   SUPERVISEUR,
 } from './etapes.mjs';
 import { echecDeLOutil } from './aiguillage.mjs';
+import { maxDuProjet } from './circuits-cles.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { REGISTRE } from './adresse-du-registre.mjs';
 import { lireLaMesure } from './avancement.mjs';
@@ -928,6 +929,7 @@ export function assembler({
   voies = {},
   superviseur = {},
   externes,
+  limite = null,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1506,9 +1508,30 @@ export function assembler({
       numero: numero(c.ticket),
       sujet: titre(parId.get(c.ticket)).sujet,
     }));
+  // The limit of circuits of the project (`limite`, its `grillhouse.circuits`): when it is held,
+  // the circuits that hold it waiting for the supervisor (a question to no one, or to the
+  // supervisor; the owner's releases the place, as does a ticket deferred), by id.
+  const tenantsDeLaLimite = [...parCircuit.values()].filter(
+    c =>
+      parId.get(c.ticket).status !== 'deferred' &&
+      (c.vivant || (attendLeSuperviseur(c) && (c.qui ?? SUPERVISEUR) !== 'responsable'))
+  );
+  const tenueLaLimite = limite !== null && tenantsDeLaLimite.length >= limite;
+  const limiteTenue = tenueLaLimite
+    ? {
+        max: limite,
+        tenus: tenantsDeLaLimite.length,
+        superviseur: tenantsDeLaLimite
+          .filter(c => !c.vivant)
+          .map(c => c.ticket)
+          .sort((a, b) => ordre({ id: a }, { id: b }))
+          .map(numero),
+      }
+    : null;
   return {
     global,
     alertes,
+    limite: limiteTenue,
     circuits: lesCircuits,
     horsCircuit,
     chantiers,
@@ -1977,6 +2000,18 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         ton: p.nuit === 'attend' ? TONS.attendLeDisque : TONS.nuitEnCours,
       });
     }
+  }
+  // A project at its limit of circuits (`grillhouse.circuits`) names the circuits that hold it
+  // waiting for the supervisor: « Limite 2/2 · en attente du superviseur : 11, 12 ».
+  if (t.limite?.superviseur?.length) {
+    poser({
+      texte: cadre(
+        `Limite ${t.limite.tenus}/${t.limite.max} · en attente du ${SUPERVISEUR} : ${t.limite.superviseur.join(', ')}`,
+        '',
+        largeur
+      ),
+      ton: TONS.attendLeDisque,
+    });
   }
   // The night under way on the machine, under the places: « 🌙 nuit · <projet> · depuis <durée> »,
   // its project by its folder's name, the time since it started when the server gives it.
@@ -2758,6 +2793,7 @@ function lire(
     attenteVivante: attenteVivante(racine),
     superviseur,
     externes: lireLesExternes(racine, tous),
+    limite: maxDuProjet(commun ? path.dirname(commun) : racine) ?? null,
   });
   return { t, prefix, tous, vivants, commun };
 }

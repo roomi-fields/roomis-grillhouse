@@ -31,6 +31,7 @@ import {
   type ArretPublie,
 } from '../../src/temporal/circuit/contrat.js';
 import {
+  circuitsDeLaLimite,
   circuitsEnPause,
   circuitsVivants,
   placesDeLaMachine,
@@ -143,6 +144,7 @@ async function serveur(activites: object, db = path.join(dossier('tickets'), 'te
       ...circuit,
       circuitsVivants,
       circuitsEnPause,
+      circuitsDeLaLimite,
       tracerLaFile,
       fermesHorsCircuit: () => Promise.resolve([]),
       placesDeLaMachine,

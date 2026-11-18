@@ -64,6 +64,16 @@ export interface ActivitesDesTickets {
    * its place of the machine (the memo of its workflow); it holds no place.
    */
   circuitsEnPause(e: { racine: string }): Promise<string[]>;
+  /**
+   * The circuits of the project alive that hold a place in its limit (`circuitsDeLaLimite` of
+   * scripts/file-des-tickets.mjs, on the memo of each workflow): `tenant`, those that work, are
+   * resumed and wait for their place of the machine, or wait for the supervisor; `superviseur`,
+   * among them those on a question to the supervisor. A question to the owner, a ticket deferred
+   * and a wait for another project release the place.
+   */
+  circuitsDeLaLimite(e: {
+    racine: string;
+  }): Promise<{ tenant: string[]; superviseur: string[]; lus: string[] }>;
   placesDeLaMachine(e: {
     racine: string;
     vivants: string[];

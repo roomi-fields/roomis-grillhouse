@@ -34,6 +34,7 @@ import {
   defineSignal,
   getExternalWorkflowHandle,
   ParentClosePolicy,
+  patched,
   proxyActivities,
   setHandler,
   startChild,
@@ -117,10 +118,23 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
     // The machine bounds every project: a ticket starts once it holds a place of the machine, in
     // the order of arrival of every project, its disk of copies with room; the others stay in the
     // queue, not started. A circuit paused on a question, or resumed and waiting for its place,
-    // is not active and holds none: the places are the setting less the circuits active.
+    // is not active and holds none of the machine: its places are the circuits active.
     const enPause = new Set(await actes.circuitsEnPause({ racine }));
     const actifs = vivants.filter(t => !enPause.has(t));
-    const places = r.max === null ? 0 : r.max - actifs.length;
+    // The limit of the project is another count: a circuit stopped on a question to the supervisor,
+    // or resumed and waiting for its place of the machine, keeps its place in it (a Kanban limit
+    // counts a blocked card); a question to the owner, a ticket deferred and a wait for another
+    // project release it. A circuit the server does not list yet holds its place.
+    // Versioned (`patched('limite-garde-le-superviseur')`): a run recorded before this count
+    // replays without the activity and counts the circuits active, as it did.
+    let dansLaLimite = actifs;
+    if (patched('limite-garde-le-superviseur')) {
+      const limite = await actes.circuitsDeLaLimite({ racine });
+      const tenants = new Set(limite.tenant);
+      const lus = new Set(limite.lus);
+      dansLaLimite = vivants.filter(t => tenants.has(t) || !lus.has(t));
+    }
+    const places = r.max === null ? 0 : r.max - dansLaLimite.length;
     let partir = r.partir.slice(0, Math.max(0, places));
     const m = await actes.placesDeLaMachine({ racine, vivants: actifs, candidats: partir });
     partir = m.accordes;

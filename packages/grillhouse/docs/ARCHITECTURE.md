@@ -1751,9 +1751,16 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   une fois, quand son circuit se met en pause sur une question ou finit, et se garde à côté d'elle
   (`<ticket>.taille`) : jamais de `du` à chaque jugement. Un circuit arrêté sur une question est
   en pause, comme une étape de blocage de Buildkite libère son agent : son déroulé tourne, en
-  attente durable de la réponse, et le serveur ne le purge jamais, mais il rend sa place de
-  circuit, que la file ne compte plus (`circuitsEnPause`, sur le mémo des déroulés) ; sa copie
-  reste comptée par le disque libre réel. Repris, il redemande lui-même sa place
+  attente durable de la réponse, et le serveur ne le purge jamais, mais il rend sa place de la
+  machine, que la file ne compte plus (`circuitsEnPause`, sur le mémo des déroulés) ; sa copie
+  reste comptée par le disque libre réel. La limite des circuits du projet (`grillhouse.circuits`)
+  est un autre compte, celui de la limite de travail en cours de Kanban, où une carte bloquée
+  reste comptée (`circuitsDeLaLimite` de `scripts/file-des-tickets.mjs`, sur le mémo de chaque
+  déroulé, relu à chaque réveil de la file) : un circuit arrêté sur une question au superviseur
+  (sans destinataire, ou `qui` « superviseur »), et un circuit repris en attente de sa place de la
+  machine, gardent leur place dans la limite ; un ticket reporté (`bd defer`), une attente d'un
+  autre projet et une question au responsable la rendent. Le tableau d'un projet à sa limite nomme
+  les circuits en attente du superviseur. Repris, il redemande lui-même sa place
   (`reserverDesCircuits`, son rang d'arrivée gardé) et attend, à l'étape `attend-une-place`, avant
   de rouvrir. À 1, le suivant part quand le précédent finit ou se met en pause. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
   mot du superviseur (`--arreter`, l'étiquette `circuit` retirée par l'acte de l'arrêt, `sortirDeLaFile` de
