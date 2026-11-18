@@ -18,3 +18,5 @@ export function langagesDe(racine: string): Langage[];
 /** The join of the modules that serve the project at <racine>: the module itself when the project
  * declares one, else their composition. */
 export function langageDe(racine: string): Composition;
+/** The join of the copy <copie>, its readings played in the main tree when they throw in it. */
+export function langageDeLaCopie(copie: string, principal?: () => string | null): Composition;

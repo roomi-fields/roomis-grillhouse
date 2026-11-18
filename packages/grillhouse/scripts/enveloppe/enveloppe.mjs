@@ -117,7 +117,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { langageDe } from '../langages.mjs';
+import { langageDeLaCopie } from '../langages.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 import {
   ecritsDuPlan,
@@ -849,7 +849,7 @@ function envelopper(argv) {
     }),
     lienSurDisque
   );
-  const langage = langageDe(copie);
+  const langage = langageDeLaCopie(copie);
   const matieres = langage.matieres(copie).map(m => path.relative(copie, m.dossier));
   // The outputs of the language: its stores in the home or in the main tree (the folder of git's
   // common directory), and where its tools write in the copy.

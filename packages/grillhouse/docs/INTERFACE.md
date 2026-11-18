@@ -48,6 +48,13 @@ Un projet a plusieurs langages, un paquet un seul, comme Bazel et Nx jouent une 
 cibles, un outil par langage. `langagesDe(racine)` rend les modules déclarés, dans l'ordre de la
 déclaration, chacun chargé une fois par processus ; `langageDe(racine)` rend leur composition
 (`scripts/composition-des-langages.mjs`), le module lui-même quand le projet n'en déclare qu'un.
+`langageDeLaCopie(copie)` rend la même composition pour ce qui doit continuer dans une copie que
+l'outil de son langage ne charge plus (le contrôle d'écriture d'une séance, son enveloppe, un acte
+du circuit) : ses lectures de l'arbre, `composants`, `matieres`, `estUnTest` et
+`manifestes.horsDesTests`, se rejouent dans l'arbre principal du dépôt quand elles lèvent dans la
+copie, les chemins portés d'un arbre à l'autre ; sans arbre principal, ou quand il lève aussi,
+l'erreur de la copie est rendue. `langageDe` reste strict, pour les gardes, les constructions et
+le rouge de lecture.
 La composition répond aux demandes ci-dessous, `manifeste`, `tailleDUneCopie`, `nomDuManifeste`, `liensDuManifeste`, `sortieDuPaquet`, `construireLesPaquets`, `miseAJour` et `squelette` à part, que la
 garde des langages, `maj` et `grillhouse paquet` demandent à chaque module :
 

@@ -10,7 +10,7 @@
 //   ticket's content, as GitLab cancels a pipeline whatever its configuration; its plan is empty.
 // - Its title names its plan after its last « — », separated by commas: each one a path
 //   (`packages/<nom>`, or `.`), or the name of a package, which becomes its directory, read in the
-//   ticket's copy when it exists, else in the main tree (`composantsDe`). A title without it, and
+//   ticket's copy when it exists, else in the main tree (`composantsLisibles`). A title without it, and
 //   a component that names neither, are refused by their name. An act after the opening is given
 //   the plan its workflow holds (<plan>) and reads only the subject of the title: the integration
 //   removes the ticket's copy while the circuit still runs, and a component the lot creates is in
@@ -19,7 +19,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { composantsDe } from './ticket-du-circuit.mjs';
+import { composantsLisibles } from './ticket-du-circuit.mjs';
 import { sansArchitecture } from './verrous/verrou.mjs';
 
 /** A ticket a circuit cannot start on, by its reason. */
@@ -31,7 +31,7 @@ export class DepartRefuse extends Error {
 }
 
 /**
- * The directory of the component <nom> of a title among <liste> (`composantsDe` of the repository
+ * The directory of the component <nom> of a title among <liste> (`composantsLisibles` of the repository
  * at <base>): `.` itself; a component by its path or its name; else a path of the repository; or a
  * refusal.
  */
@@ -112,7 +112,7 @@ export function ticketAuLancement(racine, id, { arreter = false, bd = null, plan
   const ticket = ticketAuDepart(id, show.stdout, { arreter });
   const copie = path.join(racine, '.claude', 'worktrees', id);
   const base = existsSync(copie) ? copie : racine;
-  const liste = composantsDe(base);
+  const liste = composantsLisibles(base);
   const resoudre = nom => resoudreComposant(liste, base, nom);
   // The supervisor's stop reads neither the ticket's « ## Architecture » section nor its title.
   const titre = arreter

@@ -45,7 +45,7 @@ import {
   paquetsDeLEnveloppe,
   paquetsDuLangage,
 } from '../enveloppe/paquets-du-plan.mjs';
-import { langageDe } from '../langages.mjs';
+import { langageDeLaCopie } from '../langages.mjs';
 
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -109,7 +109,7 @@ export function horsDuPlan(input, { tmp = tmpdir(), env = process.env, role = nu
   if (!copie) {
     return null;
   }
-  const langage = langageDe(copie);
+  const langage = langageDeLaCopie(copie);
   const liste = paquetsDuLangage(langage, copie);
   const ecrits = ecritsDuPlan(plan, liste);
   const rel = path.relative(copie, file);
@@ -213,7 +213,7 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
     return null;
   }
   const racine = racineDe(file) ?? cwd;
-  const langage = langageDe(racine);
+  const langage = langageDeLaCopie(racine);
   const classe = langage.estUnTest(file, racine);
   const testwriter = classe !== null;
 
