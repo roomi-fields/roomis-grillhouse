@@ -1374,13 +1374,17 @@ const duTestwriter = (ctx, fichier) => langageDe(ctx.copie).estUnTest(fichier, c
 // the plan and in the shared test material. <langage> reads the class of a file: the strict join
 // by default, the join of the copy (`langageDeLaCopie`) for the launch of a session, which must
 // go on in a copy its tool no longer loads.
+// A copy not made yet (the launch of the first session of the testwriter) has no change, and
+// the language is read only when a file is to class.
 export function testsDuLot(ctx, langage = langageDe) {
-  const l = langage(ctx.copie);
-  return changements(ctx)
+  const fichiers = changements(ctx)
     .filter(c => !c.supprime)
-    .map(c => c.fichier)
-    .filter(f => l.estUnTest(f, ctx.copie)?.joue)
-    .sort();
+    .map(c => c.fichier);
+  if (fichiers.length === 0) {
+    return [];
+  }
+  const l = langage(ctx.copie);
+  return fichiers.filter(f => l.estUnTest(f, ctx.copie)?.joue).sort();
 }
 
 // The package directory of the copy that holds <fichier>, or « . ».

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The first session of the testwriter starts again** : 0.45.0 read the language of the copy before the tests of the lot (grillhouse-nwb), eagerly, and a copy not made yet, at the launch of the first session of the testwriter, threw « docs/ARCHITECTURE.md ne déclare aucun langage » (Grillhouse 3uv.109 and 3uv.110, 2026-11-18): every new circuit stopped at 2 Tests. The language is now read only when the lot has a file to class. **Action for projects**: none.
+
+- **The compaction of Temporal's database reads its schema** : on pc3 (2026-11-18), the first application of the server's unit of 0.45.0 failed on « no such column: "$.TemporalKeywordList02" »: Temporal's schema writes its JSON paths between double quotes, which the runtime's SQLite reads as columns, and VACUUM parses the schema again. The compaction now opens the database with double-quoted strings read as strings (`enableDoubleQuotedStringLiterals`, `node:sqlite`). **Action for projects**: none; the next `npx grillhouse temporal installer` applies the server's unit and compacts.
+
 - **Under a circuit in flight, the installation defers the server alone** : on pc3 (2026-11-18), `npx grillhouse temporal installer` in Grillhouse refused everything under six circuits of SyntHub in flight, the repointing of Grillhouse's own worker to 0.45.0 included, so the queue of Grillhouse's tickets, failed under 0.44.0, could not start again. Applying a worker's unit stops no server: the installation now defers only the server's unit (its stop, its compaction), names the circuits in flight in its report (« l'unité du serveur attend, le serveur n'étant ni arrêté ni compacté : circuits en vol (…) »), lays the program down (in the directory of its version) and applies the workers' units, which name it; a later run applies the server once no circuit is in flight. **Action for projects**: none.
 
 ## [0.45.0] - 2026-11-18

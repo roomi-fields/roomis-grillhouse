@@ -28,7 +28,9 @@ interface Base {
   close(): void;
 }
 const DatabaseSync = (
-  createRequire(import.meta.url)('node:sqlite') as { DatabaseSync: new (f: string) => Base }
+  createRequire(import.meta.url)('node:sqlite') as {
+    DatabaseSync: new (f: string, o?: { enableDoubleQuotedStringLiterals?: boolean }) => Base;
+  }
 ).DatabaseSync;
 
 const VERSION = '0.0.7';
@@ -308,6 +310,18 @@ describe('the real compaction', () => {
     const lu = new DatabaseSync(base);
     expect((lu.prepare('SELECT count(*) AS n FROM t').get() as { n: number }).n).toBe(10);
     lu.close();
+  });
+
+  it('compacts a schema that writes its JSON paths between double quotes, as Temporal’s', () => {
+    const base = path.join(dossier('base'), 'temporal.db');
+    const cree = new DatabaseSync(base, { enableDoubleQuotedStringLiterals: true });
+    cree.exec(
+      'CREATE TABLE v (a TEXT, k TEXT GENERATED ALWAYS AS (json_extract(a, "$.TemporalKeywordList02")))'
+    );
+    cree.exec(`INSERT INTO v (a) VALUES ('{"TemporalKeywordList02":"x"}')`);
+    cree.close();
+    const r = compacterLaBase(base);
+    expect(r.apres).toBe(statSync(base).size);
   });
 
   it('refuses a file that is not a database, by SQLite’s own message', () => {

@@ -443,10 +443,16 @@ export interface RapportDInstallation {
  */
 export function compacterLaBase(base: string): Compactage {
   const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as {
-    DatabaseSync: new (f: string) => { exec(sql: string): void; close(): void };
+    DatabaseSync: new (
+      f: string,
+      o: { enableDoubleQuotedStringLiterals: boolean }
+    ) => { exec(sql: string): void; close(): void };
   };
   const avant = statSync(base).size;
-  const db = new DatabaseSync(base);
+  // Temporal's schema writes its JSON paths between double quotes (`"$.TemporalKeywordList02"`),
+  // which the SQLite it is built with reads as strings; the runtime's SQLite reads them as columns
+  // unless told otherwise, and VACUUM, which parses the schema again, fails on them.
+  const db = new DatabaseSync(base, { enableDoubleQuotedStringLiterals: true });
   try {
     db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     db.exec('VACUUM');

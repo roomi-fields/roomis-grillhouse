@@ -148,6 +148,12 @@ describe('the components an act of the circuit reads to open on its ticket', () 
 });
 
 describe('the tests of the lot the launch of a session reads', () => {
+  it('are none, without reading the language, for a copy not made yet', () => {
+    const absente = path.join(ESSAIS, 'pas-encore-de-copie');
+    expect(testsDuLot({ copie: absente }, langageDeLaCopie)).toEqual([]);
+    expect(testsDuLot({ copie: absente })).toEqual([]);
+  });
+
   it('are read in a copy cargo no longer loads, where the strict reading throws', () => {
     const neuf = 'crates/app/tests/neuf.rs';
     for (const dans of [saine, copie]) {
