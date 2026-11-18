@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **Under a circuit in flight, the installation defers the server alone** : on pc3 (2026-11-18), `npx grillhouse temporal installer` in Grillhouse refused everything under six circuits of SyntHub in flight, the repointing of Grillhouse's own worker to 0.45.0 included, so the queue of Grillhouse's tickets, failed under 0.44.0, could not start again. Applying a worker's unit stops no server: the installation now defers only the server's unit (its stop, its compaction), names the circuits in flight in its report (« l'unité du serveur attend, le serveur n'étant ni arrêté ni compacté : circuits en vol (…) »), lays the program down (in the directory of its version) and applies the workers' units, which name it; a later run applies the server once no circuit is in flight. **Action for projects**: none.
+
 ## [0.45.0] - 2026-11-18
 
 - **The reading of the circuits asks for pages of 100** : on pc3 (2026-11-18), every reading of the circuits by the board, the supervisor and the queue of the tickets said « Temporal ne répond pas en 5 s » while the server answered the same list from its own command in 0.15 s. The server pages a list by 1000 by default; a page of the 255 circuits of the machine, each with its memo, weighed 4.4 MB, over the 4 MB a gRPC message of the client takes (« Received message larger than max »), which the client retried until its deadline. Every list of the frame (`lireLesCircuits`, `circuitsVivants`, `circuitsEnPause`) now asks for pages of 100 (`PAGE`). **Action for projects**: none.

@@ -4,9 +4,8 @@
 // stops the server, compacts its database, then starts it again, and says it. Everything under a
 // trial home and a trial directory of units, systemctl, the query of the circuits and the compaction
 // stand-ins: no process, no server, no account's systemd.
-import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { describe, expect, it } from 'vitest';
@@ -207,62 +206,44 @@ describe('applying the unit of the server', () => {
 });
 
 describe('the installation under a circuit in flight', () => {
-  it('refuses by the tickets in flight and touches no unit, no file, no service', async () => {
+  it('defers the server: no stop, no compaction, its unit neither written nor recorded', async () => {
     const m = monde();
     m.base();
     m.enVol.tickets = ['grillhouse-3uv.108', 'grillhouse-4nr.2'];
-    const instantane = (d: string) =>
-      readdirSync(d, { recursive: true, withFileTypes: true })
-        .filter(e => e.isFile())
-        .map(e => [
-          path.join(e.parentPath, e.name),
-          statSync(path.join(e.parentPath, e.name)).mtimeMs,
-        ]);
-    const avant = [m.l.maison, m.l.unites, m.racine].map(instantane);
-    const refus = await installer(m.options).then(
-      () => null,
-      (e: unknown) => e as Error
-    );
-    expect(refus).toBeInstanceOf(Error);
-    expect(refus!.message).toContain('grillhouse-3uv.108');
-    expect(refus!.message).toContain('grillhouse-4nr.2');
-    expect(m.journal).toEqual(['circuits']);
-    expect(readdirSync(m.l.unites)).toEqual([]);
-    expect(existsSync(cheminsDe(m.l, VERSION).appliquees)).toBe(false);
-    expect([m.l.maison, m.l.unites, m.racine].map(instantane)).toEqual(avant);
+    const r = await installer(m.options);
+    expect(r.serveurDiffere).toEqual(['grillhouse-3uv.108', 'grillhouse-4nr.2']);
+    expect(m.journal).not.toContain('compacter');
+    expect(m.journal.some(l => l.includes(UNITE_DU_SERVEUR))).toBe(false);
+    expect(readdirSync(m.l.unites)).not.toContain(UNITE_DU_SERVEUR);
+    expect(r.appliquees).not.toContain(UNITE_DU_SERVEUR);
     expect(readFileSync(m.donnees, 'utf8')).toBe('une base');
+    const appliquees = JSON.parse(
+      readFileSync(cheminsDe(m.l, VERSION).appliquees, 'utf8')
+    ) as Record<string, string>;
+    expect(Object.keys(appliquees)).not.toContain(UNITE_DU_SERVEUR);
   });
 
-  it('lays no program down when it refuses', async () => {
-    const racine = dossier('projet');
-    declarerLesLangages(racine);
-    writeFileSync(path.join(racine, 'package.json'), '{\n  "name": "essai"\n}\n');
-    const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
-    const archive = Buffer.from('une archive');
-    const epingle = {
-      version: VERSION,
-      sommes: { linux_amd64: createHash('sha256').update(archive).digest('hex') },
-    };
-    const appels: string[][] = [];
-    const refus = await installer({
-      lieux: l,
-      epingle,
-      plateforme: 'linux_amd64',
-      obtenir: () => Promise.resolve(archive),
-      systemctl: a => (appels.push(a), { status: 0, stdout: '', stderr: '' }),
-      circuitsEnVol: () => ['grillhouse-3uv.108'],
-      compacter: () => ({ avant: 0, apres: 0 }),
-      node: '/usr/bin/node',
-      travailleur: '/paquet/dist/temporal/travailleur.js',
-      trouver: nom => `/compte/bin/${nom}`,
-    }).then(
-      () => null,
-      (e: unknown) => e as Error
-    );
-    expect(refus?.message).toContain('grillhouse-3uv.108');
-    expect(existsSync(cheminsDe(l, VERSION).programme)).toBe(false);
-    expect(appels).toEqual([]);
-    expect(readdirSync(l.unites)).toEqual([]);
+  it('applies the workers’ units all the same: a worker repointed stops no server', async () => {
+    const m = monde();
+    m.base();
+    m.enVol.tickets = ['grillhouse-3uv.108'];
+    const r = await installer(m.options);
+    expect(r.appliquees.length).toBeGreaterThan(0);
+    expect(r.appliquees.every(n => n !== UNITE_DU_SERVEUR)).toBe(true);
+    expect(m.journal.some(l => l.startsWith('systemctl restart'))).toBe(true);
+  });
+
+  it('applies the server at a later run, once no circuit is in flight', async () => {
+    const m = monde();
+    m.base();
+    m.enVol.tickets = ['grillhouse-3uv.108'];
+    await installer(m.options);
+    m.enVol.tickets = [];
+    m.journal.length = 0;
+    const r = await installer(m.options);
+    expect(r.appliquees).toContain(UNITE_DU_SERVEUR);
+    expect(m.journal).toContain('compacter');
+    expect(r.serveurDiffere).toBeUndefined();
   });
 
   it('goes on when no circuit is in flight, as when the server does not answer', async () => {

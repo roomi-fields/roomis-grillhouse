@@ -16,8 +16,10 @@
 //   server answers (`temporal operator namespace update --retention`), where start-dev gives 24 h:
 //   a circuit stopped for more than 7 days reopens by `--depuis`.
 // - Applying the server's unit (its text changed, or the program newly laid down) asks the server
-//   for the circuits in flight before any writing and refuses, naming their tickets, when there is
-//   one (`circuitsEnVol`; a server that does not answer has none); then stops the server, compacts
+//   for the circuits in flight before any writing; when there is one (`circuitsEnVol`; a server
+//   that does not answer has none), the server's unit alone is deferred to a later run, the
+//   circuits named in the report (`serveurDiffere`), the program laid down and the workers' units
+//   applied all the same; otherwise it stops the server, compacts
 //   its database (`compacterLaBase`, `VACUUM` by the runtime's `node:sqlite`) and starts it again,
 //   and the report says the sizes before and after. A failed compaction starts the server again and
 //   refuses the installation by its name, the unit not recorded as applied.
@@ -427,6 +429,11 @@ export interface RapportDInstallation {
   change: boolean;
   /** The size of the database before and after its compaction; absent when it was not compacted. */
   compactage?: Compactage;
+  /**
+   * The circuits in flight that deferred the server's unit, which a later run
+   * applies; absent when nothing deferred them.
+   */
+  serveurDiffere?: string[];
 }
 
 /**
@@ -787,21 +794,23 @@ export async function installer({
     trouver,
     travailleur: () => travailleur ?? travailleurDe(lieux.racine, outil),
   });
-  const textes = textesDuProjet(lieux, tous);
-  const pose = contenu !== null;
+  const duProjet = textesDuProjet(lieux, tous);
   const deja = lireLesAppliquees(fichierDesAppliquees);
-  const enAttente = Object.keys(textes).filter(n => deja[n] !== sommeDe(textes[n]!));
+  const enAttenteDe = (t: Record<string, string>) =>
+    Object.keys(t).filter(n => deja[n] !== sommeDe(t[n]!));
   // The server's unit is applied when a program is laid down, or when it is still to apply.
-  const serveurApplique = pose || enAttente.includes(UNITE_DU_SERVEUR);
-  // Before any writing: a circuit in flight refuses the stop of the server.
-  if (serveurApplique) {
-    const enVol = circuitsEnVol();
-    if (enVol.length > 0) {
-      throw new Error(
-        `temporal : l'unité du serveur ne s'applique pas sous un circuit en vol (${enVol.join(', ')}) ; rien n'est écrit, à rejouer quand ils sont arrêtés.`
-      );
-    }
-  }
+  // Before any writing: a circuit in flight defers the server's unit alone (its stop, its
+  // compaction), which a later run applies; the program is laid down all the same, in a directory
+  // of its own version, and the workers' units, which name it, are applied, since neither stops
+  // the server.
+  const differe =
+    contenu !== null || enAttenteDe(duProjet).includes(UNITE_DU_SERVEUR) ? circuitsEnVol() : [];
+  const textes = differe.length
+    ? Object.fromEntries(Object.entries(duProjet).filter(([n]) => n !== UNITE_DU_SERVEUR))
+    : duProjet;
+  const pose = contenu !== null;
+  const enAttente = enAttenteDe(textes);
+  const serveurApplique = (pose && differe.length === 0) || enAttente.includes(UNITE_DU_SERVEUR);
   if (contenu) {
     poser(contenu, programme);
   }
@@ -853,7 +862,8 @@ export async function installer({
     pose,
     unites,
     appliquees,
-    change: pose || unites.length > 0 || appliquees.length > 0,
+    change: pose || unites.length > 0 || appliquees.length > 0 || differe.length > 0,
     ...(compactage ? { compactage } : {}),
+    ...(differe.length ? { serveurDiffere: differe } : {}),
   };
 }

@@ -472,3 +472,33 @@ describe('the PATH of the workers names the tool of each language the architectu
     expect(appels).toEqual([]);
   });
 });
+
+describe('a program newly laid down under a circuit in flight', () => {
+  it('is laid down, the workers that name it applied, the server’s unit alone deferred', async () => {
+    const contenu = archive('0.0.2');
+    const racine = dossier('projet');
+    declarerLesLangages(racine);
+    writeFileSync(path.join(racine, 'package.json'), '{\n  "name": "essai"\n}\n');
+    const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
+    const appels: string[][] = [];
+    const r = await installer({
+      lieux: l,
+      epingle: { version: '0.0.2', sommes: { linux_amd64: somme(contenu) } },
+      plateforme: 'linux_amd64',
+      obtenir: () => Promise.resolve(contenu),
+      systemctl: args => (appels.push(args), { status: 0, stdout: '', stderr: '' }),
+      circuitsEnVol: () => ['grillhouse-3uv.108'],
+      node: '/usr/bin/node',
+      travailleur: '/paquet/dist/temporal/travailleur.js',
+      trouver: nom => `/compte/bin/${nom}`,
+    });
+    const { programme } = cheminsDe(l, '0.0.2');
+    expect(r.serveurDiffere).toEqual(['grillhouse-3uv.108']);
+    expect(r.pose).toBe(true);
+    expect(existsSync(programme)).toBe(true);
+    expect(readdirSync(l.unites)).not.toContain(UNITE_DU_SERVEUR);
+    expect(readFileSync(path.join(l.unites, uniteDuProjet(racine)), 'utf8')).toContain(programme);
+    expect(r.appliquees).toContain(uniteDuProjet(racine));
+    expect(appels.flat()).not.toContain(UNITE_DU_SERVEUR);
+  });
+});

@@ -1457,7 +1457,10 @@ dépendances `@temporalio/*` sont épinglées à une version exacte.
   des travailleurs et sans plafond, et il ouvre sa base en journal WAL avec l'écriture synchrone
   que SQLite conseille pour WAL, `--sqlite-pragma journal_mode=wal` et `synchronous=NORMAL`).
   Quand l'installation applique l'unité du serveur (texte changé, programme posé), elle interroge
-  d'abord le serveur sur les circuits en vol et refuse, leurs tickets nommés, s'il y en a ; puis
+  d'abord le serveur sur les circuits en vol ; s'il y en a, elle diffère la seule unité du
+  serveur, leurs tickets nommés au rapport, pose le programme (dans le dossier de sa version) et
+  applique les unités des travailleurs, qui n'arrêtent pas le serveur, et laisse le serveur à un
+  passage suivant ; sinon
   elle arrête le serveur, compacte sa base (`VACUUM`, par le SQLite du runtime, `node:sqlite`),
   le redémarre, et son rapport dit la taille avant et après ; un compactage qui échoue redémarre le
   serveur et refuse l'installation par son nom. **Écart à la référence** : Temporal réserve le

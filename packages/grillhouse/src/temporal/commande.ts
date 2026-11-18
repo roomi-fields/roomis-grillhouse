@@ -107,6 +107,9 @@ async function principal(args: string[]): Promise<number> {
           (r.compactage
             ? ` ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
             : '') +
+          (r.serveurDiffere
+            ? ` ; l'unité du serveur attend, le serveur n'étant ni arrêté ni compacté : circuits en vol (${r.serveurDiffere.join(', ')}), à rejouer quand ils sont arrêtés`
+            : '') +
           '.\n'
       : 'temporal : l’installation est à jour, rien ne change.\n'
   );
