@@ -47,6 +47,8 @@ export interface VueDeLaFile {
 export interface IssueDeLaFile {
   etat: 'ferme' | 'en-file' | 'rouvert' | 'echec';
   raison: string;
+  /** A branch reopened because it does not replay on main: its lot goes back to the developpeur. */
+  conflit?: boolean;
 }
 
 /** One reading of the CI of a commit. */

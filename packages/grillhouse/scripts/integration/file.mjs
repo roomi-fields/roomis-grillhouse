@@ -659,7 +659,8 @@ export function situerLeLot(o, ticket) {
 }
 
 // The branch at <tip> replaced on the main <tete> in the queue's own copy, with the tools <o>:
-// { nouveau } (the replaced commit), or { sortie: [titre, détail] } (it leaves the queue), or
+// { nouveau } (the replaced commit), or { sortie: [titre, détail] } (it leaves the queue; with
+// `conflit: true` when it does not replay on main), or
 // { garde } (it stays, the reason).
 function remplacer(o, tip, tete) {
   const { racine, dire } = o;
@@ -705,6 +706,7 @@ function remplacer(o, tip, tete) {
     if (!engendresSeuls) {
       dansCopie('rebase', '--abort');
       return {
+        conflit: true,
         sortie: [
           'elle ne se replace pas sur main.',
           conflits.length
@@ -944,7 +946,8 @@ export function fermerLEntree(o, entree) {
  * What the outcome <r> of `preparerLaBranche` or `avancerMain` for <entree> says to its ticket,
  * with the tools <o>: a branch out of the queue reopens it, its files named; a branch set aside
  * loses `en-file`, the ticket left open; a branch kept, the reason. `{ etat, raison }`: `rouvert`
- * or `en-file`, as the circuit reads the queue.
+ * (with `conflit: true` for a branch that does not replay on main) or `en-file`, as the circuit
+ * reads the queue.
  */
 export function direLIssue(o, entree, r) {
   const commenter = texte => commenterAu(o, entree.ticket, texte);
@@ -954,7 +957,7 @@ export function direLIssue(o, entree, r) {
     o.bd('update', entree.ticket, '--status', 'open', '--remove-label', 'en-file');
     commenter(texte);
     o.dire(`✗ ${entree.branche} sort de la file : ${titre}`);
-    return { etat: 'rouvert', raison: texte };
+    return { etat: 'rouvert', raison: texte, ...(r.conflit ? { conflit: true } : {}) };
   }
   if (r.ecartee) {
     const texte = `## Sortie de la file\n\nLa branche ${entree.branche} n'a rien en avance sur ${o.principale} : elle n'entre pas, et le ticket reste ouvert.`;
