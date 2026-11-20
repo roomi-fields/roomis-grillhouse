@@ -68,6 +68,21 @@ export const CHANGE_DU_REFUS =
 export const rapportDuRefus = refus =>
   `L’intégration refuse ce lot : son refus, ci-dessous, est le rouge à lever ; les contrôles de ta copie, verts, ne le voient pas, et le lot ne repasse à l’intégration qu’avec un changement.\n\n${refus.rapport}`;
 
+// The stop of a ticket the queue reopens for the reason <raison> it gives the circuit
+// (`direLIssue`, `conclureLaCI` of scripts/integration/file.mjs): `motif`, whose first line, the
+// fact of the question gone up, says why (the first line of the reason that is not a title), the
+// whole reason after it; `question`, for a branch out of the queue, the answer that serves.
+export function refusDeLaFile(raison) {
+  const texte = String(raison ?? '').trim();
+  const pourquoi = texte.split('\n').find(l => l.trim() && !l.startsWith('#'));
+  return {
+    motif: `La file rouvre le ticket${pourquoi ? ` : ${pourquoi.trim()}` : '.'}\n\n${texte}`,
+    question: texte.startsWith('## Sortie de la file')
+      ? 'La branche est sortie de la file : `--depuis developpeur` remet son lot en travail local sur main, où le développeur le replace ; `--reprendre` renverrait la même branche.'
+      : null,
+  };
+}
+
 // The step after the plan of sort <sorte> (null when the path is not mechanical): the gesture of
 // a mechanical ticket (1.1), in place of the testwriter, the proof and the developpeur; the
 // developpeur of a plan without tests (<sansTests>) or of a plan whose `comportement` is inchangé
@@ -633,7 +648,8 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     if (f.etat === 'en-file') {
       return arreter('a-repasser', f.raison);
     }
-    return refuser(`La file rouvre le ticket.\n\n${f.raison}`, f.raison);
+    const refus = refusDeLaFile(f.raison);
+    return refuser(refus.motif, f.raison, refus.question);
   }
   if (etape === TRI) {
     // The lot is on main: the tri of its discoveries, which neither stops nor undoes it.
@@ -646,8 +662,8 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
   // kept in the memory (`refus`: `{ rapport, piece, empreinte, lance, relance }`, the fingerprint
   // of the plan refused, whether a --depuis developpeur launched the developpeur on it, and whether
   // a session so launched already left it unchanged once), which --depuis developpeur gives the
-  // developpeur.
-  function refuser(motif, piece) {
+  // developpeur; <question>, the stop's own, before the one of its kind.
+  function refuser(motif, piece, question = null) {
     maj.refus = {
       rapport: motif,
       piece,
@@ -655,7 +671,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       lance: false,
       relance: false,
     };
-    return arreter('integration', motif, { piece });
+    return arreter('integration', motif, question ? { piece, question } : { piece });
   }
 
   function code() {
