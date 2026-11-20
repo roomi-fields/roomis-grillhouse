@@ -80,6 +80,12 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   le lanceur donne aux séances du ticket ; il vit tant que le ticket est ouvert, gel compris, et
   part avec les copies finies quand le ticket se ferme. Ainsi mon scratchpad ne grossit pas des
   agents du ticket.
+- **Une pièce de référence pour une séance du circuit** : une séance du circuit joue sous son
+  enveloppe, où le dossier temporaire et la maison sont vides ; ce que je dépose dans le dossier
+  temporaire du ticket n'y est pas vu. Un dossier de référence hors du dépôt se déclare dans la
+  clé `grillhouse.outils` du `package.json` (l'enveloppe le monte en lecture seule et passe sa
+  variable, que mon contexte nomme) ; un texte court va au ticket. Ainsi la séance lit la pièce
+  que je lui cite.
 
 ## Un agent, un ticket
 
