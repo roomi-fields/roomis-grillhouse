@@ -876,7 +876,7 @@
     },
     "packages/grillhouse/tests/unit/langages.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 4
+        "count": 3
       }
     },
     "packages/grillhouse/tests/unit/langages/cargo/cargo.nuit.test.ts": {

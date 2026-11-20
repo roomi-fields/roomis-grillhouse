@@ -126,13 +126,13 @@ remplace jamais le grill. Les branches de l'arbre :
    refuse, invariants, coût. Puis la forme : un paquet ou plusieurs, bibliothèque ou service (un
    service garde `deployment/`, le démon et `.env`), et son langage (la rubrique suivante le déclare).
    **Le langage de chaque paquet** : le tableau des composants de `docs/ARCHITECTURE.md` porte une
-   colonne « Langage » (`typescript`, `cargo`, `python`), une ligne par paquet, comme le fichier BUILD de
+   colonne « Langage » (`typescript`, `cargo`, `python`, `c`), une ligne par paquet, comme le fichier BUILD de
    Bazel nomme la règle de chaque cible ; le cadre lit là les langages du projet, rien ne se devine
    aux fichiers, et un projet qui n'en déclare aucun est refusé. L'`INTERFACE.md` de chaque paquet
    le reprend (`**Langage** : <nom>`). La garde `grillhouse langages-des-paquets` refuse un paquet
    que le tableau ne déclare pas, un paquet dont le manifeste suit un autre langage (un
    `package.json` pour `typescript`, un `Cargo.toml` pour `cargo`, un `pyproject.toml` pour
-   `python`), un dossier déclaré sans ce manifeste, et une interface qui en nomme un autre.
+   `python`, un `CMakeLists.txt` pour `c`), un dossier déclaré sans ce manifeste, et une interface qui en nomme un autre.
    **Un paquet neuf naît en quatre temps, hors du circuit** (charte commune) : ce grill tranche
    son rôle, sa frontière, ses refus, son interface et son langage (1) ; le superviseur écrit sa
    ligne et ses documents, relus par le responsable (2) ; `npx grillhouse paquet <chemin>` bâtit

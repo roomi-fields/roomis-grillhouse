@@ -78,13 +78,22 @@ export function constats(racine) {
   // The rows that declare a package, each table read by its own column of the names.
   const declarees = tableauxDesComposants(racine).flatMap(t => {
     const lignes = t.lignes.filter(l => langageDeLaCellule(l.cellules[t.colonne]));
+    // Without a component the table names, the column of the names is the first where a cell names
+    // a folder of the project: a table of packages whose manifests all lack is still read.
     const colonne = colonneDesNoms(lignes, tous, racine, t.colonne);
-    return colonne < 0
+    const estUnDossier = n =>
+      n !== '.' && existsSync(path.join(racine, n)) && statSync(path.join(racine, n)).isDirectory();
+    const largeur = Math.max(0, ...lignes.map(l => l.cellules.length));
+    const colonneDesDossiers = Array.from({ length: largeur }, (_, i) => i).find(
+      i => i !== t.colonne && lignes.some(l => nomsDe(l.cellules[i]).some(estUnDossier))
+    );
+    const colonneRetenue = colonne < 0 ? (colonneDesDossiers ?? -1) : colonne;
+    return colonneRetenue < 0
       ? []
       : lignes.map(l => ({
           index: l.index,
           langage: langageDeLaCellule(l.cellules[t.colonne]),
-          noms: nomsDe(l.cellules[colonne]),
+          noms: nomsDe(l.cellules[colonneRetenue]),
         }));
   });
   const ligneDe = composants =>
@@ -116,7 +125,26 @@ export function constats(racine) {
       continue;
     }
     vus.add(l);
+    // A package has one language: two manifests of two modules (package.json, the graph's entry
+    // of a package of another language, apart) are refused, both named.
+    const propres = avec.filter(m => m.manifeste !== 'package.json');
+    if (propres.length > 1) {
+      out.push({
+        fichier: ARCHITECTURE,
+        ligne: l.index + 1,
+        message: `${rel(dossier)} : porte ${propres.map(m => m.manifeste).join(' et ')} (${propres.map(m => m.nom).join(' et ')}) ; un paquet n'a qu'un langage, ${ou(l)} déclare ${l.langage}.`,
+      });
+    }
     const declare = langage(l.langage);
+    // The name of the `project()` of a package c is the name its row declares.
+    const deC = declare.nom === 'c' ? composants[modules.indexOf(declare)] : undefined;
+    if (deC && !l.noms.some(n => n === deC.nom || path.posix.basename(n) === deC.nom)) {
+      out.push({
+        fichier: ARCHITECTURE,
+        ligne: l.index + 1,
+        message: `${rel(dossier)} : son CMakeLists.txt appelle project(${deC.nom}), quand ${ou(l)} déclare ${l.noms.join(', ')} ; le nom de project() est celui de la ligne.`,
+      });
+    }
     const autre = avec.find(m => m !== declare);
     if (modules.includes(declare) && existsSync(path.join(dossier, declare.manifeste))) {
       // The package follows its row.

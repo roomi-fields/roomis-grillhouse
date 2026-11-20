@@ -274,5 +274,16 @@
     "scripts/langages/python/squelette.mjs",
     "scripts/langages/python/tailles-des-tests.mjs",
     "scripts/langages/python/verdict.mjs"
+  ],
+  "c": [
+    "scripts/langages/c/commandes.mjs",
+    "scripts/langages/c/composants.mjs",
+    "scripts/langages/c/exemples.mjs",
+    "scripts/langages/c/index-interfaces.mjs",
+    "scripts/langages/c/index.mjs",
+    "scripts/langages/c/lot.mjs",
+    "scripts/langages/c/mise-a-jour.mjs",
+    "scripts/langages/c/squelette.mjs",
+    "scripts/langages/c/verdict.mjs"
   ]
 }

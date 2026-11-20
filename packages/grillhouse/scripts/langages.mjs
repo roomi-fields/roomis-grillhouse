@@ -42,6 +42,7 @@ export const LANGAGES = {
   typescript: './langages/typescript/index.mjs',
   cargo: './langages/cargo/index.mjs',
   python: './langages/python/index.mjs',
+  c: './langages/c/index.mjs',
 };
 
 const requis = createRequire(import.meta.url);

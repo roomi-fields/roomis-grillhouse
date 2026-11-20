@@ -150,7 +150,7 @@ l'architecture fixe le langage, et le code le suit.
 dossier qu'attend l'outil de son langage : près de son module pour un test unitaire (en Rust, un
 `tests.rs` ou un dossier `tests/` sous `src/`, comme le veut le contrôle tidy de rustc), dans le
 dossier de tests du paquet pour un test par l'interface (en Rust, un module de `tests/it/` du
-crate). Les sortes de tests, qui les écrit, qui les lit et qui les joue sont les mêmes dans chaque
+crate ; en C, un fichier `tests/test_<nom>.c` du paquet, un exécutable et un test CTest). Les sortes de tests, qui les écrit, qui les lit et qui les joue sont les mêmes dans chaque
 langage ; seule l'adresse d'un fichier de test suit l'outil. Ainsi chaque test a un fichier à lui,
 que le testwriter écrit.
 

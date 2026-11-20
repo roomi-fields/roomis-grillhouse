@@ -41,6 +41,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import cargo from '../../scripts/langages/cargo/index.mjs';
+import { moduleC as c } from './langages/c/module-c.js';
 import python from '../../scripts/langages/python/index.mjs';
 import typescript from '../../scripts/langages/typescript/index.mjs';
 
@@ -50,11 +51,12 @@ const OUTILS_CARGO = (cargo as unknown as { outils: string[] }).outils;
 const lire = (rel: string) => readFileSync(path.join(PAQUET, rel), 'utf8');
 const REPARTITION = JSON.parse(
   readFileSync(path.join(PAQUET, 'tests/temoins/repartition.json'), 'utf8')
-) as { noyau: string[]; typescript: string[]; cargo: string[]; python: string[] };
+) as { noyau: string[]; typescript: string[]; cargo: string[]; python: string[]; c: string[] };
 const DU_LANGAGE = new Set([
   ...REPARTITION.typescript,
   ...REPARTITION.cargo,
   ...REPARTITION.python,
+  ...REPARTITION.c,
 ]);
 
 // Every file under <rel>, from the package.
@@ -120,6 +122,7 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
       ...REPARTITION.typescript,
       ...REPARTITION.cargo,
       ...REPARTITION.python,
+      ...REPARTITION.c,
     ].sort();
     expect(partages).toEqual(tous);
     expect(new Set(partages).size).toBe(partages.length);
@@ -165,6 +168,18 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     expect(REPARTITION.python).toContain('scripts/langages/python/index.mjs');
     for (const f of REPARTITION.python) {
       expect(f).toMatch(/^scripts\/langages\/python\//);
+    }
+  });
+
+  it('the module c: jointure.d.ts declares exactly what it answers, its files under its folder', () => {
+    expect(
+      membresDeLangage()
+        .filter(m => !['resumesDuLancement', 'garderLesResumes', 'lireLesResumes'].includes(m))
+        .sort()
+    ).toEqual(Object.keys(c).sort());
+    expect(REPARTITION.c).toContain('scripts/langages/c/index.mjs');
+    for (const f of REPARTITION.c) {
+      expect(f).toMatch(/^scripts\/langages\/c\//);
     }
   });
 
@@ -423,7 +438,12 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
         .flatMap(cibles)
         .filter(c => REPARTITION.noyau.includes(c)),
     ]);
-    const trouves = [...REPARTITION.typescript, ...REPARTITION.cargo, ...REPARTITION.python]
+    const trouves = [
+      ...REPARTITION.typescript,
+      ...REPARTITION.cargo,
+      ...REPARTITION.python,
+      ...REPARTITION.c,
+    ]
       .filter(f => /\.(mjs|js|cjs)$/.test(f))
       .flatMap(f =>
         [...nommes(f), ...voisins(f)]

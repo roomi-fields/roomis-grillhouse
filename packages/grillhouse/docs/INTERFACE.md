@@ -107,13 +107,16 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 
 - `nom` : le nom du langage, celui de la liste du cadre.
 - `manifeste` : le manifeste d'un paquet du langage, dans son dossier (`typescript`, un
-  `package.json` ; `cargo`, un `Cargo.toml` ; `python`, un `pyproject.toml`), que la garde des langages demande à un paquet que
-  l'architecture déclare de ce langage.
+  `package.json` ; `cargo`, un `Cargo.toml` ; `python`, un `pyproject.toml` ; `c`, un `CMakeLists.txt`
+  dont un `project(<nom>` nomme le paquet), que la garde des langages demande à un paquet que
+  l'architecture déclare de ce langage ; un dossier qui porte deux manifestes de deux langages
+  (un `Cargo.toml` et un `CMakeLists.txt` à `project(`) est refusé, les deux nommés, et le nom de
+  `project()` d'un paquet `c` est celui que sa ligne du tableau déclare.
 - `tailleDUneCopie` : la taille attendue d'une copie d'un projet du langage, en octets, avant que
-  l'une de ses copies soit mesurée (`typescript` et `python`, 1 Go ; `cargo`, 8 Go), que le disque
+  l'une de ses copies soit mesurée (`typescript`, `python` et `c`, 1 Go ; `cargo`, 8 Go), que le disque
   des copies demande au départ d'un circuit, la marge de 4 Go en plus (`scripts/disque-des-copies.mjs`).
 - `nomDuManifeste` : le nom que le texte d'un manifeste du langage donne à son paquet (le `name` du
-  `package.json`, du `[package]` d'un `Cargo.toml`, du `[project]` d'un `pyproject.toml`) ; nul sans
+  `package.json`, du `[package]` d'un `Cargo.toml`, du `[project]` d'un `pyproject.toml`, le premier argument du `project(` d'un `CMakeLists.txt`) ; nul sans
   nom. Le noyau y lit le nom du `package.json` qu'`npx grillhouse paquet` écrit à côté d'un manifeste
   qui n'est pas un `package.json`.
 - `liensDuManifeste` : les dépendances internes que le manifeste du paquet à `chemin` lie par un
@@ -125,11 +128,11 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   paquet lancent (`grillhouse.donnees`, à côté de `grillhouse.outils`) ; pour un crate, un binaire de
   `cargo metadata` dans son dossier des cibles, sous `release` ou `debug` selon l'option `release`
   (le script `build` du fournisseur porte `--release`). Un paquet sans cette sortie est refusé,
-  nommé ; `typescript` et `python` refusent : « sortie non prise en charge pour <langage> ».
+  nommé ; `typescript`, `python` et `c` refusent : « sortie non prise en charge pour <langage> ».
 - `construireLesPaquets` : construit les paquets nommés (par leur nom au `package.json`) avant les
   tests d'un paquet qui les déclare en données ; le module du langage dont le manifeste est le
   `package.json` le fait par le graphe des paquets (rien dans l'exécution du graphe, qui les a
-  construits), `cargo` et `python` refusent : « construction non prise en charge pour <langage> ».
+  construits), `cargo`, `python` et `c` refusent : « construction non prise en charge pour <langage> ».
 - `outils` : les outils qu'un projet du langage installe, dépendances facultatives du paquet ;
   `maj` n'ajoute que ceux des langages déclarés, chacun à la version de son gabarit.
 - `binaires` : les binaires qu'un projet du langage installe sur la machine, chacun à sa version
@@ -139,20 +142,20 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   projet joue après `npm ci` (le gabarit `templates/projet/.github/workflows/`) ; 0 tout installé
   ou à jour, 1 un échec, sa ligne nommant la commande à taper, 2 un argument ou un langage refusé. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
   sccache (`scripts/langages/cargo/binaires.json`) ; `python`, uv
-  (`scripts/langages/python/binaires.json`).
+  (`scripts/langages/python/binaires.json`) ; `c`, aucun (CMake est celui du poste).
 - `executables` : les programmes de la chaîne d'outils du langage que l'installateur de Temporal
   exige dans son PATH, dont le dossier entre dans celui des unités des travailleurs, un absent
   refusé par son nom. `typescript`, aucun (Node est un outil du compte) ; `cargo`, `cargo` ;
-  `python`, `python3`. Un champ en lecture seule : la composition de plusieurs langages ne le porte pas.
+  `python`, `python3` ; `c`, `cmake` et `ctest`, exigés du poste et nommés quand l'un manque. Un champ en lecture seule : la composition de plusieurs langages ne le porte pas.
 - `ignorer` : les dossiers qu'écrivent les outils du langage dans un projet, par leur nom ; les
   fichiers sources que lisent les migrations les laissent de côté, `maj` les écrit dans le
   `.gitignore` du projet, et le retrait des copies finies les retire d'une copie gardée dont le
   ticket est fermé. `typescript`, `.turbo` ; `cargo`, `target` ; `python`, `.venv`,
-  `.pytest_cache` et `__pycache__`.
+  `.pytest_cache` et `__pycache__` ; `c`, `.build-cmake`.
 - `miseAJour` : la part du langage dans `maj`, comme chaque greffon de Nx apporte son générateur
   `init`. `gabarit`, le dossier du gabarit d'un projet du langage, dont le `package.json` donne les
   scripts du cadre et les versions des outils (`templates/projet`, `templates/cargo`,
-  `templates/python`) ;
+  `templates/python`, `templates/c`) ;
   `appliquer`, qui met le projet à la forme du langage, son `package.json` racine, que le noyau
   écrit après, et ses autres fichiers, et rend sa part du bilan, les lignes du rapport, ce qu'il
   laisse au projet (`aFaire`, chaque ligne avec son geste, que `maj` écrit sur la sortie d'erreur
@@ -167,7 +170,7 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   ses binaires par `cargo install --list` puis `cargo binstall --no-confirm --locked
 <nom>@<version>` ; `python` : ses scripts de test, l'index des interfaces, et uv par `uv --version`
   puis l'installeur d'Astral à sa version, les profils du shell laissés tels quels
-  (UV_NO_MODIFY_PATH).
+  (UV_NO_MODIFY_PATH) ; `c` : ses scripts de test, l'index des interfaces, aucun binaire.
 - `squelette` : le squelette d'un paquet neuf du langage, sans comportement ni test, que
   `grillhouse paquet <chemin>` écrit (`scripts/paquet.mjs`), comme `cargo new --lib` ou
   `nx g @nx/js:lib` : `fichiers`, chaque fichier du paquet et son texte (son manifeste, la configuration de
@@ -185,7 +188,11 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   champs de `[workspace.package]` et de `[workspace.lints]`, `src/lib.rs`, `tests/`, le membre de
   `[workspace]`, `cargo update --workspace` ; `python` : son `pyproject.toml` (son groupe `test`,
   pytest et sa configuration), `src/<module>/__init__.py`, `tests/`, le membre d'un espace de uv
-  à la racine quand il y en a un, `uv lock`. Sur du code en place : `typescript` reprend `src/` et
+  à la racine quand il y en a un, `uv lock` ; `c` : son `CMakeLists.txt` (C99 strict, extensions
+  coupées, `-Wall -Wextra -Wpedantic -Werror`, une bibliothèque statique, `add_subdirectory(tests)`),
+  `src/<nom>.h` et `src/<nom>.c` sans comportement, `tests/CMakeLists.txt` qui prend tout
+  `tests/test_*.c` (un exécutable et un test CTest chacun), l'entrée de `workspaces`, aucun verrou ;
+  un dossier qui porte déjà un `CMakeLists.txt` est refusé. Sur du code en place : `typescript` reprend `src/` et
   `tests/` et refuse un fichier de code hors d'eux ; `cargo` reprend une bibliothèque (`src/lib.rs`,
   `src/`, `tests/`) et refuse un binaire (`src/main.rs`, `src/bin/`), un fichier hors de `src/` et
   `tests/`, du code sous `src/` sans `src/lib.rs` ; `python` collecte les tests là où ils sont
@@ -208,13 +215,16 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `~/.rustup/` lus ; `python` : `.venv/` et `.pytest_cache/`, où ses commandes font écrire uv et pytest pour chaque
   paquet, et `~/.cache/grillhouse/uv/` écrits,
   `__pycache__` propre (le code-octet de Python, sous un seul arbre à la racine), uv lui-même, là où son
-  installeur le pose (`~/.local/bin/uv`), et les Python de uv, `~/.local/share/uv/python/`, lus.
+  installeur le pose (`~/.local/bin/uv`), et les Python de uv, `~/.local/share/uv/python/`, lus ;
+  `c` : `.build-cmake/`, où ses commandes font configurer et compiler CMake chaque paquet, écrit.
 - `droits` : les règles de Claude Code qui refusent à un rôle qui écrit l'outil de test lancé
   directement ; `typescript`, Vitest et Turborepo ; `cargo`, `cargo test` et `cargo nextest` ;
-  `python`, pytest, seul, par Python ou par `uv run`.
+  `python`, pytest, seul, par Python ou par `uv run` ; `c`, `ctest`.
 - `composants` : les composants du projet, chacun `{ dossier, nom, paquet }`, le dossier absolu ;
   `cargo`, les membres de l'espace de travail que décrit `cargo metadata --no-deps --offline` ;
-  `python`, chaque dossier qui tient un `pyproject.toml`.
+  `python`, chaque dossier qui tient un `pyproject.toml` ; `c`, chaque dossier dont le
+  `CMakeLists.txt` appelle `project(` (casse libre, commentaires `#` retirés), son nom celui de
+  `project()` ; le `CMakeLists.txt` de `tests/`, sans `project(`, est la matière du paquet.
   L'enveloppe et le lanceur y lisent le plan : un plan qui nomme un composant (un paquet, un
   crate) ouvre ce composant seul en écriture.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout
@@ -223,7 +233,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   pour le testwriter.
 - `joueDesTests` : si un composant joue des tests, que le lanceur du langage y trouve à jouer ;
   `typescript`, un script `test:unit` dans son `package.json` ; `cargo`, un dossier `tests/` ;
-  `python`, un fichier de test du jour (`test_*.py`, `*_test.py`, hors `*_nuit_test.py`). Le circuit en tire les paquets du
+  `python`, un fichier de test du jour (`test_*.py`, `*_test.py`, hors `*_nuit_test.py`) ; `c`, un
+  `tests/test_*.c`. Le circuit en tire les paquets du
   plan qui portent des tests, comme Bazel lit les cibles de test d'un paquet à leur genre.
 - `empreintes` (`racine`, `noms`) : les hachages d'entrées des tâches de tests des composants
   `noms` (le nom de leur paquet) et de leurs dépendants, `{ <paquet>: <hachage> }`, tels que
@@ -255,7 +266,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
 clippy`). Le noyau en lance deux
   quand le module les décrit, et passe l'étape sinon :
   - `construire <chemin>` et `typer <chemin>` (`cargo`, `cargo build -p` et `cargo check -p` du
-    crate de ce dossier ; `python`, la construction et le typage du projet de ce dossier) : les
+    crate de ce dossier ; `python`, la construction et le typage du projet de ce dossier ; `c`,
+    la configuration et la compilation de CMake du paquet de ce dossier, dans `.build-cmake/<paquet>`) : les
     commandes par paquet que les scripts `build` et `typecheck` du `package.json` d'un crate ou
     d'un projet Python appellent, comme la tâche d'un paquet dans Turborepo ; un chemin qui ne
     désigne pas un paquet du langage est refusé (2). `typer` sans chemin type l'espace entier.
@@ -270,7 +282,10 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     chemin n'est pas un paquet du graphe ; une construction en échec écrit dans `<fichier>` sa
     première ligne, puis sa sortie, et rend 0 ; tout autre échec rend un autre code et arrête le
     lancement ;
-  - `tests-du-paquet <chemin>…` (`cargo`, `python`), le corps de la tâche `test:unit` d'un paquet,
+  - `tests-du-paquet <chemin>…` (`cargo`, `python`, `c` : CMake configure et compile, CTest joue
+    chaque `tests/test_*.c`, un test CTest par fichier, dans `.build-cmake/<paquet>`, et son
+    rapport JUnit est repris tel quel ; un fichier de test que CTest n'enregistre pas est rouge,
+    « fichier de test non pris par CTest »), le corps de la tâche `test:unit` d'un paquet,
     que le script `test:unit` de son `package.json` appelle (`grillhouse tests-du-paquet
 <dossier>`, que `npx grillhouse paquet` écrit) : nextest et les doctests d'un crate, ou
     pytest d'un projet Python, sans relancer Turborepo, donc sans la boucle que ferait `tester`.

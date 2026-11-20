@@ -2137,7 +2137,7 @@ langages dans sa configuration (`backend_packages`), le cadre publie un seul paq
 relecture, le tableau, l'enveloppe, les crochets, la mise à jour, le greffon Claude) et un
 **module de langage** par famille, sous `scripts/langages/` : `typescript` (la vérification par
 Turborepo et Vitest, les gardes de structure), `cargo` (la même chose pour Rust, l'épopée
-grillhouse-pkl) et `python` (uv et pytest, grillhouse-ziy). Un projet déclare le langage de chaque paquet à la conception, dans la colonne
+grillhouse-pkl), `python` (uv et pytest, grillhouse-ziy) et `c` (CMake et CTest, grillhouse-3dr.7). Un projet déclare le langage de chaque paquet à la conception, dans la colonne
 « Langage » du tableau des composants de son `docs/ARCHITECTURE.md`, comme le fichier BUILD de
 Bazel nomme la règle de chaque cible : le grill l'écrit (branche 8), le gabarit d'un projet la porte,
 et rien ne se devine aux fichiers ; un projet qui n'en déclare aucun est refusé, nommé. La garde
@@ -2284,7 +2284,23 @@ ne pourrait écrire ; les Python de uv en lecture ; la garde des tailles des tes
 du dossier temporaire, `tempfile` et jamais `mkdtemp` à la main ; l'index des interfaces, qu'il
 engendre comme cargo, et que l'index du noyau remplace dans un projet de plusieurs langages), ses
 tests sous `tests/unit/langages/python/`, la suite de conformité comprise, contre un faux uv, le
-vrai à la nuit ; les entrées publiées (`./consommateurs`,
+vrai à la nuit ; le module
+c sous `scripts/langages/c/` (un paquet par dossier dont le `CMakeLists.txt` appelle `project(<nom>`,
+le nom de `project()` étant celui de sa ligne du tableau ; C99 strict, `src/<nom>.h` et
+`src/<nom>.c`, `tests/CMakeLists.txt` écrit une fois par le squelette, qui prend tout
+`tests/test_*.c` : un fichier, un exécutable, un test CTest ; le testwriter écrit `tests/test_*.c`
+et le reste de `tests/`, jamais le `CMakeLists.txt` de la racine du paquet ; les tests par
+`cmake -S -B`, `cmake --build` et `ctest --output-junit` dans `.build-cmake/<paquet>` à la racine,
+hors de l'arbre du paquet, que l'enveloppe ouvre en écriture et que git ignore ; le rapport JUnit
+de CTest repris tel quel, regroupé par fichier pour le verdict, un fichier de test que CTest
+n'enregistre pas rouge ; un paquet joué entier sans test vert ; le typage rejoue la compilation ;
+`cmake` et `ctest` exigés du poste, nommés quand ils manquent ; ni C++, ni compilation croisée, ni
+test de nuit, ni garde des tailles ; l'index des interfaces, qu'il engendre comme python), ses
+tests sous `tests/unit/langages/c/`, contre un faux cmake et un faux ctest, le vrai à la nuit ; un
+dossier qui porte à la fois un `Cargo.toml` et un `CMakeLists.txt` à `project(` est refusé par la
+garde des langages, un paquet n'ayant qu'un langage ; les entrées de construction de `turbo.json`
+d'un paquet c sont son seul dossier, chaque langage hors JavaScript ayant sa branche explicite du
+générateur, un langage inconnu une faute nommée) ; les entrées publiées (`./consommateurs`,
 `./vitest-config`, `./vitest-config/mesure`, `./vitest-config/duree`, `./tsdoc-base.json`) mènent au module. Comme un
 greffon de Nx n'importe que `@nx/devkit`, le module n'importe du noyau que ses entrées publiées :
 `./jointure` (`scripts/services-du-noyau.mjs`) lui donne les services du noyau qu'il emploie (le plan d'une

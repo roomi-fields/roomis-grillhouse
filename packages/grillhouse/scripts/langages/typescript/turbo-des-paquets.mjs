@@ -670,16 +670,27 @@ function entreesBuild(racine, dossier, pkg, sm) {
 // example of Rust names them (rust.mdx § Caching behavior), none of TypeScript's. A crate: its
 // folder (Turborepo's default), then the Cargo.lock and the Cargo.toml of the root, the lock and
 // the manifest of its workspace. A project of Python: its folder, which holds its own uv.lock and
-// pyproject.toml, then the ones of the root when it has them (a workspace of uv).
+// pyproject.toml, then the ones of the root when it has them (a workspace of uv). A package of C:
+// its folder alone. An unknown language is a fault, named.
 function entreesDeBuildHorsJs(racine, langageNom) {
   const racineDe = f => `$TURBO_ROOT$/${f}`;
   if (langageNom === 'cargo') {
     return ['$TURBO_DEFAULT$', racineDe('Cargo.lock'), racineDe('Cargo.toml')];
   }
-  return [
-    '$TURBO_DEFAULT$',
-    ...['pyproject.toml', 'uv.lock'].filter(f => existsSync(path.join(racine, f))).map(racineDe),
-  ];
+  if (langageNom === 'python') {
+    return [
+      '$TURBO_DEFAULT$',
+      ...['pyproject.toml', 'uv.lock'].filter(f => existsSync(path.join(racine, f))).map(racineDe),
+    ];
+  }
+  // A package of C: its folder alone, which holds its CMakeLists.txt; it has no lock and no root
+  // manifest.
+  if (langageNom === 'c') {
+    return ['$TURBO_DEFAULT$'];
+  }
+  throw new Error(
+    `⛔ entrées de build : langage inconnu du générateur de turbo.json, ${langageNom}`
+  );
 }
 
 // The data and traces each package of the frame declares in its package.json:
