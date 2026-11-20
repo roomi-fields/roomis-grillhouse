@@ -839,7 +839,7 @@ export function restaurerLaCopie(ctx, commit) {
 // of the project (`ctx.outils`, `grillhouse.outils`) and its data (`ctx.donnees`,
 // `grillhouse.donnees`), read at the launch, whatever <base> holds, then <env>.
 export const environnementDeLaPasse = (ctx, base, env = {}) => ({
-  ...avecLesDonnees(ctx.donnees ?? {}, avecLesOutils(ctx.outils ?? {}, base)),
+  ...avecLesDonnees(ctx.donnees ?? {}, avecLesOutils(ctx.outils ?? {}, base, ctx.empreintes ?? {})),
   ...env,
 });
 

@@ -37,6 +37,17 @@ describe('critère 2 — the environment of a pass of the circuit', () => {
       X_OUTIL: '/h/.cache/outil',
     });
   });
+  it('holds the fingerprint of a tool hashed by content, the key winning', () => {
+    const ctx = {
+      outils: { X_OUTIL: '/h/.cache/outil' },
+      empreintes: { X_OUTIL_EMPREINTE: 'abc' },
+    };
+    expect(environnementDeLaPasse(ctx, { PATH: '/bin', X_OUTIL_EMPREINTE: 'périmée' })).toEqual({
+      PATH: '/bin',
+      X_OUTIL: '/h/.cache/outil',
+      X_OUTIL_EMPREINTE: 'abc',
+    });
+  });
   it('is the launcher’s without tools', () => {
     expect(environnementDeLaPasse({ outils: {} }, { PATH: '/bin' })).toEqual({ PATH: '/bin' });
   });
@@ -48,7 +59,24 @@ describe('critère 3 — the launch reads the key, and a faulty key is the stop 
     mkdirSync(outil, { recursive: true });
     expect(outilsAuLancement(projet('valide', { X_OUTIL: outil }))).toEqual({
       outils: { X_OUTIL: outil },
+      empreintes: {},
     });
+  });
+  it('gives the fingerprint of a tool hashed by content, which the passes play with', () => {
+    const outil = path.join(ESSAIS, 'outil-haché');
+    mkdirSync(outil, { recursive: true });
+    writeFileSync(path.join(outil, 'f'), 'contenu');
+    const r = outilsAuLancement(projet('haché', { X_OUTIL: { chemin: outil, contenu: true } }));
+    expect(r.outils).toEqual({ X_OUTIL: outil });
+    expect(Object.keys(r.empreintes ?? {})).toEqual(['X_OUTIL_EMPREINTE']);
+    expect(r.empreintes?.X_OUTIL_EMPREINTE).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it('gives the stop « lancement » for a hashed tool that is absent, naming it', () => {
+    const { arret } = outilsAuLancement(
+      projet('haché-absent', { X_OUTIL: { chemin: '/nulle/part/outil', contenu: true } })
+    );
+    expect(arret).toMatchObject({ code: ARRETS.lancement, nom: 'lancement' });
+    expect(arret?.question).toContain('grillhouse.outils.X_OUTIL');
   });
   it('gives the stop « lancement », code 10, its report, piece and question naming the fault', () => {
     const { arret, outils } = outilsAuLancement(projet('fautive', { X_OUTIL: '~' }));

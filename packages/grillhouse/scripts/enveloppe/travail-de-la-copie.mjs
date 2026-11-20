@@ -72,7 +72,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { couvertPar, encoreDeclares, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
-import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
+import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 
 const LOT = 'grillhouse-travail.patch';
 
@@ -106,7 +106,10 @@ function lesCles(copie) {
   try {
     return {
       engendres: engendresDe(copie),
-      env: avecLesDonnees(donneesDe(copie), avecLesOutils(outilsDe(copie), process.env)),
+      env: avecLesDonnees(
+        donneesDe(copie),
+        avecLesOutils(outilsDe(copie), process.env, empreintesDe(copie))
+      ),
     };
   } catch (e) {
     return {

@@ -324,14 +324,30 @@ const POURQUOI = {
 };
 // The variables of the tools of the project at <racine> (`grillhouse.outils` of its package.json,
 // scripts/outils-cles.mjs), in the order it declares them: the paths of tools outside the
-// repository its tests demand, which the run passes to every task without hashing them. A key
-// that is no variable name is the guard of the tools' (`grillhouse outil`), not this one's.
+// repository its tests demand, which the run passes to every task without hashing them; a tool
+// declared hashed by content (`{ chemin, contenu: true }`) is not among them: its fingerprint is
+// (`empreintesDOutils`). A key that is no variable name is the guard of the tools' (`grillhouse
+// outil`), not this one's.
 function variablesDOutils(racine) {
+  return lesOutils(racine).filter(([, haché]) => !haché).map(([n]) => n);
+}
+// The variables `<VARIABLE>_EMPREINTE` of the tools of the project at <racine> declared hashed by
+// content, in the order the key declares them: the root's `globalEnv` names them, Turborepo
+// hashing the value of a variable it declares (the value scripts/outils-cles.mjs gives each pass).
+function empreintesDOutils(racine) {
+  return lesOutils(racine)
+    .filter(([, haché]) => haché)
+    .map(([n]) => `${n}_EMPREINTE`);
+}
+// The tools of the project at <racine>, `[variable, hashed by content]` in the order of the key.
+function lesOutils(racine) {
   try {
     const o = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).grillhouse
       ?.outils;
     return o && typeof o === 'object' && !Array.isArray(o)
-      ? Object.keys(o).filter(n => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n))
+      ? Object.entries(o)
+          .filter(([n]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n))
+          .map(([n, v]) => [n, v !== null && typeof v === 'object' && v.contenu === true])
       : [];
   } catch {
     return [];
@@ -913,6 +929,19 @@ function passagesManquants(racine) {
   return manques.length ? { f: r.f, attendu: [...actuel, ...manques], manques } : null;
 }
 
+// The `globalEnv` the root's turbo.json at <racine> must hold, the fingerprint of each tool hashed
+// by content it lacks added to the project's: { f, attendu, manques }; null when it holds them,
+// without a root configuration, and when it is no JSON.
+function empreintesManquantes(racine) {
+  const r = confRacine(racine);
+  if (!r) {
+    return null;
+  }
+  const actuel = Array.isArray(r.conf.globalEnv) ? r.conf.globalEnv : [];
+  const manques = empreintesDOutils(racine).filter(v => !actuel.includes(v));
+  return manques.length ? { f: r.f, attendu: [...actuel, ...manques], manques } : null;
+}
+
 // The inputs of the root's turbo.json at <racine> that can reach the `.git` of a submodule its
 // .gitmodules declares (a pattern under `$TURBO_ROOT$/` of a task, or a global dependency, whose
 // fixed part is the submodule or holds it, then a glob) without its exclusion beside them:
@@ -1017,6 +1046,19 @@ export function ecrire(racine) {
     writeFileSync(abs, applyEdits(texte, modify(texte, chemin, passage.attendu, MISE_EN_FORME)));
     if (!ecrits.includes(passage.f)) {
       ecrits.push(passage.f);
+    }
+  }
+  const empreintes = empreintesManquantes(racine);
+  if (empreintes) {
+    const abs = path.join(racine, empreintes.f);
+    const texte = readFileSync(abs, 'utf8');
+    const chemin = ['globalEnv'];
+    writeFileSync(
+      abs,
+      applyEdits(texte, modify(texte, chemin, empreintes.attendu, MISE_EN_FORME))
+    );
+    if (!ecrits.includes(empreintes.f)) {
+      ecrits.push(empreintes.f);
     }
   }
   const gits = gitsAbsents(racine);
@@ -1218,6 +1260,12 @@ export function verifier(racine) {
   for (const v of passage?.manques ?? []) {
     refus.push(
       `⛔ ${passage.f} : \`globalPassThroughEnv\` doit nommer ${v}, ${POURQUOI[v] ?? (variablesDeDonnees(racine).includes(v) ? "la donnée d'un paquet (`grillhouse.donnees`) que ses tests exigent" : "l'outil du projet (`grillhouse.outils`) que ses tests exigent")} ; \`${COMMANDE}\` l'ajoute.`
+    );
+  }
+  const empreintes = empreintesManquantes(racine);
+  for (const v of empreintes?.manques ?? []) {
+    refus.push(
+      `⛔ ${empreintes.f} : \`globalEnv\` doit nommer ${v}, l'empreinte du contenu d'un outil du projet déclaré haché (\`grillhouse.outils\`, \`contenu: true\`), dont Turborepo hache la valeur ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   for (const { cle, attendu, present } of gardesEcartees(racine)?.ecarts ?? []) {

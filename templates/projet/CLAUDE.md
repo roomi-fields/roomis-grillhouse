@@ -49,7 +49,11 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   par défaut : les heures, à l'heure locale, où l'attente d'une réponse compte au bilan comme nuit,
   à part de l'attente du superviseur et de celle du responsable).
 - Les outils du projet : la clé `grillhouse.outils` du `package.json` (`{ "<VARIABLE>": "<chemin>" }`,
-  un chemin absolu ou sous `~` : un outil hors du dépôt que les tests exigent ; l'enveloppe d'un
+  un chemin absolu ou sous `~` : un outil hors du dépôt que les tests exigent ; la forme longue
+  `{ "<VARIABLE>": { "chemin": "<chemin>", "contenu": true } }` le hache par son contenu : son
+  empreinte SHA-256 (fichier, ou liste triée des entrées d'un dossier) entre dans le hachage des
+  tâches par le `globalEnv` du `turbo.json` racine et se donne aux passes en `<VARIABLE>_EMPREINTE`,
+  un outil changé rejouant toutes les tâches du projet, et la forme courte reste non hachée ; l'enveloppe d'un
   agent le monte en lecture seule et lui passe la variable, et le circuit, `npm run verifier` et la
   nuit jouent avec la même ; lue dans l'arbre principal ; un chemin qui recouvrirait l'enveloppe
   (`/`, la maison, un dossier caché de la maison hors `~/.local` et `~/.cache`, le trousseau

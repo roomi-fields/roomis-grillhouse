@@ -622,7 +622,7 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { outilsDe } from './outils-cles.mjs';
+import { empreintesDe, outilsDe } from './outils-cles.mjs';
 import { donneesDe } from './donnees-cles.mjs';
 import { engendresDe } from './engendres.mjs';
 import { fluxDe } from './flux-des-paquets.mjs';
@@ -1047,7 +1047,7 @@ export const SANS_CONFLIT = Object.freeze({
 // session (its code, name, report, piece and question), the faults of the key named.
 export function outilsAuLancement(racine) {
   try {
-    return { outils: outilsDe(racine) };
+    return { outils: outilsDe(racine), empreintes: empreintesDe(racine) };
   } catch (err) {
     const rapport = `La clé grillhouse.outils du package.json est refusée :\n${err.message}`;
     return {
@@ -2442,6 +2442,7 @@ async function avantLePlan(ctx, e) {
     return { code: monter(ctx, { ...lancement.arret, etat: d }) };
   }
   ctx.outils = lancement.outils;
+  ctx.empreintes = lancement.empreintes;
   const donnees = donneesAuLancement(ctx.racine);
   if (donnees.arret) {
     return { code: monter(ctx, { ...donnees.arret, etat: d }) };

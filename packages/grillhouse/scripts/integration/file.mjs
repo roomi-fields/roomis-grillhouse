@@ -83,7 +83,7 @@ import {
   regenerer,
 } from '../engendres.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
-import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
+import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
 import { lotSurMain } from './integrer.mjs';
@@ -672,7 +672,10 @@ function remplacer(o, tip, tete) {
   let env;
   try {
     engendres = engendresDe(racine);
-    env = avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), process.env));
+    env = avecLesDonnees(
+      donneesDe(racine),
+      avecLesOutils(outilsDe(racine), process.env, empreintesDe(racine))
+    );
   } catch (e) {
     return { garde: `une clé grillhouse du package.json est refusée :\n${e.message}` };
   }

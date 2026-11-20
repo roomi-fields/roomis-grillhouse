@@ -17,13 +17,27 @@
 //   the machine keeps its credentials, but `~/.local` and `~/.cache`; nor under or holding
 //   `~/.local/share/keyrings`, the keyrings of the machine's credentials. A path that is a link is
 //   judged by its target too, which the envelope mounts with it.
+// - A tool is a string path (unhashed) or `{ "chemin": "<chemin>", "contenu": true }`: hashed by
+//   content, Bazel counting the tools of an action among its inputs. Its fingerprint
+//   (`empreinteDeLOutil`, `empreintesDe`) is given to every pass as `<VARIABLE>_EMPREINTE`, which
+//   the root turbo.json's `globalEnv` names so that Turborepo hashes its value. Any other object
+//   form is refused, its key named; a hashed tool absent, unreadable or special is refused too.
 // - The key is read from the package.json of the main tree of the repository (`outilsDe`), never of
 //   a copy: an agent never opens a path for its next session.
 // - `node outils-cles.mjs <dir>` writes one line `export VARIABLE='chemin'` per tool of the project
 //   that holds <dir>, the path resolved and quoted for the shell (`exportsDesOutils`), which the
 //   night evaluates, exit 0; a faulty key writes its faults on stderr, exit 1.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -90,11 +104,12 @@ export function lireOutils(
 ) {
   const o = pkg?.grillhouse?.outils;
   if (o === undefined || o === null) {
-    return { outils: {}, fautes: [] };
+    return { outils: {}, contenu: [], fautes: [] };
   }
   if (typeof o !== 'object' || Array.isArray(o)) {
     return {
       outils: {},
+      contenu: [],
       fautes: [
         `la clé grillhouse.outils vaut ${JSON.stringify(o)}, pas un objet { VARIABLE: chemin }.`,
       ],
@@ -104,9 +119,29 @@ export function lireOutils(
   const fautes = [];
   /** @type {Record<string, string>} */
   const outils = {};
-  for (const [nom, v] of Object.entries(o)) {
+  /** @type {string[]} */
+  const contenu = [];
+  for (const [nom, forme] of Object.entries(o)) {
     const cle = `grillhouse.outils.${nom}`;
-    if (!NOM.test(nom)) {
+    let v = forme;
+    let haché = false;
+    let faute = null;
+    if (forme !== null && typeof forme === 'object' && !Array.isArray(forme)) {
+      const inconnue = Object.keys(forme).find(k => k !== 'chemin' && k !== 'contenu');
+      if (inconnue !== undefined) {
+        faute = `la clé ${cle} nomme « ${inconnue} », une clé inconnue (seuls « chemin » et « contenu » existent).`;
+      } else if (typeof forme.chemin !== 'string') {
+        faute = `la clé ${cle}.chemin vaut ${JSON.stringify(forme.chemin)}, pas un chemin.`;
+      } else if ('contenu' in forme && typeof forme.contenu !== 'boolean') {
+        faute = `la clé ${cle}.contenu vaut ${JSON.stringify(forme.contenu)}, pas un booléen.`;
+      } else {
+        v = forme.chemin;
+        haché = forme.contenu === true;
+      }
+    }
+    if (faute) {
+      fautes.push(faute);
+    } else if (!NOM.test(nom)) {
       fautes.push(`la clé grillhouse.outils nomme « ${nom} », pas un nom de variable.`);
     } else if (typeof v !== 'string') {
       fautes.push(`la clé ${cle} vaut ${JSON.stringify(v)}, pas un chemin.`);
@@ -125,12 +160,89 @@ export function lireOutils(
         fautes.push(`${refusDeLaCible} (la cible du lien ${chemin})`);
       } else if (existe(chemin)) {
         outils[nom] = chemin;
+        if (haché) {
+          contenu.push(nom);
+        }
       } else {
         fautes.push(`la clé ${cle} nomme ${chemin}, qui n'existe pas.`);
       }
     }
   }
-  return { outils: fautes.length ? {} : outils, fautes };
+  return fautes.length ? { outils: {}, contenu: [], fautes } : { outils, contenu, fautes };
+}
+
+// The directories the fingerprint of a directory tool leaves out: the compilation caches an
+// interpreter writes when used.
+const SANS_EMPREINTE = new Set(['__pycache__']);
+
+// The entries of the tool <racine> as lines [relative path, type, executable bit, content digest],
+// the directory walked in the order of the bytes of the names.
+function entreesDe(racine, rel, lignes, nomme) {
+  const dossier = path.join(racine, rel);
+  let noms;
+  try {
+    noms = readdirSync(dossier, { encoding: 'buffer' }).sort(Buffer.compare);
+  } catch (e) {
+    throw new Error(`${nomme} : ${dossier} est illisible (${/** @type {Error} */ (e).message}).`);
+  }
+  for (const buf of noms) {
+    const nom = buf.toString('utf8');
+    const r = rel ? path.join(rel, nom) : nom;
+    const p = path.join(racine, r);
+    const st = lstatSync(p);
+    if (st.isDirectory()) {
+      if (!SANS_EMPREINTE.has(nom)) {
+        entreesDe(racine, r, lignes, nomme);
+      }
+    } else if (st.isSymbolicLink()) {
+      lignes.push(['l', r, '0', readlinkSync(p)]);
+    } else if (st.isFile()) {
+      lignes.push(['f', r, st.mode & 0o111 ? '1' : '0', contenuDe(p, nomme)]);
+    } else {
+      throw new Error(`${nomme} : ${p} est un fichier spécial (ni fichier, ni dossier, ni lien).`);
+    }
+  }
+}
+
+// The SHA-256 of the file <p>, the tool <nomme> named when it is unreadable.
+function contenuDe(p, nomme) {
+  try {
+    return createHash('sha256').update(readFileSync(p)).digest('hex');
+  } catch (e) {
+    throw new Error(`${nomme} : ${p} est illisible (${/** @type {Error} */ (e).message}).`);
+  }
+}
+
+/**
+ * The fingerprint of the tool at <chemin>: for a file, the SHA-256 of its content; for a
+ * directory, the SHA-256 of the list of its entries sorted by the bytes of their relative path,
+ * each by its path, its type, its executable bit and its content (a link by the text of its target,
+ * never followed); the `__pycache__` directories are left out; no date, owner or absolute path
+ * enters it, so a directory moved or touched keeps it.
+ * @param {string} chemin
+ * @param {string} [nomme] what an error names (the tool), the path by default
+ * @returns {string} a hex digest
+ * @throws {Error} an unreadable file or a special file, named
+ */
+export function empreinteDeLOutil(chemin, nomme = chemin) {
+  // The tool itself, a link or not, is read through (the envelope mounts what it leads to).
+  const st = statSync(chemin);
+  if (!st.isDirectory()) {
+    return contenuDe(chemin, nomme);
+  }
+  /** @type {string[][]} */
+  const lignes = [];
+  entreesDe(chemin, '', lignes, nomme);
+  const h = createHash('sha256');
+  for (const l of lignes) {
+    // Each field is prefixed by its length: the boundaries of names and contents count.
+    for (const champ of l) {
+      const b = Buffer.from(champ, 'utf8');
+      h.update(`${b.length}:`).update(b);
+    }
+    h.update('\n');
+  }
+  return h.digest('hex');
 }
 
 // The main tree of the repository that holds <dir>, from git's common directory; <dir> itself out
@@ -156,41 +268,69 @@ export function arbrePrincipal(dir) {
  * @throws {Error} the faults of the key, one per line
  */
 export function outilsDe(dir, { montages = [] } = {}) {
+  return lectureDuProjet(dir, montages).outils;
+}
+
+// The reading of the key of the project that holds <dir>: `outils` and the variables hashed by
+// content, `contenu`; throws the faults of the key.
+function lectureDuProjet(dir, montages = []) {
   const racine = arbrePrincipal(dir);
   const f = path.join(racine, 'package.json');
   if (!existsSync(f)) {
-    return {};
+    return { outils: {}, contenu: [] };
   }
   const temporaires = [process.env.CLAUDE_CODE_TMPDIR, os.tmpdir(), '/tmp'].filter(Boolean);
-  const { outils, fautes } = lireOutils(JSON.parse(readFileSync(f, 'utf8')), {
+  const { outils, contenu, fautes } = lireOutils(JSON.parse(readFileSync(f, 'utf8')), {
     montages: [racine, ...temporaires, ...montages],
   });
   if (fautes.length) {
     throw new Error(fautes.join('\n'));
   }
-  return outils;
+  return { outils, contenu };
 }
 
 /**
- * The environment <env> of a pass with the tools <outils> (`outilsDe`), the tools winning.
- * @param {Record<string, string>} outils
- * @param {Record<string, string | undefined>} env
+ * The fingerprints of the tools of the project that holds <dir> declared hashed by content
+ * (`{ chemin, contenu: true }`): `<VARIABLE>_EMPREINTE` and the SHA-256 of the tool
+ * (`empreinteDeLOutil`), read again at each call; none for a tool of the short form.
+ * @param {string} dir a directory of the project: its main tree or a copy
+ * @param {{ montages?: string[] }} [o]
+ * @returns {Record<string, string>}
+ * @throws {Error} the faults of the key, or a hashed tool unreadable, its variable named
  */
-export function avecLesOutils(outils, env) {
-  return { ...env, ...outils };
+export function empreintesDe(dir, { montages = [] } = {}) {
+  const { outils, contenu } = lectureDuProjet(dir, montages);
+  return Object.fromEntries(
+    contenu.map(nom => [
+      `${nom}_EMPREINTE`,
+      empreinteDeLOutil(outils[nom], `la clé grillhouse.outils.${nom}`),
+    ])
+  );
 }
 
-// The shell's text that exports the tools <outils> (`outilsDe`), one `export VARIABLE='chemin'`
-// per line, each path quoted for the shell: what the night evaluates before its commands.
-export const exportsDesOutils = outils =>
-  Object.entries(outils)
+/**
+ * The environment <env> of a pass with the tools <outils> (`outilsDe`) and the fingerprints
+ * <empreintes> (`empreintesDe`), the key winning.
+ * @param {Record<string, string>} outils
+ * @param {Record<string, string | undefined>} env
+ * @param {Record<string, string>} [empreintes]
+ */
+export function avecLesOutils(outils, env, empreintes = {}) {
+  return { ...env, ...outils, ...empreintes };
+}
+
+// The shell's text that exports the tools <outils> (`outilsDe`) and the fingerprints
+// <empreintes> (`empreintesDe`), one `export VARIABLE='valeur'` per line, each value quoted for
+// the shell: what the night evaluates before its commands.
+export const exportsDesOutils = (outils, empreintes = {}) =>
+  Object.entries({ ...outils, ...empreintes })
     .map(([n, c]) => `export ${n}='${c.replaceAll("'", "'\\''")}'\n`)
     .join('');
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   try {
-    const outils = outilsDe(path.resolve(process.argv[2] ?? '.'));
-    process.stdout.write(exportsDesOutils(outils));
+    const dir = path.resolve(process.argv[2] ?? '.');
+    process.stdout.write(exportsDesOutils(outilsDe(dir), empreintesDe(dir)));
   } catch (e) {
     process.stderr.write(`${/** @type {Error} */ (e).message}\n`);
     process.exitCode = 1;

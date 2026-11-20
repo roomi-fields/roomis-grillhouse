@@ -98,7 +98,7 @@ import { langageDe } from '../langages.mjs';
 import { prefixe } from '../prefixe-des-tickets.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
-import { avecLesOutils, outilsDe } from '../outils-cles.mjs';
+import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
 import { verdictDe } from './verdict.mjs';
@@ -374,10 +374,12 @@ function main(argv) {
     // 0. The keys of the project, before any work.
     let engendres;
     let outils;
+    let empreintes;
     let donnees;
     try {
       engendres = engendresDe(racine);
       outils = outilsDe(racine);
+      empreintes = empreintesDe(racine);
       donnees = donneesDe(racine);
     } catch (e) {
       return refuser(`Une clé grillhouse du package.json est refusée :\n${e.message}`);
@@ -514,7 +516,7 @@ function main(argv) {
     }
     const aRejouer = part.rejouees;
     if (aRejouer.length) {
-      const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env));
+      const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env, empreintes));
       const refus = regenerer({
         refs: aRejouer,
         dansCopie,

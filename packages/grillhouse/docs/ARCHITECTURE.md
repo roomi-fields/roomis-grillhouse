@@ -145,6 +145,34 @@ le circuit s'arrête à « lancement », l'enveloppe, `verifier` et la nuit refu
 développeur joue les tests qu'il doit rendre verts avec l'outil que voient les contrôles (SyntHub,
 SH-cgi.8 : son Python, donné par `SYNTHHUB_PYTHON`, n'existait pas dans l'enveloppe).
 
+**Un outil se déclare haché par son contenu** : Bazel compte les outils d'une action parmi ses
+entrées, hachées par contenu ; Turborepo ne hache que les fichiers d'une tâche (`inputs`) et la
+valeur de ses variables (`env`, `globalEnv`), et `globalPassThroughEnv` passe une variable sans la
+hacher, si bien qu'un outil hors du dépôt que la construction lie dans son produit (SyntHub,
+SH-9ha.1.2 : le Python lié au binaire du service) rejouait l'ancien produit quand il changeait.
+La clé s'écrit donc de deux formes : `{ "<VARIABLE>": "<chemin>" }`, non hachée, inchangée, ou
+`{ "<VARIABLE>": { "chemin": "<chemin>", "contenu": true } }`, hachée ; toute autre forme d'objet
+(clé inconnue, `contenu` non booléen, `chemin` manquant) est refusée par son nom, la clé fautive
+nommée, et les contrôles du chemin ci-dessus valent pour les deux formes. L'empreinte d'un outil
+fichier est le SHA-256 de son contenu ; celle d'un outil dossier, le SHA-256 de la liste triée
+(ordre des octets) de ses entrées, chacune par son chemin relatif, son type, son bit exécutable et
+son contenu : tout fichier régulier y entre, un lien par le texte de sa cible, jamais suivi ; les
+dossiers `__pycache__` en sortent ; ni date, ni propriétaire, ni chemin absolu n'y entrent, si bien
+qu'un dossier copié ailleurs ou seulement touché garde la sienne. Un fichier illisible ou spécial
+(socket, tube), ou un outil absent, est refusé par le nom de sa clé avant tout travail. Chaque passe
+(circuit, `npm run verifier` et les sous-commandes du langage, nuit, copie de l'intégration) reçoit
+`<VARIABLE>_EMPREINTE` en plus de `<VARIABLE>` (`empreintesDe`) ; le générateur des `turbo.json`
+l'écrit dans le `globalEnv` du `turbo.json` racine, que la garde exige, et un outil non haché reste
+dans `globalPassThroughEnv`, jamais dans `globalEnv`. **Écart à la référence** : Bazel déclare
+l'outil sur l'action qui l'utilise ; ici l'outil se déclare une fois pour le projet
+(`grillhouse.outils` ne dit pas quel paquet l'utilise), donc son empreinte entre au hachage global
+et un outil changé rejoue toutes les tâches du projet, comportement accepté par le responsable
+(grillhouse-3uv.113). Le calcul relit tout l'outil à chaque passe, sans mémoire entre deux passes ;
+mesuré sur l'outil de SyntHub (le Python de son service, `~/.cache/synthhub-python`, 151 Mo en
+19 207 fichiers), il coûte 1,2 s à froid et 0,19 s à chaud ; un outil d'un seul fichier, 4 à 7 ms
+(grillhouse-3uv.113, mesure du superviseur, 2026-11-20). Si ce coût devient trop haut, une mémoire
+d'empreinte fait un ticket neuf.
+
 **Les données d'un paquet se déclarent** : comme les `data` de Bazel (`data = ["//crates/service:synthhub"]`),
 un paquet déclare la sortie d'un autre paquet que ses tests lancent dans `grillhouse.donnees` de son
 `package.json` (`{ "<VARIABLE>": "<paquet>#<sortie>" }`), à côté de `grillhouse.outils`, et inscrit

@@ -22,7 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { langageDe } from './langages.mjs';
 import { avecLesDonnees, donneesDe } from './donnees-cles.mjs';
-import { avecLesOutils, outilsDe } from './outils-cles.mjs';
+import { avecLesOutils, empreintesDe, outilsDe } from './outils-cles.mjs';
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 
@@ -155,7 +155,10 @@ export function environnementDe(nom, racine = process.cwd(), env = process.env) 
     return env;
   }
   const poste = langageDe(racine).environnementDuPoste(env);
-  return avecLesDonnees(donneesDe(racine), avecLesOutils(outilsDe(racine), poste));
+  return avecLesDonnees(
+    donneesDe(racine),
+    avecLesOutils(outilsDe(racine), poste, empreintesDe(racine))
+  );
 }
 
 // The script of each subcommand in the project at <racine>, where a former copy of the frame lay

@@ -909,6 +909,106 @@ describe('the globalPassThroughEnv of the root names the results and the changes
   });
 });
 
+// A tool hashed by content (`grillhouse.outils`, `{ chemin, contenu: true }`): Turborepo hashes the
+// value of a variable the root's `globalEnv` names, so the generator writes `<VARIABLE>_EMPREINTE`
+// there; an unhashed tool stays in `globalPassThroughEnv`, never in `globalEnv`.
+describe('the globalEnv of the root names the fingerprint of each tool hashed by content', () => {
+  const racineAvecOutils = (outils: Record<string, unknown>) => {
+    const racine = depotAPaquets();
+    const p = JSON.parse(lire(racine, 'package.json')) as Record<string, unknown>;
+    ecrireFichier(racine, 'package.json', pkg({ ...p, grillhouse: { outils } }));
+    return racine;
+  };
+  const conf = (racine: string) =>
+    parseJsonc(lire(racine, 'turbo.json'), [], { allowTrailingComma: true }) as {
+      globalEnv?: string[];
+      globalPassThroughEnv?: string[];
+    };
+  const OUTILS = {
+    PYTHON_SYNTHHUB: { chemin: '/opt/python', contenu: true },
+    CLE_COURTE: '/opt/cle',
+    AUTRE_HACHE: { chemin: '/opt/autre', contenu: true },
+  };
+
+  it('the generator writes each fingerprint into globalEnv, in the order of the key', () => {
+    const racine = racineAvecOutils(OUTILS);
+    ecrire(racine);
+    expect(conf(racine).globalEnv).toEqual(['PYTHON_SYNTHHUB_EMPREINTE', 'AUTRE_HACHE_EMPREINTE']);
+  });
+  it('an unhashed tool stays in globalPassThroughEnv, never in globalEnv; a hashed one is not passed through', () => {
+    const racine = racineAvecOutils(OUTILS);
+    ecrire(racine);
+    const c = conf(racine);
+    expect(c.globalPassThroughEnv).toContain('CLE_COURTE');
+    expect(c.globalEnv).not.toContain('CLE_COURTE');
+    expect(c.globalPassThroughEnv).not.toContain('PYTHON_SYNTHHUB_EMPREINTE');
+  });
+  it('a project with only short forms has no fingerprint in globalEnv', () => {
+    const racine = racineAvecOutils({ CLE_COURTE: '/opt/cle' });
+    ecrire(racine);
+    expect(conf(racine).globalEnv ?? []).toEqual([]);
+  });
+  it('keeps the globalEnv the project already holds, and writes it once', () => {
+    const racine = racineAvecOutils(OUTILS);
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as Record<string, unknown>;
+    t.globalEnv = ['MON_ENV'];
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    ecrire(racine);
+    ecrire(racine);
+    expect(conf(racine).globalEnv).toEqual([
+      'MON_ENV',
+      'PYTHON_SYNTHHUB_EMPREINTE',
+      'AUTRE_HACHE_EMPREINTE',
+    ]);
+  });
+  it('the check refuses a globalEnv that lacks one, naming the variable and the command; the command adds it', () => {
+    const racine = racineAvecOutils(OUTILS);
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as Record<string, unknown>;
+    t.globalEnv = ['AUTRE_HACHE_EMPREINTE'];
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('PYTHON_SYNTHHUB_EMPREINTE');
+    expect(r.stderr).toContain('globalEnv');
+    expect(r.stderr).toContain(COMMANDE);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(conf(racine).globalEnv).toEqual(['AUTRE_HACHE_EMPREINTE', 'PYTHON_SYNTHHUB_EMPREINTE']);
+    expect(lancer(racine, []).status).toBe(0);
+  });
+  it('the check refuses a root with no globalEnv at all while a tool is hashed', () => {
+    const racine = racineAvecOutils(OUTILS);
+    ecrire(racine);
+    const t = JSON.parse(lire(racine, 'turbo.json')) as Record<string, unknown>;
+    delete t.globalEnv;
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+    const r = lancer(racine, []);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('AUTRE_HACHE_EMPREINTE');
+  });
+  it('declaring a hashed tool afterwards goes through the regeneration command', () => {
+    const racine = racineAvecOutils({ CLE_COURTE: '/opt/cle' });
+    ecrire(racine);
+    expect(lancer(racine, []).status).toBe(0);
+    const p = JSON.parse(lire(racine, 'package.json')) as Record<string, unknown>;
+    ecrireFichier(
+      racine,
+      'package.json',
+      pkg({
+        ...p,
+        grillhouse: {
+          outils: { CLE_COURTE: '/opt/cle', X_OUTIL: { chemin: '/opt/x', contenu: true } },
+        },
+      })
+    );
+    expect(lancer(racine, []).status).toBe(1);
+    expect(lancer(racine, ['--ecrire']).status).toBe(0);
+    expect(conf(racine).globalEnv).toEqual(['X_OUTIL_EMPREINTE']);
+    expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
 // Witness: BPScript, whose dead-code guard refused « jsonc-parser: devDependency without use »:
 // the generator loaded it by a `require` knip does not follow, and the frame's own tests, which
 // import it too, stay in Grillhouse. The generator imports it as any module does.
