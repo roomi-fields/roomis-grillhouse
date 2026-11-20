@@ -142,7 +142,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   projet joue après `npm ci` (le gabarit `templates/projet/.github/workflows/`) ; 0 tout installé
   ou à jour, 1 un échec, sa ligne nommant la commande à taper, 2 un argument ou un langage refusé. `typescript`, aucun ; `cargo`, nextest, cargo-deny et
   sccache (`scripts/langages/cargo/binaires.json`) ; `python`, uv
-  (`scripts/langages/python/binaires.json`) ; `c`, aucun (CMake est celui du poste).
+  (`scripts/langages/python/binaires.json`) ; `c`, uv (à la version du module python, une seule source), clang-format 21.1.8 et clang-tidy 21.1.6
+  (`scripts/langages/c/binaires.json`), installés par `uv tool install <nom>==<version>` ; CMake est celui du poste.
 - `executables` : les programmes de la chaîne d'outils du langage que l'installateur de Temporal
   exige dans son PATH, dont le dossier entre dans celui des unités des travailleurs, un absent
   refusé par son nom. `typescript`, aucun (Node est un outil du compte) ; `cargo`, `cargo` ;
@@ -191,7 +192,8 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   à la racine quand il y en a un, `uv lock` ; `c` : son `CMakeLists.txt` (C99 strict, extensions
   coupées, `-Wall -Wextra -Wpedantic -Werror`, une bibliothèque statique, `add_subdirectory(tests)`),
   `src/<nom>.h` et `src/<nom>.c` sans comportement, `tests/CMakeLists.txt` qui prend tout
-  `tests/test_*.c` (un exécutable et un test CTest chacun), l'entrée de `workspaces`, aucun verrou ;
+  `tests/test_*.c` (un exécutable et un test CTest chacun), `.clang-format` (base LLVM, colonne 100) et `.clang-tidy`
+  (`-*,bugprone-*,cert-*,clang-analyzer-*,misc-*`, avertissements en erreurs), l'entrée de `workspaces`, aucun verrou ;
   un dossier qui porte déjà un `CMakeLists.txt` est refusé. Sur du code en place : `typescript` reprend `src/` et
   `tests/` et refuse un fichier de code hors d'eux ; `cargo` reprend une bibliothèque (`src/lib.rs`,
   `src/`, `tests/`) et refuse un binaire (`src/main.rs`, `src/bin/`), un fichier hors de `src/` et

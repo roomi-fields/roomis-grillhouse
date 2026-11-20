@@ -104,7 +104,7 @@ jobs:
       # uv, which the frame's module python plays, for a project with packages of Python; a runner
       # of the repository brings its own.
       - name: Install uv
-        if: runner.environment == 'github-hosted' && hashFiles('**/pyproject.toml') != ''
+        if: runner.environment == 'github-hosted' && (hashFiles('**/pyproject.toml') != '' || hashFiles('**/CMakeLists.txt') != '')
         uses: astral-sh/setup-uv@v6
 
       - name: Install dependencies
@@ -149,7 +149,7 @@ jobs:
           cache: 'npm'
 
       - name: Install uv
-        if: runner.environment == 'github-hosted' && hashFiles('**/pyproject.toml') != ''
+        if: runner.environment == 'github-hosted' && (hashFiles('**/pyproject.toml') != '' || hashFiles('**/CMakeLists.txt') != '')
         uses: astral-sh/setup-uv@v6
 
       - name: Install dependencies

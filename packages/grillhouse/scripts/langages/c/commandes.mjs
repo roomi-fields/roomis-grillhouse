@@ -80,7 +80,11 @@ export const CONSTRUCTION = '.build-cmake';
 const A_REPASSER = 75;
 
 /** The guards of the module: each its name and its script beside this one. */
-export const GARDES = [{ nom: 'index-interfaces', args: ['--verifier'] }].map(g => ({
+export const GARDES = [
+  { nom: 'index-interfaces', args: ['--verifier'] },
+  { nom: 'clang-format', args: [] },
+  { nom: 'clang-tidy', args: [] },
+].map(g => ({
   ...g,
   script: path.join(path.dirname(ICI), `${g.nom}.mjs`),
 }));
@@ -174,7 +178,7 @@ function manque(noms, env) {
 
 // The environment of a tool: <env> whose PATH ends with the folder of the Node that runs this
 // script, as npm gives the scripts it runs, so that a tool written for Node finds it.
-const pourLOutil = env => ({
+export const pourLOutil = env => ({
   ...env,
   PATH: [env.PATH, path.dirname(process.execPath)].filter(Boolean).join(path.delimiter),
 });
@@ -188,7 +192,13 @@ const jouer = (programme, args, cwd, env) =>
 function construire(p, c, t, env) {
   const construction = path.join(p.racine, CONSTRUCTION, c.nom);
   const travailleurs = travailleursDeLaSeance(env);
-  const configure = jouer('cmake', ['-S', c.dossier, '-B', construction], p.racine, env);
+  // The same configuration as the guard clang-tidy's (./clang-tidy.mjs): one directory, one flag.
+  const configure = jouer(
+    'cmake',
+    ['-S', c.dossier, '-B', construction, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON'],
+    p.racine,
+    env
+  );
   if (configure !== 0) {
     return configure;
   }

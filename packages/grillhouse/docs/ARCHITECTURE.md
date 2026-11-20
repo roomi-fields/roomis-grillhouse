@@ -2294,8 +2294,12 @@ et le reste de `tests/`, jamais le `CMakeLists.txt` de la racine du paquet ; les
 hors de l'arbre du paquet, que l'enveloppe ouvre en écriture et que git ignore ; le rapport JUnit
 de CTest repris tel quel, regroupé par fichier pour le verdict, un fichier de test que CTest
 n'enregistre pas rouge ; un paquet joué entier sans test vert ; le typage rejoue la compilation ;
-`cmake` et `ctest` exigés du poste, nommés quand ils manquent ; ni C++, ni compilation croisée, ni
-test de nuit, ni garde des tailles ; l'index des interfaces, qu'il engendre comme python), ses
+`cmake` et `ctest` exigés du poste, nommés quand ils manquent ; deux gardes sans dette, `clang-format`
+(`clang-format --dry-run --Werror` sur chaque `.c` et `.h` au `.clang-format` du paquet) et `clang-tidy` (le
+paquet configuré dans `.build-cmake/<paquet>` avec `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, comme `construire`,
+puis clang-tidy sur son `compile_commands.json`), modelées sur la garde clippy du module cargo ; clang-format
+21.1.8 et clang-tidy 21.1.6 s'installent par uv, que le module lit à la version du module python
+(grillhouse-3dr.8) ; ni C++, ni compilation croisée, ni garde des tailles ; l'index des interfaces, qu'il engendre comme python), ses
 tests sous `tests/unit/langages/c/`, contre un faux cmake et un faux ctest, le vrai à la nuit ; un
 dossier qui porte à la fois un `Cargo.toml` et un `CMakeLists.txt` à `project(` est refusé par la
 garde des langages, un paquet n'ayant qu'un langage ; les entrées de construction de `turbo.json`

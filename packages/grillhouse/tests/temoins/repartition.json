@@ -276,6 +276,11 @@
     "scripts/langages/python/verdict.mjs"
   ],
   "c": [
+    "scripts/langages/c/binaires.json",
+    "scripts/langages/c/binaires.mjs",
+    "scripts/langages/c/clang-format.mjs",
+    "scripts/langages/c/clang-tidy.mjs",
+    "scripts/langages/c/clang.mjs",
     "scripts/langages/c/commandes.mjs",
     "scripts/langages/c/composants.mjs",
     "scripts/langages/c/exemples.mjs",

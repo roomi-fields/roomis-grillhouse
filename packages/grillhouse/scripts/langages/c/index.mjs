@@ -20,6 +20,7 @@
 // - Its share of the update (./mise-a-jour.mjs): the template `templates/c/`, its test scripts and
 //   the generator of the index.
 // - The skeleton of a new package (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { avecLeFichierDuPoste, empreintesDesTaches } from '../../services-du-noyau.mjs';
@@ -62,13 +63,21 @@ export default {
   outils: ['turbo'],
   // The programs the installer of Temporal requires in the PATH of the workers, and the poste.
   executables: ['cmake', 'ctest'],
-  // Nothing to install: CMake is the poste's.
-  binaires: {},
+  // uv at the version of the module python's file (one source), first, then the clang tools.
+  binaires: {
+    uv: JSON.parse(readFileSync(ici('../python/binaires.json'), 'utf8')).uv,
+    ...JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
+  },
   ignorer: [CONSTRUCTION],
   sorties: {
     ecrites: [`${CONSTRUCTION}/`],
     propres: [],
-    lues: [],
+    lues: [
+      '~/.local/bin/uv',
+      '~/.local/bin/clang-format',
+      '~/.local/bin/clang-tidy',
+      '~/.local/share/uv/tools/',
+    ],
   },
   // ctest run directly: `npm test` and `npm run verifier` play it.
   droits: ['Bash(ctest*)'],

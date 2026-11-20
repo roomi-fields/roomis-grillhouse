@@ -72,6 +72,14 @@ describe('le module c — le vrai cmake et le vrai ctest', () => {
     }
   }, 300_000);
 
+  it('the files of the skeleton pass the guards clang-format and clang-tidy with the real tools', () => {
+    const racine = projet();
+    for (const garde of ['clang-format', 'clang-tidy']) {
+      const t = jouer(racine, garde, []);
+      expect(t.r.status, `${garde} : ${t.r.stderr}`).toBe(0);
+    }
+  }, 300_000);
+
   it('a compilation error makes the build red', () => {
     const racine = projet();
     ecrire(racine, 'osd-embed/src/osd_embed.c', '#include "osd_embed.h"\nint x = ;\n');

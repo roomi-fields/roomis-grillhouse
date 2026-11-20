@@ -101,6 +101,30 @@ describe('le squelette c — ce que grillhouse paquet écrit', () => {
     expect(planDuPaquet(choisi, 'osd-embed').espaceNpm).toBeNull();
   });
 
+  it('.clang-format: the LLVM base, a column limit of 100', () => {
+    const racine = projet(['osd-embed']);
+    const format = planDuPaquet(racine, 'osd-embed').fichiers['osd-embed/.clang-format'];
+    expect(format).toMatch(/^BasedOnStyle:\s*LLVM\s*$/m);
+    expect(format).toMatch(/^ColumnLimit:\s*100\s*$/m);
+  });
+
+  it('.clang-tidy: bugprone, cert, clang-analyzer and misc checks, every warning an error', () => {
+    const racine = projet(['osd-embed']);
+    const tidy = planDuPaquet(racine, 'osd-embed').fichiers['osd-embed/.clang-tidy'];
+    expect(tidy).toMatch(
+      /^Checks:\s*['"]?-\*,bugprone-\*,cert-\*,clang-analyzer-\*,misc-\*['"]?\s*$/m
+    );
+    expect(tidy).toMatch(/^WarningsAsErrors:\s*['"]\*['"]\s*$/m);
+  });
+
+  it('written, the plan leaves the two clang configurations on the disk', () => {
+    const racine = projet(['osd-embed']);
+    expect(ecrireLePaquet(racine, planDuPaquet(racine, 'osd-embed'))).toEqual(
+      expect.arrayContaining(['osd-embed/.clang-format', 'osd-embed/.clang-tidy'])
+    );
+    expect(lire(racine, 'osd-embed/.clang-format')).toContain('LLVM');
+  });
+
   it('written, the plan leaves the files on the disk', () => {
     const racine = projet(['osd-embed']);
     const ecrits = ecrireLePaquet(racine, planDuPaquet(racine, 'osd-embed'));

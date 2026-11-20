@@ -8,10 +8,14 @@
 //   a project's own script stays.
 // - The generator: the index of the interfaces (./index-interfaces.mjs), run where the project
 //   holds it, as the module python's.
-// - No binary to install: cmake and ctest are the poste's, required of it (`executables`).
+// - The installation of uv and the clang tools (./binaires.json) by the commands of ./binaires.mjs,
+//   which the core runs; cmake and ctest are the poste's, required of it (`executables`).
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { poserLeGabaritAbsent } from '../../services-du-noyau.mjs';
 import { SORTIE } from './index-interfaces.mjs';
 
+const BINAIRES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'binaires.mjs');
 const GABARIT = 'templates/c';
 const SCRIPTS_DES_TESTS = ['test', 'test:forcer', 'verifier'];
 // The frame's templates of `turbo.json`, one per form of repository.
@@ -59,5 +63,8 @@ export const miseAJour = {
   gabarit: GABARIT,
   appliquer,
   generateurs: [{ commande: 'index-interfaces', args: [], sortie: SORTIE }],
-  installation: null,
+  installation: {
+    liste: { script: BINAIRES, args: ['liste'] },
+    installer: (nom, version) => ({ script: BINAIRES, args: ['installer', `${nom}@${version}`] }),
+  },
 };

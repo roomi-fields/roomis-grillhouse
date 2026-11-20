@@ -52,6 +52,8 @@ export function squelette(_racine, { chemin }) {
       [`${chemin}/src/${fichier}.h`]: `#ifndef ${garde}\n#define ${garde}\n\n#endif\n`,
       [`${chemin}/src/${fichier}.c`]: `#include "${fichier}.h"\n\n/* A translation unit holds one declaration (ISO C): the first function of the package replaces it. */\ntypedef int ${fichier}_sans_code;\n`,
       [`${chemin}/tests/CMakeLists.txt`]: tests,
+      [`${chemin}/.clang-format`]: 'BasedOnStyle: LLVM\nColumnLimit: 100\n',
+      [`${chemin}/.clang-tidy`]: "Checks: '-*,bugprone-*,cert-*,clang-analyzer-*,misc-*'\nWarningsAsErrors: '*'\n",
     },
     espace: null,
     verrouiller: [],
