@@ -44,6 +44,27 @@ export function aLaCiDuCadre(projet) {
   return workflowsDe(dossier).some(f => estDuCadre(readFileSync(path.join(dossier, f), 'utf8')));
 }
 
+/** The name of the workflow of the clean machine, in the template as in a project. */
+export const NOM_MACHINE_VIERGE = 'machine-vierge.yml';
+
+/**
+ * Whether the update poses or keeps the frame's workflow of the clean machine in the project at
+ * <projet>: the project holds a workflow of the frame, the template of <source> holds it, and the
+ * project's file is absent or bears the frame's mark (one without it is the project's own).
+ * @param {string} projet
+ * @param {string} source
+ */
+export function poseraLaMachineVierge(projet, source) {
+  if (
+    !aLaCiDuCadre(projet) ||
+    !existsSync(path.join(source, GABARIT_DES_WORKFLOWS, NOM_MACHINE_VIERGE))
+  ) {
+    return false;
+  }
+  const f = path.join(projet, WORKFLOWS, NOM_MACHINE_VIERGE);
+  return !existsSync(f) || estDuCadre(readFileSync(f, 'utf8'));
+}
+
 /**
  * Brings the frame's workflows of the project at <projet> to the template of the frame's files at
  * <source> (see the header). Returns the names of the workflows written, from the project's root,
@@ -72,4 +93,3 @@ export function poserLesWorkflows(projet, source) {
   }
   return ecrits;
 }
-

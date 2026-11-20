@@ -1323,6 +1323,27 @@ sans workflow du cadre n'en reçoit aucun (la mise à jour ne lance aucune CI su
 migration 0.33.0 lui dit une fois comment l'adopter. Ainsi chaque projet joue la CI du cadre à sa
 version, et garde la sienne tant qu'il ne l'adopte pas.
 
+**La machine vierge** (`templates/projet/.github/workflows/machine-vierge.yml`) rejoue
+l'installation à neuf (`npm ci`, `grillhouse binaires`) et la vérification complète (`npm run
+verifier`, sans base) sur une machine neuve de GitHub : la porte rapide d'un lot reste la machine du
+projet (la variable `RUNNER`), où la vitesse compte, et la machine vierge attrape ce que seule une
+machine neuve montre (un outil non déclaré, un réglage du poste supposé, une petite machine), des
+défauts d'installation et non du produit ; c'est la séparation de la porte (bors, Zuul) et des
+matrices de publication sur machines neuves (rustc, Node). Chaque job joue sur `ubuntu-latest` en
+dur, Node 26 seul, comme les autres flux du cadre. Ses seuls déclencheurs sont le calendrier (une
+fois par jour), l'étiquette de version `v*` et le déclenchement manuel : aucune poussée vers main,
+develop ou `agent/**`, si bien que `fluxDeLaBranche` ne le compte pour aucune branche, qu'un rouge ne
+bloque pas la file des lots et que rien dans le cadre (ni la file, ni la publication) n'attend son
+passage ; son rouge se voit dans GitHub, comme celui de `nuit.yml`. Comme la nuit ne joue que le
+projet qui a bougé, son premier job `decision` lit, au calendrier seul, le dernier passage vert du
+flux sur le dépôt, quel que soit son événement, et saute la vérification quand son commit est celui du
+passage courant ; une recherche qui échoue ne juge rien (le passage joue), un rouge ne laisse aucun
+vert (le flux rejoue le lendemain sur le même commit), une étiquette ou un déclenchement manuel ne lit
+rien et joue toujours. `grillhouse maj` pose le flux dans un projet qui tient déjà un flux du cadre et
+écrit lui-même son entrée de `grillhouse.flux` avec tous les paquets du graphe, sans toucher aux
+entrées déjà déclarées. Un projet qui veut un autre système (macOS, ARM) reprend le flux à lui en
+ôtant la ligne de marque : la mise à jour n'y touche plus.
+
 **Le cache distant de Turborepo** est partagé entre la CI et le poste, comme le cache distant de
 Turborepo le prévoit (`TURBO_API`, `TURBO_TEAM`, `TURBO_TOKEN`, `TURBO_CACHE`, la signature HMAC
 `remoteCache.signature` du `turbo.json` racine et sa clé `TURBO_REMOTE_CACHE_SIGNATURE_KEY`) ;

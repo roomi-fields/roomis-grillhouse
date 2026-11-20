@@ -98,3 +98,9 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets
   de `.beads/config.yaml` sert ; une autre valeur est une faute que le panneau dit en alerte, le
   préfixe restant le sigle).
+- La machine vierge : le flux `.github/workflows/machine-vierge.yml` que le cadre pose rejoue, sur un
+  exécuteur `ubuntu-latest` de GitHub neuf (jamais la variable `RUNNER`), l'installation à neuf puis
+  `npm run verifier` complet ; il part au plus une fois par jour sur main, et saute le jour où main est
+  le commit de son dernier passage vert, et à chaque étiquette `v*`. Il ne part sur aucune poussée : son
+  rouge ne bloque aucune file, il se voit dans GitHub. Un projet qui veut un autre système (macOS, ARM)
+  reprend le flux à lui en ôtant la ligne de marque de sa première ligne.

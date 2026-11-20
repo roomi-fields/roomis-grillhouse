@@ -166,7 +166,13 @@ import { migrer, restesAuProjet } from './migrations.mjs';
 import { langageDe, langagesDe } from './langages.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 import { CONFIG_BEADS, ecrireLePrefixe, prefixe, prefixeDuStore } from './prefixe-des-tickets.mjs';
-import { poserLesWorkflows } from './workflows-du-cadre.mjs';
+import { paquets } from './paquets.mjs';
+import {
+  NOM_MACHINE_VIERGE,
+  poserLesWorkflows,
+  poseraLaMachineVierge,
+  WORKFLOWS,
+} from './workflows-du-cadre.mjs';
 
 const SCRIPTS = {
   tableau: 'grillhouse tableau --texte',
@@ -505,6 +511,19 @@ export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd }
         aFaire: [...bilan.duLangage.aFaire, ...part.aFaire],
         installer: bilan.duLangage.installer || part.installer,
         sansVerifier: bilan.duLangage.sansVerifier ?? part.sansVerifier,
+      };
+    }
+    // The workflow « machine vierge » that the update poses is declared with every package of the
+    // project's graph; an entry already declared stays as it is.
+    const fichierVierge = `${WORKFLOWS}/${NOM_MACHINE_VIERGE}`;
+    if (
+      p.grillhouse?.flux?.[fichierVierge] === undefined &&
+      poseraLaMachineVierge(projet, source)
+    ) {
+      const noms = [...new Set(paquets(projet).map(q => q.pkg.name))].sort();
+      p.grillhouse = {
+        ...(p.grillhouse ?? {}),
+        flux: { ...(p.grillhouse?.flux ?? {}), [fichierVierge]: noms },
       };
     }
     writeFileSync(pkg, `${JSON.stringify(p, null, 2)}\n`);

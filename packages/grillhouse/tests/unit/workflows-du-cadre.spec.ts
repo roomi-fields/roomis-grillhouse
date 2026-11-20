@@ -120,14 +120,22 @@ const DU_PROJET = 'name: CI\non: push\njobs:\n  test:\n    runs-on: ubuntu-lates
 describe('the update of the workflows of a project', () => {
   it('rewrites a workflow of the frame to the template, and writes the one it lacks', () => {
     const p = projet({ 'ci.yml': ANCIEN });
-    expect(poserLesWorkflows(p, DEPOT)).toEqual([`${WORKFLOWS}/ci.yml`, `${WORKFLOWS}/nuit.yml`]);
+    expect(poserLesWorkflows(p, DEPOT)).toEqual([
+      `${WORKFLOWS}/ci.yml`,
+      `${WORKFLOWS}/machine-vierge.yml`,
+      `${WORKFLOWS}/nuit.yml`,
+    ]);
     expect(lire(p, 'ci.yml')).toBe(modele('ci.yml'));
+    expect(lire(p, 'machine-vierge.yml')).toBe(modele('machine-vierge.yml'));
     expect(lire(p, 'nuit.yml')).toBe(modele('nuit.yml'));
   });
 
   it('leaves a workflow of the project, without the mark, as it is', () => {
     const p = projet({ 'ci.yml': ANCIEN, 'nuit.yml': DU_PROJET });
-    expect(poserLesWorkflows(p, DEPOT)).toEqual([`${WORKFLOWS}/ci.yml`]);
+    expect(poserLesWorkflows(p, DEPOT)).toEqual([
+      `${WORKFLOWS}/ci.yml`,
+      `${WORKFLOWS}/machine-vierge.yml`,
+    ]);
     expect(lire(p, 'nuit.yml')).toBe(DU_PROJET);
   });
 
