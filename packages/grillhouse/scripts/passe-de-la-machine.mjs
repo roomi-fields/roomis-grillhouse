@@ -48,6 +48,7 @@ import {
   prendreUnePart,
   sousNiceEtIonice,
   travailleursDe,
+  VARIABLE_MESURE_D_ESSAI,
   VARIABLE_TRAVAILLEURS,
 } from './places-de-la-machine.mjs';
 
@@ -261,6 +262,28 @@ function jouerMesuree(jouer, { ouvert, racine, ticket, sorte, part, horloge, coe
 }
 
 /**
+ * How a pass asks whether the controller of the cores is delegated to the account: <delegation>
+ * when its caller gives one; on the machine a trial fixes (GRILLHOUSE_MESURE_D_ESSAI) a function
+ * that answers no without asking the system, so that a trial's measure is held by the affinity of
+ * its launch and moves no program of the user's machine off its cores; else undefined, the
+ * system's own answer (`attacheDesCoeurs`).
+ * @param {{ env?: Record<string, string | undefined>, delegation?: () => boolean }} o
+ * @returns {(() => boolean) | undefined}
+ */
+export const delegationDeLaPasse = ({ env = process.env, delegation }) =>
+  delegation ?? (env[VARIABLE_MESURE_D_ESSAI] ? () => false : undefined);
+
+/**
+ * Whether a pass judges the load of its dedicated cores while it plays: a measure of time
+ * (<dediee>) held on its cores (<voie>, a group or an affinity), on the user's machine. On the
+ * machine a trial fixes (GRILLHOUSE_MESURE_D_ESSAI) it does not: no trial reads the load of the
+ * user's machine, and its red keeps its code.
+ * @param {{ dediee?: boolean, voie?: string, env?: Record<string, string | undefined> }} o
+ */
+export const jugeLaChargeDuJeu = ({ dediee, voie, env = process.env }) =>
+  Boolean(dediee) && voie !== undefined && voie !== 'aucune' && !env[VARIABLE_MESURE_D_ESSAI];
+
+/**
  * Plays <mesure> on its part of the machine, held to it by the system, and returns what it
  * returns; <mesure> receives the environment of its children (the mark of the part, the workers
  * of its tools) and `{ part, groupe, unite }`: the part held (null where none is), whether its
@@ -306,10 +329,11 @@ export function avecLaPasse(
     const direSansPart = direUneFois(dire);
     // How the precise threads of the part are held: the allowed cores of a group, the affinity of
     // the launch, or not at all; a measure of time says it once.
+    const delegationLue = delegationDeLaPasse({ env, delegation });
     const attache = prise.fils
       ? attacheDesCoeurs({
           env,
-          ...(delegation ? { delegation } : {}),
+          ...(delegationLue ? { delegation: delegationLue } : {}),
           ...(affinite ? { affinite } : {}),
         })
       : null;
@@ -361,7 +385,7 @@ export function avecLaPasse(
     // A measure of time judges the load of its dedicated cores while it plays: the busy time of
     // those cores out of its own (read from its group), a red on loaded cores « à repasser ».
     const jugee = (jouer, ouvert) => () => {
-      if (!prise.dediee || !attache || attache.voie === 'aucune') {
+      if (!jugeLaChargeDuJeu({ dediee: prise.dediee, voie: attache?.voie, env })) {
         return jouer();
       }
       const avant = lireLesTempsOccupes(tempsDuSysteme());

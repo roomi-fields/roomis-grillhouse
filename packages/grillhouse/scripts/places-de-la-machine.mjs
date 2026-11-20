@@ -516,6 +516,18 @@ function sousLAdmission(dossier, f) {
 }
 
 /**
+ * How a measure reads the load of the threads it was given under <env>: on the machine a trial
+ * fixes (GRILLHOUSE_MESURE_D_ESSAI) they are at rest, no trial reading the load of the user's
+ * machine; else the load the system gives (<systeme>).
+ * @param {Record<string, string | undefined>} [env]
+ * @param {(fils: number[]) => number | null} [systeme]
+ * @returns {(fils: number[]) => number | null}
+ */
+export function lecteurDeLaCharge(env = process.env, systeme = chargeDesCoeursDuSysteme) {
+  return env[VARIABLE_MESURE_D_ESSAI] ? () => 0 : systeme;
+}
+
+/**
  * Takes the part of a pass of the project at <racine>, waiting for it, saying what it waits for
  * (`dire`) when it begins and every <rappelMs>, and returns it. Room first on the disks the pass
  * writes on (`attendreDeLaPlace`), then the part: it is taken once it fits in what the parts held
@@ -524,7 +536,7 @@ function sousLAdmission(dossier, f) {
  * « tient ». The night (VARIABLE_JETON) and a pass that asks for the <entiere> budget take the
  * whole budget: they play alone. A <mesure> of time takes dedicated cores (`fils`, whole physical
  * cores), waits for them and for their rest (<chargeDesCoeurs>: the load of the threads it gives,
- * null without a reading; <topologie>, the topology of the system, for a trial). Where no part is taken (the envelope of an agent, a part already
+ * null without a reading, by default `lecteurDeLaCharge`; <topologie>, the topology of the system, for a trial). Where no part is taken (the envelope of an agent, a part already
  * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
  *   sorte?: string, entiere?: boolean, borneMs?: number, rappelMs?: number,
@@ -546,7 +558,7 @@ export function prendreUnePart({
   entiere = false,
   mesure = false,
   topologie,
-  chargeDesCoeurs = chargeDesCoeursDuSysteme,
+  chargeDesCoeurs = lecteurDeLaCharge(env),
   borneMs = borneDe(env),
   rappelMs = RAPPEL_MS,
   dire = l => process.stdout.write(`${l}\n`),
