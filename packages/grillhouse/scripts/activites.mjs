@@ -2108,6 +2108,14 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
   };
 }
 
+// The test files <fichiers> of the lot that the checks name to `npm test`: all but the ones out of
+// every package of the language (`horsDesPaquets` of `separerLesFichiersDuJour`: the tests of the
+// frame's plugin), which `npm test` refuses and the guards play (`claude plugin test`).
+export function testsNommesAuxControles(ctx, fichiers) {
+  const hors = new Set(separerLesFichiersDuJour(ctx, fichiers).horsDesPaquets);
+  return fichiers.filter(f => !hors.has(f));
+}
+
 // The checks of the plan, out of the final pass: `npm test -- <package>` for each package of the
 // plan and each the lot touches in it, `npm test -- <test files of the lot>` that none of them
 // holds (the shared test material's out of the plan), each test played once, then the guards in
@@ -2123,7 +2131,7 @@ function commandesDuPlan(ctx, liste, seuls = null) {
     : [
         ...new Set([...touches.filter(d => dansLePlan(ctx, d)), ...paquetsDuPlan(ctx, liste)]),
       ].sort();
-  const tests = (seuls ?? testsDuLot(ctx)).filter(
+  const tests = testsNommesAuxControles(ctx, seuls ?? testsDuLot(ctx)).filter(
     f => !entiers.some(d => d === '.' || f.startsWith(`${d}/`))
   );
   const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};

@@ -166,6 +166,26 @@ describe('grillhouse-3e2.4, critère 6 — chaque module dit, pour un fichier de
     });
   });
 
+  it('the checks name to npm test no file out of every package: the guards play it', () => {
+    const nommes = activites.testsNommesAuxControles as (
+      ctx: { copie: string },
+      fichiers: string[]
+    ) => string[];
+    const racine = depot(
+      { 'packages/a': 'typescript' },
+      {
+        'package.json': JSON.stringify({ name: 'r', private: true, workspaces: ['packages/*'] }),
+        'packages/a/package.json': JSON.stringify({ name: 'a', private: true }),
+        'packages/a/test/jour.test.ts': "import { it } from 'vitest';\nit('a', () => {});\n",
+        'mods/m/tests/panneau.test.tsx': "import { it } from 'vitest';\nit('a', () => {});\n",
+      }
+    );
+    expect(
+      nommes({ copie: racine }, ['mods/m/tests/panneau.test.tsx', 'packages/a/test/jour.test.ts'])
+    ).toEqual(['packages/a/test/jour.test.ts']);
+    expect(nommes({ copie: racine }, ['mods/m/tests/panneau.test.tsx'])).toEqual([]);
+  });
+
   it('the report names the files out of every package, as played by the checks', () => {
     const sectionHorsDesPaquets = activites.sectionHorsDesPaquets as (f: string[]) => string[];
     expect(sectionHorsDesPaquets(['mods/m/tests/panneau.test.tsx'])).toEqual([
