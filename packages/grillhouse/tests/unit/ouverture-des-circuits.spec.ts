@@ -52,17 +52,17 @@ const lus =
 const ATTENTE = "## L'attente des questions\n";
 
 describe('the opening of a session of supervision', () => {
-  it('asks to launch the wait of the questions, the one way a question wakes the session', async () => {
+  it('says that the greffon pushes the questions and that the answer acknowledges them, with no wait to launch', async () => {
     const texte = await circuitsALOuverture(depot(), {
       fermes: () => new Set(),
       circuitsDe: lus([]),
     });
-    expect(texte.startsWith(ATTENTE)).toBe(true);
-    expect(texte).toContain('sans attendre le mot du responsable');
-    expect(texte).toContain('`npx grillhouse superviseur --attendre`');
-    // It ends on each batch: the session launches it again, never behind a pipe nor a watch.
-    expect(texte).toContain('Relance-la après chaque lot traité.');
-    expect(texte).toContain('sans tube ni veille à durée');
+    expect(texte).toMatch(/greffon/);
+    expect(texte).toMatch(/réponse/);
+    expect(texte).not.toContain('--attendre');
+    expect(texte).not.toContain('run_in_background');
+    expect(texte).not.toContain('Relance-la');
+    expect(texte).not.toContain(ATTENTE);
     expect(texte).not.toContain('Monitor');
     expect(texte).not.toContain('--rattacher');
     expect(texte).not.toContain('## Les circuits du dépôt');
@@ -73,14 +73,14 @@ describe('the opening of a session of supervision', () => {
       fermes: () => new Set(['demo-5']),
       circuitsDe: lus(),
     });
-    expect(texte.startsWith(ATTENTE)).toBe(true);
-    expect(texte).toContain('\n## Les circuits du dépôt\n');
+    expect(texte).not.toContain(ATTENTE);
+    expect(texte).toContain('## Les circuits du dépôt\n');
     expect(texte).toContain('- demo-1 tourne, à 3.1 Contrôles.');
     expect(texte).toMatch(
       /- demo-2 a fini sans son issue .*2\.1 Preuve du rouge.*`npx grillhouse circuit demo-2 --reprendre`/
     );
     expect(texte).toMatch(
-      /- demo-3 est arrêté sur une question \(controles\), à 3\.1 Contrôles, au superviseur : Quel paquet lève ce rouge \?\n {2}La réponse : `npx grillhouse circuit demo-3 --reprendre`/
+      /- demo-3, à 3\.1 Contrôles, au superviseur : Quel paquet lève ce rouge \?\n {2}La réponse : `npx grillhouse circuit demo-3 --reprendre`/
     );
     expect(texte).not.toContain('--rattacher');
     // A circuit stopped by the supervisor, or whose ticket is closed, is not named.

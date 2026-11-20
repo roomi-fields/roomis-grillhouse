@@ -31,7 +31,7 @@
 //   every step one for the whole ticket, a running one with no known state at the step of its
 //   stop, else at the plan (1); while the explorateur or the questionneur works on its plan
 //   (`questionnement`, of the plan), it stands at the plan (1); waiting for the supervisor
-//   (`attendLeSuperviseur`, the one rule the opening and the wait of the questions read too:
+//   (`attendLeSuperviseur`, the one rule the opening and the greffon's reading read too:
 //   stopped, « à repasser » included, but by the supervisor's « arrete », or ended without its
 //   issue), it stands under the stopped step after a line « ⤷ Question · <qui> », who must answer
 //   it, the supervisor or the owner, the supervisor when it names no question; its card opens on
@@ -156,7 +156,6 @@ import {
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
-import { vivant } from './mesure/base-de-passe.mjs';
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
@@ -233,7 +232,6 @@ export const TONS = Object.freeze({
   sansIssue: 'alerte',
   panne: 'alerte',
   nuitRouge: 'alerte',
-  sansAttente: 'alerte',
   plafondRefuse: 'alerte',
   // The layout.
   titre: 'titre',
@@ -730,7 +728,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
  * is free). The
  * one rule of the questions that wait for the supervisor (grillhouse-pq6), which the board reads,
  * and `questionsEnAttente` of scripts/superviseur.mjs, the one source of the opening and of the
- * wait of the questions.
+ * greffon's reading of the questions.
  * @param {{ vivant: boolean, integre?: boolean, interrompu: boolean, question: string | null, arret: string | null }} c
  * @returns {boolean}
  */
@@ -780,28 +778,6 @@ export function lireLesRemontees(racine, maintenant) {
     return [];
   }
 }
-
-/** The lock of the one wait of the questions of the repository at <racine>. */
-export const verrouDeLAttente = racine =>
-  path.join(racine, '.claude', 'worktrees', 'attente-des-questions.lock');
-
-/**
- * Whether a wait of the questions lives for the repository at <racine>: its lock names a process
- * that lives (the pid is read again; a lock left by a dead process does not count).
- * @param {string} racine
- * @returns {boolean}
- */
-export function attenteVivante(racine) {
-  try {
-    const pid = Number(/^(\d+)/.exec(readFileSync(verrouDeLAttente(racine), 'utf8'))?.[1]);
-    return Number.isInteger(pid) && pid > 0 && vivant(pid);
-  } catch {
-    return false;
-  }
-}
-
-// The minutes between two presentations of a question not answered, by default.
-export const RAPPEL_PAR_DEFAUT = 5;
 
 // A ticket's number, subject and component: its title « number — subject — component » when
 // the number ends its id, else its id without the prefix and its whole title.
@@ -925,7 +901,6 @@ export function assembler({
   ticketsLusA = null,
   echecPrefixe = null,
   remontees = [],
-  attenteVivante: attenteQuiVit = true,
   voies = {},
   superviseur = {},
   externes,
@@ -1390,8 +1365,7 @@ export function assembler({
   }
   // A circuit stopped on a question to the supervisor: the tone of that wait, whatever its length,
   // and how long it has waited (from the `depuis` of its stop in the file of the stops gone up);
-  // it falls when the circuit leaves the stop. One alert « à corriger » when some wait and no wait
-  // lives.
+  // it falls when the circuit leaves the stop.
   const depuisDe = new Map(remontees.map(r => [r.cle, r.depuis]));
   const enAttenteDuSuperviseur = [...parCircuit.values()]
     .filter(attendLeSuperviseur)
@@ -1405,13 +1379,6 @@ export function assembler({
     alerter('attendLeSuperviseur', {
       signe: '⏳',
       texte: `${numero(c.ticket)} attend le superviseur depuis ${Math.floor(attendu / MINUTE)} min`,
-    });
-  }
-  if (enAttenteDuSuperviseur.length && !attenteQuiVit) {
-    alerter('sansAttente', {
-      signe: '🔕',
-      texte:
-        'À corriger : une question au superviseur reste sans réponse, aucune attente ne tourne',
     });
   }
   // The tickets of the queue without their section « ## Architecture », which the queue never
@@ -2790,7 +2757,6 @@ function lire(
     echecPrefixe,
     outil: echecDeLOutil(racine),
     remontees: lireLesRemontees(racine, maintenant),
-    attenteVivante: attenteVivante(racine),
     superviseur,
     externes: lireLesExternes(racine, tous),
     limite: maxDuProjet(commun ? path.dirname(commun) : racine) ?? null,

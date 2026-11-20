@@ -1,10 +1,9 @@
 // The signal of the supervisor's turn (scripts/attente-au-tour.mjs, the subcommand
 // `attente-au-tour` that the hook UserPromptSubmit of the mod runs): at each turn of a session of
 // supervision, it names each circuit that waits for the supervisor (its ticket, its question, the
-// command that answers it, and the wait to launch again), a circuit ended without its issue
-// included; it says nothing more while a wait lives in the background (its lock names a live
-// process), nor when no circuit waits, nor out of a session of supervision (a role agent's
-// session, an agent's copy, out of git). A lock whose process is dead counts as no wait.
+// command that answers it), a circuit ended without its issue included; it asks for no wait and
+// reads no lock of a wait; it says nothing when no circuit waits, nor out of a session of
+// supervision (a role agent's session, an agent's copy, out of git).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,9 +31,6 @@ const depot = () => {
 };
 const VERROU = (racine: string) =>
   path.join(racine, '.claude', 'worktrees', 'attente-des-questions.lock');
-
-// A pid no process holds: above the largest pid of Linux (2^22), so none ever lived under it.
-const pidMort = () => 2 ** 31 - 2;
 
 const arrete = (ticket: string, question = 'Quel paquet lève ce rouge ?') =>
   circuitLu(ticket, {
@@ -90,7 +86,7 @@ describe('the signal of the supervisor turn', () => {
     expect(texte).toContain('demo-2');
     expect(texte).toContain('Quel nom pour ce paquet ?');
     expect(texte).toContain('`npx grillhouse circuit demo-2 --reprendre`');
-    expect(texte).toContain('`npx grillhouse superviseur --attendre`');
+    expect(texte).not.toContain('--attendre');
   });
 
   it('names a circuit ended without its issue with the command that resumes it', async () => {
@@ -134,18 +130,12 @@ describe('the signal of the supervisor turn', () => {
     expect(await dire(racine, [circuitLu('demo-5', { vivant: true })])).toBe('');
   });
 
-  it('says nothing more while a wait lives: its lock names a live process', async () => {
+  it('reads no lock of a wait: a file left by an older wait changes nothing, and no wait is asked', async () => {
     const racine = depot();
     writeFileSync(VERROU(racine), `${process.pid}:marque`);
-    expect(await dire(racine, [arrete('demo-1'), sansIssue('demo-2')])).toBe('');
-  });
-
-  it('a lock whose process is dead counts as no wait: the signal is given all the same', async () => {
-    const racine = depot();
-    writeFileSync(VERROU(racine), `${pidMort()}:marque`);
     const texte = await dire(racine, [arrete('demo-1')]);
     expect(texte).toContain('demo-1');
-    expect(texte).toContain('`npx grillhouse superviseur --attendre`');
+    expect(texte).not.toContain('--attendre');
   });
 
   it('says nothing in the session of a role the circuit launches', async () => {

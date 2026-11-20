@@ -31,10 +31,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
    dans ma première réponse, et je ne lance aucun circuit ni aucune livraison tant que l'autre
    séance tient le verrou. Ainsi un projet a un seul superviseur, comme Zuul a un seul
    ordonnanceur, et aucun ticket ne se mène deux fois.
-1. Si l'ouverture de séance dit « L'attente des questions », je lance en arrière-plan, dès ma
-   première réponse et sans attendre le mot du responsable,
-   `npx grillhouse superviseur --attendre`, sans tube ni veille à durée
-   (« L'attente des questions me réveille »). Si elle
+1. L'ouverture de séance dit « Les questions des circuits » : le greffon de ma séance pousse
+   dans la file de mes messages chaque question neuve d'un circuit, et ma réponse l'acquitte
+   (« Le greffon pousse les questions »). Si elle
    liste « Les circuits du
    dépôt », je relance chaque circuit fini sans son issue par la commande qu'elle donne
    (`--reprendre` depuis son dernier état écrit, `--depuis` sans état écrit), et je réponds à chaque question qu'elle nomme, ou je la porte au
@@ -190,21 +189,19 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   l'explorateur, au ticket avec leur pièce ; je change le plan (`bd update <ticket>`) ou je le
   garde, puis `--reprendre` le fait passer tel qu'il est alors ; ce qui revient au responsable lui
   monte d'abord.
-- **L'attente des questions me réveille** : `npx grillhouse superviseur --attendre`, que je
-  lance en arrière-plan (`run_in_background`), sans tube ni veille à durée, une seule à la fois,
-  est la seule voie par laquelle une question me réveille. Elle imprime un lot, puis se
-  termine : sa fin me réveille. Je la relance après chaque lot traité. Un lot donne, par question
-  neuve d'un circuit (lancé seul, dans une file ou par une autre séance), le ticket, l'étape, la
-  question et la commande qui répond ; un circuit intégré y vient une fois, sous « Circuit
-  intégré ». Une question qu'aucune réponse n'a levée (son circuit est toujours arrêté sur le
-  même arrêt) revient toutes les 5 min (`--rappel <minutes>` règle l'intervalle), marquée
-  « toujours sans réponse », jusqu'à sa réponse : je la réponds, ou je la porte au responsable.
-  Je ne me mets pas en attente du responsable tant qu'une question d'un circuit attend ma
-  réponse, ni tant qu'un circuit tourne sans attente vivante : le crochet de fin de tour me
-  bloque une fois par question et une fois par état, la liste à l'appui. Le tableau montre au
-  responsable une alerte horodatée pour chaque question en attente, et une alerte « à corriger »
-  quand aucune attente ne vit. Je ne sonde jamais les circuits moi-même. Ainsi aucune question ne
-  reste sans réponse par oubli.
+- **Le greffon pousse les questions, ma réponse les acquitte** : le greffon de ma séance met
+  dans la file de mes messages, qui arrive à la fin du tour en cours sans l'interrompre, un seul
+  message par relevé (une question neuve d'un circuit lancé seul, dans une file ou par une autre
+  séance : le ticket, l'étape, la question et la commande qui répond ; un circuit intégré, une
+  fois, sous « Circuit intégré »). Une question qu'aucune réponse n'a levée (son circuit est
+  toujours arrêté sur le même arrêt) revient à intervalle réglable (`grillhouse.rappel` du
+  `package.json`, 5 min par défaut), marquée « toujours sans réponse », jusqu'à sa réponse : je
+  la réponds, ou je la porte au responsable. Je ne me mets pas en attente du responsable tant
+  qu'une question d'un circuit attend ma réponse : le crochet de fin de tour me bloque une fois
+  par question, la liste à l'appui. Le tableau montre au responsable une alerte horodatée pour
+  chaque question en attente. Sans greffon (un autre moteur), rien n'est poussé : l'ouverture
+  liste toutes les questions et le crochet les refuse. Je ne sonde jamais les circuits moi-même.
+  Ainsi aucune question ne reste sans réponse par oubli.
 - **J'arrête tout agent que j'ai lancé moi-même** dès son rapport lu (`TaskStop`). Ainsi ma
   séance ne porte pas le détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au

@@ -75,13 +75,13 @@ const { SANS_REPONSE_EN } = valeursDe('scripts/circuits-du-serveur.mjs', ['SANS_
 const pid = (verrou: string) => readFileSync(verrou, 'utf8').split(':')[0];
 
 describe('grillhouse-3uv.89 — un seul superviseur par projet', () => {
-  it('la première séance prend le verrou du dépôt, et dit seulement de lancer l’attente des questions', () => {
+  it('la première séance prend le verrou du dépôt, et dit que le greffon pousse les questions, sans attente à lancer', () => {
     const p = projet();
     // No server answers (port 1): the opening says so, and names no circuit (grillhouse-4nr.10).
     const r = ouvrir(p.racine, { TEMPORAL_ADDRESS: '127.0.0.1:1' });
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toMatch(/^## L'attente des questions\n/);
-    expect(r.stdout).toContain('`npx grillhouse superviseur --attendre`');
+    expect(r.stdout).toMatch(/greffon/);
+    expect(r.stdout).not.toContain('--attendre');
     expect(r.stdout).toContain(SANS_REPONSE_EN);
     expect(r.stdout).not.toMatch(/^- /m);
     expect(pid(p.verrou)).toBe(String(process.pid));
@@ -113,7 +113,7 @@ describe('grillhouse-3uv.89 — un seul superviseur par projet', () => {
     const mort = spawnSync(process.execPath, ['-e', '']).pid;
     writeFileSync(p.verrou, `${mort}:seance-fermee`);
     const r = ouvrir(p.racine);
-    expect(r.stdout).toMatch(/^## L'attente des questions\n/);
+    expect(r.stdout).toMatch(/greffon/);
     expect(r.stdout).not.toContain(String(mort));
     expect(pid(p.verrou)).toBe(String(process.pid));
   });

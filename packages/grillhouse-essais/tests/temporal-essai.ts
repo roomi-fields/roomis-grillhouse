@@ -5,9 +5,8 @@
 // database and port, and the frame's worker started by its built code, which a test may kill and
 // start again. The test speaks to the server by the CLI of Temporal, answers a stop by the frame's
 // built client (dist/temporal/circuit/client.js, in a process of its own, as ./cadre.ts has every
-// script of the frame), reads the circuits as the board does (scripts/circuits-du-serveur.mjs) and
-// keeps the wait of the questions (`superviseur --attendre`) running, as a session of supervision
-// does. At its end, green or red, every workflow still running stops, then the worker, then the
+// script of the frame) and reads the circuits as the board does (scripts/circuits-du-serveur.mjs).
+// At its end, green or red, every workflow still running stops, then the worker, then the
 // server: nothing outlives the test.
 import { spawn, spawnSync, type ChildProcess, type SpawnSyncReturns } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync } from 'node:fs';
@@ -19,7 +18,6 @@ import { afterAll, expect } from 'vitest';
 import { CADRE, enProcessus, valeursDe } from './cadre.js';
 
 const TRAVAILLEUR = path.join(CADRE, 'dist/temporal/travailleur.js');
-const SUPERVISEUR = path.join(CADRE, 'scripts/superviseur.mjs');
 const LECTURE = path.join(CADRE, 'scripts/circuits-du-serveur.mjs');
 const CLIENT = path.join(CADRE, 'dist/temporal/client.js');
 const CLIENT_DU_CIRCUIT = path.join(CADRE, 'dist/temporal/circuit/client.js');
@@ -203,7 +201,6 @@ export async function ouvrirLeBanc(ESSAIS: string, essai: Essai, nom: string) {
   };
   let serveur = await unServeur();
   let travailleur = await unTravailleur();
-  const attentes: ChildProcess[] = [];
 
   const workflow = (id: string) => `circuit:${REPO}:${id}`;
   // The status of the workflow <wf>, as the CLI gives it; `?` when the server holds none.
@@ -350,44 +347,6 @@ process.stdout.write(JSON.stringify(await m.circuitsDuServeur(process.argv[1])))
       return JSON.parse(r.stdout) as { ticket: string; vivant: boolean; etape: string | null }[];
     },
     /**
-     * The wait of the questions of the repository, launched as a session of supervision keeps it:
-     * The wait keeps listening: it never ends by itself. `lot`, the first block it prints (a
-     * batch ends on a blank line), read as it comes; `fin`, its whole output once it ends;
-     * `finie`, whether it ended; `sortie`, what it printed so far.
-     */
-    attendreLesQuestions: () => {
-      const a = spawn(process.execPath, [SUPERVISEUR, '--attendre', REPO], {
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      enfants.push(a);
-      attentes.push(a);
-      let sortie = '';
-      let premier: ((lot: string) => void) | null = null;
-      const lot = new Promise<string>(ok => {
-        premier = ok;
-      });
-      const lire = (d: unknown) => {
-        sortie += String(d);
-        const fin = sortie.indexOf('\n\n');
-        if (fin !== -1 && premier) {
-          premier(sortie.slice(0, fin));
-          premier = null;
-        }
-      };
-      a.stdout?.on('data', lire);
-      a.stderr?.on('data', lire);
-      let finie = false;
-      const fin = new Promise<string>(ok =>
-        a.once('exit', () => {
-          finie = true;
-          premier?.(sortie);
-          ok(sortie);
-        })
-      );
-      return { lot, fin, finie: () => finie, sortie: () => sortie };
-    },
-    /**
      * Waits for the circuit of <id> to stop on a question (its workflow waiting for the answer),
      * within <ms>; its state.
      */
@@ -473,9 +432,6 @@ process.stdout.write(JSON.stringify(await m.circuitsDuServeur(process.argv[1])))
       }
       if (statut(`tickets:${REPO}`) === 'RUNNING') {
         cli('workflow', 'terminate', '--workflow-id', `tickets:${REPO}`, '--reason', 'fin');
-      }
-      for (const a of attentes) {
-        await finirLEnfant(a);
       }
       await finirLEnfant(travailleur);
       await finirLEnfant(serveur);

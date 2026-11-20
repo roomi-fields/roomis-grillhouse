@@ -584,11 +584,6 @@
         "count": 2
       }
     },
-    "packages/grillhouse/tests/unit/attente-des-questions.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 12
-      }
-    },
     "packages/grillhouse/tests/unit/bilan.cas-reel-320.3.9.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 2

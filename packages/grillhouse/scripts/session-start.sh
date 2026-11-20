@@ -40,8 +40,8 @@
 #
 # One supervisor per project (scripts/superviseur.mjs): the session takes the lock of its
 # repository, and, when its opening takes the lock (not when it keeps it, after a compaction or a
-# /clear), receives the section « L'attente des questions », the wait to launch in the background,
-# then « Les circuits du dépôt » when there are some: each circuit that runs, each one stopped on a
+# /clear), receives the section « Les questions des circuits » (the greffon pushes the questions, the answer
+# acknowledges them; no wait to launch), then « Les circuits du dépôt » when there are some: each circuit that runs, each one stopped on a
 # question with its question and the command that answers it, each one whose workflow ended
 # without its issue with the command that resumes it; a second session, while the first one lives, receives first the section « Un autre
 # superviseur tient ce dépôt », which asks it to say so to the owner and to launch no circuit. An

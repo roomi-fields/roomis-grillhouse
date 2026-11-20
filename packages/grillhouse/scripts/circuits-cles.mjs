@@ -23,6 +23,44 @@ export function reglageDesCircuits(pkg) {
   return { max: c, faute: null };
 }
 
+// The minutes between two presentations of a question of a circuit that nobody answered, by default.
+export const RAPPEL_PAR_DEFAUT = 5;
+
+// The reading of the key `grillhouse.rappel` of a package.json: the minutes between two
+// presentations of a question not answered, a number above 0; absent or null, 5. Any other value
+// is a fault, named with its value.
+// Returns { minutes, faute }: `minutes` null on a fault; `faute` null when the key reads.
+export function reglageDuRappel(pkg) {
+  const r = pkg?.grillhouse?.rappel;
+  if (r === undefined || r === null) {
+    return { minutes: RAPPEL_PAR_DEFAUT, faute: null };
+  }
+  if (typeof r !== 'number' || !(r > 0) || !Number.isFinite(r)) {
+    return {
+      minutes: null,
+      faute: `grillhouse.rappel vaut ${JSON.stringify(r)}, pas un nombre > 0.`,
+    };
+  }
+  return { minutes: r, faute: null };
+}
+
+/**
+ * The re-presentation interval, in minutes, of the project at <racine>, as its package.json sets
+ * it; 5 when the package.json does not read, and 5 too on a fault (the greffon names it).
+ * @param {string} racine
+ * @returns {number}
+ */
+export function rappelDuProjet(racine) {
+  try {
+    return (
+      reglageDuRappel(JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')))
+        .minutes ?? RAPPEL_PAR_DEFAUT
+    );
+  } catch {
+    return RAPPEL_PAR_DEFAUT;
+  }
+}
+
 /**
  * The number of circuits at once of the project at <racine>, as its package.json sets it; undefined
  * when the package.json or the key does not read (the queue names the fault).

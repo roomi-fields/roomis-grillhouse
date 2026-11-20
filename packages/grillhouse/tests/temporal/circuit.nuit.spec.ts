@@ -24,7 +24,7 @@ import {
   avecLeurAvancement,
   circuitsDuServeur,
 } from '../../scripts/circuits-du-serveur.mjs';
-import { attendreUneQuestion } from '../../scripts/superviseur.mjs';
+import { relever } from '../../scripts/superviseur.mjs';
 import { pasDuPlan } from '../../scripts/transitions.mjs';
 import {
   ATTRIBUTS_DE_RECHERCHE,
@@ -605,7 +605,7 @@ describe('le tableau lit les déroulés en un appel', () => {
     ]);
   }, 120_000);
 
-  it('the wait of the questions ends on the question the workflow publishes, and not twice', async () => {
+  it('the reading of the questions gives the question the workflow publishes, and not twice', async () => {
     const { activites } = actes({ seance: { statut: 'BESOIN', question: 'laquelle ?' } });
     const client = await circuit(activites);
     await enAttente(client);
@@ -620,25 +620,15 @@ describe('le tableau lit les déroulés en un appel', () => {
         cle: string;
         representee?: boolean;
       };
-      const attendre = async (ms: number): Promise<Question[]> => {
-        const fin = new AbortController();
-        const minuteur = setTimeout(() => fin.abort(), ms);
-        try {
-          return await attendreUneQuestion({
-            racine,
-            fermes: () => new Set(),
-            pas: 100,
-            signal: fin.signal,
-            circuitsDe: async () =>
-              avecLeurAvancement(racine, await lireLesCircuits(client, RACINE)),
-          });
-        } finally {
-          clearTimeout(minuteur);
-        }
-      };
-      const q = await attendre(30_000);
+      const releve = async (): Promise<Question[]> =>
+        relever(racine, avecLeurAvancement(racine, await lireLesCircuits(client, RACINE)), {
+          fermes: () => new Set(),
+          maintenant: Date.now(),
+          rappelMs: 5 * 60_000,
+        }) as Question[];
+      const q = await releve();
       expect(q.map((x: Question) => [x.ticket, x.question])).toEqual([[TICKET, 'que faire ?']]);
-      expect(await attendre(500)).toEqual([]);
+      expect(await releve()).toEqual([]);
     } finally {
       rmSync(racine, { recursive: true, force: true });
     }

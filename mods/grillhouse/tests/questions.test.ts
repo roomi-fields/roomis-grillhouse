@@ -1,0 +1,116 @@
+import { expect, mock, test } from 'claude-code/testing'
+
+import { PERIODE_DES_QUESTIONS_MS } from '../hooks/register'
+import { projetGrillhouse, suiveurSimule } from './projet'
+
+// The questions of the circuits reach the session of supervision by a push of the greffon: at each
+// period it asks one reading of the circuits of its project (`grillhouse superviseur --relever`)
+// and submits what it prints, in one message, to the session, which queues it while it works. The
+// greffon launches no wait of its own: the reading is the only process it asks for. The period is
+// moved on by the mocked clock, with no real wait.
+
+type Lecture = { exitCode: number; stdout: string; stderr: string }
+type Banc = Parameters<Parameters<typeof test>[1]>
+
+// A session started in the project '/p', the reading answered by <lecture> (its rank from 1);
+// returns the readings asked (argv), the messages submitted, what the pane's state received, and
+// the clock.
+async function seance($: Banc[0], on: Banc[1], lecture: (n: number) => Lecture | Promise<Lecture>) {
+  const o = on as unknown as (n: string, h: unknown) => void
+  const lectures: string[][] = []
+  const messages: string[] = []
+  const etats: string[] = []
+  suiveurSimule(o, () => ({ lignes: [], fiches: {} }))
+  o('process.run', async (_: unknown, e: { argv: string[] }) => {
+    if (!e.argv.includes('--relever')) return { value: { exitCode: 0, stdout: '', stderr: '' } }
+    lectures.push(e.argv)
+    return { value: await lecture(lectures.length) }
+  })
+  o('prompt.submit', (_: unknown, e: { text: string }) => {
+    messages.push(e.text)
+    return { text: e.text }
+  })
+  o('state.get', async (_: unknown, e: { plugin: string; key: string }, next: (e: unknown) => unknown) => {
+    const r = await next(e)
+    if (e.plugin === 'grillhouse') etats.push(JSON.stringify(r))
+    return r
+  })
+  o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  projetGrillhouse(o)
+  o('command.register', () => ({ value: undefined }))
+  const horloge = mock.clock(o as never)
+  await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
+  await new Promise(r => setTimeout(r, 50))
+  return { lectures, messages, etats, horloge }
+}
+
+const attendre = () => new Promise(r => setTimeout(r, 50))
+const ok = (stdout: string): Lecture => ({ exitCode: 0, stdout, stderr: '' })
+
+test('a reading that gives text is submitted once to the session, in one message', async ($, on) => {
+  const { lectures, messages, horloge } = await seance($, on, () =>
+    ok('- demo-1, à 3.1 Contrôles, au superviseur : Q ?\n  La réponse : cmd\n- demo-2, à X, au superviseur : R ?\n')
+  )
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
+  expect(lectures[0]).toContain('superviseur')
+  expect(lectures[0]).toContain('--relever')
+  expect(lectures[0]).toContain('/p')
+  expect(messages).toHaveLength(1)
+  expect(messages[0]).toContain('demo-1')
+  expect(messages[0]).toContain('demo-2')
+})
+
+test('an empty reading submits nothing', async ($, on) => {
+  const { lectures, messages, horloge } = await seance($, on, () => ok('  \n'))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
+  expect(messages).toEqual([])
+})
+
+test('a reading that fails submits nothing and notes its error', async ($, on) => {
+  const { messages, etats, horloge } = await seance($, on, () => ({
+    exitCode: 1,
+    stdout: 'Q ?',
+    stderr: 'grillhouse.rappel vaut 0, pas un nombre > 0.',
+  }))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(messages).toEqual([])
+  expect(etats.join('\n')).toContain('grillhouse.rappel vaut 0')
+})
+
+test('two readings that overlap launch one only, and the next period reads again', async ($, on) => {
+  let liberer: () => void = () => undefined
+  const bloquee = new Promise<void>(r => (liberer = r))
+  const { lectures, messages, horloge } = await seance($, on, async n => {
+    if (n === 1) await bloquee
+    return ok('- demo-1 : Q ?\n')
+  })
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
+  liberer()
+  await attendre()
+  expect(messages).toHaveLength(1)
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(2)
+})
+
+test('the clock asks for a reading at each period, and for no wait', async ($, on) => {
+  const { lectures, messages, horloge } = await seance($, on, () => ok('- demo-1 : Q ?\n'))
+  expect(lectures).toHaveLength(0)
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
+  expect(messages).toHaveLength(1)
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(2)
+  expect(messages).toHaveLength(2)
+  for (const argv of lectures) expect(argv).not.toContain('--attendre')
+})

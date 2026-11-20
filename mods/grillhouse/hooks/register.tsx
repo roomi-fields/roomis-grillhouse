@@ -471,6 +471,35 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
   return geste === 'ajouter' ? `Projet ajouté au tableau : ${dossier}.` : `Projet retiré du tableau : ${dossier}.`
 }
 
+// The questions of the circuits reach the session of supervision by a push, as a queue gives its
+// messages (grillhouse-3uv.110): at each period the greffon asks one reading of the circuits of the
+// project (`grillhouse superviseur --relever`, which reads the circuits as the board does and
+// answers nothing unless this session holds the lock of the supervisor) and submits what it prints,
+// one message per reading, to the session: `$.prompt.submit` queues it while the session works, so
+// it arrives at the end of the turn, without interrupting it. A question not answered comes back at
+// the interval `grillhouse.rappel` of the project; its answer to the circuit acknowledges it. The
+// state « presented at such a time » lives in the file of the stops gone up that the reading keeps.
+export const PERIODE_DES_QUESTIONS_MS = 15_000
+let relevee = false
+export async function pousserLesQuestions($: EngineInterface): Promise<void> {
+  if (!eligible || relevee) return
+  relevee = true
+  try {
+    const r = await $.process.run([GRILLHOUSE, 'superviseur', '--relever', cwd], { cwd, timeoutMs: 60_000 })
+    if (r.exitCode !== 0) {
+      const faute = (r.stderr || '').trim().slice(0, 300)
+      if (faute) await update($, etat, s => ({ ...s, erreur: faute }))
+      return
+    }
+    const texte = (r.stdout || '').trim()
+    if (texte) void $.prompt.submit({ text: texte })
+  } catch {
+    // a reading that fails is taken again at the next period
+  } finally {
+    relevee = false
+  }
+}
+
 // The board applies to a Grillhouse project outside an agent's copy (`eligible`), once someone can
 // see it: a person at the terminal's prompt from the start (`isInteractive`), or a surface that
 // attaches later — the desktop app's Code tab, whose session starts headless, as the SDK's does,
@@ -486,6 +515,7 @@ async function activer($: EngineInterface) {
     argumentHint: '[newday|ajouter|retirer <chemin>]',
   })
   void demarrer($)
+  $.clock.every(PERIODE_DES_QUESTIONS_MS, () => void pousserLesQuestions($))
 }
 
 export const register: Register = on => {

@@ -24,8 +24,8 @@ describe('the opening of a session of supervision, launched', () => {
     mkdirSync(path.join(racine, '.claude', 'worktrees'), { recursive: true });
     const r = spawnSync('node', [SUPERVISEUR, racine], { encoding: 'utf8', env: SANS_SERVEUR });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("## L'attente des questions");
-    expect(r.stdout).toContain('`npx grillhouse superviseur --attendre`');
+    expect(r.stdout).toMatch(/greffon/);
+    expect(r.stdout).not.toContain('--attendre');
     expect(r.stdout).toContain('## Les circuits du dépôt');
     expect(r.stdout).toContain(SANS_REPONSE_EN);
     expect(r.stdout).not.toContain('--rattacher');
@@ -39,10 +39,10 @@ describe('the opening of a session of supervision, launched', () => {
       spawnSync('node', [SUPERVISEUR, racine], { encoding: 'utf8', env: SANS_SERVEUR });
     const premiere = ouvrir();
     expect(premiere.status).toBe(0);
-    expect(premiere.stdout).toContain("## L'attente des questions");
+    expect(premiere.stdout).toMatch(/greffon/);
     const seconde = ouvrir();
     expect(seconde.status).toBe(0);
-    expect(seconde.stdout).not.toContain("## L'attente des questions");
+    expect(seconde.stdout).not.toMatch(/greffon/);
     expect(seconde.stdout).not.toContain('Un autre superviseur');
   });
 });

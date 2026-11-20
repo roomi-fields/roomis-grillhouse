@@ -123,7 +123,7 @@ async function mettreEnFile(
   }
   bd(racine, 'update', ticket, '--add-label', 'circuit');
   await demarrerLesTickets(client, { racine }, fileDuProjet(racine), seanceDuSuperviseur());
-  return `▶ ${ticket} est dans la file des tickets du projet : son circuit part dès que ses dépendances sont fermées et qu'une place du réglage est libre ; sa question réveille l'attente des questions (\`npx grillhouse superviseur --attendre\`), sa fin se lit au panneau.`;
+  return `▶ ${ticket} est dans la file des tickets du projet : son circuit part dès que ses dépendances sont fermées et qu'une place du réglage est libre ; sa question arrive dans la file de la séance du superviseur (le greffon la pousse), sa fin se lit au panneau.`;
 }
 
 // The answer <appel> to the circuit of its ticket in <racine>: its line.

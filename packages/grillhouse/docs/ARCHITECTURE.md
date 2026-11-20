@@ -810,59 +810,65 @@ sans circuits, et l'attente le relit au pas suivant ; une autre faute de la lect
 construit compris, est la première alerte telle qu'elle est (« Circuits illisibles : … »). La fiche d'un ticket qui a un circuit finit sur la page de son déroulé au tableau web du
 serveur (`lienDuTableauWeb` du client : le port du serveur plus 1000), qui montre son histoire.
 Comme la demande de revue de GitHub et l'ensemble d'attention de Gerrit appellent celui qu'un
-changement attend, quel que soit son chemin, `npx grillhouse superviseur --attendre` est l'attente
-que la séance de supervision lance en arrière-plan, seule voie par laquelle une question la
-réveille, une seule à la fois par dépôt
-(`.claude/worktrees/attente-des-questions.lock`, qui nomme son processus : la présence d'une
-attente, que lisent le panneau et les crochets) : comme `gh run watch` ou `kubectl wait` rendent
-la main à leur événement, elle imprime le lot des questions dues à son départ, sinon attend la
-première, et se termine sur ce lot, par question le ticket, l'étape, la question et la commande
-qui répond, quel que soit le lanceur du circuit (seul, dans une file ou par une autre séance) ;
-sa fin réveille la séance, quel que soit le tube qui la suit, et la séance la relance après
-chaque lot traité, sans tube ni veille à durée (grillhouse-d4n.9 : une attente sans fin lancée
-derrière `| tail` n'a été lue par personne pendant 40 min). Une question toujours sans réponse
-(le circuit est arrêté sur la même clé) est re-présentée toutes les 5 min
-(`--rappel <minutes>`), comme SQS redonne un message non acquitté après son délai de visibilité,
-jusqu'à ce que le circuit quitte l'arrêt ; un ticket que la file a rouvert pour un flux de main rouge (étiquette `flux-rouge`, ouvert) se rend aussi comme un lot, une fois, avec l'adresse du passage, et plus une fois repris ou refermé (une lecture de bd en échec ne dit rien des rouges, et laisse tels quels ceux déjà rendus) ; une clé qui change est une question neuve, rendue
-aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
+changement attend, quel que soit son chemin, le greffon de la séance de supervision pousse les
+questions des circuits du projet dans la file des messages de cette séance : une file de messages
+pousse ses événements vers qui les traite, au lieu que le consommateur réarme une attente à chaque
+lot (grillhouse-3uv.110 : 7 questions de SyntHub sont restées sans réponse une matinée, l'attente
+n'ayant pas été relancée après un lot). À chaque période (`PERIODE_DES_QUESTIONS_MS`, 15 s), le
+greffon (`mods/grillhouse/hooks/register.tsx`, rattaché au paquet `@roomi-fields/grillhouse` qui le
+publie) demande un relevé des circuits (`npx grillhouse superviseur --relever`, qui lit les
+circuits par la même source que le tableau, `questionsEnAttente`) et soumet ce qu'il imprime par
+`$.prompt.submit` du moteur des greffons : le message attend la fin du tour en cours, sans
+l'interrompre, et un seul message part par relevé, qui regroupe les questions et les fins de
+circuit dues, chaque question avec son ticket, son étape, son destinataire, sa question et la
+commande qui répond (le rendu partagé des questions, `ligneDeQuestion`, que l'ouverture reprend).
+Le relevé ne rend rien hors de la séance qui tient le verrou du superviseur du projet : une séance
+de circuit ou d'un autre projet n'en reçoit aucune. La réponse au circuit acquitte la question :
+tant qu'elle attend (le circuit est arrêté sur la même clé), elle revient à l'échéance du rappel,
+lue ou non, comme SQS redonne un message non acquitté après son délai de visibilité ; répondue, elle
+sort du fichier et ne revient plus. L'intervalle du rappel est la clé `grillhouse.rappel` du
+`package.json` (minutes, un nombre > 0, 5 par défaut, `reglageDuRappel` de `circuits-cles.mjs`),
+appliquée à chaque relevé. Le relevé, le rappel et le fichier des questions remontées sont une
+seule fonction, `relever` de `superviseur.mjs`. Sans séance de superviseur qui tienne le verrou, ou
+sans greffon (un autre moteur), rien n'est soumis et le cadre n'y supplée pas : les questions
+restent au tableau, l'ouverture de la séance suivante les liste toutes, et le crochet de fin de
+tour les refuse. Un ticket que la file a rouvert pour un flux de main rouge (étiquette `flux-rouge`,
+ouvert) se rend aussi dans le relevé, une fois, avec l'adresse du passage, et plus une fois repris
+ou refermé (une lecture de bd en échec ne dit rien des rouges, et laisse tels quels ceux déjà
+rendus) ; une clé qui change est une question neuve, rendue aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
 remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
 clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte par
 circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, et une
-alerte « à corriger », distincte, quand un tel circuit attend alors qu'aucune attente ne vit (son
-verrou nomme un processus mort ou manque). Chaque état que montre le panneau a un seul ton, défini
+alerte. Chaque état que montre le panneau a un seul ton, défini
 une fois (`TONS` de `tableau.mjs`), comme un tableau de bord d'états (GitHub Checks,
 Alertmanager) : chaque ligne et chaque alerte le prend, quelle que soit sa durée, que dit son
-texte ; le rouge est réservé à ce qui demande une correction (figé, panne, aucune attente qui
-tourne, plafond refusé), le jaune à ce qui attend une réponse ou un regard (le superviseur, le
-responsable, le disque), le cyan à ce qui tourne. L'attente lit aussi les circuits intégrés (`lireLesCircuits` avec `integres`) et rend une
-fois chaque circuit intégré après la dernière lecture de l'attente précédente, sous « Circuit
+texte ; le rouge est réservé à ce qui demande une correction (figé, panne, plafond refusé), le jaune à ce qui attend une réponse ou un regard (le superviseur, le
+responsable, le disque), le cyan à ce qui tourne. Le relevé lit aussi les circuits intégrés (`lireLesCircuits` avec `integres`) et rend une
+fois chaque circuit intégré après son dernier relevé, sous « Circuit
 intégré » : `.claude/worktrees/integrations-rendues.json` garde cette heure et les intégrations
-rendues, que l'ouverture remet à son heure, pour qu'une intégration entre deux attentes ne se
+rendues, que l'ouverture remet à son heure, pour qu'une intégration entre deux relevés ne se
 perde pas ; l'arrêt `arrete` du
-superviseur ne réveille rien. Le plancher ne dépend pas de cette attente, qui peut mourir sans bruit : le
+superviseur ne pousse rien. Le plancher ne dépend pas du greffon, qui peut manquer : le
 panneau tague « en attente du superviseur » chaque circuit arrêté sur une question du superviseur,
 et le crochet `UserPromptSubmit` du mod (`npx grillhouse attente-au-tour`) nomme, à chaque tour
-d'une séance de supervision, chaque circuit en attente (ticket, question, commande qui répond,
-relance de l'attente), un circuit fini sans issue compris. Il se tait quand le verrou de l'attente
-nomme un processus vivant (un verrou au processus mort compte pour aucune attente), et hors d'une
+d'une séance de supervision, chaque circuit en attente (ticket, question, commande qui répond),
+un circuit fini sans issue compris. Il se tait hors d'une
 séance de supervision (séance d'agent, copie de travail). Comme une alerte non acquittée relance
 (PagerDuty), le crochet `Stop` du mod (`npx grillhouse attente-a-l-arret`,
 `scripts/attente-a-l-arret.mjs`) bloque la fin du tour de la séance de supervision, la même porte
 que le signal du tour (`racineDeLaSupervision`), tant qu'un circuit attend sa réponse (chaque
-question, sa commande à l'appui) ou qu'un circuit tourne sans attente vivante (les circuits qui
-tournent, l'attente à lancer) : la raison, que la séance reçoit comme sa consigne suivante, part
-sur la sortie d'erreur, code 2. Chaque question ne bloque qu'une fois, par sa clé, et chaque
-état des circuits qui tournent sans attente une fois, par leurs tickets
-(`.claude/worktrees/signale-a-l-arret.json`, réduit aux questions encore en attente) : une
+question, sa commande à l'appui) : la raison, que la séance reçoit comme sa consigne suivante, part
+sur la sortie d'erreur, code 2. Chaque question ne bloque qu'une fois, par sa clé
+(`.claude/worktrees/signale-a-l-arret.json`, réduit aux questions encore en attente, sans autre
+état) : une
 question portée au responsable laisse passer l'arrêt suivant. Un serveur muet ou une note
 impossible laissent passer l'arrêt. Les questions en attente ont une seule règle, `attendLeSuperviseur` de
 `tableau.mjs` (un circuit arrêté hors l'`arrete` du superviseur, « à repasser » compris, ou fini
 sans son issue) : le panneau la lit, et `questionsEnAttente` de `superviseur.mjs`, que lisent
-l'ouverture et l'attente. L'attente relit les circuits sur le serveur toutes les 5 s, comme
-l'interface de Temporal rafraîchit sa liste. Une question remontée (par l'attente, ou nommée à
+l'ouverture et le relevé. Une question remontée (par le relevé, ou nommée à
 l'ouverture) s'inscrit dans `.claude/worktrees/questions-remontees.json`, par son ticket, le run
-de son déroulé, le rang de sa question dans ce run et son arrêt : elle ne réveille plus la
-séance, et elle en sort une fois répondue, le circuit reparti ou fini (grillhouse-pq6 :
+de son déroulé, le rang de sa question dans ce run et son arrêt , avec l'heure de sa
+dernière soumission : elle n'est pas soumise deux fois avant l'échéance de son rappel, et elle en sort une fois répondue, le circuit reparti ou fini (grillhouse-pq6 :
 SH-ae6.5.2, SH-ae6.5.6 et SH-br0.1.5 de SyntHub, lancés par une file en arrière-plan, ont
 attendu des heures leur réponse). L'ouverture nomme toutes les questions en attente, remontées
 ou non : une séance fermée puis rouverte les retrouve. L'inscription se fait sous le verrou du

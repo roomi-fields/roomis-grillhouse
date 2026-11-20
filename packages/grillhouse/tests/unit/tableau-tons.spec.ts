@@ -58,14 +58,7 @@ describe('the table of the tones', () => {
       .filter(([, ton]) => ton === 'alerte')
       .map(([etat]) => etat)
       .sort();
-    expect(rouges).toEqual([
-      'fige',
-      'nuitRouge',
-      'panne',
-      'plafondRefuse',
-      'sansAttente',
-      'sansIssue',
-    ]);
+    expect(rouges).toEqual(['fige', 'nuitRouge', 'panne', 'plafondRefuse', 'sansIssue']);
   });
 
   it('gives a wait for the supervisor the tone of attention', () => {
@@ -111,7 +104,6 @@ describe('each alert', () => {
       circuits: [enQuestion('demo-1')],
       verdictDeLaNuit: 'rouge',
       remontees: [{ cle: cle('demo-1'), depuis: MAINTENANT - 30 * MIN }],
-      attenteVivante: false,
       outil: { version: '0.29.0', raison: 'npm : ENOTFOUND' },
       faute: 'mémo illisible',
     });
@@ -120,7 +112,6 @@ describe('each alert', () => {
       'nuitRouge',
       'outilNonInstallable',
       'panne',
-      'sansAttente',
     ]);
     const l = dessin(t);
     for (const a of t.alertes) {

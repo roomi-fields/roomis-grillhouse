@@ -21,9 +21,9 @@
 // (scripts/faits-du-circuit.mjs), which calls the functions below (the opening, a step of the plan,
 // the preparation of a pass, a fact, a stop, the end). The command `npx grillhouse circuit` is the
 // client of that workflow (src/temporal/circuit/commande.ts): it puts a ticket in the queue of the
-// tickets of the project, answers a stop, or stops the circuit. A question wakes the supervisor by
-// the wait of the questions (`npx grillhouse superviseur --attendre`, scripts/superviseur.mjs),
-// which reads the server, and the normal end of a circuit wakes no one: the board shows it.
+// tickets of the project, answers a stop, or stops the circuit. A question reaches the supervisor by
+// the push of the greffon into the queue of its session (`relever`, scripts/superviseur.mjs),
+// which reads the server, and the normal end of a circuit is given once by the same push.
 //
 // The decisions of each step (the step that follows, its attempt, its report, its stop) are the
 // functions without input nor output of scripts/transitions.mjs (`transition`, `apresLaPreuve`,
