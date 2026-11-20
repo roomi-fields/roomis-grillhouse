@@ -956,16 +956,17 @@ describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un 
       });
   };
   const DEMARRE = 'sccache --start-server';
-  // Each run of cargo that compiles follows the start of its server: under /tmp, its cache and
-  // its socket cargo's; cargo keeps its own temporary directory.
+  const INTERROGE = 'sccache --show-stats';
+  // Each run of cargo that compiles follows the start of its server and its interrogation, both
+  // under /tmp, its cache and its socket cargo's; cargo keeps its own temporary directory.
   const demarreAvant = (a: ReturnType<typeof appels>, attendus: string[]) => {
     expect(a.map(x => x.appel)).toEqual(attendus);
-    const socket = a.find(x => x.appel !== DEMARRE)!.socket;
+    const socket = a.find(x => x.appel !== DEMARRE && x.appel !== INTERROGE)!.socket;
     expect(socket).toMatch(/^\\x00grillhouse-sccache-[0-9a-f]{16}$/);
     for (const x of a) {
       expect(x.socket, x.appel).toBe(socket);
       expect(x.cache, x.appel).toBe(CACHE);
-      if (x.appel === DEMARRE) {
+      if (x.appel === DEMARRE || x.appel === INTERROGE) {
         expect(x.tmpdir).toBe('/tmp');
       } else {
         expect(x.tmpdir.startsWith(LONG), x.appel).toBe(true);
@@ -974,12 +975,81 @@ describe('grillhouse-qmk, critère 1 — le serveur de sccache démarre sous un 
   };
 
   it('tester, verifier and typer start the server of the copy under /tmp before each build', () => {
-    demarreAvant(appels(d.seul, 'tester'), [DEMARRE, 'build', DEMARRE, 'nextest', DEMARRE, 'test']);
-    demarreAvant(appels(d.seul, 'typer'), [DEMARRE, 'check']);
+    demarreAvant(appels(d.seul, 'tester'), [
+      DEMARRE,
+      INTERROGE,
+      'build',
+      DEMARRE,
+      INTERROGE,
+      'nextest',
+      DEMARRE,
+      INTERROGE,
+      'test',
+    ]);
+    demarreAvant(appels(d.seul, 'typer'), [DEMARRE, INTERROGE, 'check']);
   });
 
   it('the guard clippy starts it too', () => {
-    demarreAvant(appels(d.seul, 'clippy'), [DEMARRE, 'clippy']);
+    demarreAvant(appels(d.seul, 'clippy'), [DEMARRE, INTERROGE, 'clippy']);
+  });
+
+  // The server is judged reachable by what sccache answers, not by a refusal it is credited with
+  // (grillhouse-3uv.112): a start that fails and an interrogation that fails stop the command
+  // before cargo, the line naming the start of the server and carrying both outputs.
+  const SANS_SERVEUR = JSON.stringify({
+    '--start-server': { code: 2, stdout: 'sortie-demarrage', stderr: 'erreur-demarrage' },
+    '--show-stats': { code: 1, stdout: 'sortie-interrogation', stderr: 'erreur-interrogation' },
+  });
+  const DITS = [
+    'démarrage du serveur sccache',
+    'sortie-demarrage',
+    'erreur-demarrage',
+    'sortie-interrogation',
+    'erreur-interrogation',
+  ];
+
+  it('a server that does not answer stops each command that compiles before cargo, the line carrying both outputs', () => {
+    for (const [nom, args] of [
+      ['tester', []],
+      ['typer', []],
+      ['typer', ['.']],
+      ['construire', ['.']],
+    ] as const) {
+      const r = lancer(d.seul, nom, [...args], {}, { FAUX_SCCACHE_SORTIES: SANS_SERVEUR });
+      expect(r.code, nom).not.toBe(0);
+      for (const dit of DITS) {
+        expect(r.stderr, `${nom} ${dit}`).toContain(dit);
+      }
+      expect(r.appels, nom).toEqual([]);
+    }
+  });
+
+  it('a start that fails while the server already answers is no failure: cargo runs', () => {
+    const sorties = JSON.stringify({ '--start-server': { code: 2, stderr: 'deja-la' } });
+    const r = lancer(d.seul, 'typer', [], {}, { FAUX_SCCACHE_SORTIES: sorties });
+    expect(r.code).toBe(0);
+    expect(r.appels).toEqual(['check --all-targets']);
+  });
+
+  it('a start that succeeds while the interrogation fails stops the command, cargo never run', () => {
+    const sorties = JSON.stringify({ '--show-stats': { code: 1, stderr: 'pas-joignable' } });
+    const r = lancer(d.seul, 'typer', [], {}, { FAUX_SCCACHE_SORTIES: sorties });
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toContain('démarrage du serveur sccache');
+    expect(r.stderr).toContain('pas-joignable');
+    expect(r.appels).toEqual([]);
+  });
+
+  it('a wrapper the project sets: no interrogation either, a failing sccache changes nothing', () => {
+    const r = lancer(
+      d.seul,
+      'typer',
+      [],
+      {},
+      { RUSTC_WRAPPER: 'mon-lanceur', FAUX_SCCACHE_SORTIES: SANS_SERVEUR }
+    );
+    expect(r.code).toBe(0);
+    expect(r.appels).toEqual(['check --all-targets']);
   });
 
   it('a wrapper the project sets: no server of sccache is started', () => {

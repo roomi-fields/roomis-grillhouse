@@ -257,13 +257,24 @@ process.exit(code);
  * The tests' stand-in for sccache: each call adds to `FAUX_SCCACHE_JOURNAL`, when set, a line
  * `sccache <arguments> TMPDIR=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur>`: what it
  * was asked, the temporary directory where the real one binds the socket by which its server says
- * it started, its cache and its server's socket (grillhouse-qmk); its code is 0.
+ * it started, its cache and its server's socket (grillhouse-qmk); its code is 0, unless
+ * `FAUX_SCCACHE_SORTIES` (JSON, by first argument: `--start-server`, `--show-stats`) gives for it
+ * `{ code, stdout, stderr }`, as the real one fails or answers (grillhouse-3uv.112). It applies no
+ * rule of SUN_LEN: whether a server is reachable is what its exit code says.
  */
-const FAUX_SCCACHE = `#!/bin/sh
-if [ -n "$FAUX_SCCACHE_JOURNAL" ]; then
-  printf 'sccache %s TMPDIR=%s SCCACHE_DIR=%s SCCACHE_SERVER_UDS=%s\\n' "$*" "$TMPDIR" "$SCCACHE_DIR" "$SCCACHE_SERVER_UDS" >> "$FAUX_SCCACHE_JOURNAL"
-fi
-exit 0
+const FAUX_SCCACHE = `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+if (process.env.FAUX_SCCACHE_JOURNAL) {
+  fs.appendFileSync(
+    process.env.FAUX_SCCACHE_JOURNAL,
+    'sccache ' + args.join(' ') + ' TMPDIR=' + (process.env.TMPDIR ?? '') + ' SCCACHE_DIR=' + (process.env.SCCACHE_DIR ?? '') + ' SCCACHE_SERVER_UDS=' + (process.env.SCCACHE_SERVER_UDS ?? '') + '\\n'
+  );
+}
+const sortie = JSON.parse(process.env.FAUX_SCCACHE_SORTIES || '{}')[args[0]] ?? {};
+if (sortie.stdout) process.stdout.write(sortie.stdout);
+if (sortie.stderr) process.stderr.write(sortie.stderr);
+process.exit(sortie.code ?? 0);
 `;
 
 /**
@@ -296,6 +307,7 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
     FAUX_CARGO_COMPILATEUR: process.env.FAUX_CARGO_COMPILATEUR,
     FAUX_CARGO_SANS_BINSTALL: process.env.FAUX_CARGO_SANS_BINSTALL,
     FAUX_SCCACHE_JOURNAL: process.env.FAUX_SCCACHE_JOURNAL,
+    FAUX_SCCACHE_SORTIES: process.env.FAUX_SCCACHE_SORTIES,
     XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
   };
   process.env.PATH = `${dossier}${path.delimiter}${process.env.PATH ?? ''}`;
@@ -306,6 +318,7 @@ export function avecFauxCargo(dossier: string, journal: string): () => void {
   delete process.env.FAUX_CARGO_COMPILATEUR;
   delete process.env.FAUX_CARGO_SANS_BINSTALL;
   delete process.env.FAUX_SCCACHE_JOURNAL;
+  delete process.env.FAUX_SCCACHE_SORTIES;
   // The caches of compilation of the runs (~/.cache/grillhouse/, grillhouse-xv9) go to the trial
   // directory, never to the user's cache.
   process.env.XDG_CACHE_HOME = path.join(dossier, 'cache');

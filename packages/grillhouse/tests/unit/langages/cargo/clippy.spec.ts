@@ -99,6 +99,28 @@ function jouer(lignes: string[], mode?: string) {
     delete process.env.FAUX_CARGO_CODES;
   }
 }
+describe('la garde clippy et le serveur de sccache', () => {
+  it('un serveur qui ne répond pas est un constat refusé qui porte la sortie de sccache, cargo clippy jamais lancé', () => {
+    writeFileSync(path.join(ESSAIS, 'journal'), '');
+    process.env.FAUX_SCCACHE_SORTIES = JSON.stringify({
+      '--start-server': { code: 2, stderr: 'erreur-demarrage' },
+      '--show-stats': { code: 1, stderr: 'erreur-interrogation' },
+    });
+    try {
+      const { code, sarif } = jouer([]);
+      expect(code).toBe(1);
+      const messages = sarif.map(c => c.message);
+      expect(messages.some(m => m.includes('démarrage du serveur sccache'))).toBe(true);
+      expect(messages.some(m => m.includes('erreur-demarrage'))).toBe(true);
+      expect(messages.some(m => m.includes('erreur-interrogation'))).toBe(true);
+      expect(messages.some(m => m.includes('cargo clippy rouge'))).toBe(false);
+      expect(readFileSync(path.join(ESSAIS, 'journal'), 'utf8')).not.toContain('clippy');
+    } finally {
+      delete process.env.FAUX_SCCACHE_SORTIES;
+    }
+  });
+});
+
 const dette = () =>
   JSON.parse(readFileSync(path.join(seul, 'grillhouse-dette.json'), 'utf8')) as Record<
     string,

@@ -159,18 +159,31 @@ export function sccacheAbsent(racine, env) {
 /**
  * Starts the server of sccache of the copy at <racine> under <env> (`avecSccache`), under the
  * machine's temporary directory (`COURT`), unless the project sets its own wrapper; a server
- * already running stays, and its refusal of a second one is no failure.
+ * already running stays, and its refusal of a second one is no failure. The server is judged
+ * reachable by what sccache answers: after the start, `sccache --show-stats` under the same
+ * environment interrogates it.
  * @param {string} racine
  * @param {NodeJS.ProcessEnv} env the environment before `avecSccache`
+ * @returns {string | null} the line that refuses the run, naming the start of the server and
+ *   carrying the outputs of the start and of the interrogation; null when the server answers, or
+ *   when the project sets its own wrapper
  */
 export function demarrerLeServeur(racine, env) {
   if (lanceurDuProjet(racine, env)) {
-    return;
+    return null;
   }
-  spawnSync('sccache', ['--start-server'], {
-    env: { ...avecSccache(racine, env), TMPDIR: COURT },
-    stdio: 'ignore',
-  });
+  const sous = { env: { ...avecSccache(racine, env), TMPDIR: COURT }, encoding: 'utf8' };
+  const demarrage = spawnSync('sccache', ['--start-server'], sous);
+  const interrogation = spawnSync('sccache', ['--show-stats'], sous);
+  if (!interrogation.error && interrogation.status === 0) {
+    return null;
+  }
+  const dit = (nom, r) =>
+    `${nom} (code ${r.status ?? r.signal}) : ${[r.error?.message, r.stdout, r.stderr]
+      .filter(Boolean)
+      .join(' ')
+      .trim()}`;
+  return `⛔ démarrage du serveur sccache refusé : le serveur ne répond pas ; ${dit('--start-server', demarrage)} ; ${dit('--show-stats', interrogation)}`;
 }
 
 /**

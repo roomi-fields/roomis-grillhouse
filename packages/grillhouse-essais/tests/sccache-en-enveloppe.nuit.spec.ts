@@ -124,17 +124,20 @@ describe.runIf(canWrap)(
       return { code: r.status, sortie: `${r.stdout}\n${r.stderr}`, appels: lire(journal) };
     };
 
-    it('the server starts under /tmp, then cargo compiles under the session’s working directory, one socket for both', () => {
+    it('the server starts and is queried under /tmp, then cargo compiles under the session’s working directory, one socket for all three', () => {
       const r = typer(true);
       expect(r.code, r.sortie).toBe(0);
       expect(r.appels.map(a => a.appel)).toEqual([
         'sccache --start-server',
+        'sccache --show-stats',
         'cargo check --all-targets',
       ]);
-      const [serveur, cargo] = r.appels;
+      const [serveur, interrogation, cargo] = r.appels;
       expect(serveur.tmpdir).toBe('/tmp');
+      expect(interrogation.tmpdir).toBe('/tmp');
       expect(cargo.tmpdir).toBe(travail);
       expect(serveur.socket).toMatch(/^\\x00grillhouse-sccache-[0-9a-f]{16}$/);
+      expect(interrogation.socket).toBe(serveur.socket);
       expect(cargo.socket).toBe(serveur.socket);
     });
 

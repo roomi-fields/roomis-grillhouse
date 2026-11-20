@@ -85,15 +85,22 @@ export function commande(racine, { env = process.env } = {}) {
     process.stderr.write(`${absent}\n`);
     return 1;
   }
-  demarrerLeServeur(racine, env);
-  const r = spawnSync('cargo', ARGS, {
-    cwd: racine,
-    env: avecSccache(racine, env),
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  const constats = r.error ? [] : constatsDeClippy(r.stdout ?? '', racine);
-  if (r.error || (r.status !== 0 && constats.length === 0)) {
+  const serveur = demarrerLeServeur(racine, env);
+  // A server that does not answer is a finding refused, cargo never run.
+  const r = serveur
+    ? null
+    : spawnSync('cargo', ARGS, {
+        cwd: racine,
+        env: avecSccache(racine, env),
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+      });
+  const constats = serveur
+    ? [{ message: serveur.replace(/^⛔ /, '') }]
+    : r.error
+      ? []
+      : constatsDeClippy(r.stdout ?? '', racine);
+  if (r && (r.error || (r.status !== 0 && constats.length === 0))) {
     const fin = r.error?.message ?? (r.stderr ?? '').trim().split('\n').at(-1) ?? '';
     constats.push({ message: `cargo clippy rouge (code ${r.status ?? r.signal}) : ${fin}` });
   }

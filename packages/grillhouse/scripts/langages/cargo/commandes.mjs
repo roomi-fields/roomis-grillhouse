@@ -311,8 +311,13 @@ function passe(racine, env) {
         rmSync(junit, { force: true });
       }
       // The server of sccache, started under a short temporary directory (./sccache.mjs).
-      if (COMPILATIONS.includes(args[0])) {
-        demarrerLeServeur(racine, env);
+      // A server that does not answer stops the task before cargo, the line printed.
+      const serveur = COMPILATIONS.includes(args[0]) ? demarrerLeServeur(racine, env) : null;
+      if (serveur) {
+        process.stderr.write(`${serveur}\n`);
+        t.code = 1;
+        ecrire();
+        return t.code;
       }
       const banc = t.script === BUDGET;
       const avant = banc ? pression() : null;
