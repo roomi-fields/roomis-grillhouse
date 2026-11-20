@@ -23,7 +23,10 @@
 //   counts them in the hash of every task of the run (its documentation, « Caching »: « including
 //   dependencies of `build` that did not receive `--arg=value` »), where a variable of a task's
 //   `env` enters that task's hash alone. So a run with paths is one Turborepo run of the tests with
-//   what they depend on (`turbo run test:unit --filter=<name>`): the builds and the traces they
+//   what they depend on (`turbo run test:unit --filter=<name>`); a package named whole (the exact
+//   folder of a package) carries no path: it plays under the hash of the complete pass, and a run
+//   that mixes it with files of another package is two runs, the code the first that is not 0:
+//   the builds and the traces they
 //   wait for play first, from the cache when nothing moved, whatever paths are named, and the hash
 //   of the tests holds theirs, as Bazel's key of a target holds its transitive inputs; a change to
 //   a package the tests import, or to what they read, plays them again. Every other run of
@@ -230,6 +233,9 @@ const lancer = () => {
   const refus = [];
   const noms = new Set();
   const absolus = [];
+  // The packages named whole (the exact folder of a package): they play under the hash of the
+  // complete pass, as Bazel's `//pkg/...` shares the cache of `//...`.
+  const entiers = new Set();
   for (const chemin of chemins) {
     const abs = path.resolve(racine, chemin);
     const p = liste.find(({ dossier }) =>
@@ -246,6 +252,10 @@ const lancer = () => {
     } else if (typeof p.pkg.scripts?.[SCRIPT_DES_TESTS] !== 'string') {
       refus.push(`⛔ ${chemin} : ${p.dossier} n'a pas de script ${SCRIPT_DES_TESTS}.`);
     } else {
+      if (abs === path.join(racine, p.dossier)) {
+        entiers.add(p.pkg.name);
+        continue;
+      }
       noms.add(p.pkg.name);
       // A directory ends with « / »: Vitest matches the start of a path, and packages/a is the start
       // of packages/ab.
@@ -259,10 +269,26 @@ const lancer = () => {
     }
     return 2;
   }
-  return cibles(
-    [...noms].sort().map(n => `--filter=${n}`),
-    [...absolus, ...options]
-  );
+  // The whole packages play with no path in the variable (only the options and the moment of
+  // `--force`); the files play in a run of their own. The code is the first that is not 0.
+  const codes = [];
+  if (entiers.size) {
+    codes.push(
+      cibles(
+        [...entiers].sort().map(n => `--filter=${n}`),
+        options
+      )
+    );
+  }
+  if (noms.size) {
+    codes.push(
+      cibles(
+        [...noms].sort().map(n => `--filter=${n}`),
+        [...absolus, ...options]
+      )
+    );
+  }
+  return codes.find(c => c !== 0) ?? 0;
 };
 
 try {
