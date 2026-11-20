@@ -25,6 +25,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { GREFFON } from './cadre.mjs';
+import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
 import { ecrireLaListe } from './enveloppe/paquets-du-plan.mjs';
 import { nomDuRole } from './etapes.mjs';
 import { departDe } from './mesure/base-de-passe.mjs';
@@ -257,12 +258,15 @@ export async function lancer(
   // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
   const erreurs = path.join(ctx.tmp, `erreurs-${numero}.txt`);
   let commande;
-  let fds;
+  // Its result ranged under its id, as lancer.sh ranges a session's: claude's output, then its
+  // exit code once it ends, written by the shell that runs it, which outlives a dead circuit.
+  const ouvrirLesFds = () =>
+    horsEnveloppe
+      ? [openSync(fichier, 'r'), openSync(rang.resultat, 'w'), openSync(ctx.journal, 'a')]
+      : ['ignore', 'ignore', openSync(erreurs, 'w')];
+  let fds = ouvrirLesFds();
   if (horsEnveloppe) {
     entete(ctx, role);
-    // Its result ranged under its id, as lancer.sh ranges a session's: claude's output, then its
-    // exit code once it ends, written by the shell that runs it, which outlives a dead circuit.
-    fds = [openSync(fichier, 'r'), openSync(rang.resultat, 'w'), openSync(ctx.journal, 'a')];
     const fiche = [
       '--output-format',
       'json',
@@ -281,7 +285,6 @@ export async function lancer(
       cwd: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
     };
   } else {
-    fds = ['ignore', 'ignore', openSync(erreurs, 'w')];
     commande = {
       cmd: 'bash',
       args: [
@@ -324,58 +327,74 @@ export async function lancer(
     }
     throw new Arret('a-repasser', e.message);
   }
-  // The session writes at the ticket under the author of its role (the mark of its place,
-  // `place.env`); the passes it plays out of the envelope take their own part of the machine,
-  // those it plays in its envelope none (its place covers them).
-  // A session out of the envelope (the relecteur, which plays tests) plays them on its share of
-  // the cores, under nice and ionice; the launcher of an enveloped one does it in the envelope.
-  const lancement = horsEnveloppe
-    ? lancementDeLaPasse({
-        lourde: false,
-        cmd: commande.cmd,
-        args: commande.args,
-        env: { ...process.env, ...place.env, [ACTEUR]: role },
-      })
-    : {
-        cmd: commande.cmd,
-        args: commande.args,
-        env: { ...process.env, ...place.env, [ACTEUR]: role },
-      };
+  // The key of the API (`cleDeLAPI`): taken for the first attempt, never for the second.
+  const cle = cleDeLAPI();
   const fermer = () => {
     for (const fd of new Set(fds.filter(f => typeof f === 'number'))) {
       closeSync(fd);
     }
   };
-  const r = await jouerLeGroupe({
-    cmd: lancement.cmd,
-    args: lancement.args,
-    cwd: commande.cwd,
-    env: lancement.env,
-    stdio: fds,
-    seanceId: id,
-    lancement: identite,
-    immobileMs: ctx.immobileMs,
-    traces,
-    signeDeVie,
-    annulation,
-    lance: enfant => {
+  // The session writes at the ticket under the author of its role (the mark of its place,
+  // `place.env`); the passes it plays out of the envelope take their own part of the machine,
+  // those it plays in its envelope none (its place covers them).
+  // A session out of the envelope (the relecteur, which plays tests) plays them on its share of
+  // the cores, under nice and ionice; the launcher of an enveloped one does it in the envelope.
+  const jouer = async base => {
+    const env = { ...base, ...place.env, [ACTEUR]: role };
+    const lancement = horsEnveloppe
+      ? lancementDeLaPasse({ lourde: false, cmd: commande.cmd, args: commande.args, env })
+      : { cmd: commande.cmd, args: commande.args, env };
+    const r = await jouerLeGroupe({
+      cmd: lancement.cmd,
+      args: lancement.args,
+      cwd: commande.cwd,
+      env: lancement.env,
+      stdio: fds,
+      seanceId: id,
+      lancement: identite,
+      immobileMs: ctx.immobileMs,
+      traces,
+      signeDeVie,
+      annulation,
+      lance: enfant => {
+        fermer();
+        // The place is the session's own from now on: its process and its start, so that it is
+        // freed with the session, even if the circuit dies before.
+        if (enfant.pid) {
+          place.rattacher({ pid: enfant.pid, depart: departDe(enfant.pid) });
+        }
+      },
+    });
+    if (r.pid === null && r.annulee) {
       fermer();
-      // The place is the session's own from now on: its process and its start, so that it is
-      // freed with the session, even if the circuit dies before.
-      if (enfant.pid) {
-        place.rattacher({ pid: enfant.pid, depart: departDe(enfant.pid) });
-      }
-    },
-  });
-  if (r.pid === null && r.annulee) {
-    fermer();
+    }
+    if (r.annulee) {
+      place.rendre();
+      throw new SeanceAnnulee(role);
+    }
+    return r;
+  };
+  let r = await jouer(cle?.env ?? process.env);
+  let sortie = lireLaSortie(rang);
+  const motif = cle ? motifDeRefus(sortie) : null;
+  if (cle && motif) {
+    // The API refused the key: the session plays again, once, on the subscription, under the same
+    // id, which the refused attempt opened: claude refuses a second `--session-id` of it
+    // (« already in use »), so the relaunch resumes it (`--resume`, `--reprise` of the launcher).
+    // The refusal is neither a failure nor a second session.
+    noterLeMois(ctx, cle.dossier, motif);
+    commande.args = commande.args.map(a =>
+      a === '--session-id' ? '--resume' : a === '--seance' ? '--reprise' : a
+    );
+    rmSync(rang.fin, { force: true });
+    rmSync(rang.resultat, { force: true });
+    fds = ouvrirLesFds();
+    const { ANTHROPIC_API_KEY: _cle, ...sansCle } = process.env;
+    r = await jouer(sansCle);
+    sortie = lireLaSortie(rang);
   }
   place.rendre();
-  if (r.annulee) {
-    throw new SeanceAnnulee(role);
-  }
   let seance;
-  let sortie;
   let horsPlan = null;
   let ecriture = null;
   if (horsEnveloppe) {
@@ -384,7 +403,6 @@ export async function lancer(
       : r.erreur === null
         ? r.code
         : null;
-    sortie = lire(rang.resultat).trim();
     appendFileSync(ctx.journal, `${sortie}\n`);
     spawnSync(process.execPath, [REGISTRE, '--copie', ctx.copie], {
       cwd: ctx.racine,
@@ -392,7 +410,6 @@ export async function lancer(
     });
   } else {
     seance = existsSync(rang.fin) ? Number(readFileSync(rang.fin, 'utf8').trim()) : null;
-    sortie = lire(rang.resultat).trim();
     horsPlan = existsSync(rang.horsPlan) ? lire(rang.horsPlan).trim() : null;
     ecriture = ecritureRangee(rang);
   }
@@ -406,6 +423,73 @@ export async function lancer(
     sortie,
     id,
   };
+}
+
+// The text a session ranged as its result, `lancer` reads it at the end of each attempt.
+function lireLaSortie(rang) {
+  return lire(rang.resultat).trim();
+}
+
+// The API key of the poste (`api.env` of the frame's directory of configuration), applied to the
+// environment of the circuit as the files of the poste are (`avecLeFichierDuPoste`): null when the
+// circuit's environment already holds a key, when the month is noted (`api-epuise-AAAA-MM`, a
+// file of presence whose existence alone is tested) or when the file is absent. Its `env` is the
+// environment of the first attempt; its `dossier` the one the month is noted in.
+function cleDeLAPI() {
+  const dossier = configurationDuPoste(process.env);
+  if (dossier === null || process.env.ANTHROPIC_API_KEY !== undefined) {
+    return null;
+  }
+  if (existsSync(path.join(dossier, `api-epuise-${leMois()}`))) {
+    return null;
+  }
+  const env = avecLeFichierDuPoste(process.env, { fichier: 'api.env' });
+  return env === process.env ? null : { env, dossier };
+}
+
+// The month of the day, `AAAA-MM`.
+function leMois() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Why the API refused a session, from its result: only a JSON result of claude in error whose
+// status or text is the empty credit's (400) or the refused key's (401) counts; any other result,
+// a transient error of the API included, is null and follows the path of the failed sessions.
+function motifDeRefus(sortie) {
+  let r;
+  try {
+    r = JSON.parse(sortie);
+  } catch {
+    return null;
+  }
+  // The probed form of a refusal: `is_error` true, `terminal_reason` "api_error", the API's status.
+  if (r?.is_error !== true || r.terminal_reason !== 'api_error') {
+    return null;
+  }
+  const texte = typeof r.result === 'string' ? r.result : '';
+  if (r.api_error_status === 401) {
+    return 'clé refusée';
+  }
+  if (r.api_error_status === 402 || texte.toLowerCase().includes('credit balance is too low')) {
+    return 'crédit épuisé';
+  }
+  return null;
+}
+
+// Notes the month in its file of presence, by an exclusive write: of the sessions refused together,
+// the first to create it writes the line of the log, the others none.
+function noterLeMois(ctx, dossier, motif) {
+  const mois = leMois();
+  try {
+    writeFileSync(path.join(dossier, `api-epuise-${mois}`), '', { flag: 'wx' });
+  } catch {
+    return;
+  }
+  appendFileSync(
+    ctx.journal,
+    `la clé d'API est ${motif} : la séance repart sur l'abonnement, sans clé jusqu'à la fin de ${mois}\n`
+  );
 }
 
 // The group of a session, as an activity of Temporal runs a process: launched detached, the

@@ -1302,6 +1302,24 @@ n'en a pas besoin : l'enveloppe ne lui rend ni le fichier (sa maison est vide) n
 Ainsi chaque run sert les suivants pour ce qui n'a pas bougé, et le poste en profite sans jamais
 l'écrire ; la CI de main après l'avance rapide ne rejoue rien (« Main reste vert »).
 
+**Les séances d'agents du circuit prennent la clé d'API du poste quand il en reste** : Claude Code
+prend une clé par `ANTHROPIC_API_KEY` de son environnement. Avec `~/.config/grillhouse/api.env`
+(`$XDG_CONFIG_HOME/grillhouse/`, `avecLeFichierDuPoste`), la fonction de lancement
+(`lancer` de `scripts/seances.mjs`, une seule logique pour la séance dans l'enveloppe, par le
+lanceur, et hors enveloppe, `claude -p` direct) part avec la clé ; la séance du superviseur n'est
+pas touchée, et sans le fichier, ou quand l'environnement du circuit porte déjà une clé, rien ne
+change. Une séance que l'API refuse pour crédit épuisé (« credit balance is too low ») ou pour
+clé refusée (statut 401), lus sur un résultat JSON de `claude -p` en erreur (`is_error` vrai,
+`terminal_reason` « api_error », `api_error_status`, forme sondée), repart aussitôt sur
+l'abonnement, une fois, sans clé, en reprenant la séance que la tentative a ouverte (`--resume`,
+`--reprise` du lanceur : le vrai `claude` refuse un second `--session-id` identique), sous le
+même identifiant et la même ligne de lancement : ce n'est pas un échec. Le circuit note le mois par un fichier de présence vide, `api-epuise-AAAA-MM`
+à côté de `api.env`, créé par écriture exclusive (la première séance refusée écrit la ligne du
+journal, motif et mois, jamais la clé) ; le lancement ne teste que son existence, et un mois neuf
+change le nom. Toute autre erreur (limite de débit, surcharge, erreur serveur, résultat non
+reconnu) suit le chemin des séances en échec et garde la clé. Ainsi le crédit se consomme sans
+vérification au lancement, et l'abonnement prend le relais.
+
 **Le cadre arrive en un seul morceau** : le paquet npm `@roomi-fields/grillhouse` porte les
 scripts, appelés par `npx grillhouse <sous-commande>`, et il est le greffon `grillhouse`, qui
 porte les compétences, les agents, les crochets de Claude Code, cette charte et le métacadre,
