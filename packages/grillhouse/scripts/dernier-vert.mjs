@@ -48,6 +48,7 @@
 //   The green is kept by the one pass of the verification (scripts/langages/typescript/verifier.mjs),
 //   once, when every task of every language of the graph is green, and never when one is red.
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { etatDuDepot, fichierSous, git, SHA, sortie } from './etat-du-depot.mjs';
@@ -140,7 +141,7 @@ function difference(racine, avant, apres) {
     return null;
   }
   const champs = r.stdout.split('\0');
-  const out = { fichiers: [], supprimes: [], sousModules: [] };
+  const out = { fichiers: [], supprimes: [], sousModules: [], modifies: new Set() };
   for (let i = 0; i + 1 < champs.length; i += 2) {
     const [modeAvant, modeApres, , , statut] = champs[i].replace(/^:/, '').split(' ');
     const f = champs[i + 1];
@@ -150,9 +151,70 @@ function difference(racine, avant, apres) {
       out.supprimes.push(f);
     } else {
       out.fichiers.push(f);
+      if (statut === 'M') {
+        out.modifies.add(f);
+      }
     }
   }
   return out;
+}
+
+const CODE = /\.(?:[cm]?[jt]sx?)$/;
+const DOCUMENT = /\.mdx?$/;
+
+// The isolated transpilation of the source <texte> of the file <f> (fixed options, comments
+// removed, value imports kept): its executable output; null when it fails.
+function sortieCompilee(ts, f, texte) {
+  const r = ts.transpileModule(texte, {
+    fileName: f,
+    reportDiagnostics: true,
+    compilerOptions: {
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      jsx: ts.JsxEmit.Preserve,
+      removeComments: true,
+      verbatimModuleSyntax: true,
+      sourceMap: false,
+    },
+  });
+  return r.diagnostics?.length ? null : r.outputText;
+}
+
+// Moves from <ch>.fichiers to <ch>.sansEffet the files changed (never added, never removed) that
+// no test can tell from their previous state: a document, and a file of code whose isolated
+// transpilation is identical in the trees <avant> and <apres>. Any doubt leaves the file a change.
+function classerSansEffet(racine, avant, apres, ch) {
+  let ts = null;
+  const lire = (arbre, f) => {
+    const r = git(racine, ['show', `${arbre}:${f}`]);
+    return r.status === 0 ? r.stdout : null;
+  };
+  const sansEffet = [];
+  for (const f of ch.fichiers) {
+    if (!ch.modifies.has(f)) {
+      continue;
+    }
+    if (DOCUMENT.test(f)) {
+      sansEffet.push(f);
+    } else if (CODE.test(f)) {
+      const a = lire(avant, f);
+      const b = lire(apres, f);
+      if (a === null || b === null) {
+        continue;
+      }
+      try {
+        ts ??= createRequire(import.meta.url)('typescript');
+        const sa = sortieCompilee(ts, f, a);
+        if (sa !== null && sa === sortieCompilee(ts, f, b)) {
+          sansEffet.push(f);
+        }
+      } catch {
+        // a transpilation that fails leaves the file a change
+      }
+    }
+  }
+  ch.fichiers = ch.fichiers.filter(f => !sansEffet.includes(f));
+  ch.sansEffet = sansEffet;
 }
 
 // The files the commit <commit> of the repository at <racine> tracks that the tree <arbre> no longer
@@ -216,6 +278,7 @@ export function mesure(racine, { tout = false, base, lot, dans = os.tmpdir() } =
     }
     ch.supprimes = ch.supprimes.filter(f => suivis.has(f));
   }
+  classerSansEffet(etat.racine, vert.arbre, etat.arbre, ch);
   const dir = mkdtempSync(path.join(dans, 'grillhouse-changements-'));
   const fichier = path.join(dir, 'changements.json');
   writeFileSync(
@@ -224,10 +287,11 @@ export function mesure(racine, { tout = false, base, lot, dans = os.tmpdir() } =
       racine: etat.racine,
       fichiers: ch.fichiers,
       supprimes: ch.supprimes,
+      ...(ch.sansEffet.length ? { sansEffet: ch.sansEffet } : {}),
       ...(cible ? { cible: true } : {}),
     })
   );
-  const n = ch.fichiers.length + ch.supprimes.length;
+  const n = ch.fichiers.length + ch.supprimes.length + ch.sansEffet.length;
   return {
     etat: donnee ? null : etat,
     env: { [CHANGEMENTS]: fichier },

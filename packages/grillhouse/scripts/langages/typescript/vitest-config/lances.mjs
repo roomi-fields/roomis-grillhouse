@@ -465,6 +465,22 @@ export function testsQuiLancent(dossier, racine, changes) {
   });
 }
 
+/**
+ * The test files of the package at <dossier>, in the repository at <racine>, that name one of the
+ * files <changes> (absolute) by its path (`nommesPar`): the tests that read its text, not those
+ * that import it or reach it through a file they read; sorted.
+ */
+export function testsQuiNomment(dossier, racine, changes) {
+  const cibles = new Set(changes.map(f => reel(f) ?? f));
+  if (cibles.size === 0) {
+    return [];
+  }
+  const memo = new Map();
+  return testsDuPaquet(dossier).filter(t =>
+    [...nommesPar(t, dossier, racine, memo)].some(f => cibles.has(f))
+  );
+}
+
 // The tag of a test that declares the files it reads: a line `// @lit <motif> …` of the comment at
 // the head of the file, before its first line of code, as the tag `@poste` (./cibles.mjs).
 const ETIQUETTE_DE_LECTURE = /^\/\/\s*@lit\b(.*)$/;

@@ -46,6 +46,11 @@
 //   7. a file of the package that no graph can hold, its extension not that of a module (`.js`,
 //      `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, `.tsx`, `.json`): data, a template, a
 //      script of the shell, a document, which a test reads without importing it.
+//   A file the measure classes without effect (`sansEffet`, scripts/dernier-vert.mjs: a document, or
+//   a file of code whose isolated transpilation, comments removed, is identical to the last
+//   green's) relates no test through the graph and triggers neither 6 nor 7, as Gradle's compile
+//   avoidance stops a build whose output is identical; 5, the tests that declare they read it
+//   (`@lit`) and, out of the mark `cible`, the tests that read it by its path keep their rule.
 //   Vitest's own `forceRerunTriggers` (a configuration's, or its default) still apply, as with
 //   `--changed`. Under the mark `cible`, 5 and 7 do not play the package whole, and no test is
 //   related by the paths it reads (`testsQuiLancent`): the tests Vitest relates alone, the tests
@@ -70,7 +75,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { testsQuiDeclarent, testsQuiLancent } from './lances.mjs';
+import { testsQuiDeclarent, testsQuiLancent, testsQuiNomment } from './lances.mjs';
 
 // This directory, the frame's base configuration.
 const BASE = path.dirname(fileURLToPath(import.meta.url));
@@ -107,6 +112,7 @@ export function lireChangements(chemin) {
     typeof c.racine !== 'string' ||
     !liste(c.fichiers) ||
     !liste(c.supprimes) ||
+    (c.sansEffet !== undefined && !liste(c.sansEffet)) ||
     (c.cible !== undefined && typeof c.cible !== 'boolean')
   ) {
     return null;
@@ -240,6 +246,15 @@ function paquetEntier(ch, dossier, test = {}) {
       return { raison, fichier: f };
     }
   }
+  // A file without effect on the output keeps rule 5 alone: a test that declares it reads the
+  // path reads its text, not its output.
+  if (!ch.cible) {
+    for (const f of ch.sansEffet ?? []) {
+      if (lit.some(l => f === l || f.startsWith(`${l}/`))) {
+        return { raison: 'un chemin que ses tests déclarent lire (grillhouse.lit)', fichier: f };
+      }
+    }
+  }
   return null;
 }
 
@@ -254,8 +269,22 @@ export function restreindre(test, dossier, ch, nommes, dire) {
     return;
   }
   const changes = ch.fichiers.map(f => path.join(ch.racine, f));
-  const lanceurs = ch.cible ? [] : testsQuiLancent(dossier, ch.racine, changes);
-  const declarants = testsQuiDeclarent(dossier, [...ch.fichiers, ...ch.supprimes]);
+  // A file without effect relates no test through the graph, yet the tests that read its text keep
+  // their rule.
+  const sansEffet = ch.sansEffet ?? [];
+  const lanceurs = ch.cible
+    ? []
+    : [
+        ...new Set([
+          ...testsQuiLancent(dossier, ch.racine, changes),
+          ...testsQuiNomment(
+            dossier,
+            ch.racine,
+            sansEffet.map(f => path.join(ch.racine, f))
+          ),
+        ]),
+      ];
+  const declarants = testsQuiDeclarent(dossier, [...ch.fichiers, ...ch.supprimes, ...sansEffet]);
   test.related = [...new Set([...changes, ...nommes, ...lanceurs, ...declarants])];
   test.passWithNoTests = true;
   dire(

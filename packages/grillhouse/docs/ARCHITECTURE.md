@@ -76,8 +76,17 @@ nomment aucune, son code et sa configuration hors de son `docs/` ; jamais un tes
 connu, la passe est complète, et `npm run verifier -- --tout` la joue pour de vrai, comme la
 nuit. Un fichier que le commit du vert ne suit pas vit dans le seul arbre qui l'a gardé :
 absent d'une copie mesurée contre le vert de main, il n'est pas supprimé, comme Nx et
-Turborepo mesurent contre un commit. Ainsi un test ne tourne qu'une fois tant que rien ne
-change, et corriger un test ne rejoue que lui.
+Turborepo mesurent contre un commit. Une passe du jour mesurée contre un dernier vert ou une base
+de lot classe « sans effet » (le champ `sansEffet` du fichier de changements, à part de
+`fichiers`) un document (`.md`, `.mdx`) et un fichier de code présent aux deux arbres dont la
+transpilation isolée (options fixes, commentaires retirés, imports de valeur gardés) est
+identique, comme l'évitement de compilation de Gradle et la coupure anticipée de Bazel ne rejouent
+rien en aval d'un produit identique ; un fichier ajouté, supprimé ou dont la transpilation échoue
+reste un changement. Un fichier sans effet ne relie aucun test par le graphe de Vitest et ne
+rejoue aucun paquet entier (règles 6 et 7), mais `grillhouse.lit`, `// @lit` et, hors passe
+ciblée, la lecture par chemin gardent leur règle, ces tests lisant son texte et non sa sortie ; la
+passe complète (nuit, `--tout`, sans vert) n'en envoie aucun. Ainsi un test ne tourne qu'une fois
+tant que rien ne change, et corriger un test ne rejoue que lui.
 
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
 (`packages/grillhouse/scripts/enveloppe/`, un bac à sable bubblewrap) ; il lit toute la copie,
