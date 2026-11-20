@@ -60,7 +60,8 @@ revient. Ainsi aucune séance ne juge ce qu'une règle tranche.
 
 **Le greffon pousse les questions dans la file de la séance du superviseur, la réponse les
 acquitte** : le greffon de la séance qui tient le verrou du superviseur met chaque question neuve
-d'un circuit du projet, et chaque fin de circuit, dans la file des messages de cette séance, un
+d'un circuit du projet et des projets de son groupe qu'aucune autre séance ne supervise, et chaque
+fin de circuit, dans la file des messages de cette séance, un
 message par relevé, à la fin du tour en cours ; une question sans réponse revient à l'intervalle
 de la clé `grillhouse.rappel`, et sa réponse au circuit l'acquitte. Sans séance de superviseur ni
 greffon, rien n'est poussé : le tableau, l'ouverture de séance et le crochet de fin de tour portent

@@ -144,3 +144,79 @@ describe('the reading for the greffon applies the key grillhouse.rappel at each 
     expect(await lire(racine)).toBe('');
   });
 });
+
+describe('the reading for the greffon covers the projects of the group that no other session supervises', () => {
+  const question = (ticket: string) =>
+    circuitLu(ticket, {
+      etape: 'controles',
+      code: 14,
+      arret: 'controles',
+      question: 'Quel paquet lève ce rouge ?',
+      qui: 'superviseur',
+      run: `run-${ticket}`,
+      numero: 1,
+    });
+  // Two projects of one group: the session's own, and a neighbour whose lock names <tenant>.
+  const groupe = (tenant: number | null, pkgDuVoisin: object = {}) => {
+    const soi = depot().racine;
+    const voisin = depot(pkgDuVoisin, tenant).racine;
+    writeFileSync(
+      path.join(soi, 'package.json'),
+      JSON.stringify({ grillhouse: { groupe: [soi, voisin] } })
+    );
+    const lireLeGroupe = () =>
+      releverPourLeGreffon(soi, {
+        env: {},
+        circuitsDe: (racine: string) =>
+          Promise.resolve([question(racine === voisin ? 'voisin-1' : 'demo-1')]),
+      });
+    return { soi, voisin, lireLeGroupe };
+  };
+  // The pid of a process that is gone: a git command that ended.
+  const parti = () => spawnSync('git', ['--version']).pid;
+
+  it('gives the questions of a neighbour without a supervisor, under its name and its folder', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    const { voisin, lireLeGroupe } = groupe(null);
+    const texte = await lireLeGroupe();
+    expect(texte).toContain('demo-1');
+    expect(texte).toContain(`# Projet ${path.basename(voisin)} (${voisin})`);
+    expect(texte).toContain(`env -C ${voisin} `);
+    expect(texte.indexOf('voisin-1')).toBeGreaterThan(texte.indexOf('# Projet'));
+    expect(texte.indexOf('demo-1')).toBeLessThan(texte.indexOf('# Projet'));
+  });
+
+  it('gives the questions of a neighbour whose supervisor is gone', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    expect(await groupe(parti()).lireLeGroupe()).toContain('voisin-1');
+  });
+
+  it('leaves to its session a neighbour another live session supervises', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    const texte = await groupe(process.pid).lireLeGroupe();
+    expect(texte).toContain('demo-1');
+    expect(texte).not.toContain('voisin-1');
+  });
+
+  it('gives a neighbour its questions again at its own interval', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    const { lireLeGroupe } = groupe(null, { grillhouse: { rappel: 10 } });
+    expect(await lireLeGroupe()).toContain('voisin-1');
+    vi.setSystemTime(T0 + 5 * MIN);
+    const texte = await lireLeGroupe();
+    expect(texte).toContain('demo-1');
+    expect(texte).not.toContain('voisin-1');
+    vi.setSystemTime(T0 + 10 * MIN);
+    expect(await lireLeGroupe()).toContain('voisin-1');
+  });
+
+  it('gives nothing of the group to a session that does not hold the lock of its own project', async () => {
+    const soi = depot({}, null).racine;
+    const voisin = depot({}, null).racine;
+    writeFileSync(
+      path.join(soi, 'package.json'),
+      JSON.stringify({ grillhouse: { groupe: [soi, voisin] } })
+    );
+    expect(await lire(soi)).toBe('');
+  });
+});

@@ -473,7 +473,7 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
 
 // The questions of the circuits reach the session of supervision by a push, as a queue gives its
 // messages (grillhouse-3uv.110): at each period the greffon asks one reading of the circuits of the
-// project (`grillhouse superviseur --relever`, which reads the circuits as the board does and
+// project and of its group (`grillhouse superviseur --relever`, which reads the circuits as the board does and
 // answers nothing unless this session holds the lock of the supervisor) and submits what it prints,
 // one message per reading, to the session: `$.prompt.submit` queues it while the session works, so
 // it arrives at the end of the turn, without interrupting it. A question not answered comes back at

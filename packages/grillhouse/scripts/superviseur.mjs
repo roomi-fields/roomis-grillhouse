@@ -56,6 +56,8 @@
 //   presentation. The end of a circuit integrated is given once (`integre`), kept in
 //   `.claude/worktrees/integrations-rendues.json`, and a ticket the queue reopened for a red
 //   workflow of main once per run (`.claude/worktrees/flux-rouges-rendus.json`).
+// - The reading covers the project and each other project of its group (`grillhouse.groupe`) that
+//   no other live session of supervision holds, each under its name and its folder.
 import { execFile, spawnSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
@@ -71,6 +73,7 @@ import {
   remonteesDe,
 } from './tableau.mjs';
 import { rappelDuProjet, reglageDuRappel } from './circuits-cles.mjs';
+import { lireGroupe } from './groupe-cles.mjs';
 import { etapeDuCircuit, libelle, SUPERVISEUR } from './etapes.mjs';
 import { enFileSansArchitecture, lireLesTickets } from './file-des-tickets.mjs';
 
@@ -651,7 +654,10 @@ async function superviseur(racine, { env = process.env } = {}) {
  * circuits do not read, or when the session that runs it is not the one that holds the lock of the
  * supervisor (a role's session, an agent's copy, another project's, a session that took no lock).
  * The interval of the re-presentation is the key `grillhouse.rappel` of the project, applied at
- * each reading.
+ * each reading. The session reads too each other project of its group (`grillhouse.groupe`) that
+ * no other live session of supervision holds (`voisinsSansSuperviseur`): its part follows, under
+ * the name and the folder of that project, where its answers are played, with that project's own
+ * interval and state.
  * @param {string} racine
  * @param {{ env?: Record<string, string | undefined>, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
  * @returns {Promise<string>}
@@ -681,15 +687,38 @@ export async function releverPourLeGreffon(
   if (!Number.isInteger(tenant) || !estAuDessus(tenant)) {
     return '';
   }
-  let pkg = {};
-  try {
-    pkg = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'));
-  } catch {
-    // a package.json that does not read sets no key: the default interval
+  const parts = [await leReleveDe(racine, circuitsDe)];
+  for (const p of voisinsSansSuperviseur(racine)) {
+    const texte = await leReleveDe(p.chemin, circuitsDe);
+    if (texte) {
+      parts.push(
+        [
+          `# Projet ${p.nom} (${p.chemin})`,
+          `Ses réponses se jouent dans son dossier : \`env -C ${p.chemin} <la réponse>\`.`,
+          texte,
+        ].join('\n')
+      );
+    }
   }
-  const { minutes, faute } = reglageDuRappel(pkg);
+  return parts.filter(Boolean).join('\n\n');
+}
+
+// The package.json of the project at <racine>; empty when it does not read.
+function paquetDe(racine) {
+  try {
+    return JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+// The message of one reading of the project at <racine>, under its own interval
+// (`grillhouse.rappel`) and its own state of the questions presented; empty when it gives nothing
+// or when its circuits do not read. A faulty interval throws, the project named.
+async function leReleveDe(racine, circuitsDe) {
+  const { minutes, faute } = reglageDuRappel(paquetDe(racine));
   if (faute) {
-    throw new Error(faute);
+    throw new Error(`${path.basename(racine)} : ${faute}`);
   }
   let circuits;
   try {
@@ -704,6 +733,31 @@ export async function releverPourLeGreffon(
     fluxRouges: await fluxRougesDe(racine),
   });
   return lot.length ? texteDesQuestions(lot) : '';
+}
+
+// The other projects of the group of the project at <racine> (`grillhouse.groupe`) that no other
+// live session of supervision holds: one session supervises them with its own, and reads them
+// too; a project whose lock another live session holds is read by that session.
+function voisinsSansSuperviseur(racine) {
+  const soi = path.resolve(racine);
+  const { groupe } = lireGroupe(paquetDe(racine), racine);
+  return (groupe?.projets ?? [])
+    .filter(p => p.chemin !== soi)
+    .filter(p => {
+      const r = git(p.chemin, '--git-common-dir');
+      if (r.status !== 0) {
+        return false;
+      }
+      let tenant;
+      try {
+        tenant = Number(
+          /^(\d+)/.exec(readFileSync(path.join(r.stdout.trim(), VERROU_SUPERVISEUR), 'utf8'))?.[1]
+        );
+      } catch {
+        return true;
+      }
+      return !Number.isInteger(tenant) || estAuDessus(tenant) || !vivant(tenant);
+    });
 }
 
 // The root of the repository at <dossier>, its main tree for a copy; <dossier> out of git.

@@ -850,7 +850,13 @@ l'interrompre, et un seul message part par relevé, qui regroupe les questions e
 circuit dues, chaque question avec son ticket, son étape, son destinataire, sa question et la
 commande qui répond (le rendu partagé des questions, `ligneDeQuestion`, que l'ouverture reprend).
 Le relevé ne rend rien hors de la séance qui tient le verrou du superviseur du projet : une séance
-de circuit ou d'un autre projet n'en reçoit aucune. La réponse au circuit acquitte la question :
+de circuit ou d'un autre projet n'en reçoit aucune. Cette séance reçoit aussi, dans le même relevé,
+les questions de chaque autre projet de son groupe (`grillhouse.groupe`) dont aucune autre séance
+vivante ne tient le verrou du superviseur (`voisinsSansSuperviseur`), comme un ordonnanceur de Zuul
+rapporte les dépôts de son locataire à un même lecteur (grillhouse-3uv.133 : la séance qui mène
+osc-bridge, open-synth-descriptors et synthhub ne recevait plus rien des deux derniers) : la part
+d'un voisin vient sous le nom et le dossier de son projet, où ses réponses se jouent, avec
+l'intervalle et l'état de ce projet ; un voisin qu'une autre séance supervise reste à elle. La réponse au circuit acquitte la question :
 tant qu'elle attend (le circuit est arrêté sur la même clé), elle revient à l'échéance du rappel,
 lue ou non, comme SQS redonne un message non acquitté après son délai de visibilité ; répondue, elle
 sort du fichier et ne revient plus. L'intervalle du rappel est la clé `grillhouse.rappel` du
