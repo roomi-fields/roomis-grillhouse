@@ -19,10 +19,11 @@
 //   `machine.env`; zero is admitted, a value that is not a whole number ≥ 0 is refused by its name.
 // - The budget is the cores and the memory of the machine less the reserve; a reserve that leaves
 //   no core or no memory is refused by its name.
-// - The part of a pass is its cores and its memory: the default part has MIN_COEURS_DE_LA_PART
-//   cores at least (a third of the budget when that is more), its memory in proportion; a part a project
-//   declares (`grillhouse.part` of its `package.json`) replaces it; a part larger than the budget
-//   is the budget (one pass at a time), and never under one core.
+// - The part of a pass is its cores and its memory: the default part has the budget divided by the
+//   places of the machine in cores (whole division, 2 at least), and in memory the largest peak the
+//   project measured plus a quarter (the cores' proportion of the budget without a measure); a
+//   part a project declares (`grillhouse.part` of its `package.json`) replaces its own values; a
+//   part larger than the budget is the budget (one pass at a time), and never under one core.
 import { readFileSync } from 'node:fs';
 import { cpus, totalmem } from 'node:os';
 import path from 'node:path';
@@ -150,32 +151,54 @@ export function budgetDe({ coeurs, memoireTotale }, reserve) {
   return { coeurs: coeurs - reserve.coeurs, memoire: memoireTotale - reserve.memoire };
 }
 
+/** The margin over the largest measured peak of memory: a quarter. */
+const MARGE_DE_LA_MEMOIRE = 1.25;
+
 /**
- * The part of a pass when its project declares none: MIN_COEURS_DE_LA_PART cores (a third of the
- * budget, rounded up, when that is more), within the budget and one core at least, its memory in proportion of its
- * cores.
+ * The part of a pass when its project declares none, pure: the budget divided by the <places> of
+ * the machine in cores (whole division, 2 at least, within the budget and one core at least), and
+ * in memory the largest measured peak <pic> plus a quarter (the hard ceiling of the group kills a
+ * pass above it, so a percentile would not do), within the budget; the proportion of the cores of
+ * a part before the division (a third of the budget) when <pic> is absent.
  * @param {{ coeurs: number, memoire: number }} budget
+ * @param {number} places
+ * @param {number | undefined} pic the largest peak of memory of the day passes, absent unmeasured
  * @returns {{ coeurs: number, memoire: number }}
  */
-export function partParDefautDe(budget) {
+export function partParDefautDe(budget, places, pic) {
   const coeurs = Math.max(
+    1,
+    Math.min(budget.coeurs, Math.max(2, Math.floor(budget.coeurs / places)))
+  );
+  return { coeurs, memoire: memoireParDefautDe(budget, pic) };
+}
+
+// The default memory, independent of the division by the places: the peak plus a quarter, else the
+// proportion of the cores a part had before the division (MIN_COEURS_DE_LA_PART, or a third of the
+// budget rounded up when that is more), so a day pass is not killed by a ceiling below its peak.
+function memoireParDefautDe(budget, pic) {
+  if (pic !== undefined) {
+    return Math.min(budget.memoire, Math.floor(pic * MARGE_DE_LA_MEMOIRE));
+  }
+  const coeursDAvant = Math.max(
     1,
     Math.min(budget.coeurs, Math.max(MIN_COEURS_DE_LA_PART, Math.ceil(budget.coeurs / 3)))
   );
-  return { coeurs, memoire: Math.floor((budget.memoire * coeurs) / budget.coeurs) };
+  return Math.floor((budget.memoire * coeursDAvant) / budget.coeurs);
 }
 
 /**
  * The part of a pass: the one its project declares (`partDeclareeDe`), its missing values from the
  * default part, within the budget and one core at least.
  * @param {{ declaree: { coeurs?: number, memoire?: number } | null,
- *   budget: { coeurs: number, memoire: number } }} o
+ *   budget: { coeurs: number, memoire: number }, places: number, pic: number | undefined }} o
  * @returns {{ coeurs: number, memoire: number }}
  */
-export function partDe({ declaree, budget }) {
-  const defaut = partParDefautDe(budget);
+export function partDe({ declaree, budget, places, pic }) {
+  const defaut = partParDefautDe(budget, places, pic);
+  const coeurs = Math.max(1, Math.min(budget.coeurs, declaree?.coeurs ?? defaut.coeurs));
   return {
-    coeurs: Math.max(1, Math.min(budget.coeurs, declaree?.coeurs ?? defaut.coeurs)),
+    coeurs,
     memoire: Math.min(budget.memoire, declaree?.memoire ?? defaut.memoire),
   };
 }

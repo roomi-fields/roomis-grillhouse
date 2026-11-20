@@ -89,25 +89,31 @@ describe('le nombre de cœurs dédiés d’une mesure', () => {
   const budget = (coeurs: number) => ({ coeurs, memoire: 32 * GO });
 
   it.each([
-    [4, 4],
-    [8, 4],
-    [12, 4],
-    [28, 10],
-  ])('sans clé, sur un budget de %i, vaut la part par défaut : %i', (b, attendu) => {
-    expect(coeursDeLaMesureDe({ declaree: null, budget: budget(b) })).toBe(attendu);
-  });
+    [4, 3, 2],
+    [8, 3, 2],
+    [12, 3, 4],
+    [28, 7, 4],
+    [28, 3, 9],
+  ])(
+    'sans clé, sur un budget de %i et %i places, vaut la part par défaut, le budget divisé par les places : %i',
+    (b, places, attendu) => {
+      expect(coeursDeLaMesureDe({ declaree: null, budget: budget(b), places })).toBe(attendu);
+    }
+  );
 
   it('une valeur déclarée est reprise', () => {
-    expect(coeursDeLaMesureDe({ declaree: { coeurs: 6 }, budget: budget(12) })).toBe(6);
+    expect(coeursDeLaMesureDe({ declaree: { coeurs: 6 }, budget: budget(12), places: 7 })).toBe(6);
   });
 
   it('une valeur plus grande que le budget vaut le budget', () => {
-    expect(coeursDeLaMesureDe({ declaree: { coeurs: 40 }, budget: budget(12) })).toBe(12);
+    expect(coeursDeLaMesureDe({ declaree: { coeurs: 40 }, budget: budget(12), places: 3 })).toBe(
+      12
+    );
   });
 
   it('un budget de 2 cœurs donne 2 cœurs, jamais moins d’un', () => {
-    expect(coeursDeLaMesureDe({ declaree: null, budget: budget(2) })).toBe(2);
-    expect(coeursDeLaMesureDe({ declaree: null, budget: budget(1) })).toBe(1);
+    expect(coeursDeLaMesureDe({ declaree: null, budget: budget(2), places: 3 })).toBe(2);
+    expect(coeursDeLaMesureDe({ declaree: null, budget: budget(1), places: 3 })).toBe(1);
   });
 });
 

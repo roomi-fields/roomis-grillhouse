@@ -314,7 +314,8 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
   lance ne les reçoit pas.
 - Un projet règle les parts de ses passes dans la clé `grillhouse.part` de son `package.json`
   (`{ "coeurs": <entier ≥ 1>, "memoireGo": <nombre > 0> }`, chacun facultatif ; sans elle, la part
-  par défaut du budget de la machine, 4 cœurs au moins), lue dans l'arbre principal : une clé
+  par défaut : le budget de la machine divisé par ses places, 2 cœurs au moins, et la mémoire du
+  plus grand pic mesuré plus un quart), lue dans l'arbre principal : une clé
   fautive est refusée par son nom avant tout travail. La réserve de l'utilisateur se règle par
   poste (`GRILLHOUSE_RESERVE_COEURS`, 4, et `GRILLHOUSE_RESERVE_MEMOIRE_GO`, 4, dans
   `~/.config/grillhouse/machine.env` ou l'environnement, zéro admis).

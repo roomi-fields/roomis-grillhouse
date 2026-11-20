@@ -142,100 +142,101 @@ describe('le budget de la machine', () => {
 });
 
 describe('la part par défaut d’une passe', () => {
-  it('vaut au moins 4 cœurs quand le budget les a', () => {
-    for (const coeurs of [4, 5, 8, 16, 64]) {
-      const p = P.partParDefautDe({ coeurs, memoire: 32 * GO });
-      expect(p.coeurs).toBeGreaterThanOrEqual(4);
-      expect(p.coeurs).toBeLessThanOrEqual(coeurs);
-    }
-  });
+  const M = 56 * GO;
 
   it.each([
-    [4, 4],
-    [5, 4],
-    [8, 4],
-    [12, 4],
-    [13, 5],
-    [28, 10],
+    [28, 7, 4],
+    [28, 3, 9],
+    [12, 3, 4],
+    [30, 7, 4],
+    [10, 7, 2],
+    [4, 7, 2],
+    [28, 1, 28],
+    [16, 2, 8],
   ])(
-    'sur un budget de %i cœurs, la part par défaut vaut min(budget, max(4, plafond(budget/3))) = %i',
-    (coeurs, attendu) => {
-      expect(P.partParDefautDe({ coeurs, memoire: 32 * GO }).coeurs).toBe(attendu);
+    'sur un budget de %i cœurs et %i places, les cœurs valent la division entière, 2 au moins : %i',
+    (coeurs, places, attendu) => {
+      expect(P.partParDefautDe({ coeurs, memoire: M }, places, undefined).coeurs).toBe(attendu);
     }
   );
 
-  it.each([
-    [6, 4, 4],
-    [8, 4, 4],
-    [16, 12, 4],
-    [32, 28, 10],
-  ])(
-    'sur %i cœurs sans réglage, le budget est de %i cœurs et la part par défaut de %i',
-    (coeurs, budgetAttendu, partAttendue) => {
-      const budget = P.budgetDe(
-        { coeurs, memoireTotale: 64 * GO },
-        P.reserveDe({}, poste('', coeurs))
-      );
-      expect(budget.coeurs).toBe(budgetAttendu);
-      expect(P.partParDefautDe(budget).coeurs).toBe(partAttendue);
-    }
-  );
-
-  it('la mémoire par défaut vaut le budget de mémoire × part en cœurs / budget en cœurs', () => {
-    expect(P.partParDefautDe({ coeurs: 28, memoire: 56 * GO })).toEqual({
-      coeurs: 10,
-      memoire: (56 * GO * 10) / 28,
-    });
+  it('ne dépasse jamais le budget en cœurs, ni ne descend sous un cœur', () => {
+    expect(P.partParDefautDe({ coeurs: 2, memoire: 8 * GO }, 7, undefined).coeurs).toBe(2);
+    expect(P.partParDefautDe({ coeurs: 1, memoire: 8 * GO }, 7, undefined).coeurs).toBe(1);
   });
 
-  it('sur un budget d’une seule part, la part est le budget entier', () => {
-    expect(P.partParDefautDe({ coeurs: 4, memoire: 16 * GO })).toEqual({
+  it('la mémoire vaut le plus grand pic mesuré plus un quart, et ne suit pas la division', () => {
+    const p = P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 4 * GO);
+    expect(p).toEqual({ coeurs: 4, memoire: 5 * GO });
+  });
+
+  it('la mémoire d’un autre pic suit ce pic', () => {
+    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 5.6 * GO).memoire).toBeCloseTo(
+      7 * GO,
+      -3
+    );
+  });
+
+  it('sans pic mesuré, la mémoire est le tiers du budget, indépendante de la division par les places', () => {
+    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 7, undefined)).toEqual({
       coeurs: 4,
-      memoire: 16 * GO,
+      memoire: (M * 10) / 28,
     });
+    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 2, undefined).memoire).toBe((M * 10) / 28);
   });
 
-  it('ne dépasse jamais le budget, ni ne descend sous un cœur', () => {
-    const p = P.partParDefautDe({ coeurs: 2, memoire: 8 * GO });
-    expect(p.coeurs).toBe(2);
-    expect(P.partParDefautDe({ coeurs: 1, memoire: 8 * GO }).coeurs).toBe(1);
-  });
-
-  it('la mémoire par défaut tient dans la mémoire du budget et suit les cœurs', () => {
-    const budget = { coeurs: 16, memoire: 32 * GO };
-    const p = P.partParDefautDe(budget);
-    expect(p.memoire).toBeGreaterThan(0);
-    expect(p.memoire).toBeLessThanOrEqual(budget.memoire);
-    expect(p.memoire).toBeCloseTo((budget.memoire * p.coeurs) / budget.coeurs, -6);
+  it('la mémoire ne dépasse jamais la mémoire du budget', () => {
+    expect(P.partParDefautDe({ coeurs: 28, memoire: 4 * GO }, 7, 40 * GO).memoire).toBe(4 * GO);
   });
 });
 
 describe('la part d’une passe, déclarée ou par défaut', () => {
   const budget = { coeurs: 8, memoire: 16 * GO };
+  const places = 2;
 
   it('sans déclaration, la part est celle par défaut', () => {
-    expect(P.partDe({ declaree: null, budget })).toEqual(P.partParDefautDe(budget));
+    expect(P.partDe({ declaree: null, budget, places, pic: 2 * GO })).toEqual(
+      P.partParDefautDe(budget, places, 2 * GO)
+    );
   });
 
-  it('une part déclarée est reprise telle quelle quand elle tient', () => {
-    expect(P.partDe({ declaree: { coeurs: 2, memoire: 3 * GO }, budget })).toEqual({
-      coeurs: 2,
+  it('une part déclarée en entier est reprise telle quelle quand elle tient', () => {
+    expect(
+      P.partDe({ declaree: { coeurs: 2, memoire: 3 * GO }, budget, places, pic: 9 * GO })
+    ).toEqual({ coeurs: 2, memoire: 3 * GO });
+  });
+
+  it('des cœurs seuls déclarés gardent la mémoire du plus grand pic plus un quart', () => {
+    expect(P.partDe({ declaree: { coeurs: 6 }, budget, places, pic: 2 * GO })).toEqual({
+      coeurs: 6,
+      memoire: 2.5 * GO,
+    });
+  });
+
+  it('des cœurs seuls déclarés, sans pic mesuré, gardent la mémoire par défaut, le tiers du budget', () => {
+    expect(P.partDe({ declaree: { coeurs: 6 }, budget, places, pic: undefined })).toEqual({
+      coeurs: 6,
+      memoire: 8 * GO,
+    });
+  });
+
+  it('une mémoire seule déclarée garde les cœurs par défaut, le budget divisé par les places', () => {
+    expect(P.partDe({ declaree: { memoire: 3 * GO }, budget, places, pic: 9 * GO })).toEqual({
+      coeurs: 4,
       memoire: 3 * GO,
     });
   });
 
-  it('une déclaration sans mémoire garde les cœurs et la mémoire par défaut', () => {
-    const p = P.partDe({ declaree: { coeurs: 2 }, budget });
-    expect(p.coeurs).toBe(2);
-    expect(p.memoire).toBeGreaterThan(0);
-  });
-
   it('une part plus grande que le budget vaut le budget', () => {
-    expect(P.partDe({ declaree: { coeurs: 20, memoire: 64 * GO }, budget })).toEqual(budget);
+    expect(
+      P.partDe({ declaree: { coeurs: 20, memoire: 64 * GO }, budget, places, pic: undefined })
+    ).toEqual(budget);
   });
 
   it('une part ne descend jamais sous un cœur', () => {
-    expect(P.partDe({ declaree: { coeurs: 0, memoire: GO }, budget }).coeurs).toBe(1);
+    expect(
+      P.partDe({ declaree: { coeurs: 0, memoire: GO }, budget, places, pic: undefined }).coeurs
+    ).toBe(1);
   });
 });
 

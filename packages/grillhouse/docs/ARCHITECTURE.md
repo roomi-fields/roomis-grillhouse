@@ -1059,8 +1059,22 @@ elle prend sa part, que rien d'autre ne double.
 - **La part** : ses cœurs et sa mémoire. Un projet la déclare dans la clé `grillhouse.part` de son
   `package.json` (`{ "coeurs": <entier ≥ 1>, "memoireGo": <nombre > 0> }`, chacun facultatif), lue
   dans l'arbre principal ; une clé fautive est refusée par son nom avant tout travail. Sans
-  déclaration, la part par défaut vaut 4 cœurs au moins (le tiers du budget, arrondi en haut, quand il est plus
-  grande), sa mémoire en proportion de ses cœurs ; une part déclarée ou par défaut plus grande que le
+  déclaration, la part par défaut vaut en cœurs le budget divisé par les places de la machine
+  (`GRILLHOUSE_PLACES`, 3 par défaut ; la division entière, 2 cœurs au moins : sur le poste, budget
+  28 et 7 places, 4 cœurs), comme un ordonnanceur partage ses cœurs entre ses emplacements (les
+  « slots » de Slurm et de HTCondor). Sa mémoire ne suit pas cette division : elle vaut le plus grand
+  pic de mémoire des passes de jour du projet à son registre des consommations, plus un quart, dans
+  le budget, et, quand le registre n'a pas de mesure, le tiers du budget (la part proportionnelle aux cœurs
+  d'avant la division, jamais la division : sur le poste, 9,2 Go) (les lignes de
+  la nuit et des mesures de temps, celles sans pic lisible et les lignes malformées ne comptent
+  pas). Écart à la référence : le Vertical Pod Autoscaler de Kubernetes prend un percentile du
+  historique plus une marge ; ici c'est le plus grand pic, parce que la mémoire d'une part est un
+  plafond dur du groupe de contrôle, qui tue la passe qui le dépasse, et qu'un percentile tuerait par
+  construction les passes au-dessus de lui. Une déclaration partielle garde le défaut de l'autre
+  valeur (cœurs seuls : la mémoire du registre ; mémoire seule : les cœurs du budget divisé par les
+  places). Une seule fonction pure calcule ce défaut (`partParDefautDe`, qui reçoit le budget, les
+  places et le plus grand pic) ; la lecture du registre et des places se fait dans `partDeLaPasse` et
+  dans la demande des cœurs de la mesure. Une part déclarée ou par défaut plus grande que le
   budget vaut le budget (une seule passe à la fois, comme sous le verrou), et jamais moins d'un
   cœur. La nuit demande le budget entier : elle joue seule.
 - **Les cœurs dédiés d'une mesure de temps** (`scripts/coeurs-dedies.mjs`, des fonctions pures,
@@ -1070,8 +1084,8 @@ elle prend sa part, que rien d'autre ne double.
   réserve des cœurs précis et y joue, le reste de la machine continuant de travailler. Leur nombre
   se déclare par projet dans la clé `grillhouse.mesure` (`{ "coeurs": <entier ≥ 1> }`, lue dans
   l'arbre principal, comme `grillhouse.part` ; une clé fautive est refusée par son nom avant tout
-  travail, code 1) ; sans clé, c'est la part par défaut du budget (4 cœurs au moins, le tiers du
-  budget arrondi en haut), jamais plus que le budget. Une unité de cœur dédié est un cœur physique
+  travail, code 1) ; sans clé, c'est la part par défaut du budget (le budget divisé par les
+  places, 2 cœurs au moins), jamais plus que le budget. Une unité de cœur dédié est un cœur physique
   entier : le cadre lit la topologie du système (`thread_siblings_list`, les nœuds mémoire) et
   donne à la mesure des groupes entiers de fils frères, arrondis au-dessus de la demande tant que
   le budget le permet, au-dessous sinon, d'un seul nœud mémoire quand il en reste un qui tient ;

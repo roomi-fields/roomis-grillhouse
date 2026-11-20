@@ -59,11 +59,12 @@ export function mesureDeclareeDe(pkg) {
 /**
  * The number of dedicated cores (threads) a measure asks for: the one its project declares, else
  * the default part of the budget; within the budget and one at least.
- * @param {{ declaree: { coeurs?: number } | null, budget: { coeurs: number, memoire: number } }} o
+ * @param {{ declaree: { coeurs?: number } | null, budget: { coeurs: number, memoire: number },
+ *   places: number }} o
  * @returns {number}
  */
-export function coeursDeLaMesureDe({ declaree, budget }) {
-  const voulus = declaree?.coeurs ?? partParDefautDe(budget).coeurs;
+export function coeursDeLaMesureDe({ declaree, budget, places }) {
+  const voulus = declaree?.coeurs ?? partParDefautDe(budget, places, undefined).coeurs;
   return Math.max(1, Math.min(budget.coeurs, voulus));
 }
 

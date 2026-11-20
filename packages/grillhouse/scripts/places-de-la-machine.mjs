@@ -63,6 +63,7 @@ import { mkdirSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs
 import { availableParallelism, homedir } from 'node:os';
 import path from 'node:path';
 import { departDe } from './mesure/base-de-passe.mjs';
+import { lireLaConsommation } from './consommation-des-passes.mjs';
 import { ecrireAtomique } from './mesure/avancement.mjs';
 import { A_REPASSER } from './codes-de-sortie.mjs';
 import {
@@ -469,7 +470,40 @@ export function partDeLaPasse({ racine, env = process.env }) {
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
   }
-  return partDe({ declaree, budget: budgetDeLaPasse(env) });
+  return partDe({
+    declaree,
+    budget: budgetDeLaPasse(env),
+    places: plafondDe(env),
+    pic: plusGrandPicDeJour(racineDuDepot(racine)),
+  });
+}
+
+// The kinds of pass the night and the measures of time write: their peaks are not those of a day.
+const SORTES_HORS_JOUR = new Set(['nuit', 'tests-de-nuit', 'mesure']);
+
+/**
+ * The largest peak of memory (bytes) of the day passes in the register of the project at <racine>;
+ * undefined without one. A line without a readable peak, a malformed one and those of the night
+ * and of the measures of time do not count.
+ * @param {string} racine
+ * @returns {number | undefined}
+ */
+function plusGrandPicDeJour(racine) {
+  let pic;
+  for (const l of lireLaConsommation(racine)) {
+    const p = l.memoirePic;
+    if (
+      SORTES_HORS_JOUR.has(l.sorte) ||
+      l.sorte.startsWith('mesure') ||
+      typeof p !== 'number' ||
+      !Number.isFinite(p) ||
+      p <= 0
+    ) {
+      continue;
+    }
+    pic = Math.max(pic ?? 0, p);
+  }
+  return pic;
 }
 
 // The `package.json` of the main tree of the repository at <racine>; empty without one (a
@@ -489,12 +523,12 @@ function packageDuDepot(racine) {
  * @returns {number}
  * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
  */
-function coeursDeLaMesure({ racine, budget }) {
+function coeursDeLaMesure({ racine, budget, env }) {
   const { declaree, faute } = mesureDeclareeDe(packageDuDepot(racine));
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
   }
-  return coeursDeLaMesureDe({ declaree, budget });
+  return coeursDeLaMesureDe({ declaree, budget, places: plafondDe(env) });
 }
 
 const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
@@ -588,7 +622,7 @@ export function prendreUnePart({
     topo = topologie ?? lireLaTopologie({ nombreDeFils: machineDe(env).coeurs });
     budgetFils = budgetEnFils({ topologie: topo, budget: budget.coeurs });
     if (mesure) {
-      const demande = coeursDeLaMesure({ racine, budget });
+      const demande = coeursDeLaMesure({ racine, budget, env });
       let fils = filsDeLaMesure({ budget: budgetFils, topologie: topo, demande });
       if (fils === null || !topo.lisible) {
         // No whole core in the budget, or a topology that does not read: each thread is a core.

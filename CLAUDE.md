@@ -86,8 +86,11 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   `GRILLHOUSE_RESERVE_COEURS` et `GRILLHOUSE_RESERVE_MEMOIRE_GO` de `~/.config/grillhouse/machine.env`,
   4 Go par défaut, et en cœurs min(4, max(0, cœurs − 4)) : 0 sur 4 cœurs ou moins, 2 sur 6, 4 à
   partir de 8 ; zéro admis, une réserve réglée qui égale les cœurs est refusée ; lue dans l'arbre principal ; toute autre valeur est
-  refusée par son nom avant tout travail). Absente, la part vaut 4 cœurs au moins, sa mémoire en
-  proportion ; une part plus grande que le budget vaut le budget, une seule passe jouant alors à la
+  refusée par son nom avant tout travail). Absente, la part vaut en cœurs le budget divisé par les
+  places de la machine (`GRILLHOUSE_PLACES`, la division entière, 2 au moins), et en mémoire le plus
+  grand pic des passes de jour du projet à son registre des consommations, plus un quart (la
+  tiers du budget quand le registre n'a pas de mesure) ; une clé qui ne déclare que les cœurs
+  ou que la mémoire garde le défaut de l'autre ; une part plus grande que le budget vaut le budget, une seule passe jouant alors à la
   fois. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
   (poids de processeur et plafond de mémoire tirés de la part, sans plafond dur de processeur), et
   elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; la

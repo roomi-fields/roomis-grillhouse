@@ -208,9 +208,9 @@ describe('les passes ordinaires continuent pendant une mesure de temps', () => {
   });
 
   it('sur une machine où il ne reste pas de quoi tenir une part, la passe attend, comme avant', () => {
-    // 8 fils, réserve 4 : budget de 4 fils, que la mesure prend entier.
+    // 8 fils, réserve 4 : budget de 4 fils, que la mesure déclarée à 4 cœurs prend entier.
     const env = poste(8);
-    const racine = projet();
+    const racine = projet({ mesure: { coeurs: 4 } });
     const t = topologie(4);
     const m = prendre(env, racine, { mesure: true, topologie: t });
     const r = arret(() => prendre(env, racine, { topologie: t }));

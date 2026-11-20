@@ -41,13 +41,21 @@ export function budgetDe(
   reserve: PartDeLaPasse
 ): PartDeLaPasse;
 
-/** The part of a pass when its project declares none. */
-export function partParDefautDe(budget: PartDeLaPasse): PartDeLaPasse;
+/** The part of a pass when its project declares none: the budget divided by the places (2 cores
+ * at least), the largest measured peak of memory plus a quarter (the cores' proportion without a
+ * measure). */
+export function partParDefautDe(
+  budget: PartDeLaPasse,
+  places: number,
+  pic: number | undefined
+): PartDeLaPasse;
 
 /** The part of a pass: the declared one, its missing values from the default, within the budget. */
 export function partDe(o: {
   declaree: { coeurs?: number; memoire?: number } | null;
   budget: PartDeLaPasse;
+  places: number;
+  pic: number | undefined;
 }): PartDeLaPasse;
 
 /** The part a project declares in `grillhouse.part` of its package.json, or the fault naming it. */
