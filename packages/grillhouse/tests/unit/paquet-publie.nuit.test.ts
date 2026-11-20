@@ -28,14 +28,27 @@ const gabarit = JSON.parse(
   devDependencies: Record<string, string>;
   packageManager: string;
 };
-// The environment of a person's command: no mark of the suite that runs this test.
+// The environment of a person's command: no mark of the suite that runs this test, but the state
+// of the parts of a machine of its own, at rest. The night that plays this file holds the whole budget of
+// the user's machine: a pass that asked its part there would wait for the night's own end
+// (grillhouse-3eo).
 const env = (): NodeJS.ProcessEnv => {
   const e = Object.fromEntries(
     Object.entries(process.env).filter(
       ([k]) => !k.startsWith('VITEST') && !k.startsWith('GRILLHOUSE_') && k !== 'NODE_OPTIONS'
     )
   );
-  return { ...e, TURBO_TELEMETRY_DISABLED: '1' };
+  return {
+    ...e,
+    TURBO_TELEMETRY_DISABLED: '1',
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(ESSAIS, 'parts'),
+    GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+      coeurs: 12,
+      charge: 1,
+      memoireLibre: 16 * 1024 ** 3,
+      memoireTotale: 32 * 1024 ** 3,
+    }),
+  };
 };
 
 describe('grillhouse-3uv.84.4 critère 5 — the packed package installs in a fresh project and works alone', () => {
