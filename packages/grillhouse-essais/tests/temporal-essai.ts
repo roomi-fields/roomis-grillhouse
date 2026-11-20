@@ -10,7 +10,7 @@
 // does. At its end, green or red, every workflow still running stops, then the worker, then the
 // server: nothing outlives the test.
 import { spawn, spawnSync, type ChildProcess, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -91,20 +91,19 @@ const portLibre = () =>
     });
   });
 // The line <motif> on the output of <enfant>, within <ms> ms.
-const attendreLaLigne = (enfant: ChildProcess, motif: RegExp, ms: number) =>
-  new Promise<void>((ok, ko) => {
-    const t = setTimeout(() => ko(new Error(`rien de ${motif} en ${ms} ms`)), ms);
-    let lu = '';
-    const lire = (d: Buffer) => {
-      lu += d.toString();
-      if (motif.test(lu)) {
-        clearTimeout(t);
-        ok();
-      }
-    };
-    enfant.stdout?.on('data', lire);
-    enfant.stderr?.on('data', lire);
-  });
+// Waits for a line that matches <motif> in what <fichier> gained past its byte <depuis>, <ms> at most.
+const attendreLaLigne = async (fichier: string, depuis: number, motif: RegExp, ms: number) => {
+  const limite = Date.now() + ms;
+  for (;;) {
+    if (motif.test(readFileSync(fichier).subarray(depuis).toString())) {
+      return;
+    }
+    if (Date.now() > limite) {
+      throw new Error(`rien de ${motif} en ${ms} ms`);
+    }
+    await new Promise(ok => setTimeout(ok, 100));
+  }
+};
 
 /** The state of a circuit as its query gives it: whether it waits on a question, and its text. */
 export interface Vue {
@@ -163,7 +162,8 @@ export async function ouvrirLeBanc(ESSAIS: string, essai: Essai, nom: string) {
         '--search-attribute',
         'GrillhouseEtape=Keyword',
       ],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
+      // Nothing reads what the server writes: a pipe no one drains would hold it.
+      { stdio: 'ignore' }
     );
     enfants.push(s);
     const limite = Date.now() + SERVEUR_MS;
@@ -177,22 +177,28 @@ export async function ouvrirLeBanc(ESSAIS: string, essai: Essai, nom: string) {
     }
     return s;
   };
-  // What the worker writes, its acts' lines included, kept for the harness of the circuit.
-  let sortieDuTravailleur = '';
+  // What the worker writes, its acts' lines included, kept for the harness of the circuit: a file
+  // of the bench, as a service writes to its journal. The tests wait synchronously (the watch of
+  // a circuit), so that a pipe to this process would never be drained: once full, an act that
+  // writes its last line would never exit, and its activity never end (grillhouse-3eo).
+  const SORTIE = path.join(base, 'travailleur.log');
+  const sortieDuTravailleur = () => (existsSync(SORTIE) ? readFileSync(SORTIE, 'utf8') : '');
   // The environment the worker runs with, besides the bench's.
   let enPlus: Record<string, string> = {};
   const unTravailleur = async () => {
-    const t = spawn(process.execPath, [TRAVAILLEUR, '--file', FILE], {
-      env: { ...env, ...enPlus },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const sortie = openSync(SORTIE, 'a');
+    const depuis = statSync(SORTIE).size;
+    let t;
+    try {
+      t = spawn(process.execPath, [TRAVAILLEUR, '--file', FILE], {
+        env: { ...env, ...enPlus },
+        stdio: ['ignore', sortie, sortie],
+      });
+    } finally {
+      closeSync(sortie);
+    }
     enfants.push(t);
-    const garder = (d: Buffer) => {
-      sortieDuTravailleur += d.toString();
-    };
-    t.stdout?.on('data', garder);
-    t.stderr?.on('data', garder);
-    await attendreLaLigne(t, /^prêt /m, 60_000);
+    await attendreLaLigne(SORTIE, depuis, /^prêt /m, 60_000);
     return t;
   };
   let serveur = await unServeur();
@@ -422,7 +428,7 @@ process.stdout.write(JSON.stringify(await m.circuitsDuServeur(process.argv[1])))
       expect(fin.stdout).toContain('"raison": "integre"');
     },
     /** What the worker wrote since the start of the bench. */
-    sortieDuTravailleur: () => sortieDuTravailleur,
+    sortieDuTravailleur,
     /** The environment the worker runs with, besides the bench's: <e>, the worker started again. */
     travailleurAvec: async (e: Record<string, string>) => {
       enPlus = e;
