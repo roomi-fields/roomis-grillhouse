@@ -39,9 +39,10 @@
 //     install that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. »;
 //     then the references regenerate (below);
 //  6. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
-//     hook that plays the guards skips them, as the CI of the ticket's branch plays them; nothing
-//     is verified here: the queue pushes the branch, and its CI judges the lot before main moves
-//     (scripts/integration/file.mjs); the commit committed is the commit the CI judges;
+//     hook that plays the guards skips them, as the final pass plays them; nothing is verified
+//     here: the queue lays the branch on the tip of main, and its final pass judges the lot before
+//     main moves (scripts/integration/file.mjs); the commit committed is the commit that pass
+//     judges;
 //  7. the branch `agent/<ticket>` is set on that commit, the ticket's copy follows it and is
 //     removed by `scripts/retirer-copie.sh` (no `--jetable`; `--garder-travail`: the working
 //     directory of the ticket's circuit, `<copie>.travail`, stays for the circuit that still runs,
@@ -534,8 +535,8 @@ function main(argv) {
       dire(`✓ références régénérées sur main à jour : ${aRejouer.map(r => r.nom).join(', ')}`);
     }
 
-    // 6. The commit, in the copy: the commit committed is the commit the CI of the branch judges.
-    // The guards run in that CI: a pre-commit hook that plays them skips them under
+    // 6. The commit, in the copy: the commit committed is the commit the final pass judges.
+    // The guards run in that pass: a pre-commit hook that plays them skips them under
     // GRILLHOUSE_INTEGRATION=1; commit-msg (a closed ticket refuses a second commit, a reopened one
     // takes its corrections) runs as always.
     const c = spawnSync(

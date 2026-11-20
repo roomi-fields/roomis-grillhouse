@@ -301,7 +301,7 @@ describe('the wall time and its categories', () => {
       'Preuve du rouge': 1,
       'Passe finale': 1,
       Commit: 1,
-      'File : main, poussée, CI': 1,
+      'File : passe finale, main': 1,
     });
   });
 

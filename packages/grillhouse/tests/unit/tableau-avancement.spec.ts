@@ -3,7 +3,7 @@
 // runs an automatic step gives `faits/prévus · <durée>` since the last sign of its pass
 // (scripts/avancement.mjs), after the counters of its loops, or in their place when room lacks;
 // past FIGEE without a sign, ⛔ `figée <durée> · faits/prévus`, in the tone of an alert. The queue
-// (5.2) gives the steps of its CI. The holder of the lock of the machine and its waits, at the head of
+// (5.2) shows no wait for a CI. The holder of the lock of the machine and its waits, at the head of
 // AGENTS, are tests/unit/tableau-verrou.spec.ts's.
 // Witness: Romain, 2026-10-21, a pass frozen 40 min, the machine at rest, that nothing showed.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -33,29 +33,21 @@ interface Ligne {
 
 // A progress directory of a pass begun 20 min ago, one record per task: `[faits, prevus, il y a]`,
 // opened in the working directory <travail> of a circuit, as scripts/activites.mjs opens it.
-const avancement =
-  (taches: [number, number, number][], ci?: [number, number, number]) => (travail: string) => {
-    const dossier = ouvrirAvancement({
-      racine: ESSAIS,
-      genre: null,
-      dans: travail,
-      debut: MAINTENANT - 20 * MIN,
-    });
-    mkdirSync(path.join(dossier, 'taches'), { recursive: true });
-    taches.forEach(([faits, prevus, age], i) =>
-      writeFileSync(
-        path.join(dossier, 'taches', `t${i}.json`),
-        JSON.stringify({ hash: `h${i}`, faits, prevus, a: MAINTENANT - age })
-      )
-    );
-    if (ci) {
-      const [faits, prevus, age] = ci;
-      writeFileSync(
-        path.join(dossier, 'taches', 'etapes-de-la-ci.json'),
-        JSON.stringify({ hash: null, faits, prevus, a: MAINTENANT - age })
-      );
-    }
-  };
+const avancement = (taches: [number, number, number][]) => (travail: string) => {
+  const dossier = ouvrirAvancement({
+    racine: ESSAIS,
+    genre: null,
+    dans: travail,
+    debut: MAINTENANT - 20 * MIN,
+  });
+  mkdirSync(path.join(dossier, 'taches'), { recursive: true });
+  taches.forEach(([faits, prevus, age], i) =>
+    writeFileSync(
+      path.join(dossier, 'taches', `t${i}.json`),
+      JSON.stringify({ hash: `h${i}`, faits, prevus, a: MAINTENANT - age })
+    )
+  );
+};
 
 // A repository with the circuit of demo-12 as the server gives it (<e>), the pass of its
 // <avancement> under way in its working directory.
@@ -188,9 +180,10 @@ describe('every automatic step carries its witness', () => {
     expect(duTicket(a).texte).toBe('▶ 12  Le sujet de demo-12 · 40/123 · 20 min');
   });
 
-  it('5.2 the queue: the steps of its CI done over planned, ⏸ while it waits for the CI', () => {
-    const a = agents(depot({ etape: 'file', avancement: avancement([], [3, 7, 10 * S]) }));
-    expect(sous(a)).toBe('  5.2 · File : main, poussée, CI · auto');
-    expect(duTicket(a).texte).toBe('⏸ 12  Le sujet de demo-12 · 3/7 · 20 min · CI');
+  it('5.2 the queue: the final pass and main, no wait for the CI of a branch shows', () => {
+    const a = agents(depot({ etape: 'file' }));
+    expect(sous(a)).toBe('  5.2 · File : passe finale, main · auto');
+    expect(duTicket(a).texte).not.toContain('CI');
+    expect(duTicket(a).texte).not.toContain('⏸');
   });
 });

@@ -1,8 +1,11 @@
-// The contract of the queue of integration of a project and of the CI of a commit
-// (grillhouse-4nr.8), the CI of a ticket's branch judging it before main moves: the id of the
-// queue (the types of both are the names of their functions, ./deroule.ts), its signals and its query by their names, what they receive and give back, and
-// the activities they call (./activites.ts, each an act of scripts/faits-du-circuit.mjs over
-// scripts/integration/file.mjs). The workflows, their activities and their clients share it.
+// The contract of the queue of integration of a project (grillhouse-4nr.8), the final pass judging
+// the lot laid on the tip of main before main moves (grillhouse-3uv.121): the id of the queue (its
+// type is the name of its function, ./deroule.ts), its signals and its query by their names, what
+// they receive and give back, and the activities it calls (./activites.ts, each an act of
+// scripts/faits-du-circuit.mjs over scripts/integration/file.mjs). The workflows, their activities
+// and their clients share it. The types and activities of the former path (the CI of a ticket's
+// branch, the readings of the workflows of main) stay for the executions in flight, which replay
+// their history through `patched`; grillhouse-3uv.131 retires them.
 
 /** The id of the one queue of the repository at <racine>. */
 export const idDeLaFile = (racine: string) => `file:${racine}`;
@@ -50,14 +53,6 @@ export interface IssueDeLaFile {
   /** A branch reopened because it does not replay on main: its lot goes back to the developpeur. */
   conflit?: boolean;
 }
-
-/** One reading of the CI of a commit. */
-export type LectureDeLaCI =
-  | { etat: 'sans-ci' }
-  | { etat: 'cherche' }
-  | { etat: 'en-cours'; passage: string }
-  | { etat: 'finie'; passage: string; conclusion: string | null }
-  | { etat: 'non-lue'; raison: string };
 
 /**
  * One reading of the CI of every expected workflow of a commit (`lireLesPassagesDeLaCI`): green,
@@ -120,8 +115,24 @@ export interface ActivitesDeLaFile {
       Rendus
   >;
   /**
-   * One reading of the CI of <sha> on <branche>, every expected workflow together
-   * (`lireLesPassagesDeLaCI`); it keeps nothing from one reading to the next.
+   * The final pass on the candidate <commit>, the lot laid on the tip of main (`jugerLeCandidat`):
+   * `{ juge: true }`, green or its tree already judged; or the issue for the circuit, red or to
+   * play again, the ticket told.
+   */
+  jugerLeCandidat(e: {
+    racine: string;
+    ticket: string;
+    branche: string;
+    commit: string;
+  }): Promise<({ juge: true } | { issue: IssueDeLaFile }) & Rendus>;
+  /**
+   * The CI of main read once, the defect ticket of a red passage opened for the owner
+   * (scripts/ci-de-main.mjs `ouvrirLeDefautDeMain`); the queue goes on whatever it reads.
+   */
+  surveillerLaCiDeMain(e: { racine: string }): Promise<{ etat: 'verte' | 'rouge' | 'non-lue' }>;
+  /**
+   * Former path (grillhouse-3uv.131): one reading of the CI of <sha> on <branche>, every expected
+   * workflow together; the act that answers it reads nothing.
    */
   lireLesPassagesDeLaCI(e: {
     racine: string;

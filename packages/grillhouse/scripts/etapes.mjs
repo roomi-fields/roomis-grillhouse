@@ -98,7 +98,7 @@ export const ETAPES = [
     etat: null,
     sous: [
       { numero: '5.1', titre: 'Commit', qui: [AUTO], etat: 'integration' },
-      { numero: '5.2', titre: 'File : main, poussée, CI', qui: [AUTO], etat: 'file' },
+      { numero: '5.2', titre: 'File : passe finale, main', qui: [AUTO], etat: 'file' },
       // The tri of the discoveries of the ticket, on the lot entered on main (grillhouse-0yu.5).
       { numero: '5.3', titre: 'Tri des découvertes', qui: [EXPLORATEUR], etat: 'tri' },
     ],

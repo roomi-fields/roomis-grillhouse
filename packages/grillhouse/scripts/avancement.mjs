@@ -9,14 +9,7 @@
 //   (scripts/langages/typescript/verifier.mjs). The directory holds `passe.json` (`{ genre, debut,
 //   precedent, totaux }`: its kind, its start, the total of the previous pass of that kind, and
 //   the file of the totals where its end keeps its own), the records of its tasks (`taches/`, written by the reporter of progress of the base configuration, one
-//   per run of Vitest, and by the queue for the steps of its CI, scripts/integration/file.mjs),
-//   and the plans of its runs of Turborepo (`plan/`).
-// - The CI of a ticket's commit is read by one act at a time, each a process of its own: its
-//   readings share one progress directory in the working directory of the ticket,
-//   `avancement-ci` (`avancementDeLaCI`), opened by the first and emptied when a reading looks
-//   for a run again (another CI, after a reopening), where the board reads the steps
-//   of the run done over planned while the circuit waits for it; the next pass of the circuit
-//   removes it with the others (`avecLAvancementDuTravail`).
+//   per run of Vitest), and the plans of its runs of Turborepo (`plan/`).
 // - The reading adds the records: the files done, and the files planned of the tasks started;
 //   while every task the plans name has not started, the total of the previous pass of the same
 //   kind stands when it is greater (a pass without a plan never knows all its tasks started).
@@ -34,7 +27,7 @@
 //   progress directory in the file of its part (`nommerLAvancement`); the board reads the parts
 //   held with their progress, and the waits for a part or for room (`lireLaMesure`).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { AVANCEMENT, ecrireAtomique, TACHES } from './mesure/avancement.mjs';
@@ -196,35 +189,6 @@ export function avancementDuTravail(travail) {
       .filter(Boolean)
       .sort((a, b) => b.debut - a.debut)[0] ?? null
   );
-}
-
-/**
- * The progress directory of the readings of the CI of a ticket's commit, in the working directory
- * <travail> of its circuit, where the board reads it (`avancementDuTravail`): one for all its
- * readings, opened by the first, emptied when <nouvelle> (a reading that looks for its run, the
- * records of another run gone); null when the circuit has no working directory.
- * @param {string} travail
- * @param {{ nouvelle?: boolean, debut?: number }} [o]
- * @returns {string | null}
- */
-export function avancementDeLaCI(travail, { nouvelle = false, debut = Date.now() } = {}) {
-  if (!existsSync(travail)) {
-    return null;
-  }
-  const dossier = path.join(travail, `${PREFIXE}ci`);
-  try {
-    if (nouvelle) {
-      rmSync(dossier, { recursive: true, force: true });
-    }
-    if (!existsSync(path.join(dossier, PASSE))) {
-      mkdirSync(dossier, { recursive: true });
-      ecrireAtomique(path.join(dossier, PASSE), { genre: null, debut, precedent: null });
-    }
-  } catch {
-    // A directory that does not write leaves the queue going, without its progress.
-    return null;
-  }
-  return dossier;
 }
 
 /**

@@ -101,6 +101,12 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets
   de `.beads/config.yaml` sert ; une autre valeur est une faute que le panneau dit en alerte, le
   préfixe restant le sigle).
+- La CI de main : le flux `.github/workflows/ci.yml` que le cadre pose joue sur main, par paquets, au
+  plus une fois par heure et seulement si main a bougé depuis son dernier passage, sur la machine du
+  projet (la variable `RUNNER`). Un lot entre sur main sur sa passe finale, sans attendre la CI ; la
+  CI voit ce que la passe finale ne joue pas (autres plates-formes, matrice de versions, flux hors
+  `npm run verifier`). Son rouge alerte le superviseur avec les lots entrés depuis le dernier vert,
+  ouvre un ticket de défaut sous `a-valider`, et n'arrête pas la file.
 - La machine vierge : le flux `.github/workflows/machine-vierge.yml` que le cadre pose rejoue, sur un
   exécuteur `ubuntu-latest` de GitHub neuf (jamais la variable `RUNNER`), l'installation à neuf puis
   `npm run verifier` complet ; il part au plus une fois par jour sur main, et saute le jour où main est

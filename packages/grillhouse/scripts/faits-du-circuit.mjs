@@ -59,7 +59,6 @@
 //   pushed (`fermerLEntree`); `effet-de-la-file`, one effect they gave back, under the key of its
 //   activity. Their lines go to the error output.
 import { appendFileSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   aLaFin,
@@ -83,17 +82,19 @@ import {
 } from './circuit.mjs';
 import {
   avancerMain,
-  conclureLaCI,
   direLIssue,
   fermerLEntree,
-  inscrireLesFluxDeMain,
-  lireLesPassagesDeLaCI,
-  relireLesLecturesDues,
+  jugerLeCandidat,
   outilsDeLaFile,
   preparerLaBranche,
   situerLeLot,
 } from './integration/file.mjs';
-import { avancementDeLaCI } from './avancement.mjs';
+import {
+  ghDans,
+  lireLaCiDeMain,
+  lotsDepuisLeVert,
+  ouvrirLeDefautDeMain,
+} from './ci-de-main.mjs';
 
 import { ecrireLEffet } from './effets.mjs';
 import { Arret, commenter, geste } from './ticket-du-circuit.mjs';
@@ -467,29 +468,44 @@ Object.assign(ACTES, {
     const o = laFile(racine);
     return { ...fermerLEntree(o, { ticket, branche, commit }), effets: o.rendus };
   },
-  // A reading of the CI of every expected workflow of the commit (`lireLesPassagesDeLaCI`), its
-  // steps written to the progress directory of the ticket.
-  async passages({ racine, ticket, sha, branche }) {
-    const travail = path.join(racine, '.claude', 'worktrees', `${ticket}.travail`);
-    const avancement = avancementDeLaCI(travail);
-    return lireLesPassagesDeLaCI(laFile(racine, avancement), { sha, branche });
+  // The final pass on the candidate, played in the queue's copy (`jugerLeCandidat`).
+  async juger({ racine, ticket, branche, commit }) {
+    const o = laFile(racine);
+    const r = jugerLeCandidat(o, { ticket, branche, commit });
+    return { ...r, effets: o.rendus };
   },
-  // The reading of the workflows of main recorded as due after the push of a lot (nothing read).
-  async 'inscrire-flux-de-main'({ racine, ...e }) {
-    inscrireLesFluxDeMain(laFile(racine), e);
+  // The CI of main read once, in the main tree: the defect ticket of a red passage opened for the
+  // owner (`ouvrirLeDefautDeMain`, one per passage), the lots entered since the last green named by
+  // git. `{ etat }`: `verte`, `rouge` or `non-lue`.
+  async 'surveiller-la-ci-de-main'({ racine }) {
+    const o = laFile(racine);
+    const lecture = lireLaCiDeMain({ racine, gh: ghDans(racine) });
+    if (lecture.etat === 'rouge') {
+      const pointe = o.principale ?? 'main';
+      const lots = lotsDepuisLeVert(racine, { vert: lecture.vert, pointe });
+      const r = ouvrirLeDefautDeMain({ racine, bd: o.bd }, lecture, lots);
+      if (r.faute) {
+        o.dire(`⚠ ${r.faute}`);
+      }
+    }
+    return { etat: lecture.etat };
+  },
+  // The acts of the former path of the queue (the CI of a ticket's branch, the readings of the
+  // workflows of main), kept for the executions in flight whose history replays them, retired
+  // by grillhouse-3uv.131 once they are drained: they read nothing and judge nothing, the lot
+  // having been prepared as the queue's former path did, and the final pass of its circuit
+  // having judged it.
+  async passages() {
+    return { etat: 'verte', passage: 'ancien-chemin' };
+  },
+  async 'inscrire-flux-de-main'() {
     return null;
   },
-  // Every reading due of the workflows of main read once, without waiting; its comments given back.
-  async 'relire-flux-de-main'({ racine, maintenant, ci }) {
-    const o = laFile(racine);
-    return {
-      ...relireLesLecturesDues(o, { maintenant, ci }),
-      effets: o.rendus,
-    };
+  async 'relire-flux-de-main'() {
+    return { dues: 0, effets: [] };
   },
-  async conclure({ racine, ...e }) {
-    const o = laFile(racine);
-    return { ...conclureLaCI(o, e), effets: o.rendus };
+  async conclure() {
+    return { avancer: true, effets: [] };
   },
   // One effect an act of the queue gave back, under the key of its activity, with the outcome of
   // the queue when it is not written (`ecrireLEffet`).

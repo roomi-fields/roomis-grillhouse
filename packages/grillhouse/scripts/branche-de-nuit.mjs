@@ -13,34 +13,31 @@
 //   alone. It is a mark, not a secret: a human who sets it is trusted.
 // - Exit 0 lets the push go on; exit 1 refuses it, the reason on the standard error.
 //
-// The judged main: in a project whose CI runs on the ticket branches (`agent/**`,
-// scripts/ci-des-branches.mjs), a push to origin of the branch main is pushed to
-// (`grillhouse.poussee.commit`, `main` by default) carries only a commit a run of the CI concluded
-// green on a ticket branch, as bors and the merge queues enter only a tree already judged
-// (`refusSurMain`). The queue pushes such a commit; any other change goes by its ticket branch
-// first. The ruleset of the repository on GitHub holds the same rule on the server; a reading of
-// the runs that fails lets the push go, the server judging it.
-import { execFileSync, spawnSync } from 'node:child_process';
+// The judged main: a push to origin of the branch main is pushed to (`grillhouse.poussee.commit`,
+// `main` by default) carries only a commit whose tree a final pass of the circuit, or the
+// verification of a lot of the direct way, judged green (scripts/arbres-juges.mjs), as bors and the
+// merge queues enter only a tree already judged (`refusSurMain`), in every project. The queue
+// pushes such a commit; the CI of main plays after, by batches. No CI of a ticket's branch is asked.
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ecouteLesBranchesDeTicket } from './ci-des-branches.mjs';
+import { commitEstJuge } from './arbres-juges.mjs';
 import { lireCommit, lirePoussee } from './poussee-cles.mjs';
 
 // A sha of zeros: the deletion of the remote branch.
 const SUPPRESSION = /^0+$/;
 
 /**
- * The refusals for a push to `remote` of `refs` to the branch `principale` of a project that
- * `ecoute` the ticket branches: each commit <jugee(sha)> does not say judged green on a ticket
- * branch is refused, named.
+ * The refusals for a push to `remote` of `refs` to the branch `principale`: each commit
+ * <jugee(sha)> does not say judged by a final pass or a verification is refused, named.
  * @param {string} remote
  * @param {{ sha: string, distante: string }[]} refs
- * @param {{ principale: string | null, ecoute: boolean, jugee: (sha: string) => boolean }} o
+ * @param {{ principale: string | null, jugee: (sha: string) => boolean }} o
  * @returns {string[]}
  */
-export function refusSurMain(remote, refs, { principale, ecoute, jugee }) {
-  if (remote !== 'origin' || !ecoute || !principale) {
+export function refusSurMain(remote, refs, { principale, jugee }) {
+  if (remote !== 'origin' || !principale) {
     return [];
   }
   return refs
@@ -48,35 +45,8 @@ export function refusSurMain(remote, refs, { principale, ecoute, jugee }) {
     .filter(r => !jugee(r.sha))
     .map(
       r =>
-        `⛔ ${r.sha.slice(0, 8)} n'est jugé vert par la CI d'aucune branche de ticket : main n'avance que sur un arbre jugé. Pousse d'abord sur agent/<ticket>, attends sa CI verte, puis avance main sur ce commit.`
+        `⛔ ${r.sha.slice(0, 8)} n'est jugé vert par aucune passe finale ni vérification de lot : main n'avance que sur un arbre jugé. Joue \`npm run verifier\` sur ce commit (lot direct), ou laisse la file du circuit jouer sa passe finale.`
     );
-}
-
-/**
- * Whether one of the runs <runs> of a commit (`gh run list --json headBranch,conclusion`)
- * concluded green on a ticket branch. The conclusion is read run by run: the status filter of
- * GitHub's API lags its runs by minutes (grillhouse-do5e).
- * @param {{ headBranch?: string, conclusion?: string }[]} runs
- */
-export const jugeeDansLesRuns = runs =>
-  runs.some(x => x.conclusion === 'success' && String(x.headBranch).startsWith('agent/'));
-
-// Whether a run of the CI concluded green on the commit <sha> on a ticket branch, read by gh in
-// <racine>; true when gh does not answer (the server's ruleset judges then).
-function jugeeParGh(racine, sha) {
-  const r = spawnSync('gh', ['run', 'list', '--commit', sha, '--json', 'headBranch,conclusion'], {
-    cwd: racine,
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-  if (r.status !== 0) {
-    return true;
-  }
-  try {
-    return jugeeDansLesRuns(JSON.parse(r.stdout || '[]'));
-  } catch {
-    return true;
-  }
 }
 
 // The refusals for a push to `remote` of `refs` (the lines git writes) given the package.json
@@ -117,8 +87,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     ...refus(process.argv[2], refs, pkg),
     ...refusSurMain(process.argv[2], refs, {
       principale: pkg ? lireCommit(pkg).commit : null,
-      ecoute: ecouteLesBranchesDeTicket(racine),
-      jugee: sha => jugeeParGh(racine, sha),
+      jugee: sha => commitEstJuge(racine, sha),
     }),
   ];
   for (const l of lignes) {

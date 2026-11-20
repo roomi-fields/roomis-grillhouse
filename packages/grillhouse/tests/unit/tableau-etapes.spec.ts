@@ -186,7 +186,7 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
       ['4.3', 'Relecture', 'relecteur'],
       ['5', 'Intégration', ''],
       ['5.1', 'Commit', 'auto'],
-      ['5.2', 'File : main, poussée, CI', 'auto'],
+      ['5.2', 'File : passe finale, main', 'auto'],
       ['5.3', 'Tri des découvertes', 'explorateur'],
     ]);
   });
@@ -233,8 +233,8 @@ describe('AGENTS shows the tree of the steps, folded where nothing runs', () => 
     expect(textes(t).slice(-5)).toEqual([
       '▾ 5 · Intégration',
       '  5.1 · Commit · auto',
-      '  5.2 · File : main, poussée, CI · auto',
-      expect.stringMatching(/^⏸ 32 .* · CI$/),
+      '  5.2 · File : passe finale, main · auto',
+      expect.stringMatching(/^▶ 32 (?!.*CI)/),
       '  5.3 · Tri des découvertes · explorateur',
     ]);
   });
@@ -259,7 +259,7 @@ describe("a circuit's ticket stands at the step of its state, at each instant", 
     expect(sous({ etape: 'controles', finale: true })).toBe('  4.1 · Passe finale · auto');
     expect(sous({ etape: 'relecture' })).toBe('  4.3 · Relecture · relecteur');
     expect(sous({ etape: 'integration' })).toBe('  5.1 · Commit · auto');
-    expect(sous({ etape: 'file' })).toBe('  5.2 · File : main, poussée, CI · auto');
+    expect(sous({ etape: 'file' })).toBe('  5.2 · File : passe finale, main · auto');
   });
 
   it('the work on the plan at 1, the explorateur’s or the questionneur’s', () => {

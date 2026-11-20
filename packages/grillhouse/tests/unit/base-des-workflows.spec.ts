@@ -120,32 +120,15 @@ describe('the CI of Grillhouse', () => {
     expect(co?.with?.['fetch-depth']).toBe(0);
   });
 
-  it('measures a push against the commit before it, github.event.before', () => {
-    const avec = etapes.filter(e => /--base/.test(e.run ?? '') || /--base/.test(e.if ?? ''));
-    expect(avec.length).toBeGreaterThan(0);
-    expect(avec.map(e => `${e.if ?? ''}\n${e.run ?? ''}`).join('\n')).toContain(
-      'github.event.before'
-    );
-  });
-
-  it('passes the base only when the event is a push and the commit before it is not empty', () => {
-    const avec = etapes.filter(e => /--base/.test(e.run ?? '') || /--base/.test(e.if ?? ''));
-    for (const e of avec) {
-      const t = `${e.if ?? ''}\n${e.run ?? ''}`;
-      expect(t).toMatch(/github\.event_name\s*==\s*'push'/);
-      expect(t).toMatch(/github\.event\.before\s*!=\s*''/);
-    }
+  it('plays no push, so it reads no commit before a push as its base', () => {
+    expect(texte).not.toContain('github.event.before');
     expect(erreursDeBase(texte)).toEqual([]);
   });
 
-  it('plays verifier without a base for every other event', () => {
-    const sans = etapes.filter(
-      e => /^npm run verifier( |$)/.test((e.run ?? '').trim()) && !/--base/.test(e.run ?? '')
-    );
-    expect(sans.length).toBeGreaterThan(0);
-    for (const e of sans) {
-      expect(e.if ?? '').not.toMatch(/--base/);
-      expect(e.if ?? '').toMatch(/github\.event_name\s*!=\s*'push'/);
-    }
+  it('plays verifier without a base: the schedule plays the complete pass of the tip of main', () => {
+    const avec = etapes.filter(e => /--base/.test(e.run ?? '') || /--base/.test(e.if ?? ''));
+    expect(avec).toEqual([]);
+    const jouent = etapes.filter(e => /^npm run verifier( |$)/.test((e.run ?? '').trim()));
+    expect(jouent.length).toBeGreaterThan(0);
   });
 });

@@ -178,7 +178,7 @@ claude's own are reachable (`~/.claude`, a throwaway copy of `~/.claude.json`, i
 token), and no socket of the session, no token held in a variable (`GH_TOKEN`…). A missing piece
 of data becomes a request to the component that provides it, not a local recomputation. One
 ticket makes one delivery: a goal of unknown size starts with an exploration ticket, every ticket
-is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 1 Plan, 1.1 Geste mécanique, where the explorer plays the command of a plan that says the ticket mechanical, in place of 2 and 3; 2 Tests, 2.1 Preuve du rouge; 3 Code, 3.1 Contrôles; 4 Passe finale et relecture, its sub-steps 4.1 Passe finale, 4.2 Régénération des références and 4.3 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : main, poussée, CI), each step carrying its bounded loops (`essai 2/3`, `tour 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
+is created under its mother (numbered `320.2.1`) and every ticket stands at one step of the tree of its circuit (`packages/grillhouse/scripts/etapes.mjs`: 1 Plan, 1.1 Geste mécanique, where the explorer plays the command of a plan that says the ticket mechanical, in place of 2 and 3; 2 Tests, 2.1 Preuve du rouge; 3 Code, 3.1 Contrôles; 4 Passe finale et relecture, its sub-steps 4.1 Passe finale, 4.2 Régénération des références and 4.3 Relecture; 5 Intégration, its sub-steps 5.1 Commit and 5.2 File : passe finale, main; the CI of the project then plays on main, by batches, once an hour), each step carrying its bounded loops (`essai 2/3`, `tour 2/3`), and a hook refuses a second commit for a closed ticket (a reopened ticket takes correction commits).
 
 **The board** — the `grillhouse` mod (a Claude Code plugin whose source lives in `mods/grillhouse`, carried
 by the package `@roomi-fields/grillhouse`, whose root is the plugin, listed by the marketplace roomi-fields as `grillhouse@roomi-fields`,
@@ -191,7 +191,7 @@ dimmed, an empty step dimmed, where each ticket stands on one line, once — a t
 bounded loops from their second pass (`essai 2/3`, `tour 2/3`), at an automatic step the
 progress of its pass in figures, as Bazel counts its actions (`87/123 · il y a 8 s`: the test files done over
 planned, a file replayed from Turborepo's cache counted done, and the time since the last sign;
-`⚠ figée 12 min · 87/123` in red past 5 min; at 5.2 the steps of the CI;
+`⚠ figée 12 min · 87/123` in red past 5 min; the panel shows the CI of main, its last green and its alert, no step of a branch's CI;
 `packages/grillhouse/scripts/avancement.mjs`), or, stopped on a question, under its step after a line
 « ⤷ Question · superviseur » (« ⤷ Question · responsable » for a question the owner must answer), its card
 opening on that question, or on where it stopped and why, and its line ending on its ticket's

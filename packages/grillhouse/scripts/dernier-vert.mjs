@@ -34,14 +34,14 @@
 //   removes at its end.
 // - `npm test` measures itself against the last green under the circuit's mark,
 //   `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/langages/typescript/tests.mjs, scripts/circuit.mjs); it never keeps one.
-// - The circuit's passes, in a project whose CI runs on a ticket's branch, measure themselves
-//   against the base of their lot (`lot`, the variable `GRILLHOUSE_BASE_DU_LOT` that the circuit
-//   gives to `npm test` and `npm run verifier`): the copy's HEAD, which main reached green by that
-//   CI, as Google's presubmit plays the tests a change affects. Their changes carry the mark
+// - The circuit's passes, in every project, measure themselves against the base of their lot
+//   (`lot`, the variable `GRILLHOUSE_BASE_DU_LOT` that the circuit gives to `npm test` and
+//   `npm run verifier`, and the queue to its final pass): the copy's HEAD, the tip of main of its
+//   time, as Google's presubmit plays the tests a change affects. Their changes carry the mark
 //   `cible`: each package plays the tests Vitest relates to them, a file out of its graph playing
 //   neither the whole package nor the tests that read it by its path
-//   (scripts/langages/typescript/vitest-config/changements.mjs); the complete pass is the CI's and
-//   the night's. Such a pass keeps no green.
+//   (scripts/langages/typescript/vitest-config/changements.mjs); the complete pass is the CI's of
+//   main and the night's. Such a pass keeps no green.
 // - Only the measure of the changed files and the keeping of the green live here: the files go to
 //   `vitest --changed`, and no module of language chooses the packages it plays by the last green
 //   (the tests of a crate or a Python project are tasks of Turborepo, which its cache selects).
@@ -51,6 +51,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
+import { garderLArbreJuge } from './arbres-juges.mjs';
 import { etatDuDepot, fichierSous, git, SHA, sortie } from './etat-du-depot.mjs';
 // The variable that names the file of the changes since the last green, which the runner of the
 // tests of the module of the language reads in each package.
@@ -122,8 +123,11 @@ function lireLaBase(etat, base) {
   return { commit, arbre, branche: null };
 }
 
-// Keeps <etat> (etatDuDepot) as the last green of its branch, of main when HEAD is detached.
+// Keeps <etat> (etatDuDepot) as the last green of its branch, of main when HEAD is detached; its
+// tree is judged too (scripts/arbres-juges.mjs): the complete verification of a lot of the direct
+// way is what lets its commit go to main.
 export function garderLeVert(etat) {
+  garderLArbreJuge(etat.racine, etat.arbre);
   const branche = etat.branche ?? etat.main;
   const f = branche ? fichierDuVert(etat.racine, branche) : null;
   if (!f) {
@@ -296,7 +300,7 @@ export function mesure(racine, { tout = false, base, lot, dans = os.tmpdir() } =
     etat: donnee ? null : etat,
     env: { [CHANGEMENTS]: fichier },
     ligne: cible
-      ? `↳ depuis la base du lot ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent, la passe complète à la CI de la branche et à la nuit.`
+      ? `↳ depuis la base du lot ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent, la passe complète à la CI de main et à la nuit.`
       : donnee
         ? `↳ depuis la base ${vert.commit.slice(0, 7)} : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`
         : `↳ depuis le dernier vert de ${vert.branche} (${vert.commit.slice(0, 12)}, arbre ${vert.arbre.slice(0, 12)}) : ${n} fichier(s) changé(s) ; chaque paquet rejoué joue les tests que ses changements atteignent.`,

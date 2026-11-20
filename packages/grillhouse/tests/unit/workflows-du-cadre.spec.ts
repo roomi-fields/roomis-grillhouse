@@ -63,17 +63,18 @@ describe('the template of the CI of a project', () => {
     expect(modele('ci.yml')).not.toMatch(/npm pack/);
   });
 
-  it('measures a push against the commit before it, and the rest as a complete pass', () => {
+  it('plays the complete pass of main on the schedule, with no base and no push commit', () => {
     expect(erreursDeBase(modele('ci.yml'))).toEqual([]);
-    const etapes = flux('ci.yml').jobs.tranches.steps ?? [];
-    expect(
-      etapes.some(e => /--base/.test(e.run ?? '') && /github\.event\.before/.test(e.run ?? ''))
-    ).toBe(true);
+    const etapes = Object.values(flux('ci.yml').jobs).flatMap(j => j.steps ?? []);
+    expect(etapes.some(e => /--base/.test(e.run ?? ''))).toBe(false);
+    expect(modele('ci.yml')).not.toContain('github.event.before');
   });
 
-  it('plays a lot on the branch of a ticket that the queue pushes', () => {
-    const push = flux('ci.yml').on.push as { branches: string[] };
-    expect(push.branches).toContain('agent/**');
+  it('plays the CI of main on an hourly schedule, and on no push to a branch of a ticket', () => {
+    const on = flux('ci.yml').on;
+    expect(on.schedule).toBeDefined();
+    expect(on).not.toHaveProperty('push');
+    expect(JSON.stringify(on)).not.toContain('agent/');
   });
 
   it('plays the night tests out of the poste, in tranches, on a schedule', () => {

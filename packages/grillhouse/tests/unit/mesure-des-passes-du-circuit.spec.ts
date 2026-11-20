@@ -1,8 +1,8 @@
 // The checks (3.1) and the final pass (4.1) of a circuit measure their tests against the base of
-// the lot, the copy's HEAD, that main reached green by the CI of a ticket's branch: they play the
-// tests related to the lot, and the complete pass goes to that CI and to the night, as Google's
-// presubmit plays the tests a change affects and leaves the rest to after the submit. A project
-// whose CI does not run on a ticket's branch keeps its passes measured against the last green.
+// the lot, the copy's HEAD, that main reached on a final pass: they play the tests related to the
+// lot, and the complete pass goes to the CI of main and to the night, as Google's presubmit plays
+// the tests a change affects and leaves the rest to after the submit. Every project does so,
+// whatever its workflows: no CI runs on a ticket's branch any more.
 // Witness: grillhouse-4nr.21, measured against main's last green of 8204be8, 38 files changed for
 // a lot of 10, `.github/workflows/ci.yml` among them: 7 passes of the 4 235 tests of
 // packages/grillhouse.
@@ -52,18 +52,18 @@ function depot(ci: string | null) {
 }
 
 describe('the measure of the passes of a circuit', () => {
-  it('in a project whose CI runs on the ticket branches, is the base of the lot', () => {
+  it('in a project whose CI runs on main, is the base of the lot', () => {
+    const { ctx, base } = depot(CI_DE_MAIN);
+    expect(mesureDesPasses(ctx)).toEqual({ GRILLHOUSE_BASE_DU_LOT: base });
+  });
+
+  it('in a project whose workflow still lists the ticket branches, is the base of the lot too', () => {
     const { ctx, base } = depot(CI_DES_BRANCHES);
     expect(mesureDesPasses(ctx)).toEqual({ GRILLHOUSE_BASE_DU_LOT: base });
   });
 
-  it('in a project whose CI runs on main alone, is the last green', () => {
-    const { ctx } = depot(CI_DE_MAIN);
-    expect(mesureDesPasses(ctx)).toEqual({});
-  });
-
-  it('in a project without a CI, is the last green', () => {
-    const { ctx } = depot(null);
-    expect(mesureDesPasses(ctx)).toEqual({});
+  it('in a project without a CI, is the base of the lot', () => {
+    const { ctx, base } = depot(null);
+    expect(mesureDesPasses(ctx)).toEqual({ GRILLHOUSE_BASE_DU_LOT: base });
   });
 });

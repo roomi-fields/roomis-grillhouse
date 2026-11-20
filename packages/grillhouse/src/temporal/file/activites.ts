@@ -27,6 +27,19 @@ export async function fermerLEntree(e: Entree<'fermerLEntree'>): Promise<Sortie<
   return jouer('fermer', e, e.racine);
 }
 
+export async function jugerLeCandidat(
+  e: Entree<'jugerLeCandidat'>
+): Promise<Sortie<'jugerLeCandidat'>> {
+  return jouer('juger', e, e.racine);
+}
+
+export async function surveillerLaCiDeMain(
+  e: Entree<'surveillerLaCiDeMain'>
+): Promise<Sortie<'surveillerLaCiDeMain'>> {
+  return jouer('surveiller-la-ci-de-main', e, e.racine);
+}
+
+// Former path (grillhouse-3uv.131): the acts that answer these activities read nothing.
 export async function lireLesPassagesDeLaCI(
   e: Entree<'lireLesPassagesDeLaCI'>
 ): Promise<Sortie<'lireLesPassagesDeLaCI'>> {

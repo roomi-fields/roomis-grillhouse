@@ -32,7 +32,7 @@ interface Options {
   maintenant: number;
   rappelMs: number;
   toutes?: boolean;
-  fluxRouges?: { ticket: string; adresse: string }[] | null;
+  ciDeMain?: { cle: string; texte: string } | null;
 }
 // The reading is loaded from the namespace, so that a name not yet public fails its test, not the
 // file's loading.
@@ -368,37 +368,54 @@ describe('the end of a circuit integrated is given once, in the same reading', (
   });
 });
 
-describe('a ticket reopened for a red workflow of main is given once per run', () => {
-  const ADRESSE =
-    'Deploy hosted server : https://github.com/demo/demo/actions/runs/9 (commit abc1234)';
-  const rouge = (ticket: string, adresse = ADRESSE) => ({ ticket, adresse });
+describe('the alert of the CI of main is given once per passage, and clears at the next green', () => {
+  const ALERTE = {
+    cle: 'rouge 9',
+    texte:
+      'CI de main rouge : Machine vierge, passage 9 (commit abc1234). Lots entrés depuis le dernier vert : demo-1, demo-2.',
+  };
+  const AUTRE = { cle: 'rouge 10', texte: 'CI de main rouge : CI, passage 10 (commit def5678).' };
 
-  it('is given with its ticket and the address of the run', () => {
-    const lot = lire(depot(), [], 0, 5, { fluxRouges: [rouge('demo-1')] });
-    expect(tickets(lot)).toEqual(['demo-1']);
-    expect(lot[0]!.adresse).toBe(ADRESSE);
-    expect(texteDesQuestions(lot)).toContain('https://github.com/demo/demo/actions/runs/9');
+  it('is given to the supervisor as a question that carries its text', () => {
+    const lot = lire(depot(), [], 0, 5, { ciDeMain: ALERTE });
+    expect(lot).toHaveLength(1);
+    expect(lot[0]).toMatchObject({ etape: '5 Intégration', qui: 'superviseur' });
+    const texte = texteDesQuestions(lot);
+    expect(texte).toContain('CI de main rouge');
+    expect(texte).toContain('demo-1, demo-2');
   });
 
-  it('is given once while it stands, and again at another run', () => {
+  it('is given once while it stands, and again for another passage', () => {
     const racine = depot();
-    expect(lire(racine, [], 0, 5, { fluxRouges: [rouge('demo-1')] })).toHaveLength(1);
-    expect(lire(racine, [], 1, 5, { fluxRouges: [rouge('demo-1')] })).toEqual([]);
-    expect(lire(racine, [], 2, 5, { fluxRouges: [] })).toEqual([]);
-    const autre = lire(racine, [], 3, 5, { fluxRouges: [rouge('demo-1', `${ADRESSE} bis`)] });
-    expect(tickets(autre)).toEqual(['demo-1']);
+    expect(lire(racine, [], 0, 5, { ciDeMain: ALERTE })).toHaveLength(1);
+    expect(lire(racine, [], 1, 5, { ciDeMain: ALERTE })).toEqual([]);
+    expect(lire(racine, [], 2, 5, { ciDeMain: AUTRE })).toHaveLength(1);
   });
 
-  it('a reading that fails (null) keeps the red given: it is not given again once bd reads', () => {
+  it('clears at the next green (null): the same alert coming back is given again', () => {
     const racine = depot();
-    lire(racine, [], 0, 5, { fluxRouges: [rouge('demo-1')] });
-    expect(lire(racine, [], 1, 5, { fluxRouges: null })).toEqual([]);
-    expect(lire(racine, [], 2, 5, { fluxRouges: [rouge('demo-1')] })).toEqual([]);
+    lire(racine, [], 0, 5, { ciDeMain: ALERTE });
+    expect(lire(racine, [], 1, 5, { ciDeMain: null })).toEqual([]);
+    expect(lire(racine, [], 2, 5, { ciDeMain: ALERTE })).toHaveLength(1);
   });
 
-  it('several tickets come in one reading, sorted by ticket', () => {
-    const lot = lire(depot(), [], 0, 5, { fluxRouges: [rouge('demo-3'), rouge('demo-1')] });
-    expect(tickets(lot)).toEqual(['demo-1', 'demo-3']);
+  it('a reading not made (undefined) keeps the alert given: it is not given again', () => {
+    const racine = depot();
+    lire(racine, [], 0, 5, { ciDeMain: ALERTE });
+    expect(lire(racine, [], 1, 5, {})).toEqual([]);
+    expect(lire(racine, [], 2, 5, { ciDeMain: ALERTE })).toEqual([]);
+  });
+
+  it('the CI of main not read is an alert too, never silence', () => {
+    const lot = lire(depot(), [], 0, 5, {
+      ciDeMain: { cle: 'non-lue', texte: 'CI de main non lue : gh ne se lance pas.' },
+    });
+    expect(texteDesQuestions(lot)).toContain('CI de main non lue');
+  });
+
+  it('comes with the questions of the circuits in one reading', () => {
+    const lot = lire(depot(), [arrete('demo-1', 'Q1 ?')], 0, 5, { ciDeMain: ALERTE });
+    expect(lot).toHaveLength(2);
   });
 });
 

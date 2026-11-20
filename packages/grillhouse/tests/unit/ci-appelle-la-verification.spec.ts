@@ -39,9 +39,9 @@ const CONTROLES = /format:check|lint|typecheck|\bbuild\b|\bnpm test\b|\bvitest\b
 describe('critère 2: the CI calls the verification alone', () => {
   for (const [titre, fichier] of CIS) {
     const jobs = (parse(lire(fichier)) as Flux).jobs;
-    // The jobs of the verification: every job but build and judged, which finds a tree already
-    // judged and plays no control.
-    const verification = Object.entries(jobs).filter(([nom]) => !['build', 'judged'].includes(nom));
+    // The jobs of the verification: every job but build and moved, which finds out whether main
+    // moved since the last pass and plays no control.
+    const verification = Object.entries(jobs).filter(([nom]) => !['build', 'moved'].includes(nom));
     const runs = (j: { steps?: Etape[] }) =>
       (j.steps ?? []).flatMap(e => (e.run ? [e.run.trim()] : []));
     const lancees = verification.flatMap(([, j]) => runs(j));

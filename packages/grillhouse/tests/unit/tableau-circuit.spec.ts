@@ -203,7 +203,7 @@ describe('a circuit that runs: its step and its attempt', () => {
     expect(sous('controles')).toBe('  3.1 · Contrôles · auto');
     expect(sous('relecture')).toBe('  4.3 · Relecture · relecteur');
     expect(sous('integration')).toBe('  5.1 · Commit · auto');
-    expect(sous('file')).toBe('  5.2 · File : main, poussée, CI · auto');
+    expect(sous('file')).toBe('  5.2 · File : passe finale, main · auto');
   });
 
   it('the checks once `finale` are the final pass, step 4.1', () => {
