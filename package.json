@@ -68,7 +68,11 @@
       ]
     },
     "circuits": 2,
-    "sigle": "GH"
+    "sigle": "GH",
+    "part": {
+      "coeurs": 4,
+      "memoireGo": 6
+    }
   },
   "allowScripts": {
     "@swc/core": false,
