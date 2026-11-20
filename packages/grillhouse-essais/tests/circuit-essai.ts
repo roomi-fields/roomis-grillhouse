@@ -396,7 +396,7 @@ EOF
 export const CODE_JUSTE = `printf 'export const mesure = x => 2 * x;\\n' > $c/src/index.mjs\n`;
 
 // The head of the instruction of a testwriter or a developpeur in a run the supervisor gives its
-// task (`--contexte`, or the question `--etendre` gives it), the task after it (grillhouse-jya).
+// task (`--contexte`, or the answer `--etendre` gives to the stop), the task after it (grillhouse-jya).
 export const TA_TACHE =
   'TA TÂCHE, que le superviseur te donne ; elle passe avant le ticket, le rapport ci-dessous :\n\n';
 

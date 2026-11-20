@@ -2355,11 +2355,23 @@ const ORDRE_LU = {
     " (le paquet gagné va en fin de plan : ni la copie ni l'arbre principal ne se chargent pour l'ordonner)",
 };
 
+// The context `--etendre` gives the sessions of the run it resumes on the stop <question>: the
+// supervisor's answer (the packages <etendus> the plan gains, the plan <plan> as it is now), then his own text <contexte>. The stop's fact
+// and piece stay out of it: they say the plan as it was and tell a session to stop (a lock's
+// message), and a session reads its context as the supervisor's word. Without a question, his
+// text alone, or null.
+export function contexteDeLExtension({ question, etendus, plan, contexte }) {
+  const reponse = question
+    ? `Le superviseur a étendu le plan à ${etendus.join(', ')} ; le plan du ticket est maintenant : ${plan}.`
+    : null;
+  return [reponse, contexte].filter(Boolean).join('\n\n') || null;
+}
+
 // The plan extended by the supervisor to the packages of `--etendre` (each a path or a package
 // name of the repository, else a Usage): each one enters the title in the order of
 // `ordonnerLePlan`, written by bd and said at the ticket. With the state <e>, the run then resumes
-// the step under way, as `--reprendre` does, the question of the stop and the text of
-// `--contexte` as the context of its sessions; a stop « sans-livraison » whose developpeur's last
+// the step under way, as `--reprendre` does, the supervisor's answer to the stop
+// (`contexteDeLExtension`) and the text of `--contexte` as the context of its sessions; a stop « sans-livraison » whose developpeur's last
 // sheet sends the red to the testwriter (`renvoi`, twice in a row) resumes at the step of the role
 // it names, the testwriter's, as a retry plays the job that failed. Without a state, it starts on
 // the plan extended. The state the run resumes from.
@@ -2385,10 +2397,12 @@ function etendre(ctx, e) {
   if (!e) {
     return e;
   }
-  ctx.contexte =
-    [e.question ? `${e.question.fait}\n\n${e.question.piece}` : null, ctx.contexte]
-      .filter(Boolean)
-      .join('\n\n') || null;
+  ctx.contexte = contexteDeLExtension({
+    question: e.question,
+    etendus: ctx.etendre,
+    plan: titre.split(' — ').at(-1),
+    contexte: ctx.contexte,
+  });
   ctx.reprendre = true;
   const renvoi =
     e.etape === CODE && e.raison === 'sans-livraison'
@@ -2407,7 +2421,7 @@ async function avantLePlan(ctx, e) {
     e = etendre(ctx, e);
   }
   // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
-  // question `--etendre` gives it) are its sessions' context; without one, their task.
+  // answer `--etendre` gives to the stop) are its sessions' context; without one, their task.
   ctx.constats = auLancement(ctx.contexte, ctx.constats);
   // The rank of the circuit's arrival among the machine's waits for a place: drawn at its
   // launch, kept by its state from one session to the next and across a resumption, so that a

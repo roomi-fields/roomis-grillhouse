@@ -528,7 +528,9 @@ numéro « Constat N — » que la consigne lui donne, numéro que le circuit re
 une revue rattache la réponse à son fil par son identifiant (`cleDuConstat`) (`reponses` :
 `levé` avec sa pièce, ou `contesté` avec sa raison et sa pièce) ; le circuit refuse une fiche à
 laquelle il en manque une (`reponsesAuxConstats`). Quand le superviseur relance avec son
-contexte (`--contexte`, ou la question que `--etendre` y verse), comme une revue que son auteur
+contexte (`--contexte`, ou la réponse que `--etendre` y verse : les paquets que le plan gagne et le
+plan tel qu'il est alors, jamais le fait ni la pièce de l'arrêt, qui disent le plan d'avant —
+`contexteDeLExtension`), comme une revue que son auteur
 relance sur un changement qu'il cadre, la consigne porte ce contexte en tête, comme la tâche,
 avant le ticket, le rapport et les constats ; les constats ouverts au lancement de la passe
 (`enContexte`, `auLancement`) sont donnés en contexte, sans réponse exigée, et ceux qu'un
