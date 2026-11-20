@@ -36,7 +36,8 @@ professionnel.
    `developpeur`). Ainsi le code se mesure à des tests qu'il n'a pas écrits. Un critère répond à
    un besoin réel de l'usage actuel. Ainsi le ticket garde la taille du besoin.
 5. Le ticket se ferme sur ses tests ciblés, le verdict du `relecteur` sur le lot et le commit du
-   circuit, seul à commiter, entré sur main par la file. Ainsi ce qui est déclaré fini l'est
+   circuit, seul à commiter, entré sur main par la file sur sa passe finale, la CI de main jouant
+   ensuite par paquets. Ainsi ce qui est déclaré fini l'est
    vraiment.
 6. Chaque agent laisse sa passation en commentaire au ticket (`bd comments add`), avec ce qui
    n'est pas fait et pourquoi ; une séance que le circuit mène finit sur sa fiche, la sortie
@@ -209,8 +210,8 @@ le circuit court pour un geste sans comportement neuf, que l'explorateur juge au
 du circuit, mené en direct par le superviseur, pour un défaut du circuit lui-même (le circuit ne se
 répare pas par lui-même), une correction triviale repérée en analyse (une ligne fautive, un
 mauvais argument), un ticket de données ou le squelette d'un paquet ; il porte l'étiquette `direct`, que la file des
-tickets ignore, même s'il porte aussi `circuit`. Un lot hors du circuit passe
-la CI de sa branche avant main, comme un autre. Un changement de comportement du produit va au
+tickets ignore, même s'il porte aussi `circuit`. Un lot hors du circuit entre
+sur main sur sa vérification complète verte. Un changement de comportement du produit va au
 circuit, même pressé. Ainsi la voie d'un ticket se lit à la charte, et non au choix de la séance.
 
 **La file directe se tient comme la file des tickets** : un ticket direct attend ouvert, et l'en-tête
@@ -309,10 +310,16 @@ dossier.
   lourde qui trouve moins de 4 Go libres, sous le dossier temporaire ou sur le disque de sa copie,
   attend la place et dit ce qui l'occupe, le ticket nommé. Ainsi le poste ne sature jamais ses
   disques.
-- **Main reste vert** : la file n'avance main que sur l'arbre que la CI de la branche du ticket
-  (`agent/<ticket>`) a jugé vert, comme bors et Zuul. Un test connu rouge se met en quarantaine
-  dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige. Ainsi chaque
-  rouge a son ticket.
+- **Main reste vert** : la file n'avance main que sur l'arbre que la passe finale du circuit (ou,
+  hors du circuit, la vérification du lot direct) a jugé vert, le lot posé sur la pointe de main ;
+  elle n'attend aucune CI de branche. La CI du projet joue ensuite sur main, par paquets, au plus
+  une fois par heure (le modèle de Google, TAP, et de Chromium) : elle voit ce que la passe finale
+  ne joue pas (autres plates-formes, matrice de versions, flux hors `npm run verifier`). Un rouge
+  de la CI de main, ou de la machine vierge, alerte le superviseur avec les lots entrés depuis le
+  dernier vert, sans arrêter la file, et ouvre un ticket de défaut sous `a-valider` : un rouge de
+  main est un défaut ouvert tant que ce ticket n'est pas fermé. Un test connu rouge se met en
+  quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
+  Ainsi chaque rouge a son ticket.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Ainsi une affirmation sur le code repose sur ce que le code contient.

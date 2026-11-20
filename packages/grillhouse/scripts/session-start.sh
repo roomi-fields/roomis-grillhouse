@@ -35,9 +35,6 @@
 # detection `grillhouse temporal perime`): joins « Manque » with `npx grillhouse temporal installer`.
 # An agent's copy does not read it.
 #
-# The CI of the ticket branches: a project none of whose workflows runs on a push to `agent/**`
-# (scripts/ci-des-branches.mjs) joins « Manque », with `npx grillhouse maj`, which adds it.
-#
 # One supervisor per project (scripts/superviseur.mjs): the session takes the lock of its
 # repository, and, when its opening takes the lock (not when it keeps it, after a compaction or a
 # /clear), receives the section « Les questions des circuits » (the greffon pushes the questions, the answer
@@ -143,12 +140,6 @@ fi
 while IFS= read -r crochet; do
   [ -n "$crochet" ] && missing+=("le crochet git $crochet du cadre")
 done < <(node "$ici/crochets.mjs" --absents "$root" 2>/dev/null)
-# The CI of the ticket branches (scripts/ci-des-branches.mjs): the queue enters a lot on main only
-# once the CI of `agent/<ticket>` judged it green, so a project none of whose workflows runs on a
-# push to `agent/**` lacks it. An agent's copy does not read it.
-if [ -z "$copie_agent" ] && [ -n "$(node "$ici/ci-des-branches.mjs" --absente "$root" 2>/dev/null)" ]; then
-  missing+=("une CI qui se lance sur les branches de ticket agent/** (la file n'entre un lot sur main qu'une fois la CI de sa branche verte : \`npx grillhouse maj\` ajoute agent/** aux branches du push du flux de la CI, sinon ajoute-le à la main, \`branches: [main, 'agent/**']\`)")
-fi
 command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des agents : sudo apt install bubblewrap")
 
 # The key elements the skills read; each one still empty is proposed for a grill.

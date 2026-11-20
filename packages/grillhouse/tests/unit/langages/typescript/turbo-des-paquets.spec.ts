@@ -1029,6 +1029,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'arbitrages.mjs',
       'avancement.mjs',
       'dernier-vert.mjs',
+      // What dernier-vert.mjs imports: the trees judged green.
+      'arbres-juges.mjs',
       // What services-du-noyau.mjs imports for the registry of results (grillhouse-43l).
       'registre-des-resultats.mjs',
       // What dernier-vert.mjs and the registry import: the state of the repository and the place of

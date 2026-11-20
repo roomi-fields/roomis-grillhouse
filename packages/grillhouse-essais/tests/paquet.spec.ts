@@ -114,7 +114,6 @@ const AVANT: Record<string, [number, number]> = {
   'premier-paquet': [4, 10],
   'pre-push-nuit': [16, 63],
   'greffons-du-cadre': [63, 170],
-  'file-integration.ci': [15, 71],
   'crochets-du-cadre': [25, 58],
   'integrer.references': [4, 18],
   'nouveau-projet': [15, 37],

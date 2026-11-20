@@ -35,13 +35,13 @@ import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-
 
 import * as ciAppelleLaVerification from './migrations/0.30.0-ci-appelle-la-verification.mjs';
 import * as paquetsDansLeGraphe from './migrations/0.31.0-paquets-dans-le-graphe.mjs';
-import * as ciDesBranchesDeTicket from './migrations/0.33.0-ci-des-branches-de-ticket.mjs';
 import * as node26 from './migrations/0.33.0-node-26.mjs';
 import * as ciDuCadre from './migrations/0.33.0-ci-du-cadre.mjs';
 import * as cacheDistant from './migrations/0.33.0-cache-distant.mjs';
 import * as greffonMattpocockRetire from './migrations/0.35.0-greffon-mattpocock-retire.mjs';
 import * as node26Seul from './migrations/0.44.0-node-26-seul.mjs';
 import * as seuilDesCodesDeTickets from './migrations/0.44.0-seuil-des-codes-de-tickets.mjs';
+import * as ciDeMain from './migrations/0.47.0-ci-de-main.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -56,13 +56,13 @@ export const MIGRATIONS = [
   langagesDansLArchitecture,
   ciAppelleLaVerification,
   paquetsDansLeGraphe,
-  ciDesBranchesDeTicket,
   node26,
   ciDuCadre,
   cacheDistant,
   greffonMattpocockRetire,
   node26Seul,
   seuilDesCodesDeTickets,
+  ciDeMain,
 ];
 
 /**

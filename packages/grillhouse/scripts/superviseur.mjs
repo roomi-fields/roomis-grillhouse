@@ -56,15 +56,16 @@
 //   given again. The stops are kept there each by its ticket, the run of its workflow, the rank of
 //   its question in that run and its stop, with the time of the first going up and of the last
 //   presentation. The end of a circuit integrated is given once (`integre`), kept in
-//   `.claude/worktrees/integrations-rendues.json`, and a ticket the queue reopened for a red
-//   workflow of main once per run (`.claude/worktrees/flux-rouges-rendus.json`).
+//   `.claude/worktrees/integrations-rendues.json`, and the alert of the CI of main (a red, or a CI
+//   not read, scripts/ci-de-main.mjs) once per passage (`.claude/worktrees/ci-de-main-rendue.json`),
+//   cleared at the next green.
 // - The reading covers the project and each other project of its group (`grillhouse.groupe`) that
 //   no other live session of supervision holds, each under its name and its folder.
-import { execFile, spawnSync } from 'node:child_process';
-import { promisify } from 'node:util';
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { alerteDuProjet, ciDeMainGardee } from './ci-de-main.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
 import { circuitsDuServeur, ServeurMuet } from './circuits-du-serveur.mjs';
@@ -206,83 +207,63 @@ function lireLesIntegrations(racine, maintenant) {
   }
   return { depuis: maintenant, rendues: new Set() };
 }
-// The tickets the queue reopened for a red workflow of main (label `flux-rouge`) that wait open, with
-// the address of the run, which the title of the queue's comment (scripts/integration/file.mjs)
-// gives in its second paragraph; null when bd does not read them, which says nothing of the reds.
-export async function fluxRougesDe(racine) {
-  // A repository without its base of tickets has no ticket to give, and bd is never launched.
-  if (!existsSync(path.join(racine, '.beads'))) {
-    return [];
+// The alert of the CI of main of the project at <racine> (scripts/ci-de-main.mjs), read for the
+// supervisor: `{ cle, texte }` for a red or a CI not read, null for a green (the alert clears),
+// undefined for a project with no CI to read. The lots entered since the last green are named by
+// git; nothing is kept but the reading, for five minutes.
+export function ciDeMainDe(racine) {
+  const lecture = ciDeMainGardee(racine);
+  if (!lecture) {
+    return undefined;
   }
-  const bd = async (...a) =>
-    (
-      await promisify(execFile)('bd', a, {
-        cwd: racine,
-        encoding: 'utf8',
-        timeout: 5000,
-        maxBuffer: 64 * 1024 * 1024,
-      })
-    ).stdout;
+  const a = alerteDuProjet(racine, lecture);
+  return a ? { cle: a.cle, texte: a.texte } : null;
+}
+
+// The alert of the CI of main given by the waits of the repository at <racine>, its key: kept while
+// it stands, so that one is given once, cleared at the next green and given again if it comes back.
+const ciDeMainRendue = racine => path.join(etatsDe(racine), 'ci-de-main-rendue.json');
+function lireLaCiDeMainRendue(racine) {
   try {
-    const l = JSON.parse(await bd('list', '--label', 'flux-rouge', '--status', 'open', '--json'));
-    const lots = await Promise.all(
-      l.map(async t => {
-        const dits = JSON.parse((await bd('comments', t.id, '--json')) || '[]');
-        const c = dits.findLast(x => String(x?.text ?? '').startsWith('## Flux de main rouge'));
-        return c ? [{ ticket: t.id, adresse: String(c.text).split('\n\n')[1] ?? '' }] : [];
-      })
-    );
-    return lots.flat();
+    const lu = JSON.parse(readFileSync(ciDeMainRendue(racine), 'utf8'));
+    return typeof lu?.cle === 'string' ? lu.cle : null;
   } catch {
-    // A reading that fails says nothing of the reds: null, never « none ».
     return null;
   }
 }
-
-// The red workflows of main given by the waits of the repository at <racine>, `ticket adresse` keys:
-// those that still stand are kept, so that one is given once and again at another run.
-const fluxRougesRendus = racine => path.join(etatsDe(racine), 'flux-rouges-rendus.json');
-function lireLesFluxRougesRendus(racine) {
-  try {
-    const lu = JSON.parse(readFileSync(fluxRougesRendus(racine), 'utf8'));
-    return new Set(Array.isArray(lu?.rendus) ? lu.rendus.map(String) : []);
-  } catch {
-    return new Set();
-  }
-}
-function ecrireLesFluxRougesRendus(racine, cles) {
-  const f = fluxRougesRendus(racine);
+function ecrireLaCiDeMainRendue(racine, cle) {
+  const f = ciDeMainRendue(racine);
   try {
     mkdirSync(path.dirname(f), { recursive: true });
     const provisoire = `${f}.${process.pid}`;
-    writeFileSync(provisoire, `${JSON.stringify({ rendus: [...cles].sort() })}\n`);
+    writeFileSync(provisoire, `${JSON.stringify({ cle })}\n`);
     renameSync(provisoire, f);
   } catch {
     // kept as it was
   }
 }
 
-// The batch of the tickets reopened by a red workflow of main among <rouges> and not yet given, as
-// questions sorted by ticket; the file of those given keeps the ones that stand.
-function releverLesFluxRouges(racine, rouges) {
-  const cleDuRouge = r => `${r.ticket} ${r.adresse}`;
-  const avant = lireLesFluxRougesRendus(racine);
-  const debout = new Set(rouges.map(cleDuRouge));
-  const neufs = rouges.filter(r => !avant.has(cleDuRouge(r)));
-  if (neufs.length || debout.size !== avant.size || [...debout].some(k => !avant.has(k))) {
-    ecrireLesFluxRougesRendus(racine, debout);
+// The alert of the CI of main <alerte> (`{ cle, texte }`, null at a green) as a question, when it is
+// not the one already given; the file keeps the key that stands.
+function releverLaCiDeMain(racine, alerte, toutes) {
+  const avant = lireLaCiDeMainRendue(racine);
+  const cle = alerte?.cle ?? null;
+  if (cle !== avant) {
+    ecrireLaCiDeMainRendue(racine, cle);
   }
-  return neufs
-    .sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'))
-    .map(r => ({
-      ticket: r.ticket,
+  if (!alerte || (cle === avant && !toutes)) {
+    return [];
+  }
+  return [
+    {
+      ticket: 'CI de main',
       etape: '5 Intégration',
-      question: `un flux de main est rouge après l'entrée de son lot, le ticket est rouvert : ${r.adresse}`,
+      question: alerte.texte,
       qui: SUPERVISEUR,
-      commande: `bd show ${r.ticket}`,
-      cle: `flux-rouge ${cleDuRouge(r)}`,
-      adresse: r.adresse,
-    }));
+      commande: 'gh run list --branch main',
+      cle: `ci-de-main ${alerte.cle}`,
+    },
+  ];
 }
 
 // A file that cannot be written never costs the batch: the next wait reads the former one.
@@ -308,19 +289,19 @@ function ecrireLesIntegrations(racine, depuis, rendues) {
  * with the stops that still stand, their circuit waiting for the supervisor: a question answered
  * so leaves it, and the next stop of its circuit is new. The end of a circuit integrated since the
  * last reading is given once (`integre`; the file of the integrations holds the time of that
- * reading), and each ticket of <fluxRouges> (the tickets the queue reopened for a red workflow of
- * main, `{ ticket, adresse }`; null when bd does not read them, undefined when they are not read)
- * once per run (`adresse`). The result is the questions given, each marked `representee` when it
- * comes back, then the ends, then the reds.
+ * reading), and the alert of the CI of main <ciDeMain> (`{ cle, texte }`; null at a green, which
+ * clears it; undefined when it is not read, which keeps what was given) once per passage. The
+ * result is the questions given, each marked `representee` when it comes back, then the ends, then
+ * the alert of the CI of main.
  * @param {string} racine
  * @param {import('./circuits-du-serveur.mjs').CircuitDuServeur[]} circuits
- * @param {{ fermes: (racine: string, ids: string[]) => Set<string> | null, maintenant: number, rappelMs: number, toutes?: boolean, fluxRouges?: { ticket: string, adresse: string }[] | null }} options
- * @returns {{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean, adresse?: string }[]}
+ * @param {{ fermes: (racine: string, ids: string[]) => Set<string> | null, maintenant: number, rappelMs: number, toutes?: boolean, ciDeMain?: { cle: string, texte: string } | null }} options
+ * @returns {{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[]}
  */
 export function relever(
   racine,
   circuits,
-  { fermes, maintenant, rappelMs, toutes = false, fluxRouges }
+  { fermes, maintenant, rappelMs, toutes = false, ciDeMain }
 ) {
   const f = remonteesDe(racine);
   mkdirSync(path.dirname(f), { recursive: true });
@@ -339,7 +320,7 @@ export function relever(
       maintenant,
       [...rendues, ...integres.map(i => i.cle)].filter(k => (fins.get(k) ?? -Infinity) >= maintenant)
     );
-    const rouges = Array.isArray(fluxRouges) ? releverLesFluxRouges(racine, fluxRouges) : [];
+    const rouges = ciDeMain === undefined ? [] : releverLaCiDeMain(racine, ciDeMain, toutes);
     circuits = circuits.filter(c => !c.integre);
     const avant = new Map(lireLesRemontees(racine, maintenant).map(r => [r.cle, r]));
     const debout = questionsEnAttente(racine, circuits, { fermes: aucunFerme });
@@ -569,6 +550,7 @@ export async function circuitsALOuverture(
         maintenant: Date.now(),
         rappelMs: rappelDuProjet(racine) * 60_000,
         toutes: true,
+        ciDeMain: ciDeMainDe(racine),
       }).filter(q => !q.integre)
     : [];
   const tournent = enAttente(
@@ -752,7 +734,7 @@ async function leReleveDe(racine, circuitsDe) {
     fermes: ticketsHorsAttente,
     maintenant: Date.now(),
     rappelMs: minutes * 60_000,
-    fluxRouges: await fluxRougesDe(racine),
+    ciDeMain: ciDeMainDe(racine),
   });
   return lot.length ? texteDesQuestions(lot) : '';
 }

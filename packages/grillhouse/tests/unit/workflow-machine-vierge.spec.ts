@@ -9,7 +9,6 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { erreursDeBase } from '../../scripts/base-des-workflows.mjs';
-import { fluxDeLaBranche } from '../../scripts/integration/file.mjs';
 import { estDuCadre, GABARIT_DES_WORKFLOWS } from '../../scripts/workflows-du-cadre.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
@@ -62,11 +61,8 @@ describe('the workflow of the clean machine', () => {
     expect(flux.on.push.tags).toEqual(['v*']);
   });
 
-  it('starts on no push to main, develop or a branch of a ticket, as the queue reads it', () => {
-    const fichiers = [{ chemin: CHEMIN, texte }];
-    for (const branche of ['main', 'develop', 'agent/essai', 'agent/a/b']) {
-      expect(fluxDeLaBranche(fichiers, branche), branche).toEqual([]);
-    }
+  it('starts on no push to main, develop or a branch of a ticket: its push filters on tags alone', () => {
+    expect(flux.on.push.tags).toEqual(['v*']);
     expect(flux.on.push.branches).toBeUndefined();
     expect(flux.on.push['branches-ignore']).toBeUndefined();
   });

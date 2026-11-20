@@ -1,9 +1,11 @@
 // The gestures of the queue, which brings the branches `agent/<ticket>` the integration committed
-// onto main, one at a time, each judged by the CI of its branch before main moves, as bors and
-// Zuul gate a merge on the CI of the tree that enters: the workflow of the queue of a project
-// (`file:<racine>`, src/temporal/file/deroule.ts) plays them, each in an act of its own
-// (scripts/faits-du-circuit.mjs), for the entries the circuits of the tickets send it at their
-// step 5.2, in their order of arrival. Nothing is verified on the machine: the CI judges.
+// onto main, one at a time, each judged by a final pass on the tree that enters before main moves, as
+// bors judges the tree that enters, and as Google's TAP plays the touched tests before the submit and
+// the whole suite after it: the workflow of the queue of a project (`file:<racine>`,
+// src/temporal/file/deroule.ts) plays them, each in an act of its own (scripts/faits-du-circuit.mjs),
+// for the entries the circuits of the tickets send it at their step 5.2, in their order of arrival.
+// The CI of the project plays after, on main, by batches (scripts/ci-de-main.mjs): the queue reads no
+// CI and pushes no branch of a ticket.
 //
 // For each branch (`preparerLaBranche`), against the main of the moment:
 //  - main is an ancestor of the branch (main has not moved since its base): the branch is the
@@ -21,8 +23,6 @@
 //    commit; a command that fails makes the branch leave the queue, the command and its output
 //    named (OSC Bridge, 2026-10-31: four conflicts in one day on the generated files of synthhub
 //    and open-synth-descriptors);
-//  - the candidate is pushed to origin on `agent/<ticket>` (forced: the queue owns that branch,
-//    and a replay rewrites it), a push refused keeping the branch in the queue, its reason named;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its ticket loses
 //    `en-file` and takes a comment, and stays as it is;
 //  - a branch that does not replace (the files in conflict) leaves the queue: its ticket loses
@@ -32,47 +32,30 @@
 //    its replaced commit) stays in the queue, the reason written to its ticket, which is neither
 //    reopened nor closed, and the queue goes on; the circuit of the ticket stops at
 //    « a-repasser », and its resumption sends the branch again.
-// Then the queue reads the CI of the candidate on its branch, the run of `agent/<ticket>` whatever
-// runs it (GitHub's runners or the project's own: the queue reads the run, not the machine). As
-// bors refuses a merge without its required status, the queue first reads, in the candidate, the
-// workflows that run on a push to its branch (`fluxDeLaBranche`, the files `.github/workflows/*.yml`
-// and `*.yaml`, their `on` and its filters as GitHub reads them); with none, no run is looked for,
-// and the branch stays in the queue, the ticket told that the CI of the project must listen to
-// `agent/**`. A workflow the queue cannot judge (a file it cannot read, a filter on the paths)
-// counts as one that runs. With one, each reading (`lireLesPassagesDeLaCI`) looks for the runs of
-// its expected workflows (`gh run list --commit <sha> --branch <branche> --json ...`), then
-// reads each (`gh run view <id> --json status,conclusion,jobs`), as `gh run watch` does; the
-// workflow of the CI of the commit spaces the readings and bounds the search and the wait
-// (`ciDuCommit`). Green on the conclusion `success`, red on any other. Under the circuit's progress
-// directory (scripts/avancement.mjs), each reading writes there the steps of the run done over
-// planned, which the board shows. The run is read at its current attempt (`gh run view <id>`
-// without `--attempt`), as a merge queue judges the last attempt of a commit's checks.
-// The CI concluded (`conclureLaCI`):
-//  - green: main moves forward onto the candidate (`avancerMain`, `merge
-//    --ff-only`), the tree the CI judged; main moved meanwhile (the candidate no longer on top of
-//    it), the workflow replaces the branch again and its CI is played again;
-//  - red: the ticket loses `en-file` and reopens, its comment giving the address of the run (`gh
-//    run view <id> --json url`) and the end of `gh run view <id> --log-failed`; main does not
-//    move, and the branch stays, here and on origin. After the supervisor had the failed jobs run
-//    again (`gh run rerun <id> --failed`), `--reprendre` sends the branch again, whose CI is read
-//    at its last attempt. A flaky test has no path of its own: the red comment gives the charter's
-//    rule, a test known red goes into quarantine in the test itself, with the ticket that fixes it;
-//  - no CI for the branch, or not read (without `gh`, without a run found, with `gh` refusing or
-//    past the wait): no green, no entry; the branch stays in the queue, the ticket told why,
-//    neither reopened nor closed.
+// The branch stays local: it is never pushed.
+// Then the final pass judges the candidate (`jugerLeCandidat`): `npm run verifier` played in the
+// queue's copy on the lot laid on the tip of main, measured against that tip (the tests the lot
+// reaches, the complete pass being the CI's of main and the night's), unless the tree was already
+// judged (scripts/arbres-juges.mjs: a tree a final pass kept green, or a complete verification),
+// which plays nothing again. Green, the tree is kept judged and main moves forward onto the
+// candidate (`avancerMain`, `merge --ff-only`), the tree the pass judged; main moved meanwhile, the
+// workflow replaces the branch again and judges it again. Red, the ticket loses `en-file` and
+// reopens, its comment giving the end of the output of the pass; main does not move, and the branch
+// stays. To play again (75, the part of the machine awaited), the branch stays in the queue, the
+// ticket told, neither reopened nor closed. A flaky test has no path of its own: the red comment
+// gives the charter's rule, a test known red goes into quarantine in the test itself, with the
+// ticket that fixes it.
 // At its entry on main (`fermerLEntree`), the branch's ticket closes « intégré : <commit> », loses
 // `en-file`, and the branch is deleted; a branch git does not delete (its copy still in place) is
 // written to the ticket, which closes all the same. Then main is pushed to origin, on the branch
-// `grillhouse.poussee.commit` of main's package.json (`main` without the key), and the branch is
-// deleted on origin; a refused push is written to the ticket and does not stop the queue. The
-// working directory of its circuit (`.claude/worktrees/<ticket>.travail`, scripts/circuit.mjs),
-// which lives as long as the ticket and holds the progress the board reads, the CI's included, is
-// removed then (`retirerLeTravail`).
+// `grillhouse.poussee.commit` of main's package.json (`main` without the key), which the pre-push
+// hook lets go as the tree is judged; a refused push is written to the ticket and does not stop the
+// queue. The working directory of its circuit (`.claude/worktrees/<ticket>.travail`,
+// scripts/circuit.mjs), which lives as long as the ticket, is removed then (`retirerLeTravail`).
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import {
   aRejouer,
@@ -82,14 +65,20 @@ import {
   prendreLesEngendres,
   regenerer,
 } from '../engendres.mjs';
+import { arbreEstJuge, garderLArbreJuge } from '../arbres-juges.mjs';
+import { A_REPASSER } from '../codes-de-sortie.mjs';
+import { BASE_DU_LOT } from '../dernier-vert.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 import { lireCommit } from '../poussee-cles.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
 import { lotSurMain } from './integrer.mjs';
-import { ecrireTache } from '../mesure/avancement.mjs';
 import { ACTEUR, emettre } from '../effets.mjs';
+import { SUITE } from '../etapes.mjs';
 import { enUneLigne } from '../ticket-du-circuit.mjs';
+
+// The title of the final pass is read from the list of the steps, the only place that spells it.
+const TITRE_PASSE_FINALE = SUITE.find(e => e.finale).titre;
 
 // The queue's author.
 export const AUTEUR_DE_LA_FILE = 'file';
@@ -102,379 +91,42 @@ const commenterAu = (o, ticket, texte) =>
 // The reason of the closure of a ticket the queue brought onto main, before its commit, which the
 // circuit reads to name that commit (scripts/circuit.mjs, the tri of the discoveries).
 export const INTEGRE = 'intégré : ';
-// The steps done over planned of the view <vue> of a run (`gh run view --json jobs`), written to
-// the progress directory <avancement> as the record `etapes-de-la-ci`; nothing without one.
-function ecrireLesEtapes(avancement, vue) {
-  if (!avancement) {
-    return;
-  }
-  const etapes = (Array.isArray(vue?.jobs) ? vue.jobs : []).flatMap(j =>
-    Array.isArray(j?.steps) ? j.steps : []
-  );
-  try {
-    ecrireTache(avancement, 'etapes-de-la-ci', {
-      faits: etapes.filter(e => e?.status === 'completed').length,
-      prevus: etapes.length,
-    });
-  } catch {
-    // A directory that does not write leaves the queue going, without its progress.
-  }
-}
 
-// The directory of the workflows GitHub reads, and the extensions it reads in it.
-const DOSSIER_DES_FLUX = '.github/workflows';
-const EXTENSIONS_DES_FLUX = /\.ya?ml$/;
-
-// The regular expression of a filter pattern of GitHub (« Filter pattern cheat sheet »): `*` any
-// characters but `/`, `**` any characters, `?` zero or one and `+` one or more of the preceding
-// character, `[…]` one character of the set, `\` escaping the next.
-function motifDeGitHub(motif) {
-  let re = '';
-  for (let i = 0; i < motif.length; i++) {
-    const c = motif[i];
-    if (c === '\\' && i + 1 < motif.length) {
-      re += motif[++i].replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-    } else if (c === '*') {
-      if (motif[i + 1] === '*') {
-        re += '.*';
-        i++;
-      } else {
-        re += '[^/]*';
-      }
-    } else if (c === '?' || c === '+') {
-      re += c;
-    } else if (c === '[') {
-      const fin = motif.indexOf(']', i + 1);
-      if (fin < 0) {
-        throw new Error(`motif sans fin : ${motif}`);
-      }
-      re += motif.slice(i, fin + 1);
-      i = fin;
-    } else {
-      re += c.replace(/[.^${}()|\]\\/]/g, '\\$&');
-    }
-  }
-  return new RegExp(`^${re}$`);
-}
-
-// Whether the `on.push` of a workflow <push> runs on a push to <branche>, as GitHub reads its
-// filters: none runs on every branch; `branches` in its order, a `!` pattern taking out what the
-// ones before took in, the last match deciding; `branches-ignore` takes out what it matches;
-// `tags` or `tags-ignore` alone run on no branch. GitHub asks both filters: a branch the branch
-// filter leaves out never runs, whatever the paths; a filter on the paths leaves a branch it takes
-// in counted as one that runs, as does a form the queue does not judge.
-function pousseeSurLaBranche(push, branche) {
-  if (push === null || push === undefined) {
-    return true;
-  }
-  if (typeof push !== 'object' || Array.isArray(push)) {
-    return true;
-  }
-  const { branches, 'branches-ignore': ignorees } = push;
-  if (branches && ignorees) {
-    return true;
-  }
-  const motifs = l => (Array.isArray(l) ? l : [l]).map(String);
-  if (branches) {
-    let dedans = false;
-    for (const m of motifs(branches)) {
-      const negatif = m.startsWith('!');
-      if (motifDeGitHub(negatif ? m.slice(1) : m).test(branche)) {
-        dedans = !negatif;
-      }
-    }
-    return dedans;
-  }
-  if (ignorees) {
-    const l = motifs(ignorees);
-    if (l.some(m => m.startsWith('!'))) {
-      return true;
-    }
-    return !l.some(m => motifDeGitHub(m).test(branche));
-  }
-  return !(push.tags || push['tags-ignore']);
-}
-
-// The workflows of <fichiers> (`{ chemin, texte }`, `texte` null for a file git does not give)
-// that run on a push to <branche>: their paths. A file the queue cannot read or judge counts as
-// one that runs.
-export function fluxDeLaBranche(fichiers, branche) {
-  return fichiers
-    .filter(({ texte }) => {
-      if (texte === null) {
-        return true;
-      }
-      try {
-        // Loaded only for a workflow to read: a project without one, or before its `npm install`,
-        // runs its queue without the library (which, absent, counts the workflow as one that runs).
-        const require = createRequire(import.meta.url);
-        const on = require('yaml').parse(texte)?.on;
-        if (typeof on === 'string') {
-          return on === 'push';
-        }
-        if (Array.isArray(on)) {
-          return on.includes('push');
-        }
-        if (on && typeof on === 'object') {
-          return 'push' in on && pousseeSurLaBranche(on.push, branche);
-        }
-        return false;
-      } catch {
-        return true;
-      }
-    })
-    .map(({ chemin }) => chemin);
-}
-
-// The verdicts of a reading of the CI (`lireLesPassagesDeLaCI`, then the workflow `ciDuCommit`).
-const VERTE = 'verte';
-const SANS_CI = 'sans-ci';
-const NON_LUE = 'non-lue';
-
-// The name GitHub gives the workflow of the file <texte>: its `name` key, its path <chemin> without
-// one (or when the file is not given or its YAML not read).
-function nomDuFlux(chemin, texte) {
-  if (texte === null) {
-    return chemin;
-  }
-  try {
-    const require = createRequire(import.meta.url);
-    const nom = require('yaml').parse(texte)?.name;
-    return typeof nom === 'string' && nom !== '' ? nom : chemin;
-  } catch {
-    return chemin;
-  }
-}
+// The lines of the end of the output of a pass the comment of a red gives.
+const FIN_DE_LA_SORTIE = 60;
 
 /**
- * The workflows of the commit <sha> of the repository <racine> that run on a push to <branche>,
- * in the order of the files of their directory: `{ chemin, nom }`, the path and the name GitHub
- * gives the workflow (`workflowName` of `gh run list`).
+ * The final pass played in the queue's own copy (`.claude/worktrees/file`) on the commit <commit>:
+ * `{ code, sortie }`, the code of `npm run verifier` (0 green, 75 to play again, any other red) and
+ * its output. The copy is made ready on <commit> (detached, its dependencies in agreement with the
+ * lock file), the pass measured against the tip of main (`GRILLHOUSE_BASE_DU_LOT`, the commit's base
+ * as the lot lies on it), as the pass of the circuit measures itself.
  */
-export function fluxDuCommit(racine, sha, branche) {
-  const git = (...a) => spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8' });
-  const l = git('ls-tree', '--name-only', `${sha}:${DOSSIER_DES_FLUX}`);
-  const noms = l.status === 0 ? l.stdout.split('\n').filter(n => EXTENSIONS_DES_FLUX.test(n)) : [];
-  const fichiers = noms.map(n => {
-    const chemin = `${DOSSIER_DES_FLUX}/${n}`;
-    const f = git('show', `${sha}:${chemin}`);
-    return { chemin, texte: f.status === 0 ? f.stdout : null };
-  });
-  const attendus = new Set(fluxDeLaBranche(fichiers, branche));
-  return fichiers
-    .filter(({ chemin }) => attendus.has(chemin))
-    .map(({ chemin, texte }) => ({ chemin, nom: nomDuFlux(chemin, texte) }));
-}
-
-/**
- * The workflows of the commit <sha> that run on a push to <main> and not on a push to the branch of
- * the ticket <brancheDuTicket>: `{ chemin, nom }`, in the order of the files. The one the CI of the
- * branch already judged is any workflow of the second set, found by its path.
- * @param {string} racine
- * @param {string} sha
- * @param {string} main
- * @param {string} brancheDuTicket
- * @returns {{ chemin: string, nom: string }[]}
- */
-export function fluxDeMainAbsentsDeLaBranche(racine, sha, main, brancheDuTicket) {
-  const jugés = new Set(fluxDuCommit(racine, sha, brancheDuTicket).map(f => f.chemin));
-  return fluxDuCommit(racine, sha, main).filter(f => !jugés.has(f.chemin));
-}
-
-// The file of the readings due of the workflows of main, in the main tree <racine>.
-const lecturesDues = racine => path.join(racine, '.claude', 'worktrees', 'flux-de-main-dus.json');
-
-/** The readings due of the workflows of main of <racine>: `{ ticket, commit, branche, flux, poussee }`. */
-export function lecturesDuesDe(racine) {
-  try {
-    const lu = JSON.parse(readFileSync(lecturesDues(racine), 'utf8'));
-    return Array.isArray(lu) ? lu : [];
-  } catch {
-    return [];
-  }
-}
-
-// The readings due <dues> written whole, atomically.
-function ecrireLesLecturesDues(racine, dues) {
-  const f = lecturesDues(racine);
-  mkdirSync(path.dirname(f), { recursive: true });
-  const provisoire = `${f}.${process.pid}`;
-  writeFileSync(provisoire, `${JSON.stringify(dues, null, 2)}\n`);
-  renameSync(provisoire, f);
-}
-
-/**
- * After the push of the commit <sha> of the ticket <ticket> to <branche> (main) at <poussee> ms, the
- * reading of its workflows of main recorded as due, with the tools <o>: nothing is read, nothing
- * waited for; none is due when every workflow of main is one the CI of <brancheDuTicket> judged.
- * A reading of the same ticket and commit is replaced.
- */
-export function inscrireLesFluxDeMain(o, { ticket, sha, branche, brancheDuTicket, poussee }) {
-  const flux = fluxDeMainAbsentsDeLaBranche(o.racine, sha, branche, brancheDuTicket);
-  if (flux.length === 0) {
-    return;
-  }
-  const autres = lecturesDuesDe(o.racine).filter(l => !(l.ticket === ticket && l.commit === sha));
-  ecrireLesLecturesDues(o.racine, [...autres, { ticket, commit: sha, branche, flux, poussee }]);
-}
-
-// The conclusion of the run <id> read by <gh>: `{ fini, conclusion }`, or `{ raison }`.
-function lireUnPassage(gh, id) {
-  const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
-    timeout: 60_000,
-    killSignal: 'SIGKILL',
-  });
-  if (v.error) {
-    return { raison: `gh ne se lance pas (${v.error.code ?? v.error.message}).` };
-  }
-  if (v.status !== 0) {
-    return { raison: `gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}` };
-  }
-  try {
-    const vue = JSON.parse(v.stdout || '{}');
-    return { fini: vue?.status === 'completed', conclusion: vue?.conclusion ?? null };
-  } catch {
-    return { raison: `gh run view rend une sortie illisible :\n${v.stdout.trim()}` };
-  }
-}
-
-// The runs of the commit <sha> on <branche> read by <gh>: the list, or `{ raison }`.
-function lirePassagesDe(gh, sha, branche) {
-  const r = gh([
-    'run',
-    'list',
-    '--commit',
-    sha,
-    '--branch',
-    branche,
-    '--json',
-    'databaseId,status,conclusion,workflowName',
-  ]);
-  if (r.error) {
-    return { raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
-  }
-  if (r.status !== 0) {
-    return { raison: `gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}` };
-  }
-  try {
-    const l = JSON.parse(r.stdout || '[]');
-    return { passages: Array.isArray(l) ? l : [] };
-  } catch {
-    return { raison: `gh run list rend une sortie illisible :\n${r.stdout.trim()}` };
-  }
-}
-
-/** The label a ticket reopened by a red workflow of main bears, which the wait of the supervisor reads. */
-export const FLUX_ROUGE = 'flux-rouge';
-/** The title of the comment that gives the address of the red run, whose second paragraph is that address. */
-export const TITRE_DU_FLUX_ROUGE = '## Flux de main rouge';
-
-/**
- * Each reading due of the workflows of main read once, without waiting, with the tools <o> at
- * <maintenant> ms and the bounds <ci> (`rechercheMs`, `attenteMs`, from the push of main). A workflow
- * red (any conclusion but `success` and `cancelled`) reopens the ticket of the commit pushed
- * under the label `flux-rouge`, a comment giving the address of the run, and closes the reading;
- * green, it says nothing; with no run past the search bound, a run unfinished past the wait bound,
- * a run cancelled (a later run of its concurrency group replaced it, or a person stopped it), or
- * `gh` failing, a comment names the workflow and why, nothing is reopened. A reading with a workflow
- * still to come stays due. `{ dues }`: the readings still due.
- */
-export function relireLesLecturesDues(o, { maintenant, ci }) {
-  const toutes = lecturesDuesDe(o.racine);
-  if (toutes.length === 0) {
-    return { dues: 0 };
-  }
-  const restantes = [];
-  for (const l of toutes) {
-    const court = l.commit.slice(0, 7);
-    const ecoule = maintenant - l.poussee;
-    const nonJuge = (nom, pourquoi) => {
-      commenterAu(
-        o,
-        l.ticket,
-        `## Flux de main non jugé\n\nLe flux ${nom} de ${court} sur ${l.branche} n'a pas été jugé : ${pourquoi}\n\nLa file ne le tient pas pour rouge : le superviseur le lit à la main.`
-      );
-      o.dire(`⚠ flux ${nom} de ${court} non jugé : ${pourquoi}`);
-    };
-    const lus = lirePassagesDe(o.gh, l.commit, l.branche);
-    if (lus.raison) {
-      for (const f of l.flux) {
-        nonJuge(f.nom, lus.raison);
-      }
-      continue;
+function passeDeLaFile(racine, principale, dire) {
+  return ({ commit }) => {
+    const copie = path.join(racine, '.claude', 'worktrees', 'file');
+    const ouverte = ouvrirCopie({ racine, copie, ref: commit, dire });
+    if (ouverte.refus) {
+      return { code: A_REPASSER, sortie: ouverte.refus };
     }
-    const encore = [];
-    let rouge = null;
-    for (const f of l.flux) {
-      const p = lus.passages
-        .filter(x => x?.databaseId && x.workflowName === f.nom)
-        .reduce((m, x) => (m === null || x.databaseId > m.databaseId ? x : m), null);
-      if (p === null) {
-        if (ecoule > ci.rechercheMs) {
-          nonJuge(f.nom, `aucun passage trouvé en ${Math.round(ci.rechercheMs / 60_000)} min.`);
-        } else {
-          encore.push(f);
-        }
-        continue;
-      }
-      const id = String(p.databaseId);
-      const v = lireUnPassage(o.gh, id);
-      if (v.raison) {
-        nonJuge(f.nom, v.raison);
-      } else if (!v.fini) {
-        if (ecoule > ci.attenteMs) {
-          nonJuge(
-            f.nom,
-            `le passage ${id} n'est pas fini après ${Math.round(ci.attenteMs / 60_000)} min.`
-          );
-        } else {
-          encore.push(f);
-        }
-      } else if (v.conclusion === 'cancelled') {
-        nonJuge(
-          f.nom,
-          `le passage ${id} a été annulé (remplacé par un passage plus récent, ou arrêté à la main).`
-        );
-      } else if (v.conclusion !== 'success') {
-        rouge = { nom: f.nom, id };
-        break;
-      }
-    }
-    if (rouge) {
-      const url =
-        o.gh(['run', 'view', rouge.id, '--json', 'url', '--jq', '.url']).stdout?.trim() || rouge.id;
-      commenterAu(
-        o,
-        l.ticket,
-        `${TITRE_DU_FLUX_ROUGE}\n\n${rouge.nom} : ${url} (commit ${court})\n\nLe flux ${rouge.nom} de ${court} est rouge sur ${l.branche}, après l'entrée du lot : le ticket est rouvert, le superviseur juge la cause.`
-      );
-      o.bd('update', l.ticket, '--status', 'open', '--add-label', FLUX_ROUGE);
-      o.dire(`✗ flux ${rouge.nom} de ${court} rouge sur ${l.branche} : ${l.ticket} rouvert`);
-      continue;
-    }
-    if (encore.length > 0) {
-      restantes.push({ ...l, flux: encore });
-    }
-  }
-  ecrireLesLecturesDues(o.racine, restantes);
-  return { dues: restantes.length };
-}
-
-// The GitHub CLI run in the main tree <racine>.
-const ghDans =
-  racine =>
-  (args, options = {}) =>
-    spawnSync('gh', args, {
-      cwd: racine,
+    const base = spawnSync('git', ['-C', racine, 'rev-parse', `refs/heads/${principale}`], {
       encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-      ...options,
+    }).stdout.trim();
+    const r = spawnSync('bash', ouverte.monter('npm', 'run', 'verifier'), {
+      cwd: copie,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      env: base ? { ...process.env, [BASE_DU_LOT]: base } : process.env,
     });
+    return { code: r.status ?? 1, sortie: `${r.stdout ?? ''}${r.stderr ?? ''}` };
+  };
+}
 
 /**
  * The tools of the queue on the main tree <racine>, its lines said by <dire>: `{ racine,
- * principale, bd, gh, dire, avancement }`, bd run under the queue's author (BEADS_ACTOR), the
- * branch of the main tree (null when it is on none).
+ * principale, bd, passe, dire, avancement }`, bd run under the queue's author (BEADS_ACTOR), the
+ * branch of the main tree (null when it is on none), `passe` the final pass played in the queue's
+ * copy.
  */
 export function outilsDeLaFile(racine, dire, avancement = null) {
   const bd = (...a) => {
@@ -493,97 +145,14 @@ export function outilsDeLaFile(racine, dire, avancement = null) {
     spawnSync('git', ['-C', racine, 'symbolic-ref', '--short', '-q', 'HEAD'], {
       encoding: 'utf8',
     }).stdout.trim() || null;
-  return { racine, principale, bd, gh: ghDans(racine), dire, avancement };
-}
-
-/**
- * One reading of the CI of the commit <sha> pushed to <branche>, every expected workflow
- * (`fluxDuCommit`) read together, with the tools <o>: `{ etat: 'sans-ci' }`; `{ etat: 'non-lue',
- * raison }` (gh absent, refusing, or its output unreadable); `{ etat: 'rouge', passage, flux }`, the
- * first workflow in the order of the files whose run is not a success, whatever the others still
- * do; `{ etat: 'verte', passage }`, every workflow green, `passage` the first workflow's; or `{
- * etat: 'en-cours', flux: [{ nom, passage, fini }] }`, each workflow with its run (null while it
- * is looked for). A run joins its workflow by its name (`workflowName`); one of no expected name
- * does not count, the latest run (the greatest id) of a name decides, and workflows of one name count
- * for one, which `gh run list` does not tell apart. Each run is read at its current attempt (`gh
- * run view <id>` without `--attempt`). Nothing is kept from one reading to the next; nothing is
- * written to the ticket: `conclureLaCI` does.
- */
-export function lireLesPassagesDeLaCI(o, { sha, branche }) {
-  const { gh } = o;
-  const attendus = [...new Set(fluxDuCommit(o.racine, sha, branche).map(f => f.nom))];
-  if (attendus.length === 0) {
-    return { etat: SANS_CI };
-  }
-  const r = gh([
-    'run',
-    'list',
-    '--commit',
-    sha,
-    '--branch',
-    branche,
-    '--json',
-    'databaseId,status,conclusion,workflowName',
-  ]);
-  if (r.error) {
-    return { etat: NON_LUE, raison: `gh ne se lance pas (${r.error.code ?? r.error.message}).` };
-  }
-  if (r.status !== 0) {
-    return { etat: NON_LUE, raison: `gh run list refuse :\n${`${r.stderr}${r.stdout}`.trim()}` };
-  }
-  let passages;
-  try {
-    passages = JSON.parse(r.stdout || '[]');
-  } catch {
-    return {
-      etat: NON_LUE,
-      raison: `gh run list rend une sortie illisible :\n${r.stdout.trim()}`,
-    };
-  }
-  const recent = nom =>
-    (Array.isArray(passages) ? passages : [])
-      .filter(x => x?.databaseId && x.workflowName === nom)
-      .reduce((m, x) => (m === null || x.databaseId > m.databaseId ? x : m), null);
-  const lus = [];
-  for (const nom of attendus) {
-    const p = recent(nom);
-    if (p === null) {
-      lus.push({ nom, passage: null, fini: false });
-      continue;
-    }
-    const id = String(p.databaseId);
-    const v = gh(['run', 'view', id, '--json', 'status,conclusion,jobs'], {
-      timeout: 60_000,
-      killSignal: 'SIGKILL',
-    });
-    if (v.error) {
-      return { etat: NON_LUE, raison: `gh ne se lance pas (${v.error.code ?? v.error.message}).` };
-    }
-    if (v.status !== 0) {
-      return { etat: NON_LUE, raison: `gh run view refuse :\n${`${v.stderr}${v.stdout}`.trim()}` };
-    }
-    let vue;
-    try {
-      vue = JSON.parse(v.stdout || '{}');
-    } catch {
-      return {
-        etat: NON_LUE,
-        raison: `gh run view rend une sortie illisible :\n${v.stdout.trim()}`,
-      };
-    }
-    const fini = vue?.status === 'completed';
-    if (!fini) {
-      ecrireLesEtapes(o.avancement, vue);
-    }
-    if (fini && vue.conclusion !== 'success') {
-      return { etat: 'rouge', passage: id, flux: nom };
-    }
-    lus.push({ nom, passage: id, fini });
-  }
-  if (lus.every(f => f.fini)) {
-    return { etat: VERTE, passage: lus[0].passage };
-  }
-  return { etat: 'en-cours', flux: lus };
+  return {
+    racine,
+    principale,
+    bd,
+    passe: passeDeLaFile(racine, principale ?? 'main', dire),
+    dire,
+    avancement,
+  };
 }
 
 /**
@@ -595,57 +164,6 @@ export function retirerLeTravail(o, ticket) {
     recursive: true,
     force: true,
   });
-}
-
-/**
- * The CI of the candidate <sha> of the ticket <ticket> on its branch <branche> concluded with the
- * tools <o>, its verdict <verdict> (VERTE, `rouge`, SANS_CI or NON_LUE), its run <passage> and the
- * reason <raison> of a CI not read: what is said to the ticket and what becomes of the entry.
- * `{ avancer: true }`: green, main moves onto the candidate; `{ issue }`, the issue for the circuit
- * (src/temporal/file/deroule.ts): red, `rouvert`, its comment giving the address of the run and
- * the end of its failed log, the ticket reopened without `en-file`; no CI for the branch, or not
- * read, `en-file`, the ticket told why: no green, no entry.
- */
-export function conclureLaCI(o, { ticket, sha, branche, verdict, passage = null, raison = null }) {
-  const court = sha.slice(0, 7);
-  const commenter = texte => commenterAu(o, ticket, texte);
-  if (verdict === VERTE) {
-    o.dire(`✓ CI de ${court} sur ${branche} verte (passage ${passage})`);
-    return { avancer: true };
-  }
-  if (verdict === SANS_CI) {
-    const texte = `## Aucune CI ne juge ${branche}\n\nAucun flux de ${DOSSIER_DES_FLUX} de ${court} ne se lance sur un push vers ${branche} : la CI du projet doit écouter agent/** (\`npx grillhouse maj\` l'ajoute à son flux). ${o.principale} n'avance pas sans son vert ; la branche reste en file, et la reprise du circuit la renvoie.`;
-    commenter(texte);
-    o.dire(`⚠ aucune CI ne juge ${branche} : la CI du projet doit écouter agent/**`);
-    return {
-      issue: {
-        etat: 'en-file',
-        raison: `aucune CI ne juge ${branche} : la CI du projet doit écouter agent/**`,
-      },
-    };
-  }
-  if (verdict === NON_LUE) {
-    const texte = `## CI non lue\n\nLa CI de ${court} sur ${branche} n'a pas été lue : ${raison}\n\n${o.principale} n'avance pas sans son vert ; la branche reste en file, et la reprise du circuit la renvoie.`;
-    commenter(texte);
-    o.dire(`⚠ CI de ${court} non lue : ${raison}`);
-    return { issue: { etat: 'en-file', raison: texte } };
-  }
-  const { gh } = o;
-  const url =
-    gh(['run', 'view', passage, '--json', 'url', '--jq', '.url']).stdout?.trim() || passage;
-  const journal = `${gh(['run', 'view', passage, '--log-failed']).stdout ?? ''}`
-    .trim()
-    .split('\n')
-    .slice(-60)
-    .join('\n');
-  commenter(
-    `## CI rouge\n\nLa CI de ${court} sur ${branche} est rouge : ${url}\n\nLa fin de gh run view ${passage} --log-failed :\n\n${journal}\n\n${o.principale} n'avance pas et le ticket est rouvert : sa correction entre sous son numéro. Un rejeu vert de la même CI (\`gh run rerun ${passage} --failed\`), puis \`--reprendre\` du circuit, renvoie la branche, que la file juge au dernier essai ; un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`
-  );
-  o.bd('update', ticket, '--status', 'open', '--remove-label', 'en-file');
-  o.dire(`✗ CI de ${court} sur ${branche} rouge (passage ${passage}) : ${ticket} rouvert`);
-  return {
-    issue: { etat: 'rouvert', raison: `La CI de ${court} sur ${branche} est rouge : ${url}` },
-  };
 }
 
 /**
@@ -757,14 +275,14 @@ function remplacer(o, tip, tete) {
 }
 
 /**
- * The branch of <entree> (`{ ticket, branche }`) made the candidate the CI judges, with the tools
- * <o>, against the main of the moment, without a word to the ticket: `{ candidat: { commit } }`,
- * the branch on top of main (replaced when main moved) and pushed to origin; `{ entre: { commit }
- * }`, a lot already on main (the branch points at the commit of main that delivers its ticket, or
- * each of its commits has its equivalent on main, or the branch is gone), as an attempt played
- * again after its worker died finds it: main does not move again; `{ sortie: [titre, détail] }`
- * (it leaves the queue: gone, not replaced); `{ garde }` (it stays in the queue, the reason);
- * `{ ecartee: true }` (nothing ahead of main).
+ * The branch of <entree> (`{ ticket, branche }`) made the candidate the final pass judges, with the
+ * tools <o>, against the main of the moment, without a word to the ticket: `{ candidat: { commit }
+ * }`, the branch on top of main (replaced when main moved), kept local; `{ entre: { commit } }`, a
+ * lot already on main (the branch points at the commit of main that delivers its ticket, or each of
+ * its commits has its equivalent on main, or the branch is gone), as an attempt played again after
+ * its worker died finds it: main does not move again; `{ sortie: [titre, détail] }` (it leaves the
+ * queue: gone, not replaced); `{ garde }` (it stays in the queue, the reason); `{ ecartee: true }`
+ * (nothing ahead of main).
  */
 export function preparerLaBranche(o, entree) {
   const git = (...args) => spawnSync('git', ['-C', o.racine, ...args], { encoding: 'utf8' });
@@ -806,26 +324,57 @@ export function preparerLaBranche(o, entree) {
     }
     candidat = r.nouveau;
   }
-  const pousse = spawnSync(
-    'git',
-    ['-C', o.racine, 'push', '-q', '--force', 'origin', `${candidat}:${refBranche}`],
-    { encoding: 'utf8', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }
-  );
-  if (pousse.status !== 0) {
-    return {
-      garde: `la poussée de ${candidat.slice(0, 7)} vers origin/${entree.branche} est refusée :\n${pousse.stderr.trim()}`,
-    };
-  }
-  o.dire(`✓ ${entree.branche} poussée en ${candidat.slice(0, 7)} : sa CI la juge`);
+  o.dire(`✓ ${entree.branche} prête en ${candidat.slice(0, 7)} : la passe finale la juge`);
   return { candidat: { commit: candidat } };
 }
 
 /**
+ * The candidate <commit> of <entree> (`{ ticket, branche, commit }`) judged by the final pass with
+ * the tools <o>: `{ juge: true }`, green (or its tree already judged: nothing is played again), its
+ * tree kept judged (scripts/arbres-juges.mjs); or `{ issue }`, the issue for the circuit
+ * (src/temporal/file/deroule.ts): red, `rouvert`, the end of the output of the pass in the comment,
+ * the ticket reopened without `en-file`; to play again (75), `en-file`, the ticket told, neither
+ * reopened nor closed. `o.passe({ commit })` gives `{ code, sortie }`.
+ */
+export function jugerLeCandidat(o, entree) {
+  const git = (...args) => spawnSync('git', ['-C', o.racine, ...args], { encoding: 'utf8' });
+  const arbre = git('rev-parse', '--verify', '-q', `${entree.commit}^{tree}`).stdout.trim();
+  const court = entree.commit.slice(0, 7);
+  if (arbre && arbreEstJuge(o.racine, arbre)) {
+    o.dire(`✓ arbre de ${court} déjà jugé par une passe finale`);
+    return { juge: true };
+  }
+  const { code, sortie } = o.passe({ commit: entree.commit });
+  if (code === 0) {
+    if (arbre) {
+      garderLArbreJuge(o.racine, arbre);
+    }
+    o.dire(`✓ passe finale verte sur ${court}`);
+    return { juge: true };
+  }
+  const fin = `${sortie ?? ''}`.trim().split('\n').slice(-FIN_DE_LA_SORTIE).join('\n');
+  if (code === A_REPASSER) {
+    const texte = `## ${TITRE_PASSE_FINALE} à repasser\n\nLa passe finale de ${court} sur ${entree.branche} est à repasser (code ${code}) :\n\n${fin}\n\n${o.principale} n'avance pas sans son vert ; la branche reste en file, et la reprise du circuit la renvoie.`;
+    commenterAu(o, entree.ticket, texte);
+    o.dire(`⚠ passe finale de ${court} à repasser`);
+    return { issue: { etat: 'en-file', raison: texte } };
+  }
+  const texte = `## ${TITRE_PASSE_FINALE} rouge\n\nLa passe finale de ${court} sur ${entree.branche}, le lot posé sur la pointe de ${o.principale}, est rouge (code ${code}). La fin de sa sortie :\n\n${fin}\n\n${o.principale} n'avance pas et le ticket est rouvert : sa correction entre sous son numéro. Un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`;
+  commenterAu(o, entree.ticket, texte);
+  o.bd('update', entree.ticket, '--status', 'open', '--remove-label', 'en-file');
+  o.dire(`✗ passe finale de ${court} rouge : ${entree.ticket} rouvert`);
+  return {
+    issue: { etat: 'rouvert', raison: `La passe finale de ${court} sur ${entree.branche} est rouge.` },
+  };
+}
+
+/**
  * Main moved forward onto the candidate <commit> of <entree> (`{ ticket, branche, commit }`) once
- * its CI judged it, with the tools <o>, by fast-forward: the tree that enters is the tree the CI
- * judged. `{ entre: { commit } }`, main at <commit> (or <commit> already on main, an attempt
- * played again); `{ bouge: true }`, main moved meanwhile and the candidate is no longer on top of
- * it, which the workflow replaces and judges again; `{ garde }`, main does not move, the reason.
+ * the final pass judged it, with the tools <o>, by fast-forward: the tree that enters is the tree
+ * the pass judged. `{ entre: { commit } }`, main at <commit> (or <commit> already on main, an
+ * attempt played again); `{ bouge: true }`, main moved meanwhile and the candidate is no longer on
+ * top of it, which the workflow replaces and judges again; `{ garde }`, main does not move, the
+ * reason.
  */
 export function avancerMain(o, entree) {
   const git = (...args) => spawnSync('git', ['-C', o.racine, ...args], { encoding: 'utf8' });
@@ -878,13 +427,12 @@ function livrerLesCapacites(o, ticket, labels) {
  * The ticket of <entree> (`{ ticket, branche, commit }`) entered on main at <commit>, with the
  * tools <o>: it closes « intégré : <commit> » and loses `en-file` (a ticket already closed is left
  * as it is), the branch is deleted, then main is pushed to origin on the branch
- * `grillhouse.poussee.commit` of main's package.json and the branch deleted on origin; the queue
- * is then done with the ticket, and removes the working directory of its circuit
- * (`retirerLeTravail`). Each of its gestures replays without harm (a ticket closed is left closed,
- * a branch gone stays gone, a commit pushed is pushed again as it is), and never reopens the
- * ticket; its comments are effects (`commenterAu`), which the workflow of the queue writes once
- * each. `{ poussee, raison }`: the branch pushed to, or null and why, in one line (`enUneLigne`),
- * its comment at the ticket whole.
+ * `grillhouse.poussee.commit` of main's package.json; the queue is then done with the ticket, and
+ * removes the working directory of its circuit (`retirerLeTravail`). Each of its gestures replays
+ * without harm (a ticket closed is left closed, a branch gone stays gone, a commit pushed is pushed
+ * again as it is), and never reopens the ticket; its comments are effects (`commenterAu`), which
+ * the workflow of the queue writes once each. `{ poussee, raison }`: the branch pushed to, or null
+ * and why, in one line (`enUneLigne`), its comment at the ticket whole.
  */
 export function fermerLEntree(o, entree) {
   const { racine } = o;
@@ -930,15 +478,6 @@ export function fermerLEntree(o, entree) {
     return { poussee: null, raison: enUneLigne(raison), ...ferme };
   }
   o.dire(`✓ poussée : ${court} est sur origin/${commit}`);
-  // The branch the CI judged leaves origin with its entry; one already gone is no fault.
-  const distante = spawnSync(
-    'git',
-    ['-C', racine, 'push', '-q', 'origin', '--delete', `refs/heads/${entree.branche}`],
-    sansInvite
-  );
-  if (distante.status !== 0) {
-    o.dire(`⚠ origin/${entree.branche} n'est pas effacée : ${distante.stderr.trim()}`);
-  }
   return { poussee: commit, raison: null, ...ferme };
 }
 

@@ -106,10 +106,13 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   le ticket, et 3.1 les contrôles du plan), 4 Passe finale et relecture (4.1 la passe
   finale, 4.2 la régénération des références, 4.3 le relecteur ; le détail de 4.2 est plus bas,
   « Le circuit d'un ticket »), 5 Intégration (5.1
-  le commit, 5.2 la file : la branche poussée, sa CI lue, main avancé sur l'arbre qu'elle a jugé
-  vert ; une CI rouge rouvre le ticket, main intact ; un rejeu vert des jobs rouges,
-  `gh run rerun <id> --failed`, puis `--reprendre`, la fait entrer ; un test instable
-  se met en quarantaine dans le test, avec son ticket ; 5.3 le tri des découvertes par l'explorateur, sur
+  le commit, 5.2 File : passe finale, main (la passe finale rejouée sur le lot posé sur la pointe de
+  main, puis main avancé sur l'arbre qu'elle a jugé vert ; aucune branche poussée, aucune CI de
+  branche lue ; une passe rouge rouvre le ticket, main intact ; un test instable
+  se met en quarantaine dans le test, avec son ticket ; la CI joue ensuite sur main, par paquets,
+  une fois par heure : un rouge alerte le superviseur avec les lots entrés depuis le dernier vert et
+  ouvre un ticket de défaut sous `a-valider`, que je lance dans le circuit ; la file continue ;
+  5.3 le tri des découvertes par l'explorateur, sur
   le lot entré sur main, qui ne retarde pas la file et ne défait pas l'intégration) ; aucun composant n'est une unité du circuit, chaque
   étape joue une fois pour tout le ticket, dans l'enveloppe de tous les paquets du plan ; je dis
   où en est un ticket par son étape, « 3 Code » ; son en-tête dit ses arrêts et leurs codes. Ainsi
@@ -305,7 +308,7 @@ place de 2 et de 3 ;
 les tests du lot, trois essais au plus ; 3 Code, le `developpeur`, une séance pour tout le ticket,
 et 3.1 Contrôles, auto, sur le plan, trois essais au plus ; 4 Passe finale et relecture :
 4.1 Passe finale, auto, trois essais au plus (les contrôles et la passe finale ne jouent que les
-tests que le lot atteint depuis sa base, la passe complète à la CI de la branche du ticket et à la
+tests que le lot atteint depuis sa base, la passe complète à la CI de main et à la
 nuit ; un projet sans cette CI les mesure contre le dernier vert), puis 4.2 Régénération des références, auto : celles
 que le projet tire de la copie entière (`grillhouse.references` de son `package.json`, chacune
 `{ nom, commande, fichiers, tests, lit, gardes }` : `fichiers`, des chemins, des dossiers ou des
@@ -327,8 +330,7 @@ conformité par élément que le lot ajoute, change ou supprime (la liste mécan
 lui donne, chaque ligne avec sa règle : CADRE, INTERFACE ou ARCHITECTURE), un « non » rendant le
 lot et un élément sans ligne refusant sa fiche, un lot rendu revenant à
 l'agent que nomme chaque constat, en 2 ou en 3, chaque constat ouvert jusqu'à la relecture qui le
-juge levé ; 5 Intégration : 5.1 Commit et 5.2 File : main,
-poussée, CI, auto, puis 5.3 Tri des découvertes, l'`explorateur`, une ligne par découverte du
+juge levé ; 5 Intégration : 5.1 Commit et 5.2 File : passe finale, main, auto, puis 5.3 Tri des découvertes, l'`explorateur`, une ligne par découverte du
 ticket. Le questionneur ne décide rien, et ses questions vont au ticket. Ainsi chaque
 agent travaille dans son cadre, et le numéro d'une étape dit où en est chaque ticket. Un plan que le superviseur rend au responsable passe aussi par le questionneur.
 Ainsi une décision se mesure à des questions qu'elle ne s'est pas posées, comme le code à des

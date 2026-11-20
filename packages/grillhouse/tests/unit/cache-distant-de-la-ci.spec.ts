@@ -1,7 +1,7 @@
 // The remote cache of Turborepo shared between the CI and the poste (docs/ARCHITECTURE.md, « Le
 // cache distant de Turborepo »): the CI of Grillhouse and the template's take the server, its
-// token and the key of its signature from the repository's variables and secrets; a push to main
-// or to a branch agent/** writes it, every other run reads it alone, and a repository without
+// token and the key of its signature from the repository's variables and secrets; the run of the
+// schedule or by hand on main writes it, every other run reads it alone, and a repository without
 // the variable keeps the runner's local cache. No step of the workflows touches the cache, and
 // the root's turbo.json signs what it writes.
 //
@@ -120,15 +120,16 @@ describe.each(FLUX)('%s takes the remote cache of Turborepo from the repository'
     );
   });
 
-  it('writes the cache on a push to main or to a branch agent/**, and reads it alone otherwise', () => {
+  it('writes the cache on the run of main, by the schedule or by hand, and reads it alone otherwise', () => {
     const cache = String(env.TURBO_CACHE);
     const api = 'https://cache.example';
     const cas = [
-      ['push', 'refs/heads/main', 'local:rw,remote:rw'],
-      ['push', 'refs/heads/agent/proj-1.2', 'local:rw,remote:rw'],
-      ['push', 'refs/heads/develop', 'local:rw,remote:r'],
+      ['schedule', 'refs/heads/main', 'local:rw,remote:rw'],
+      ['workflow_dispatch', 'refs/heads/main', 'local:rw,remote:rw'],
+      ['workflow_dispatch', 'refs/heads/develop', 'local:rw,remote:r'],
+      ['schedule', 'refs/heads/develop', 'local:rw,remote:r'],
+      ['push', 'refs/heads/agent/proj-1.2', 'local:rw,remote:r'],
       ['pull_request', 'refs/pull/7/merge', 'local:rw,remote:r'],
-      ['schedule', 'refs/heads/main', 'local:rw,remote:r'],
       ['push', 'refs/tags/v1.0.0', 'local:rw,remote:r'],
     ] as const;
     for (const [evenement, ref, attendu] of cas) {

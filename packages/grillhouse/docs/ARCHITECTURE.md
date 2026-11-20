@@ -42,10 +42,10 @@ ligne de commande, avec ce que ce fichier importe et nomme à son tour, comme le
 cible de Bazel, `vitest-config/lances.mjs`), et tous ses tests quand un changement sort du graphe de Vitest (un fichier supprimé, une
 configuration, un fichier qu'aucun module n'importe, un fichier, changé ou supprimé, que lit
 la construction d'un paquet dont il dépend, un chemin que ses tests déclarent lire,
-`grillhouse.lit`) ; les passes d'un circuit (preuve, contrôles, passe finale), dans un projet
-dont la CI se lance sur les branches de ticket, se mesurent contre la base de leur lot, le HEAD
-de la copie, que main n'atteint que vert par cette CI (la variable `GRILLHOUSE_BASE_DU_LOT`,
-`mesureDesPasses` de `scripts/activites.mjs`), et ciblées : les seuls tests que Vitest relie au
+`grillhouse.lit`) ; les passes d'un circuit (preuve, contrôles, passe finale), dans tout projet,
+se mesurent contre la base de leur lot, le HEAD de la copie, la pointe de main de son temps (la
+variable `GRILLHOUSE_BASE_DU_LOT`, `mesureDesPasses` de `scripts/activites.mjs`, que la file donne
+aussi à sa passe finale), et ciblées : les seuls tests que Vitest relie au
 lot, comme `vitest --changed` ; un fichier qu'aucun module n'importe et un chemin de
 `grillhouse.lit` ne rejouent ni le paquet entier ni les tests qui les lisent par leur chemin (le
 `scripts/session-start.sh` de grillhouse-4nr.21 est lu par 276 des 282 fichiers de tests du
@@ -54,9 +54,9 @@ du dépôt complète (la répartition de `scripts/` et `bin/`, les appelants de 
 sous-commande) déclare ce qu'il lit, comme les `data` d'une cible de Bazel : une ligne
 `// @lit <motif> …` du commentaire de sa tête, chaque motif un glob depuis la racine, et il joue
 dans chaque passe, ciblée ou non, dont un fichier changé, ajouté ou supprimé tombe sous un de ses
-motifs (`testsQuiDeclarent`, `vitest-config/lances.mjs`) ; la passe complète va à la CI de la branche du ticket et à la nuit, comme la
-pré-soumission de Google (TAP) ne joue que les tests qu'un changement atteint ; un projet dont la
-CI n'écoute pas ces branches garde la mesure contre le dernier vert ; un seul graphe Turborepo sert tous les langages : un crate ou un projet
+motifs (`testsQuiDeclarent`, `vitest-config/lances.mjs`) ; la passe complète va à la CI de main et à la nuit, comme la
+pré-soumission de Google (TAP) ne joue que les tests qu'un changement atteint ; `npm run verifier`
+sans base garde la mesure contre le dernier vert ; un seul graphe Turborepo sert tous les langages : un crate ou un projet
 Python a un `package.json` à côté de son manifeste (modèle `multi-language.mdx` de Turborepo),
 et le générateur du `turbo.json` écrit ses entrées de hash selon le langage que déclare
 `docs/ARCHITECTURE.md` (un crate : son dossier, `Cargo.lock`, le `Cargo.toml` racine ; un projet
@@ -526,10 +526,10 @@ refus de l'intégration repart du développeur, le refus comme le rouge à lever
 lancée qui ne change aucun fichier du lot refusé ne va pas aux contrôles de la copie, qui ne
 voient pas ce rouge : le circuit la relance une fois avec le refus, puis s'arrête en
 `sans-livraison`. `--reprendre` rejoue l'intégration (ou la file) sur le même lot, comme bors
-rejoue un lot : un refus peut venir de main (BP 320.16, 320.16.2) ; après une CI rouge de la
-branche, main n'a pas bougé et `--reprendre` renvoie la branche à la file, qui juge le dernier
-essai de sa CI, comme une file de fusion : un rejeu vert (`gh run rerun <id> --failed`) la fait
-entrer, un rouge laisse le ticket ouvert sur le rouge nommé (OSC Bridge OB-20q.3) ; `--depuis
+rejoue un lot : un refus peut venir de main (BP 320.16, 320.16.2) ; après une passe finale rouge
+de la file, main n'a pas bougé, le ticket est rouvert et son lot se corrige sous son numéro ;
+`--reprendre` renvoie la branche à la file, qui rejoue sa passe sur la pointe de main (OSC Bridge
+OB-20q.3) ; `--depuis
 testwriter` refait le lot et oublie le refus (BP 320.37 : trois fois « FAIT » sans un fichier changé, les contrôles de la copie
 verts, l'intégration rouge sur le même lot). Un constat bloquant du relecteur va droit à l'agent qu'il nomme et reste ouvert
 d'une relance à l'autre, comme un fil de revue non résolu, jusqu'à ce que le relecteur le dise
@@ -829,8 +829,8 @@ plan, l'explorateur puis le questionneur (`etatDeReprise` de `transitions.mjs`) 
 un circuit tourne quand son déroulé tourne sans question en attente, et finit sans son issue
 quand il est terminé, en échec ou expiré sans question. L'avancement d'une passe se lit dans le
 dossier de travail du ticket (`<copie>.travail/avancement-*`), où chaque passe du circuit ouvre le
-sien, une à la fois, le rejeu de sa branche par la file (l’acte `avancer`) et la lecture de sa CI
-compris ; un lot entré sur main garde celui de la file jusqu’à ce que la file en ait fini avec le ticket fermé, comme le circuit le
+sien, une à la fois, le rejeu de sa branche par la file (l’acte `avancer`) compris ; un lot entré
+sur main garde celui de la file jusqu’à ce que la file en ait fini avec le ticket fermé, comme le circuit le
 gardait toute son étape de la file. Une lecture attend le serveur 5 s au plus : un serveur absent se dit à
 l'ouverture et en première alerte du panneau (« Temporal ne répond pas en 5 s »), qui montre ses tickets
 sans circuits, et l'attente le relit au pas suivant ; une autre faute de la lecture, un client non
@@ -870,10 +870,11 @@ appliquée à chaque relevé. Le relevé, le rappel et le fichier des questions 
 seule fonction, `relever` de `superviseur.mjs`. Sans séance de superviseur qui tienne le verrou, ou
 sans greffon (un autre moteur), rien n'est soumis et le cadre n'y supplée pas : les questions
 restent au tableau, l'ouverture de la séance suivante les liste toutes, et le crochet de fin de
-tour les refuse. Un ticket que la file a rouvert pour un flux de main rouge (étiquette `flux-rouge`,
-ouvert) se rend aussi dans le relevé, une fois, avec l'adresse du passage, et plus une fois repris
-ou refermé (une lecture de bd en échec ne dit rien des rouges, et laisse tels quels ceux déjà
-rendus) ; une clé qui change est une question neuve, rendue aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
+tour les refuse. L'alerte de la CI de main (un rouge, ou une CI que gh ne lit pas,
+`scripts/ci-de-main.mjs`) se rend aussi dans le relevé (`ciDeMain`), une fois par passage ; elle
+s'efface au vert suivant (`null`) et se rend de nouveau si elle revient, une lecture qui n'a pas
+eu lieu (`undefined`) laissant tel quel ce qui est rendu ; une clé qui change est une question
+neuve, rendue aussitôt. `.claude/worktrees/questions-remontees.json` garde, par arrêt, `depuis` (sa première
 remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
 clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte par
 circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, et une
@@ -920,22 +921,37 @@ son arrêt monte à la séance de supervision ouverte (BP 320.8 : un circuit mor
 superviseur, repris à la main ; SyntHub SH-br0.1 : un arrêt 27 s après la relance de la séance,
 lu sur un mot du responsable).
 
-**Main reste vert** : la file n'avance main que sur l'arbre que la CI de la branche du ticket a
-jugé vert, sans rouge admis (bors, Zuul), et la CI de main ne rejoue pas cet arbre : son premier
-job (`judged` de `ci.yml`, du dépôt et du gabarit) cherche, sur un push vers main ou vers une
-étiquette `v<x.y.z>` seuls, un run vert du même workflow sur une branche `agent/**` pour le même
-commit exact (le SHA du push), et chaque job de la passe est sauté quand il le trouve ; tout autre
-événement, ou une recherche en erreur, joue la passe. La publication (`release.yml`) appelle cette
-CI et publie quand son résultat est `success` ou `skipped`, jamais sur un échec ni une annulation
-(bors et Zuul testent une fois l'arbre qui entre ; `cargo release` et le trusted publishing de npm
-publient le commit déjà jugé) : entre « corrigé » et « archive npm servie », une seule CI. Rien d'autre n'avance main : dans un
-projet dont la CI écoute les branches de ticket, le crochet pre-push du cadre
-(`refusSurMain` de `scripts/branche-de-nuit.mjs`) refuse de pousser sur origin la branche de
-`grillhouse.poussee.commit` un commit qu'aucun run n'a conclu vert sur une branche `agent/**`, et
-le message dit le chemin (la branche du ticket, sa CI verte, puis l'avance de main) ; une règle
-du dépôt sur GitHub (ruleset, vérifications requises `gardes`, `fusion`, `build`, sans
-contournement) tient la même règle côté serveur, une lecture des runs qui échoue au crochet lui
-laissant le jugement. La nuit rejoue la passe complète. La mise à jour du cadre
+**Main reste vert** : main n'avance que sur un arbre que la passe finale a jugé vert (bors :
+« on juge l'arbre qui entre »), et la CI de main joue après, par paquets, comme Google (TAP) joue
+avant l'entrée les seuls tests touchés et la suite complète après, par paquets de changements, un
+rouge déclenchant la recherche du coupable (Chromium fait de même : file de commit, puis cascade
+complète). Elle joue sur le calendrier horaire seulement (`ci.yml`, du dépôt et du gabarit : ni
+push, ni pull request, ni branche `agent/**`) : un premier job (`moved`) cherche, sur le calendrier
+seul, le dernier passage vert du même workflow sur main et saute chaque job de la passe quand son
+commit est la pointe de main ; un tour lancé à la main, l'appel de la publication, ou une recherche
+en erreur joue la passe, qui juge d'un coup tous les lots entrés depuis le dernier passage. La
+passe finale couvre `npm run verifier` sur la copie de la file, le lot posé sur la pointe de main,
+ses tests ciblés ; seule la CI de main voit le reste (la passe complète, les autres plates-formes,
+la matrice de versions, les flux hors `npm run verifier`) : un rouge de cette sorte se voit après
+l'entrée, un écart assumé à « Main reste vert » comme la référence en admet un. Un rouge de la CI
+de main, ou du flux « machine vierge », n'arrête pas la file : il alerte le superviseur avec les
+lots entrés depuis le dernier vert, calculés par git (`lotsDepuisLeVert` de
+`scripts/ci-de-main.mjs`, les commits du circuit entre le dernier passage vert du flux et la
+pointe, sans séance ouverte ni état gardé), et ouvre un ticket de défaut sous `a-valider`, pour le
+responsable, qui nomme le passage rouge et les lots candidats (`ouvrirLeDefautDeMain`, un par
+passage) ; la recherche du coupable est ce ticket, que le superviseur lance dans le circuit, et un
+lot fautif déjà fermé reste fermé : son correctif ou son retrait est un ticket neuf. L'alerte
+s'efface au vert suivant ; une CI que gh ne lit pas est l'alerte « CI de main non lue », jamais le
+silence, et le tableau comme l'ouverture de séance la montrent comme un rouge. Le défaut reste
+ouvert tant que son ticket ne l'est pas fermé. La publication (`release.yml`) appelle la CI et
+publie quand son résultat est `success` ou `skipped`, jamais sur un échec ni une annulation. Rien
+d'autre n'avance main : le crochet pre-push du cadre (`refusSurMain` de
+`scripts/branche-de-nuit.mjs`) refuse, dans tout projet, de pousser sur origin la branche de
+`grillhouse.poussee.commit` un commit dont l'arbre ni la passe finale de la file ni la vérification
+complète d'un lot direct n'a jugé vert (`scripts/arbres-juges.mjs`, le fichier
+`<dossier commun de git>/grillhouse/arbres-juges.json`, que `garderLeVert` et la file alimentent),
+et n'exige aucun passage de CI d'une branche de ticket ; une règle du dépôt sur GitHub (ruleset,
+vérifications requises) ne tient plus cette règle côté serveur. La nuit rejoue la passe complète. La mise à jour du cadre
 (`npx grillhouse maj`) finit par `npm run verifier` dans le projet, dont le vert pose le dernier
 vert sur l'arbre qu'elle laisse, comme Nx affected avance sa base au dernier commit vert de main ;
 elle rend le code de la vérification, et son compte rendu dit le vert posé, ou pourquoi il ne
@@ -1358,9 +1374,9 @@ tests de nuit, étiquetés compris, puis les mesures. Ainsi la CI joue chaque nu
 jouer, et le poste garde ce qu'il est seul à avoir.
 
 **Le cadre porte la CI d'un projet** (`templates/projet/.github/workflows/`,
-`packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, le lot (les gardes, les
-tranches mesurées contre le commit d'avant un push, leur fusion ; il écoute
-aussi les branches `agent/**` que pousse la file), et `nuit.yml`, les tests de nuit hors du
+`packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, la CI de main par paquets (les
+gardes, les tranches, leur fusion ; il joue sur le calendrier horaire et à la main seulement, et
+saute la passe quand main n'a pas bougé depuis son dernier passage vert), et `nuit.yml`, les tests de nuit hors du
 poste, tels que Grillhouse les joue chez lui. Chaque job tourne sur la variable `RUNNER` du dépôt
 (`fromJSON(vars.RUNNER || '"ubuntu-latest"')`, une étiquette ou une liste d'étiquettes en JSON,
 la convention de SyntHub), qui vit dans les réglages du dépôt sur GitHub et qu'aucun fichier
@@ -1387,9 +1403,9 @@ défauts d'installation et non du produit ; c'est la séparation de la porte (bo
 matrices de publication sur machines neuves (rustc, Node). Chaque job joue sur `ubuntu-latest` en
 dur, Node 26 seul, comme les autres flux du cadre. Ses seuls déclencheurs sont le calendrier (une
 fois par jour), l'étiquette de version `v*` et le déclenchement manuel : aucune poussée vers main,
-develop ou `agent/**`, si bien que `fluxDeLaBranche` ne le compte pour aucune branche, qu'un rouge ne
-bloque pas la file des lots et que rien dans le cadre (ni la file, ni la publication) n'attend son
-passage ; son rouge se voit dans GitHub, comme celui de `nuit.yml`. Comme la nuit ne joue que le
+develop ou `agent/**`, si bien qu'un rouge ne bloque pas la file des lots et que rien dans le
+cadre (ni la file, ni la publication) n'attend son passage ; son rouge alerte le superviseur
+comme celui de `ci.yml` (`scripts/ci-de-main.mjs`), et se voit aussi dans GitHub. Comme la nuit ne joue que le
 projet qui a bougé, son premier job `decision` lit, au calendrier seul, le dernier passage vert du
 flux sur le dépôt, quel que soit son événement, et saute la vérification quand son commit est celui du
 passage courant ; une recherche qui échoue ne juge rien (le passage joue), un rouge ne laisse aucun
@@ -1404,8 +1420,8 @@ Turborepo le prévoit (`TURBO_API`, `TURBO_TEAM`, `TURBO_TOKEN`, `TURBO_CACHE`, 
 `remoteCache.signature` du `turbo.json` racine et sa clé `TURBO_REMOTE_CACHE_SIGNATURE_KEY`) ;
 le serveur de Grillhouse est un `ducktors/turborepo-remote-cache` auto-hébergé. Dans la CI
 (`ci.yml` du dépôt et du gabarit), le serveur et l'équipe viennent des variables du dépôt, le
-jeton et la clé de ses secrets ; un push vers main ou une branche `agent/**` écrit le cache (le
-run qui juge l'arbre sur lequel la file avance main), tout autre run le lit seul, et sans la
+jeton et la clé de ses secrets ; le run du calendrier ou à la main sur main écrit le cache (la CI
+de main), tout autre run le lit seul, et sans la
 variable `TURBO_API` le cache reste local à l'exécuteur, aucune étape ne s'y ajoutant. Sur le
 poste, les mêmes quatre variables vivent dans `~/.config/grillhouse/turbo-cache.env`
 (`$XDG_CONFIG_HOME/grillhouse/` quand il est posé), hors de tout dépôt : chaque commande du module
@@ -1417,7 +1433,7 @@ déjà l'une de ses variables (une CI sur un exécuteur du poste) le garde. La s
 n'en a pas besoin : l'enveloppe ne lui rend ni le fichier (sa maison est vide) ni les variables
 (son environnement est déclaré), et ses passes partagent le cache local de l'arbre principal.
 Ainsi chaque run sert les suivants pour ce qui n'a pas bougé, et le poste en profite sans jamais
-l'écrire ; la CI de main après l'avance rapide ne rejoue rien (« Main reste vert »).
+l'écrire ; la CI de main joue après l'avance rapide, par paquets (« Main reste vert »).
 
 **Les séances d'agents du circuit prennent la clé d'API du poste quand il en reste** : Claude Code
 prend une clé par `ANTHROPIC_API_KEY` de son environnement. Avec `~/.config/grillhouse/api.env`
@@ -1815,41 +1831,29 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     fait qu'elle demande. L'étape et la question sont un attribut de recherche et le mémo. Une
     histoire enregistrée (`tests/temporal/histoires/`) se rejoue sur le code courant (décision D7).
     `npx grillhouse circuit` en est le client.
-- **La file d'un projet fait entrer ses lots un à un, chacun jugé par la CI de sa branche**
-  (grillhouse-4nr.8), comme bors et Zuul ne fusionnent que l'arbre que la CI a jugé : un déroulé par
+- **La file d'un projet fait entrer ses lots un à un, chacun jugé par une passe finale**
+  (grillhouse-4nr.8, grillhouse-3uv.121), comme bors ne fusionne que l'arbre qu'il a jugé et que
+  Google (TAP) joue les tests touchés avant l'entrée et la suite complète après : un déroulé par
   projet, `file:<racine>` (`src/temporal/file/`), que le déroulé d'un ticket démarre quand aucun ne
   tourne (un enfant détaché, que ni la fin ni l'annulation de son parent n'atteignent) et où il
-  entre à son étape 5.2. La file prend une entrée à la fois, dans son ordre d'arrivée : la branche
-  `agent/<ticket>` devient la candidate, sur la pointe de main (replacée dans la copie de la file
-  quand main a bougé, ses fichiers engendrés régénérés), poussée sur origin ; la CI de cette
-  branche se suit jusqu'à sa conclusion, quel que soit l'exécuteur qui la joue (la file lit le
-  passage de la branche, `gh run list --commit <sha> --branch agent/<ticket>`) ; verte, main
-  avance en avance rapide sur la candidate, l'arbre jugé, le ticket se ferme, main se pousse et
-  la branche quitte origin ; main a bougé entre-temps, la branche se replace et sa CI se rejoue,
-  cinq jugements au plus. Rouge, main ne bouge pas, le ticket se rouvre avec l'adresse du passage
-  et la fin de son journal d'échec ; non lue (sans `gh`, sans passage, au-delà de l'attente), la
-  branche reste en file, sa raison dite. Aucun flux ne se lance sur la branche : pas de vert, pas
-  d'entrée, comme bors sans son statut requis ; la branche reste en file, le ticket dit que la CI
-  du projet doit écouter `agent/**`, que l'ouverture de séance signale (rubrique « Manque »,
-  `scripts/ci-des-branches.mjs`) et que `npx grillhouse maj` ajoute au push du flux de la CI des
-  lots (migration 0.33.0). Rien ne se vérifie sur le poste : ni l'intégration ni la file ne jouent `npm run
-  verifier`. Son issue revient au déroulé du ticket, le fait `file` de ses décisions. La CI d'un
-  commit (`ciDuCommit`, un déroulé enfant) se lit une lecture à la fois, un minuteur durable entre
-  deux (10 s), sa recherche (2 min) et son attente (30 min) comptées sur l'horloge du déroulé : la
-  mort du travailleur n'en perd pas l'attente. Elle juge tous les flux attendus de la branche, comme
-  la file de fusion de GitHub et bors jugent un commit sur tous ses contrôles : `fluxDuCommit` rend
-  pour chaque flux son chemin et son nom (la clé `name` du fichier au commit, à défaut son chemin,
-  comme GitHub nomme un flux sans `name`), et chaque lecture (`lireLesPassagesDeLaCI`) liste les
-  passages du commit, rattache chacun à son flux par ce nom (`workflowName` de `gh run list`), juge
-  chaque flux sur son passage le plus récent et ne garde rien de la lecture d'avant, si bien qu'après
-  un rejeu et `--reprendre` chaque passage se juge à son dernier essai. Vert quand tous sont verts
-  (son passage celui du premier flux, dans l'ordre des fichiers) ; rouge dès qu'un l'est, sans
-  attendre les autres, le premier flux rouge dans l'ordre des fichiers nommant son passage, que le
-  ticket rouvert donne avec son adresse, la fin de son journal et sa commande de rejeu ; non lue
-  quand un flux n'a aucun passage au bout de la recherche, ou un passage sans fin au bout de
-  l'attente, chaque flux nommé. Un passage d'un autre nom ne compte pas ; plusieurs flux de même nom
-  comptent pour un seul, `gh run list` ne les distinguant pas. Les flux qui ne tournent qu'après
-  l'entrée, sur main, se lisent après la poussée, sans bloquer la file (ticket grillhouse-bf5.7) : la file inscrit une lecture due (le ticket, le commit, les flux de main absents de la branche, l'heure de la poussée), la relit à chaque passage avec les délais de la CI de la branche, comptés depuis la poussée ; un flux rouge rouvre le ticket sous l'étiquette `flux-rouge` avec l'adresse du passage, comme GitHub notifie l'échec d'un flux de la branche par défaut et que le pipeline « post » de Zuul signale le sien ; un flux non jugé se commente, jamais rouvert, et un passage annulé (`cancelled` : un passage plus récent de son groupe de concurrence l'a remplacé, ou une personne l'a arrêté) est non jugé, comme Zuul retire sans échec un élément qu'un plus récent remplace. Les gestes sont ceux de
+  entre à son étape 5.2, « File : passe finale, main ». La file prend une entrée à la fois, dans son
+  ordre d'arrivée : la branche `agent/<ticket>` devient la candidate, sur la pointe de main
+  (replacée dans la copie de la file quand main a bougé, ses fichiers engendrés régénérés), et
+  reste locale, jamais poussée ; la passe finale (`npm run verifier`, jouée dans la copie de la
+  file sur la candidate, mesurée contre la pointe de main : `jugerLeCandidat`, l'acte `juger`) la
+  juge, sauf si son arbre est déjà jugé (`scripts/arbres-juges.mjs`) ; verte, l'arbre est gardé
+  jugé, main avance en avance rapide sur la candidate, l'arbre jugé, le ticket se ferme et main se
+  pousse ; main a bougé entre-temps, la branche se replace et sa passe se rejoue, cinq jugements au
+  plus. Rouge, main ne bouge pas, le ticket se rouvre avec la fin de la sortie de la passe ; à
+  repasser (75, la part de la machine attendue), la branche reste en file, le ticket est
+  prévenu. La file ne lit aucune CI et ne pousse aucune branche de ticket. Son issue revient au
+  déroulé du ticket, le fait `file` de ses décisions. La file lit en revanche la CI de main
+  (`surveillerLaCiDeMain`, l'acte du même nom, à son départ, après chaque entrée et chaque quart
+  d'heure d'attente) sans jamais l'attendre : un passage rouge ouvre le ticket de défaut sous
+  `a-valider` (`scripts/ci-de-main.mjs`, « Main reste vert »). Les exécutions en vol gardent leur
+  histoire par `patched('passe-finale-de-main')` : leur ancien chemin (la CI de la branche lue par
+  `ciDuCommit`, les flux de main lus après la poussée) rejoue sans rien lire, ses actes répondant
+  vert ; le ticket grillhouse-3uv.131 le retire une fois la file drainée. Les gestes sont ceux de
   `scripts/integration/file.mjs`, que ses actes appellent ; un lot déjà sur main est entré, pas
   écarté (la branche pointe sur le commit de main qui livre son ticket, ou chacun de ses commits a
   son équivalent sur main, même patch selon `git cherry`, le rejeu qu'écrit un rebase, ou la
@@ -1859,11 +1863,11 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   pose son arrêt « inattendu », et la file continue avec les entrées suivantes ; une fermeture qui
   échoue une fois main avancé le dit (le main local porte le lot, non poussé), et `--reprendre`
   repasse le ticket par la file, qui trouve son lot sur main, le ferme et le pousse sans le juger
-  de nouveau. Une lecture de la CI qui échoue la conclut non lue, l'échec pour raison. Un acte
+  de nouveau. Un acte
   arrêté (`--arreter`, le délai d'une activité) finit son groupe de processus, les commandes
-  qu'il lance comprises, avant que son activité échoue. Les histoires enregistrées de la file et de
-  la CI d'un commit se rejouent sur le code courant. Une CI rouge rouvre le ticket, et sa question
-  monte ; `--reprendre` après un rejeu vert renvoie la branche, que la file fait entrer. Le
+  qu'il lance comprises, avant que son activité échoue. Les histoires enregistrées de la file se
+  rejouent sur le code courant. Une passe finale rouge rouvre le ticket, et sa question
+  monte ; `--reprendre` après la correction renvoie la branche, que la file rejuge. Le
   déroulé est le seul registre de la file : l'intégration n'inscrit aucune entrée, elle pose
   l'étiquette `en-file`, que la file retire ; la copie de la file (`.claude/worktrees/file`) se
   garde toujours, sans verrou.

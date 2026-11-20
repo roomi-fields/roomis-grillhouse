@@ -72,7 +72,7 @@ describe('the tree of a ticket, decided by the owner on 2026-10-21 and 2026-10-2
         [],
         [
           ['5.1', 'Commit', [AUTO]],
-          ['5.2', 'File : main, poussée, CI', [AUTO]],
+          ['5.2', 'File : passe finale, main', [AUTO]],
           ['5.3', 'Tri des découvertes', ['explorateur']],
         ],
       ],
@@ -310,7 +310,7 @@ describe('one list, which the circuit, the board and the texts read', () => {
       'Preuve du rouge',
       'Passe finale',
       'Régénération des références',
-      'File : main, poussée, CI',
+      'File : passe finale, main',
     ];
     const copies = fichiers.flatMap(f =>
       titres.filter(t => lire(f).includes(t)).map(t => `${f} : ${t}`)

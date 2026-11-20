@@ -1,21 +1,22 @@
-// The queue of integration of a project (grillhouse-4nr.8, decision Q3), `file:<racine>`, and the CI
-// of a commit, as bors and Zuul gate a merge on the CI of the tree that enters: the queue of
-// scripts/integration/file.mjs, its gestures its acts (./activites.ts). The circuit of a ticket
-// sends its branch at its step 5.2 (the signal ENTRER) and awaits its issue (the signal
-// ISSUE_DE_LA_FILE). For each entry, in its order of arrival: the branch made the candidate (on
-// top of main, replaced when main moved, pushed to origin), its CI followed to its conclusion, then,
-// green, main moved onto the candidate by fast-forward, the ticket closed and main pushed; main
-// moved meanwhile, the branch is replaced and judged again, `ESSAIS` times at most; red or not
-// read, main does not move. Nothing enters main that its CI did not judge, and the next entry waits.
-// An act that fails (its activity, the reading of the CI) gives the entry the issue `echec`, its
-// reason, on which the circuit of the ticket stops, and the queue goes on. The CI of a commit
-// (`ciDuCommit`, a child workflow) is read by one reading at a time, a durable timer between two,
-// so that the death of the worker loses none of its wait: its run looked for during `rechercheMs`
-// (2 min), then read every `pasMs` (10 s) for `attenteMs` (30 min) at most, counted on the
-// workflow's clock. Past its length of history, the queue continues as new between two entries,
-// with those that wait. The CI of the branch gates main: main moves onto the candidate its CI
-// judged green (grillhouse-44b.12.5), never read after the push. Deterministic: it imports the
-// workflow API and the contract.
+// The queue of integration of a project (grillhouse-4nr.8, decision Q3), `file:<racine>`, as bors
+// gates a merge on the tree that enters and Google's TAP plays the touched tests before the submit
+// and the whole suite after it: the queue of scripts/integration/file.mjs, its gestures its acts
+// (./activites.ts). The circuit of a ticket sends its branch at its step 5.2 (the signal ENTRER) and
+// awaits its issue (the signal ISSUE_DE_LA_FILE). For each entry, in its order of arrival: the
+// branch made the candidate (on top of main, replaced when main moved, kept local), the final pass
+// played on it, then, green, main moved onto the candidate by fast-forward, the ticket closed and
+// main pushed; main moved meanwhile, the branch is replaced and judged again, `ESSAIS` times at
+// most; red or to play again, main does not move. Nothing enters main that a final pass did not
+// judge, and the next entry waits. An act that fails gives the entry the issue `echec`, its reason,
+// on which the circuit of the ticket stops, and the queue goes on. The queue reads the CI of main
+// (`surveillerLaCiDeMain`) at its start, after each entry and at each quarter of an hour it waits
+// for none, which opens the defect ticket of a red passage; it never waits for it. Past its length
+// of history, the queue continues as new between two entries, with those that wait.
+//
+// The former path, which the executions in flight replay (`patched('passe-finale-de-main')`):
+// the CI of the candidate's branch read by a child workflow (`ciDuCommit`), then the workflows of
+// main read after the push. It stays as it was, its acts answering without reading anything, until
+// grillhouse-3uv.131 retires it. Deterministic: it imports the workflow API and the contract.
 import {
   allHandlersFinished,
   ChildWorkflowCancellationType,
@@ -27,6 +28,7 @@ import {
   getExternalWorkflowHandle,
   isCancellation,
   ParentClosePolicy,
+  patched,
   proxyActivities,
   setHandler,
   sleep,
@@ -61,6 +63,14 @@ const actes = proxyActivities<ActivitesDeLaFile>({
   retry: { initialInterval: '1 second', maximumAttempts: 4 },
 });
 
+// The final pass: `npm run verifier` on the lot laid on the tip of main, which lasts as long as the
+// verification of the project; its process heartbeats as every act does.
+const passeFinale = proxyActivities<ActivitesDeLaFile>({
+  startToCloseTimeout: '6 hours',
+  heartbeatTimeout: '90 seconds',
+  retry: { initialInterval: '1 second', maximumAttempts: 2 },
+});
+
 // An effect an act of the queue gave back, one per activity, whose id the workflow sets.
 const unEffet = (activityId: string) =>
   proxyActivities<ActivitesDeLaFile>({
@@ -89,6 +99,8 @@ const DELAIS: Required<DelaisDeLaCI> = {
   pasMs: 10_000,
 };
 const LIMITE_D_HISTOIRE = 10_000;
+// How long the queue waits idle before it reads the CI of main again.
+const INTERVALLE_DE_LA_CI = 15 * 60_000;
 // The judgements of one entry at most, main moving between its CI and its entry.
 const ESSAIS = 5;
 
@@ -185,9 +197,11 @@ export async function entrerDansLaFile(
   await getExternalWorkflowHandle(id).signal(entrer, e);
 }
 
-/** The queue of the project at <racine>: one entry at a time, judged by its CI before main moves. */
+/** The queue of the project at <racine>: one entry at a time, judged by a final pass before main moves. */
 export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void> {
   const { racine } = entree;
+  // False for an execution recorded before the final pass: it keeps its former path.
+  const surLaPasseFinale = patched('passe-finale-de-main');
   const attente: EntreeDeLaFile[] = [...(entree.suite?.attente ?? [])];
   let enCours: EntreeDeLaFile | null = null;
   // An entry already in the queue, under way or waiting, is not added twice.
@@ -240,17 +254,30 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
         return p.entre;
       }
       const sha = p.candidat.commit;
-      const verdict = await juger(e, sha);
-      const c = await actes.conclureLaCI({
-        racine,
-        ticket: e.ticket,
-        sha,
-        branche: e.branche,
-        ...verdict,
-      });
-      await jouerLesEffets(racine, c.effets, `${ici}:conclure`);
-      if ('issue' in c) {
-        return c.issue;
+      if (surLaPasseFinale) {
+        const j = await passeFinale.jugerLeCandidat({
+          racine,
+          ticket: e.ticket,
+          branche: e.branche,
+          commit: sha,
+        });
+        await jouerLesEffets(racine, j.effets, `${ici}:juger`);
+        if ('issue' in j) {
+          return j.issue;
+        }
+      } else {
+        const verdict = await juger(e, sha);
+        const c = await actes.conclureLaCI({
+          racine,
+          ticket: e.ticket,
+          sha,
+          branche: e.branche,
+          ...verdict,
+        });
+        await jouerLesEffets(racine, c.effets, `${ici}:conclure`);
+        if ('issue' in c) {
+          return c.issue;
+        }
       }
       const a = await actes.avancerMain({
         racine,
@@ -285,8 +312,8 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     avance = null;
-    // The push done, the reading of the workflows of main is recorded as due, not waited for.
-    if (f.poussee) {
+    // Former path: the push done, the reading of the workflows of main is recorded as due.
+    if (!surLaPasseFinale && f.poussee) {
       await actes.inscrireLesFluxDeMain({
         racine,
         ticket: e.ticket,
@@ -322,9 +349,19 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     }
   };
 
-  // Each pass of the queue reads the readings due of the workflows of main, without waiting: once
-  // at its start (the file of the readings outlives the workflow), then while one is due.
-  // The bounds of the CI of the branch, the same for the workflows of main.
+  // The CI of main read once, never waited for: its failure does not stop the queue.
+  const surveiller = async () => {
+    try {
+      await actes.surveillerLaCiDeMain({ racine });
+    } catch (x) {
+      if (isCancellation(x)) {
+        throw x;
+      }
+    }
+  };
+  // Former path: each pass of the queue reads the readings due of the workflows of main, without
+  // waiting: once at its start (the file of the readings outlives the workflow), then while one is
+  // due, the bounds of the CI of the branch the same for the workflows of main.
   const delais = { ...DELAIS, ...entree.ci };
   let dues = true;
   let lectures = 0;
@@ -339,15 +376,25 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     dues = r.dues > 0;
   };
 
+  let aSurveiller = true;
   for (;;) {
-    if (dues) {
-      await relireLesFluxDeMain();
-    }
     const pret = () => attente.length > 0 || aContinuer();
-    if (dues) {
-      await condition(pret, delais.pasMs * 3);
+    if (surLaPasseFinale) {
+      if (aSurveiller) {
+        await surveiller();
+        aSurveiller = false;
+      }
+      // Woken by an entry, or by the quarter of an hour that asks for another reading.
+      aSurveiller = !(await condition(pret, INTERVALLE_DE_LA_CI));
     } else {
-      await condition(pret);
+      if (dues) {
+        await relireLesFluxDeMain();
+      }
+      if (dues) {
+        await condition(pret, delais.pasMs * 3);
+      } else {
+        await condition(pret);
+      }
     }
     if (attente.length > 0) {
       enCours = attente.shift()!;
@@ -357,6 +404,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
         .signal(issueDeLaFile, issue)
         .catch(() => undefined);
       enCours = null;
+      aSurveiller = true;
     }
     if (aContinuer()) {
       await condition(allHandlersFinished);

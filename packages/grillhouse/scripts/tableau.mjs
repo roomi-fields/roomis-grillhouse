@@ -74,7 +74,7 @@
 //   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
 //   figures, as Bazel's counter of actions: « faits/prévus · <durée> » since the start of the
 //   pass, after the counters of its loops, or in their place when room lacks (the subject is cut,
-//   never the figures nor the ticket's number); the queue (5.2), the steps of its CI. Past FIGEE
+//   never the figures nor the ticket's number); the queue (5.2) shows no wait for a CI. Past FIGEE
 //   without a sign, « figée <durée> · faits/prévus », the time since its last sign, signed ⛔ in
 //   the tone of an alert.
 // - The parts of the machine (scripts/places-de-la-machine.mjs, read by `lireLaMesure`), as Slurm's
@@ -92,7 +92,7 @@
 // - Signs: each sign keeps one sense (the owner's decisions of 2026-11-01 and 2026-11-12). A
 //   ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step works (cyan),
 //   a ticket led in direct included; ⏸ it waits, under the step about to be launched, the reason
-//   on its right (« attend une place », « verrou », « CI », « disque », « démarre » in grey, the
+//   on its right (« attend une place », « verrou », « disque », « démarre » in grey, the
 //   circuit waiting for the machine; « question au superviseur », « question au responsable »,
 //   « arrêté » in yellow, the circuit waiting for someone); ⛔ it stopped on a fault or its pass is
 //   frozen, to correct (red). The head of AGENTS, the machine's lines: 🔒 a pass that holds a part,
@@ -140,6 +140,7 @@ import { maxDuProjet } from './circuits-cles.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { REGISTRE } from './adresse-du-registre.mjs';
 import { lireLaMesure } from './avancement.mjs';
+import { ciDeMainGardee, ligneDeLaCiDeMain } from './ci-de-main.mjs';
 import {
   SANS_REPONSE_EN,
   ServeurMuet,
@@ -217,7 +218,6 @@ export const TONS = Object.freeze({
   reporteLimite: 'discret',
   attendUnePart: 'discret',
   attendLeDisque: 'discret',
-  attendLaCI: 'discret',
   sansEtape: 'discret',
   enDirect: 'actif',
   nuitEnCours: 'actif',
@@ -1693,8 +1693,8 @@ const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null)
  * and its witness (`temoin`: the part it holds or waits for, « · <sorte> faits/prévus · <durée> »,
  * « · part <sorte> · <durée> », else the progress of its automatic pass, `temoinDe`), in this
  * order: frozen; ended without its issue; its question (to the supervisor or to another); stopped;
- * its wait for the disk, a place (« nuit » while the night holds the machine), a part, the CI of
- * its queue (5.2, no part held) or its first state; else it runs. `lignes`: one entry per
+ * its wait for the disk, a place (« nuit » while the night holds the machine), a part or its first
+ * state; else it runs. `lignes`: one entry per
  * ticket's line of AGENTS, its id, its project on a board of several and its sign: each circuit,
  * each ticket led in direct (▶) and each agent shown out of a circuit (▶).
  */
@@ -1766,9 +1766,7 @@ export function etatsDAgents(t) {
           ? ['attendUnePart', '']
           : !etape
             ? ['sansEtape', 'démarre']
-            : etape.etat === 'file' && !tientUnePart.has(c.id)
-              ? ['attendLaCI', 'CI']
-              : ['enCours', ''];
+            : ['enCours', ''];
   };
   const circuits = new Map();
   for (const c of t.circuits ?? []) {
@@ -1924,6 +1922,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         : cadre(`${signeDe(a)} ${duProjet(a)}${a.texte}`, '', largeur),
       a.ton
     );
+  }
+  if (t.ciDeMain) {
+    L(cadre(t.ciDeMain.texte, '', largeur), t.ciDeMain.ton);
   }
 
   L('', undefined);
@@ -2815,6 +2816,7 @@ export function ensemble(lus) {
         : { etiquette: l.etiquette, erreur: l.erreur }
     ),
     alertes: tous('alertes'),
+    ciDeMain: premier.t.ciDeMain,
     circuits: tous('circuits'),
     horsCircuit: tous('horsCircuit'),
     chantiers: lisibles.flatMap(l => l.t.chantiers.map(noeud(l.etiquette))),
@@ -2932,6 +2934,7 @@ export async function tableau(
     projets = [],
     circuitsDe = circuitsDuServeur,
     nuitDe = () => nuitDuServeur(),
+    ciDeMainDe = () => ciDeMainGardee(racine, { maintenant }),
   } = {}
 ) {
   const [nuit, { circuits, muet, faute }, ...autres] = await Promise.all([
@@ -2955,6 +2958,18 @@ export async function tableau(
     }),
   };
   const lus = [ici, ...autres];
+  // The CI of main (scripts/ci-de-main.mjs), read after the lots entered: a red, or a CI not read,
+  // is an alert; a green is a line with its last green. A project with no CI to read shows nothing.
+  const ci = await Promise.resolve()
+    .then(ciDeMainDe)
+    .catch(() => null);
+  if (ci && ici.t) {
+    if (ci.etat === 'verte') {
+      ici.t.ciDeMain = { texte: ligneDeLaCiDeMain(ci), ton: TONS.fermes };
+    } else {
+      ici.t.alertes.push({ etat: 'panne', ton: TONS.panne, texte: ligneDeLaCiDeMain(ci) });
+    }
+  }
   // A project is labelled by its sigle (scripts/sigle-du-projet.mjs: the key `grillhouse.sigle`, else
   // its ticket prefix), as the line of the places names it; a project with neither keeps its
   // folder's name. A faulty key is said in an alert, the prefix staying the sigle; two projects of

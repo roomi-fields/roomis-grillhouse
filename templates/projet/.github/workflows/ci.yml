@@ -5,17 +5,14 @@
 name: CI
 
 on:
-  # `agent/**`: the branch of a ticket the queue of the frame pushes; its run judges the lot before
-  # main moves onto it.
-  push:
-    branches: [main, develop, 'agent/**']
-  pull_request:
-    branches: [main, develop]
-  # Once a night, on the default branch.
+  # The CI plays on main by batches, as Google's TAP plays the whole suite after the submit: once an
+  # hour, on the tip of main, which judges every lot entered since its last pass. A lot enters main
+  # on its final pass and waits for no CI; no push, no pull request and no branch agent/** starts it.
+  # The job `moved` skips the pass when main did not move; a start by hand always plays.
   schedule:
-    - cron: '0 2 * * *'
-  # A release of the project may play the CI on the tagged commit before it publishes, unless a
-  # branch agent/** already judged that commit.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  # A release plays the CI on the tagged commit before it publishes.
   workflow_call:
 
 # The pass of the verification in n + 2 jobs per version of Node, as Vitest shards a run
@@ -31,14 +28,13 @@ env:
   # The remote cache of Turborepo (grillhouse-44b.12.6), the server the repository's variables
   # TURBO_API and TURBO_TEAM name, its token and the key of its signature in the secrets
   # TURBO_TOKEN and TURBO_REMOTE_CACHE_SIGNATURE_KEY (Settings > Secrets and variables > Actions),
-  # never in this file. A push to main or to a branch agent/** writes it (the run that judges the
-  # tree the queue moves main onto); every other run reads it alone. Without TURBO_API the cache is
+  # never in this file. The run of main, by the schedule or by hand, writes it; every other run reads it alone. Without TURBO_API the cache is
   # the runner's local cache, as before. No step of the workflow touches the cache.
   TURBO_API: ${{ vars.TURBO_API }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-  TURBO_CACHE: ${{ !vars.TURBO_API && 'local:rw' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/agent/')) && 'local:rw,remote:rw' || 'local:rw,remote:r') }}
+  TURBO_CACHE: ${{ !vars.TURBO_API && 'local:rw' || ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && 'local:rw,remote:rw' || 'local:rw,remote:r') }}
 
 # The machine of every job: the repository's variable RUNNER (Settings > Secrets and variables >
 # Actions > Variables), a label in JSON (`"ubuntu-latest"`) or a list of labels
@@ -46,38 +42,34 @@ env:
 # repository's settings, never in this file.
 
 jobs:
-  # A tree already judged plays nothing again, as bors and Zuul test once the tree that enters
-  # main: the queue of the frame (scripts/integration/file.mjs) moves main by fast-forward onto the
-  # commit the CI of the ticket's branch judged green, so a push to main, or of a tag v<x.y.z> (the
-  # call by a release, whose event is the caller's push of the tag), whose commit a run of this
-  # workflow on a branch agent/** concluded green skips every job of the pass. Every other event (a
-  # pull request, the schedule, a push to develop or to agent/**) plays as before. The job itself always runs, so that its
-  # dependents read its output; a search that fails says nothing judged, and the pass plays. A job
-  # skipped by its condition reports « Success », and the run concludes in success (docs.github.com,
-  # « Using conditions to control job execution »). It reads the runs of the repository: a workflow
-  # that calls this one grants it `actions: read`. On a runner of the repository, `gh` must be
-  # installed.
-  judged:
+  # Main that did not move plays nothing again: on the schedule, when the last green pass of this
+  # workflow on main is the commit of the tip, every job of the pass is skipped (a job skipped by its
+  # condition reports « Success »). The job itself always runs, so that its dependents read its
+  # output; a search that fails says nothing, and the pass plays. A start by hand or the call of a
+  # release always plays. It reads the runs of the repository: a workflow that calls this one grants
+  # it `actions: read`. On a runner of the repository, `gh` must be installed.
+  moved:
+    # The machine of the jobs: the variable RUNNER of the repository, GitHub's runner without it.
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
     permissions:
       actions: read
       contents: read
     outputs:
-      judged: ${{ steps.search.outputs.judged }}
+      unchanged: ${{ steps.search.outputs.unchanged }}
     steps:
-      - name: A green run of a ticket's branch on this commit
+      - name: Last green pass of main
         id: search
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          branches=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --status success --json headBranch --jq '.[].headBranch') || branches=''
-          if grep -q '^agent/' <<< "$branches"; then judged=true; else judged=false; fi
-          echo "judged=$judged" >> "$GITHUB_OUTPUT"
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha' || true)
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then unchanged=true; else unchanged=false; fi
+          echo "unchanged=$unchanged" >> "$GITHUB_OUTPUT"
 
   gardes:
-    needs: judged
-    if: needs.judged.outputs.judged != 'true'
+    needs: moved
+    if: needs.moved.outputs.unchanged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     # Node 26 alone, whatever the trigger.
@@ -121,8 +113,8 @@ jobs:
         run: npm run verifier -- --sans-tests
 
   tranches:
-    needs: judged
-    if: needs.judged.outputs.judged != 'true'
+    needs: moved
+    if: needs.moved.outputs.unchanged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
@@ -132,7 +124,7 @@ jobs:
         tranche: [1, 2, 3]
 
     steps:
-      # The whole history: the base of a push (github.event.before) must be in the clone.
+      # The whole history, for the guards that read it.
       - name: Checkout
         uses: actions/checkout@v5
         with:
@@ -160,15 +152,8 @@ jobs:
       - name: Install the binaries of the languages
         run: npx --no-install grillhouse binaires
 
-      # The tests of the tranche, with the builds they depend on. A push is measured against the
-      # commit before it; a pull request, a call and the nightly schedule play the complete pass,
-      # with no base.
-      - name: Tranche ${{ matrix.tranche }} (a push, against its parent)
-        if: github.event_name == 'push' && github.event.before != ''
-        run: npm run verifier -- ${{ format('--tranche {0}/{1} --base {2}', matrix.tranche, env.TRANCHES, github.event.before) }}
-
+      # The tests of the tranche, with the builds they depend on: the complete pass, with no base.
       - name: Tranche ${{ matrix.tranche }}
-        if: github.event_name != 'push' || github.event.before == ''
         run: npm run verifier -- ${{ format('--tranche {0}/{1}', matrix.tranche, env.TRANCHES) }}
 
       # The reports of the tranche (Vitest's blob and the files of its part), red or green, which
@@ -180,13 +165,13 @@ jobs:
           name: tranche-${{ matrix.node-version }}-${{ matrix.tranche }}
           path: .vitest-reports/
           include-hidden-files: true
-          # A pass with no test file (a push whose changes no test relates to) writes none.
+          # A pass with no test file writes none.
           if-no-files-found: warn
           retention-days: 7
 
   fusion:
-    needs: [judged, tranches]
-    if: ${{ !cancelled() && needs.judged.outputs.judged != 'true' }}
+    needs: [moved, tranches]
+    if: ${{ !cancelled() && needs.moved.outputs.unchanged != 'true' }}
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:

@@ -27,7 +27,6 @@ import {
 import path from 'node:path';
 import { avecLAvancementDuTravail } from './avancement.mjs';
 import { A_REPASSER, MEMOIRE_COUPEE } from './codes-de-sortie.mjs';
-import { ecouteLesBranchesDeTicket } from './ci-des-branches.mjs';
 import { BASE_DU_LOT, DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { empreinteDEtape } from './empreinte-d-etape.mjs';
 import { BASE as GARDES_DE_LA_BASE, FICHIER as DETTE } from './dette.mjs';
@@ -1476,17 +1475,12 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
 }
 
 // What the passes of the circuit (its proof, its checks, its final pass) measure their tests
-// against, as variables of their environment: in a project whose CI runs on a ticket's branch
-// (`ecouteLesBranchesDeTicket` of scripts/ci-des-branches.mjs, read in the copy), the base of the
-// lot (`GRILLHOUSE_BASE_DU_LOT`: the copy's HEAD, which main reached green by that CI), against
-// which each package plays the tests related to the lot, targeted (scripts/dernier-vert.mjs), and
-// the complete pass is the CI's of the ticket's branch and the night's, as Google's presubmit plays
-// the tests a change affects and leaves the rest to after the submit; else none: the passes
-// measure themselves against the last green, as `npm run verifier`.
+// against, as variables of their environment, in every project: the base of the lot
+// (`GRILLHOUSE_BASE_DU_LOT`: the copy's HEAD, the tip of main of its time), against which each
+// package plays the tests related to the lot, targeted (scripts/dernier-vert.mjs), and the complete
+// pass is the CI of main's and the night's, as Google's presubmit plays the tests a change affects
+// and leaves the rest to after the submit.
 export function mesureDesPasses(ctx) {
-  if (!ecouteLesBranchesDeTicket(ctx.copie)) {
-    return {};
-  }
   const base = laBase(ctx);
   return base ? { [BASE_DU_LOT]: base } : {};
 }
