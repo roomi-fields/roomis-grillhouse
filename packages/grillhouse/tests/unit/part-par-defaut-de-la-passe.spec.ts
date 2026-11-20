@@ -84,36 +84,44 @@ describe('la part par défaut d’une passe pour un projet', () => {
     const racine = projet();
     garder(
       racine,
-      ligne({ memoirePic: 2 * GO }),
-      ligne({ memoirePic: 4 * GO, sorte: 'controles', ticket: 'grillhouse-x.1' }),
-      ligne({ memoirePic: 3 * GO })
+      ligne({ memoirePic: 24 * GO }),
+      ligne({ memoirePic: 32 * GO, sorte: 'controles', ticket: 'grillhouse-x.1' }),
+      ligne({ memoirePic: 28 * GO })
     );
-    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 4, memoire: 5 * GO });
+    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 4, memoire: 40 * GO });
+  });
+
+  it('un registre de passes légères seules garde le plancher, le tiers du budget', () => {
+    const racine = projet();
+    garder(racine, ligne({ memoirePic: 16 * 1024 ** 2 }), ligne({ memoirePic: 2 * GO }));
+    expect(partDeLaPasse({ racine, env: poste('7') }).memoire).toBe(
+      Math.floor((60 * GO * 10) / 28)
+    );
   });
 
   it('une ligne sans pic lisible ou malformée ne compte pas dans le plus grand pic', () => {
     const racine = projet();
     garder(
       racine,
-      ligne({ memoirePic: 2 * GO }),
+      ligne({ memoirePic: 24 * GO }),
       ligne({ memoirePic: null }),
       ligne({ memoirePic: 'beaucoup' }),
       ligne({ memoirePic: undefined })
     );
     appendFileSync(fichierDeConsommation(racine) as string, '{ pas du json\n');
-    expect(partDeLaPasse({ racine, env: poste('7') }).memoire).toBe(2.5 * GO);
+    expect(partDeLaPasse({ racine, env: poste('7') }).memoire).toBe(30 * GO);
   });
 
   it('les lignes de la nuit et des mesures de temps ne comptent pas dans le plus grand pic', () => {
     const racine = projet();
     garder(
       racine,
-      ligne({ memoirePic: 2 * GO }),
-      ligne({ memoirePic: 20 * GO, sorte: 'nuit' }),
-      ligne({ memoirePic: 21 * GO, sorte: 'tests-de-nuit' }),
-      ligne({ memoirePic: 22 * GO, sorte: 'mesure' })
+      ligne({ memoirePic: 24 * GO }),
+      ligne({ memoirePic: 44 * GO, sorte: 'nuit' }),
+      ligne({ memoirePic: 45 * GO, sorte: 'tests-de-nuit' }),
+      ligne({ memoirePic: 46 * GO, sorte: 'mesure' })
     );
-    expect(partDeLaPasse({ racine, env: poste('7') }).memoire).toBe(2.5 * GO);
+    expect(partDeLaPasse({ racine, env: poste('7') }).memoire).toBe(30 * GO);
   });
 
   it('un registre sans aucune passe de jour mesurée garde la mémoire par défaut, le tiers du budget', () => {
@@ -132,16 +140,16 @@ describe('la part par défaut d’une passe pour un projet', () => {
 
   it('le registre se lit à la racine du dépôt principal, depuis un sous-dossier du dépôt', () => {
     const racine = projet();
-    garder(racine, ligne({ memoirePic: 4 * GO }));
+    garder(racine, ligne({ memoirePic: 32 * GO }));
     const sous = path.join(racine, 'paquet');
     mkdirSync(sous);
-    expect(partDeLaPasse({ racine: sous, env: poste('7') }).memoire).toBe(5 * GO);
+    expect(partDeLaPasse({ racine: sous, env: poste('7') }).memoire).toBe(40 * GO);
   });
 
   it('des cœurs seuls déclarés gardent la mémoire du registre', () => {
     const racine = projet({ part: { coeurs: 6 } });
-    garder(racine, ligne({ memoirePic: 4 * GO }));
-    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 6, memoire: 5 * GO });
+    garder(racine, ligne({ memoirePic: 32 * GO }));
+    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 6, memoire: 40 * GO });
   });
 
   it('une mémoire seule déclarée garde les cœurs budget divisé par les places', () => {

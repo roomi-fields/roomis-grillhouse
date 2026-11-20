@@ -98,6 +98,10 @@ function lancer(
       ...env,
     },
   });
+  // A command a signal killed has no code: the test says which signal, and what it wrote.
+  if (r.signal) {
+    throw new Error(`${nom} est tuée par ${r.signal} :\n${r.stderr}`);
+  }
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, ...lu(resultats) };
 }
 

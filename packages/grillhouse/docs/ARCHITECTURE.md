@@ -1076,8 +1076,11 @@ elle prend sa part, que rien d'autre ne double.
   28 et 7 places, 4 cœurs), comme un ordonnanceur partage ses cœurs entre ses emplacements (les
   « slots » de Slurm et de HTCondor). Sa mémoire ne suit pas cette division : elle vaut le plus grand
   pic de mémoire des passes de jour du projet à son registre des consommations, plus un quart, dans
-  le budget, et, quand le registre n'a pas de mesure, le tiers du budget (la part proportionnelle aux cœurs
-  d'avant la division, jamais la division : sur le poste, 9,2 Go) (les lignes de
+  le budget, et jamais sous son plancher, le tiers du budget (la part proportionnelle aux cœurs
+  d'avant la division, jamais la division : sur le poste, 9,2 Go) : le pic relève la mémoire, il
+  ne la baisse pas, comme le Vertical Pod Autoscaler borne sa recommandation par un minimum, un
+  registre de passes légères seules donnant sinon à la passe suivante un plafond qui la tue ; le
+  plancher seul quand le registre n'a pas de mesure (les lignes de
   la nuit et des mesures de temps, celles sans pic lisible et les lignes malformées ne comptent
   pas). Écart à la référence : le Vertical Pod Autoscaler de Kubernetes prend un percentile du
   historique plus une marge ; ici c'est le plus grand pic, parce que la mémoire d'une part est un

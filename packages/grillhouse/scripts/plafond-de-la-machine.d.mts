@@ -42,8 +42,8 @@ export function budgetDe(
 ): PartDeLaPasse;
 
 /** The part of a pass when its project declares none: the budget divided by the places (2 cores
- * at least), the largest measured peak of memory plus a quarter (the cores' proportion without a
- * measure). */
+ * at least), the largest measured peak of memory plus a quarter, never under its floor, a third of
+ * the budget (the floor alone without a measure). */
 export function partParDefautDe(
   budget: PartDeLaPasse,
   places: number,

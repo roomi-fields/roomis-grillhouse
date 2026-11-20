@@ -166,15 +166,18 @@ describe('la part par défaut d’une passe', () => {
   });
 
   it('la mémoire vaut le plus grand pic mesuré plus un quart, et ne suit pas la division', () => {
-    const p = P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 4 * GO);
-    expect(p).toEqual({ coeurs: 4, memoire: 5 * GO });
+    const p = P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 24 * GO);
+    expect(p).toEqual({ coeurs: 4, memoire: 30 * GO });
   });
 
   it('la mémoire d’un autre pic suit ce pic', () => {
-    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 5.6 * GO).memoire).toBeCloseTo(
-      7 * GO,
-      -3
-    );
+    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 32 * GO).memoire).toBe(40 * GO);
+  });
+
+  it('un pic sous le plancher ne baisse pas la mémoire : le tiers du budget reste', () => {
+    const plancher = (M * 10) / 28;
+    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 16 * 1024 ** 2).memoire).toBe(plancher);
+    expect(P.partParDefautDe({ coeurs: 28, memoire: M }, 7, 4 * GO).memoire).toBe(plancher);
   });
 
   it('sans pic mesuré, la mémoire est le tiers du budget, indépendante de la division par les places', () => {
@@ -207,9 +210,9 @@ describe('la part d’une passe, déclarée ou par défaut', () => {
   });
 
   it('des cœurs seuls déclarés gardent la mémoire du plus grand pic plus un quart', () => {
-    expect(P.partDe({ declaree: { coeurs: 6 }, budget, places, pic: 2 * GO })).toEqual({
+    expect(P.partDe({ declaree: { coeurs: 6 }, budget, places, pic: 10 * GO })).toEqual({
       coeurs: 6,
-      memoire: 2.5 * GO,
+      memoire: 12.5 * GO,
     });
   });
 

@@ -21,7 +21,8 @@
 //   no core or no memory is refused by its name.
 // - The part of a pass is its cores and its memory: the default part has the budget divided by the
 //   places of the machine in cores (whole division, 2 at least), and in memory the largest peak the
-//   project measured plus a quarter (the cores' proportion of the budget without a measure); a
+//   project measured plus a quarter, never under its floor (the cores' proportion of the budget
+//   before the division, a third of it, which it is without a measure); a
 //   part a project declares (`grillhouse.part` of its `package.json`) replaces its own values; a
 //   part larger than the budget is the budget (one pass at a time), and never under one core.
 import { readFileSync } from 'node:fs';
@@ -158,8 +159,9 @@ const MARGE_DE_LA_MEMOIRE = 1.25;
  * The part of a pass when its project declares none, pure: the budget divided by the <places> of
  * the machine in cores (whole division, 2 at least, within the budget and one core at least), and
  * in memory the largest measured peak <pic> plus a quarter (the hard ceiling of the group kills a
- * pass above it, so a percentile would not do), within the budget; the proportion of the cores of
- * a part before the division (a third of the budget) when <pic> is absent.
+ * pass above it, so a percentile would not do), within the budget and never under its floor, the
+ * proportion of the cores of a part before the division (a third of the budget): the peak raises
+ * the memory, it does not lower it; the floor alone when <pic> is absent.
  * @param {{ coeurs: number, memoire: number }} budget
  * @param {number} places
  * @param {number | undefined} pic the largest peak of memory of the day passes, absent unmeasured
@@ -173,18 +175,19 @@ export function partParDefautDe(budget, places, pic) {
   return { coeurs, memoire: memoireParDefautDe(budget, pic) };
 }
 
-// The default memory, independent of the division by the places: the peak plus a quarter, else the
-// proportion of the cores a part had before the division (MIN_COEURS_DE_LA_PART, or a third of the
-// budget rounded up when that is more), so a day pass is not killed by a ceiling below its peak.
+// The default memory, independent of the division by the places: its floor, the proportion of the
+// cores a part had before the division (MIN_COEURS_DE_LA_PART, or a third of the budget rounded up
+// when that is more), raised to the peak plus a quarter when the register measured more. A
+// register that holds light passes alone (the guards, a pass of 50 ms: a peak of 16 Mo) would
+// else give the next pass a ceiling its kernel kills it under, as the Vertical Pod Autoscaler
+// bounds its recommendation by a minimum (`minAllowed`).
 function memoireParDefautDe(budget, pic) {
-  if (pic !== undefined) {
-    return Math.min(budget.memoire, Math.floor(pic * MARGE_DE_LA_MEMOIRE));
-  }
   const coeursDAvant = Math.max(
     1,
     Math.min(budget.coeurs, Math.max(MIN_COEURS_DE_LA_PART, Math.ceil(budget.coeurs / 3)))
   );
-  return Math.floor((budget.memoire * coeursDAvant) / budget.coeurs);
+  const plancher = Math.floor((budget.memoire * coeursDAvant) / budget.coeurs);
+  return Math.min(budget.memoire, Math.max(plancher, Math.floor((pic ?? 0) * MARGE_DE_LA_MEMOIRE)));
 }
 
 /**
