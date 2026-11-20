@@ -3,12 +3,12 @@
 // supervisor of the project, and applies at each reading the interval `grillhouse.rappel` of the
 // project's package.json. The circuits are injected; `bd` is a stub on the PATH that finds no
 // ticket closed or deferred; the clock is faked, with no real wait.
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { releverPourLeGreffon } from '../../scripts/superviseur.mjs';
+import { releverPourLeGreffon, seance } from '../../scripts/superviseur.mjs';
 import { circuitLu } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'releve-pour-le-greffon-'));
@@ -218,5 +218,45 @@ describe('the reading for the greffon covers the projects of the group that no o
       JSON.stringify({ grillhouse: { groupe: [soi, voisin] } })
     );
     expect(await lire(soi)).toBe('');
+  });
+});
+
+describe('the lock of the supervisor names the process of the session', () => {
+  // A table of processes: each pid, its name and its parent.
+  const table = (t: Record<number, [string, number]>) => (pid: number) =>
+    t[pid] ? { nom: t[pid][0], parent: t[pid][1] } : null;
+
+  it('names the claude above the command, past the hook of the greffon, the command and the shells', () => {
+    const lire = table({
+      50: ['bash', 40],
+      40: ['node', 30],
+      30: ['sh', 20],
+      20: ['node', 10],
+      10: ['claude', 5],
+      5: ['bash', 1],
+    });
+    expect(seance(50, lire)).toBe(10);
+  });
+
+  it('names the first process that is not a shell when no claude is above', () => {
+    const lire = table({ 50: ['bash', 40], 40: ['node', 30], 30: ['zsh', 1] });
+    expect(seance(50, lire)).toBe(40);
+  });
+
+  it('names its start when the processes above do not read', () => {
+    expect(seance(50, () => null)).toBe(50);
+  });
+
+  it('takes over at a reading a lock whose process is gone, and gives the questions', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    const parti = spawnSync('git', ['--version']).pid;
+    const { racine } = depot({}, parti);
+    expect(await lire(racine)).toContain('demo-1');
+    const tenant = Number(
+      /^(\d+)/.exec(
+        readFileSync(path.join(racine, '.git', 'grillhouse-superviseur.lock'), 'utf8')
+      )?.[1]
+    );
+    expect(tenant).toBe(seance());
   });
 });

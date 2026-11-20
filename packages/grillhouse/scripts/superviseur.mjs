@@ -10,7 +10,8 @@
 //   comments at the ticket), nothing is taken and nothing is said.
 // - The lock is `<git common dir>/grillhouse-superviseur.lock`, one for the repository and its
 //   copies, taken through scripts/verrou-de-fichier.mjs for the session's own process: the first
-//   process above this one that is not a shell (sh, bash, dash, zsh), the claude of the session.
+//   process above this one named `claude`, whatever stands between them (the hook of the greffon,
+//   the frame's command, a shell); without one, the first that is not a shell (sh, bash, dash, zsh).
 //   It holds as long as that process lives: a lock whose process is gone is taken over.
 // - Free, or held by a process that is gone: taken, nothing said of it. Held by the session itself
 //   (a session reopened in the same process, by a compaction or a /clear): kept, nothing said of
@@ -41,7 +42,8 @@
 //   hooks/register.tsx), which runs it at each period and submits what it writes to the session,
 //   in the queue of its messages (`$.prompt.submit`): the questions of a circuit are given as a
 //   queue gives its messages, and the answer acknowledges them. It reads nothing and writes
-//   nothing unless the session that runs it holds the lock of the supervisor (the one above). It
+//   nothing unless the session that runs it holds the lock of the supervisor (the one above); a
+//   lock whose process is gone is taken over by the session that reads, as the opening does. It
 //   writes the message of the reading (`texteDesQuestions`) when `relever` gives something,
 //   nothing otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` is at
 //   fault. A reading is one reading: no process waits.
@@ -79,6 +81,8 @@ import { enFileSansArchitecture, lireLesTickets } from './file-des-tickets.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
 const COQUILLES = new Set(['sh', 'bash', 'dash', 'zsh']);
+// The name of the process of a session of the engine.
+const MOTEUR = 'claude';
 
 // The parent and the name of the process <pid>, from /proc; null when it does not read.
 function processus(pid) {
@@ -93,20 +97,32 @@ function processus(pid) {
   }
 }
 
-// The session's process: the first process above <depart> that is not a shell.
-function seance(depart = process.ppid) {
+/**
+ * The session's process above <depart>: the first process named `claude`, whatever stands between
+ * it and the command (the hook of the greffon, the frame's command, a shell), all gone at the end
+ * of the command; without one (another engine), the first process that is not a shell. <lire>
+ * gives the parent and the name of a process, null when it does not read.
+ * @param {number} [depart]
+ * @param {(pid: number) => { nom: string, parent: number } | null} [lire]
+ * @returns {number}
+ */
+export function seance(depart = process.ppid, lire = processus) {
+  let horsCoquille = null;
   let pid = depart;
   for (let i = 0; i < 32 && pid > 1; i++) {
-    const p = processus(pid);
+    const p = lire(pid);
     if (!p) {
-      return depart;
+      break;
     }
-    if (!COQUILLES.has(p.nom)) {
+    if (p.nom === MOTEUR) {
       return pid;
+    }
+    if (horsCoquille === null && !COQUILLES.has(p.nom)) {
+      horsCoquille = pid;
     }
     pid = p.parent;
   }
-  return depart;
+  return horsCoquille ?? depart;
 }
 
 // Whether the process <pid> is above this one: the session that runs the command, whatever the
@@ -678,11 +694,17 @@ export async function releverPourLeGreffon(
   if (path.resolve(dossierGit) !== path.resolve(commun)) {
     return '';
   }
+  const verrou = path.join(commun, VERROU_SUPERVISEUR);
   let tenant = null;
   try {
-    tenant = Number(/^(\d+)/.exec(readFileSync(path.join(commun, VERROU_SUPERVISEUR), 'utf8'))?.[1]);
+    tenant = Number(/^(\d+)/.exec(readFileSync(verrou, 'utf8'))?.[1]);
   } catch {
     return '';
+  }
+  // A lock whose process is gone is taken over, as the opening does: the session that reads holds it.
+  if (Number.isInteger(tenant) && !estAuDessus(tenant) && !vivant(tenant)) {
+    const moi = seance();
+    tenant = prendreVerrou(verrou, { attendre: false, pid: moi }) ? moi : null;
   }
   if (!Number.isInteger(tenant) || !estAuDessus(tenant)) {
     return '';

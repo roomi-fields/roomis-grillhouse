@@ -849,6 +849,11 @@ circuits par la même source que le tableau, `questionsEnAttente`) et soumet ce 
 l'interrompre, et un seul message part par relevé, qui regroupe les questions et les fins de
 circuit dues, chaque question avec son ticket, son étape, son destinataire, sa question et la
 commande qui répond (le rendu partagé des questions, `ligneDeQuestion`, que l'ouverture reprend).
+Le verrou nomme le processus de la séance (`seance` : le premier processus `claude` au-dessus de la
+commande, quels que soient le crochet du greffon, la commande du cadre et les shells entre eux, qui
+meurent à la fin de la commande ; grillhouse-3uv.134 : sous 0.46.0 le verrou nommait le crochet
+d'ouverture, mort aussitôt, et aucune question n'était poussée à aucune séance), et un relevé qui
+trouve le verrou tenu par un processus parti le reprend pour sa séance, comme l'ouverture.
 Le relevé ne rend rien hors de la séance qui tient le verrou du superviseur du projet : une séance
 de circuit ou d'un autre projet n'en reçoit aucune. Cette séance reçoit aussi, dans le même relevé,
 les questions de chaque autre projet de son groupe (`grillhouse.groupe`) dont aucune autre séance
