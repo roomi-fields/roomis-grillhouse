@@ -153,6 +153,12 @@ interface Constat {
 /** The developpeur's report on the integration's refusal <refus>. */
 export function rapportDuRefus(refus: { rapport: string }): string;
 
+/** The stop of a ticket the queue reopens on its issue: its motive and its own question, or null. */
+export function refusDeLaFile(issue?: { raison?: string | null; conflit?: boolean }): {
+  motif: string;
+  question: string | null;
+};
+
 /** The step after the plan of sort <sorte>: the gesture, the developpeur, or the testwriter. */
 export function etapeApresLePlan(e: {
   sorte?: { genre?: string; comportement?: string } | null;

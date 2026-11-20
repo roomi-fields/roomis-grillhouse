@@ -803,6 +803,20 @@ describe('un tableau de transitions par étape', () => {
         expect(d.suivant.etape).toBe(etape);
       }
     });
+    it('la file rouvert sur un conflit : le fait dit pourquoi, la question nomme --depuis developpeur', () => {
+      const raison =
+        '## Sortie de la file\n\nLa branche agent/essai-1 ne peut pas entrer sur main : elle ne se replace pas sur main.\nFichiers en conflit :\nsrc/a.ts';
+      const { d } = jouer(
+        { etat: etat(EN_FILE) },
+        { file: { etat: 'rouvert', raison, conflit: true }, empreinte: 'E' }
+      );
+      expect(String(d.arret?.rapport).split('\n')[0]).toBe(
+        'La file rouvre le ticket : La branche agent/essai-1 ne peut pas entrer sur main : elle ne se replace pas sur main.'
+      );
+      expect(d.arret?.question).toContain('--depuis developpeur');
+      expect(d.arret?.piece).toBe(raison);
+      expect(d.memoire.refus.rapport).toContain('src/a.ts');
+    });
     // grillhouse-bf5.2: a resumption whose lot is already on main finishes at integre without the
     // queue; its named stops (lot-absent, copie-gardee) stop the integration.
     it('un lot déjà sur main finit sans attendre la file : aucun fait file, le ticket finit', () => {
