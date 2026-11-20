@@ -834,7 +834,67 @@ export function contexte(o) {
   };
   // The extension of the plan a write out of the plan in a file the ticket names asks for.
   ctx.etendreEnVol = e => etendreEnVol(ctx, e);
+  // The components the plan set apart from the survey, which the checks keep verifying.
+  ctx.ecartes = ecartesDuPlan(fichesDuPlan(ctx), ctx.paquets, resoudre);
   return ctx;
+}
+
+// The sheets of the plan of the explorateur, in their order (`{ fiche, reponse }`).
+const fichesDuPlan = ctx => lesFiches(ctx).filter(estUnPlan);
+
+/**
+ * The directories of the components the last sheet of the plan <plans> sets apart (`ecartes`, its
+ * answer to the questionneur included: an answer that says none keeps those of the plan it answers),
+ * less those the plan <paquets> holds now: a component that enters the plan, by the circuit or by
+ * the supervisor, leaves the list. <resoudre> turns a name or a path into a directory.
+ */
+export function ecartesDuPlan(plans, paquets, resoudre) {
+  const dedans = d => paquets.some(p => p === '.' || d === p || d.startsWith(`${p}/`));
+  const dossiers = (ficheDuPlan(plans, 'ecartes')?.ecartes ?? []).flatMap(e => {
+    try {
+      return [resoudre(e.composant)];
+    } catch {
+      return [];
+    }
+  });
+  return [...new Set(dossiers)].filter(d => !dedans(d));
+}
+
+// The plan of <ctx> extended, without a stop, to the components <composants> (directories) the plan
+// had set apart and that a red of the checks or of the final pass holds: written to the title in
+// the order of the plan and said at the ticket with its piece, the red and the reason of the
+// setting apart that it belies; kept among the circuit's sheets (`etendus`) as `--etendre` keeps it.
+function etendreAuxEcartes(ctx, { composants, rouges = [] }) {
+  const gagnes = composants.filter(c => !ctx.paquets.includes(c));
+  if (!gagnes.length) {
+    return;
+  }
+  const raisons = new Map(
+    (ficheDuPlan(fichesDuPlan(ctx), 'ecartes')?.ecartes ?? []).flatMap(e => {
+      try {
+        return [[ctx.resoudre(e.composant), e.raison]];
+      } catch {
+        return [];
+      }
+    })
+  );
+  const pieces = gagnes.map(c => {
+    const rouge = rouges.find(r => r.ecarte === c)?.texte ?? 'un rouge';
+    return `${c} : ${rouge} ; écarté du relevé pour « ${raisons.get(c) ?? 'sans raison écrite'} », ce que ce rouge dément`;
+  });
+  const { plan, lu } = planEtendu(ctx, ctx.paquets, gagnes);
+  const titre = ecrireLePlan(ctx, plan);
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    plan: { empreinte: empreinteDuPlan(leTicket(ctx)), etendus: gagnes },
+  });
+  commenter(
+    ctx,
+    'plan',
+    `le circuit étend le plan à ${gagnes.join(', ')}, des composants que le plan avait écartés du relevé et que le rouge nomme : ${titre.split(' — ').at(-1)}${ORDRE_LU[lu]}.\n${pieces.map(p => `- ${p}`).join('\n')}`
+  );
+  ctx.paquets = [...plan];
+  ctx.ecartes = ctx.ecartes.filter(d => !gagnes.includes(d));
 }
 
 // The plan of <ctx> extended to the package <paquet>, the home of <chemin>, a file the ticket's
@@ -1455,6 +1515,9 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
       return empreinteDeLEtape(ctx, parametres.etape);
     case 'portes':
       return portesDuRouge(ctx, parametres.lieux);
+    case 'etendreAuxEcartes':
+      etendreAuxEcartes(ctx, parametres);
+      return true;
     case 'empreinteAvant':
     case 'empreinte':
       return empreinte(ctx);

@@ -112,7 +112,11 @@ change, et ceux qu'il peut casser.
    - `ecartes` : chaque composant du relevé que le plan ne touche pas, avec sa raison (il n'a
      rien à changer, par exemple) ; le circuit l'écrit au ticket. Le circuit rejoue le relevé sur
      mon plan : un composant qui n'est ni dans `paquets` ni dans `ecartes` rend ma fiche non
-     conforme ;
+     conforme. Écarter un lecteur est une prévision, pas un verdict : les contrôles jouent la
+     construction et les tests de chaque écarté, et s'il rougit, le circuit l'ajoute au plan sans
+     arrêt et le rouge va au développeur, ma raison écrite au ticket comme pièce qu'il dément.
+     J'écarte donc avec une raison que je peux étayer (« ne lit pas ce que le ticket change »),
+     jamais pour alléger le plan ;
    - `noms_publies` : quand le lot ajoute un nom à une ligne « Consommateurs » de l'INTERFACE d'un
      fournisseur (un composant publie un nom neuf à un autre, ou un consommateur lit un nom de
      plus), une entrée par consommateur : le `fournisseur`, le `consommateur` comme sa ligne le

@@ -984,6 +984,12 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       finale = true;
       return decision();
     }
+    // A red in a component the plan set apart from the survey: the plan extends to it, without a
+    // stop, and the red goes on as the plan's (the circuit writes the extension, with its piece, at
+    // the ticket).
+    if (k.rouge && k.ecartesRouges?.length) {
+      lire('etendreAuxEcartes', { composants: k.ecartesRouges, rouges: k.tous });
+    }
     if (k.rouge && passeFinale && k.horsTitre.length) {
       return arret(
         'controles',

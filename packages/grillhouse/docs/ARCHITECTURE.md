@@ -106,6 +106,18 @@ les frontières de modules de Nx, la règle refuse et le code reste lisible ; co
 lit ce dont il a besoin, et les gardes tiennent l'architecture (BP 320.9 : la lecture cloisonnée
 causait l'essentiel des pertes).
 
+**Un lecteur que le plan écarte reste vérifié, et entre au plan s'il rougit** : comme Bazel et le
+TAP de Google, qui jouent les tests de tous les dépendants inverses d'un changement sans que
+personne décide lesquels ne devraient pas casser, les contrôles de 3.1 jouent, après les paquets du
+plan, `npm test -- <paquet>` de chaque composant que la fiche du plan écarte (`ecartes`, lus de sa
+dernière fiche, réponse comprise : `ecartesDuPlan`, `ctx.ecartes`) et qui joue des tests, sans
+rejouer un paquet que le plan ou des tests nommés couvrent ; toutes ces commandes jouent dans la
+même passe, même quand l'une rougit. Un rouge d'un écarté, aux contrôles ou à la passe finale,
+compte comme du plan (jamais « hors du plan du ticket ») : le circuit étend le plan à ce paquet sans
+arrêt (le fait `etendreAuxEcartes`), l'écrit au ticket avec sa pièce (le rouge et la raison de
+l'écart qu'il dément), et le rouge va au développeur. Un rouge dans un paquet que ni le plan ni les
+écartés ne nomment arrête toujours le circuit (« hors du plan du ticket »).
+
 **Une exception inattendue arrête le circuit par écrit** : comme un ordonnanceur ne meurt pas d'une
 tâche (Zuul, Buildbot, GitLab CI écrivent l'erreur d'un job comme un résultat « erreur » avec son
 journal), toute exception que le circuit ne prévoit pas (hors `Arret` et hors un appel mal formé)

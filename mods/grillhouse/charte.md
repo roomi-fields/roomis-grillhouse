@@ -317,8 +317,11 @@ dossier.
   déjà nommé. Ainsi une affirmation sur le code repose sur ce que le code contient.
 - **Tout se lit, le plan s'écrit** : dans son enveloppe, un agent lit tout le dépôt, index compris,
   et n'écrit que les paquets que le plan de son ticket nomme. Une écriture hors du plan l'arrête,
-  et le superviseur étend le plan ou refuse. Ainsi l'agent lit ce dont il a besoin, et les gardes
-  tiennent l'architecture.
+  et le superviseur étend le plan ou refuse. Deux cas le circuit étend le plan lui-même, sans
+  arrêt, sa pièce écrite au ticket : un fichier que la description du ticket nomme, et un
+  composant que le relevé nommait et que le plan avait écarté, quand il rougit aux contrôles ou à
+  la passe finale (écarter un lecteur est une prévision, que les contrôles vérifient). Ainsi
+  l'agent lit ce dont il a besoin, et les gardes tiennent l'architecture.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Une compétence du cadre s'appelle avec son préfixe `grillhouse:` ; un document pour un agent
   s'écrit avec `grillhouse:writing-for-agents`.

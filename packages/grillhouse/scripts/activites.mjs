@@ -1800,11 +1800,24 @@ const STYLE = new Set(['lint', 'format:check']);
 // a path of the plan holds it, the name of the package of <liste> that holds it, and that name
 // again when the plan does not hold it. A red with no path (null) is in the plan when the plan
 // names « . », which holds the whole copy.
+// A path of a component the plan set apart from the survey (`ctx.ecartes`) counts as the plan's:
+// `ecarte`, its directory, says so, and the circuit extends the plan to it.
 function situer(ctx, liste, chemin) {
   const dedans = chemin ? dansLePlan(ctx, chemin) : nommeLaRacine(ctx);
   const p = chemin ? liste.find(x => chemin.startsWith(`${x.dossier}/`)) : null;
   const paquet = p ? p.pkg.name : null;
-  return { dansLePlan: dedans, paquet, horsTitre: dedans ? null : paquet };
+  const ecarte = !dedans && p && dansLesEcartes(ctx, chemin) ? p.dossier : null;
+  return {
+    dansLePlan: dedans || ecarte !== null,
+    paquet,
+    horsTitre: dedans || ecarte !== null ? null : paquet,
+    ecarte,
+  };
+}
+
+// Whether a directory of the components the plan set apart (`ctx.ecartes`) holds <chemin>.
+function dansLesEcartes(ctx, chemin) {
+  return (ctx.ecartes ?? []).some(c => chemin === c || chemin.startsWith(`${c}/`));
 }
 
 // The reds of the check <c> (`{ args, env, code, dossier }`), read in its results: each failed
@@ -1989,8 +2002,16 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
         .taches.map(t => t.paquet)
     )
   );
+  // A red two commands both play (a package of the plan and a component set apart that share a
+  // task) is one red.
+  const vusDesCommandes = new Set();
   const tous = [
-    ...resultats.flatMap(r => r.rouges),
+    ...resultats
+      .flatMap(r => r.rouges)
+      .filter(r => {
+        const cle = `${r.joue}\0${r.texte}`;
+        return vusDesCommandes.has(cle) ? false : (vusDesCommandes.add(cle), true);
+      }),
     ...(reportes?.rouges ?? []).filter(
       r => !reportes.rejouee || (Boolean(r.joue) && !joues.has(r.joue))
     ),
@@ -2091,6 +2112,8 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
     rouges: rouges.map(r => ({ paquet: nomDuPaquet(r), texte: r.texte, detail: r.detail })),
     resume,
     horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
+    // The directories of the components the plan set apart that hold a red: the plan extends to them.
+    ecartesRouges: [...new Set(rouges.map(r => r.ecarte).filter(Boolean))].sort(),
     lieux: rouges.map(lieu),
     references,
     tous,
@@ -2120,7 +2143,7 @@ export function testsNommesAuxControles(ctx, fichiers) {
 // plan and each the lot touches in it, `npm test -- <test files of the lot>` that none of them
 // holds (the shared test material's out of the plan), each test played once, then the guards in
 // the envelope of the plan, whose findings on its files alone count.
-function commandesDuPlan(ctx, liste, seuls = null) {
+export function commandesDuPlan(ctx, liste, seuls = null) {
   const lot = changements(ctx);
   const touches = liste.length
     ? [...new Set(lot.map(c => paquetDe(liste, c.fichier)).filter(d => d !== '.'))].sort()
@@ -2134,11 +2157,25 @@ function commandesDuPlan(ctx, liste, seuls = null) {
   const tests = testsNommesAuxControles(ctx, seuls ?? testsDuLot(ctx)).filter(
     f => !entiers.some(d => d === '.' || f.startsWith(`${d}/`))
   );
+  // The components the plan set apart that play tests, after the plan's packages: a one the plan or
+  // the named tests already cover is not played twice (a resumption at named tests plays them alone).
+  const jouesDesEcartes = seuls
+    ? []
+    : liste
+        .filter(
+          p =>
+            (ctx.ecartes ?? []).includes(p.dossier) &&
+            !entiers.some(d => d === '.' || p.dossier === d || p.dossier.startsWith(`${d}/`)) &&
+            joueDesTests(ctx.copie, p)
+        )
+        .map(p => p.dossier)
+        .sort();
   const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
   const enveloppe = { [VARIABLE_ENVELOPPE]: ecrireLaListe(ctx.paquets) };
   return [
     ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
     ...entiers.map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
+    ...jouesDesEcartes.map(d => ({ args: ['test', '--', d] })),
     ...['grillhouse:gardes', 'gardes']
       .filter(s => s in scripts)
       .map(s => ({ args: ['run', s], env: enveloppe })),
@@ -2267,7 +2304,7 @@ export function portesDuRouge(ctx, lieux) {
   const nommes = [...new Set((lieux ?? []).map(l => l.fichier).filter(Boolean))];
   return {
     tests: nommes.filter(f => dulot.has(f)),
-    code: nommes.filter(f => !dulot.has(f) && dansLePlan(ctx, f)),
+    code: nommes.filter(f => !dulot.has(f) && (dansLePlan(ctx, f) || dansLesEcartes(ctx, f))),
   };
 }
 
