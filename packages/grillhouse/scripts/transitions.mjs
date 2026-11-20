@@ -71,14 +71,15 @@ export const rapportDuRefus = refus =>
 // The stop of a ticket the queue reopens for the reason <raison> it gives the circuit
 // (`direLIssue`, `conclureLaCI` of scripts/integration/file.mjs): `motif`, whose first line, the
 // fact of the question gone up, says why (the first line of the reason that is not a title), the
-// whole reason after it; `question`, for a branch out of the queue, the answer that serves.
+// whole reason after it; `question`, for a branch that does not replay on main (its conflict), the
+// answer that serves, null for any other reason.
 export function refusDeLaFile(raison) {
   const texte = String(raison ?? '').trim();
   const pourquoi = texte.split('\n').find(l => l.trim() && !l.startsWith('#'));
   return {
     motif: `La file rouvre le ticket${pourquoi ? ` : ${pourquoi.trim()}` : '.'}\n\n${texte}`,
-    question: texte.startsWith('## Sortie de la file')
-      ? 'La branche est sortie de la file : `--depuis developpeur` remet son lot en travail local sur main, où le développeur le replace ; `--reprendre` renverrait la même branche.'
+    question: /ne se replace pas sur /.test(pourquoi ?? '')
+      ? 'La branche ne se replace pas sur main : `--depuis developpeur` remet son lot en travail local sur main, où le développeur le replace ; `--reprendre` renverrait la même branche.'
       : null,
   };
 }

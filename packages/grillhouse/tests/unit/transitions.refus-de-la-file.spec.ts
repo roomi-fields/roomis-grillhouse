@@ -28,6 +28,13 @@ describe('le refus de la file dit pourquoi le ticket est rouvert', () => {
     expect(question).toBeNull();
   });
 
+  it('une branche écartée, sans rien à replacer, n’a pas de question à elle', () => {
+    const { question } = refusDeLaFile(
+      '## Sortie de la file\n\nLa branche agent/t-1 n’a rien en avance sur main : elle n’entre pas, et le ticket reste ouvert.'
+    );
+    expect(question).toBeNull();
+  });
+
   it('sans raison, garde le fait nu', () => {
     expect(refusDeLaFile(undefined).motif.split('\n')[0]).toBe('La file rouvre le ticket.');
   });
