@@ -1053,7 +1053,12 @@ elle prend sa part, que rien d'autre ne double.
     dédiés hors la mesure (son temps tiré de son propre groupe) a dépassé 10 % sur la durée de son
     jeu, son échec vaut « à repasser » (75) au lieu de 1 (`codeDeLaMesure`). Sans lecture possible,
     la mesure ne juge pas cette charge et le dit une fois. « Au repos » se lit ainsi : des cœurs
-    que personne d'autre ne touche.
+    que personne d'autre ne touche. Sur la machine d'un essai (`GRILLHOUSE_MESURE_D_ESSAI`), ces
+    deux lectures n'ont pas lieu : ses cœurs dédiés sont au repos, la mesure part sans attendre
+    (`lecteurDeLaCharge`) et son rouge garde son code (`jugeLaChargeDuJeu`), aucun essai ne lisant
+    la charge du poste qui le joue ; elle s'attache par l'affinité du lancement, sans demander les
+    groupes du poste ni écarter aucun de ses programmes, même quand le contrôleur des cœurs y est
+    délégué (`delegationDeLaPasse`).
 - **L'admission** (`admissionDePart`, `refusDePart` de `scripts/regles-des-places.mjs`, règles
   pures) : une passe part quand sa part tient dans ce que les parts tenues laissent du budget
   (cœurs, puis mémoire) et que les seuils d'`admission` tiennent (charge sur 1 min sous le nombre

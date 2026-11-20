@@ -9,11 +9,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { departDe } from '../../scripts/mesure/base-de-passe.mjs';
-import { lancementSousPart } from '../../scripts/passe-de-la-machine.mjs';
+import {
+  delegationDeLaPasse,
+  jugeLaChargeDuJeu,
+  lancementSousPart,
+} from '../../scripts/passe-de-la-machine.mjs';
 import {
   dossierDesParts,
   lireLesParts,
   poserLaPart,
+  lecteurDeLaCharge,
   prendreUnePart,
 } from '../../scripts/places-de-la-machine.mjs';
 import { refusDePart } from '../../scripts/regles-des-places.mjs';
@@ -388,6 +393,35 @@ describe('le repos des cœurs dédiés avant de partir', () => {
     expect(m.part.coeurs).toBe(4);
     expect(dit.filter(l => /charge/.test(l))).toHaveLength(1);
     m.rendre();
+  });
+
+  it('sur la machine d’un essai, les cœurs dédiés sont au repos : la charge du poste ne se lit pas', () => {
+    const duPoste = () => 0.9;
+    expect(lecteurDeLaCharge(poste(), duPoste)([0, 1])).toBe(0);
+    expect(lecteurDeLaCharge({}, duPoste)).toBe(duPoste);
+    // The measure of a trial leaves at once, whatever the machine that plays the test carries.
+    const m = prendre(poste(), projet(), { mesure: true, chargeDesCoeurs: undefined });
+    expect(m.part.coeurs).toBe(4);
+    m.rendre();
+  });
+
+  it('sur la machine d’un essai, la charge du poste pendant le jeu ne se juge pas : un rouge garde son code', () => {
+    expect(jugeLaChargeDuJeu({ dediee: true, voie: 'affinite', env: poste() })).toBe(false);
+    expect(jugeLaChargeDuJeu({ dediee: true, voie: 'groupe', env: poste() })).toBe(false);
+    expect(jugeLaChargeDuJeu({ dediee: true, voie: 'affinite', env: {} })).toBe(true);
+    expect(jugeLaChargeDuJeu({ dediee: true, voie: 'aucune', env: {} })).toBe(false);
+    expect(jugeLaChargeDuJeu({ dediee: false, voie: 'groupe', env: {} })).toBe(false);
+  });
+
+  it('sur la machine d’un essai, la délégation des cœurs du poste ne se demande pas', () => {
+    // Under a trial without an injection: no, without asking the system.
+    expect(delegationDeLaPasse({ env: poste() })?.()).toBe(false);
+    // An injected delegation is the one read, under a trial too.
+    const injectee = () => true;
+    expect(delegationDeLaPasse({ env: poste(), delegation: injectee })).toBe(injectee);
+    expect(delegationDeLaPasse({ env: {}, delegation: injectee })).toBe(injectee);
+    // Out of a trial, the system's own answer stays.
+    expect(delegationDeLaPasse({ env: {} })).toBeUndefined();
   });
 
   it('une passe ordinaire n’attend aucun repos', () => {
