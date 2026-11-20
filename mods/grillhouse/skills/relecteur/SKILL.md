@@ -197,6 +197,12 @@ ton `suivi` le dise levé. Un constat qui met en cause le
 critère lui-même, et non le lot, porte à la place `critere_en_cause` (son numéro) : le circuit
 s'arrête, et la question monte au superviseur. Ainsi chaque constat arrive à l'agent qui le corrige.
 
+Sur un lot du circuit court (sorte mécanique, ou « comportement inchangé » écrit à la main) qui
+change un comportement du produit, ta fiche rend `RENDU` avec `motif` `comportement-change` :
+le circuit change la sorte du ticket en comportement, ton verdict pour raison, et le reprend à
+2 Tests sur le même plan. Cette bascule compte parmi les `RENDU` : le troisième arrête le
+circuit. Pour tout autre `RENDU`, tu n'écris pas de motif.
+
 ```json
 {
   "verdict": "RENDU",

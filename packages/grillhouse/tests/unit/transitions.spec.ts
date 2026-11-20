@@ -210,7 +210,14 @@ describe('un tableau de transitions par étape', () => {
         CODE,
         1,
       ],
-      ['aucun rouge, comportement inchangé', {}, {}, { inchange: true }, CODE, 1],
+      [
+        'aucun rouge, tests adaptés',
+        {},
+        {},
+        { genre: 'comportement', raison: 'r', comportement: 'tests-adaptés' },
+        CODE,
+        1,
+      ],
     ])('%s', (_nom, p, memoire, sorte, etape, tentative) => {
       const { d } = jouer(
         { etat: etat(PREUVE), memoire, ticket: { ...TICKET, sorte } },

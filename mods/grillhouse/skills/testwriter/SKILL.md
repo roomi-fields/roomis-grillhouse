@@ -272,6 +272,10 @@ tests arrivent au dépôt avec le code qui les rend verts.
   partagée, la copie est en lecture seule, ton verrou arrête ta séance sur une écriture hors du
   plan, et ta `raison` nomme le paquet qui possède le fichier ;
 - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
+- `motif` `aucun-comportement`, sur BESOIN ou BLOQUÉ : aucun comportement n'est à tester, aucun
+  test honnête (qui échoue avant le lot et passe après) ne peut rougir ; ta question le dit et
+  propose au superviseur `--mecanique [<commande>]` (avec une commande vers 1.1, sans elle vers le
+  développeur), à côté de `--depuis developpeur` et `--arreter` ;
 - `portent_le_travail` : les tests du lot qui portent le travail du ticket (`fichier`, et `test` facultatif) ;
 - `decouvertes` : chaque découverte hors des critères (son sujet, son exemple et son adresse),
   que le circuit consigne fermée sous le ticket.

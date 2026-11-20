@@ -70,13 +70,19 @@ export const rapportDuRefus = refus =>
 
 // The step after the plan of sort <sorte> (null when the path is not mechanical): the gesture of
 // a mechanical ticket (1.1), in place of the testwriter, the proof and the developpeur; the
-// developpeur of a plan without tests (<sansTests>); else the testwriter.
+// developpeur of a plan without tests (<sansTests>) or of a plan whose `comportement` is inchangé
+// (a gesture written by hand: no test can turn red, the existing suite proves it); else the
+// testwriter, for changé and tests-adaptés alike.
 export const etapeApresLePlan = ({ sorte, sansTests }) =>
-  sorte?.genre === 'mécanique' ? GESTE : sansTests ? CODE : TESTS;
+  sorte?.genre === 'mécanique'
+    ? GESTE
+    : sansTests || sorte?.comportement === 'inchangé'
+      ? CODE
+      : TESTS;
 
 // The step after a proof that passes: the developpeur on a red (<rouges>), on a finding of the
-// reviewer still open for him (<pourLeDeveloppeur>), or under a plan « comportement inchangé »
-// (<inchange>), whose lot has code to write though nothing turns red, as a reorganisation does
+// reviewer still open for him (<pourLeDeveloppeur>), or under a plan « comportement
+// tests-adaptés » (<inchange>), whose lot has code to write though nothing turns red, as a reorganisation does
 // (decision 3, amended by the owner on 2026-11-01); else the checks, a lot of tests alone, with
 // no session of the developpeur.
 export const apresLaPreuve = ({ rouges, pourLeDeveloppeur, inchange }) =>
@@ -129,6 +135,13 @@ export function arretDuGesteMecanique({ constats, mecanique, sorte }, texte) {
     question: `Le lot mécanique est rendu : le faire corriger par le développeur (\`--depuis developpeur --contexte\`), ou arrêter le circuit (\`--arreter\`) et changer le plan.`,
   };
 }
+
+// Whether the reviewer's sheet <fiche> sends the lot of the short circuit back to 2 Tests: its
+// motif « comportement-change », on a ticket mechanical or written by hand under a plan
+// « comportement inchangé » (<sorte>).
+const basculeDuCircuitCourt = ({ fiche, sorte }) =>
+  fiche?.motif === 'comportement-change' &&
+  (sorte?.genre === 'mécanique' || sorte?.comportement === 'inchangé');
 
 // The last <n> lines of <t>, a text the circuit gives without its colours.
 const fin = (t, n) =>
@@ -409,7 +422,8 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
   const route =
     etape === TESTS
       ? etapeApresLePlan({
-          sorte: lire('mecanique') ? ticket.sorte : null,
+          sorte:
+            lire('mecanique') || ticket.sorte?.comportement === 'inchangé' ? ticket.sorte : null,
           sansTests: lire('sansTests'),
         })
       : null;
@@ -447,12 +461,17 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     return decision();
   }
   if (route === CODE) {
+    const ecritALaMain = ticket.sorte?.comportement === 'inchangé';
     commenter(
       'testwriter',
-      'aucun test dans le plan (aucun paquet qui joue des tests ne le tient) : ni testwriter ni preuve, le développeur directement.'
+      ecritALaMain
+        ? 'plan « comportement inchangé » (geste écrit à la main) : aucun test honnête ne peut rougir, ni testwriter ni preuve, le développeur directement.'
+        : 'aucun test dans le plan (aucun paquet qui joue des tests ne le tient) : ni testwriter ni preuve, le développeur directement.'
     );
     rapport = [
-      `Le plan (${plan}) ne porte aucun test (aucun paquet qui joue des tests ne le tient) : le circuit te lance sans testwriter ni preuve. Tu écris le ticket d'après ses critères ; les contrôles suivent ta séance.`,
+      ecritALaMain
+        ? `Le plan (${plan}) dit « comportement inchangé » : le circuit te lance sans testwriter ni preuve. Tu écris le geste d'après les critères du ticket ; la suite existante, qui reste verte, et la relecture font la preuve.`
+        : `Le plan (${plan}) ne porte aucun test (aucun paquet qui joue des tests ne le tient) : le circuit te lance sans testwriter ni preuve. Tu écris le ticket d'après ses critères ; les contrôles suivent ta séance.`,
       rapport,
     ]
       .filter(Boolean)
@@ -505,7 +524,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
     const reprise = m('reprise');
     // A finding of the reviewer still open for the developpeur launches him, red or not.
     const pourLui = ouverts(m('constats'), 'developpeur').length > 0;
-    const inchange = Boolean(ticket.sorte?.inchange);
+    const inchange = ticket.sorte?.comportement === 'tests-adaptés';
     const vert = m('verts')?.preuve;
     if (vert && !reprise && lire('empreinteEtape', { etape: 'preuve' }) === vert.empreinte) {
       // The proof's inputs are those of its last green: its result is read back, not played.
@@ -531,7 +550,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
           : pourLui
             ? 'aucun rouge ; au développeur, que nomme un constat du relecteur'
             : inchange
-              ? 'aucun rouge : le plan dit « comportement inchangé », au développeur'
+              ? 'aucun rouge : le plan dit « tests-adaptés », au développeur'
               : 'aucun rouge : un lot de tests seul, aux contrôles';
       ecrireRapport('preuve', `${p.resume} ; ${suite}.\n\n${p.texte}`, p.resultat);
       if (!reprise && p.empreinte) {
@@ -1170,6 +1189,28 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
       return decision({ arret: lus.arret });
     }
     maj.constats = lus.constats;
+    // A lot of the short circuit (mechanical, or written by hand under a plan « comportement
+    // inchangé ») that the reviewer renders for a changed behaviour (`comportement-change`) goes
+    // back to 2 Tests on the same plan, its sort turned to comportement with the verdict as its
+    // reason: a test now can turn red. It counts among the RENDU above, so the third stops the
+    // circuit and a ticket turned both ways does not loop.
+    if (basculeDuCircuitCourt({ fiche: v.fiche, sorte: ticket.sorte })) {
+      effets.push({
+        genre: 'sorte',
+        sorte: { genre: 'comportement', raison: v.texte, comportement: 'changé' },
+      });
+      etape = TESTS;
+      tentative = 1;
+      rapport = null;
+      finale = false;
+      maj.verifie = null;
+      maj.toursDeLaPasseFinale = null;
+      commenter(
+        'relecture',
+        `RENDU (relecture ${rendus}) : le lot du circuit court change un comportement ; la sorte du ticket devient comportement, le plan reste, et le circuit reprend à 2 Tests.`
+      );
+      return decision();
+    }
     const saute =
       arretDuTestwriterSaute(
         {

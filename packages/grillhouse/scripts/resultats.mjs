@@ -68,11 +68,12 @@
 //     language, the architecture, a gap to the reference, or no answer (BP 328: a question the
 //     ticket settled stopped the plan) (explorateur);
 //   - `sorte` (`genre` mécanique or comportement, its `raison`, the `commande` a mechanical ticket
-//     plays, and, for a comportement, `comportement` changé or inchangé): as Google's large-scale
-//     changes let a tool make a change that a verification and a review judge (Rosie, ClangMR),
-//     a ticket the plan says mechanical skips the testwriter, the proof and the developpeur, and
-//     under a plan « comportement inchangé » every green of the proof is expected and the
-//     developpeur writes the code; a sort
+//     plays, and, for a comportement, `comportement` changé, tests-adaptés or inchangé): as
+//     Google's large-scale changes let a tool make a change that a verification and a review
+//     judge (Rosie, ClangMR), a ticket the plan says mechanical skips the testwriter, the proof
+//     and the developpeur; under « tests-adaptés » the testwriter writes and every green of the
+//     proof is expected, then the developpeur writes; under « inchangé » (a gesture written by
+//     hand) the developpeur alone writes, no testwriter; a sort
 //     absent, out of its kinds, or without its reason or its command is comportement, the whole
 //     circuit (`sorteDuPlan`, grillhouse-sos) (explorateur);
 //   - `ecartes` (`composant`, `raison`): the components of the survey the plan does not touch,
@@ -213,6 +214,10 @@ const VERDICTS_PROUVES = ['traitee', 'a-porter'];
 // The sorts of a ticket the explorateur judges at the plan (grillhouse-sos): a gesture without new
 // behaviour, which its command makes, or a change of behaviour, which the circuit of code makes.
 export const SORTES = ['mécanique', 'comportement'];
+// The values of the field `comportement` of a plan of sort comportement: changé (the testwriter
+// writes, a red is required), tests-adaptés (the testwriter writes, the proof accepts every
+// green), inchangé (a gesture written by hand: the developpeur alone, no testwriter).
+export const COMPORTEMENTS = ['changé', 'tests-adaptés', 'inchangé'];
 
 // The schema of the sheet of each role the circuit leads, and of the tri of the discoveries
 // (`tri`), the explorateur's after the queue.
@@ -241,9 +246,9 @@ const FICHES = {
           ),
           comportement: {
             type: 'string',
-            enum: ['changé', 'inchangé'],
+            enum: COMPORTEMENTS,
             description:
-              'comportement : inchangé quand le lot ne change aucun comportement que ses tests mesurent (un test adapté, un seuil relevé dans un test) ; changé sinon.',
+              'comportement : changé quand un test honnête peut rougir avant le lot (le testwriter écrit, un rouge est exigé) ; tests-adaptés quand le lot adapte des tests ou relève un seuil dans un test sans comportement neuf (le testwriter écrit, la preuve accepte chaque vert) ; inchangé pour un geste écrit à la main (commentaires, code supprimé…) : le développeur seul, sans testwriter, la suite existante faisant la preuve. Le doute vaut changé.',
           },
         },
         ['genre', 'raison'],
@@ -333,6 +338,12 @@ const FICHES = {
         ),
         'Les tests du lot qui portent le travail du ticket : la preuve du rouge exige qu’ils échouent avant le code.'
       ),
+      motif: {
+        type: 'string',
+        enum: ['aucun-comportement'],
+        description:
+          'BESOIN ou BLOQUÉ : aucun comportement n’est à tester, aucun test honnête ne peut rougir avant le lot ; le superviseur bascule le ticket en circuit court (`--mecanique`).',
+      },
       ...DECOUVERTES,
     },
     ['statut']
@@ -383,6 +394,12 @@ const FICHES = {
   relecteur: objet(
     {
       verdict: { type: 'string', enum: ['ACCEPTÉ', 'RENDU'] },
+      motif: {
+        type: 'string',
+        enum: ['comportement-change'],
+        description:
+          'RENDU d’un lot du circuit court dont le comportement du produit change : le circuit reprend le ticket à 2 Tests sur le même plan, sa sorte changée en comportement.',
+      },
       conformite: liste(
         objet(
           {
@@ -505,8 +522,8 @@ export const schemaDeFiche = role => FICHES[role] ?? null;
 
 // The sort of the ticket the explorateur's sheet of the plan <fiche> says (`sorte`): `{ genre:
 // 'mécanique', raison, commande }` for a mechanical ticket with its reason and its command; else
-// `{ genre: 'comportement', raison, inchange }`, `inchange` for a plan « comportement inchangé »
-// with its reason. A sort absent, out of its kinds or without what it needs is comportement, the
+// `{ genre: 'comportement', raison, comportement }`, `comportement` one of COMPORTEMENTS, changé
+// when absent, unknown or without its reason. A sort absent, out of its kinds or without what it needs is comportement, the
 // whole circuit, as a doubt goes to the circuit (grillhouse-sos).
 export function sorteDuPlan(fiche) {
   const s = fiche?.sorte;
@@ -515,8 +532,12 @@ export function sorteDuPlan(fiche) {
   if (raison && s.genre === 'mécanique' && plein(s.commande)) {
     return { genre: 'mécanique', raison, commande: s.commande.trim() };
   }
-  const inchange = Boolean(raison) && s.genre === 'comportement' && s.comportement === 'inchangé';
-  return { genre: 'comportement', raison, inchange };
+  const valeur = raison && s.genre === 'comportement' ? s.comportement : null;
+  return {
+    genre: 'comportement',
+    raison,
+    comportement: COMPORTEMENTS.includes(valeur) ? valeur : 'changé',
+  };
 }
 
 // The errors of <valeur> against <schema>, each naming its field by its path <ou>.

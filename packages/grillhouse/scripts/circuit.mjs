@@ -95,8 +95,8 @@
 //   scripts/resultats.mjs, from the explorateur's last sheet of the plan), which the circuit
 //   writes in the description (« ## Sorte », after the criteria) and at the ticket with the plan:
 //   mechanical, a gesture without new behaviour, with its reason and the command that makes it;
-//   comportement, with its reason, the plan « comportement inchangé » when the lot changes no
-//   behaviour; absent or unreadable, comportement, the whole circuit (grillhouse-sos, BPScript
+//   comportement, with its reason and its field `comportement` (changé, tests-adaptés, or
+//   inchangé for a gesture written by hand); absent or unreadable, comportement, the whole circuit (grillhouse-sos, BPScript
 //   320.16: 38 tools moved by mv through the testwriter and the developpeur, 117 comments). As
 //   Google's large-scale changes (Rosie, ClangMR) let a tool make the change that a verification
 //   and a review judge, with no new test, a mechanical ticket (`cheminMecanique`: no `--depuis`,
@@ -236,11 +236,11 @@
 //   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
 //   reds are enough. Under a plan « comportement changé » it fails without a red, with a broken file
 //   of the lot, or with a green the sheet names; under a plan « comportement
-//   inchangé », nothing has to turn red and every green passes, so only a broken
+//   tests-adaptés », nothing has to turn red and every green passes, so only a broken
 //   file fails it (`preuveReussie`). A failed proof relaunches the
 //   testwriter with its report, twice at most. The report (reds, justified greens) is written at
 //   the ticket. A proof with a red launches the developpeur, and so does a proof without a red
-//   when a finding of the reviewer still open names him, or under a plan « comportement inchangé »,
+//   when a finding of the reviewer still open names him, or under a plan « comportement tests-adaptés »,
 //   whose lot has code to write though nothing turns red; else it skips him (`apresLaPreuve`): the
 //   lot is a lot of tests alone, and the checks and the review judge it with no session of the
 //   developpeur.
@@ -714,7 +714,7 @@ import { leTitre, ticketAuLancement } from './depart-du-ticket.mjs';
 import { ouvrirBase } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
 import { retirerLesCopiesDuDepot } from './copies-finies.mjs';
-import { lesReponses } from './reponses-du-circuit.mjs';
+import { lesReponses, reponseMecanique } from './reponses-du-circuit.mjs';
 
 // The time a session's transcripts may stand still before the circuit stops it.
 export const IMMOBILE_MS = 20 * 60 * 1000;
@@ -1248,21 +1248,31 @@ export function ficheDuPlan(plans, champ) {
   return derniere.fiche;
 }
 
-// The sort of the ticket its plan says (`sorteDuPlan` of scripts/resultats.mjs): the sheet of the
-// plan that says it (`ficheDuPlan`), comportement without one (grillhouse-sos).
-const sorteDuTicket = ctx =>
-  sorteDuPlan(
-    ficheDuPlan(
-      lesFiches(ctx).filter(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres)),
-      'sorte'
-    )
-  );
+// A sheet of the plan (the explorateur's, which holds criteria), and a line of the circuit that
+// turns the sort of the ticket on the same plan (`ecrireLaSorte`: the supervisor's `--mecanique`,
+// the reviewer's `comportement-change`).
+const estUnPlan = e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres);
+const estUneBascule = e =>
+  e.role === AUTEUR_DU_CIRCUIT && typeof e.sorte === 'object' && e.sorte !== null;
 
-// Whether a testwriter or a developpeur has worked the lot since the last sheet of the plan.
+// The sort of the ticket its plan says (`sorteDuPlan` of scripts/resultats.mjs): the sheet of the
+// plan that says it (`ficheDuPlan`), comportement without one (grillhouse-sos); a line that turns
+// the sort after the last sheet of the plan stands over it, the plan kept as it is.
+function sorteDuTicket(ctx) {
+  const tous = lesFiches(ctx);
+  const bascule = tous.findLastIndex(estUneBascule);
+  if (bascule > tous.findLastIndex(estUnPlan)) {
+    return tous[bascule].sorte;
+  }
+  return sorteDuPlan(ficheDuPlan(tous.filter(estUnPlan), 'sorte'));
+}
+
+// Whether a testwriter or a developpeur has worked the lot since the last sheet of the plan or the
+// last turn of its sort.
 function lotTravaille(ctx) {
   const tous = lesFiches(ctx);
-  const plan = tous.findLastIndex(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres));
-  return tous.slice(plan + 1).some(e => AGENTS_DU_LOT.includes(e.role));
+  const depuis = Math.max(tous.findLastIndex(estUnPlan), tous.findLastIndex(estUneBascule));
+  return tous.slice(depuis + 1).some(e => AGENTS_DU_LOT.includes(e.role));
 }
 
 // Whether the ticket of <ctx> goes the mechanical path, as Google's large-scale changes (Rosie,
@@ -1548,6 +1558,8 @@ export function appliquer(ctx, e) {
     ecrireRapport(ctx, e.etape, e.texte, e.resultat, e.rapport);
   } else if (e.genre === 'inscrire') {
     inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, ...e.entree });
+  } else if (e.genre === 'sorte') {
+    ecrireLaSorte(ctx, e.sorte);
   } else {
     throw new Error(`effet inconnu des décisions du circuit : ${e.genre}`);
   }
@@ -1811,8 +1823,31 @@ const lignesDesNoms = noms =>
 // The sort <sorte> (`sorteDuPlan`) in words: its kind, then its reason.
 const texteDeLaSorte = sorte =>
   sorte.raison
-    ? `${sorte.genre}${sorte.inchange ? ' inchangé' : ''} — ${sorte.raison}`
+    ? `${sorte.genre}${sorte.comportement && sorte.comportement !== 'changé' ? ` ${sorte.comportement}` : ''} — ${sorte.raison}`
     : `${sorte.genre} — la fiche ne dit pas sa sorte lisiblement : le circuit entier`;
+
+// The section « ## Sorte » of the sort <sorte>: its words, then the command of a mechanical ticket.
+const sectionDeLaSorte = sorte => ({
+  tete: SORTE,
+  lignes: [
+    '',
+    texteDeLaSorte(sorte),
+    ...(sorte.commande ? ['', `Commande : \`${sorte.commande}\``] : []),
+    '',
+  ],
+});
+
+// The description <description> with its section « ## Sorte » for the sort <sorte>, in place of the
+// one it holds or else after its criteria; the rest of it as it was.
+function redecrireLaSorte(description, sorte) {
+  const sections = sectionsDe(description).filter(s => s.tete !== SORTE);
+  const i = sections.findIndex(deCriteres);
+  sections.splice(i < 0 ? sections.length : i + 1, 0, sectionDeLaSorte(sorte));
+  return sections
+    .flatMap(s => (s.tete ? [s.tete, ...s.lignes] : s.lignes))
+    .join('\n')
+    .trim();
+}
 
 // The sections of the description <description>: the text before its first `##` heading, then
 // each heading with its lines.
@@ -1893,19 +1928,7 @@ export function decrireLePlan(
     lignes: [...(avant.length ? avant : ['']), ...liste, ''],
   };
   const apres = [
-    ...(sorte
-      ? [
-          {
-            tete: SORTE,
-            lignes: [
-              '',
-              texteDeLaSorte(sorte),
-              ...(sorte.commande ? ['', `Commande : \`${sorte.commande}\``] : []),
-              '',
-            ],
-          },
-        ]
-      : []),
+    ...(sorte ? [sectionDeLaSorte(sorte)] : []),
     ...(noms?.length ? [{ tete: NOMS_PUBLIES, lignes: ['', lignesDesNoms(noms), ''] }] : []),
     ...(questions.length
       ? [{ tete: QUESTIONS_OUVERTES, lignes: ['', lignesOuvertes(questions), ''] }]
@@ -1936,6 +1959,37 @@ function ecrireLePlan(ctx, plan, description = null) {
   }
   ctx.paquets = plan;
   return titre;
+}
+
+// The sort of the ticket turned to <sorte> on the same plan, whose packages and criteria stay: kept
+// as a line of the circuit among the sheets (`sorteDuTicket` reads it after the last sheet of the
+// plan), written in the description (« ## Sorte ») and said at the ticket (`Circuit · plan : …`).
+function ecrireLaSorte(ctx, sorte) {
+  ctx.sorte = sorte;
+  inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, sorte });
+  ecrireLePlan(ctx, ctx.paquets, redecrireLaSorte(leTicket(ctx).description, sorte));
+  commenter(ctx, 'plan', `la sorte du ticket devient ${texteDeLaSorte(sorte)} ; le plan reste.`);
+}
+
+// The `--mecanique` answer of <ctx> to the stop <e> of the testwriter (`reponseMecanique` of
+// scripts/reponses-du-circuit.mjs, which refuses out of that stop, without a reason or on a
+// ticket already mechanical: a Usage): the sort turned, the plan kept as it is, and the stop's
+// state moved to the step the sort asks, 1.1 with a command, the developpeur without.
+function basculer(ctx, e) {
+  const r = reponseMecanique({
+    etat: e,
+    sorte: sorteDuTicket(ctx),
+    commande: ctx.mecanique.commande,
+    contexte: ctx.contexte,
+  });
+  if (r.refus) {
+    throw new Usage(r.refus);
+  }
+  ecrireLaSorte(ctx, r.sorte);
+  ctx.reprendre = true;
+  ctx.verts = {};
+  ctx.reprise = null;
+  return { ...e, etape: r.suivant.etape, raison: null, question: null, rapport: null };
 }
 
 /**
@@ -2444,6 +2498,9 @@ async function avantLePlan(ctx, e) {
       throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
     }
     e = etendre(ctx, e);
+  }
+  if (ctx.mecanique) {
+    e = basculer(ctx, e);
   }
   // The findings open at the launch of a run with the supervisor's context (`--contexte`, or the
   // answer `--etendre` gives to the stop) are its sessions' context; without one, their task.

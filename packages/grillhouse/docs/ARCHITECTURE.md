@@ -410,8 +410,10 @@ vraiment la conformité à l'architecture de tout ce qu'il y a de nouveau/chang�
 ClangMR) laissent un outil faire le changement que la vérification et une relecture jugent, sans
 test neuf, comme Renovate monte une dépendance et `nx migrate` un cadre, la fiche du plan porte la
 sorte du ticket (`sorte` de `resultats.mjs`, lue par `sorteDuPlan`) : `mécanique`, un geste sans
-comportement neuf, avec sa raison et sa commande ; `comportement`, avec sa raison, `inchangé`
-quand le lot ne change aucun comportement que ses tests mesurent. Le circuit l'écrit dans la
+comportement neuf, avec sa raison et sa commande ; `comportement`, avec sa raison et son champ
+`comportement` à trois valeurs : `changé` (le testwriter écrit, un rouge est exigé ; la valeur du
+doute), `tests-adaptés` (le testwriter écrit, la preuve accepte chaque vert, puis le développeur)
+et `inchangé` (un geste écrit à la main : le développeur seul, sans testwriter ni preuve). Le circuit l'écrit dans la
 description (« ## Sorte », après les critères) et au ticket avec le plan. Un ticket mécanique
 saute 2 Tests, 2.1 et 3 Code (le geste `mecanique`) : à 1.1 Geste mécanique, une séance de
 l'explorateur, dans l'enveloppe du plan (`lancer.sh --fiche geste`, le neuvième gabarit), joue la
@@ -423,7 +425,7 @@ régénération ne lève à `controles`, un `RENDU` à `relecture-arret` (`arret
 superviseur fait corriger le lot (`--depuis developpeur`), joue le geste corrigé dans la copie
 puis `--reprendre`, qui ne rejoue pas un geste que la copie porte déjà, ou arrête. Une preuve sans
 rouge, sans constat ouvert pour le développeur, passe aux contrôles sans lui (`apresLaPreuve`) ;
-sous un plan « comportement inchangé », comme dans un grand changement de Google, la suite
+sous un plan « comportement tests-adaptés », comme dans un grand changement de Google, la suite
 existante fait la preuve : rien n'a à rougir et chaque vert du lot passe, seul un fichier du
 lot qui ne se charge pas refuse la preuve (`preuveReussie`) ; la liste `portent_le_travail` du
 testwriter se remplace à chaque fiche (`portentLeTravail`) : un champ absent garde la liste de la
@@ -495,7 +497,7 @@ le circuit la garde, avec la durée du vert, par étape finie verte dans son mé
 une reprise conservent) ; une étape à l'empreinte de son dernier vert ne se rejoue pas, son résultat se relit et le ticket le
 dit, une entrée changée, même dans un dépendant ou la configuration, la rejoue, et un rouge ne laisse pas son étape en
 dernier vert. La preuve du rouge ne se relit que si ni ses tests ni le code qu'ils exercent n'ont changé. Le bilan compte
-à part, par étape, la durée rejouée après un rouge et celle relue sans rejouer. `--etendre <paquet>` ajoute un paquet au plan, puis reprend
+à part, par étape, la durée rejouée après un rouge et celle relue sans rejouer. `--mecanique [<commande>]` (avec `--contexte`, sa raison), réponse à un arrêt du testwriter (motif `aucun-comportement`), bascule le ticket sans refaire le plan : avec une commande la sorte devient `mécanique` et le circuit reprend à 1.1, sans elle la sorte reste `comportement` `inchangé` et le circuit reprend au développeur ; le relecteur d'un lot du circuit court qui rend le motif `comportement-change` change la sorte en `comportement` (raison : le verdict) et reprend à 2 Tests, la bascule comptant dans les `RENDU`. La sorte est ainsi décidée par le critère « aucun test honnête ne peut rougir avant le lot », dans les deux sens. `--etendre <paquet>` ajoute un paquet au plan, puis reprend
 l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Comme
 une file de fusion (GitHub merge queue, bors, Zuul) renvoie le lot à son auteur avec le journal de
 sa vérification, et ne le laisse repasser qu'avec un changement, `--depuis developpeur` après un
@@ -764,7 +766,7 @@ grillhouse-4nr.12) : comme `gh workflow run` ou le client de Temporal, `npx gril
 écrit une ligne et rend la main aussitôt ; le circuit tourne sur le serveur Temporal, dans le
 déroulé de son ticket, que le travailleur du projet mène, hors du groupe, de l'arbre et du groupe
 de contrôle de son appelant. Seul, le ticket entre dans la file des tickets du projet ;
-`--reprendre`, `--depuis` et `--etendre` répondent à son arrêt, `--arreter` l'arrête. Un ticket
+`--reprendre`, `--depuis`, `--etendre` et `--mecanique` répondent à son arrêt, `--arreter` l'arrête. Un ticket
 que le circuit ne pourrait pas mener (illisible, sans section « ## Architecture », un titre sans
 composants, un composant inconnu, `scripts/depart-du-ticket.mjs`) est refusé à la porte, par son
 nom ; `--arreter` ne lit ni le titre ni l'architecture, et refuse un lot intégré (« le lot de

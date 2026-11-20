@@ -137,8 +137,9 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   puis 3.1 Contrôles, la passe finale, la relecture et la file. Un rouge des contrôles, un `RENDU`
   ou un geste qui ne change rien me monte : je fais corriger le lot (`--depuis developpeur
 --contexte`), je joue moi-même le geste corrigé dans la copie puis `--reprendre`, qui ne rejoue
-  pas un geste que la copie porte déjà, ou j'arrête. Sous un plan « comportement inchangé », la
+  pas un geste que la copie porte déjà, ou j'arrête. Sous un plan « comportement tests-adaptés », la
   preuve accepte chaque vert, puis le développeur écrit le code, les contrôles et la relecture ;
+  sous « comportement inchangé » (geste écrit à la main), le développeur seul, sans testwriter ni preuve ;
   hors de ce cas, une preuve sans rouge passe aux contrôles sans séance du développeur. Une sorte absente ou
   illisible vaut « comportement » : le circuit entier. Ainsi un geste sans comportement neuf ne
   coûte ni testwriter ni développeur.

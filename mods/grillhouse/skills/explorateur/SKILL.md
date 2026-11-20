@@ -79,19 +79,36 @@ change, et ceux qu'il peut casser.
      l'outil qui fait le geste, telle qu'elle se lance à la racine de la copie, comme Rosie et
      ClangMR font un grand changement chez Google, Renovate une montée de dépendance, `nx migrate`
      une montée du cadre, `eslint --fix` une correction de style : le circuit saute alors le
-     testwriter, la preuve du rouge et le développeur. Une configuration dont une garde mesure
+     testwriter, la preuve du rouge et le développeur. Le critère : je dis mécanique un ticket
+     quand aucun test honnête ne peut rougir avant son lot, le produit se comportant pareil avant
+     et après ; la liste ci-dessus n'en est que les exemples, auxquels s'ajoutent les commentaires
+     de code seuls, la suppression de code sans appelant vivant, les fichiers engendrés
+     régénérés, les textes de messages qu'aucun test ni aucun autre paquet ne lit et le typage
+     resserré sans changement à l'exécution. Un test honnête échoue avant le lot et passe après,
+     sur un comportement qu'un test, un autre paquet ou une interface publiée observe. Un geste
+     écrit à la main (sans outil qui le joue) est de ce critère, sous sa seconde forme : ma
+     sorte est `comportement` `inchangé`, ma raison dit le geste et ce que j'ai cherché ; le
+     circuit saute le testwriter et la preuve du rouge pour une séance du développeur, la suite
+     existante faisant la preuve ; je n'écris rien moi-même. Avant de dire mécanique un lot de
+     textes de messages, de typage resserré ou de code supprimé, je cherche par l'index leurs
+     lecteurs (tests qui lisent le texte, paquets lecteurs du relevé, INTERFACE, codes de
+     retour) ; la raison de ma fiche dit ce qu'il a cherché, lui, l'explorateur ; un lecteur trouvé, ou un doute, va au
+     circuit complet. L'arrêt du testwriter est le filet quand ma recherche a manqué. Une configuration dont une garde mesure
      l'effet, et le texte qui accompagne un changement de comportement, restent au circuit ;
-     un doute va au circuit : `comportement`. Un ticket de comportement dont le lot ne change
-     aucun comportement que ses tests mesurent (un test adapté, un seuil relevé dans un test)
-     porte `comportement` `inchangé`, le plan « comportement inchangé » : sa preuve accepte chaque
-     vert de son lot, puis le développeur écrit le code (une réorganisation en a), les contrôles
-     et la relecture. Un ticket dont le lot vit entièrement dans la matière de test (le produit ne
-     change pas : l'isolation des tests, une aide partagée, la couverture neuve d'un comportement
-     existant) porte aussi `comportement` `inchangé`, mais sans développeur : le testwriter livre
-     les tests et les aides, puis les contrôles et la relecture ; aucun rouge-d'abord n'est attendu,
-     car aucun comportement produit n'est neuf. Je le reconnais dès l'étape 1 et ne le classe pas
-     `comportement`. Une sorte absente, ou sans sa raison, ou mécanique sans sa commande, vaut
-     `comportement` : le circuit entier ;
+     un doute va au circuit : `comportement`. Le champ `comportement` d'un plan de sorte
+     comportement a trois valeurs, et je choisis celle du lot :
+     - `changé` : un test honnête peut rougir avant le lot ; le testwriter écrit, la preuve exige
+       un rouge. C'est la valeur du doute ;
+     - `tests-adaptés` : le lot ne change aucun comportement que ses tests mesurent (un test
+       adapté, un seuil relevé dans un test, un lot entièrement dans la matière de test : l'isolation
+       des tests, une aide partagée, la couverture neuve d'un comportement existant) ; le
+       testwriter écrit, la preuve accepte chaque vert, puis le développeur écrit le code (une
+       réorganisation en a), les contrôles et la relecture ;
+     - `inchangé`, le plan « comportement inchangé » : le geste écrit à la main décrit ci-dessus
+       (aucun test honnête, aucun outil) ; le développeur seul, sans testwriter ni preuve, la suite existante faisant la preuve.
+
+     Je le reconnais dès l'étape 1. Une sorte absente, ou sans sa raison, ou mécanique sans sa
+     commande, vaut `comportement` `changé` : le circuit entier ;
    - `ecartes` : chaque composant du relevé que le plan ne touche pas, avec sa raison (il n'a
      rien à changer, par exemple) ; le circuit l'écrit au ticket. Le circuit rejoue le relevé sur
      mon plan : un composant qui n'est ni dans `paquets` ni dans `ecartes` rend ma fiche non

@@ -6,6 +6,7 @@
 //   grillhouse circuit <ticket> --reprendre [--contexte <texte>]
 //   grillhouse circuit <ticket> --depuis <testwriter|developpeur> --contexte <texte>
 //   grillhouse circuit <ticket> --etendre <paquet>[,<paquet>…] [--contexte <texte>]
+//   grillhouse circuit <ticket> --mecanique [<commande>] --contexte <raison>
 //   grillhouse circuit <ticket> --arreter [--contexte <motif>]
 //   grillhouse circuit <ticket> --recommencer
 //
@@ -19,6 +20,10 @@
 //   component the repository does not hold); so is a ticket whose circuit runs (`--arreter` stops
 //   it), and one stopped on the supervisor's word (`--reprendre`, `--depuis` or `--recommencer`
 //   reopens it).
+// - `--mecanique` answers the stop of the testwriter that finds no behaviour to test: the ticket
+//   goes the short circuit on the same plan, to 1.1 with a command, to the developpeur without one
+//   (its `--contexte`, the reason, is required); refused (exit 2) out of that stop or when the ticket
+//   is already mechanical.
 // - `--reprendre`, `--depuis` and `--etendre` answer the stop of the circuit (the updates of its
 //   workflow, or a new workflow on the state a stopped one gave back), `--arreter` stops it (its
 //   signal); a package of `--etendre` the repository does not hold is refused before, by its name; `--contexte` gives the supervisor's text to each, and `--depuis` requires it.
@@ -48,6 +53,7 @@ import { demarrerLesTickets } from '../tickets/client.js';
 import { USAGE, Usage, lireLAppel, refusDuLancementApresArret, type Appel } from './appel.js';
 import {
   arreterLeCircuit,
+  basculerEnMecanique,
   etendreLeCircuit,
   recommencerLeCircuit,
   reprendreDepuis,
@@ -163,7 +169,9 @@ async function repondre(
     ? await reprendreDepuis(client, racine, ticket, appel.depuis, contexte, ou)
     : appel.etendre
       ? await etendreLeCircuit(client, racine, ticket, appel.etendre, contexte, ou)
-      : await reprendreLeCircuit(client, racine, ticket, contexte, ou);
+      : appel.mecanique
+        ? await basculerEnMecanique(client, racine, ticket, appel.mecanique.commande, contexte, ou)
+        : await reprendreLeCircuit(client, racine, ticket, contexte, ou);
   return `▶ Circuit de ${ticket} : ${dit}.`;
 }
 
@@ -189,7 +197,12 @@ async function principal(argv: string[]): Promise<number> {
   const c = ouvrirLeClient();
   try {
     const repond =
-      appel.reprendre || appel.depuis || appel.etendre || appel.arreter || appel.reporter;
+      appel.reprendre ||
+      appel.depuis ||
+      appel.etendre ||
+      appel.mecanique ||
+      appel.arreter ||
+      appel.reporter;
     let ligne: string;
     if (appel.recommencer) {
       const retiree = await recommencerLeCircuit(

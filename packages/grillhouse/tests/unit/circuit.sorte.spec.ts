@@ -32,7 +32,7 @@ interface Sorte {
   genre: string;
   raison: string | null;
   commande?: string;
-  inchange?: boolean;
+  comportement?: string;
 }
 interface Arret {
   nom: string;
@@ -107,7 +107,7 @@ describe('critère 1 — la fiche de l’explorateur porte une sorte, mécanique
     expect(Object.keys(s.properties)).toEqual(
       expect.arrayContaining(['genre', 'raison', 'commande', 'comportement'])
     );
-    expect(s.properties.comportement.enum).toEqual(['changé', 'inchangé']);
+    expect(s.properties.comportement.enum).toEqual(['changé', 'tests-adaptés', 'inchangé']);
   });
 
   it('a sheet with its sort is read, and the sort with it', () => {
@@ -247,7 +247,7 @@ describe('critère 2 — un ticket mécanique se mène dans sa copie par sa comm
   });
 });
 
-describe('critère 3 — sous « comportement inchangé », la preuve accepte chaque vert et le développeur travaille le lot ; hors de ce cas, une preuve sans rouge passe aux contrôles sans lui', () => {
+describe('critère 3 — sous « comportement tests-adaptés », la preuve accepte chaque vert et le développeur travaille le lot ; hors de ce cas, une preuve sans rouge passe aux contrôles sans lui', () => {
   const compte = { fichiers: 0, rouges: 0, casses: 0, nommes: 0, nonNommes: 0, anciens: 0 };
 
   it('a proof without a red, with no finding open for the developpeur, goes to the checks', () => {
@@ -262,22 +262,22 @@ describe('critère 3 — sous « comportement inchangé », la preuve accepte ch
     );
   });
 
-  it('under « comportement inchangé », a proof without a red goes to the developpeur, who writes the code', () => {
+  it('under « comportement tests-adaptés », a proof without a red goes to the developpeur, who writes the code', () => {
     expect(apresLaPreuve({ rouges: 0, pourLeDeveloppeur: false, inchange: true })).toBe(
       'developpeur'
     );
   });
 
-  it('a plan « comportement inchangé » reads its sort', () => {
+  it('a plan « comportement tests-adaptés » reads its sort', () => {
     expect(
       sorte({
         ...PLAN,
         sorte: { genre: 'comportement', raison: 'un seuil relevé', comportement: 'inchangé' },
       })
-    ).toEqual({ genre: 'comportement', raison: 'un seuil relevé', inchange: true });
+    ).toEqual({ genre: 'comportement', raison: 'un seuil relevé', comportement: 'inchangé' });
   });
 
-  it('under « comportement inchangé », nothing has to turn red and every green passes: only a broken file refuses the proof', () => {
+  it('under « comportement tests-adaptés », nothing has to turn red and every green passes: only a broken file refuses the proof', () => {
     expect(preuveReussie(compte, { inchange: true })).toBe(true);
     expect(preuveReussie(compte, { inchange: false })).toBe(false);
     const vertSansVertAttendu = { ...compte, fichiers: 1, nommes: 1 };
@@ -289,7 +289,7 @@ describe('critère 3 — sous « comportement inchangé », la preuve accepte ch
 });
 
 describe('critère 4 — une sorte absente ou illisible vaut « comportement » : le circuit entier', () => {
-  const comportement = { genre: 'comportement', raison: null, inchange: false };
+  const comportement = { genre: 'comportement', raison: null, comportement: 'changé' };
 
   it('a sheet without its sort is read, and its sort is comportement', () => {
     expect(lireFiche('explorateur', sortie(PLAN))).toMatchObject({ fiche: PLAN });
@@ -324,9 +324,11 @@ describe('critère 4 — une sorte absente ou illisible vaut « comportement » 
 });
 
 describe('critère 5 — la charte, les compétences, l’architecture et le CHANGELOG disent la règle', () => {
-  it('the common charter: a gesture without new behaviour leaves the circuit of code', () => {
+  it('the common charter: a ticket takes the short circuit by a criterion', () => {
     const charte = plat('mods/grillhouse/charte.md');
-    expect(charte).toMatch(/\*\*Un geste sans comportement neuf sort du circuit de code\*\*/);
+    expect(charte).toMatch(
+      /\*\*Un ticket prend le circuit court quand aucun test honnête ne peut rougir avant son lot\*\*/
+    );
     for (const geste of [
       'montée du cadre',
       'documents seuls',
@@ -340,13 +342,13 @@ describe('critère 5 — la charte, les compétences, l’architecture et le CHA
     }
     expect(charte).toMatch(/sans testwriter ni développeur/);
     expect(charte).toMatch(
-      /Le texte qui accompagne un changement de comportement reste dans son lot/
+      /le texte qui accompagne un changement de comportement\s+reste dans son lot/
     );
     expect(charte).toMatch(/Une configuration dont une garde mesure l'effet reste au circuit/);
-    expect(charte).toMatch(/un doute va au circuit/);
-    // Decision 3, amended on 2026-11-01: under « comportement inchangé », the developpeur writes.
+    expect(charte).toMatch(/Le doute va au circuit\s+complet/);
+    // Under « comportement tests-adaptés », the proof accepts every green and keeps the testwriter.
     expect(charte).toMatch(
-      /Sous un plan qui dit « comportement inchangé », la suite existante fait la preuve : elle accepte chaque vert, et le développeur écrit le code/
+      /sous un plan qui dit « comportement tests-adaptés », la\s+suite existante fait la preuve : elle accepte chaque vert/
     );
   });
 

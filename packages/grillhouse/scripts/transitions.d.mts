@@ -155,7 +155,7 @@ export function rapportDuRefus(refus: { rapport: string }): string;
 
 /** The step after the plan of sort <sorte>: the gesture, the developpeur, or the testwriter. */
 export function etapeApresLePlan(e: {
-  sorte?: { genre?: string } | null;
+  sorte?: { genre?: string; comportement?: string } | null;
   sansTests?: boolean;
 }): string;
 

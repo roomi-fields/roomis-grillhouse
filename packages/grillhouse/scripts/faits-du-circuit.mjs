@@ -198,6 +198,14 @@ const optionsDe = reponse => {
       destinataire: ['testwriter', 'developpeur'].includes(reponse.role) ? reponse.role : null,
     };
   }
+  if (reponse.genre === 'mecanique') {
+    // The gesture written by hand goes to the developpeur, who gets the reason as his context.
+    return {
+      mecanique: { commande: reponse.commande ?? null },
+      contexte: contexteDuSuperviseur,
+      destinataire: reponse.commande ? null : 'developpeur',
+    };
+  }
   return { etendre: reponse.paquets, contexte: contexteDuSuperviseur, destinataire: null };
 };
 

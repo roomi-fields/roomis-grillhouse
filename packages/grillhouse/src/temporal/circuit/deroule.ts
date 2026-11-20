@@ -46,6 +46,7 @@ import {
   transition,
   type Transition,
 } from '../../../scripts/transitions.mjs';
+import { reponseMecanique } from '../../../scripts/reponses-du-circuit.mjs';
 import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
 import type { ActivitesDeLaFile, IssueDeLaFile } from '../file/contrat.js';
 
@@ -56,6 +57,7 @@ import {
   ETAPES_DE_REPRISE,
   ETENDRE,
   L_ETAT,
+  MECANIQUE,
   REFUS_DU_VALIDATEUR,
   REPRENDRE,
   resumeDeLEtat,
@@ -128,6 +130,10 @@ const etendre = defineUpdate<
   string,
   [{ paquets: string[]; contexte?: string | null; superviseur?: string | null }]
 >(ETENDRE);
+const mecanique = defineUpdate<
+  string,
+  [{ commande: string | null; contexte?: string | null; superviseur?: string | null }]
+>(MECANIQUE);
 const lEtat = defineQuery<VueDuCircuit>(L_ETAT);
 
 const REPASSER_MS = 10 * 60_000;
@@ -193,6 +199,8 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     rapport: null,
     finale: false,
   };
+  // The state of the stop the run waits on, which `--mecanique` is judged against.
+  let etatDeLArret: { etape: string; raison?: string | null } | null = null;
   // ARRETER while a step plays: its motive, and the scope it cancels.
   let arretDemande: { contexte: string | null } | null = null;
   let enCours: CancellationScope | null = null;
@@ -278,6 +286,32 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         uneQuestionAttend();
         if (!Array.isArray(r?.paquets) || !r.paquets.length || r.paquets.some((p: string) => !p)) {
           refuser('--etendre attend les paquets que le plan gagne.');
+        }
+      },
+    }
+  );
+  // `--mecanique`: the validator holds the rule of the answer (`reponseMecanique`) against the stop
+  // the run waits on and the sort of its ticket; the circuit then turns the sort at its opening.
+  setHandler(
+    mecanique,
+    ({ superviseur: seance, ...r }) => {
+      parLaSeance(seance);
+      return repondreEtDire(
+        { genre: 'mecanique', ...r },
+        r.commande === null ? 'basculé : le développeur écrit' : 'basculé : 1.1 Geste mécanique'
+      );
+    },
+    {
+      validator: (r: { commande: string | null; contexte?: string | null }) => {
+        uneQuestionAttend();
+        const o = reponseMecanique({
+          etat: etatDeLArret,
+          sorte: ouverture?.ticket.sorte as { genre: string } | null,
+          commande: r?.commande ?? null,
+          contexte: r?.contexte ?? null,
+        });
+        if ('refus' in o) {
+          refuser(o.refus);
         }
       },
     }
@@ -548,6 +582,13 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         : (d.arret ?? null);
       // A stop ends its step once written; any other decision ends it with its effects.
       await finir(d.effets, arret ? null : menee);
+      // A sort the decision turns (the reviewer's RENDU of a lot that changes a behaviour) is the
+      // sort of the later steps of the run: the ticket the acts receive holds it.
+      for (const e of (d.effets ?? []) as Effet[]) {
+        if (e.genre === 'sorte') {
+          ticket.sorte = e.sorte;
+        }
+      }
       if (arret) {
         return { arreter: arret, etat: ecrit, menee };
       }
@@ -665,6 +706,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         continue;
       }
       question = publie.question;
+      etatDeLArret = publie.etat;
       reponse = null;
       attente = true;
       publier(rejoue ? 'a-repasser' : reprise !== null ? 'reporte' : 'question', question);

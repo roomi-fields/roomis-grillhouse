@@ -916,7 +916,7 @@ function restaurer(ctx, commit, fichiers) {
 // Whether a proof of the counts <compte> passes: no file of the lot that does not load, no green
 // the sheet names in `portent_le_travail` (`nommes`), and at least one red (of the lot, existing
 // or of a build); the greens the sheet does not name and the ones HEAD holds are accepted but prove
-// nothing. Under a plan « comportement inchangé » (<inchange>), nothing has to turn red and every
+// nothing. Under a plan « comportement tests-adaptés » (<inchange>), nothing has to turn red and every
 // green passes: a proof passes with no file of the lot that does not load, its reds going to the
 // developpeur.
 // The files of the lot that only the night plays (<misDeCote>, `separerLesFichiersDuJour`) are no
@@ -1610,8 +1610,8 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
   // main's (scripts/registre-des-resultats.mjs): a test of the lot the registry holds existed, its
   // green accepted; one absent is new.
   const registre = lireLeRegistre(ctx.copie);
-  // A plan « comportement inchangé »: every green of the lot is expected.
-  const inchange = Boolean(ctx.sorte?.inchange);
+  // A plan « comportement tests-adaptés »: every green of the lot is expected.
+  const inchange = ctx.sorte?.comportement === 'tests-adaptés';
   // The developpeur already ran after the last testwriter: the code is there, no test can turn red.
   const codePresent = codeDejaPresent(ctx);
   for (const { groupe, entier, code, resultats, constructions } of mesure) {
@@ -1703,7 +1703,7 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
           ? []
           : inchange
             ? [
-                'Aucun fichier de test du lot : le plan dit « comportement inchangé », rien à prouver.',
+                'Aucun fichier de test du lot : le plan dit « tests-adaptés », rien à prouver.',
                 '',
               ]
             : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),

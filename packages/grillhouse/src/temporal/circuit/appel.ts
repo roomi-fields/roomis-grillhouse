@@ -5,6 +5,7 @@ import { ETAPES_DE_REPRISE } from './contrat.js';
 export const USAGE =
   'usage: npx grillhouse circuit <ticket> [--reprendre [--contexte <texte>] | ' +
   '--depuis <testwriter|preuve|developpeur|controles|passe-finale> --contexte <texte> | ' +
+  '--mecanique [<commande>] --contexte <raison> | ' +
   '--etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>] | ' +
   '--reporter <heure> [--contexte <motif>] | ' +
   '--recommencer]\n';
@@ -22,6 +23,11 @@ export interface Appel {
   /** The hour its question waits for (`bd update --defer`), the circuit left in its wait. */
   reporter: string | null;
   recommencer: boolean;
+  /**
+   * The answer to a stop of the testwriter that finds no behaviour to test (`--mecanique`): the
+   * command a gesture plays (1.1), or none for a gesture written by hand (the developpeur).
+   */
+  mecanique: { commande: string | null } | null;
   contexte: string | null;
 }
 
@@ -41,6 +47,7 @@ export function lireLAppel(argv: string[]): Appel {
     arreter: false,
     reporter: null,
     recommencer: false,
+    mecanique: null,
     contexte: null,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -58,6 +65,13 @@ export function lireLAppel(argv: string[]): Appel {
       i++;
     } else if (a === '--recommencer') {
       o.recommencer = true;
+    } else if (a === '--mecanique') {
+      // Its command is optional: the next word, unless it is an option.
+      const commande = suivant !== undefined && !suivant.startsWith('-') ? suivant : null;
+      o.mecanique = { commande };
+      if (commande !== null) {
+        i++;
+      }
     } else if (a === '--etendre') {
       const liste = String(suivant ?? '')
         .split(',')
@@ -90,6 +104,17 @@ export function lireLAppel(argv: string[]): Appel {
   }
   if (!ticket) {
     throw new Usage('le ticket manque.');
+  }
+  if (
+    o.mecanique &&
+    (o.reprendre || o.depuis || o.etendre || o.arreter || o.recommencer || o.reporter)
+  ) {
+    throw new Usage(
+      '--mecanique va seule, avec son --contexte : le ticket bascule en circuit court sur le même plan.'
+    );
+  }
+  if (o.mecanique && (o.contexte === null || o.contexte.trim() === '')) {
+    throw new Usage('--mecanique attend son --contexte : la raison du circuit court.');
   }
   if (o.reporter && (o.reprendre || o.depuis || o.etendre || o.arreter || o.recommencer)) {
     throw new Usage('--reporter va seule, son motif en --contexte : le circuit reste en attente.');

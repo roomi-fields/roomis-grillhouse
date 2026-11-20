@@ -32,6 +32,7 @@ import {
   ETENDRE,
   idDuCircuit,
   L_ETAT,
+  MECANIQUE,
   REFUS_DU_VALIDATEUR,
   REPRENDRE,
   type EntreeDuCircuit,
@@ -108,6 +109,9 @@ function refuserApresLaFin(
   if (genre === 'etendre' && raison === 'integre') {
     throw new ReponseRefusee(`--etendre : le lot de ${ticket} est intégré.`);
   }
+  if (genre === 'mecanique' && raison === 'integre') {
+    throw new ReponseRefusee(`--mecanique : le lot de ${ticket} est intégré.`);
+  }
 }
 
 // The update <envoyer> to a workflow that runs: a refusal of its validator (out of a wait, a
@@ -165,7 +169,10 @@ async function repondre(
     } else {
       // Ended without its issue: the state its last memo holds whole, which --reprendre reopens from.
       etatDArret = (d.memo?.ecrit as FinDuCircuit['etat'] | undefined) ?? null;
-      if (reponse.genre === 'etendre' || (reponse.genre === 'reprendre' && !etatDArret)) {
+      if (
+        reponse.genre === 'etendre' ||
+        ((reponse.genre === 'reprendre' || reponse.genre === 'mecanique') && !etatDArret)
+      ) {
         throw new ReponseRefusee(
           `le déroulé de ${ticket} a fini sans son issue (${d.status.name})${etatDArret ? '' : ', aucun état écrit'} : \`${lesReponses(ticket, d.status.name, Boolean(etatDArret))}\` le rouvre.`
         );
@@ -343,6 +350,34 @@ export async function etendreLeCircuit(
         string,
         [{ paquets: string[]; contexte: string | null; superviseur?: string | null }]
       >(ETENDRE, { args: [{ paquets, contexte, ...seanceDe(ou) }] }),
+    ou
+  );
+}
+
+/**
+ * Turns the circuit of <ticket>, stopped on the testwriter's question or blocked word, to the
+ * short circuit on the same plan, its reason <contexte> (`--mecanique`): with a <commande>, the
+ * gesture of 1.1; without, the developpeur writes. Refused out of such a stop, by its name.
+ */
+export async function basculerEnMecanique(
+  client: Client,
+  racine: string,
+  ticket: string,
+  commande: string | null,
+  contexte: string | null,
+  ou: OuReprendre = {}
+): Promise<string> {
+  return repondre(
+    client,
+    racine,
+    ticket,
+    { genre: 'mecanique', commande, contexte },
+    commande === null ? 'basculé : le développeur écrit' : 'basculé : 1.1 Geste mécanique',
+    () =>
+      handle(client, racine, ticket).executeUpdate<
+        string,
+        [{ commande: string | null; contexte: string | null; superviseur?: string | null }]
+      >(MECANIQUE, { args: [{ commande, contexte, ...seanceDe(ou) }] }),
     ou
   );
 }

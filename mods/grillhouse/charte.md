@@ -171,21 +171,40 @@ données (des fichiers qu'un schéma valide, une fiche à un catalogue) ne passe
 de code ; il passe par la validation du projet et sa CI, comme une formule de Homebrew ou un
 type de DefinitelyTyped. Ainsi le circuit garde les tests et le code pour ce qui en a.
 
-**Un geste sans comportement neuf sort du circuit de code** (montée du cadre, documents seuls,
-renommage ou déplacement, montée de dépendance, configuration seule, correction de style, seuil
-relevé), comme les grands changements de Google (Rosie, ClangMR), Renovate, `nx migrate`,
-`eslint --fix` : il passe par sa commande ou son outil, puis la vérification et la relecture du
-relecteur, sans testwriter ni développeur. L'explorateur juge au plan que le ticket est mécanique,
-et l'écrit avec sa raison et sa commande ; un doute va au circuit. Le texte qui accompagne un
-changement de comportement reste dans son lot. Une configuration dont une garde mesure l'effet
-reste au circuit. Sous un plan qui dit « comportement inchangé », la suite existante fait la
-preuve : elle accepte chaque vert, et le développeur écrit le code (une réorganisation a du code),
-puis les contrôles et la relecture. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
-contrôles et à la relecture sans séance du développeur. Ainsi chaque séance du circuit a un lot à
-écrire.
+**Un ticket prend le circuit court quand aucun test honnête ne peut rougir avant son lot**, le
+produit se comportant pareil avant et après : la suite existante, qui reste verte, et la relecture
+font la preuve, comme les grands changements de Google (Rosie, ClangMR), Renovate, `nx migrate`,
+`eslint --fix`, sans test neuf. Un test honnête échoue avant le lot et passe après, sur un
+comportement qu'un test, un autre paquet ou une interface publiée observe. Le doute va au circuit
+complet. L'explorateur juge au plan que le ticket est mécanique, et l'écrit avec sa raison, ce
+qu'il a cherché et sa commande. La liste qui suit donne des exemples du critère, non son
+périmètre : montée du cadre, documents seuls, renommage ou déplacement, montée de dépendance,
+configuration seule (sans garde qui en mesure l'effet), correction de style, seuil relevé,
+commentaires de code seuls, suppression de code sans appelant vivant, fichiers engendrés
+régénérés, textes de messages qu'aucun test ni aucun autre paquet ne lit, typage resserré sans
+changement à l'exécution et dont aucun lecteur du relevé ne casse à la compilation.
+Le circuit court a deux formes : le geste qu'une commande ou un outil joue passe par 1.1 (Geste
+mécanique, l'explorateur joue la commande du plan), sans testwriter ni développeur ; le geste
+écrit à la main (commentaires, code supprimé, texte d'un message, typage resserré) saute le
+testwriter et la preuve du rouge, et une séance du développeur écrit, puis les contrôles et la
+relecture. Reste au circuit complet ce qu'un utilisateur ou un autre paquet observe (une sortie,
+un code de retour, une interface publiée) ; le texte qui accompagne un changement de comportement
+reste dans son lot. Une configuration dont une garde mesure l'effet reste au circuit. Une
+réorganisation qui a du code garde sa règle : sous un plan qui dit « comportement tests-adaptés », la
+suite existante fait la preuve : elle accepte chaque vert, le testwriter garde ses tests, et le
+développeur écrit le code, puis les contrôles et la relecture ; « comportement inchangé » est le
+geste écrit à la main, le développeur seul, sans testwriter ni preuve. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
+contrôles et à la relecture sans séance du développeur.
+La bascule marche dans les deux sens, sur le même plan, ses paquets et ses critères gardés : le
+testwriter qui ne trouve aucun comportement à tester s'arrête (motif `aucun-comportement`), et le
+superviseur répond `--mecanique [<commande>]` (avec sa commande vers 1.1, sans elle vers le
+développeur) ; le relecteur d'un lot du circuit court qui voit un comportement changer le rend
+avec le motif `comportement-change`, et le ticket repart à 2 Tests, sa sorte changée. Cette
+bascule compte parmi les `RENDU` : le troisième arrête toujours le circuit. Ainsi chaque séance
+du circuit a un lot à écrire.
 
 **Un ticket prend l'une de trois voies** : le circuit complet pour un comportement qui change ;
-le circuit court (1.1) pour un geste sans comportement neuf, que l'explorateur juge au plan ; hors
+le circuit court pour un geste sans comportement neuf, que l'explorateur juge au plan par son critère, et que la bascule rend dans les deux sens ; hors
 du circuit, mené en direct par le superviseur, pour un défaut du circuit lui-même (le circuit ne se
 répare pas par lui-même), une correction triviale repérée en analyse (une ligne fautive, un
 mauvais argument), un ticket de données ou le squelette d'un paquet ; il porte l'étiquette `direct`, que la file des

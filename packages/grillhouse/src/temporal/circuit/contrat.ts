@@ -22,6 +22,11 @@ export const ARRETER = 'arreter';
 export const DEPUIS = 'depuis';
 /** The update that extends the plan of a stopped circuit, then resumes it (`--etendre`). */
 export const ETENDRE = 'etendre';
+/**
+ * The update that turns a ticket stopped on the testwriter to the short circuit on the same plan,
+ * then resumes it (`--mecanique`).
+ */
+export const MECANIQUE = 'mecanique';
 /** The type of the failure a validator of an answer refuses it with, which the client names. */
 export const REFUS_DU_VALIDATEUR = 'RefusDuValidateur';
 /** The query of the circuit as it stands. */
@@ -149,6 +154,7 @@ export type Reponse =
   | { genre: 'reprendre'; contexte?: string | null }
   | { genre: 'depuis'; role: (typeof ETAPES_DE_REPRISE)[number]; contexte?: string | null }
   | { genre: 'etendre'; paquets: string[]; contexte?: string | null }
+  | { genre: 'mecanique'; commande: string | null; contexte?: string | null }
   | { genre: 'arreter'; contexte?: string | null };
 
 /** Where a run starts: its step, its memory, its ticket. */

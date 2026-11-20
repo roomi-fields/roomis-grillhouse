@@ -52,7 +52,7 @@ const sortie = (structured?: unknown) =>
 describe('the sheet of each role holds only the fields a reader reads', () => {
   it('the testwriter: its status, its reason or question, the tests of the lot that carry the work, its discoveries', () => {
     expect(champs('testwriter')).toEqual(
-      ['decouvertes', 'piece', 'portent_le_travail', 'question', 'raison', 'statut'].sort()
+      ['decouvertes', 'motif', 'piece', 'portent_le_travail', 'question', 'raison', 'statut'].sort()
     );
     expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
@@ -78,6 +78,7 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
         'constats',
         'decouvertes',
         'ecarts',
+        'motif',
         'piece',
         'question',
         'suivi',
