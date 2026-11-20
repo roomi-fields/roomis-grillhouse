@@ -812,7 +812,7 @@ export function contexte(o) {
   const tmp = `${copie}.travail`;
   mkdirSync(tmp, { recursive: true });
   const baseDuRun = ouvrirBase('circuit');
-  return {
+  const ctx = {
     ...o,
     racine,
     copie,
@@ -832,6 +832,30 @@ export function contexte(o) {
     tmp,
     ports: null,
   };
+  // The extension of the plan a write out of the plan in a file the ticket names asks for.
+  ctx.etendreEnVol = e => etendreEnVol(ctx, e);
+  return ctx;
+}
+
+// The plan of <ctx> extended to the package <paquet>, the home of <chemin>, a file the ticket's
+// description names (<piece>: « ticket, § Architecture » or « ticket, critère N »): the package
+// enters the title in the order of `ordonnerLePlan`, written by bd and said at the ticket with its
+// piece, and kept with the circuit's sheets (`etendus`) as `--etendre` keeps it. The step goes on.
+function etendreEnVol(ctx, { paquet, chemin, piece }) {
+  if (ctx.paquets.includes(paquet)) {
+    return;
+  }
+  const { plan, lu } = planEtendu(ctx, ctx.paquets, [paquet]);
+  const titre = ecrireLePlan(ctx, plan);
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    plan: { empreinte: empreinteDuPlan(leTicket(ctx)), etendus: [paquet] },
+  });
+  commenter(
+    ctx,
+    'plan',
+    `le circuit étend le plan à ${paquet} : ${chemin}, que le ticket nomme (${piece}) : ${titre.split(' — ').at(-1)}${ORDRE_LU[lu]}.`
+  );
 }
 
 // The step of the circuit's state <etat> in words, « 3 Code » (scripts/etapes.mjs), or its
@@ -1319,7 +1343,8 @@ export function publierLArret(ctx, erreur, etat) {
     etape: lieu,
     arret: e.nom,
     ...(lieu === CONTROLES && etat.finale ? { finale: true } : {}),
-    ...(e.resultat ? { resultat: e.resultat } : {}),
+    // The hour a usage limit lifts is no outcome of a pass: the bilan reads none of it.
+    ...(e.resultat && e.nom !== 'limite-d-usage' ? { resultat: e.resultat } : {}),
   });
   const ou = ouDansLeCircuit({ etape: lieu, finale: etat.finale && lieu === CONTROLES });
   commenter(

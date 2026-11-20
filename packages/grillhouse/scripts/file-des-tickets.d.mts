@@ -38,7 +38,12 @@ export function attentesExternes(
  * another project release it. `superviseur`: those of `tenant` that wait for the supervisor.
  */
 export function circuitsDeLaLimite(
-  circuits: Array<{ ticket: string; etape?: string | null; question?: { qui?: string } | null }>,
+  circuits: Array<{
+    ticket: string;
+    etape?: string | null;
+    question?: { qui?: string } | null;
+    report?: object | null;
+  }>,
   tous: TicketDeBeads[],
   o?: { externes?: Record<string, TicketDeBeads[]> }
 ): { tenant: string[]; superviseur: string[] };

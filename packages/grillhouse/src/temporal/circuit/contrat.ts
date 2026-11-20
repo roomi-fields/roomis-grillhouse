@@ -316,7 +316,9 @@ export interface Activites {
       sorte: unknown;
       paquets: string[];
     }
-  ): Promise<{ valeur: unknown; memoire: Memoire; leve?: ArretDecide } & Rendus>;
+  ): Promise<
+    { valeur: unknown; memoire: Memoire; leve?: ArretDecide; paquets?: string[] } & Rendus
+  >;
   /**
    * The effects <effets> of a decision, in their order (a line at the ticket, a gesture, a report),
    * then the end of its step <menee> when it ends there.

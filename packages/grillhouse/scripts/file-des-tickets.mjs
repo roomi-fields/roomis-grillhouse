@@ -166,6 +166,11 @@ export function circuitsDeLaLimite(circuits, tous, { externes } = {}) {
     if (t && (t.status === 'deferred' || attendDeLAutreProjet(t, externes).length > 0)) {
       continue;
     }
+    // A circuit reported for the usage limit (its kept report) waits for an hour, as a ticket
+    // deferred does: it releases its place.
+    if (c.report) {
+      continue;
+    }
     if (c.question) {
       if (c.question.qui === 'responsable') {
         continue;

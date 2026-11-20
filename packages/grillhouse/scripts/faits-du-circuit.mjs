@@ -97,7 +97,8 @@ import {
 import { avancementDeLaCI } from './avancement.mjs';
 
 import { ecrireLEffet } from './effets.mjs';
-import { Arret, geste } from './ticket-du-circuit.mjs';
+import { Arret, commenter, geste } from './ticket-du-circuit.mjs';
+import { arretDeLaLimiteDUsage } from './transitions.mjs';
 
 // What the workflow keeps of the circuit's memory besides the decisions': the session a relaunch
 // resumes, the rank of arrival, the sort of the ticket, what the opening reads of the project's
@@ -289,7 +290,9 @@ const ACTES = {
       const avec = fait === 'seance' ? { ...parametres, precedent, annulation } : parametres;
       try {
         const valeur = await lireLeFait(ctx, fait, avec, faits);
-        return { valeur: valeur ?? null, memoire: laMemoire(ctx) };
+        // The plan as the fact leaves it: a session may extend it (a write in a file the ticket
+        // names), which the workflow keeps for the acts after.
+        return { valeur: valeur ?? null, memoire: laMemoire(ctx), paquets: ctx.paquets };
       } catch (e) {
         if (!(e instanceof Arret)) {
           throw e;
@@ -298,6 +301,7 @@ const ACTES = {
         return {
           leve: { nom, rapport, rouges, motif, resultat, piece, question, qui, etape },
           memoire: laMemoire(ctx),
+          paquets: ctx.paquets,
         };
       }
     });
@@ -317,6 +321,14 @@ const ACTES = {
     return rendre(ctx, () => {
       const a = publierLArret(ctx, erreurDe(ctx, arret), etat);
       finirLEtape(ctx, menee ?? null);
+      if (a.nom === 'limite-d-usage' && !aMonter) {
+        // The usage limit is no question: the circuit reports itself (the workflow waits for the
+        // hour the usage returns), the report said at the ticket.
+        const l = arretDeLaLimiteDUsage(a.etat, arret.leve.resultat);
+        commenter(ctx, 'limite-d-usage', l.commentaire);
+        aLaFin(ctx, l.code);
+        return { code: l.code, nom: l.nom, question: null, etat: l.etat };
+      }
       if (a.nom === 'a-repasser' && !aMonter) {
         geste(ctx, 'a-repasser');
         aLaFin(ctx, a.code);

@@ -94,6 +94,18 @@ export function arretSansActe(
   etat: EtatDeLaTransition & { raison: string };
 };
 
+/** The stop « limite-d-usage » at <etat> of a session the usage limit cuts: no question, the comment of the report. */
+export function arretDeLaLimiteDUsage(
+  etat: EtatDeLaTransition,
+  limite: { reprise: number; lisible: boolean }
+): {
+  code: number;
+  nom: 'limite-d-usage';
+  question: null;
+  etat: EtatDeLaTransition & { raison: string };
+  commentaire: string;
+};
+
 /** The step of a run of the workflow from its opening to its plan passed: no step of the table. */
 export const AU_PLAN: string;
 

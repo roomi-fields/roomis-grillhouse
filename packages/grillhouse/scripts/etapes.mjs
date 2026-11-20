@@ -142,6 +142,9 @@ export const ARRETS = {
   references: 23,
   'hors-plan': 24,
   inattendu: 25,
+  // A session the usage limit stops: the circuit reports itself to the hour the usage returns and
+  // resumes the step, no question gone up.
+  'limite-d-usage': 26,
   'a-repasser': A_REPASSER,
 };
 
@@ -298,6 +301,8 @@ export const MONTEES = Object.fromEntries(
       'La séance écrit hors du plan du ticket : le plan s’étend-il à ce paquet (`--etendre`), ou l’écriture est-elle refusée (`--reprendre` avec son contexte) ?',
     inattendu:
       'Une exception que le circuit ne prévoit pas (une lecture de la copie, une commande, un fichier illisible) l’a arrêté : sa cause se lève-t-elle, pour reprendre (`--reprendre`, qui écrit de nouveau cet arrêt si la cause reste), ou le circuit s’arrête-t-il ?',
+    'limite-d-usage':
+      'La limite d’usage arrête la séance : le circuit se reporte seul à l’heure de reprise et reprend l’étape, il ne monte que si le superviseur l’a interrompu ; reprendre avant l’heure, ou arrêter le circuit ?',
   }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])
 );
 

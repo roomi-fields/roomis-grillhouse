@@ -103,6 +103,20 @@ describe('la limite des circuits d’un projet', () => {
     expect(r.tenant).toEqual(['d-1']);
   });
 
+  it('un circuit reporté pour la limite d’usage rend sa place, que le même circuit sans report garde', () => {
+    const tous = [T('d-1'), T('d-2'), T('d-3')];
+    const report = { raison: 'limite-d-usage', reprise: Date.UTC(2030, 0, 1, 2) };
+    const sansReport = circuitsDeLaLimite([enQuestion('d-1', 'superviseur')], tous);
+    expect(sansReport.tenant).toEqual(['d-1']);
+    expect(sansReport.superviseur).toEqual(['d-1']);
+    const r = circuitsDeLaLimite(
+      [{ ...enQuestion('d-1', 'superviseur'), report }, { ...actif('d-2'), report }, actif('d-3')],
+      tous
+    );
+    expect(r.tenant).toEqual(['d-3']);
+    expect(r.superviseur).toEqual([]);
+  });
+
   it('chaque circuit se juge à lui : le mélange rend les tenants triés et les attentes du superviseur', () => {
     const tous = [T('d-1'), T('d-2'), T('d-3'), T('d-4'), T('d-5')];
     const r = circuitsDeLaLimite(

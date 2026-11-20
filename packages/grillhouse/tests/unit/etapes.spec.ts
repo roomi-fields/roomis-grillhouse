@@ -217,6 +217,7 @@ describe('the stops of the circuit, each with its exit code', () => {
       references: 23,
       'hors-plan': 24,
       inattendu: 25,
+      'limite-d-usage': 26,
       'a-repasser': 75,
     });
   });

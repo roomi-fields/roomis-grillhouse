@@ -48,6 +48,8 @@ import {
   nomsDe,
 } from './ticket-du-circuit.mjs';
 import { emettre } from './effets.mjs';
+import { fichierNommeAuTicket } from './fichiers-nommes.mjs';
+import { limiteDUsage } from './limite-d-usage.mjs';
 import { AttenteDeLaMachine } from './attente-de-la-machine.mjs';
 
 // The number of the next files of a session in the working directory <dossier> of the ticket: one
@@ -854,7 +856,9 @@ function ecritureRangee(rang) {
   return existsSync(rang.horsPlanFait) ? JSON.parse(lire(rang.horsPlanFait)) : null;
 }
 
-// The launch <r> of a session of <role>, or the Arret it is: a session its lock stopped on a
+// The launch <r> of a session of <role>: `{ etendre: { paquet, chemin, piece } }` for a write out
+// of the plan in a file the ticket names (the plan extends, the session resumes), nothing for a
+// session that went its way, or the Arret it is: a session its lock stopped on a
 // write out of the plan (« hors-plan », the write as its piece), a motionless session
 // (« bloqué »), a launch that stops before its session (« lancement »).
 export function seanceLancee(ctx, role, r) {
@@ -862,6 +866,22 @@ export function seanceLancee(ctx, role, r) {
     // The lock's structured write: the first line of the report names the path and its package;
     // the question carries the command (none for the root, which no package holds).
     const ecriture = r.ecriture;
+    // A file the ticket's description names (its « Architecture » or a criterion) extends the plan
+    // to its package without a stop; the root, and the documents the responsable owns, still go up.
+    // A ticket that does not read names nothing: the stop goes up as it did.
+    let nomme = null;
+    if (ecriture && !ecriture.racine && typeof ctx.bd === 'function') {
+      try {
+        nomme = fichierNommeAuTicket(leTicket(ctx).description, ecriture.chemin);
+      } catch {
+        nomme = null;
+      }
+    }
+    if (nomme) {
+      return {
+        etendre: { paquet: ecriture.paquet, chemin: ecriture.chemin, piece: nomme.piece },
+      };
+    }
     const nom = ecriture ? (ecriture.racine ? 'la racine du dépôt' : ecriture.paquet) : null;
     const dit = ecriture ? `${ecriture.chemin} est dans ${nom}` : null;
     const question = !ecriture
@@ -896,6 +916,24 @@ export function seanceLancee(ctx, role, r) {
       'lancement',
       `Le lanceur s'arrête avant la séance du ${role} (code ${r.code}).\n${r.erreur.trim()}\n\n${fin(lire(ctx.journal), 20)}`
     );
+  }
+}
+
+// The size in bytes of the ticket's log, 0 without it: where a launch's own lines begin.
+function tailleDuJournal(ctx) {
+  try {
+    return statSync(ctx.journal).size;
+  } catch {
+    return 0;
+  }
+}
+
+// The lines the ticket's log gained since <depuis> bytes: the end of the log the launch wrote.
+function finDuJournal(ctx, depuis) {
+  try {
+    return readFileSync(ctx.journal).subarray(depuis).toString('utf8');
+  } catch {
+    return '';
   }
 }
 
@@ -969,17 +1007,47 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
     }
     reste.signeDeVie?.(vie);
   };
+  // The instruction of a resumption after the plan extended to a package the ticket names: the
+  // session goes on where its lock stopped it, and the launch is neither a first nor a second.
+  let etendu = null;
   for (let essai = premier; essai <= 2; essai++) {
     const courte = () => consigne({ ticket: ctx.ticket, sujet: ctx.sujet, erreur: lu.erreur }, 2);
-    const r = await lancer(ctx, role, essai === 1 || !lu ? texte : courte(), {
-      ...reste,
-      precedent: derniere,
-      evenement,
-      relance: essai,
-      signeDeVie,
-      ...ouvrir(essai === 1 ? premiere : 'reprend'),
-    });
-    seanceLancee(ctx, role, r);
+    const avantLeJournal = tailleDuJournal(ctx);
+    const r = await lancer(
+      ctx,
+      role,
+      etendu ?? (essai === 1 || !lu ? texte : courte()),
+      {
+        ...reste,
+        precedent: derniere,
+        evenement,
+        relance: essai,
+        signeDeVie,
+        ...ouvrir(etendu || essai > 1 ? 'reprend' : premiere),
+      }
+    );
+    etendu = null;
+    // The usage limit stops a session that does not end on its own: neither a sheet missing nor a
+    // sheet to resume, the circuit waits for the hour the usage returns (« limite-d-usage »).
+    const limite =
+      !r.horsPlan && r.seance !== 0
+        ? limiteDUsage({ resultat: r.sortie, journal: finDuJournal(ctx, avantLeJournal) })
+        : null;
+    if (limite) {
+      throw new Arret(
+        'limite-d-usage',
+        `La séance du ${nomDuRole(role)} est arrêtée par la limite d'usage ; elle reprend ${limite.lisible ? `à l'heure que la limite donne (${new Date(limite.reprise).toISOString()})` : "dans une heure, la limite ne donne aucune heure lisible"}.`,
+        { resultat: limite }
+      );
+    }
+    const extension =seanceLancee(ctx, role, r)?.etendre;
+    if (extension) {
+      ctx.etendreEnVol(extension);
+      courante = r.id ?? courante;
+      etendu = `Le plan du ticket s'étend à ${extension.paquet} (${extension.piece}) : le crochet qui t'a arrêté sur ${extension.chemin} le laisse maintenant passer. Reprends ta tâche là où il t'a arrêté.`;
+      essai--;
+      continue;
+    }
     courante = r.id ?? courante;
     if (repli && r.seance !== 0) {
       return null;

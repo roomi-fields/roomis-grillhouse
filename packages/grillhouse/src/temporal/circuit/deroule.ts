@@ -532,6 +532,10 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
           return avantLArret(inattendu(e));
         }
         memoire = { ...memoire, ...r.memoire };
+        // The plan a session extended to a package the ticket names, kept for the acts after.
+        if (r.paquets) {
+          ticket.paquets = r.paquets;
+        }
         if (r.leve) {
           return avantLArret({ leve: r.leve });
         }
@@ -566,30 +570,37 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   // the memo alone (scripts/transitions.mjs `arretSansActe`); `rejoue`, a « a-repasser » played again.
   const ecrire = async (
     issue: Exclude<Issue, { fin: true } | { continuer: Ouverture }>
-  ): Promise<{ publie: ArretPublie; rejoue: boolean; place: boolean }> => {
+  ): Promise<{ publie: ArretPublie; rejoue: boolean; place: boolean; reprise: number | null }> => {
     if ('arret' in issue) {
-      return { publie: issue.arret, rejoue: false, place: false };
+      return { publie: issue.arret, rejoue: false, place: false, reprise: null };
     }
     const aRepasser = nomDe(issue.arreter) === 'a-repasser';
     const place = aRepasser && issue.arreter.attente === true;
     const rejoue = aRepasser && (place || repasses < repassesMax);
+    // A session the usage limit stops: the circuit reports itself to the hour the usage returns
+    // (`resultat.reprise`, in ms), no question gone up.
+    const reprise =
+      nomDe(issue.arreter) === 'limite-d-usage'
+        ? ((issue.arreter.leve as { resultat?: { reprise?: number } }).resultat?.reprise ?? null)
+        : null;
     try {
       const publie = await actes.publierLArret({
         ...lieu(),
         arret: issue.arreter,
         etat: issue.etat,
-        monter: !rejoue,
+        monter: !rejoue && reprise === null,
         paquets: ouverture?.ticket.paquets ?? null,
         menee: issue.menee,
       });
       await jouerLesEffets(publie.effets);
-      return { publie, rejoue, place };
+      return { publie, rejoue, place, reprise };
     } catch (e) {
       const { message } = inattendu(e).inattendu as { message: string };
       return {
         publie: arretSansActe(issue.etat, message, `le déroulé ${workflowInfo().workflowId}`),
         rejoue: false,
         place: false,
+        reprise: null,
       };
     }
   };
@@ -644,7 +655,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
           suite = { arreter: inattendu(e), etat: a, menee: null };
         }
       }
-      const { publie, rejoue, place } = await ecrire(suite);
+      const { publie, rejoue, place, reprise } = await ecrire(suite);
       // A stop whose question waits is a pause: the circuit gives its place of a circuit back
       // (the queue no longer counts it), its copy measured once.
       const enPause = !place && !rejoue && !arretDemande;
@@ -656,7 +667,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       question = publie.question;
       reponse = null;
       attente = true;
-      publier(rejoue ? 'a-repasser' : 'question', question);
+      publier(rejoue ? 'a-repasser' : reprise !== null ? 'reporte' : 'question', question);
       if (place) {
         // A wait for a place plays again at once: the wait itself paces it.
         repondre({ genre: 'reprendre', contexte: null });
@@ -673,8 +684,20 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
             ticket: entree.ticket,
           });
         }
-        await condition(() => reponse !== null);
-        repasses = 0;
+        if (reprise !== null) {
+          // Reported for the usage limit: the circuit keeps its reason and the hour in the memo
+          // (the board reads it), waits for that hour, without bound (the limit is external, each
+          // report waits for the real hour), and resumes the step; the supervisor may answer first.
+          upsertMemo({ report: { raison: 'limite-d-usage', reprise } });
+          const attenteMs = Math.max(0, reprise - Date.now());
+          if (!(await condition(() => reponse !== null, attenteMs))) {
+            repondre({ genre: 'reprendre', contexte: null });
+          }
+          upsertMemo({ report: null });
+        } else {
+          await condition(() => reponse !== null);
+          repasses = 0;
+        }
       }
       attente = false;
       const r = reponse as Reponse | null;

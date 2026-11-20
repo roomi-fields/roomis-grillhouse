@@ -214,6 +214,7 @@ export const TONS = Object.freeze({
   fermes: 'discret',
   // A circuit, a pass, a wait.
   attendUnePlace: 'discret',
+  reporteLimite: 'discret',
   attendUnePart: 'discret',
   attendLeDisque: 'discret',
   attendLaCI: 'discret',
@@ -1735,6 +1736,16 @@ export function etatsDAgents(t) {
   const etatDuCircuit = (c, temoin) => {
     if (temoin?.fige) {
       return ['fige', ''];
+    }
+    // A circuit that waits for the usage limit to lift (its kept report): its reason and the hour
+    // the usage returns, local time, apart from a ticket a person deferred.
+    if (c.report?.raison === 'limite-d-usage') {
+      const heure = new Date(c.report.reprise).toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      });
+      return ['reporteLimite', `limite d'usage · reprise ${heure}`];
     }
     if (!c.vivant) {
       const qui = enQuestion(c);

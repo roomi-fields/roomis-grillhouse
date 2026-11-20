@@ -1735,7 +1735,22 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     une fois l'arrêt écrit. Un acte qui échoue (l'ouverture, la préparation d'une passe, un fait, les
     effets, la fin, l'arrêt sur le mot du superviseur) est l'arrêt « inattendu » à l'étape où il est
     tombé, sa réponse attendue ; quand l'acte de l'arrêt
-    échoue lui aussi, l'arrêt tient dans le seul mémo (`arretSansActe` de `scripts/transitions.mjs`). Un « a-repasser » (75) se rejoue seul après
+    échoue lui aussi, l'arrêt tient dans le seul mémo (`arretSansActe` de `scripts/transitions.mjs`).
+    Le circuit ne monte que ce qu'aucune règle ne tranche (charte, « Le circuit fait les gestes ») :
+    une écriture hors du plan dans un fichier que la description du ticket nomme (son chemin écrit
+    depuis la racine, entre accents graves ou nu, dans la section « Architecture » ou un critère
+    d'acceptation, `fichierNommeAuTicket` de `scripts/fichiers-nommes.mjs`) étend le plan à son
+    paquet sans arrêt, comme `--etendre`, l'extension écrite au ticket avec sa pièce (« ticket,
+    § Architecture » ou « ticket, critère N ») et la séance reprise ; un fichier nommé que tient la
+    racine, un fichier que le ticket ne nomme pas, et un `ARCHITECTURE.md`, un `CADRE.md` ou un
+    `INTERFACE.md` (qui reviennent au responsable) montent comme avant. Une séance que la limite
+    d'usage arrête (« limit · resets <heure> (<fuseau>) » au résultat de `claude -p` ou à la fin de
+    son journal, `limiteDUsage` de `scripts/limite-d-usage.mjs`) n'est pas une séance sans fiche :
+    le circuit se reporte seul à l'heure de reprise (une heure plus tard quand elle ne se lit pas),
+    la dit au ticket, rend sa place de circuit comme tout report à une heure et reprend l'étape sur
+    la copie telle que la séance coupée l'a laissée ; le mémo garde le report (`report`,
+    `{ raison: 'limite-d-usage', reprise }`), que le tableau lit ; la limite ne compte dans aucune des
+    deux séances sans fiche, et les limites successives n'ont aucune borne. Un « a-repasser » (75) se rejoue seul après
     10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Un « a-repasser » des
     contrôles qui est une attente de place, de part de la machine ou de place disque à sa borne
     (`attente` des contrôles) se rejoue tout de suite, sans limite et sans compter, et ne monte

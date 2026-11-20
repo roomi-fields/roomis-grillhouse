@@ -401,6 +401,11 @@ export interface CircuitLu {
   integre: boolean;
   /** The time its workflow ended (ms), null while it runs. */
   fin: number | null;
+  /**
+   * The report the circuit keeps while it waits for the usage limit to lift (`raison`
+   * « limite-d-usage », `reprise` the hour the usage returns, in ms), null otherwise.
+   */
+  report: { raison: string; reprise: number } | null;
 }
 
 /**
@@ -446,6 +451,7 @@ export async function lireLesCircuits(
       numero?: number;
       etat?: ResumeDeLEtat;
       ecrit?: unknown;
+      report?: { raison: string; reprise: number } | null;
     };
     const etat = memo.etat ?? null;
     const integre = memo.etape === 'integre' || etat?.etape === 'integre';
@@ -482,6 +488,7 @@ export async function lireLesCircuits(
       numero: memo.numero ?? 0,
       integre,
       fin: w.closeTime ? w.closeTime.getTime() : null,
+      report: memo.report ?? null,
     });
   }
   return out.sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'));

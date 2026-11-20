@@ -284,6 +284,18 @@ export const arretSansActe = (etat, message, ou) => ({
   etat: { ...etat, raison: 'inattendu' },
 });
 
+// The stop « limite-d-usage » of a session the usage limit cuts, at the step <etat>: no question
+// (the circuit reports itself to <limite>.reprise, the hour the usage returns, or one hour on when
+// <limite>.lisible is false), the comment the act writes at the ticket, and the state of the step
+// with its reason, which the memo of the circuit keeps for the board.
+export const arretDeLaLimiteDUsage = (etat, { reprise, lisible }) => ({
+  code: ARRETS['limite-d-usage'],
+  nom: 'limite-d-usage',
+  question: null,
+  etat: { ...etat, raison: 'limite-d-usage' },
+  commentaire: `reporté pour la limite d'usage : reprise de l'étape à ${new Date(reprise).toISOString()}${lisible ? '' : " (aucune heure lisible : une heure d'attente)"}.`,
+});
+
 // The step of a run of the workflow of a ticket from its opening to its plan passed
 // (src/temporal/circuit/deroule.ts): no step of the table of transitions.
 export const AU_PLAN = 'plan';

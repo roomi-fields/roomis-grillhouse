@@ -119,10 +119,10 @@ export async function circuitsEnPause(e: Entree<'circuitsEnPause'>): Promise<str
       query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
       pageSize: PAGE,
     })) {
-      const memo = (w.memo ?? {}) as { question?: unknown; etape?: string };
+      const memo = (w.memo ?? {}) as { question?: unknown; etape?: string; report?: unknown };
       if (
         w.workflowId.startsWith(prefixe) &&
-        (memo.question || memo.etape === EN_ATTENTE_DE_PLACE)
+        (memo.question || memo.report || memo.etape === EN_ATTENTE_DE_PLACE)
       ) {
         enPause.push(w.workflowId.slice(prefixe.length));
       }
@@ -138,19 +138,28 @@ export async function circuitsDeLaLimite(
 ): Promise<Sortie<'circuitsDeLaLimite'>> {
   const prefixe = idDuCircuit(e.racine, '');
   const c = ouvrirLeClient();
-  const circuits: { ticket: string; etape: string | null; question: { qui?: string } | null }[] =
-    [];
+  const circuits: {
+    ticket: string;
+    etape: string | null;
+    question: { qui?: string } | null;
+    report: object | null;
+  }[] = [];
   try {
     for await (const w of c.client.workflow.list({
       query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
       pageSize: PAGE,
     })) {
       if (w.workflowId.startsWith(prefixe)) {
-        const memo = (w.memo ?? {}) as { question?: { qui?: string } | null; etape?: string };
+        const memo = (w.memo ?? {}) as {
+          question?: { qui?: string } | null;
+          etape?: string;
+          report?: object | null;
+        };
         circuits.push({
           ticket: w.workflowId.slice(prefixe.length),
           etape: memo.etape ?? null,
           question: memo.question ?? null,
+          report: memo.report ?? null,
         });
       }
     }
