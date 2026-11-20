@@ -30,6 +30,9 @@ export interface Transition {
   usage?: string;
 }
 
+/** What the circuit keeps between steps, which the decisions read and change. */
+export const MEMOIRE: string[];
+
 /** The decision of the step of <entree>, or the next fact it needs. */
 export function transition(entree: EntreeDeLaTransition): Transition;
 

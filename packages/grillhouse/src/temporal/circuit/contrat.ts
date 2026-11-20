@@ -5,7 +5,7 @@
 // The workflow, its activities and their clients share it without importing each other.
 
 import type { DelaisDeLaCI } from '../file/contrat.js';
-import type { EtatDuPlan } from '../../../scripts/transitions.mjs';
+import { MEMOIRE, type EtatDuPlan } from '../../../scripts/transitions.mjs';
 
 /** The workflow's type. */
 export const CIRCUIT = 'circuitDuTicket';
@@ -60,7 +60,7 @@ interface ConflitDeLAvance {
   rapport: string;
 }
 
-/** What the circuit keeps between steps (`MEMOIRE` of scripts/circuit.mjs, and its session to resume). */
+/** What the circuit keeps between steps (`MEMOIRE` of scripts/transitions.mjs, and its session to resume). */
 export type Memoire = Record<string, unknown>;
 
 /** The ticket as the decisions read it. */
@@ -137,6 +137,83 @@ export function resumeDeLEtat(e: unknown, auPlan = false): ResumeDeLEtat {
  * and gives it back when it stops on the supervisor's word, so that his answer reopens from it.
  */
 export type EtatEcrit = Record<string, unknown>;
+
+/**
+ * The fields of the written state a resumption rereads besides the memory of the circuit
+ * (`MEMOIRE`, which the opening reads back): its step, its stop, its question, its rank and the
+ * session to resume.
+ */
+const CHAMPS_DE_L_ARRET = [
+  'etape',
+  'tentative',
+  'code',
+  'raison',
+  'finale',
+  'boucles',
+  'question',
+  'questionnement',
+  'mene',
+  'rang',
+  'paquets',
+  'relanceSurLeRefus',
+  'seanceReprise',
+] as const;
+
+const CHAMPS_DE_LA_REPRISE: readonly string[] = [...CHAMPS_DE_L_ARRET, ...MEMOIRE];
+
+/** The longest report kept in the memo, in characters (the whole report stays at the ticket). */
+const RAPPORT_DU_MEMO = 400;
+
+/** The most a kept field weighs in the memo, in characters of its JSON; a longer list keeps its head, any other value is left out. */
+const CHAMP_DU_MEMO = 2000;
+
+function borne(valeur: unknown): unknown {
+  if (JSON.stringify(valeur ?? null).length <= CHAMP_DU_MEMO) {
+    return valeur;
+  }
+  if (!Array.isArray(valeur)) {
+    return undefined;
+  }
+  const tete: unknown[] = [];
+  let poids = 2;
+  for (const element of valeur) {
+    poids += JSON.stringify(element ?? null).length + 1;
+    if (poids > CHAMP_DU_MEMO) {
+      break;
+    }
+    tete.push(element);
+  }
+  return tete.length > 0 ? tete : undefined;
+}
+
+/**
+ * What the memo of a circuit keeps of the state <etat> the run wrote: only what a resumption
+ * rereads (its stop and what the circuit keeps between steps, each field bounded), the head of the
+ * report, never the whole report, the whole findings or the journals; so the memo stays small
+ * whatever the length of the ticket (Temporal asks for small memos, the heavy content staying in
+ * its own store).
+ */
+export function etatPourLeMemo(etat: unknown): EtatEcrit {
+  const x = (etat ?? {}) as Record<string, unknown>;
+  const gardes: EtatEcrit = {};
+  for (const champ of CHAMPS_DE_LA_REPRISE) {
+    if (champ in x) {
+      const valeur = borne(x[champ]);
+      if (valeur !== undefined) {
+        gardes[champ] = valeur;
+      }
+    }
+  }
+  if (typeof x.rapport === 'string') {
+    gardes.rapport = x.rapport.slice(0, RAPPORT_DU_MEMO);
+  }
+  return gardes;
+}
+
+/** The state a resumption rereads from the memo <memo> of an ended run (whole or reduced, one path); null when it holds none. */
+export function etatDeLaReprise(memo: Record<string, unknown> | undefined): EtatEcrit | null {
+  return (memo?.ecrit as EtatEcrit | null | undefined) ?? null;
+}
 
 /** A stop a decision returns (scripts/transitions.mjs), or an exception fallen in an activity. */
 export type ArretDecide = Record<string, unknown> & { nom?: string };

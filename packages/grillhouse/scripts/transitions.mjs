@@ -32,6 +32,28 @@
 import { ARRETS, boucle, RESPONSABLE, SUITE } from './etapes.mjs';
 import { attribuerLeRouge } from './reprise.mjs';
 
+// What the circuit keeps between steps, which the decisions read and change: the one list the
+// opening reads back (scripts/faits-du-circuit.mjs `GARDEE`) and the memo of a circuit keeps
+// (src/temporal/circuit/contrat.ts `etatPourLeMemo`).
+export const MEMOIRE = [
+  'controlesRouges',
+  'renvoiAuTestwriter',
+  'refus',
+  'rienALivrer',
+  'regeneration',
+  'regenereSur',
+  'aRegenerer',
+  'verifie',
+  'toursDeLaPasseFinale',
+  'constats',
+  'verts',
+  'reprise',
+  'relancesTestwriter',
+  'conflitsRelances',
+  'fichiersDuConflit',
+  'retourDuConflit',
+];
+
 // The steps of the circuit's state, read from the list of the steps.
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
 export const [

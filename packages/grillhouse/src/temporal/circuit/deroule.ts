@@ -61,6 +61,7 @@ import {
   REFUS_DU_VALIDATEUR,
   REPRENDRE,
   resumeDeLEtat,
+  etatPourLeMemo,
   EN_ATTENTE_DE_PLACE,
   type Activites,
   type ActivitesDeLaPause,
@@ -396,21 +397,24 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   // The effects an act gave back, played one by one, each in an activity whose id the workflow
   // sets (its rank in the run, then its sort), the key of its writing (../acte.ts
   // `cleDeLActivite`); consecutive states are one (`effetsAJouer`). The state is no writing out of
-  // the workflow: it holds it (`etatEcrit`), and the memo holds it whole (`ecrit`), which
+  // the workflow: it holds it (`etatEcrit`), and the memo holds its reduction (`ecrit`, `etatPourLeMemo`), which
   // `--reprendre` reopens from when the workflow ends without its issue (./client.ts), and its
   // summary, which the board reads (`resumeDeLEtat`). ARRETER does not cut them: they are written to their end, out of the scope
   // it cancels, and the run stops at its next act.
   let effetsJoues = 0;
   // The run at its plan, from its opening to its plan passed: the summary it publishes is the step
   // `plan` (`resumeDeLEtat`), the state its plan writes (the testwriter's, where a resumption
-  // starts) kept whole in `ecrit`.
+  // starts) kept in `ecrit`, reduced.
   let auPlan = false;
   const jouerLesEffets = (effets: Effet[] | undefined) =>
     CancellationScope.nonCancellable(async () => {
       for (const effet of effetsAJouer(effets ?? [])) {
         if (effet.genre === 'etat') {
           etatEcrit = effet.etat as EtatEcrit;
-          upsertMemo({ etat: resumeDeLEtat(effet.etat, auPlan), ecrit: effet.etat });
+          upsertMemo({
+            etat: resumeDeLEtat(effet.etat, auPlan),
+            ecrit: etatPourLeMemo(effet.etat),
+          });
           continue;
         }
         effetsJoues += 1;

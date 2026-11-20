@@ -30,6 +30,7 @@ import {
   CIRCUIT,
   DEPUIS,
   ETENDRE,
+  etatDeLaReprise,
   idDuCircuit,
   L_ETAT,
   MECANIQUE,
@@ -167,8 +168,8 @@ async function repondre(
       refuserApresLaFin(reponse.genre, fin.raison, ticket);
       etatDArret = fin.raison === 'arrete' ? (fin.etat ?? null) : null;
     } else {
-      // Ended without its issue: the state its last memo holds whole, which --reprendre reopens from.
-      etatDArret = (d.memo?.ecrit as FinDuCircuit['etat'] | undefined) ?? null;
+      // Ended without its issue: the state its last memo holds, which --reprendre reopens from.
+      etatDArret = etatDeLaReprise(d.memo) as FinDuCircuit['etat'] | null;
       if (
         reponse.genre === 'etendre' ||
         ((reponse.genre === 'reprendre' || reponse.genre === 'mecanique') && !etatDArret)

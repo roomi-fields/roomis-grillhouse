@@ -73,7 +73,6 @@ import {
   ecrireEtat,
   finirLOuverture,
   lireLeFait,
-  MEMOIRE,
   monter,
   ouvrirJusquAuPlan,
   publierLArret,
@@ -98,7 +97,7 @@ import { avancementDeLaCI } from './avancement.mjs';
 
 import { ecrireLEffet } from './effets.mjs';
 import { Arret, commenter, geste } from './ticket-du-circuit.mjs';
-import { arretDeLaLimiteDUsage } from './transitions.mjs';
+import { arretDeLaLimiteDUsage, MEMOIRE } from './transitions.mjs';
 
 // What the workflow keeps of the circuit's memory besides the decisions': the session a relaunch
 // resumes, the rank of arrival, the sort of the ticket, what the opening reads of the project's

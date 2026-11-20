@@ -772,7 +772,11 @@ composants, un composant inconnu, `scripts/depart-du-ticket.mjs`) est refusé à
 nom ; `--arreter` ne lit ni le titre ni l'architecture, et refuse un lot intégré (« le lot de
 <ticket> est intégré »). Un déroulé fini sans son issue (terminé de force, en échec), pendant une
 question ou en plein travail, se rouvre par `--reprendre`, depuis l'état que son dernier mémo
-garde entier, ou par `--depuis` ; `--etendre` et `--arreter` y sont refusés, et `--depuis` seul le
+garde, réduit à ce que la reprise relit (étape, tentative, arrêt, boucles, rang, paquets, la
+mémoire du circuit (`MEMOIRE`, chaque champ borné à 2 Ko, une liste gardant sa tête : les constats
+ouverts, les verts), tête du rapport : jamais le rapport entier ni les journaux, pour que le mémo reste sous
+quelques Ko quel que soit le ticket ; un mémo ancien qui garde l'état entier se lit par le même
+chemin, `etatDeLaReprise`), ou par `--depuis` ; `--etendre` et `--arreter` y sont refusés, et `--depuis` seul le
 rouvre quand aucun état n'est écrit. Les réponses que le client accepte, selon le statut du
 déroulé et l'état écrit, ont une seule règle (`lesReponses` de
 `scripts/reponses-du-circuit.mjs`), que le client, l'ouverture, l'attente et le panneau

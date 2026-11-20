@@ -1376,26 +1376,6 @@ export function publierLArret(ctx, erreur, etat) {
   };
 }
 
-// What the circuit keeps between steps, which the decisions read and change (scripts/transitions.mjs).
-export const MEMOIRE = [
-  'controlesRouges',
-  'renvoiAuTestwriter',
-  'refus',
-  'rienALivrer',
-  'regeneration',
-  'regenereSur',
-  'aRegenerer',
-  'verifie',
-  'toursDeLaPasseFinale',
-  'constats',
-  'verts',
-  'reprise',
-  'relancesTestwriter',
-  'conflitsRelances',
-  'fichiersDuConflit',
-  'retourDuConflit',
-];
-
 // The fact <fait> of the circuit of <ctx>, with its <parametres>, the facts <faits> of the step
 // read before it: a session, a pass, a reading of the copy or of the ticket.
 export async function lireLeFait(ctx, fait, parametres, faits) {
