@@ -97,8 +97,8 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   processeur égal aux cœurs de la part (les passes qu'elle lance jouent dans ce plafond, sans groupe
   à elles) ; sans gestionnaire de groupes, elle part sans borne et le journal du circuit le dit.
 - Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
-  espace, le nom court du projet aux affichages partagés entre projets : la ligne des places, qui
-  nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets
+  espace, le nom court du projet aux affichages partagés entre projets, comme le panneau de
+  plusieurs projets ; absente, le préfixe de tickets
   de `.beads/config.yaml` sert ; une autre valeur est une faute que le panneau dit en alerte, le
   préfixe restant le sigle).
 - La CI de main : le flux `.github/workflows/ci.yml` que le cadre pose joue sur main, par paquets, au

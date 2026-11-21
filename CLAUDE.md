@@ -100,7 +100,7 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   `grillhouse.part` ; par défaut la part par défaut du budget), le reste de la machine continuant
   de travailler.
 - Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
-  espace, le nom court du projet aux affichages partagés entre projets : la ligne des places, qui
-  nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets
+  espace, le nom court du projet aux affichages partagés entre projets, comme le panneau de
+  plusieurs projets ; absente, le préfixe de tickets
   de `.beads/config.yaml` sert ; une autre valeur est une faute que le panneau dit en alerte, le
   préfixe restant le sigle ; Grillhouse déclare « GH »).

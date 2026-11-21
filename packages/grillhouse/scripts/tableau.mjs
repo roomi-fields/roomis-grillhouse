@@ -1533,7 +1533,9 @@ export function assembler({
     machine,
     places: placesDeLaMachine && {
       ...placesDeLaMachine,
-      noms: nommerLesPrises(placesDeLaMachine.tenues ?? [], { racine, prefix }),
+      siennes: (placesDeLaMachine.tenues ?? []).filter(
+        x => x.racine && racine && path.resolve(x.racine) === path.resolve(racine)
+      ).length,
     },
     nuit: nuitEnCours,
     faitsDuJour,
@@ -1681,29 +1683,6 @@ const signeDe = a => a.signe ?? '⚠';
 // « SH-ae6.5 » → « ae6.5 ».
 const courtDuTicket = id => id.slice(id.lastIndexOf('-') + 1);
 
-// Who holds each place of the machine, in the order of the places: the project of the board (the
-// root <racine> of its main tree, its ticket prefix <prefix>) by the short number of its ticket,
-// another project by « <sigle> <short number> » (its sigle and its prefix read from its own root),
-// a place with no ticket « passe »; a place with no root (a state of before) is the board's.
-function nommerLesPrises(tenues, { racine, prefix }) {
-  return tenues.map(({ ticket, racine: deLaPrise }) => {
-    const ici = !deLaPrise || (racine && path.resolve(deLaPrise) === path.resolve(racine));
-    let prefixeDuProjet = prefix;
-    if (!ici) {
-      try {
-        prefixeDuProjet = prefixeDeLaRacine(deLaPrise);
-      } catch {
-        prefixeDuProjet = '';
-      }
-    }
-    const numero = !ticket
-      ? 'passe'
-      : prefixeDuProjet && ticket.startsWith(`${prefixeDuProjet}-`)
-        ? ticket.slice(prefixeDuProjet.length + 1)
-        : courtDuTicket(ticket);
-    return ici ? numero : `${sigleDuProjet(deLaPrise).sigle ?? path.basename(deLaPrise)} ${numero}`;
-  });
-}
 // The sign of a ticket's line in AGENTS, by the tone of its state: ▶ what runs, ⛔ what asks for a
 // correction, ⏸ a wait, for the machine (grey) or for someone (yellow).
 // A circuit that runs bears the full triangle, the hollow one in a short circuit (<court>), as
@@ -1969,32 +1948,21 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   L('AGENTS  ▶ en cours · en attente', TONS.titre);
   const maintenant = t.maintenant ?? Date.now();
   // The places of the machine (scripts/places-de-la-machine.mjs), the first line of AGENTS:
-  // « Places 3/3 · charge 11,2/12 · mémoire 9/30 Go », the places taken of the ceiling, the load
+  // « Places 2/9/10 · charge 11,2/12 · mémoire 9/30 Go », the places of circuits the board's
+  // projects hold, those held on the machine and the ceiling, the load
   // over one minute of the cores, the free memory of the total; a value of the ceiling the poste names and the
   // server refused, in place of the load and the memory, by its name.
   const p = t.places;
   if (p) {
     const nb = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
-    // Who holds each place stands between the count and the load: the most names that keep the
-    // line within the width, the others counted « +n ».
-    const noms = p.noms ?? [];
     const suite = p.faute
       ? `plafond refusé : ${p.faute}`
       : `charge ${nb(p.charge)}/${p.coeurs} · mémoire ${p.memoireGo}/${p.memoireTotaleGo} Go`;
-    const ligne = k =>
-      `Places ${p.prises}/${p.plafond} · ${
-        noms.length
-          ? `${[noms.slice(0, k).join(', '), ...(k < noms.length ? [`+${noms.length - k}`] : [])]
-              .filter(Boolean)
-              .join(' ')} · `
-          : ''
-      }${suite}`;
-    let k = noms.length;
-    while (k > 0 && colonnes(ligne(k)) > largeur) {
-      k--;
-    }
+    // The places of circuits: the board's own (its project's, its projects' on a board of several),
+    // those held on the whole machine, the ceiling.
+    const ligne = `Places ${p.siennes ?? 0}/${p.prises}/${p.plafond} · ${suite}`;
     poser({
-      texte: cadre(ligne(k), '', largeur),
+      texte: cadre(ligne, '', largeur),
       ton: p.faute ? TONS.plafondRefuse : p.charge >= p.coeurs ? TONS.machineChargee : TONS.mesure,
     });
     // A ticket that waits for the disk of its project's copies: what holds it, the ticket named.
@@ -2902,7 +2870,14 @@ export function ensemble(lus) {
     }),
     maintenant: premier.t.maintenant,
     machine: premier.t.machine,
-    places: premier.t.places,
+    places: premier.t.places && {
+      ...premier.t.places,
+      siennes: (premier.t.places.tenues ?? []).filter(
+        x =>
+          x.racine &&
+          lisibles.some(l => l.dossier && path.resolve(l.dossier) === path.resolve(x.racine))
+      ).length,
+    },
     nuit: premier.t.nuit,
     faitsDuJour: tous('faitsDuJour'),
     decouvertes: lisibles.reduce(

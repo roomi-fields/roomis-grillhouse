@@ -68,7 +68,7 @@ describe('la mesure d’essai fixe la mesure de la machine du tableau', () => {
     const json = JSON.parse(lancer([], env)) as { lignes: Ligne[] };
     const duTexte = texte.filter(desPlaces);
     const duJson = json.lignes.map(l => l.texte).filter(desPlaces);
-    expect(duTexte).toEqual(['Places 0/3 · charge 10,2/12 · mémoire 24/31 Go']);
+    expect(duTexte).toEqual(['Places 0/0/3 · charge 10,2/12 · mémoire 24/31 Go']);
     expect(duJson).toEqual(duTexte);
   });
 
@@ -83,7 +83,7 @@ describe('la mesure d’essai fixe la mesure de la machine du tableau', () => {
       }),
     };
     const lignes = lancer(['--texte'], env).split('\n');
-    expect(lignes.filter(desPlaces)).toEqual(['Places 0/3 · charge 0,5/4 · mémoire 7/8 Go']);
+    expect(lignes.filter(desPlaces)).toEqual(['Places 0/0/3 · charge 0,5/4 · mémoire 7/8 Go']);
   });
 
   it.each([

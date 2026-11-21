@@ -1312,14 +1312,14 @@ prend une part, quelle qu'elle soit (une passe hors ticket, le circuit d'un tick
 quel projet de la machine), s'inscrit dans son fichier de l'état des parts (la racine de son dépôt,
 celle de sa copie de travail, son ticket s'il en a un, sa sorte, sa part, son rang, depuis quand,
 puis son avancement) ; chaque passe qui attend sa part ou la place sous /tmp s'y inscrit aussi, avec
-ce qu'elle attend. Le panneau de chaque projet montre d'abord la ligne des places, « Places n/N · <qui> · charge x/c ·
-mémoire m/M Go », la mémoire disponible sur la mémoire totale du poste. Chaque prise porte sa
-racine (celle du dépôt principal de son projet, que la demande de place donne au serveur avec son
-ticket) : `<qui>` nomme chaque prise, celle du projet du panneau par le numéro court de son ticket,
-celle d'un autre projet « <SIGLE> <numéro court> », une prise sans ticket « passe » ; les prises en
-trop se comptent « +n » quand la ligne dépasserait la largeur. Le sigle d'un projet
+ce qu'elle attend. Le panneau de chaque projet montre d'abord la ligne des places, « Places s/n/N · charge x/c ·
+mémoire m/M Go », la mémoire disponible sur la mémoire totale du poste : `s`, les places de circuit
+que tiennent le projet du panneau (ceux du panneau de plusieurs projets, ensemble), `n`, celles
+tenues sur toute la machine, `N`, le plafond. Un circuit tient sa place de son départ à sa fin, ses
+arrêts compris ; chaque place porte la racine du dépôt principal de son projet, que la file donne
+au serveur avec son ticket. Le sigle d'un projet
 (`scripts/sigle-du-projet.mjs`) est la clé `grillhouse.sigle` de son `package.json`, sinon son
-préfixe de tickets ; il ne sert qu'aux affichages partagés entre projets (cette ligne, l'étiquette
+préfixe de tickets ; il ne sert qu'aux affichages partagés entre projets (l'étiquette
 de chaque projet du panneau de plusieurs projets, qui alerte quand deux projets en portent un même) ;
 puis la nuit en cours sur
 la machine, « 🌙 nuit · <projet> · depuis <durée> », que lit la requête du déroulé des nuits

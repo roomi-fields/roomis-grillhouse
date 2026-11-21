@@ -1,5 +1,5 @@
 // grillhouse-9kq critères 4 et 18 — les places de la machine sur le panneau (scripts/tableau.mjs) :
-// une ligne en tête d'AGENTS, « Places 3/3 · charge 11,2/12 · mémoire 9/30 Go » ; un ticket qui
+// une ligne en tête d'AGENTS, « Places 0/3/3 · charge 11,2/12 · mémoire 9/30 Go » ; un ticket qui
 // attend une place porte ⏸ et « attend une place » ; un ticket qui attend une dépendance garde
 // « attend <ticket> ». Le panneau reçoit les places lues (`lirePlaces` de
 // scripts/places-de-la-machine.mjs, la charge, la mémoire disponible et la mémoire totale de la machine) dans `places`.
@@ -80,9 +80,9 @@ const agents = (p: ReturnType<typeof plateau>) =>
 const tete = (a: Ligne[]) => a.slice(a.findIndex(x => x.texte.startsWith('AGENTS')) + 1);
 
 describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’AGENTS', () => {
-  it('« Places n/N · charge x/c · mémoire m/M Go », la mémoire disponible sur la totale, la virgule décimale, juste sous le titre', () => {
+  it('« Places s/n/N · charge x/c · mémoire m/M Go », la mémoire disponible sur la totale, la virgule décimale, juste sous le titre', () => {
     const [l] = tete(agents(plateau([])));
-    expect(l.texte).toBe('Places 3/3 · charge 11,2/12 · mémoire 9/30 Go');
+    expect(l.texte).toBe('Places 0/3/3 · charge 11,2/12 · mémoire 9/30 Go');
   });
 
   it('les chiffres suivent la machine : 1 place sur 2, charge entière, mémoire de 14 Go sur 62', () => {
@@ -96,14 +96,14 @@ describe('grillhouse-9kq critères 4 et 18 — la ligne des places en tête d’
       memoireTotaleGo: 62,
     };
     expect(tete(agents(plateau([], { places })))[0].texte).toBe(
-      'Places 1/2 · charge 4/8 · mémoire 14/62 Go'
+      'Places 0/1/2 · charge 4/8 · mémoire 14/62 Go'
     );
   });
 
   it('un plafond refusé se dit par son nom, à la place de la charge, dans le ton d’une alerte', () => {
     const places = { ...PLACES, faute: 'GRILLHOUSE_PLACES vaut « x » dans machine.env' };
     const [l] = tete(agents(plateau([], { places })));
-    expect(l.texte).toMatch(/^Places 3\/3 · plafond refusé : GRILLHOUSE_PLACES/);
+    expect(l.texte).toMatch(/^Places 0\/3\/3 · plafond refusé : GRILLHOUSE_PLACES/);
     expect(l.ton).toBe('alerte');
   });
 

@@ -947,7 +947,7 @@ function mesureDEssai(env) {
 }
 
 /**
- * The places as the board shows them: taken and ceiling, the load over one minute and the cores,
+ * The places as the board shows them: the places of circuits held (`prises`, `tenues`) and the ceiling, the load over one minute and the cores,
  * the free memory and the total memory in whole GB, and the waits (ticket, since when) in the order of arrival: those
  * of a place for a session or a pass, then the tickets that wait for a place of a circuit, not
  * started (`circuits` of the server, which the queue of each project reserves). The
@@ -970,16 +970,20 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine, 
   const {
     plafond,
     faute = null,
-    prises,
     attentes,
     circuits = [],
     nuit = null,
     fermeture = null,
   } = lues ?? lirePlaces({ env });
   const m = fixee ?? mesurer();
+  // The places the board counts are the circuits': a circuit holds its place from its start to its
+  // end, its stops included, and the ceiling bounds them.
+  const tenues = circuits
+    .filter(c => c.accordee)
+    .map(c => ({ ticket: c.ticket ?? null, racine: c.racine ?? null }));
   return {
-    prises: prises.length,
-    tenues: prises.map(p => ({ ticket: p.ticket ?? null, racine: p.racine ?? null })),
+    prises: tenues.length,
+    tenues,
     nuit: nuit?.phase ?? null,
     fermeture,
     plafond,
