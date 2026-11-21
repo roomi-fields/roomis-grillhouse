@@ -539,7 +539,10 @@ describe('the board of several projects, read in their folders', () => {
       dossiers: Record<string, string>;
     };
     const tete = t.lignes.slice(0, 5).map(x => [x.texte.trimEnd(), x.ton]);
-    expect(tete[0]).toEqual([`${path.basename(racine).toUpperCase()} + ABSENT`, 'titre']);
+    expect(tete[0]?.[0]).toMatch(
+      new RegExp(`^${path.basename(racine).toUpperCase()} \\+ ABSENT\\s+v\\d+\\.\\d+\\.\\d+$`)
+    );
+    expect(tete[0]?.[1]).toBe('titre');
     expect(tete[1]?.[0]).toMatch(/^\[demo\]\s+toi : \d+ sans go · \d+ à valider · \d+ question$/);
     expect(tete[2]?.[0]).toMatch(/^\s+file : ● \d+ · ✎ \d+ · ⧗ \d+ · ⊘ \d+$/);
     expect(tete[3]?.[0]).toMatch(/^\s+en cours : ▶ \d+ · ✓ \d+ · ⏸ \d+$/);
@@ -557,7 +560,9 @@ describe('the board of several projects, read in their folders', () => {
       lignes: { texte: string }[];
       dossiers?: object;
     };
-    expect(t.lignes[0]?.texte).toBe(path.basename(racine).toUpperCase());
+    expect(t.lignes[0]?.texte).toMatch(
+      new RegExp(`^${path.basename(racine).toUpperCase()}\\s+v\\d+\\.\\d+\\.\\d+$`)
+    );
     expect(t.lignes.some(x => x.texte.includes('[demo]'))).toBe(false);
     expect(t).not.toHaveProperty('dossiers');
   });

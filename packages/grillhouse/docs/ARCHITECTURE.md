@@ -878,7 +878,12 @@ neuve, rendue aussitôt. `.claude/worktrees/questions-remontees.json` garde, par
 remontée) et `presentee` (sa dernière présentation), en ms ; un fichier à l'ancien format (liste de
 clés) se lit, ses arrêts prenant l'heure de la lecture. Le tableau les lit : une alerte par
 circuit arrêté sur une question au superviseur dit depuis combien de minutes il attend, et une
-alerte. Chaque état que montre le panneau a un seul ton, défini
+alerte. La première ligne du panneau porte à son bord droit la version du cadre, « v0.47.1 »
+(comme la ligne d'état de tmux), celle du paquet dont le code dessine le panneau : `versionDuPaquet`
+(`greffons.mjs`) la lit une fois par processus, à la première demande, et le rendu la garde, si bien
+qu'après une montée sans recharge l'ancienne reste affichée ; le nom du projet se coupe avant elle,
+le panneau de plusieurs projets la porte une fois, et une version qui n'est pas de la forme x.y.z
+(ou illisible) laisse la ligne telle qu'elle était. Chaque état que montre le panneau a un seul ton, défini
 une fois (`TONS` de `tableau.mjs`), comme un tableau de bord d'états (GitHub Checks,
 Alertmanager) : chaque ligne et chaque alerte le prend, quelle que soit sa durée, que dit son
 texte ; le rouge est réservé à ce qui demande une correction (figé, panne, plafond refusé), le jaune à ce qui attend une réponse ou un regard (le superviseur, le

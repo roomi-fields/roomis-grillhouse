@@ -302,7 +302,7 @@ export function greffonsAbsents(projet) {
 const GREFFON_DU_CADRE = 'grillhouse';
 const NOM_DU_PAQUET = '@roomi-fields/grillhouse';
 const X_Y_Z = /^\d+\.\d+\.\d+$/;
-function versionDuPaquet() {
+export function versionDuPaquet() {
   try {
     const p = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     return p.name === NOM_DU_PAQUET && typeof p.version === 'string' ? p.version : null;

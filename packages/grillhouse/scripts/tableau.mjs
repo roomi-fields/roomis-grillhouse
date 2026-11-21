@@ -157,6 +157,19 @@ import {
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
+import { versionDuPaquet } from './greffons.mjs';
+
+// The version of the package whose code draws the panel, « v0.47.1 », read once, at the first
+// request, and kept: a long-lived process keeps the loaded code's version after an upgrade. Only
+// an x.y.z version shows; any other, or none, is null.
+let versionAffichee;
+const versionDuPanneau = () => {
+  if (versionAffichee === undefined) {
+    const v = versionDuPaquet();
+    versionAffichee = typeof v === 'string' && /^\d+\.\d+\.\d+$/.test(v) ? `v${v}` : null;
+  }
+  return versionAffichee;
+};
 
 const MINUTE = 60_000;
 export const SILENCE = 10 * MINUTE;
@@ -1825,7 +1838,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The labels' column of the head and of AGENTS, « [OB]  », « [OSD] ».
   const large = Math.max(0, ...(t.projets ?? []).map(p => p.etiquette.length + 3));
   const colonneDe = etiquette => `[${etiquette}]`.padEnd(large);
-  L(nom.toUpperCase(), TONS.titre);
+  // The first line: the project's name, the frame's version at its right edge.
+  const version = versionDuPanneau();
+  L(version ? couper(nom.toUpperCase(), version, largeur) : nom.toUpperCase(), TONS.titre);
   // The state of each ticket's line of AGENTS, which AGENTS draws and the head counts.
   const etats = etatsDAgents(t);
   // The three lines of the head, grouped by who acts, each with its tone from TONS; an absent

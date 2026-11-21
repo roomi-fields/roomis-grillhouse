@@ -117,7 +117,9 @@ const trois = () =>
     { etiquette: 'OSD', t: OSD },
   ]);
 const NOM = 'osc-bridge + SH + OSD';
-const textes = (l: Ligne[]) => l.map(x => x.texte.trimEnd());
+// The first line carries the framework version at its right edge; these tests judge the rest.
+const sansVersion = (t: string) => t.replace(/\s+v\d+\.\d+\.\d+$/, '');
+const textes = (l: Ligne[]) => l.map(x => sansVersion(x.texte.trimEnd()));
 
 describe('critère 1 : the usual board, each project prefixed', () => {
   it('the head names the projects, then the three lines of states of each project, then the alerts prefixed', () => {

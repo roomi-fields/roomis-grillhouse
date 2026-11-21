@@ -72,7 +72,7 @@ describe('le panneau de plusieurs projets étiquette chaque projet par son sigle
       projet('autre', { pkg: sigle('ZZ'), prefixe: 'zzzz' }),
     ]);
     expect(etiquettes(vu)).toEqual(['demo', 'ZZ']);
-    expect(vu.lignes[0]?.texte).toMatch(/\+ ZZ$/);
+    expect(vu.lignes[0]?.texte).toMatch(/\+ ZZ\s+v\d+\.\d+\.\d+$/);
   });
 
   it('le sigle de la session s’affiche de même', async () => {
@@ -89,7 +89,7 @@ describe('le panneau de plusieurs projets étiquette chaque projet par son sigle
       projet('autre', { prefixe: 'abc' }),
     ]);
     expect(etiquettes(vu)).toEqual(['demo', 'abc']);
-    expect(vu.lignes[0]?.texte).toMatch(/\+ ABC$/);
+    expect(vu.lignes[0]?.texte).toMatch(/\+ ABC\s+v\d+\.\d+\.\d+$/);
   });
 });
 

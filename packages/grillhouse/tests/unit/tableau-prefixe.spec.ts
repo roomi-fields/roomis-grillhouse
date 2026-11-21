@@ -89,7 +89,7 @@ describe('the label of a project on the board of several projects', () => {
     expect(vite.lignes[4]?.texte).toMatch(/^\[demo\]\s+toi : /);
     expect(lente.lignes[1]?.texte).toMatch(/^\[demo\]\s+toi : /);
     expect(lente.lignes[4]?.texte).toMatch(/^\[demo\]\s+toi : /);
-    expect(lente.lignes[0]?.texte).toMatch(/\+ DEMO$/);
+    expect(lente.lignes[0]?.texte).toMatch(/\+ DEMO\s+v\d+\.\d+\.\d+$/);
   });
 
   it('a prefix that does not read leaves its project on the board by its folder, with an alert naming the missing file', async () => {

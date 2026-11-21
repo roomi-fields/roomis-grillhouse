@@ -430,7 +430,7 @@ describe('3uv.42 critère 4 : each line carries its section', () => {
       'demo'
     ) as Ligne[];
     expect(l.some(x => x.texte.startsWith('CHANTIER '))).toBe(false);
-    expect(section(l, x => x.texte === 'DEMO')).toBe('agents');
+    expect(section(l, x => /^DEMO(\s+v\d+\.\d+\.\d+)?$/.test(x.texte))).toBe('agents');
     expect(section(l, x => x.texte.startsWith('CHANTIERS'))).toBe('chantier');
     expect(section(l, x => x.ticket === 'demo-a')).toBe('chantier');
     expect(section(l, x => x.texte.startsWith('AGENTS'))).toBe('agents');
@@ -647,7 +647,7 @@ describe('the board shows every line of each list, and AGENTS before CHANTIER', 
 
   it("the head comes first, then AGENTS, then CHANTIER, then FAITS AUJOURD'HUI", () => {
     for (const l of [L0, LP]) {
-      const tete = l.findIndex(y => y.texte === 'DEMO');
+      const tete = l.findIndex(y => /^DEMO(\s+v\d+\.\d+\.\d+)?$/.test(y.texte));
       const agents = indexAgents(l);
       const chantier = l.findIndex(y => y.texte.startsWith('CHANTIER e'));
       const faits = indexFaits(l);
