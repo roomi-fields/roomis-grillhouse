@@ -572,7 +572,11 @@ export function lecteurDeLaCharge(env = process.env, systeme = chargeDesCoeursDu
  * « tient ». The night (VARIABLE_JETON) and a pass that asks for the <entiere> budget take the
  * whole budget: they play alone. A <mesure> of time takes dedicated cores (`fils`, whole physical
  * cores), waits for them and for their rest (<chargeDesCoeurs>: the load of the threads it gives,
- * null without a reading, by default `lecteurDeLaCharge`; <topologie>, the topology of the system, for a trial). Where no part is taken (the envelope of an agent, a part already
+ * null without a reading, by default `lecteurDeLaCharge`; <topologie>, the topology of the system, for a trial).
+ * The reservation of the machine (<lireLaReservation>, the places of the server by default) is read at each
+ * turn of the wait, before the admission lock: under the supervisor's closure the pass waits without bound
+ * (« machine fermée par le superviseur »), under the night's it waits unless it carries its jeton, within
+ * the bound; a reading that fails stands for no reservation. Where no part is taken (the envelope of an agent, a part already
  * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
  *   sorte?: string, entiere?: boolean, borneMs?: number, rappelMs?: number,
@@ -600,6 +604,7 @@ export function prendreUnePart({
   dire = l => process.stdout.write(`${l}\n`),
   maintenant = Date.now,
   dormir = attendreUnPeu,
+  lireLaReservation = () => lirePlaces({ env }).reservation ?? null,
   ...disques
 } = {}) {
   const sans = raison => ({ id: null, part: null, fils: null, env, rendre: () => {}, raison });
@@ -672,14 +677,32 @@ export function prendreUnePart({
         return () => {};
       },
     });
-    const debut = maintenant();
+    let debut = maintenant();
     let dit = null;
     for (;;) {
+      // The reservation of the machine is read each turn, before the admission lock, bounded by
+      // the delay of a call to the server; a reading that fails stands for « no reservation ».
+      let reservation = null;
+      try {
+        reservation = lireLaReservation() ?? null;
+      } catch {
+        reservation = null;
+      }
+      const fermee = reservation?.auteur === 'superviseur';
       const refus = sousLAdmission(dossier, () => {
         const { prises, attentes } = lireLesParts(dossier);
         let r = refusDePart(
           { prises, attentes },
-          { id: moi.id, rang: moi.rang, part, budget, mesurer: () => machineDe(env), dediee: mesure }
+          {
+            id: moi.id,
+            rang: moi.rang,
+            part,
+            budget,
+            mesurer: () => machineDe(env),
+            dediee: mesure,
+            reservation,
+            jeton: env[VARIABLE_JETON] ?? null,
+          }
         );
         let fils = null;
         if (r === null) {
@@ -709,6 +732,10 @@ export function prendreUnePart({
         break;
       }
       const t = maintenant();
+      if (fermee) {
+        // The supervisor's order lasts until its contrary: no bound, the wait counts from the reopening.
+        debut = t;
+      }
       if (t - debut >= borneMs) {
         throw new AttenteDeLaMachine(
           `⏱ attente de la part bornée à ${duree(borneMs)} (GRILLHOUSE_ATTENTE_MACHINE_MS), ${RANGS[rangDeLaPasse]} : ${refus} ; à repasser (code ${A_REPASSER}).`,
@@ -717,7 +744,7 @@ export function prendreUnePart({
       }
       if (dit === null) {
         dire(
-          `⏳ ${RANGS[rangDeLaPasse]}, la passe attend sa part (${part.coeurs} cœurs) : ${refus} ; ${duree(borneMs)} au plus.`
+          `⏳ ${RANGS[rangDeLaPasse]}, la passe attend sa part (${part.coeurs} cœurs) : ${refus}${fermee ? ' ; sans borne, jusqu’à la réouverture.' : ` ; ${duree(borneMs)} au plus.`}`
         );
       } else if (t - dit >= rappelMs) {
         dire(`⏳ la passe attend sa part depuis ${duree(t - debut)} : ${refus}.`);
@@ -848,10 +875,10 @@ export function surUnePart(
  * order of arrival `{ id, pid, ticket, rang, raison, depuis }`; none where no place is taken.
  * @param {{ env?: Record<string, string | undefined> }} [o]
  */
-export function lirePlaces({ env = process.env } = {}) {
+export function lirePlaces({ env = process.env, ms = 30_000 } = {}) {
   const e = surLeServeur(env);
   return e
-    ? auServeur(e, ['lire']).lignes[0]
+    ? auServeur(e, ['lire'], ms).lignes[0]
     : { plafond: plafondDe(env), prises: [], attentes: [] };
 }
 

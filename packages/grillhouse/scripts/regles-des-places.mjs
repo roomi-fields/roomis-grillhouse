@@ -164,6 +164,11 @@ export function admissionDePart({ part, budget, prises, mesure }) {
     : { ...a, attend: mesure.charge >= mesure.coeurs ? 'charge' : 'mémoire' };
 }
 
+/** Why a pass waits under the supervisor's closure of the machine. */
+export const RAISON_DE_LA_FERMETURE = 'machine fermée par le superviseur';
+/** Why a pass without the jeton of the night waits under its reservation. */
+export const RAISON_DE_LA_NUIT = 'la nuit tient la machine';
+
 /**
  * Why the pass <id> of the rank <rang> does not take its part <part> now on the state <etat>
  * (`prises`, `attentes`), null when it does: its part does not fit in the <budget>; a wait of a
@@ -181,7 +186,20 @@ export function admissionDePart({ part, budget, prises, mesure }) {
  *   mesurer: () => { coeurs: number, charge: number, memoireLibre: number } }} o
  * @returns {string | null}
  */
-export function refusDePart(etat, { id, rang, part, budget, mesurer, dediee = false }) {
+export function refusDePart(
+  etat,
+  { id, rang, part, budget, mesurer, dediee = false, reservation = null, jeton = null }
+) {
+  // A closed machine gives no new work (`cordon` of kubectl): the supervisor's closure refuses
+  // every pass, whatever its jeton; the night's reservation refuses the pass without its jeton.
+  if (reservation) {
+    if (reservation.auteur === 'superviseur') {
+      return RAISON_DE_LA_FERMETURE;
+    }
+    if (jeton !== reservation.jeton) {
+      return RAISON_DE_LA_NUIT;
+    }
+  }
   const prises = etat.prises.filter(p => p.id !== id);
   // Two measures of time never play side by side: each would be the load the other is judged on.
   const autre = dediee ? prises.find(p => p.dediee) : undefined;

@@ -207,6 +207,11 @@ export interface VueDesPlaces {
   nuit?: NuitDesPlaces | null;
   /** The machine closed, by whom and since when; absent without. */
   fermeture?: FermetureDesPlaces | null;
+  /**
+   * The reservation of the machine, by the night or by the supervisor, as the parts of the passes
+   * read it: its author and its jeton; null without one.
+   */
+  reservation?: { auteur: AuteurDeLaReservation; jeton: string } | null;
 }
 
 /** Where a request stands. */

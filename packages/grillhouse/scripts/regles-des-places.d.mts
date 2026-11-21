@@ -88,8 +88,18 @@ export function refusDePart(
     part: PartDeLaPasse;
     budget: PartDeLaPasse;
     mesurer: () => MesureDeLaMachine;
+    dediee?: boolean;
+    /** The reservation of the machine read this turn, null without. */
+    reservation?: { auteur?: 'nuit' | 'superviseur'; jeton: string } | null;
+    /** The jeton of the night the pass carries (its variable), null without. */
+    jeton?: string | null;
   }
 ): string | null;
+
+/** Why a pass waits under the supervisor's closure of the machine. */
+export const RAISON_DE_LA_FERMETURE: string;
+/** Why a pass without the jeton of the night waits under its reservation. */
+export const RAISON_DE_LA_NUIT: string;
 
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS: number;

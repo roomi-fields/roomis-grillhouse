@@ -339,6 +339,9 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
           phase: phaseDeLaReservation(etat) ?? 'en cours',
         }
       : null,
+    reservation: etat.reservation
+      ? { auteur: etat.reservation.auteur ?? 'nuit', jeton: etat.reservation.jeton }
+      : null,
   }));
   setHandler(laDemande, id => {
     const p = etat.prises.find(x => x.id === id);

@@ -2041,6 +2041,19 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   nuit du projet et au registre de la machine, sans rattrapage à la réouverture. `lesPlaces` porte
   `fermeture` (`{ auteur, depuis, phase }`, `phase` `attend`, `vide` ou `en cours`) et le tableau
   dit « machine fermée par le superviseur » ou « par la nuit », depuis quand.
+  **La réservation ferme aussi la part des passes** (grillhouse-3uv.147.1 ; `kubectl cordon` : un
+  nœud fermé ne reçoit aucun travail neuf, de quelque sorte) : `lesPlaces` porte `reservation`
+  (`{ auteur, jeton }`, null sans réservation), et `prendreUnePart` la lit à chaque tour de sa
+  boucle d'attente, avant le verrou d'admission et non sous lui, par la lecture des places du
+  serveur, bornée par le délai d'un appel ; une lecture qui échoue ou dépasse son délai vaut « pas de
+  réservation » (le serveur muet ne bloque aucune passe). `refusDePart` la reçoit avec le jeton de la
+  passe (la valeur de sa variable) : la fermeture du superviseur refuse toute passe, aucun jeton n'y
+  ouvre rien (« machine fermée par le superviseur ») ; la réservation de la nuit refuse la passe dont
+  le jeton n'égale pas le sien (« la nuit tient la machine »). Sous la fermeture la passe attend sans
+  borne, sa part « attend » écrite au dossier des parts avec cette raison (le tableau et `machine
+  fermer --attendre` la voient attendre), et la prend à la réouverture ; sous la nuit elle garde la
+  borne de son attente (75). Une part déjà « tient » finit ; une part « attend » quand la machine
+  ferme attend.
 
 Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition
 s'inscrit dans l'histoire du serveur.
