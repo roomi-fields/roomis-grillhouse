@@ -22,11 +22,13 @@ const CIS = [
   ['the CI of the project template', 'templates/projet/.github/workflows/ci.yml'],
 ] as const;
 
-// What a step of the test job may run besides the verification: the installation of the project
-// and of the tools the verification plays (uv, the command claude); no test of the day plays the
-// program temporal, which the night lays down.
+// What a step of the test job may run besides the verification: the installation of the project,
+// its own preparation (its npm script `ci:preparer`, played when it exists) and the tools the
+// verification plays (uv, the command claude); no test of the day plays the program temporal,
+// which the night lays down.
 const INSTALLATION = [
   /^npm ci$/,
+  /^npm run --if-present ci:preparer$/,
   /^npm install -g @anthropic-ai\/claude-code@\d+\.\d+\.\d+$/,
   /^npx --no-install grillhouse binaires$/,
 ];

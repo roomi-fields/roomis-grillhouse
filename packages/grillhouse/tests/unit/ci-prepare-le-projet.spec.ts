@@ -86,10 +86,10 @@ describe("the frame's own workflows play the preparation like the template's", (
   });
 });
 
-describe('the update carries the preparation step to the project', () => {
-  const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-ci-preparer-'));
-  afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'grillhouse-ci-preparer-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
+describe('the update carries the preparation step to the project', () => {
   const ecrire = (racine: string, f: string, contenu: string) => {
     mkdirSync(path.dirname(path.join(racine, f)), { recursive: true });
     writeFileSync(path.join(racine, f), contenu);
