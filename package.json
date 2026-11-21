@@ -67,7 +67,7 @@
         "@roomi-fields/grillhouse"
       ]
     },
-    "circuits": 2,
+    "circuits": 3,
     "sigle": "GH",
     "part": {
       "coeurs": 4,
