@@ -356,6 +356,16 @@ GitHub, une somme de contrôle publiée) sous `grillhouse.engendres` de son `pac
 lue à côté des fichiers engendrés du module du langage, dans la même forme, toujours dans l'arbre
 principal (`packages/grillhouse/scripts/engendres.mjs`) ; une clé sans commande, sans fichiers ou
 avec un motif hors du dépôt est refusée par son nom avant tout travail, comme `grillhouse.outils`.
+Un projet déclare aussi les dossiers de matière de test hors de tout paquet (des cas qu'un test
+rejoue, comme le `filegroup(testonly)` de Bazel, `tests/ui` de rustc) sous `grillhouse.matieres`
+de son `package.json`, lue dans l'arbre principal (`packages/grillhouse/scripts/matieres-cles.mjs`) :
+la jointure des langages ajoute, après les modules, la réponse de `estUnTest` pour un fichier sous
+un dossier déclaré (`{ joue: false, test: false, matiere: true }`, la classe de la matière
+partagée d'un paquet), si bien que le verrou, la preuve du rouge, le relecteur et les conflits
+d'avance suivent la règle d'un fichier de test, et que l'enveloppe monte chaque dossier en
+écriture pour le testwriter, en lecture seule pour les autres. Un dossier qui est un paquet, en
+contient un ou y est contenu, ou une clé fautive, est refusé par le nom `grillhouse.matieres`
+avant tout travail.
 L'intégration, la file qui replace une branche sur main et l'avance d'une copie sur main
 (`travail-de-la-copie.mjs`, comme le report d'une branche renvoyée) ne fusionnent pas ces
 fichiers : un lot qui touche l'un d'eux ou ce qu'il lit prend la version de main, puis la commande

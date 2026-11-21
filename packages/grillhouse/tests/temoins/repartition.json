@@ -91,6 +91,8 @@
     "scripts/ligne-etat/ligne-etat.mjs",
     "scripts/lint-des-scripts.mjs",
     "scripts/matiere-de-test.d.ts",
+    "scripts/matieres-cles.mjs",
+    "scripts/matieres-lues.mjs",
     "scripts/messages-non-lus.mjs",
     "scripts/mesure-de-la-machine.d.mts",
     "scripts/mesure-de-la-machine.mjs",

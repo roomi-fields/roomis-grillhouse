@@ -626,6 +626,7 @@ import path from 'node:path';
 import { empreintesDe, outilsDe } from './outils-cles.mjs';
 import { donneesDe } from './donnees-cles.mjs';
 import { engendresDe } from './engendres.mjs';
+import { matieresDeclareesDe } from './matieres-cles.mjs';
 import { fluxDe } from './flux-des-paquets.mjs';
 import {
   AGENTS_DU_LOT,
@@ -1189,6 +1190,27 @@ export function engendresAuLancement(racine) {
         nom: 'lancement',
         rapport,
         piece: `$ npm pkg get grillhouse.engendres\n${rapport}`,
+        question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
+      },
+    };
+  }
+}
+
+// The folders of test material the project declares (`grillhouse.matieres`,
+// scripts/matieres-cles.mjs), read at the launch of a run from its main tree: `{ matieres }`, or
+// `{ arret }`, the stop « lancement » that goes up to the supervisor before any session, the
+// faults of the key named.
+export function matieresAuLancement(racine) {
+  try {
+    return { matieres: matieresDeclareesDe(racine) };
+  } catch (err) {
+    const rapport = `La clé grillhouse.matieres du package.json est refusée :\n${err.message}`;
+    return {
+      arret: {
+        code: ARRETS.lancement,
+        nom: 'lancement',
+        rapport,
+        piece: `$ npm pkg get grillhouse.matieres\n${rapport}`,
         question: `${rapport}\nLa clé se corrige au package.json du projet, puis \`--reprendre\`.`,
       },
     };
@@ -2580,6 +2602,12 @@ async function avantLePlan(ctx, e) {
     return { code: monter(ctx, { ...engendres.arret, etat: d }) };
   }
   ctx.engendres = engendres.engendres;
+  // The folders of test material the project declares: refused at the launch when the key is
+  // faulty, before any session.
+  const matieres = matieresAuLancement(ctx.racine);
+  if (matieres.arret) {
+    return { code: monter(ctx, { ...matieres.arret, etat: d }) };
+  }
   // The flows of the CI, refused at the launch when their key is faulty: the reviewer's instruction
   // reads those the lot touches (`consigneDesFlux`).
   const flux = fluxAuLancement(ctx.racine);

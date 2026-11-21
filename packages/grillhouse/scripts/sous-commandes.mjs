@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { langageDe, langagesDe } from './langages.mjs';
 import { avecLesDonnees, donneesDe } from './donnees-cles.mjs';
+import { matieresDeclareesDe } from './matieres-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from './outils-cles.mjs';
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -165,6 +166,7 @@ export function environnementDe(nom, racine = process.cwd(), env = process.env) 
   if (typeof SOUS_COMMANDES[nom] === 'string') {
     return env;
   }
+  matieresDeclareesDe(racine);
   const poste = langageDe(racine).environnementDuPoste(env);
   return avecLesDonnees(
     donneesDe(racine),

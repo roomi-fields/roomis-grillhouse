@@ -99,6 +99,7 @@ import { langageDe } from '../langages.mjs';
 import { prefixe } from '../prefixe-des-tickets.mjs';
 import { commitsDelivering, gitLog } from '../un-commit-par-ticket.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
+import { matieresDeclareesDe } from '../matieres-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 import { lacherVerrou, prendreVerrou } from '../verrou-de-fichier.mjs';
 import { ouvrirCopie, RETIRER_COPIE } from './rejeu.mjs';
@@ -382,6 +383,7 @@ function main(argv) {
       outils = outilsDe(racine);
       empreintes = empreintesDe(racine);
       donnees = donneesDe(racine);
+      matieresDeclareesDe(racine);
     } catch (e) {
       return refuser(`Une clé grillhouse du package.json est refusée :\n${e.message}`);
     }

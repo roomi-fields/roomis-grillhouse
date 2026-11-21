@@ -30,6 +30,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { composer } from './composition-des-langages.mjs';
+import { matieresDeclarees, sousUneMatiere } from './matieres-lues.mjs';
 import {
   ARCHITECTURE,
   COLONNE,
@@ -98,10 +99,31 @@ export function langagesDe(racine) {
   return noms.map(charger);
 }
 
+// The class of a file under a folder of test material the project declares
+// (`grillhouse.matieres`, ./matieres-cles.mjs): shared test material, never played.
+const MATIERE_DECLAREE = Object.freeze({ joue: false, test: false, matiere: true });
+
+// <langage> with the answer of `estUnTest` completed after its modules: the first answer not null
+// of a module stays the file's; a file under a declared folder, in any language, is test material;
+// any other file keeps the answer of its module.
+const avecLesMatieres = langage =>
+  Object.assign(Object.create(langage), {
+    estUnTest: (chemin, racine) =>
+      langage.estUnTest(chemin, racine) ??
+      (sousUneMatiere(
+        matieresDeclarees(racine, d => langage.composants(d)),
+        racine,
+        chemin
+      )
+        ? MATIERE_DECLAREE
+        : null),
+  });
+
 const composes = new Map();
 /**
- * The join of the modules that serve the project at <racine> (`langagesDe`): the module itself
- * when the project declares one, else their composition, built once per list of languages.
+ * The join of the modules that serve the project at <racine> (`langagesDe`): their composition
+ * (the module itself when the project declares one), the folders of test material the project
+ * declares (`grillhouse.matieres`) added to `estUnTest`, built once per list of languages.
  * @param {string} racine the root of the project
  * @returns {import('./jointure.js').Composition}
  */
@@ -109,7 +131,7 @@ export function langageDe(racine) {
   const modules = langagesDe(racine);
   const cle = modules.map(m => m.nom).join('+');
   if (!composes.has(cle)) {
-    composes.set(cle, composer(modules));
+    composes.set(cle, avecLesMatieres(composer(modules)));
   }
   return composes.get(cle);
 }

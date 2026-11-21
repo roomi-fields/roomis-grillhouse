@@ -138,6 +138,7 @@ import {
 } from '../places-de-la-machine.mjs';
 import { commandeDuGroupe, groupeIndisponible } from '../passe-de-la-machine.mjs';
 import { donneesDe } from '../donnees-cles.mjs';
+import { matieresDeclareesDe } from '../matieres-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
 // The role that writes the package of the shared test material and the lock files of the versions.
@@ -156,6 +157,20 @@ const sortiesDe = (dir, sorties, lien = () => null) =>
       });
     })
     .map(s => path.join(dir, s));
+/**
+ * The test material of the copy <copie>, relative to it: the packages of the shared material
+ * (`matieres` of the language) and the folders the project declares (`grillhouse.matieres`,
+ * scripts/matieres-cles.mjs). The testwriter mounts each in writing, every other role read-only.
+ * @param {import('../jointure.js').Composition} langage
+ * @param {string} copie
+ * @returns {string[]}
+ */
+export function matieresDeLaCopie(langage, copie) {
+  return [
+    ...langage.matieres(copie).map(m => path.relative(copie, m.dossier)),
+    ...matieresDeclareesDe(copie),
+  ];
+}
 // The packages of the copy that the plan <paquets> does not name and that are not the shared test
 // material, relative to the copy: where the envelope opens an empty own output to each run. The
 // root package is the copy's own root, treated apart.
@@ -172,7 +187,8 @@ const paquetsHorsDuPlan = (paquets, paquetsDeLaCopie, matieres) => {
 export function preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres, role, sorties }) {
   const dossiers = paquetsHorsDuPlan(paquets, paquetsDeLaCopie, matieres);
   if (role !== ROLE_MATIERE) {
-    dossiers.push(...matieres);
+    // A declared folder of test material is no package: no run of tests writes outputs in it.
+    dossiers.push(...matieres.filter(m => paquetsDeLaCopie.some(p => p.dossier === m)));
   }
   if (!ecritsDuPlan(paquets, paquetsDeLaCopie).includes('.')) {
     dossiers.push('.');
@@ -833,6 +849,7 @@ function envelopper(argv) {
       montages: [copie, claude, scratchpads, cacheNpm, TEMPORAIRE, ...sessions],
     });
     donnees = donneesDe(copie);
+    matieresDeclareesDe(copie);
   } catch (e) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
     return CODE_REFUS;
@@ -866,7 +883,7 @@ function envelopper(argv) {
     lienSurDisque
   );
   const langage = langageDeLaCopie(copie);
-  const matieres = langage.matieres(copie).map(m => path.relative(copie, m.dossier));
+  const matieres = matieresDeLaCopie(langage, copie);
   // The outputs of the language: its stores in the home or in the main tree (the folder of git's
   // common directory), and where its tools write in the copy.
   const commun = execFileSync(

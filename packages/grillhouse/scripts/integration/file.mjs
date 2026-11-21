@@ -69,6 +69,7 @@ import { arbreEstJuge, garderLArbreJuge } from '../arbres-juges.mjs';
 import { A_REPASSER } from '../codes-de-sortie.mjs';
 import { BASE_DU_LOT } from '../dernier-vert.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
+import { matieresDeclareesDe } from '../matieres-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 import { pousseeRetiree } from '../poussee-retiree.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
@@ -191,6 +192,7 @@ function remplacer(o, tip, tete) {
   let env;
   try {
     engendres = engendresDe(racine);
+    matieresDeclareesDe(racine);
     env = avecLesDonnees(
       donneesDe(racine),
       avecLesOutils(outilsDe(racine), process.env, empreintesDe(racine))

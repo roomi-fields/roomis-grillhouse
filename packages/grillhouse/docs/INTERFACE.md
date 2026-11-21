@@ -381,6 +381,11 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
   Le circuit les régénère et les juge (étape 4.2). Les fichiers engendrés qu'un projet déclare
   (`grillhouse.engendres` de son `package.json`) se lisent à côté, dans la même forme, sans
   vérification ni constat ; l'intégration les régénère au lieu de les fusionner.
+- `grillhouse.matieres` (clé du `package.json` racine d'un projet) : une liste de dossiers du dépôt,
+  hors de tout paquet, que le testwriter écrit comme de la matière de test (`estUnTest` de la
+  jointure des langages leur rend `{ joue: false, test: false, matiere: true }` après les
+  modules) ; lue dans l'arbre principal, refusée par son nom si elle est fautive ; sans elle, rien
+  ne change.
 - `gardes` : les gardes de structure du module, chacune `[script, ...args]`, dans l'ordre où elles
   jouent ; `grillhouse gardes-du-cadre` les joue.
 - `entreesDeLIndex` : les entrées de l'index des interfaces, une par interface des composants du

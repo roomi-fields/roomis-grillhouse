@@ -63,6 +63,15 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   lot appliqué ; lue dans l'arbre principal ; une entrée que le lot retire de la clé n'est plus
   rejouée, et ses fichiers suivent le lot, leur suppression comprise ; une clé sans commande, sans
   fichiers ou avec un motif hors du dépôt est refusée par son nom avant tout travail).
+- Les dossiers de matière de test : la clé `grillhouse.matieres` du `package.json` (une liste de
+  dossiers du dépôt, chacun depuis la racine : des cas qu'aucun paquet ne possède, comme le
+  `conformance/` que rejouent les tests d'un crate, le `filegroup(testonly)` de Bazel ou le
+  `tests/ui` de rustc ; le testwriter y écrit tout fichier, dans chaque langage, et son enveloppe
+  les monte en écriture, celle du développeur en lecture seule ; le relecteur et la preuve du
+  rouge les comptent comme de la matière de test, jamais du code ; lue dans l'arbre principal ;
+  un chemin vide, absolu, hors du dépôt, absent de l'arbre principal, ou qui est un paquet, en
+  contient un ou y est contenu, et une clé fautive sont refusés par le nom
+  `grillhouse.matieres` avant tout travail ; sans la clé, rien ne change).
 - Le nombre de circuits à la fois : la clé `grillhouse.circuits` du `package.json` (un entier
   ≥ 1, **1** quand elle est absente : les circuits actifs du projet à la fois, que la file des
   tickets tient ; un circuit arrêté sur une question au superviseur, ou repris et en attente de sa
