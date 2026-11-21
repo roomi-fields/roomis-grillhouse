@@ -139,6 +139,8 @@ export default {
   commandes,
   verdict,
   echecDeCompilation,
+  // A test that imports an absent module does not compile: `echecDeCompilation` bears it.
+  moduleAbsent: () => null,
   estUnTest,
   horsDuJour: fichierHorsDuJour,
   manifestes,

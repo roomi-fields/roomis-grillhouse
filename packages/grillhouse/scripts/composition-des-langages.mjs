@@ -265,6 +265,8 @@ export function composer(modules) {
       };
     },
     echecDeCompilation: texte => modules.some(m => m.echecDeCompilation?.(texte) ?? false),
+    moduleAbsent: (message, fichier) =>
+      modules.map(m => m.moduleAbsent?.(message, fichier) ?? null).find(Boolean) ?? null,
     estUnTest: (chemin, racine) =>
       premiereReponse(modules, racine, chemin, m => m.estUnTest(chemin, racine)),
     horsDuJour: (chemin, racine) =>

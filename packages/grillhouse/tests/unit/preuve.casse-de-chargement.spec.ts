@@ -9,7 +9,13 @@ import { describe, expect, it } from 'vitest';
 import { casseDeChargement } from '../../scripts/activites.mjs';
 
 type Res = { tests: { nom: string; etat: string }[]; etat?: string; message?: string };
-type Arg = { res?: Res; code: number; constructions: { nom: string }[]; aDesResultats?: boolean };
+type Arg = {
+  res?: Res;
+  code: number;
+  constructions: { nom: string }[];
+  aDesResultats?: boolean;
+  absent?: boolean;
+};
 const casse = casseDeChargement as (a: Arg) => string | null;
 
 describe('casseDeChargement — un fichier de test sans résultat propre', () => {
@@ -38,6 +44,19 @@ describe('casseDeChargement — un fichier de test sans résultat propre', () =>
     expect(
       casse({ res: { tests: [], etat: 'failed', message: 'erreur' }, code: 0, constructions: [] })
     ).toBe('ne-charge-pas');
+  });
+
+  it('un fichier qui échoue à charger sur un module absent de la copie est un rouge, pas un casse', () => {
+    // Le test écrit avant le code importe le module que le ticket crée.
+    const res = { tests: [], etat: 'failed', message: 'Failed to load url ../x.mjs' };
+    expect(casse({ res, code: 1, constructions: [], absent: true })).toBe('module-absent');
+    expect(casse({ res, code: 1, constructions: [], absent: false })).toBe('ne-charge-pas');
+  });
+
+  it('un module absent ne change rien à un fichier qui a chargé', () => {
+    expect(
+      casse({ res: { tests: [], etat: 'passed' }, code: 0, constructions: [], absent: true })
+    ).toBe(null);
   });
 
   it('un résultat présent, sans test, qui n’a pas échoué n’est pas un casse (pas de test propre)', () => {

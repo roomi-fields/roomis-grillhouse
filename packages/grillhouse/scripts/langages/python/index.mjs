@@ -110,6 +110,8 @@ export default {
   verdict,
   // Python has no compilation step: no test task bears a compilation failure (jointure.d.ts).
   echecDeCompilation: () => false,
+  // No load failure of pytest is read as an absent module.
+  moduleAbsent: () => null,
   estUnTest,
   // A night test, `*_nuit_test.py` (`estDeNuit`).
   horsDuJour: chemin => estDeNuit(path.basename(chemin)),

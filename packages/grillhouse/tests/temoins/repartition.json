@@ -206,6 +206,7 @@
     "scripts/langages/typescript/migrations/0.34.1-cache-des-outils.mjs",
     "scripts/langages/typescript/tranches.mjs",
     "scripts/langages/typescript/mise-a-jour.mjs",
+    "scripts/langages/typescript/module-absent.mjs",
     "scripts/langages/typescript/parcours.mjs",
     "scripts/langages/typescript/references-par-les-types.mjs",
     "scripts/langages/typescript/regle-des-tests.mjs",

@@ -61,6 +61,7 @@ import { garderLesResumes, lireLesResumes, resumesDuLancement } from './resume-d
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
 import { estHorsDuJour } from './vitest-config/cibles.mjs';
+import { moduleAbsent } from './module-absent.mjs';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
 import * as lignesMalFormees from './migrations/0.24.6-lignes-mal-formees.mjs';
@@ -271,6 +272,8 @@ export default {
   verdict,
   // A build failure is already a red `build` task here; no test task bears a compilation failure.
   echecDeCompilation: () => false,
+  // The module a test file imports and Vitest did not find (./module-absent.mjs).
+  moduleAbsent,
   estUnTest,
   // A night test, a bench or a time witness (./vitest-config/cibles.mjs, `estHorsDuJour`).
   horsDuJour: (chemin, racine) => estHorsDuJour(path.resolve(racine, chemin)),

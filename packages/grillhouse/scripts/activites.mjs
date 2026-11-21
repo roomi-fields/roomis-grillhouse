@@ -912,7 +912,8 @@ function restaurer(ctx, commit, fichiers) {
   }
 }
 
-// Whether a proof of the counts <compte> passes: no file of the lot that does not load, no green
+// Whether a proof of the counts <compte> passes: no file of the lot that does not load (one that
+// imports a module the copy does not hold is a red, `casseDeChargement`), no green
 // the sheet names in `portent_le_travail` (`nommes`), and at least one red (of the lot, existing
 // or of a build); the greens the sheet does not name and the ones HEAD holds are accepted but prove
 // nothing. Under a plan « comportement tests-adaptés » (<inchange>), nothing has to turn red and every
@@ -948,8 +949,17 @@ export function preuveReussie(
 // ended well (<code> 0, the binary compiled and played), the file loaded and simply holds no test
 // of its own — an aggregator harness (tests/it/main.rs, `mod …;`) or shared test matter; not a
 // casse. With a result but no test (<res> present, 0 tests), it is a casse only when that result
-// itself failed. Returns the kind of casse (`non-joue`, `ne-charge-pas`) or null when there is none.
-export function casseDeChargement({ res, code, constructions, aDesResultats = false }) {
+// itself failed. A file that fails to load on a module it imports and the copy does not hold
+// (<absent>) is no casse either: the test is written before the code the ticket creates, and its
+// load failure is its red (`module-absent`). Returns the kind (`non-joue`, `ne-charge-pas`,
+// `module-absent`) or null when the file is neither a casse nor a red of that kind.
+export function casseDeChargement({
+  res,
+  code,
+  constructions,
+  aDesResultats = false,
+  absent = false,
+}) {
   const tests = res?.tests ?? [];
   if (constructions.length && (!res || tests.length === 0)) {
     return null;
@@ -962,7 +972,7 @@ export function casseDeChargement({ res, code, constructions, aDesResultats = fa
     return code === 0 || aDesResultats ? null : 'non-joue';
   }
   if (tests.length === 0) {
-    return res.etat === 'failed' ? 'ne-charge-pas' : null;
+    return res.etat !== 'failed' ? null : absent ? 'module-absent' : 'ne-charge-pas';
   }
   return null;
 }
@@ -1593,6 +1603,7 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
   const nonNommes = [];
   const nommes = [];
   const casses = [];
+  const langage = langageDe(ctx.copie);
   const liste = composantsDe(ctx.copie).filter(p => !p.hors);
   let anciens = 0;
   const reportes = [];
@@ -1643,11 +1654,17 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];
       const deHead = vertsDuRegistre(registre, f);
+      // The module the file imports and the copy does not hold: the code the ticket creates.
+      const importe =
+        res && tests.length === 0
+          ? langage.moduleAbsent(res.message ?? '', path.join(ctx.copie, f))
+          : null;
       const casse = casseDeChargement({
         res,
         code,
         constructions,
         aDesResultats: resultats.length > 0,
+        absent: Boolean(importe) && !existsSync(importe),
       });
       if (casse === 'non-joue') {
         casses.push(
@@ -1655,6 +1672,11 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
         );
       } else if (casse === 'ne-charge-pas') {
         casses.push(`${f} — ne se charge pas : ${premiereLigne(res.message || res.etat)}`);
+      } else if (casse === 'module-absent') {
+        rouges.push(
+          `${f} — importe un module absent, que le code du ticket crée : ${path.relative(ctx.copie, importe)}`
+        );
+        rougesDuLot++;
       }
       for (const a of tests) {
         if (a.etat === 'failed') {

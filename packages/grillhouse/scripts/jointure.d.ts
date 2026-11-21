@@ -250,6 +250,11 @@ export interface Composition {
    * whatever the task that bears it — the build task, or the test task with no report
    * (grillhouse-lv9). Every module answers it; a language with no compilation step answers false. */
   echecDeCompilation(texte: string): boolean;
+  /** The absolute path of the module the load failure `message` of the test file `fichier` names
+   * as absent, null when it names none: the proof of the red reads a test that imports a module
+   * the ticket creates as red, as a test target that does not compile. A language whose compiler
+   * bears it (`echecDeCompilation`) answers null. */
+  moduleAbsent(message: string, fichier: string): string | null;
   estUnTest(chemin: string, racine: string): ClasseDeTest;
   /** Whether the test file `chemin` (from `racine`) is out of the day, one that only the night
    * plays (a night test, a time budget bench, a time witness), by the module's own definitions;

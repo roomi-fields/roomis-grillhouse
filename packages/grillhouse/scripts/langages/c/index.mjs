@@ -97,6 +97,8 @@ export default {
   commandes,
   verdict,
   echecDeCompilation,
+  // A test that includes an absent header does not compile: `echecDeCompilation` bears it.
+  moduleAbsent: () => null,
   estUnTest,
   // No night test in C yet.
   horsDuJour: () => false,

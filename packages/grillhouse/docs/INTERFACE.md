@@ -344,6 +344,10 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
   (« construction de <crate> »), quelle que soit la tâche qui le porte — la tâche de construction,
   ou la tâche de test sans rapport. Chaque module y répond ; un langage sans étape de compilation
   (TypeScript, Python ici) répond toujours faux.
+- `moduleAbsent` : le chemin absolu du module qu'un échec de chargement d'un fichier de test nomme
+  comme absent, ou rien : la preuve du rouge lit un test qui importe un module que le ticket crée
+  comme un rouge, et non comme un fichier cassé. Chaque module y répond ; un langage dont le
+  compilateur porte ce cas (`echecDeCompilation` : Rust, C) répond toujours rien.
 - `estUnTest` : ce que le testwriter écrit dans un fichier, `{ joue, test, matiere }` (un test que
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
   partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le
