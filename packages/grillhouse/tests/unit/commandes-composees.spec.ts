@@ -268,3 +268,48 @@ describe('verifier composée — le module du graphe joue en dernier', () => {
     ]);
   });
 });
+
+// A project without a module of package.json (cargo alone: open-synth-descriptors, osc-bridge) has
+// no pass of the graph to keep the last green: the composed `verifier` keeps it, and its tree
+// judged with it, which the pre-push hook reads before a commit goes to main.
+describe('verifier composée sans module de package.json — elle garde le vert elle-même', () => {
+  const seul = (args: string[] = [], env = {}) =>
+    jouer('verifier', args, {
+      racine: RACINE,
+      modules: [CARGO],
+      env: { ...process.env, JOURNAL, ...env },
+    });
+  const juges = () => {
+    const f = path.join(RACINE, '.git/grillhouse/arbres-juges.json');
+    return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as string[]) : [];
+  };
+  const arbre = () => git('rev-parse', 'HEAD^{tree}').stdout.trim();
+  beforeEach(() => rmSync(path.join(RACINE, '.git/grillhouse/arbres-juges.json'), { force: true }));
+
+  it('green and whole: the last green of main is kept, and the tree of the commit is judged', () => {
+    expect(seul()).toBe(0);
+    expect(existsSync(vert())).toBe(true);
+    expect(juges()).toContain(arbre());
+  });
+
+  it('red: nothing is kept, nothing judged', () => {
+    expect(seul([], { CODE_cargo: '1' })).toBe(1);
+    expect(existsSync(vert())).toBe(false);
+    expect(juges()).toEqual([]);
+  });
+
+  it.each([['--gardes'], ['--sans-tests'], ['--tranche=1/2'], ['--filter=moteur']])(
+    'partial (%s): nothing is kept',
+    option => {
+      expect(seul([option])).toBe(0);
+      expect(existsSync(vert())).toBe(false);
+      expect(juges()).toEqual([]);
+    }
+  );
+
+  it('with a module of package.json, the composed command keeps none: the pass of the graph does', () => {
+    expect(lancer('verifier', [])).toBe(0);
+    expect(existsSync(vert())).toBe(false);
+    expect(juges()).toEqual([]);
+  });
+});

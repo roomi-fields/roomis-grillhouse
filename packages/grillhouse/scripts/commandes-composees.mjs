@@ -21,10 +21,15 @@
 //   module takes is refused, named, and nothing plays (code 2).
 // - The launcher's `construire --echec <fichier> <plan>` is one implementation for every language
 //   (scripts/taches-du-graphe.mjs): the first module plays it, once.
-// - No green is kept here, and no module is given one to defer: the last green
-//   (scripts/dernier-vert.mjs) is kept by the one pass of the verification, once, when every task
-//   of every language of the graph is green (scripts/langages/typescript/verifier.mjs). A module
-//   that plays after a red one gets `PASSE_ROUGE` in its environment: that pass keeps none.
+// - No module is given a green to defer: the last green (scripts/dernier-vert.mjs) is kept by the
+//   one pass of the verification, once, when every task of every language of the graph is green
+//   (scripts/langages/typescript/verifier.mjs). A module that plays after a red one gets
+//   `PASSE_ROUGE` in its environment: that pass keeps none. A project without a module of
+//   package.json (cargo alone, python alone) has no such pass: the composed `verifier` keeps the
+//   green itself then, on the tree the repository had before the modules played, when every module
+//   is green and the verification is whole (`garderSansLeGraphe`). Without it no tree of such a
+//   project was ever judged, and the pre-push hook let none of its commits go to main
+//   (open-synth-descriptors and osc-bridge, 2026-11-21).
 // - `verifier`: the module of package.json plays last, and passes over the whole graph (every task
 //   of every language, once); the others play before it in their declared order and get
 //   `GRAPHE_JOUE` and play no task of it again (cargo: its `deny check` alone), so that nextest
@@ -35,6 +40,8 @@ import { spawnSync } from 'node:child_process';
 import { constants } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { moduleDuFichier } from './composition-des-langages.mjs';
+import { garderLeVert } from './dernier-vert.mjs';
+import { etatDuDepot } from './etat-du-depot.mjs';
 import { langagesDe } from './langages.mjs';
 import { GRAPHE_JOUE, PASSE_ROUGE } from './taches-du-graphe.mjs';
 
@@ -96,13 +103,30 @@ function repartir(nom, args, modules, racine) {
   };
 }
 
+// The options that make a verification partial: its green is kept by no one.
+const PARTIELLE = /^(--gardes|--sans-tests|--tranche(=.*)?|--filter(=.*)?|-F)$/;
+
+/**
+ * The state a composed `verifier` keeps as the last green when its modules are all green: the one
+ * of the repository at <racine> before they play, for a whole verification (<args>) of a project
+ * that has no module of package.json (<duGraphe>), whose pass keeps it otherwise; null when this
+ * command keeps none.
+ */
+function garderSansLeGraphe(nom, args, duGraphe, racine) {
+  if (nom !== 'verifier' || duGraphe || args.some(a => PARTIELLE.test(a))) {
+    return null;
+  }
+  const etat = etatDuDepot(racine);
+  return etat.raison ? null : etat;
+}
+
 /**
  * Plays the command <nom> with <args> in each module of <modules> that describes it, in the
  * project at <racine>, under <env>: the joined exit code.
  * @param {string} nom
  * @param {string[]} args
  * @param {{ racine?: string, modules?: import('./jointure.js').Langage[], env?: NodeJS.ProcessEnv,
- *   dire?: (ligne: string) => void }} [o]
+ *   dire?: (ligne: string) => void, garder?: (etat: object) => void }} [o]
  * @returns {number}
  */
 export function jouer(
@@ -113,6 +137,7 @@ export function jouer(
     modules = langagesDe(racine),
     env = process.env,
     dire = l => process.stderr.write(`${l}\n`),
+    garder = garderLeVert,
   } = {}
 ) {
   const avec = modules.filter(m => Object.hasOwn(m.commandes(racine), nom));
@@ -133,6 +158,7 @@ export function jouer(
     nom === 'verifier' && duGraphe
       ? [...r.parts.filter(x => x.module !== duGraphe), ...r.parts.filter(x => x.module === duGraphe)]
       : r.parts;
+  const aGarder = garderSansLeGraphe(nom, args, duGraphe, racine);
   for (const { module, args: siens } of ordre) {
     const c = module.commandes(racine)[nom];
     dire(`▶ ${module.nom} : ${nom}`);
@@ -153,7 +179,11 @@ export function jouer(
       codes.push(p.status ?? 128 + (constants.signals[p.signal ?? 'SIGTERM'] ?? 0));
     }
   }
-  return unir(codes);
+  const code = unir(codes);
+  if (code === 0 && aGarder && codes.length) {
+    garder(aGarder);
+  }
+  return code;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
