@@ -1439,7 +1439,17 @@ jouer, et le poste garde ce qu'il est seul à avoir.
 `packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, la CI de main par paquets (les
 gardes, les tranches, leur fusion ; il joue quand la file le déclenche après l'entrée d'un lot, au
 plus une fois par heure, ou à la main, sans planification), et `nuit.yml`, les tests de nuit hors du
-poste, tels que Grillhouse les joue chez lui. Chaque job tourne sur la variable `RUNNER` du dépôt
+poste, tels que Grillhouse les joue chez lui. Le fichier de CI reste au cadre, le projet ne fournit
+que sa préparation (« Scripts to Rule Them All » de GitHub) : chaque job qui joue la vérification ou
+les tests (le job sans tests et les tranches de `ci.yml`, `machine-vierge.yml`, les tranches de
+`nuit.yml` ; non la fusion des rapports) joue, après `npm ci` et avant les binaires des langages,
+`npm run --if-present ci:preparer`, le script du `package.json` racine du projet, qui peut exporter
+des variables aux étapes suivantes (`$GITHUB_ENV`) ; sans lui, rien ne change. Le script est rejoué à
+chaque job et par version de Node : il est idempotent, et porte lui-même les droits d'installation
+sur un exécuteur du projet. Un travail propre au projet (une image Docker, un déploiement) vit dans
+un flux à lui, à côté de ceux du cadre. Un projet à copie sans marque du `ci.yml` pose `ci:preparer`,
+remplace sa copie par le fichier marqué du gabarit, puis joue `npx grillhouse maj`, qui reprend
+ensuite chaque flux marqué. Chaque job tourne sur la variable `RUNNER` du dépôt
 (`fromJSON(vars.RUNNER || '"ubuntu-latest"')`, une étiquette ou une liste d'étiquettes en JSON,
 la convention de SyntHub), qui vit dans les réglages du dépôt sur GitHub et qu'aucun fichier
 n'écrit. Chaque récupération du dépôt prend ses sous-modules (`submodules: recursive`), un

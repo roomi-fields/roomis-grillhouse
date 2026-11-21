@@ -74,6 +74,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The project's preparation (system packages, toolchains), when its package.json has the
+      # script `ci:preparer`; it may export variables to the next steps through $GITHUB_ENV.
+      - name: Prepare the project
+        run: npm run --if-present ci:preparer
+
       # The binaries of the project's languages that the verification runs (cargo's sccache,
       # nextest and cargo-deny, python's uv), each at its version; none for TypeScript alone.
       - name: Install the binaries of the languages
@@ -116,6 +121,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The project's preparation (system packages, toolchains), when its package.json has the
+      # script `ci:preparer`; it may export variables to the next steps through $GITHUB_ENV.
+      - name: Prepare the project
+        run: npm run --if-present ci:preparer
 
       # The binaries of the project's languages that the verification runs (cargo's sccache,
       # nextest and cargo-deny, python's uv), each at its version; none for TypeScript alone.

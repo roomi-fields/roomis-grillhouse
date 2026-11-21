@@ -46,6 +46,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The project's preparation (system packages, toolchains), when its package.json has the
+      # script `ci:preparer`; it may export variables to the next steps through $GITHUB_ENV.
+      - name: Prepare the project
+        run: npm run --if-present ci:preparer
+
       # uv, which the module python plays; a runner of the repository brings its own.
       - name: Install uv
         if: runner.environment == 'github-hosted'
