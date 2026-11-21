@@ -258,7 +258,13 @@ function ouvrirSousVerrou(o, lecture, lots) {
 export const bdDans =
   racine =>
   (...args) =>
-    spawnSync('bd', args, { cwd: racine, env: process.env, encoding: 'utf8', timeout: 60_000 });
+    spawnSync('bd', args, {
+      cwd: racine,
+      env: process.env,
+      encoding: 'utf8',
+      timeout: 60_000,
+      maxBuffer: 256 * 1024 * 1024,
+    });
 
 // The GitHub CLI run in the main tree <racine>.
 export const ghDans =
