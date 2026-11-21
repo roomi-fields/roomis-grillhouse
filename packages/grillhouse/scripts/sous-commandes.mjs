@@ -52,6 +52,7 @@ export const SOUS_COMMANDES = {
   lancer: 'enveloppe/lancer.sh',
   journal: 'journal.mjs',
   'ligne-etat': 'ligne-etat/ligne-etat.mjs',
+  machine: 'machine.mjs',
   maj: 'grillhouse-maj.mjs',
   'messages-non-lus': 'messages-non-lus.mjs',
   newday: 'newday.mjs',

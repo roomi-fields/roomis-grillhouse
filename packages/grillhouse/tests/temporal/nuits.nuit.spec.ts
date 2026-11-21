@@ -65,8 +65,10 @@ function machine(choix: ChoixDesNuits, verdicts: Record<string, number | 'echec'
     },
     reserverLaMachine: ({ jeton }) => {
       journal.push(`reserver:${jeton}`);
-      return Promise.resolve();
+      return Promise.resolve({ prise: true as const });
     },
+    sauterLaNuit: ({ racine, raison }) =>
+      Promise.resolve({ racine, raison, sommet: '', reference: null }),
     leverLaMachine: ({ jeton }) => {
       journal.push(`lever:${jeton}`);
       return Promise.resolve();

@@ -64,6 +64,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'journal',
         'lancer',
         'ligne-etat',
+        'machine',
         'messages-non-lus',
         'newday',
         'nuit',

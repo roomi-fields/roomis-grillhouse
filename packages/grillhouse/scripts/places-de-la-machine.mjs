@@ -280,7 +280,9 @@ export function prendreUnePlace({
     borneMs,
     rappelMs,
   };
-  const { code, lignes } = auServeur(e, ['prendre', JSON.stringify(demande)], borneMs + 60_000);
+  // No deadline of the process: the bridge holds the bound itself (`attendreLaPlace`), and under
+  // the supervisor's closure the wait lasts until the reopening.
+  const { code, lignes } = auServeur(e, ['prendre', JSON.stringify(demande)], 0);
   for (const l of lignes) {
     if (l.dire) {
       // The wait, said and dated in the journal of states, its reason the message said.
@@ -853,6 +855,33 @@ export function lirePlaces({ env = process.env } = {}) {
     : { plafond: plafondDe(env), prises: [], attentes: [] };
 }
 
+// The command <mode> (`fermer`, `rouvrir`) of the bridge to the server under <env>: its issue. No
+// server where no place is taken (the CI, the envelope of an agent), which cannot close a machine.
+function commandeDeLaFermeture(mode, env) {
+  const e = surLeServeur(env);
+  if (!e) {
+    throw new Error('aucun serveur Temporal ici : la machine ne se ferme que sur le poste');
+  }
+  return auServeur(e, [mode]).lignes[0];
+}
+
+/**
+ * Closes the machine under <env> (the supervisor's reservation of the places, `cordon` of
+ * kubectl): its issue, `fermee`, `deja-fermee`, or `nuit-tient` when the night holds the machine.
+ * @param {{ env?: Record<string, string | undefined> }} [o]
+ * @returns {'fermee' | 'deja-fermee' | 'nuit-tient'}
+ */
+export const fermerLaMachine = ({ env = process.env } = {}) => commandeDeLaFermeture('fermer', env);
+
+/**
+ * Reopens the machine under <env>: its issue, `rouverte`, `deja-ouverte`, or `nuit-tient` (the
+ * reopening never lifts a night's reservation).
+ * @param {{ env?: Record<string, string | undefined> }} [o]
+ * @returns {'rouverte' | 'deja-ouverte' | 'nuit-tient'}
+ */
+export const rouvrirLaMachine = ({ env = process.env } = {}) =>
+  commandeDeLaFermeture('rouvrir', env);
+
 /**
  * The machine a trial fixes under <env> (GRILLHOUSE_MESURE_D_ESSAI, JSON `{ coeurs, charge,
  * memoireLibre, memoireTotale }`), or null without the variable.
@@ -904,6 +933,7 @@ function mesureDEssai(env) {
  *   }} [o] `lues`, the places as the server holds them (`lirePlaces` by default); `tenues` of the
  *   result gives each place taken, its ticket and the root of its project (null without one)
  * @returns {{ prises: number, tenues: { ticket: string | null, racine: string | null }[],
+ *   fermeture: { auteur: 'nuit' | 'superviseur', depuis: number, phase: string } | null,
  *   plafond: number, faute: string | null, charge: number, coeurs: number, memoireGo: number,
  *   memoireTotaleGo: number, attentes: { ticket: string, depuis: number, disque?: string | null }[] }}
  * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is faulty
@@ -917,12 +947,14 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine, 
     attentes,
     circuits = [],
     nuit = null,
+    fermeture = null,
   } = lues ?? lirePlaces({ env });
   const m = fixee ?? mesurer();
   return {
     prises: prises.length,
     tenues: prises.map(p => ({ ticket: p.ticket ?? null, racine: p.racine ?? null })),
     nuit: nuit?.phase ?? null,
+    fermeture,
     plafond,
     faute,
     charge: Math.round(m.charge * 10) / 10,

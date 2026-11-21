@@ -37,7 +37,7 @@ export interface LigneDuRegistre {
   cache: number;
   cout: number | null;
   cle?: string;
-  nuit?: { verdict: 'sautee'; raison: string; sommet: string; reference: string };
+  nuit?: { verdict: 'sautee'; raison: string; sommet: string; reference: string | null };
 }
 
 /** The register's file: GRILLHOUSE_REGISTRE, else ~/.claude/grillhouse/registre.jsonl. */
@@ -77,7 +77,7 @@ export function ligneDeNuit(e: {
   quand: string;
   raison: string;
   sommet: string;
-  reference: string;
+  reference: string | null;
 }): LigneDuRegistre;
 export function aRattraper(
   racine: string,

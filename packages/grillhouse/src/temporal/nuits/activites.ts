@@ -18,7 +18,13 @@ import { espacementDe, VARIABLE_JETON } from '../../../scripts/regles-des-places
 import { ecrire, ligneDeNuit, REGISTRE } from '../../../scripts/registre.mjs';
 import { finirLaTentativeMorte } from '../acte.js';
 import { ouvrirLeClient } from '../client.js';
-import { choisir, marqueurDeLaNuit, projetsDuRegistre } from './choix.js';
+import {
+  choisir,
+  marqueurDeLaNuit,
+  projetsDuRegistre,
+  raisonDeLaNuitSautee,
+  sautDeLaFermeture,
+} from './choix.js';
 import {
   battreLaReservation,
   demarrerLesPlaces,
@@ -58,7 +64,7 @@ export function noterLeSautA(saut: Saut, maintenant: Date): void {
     appendFileSync(
       path.join(dossier, `${jour}.log`),
       `— la nuit du ${heure} sur ${saut.sommet.slice(0, 7)} : sautée, ${saut.raison} ` +
-        `(sommet ${saut.sommet}, référence ${saut.reference}).\n`
+        `(sommet ${saut.sommet}${saut.reference === null ? '' : `, référence ${saut.reference}`}).\n`
     );
   }
   ecrire(
@@ -103,16 +109,37 @@ async function battreLaReservationDe(jeton: string): Promise<void> {
   }
 }
 
-export async function reserverLaMachine({ jeton }: { jeton: string }): Promise<void> {
+export function sauterLaNuit({
+  racine,
+  raison,
+}: {
+  racine: string;
+  raison: string;
+}): Promise<Saut> {
+  const saut = sautDeLaFermeture(racine, raison);
+  noterLeSautA(saut, new Date());
+  return Promise.resolve(saut);
+}
+
+export async function reserverLaMachine({
+  jeton,
+}: {
+  jeton: string;
+}): Promise<{ prise: true } | { prise: false; raison: string }> {
   const contexte = Context.current();
   const c = ouvrirLeClient();
   try {
     await demarrerLesPlaces(c.client, { espacementMs: espacementDe(process.env), veilleMs: 1_000 });
-    await reserverLaMachineEntiere(c.client, { jeton });
+    const { prise } = await reserverLaMachineEntiere(c.client, { jeton });
+    if (!prise) {
+      // The supervisor closed the machine: the night is skipped, not made to fail.
+      const raison = raisonDeLaNuitSautee((await lireLesPlaces(c.client)).fermeture);
+      return { prise: false, raison: raison ?? 'machine fermée par le superviseur' };
+    }
     // The stages under way finish: the nights start once no place is held but the night's.
     for (;;) {
       if ((await lireLesPlaces(c.client)).nuit?.phase === 'en cours') {
-        return;
+        return { prise: true };
       }
       contexte.heartbeat();
       await battreLaReservation(c.client, jeton);
@@ -195,6 +222,7 @@ export const activitesDesNuits: ActivitesDesNuits = {
   choisirLesNuits,
   noterLeSaut,
   reserverLaMachine,
+  sauterLaNuit,
   leverLaMachine,
   jouerLaNuit,
   demanderLesNuitsPlanifiees,

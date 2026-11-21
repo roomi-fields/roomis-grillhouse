@@ -38,8 +38,8 @@ export interface Saut {
   raison: string;
   /** HEAD of its main tree. */
   sommet: string;
-  /** The commit of its last green night. */
-  reference: string;
+  /** The commit of its last green night; null for a night skipped because the machine is closed. */
+  reference: string | null;
 }
 
 /** A project of the register left out of the night, and why (its root gone, no night wired). */
@@ -105,7 +105,14 @@ export interface ActivitesDesNuits {
    * ../places/deroule.ts) and returns once the stages under way have finished: no place is taken
    * by anything but the night, and the activity renews the reservation while it waits.
    */
-  reserverLaMachine(e: { jeton: string }): Promise<void>;
+  reserverLaMachine(e: {
+    jeton: string;
+  }): Promise<{ prise: true } | { prise: false; raison: string }>;
+  /**
+   * The skip of the night of <racine> for <raison> (the machine closed by the supervisor), noted
+   * as a skip the marker decides, in the journal of the night and in the register: the skip.
+   */
+  sauterLaNuit(e: { racine: string; raison: string }): Promise<Saut>;
   /** Lifts the reservation of the machine <jeton>, so that the circuits resume. */
   leverLaMachine(e: { jeton: string }): Promise<void>;
   /** The scheduled nights asked of the workflow of the nights, started when none runs. */

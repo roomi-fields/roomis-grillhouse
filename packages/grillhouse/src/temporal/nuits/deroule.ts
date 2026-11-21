@@ -122,8 +122,15 @@ export async function nuitsDeLaMachine(entree: EntreeDesNuits = {}): Promise<Vue
       }
       if (jeton === null) {
         // The stages under way finish; the night starts once no place is held.
-        jeton = uuid4();
-        await reserverLaMachine({ jeton });
+        const demande = uuid4();
+        const reservation = await reserverLaMachine({ jeton: demande });
+        if (!reservation.prise) {
+          // The supervisor closed the machine: this night is skipped, its reason written like any
+          // skip, and not caught up at the reopening: the next planned night plays it.
+          vue.sautes.push(await actes.sauterLaNuit({ racine, raison: reservation.raison }));
+          continue;
+        }
+        jeton = demande;
       }
       vue.enCours = racine;
       vue.depuis = Date.now();

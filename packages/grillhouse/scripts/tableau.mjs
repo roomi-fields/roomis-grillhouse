@@ -155,6 +155,7 @@ import {
   lireLesExternes,
 } from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
+import { duree as dureeDeLaFermeture } from './regles-des-places.mjs';
 import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
 import { versionDuPaquet } from './greffons.mjs';
@@ -890,7 +891,8 @@ export function lignesDesParts({
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
  *   coeurs: number, memoireGo: number, memoireTotaleGo: number,
  *   tenues?: { ticket: string | null, racine?: string | null }[], attentes: { ticket: string,
- *   depuis: number, disque?: string | null }[], nuit?: 'attend' | 'en cours' | null } | null,
+ *   depuis: number, disque?: string | null }[], nuit?: 'attend' | 'en cours' | null,
+ *   fermeture?: { auteur: 'nuit' | 'superviseur', depuis: number, phase: string } | null } | null,
  *   nuit?: { racine: string, depuis: number | null } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null, voies?: Record<string, 'complet' | 'court'> }} lu
  */
@@ -1993,6 +1995,32 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         ),
         ton: p.nuit === 'attend' ? TONS.attendLeDisque : TONS.nuitEnCours,
       });
+    }
+    // The machine closed (`fermeture` of the places: its author, `superviseur` or `nuit`, since
+    // when, its phase): said, with how long it has lasted, so a closure forgotten is seen.
+    if (p.fermeture) {
+      const { auteur, depuis, phase } = p.fermeture;
+      const duJour = auteur === 'superviseur';
+      poser({
+        texte: couperAvant(
+          `machine fermée par ${duJour ? 'le superviseur' : 'la nuit'}`,
+          ` · depuis ${dureeDeLaFermeture(maintenant - depuis)}`,
+          '',
+          largeur
+        ),
+        ton: duJour ? TONS.attendLeDisque : TONS.nuitEnCours,
+      });
+      // The closure of the supervisor holds no place itself: it says what its places still do.
+      if (duJour) {
+        poser({
+          texte: cadre(
+            phase === 'vide' ? 'la machine est vide' : 'attend la fin des étapes en cours',
+            '',
+            largeur
+          ),
+          ton: TONS.attendLeDisque,
+        });
+      }
     }
   }
   // A project at its limit of circuits (`grillhouse.circuits`) names the circuits that hold it

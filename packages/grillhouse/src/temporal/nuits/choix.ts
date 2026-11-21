@@ -124,3 +124,27 @@ export function choisir(projets: string[]): ChoixDesNuits {
   }
   return choix;
 }
+
+/**
+ * Why a night that asks for the machine as the places show it (<fermeture>, null when open) is
+ * skipped: the supervisor closed the machine (`cordon`). A closure of the night itself, or an open
+ * machine, skips nothing. The night is not caught up at the reopening: the next one planned plays.
+ */
+export function raisonDeLaNuitSautee(
+  fermeture: { auteur: string; depuis: number; phase: string } | null | undefined
+): string | null {
+  return fermeture?.auteur === 'superviseur' ? 'machine fermée par le superviseur' : null;
+}
+
+/**
+ * The skip of the night of the project at <racine> for <raison> (the machine closed): the top of its
+ * main tree, no reference, as a skip the marker decides is noted.
+ */
+export function sautDeLaFermeture(racine: string, raison: string): Saut {
+  return {
+    racine,
+    raison,
+    sommet: git(racine, 'rev-parse', '--verify', '-q', 'HEAD^{commit}') ?? 'inconnu',
+    reference: null,
+  };
+}

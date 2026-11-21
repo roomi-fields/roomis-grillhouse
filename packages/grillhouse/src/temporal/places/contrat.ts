@@ -35,13 +35,44 @@ export const BATTRE_LA_RESERVATION = 'battreLaReservation';
 /** The update by which the nights lift their reservation, by its jeton. */
 export const LEVER_LA_RESERVATION = 'leverLaReservation';
 
-/** The reservation of the whole machine by the night. */
+/**
+ * The update by which the supervisor closes the machine (`cordon` of kubectl): the same
+ * reservation as the night's, its author `superviseur`, a jeton of its own, no beat. Its issue says
+ * what it did.
+ */
+export const FERMER_LA_MACHINE = 'fermerLaMachine';
+/** The update by which the supervisor reopens the machine; it never lifts a night's reservation. */
+export const ROUVRIR_LA_MACHINE = 'rouvrirLaMachine';
+
+/** The author of the reservation of the machine; an absent one is the night's. */
+type AuteurDeLaReservation = 'nuit' | 'superviseur';
+
+/** What the closure did: made, already there, or the night holds the machine. */
+export type IssueDeLaFermeture = 'fermee' | 'deja-fermee' | 'nuit-tient';
+/** What the reopening did: made, nothing to do, or the night holds the machine. */
+export type IssueDeLaReouverture = 'rouverte' | 'deja-ouverte' | 'nuit-tient';
+/** What the nights learn of their reservation: taken, or not (the supervisor's closure stands). */
+export interface PriseDeLaMachine {
+  prise: boolean;
+}
+
+/** The reservation of the whole machine, by the night or by the supervisor. */
 interface Reservation {
+  /** Absent in a state of before: the night's. */
+  auteur?: AuteurDeLaReservation;
   jeton: string;
   /** The time it was made, in ms. */
   depuis: number;
-  /** The time of its last beat, in ms. */
-  battement: number;
+  /** The time of its last beat, in ms; the supervisor's closure has none and never goes out of date. */
+  battement?: number;
+}
+
+/** The machine closed as the places show it: its author, since when, and its phase. */
+interface FermetureDesPlaces {
+  auteur: AuteurDeLaReservation;
+  depuis: number;
+  /** `attend` while the places taken finish, `en cours` (night) or `vide` (closure) once none is. */
+  phase: 'attend' | 'en cours' | 'vide';
 }
 
 /** The night as the places show it: its reservation and its phase. */
@@ -172,8 +203,10 @@ export interface VueDesPlaces {
   prises: Prise[];
   attentes: Attente[];
   circuits?: PlaceDeCircuit[];
-  /** The night when it reserves the machine; absent without. */
+  /** The night when it reserves the machine; absent without (a closure of the supervisor is none). */
   nuit?: NuitDesPlaces | null;
+  /** The machine closed, by whom and since when; absent without. */
+  fermeture?: FermetureDesPlaces | null;
 }
 
 /** Where a request stands. */

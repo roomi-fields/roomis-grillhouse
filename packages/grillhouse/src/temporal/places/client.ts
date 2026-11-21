@@ -10,6 +10,11 @@ import type { Client } from '@temporalio/client';
 import { FILE_DE_LA_MACHINE } from '../installation.js';
 import {
   BATTRE_LA_RESERVATION,
+  FERMER_LA_MACHINE,
+  ROUVRIR_LA_MACHINE,
+  type IssueDeLaFermeture,
+  type IssueDeLaReouverture,
+  type PriseDeLaMachine,
   ID_DES_PLACES,
   LA_DEMANDE,
   LES_PLACES,
@@ -118,10 +123,33 @@ export async function reserverLaMachineEntiere(
   client: Client,
   { jeton }: { jeton: string },
   id = ID_DES_PLACES
-): Promise<void> {
-  await client.workflow
+): Promise<PriseDeLaMachine> {
+  return client.workflow
     .getHandle(id)
-    .executeUpdate<void, [string]>(RESERVER_LA_MACHINE, { args: [jeton] });
+    .executeUpdate<PriseDeLaMachine, [string]>(RESERVER_LA_MACHINE, { args: [jeton] });
+}
+
+/**
+ * Closes the machine as the supervisor (FERMER_LA_MACHINE, `cordon` of kubectl): no place is given,
+ * no circuit starts, the places taken finish. `nuit-tient` when the night holds the machine (no
+ * second reservation), `deja-fermee` when it is closed already.
+ */
+export async function fermerLaMachine(
+  client: Client,
+  id = ID_DES_PLACES
+): Promise<IssueDeLaFermeture> {
+  return client.workflow.getHandle(id).executeUpdate<IssueDeLaFermeture, []>(FERMER_LA_MACHINE);
+}
+
+/**
+ * Reopens the machine the supervisor closed (ROUVRIR_LA_MACHINE, `uncordon`): the places wait are
+ * given again by themselves. A night's reservation is never lifted (`nuit-tient`).
+ */
+export async function rouvrirLaMachine(
+  client: Client,
+  id = ID_DES_PLACES
+): Promise<IssueDeLaReouverture> {
+  return client.workflow.getHandle(id).executeUpdate<IssueDeLaReouverture, []>(ROUVRIR_LA_MACHINE);
 }
 
 /** Renews the reservation <jeton>: its beat, which keeps it from going out of date. */

@@ -38,7 +38,7 @@ export function refusDeLaPlace(
       jeton?: string | null;
     }[];
     dernier: number;
-    reservation?: { jeton: string } | null;
+    reservation?: { jeton: string; auteur?: 'nuit' | 'superviseur' } | null;
   },
   o: {
     id: string;
@@ -94,14 +94,35 @@ export function refusDePart(
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS: number;
 
-/** The phase of the night on the places: none without a reservation, waiting, or under way. */
+/** The reservation of the machine: the night's (absent author) or the supervisor's closure. */
+export interface ReservationDeLaMachine {
+  auteur?: 'nuit' | 'superviseur';
+  jeton: string;
+  depuis: number;
+  /** The night's last beat; the supervisor's closure has none. */
+  battement?: number;
+}
+
+/** The phase of a reservation: none without one, waiting, under way (night) or empty (closure). */
+export function phaseDeLaReservation(etat: {
+  prises: readonly { id?: string; jeton?: string | null }[];
+  reservation?: { jeton: string; auteur?: 'nuit' | 'superviseur' } | null;
+}): 'attend' | 'en cours' | 'vide' | null;
+
+/** The phase of the night on the places: none without a reservation or under a closure. */
 export function phaseDeLaNuit(etat: {
   prises: readonly { id?: string; jeton?: string | null }[];
-  reservation?: { jeton: string } | null;
+  reservation?: { jeton: string; auteur?: 'nuit' | 'superviseur' } | null;
 }): 'attend' | 'en cours' | null;
 
-/** Whether a reservation's last beat is PERIME_MS old at <maintenant>. */
-export function reservationPerimee(reservation: { battement: number }, maintenant: number): boolean;
+/** Whether a reservation's last beat is PERIME_MS old at <maintenant>; a closure never is. */
+export function reservationPerimee(
+  reservation: { battement?: number; auteur?: 'nuit' | 'superviseur' },
+  maintenant: number
+): boolean;
+
+/** Why a place waits under the supervisor's closure. */
+export const RAISON_FERMEE: string;
 
 /** The place of a circuit of the machine: held (`accordee`) or waited for, its rank of arrival. */
 export interface PlaceDeCircuit {

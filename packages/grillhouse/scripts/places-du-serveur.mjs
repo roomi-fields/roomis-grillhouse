@@ -8,6 +8,8 @@
 //   node places-du-serveur.mjs rendre <id>
 //   node places-du-serveur.mjs rattacher <id> <pid> <depart>
 //   node places-du-serveur.mjs lire
+//   node places-du-serveur.mjs fermer
+//   node places-du-serveur.mjs rouvrir
 //
 // - Each mode first starts the workflow of the machine when none runs (`demarrerLesPlaces`, on the
 //   task queue of the worker of the machine), its spacing GRILLHOUSE_ESPACEMENT_MS
@@ -19,7 +21,9 @@
 //   given, `{ id, rang }`. At the bound <borneMs>, the request is withdrawn, its line said, exit 75.
 // - `rendre` gives the place <id> back (or withdraws its request), `rattacher` names the process
 //   that holds it; `lire` writes the places as the board reads them (`{ plafond, faute, prises,
-//   attentes }`).
+//   attentes }`); `fermer` and `rouvrir` close and reopen the machine (the supervisor's
+//   reservation), and write their issue (`fermee`, `deja-fermee`, `nuit-tient`; `rouverte`,
+//   `deja-ouverte`, `nuit-tient`).
 // - Each call waits DELAI_MS for the server, and is played again ESSAIS times when it fails
 //   transiently. Still failing, its port open: the server is busy, said on the error stream, exit
 //   75. A port refused (no server), another failure, or a client not built: said on the error
@@ -30,7 +34,10 @@ import net from 'node:net';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { A_REPASSER } from './codes-de-sortie.mjs';
-import { duree } from './regles-des-places.mjs';
+import { duree, RAISON_FERMEE } from './regles-des-places.mjs';
+
+// The start of the reason of a wait under the supervisor's closure.
+const RAISON_FERMEE_DEBUT = RAISON_FERMEE.split(' : ')[0];
 
 const DIST = path.join(import.meta.dirname, '..', 'dist', 'temporal');
 // How long a call waits for the server to answer, each attempt.
@@ -110,12 +117,19 @@ const entreeDe = async env => {
   return { espacementMs: espacementDe(env), veilleMs: 1_000 };
 };
 
-const MODES = { rang: 0, prendre: 1, rendre: 1, rattacher: 3, lire: 0 };
+const MODES = { rang: 0, prendre: 1, rendre: 1, rattacher: 3, lire: 0, fermer: 0, rouvrir: 0 };
 const ecrire = o => process.stdout.write(`${JSON.stringify(o)}\n`);
 
 // The wait of the request <id> for its place, under the handle <h> of the workflow of the
-// machine, its lines said: 0 once given, 75 at the bound <borneMs>, the request withdrawn.
-async function attendreLaPlace(c, places, { h, id, rang, borneMs, rappelMs, sous, LA_DEMANDE }) {
+// machine, its lines said: 0 once given, 75 at the bound <borneMs>, the request withdrawn. Under the
+// supervisor's closure the bound does not apply: the wait lasts until the reopening, where the
+// request is judged again (as `drain` waits, and a node cordoned keeps its pods). Exported for its
+// test.
+export async function attendreLaPlace(
+  c,
+  places,
+  { h, id, rang, borneMs, rappelMs, sous, LA_DEMANDE }
+) {
   const debut = Date.now();
   let dit = null;
   for (;;) {
@@ -131,7 +145,8 @@ async function attendreLaPlace(c, places, { h, id, rang, borneMs, rappelMs, sous
       throw new Error(`la demande de place ${id} n'est plus : retirée, ou son processus a disparu`);
     }
     const t = Date.now();
-    if (t - debut >= borneMs) {
+    const fermee = e.raison?.startsWith(RAISON_FERMEE_DEBUT) ?? false;
+    if (!fermee && t - debut >= borneMs) {
       await sous(() => places.rendreLaPlace(c.client, id));
       ecrire({
         dire: `⏱ attente de place bornée à ${duree(borneMs)} (GRILLHOUSE_ATTENTE_MACHINE_MS) : ${e.raison} ; à repasser (code ${A_REPASSER}).`,
@@ -139,7 +154,9 @@ async function attendreLaPlace(c, places, { h, id, rang, borneMs, rappelMs, sous
       return A_REPASSER;
     }
     if (dit === null) {
-      ecrire({ dire: `⏳ attente d'une place : ${e.raison} ; ${duree(borneMs)} au plus.` });
+      ecrire({
+        dire: `⏳ attente d'une place : ${e.raison} ; ${fermee ? 'sans borne jusqu’à la réouverture' : `${duree(borneMs)} au plus`}.`,
+      });
       dit = t;
     } else if (t - dit >= rappelMs) {
       ecrire({ dire: `⏳ attente d'une place depuis ${duree(t - debut)} : ${e.raison}.` });
@@ -153,7 +170,7 @@ async function attendreLaPlace(c, places, { h, id, rang, borneMs, rappelMs, sous
 async function principal(mode, args) {
   if (!Object.hasOwn(MODES, mode ?? '') || args.length !== MODES[mode]) {
     process.stderr.write(
-      'usage : places-du-serveur.mjs rang | prendre <demande> | rendre <id> | rattacher <id> <pid> <depart> | lire\n'
+      'usage : places-du-serveur.mjs rang | prendre <demande> | rendre <id> | rattacher <id> <pid> <depart> | lire | fermer | rouvrir\n'
     );
     return 2;
   }
@@ -197,6 +214,10 @@ async function principal(mode, args) {
       );
     } else if (mode === 'lire') {
       ecrire(await sous(() => places.lireLesPlaces(c.client)));
+    } else if (mode === 'fermer') {
+      ecrire(await sous(() => places.fermerLaMachine(c.client)));
+    } else if (mode === 'rouvrir') {
+      ecrire(await sous(() => places.rouvrirLaMachine(c.client)));
     } else {
       const { borneMs, rappelMs, ...demande } = JSON.parse(args[0]);
       const h = c.client.workflow.getHandle(ID_DES_PLACES);

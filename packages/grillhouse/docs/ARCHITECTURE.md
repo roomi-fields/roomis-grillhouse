@@ -2008,6 +2008,30 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   dernière, ou à l'échec, au code rouge ou 75, à l'annulation, et les circuits reprennent d'eux-
   mêmes. Le déroulé des nuits la bat tant qu'il vit ; sans battement depuis la péremption des
   places de circuit, le déroulé des places la lève. Aucune attente bornée, aucun créneau horaire.
+  **Le superviseur ferme la machine** (grillhouse-3uv.147 ; modèle : `kubectl cordon`, `drain`,
+  `uncordon`) : `npx grillhouse machine fermer` pose, dans le déroulé des places, **la même
+  réservation que celle de la nuit**, avec son auteur (`superviseur`, ou `nuit` quand il est
+  absent) et un jeton à elle qu'aucune passe ni séance ne porte ; une seule réservation à la fois,
+  et la règle des places (`refusDeLaPlace`, `reserverDesCircuits`) la traite comme celle de la nuit,
+  quel que soit l'auteur, sauf que même le jeton de la fermeture ne donne aucune place. Un circuit en
+  vol garde sa place de circuit, finit son étape, puis sa séance suivante redemande une place de
+  séance, refusée : la demande attend, sans borne (ni sortie 75, ni retrait), sa raison « machine
+  fermée par le superviseur », jusqu'à la réouverture, où elle est jugée de nouveau et donnée
+  d'elle-même. La fermeture du superviseur n'a pas de battement et ne périme jamais, comme `cordon`
+  n'a pas de délai ; celle de la nuit garde son battement et sa péremption. L'état vit dans la
+  réservation de l'état du déroulé, que Temporal garde : il passe un Continue-As-New et un rejeu,
+  un redémarrage du poste le retrouve fermé, et aucun circuit ne repart avant `npx grillhouse
+  machine rouvrir`. La commande rend la main aussitôt (comme `cordon`) en disant, par projet et
+  par ticket, ce qui tourne encore (séances : places du déroulé ; passes : parts) et « la machine est
+  vide » quand rien ne joue, `--attendre` ne la rendant qu'à la machine vide (comme `drain`) ;
+  relancée, elle relit cet état, et dit depuis quand dure la fermeture. Fermer une machine fermée,
+  ou rouvrir une machine ouverte, réussit sans effet et le dit ; quand la nuit tient la machine, la
+  fermeture ne prend pas de seconde réservation et la réouverture ne lève jamais celle de la nuit
+  (`nuit-tient`). Une nuit qui demande la machine fermée par le superviseur ne la prend pas et
+  n'échoue pas : elle est sautée, la raison « machine fermée par le superviseur » au journal de la
+  nuit du projet et au registre de la machine, sans rattrapage à la réouverture. `lesPlaces` porte
+  `fermeture` (`{ auteur, depuis, phase }`, `phase` `attend`, `vide` ou `en cours`) et le tableau
+  dit « machine fermée par le superviseur » ou « par la nuit », depuis quand.
 
 Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition
 s'inscrit dans l'histoire du serveur.
