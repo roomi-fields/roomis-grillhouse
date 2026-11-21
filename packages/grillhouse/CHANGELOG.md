@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.47.1] - 2026-11-21
+
 - **A project without a TypeScript package keeps its last green, and its pushes to main pass**: the last green and the judged tree were kept by the pass of the module of package.json alone, so a project of cargo alone (open-synth-descriptors, osc-bridge) never had a tree judged, and since 0.47.0 the pre-push hook refused each of its commits to main, a green `npm run verifier` included (2026-11-21). The composed `verifier` keeps the green itself in such a project, when every module is green and the verification is whole. Action for such a project: after the update, `npm run verifier` in a clean copy of the commit, then the push.
 
 - **A skipped flow is not a red of the CI of main**: the reading took the latest pass of each workflow, and any conclusion but `success` and `cancelled` as red; the flow that alerts on a red one, skipped on a green, was told « CI de main rouge » to the supervisor (SyntHub, 2026-11-21). A skipped pass judges nothing: the pass before it decides.
