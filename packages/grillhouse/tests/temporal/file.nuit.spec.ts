@@ -128,6 +128,9 @@ function actes(
     },
   };
   const file: ActivitesDeLaFile = {
+    lireLaVersionDeLOutil() {
+      return Promise.resolve('0.0.0-essai');
+    },
     situerLeLot({ ticket }) {
       return Promise.resolve({
         statut: fermes.has(ticket) ? 'closed' : 'open',

@@ -4,7 +4,7 @@
 // activities simulated by the test (a worker of this process). The signal RELANCER makes the queue
 // continue as new between two entries: at rest, at once; busy, after the entry under way, whose
 // issue the circuit receives, carrying those that wait, none of which the run that got the signal
-// judges. The view of the queue says `surLaPasseFinale: true`.
+// judges. The view of the queue says its `version`, that its activity read.
 import path from 'node:path';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -26,6 +26,7 @@ import {
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
 const RACINE = '/depot/essai';
 const FILE = 'essai-file';
+const VERSION_D_ESSAI = '9.8.7';
 const CI = { rechercheMs: 2_000, attenteMs: 20_000, pasMs: 200 };
 const EN_FILE: EtatDeLEtape = { etape: 'file', tentative: 1, rapport: null, finale: false };
 
@@ -82,6 +83,9 @@ function actes(retenir: (ticket: string) => Promise<void> = () => Promise.resolv
     },
   };
   const file: ActivitesDeLaFile = {
+    lireLaVersionDeLOutil() {
+      return Promise.resolve(VERSION_D_ESSAI);
+    },
     situerLeLot() {
       return Promise.resolve({ statut: 'open', raison: null });
     },
@@ -162,7 +166,7 @@ async function serveur() {
 }
 
 describe('la relance de la file', () => {
-  it('an idle queue signalled restarts as a new run at once, and its view says it is on the final pass', async () => {
+  it('an idle queue signalled restarts as a new run at once, and its view says the version its activity read', async () => {
     const { activites } = actes();
     const s = await serveur();
     await s.travailleur(DEROULES, activites);
@@ -176,7 +180,7 @@ describe('la relance de la file', () => {
     });
     expect(apres).not.toBe(avant);
     const vue = await lireLaFile(s.client, RACINE);
-    expect(vue).toMatchObject({ enCours: null, attente: [], surLaPasseFinale: true });
+    expect(vue).toMatchObject({ enCours: null, attente: [], version: VERSION_D_ESSAI });
   }, 120_000);
 
   it('a busy queue signalled ends its entry under way, tells its circuit the issue, then restarts with those that wait, judging none before', async () => {

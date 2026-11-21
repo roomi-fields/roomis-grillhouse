@@ -1,7 +1,7 @@
 // The queue of a project has one path, the final pass of main (src/temporal/file/deroule.ts): the
 // former path (the CI of the candidate's branch read by a child workflow, then the workflows of
 // main read after the push) is retired with its activities and its acts. The workflow retires its
-// patch by `deprecatePatch('passe-finale-de-main')`, never reads `patched`, and the replay of the
+// patch by `deprecatePatch('passe-finale-de-main')`, never reads `patched('passe-finale-de-main')`, and the replay of the
 // histories in flight is played by tests/temporal/file.rejeu.spec.ts.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,7 +23,7 @@ describe('le déroulé de la file ne garde que la passe finale', () => {
   it('retires the patch of the final pass without reading it', () => {
     const src = code(DEROULE);
     expect(src).toMatch(/deprecatePatch\(\s*'passe-finale-de-main'\s*\)/);
-    expect(src).not.toMatch(/\bpatched\s*\(/);
+    expect(src).not.toMatch(/\bpatched\s*\(\s*'passe-finale-de-main'\s*\)/);
   });
 
   it('has no child workflow of the CI of a commit, published or started', () => {

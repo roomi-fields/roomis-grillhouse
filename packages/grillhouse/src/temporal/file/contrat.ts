@@ -46,10 +46,11 @@ export interface VueDeLaFile {
   enCours: string | null;
   attente: string[];
   /**
-   * Whether the queue enters main by the final pass: always true; a queue recorded before this
-   * field answers without it, which reads as false (`temporal installer` restarts it).
+   * The version of the tool the queue started under (`lireLaVersionDeLOutil`, read when a run
+   * starts); a queue recorded before this field answers without it, which reads « inconnue »
+   * (`temporal installer` restarts it).
    */
-  surLaPasseFinale?: boolean;
+  version?: string;
 }
 
 /**
@@ -78,6 +79,8 @@ interface Rendus {
 }
 
 export interface ActivitesDeLaFile {
+  /** The version of the tool of the package that carries the worker running this activity. */
+  lireLaVersionDeLOutil(): Promise<string>;
   /** Where the lot of <ticket> stands: closed, or to enter by the queue. */
   situerLeLot(e: { racine: string; ticket: string }): Promise<Lot>;
   /**

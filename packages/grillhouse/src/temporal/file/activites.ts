@@ -3,11 +3,25 @@
 // of its own (../acte.ts), so that a replacement of a branch and its install leave the worker
 // serving; the acts that write give back their effects, which the workflow plays one by one
 // (`jouerUnEffetDeLaFile`).
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { jouer } from '../acte.js';
 import type { ActivitesDeLaFile } from './contrat.js';
 
 type Entree<K extends keyof ActivitesDeLaFile> = Parameters<ActivitesDeLaFile[K]>[0];
 type Sortie<K extends keyof ActivitesDeLaFile> = Awaited<ReturnType<ActivitesDeLaFile[K]>>;
+
+// The package.json of the package that carries this worker: three levels above this module, in
+// src/ as in dist/ (the one `temporal installer` reads for the installed version).
+const PACKAGE_JSON = new URL('../../../package.json', import.meta.url);
+
+export async function lireLaVersionDeLOutil(): Promise<string> {
+  const { version } = JSON.parse(await readFile(PACKAGE_JSON, 'utf8')) as { version?: unknown };
+  if (typeof version !== 'string' || !version) {
+    throw new Error(`temporal : ${fileURLToPath(PACKAGE_JSON)} ne déclare pas de version.`);
+  }
+  return version;
+}
 
 export async function situerLeLot(e: Entree<'situerLeLot'>): Promise<Sortie<'situerLeLot'>> {
   return jouer('situer', e, e.racine);

@@ -1887,10 +1887,15 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   `a-valider` (`scripts/ci-de-main.mjs`, « Main reste vert »). Le déroulé n'a qu'un chemin : il retire le
   marqueur `passe-finale-de-main` par `deprecatePatch` (grillhouse-3uv.131), et l'histoire d'une file
   qui le porte rejoue sans erreur de déterminisme. La montée de version
-  relance la file : sa vue (`etatDeLaFile`) dit `surLaPasseFinale` (toujours vrai, absent
-  d'une vue ancienne), et `temporal installer`, à chaque passage, à jour compris, après le
-  redémarrage du travailleur, envoie le signal `relancer` à la file de la racine du projet quand sa
-  vue le dit faux ou ne le dit pas ; une file déjà neuve n'est jamais signalée, ni un projet sans
+  relance la file : à chaque départ de run (premier ou Continue-As-New) le déroulé lit par l'activité
+  `lireLaVersionDeLOutil` la version de l'outil du paquet qui porte le travailleur (son
+  `package.json`, sous le marqueur `patched('version-de-la-file')` qui garde rejouables les histoires
+  d'avant), et sa vue (`etatDeLaFile`) dit `version` (absente d'une vue ancienne, lue « inconnue »).
+  `temporal installer`, à chaque passage, à jour compris, compare cette version à celle du paquet
+  d'où `travailleurDe` tire le travailleur du projet (le même `package.json`), sans lire aucun
+  patch : si elles diffèrent (« inconnue » compte pour différente), il redémarre l'unité du
+  travailleur quand ce passage ne l'a pas fait, puis envoie le signal `relancer` à la file de la
+  racine du projet ; une file de la version installée n'est jamais signalée, ni un projet sans
   file, et un serveur injoignable ou un signal perdu se rattrape au passage suivant. Le gestionnaire
   du signal se pose au départ, sur l'un et l'autre chemin ; la file au repos continue aussitôt
   (Continue-As-New, entre deux entrées, son attente emportée), la file occupée finit l'entrée en

@@ -26,6 +26,7 @@ import {
   getExternalWorkflowHandle,
   isCancellation,
   ParentClosePolicy,
+  patched,
   proxyActivities,
   setHandler,
   startChild,
@@ -154,11 +155,18 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
       attente.push(e);
     }
   });
+  // The version of the tool the queue runs under, read by an activity when the run starts; absent
+  // until read, and for a history recorded before the marker.
+  let version: string | undefined;
   setHandler(lEtat, () => ({
     enCours: enCours?.ticket ?? null,
     attente: attente.map(a => a.ticket),
-    surLaPasseFinale: true,
+    ...(version === undefined ? {} : { version }),
   }));
+  // The marker keeps the histories recorded before this activity replaying; a later ticket retires it.
+  if (patched('version-de-la-file')) {
+    version = await actes.lireLaVersionDeLOutil();
+  }
   const aContinuer = () =>
     workflowInfo().continueAsNewSuggested || workflowInfo().historyLength >= LIMITE_D_HISTOIRE;
   let entrees = 0;

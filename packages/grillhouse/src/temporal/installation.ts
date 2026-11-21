@@ -454,23 +454,69 @@ function laFileDuServeur(): ClientDeLaFile {
 
 const AUCUNE_FILE = 'aucune';
 
+const VERSION_INCONNUE = 'inconnue';
+
 /**
- * The queue of the project <racine> restarted when it is on the former path (its view says
- * `surLaPasseFinale` false, or does not say it): signalled once, its state for the report. A queue
- * already new, no queue, a server that does not answer or a signal lost leave « aucune »; the next
- * pass makes up a signal lost.
+ * The version of the tool of the package the worker <travailleur> belongs to: the `version` of its
+ * package.json, two levels above the worker's path, the file the queue's activity reads; null when
+ * it does not read.
  */
-async function relancerLaFile(file: ClientDeLaFile, racine: string): Promise<string> {
+function versionInstallee(travailleur: string): string | null {
+  try {
+    const v = (
+      JSON.parse(
+        readFileSync(path.join(path.resolve(travailleur, '../../..'), 'package.json'), 'utf8')
+      ) as { version?: unknown }
+    ).version;
+    return typeof v === 'string' && v ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What became of the queue of the project, for the report. */
+interface EtatDeLaFile {
+  file: string;
+  versionDeLaFile?: string;
+  versionInstallee?: string;
+}
+
+/**
+ * The queue of the project <racine> restarted when the version it started under differs from the
+ * installed one <installee> (« inconnue » for a view that carries none, which differs): signalled
+ * once, after <avantLeSignal> restarted the worker's unit when this pass did not. No queue, a
+ * queue of the installed version, a version that does not read, a server that does not answer or a
+ * signal lost leave « aucune »; the next pass makes up a signal lost.
+ */
+async function relancerLaFile(
+  file: ClientDeLaFile,
+  racine: string,
+  installee: string | null,
+  avantLeSignal: () => void
+): Promise<EtatDeLaFile> {
   const id = idDeLaFile(racine);
   try {
     const vue = await file.vue(id);
-    if (vue === null || vue.surLaPasseFinale === true) {
-      return AUCUNE_FILE;
+    if (vue === null || installee === null) {
+      return { file: AUCUNE_FILE };
     }
+    const ancienne = vue.version ?? VERSION_INCONNUE;
+    const versions = { versionDeLaFile: ancienne, versionInstallee: installee };
+    if (ancienne === installee) {
+      return { file: AUCUNE_FILE, ...versions };
+    }
+    avantLeSignal();
     await file.relancer(id);
-    return vue.enCours === null ? 'repartie' : `repart après l'entrée de ${vue.enCours}`;
+    const deVersion = `(${ancienne} → ${installee})`;
+    return {
+      file:
+        vue.enCours === null
+          ? `repartie ${deVersion}`
+          : `repart après l'entrée de ${vue.enCours} ${deVersion}`,
+      ...versions,
+    };
   } catch {
-    return AUCUNE_FILE;
+    return { file: AUCUNE_FILE };
   }
 }
 
@@ -519,11 +565,16 @@ export interface RapportDInstallation {
    */
   serveurDiffere?: string[];
   /**
-   * What became of the queue of the project: « repartie » (at rest, restarted as new), « repart
-   * après l'entrée de <ticket> » (busy, it restarts once that entry has its issue), or « aucune »
-   * (no queue in flight, a queue already on the final pass, or a server that does not answer).
+   * What became of the queue of the project: « repartie (<ancienne> → <nouvelle>) » (at rest,
+   * restarted as new), « repart après l'entrée de <ticket> (<ancienne> → <nouvelle>) » (busy, it
+   * restarts once that entry has its issue), or « aucune » (no queue in flight, a queue of the
+   * installed version, or a server that does not answer).
    */
   file: string;
+  /** The version the queue started under, « inconnue » when its view carries none; absent without a queue. */
+  versionDeLaFile?: string;
+  /** The version installed, that of the package the worker comes from; absent without a queue. */
+  versionInstallee?: string;
 }
 
 /**
@@ -954,7 +1005,19 @@ export async function installer({
     };
     writeFileSync(fichierDesAppliquees, `${JSON.stringify(sommes, null, 2)}\n`);
   }
-  const etatDeLaFile = await relancerLaFile(file, lieux.racine);
+  // The queue restarts under the installed code: the worker's unit restarts first when this pass
+  // did not.
+  const unite = uniteDuProjet(lieux.racine);
+  const { file: etatDeLaFile, ...versions } = await relancerLaFile(
+    file,
+    lieux.racine,
+    versionInstallee(travailleur ?? travailleurDe(lieux.racine, outil)),
+    () => {
+      if (!appliquees.includes(unite)) {
+        systemd(systemctl, ['restart', unite]);
+      }
+    }
+  );
   return {
     programme,
     pose,
@@ -967,6 +1030,7 @@ export async function installer({
       differe.length > 0 ||
       etatDeLaFile !== AUCUNE_FILE,
     file: etatDeLaFile,
+    ...versions,
     ...(compactage ? { compactage } : {}),
     ...(differe.length ? { serveurDiffere: differe } : {}),
   };
