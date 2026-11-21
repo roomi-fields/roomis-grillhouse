@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The verification of a project of one language without package.json keeps its green** (follows 0.47.1): the composed `verifier` kept the green of a project of several languages without a TypeScript package, but a project of cargo alone never goes by the composed command, so open-synth-descriptors and osc-bridge still had no tree judged under 0.47.1. `grillhouse verifier` of such a project goes by the composed command. Seen in both repositories: a green verification keeps the tree of its commit judged.
+
 - **`circuit <ticket> --reporter HH:MM` aims at the next occurrence of the hour** (grillhouse-3uv.138): played at 23:15, `--reporter 08:30` handed « 08:30 » as it was to `bd update --defer`, which read it as today 08:30, already past; the answer said « reportée au 08:30 » and the question came back at the next reading, « toujours sans réponse » (six circuits waiting for the owner's decision for the next morning, seen on 2026-11-20). A lone hour (exactly `H:MM` or `HH:MM`, hours 0-23, minutes 00-59) is now compared to the current instant, to the second, in the machine's local time: strictly after it, it aims at today, else tomorrow, and `bd` receives `AAAA-MM-JJ HH:MM`; the ticket's comment and the answer say « reportée à demain HH:MM » when it aims at tomorrow. Any other form (`+9h`, `demain`, `8h`, a full date, `25:99`) goes to `bd` as written, and an hour still to come keeps its texts. **Action for projects**: none.
 
 ## [0.47.1] - 2026-11-21

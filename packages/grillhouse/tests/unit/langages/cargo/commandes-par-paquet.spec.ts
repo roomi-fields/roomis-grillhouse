@@ -53,6 +53,14 @@ describe('grillhouse-44b.4, décision 1 — les commandes par paquet du module c
     expect(c.construire).toEqual({ script: c.typer.script, args: ['construire'] });
     expect(commandeDe('construire', espace)).toEqual(c.construire);
     expect(commandeDe('typer', espace)).toEqual(c.typer);
+    // The verification of a project of cargo alone goes by the composed command, which keeps its
+    // last green and its judged tree: no pass of the graph does it there (open-synth-descriptors
+    // and osc-bridge, 2026-11-21: a green verification, and no push to main let go).
+    expect(commandeDe('verifier', espace)).toEqual({
+      script: path.resolve(__dirname, '../../../../scripts/commandes-composees.mjs'),
+      args: ['verifier'],
+    });
+    expect(commandeDe('tests', espace)).toEqual(c.tester);
   });
 
   it('construire <chemin> : cargo build -p du crate de ce dossier seul', () => {

@@ -20,7 +20,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { langageDe } from './langages.mjs';
+import { langageDe, langagesDe } from './langages.mjs';
 import { avecLesDonnees, donneesDe } from './donnees-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from './outils-cles.mjs';
 
@@ -115,7 +115,17 @@ export function commandeDe(nom, racine = process.cwd()) {
   }
   const commandes = langageDe(racine).commandes(racine);
   const n = s?.langage ?? (DU_NOYAU.has(nom) ? null : nom);
-  return n !== null && Object.hasOwn(commandes, n) ? commandes[n] : null;
+  if (n === null || !Object.hasOwn(commandes, n)) {
+    return null;
+  }
+  // The verification of a project whose one module is not the one of package.json (cargo alone,
+  // python alone) goes by the composed command, which keeps its last green and its judged tree: no
+  // pass of the graph does it there (scripts/commandes-composees.mjs, `garderSansLeGraphe`).
+  const modules = langagesDe(racine);
+  if (n === 'verifier' && modules.length === 1 && modules[0].manifeste !== 'package.json') {
+    return { script: path.join(SCRIPTS, 'commandes-composees.mjs'), args: [n] };
+  }
+  return commandes[n];
 }
 
 /**
