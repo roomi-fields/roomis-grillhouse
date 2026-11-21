@@ -30,7 +30,9 @@ des rapports d'API).
    « de 030-binder, § Les frontières »), `piece` son `fichier:ligne` et ce qu'il montre, que le
    circuit cherche dans la copie. Un export neuf cite son entrée dans l'INTERFACE de son paquet
    (`document` `INTERFACE`, son nom dans `reference`) ; un export neuf sans entrée est `non`. Un
-   élément supprimé se juge aussi : ses lecteurs et ses textes partent avec lui.
+   élément supprimé se juge aussi : ses lecteurs et ses textes partent avec lui. Sa `piece` est
+   « $ git status --short <chemin> » et sa sortie, ou « ticket, critère N » : son fichier a quitté
+   la copie, où le circuit cherche tout `fichier:ligne`.
 3. Un `non` rend le lot : il nomme son agent (`role`), comme un constat
    bloquant. Le circuit refuse une fiche à laquelle il manque un élément, ou dont une ligne n'a
    pas sa référence.
