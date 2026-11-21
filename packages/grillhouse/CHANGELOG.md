@@ -6,11 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **`circuit <ticket> --reporter HH:MM` aims at the next occurrence of the hour** (grillhouse-3uv.138): played at 23:15, `--reporter 08:30` handed « 08:30 » as it was to `bd update --defer`, which read it as today 08:30, already past; the answer said « reportée au 08:30 » and the question came back at the next reading, « toujours sans réponse » (six circuits waiting for the owner's decision for the next morning, seen on 2026-11-20). A lone hour (exactly `H:MM` or `HH:MM`, hours 0-23, minutes 00-59) is now compared to the current instant, to the second, in the machine's local time: strictly after it, it aims at today, else tomorrow, and `bd` receives `AAAA-MM-JJ HH:MM`; the ticket's comment and the answer say « reportée à demain HH:MM » when it aims at tomorrow. Any other form (`+9h`, `demain`, `8h`, a full date, `25:99`) goes to `bd` as written, and an hour still to come keeps its texts. **Action for projects**: none.
+
+## [0.47.1] - 2026-11-21
+
 - **A project without a TypeScript package keeps its last green, and its pushes to main pass**: the last green and the judged tree were kept by the pass of the module of package.json alone, so a project of cargo alone (open-synth-descriptors, osc-bridge) never had a tree judged, and since 0.47.0 the pre-push hook refused each of its commits to main, a green `npm run verifier` included (2026-11-21). The composed `verifier` keeps the green itself in such a project, when every module is green and the verification is whole. Action for such a project: after the update, `npm run verifier` in a clean copy of the commit, then the push.
 
 - **A skipped flow is not a red of the CI of main**: the reading took the latest pass of each workflow, and any conclusion but `success` and `cancelled` as red; the flow that alerts on a red one, skipped on a green, was told « CI de main rouge » to the supervisor (SyntHub, 2026-11-21). A skipped pass judges nothing: the pass before it decides.
-
-- **`circuit <ticket> --reporter HH:MM` aims at the next occurrence of the hour** (grillhouse-3uv.138): played at 23:15, `--reporter 08:30` handed « 08:30 » as it was to `bd update --defer`, which read it as today 08:30, already past; the answer said « reportée au 08:30 » and the question came back at the next reading, « toujours sans réponse » (six circuits waiting for the owner's decision for the next morning, seen on 2026-11-20). A lone hour (exactly `H:MM` or `HH:MM`, hours 0-23, minutes 00-59) is now compared to the current instant, to the second, in the machine's local time: strictly after it, it aims at today, else tomorrow, and `bd` receives `AAAA-MM-JJ HH:MM`; the ticket's comment and the answer say « reportée à demain HH:MM » when it aims at tomorrow. Any other form (`+9h`, `demain`, `8h`, a full date, `25:99`) goes to `bd` as written, and an hour still to come keeps its texts. **Action for projects**: none.
 
 ## [0.47.0] - 2026-11-21
 
