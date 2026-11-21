@@ -2829,7 +2829,8 @@ function lireLesPlaces() {
 
 // The boards of several projects as one (grillhouse-erp.1), as the multi-root explorer of VS Code
 // keeps one view and files each root under its name: <lus> holds each project's label
-// (`etiquette`, its ticket prefix) and its board (`t`) or the fault that keeps it out (`erreur`),
+// (`etiquette`, its ticket prefix), the root of its main tree (`racine`, by which the places of
+// its circuits are counted) and its board (`t`) or the fault that keeps it out (`erreur`),
 // the session's project first. Each ticket, alert and chantier is marked with its project's label
 // (`projet`), the agents' blocks hold every project's tickets at their step, and `projets` gives
 // each project's counters or fault, which the head shows one line each.
@@ -2875,7 +2876,7 @@ export function ensemble(lus) {
       siennes: (premier.t.places.tenues ?? []).filter(
         x =>
           x.racine &&
-          lisibles.some(l => l.dossier && path.resolve(l.dossier) === path.resolve(x.racine))
+          lisibles.some(l => l.racine && path.resolve(l.racine) === path.resolve(x.racine))
       ).length,
     },
     nuit: premier.t.nuit,
@@ -3065,7 +3066,15 @@ export async function tableau(
   );
   const etat = ligneEtat(ici.t, autres.map(l => l.t).filter(Boolean));
   const t = projets.length
-    ? ensemble(lus.map(l => ({ etiquette: etiquette(l), t: l.t, erreur: l.erreur })))
+    ? ensemble(
+        lus.map(l => ({
+          etiquette: etiquette(l),
+          // The root of the project's main tree, which each place of a circuit carries.
+          racine: l.commun ? path.dirname(l.commun) : l.dossier,
+          t: l.t,
+          erreur: l.erreur,
+        }))
+      )
     : ici.t;
   // The project is named by its repository's folder, as a shell prompt names it.
   const nom = [path.basename(racine), ...lus.slice(1).map(etiquette)].join(' + ');

@@ -104,10 +104,10 @@ describe('le panneau de plusieurs projets compte les places de ses projets ensem
       tenue('/depots/grillhouse'),
       tenue('/depots/grillhouse'),
     ];
-    const lus = [OSC, SYNTHHUB, ICI].map((dossier, i) => ({
-      dossier,
+    const lus = [OSC, SYNTHHUB, ICI].map((racine, i) => ({
+      racine,
       etiquette: ['OB', 'SH', 'OSD'][i],
-      t: plateauDe(dossier, tenues),
+      t: plateauDe(racine, tenues),
     }));
     const tout = ensemble(lus as unknown as Parameters<typeof ensemble>[0]);
     expect(desPlaces(tout).texte.trimEnd()).toBe('Places 5/9/10 · charge 4,2/12 · mémoire 9/30 Go');
