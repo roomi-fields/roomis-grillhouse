@@ -251,11 +251,13 @@ describe.runIf(canWrap)(
     });
 
     // A test of forms, in the copy <copie>, in the plan, that reads the reference: red until it is
-    // regenerated.
+    // regenerated. It names its ticket: forms declares no reading of the reference, so Turborepo
+    // would give a ticket the verdict it cached for the same files of forms under another ticket.
     const litLaReference = (copie: string) =>
       ecrire(
         path.join(copie, 'packages/forms/test/reference.test.mjs'),
-        `import { readFileSync } from 'node:fs';
+        `// ${path.basename(copie)}
+import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { mesure } from '../src/index.mjs';
 it('la référence suit la mesure', () => {
