@@ -313,7 +313,8 @@ dossier.
 - **Main reste vert** : la file n'avance main que sur l'arbre que la passe finale du circuit (ou,
   hors du circuit, la vérification du lot direct) a jugé vert, le lot posé sur la pointe de main ;
   elle n'attend aucune CI de branche. La CI du projet joue ensuite sur main, par paquets, au plus
-  une fois par heure (le modèle de Google, TAP, et de Chromium) : elle voit ce que la passe finale
+  une fois par heure (le modèle de Google, TAP, et de Chromium), la file la déclenchant elle-même
+  après l'entrée d'un lot (`gh workflow run`), sans horloge tierce : elle voit ce que la passe finale
   ne joue pas (autres plates-formes, matrice de versions, flux hors `npm run verifier`). Un rouge
   de la CI de main, ou de la machine vierge, alerte le superviseur avec les lots entrés depuis le
   dernier vert, sans arrêter la file, et ouvre un ticket de défaut sous `a-valider` : un rouge de

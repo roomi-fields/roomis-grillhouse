@@ -83,22 +83,9 @@ describe('the CI plays Node 26 in its build and its jobs of verification', () =>
     expect(ci.jobs.build.strategy).toBeUndefined();
   });
 
-  it('the schedule, call and manual triggers stay, with no push or pull request trigger', () => {
+  it('the call and manual triggers stay, with no schedule, push or pull request trigger', () => {
     const declencheurs = Object.keys(lire('.github/workflows/ci.yml').on);
-    expect(declencheurs).toEqual(
-      expect.arrayContaining(['schedule', 'workflow_call', 'workflow_dispatch'])
-    );
-    expect(declencheurs).not.toContain('push');
-    expect(declencheurs).not.toContain('pull_request');
-  });
-
-  it('the schedule trigger runs every hour, on the default branch (no branch filter)', () => {
-    const planifie = lire('.github/workflows/ci.yml').on.schedule as { cron: string }[];
-    expect(planifie).toHaveLength(1);
-    const champs = planifie[0].cron.trim().split(/\s+/);
-    expect(champs).toHaveLength(5);
-    expect(/^\d+$/.test(champs[0])).toBe(true);
-    expect(champs.slice(1)).toEqual(['*', '*', '*', '*']);
+    expect(declencheurs.sort()).toEqual(['workflow_call', 'workflow_dispatch']);
   });
 });
 

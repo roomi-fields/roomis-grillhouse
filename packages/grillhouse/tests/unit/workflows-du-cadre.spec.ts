@@ -70,9 +70,10 @@ describe('the template of the CI of a project', () => {
     expect(modele('ci.yml')).not.toContain('github.event.before');
   });
 
-  it('plays the CI of main on an hourly schedule, and on no push to a branch of a ticket', () => {
+  it('plays the CI of main by dispatch or call only, with no schedule and no push to a branch of a ticket', () => {
     const on = flux('ci.yml').on;
-    expect(on.schedule).toBeDefined();
+    expect(on.schedule).toBeUndefined();
+    expect(on).toHaveProperty('workflow_dispatch');
     expect(on).not.toHaveProperty('push');
     expect(JSON.stringify(on)).not.toContain('agent/');
   });

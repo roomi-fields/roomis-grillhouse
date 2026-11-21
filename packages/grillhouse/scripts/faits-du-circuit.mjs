@@ -89,6 +89,7 @@ import {
 } from './integration/file.mjs';
 import {
   ghDans,
+  declencherLaCiDeMain,
   lireLaCiDeMain,
   lotsDepuisLeVert,
   ouvrirLeDefautDeMain,
@@ -475,9 +476,16 @@ Object.assign(ACTES, {
   // The CI of main read once, in the main tree: the defect ticket of a red passage opened for the
   // owner (`ouvrirLeDefautDeMain`, one per passage), the lots entered since the last green named by
   // git. `{ etat }`: `verte`, `rouge` or `non-lue`.
-  async 'surveiller-la-ci-de-main'({ racine }) {
+  // It starts the CI first when the delay and the tip ask for it (`declencherLaCiDeMain`, <apresEntree>
+  // after an entry): a start GitHub refuses leaves its fault, the queue goes on.
+  async 'surveiller-la-ci-de-main'({ racine, apresEntree }) {
     const o = laFile(racine);
-    const lecture = lireLaCiDeMain({ racine, gh: ghDans(racine) });
+    const gh = ghDans(racine);
+    const lancement = declencherLaCiDeMain({ racine, gh }, { apresEntree: apresEntree === true });
+    if (lancement.faute) {
+      o.dire(`⚠ ${lancement.faute}`);
+    }
+    const lecture = lireLaCiDeMain({ racine, gh });
     if (lecture.etat === 'rouge') {
       const pointe = o.principale ?? 'main';
       const lots = lotsDepuisLeVert(racine, { vert: lecture.vert, pointe });

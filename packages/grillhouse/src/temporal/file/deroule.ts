@@ -10,7 +10,9 @@
 // judge, and the next entry waits. An act that fails gives the entry the issue `echec`, its reason,
 // on which the circuit of the ticket stops, and the queue goes on. The queue reads the CI of main
 // (`surveillerLaCiDeMain`) at its start, after each entry and at each quarter of an hour it waits
-// for none, which opens the defect ticket of a red passage; it never waits for it. Past its length
+// for none: it starts the CI of main when the tip and the hour ask for it (one pass an hour at most,
+// after a lot entered), then reads it, which opens the defect ticket of a red passage; it never
+// waits for it. Past its length
 // of history, or when the signal RELANCER asks it (the installation of a new version), the queue
 // continues as new between two entries, with those that wait: busy, it finishes its entry under
 // way first and treats none of those that wait before restarting. The histories recorded with the
@@ -259,9 +261,11 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
   };
 
   // The CI of main read once, never waited for: its failure does not stop the queue.
-  const surveiller = async () => {
+  // It starts the CI of main when the tip and the hour ask for it, then reads it: <apresEntree>
+  // after an entry, so that a project with no pass known on main starts at its first lot.
+  const surveiller = async (apresEntree: boolean) => {
     try {
-      await actes.surveillerLaCiDeMain({ racine });
+      await actes.surveillerLaCiDeMain({ racine, apresEntree });
     } catch (x) {
       if (isCancellation(x)) {
         throw x;
@@ -269,11 +273,13 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     }
   };
   let aSurveiller = true;
+  let apresEntree = false;
   for (;;) {
     const pret = () => attente.length > 0 || relance || aContinuer();
     if (aSurveiller) {
-      await surveiller();
+      await surveiller(apresEntree);
       aSurveiller = false;
+      apresEntree = false;
     }
     // Woken by an entry, or by the quarter of an hour that asks for another reading.
     aSurveiller = !(await condition(pret, INTERVALLE_DE_LA_CI));
@@ -286,6 +292,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
         .catch(() => undefined);
       enCours = null;
       aSurveiller = true;
+      apresEntree = true;
     }
     if (relance || aContinuer()) {
       await condition(allHandlersFinished);

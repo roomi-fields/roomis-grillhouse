@@ -68,6 +68,8 @@ function actes(
     file: [] as string[],
     passes: [] as { ticket: string; commit: string }[],
     surveillances: 0,
+    // The `apresEntree` each reading of the CI of main was given, in order.
+    apresEntree: [] as (boolean | undefined)[],
     arrets: [] as Parameters<Activites['publierLArret']>[0][],
     fins: [] as string[],
     effets: [] as { id: string; cle: string | null; effet: { genre: string } }[],
@@ -176,8 +178,9 @@ function actes(
         effets: [{ genre: 'commentaire', ticket, texte: `${ticket} fermé` }],
       });
     },
-    surveillerLaCiDeMain() {
+    surveillerLaCiDeMain(e) {
       journal.surveillances += 1;
+      journal.apresEntree.push(e.apresEntree);
       return Promise.resolve({ etat: 'verte' as const });
     },
     // Each effect an act gave back, its activity id and its key.
@@ -531,6 +534,18 @@ describe('la CI de main se lit sans retenir la file', () => {
     await attendre('les lectures de la CI de main', () =>
       Promise.resolve(journal.surveillances >= 2 ? true : undefined)
     );
+  }, 120_000);
+
+  it('the first reading is not after an entry, the reading that follows an entry is', async () => {
+    const { activites, journal } = actes();
+    const s = await serveur(activites);
+    await s.demarrer('essai-1');
+    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
+    await attendre('les lectures de la CI de main', () =>
+      Promise.resolve(journal.surveillances >= 2 ? true : undefined)
+    );
+    expect(journal.apresEntree[0] ?? false).toBe(false);
+    expect(journal.apresEntree[1]).toBe(true);
   }, 120_000);
 });
 

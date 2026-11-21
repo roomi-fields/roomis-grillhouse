@@ -2,11 +2,10 @@ name: CI
 
 on:
   # The CI plays on main by batches, as Google's TAP plays the whole suite after the submit: once an
-  # hour, on the tip of main, which judges every lot entered since its last pass. A lot enters main
-  # on its final pass and waits for no CI; no push, no pull request and no branch agent/** starts it.
-  # The job `moved` skips the pass when main did not move; a start by hand always plays.
-  schedule:
-    - cron: '17 * * * *'
+  # hour at most, on the tip of main, which judges every lot entered since its last pass. The queue of
+  # the project starts it after a lot entered (`gh workflow run`, scripts/ci-de-main.mjs): it keeps
+  # no clock of its own. A lot enters main on its final pass and waits for no CI; no push, no pull
+  # request and no branch agent/** starts it.
   workflow_dispatch:
   # A release plays the CI on the tagged commit before it publishes.
   workflow_call:
@@ -23,43 +22,16 @@ env:
   # The remote cache of Turborepo (grillhouse-44b.12.6), the server the repository's variables
   # TURBO_API and TURBO_TEAM name, its token and the key of its signature in the secrets
   # TURBO_TOKEN and TURBO_REMOTE_CACHE_SIGNATURE_KEY (Settings > Secrets and variables > Actions),
-  # never in this file. The run of main, by the schedule or by hand, writes it; every other run reads it alone. Without TURBO_API the cache is
+  # never in this file. The run of main, started by the queue or by hand, writes it; every other run reads it alone. Without TURBO_API the cache is
   # the runner's local cache, as before. No step of the workflow touches the cache.
   TURBO_API: ${{ vars.TURBO_API }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
-  TURBO_CACHE: ${{ !vars.TURBO_API && 'local:rw' || ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && 'local:rw,remote:rw' || 'local:rw,remote:r') }}
+  TURBO_CACHE: ${{ !vars.TURBO_API && 'local:rw' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && 'local:rw,remote:rw' || 'local:rw,remote:r') }}
 
 jobs:
-  # Main that did not move plays nothing again: on the schedule, when the last green pass of this
-  # workflow on main is the commit of the tip, every job of the pass is skipped (a job skipped by its
-  # condition reports « Success »). The job itself always runs, so that its dependents read its
-  # output; a search that fails says nothing, and the pass plays. A start by hand or the call of a
-  # release always plays. It reads the runs of the repository: a workflow that calls this one grants
-  # it `actions: read`. On a runner of the repository, `gh` must be installed.
-  moved:
-    # The machine of the jobs: the variable RUNNER of the repository, GitHub's runner without it.
-    runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
-    permissions:
-      actions: read
-      contents: read
-    outputs:
-      unchanged: ${{ steps.search.outputs.unchanged }}
-    steps:
-      - name: Last green pass of main
-        id: search
-        if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha' || true)
-          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then unchanged=true; else unchanged=false; fi
-          echo "unchanged=$unchanged" >> "$GITHUB_OUTPUT"
-
   gardes:
-    needs: moved
-    if: needs.moved.outputs.unchanged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     # Node 26 alone, whatever the trigger.
@@ -99,8 +71,6 @@ jobs:
         run: npm run verifier -- --sans-tests
 
   tranches:
-    needs: moved
-    if: needs.moved.outputs.unchanged != 'true'
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
@@ -154,8 +124,8 @@ jobs:
           retention-days: 7
 
   fusion:
-    needs: [moved, tranches]
-    if: ${{ !cancelled() && needs.moved.outputs.unchanged != 'true' }}
+    needs: tranches
+    if: ${{ !cancelled() }}
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
 
     strategy:
@@ -188,8 +158,7 @@ jobs:
 
   build:
     runs-on: ${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}
-    needs: [moved, gardes, tranches, fusion]
-    if: needs.moved.outputs.unchanged != 'true'
+    needs: [gardes, tranches, fusion]
 
     steps:
       - name: Checkout

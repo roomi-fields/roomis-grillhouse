@@ -947,11 +947,25 @@ lu sur un mot du responsable).
 « on juge l'arbre qui entre »), et la CI de main joue après, par paquets, comme Google (TAP) joue
 avant l'entrée les seuls tests touchés et la suite complète après, par paquets de changements, un
 rouge déclenchant la recherche du coupable (Chromium fait de même : file de commit, puis cascade
-complète). Elle joue sur le calendrier horaire seulement (`ci.yml`, du dépôt et du gabarit : ni
-push, ni pull request, ni branche `agent/**`) : un premier job (`moved`) cherche, sur le calendrier
-seul, le dernier passage vert du même workflow sur main et saute chaque job de la passe quand son
-commit est la pointe de main ; un tour lancé à la main, l'appel de la publication, ou une recherche
-en erreur joue la passe, qui juge d'un coup tous les lots entrés depuis le dernier passage. La
+complète). La file la déclenche elle-même, comme l'ordonnanceur de TAP et celui de LUCI lancent la
+passe d'après-entrée à leur rythme, sans horloge tierce (GitHub jouait une planification au mieux,
+en retard ou pas du tout : 2 passages en 24 h chez Grillhouse). `ci.yml` (du dépôt et du gabarit)
+ne garde que `workflow_dispatch` et `workflow_call` : ni planification, ni push, ni pull request,
+ni branche `agent/**`, ni travail qui saute la passe. L'acte `surveiller-la-ci-de-main` déclenche
+puis lit (`declencherLaCiDeMain` de `scripts/ci-de-main.mjs`) : il lit par `gh run list` les
+passages de `ci.yml` sur main, de tout déclencheur, et lance `gh workflow run ci.yml --ref main`
+quand la pointe de main diffère du commit du dernier passage, qu'aucun passage n'est en cours ni en
+attente, et que le dernier passage ou le dernier déclenchement date d'une heure ou plus : un seul
+passage juge donc tous les lots entrés dans l'heure, un lot entré pendant un arrêt de la file est
+jugé à la reprise, et un passage lancé à la main compte. Sans aucun passage connu, seul un lot
+entré (le champ `apresEntree` de l'acte, gardé jusqu'à un déclenchement réussi) lance la passe,
+jamais le seul démarrage. La file garde dans `.claude/worktrees/ci-de-main-declenchee.json`
+l'instant du dernier déclenchement (qui couvre le délai avant que le passage paraisse), l'entrée en
+attente et la dernière faute ; le déroulé rejoue sa lecture et son déclenchement à chaque quart
+d'heure d'attente. Un déclenchement que GitHub refuse (gh absent, pas de droit, flux inconnu)
+n'arrête pas la file : la faute, avec la raison de gh, est l'alerte « La CI de main n'a pas pu être
+déclenchée » (genre `declenchement`, à part de « CI de main non lue »), lue par le superviseur et le
+tableau, effacée au déclenchement réussi suivant ; le quart d'heure suivant le retente. La
 passe finale couvre `npm run verifier` sur la copie de la file, le lot posé sur la pointe de main,
 ses tests ciblés ; seule la CI de main voit le reste (la passe complète, les autres plates-formes,
 la matrice de versions, les flux hors `npm run verifier`) : un rouge de cette sorte se voit après
@@ -1409,8 +1423,8 @@ jouer, et le poste garde ce qu'il est seul à avoir.
 
 **Le cadre porte la CI d'un projet** (`templates/projet/.github/workflows/`,
 `packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, la CI de main par paquets (les
-gardes, les tranches, leur fusion ; il joue sur le calendrier horaire et à la main seulement, et
-saute la passe quand main n'a pas bougé depuis son dernier passage vert), et `nuit.yml`, les tests de nuit hors du
+gardes, les tranches, leur fusion ; il joue quand la file le déclenche après l'entrée d'un lot, au
+plus une fois par heure, ou à la main, sans planification), et `nuit.yml`, les tests de nuit hors du
 poste, tels que Grillhouse les joue chez lui. Chaque job tourne sur la variable `RUNNER` du dépôt
 (`fromJSON(vars.RUNNER || '"ubuntu-latest"')`, une étiquette ou une liste d'étiquettes en JSON,
 la convention de SyntHub), qui vit dans les réglages du dépôt sur GitHub et qu'aucun fichier
@@ -1883,7 +1897,8 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   prévenu. La file ne lit aucune CI et ne pousse aucune branche de ticket. Son issue revient au
   déroulé du ticket, le fait `file` de ses décisions. La file lit en revanche la CI de main
   (`surveillerLaCiDeMain`, l'acte du même nom, à son départ, après chaque entrée et chaque quart
-  d'heure d'attente) sans jamais l'attendre : un passage rouge ouvre le ticket de défaut sous
+  d'heure d'attente), la déclenche d'abord quand la pointe de main et l'heure le demandent, sans
+  jamais l'attendre : un passage rouge ouvre le ticket de défaut sous
   `a-valider` (`scripts/ci-de-main.mjs`, « Main reste vert »). Le déroulé n'a qu'un chemin : il retire le
   marqueur `passe-finale-de-main` par `deprecatePatch` (grillhouse-3uv.131), et l'histoire d'une file
   qui le porte rejoue sans erreur de déterminisme. La montée de version

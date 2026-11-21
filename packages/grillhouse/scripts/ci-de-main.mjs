@@ -1,8 +1,11 @@
 // The CI of main, read after the lots entered, as Google's TAP plays the whole suite after the
 // submit, by batches of changes, and a red looks for its culprit among the lots entered since the
 // last green. A lot enters main on its final pass (scripts/integration/file.mjs); the CI plays on
-// main on an hourly schedule, and this module reads it:
+// main, started by the queue itself after a lot entered, one pass an hour at most, and this module
+// starts it then reads it:
 //
+// - `declencherLaCiDeMain`: the start (`gh workflow run`), its delay and its fault kept in a file of
+//   the project; `alerteDeDeclenchement` tells the supervisor of a start GitHub refused.
 // - `lireLaCiDeMain`: the latest finished pass of each workflow of the branch (`gh run list`),
 //   green when every one succeeded, red as soon as one failed (any conclusion but `success`,
 //   `cancelled` and `skipped`: a cancelled pass is replaced by a later one, the one before it
@@ -87,6 +90,127 @@ export function lireLaCiDeMain(o, { branche = 'main' } = {}) {
   }
   const tete = derniers[0];
   return { etat: 'verte', commit: tete.headSha, passage: String(tete.databaseId) };
+}
+
+const HEURE = 3_600_000;
+const FLUX_DE_LA_CI = 'ci.yml';
+const EN_ATTENTE = state => state !== 'completed';
+
+const etatDuDeclenchement = racine =>
+  path.join(racine, '.claude', 'worktrees', 'ci-de-main-declenchee.json');
+
+// What the queue keeps of its starts: `declenche` (the instant of the last start, which covers the
+// delay before the pass shows), `entree` (a lot entered whose pass is not started yet) and `faute`
+// (the reason of the last refused start, null when none).
+function lireLEtat(racine) {
+  try {
+    const lu = JSON.parse(readFileSync(etatDuDeclenchement(racine), 'utf8'));
+    return {
+      declenche: Number.isFinite(lu?.declenche) ? lu.declenche : null,
+      entree: lu?.entree === true,
+      faute: typeof lu?.faute === 'string' ? lu.faute : null,
+    };
+  } catch {
+    return { declenche: null, entree: false, faute: null };
+  }
+}
+function ecrireLEtat(racine, etat) {
+  try {
+    const f = etatDuDeclenchement(racine);
+    mkdirSync(path.dirname(f), { recursive: true });
+    writeFileSync(f, `${JSON.stringify(etat)}\n`);
+  } catch {
+    // not kept: the next quarter of an hour reads the passes again
+  }
+}
+
+/** The fault of the last refused start of the CI of the project at <racine>, null when none. */
+export const fauteDeDeclenchement = racine => lireLEtat(racine).faute;
+
+/**
+ * What the supervisor is told of a start of the CI that GitHub refused: `{ genre, cle, texte }`,
+ * a kind apart from « CI de main non lue » and from a red.
+ */
+export function alerteDeDeclenchement(faute) {
+  return {
+    genre: 'declenchement',
+    cle: 'declenchement',
+    texte: `La CI de main n'a pas pu être déclenchée : ${uneLigne(faute)} La file continue et retente au quart d'heure suivant.`,
+  };
+}
+
+/**
+ * The queue starts the CI of main itself, as the schedulers of Google's TAP and Chromium's LUCI
+ * start the pass after the submit, by batches: it reads the passes of the workflow ci.yml on main
+ * (whatever started them) with <o.gh> in <o.racine>, and starts it (`gh workflow run`) when the tip
+ * of main differs from the commit of the last pass, no pass is running or waiting, and the last
+ * pass or the last start is an hour old or more. Without any pass known, only a lot entered
+ * (<p.apresEntree>, kept until a start succeeds) starts it, never the sole start of the queue.
+ * `{ declenche }`, with `faute` when GitHub refused: the fault is kept for the alert, the next
+ * quarter of an hour tries again, and nothing throws.
+ */
+export function declencherLaCiDeMain(o, { apresEntree = false, maintenant = Date.now() } = {}) {
+  const { racine } = o;
+  const avant = lireLEtat(racine);
+  const entree = apresEntree || avant.entree;
+  const garder = suite => ecrireLEtat(racine, { ...avant, entree, ...suite });
+  const lu = o.gh([
+    'run',
+    'list',
+    '--workflow',
+    FLUX_DE_LA_CI,
+    '--branch',
+    'main',
+    '--limit',
+    '20',
+    '--json',
+    'databaseId,status,conclusion,headSha,event,createdAt',
+  ]);
+  let passages;
+  try {
+    if (lu.error || lu.status !== 0) {
+      throw new Error('illisible');
+    }
+    passages = JSON.parse(lu.stdout || '[]');
+    if (!Array.isArray(passages)) {
+      throw new Error('illisible');
+    }
+  } catch {
+    garder({});
+    return { declenche: false };
+  }
+  const connus = passages
+    .filter(p => p?.headSha)
+    .sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.databaseId - a.databaseId
+    );
+  if (connus.some(p => EN_ATTENTE(p.status))) {
+    garder({});
+    return { declenche: false };
+  }
+  const dernier = connus[0];
+  const pointe = sortie(racine, ['rev-parse', 'main']) || sortie(racine, ['rev-parse', 'HEAD']);
+  if (dernier ? dernier.headSha === pointe : !entree) {
+    garder({ entree: false });
+    return { declenche: false };
+  }
+  const instants = [dernier ? Date.parse(dernier.createdAt) : null, avant.declenche].filter(
+    Number.isFinite
+  );
+  if (instants.length > 0 && maintenant - Math.max(...instants) < HEURE) {
+    garder({});
+    return { declenche: false };
+  }
+  const r = o.gh(['workflow', 'run', FLUX_DE_LA_CI, '--ref', 'main']);
+  if (r.error || r.status !== 0) {
+    const faute = r.error
+      ? `gh ne se lance pas (${r.error.code ?? r.error.message}).`
+      : `gh workflow run refuse : ${uneLigne(`${r.stderr ?? ''} ${r.stdout ?? ''}`)}`;
+    garder({ faute });
+    return { declenche: false, faute };
+  }
+  ecrireLEtat(racine, { declenche: maintenant, entree: false, faute: null });
+  return { declenche: true };
 }
 
 // The ticket a subject « … (<ticket>) » of the circuit's commits ends with, null otherwise.
@@ -279,7 +403,7 @@ export const ghDans =
     });
 
 // How long a reading of the CI of main stays as read, for the board and the greffon, which ask
-// again and again: the CI plays hourly, GitHub need not be asked at each refresh.
+// again and again: the CI plays an hour apart at most, GitHub need not be asked at each refresh.
 const VALIDITE_DE_LA_LECTURE = 5 * 60_000;
 
 /**
@@ -345,5 +469,7 @@ export function lireEtOuvrirLeDefautDeMain(racine, { gh } = {}) {
     lecture.etat === 'rouge'
       ? ouvrirLeDefautDeMain({ racine, bd: bdDans(racine) }, lecture, lotsDuProjet(racine, lecture))
       : undefined;
-  return alerteDuProjet(racine, lecture, defaut);
+  const alerte = alerteDuProjet(racine, lecture, defaut);
+  const faute = fauteDeDeclenchement(racine);
+  return alerte ?? (faute ? alerteDeDeclenchement(faute) : alerte);
 }

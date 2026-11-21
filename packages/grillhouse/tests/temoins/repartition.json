@@ -117,6 +117,7 @@
     "scripts/migrations/0.44.0-node-26-seul.mjs",
     "scripts/migrations/0.44.0-seuil-des-codes-de-tickets.mjs",
     "scripts/migrations/0.47.0-ci-de-main.mjs",
+    "scripts/migrations/0.48.0-ci-declenchee-par-la-file.mjs",
     "scripts/migrations/0.48.0-poussee-retiree.mjs",
     "scripts/fermeture-de-la-machine.mjs",
     "scripts/fermeture-de-la-machine.d.mts",

@@ -109,10 +109,14 @@ export interface ActivitesDeLaFile {
     commit: string;
   }): Promise<({ juge: true } | { issue: IssueDeLaFile }) & Rendus>;
   /**
-   * The CI of main read once, the defect ticket of a red passage opened for the owner
-   * (scripts/ci-de-main.mjs `ouvrirLeDefautDeMain`); the queue goes on whatever it reads.
+   * The CI of main started when the tip and the hour ask for it (scripts/ci-de-main.mjs
+   * `declencherLaCiDeMain`, <apresEntree> after an entry), then read once, the defect ticket of a red
+   * passage opened for the owner (`ouvrirLeDefautDeMain`); the queue goes on whatever it reads.
    */
-  surveillerLaCiDeMain(e: { racine: string }): Promise<{ etat: 'verte' | 'rouge' | 'non-lue' }>;
+  surveillerLaCiDeMain(e: {
+    racine: string;
+    apresEntree?: boolean;
+  }): Promise<{ etat: 'verte' | 'rouge' | 'non-lue' }>;
   /**
    * Main moved forward onto the candidate <commit> the final pass judged (`avancerMain`): `{ entre }`;
    * `{ bouge: true }`, main moved meanwhile; or the issue for the circuit, main kept.

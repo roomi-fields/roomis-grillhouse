@@ -141,7 +141,12 @@ import { maxDuProjet } from './circuits-cles.mjs';
 import { bilansGardes, enBref } from './bilan.mjs';
 import { REGISTRE } from './adresse-du-registre.mjs';
 import { lireLaMesure } from './avancement.mjs';
-import { ciDeMainGardee, ligneDeLaCiDeMain } from './ci-de-main.mjs';
+import {
+  alerteDeDeclenchement,
+  ciDeMainGardee,
+  fauteDeDeclenchement,
+  ligneDeLaCiDeMain,
+} from './ci-de-main.mjs';
 import {
   SANS_REPONSE_EN,
   ServeurMuet,
@@ -3036,6 +3041,15 @@ export async function tableau(
     } else {
       ici.t.alertes.push({ etat: 'panne', ton: TONS.panne, texte: ligneDeLaCiDeMain(ci) });
     }
+  }
+  // A start of the CI that GitHub refused is an alert apart (scripts/ci-de-main.mjs), until a start succeeds.
+  const fauteDeLaCi = ici.t && ci ? fauteDeDeclenchement(racine) : null;
+  if (fauteDeLaCi) {
+    ici.t.alertes.push({
+      etat: 'panne',
+      ton: TONS.panne,
+      texte: alerteDeDeclenchement(fauteDeLaCi).texte,
+    });
   }
   // A project is labelled by its sigle (scripts/sigle-du-projet.mjs: the key `grillhouse.sigle`, else
   // its ticket prefix), as the line of the places names it; a project with neither keeps its

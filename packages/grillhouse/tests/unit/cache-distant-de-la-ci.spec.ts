@@ -120,14 +120,12 @@ describe.each(FLUX)('%s takes the remote cache of Turborepo from the repository'
     );
   });
 
-  it('writes the cache on the run of main, by the schedule or by hand, and reads it alone otherwise', () => {
+  it('writes the cache on the run of main, by the dispatch of the queue or by hand, and reads it alone otherwise', () => {
     const cache = String(env.TURBO_CACHE);
     const api = 'https://cache.example';
     const cas = [
-      ['schedule', 'refs/heads/main', 'local:rw,remote:rw'],
       ['workflow_dispatch', 'refs/heads/main', 'local:rw,remote:rw'],
       ['workflow_dispatch', 'refs/heads/develop', 'local:rw,remote:r'],
-      ['schedule', 'refs/heads/develop', 'local:rw,remote:r'],
       ['push', 'refs/heads/agent/proj-1.2', 'local:rw,remote:r'],
       ['pull_request', 'refs/pull/7/merge', 'local:rw,remote:r'],
       ['push', 'refs/tags/v1.0.0', 'local:rw,remote:r'],
