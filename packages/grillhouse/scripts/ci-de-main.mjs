@@ -4,8 +4,10 @@
 // main on an hourly schedule, and this module reads it:
 //
 // - `lireLaCiDeMain`: the latest finished pass of each workflow of the branch (`gh run list`),
-//   green when every one succeeded, red as soon as one failed (any conclusion but `success` and
-//   `cancelled`: a cancelled pass is replaced by a later one, the one before it decides), and not
+//   green when every one succeeded, red as soon as one failed (any conclusion but `success`,
+//   `cancelled` and `skipped`: a cancelled pass is replaced by a later one, the one before it
+//   decides, and a skipped pass judged nothing, as the flow that alerts on a red one, which skips
+//   itself on a green), and not
 //   read, never silence, when gh fails, does not start, answers garbage or no pass at all.
 // - `lotsDepuisLeVert`: the lots of the circuit between the last green and the tip, by git alone
 //   (the commits whose subject ends with « (<ticket>) »), no state kept.
@@ -61,7 +63,8 @@ export function lireLaCiDeMain(o, { branche = 'main' } = {}) {
         p?.databaseId &&
         p.workflowName &&
         p.status === 'completed' &&
-        p.conclusion !== 'cancelled'
+        p.conclusion !== 'cancelled' &&
+        p.conclusion !== 'skipped'
     )
     .sort((a, b) => b.databaseId - a.databaseId);
   if (finis.length === 0) {

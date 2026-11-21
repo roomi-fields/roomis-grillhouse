@@ -118,7 +118,7 @@ describe('la lecture de la CI de main', () => {
     expect(lecture).toMatchObject({ etat: 'rouge', flux: 'CI', passage: '5', vert: null });
   });
 
-  it('any conclusion but success and cancelled is red', () => {
+  it('any conclusion but success, cancelled and skipped is red', () => {
     for (const conclusion of ['failure', 'timed_out', 'startup_failure']) {
       expect(lire([passage(7, 'CI', conclusion, ROUGE)]).lecture, conclusion).toMatchObject({
         etat: 'rouge',
@@ -132,6 +132,16 @@ describe('la lecture de la CI de main', () => {
     ).toMatchObject({ etat: 'verte', commit: VERT });
     expect(
       lire([passage(9, 'CI', '', VERT, 'in_progress'), passage(8, 'CI', 'failure', ROUGE)]).lecture
+    ).toMatchObject({ etat: 'rouge', passage: '8' });
+  });
+
+  it('a skipped pass judged nothing: the flow that alerts on a red one, skipped on a green, is not red', () => {
+    expect(
+      lire([passage(9, 'Alert on a red flow', 'skipped', VERT), passage(8, 'CI', 'success', VERT)])
+        .lecture
+    ).toMatchObject({ etat: 'verte', commit: VERT });
+    expect(
+      lire([passage(9, 'CI', 'skipped', VERT), passage(8, 'CI', 'failure', ROUGE)]).lecture
     ).toMatchObject({ etat: 'rouge', passage: '8' });
   });
 

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A project without a TypeScript package keeps its last green, and its pushes to main pass**: the last green and the judged tree were kept by the pass of the module of package.json alone, so a project of cargo alone (open-synth-descriptors, osc-bridge) never had a tree judged, and since 0.47.0 the pre-push hook refused each of its commits to main, a green `npm run verifier` included (2026-11-21). The composed `verifier` keeps the green itself in such a project, when every module is green and the verification is whole. Action for such a project: after the update, `npm run verifier` in a clean copy of the commit, then the push.
+
+- **A skipped flow is not a red of the CI of main**: the reading took the latest pass of each workflow, and any conclusion but `success` and `cancelled` as red; the flow that alerts on a red one, skipped on a green, was told « CI de main rouge » to the supervisor (SyntHub, 2026-11-21). A skipped pass judges nothing: the pass before it decides.
+
 ## [0.47.0] - 2026-11-21
 
 - **A list of the server halves its page when the page is too large**: on 2026-11-21 a page of 100 circuits passed, by 3 kB, the 4 MB a gRPC message of the client takes; every reading of the circuits failed in every project (« Temporal ne répond pas » on the board), and the queues of the tickets of SyntHub and BPScript failed on it in the night, starting no ticket more. No size of page is safe for good, a memo having no bound of its own: the lists of the frame go by one function (`listerLesDeroules`), which asks for pages of 20 and starts again with pages of half the size when the client refuses one, down to one workflow a page. Action for projects: after the update, play `npx grillhouse temporal installer` (the worker takes the fix), and launch a ticket again if the queue of the tickets of the project had failed.
