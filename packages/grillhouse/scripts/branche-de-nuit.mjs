@@ -17,6 +17,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { commitEstJuge } from './arbres-juges.mjs';
+import { ecartsDuDossier } from './etat-du-depot.mjs';
 import { pousseeRetiree } from './poussee-retiree.mjs';
 
 // A sha of zeros: the deletion of the remote branch.
@@ -30,17 +31,20 @@ const SUPPRESSION = /^0+$/;
  * @param {{ jugee: (sha: string) => boolean }} o
  * @returns {string[]}
  */
-export function refusSurMain(remote, refs, { jugee }) {
+export function refusSurMain(remote, refs, { jugee, tete, ecarts }) {
   if (remote !== 'origin') {
     return [];
   }
   return refs
     .filter(r => r.distante === 'refs/heads/main' && !SUPPRESSION.test(r.sha))
     .filter(r => !jugee(r.sha))
-    .map(
-      r =>
-        `⛔ ${r.sha.slice(0, 8)} n'est jugé vert par aucune passe finale ni vérification de lot : main n'avance que sur un arbre jugé. Joue \`npm run verifier\` sur ce commit (lot direct), ou laisse la file du circuit jouer sa passe finale.`
-    );
+    .map(r => {
+      const base = `⛔ ${r.sha.slice(0, 8)} n'est jugé vert par aucune passe finale ni vérification de lot : main n'avance que sur un arbre jugé. Joue \`npm run verifier\` sur ce commit (lot direct), ou laisse la file du circuit jouer sa passe finale.`;
+      const fichiers = tete === r.sha && ecarts ? ecarts() : [];
+      return fichiers.length
+        ? `${base} Le dossier diffère du commit par : ${fichiers.join(', ')} (commite-les ou restaure-les).`
+        : base;
+    });
 }
 
 // The refusals for a push to `remote` of `refs` given the package.json object `pkg`: the retired
@@ -70,6 +74,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     ...refus(process.argv[2], refs, pkg),
     ...refusSurMain(process.argv[2], refs, {
       jugee: sha => commitEstJuge(racine, sha),
+      tete: execFileSync('git', ['-C', racine, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+      ecarts: () => ecartsDuDossier(racine),
     }),
   ];
   for (const l of lignes) {

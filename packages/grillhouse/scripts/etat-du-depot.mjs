@@ -11,6 +11,9 @@ import path from 'node:path';
 
 export const SHA = /^[0-9a-f]{40,64}$/;
 
+// The journal every bd command writes: the tree judged takes its version of the commit.
+export const JOURNAL = '.beads/interactions.jsonl';
+
 export const git = (racine, args, env = process.env) =>
   spawnSync('git', ['-C', racine, ...args], {
     encoding: 'utf8',
@@ -51,6 +54,17 @@ function sousModuleModifie(racine) {
   return r.stdout.split('\0').some(e => /^[12] \S+ S/.test(e));
 }
 
+// The files where the tree judged of the folder at <racine> differs from the tree of its HEAD
+// (the journal of bd left out, it takes its version of the commit); [] when none or git fails.
+export function ecartsDuDossier(racine) {
+  const etat = etatDuDepot(racine);
+  if (!etat.arbre) {
+    return [];
+  }
+  const r = git(etat.racine, ['diff-tree', '-r', '--name-only', '-z', etat.commit, etat.arbre]);
+  return r.status === 0 ? r.stdout.split('\0').filter(Boolean) : [];
+}
+
 // The state of the repository at <racine> as it stands: `{ racine, commit, arbre, branche, main }`,
 // its top (its real path), HEAD, the tree of its working tree, the branch of HEAD (null when
 // detached) and main (brancheDeMain); `{ raison }` when no last green can count.
@@ -78,6 +92,15 @@ export function etatDuDepot(racine) {
       return { raison: 'git échoue' };
     }
     if (git(top, ['add', '-A'], env).status !== 0) {
+      return { raison: 'git échoue' };
+    }
+    // The journal of bd takes its version of the commit (removed when the commit lacks it).
+    const dansLeCommit = sortie(top, ['ls-tree', 'HEAD', '--', JOURNAL]);
+    const entree = dansLeCommit?.match(/^(\d+) blob ([0-9a-f]+)\t/);
+    const retablir = entree
+      ? git(top, ['update-index', '--add', '--cacheinfo', `${entree[1]},${entree[2]},${JOURNAL}`], env)
+      : git(top, ['update-index', '--force-remove', JOURNAL], env);
+    if (retablir.status !== 0) {
       return { raison: 'git échoue' };
     }
     const arbre = sortie(top, ['write-tree'], env);

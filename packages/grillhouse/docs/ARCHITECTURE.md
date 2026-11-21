@@ -476,7 +476,13 @@ Mozilla gardent le résultat de chaque test par version de main. La passe compl�
 (la nuit) l'écrit sous `<git common dir>/grillhouse/resultats/<branche>.json` (`garderLeRegistre`,
 quand `GRILLHOUSE_RESULTATS` nomme son dossier de résultats, `scripts/nuit.sh`), à côté du dernier
 vert — tous deux lisant l'état du dépôt et la place de leur fichier par branche dans un même module
-(`scripts/etat-du-depot.mjs`, `etatDuDepot`, `fichierSous`). Une copie lit le registre de sa branche
+(`scripts/etat-du-depot.mjs`, `etatDuDepot`, `fichierSous`). L'arbre que `etatDuDepot` juge est
+celui du dossier de travail, sauf `.beads/interactions.jsonl`, que chaque commande bd écrit : il y
+prend sa version du commit (retiré si le commit ne le contient pas), comme une sortie de l'outil
+n'entre jamais dans ce que juge une file de fusion ; une vérification verte dont le dossier ne
+diffère du commit que par ce journal inscrit donc l'arbre du commit. Quand le crochet de poussée
+refuse le commit qui est HEAD de la copie, son message nomme les fichiers où l'arbre du dossier
+diffère de celui du commit (`ecartsDuDossier`). Une copie lit le registre de sa branche
 quand son commit est un ancêtre de HEAD, sinon celui de main, comme le dernier vert mesure : la
 preuve d'une copie lit ainsi ce que main tient vert. Un test que le registre tient vert et qu'une
 passe du jour ou de la nuit fait rougir est une régression, consignée sous
