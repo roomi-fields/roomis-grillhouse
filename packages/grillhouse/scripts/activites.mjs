@@ -1396,6 +1396,17 @@ export function testsDuLot(ctx, langage = langageDe) {
   return fichiers.filter(f => l.estUnTest(f, ctx.copie)?.joue).sort();
 }
 
+// The files a proof resumed at a red plays: of the files the red names <nommes>, the tests the
+// runner of the copy's language plays. A red of a guard names what it found, a document among it
+// (a line « Consommateurs » of an INTERFACE.md): no test, so nothing for the proof to play.
+export function testsDeLaReprise(ctx, nommes, langage = langageDe) {
+  if (nommes.length === 0) {
+    return [];
+  }
+  const l = langage(ctx.copie);
+  return nommes.filter(f => l.estUnTest(f, ctx.copie)?.joue);
+}
+
 // The package directory of the copy that holds <fichier>, or « . ».
 function paquetDe(liste, fichier) {
   const p = liste.find(({ dossier }) => `${fichier}`.startsWith(`${dossier}${path.sep}`));
@@ -1578,10 +1589,12 @@ export const portentLeTravail = fiches =>
 // separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
 // Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
 // the copy changed (`mesureDeLaPreuve`).
-export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } = {}) {
+export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null } = {}) {
   // Only the files of the day are proved; the ones only the night plays are put aside, named.
-  // Resumed at a red (<seuls>, the files it names), the proof plays these files alone and passes
-  // when they load: a test fixed is green, not red.
+  // Resumed at a red (<duRouge>, the files it names), the proof plays the tests among them alone
+  // (<seuls>) and passes when they load: a test fixed is green, not red. A red that names no test
+  // (a document a guard refused) leaves nothing to play, and the proof passes.
+  const seuls = duRouge ? testsDeLaReprise(ctx, duRouge) : null;
   const {
     jour: fichiers,
     misDeCote: deNuit,
@@ -1609,7 +1622,9 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
   const reportes = [];
   // A lot of files put aside alone plays nothing, not the packages whole.
   const mesuree =
-    fichiers.length || !misDeCote.length ? mesureDeLaPreuve(ctx, liste, fichiers, derniere) : null;
+    (fichiers.length || !misDeCote.length) && !(seuls && seuls.length === 0)
+      ? mesureDeLaPreuve(ctx, liste, fichiers, derniere)
+      : null;
   const mesure = mesuree?.runs ?? [];
   // The tests main already holds green, read from the registry of results of the copy's branch, or
   // main's (scripts/registre-des-resultats.mjs): a test of the lot the registry holds existed, its
