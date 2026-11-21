@@ -34,6 +34,32 @@ export function lesReponses(ticket, statut, ecrit) {
 }
 
 /**
+ * The hour of a deferral (`--reporter <heure>`): a lone hour (`H:MM` or `HH:MM`, 0-23 and 00-59)
+ * aims at its next occurrence in the machine's local time, today when strictly after <maintenant>
+ * (to the second), else tomorrow, and is handed to `bd update --defer` as `AAAA-MM-JJ HH:MM`; any
+ * other form goes to bd as written. `quand` is the phrase of the texts (« reportée <quand> »).
+ * @param {string} heure
+ * @param {Date} maintenant
+ * @returns {{ defer: string, quand: string }}
+ */
+export function heureDuReport(heure, maintenant) {
+  const lue = /^(\d{1,2}):([0-5]\d)$/.exec(heure);
+  if (!lue || Number(lue[1]) > 23) {
+    return { defer: heure, quand: `au ${heure}` };
+  }
+  const cible = new Date(maintenant);
+  cible.setHours(Number(lue[1]), Number(lue[2]), 0, 0);
+  const demain = cible.getTime() <= maintenant.getTime();
+  if (demain) {
+    cible.setDate(cible.getDate() + 1);
+  }
+  const deux = (n) => String(n).padStart(2, '0');
+  const hhmm = `${deux(cible.getHours())}:${deux(cible.getMinutes())}`;
+  const defer = `${cible.getFullYear()}-${deux(cible.getMonth() + 1)}-${deux(cible.getDate())} ${hhmm}`;
+  return { defer, quand: demain ? `à demain ${hhmm}` : `au ${heure}` };
+}
+
+/**
  * The answer `--mecanique [<commande>] --contexte <raison>` to the stop <etat> (`{ etape, raison }`)
  * of a ticket of sort <sorte>: a refusal `{ refus }` unless the ticket is stopped on the testwriter
  * (his question or his blocked word) with a reason, its sort not already mechanical; else the sort

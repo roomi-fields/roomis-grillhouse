@@ -41,6 +41,7 @@ import path from 'node:path';
 import { WorkflowNotFoundError } from '@temporalio/client';
 import { DepartRefuse, ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
 import { retirerLaCopieDuTicket } from '../../../scripts/recommencer.mjs';
+import { heureDuReport } from '../../../scripts/reponses-du-circuit.mjs';
 import { sansReponseEn } from '../../../scripts/sans-reponse.mjs';
 import {
   DELAI_JOIGNABLE_MS,
@@ -142,15 +143,16 @@ async function repondre(
   if (appel.reporter) {
     // The ticket deferred, its circuit left waiting on its question: the wait, the stop and the
     // opening keep it quiet until the hour (scripts/superviseur.mjs `horsAttente`).
-    bd(racine, 'update', ticket, '--defer', appel.reporter);
+    const { defer, quand } = heureDuReport(appel.reporter, new Date());
+    bd(racine, 'update', ticket, '--defer', defer);
     bd(
       racine,
       'comments',
       'add',
       ticket,
-      `Question reportée au ${appel.reporter}${contexte ? ` : ${contexte}` : ''} ; le circuit reste en attente, sa question remonte à l'heure.`
+      `Question reportée ${quand}${contexte ? ` : ${contexte}` : ''} ; le circuit reste en attente, sa question remonte à l'heure.`
     );
-    return `▶ Circuit de ${ticket} : sa question est reportée au ${appel.reporter} ; le circuit reste en attente, sa question remonte à l'heure.`;
+    return `▶ Circuit de ${ticket} : sa question est reportée ${quand} ; le circuit reste en attente, sa question remonte à l'heure.`;
   }
   if (appel.arreter) {
     await arreterLeCircuit(client, racine, ticket, contexte);
