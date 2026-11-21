@@ -36,6 +36,8 @@ const ESSAIS = mkdtempSync(path.join(tmpdir(), 'pre-push-nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = RACINE;
+// The tree <arbre> kept as judged in the repository <racine>, in a process of its own.
+const garderLArbreJuge = enProcessus<void>('scripts/arbres-juges.mjs', 'garderLArbreJuge');
 const NUIT = path.join(DEPOT, 'packages/grillhouse/scripts/nuit.sh');
 
 // The Beads section of the pre-push hook, markers included, as Beads 1.2.2 writes it.
@@ -137,6 +139,10 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   git('add', 'suite');
   git('commit', '-q', '--no-verify', '-m', 'suite');
   const tete = git('rev-parse', 'HEAD').trim();
+  // The tree of the head is judged, as a final pass or the verification of a lot keeps it
+  // (scripts/arbres-juges.mjs): the hook lets a commit go to main on a judged tree alone
+  // (grillhouse-3uv.121), and these tests are of the night branch's guard.
+  garderLArbreJuge(repo, git('rev-parse', 'HEAD^{tree}').trim());
   const ref = (b: string) =>
     spawnSync('git', ['--git-dir', bare, 'rev-parse', '--verify', '-q', `refs/heads/${b}`], {
       encoding: 'utf8',

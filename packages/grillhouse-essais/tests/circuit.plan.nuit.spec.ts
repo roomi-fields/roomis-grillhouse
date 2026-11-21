@@ -582,9 +582,12 @@ describe.runIf(canWrap)('the plan, step 1 of the circuit', { timeout: 300_000 },
 describe('critère 3 — the rounds, the survey played again and the referent are gone', () => {
   it('the circuit names neither the survey of its components nor rounds of questions', () => {
     const c = readFileSync(CIRCUIT, 'utf8');
-    for (const nom of ['composantsManquants', 'verifierLeTitre', 'changerLePlan', 'TOURS']) {
+    for (const nom of ['composantsManquants', 'verifierLeTitre', 'changerLePlan']) {
       expect(c, nom).not.toContain(nom);
     }
+    // The rounds of questions, by their own name: the bound of the final pass
+    // (`TOURS_DE_LA_PASSE_FINALE`) is another.
+    expect(c).not.toMatch(/\bTOURS\b/);
     expect(ARRETS).not.toHaveProperty('composants-manquants');
   });
 

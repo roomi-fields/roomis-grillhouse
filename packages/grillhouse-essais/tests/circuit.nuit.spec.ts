@@ -47,6 +47,7 @@ describe('the stops of the circuit and their codes', () => {
       'references',
       'hors-plan',
       'inattendu',
+      'limite-d-usage',
     ];
     // The resumption of the integration stops under its own names at the code of the integration
     // stop: a lot neither on main nor in the copy, a copy that does not get removed.

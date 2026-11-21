@@ -17,9 +17,9 @@ import { RACINE } from './cadre.js';
 // harness waits for the issue of each (`file` of ./integration-essai.ts).
 //
 // This file: the queue brings the branches onto main, and the texts say it. A copy still in place, a ticket sent back and an empty branch: file-integration.renvois; the
-// dependencies of the queue copy: file-integration.dependances; the CI of the ticket's branch:
-// file-integration.ci. The trial project carries a CI on every push, which the fake gh answers
-// green (./integration-essai.ts): each branch enters once judged.
+// dependencies of the queue copy: file-integration.dependances. The queue judges each branch by a
+// final pass of its own, the checks of the trial project (./integration-essai.ts), and reads no CI
+// (grillhouse-3uv.121): each branch enters once judged.
 // The trial harness: ./integration-essai.ts.
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
@@ -30,7 +30,7 @@ const lire = (rel: string) => readFileSync(path.join(RACINE, rel), 'utf8');
 
 describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => {
   it(
-    'critère 3: a lone branch whose base is main enters by fast-forward, replaying nothing',
+    'critère 3: a lone branch whose base is main enters by fast-forward, judged by one final pass',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -41,7 +41,11 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       expect(r.status, r.stdout + r.stderr).toBe(0);
       expect(m.sha('main')).toBe(commit);
       expect(m.sujets()).toEqual(['feat: lot (demo-1)', 'base']);
-      expect({ suites: m.suites(), gardes: m.gardes() }).toEqual(avant);
+      // The final pass of the queue judges the candidate, once (grillhouse-3uv.121).
+      expect({ suites: m.suites(), gardes: m.gardes() }).toEqual({
+        suites: `${avant.suites}[]`,
+        gardes: `${avant.gardes}g`,
+      });
     },
     LONG
   );
@@ -67,7 +71,7 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 4: a branch whose base main left is replaced on main, nothing played on the machine, and enters once its CI judged it',
+    'critère 4: a branch whose base main left is replaced on main, and enters once the final pass judged it there',
     () => {
       const m = chantier(ESSAIS);
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
@@ -81,8 +85,11 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
       // demo-2 sits on demo-1, with both lots in main's tree.
       expect(m.git('show', 'main:src/a/index.ts')).toBe('export const a = 1;\n');
       expect(m.git('show', 'main:src/b/index.ts')).toBe('export const b = 2;\n');
-      // The CI judges: neither the guards nor the suites run on the machine.
-      expect({ suites: m.suites(), gardes: m.gardes() }).toEqual(avant);
+      // The final pass judges each candidate once, on the lot laid on the tip of main.
+      expect({ suites: m.suites(), gardes: m.gardes() }).toEqual({
+        suites: `${avant.suites}[][]`,
+        gardes: `${avant.gardes}gg`,
+      });
     },
     LONG
   );

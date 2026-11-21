@@ -31,7 +31,7 @@ const CONTEXTE = 'Retire le correctif ; le filtre reste.';
 describe.runIf(canWrap)('the context of a relaunch', { timeout: 300_000 }, () => {
   afterEach(revenirAuDebut);
 
-  it('critères 1 et 3 — --depuis testwriter: the testwriter, then the developpeur, of the whole ticket, each with it as its task', () => {
+  it('critères 1 et 3 — --depuis testwriter: the testwriter, then the developpeur, of the whole ticket, the testwriter with it as his task, the developpeur told it was the testwriter’s', () => {
     const id = 'demo-relance-testwriter';
     ticket(id, '000-forms, 030-binder');
     scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -40,7 +40,11 @@ describe.runIf(canWrap)('the context of a relaunch', { timeout: 300_000 }, () =>
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(essai(id, 'testwriter-1.prompt')).toContain(`${TA_TACHE}${CONTEXTE}`);
-    expect(essai(id, 'developpeur-1.prompt')).toContain(`${TA_TACHE}${CONTEXTE}`);
+    // The developpeur reads it as given to the testwriter, whose session is played (grillhouse-d4n.16).
+    const consigne = essai(id, 'developpeur-1.prompt');
+    expect(consigne).toContain('LA TÂCHE DU SUPERVISEUR, donnée au testwriter');
+    expect(consigne).toContain(CONTEXTE);
+    expect(consigne).not.toContain(TA_TACHE);
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
   });
 

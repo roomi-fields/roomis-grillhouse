@@ -118,6 +118,7 @@ describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
         'reprise',
         'seanceReprise',
         'tentative',
+        'toursDeLaPasseFinale',
         'verifie',
         'verts',
       ].sort()

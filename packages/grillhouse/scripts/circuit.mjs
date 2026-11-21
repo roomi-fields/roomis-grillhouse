@@ -606,7 +606,8 @@
 //   no reference writes, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
 //   stops on a write out of the plan, `hors-plan` that lancer.sh ranges under the session's id), 25 inattendu
 //   (an act that fails, an exception no rule of the circuit settles: its message, its stack and its
-//   step in its question, `arretInattendu`), each a question for the supervisor; 75 a-repasser (a check or the integration still at 75 once played again,
+//   step in its question, `arretInattendu`), each a question for the supervisor; 26 limite-d-usage (a session the
+//   usage limit cuts: no question, the circuit reports itself to the hour the usage returns and resumes the step); 75 a-repasser (a check or the integration still at 75 once played again,
 //   or the branch still in the queue), the gesture `a-repasser`.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

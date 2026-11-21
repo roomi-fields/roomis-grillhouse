@@ -79,7 +79,9 @@ describe.runIf(canWrap)(
       // The step under way, the testwriter's, resumes once on the plan extended.
       expect(ordre(id)).toEqual(['testwriter', 'testwriter', 'developpeur', 'relecteur']);
       expect(essai(id, 'testwriter-2.paquets')).toBe('packages/forms:packages/binder');
-      expect(essai(id, 'testwriter-2.prompt')).toMatch(new RegExp(`${TA_TACHE}.*hors du plan`));
+      expect(essai(id, 'testwriter-2.prompt')).toMatch(
+        new RegExp(`${TA_TACHE}Le superviseur a étendu le plan à 000-forms`)
+      );
       // grillhouse-3uv.95.5: the plan the supervisor extends has passed, written and questioned once.
       expect(sessions(id, 'explorateur')).toBe(1);
       expect(sessions(id, 'questionneur')).toBe(1);

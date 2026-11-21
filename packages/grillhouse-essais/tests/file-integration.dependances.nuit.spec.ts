@@ -1,13 +1,9 @@
 // @poste: l'enveloppe bwrap, un serveur Temporal
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  chantierDependances,
-  FLUX_DE_L_ESSAI,
-  serveurDeLaFileDIntegration,
-} from './integration-essai.js';
+import { chantierDependances, serveurDeLaFileDIntegration } from './integration-essai.js';
 
 // The integration queue (scripts/integration/file.mjs): the dependencies of its copy, which follow
 // its lock file (grillhouse-3uv.74).
@@ -63,34 +59,25 @@ describe('grillhouse-3uv.74 — the dependencies of the queue copy follow its lo
     D
   );
   it(
-    'after a branch replaced that changed the lock file and left the queue on a red CI, the next replay installs again the dependencies of main',
+    'after a branch replaced that changed the lock file and left the queue on a red final pass, the next replay installs again the dependencies of main',
     () => {
       const m = chantierDependances(ESSAIS);
-      // The CI of the project, read by the fake gh: red for demo-2, green after.
-      const ci = (conclusion: string) =>
-        writeFileSync(
-          path.join(m.bin, 'gh.json'),
-          JSON.stringify({
-            runs: [
-              { databaseId: 41, status: 'completed', conclusion, workflowName: FLUX_DE_L_ESSAI },
-            ],
-            vues: [{ status: 'completed', conclusion, jobs: [] }],
-          })
-        );
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
-      m.ticket('demo-2', m.fichiers({ ...m.initial, externe: '2.0.0' }));
+      // The lot of demo-2 carries a test the suites of the trial fail (ROUGES_FORCES): its final
+      // pass is red.
+      m.ticket('demo-2', {
+        ...m.fichiers({ ...m.initial, externe: '2.0.0' }),
+        ROUGES_FORCES: 'le test du lot\n',
+      });
       m.livrer('demo-1');
-      ci('success');
       expect(m.file().status).toBe(0);
       expect(m.sujets()[0]).toBe('feat: lot (demo-1)');
       m.enFile('demo-2');
-      ci('failure');
       expect(m.file().status).toBe(0);
       expect(m.bd('demo-2').status).toBe('open');
       expect(m.sujets()[0]).toBe('feat: lot (demo-1)');
       expect(m.installes('file')['ext-lib']).toBe('2.0.0');
       m.poserMarque('file');
-      ci('success');
       m.ticket('demo-3', { 'src/b/index.ts': 'export const b = 3;\n' });
       m.livrer('demo-3');
       m.poser({ 'src/c/index.ts': 'export const c = 4;\n' }, 'main bouge');

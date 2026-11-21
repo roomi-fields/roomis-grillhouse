@@ -177,7 +177,11 @@ describe('grillhouse-3uv.84.4 critère 1 — grillhouse init creates a project f
     const { ['@roomi-fields/grillhouse']: _paquet, ...autres } = dev;
     expect(autres).toEqual(modele.devDependencies);
     // grillhouse-ca7: the project declares its language in its architecture, not its package.json.
-    expect(recu.grillhouse).toEqual({ version: VERSION });
+    // grillhouse-3uv.106: its flow of the blank machine declared, which exercises no package.
+    expect(recu.grillhouse).toEqual({
+      version: VERSION,
+      flux: { '.github/workflows/machine-vierge.yml': [] },
+    });
     const sans = (p: Record<string, unknown>) => {
       const { devDependencies: _d, grillhouse: _g, ...reste } = p;
       return reste;
@@ -262,11 +266,11 @@ describe('grillhouse-3uv.84.4 critère 6 — init writes the status line in the 
     expect(reglages).not.toHaveProperty('hooks');
   });
 
-  it('the rest of the settings is the template’s, which declares grillhouse@roomi-fields, the status line added; no marketplace of the project’s own', () => {
+  it('the rest of the settings is the template’s, which declares grillhouse@roomi-fields and carries the status line; no marketplace of the project’s own', () => {
     const modele = JSON.parse(
       readFileSync(path.join(GABARIT, '.claude/settings.json'), 'utf8')
     ) as Record<string, Record<string, unknown>>;
-    const { statusLine: _s, ...reste } = json('.claude/settings.json');
+    const reste = json('.claude/settings.json') as typeof modele;
     expect(reste).toEqual(modele);
     expect(reste.enabledPlugins?.['grillhouse@roomi-fields']).toBe(true);
     expect(existsSync(path.join(PROJET, '.claude-plugin'))).toBe(false);

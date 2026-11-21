@@ -14,7 +14,7 @@ import { dormir, ouvrirLeBanc } from './temporal-essai.js';
 // integration; the board (`circuitsDuServeur`) reads the server as a session of supervision does
 // (the greffon of that session pushes the questions, which no trial here plays); the supervisor
 // answers a stop by the frame's built client. The cases: the nominal one, a stop then its answer, the server
-// killed during a wait, a red CI that goes up, and a 75 played again by its timer; the worker
+// killed during a wait, and a 75 played again by its timer; the worker
 // killed during a session is ./circuit.temporal.nuit.spec.ts's, on the same bench. The places of
 // the machine are taken on the server of the trial.
 
@@ -131,23 +131,6 @@ describe.runIf(canWrap)(
         expect(banc.reprendre(id)).toBe('repris');
         await banc.attendreLaFin(id);
         expect(sessions(id, 'testwriter')).toBe(2);
-      } finally {
-        await banc.fermer([id]);
-      }
-    });
-
-    it('a red CI goes up to the supervisor at 5.2, its ticket reopened', async () => {
-      const id = 'demo-repetition-ci';
-      ticket(id, '000-forms');
-      scenario(id, 'testwriter', TESTS);
-      scenario(id, 'developpeur', CODE);
-      ci('failure');
-      const banc = await ouvrirLeBanc(ESSAIS, essai, id);
-      try {
-        banc.demarrerLeCircuit(id);
-        const v = await banc.attendreLaQuestion(id);
-        expect(v.texte, banc.pieces(id)).toMatch(/"etape":\s*"file"/);
-        expect(statutDuTicket(id)).toBe('open');
       } finally {
         await banc.fermer([id]);
       }

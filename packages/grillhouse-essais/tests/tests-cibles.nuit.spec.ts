@@ -115,7 +115,7 @@ function depotAImport() {
       '',
     ].join('\n')
   );
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\ndist/\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\n.cache-outils/\njoues.txt\ndist/\n');
   ecrireTurbo(r);
   for (const a of [
     ['init', '-q'],
@@ -426,7 +426,7 @@ function depotAPaquets({ socleEchoue = false, casses = [] as string[] } = {}) {
     'packages/socle/package.json',
     json({ name: 'socle', scripts: { build: construction(2, 'socle', socleEchoue) } })
   );
-  ecrire(r, '.gitignore', 'node_modules\n.turbo/\njoues.txt\nconstruits.txt\n');
+  ecrire(r, '.gitignore', 'node_modules\n.turbo/\n.cache-outils/\njoues.txt\nconstruits.txt\n');
   ecrireTurbo(r);
   return r;
 }

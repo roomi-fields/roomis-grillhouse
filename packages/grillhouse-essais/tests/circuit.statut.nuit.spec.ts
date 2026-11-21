@@ -228,7 +228,7 @@ fiche '{"statut":"FAIT","hors_plan":[{"critere":"1","paquet":"030-binder","piece
     expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'developpeur', 'relecteur']);
     expect(essai(id, 'developpeur-2.paquets')).toBe('packages/forms:packages/binder');
     expect(essai(id, 'developpeur-2.prompt')).toMatch(
-      new RegExp(`${TA_TACHE}.*critère 1 \\(030-binder\\)`)
+      new RegExp(`${TA_TACHE}Le superviseur a étendu le plan à 030-binder`)
     );
     expect(etat(id)).toMatchObject({ etape: 'integre' });
   });

@@ -17,7 +17,7 @@
 // of the server); the circuits it has just started count while the server's visibility does not
 // show them yet; its recorded history replays on the current code
 // (./histoires/tickets-du-projet.json).
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -399,6 +399,7 @@ describe('l’histoire de la file des tickets se rejoue sur le code courant', ()
     // Recorded when absent, and red: to record it anew, remove the file, play the test, then
     // commit the file it wrote.
     if (!existsSync(fichier)) {
+      mkdirSync(path.dirname(fichier), { recursive: true });
       writeFileSync(
         fichier,
         `${JSON.stringify(HistoireDuProto(histoire).toObject(histoire, ENTIER), null, 1)}\n`

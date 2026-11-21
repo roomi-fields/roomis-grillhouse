@@ -286,7 +286,7 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
 
     // grillhouse-ybq.3 (BP 320.8): --etendre 990-corpus relaunched the developpeur, who stopped
     // again in 17 s, and not the testwriter his sending named.
-    it('ybq.3 critère 3 — after a stop on a sending to the testwriter, --etendre relaunches the testwriter, the sending as his report', () => {
+    it('ybq.3 critère 3 — after a stop on a sending to the testwriter, --etendre relaunches the testwriter, the supervisor’s answer as his task', () => {
       const id = 'demo-renvoi-etendre';
       ticket(id, '000-forms');
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
@@ -305,7 +305,10 @@ fiche '{"statut":"BLOQUÉ","piece":"packages/forms/src/index.mjs:1","raison":"le
         'developpeur',
         'relecteur',
       ]);
-      expect(essai(id, 'testwriter-3.prompt')).toContain('deuxième fois de suite au testwriter');
+      // The supervisor's answer is the context of the session, not the stop it answers (grillhouse-6j3).
+      expect(essai(id, 'testwriter-3.prompt')).toContain(
+        'Le superviseur a étendu le plan à 030-binder'
+      );
       expect(essai(id, 'testwriter-3.paquets')).toBe(
         ['packages/forms', 'packages/binder'].join(path.delimiter)
       );

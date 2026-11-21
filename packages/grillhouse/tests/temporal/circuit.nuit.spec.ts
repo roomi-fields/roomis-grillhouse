@@ -13,7 +13,7 @@
 // program of trial (./acte-d-essai.mjs): the attempt played again waits for the dead attempt's
 // group, and carries the same key, which the acts of the circuit play once.
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ApplicationFailure } from '@temporalio/common';
@@ -1363,6 +1363,7 @@ describe('une histoire enregistrée se rejoue sur le code courant', () => {
     // Recorded when absent, as a snapshot is, and red: to record it anew, remove the file, play the
     // test, then commit the file it wrote; a play without it never passes.
     if (!existsSync(HISTOIRE)) {
+      mkdirSync(path.dirname(HISTOIRE), { recursive: true });
       writeFileSync(
         HISTOIRE,
         `${JSON.stringify(HistoireDuProto(histoire).toObject(histoire, ENTIER), null, 1)}\n`

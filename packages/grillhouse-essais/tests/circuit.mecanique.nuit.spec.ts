@@ -10,8 +10,9 @@ import { sortie, ARRETS, CODE_JUSTE, circuitEssai, lire } from './circuit-essai.
 // judge: the explorateur's plan says the ticket mechanical, with its reason and its command; the
 // circuit skips the testwriter, the proof and the developpeur, the explorateur plays the command in
 // the copy (1.1), then the checks, the final pass, the review and the queue. Under a plan
-// « comportement inchangé », every green of the proof is expected, and a proof without a red goes
-// to the checks with no developpeur. Witnesses: BPScript 320.16 (38 tools moved by mv, 117
+// « comportement tests-adaptés », every green of the proof is expected, and a proof without a red
+// goes to the developpeur; a plan « comportement inchangé », a gesture written by hand, goes to the
+// developpeur alone (grillhouse-3uv.115). Witnesses: BPScript 320.16 (38 tools moved by mv, 117
 // comments), 320.40.1 (an unused variable, 4 sessions), si61.8 (a threshold 77 → 95).
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
@@ -135,13 +136,13 @@ describe.runIf(canWrap)('a mechanical ticket goes by its command', { timeout: 30
     expect(gestes(id).filter(g => g.includes('mecanique'))).toEqual([]);
   });
 
-  it('critère 3 — under « comportement inchangé », a green test without its expected green passes the proof, then the developpeur works the lot, the checks and the review', () => {
+  it('critère 3 — under « comportement tests-adaptés », a green test without its expected green passes the proof, then the developpeur works the lot, the checks and the review', () => {
     const id = 'demo-inchange';
     ticket(id, '000-forms');
     scenario(
       id,
       'explorateur-1',
-      plan({ genre: 'comportement', raison: 'un test de plus', comportement: 'inchangé' })
+      plan({ genre: 'comportement', raison: 'un test de plus', comportement: 'tests-adaptés' })
     );
     scenario(
       id,
@@ -164,7 +165,7 @@ passation 'Un test de plus, vert.'\n`
     expect(r.status, sortie(r)).toBe(0);
     expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
     expect(commentaires(id).join('\n')).toContain(
-      'aucun rouge : le plan dit « comportement inchangé », au développeur'
+      'aucun rouge : le plan dit « tests-adaptés », au développeur'
     );
   });
 });
