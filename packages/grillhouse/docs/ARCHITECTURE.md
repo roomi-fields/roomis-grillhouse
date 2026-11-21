@@ -939,7 +939,14 @@ lots entrés depuis le dernier vert, calculés par git (`lotsDepuisLeVert` de
 `scripts/ci-de-main.mjs`, les commits du circuit entre le dernier passage vert du flux et la
 pointe, sans séance ouverte ni état gardé), et ouvre un ticket de défaut sous `a-valider`, pour le
 responsable, qui nomme le passage rouge et les lots candidats (`ouvrirLeDefautDeMain`, un par
-passage) ; la recherche du coupable est ce ticket, que le superviseur lance dans le circuit, et un
+passage, ouvert ou fermé), comme TAP et le sheriff de Chromium ouvrent le bogue d'un arbre rouge
+dès qu'il est vu, une fois, quel que soit celui qui le voit : la file et le relevé de la séance du
+superviseur (`lireEtOuvrirLeDefautDeMain`, que `ciDeMainDe` appelle) l'ouvrent par cette seule fonction, dans
+le projet dont ils lisent la CI avec son Beads, la recherche d'un doublon et la création jouées
+sous un verrou de fichier du projet ; elle rend le numéro du ticket, créé ou déjà là, et l'alerte
+du relevé le nomme. Un Beads qui refuse garde l'alerte, qui dit que le ticket n'a pas pu s'ouvrir
+et pourquoi, sous sa propre clé ; chaque relevé retente. Le tableau ne lit que la CI et n'ouvre
+aucun ticket. La recherche du coupable est ce ticket, que le superviseur lance dans le circuit, et un
 lot fautif déjà fermé reste fermé : son correctif ou son retrait est un ticket neuf. L'alerte
 s'efface au vert suivant ; une CI que gh ne lit pas est l'alerte « CI de main non lue », jamais le
 silence, et le tableau comme l'ouverture de séance la montrent comme un rouge. Le défaut reste

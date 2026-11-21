@@ -20,6 +20,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { git, sortie } from './etat-du-depot.mjs';
+import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
 const COURT = 7;
 const court = sha => String(sha).slice(0, COURT);
@@ -120,10 +121,12 @@ export function lotsDepuisLeVert(racine, { vert, pointe }) {
 
 /**
  * What a reading tells the supervisor: `{ genre, cle, texte }`, null for a green (the alert clears).
- * A red names the workflow, its pass, its commit and each lot <lots> entered since the last green;
- * a CI not read is the alert « CI de main non lue ».
+ * A red names the workflow, its pass, its commit and each lot <lots> entered since the last green,
+ * then its defect ticket <defaut> (`ouvrirLeDefautDeMain`): the ticket by its number, a ticket open
+ * with no number read, or the fault that kept it from opening (its own key, so that the alert with
+ * the ticket is given in its turn); a CI not read is the alert « CI de main non lue ».
  */
-export function alerteDeLaCiDeMain(lecture, lots) {
+export function alerteDeLaCiDeMain(lecture, lots, defaut) {
   if (lecture.etat === 'verte') {
     return null;
   }
@@ -139,10 +142,18 @@ export function alerteDeLaCiDeMain(lecture, lots) {
       ? `Lots entrés depuis le dernier vert (${court(lecture.vert)}) : ${lots.map(l => l.ticket).join(', ')}.`
       : `aucun lot du circuit entré depuis le dernier vert (${court(lecture.vert)}).`
     : 'aucun vert connu pour ce flux : les lots entrés ne se nomment pas.';
+  const sans = Boolean(defaut?.faute);
+  const defautDit = !defaut
+    ? ''
+    : sans
+      ? ` Le ticket de défaut n'a pas pu s'ouvrir : ${uneLigne(defaut.faute)} Chaque relevé retente.`
+      : defaut.ticket
+        ? ` La recherche du coupable est le ticket de défaut ${defaut.ticket}, ouvert pour le responsable.`
+        : ` Un ticket de défaut est ouvert pour le responsable (son numéro ne s'est pas lu).`;
   return {
     genre: 'rouge',
-    cle: `rouge ${lecture.passage}`,
-    texte: `CI de main rouge : ${lecture.flux}, passage ${lecture.passage} (commit ${court(lecture.commit)}). ${depuis} La file continue d'avancer main ; la recherche du coupable est le ticket de défaut ouvert pour le responsable.`,
+    cle: sans ? `rouge ${lecture.passage} sans ticket` : `rouge ${lecture.passage}`,
+    texte: `CI de main rouge : ${lecture.flux}, passage ${lecture.passage} (commit ${court(lecture.commit)}). ${depuis} La file continue d'avancer main.${defautDit}`,
   };
 }
 
@@ -164,13 +175,39 @@ const titreDuDefaut = l => `CI de main rouge — ${l.flux}, passage ${l.passage}
  * The defect ticket a red <lecture> opens under `a-valider` with the tools <o> (`bd` of the
  * project): its title names the workflow and the red pass, its description the commit and each
  * candidate lot <lots>. One ticket per pass, closed or not: a pass that already has its ticket opens
- * none, and `doublon` names it. A green or a CI not read opens none (the alert says it, no defect is
- * proven). `{ ouvert, doublon?, faute? }`: a creation Beads refuses is a fault named.
+ * none. The queue and the supervisor's reading both open it through this function, and the search
+ * of a doublon and the creation are played under a file lock of the project <o.racine>, so that
+ * two openings at once make one ticket. A green or a CI not read opens none (the alert says it, no
+ * defect is proven). `{ ouvert, ticket, faute? }`: `ticket` is the number of the ticket created
+ * (read on the output of the creation) or already holding the pass, null when none is readable; a
+ * creation Beads refuses is a fault named.
  */
 export function ouvrirLeDefautDeMain(o, lecture, lots) {
   if (lecture.etat !== 'rouge') {
-    return { ouvert: false };
+    return { ouvert: false, ticket: null };
   }
+  const verrou = path.join(o.racine, '.claude', 'worktrees', 'ci-de-main-defaut.verrou');
+  try {
+    mkdirSync(path.dirname(verrou), { recursive: true });
+  } catch {
+    // the lock is then taken without its directory and fails: the creation goes on unlocked
+  }
+  let pris = false;
+  try {
+    pris = prendreVerrou(verrou, { attendre: true });
+  } catch {
+    // a lock that cannot be taken costs the race guard, not the ticket
+  }
+  try {
+    return ouvrirSousVerrou(o, lecture, lots);
+  } finally {
+    if (pris) {
+      lacherVerrou(verrou);
+    }
+  }
+}
+
+function ouvrirSousVerrou(o, lecture, lots) {
   const titre = titreDuDefaut(lecture);
   const existants = o.bd('list', '--all', '--label', A_VALIDER, '--limit', '0', '--json');
   if (existants.status === 0) {
@@ -178,7 +215,7 @@ export function ouvrirLeDefautDeMain(o, lecture, lots) {
       const l = JSON.parse(existants.stdout || '[]');
       const deja = (Array.isArray(l) ? l : []).find(t => t?.title === titre);
       if (deja) {
-        return { ouvert: false, doublon: deja.id };
+        return { ouvert: false, ticket: deja.id ?? null, doublon: deja.id };
       }
     } catch {
       // A list that does not read opens the ticket: a doublon is the lesser fault.
@@ -209,11 +246,19 @@ export function ouvrirLeDefautDeMain(o, lecture, lots) {
   if (r.status !== 0) {
     return {
       ouvert: false,
+      ticket: null,
       faute: `bd create refuse : ${uneLigne(`${r.stderr ?? ''}${r.stdout ?? ''}`)}`,
     };
   }
-  return { ouvert: true };
+  const numero = /^([A-Za-z0-9]+-[A-Za-z0-9.]+)$/.exec(String(r.stdout ?? '').trim())?.[1];
+  return { ouvert: true, ticket: numero ?? null };
 }
+
+// `bd` run in the project at <racine>, found on the PATH as the project's own.
+export const bdDans =
+  racine =>
+  (...args) =>
+    spawnSync('bd', args, { cwd: racine, env: process.env, encoding: 'utf8', timeout: 60_000 });
 
 // The GitHub CLI run in the main tree <racine>.
 export const ghDans =
@@ -266,11 +311,33 @@ export function ciDeMainGardee(
  * The alert of a <lecture> of the CI of the project at <racine>, its lots named by git up to the
  * tip of its main tree: `{ genre, cle, texte }`, null for a green.
  */
-export function alerteDuProjet(racine, lecture) {
+export function alerteDuProjet(racine, lecture, defaut) {
+  return alerteDeLaCiDeMain(lecture, lotsDuProjet(racine, lecture), defaut);
+}
+
+/** The lots entered since the last green of a red <lecture>, up to the tip of the tree at <racine>. */
+export function lotsDuProjet(racine, lecture) {
   if (lecture.etat !== 'rouge') {
-    return alerteDeLaCiDeMain(lecture, []);
+    return [];
   }
   const pointe = sortie(racine, ['rev-parse', 'HEAD']);
-  const lots = pointe ? lotsDepuisLeVert(racine, { vert: lecture.vert, pointe }) : [];
-  return alerteDeLaCiDeMain(lecture, lots);
+  return pointe ? lotsDepuisLeVert(racine, { vert: lecture.vert, pointe }) : [];
+}
+
+/**
+ * The CI of main read for the supervisor at <racine>, its defect ticket opened by the same function
+ * as the queue's (`ouvrirLeDefautDeMain`, in this project, with its own Beads): the alert, null for
+ * a green, undefined for a project with no CI to read. Only the supervisor's reading calls it, the
+ * board reads `ciDeMainGardee` alone.
+ */
+export function lireEtOuvrirLeDefautDeMain(racine, { gh } = {}) {
+  const lecture = ciDeMainGardee(racine, gh ? { gh } : {});
+  if (!lecture) {
+    return undefined;
+  }
+  const defaut =
+    lecture.etat === 'rouge'
+      ? ouvrirLeDefautDeMain({ racine, bd: bdDans(racine) }, lecture, lotsDuProjet(racine, lecture))
+      : undefined;
+  return alerteDuProjet(racine, lecture, defaut);
 }

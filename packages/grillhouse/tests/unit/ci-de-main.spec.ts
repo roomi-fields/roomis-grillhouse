@@ -399,4 +399,93 @@ describe('le défaut qu’un rouge de main ouvre pour le responsable', () => {
     expect(r.ouvert).toBe(false);
     expect(r.faute).toContain('base verrouillée');
   });
+
+  it('gives the number of the ticket it created, read on the output of the creation', () => {
+    const b = beads([], { status: 0, stdout: 'demo-91\n', stderr: '' });
+    const r = ouvrirLeDefautDeMain({ racine: ESSAIS, bd: b.bd }, ROUGEE, []);
+    expect(r).toMatchObject({ ouvert: true, ticket: 'demo-91' });
+  });
+
+  it('gives the number of the ticket that already holds the pass, closed or not', () => {
+    for (const status of ['open', 'closed']) {
+      const b = beads([
+        {
+          id: 'demo-77',
+          title: 'CI de main rouge — Machine vierge, passage 4242',
+          status,
+          labels: ['a-valider'],
+          description: '',
+        },
+      ]);
+      const r = ouvrirLeDefautDeMain({ racine: ESSAIS, bd: b.bd }, ROUGEE, []);
+      expect(r, status).toMatchObject({ ouvert: false, ticket: 'demo-77' });
+      expect(b.creations(), status).toEqual([]);
+    }
+  });
+
+  it('a creation that succeeds without a readable number is open, with no number', () => {
+    const b = beads([], { status: 0, stdout: '', stderr: '' });
+    const r = ouvrirLeDefautDeMain({ racine: ESSAIS, bd: b.bd }, ROUGEE, []);
+    expect(r.ouvert).toBe(true);
+    expect(r.faute).toBeUndefined();
+    expect(r.ticket ?? null).toBeNull();
+  });
+
+  it('finds a ticket created without a number by its title at the next opening', () => {
+    const b = beads([
+      {
+        id: 'demo-92',
+        title: 'CI de main rouge — Machine vierge, passage 4242',
+        status: 'open',
+        labels: ['a-valider'],
+        description: '',
+      },
+    ]);
+    const r = ouvrirLeDefautDeMain({ racine: ESSAIS, bd: b.bd }, ROUGEE, []);
+    expect(r.ticket).toBe('demo-92');
+    expect(b.creations()).toEqual([]);
+  });
+});
+
+type Defaut = { ouvert: boolean; ticket?: string | null; faute?: string; doublon?: string };
+const alerteAvec = (defaut: Defaut, lecture: Lecture = ROUGEE) =>
+  (
+    alerteDeLaCiDeMain as unknown as (
+      l: Lecture,
+      lots: Lot[],
+      d: Defaut
+    ) => { genre: string; cle: string; texte: string } | null
+  )(lecture, [], defaut)!;
+
+describe('l’alerte de la CI de main et son ticket de défaut', () => {
+  it('names the defect ticket by its number, whether the reading created it or found it', () => {
+    expect(alerteAvec({ ouvert: true, ticket: 'demo-90' }).texte).toContain('demo-90');
+    expect(alerteAvec({ ouvert: false, ticket: 'demo-77' }).texte).toContain('demo-77');
+  });
+
+  it('no longer sends the owner to a ticket the alert does not name', () => {
+    const t = alerteAvec({ ouvert: false, ticket: 'demo-77' }).texte;
+    expect(t).not.toContain('le ticket de défaut ouvert pour le responsable');
+  });
+
+  it('a ticket opened without a number says a ticket is open, with no number', () => {
+    const t = alerteAvec({ ouvert: true, ticket: null }).texte;
+    expect(t).toMatch(/ticket/);
+    expect(t).not.toMatch(/[a-z]+-\d+/);
+  });
+
+  it('a creation Beads refuses says the ticket could not be opened and why, announcing no ticket', () => {
+    const a = alerteAvec({ ouvert: false, faute: 'bd create refuse : base verrouillée' });
+    expect(a.texte).toContain('base verrouillée');
+    expect(a.texte).toMatch(/n'a pas pu s'ouvrir|n’a pas pu s’ouvrir|pas pu s.ouvrir/);
+    expect(a.texte).not.toContain('le ticket de défaut ouvert pour le responsable');
+  });
+
+  it('the alert without a ticket has its own key, distinct from the alert with a ticket', () => {
+    const sans = alerteAvec({ ouvert: false, faute: 'refus' });
+    const avec = alerteAvec({ ouvert: true, ticket: 'demo-90' });
+    expect(sans.cle).not.toBe(avec.cle);
+    expect(sans.cle).toContain('4242');
+    expect(avec.cle).toContain('4242');
+  });
 });

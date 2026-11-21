@@ -65,7 +65,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { alerteDuProjet, ciDeMainGardee } from './ci-de-main.mjs';
+import { lireEtOuvrirLeDefautDeMain } from './ci-de-main.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
 import { circuitsDuServeur, ServeurMuet } from './circuits-du-serveur.mjs';
@@ -211,13 +211,9 @@ function lireLesIntegrations(racine, maintenant) {
 // supervisor: `{ cle, texte }` for a red or a CI not read, null for a green (the alert clears),
 // undefined for a project with no CI to read. The lots entered since the last green are named by
 // git; nothing is kept but the reading, for five minutes.
-export function ciDeMainDe(racine) {
-  const lecture = ciDeMainGardee(racine);
-  if (!lecture) {
-    return undefined;
-  }
-  const a = alerteDuProjet(racine, lecture);
-  return a ? { cle: a.cle, texte: a.texte } : null;
+export function ciDeMainDe(racine, o = {}) {
+  const a = lireEtOuvrirLeDefautDeMain(racine, o);
+  return a ? { cle: a.cle, texte: a.texte } : a;
 }
 
 // The alert of the CI of main given by the waits of the repository at <racine>, its key: kept while
