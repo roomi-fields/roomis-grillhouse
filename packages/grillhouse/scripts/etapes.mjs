@@ -38,6 +38,8 @@ export const AUTO = 'auto';
 // The role that writes the plan and answers its questions once, and sorts the discoveries of the
 // ticket once its lot is on main; the role that questions the plan.
 export const EXPLORATEUR = 'explorateur';
+// The author of the circuit's own lines, at a ticket and among its kept results.
+export const AUTEUR_DU_CIRCUIT = 'circuit';
 export const QUESTIONNEUR = 'questionneur';
 
 export const ETAPES = [

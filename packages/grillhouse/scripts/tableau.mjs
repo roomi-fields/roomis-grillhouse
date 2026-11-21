@@ -90,7 +90,8 @@
 //   its prefix (`courtDuTicket`). Such a line is marked `avancement`, which the pane measures
 //   again more often.
 // - Signs: each sign keeps one sense (the owner's decisions of 2026-11-01 and 2026-11-12). A
-//   ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step works (cyan),
+//   ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step works (cyan,
+//   the hollow ▷ in a short circuit, counted with it),
 //   a ticket led in direct included; ⏸ it waits, under the step about to be launched, the reason
 //   on its right (« attend une place », « verrou », « disque », « démarre » in grey, the
 //   circuit waiting for the machine; « question au superviseur », « question au responsable »,
@@ -159,6 +160,7 @@ import { duree as dureeDeLaFermeture } from './regles-des-places.mjs';
 import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
 import { versionDuPaquet } from './greffons.mjs';
+import { estLeCircuitCourt, sorteDesFiches } from './resultats.mjs';
 
 // The version of the package whose code draws the panel, « v0.47.1 », read once, at the first
 // request, and kept: a long-lived process keeps the loaded code's version after an upgrade. Only
@@ -1254,7 +1256,7 @@ export function assembler({
   }
   const debutJour = jour;
   // The way of a ticket done (grillhouse-592): `direct` when labelled so; else the way its kept
-  // results give (`voies`, `voiesDesCircuits`: `court` through 1.1, else `complet`); else
+  // results give (`voies`, `voiesDesCircuits`: `court` for the short circuit, else `complet`); else
   // `complet` when a circuit led a step of it (the register) or is read for it; else `direct`,
   // closed with no circuit.
   const parUnCircuit = new Set([...etapesFinies.map(r => r.ticket), ...parCircuit.keys()]);
@@ -1488,6 +1490,8 @@ export function assembler({
     .map(c => ({
       ...c,
       id: c.ticket,
+      // Its way so far, read from its kept results (`voiesDesCircuits`).
+      court: voies[c.ticket] === 'court',
       numero: numero(c.ticket),
       sujet: titre(parId.get(c.ticket)).sujet,
     }));
@@ -1587,16 +1591,18 @@ function temoinDe(c, maintenant) {
 }
 
 // A ticket's time and tokens, « 12 min · 310 k »; nothing when both are zero.
-// The sign of a ticket done by its way (grillhouse-592): a full circuit, a short one (1.1 Geste
-// mécanique), a ticket led directly.
+// The sign of a ticket done by its way (grillhouse-592): a full circuit, a short one (its gesture
+// played by a command, 1.1, or written by hand), a ticket led directly.
 export const SIGNE_DE_LA_VOIE = Object.freeze({ complet: '●', court: '○', direct: '✎' });
 
 /**
  * The way of the circuit each ticket of <tickets> went, read from its kept results in the main tree
  * <racine> (`.claude/worktrees/<ticket>.fiches.jsonl`, which the circuit writes and keeps once the
- * ticket is done): `court` when the launch of a session carries the object `geste` (1.1 Geste
- * mécanique), else `complet`; a ticket without the file has no entry. A line that does not parse
- * counts nothing.
+ * ticket is done): `court` when the sort of the ticket (`sorteDesFiches` of scripts/resultats.mjs:
+ * its plan's, or the one a turn gave it since) is the short circuit's, its gesture played by a
+ * command (1.1 Geste mécanique) or written by hand by the developpeur (`estLeCircuitCourt`), else
+ * `complet`: a ticket that turned bears the way it ended on. A ticket without the file has no
+ * entry. A line that does not parse counts nothing.
  * @param {string} racine
  * @param {string[]} tickets
  * @returns {Record<string, 'complet' | 'court'>}
@@ -1610,14 +1616,15 @@ export function voiesDesCircuits(racine, tickets) {
     } catch {
       continue;
     }
-    const geste = texte.split('\n').some(l => {
+    const fiches = texte.split('\n').flatMap(l => {
       try {
-        return JSON.parse(l)?.lancement?.objet === 'geste';
+        const e = JSON.parse(l);
+        return e && typeof e === 'object' ? [e] : [];
       } catch {
-        return false;
+        return [];
       }
     });
-    out[id] = geste ? 'court' : 'complet';
+    out[id] = estLeCircuitCourt(sorteDesFiches(fiches)) ? 'court' : 'complet';
   }
   return out;
 }
@@ -1694,7 +1701,10 @@ function nommerLesPrises(tenues, { racine, prefix }) {
 }
 // The sign of a ticket's line in AGENTS, by the tone of its state: ▶ what runs, ⛔ what asks for a
 // correction, ⏸ a wait, for the machine (grey) or for someone (yellow).
-const signeDuTon = ton => (ton === TONS.enCours ? '▶' : ton === 'alerte' ? '⛔' : '⏸');
+// A circuit that runs bears the full triangle, the hollow one in a short circuit (<court>), as
+// its line of FAITS AUJOURD'HUI bears the full or the hollow round (`SIGNE_DE_LA_VOIE`).
+const signeDuTon = (ton, court = false) =>
+  ton === TONS.enCours ? (court ? '▷' : '▶') : ton === 'alerte' ? '⛔' : '⏸';
 // The step of the circuit <c>, by its state or its stop.
 const etapeDuCircuitLu = c => etapeDuCircuit({ ...c, raison: c.arret });
 // A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
@@ -1790,7 +1800,13 @@ export function etatsDAgents(t) {
       partDe.get(c.id) ??
       (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
     const [etat, raison] = etatDuCircuit(c, temoin);
-    circuits.set(c.id, { etat, raison, ton: TONS[etat], signe: signeDuTon(TONS[etat]), temoin });
+    circuits.set(c.id, {
+      etat,
+      raison,
+      ton: TONS[etat],
+      signe: signeDuTon(TONS[etat], c.court),
+      temoin,
+    });
   }
   const ligne = (x, signe) => ({ id: x.id, projet: x.projet, signe });
   return {
@@ -1812,7 +1828,7 @@ export function etatsDAgents(t) {
 export function comptesDAgents(t, projet) {
   const l = etatsDAgents(t).lignes.filter(x => projet === undefined || x.projet === projet);
   const n = s => l.filter(x => x.signe === s).length;
-  return { enCours: n('▶'), enAttente: n('⏸'), arretes: n('⛔') };
+  return { enCours: n('▶') + n('▷'), enAttente: n('⏸'), arretes: n('⛔') };
 }
 
 // The board's lines, `largeur` columns wide, each with its tone (titre, alerte, attention, actif,
@@ -2397,10 +2413,17 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const n = t.faitsDuJour.length;
     const temps = t.faitsDuJour.reduce((s, x) => s + x.travail, 0);
     const jetons = t.faitsDuJour.reduce((s, x) => s + x.jetons, 0);
+    // The tickets of the day that took the short circuit.
+    const courts = t.faitsDuJour.filter(x => x.voie === 'court').length;
     L(
       cadre(
         "FAITS AUJOURD'HUI",
-        `${n} ticket${n > 1 ? 's' : ''} · ${duree(temps)} · ${k(jetons)}`,
+        [
+          `${n} ticket${n > 1 ? 's' : ''}`,
+          ...(courts ? [`${courts} court${courts > 1 ? 's' : ''}`] : []),
+          duree(temps),
+          k(jetons),
+        ].join(' · '),
         largeur
       ),
       TONS.titre
@@ -2785,11 +2808,12 @@ function lire(
     // A read-only place keeps the board working, without its cache.
   }
   const jour = jourLu;
-  // The kept results of the circuits of the tickets done since the day's marker, in the main tree.
-  const voies = voiesDesCircuits(
-    commun ? path.dirname(commun) : racine,
-    tous.filter(x => x.closed_at && Date.parse(x.closed_at) >= jour).map(x => x.id)
-  );
+  // The kept results of the circuits of the tickets done since the day's marker, and of the
+  // circuits read, in the main tree.
+  const voies = voiesDesCircuits(commun ? path.dirname(commun) : racine, [
+    ...tous.filter(x => x.closed_at && Date.parse(x.closed_at) >= jour).map(x => x.id),
+    ...lesCircuitsLus.liste.map(c => c.ticket),
+  ]);
   const t = assembler({
     tous,
     prefix,

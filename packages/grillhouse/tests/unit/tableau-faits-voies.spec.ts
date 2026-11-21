@@ -89,6 +89,20 @@ describe('le signe d’une ligne de FAITS AUJOURD’HUI dit la voie du ticket', 
     expect(duTicket(p, 'demo-2').texte).toMatch(/^○ 2 {2}Le sujet de 2 /);
   });
 
+  it('le titre compte les circuits courts du jour, et se tait quand il n’y en a aucun', () => {
+    const titre = (p: ReturnType<typeof plateau>) =>
+      faits(p).find(l => l.texte.startsWith('FAITS'))!.texte;
+    const p = plateau([T('demo-1'), T('demo-2'), T('demo-5')], {
+      registre: REGISTRE,
+      voies: { 'demo-1': 'complet', 'demo-2': 'court', 'demo-5': 'court' },
+    });
+    expect(titre(p)).toMatch(/3 tickets · 2 courts · /);
+    expect(titre(plateau([T('demo-2')], { voies: { 'demo-2': 'court' } }))).toMatch(
+      /1 ticket · 1 court · /
+    );
+    expect(titre(plateau([T('demo-1')], { registre: REGISTRE }))).not.toMatch(/court/);
+  });
+
   it('✎ pour un ticket fermé sans aucun circuit', () => {
     const p = plateau([T('demo-3')]);
     expect(duTicket(p, 'demo-3').texte).toMatch(/^✎ 3 {2}Le sujet de 3 /);
@@ -169,20 +183,40 @@ describe('la voie d’un circuit fini se lit dans ses résultats gardés', () =>
       path.join(COPIES, `${ticket}.fiches.jsonl`),
       lignesDuFichier.map(x => JSON.stringify(x)).join('\n') + '\n'
     );
-  garder('demo-1', [
-    { role: 'explorateur', lancement: { role: 'explorateur', seance: 's1' } },
-    { role: 'testwriter', lancement: { role: 'testwriter', seance: 's2' } },
-  ]);
+  const plan = (sorte: object | null) => ({
+    role: 'explorateur',
+    fiche: { criteres: ['c'], ...(sorte ? { sorte } : {}) },
+  });
+  const COMPORTEMENT = { genre: 'comportement', comportement: 'changé', raison: 'un test rougit' };
+  const MECANIQUE = { genre: 'mécanique', raison: 'une commande le joue', commande: 'npm run x' };
+  const A_LA_MAIN = { genre: 'comportement', comportement: 'inchangé', raison: 'des commentaires' };
+  garder('demo-1', [plan(COMPORTEMENT), { role: 'testwriter', fiche: { statut: 'FAIT' } }]);
   garder('demo-2', [
-    { role: 'explorateur', lancement: { role: 'explorateur', seance: 's1' } },
+    plan(MECANIQUE),
     { role: 'explorateur', lancement: { role: 'explorateur', seance: 's3', objet: 'geste' } },
   ]);
+  // The gesture written by hand: a session of the developpeur, none of the testwriter.
+  garder('demo-7', [plan(A_LA_MAIN), { role: 'developpeur', fiche: { statut: 'FAIT' } }]);
+  // Turned from the short circuit to the full one by the reviewer (« comportement-change »).
+  garder('demo-8', [plan(MECANIQUE), { role: 'circuit', sorte: COMPORTEMENT }]);
+  // Turned from the full circuit to the short one by the supervisor (`--mecanique`).
+  garder('demo-9', [plan(COMPORTEMENT), { role: 'circuit', sorte: MECANIQUE }]);
+  garder('demo-10', [plan(null)]);
   writeFileSync(path.join(COPIES, 'demo-6.fiches.jsonl'), 'pas du json\n');
 
-  it('un lancement d’objet `geste` dit un circuit court, sinon le circuit est complet', () => {
-    expect(voiesDesCircuits(RACINE, ['demo-1', 'demo-2', 'demo-3'])).toEqual({
+  it('un plan de sorte mécanique dit un circuit court, que son geste soit joué par une commande ou écrit à la main', () => {
+    expect(voiesDesCircuits(RACINE, ['demo-1', 'demo-2', 'demo-3', 'demo-7', 'demo-10'])).toEqual({
       'demo-1': 'complet',
       'demo-2': 'court',
+      'demo-7': 'court',
+      'demo-10': 'complet',
+    });
+  });
+
+  it('un ticket qui a basculé porte la voie où il a fini', () => {
+    expect(voiesDesCircuits(RACINE, ['demo-8', 'demo-9'])).toEqual({
+      'demo-8': 'complet',
+      'demo-9': 'court',
     });
   });
 

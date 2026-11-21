@@ -1069,6 +1069,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'langages/typescript/composants.mjs',
       'dette.mjs',
       'resultats.mjs',
+      // The roles the results name (grillhouse-3uv.137).
+      'etapes.mjs',
       'mesure/avancement.mjs',
       'mesure/base-de-passe.mjs',
       'mesure/pression.mjs',

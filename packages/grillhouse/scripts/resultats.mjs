@@ -137,6 +137,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { paquets } from './paquets.mjs';
+import { AUTEUR_DU_CIRCUIT, EXPLORATEUR } from './etapes.mjs';
 
 // The variable that names the results directory of a run.
 export const RESULTATS = 'GRILLHOUSE_RESULTATS';
@@ -539,6 +540,45 @@ export function sorteDuPlan(fiche) {
     comportement: COMPORTEMENTS.includes(valeur) ? valeur : 'changé',
   };
 }
+
+// The sheet of the plan that says its field <champ> (`sorte`, `noms_publies`) among the
+// explorateur's sheets of the plan <plans>, in their order (`{ fiche, reponse }` entries): the last
+// one, or, when it is his answer to the questionneur (`reponse`) and says none, the plan it
+// answers, so that the field survives the answer; null without a sheet of the plan.
+export function ficheDuPlan(plans, champ) {
+  const derniere = plans.at(-1);
+  if (!derniere) {
+    return null;
+  }
+  if (derniere.reponse && !(champ in derniere.fiche) && plans.length > 1) {
+    return plans.at(-2).fiche;
+  }
+  return derniere.fiche;
+}
+
+// Among the kept results of a ticket: a sheet of the plan, the explorateur's with its criteria;
+// a line of the circuit that turns the sort of the ticket (`--mecanique`, « comportement-change »).
+export const estUnPlan = e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres);
+export const estUneBascule = e =>
+  e.role === AUTEUR_DU_CIRCUIT && typeof e.sorte === 'object' && e.sorte !== null;
+
+/**
+ * The sort of a ticket, read from its kept results <tous> in their order: the sort its plan says
+ * (`sorteDuPlan` of the sheet `ficheDuPlan` gives), comportement without one; a line that turns the
+ * sort after the last sheet of the plan stands over it, the plan kept as it is.
+ * @param {any[]} tous
+ */
+export function sorteDesFiches(tous) {
+  const bascule = tous.findLastIndex(estUneBascule);
+  if (bascule > tous.findLastIndex(estUnPlan)) {
+    return tous[bascule].sorte;
+  }
+  return sorteDuPlan(ficheDuPlan(tous.filter(estUnPlan), 'sorte'));
+}
+
+/** Whether a ticket of the sort <sorte> takes the short circuit: a mechanical gesture a command plays, or one written by hand. */
+export const estLeCircuitCourt = sorte =>
+  sorte?.genre === 'mécanique' || sorte?.comportement === 'inchangé';
 
 // The errors of <valeur> against <schema>, each naming its field by its path <ou>.
 function erreurs(schema, valeur, ou) {

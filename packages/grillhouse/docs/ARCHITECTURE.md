@@ -1337,12 +1337,17 @@ projet illisible, un agent silencieux). Un signe large se cale comme les autres,
 espace, et la largeur d'une ligne compte ses colonnes. Ainsi chaque signe garde un seul sens.
 
 **FAITS AUJOURD'HUI dit la voie de chaque ticket fini** (maquette du responsable, 2026-11-12,
-grillhouse-592) : son signe est ● pour un circuit complet, ○ pour un circuit court (passé par 1.1
-Geste mécanique), ✎ pour un ticket direct (étiqueté `direct`, ou fermé sans aucun circuit). Le
-circuit court se lit dans les résultats que le circuit garde dans l'arbre principal
-(`.claude/worktrees/<ticket>.fiches.jsonl`, `voiesDesCircuits`) : le lancement de la séance du geste
-porte l'objet `geste` ; un circuit dont il reste des résultats, une étape au registre ou une lecture
-sur le serveur est complet. Chaque ligne porte « <durée> · <jetons> » : pour un circuit, le temps
+grillhouse-592) : son signe est ● pour un circuit complet, ○ pour un circuit court, ✎ pour un
+ticket direct (étiqueté `direct`, ou fermé sans aucun circuit). Le circuit court se lit dans les
+résultats que le circuit garde dans l'arbre principal (`.claude/worktrees/<ticket>.fiches.jsonl`,
+`voiesDesCircuits`) : la sorte du ticket (`sorteDesFiches` de `scripts/resultats.mjs`, celle de
+son plan, ou celle qu'une bascule lui a donnée depuis) est celle du circuit court, que son geste
+soit joué par une commande (1.1 Geste mécanique) ou écrit à la main par le développeur
+(`estLeCircuitCourt`) ; un ticket qui a basculé porte donc la voie où il a fini. Un circuit dont
+il reste des résultats, une étape au registre ou une lecture sur le serveur est complet. Un
+circuit court en cours porte de même le triangle creux ▷ dans AGENTS, là où un circuit complet
+porte le plein ▶, les deux comptés ensemble à l'en-tête ; le titre de la section compte les
+circuits courts du jour (« 15 tickets · 1 court · … ») (grillhouse-3uv.137). Chaque ligne porte « <durée> · <jetons> » : pour un circuit, le temps
 de travail de ses agents et de ses étapes ; pour un ticket direct, de sa prise à sa fermeture,
 « — » sans prise ; les jetons des agents que le registre rattache au ticket, ceux du superviseur
 restant hors du ticket. Le total de l'en-tête reste le temps de travail et les jetons des agents.

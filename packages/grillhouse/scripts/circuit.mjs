@@ -705,9 +705,16 @@ import { ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import {
   bloquantsDeLaFiche,
   cleDuConstat,
+  estUneBascule,
+  estUnPlan,
+  ficheDuPlan,
   reponsesAuxQuestions,
+  sorteDesFiches,
   sorteDuPlan,
 } from './resultats.mjs';
+
+// The sheet of the plan that says a field, as scripts/resultats.mjs reads it.
+export { ficheDuPlan };
 import { preparer, rolesDuConflit } from './enveloppe/travail-de-la-copie.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { prendreUnRang } from './places-de-la-machine.mjs';
@@ -1295,39 +1302,9 @@ export function constatsOuverts(ctx, fiche, texte) {
   return [...restes, ...neufs];
 }
 
-// The sheet of the plan that says its field <champ> (`sorte`, `noms_publies`) among the
-// explorateur's sheets of the plan <plans>, in their order (`{ fiche, reponse }` entries): the last
-// one, or, when it is his answer to the questionneur (`reponse`) and says none, the plan it
-// answers, so that the field survives the answer; null without a sheet of the plan.
-export function ficheDuPlan(plans, champ) {
-  const derniere = plans.at(-1);
-  if (!derniere) {
-    return null;
-  }
-  if (derniere.reponse && !(champ in derniere.fiche) && plans.length > 1) {
-    return plans.at(-2).fiche;
-  }
-  return derniere.fiche;
-}
-
-// A sheet of the plan (the explorateur's, which holds criteria), and a line of the circuit that
-// turns the sort of the ticket on the same plan (`ecrireLaSorte`: the supervisor's `--mecanique`,
-// the reviewer's `comportement-change`).
-const estUnPlan = e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.criteres);
-const estUneBascule = e =>
-  e.role === AUTEUR_DU_CIRCUIT && typeof e.sorte === 'object' && e.sorte !== null;
-
-// The sort of the ticket its plan says (`sorteDuPlan` of scripts/resultats.mjs): the sheet of the
-// plan that says it (`ficheDuPlan`), comportement without one (grillhouse-sos); a line that turns
-// the sort after the last sheet of the plan stands over it, the plan kept as it is.
-function sorteDuTicket(ctx) {
-  const tous = lesFiches(ctx);
-  const bascule = tous.findLastIndex(estUneBascule);
-  if (bascule > tous.findLastIndex(estUnPlan)) {
-    return tous[bascule].sorte;
-  }
-  return sorteDuPlan(ficheDuPlan(tous.filter(estUnPlan), 'sorte'));
-}
+// The sort of the ticket of <ctx>, read from its kept results (`sorteDesFiches` of
+// scripts/resultats.mjs).
+const sorteDuTicket = ctx => sorteDesFiches(lesFiches(ctx));
 
 // Whether a testwriter or a developpeur has worked the lot since the last sheet of the plan or the
 // last turn of its sort.

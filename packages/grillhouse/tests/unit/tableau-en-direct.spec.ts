@@ -3,7 +3,7 @@
 // hors des étapes, « ▶ <numéro>  <sujet> · en direct », de sa prise à sa fermeture.
 // Un ticket qui a un circuit, vivant ou arrêté, garde sa ligne de circuit à son étape.
 import { describe, expect, it } from 'vitest';
-import { assembler, LARGEUR, lignes, TONS } from '../../scripts/tableau.mjs';
+import { assembler, comptesDAgents, LARGEUR, lignes, TONS } from '../../scripts/tableau.mjs';
 import { circuitLu } from './tableau-essai.js';
 
 const MIN = 60_000;
@@ -37,13 +37,17 @@ const SUR_UNE_QUESTION = {
   qui: 'superviseur',
   numero: 1,
 };
-const plateau = (tous: object[], o: { circuits?: object[]; muet?: boolean } = {}) =>
+const plateau = (
+  tous: object[],
+  o: { circuits?: object[]; muet?: boolean; voies?: Record<string, string> } = {}
+) =>
   assembler({
     tous,
     prefix: 'demo',
     registre: [],
     vivants: [],
     circuits: o.circuits ?? [],
+    voies: o.voies ?? {},
     muet: o.muet ?? false,
     maintenant: MAINTENANT,
     jour: MAINTENANT - 10 * 60 * MIN,
@@ -141,6 +145,27 @@ describe('un ticket qui a un circuit garde sa ligne de circuit', () => {
     const l = duTicket(agents(p), 'demo-9');
     expect(l).toHaveLength(1);
     expect(l[0].texte).not.toMatch(/en direct/);
+  });
+
+  it('un circuit court en cours porte le triangle creux, un circuit complet le plein, comptés ensemble', () => {
+    const p = plateau([T('demo-7', 'Le court'), T('demo-8', 'Le complet')], {
+      circuits: [
+        circuitLu('demo-7', { etape: 'developpeur', vivant: true }),
+        circuitLu('demo-8', { etape: 'developpeur', vivant: true }),
+      ],
+      voies: { 'demo-7': 'court', 'demo-8': 'complet' },
+    });
+    expect(duTicket(agents(p), 'demo-7')[0].texte).toMatch(/^▷ 7 /);
+    expect(duTicket(agents(p), 'demo-8')[0].texte).toMatch(/^▶ 8 /);
+    expect(comptesDAgents(p).enCours).toBe(2);
+  });
+
+  it('un circuit court qui attend le superviseur garde le signe de l’attente', () => {
+    const p = plateau([T('demo-7', 'Le court')], {
+      circuits: [circuitLu('demo-7', SUR_UNE_QUESTION)],
+      voies: { 'demo-7': 'court' },
+    });
+    expect(duTicket(agents(p), 'demo-7')[0].texte).not.toMatch(/^▷/);
   });
 
   it('un ticket sous la mère d’un circuit, ou la mère d’un ticket en circuit, est de ce circuit', () => {

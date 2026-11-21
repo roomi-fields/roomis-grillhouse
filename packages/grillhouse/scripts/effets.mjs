@@ -44,6 +44,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { ecrireLeBilan } from './bilan.mjs';
 import { ecrireLaTrace } from './journal-des-etats.mjs';
 import { ecrire as ecrireAuRegistre } from './registre.mjs';
+import { AUTEUR_DU_CIRCUIT } from './etapes.mjs';
 
 /** The line of HTML comment that carries the key <cle> in a text at a ticket. */
 export const marqueDeCle = cle => `<!-- grillhouse : ${cle} -->`;
@@ -62,7 +63,7 @@ export const AVEC_CLE = new Set([
 // git user.name, $USER »), each session's its role; the author of the circuit's own lines, and
 // the start of each of them at a ticket.
 export const ACTEUR = 'BEADS_ACTOR';
-export const AUTEUR_DU_CIRCUIT = 'circuit';
+export { AUTEUR_DU_CIRCUIT };
 export const PREFIXE = 'Circuit · ';
 const TICKET_SH = path.join(import.meta.dirname, 'ticket.sh');
 
