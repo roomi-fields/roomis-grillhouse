@@ -24,6 +24,7 @@ import {
   libelle,
   MONTEES,
   monteeDe,
+  sansLesReponses,
   nomDuRole,
   quiDe,
   RESPONSABLE,
@@ -404,5 +405,21 @@ describe('the regeneration of the references, a step of every project', () => {
 
   it('no step depends on a declaration of the project', () => {
     expect(suite.filter(e => 'declaration' in e).map(e => e.numero)).toEqual([]);
+  });
+});
+
+describe('la question d’un arrêt sans la liste des réponses', () => {
+  it('ôte la liste des réponses de la question de chaque arrêt, et garde la question', () => {
+    for (const [arret, { question }] of Object.entries(MONTEES)) {
+      const courte = sansLesReponses(question);
+      expect(courte, arret).not.toContain('Le superviseur répond par une commande du circuit');
+      expect(courte.length, arret).toBeGreaterThan(20);
+      expect(question.startsWith(courte), arret).toBe(true);
+    }
+  });
+
+  it('rend telle quelle une question sans cette liste, et rien pour une question absente', () => {
+    expect(sansLesReponses('Quel paquet lève ce rouge ?')).toBe('Quel paquet lève ce rouge ?');
+    expect(sansLesReponses(null)).toBe('');
   });
 });

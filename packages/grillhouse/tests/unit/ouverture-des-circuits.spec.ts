@@ -79,9 +79,11 @@ describe('the opening of a session of supervision', () => {
     expect(texte).toMatch(
       /- demo-2 a fini sans son issue .*2\.1 Preuve du rouge.*`npx grillhouse circuit demo-2 --reprendre`/
     );
-    expect(texte).toMatch(
-      /- demo-3, à 3\.1 Contrôles, au superviseur : Quel paquet lève ce rouge \?\n {2}La réponse : `npx grillhouse circuit demo-3 --reprendre`/
+    expect(texte).toContain(
+      'Question · demo-3 · 3.1 Contrôles · controles\nQuel paquet lève ce rouge ?\n→ npx grillhouse circuit demo-3 <réponse>'
     );
+    // The answers to a question are listed once, under the circuits.
+    expect(texte.match(/Le superviseur répond par une commande du circuit/g)).toHaveLength(1);
     expect(texte).not.toContain('--rattacher');
     // A circuit stopped by the supervisor, or whose ticket is closed, is not named.
     expect(texte).not.toContain('demo-5');

@@ -851,8 +851,14 @@ publie) demande un relevé des circuits (`npx grillhouse superviseur --relever`,
 circuits par la même source que le tableau, `questionsEnAttente`) et soumet ce qu'il imprime par
 `$.prompt.submit` du moteur des greffons : le message attend la fin du tour en cours, sans
 l'interrompre, et un seul message part par relevé, qui regroupe les questions et les fins de
-circuit dues, chaque question avec son ticket, son étape, son destinataire, sa question et la
-commande qui répond (le rendu partagé des questions, `ligneDeQuestion`, que l'ouverture reprend).
+circuit dues, chaque question en trois lignes (le rendu partagé des questions, `ligneDeQuestion`,
+que l'ouverture reprend) : sa tête « Question · ticket · étape · arrêt », avec son destinataire
+quand ce n'est pas le superviseur ; sa question sans la liste des réponses (`sansLesReponses`),
+que l'ouverture de séance donne une fois ; la commande du circuit de son ticket, sa réponse laissée
+au superviseur (« → npx grillhouse circuit <ticket> <réponse> »). Un rappel et une fin de circuit
+tiennent sur une ligne (« Toujours sans réponse · … », « Intégré · <ticket> »), et le rappel de
+tour (`attente-au-tour.mjs`) ne redonne que la tête : un message poussé coûte ainsi quelques
+dizaines de jetons, et non la liste des réponses à chaque fois (grillhouse-3uv.152).
 Le verrou nomme le processus de la séance (`seance` : le premier processus `claude` au-dessus de la
 commande, quels que soient le crochet du greffon, la commande du cadre et les shells entre eux, qui
 meurent à la fin de la commande ; grillhouse-3uv.134 : sous 0.46.0 le verrou nommait le crochet
@@ -864,7 +870,8 @@ les questions de chaque autre projet de son groupe (`grillhouse.groupe`) dont au
 vivante ne tient le verrou du superviseur (`voisinsSansSuperviseur`), comme un ordonnanceur de Zuul
 rapporte les dépôts de son locataire à un même lecteur (grillhouse-3uv.133 : la séance qui mène
 osc-bridge, open-synth-descriptors et synthhub ne recevait plus rien des deux derniers) : la part
-d'un voisin vient sous le nom et le dossier de son projet, où ses réponses se jouent, avec
+d'un voisin porte le sigle de son projet en tête de chaque ligne (« [SH] Question · … ») et joue
+sa commande dans son dossier (« → env -C <dossier> npx grillhouse circuit … »), avec
 l'intervalle et l'état de ce projet ; un voisin qu'une autre séance supervise reste à elle. La réponse au circuit acquitte la question :
 tant qu'elle attend (le circuit est arrêté sur la même clé), elle revient à l'échéance du rappel,
 lue ou non, comme SQS redonne un message non acquitté après son délai de visibilité ; répondue, elle

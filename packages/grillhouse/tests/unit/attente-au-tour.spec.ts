@@ -74,18 +74,18 @@ const dire = async (
 };
 
 describe('the signal of the supervisor turn', () => {
-  it('names each circuit that waits: its ticket, its question, the command that answers it, and the wait to launch again', async () => {
+  it('names each circuit that waits on one short line: its ticket, its step and its stop, without its question', async () => {
     const racine = depot();
     const texte = await dire(racine, [
       arrete('demo-1'),
       arrete('demo-2', 'Quel nom pour ce paquet ?'),
     ]);
-    expect(texte).toContain('demo-1');
-    expect(texte).toContain('Quel paquet lève ce rouge ?');
-    expect(texte).toContain('`npx grillhouse circuit demo-1 --reprendre`');
-    expect(texte).toContain('demo-2');
-    expect(texte).toContain('Quel nom pour ce paquet ?');
-    expect(texte).toContain('`npx grillhouse circuit demo-2 --reprendre`');
+    expect(texte).toContain('- Question · demo-1 · 3.1 Contrôles · controles');
+    expect(texte).toContain('- Question · demo-2 · 3.1 Contrôles · controles');
+    // The question was pushed once by the greffon: the turn repeats neither it nor its answers.
+    expect(texte).not.toContain('Quel paquet lève ce rouge ?');
+    expect(texte).not.toContain('Quel nom pour ce paquet ?');
+    expect(texte).not.toContain('--reprendre');
     expect(texte).not.toContain('--attendre');
   });
 

@@ -26,7 +26,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { racineDeLaSupervision } from './attente-au-tour.mjs';
 import { circuitsDuServeur } from './circuits-du-serveur.mjs';
-import { questionsEnAttente, ticketsHorsAttente } from './superviseur.mjs';
+import { ligneDeQuestion, questionsEnAttente, ticketsHorsAttente } from './superviseur.mjs';
 
 // The note of what blocked the stop in the repository at <racine>.
 const noteDe = racine => path.join(racine, '.claude', 'worktrees', 'signale-a-l-arret.json');
@@ -96,10 +96,7 @@ export async function attenteALArret(
     ...neuves.map(q =>
       q.interrompu
         ? `- ${q.ticket} a fini sans son issue, à ${q.etape} : \`${q.commande}\`.`
-        : [
-            `- ${q.ticket}, à ${q.etape}, au ${q.qui} : ${q.question.replace(/\n/g, '\n  ')}`,
-            `  La réponse : \`${q.commande}\`.`,
-          ].join('\n')
+        : ligneDeQuestion(q)
     ),
   ].join('\n');
 }

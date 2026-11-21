@@ -429,11 +429,46 @@ describe('the one message of a reading', () => {
     ...extra,
   });
 
-  it('names, for each question, its ticket, its step, who answers, its question and the command that answers it', () => {
-    const texte = texteDesQuestions([q('demo-1')]);
-    expect(texte).toMatch(/^## Question neuve d'un circuit\n/);
-    expect(texte).toContain('- demo-1, à 3.1 Contrôles, au superviseur : Question de demo-1 ?');
-    expect(texte).toContain('La réponse : `npx grillhouse circuit demo-1 --reprendre`.');
+  it('gives a question in three lines: its head, its question, the command that answers it', () => {
+    expect(texteDesQuestions([q('demo-1', { arret: 'controles' })])).toBe(
+      'Question · demo-1 · 3.1 Contrôles · controles\nQuestion de demo-1 ?\n→ npx grillhouse circuit demo-1 <réponse>'
+    );
+  });
+
+  it('leaves the list of the answers out of the question, and names who answers when it is not the supervisor', () => {
+    const texte = texteDesQuestions([
+      q('demo-1', {
+        qui: 'responsable',
+        question:
+          'Quel mot ? Le superviseur répond par une commande du circuit : `--reprendre` ou `--arreter`.',
+      }),
+    ]);
+    expect(texte).toBe(
+      'Question · demo-1 · 3.1 Contrôles · au responsable\nQuel mot ?\n→ npx grillhouse circuit demo-1 <réponse>'
+    );
+  });
+
+  it('keeps the command of a question of no circuit as it is', () => {
+    const texte = texteDesQuestions([
+      q('CI de main', { etape: '5 Intégration', commande: 'gh run list --branch main' }),
+    ]);
+    expect(texte).toContain('→ gh run list --branch main');
+  });
+
+  it('bears the sigle of another project, and plays its command in its folder', () => {
+    const texte = texteDesQuestions(
+      [q('SH-1'), q('SH-2', { representee: true }), q('SH-3', { integre: true })],
+      { sigle: 'SH', dossier: '/projets/synthhub' }
+    );
+    expect(texte).toBe(
+      [
+        '[SH] Question · SH-1 · 3.1 Contrôles',
+        'Question de SH-1 ?',
+        '→ env -C /projets/synthhub npx grillhouse circuit SH-1 <réponse>',
+        '[SH] Toujours sans réponse · SH-2 · 3.1 Contrôles',
+        '[SH] Intégré · SH-3',
+      ].join('\n')
+    );
   });
 
   it('groups the questions and the ends of circuits of one reading in one text', () => {
@@ -442,22 +477,22 @@ describe('the one message of a reading', () => {
       q('demo-2'),
       q('demo-3', { integre: true, etape: '5 Intégration' }),
     ]);
-    expect(texte).toMatch(/^## Questions neuves des circuits\n/);
-    expect(texte).toContain('demo-1, à 3.1 Contrôles');
-    expect(texte).toContain('demo-2, à 3.1 Contrôles');
-    expect(texte).toContain('## Circuit intégré');
-    expect(texte).toContain('- demo-3 est intégré, à 5 Intégration : son lot est sur main.');
+    expect(texte).toContain('Question · demo-1 · 3.1 Contrôles');
+    expect(texte).toContain('Question · demo-2 · 3.1 Contrôles');
+    expect(texte.split('\n').at(-1)).toBe('Intégré · demo-3');
   });
 
-  it('says that a question presented again still waits for an answer', () => {
+  it('says on one line that a question presented again still waits for an answer', () => {
     const q1 = q('demo-1');
-    expect(texteDesQuestions([{ ...q1, representee: true }])).toMatch(/sans réponse/i);
+    expect(texteDesQuestions([{ ...q1, representee: true }])).toBe(
+      'Toujours sans réponse · demo-1 · 3.1 Contrôles'
+    );
     expect(texteDesQuestions([q1])).not.toMatch(/sans réponse/i);
   });
 
-  it('keeps the lines of a question on several lines indented under it', () => {
+  it('keeps the lines of a question on several lines', () => {
     const texte = texteDesQuestions([q('demo-1', { question: 'Ligne 1\nLigne 2' })]);
-    expect(texte).toContain('Ligne 1\n  Ligne 2');
+    expect(texte).toContain('Ligne 1\nLigne 2\n→ ');
   });
 
   it('asks the session to launch no wait: the greffon pushes the questions and the answer acknowledges them', () => {
@@ -499,7 +534,7 @@ describe('the opening of the session of supervision', () => {
     const texte = await ouvrir(racine, circuits);
     for (const t of ['demo-1', 'demo-2']) {
       expect(texte).toContain(t);
-      expect(texte).toContain(`\`npx grillhouse circuit ${t} --reprendre\``);
+      expect(texte).toContain(`→ npx grillhouse circuit ${t} <réponse>`);
     }
     expect(texte).toContain('Q1 ?');
     expect(texte).toContain('Q2 ?');
@@ -509,13 +544,10 @@ describe('the opening of the session of supervision', () => {
     const circuits = [arrete('demo-1', 'Quel paquet lève ce rouge ?')];
     const texte = await ouvrir(depot(), circuits);
     const message = texteDesQuestions(questionsEnAttente(depot(), circuits, { fermes: aucun }));
-    expect(message).toContain(
-      '- demo-1, à 3.1 Contrôles, au superviseur : Quel paquet lève ce rouge ?'
+    expect(message).toBe(
+      'Question · demo-1 · 3.1 Contrôles · controles\nQuel paquet lève ce rouge ?\n→ npx grillhouse circuit demo-1 <réponse>'
     );
-    expect(texte).toContain(
-      '- demo-1, à 3.1 Contrôles, au superviseur : Quel paquet lève ce rouge ?'
-    );
-    expect(texte).toContain('La réponse : `npx grillhouse circuit demo-1 --reprendre');
+    expect(texte).toContain(message);
   });
 
   it('names a circuit ended without its issue with the command that resumes it', async () => {

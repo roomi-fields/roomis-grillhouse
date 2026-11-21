@@ -62,9 +62,8 @@ describe('a question of a circuit holds the stop of the session of supervision',
     ]);
     expect(raison).toMatch(/^Ne te mets pas en attente : 2 circuits attendent ta réponse\./);
     expect(raison).toContain(
-      '- demo-1, à 3.1 Contrôles, au superviseur : Quel paquet lève ce rouge ?'
+      'Question · demo-1 · 3.1 Contrôles · controles\nQuel paquet lève ce rouge ?\n→ npx grillhouse circuit demo-1 <réponse>'
     );
-    expect(raison).toContain('`npx grillhouse circuit demo-1 --reprendre`');
     expect(raison).toContain('Quel nom pour ce paquet ?');
   });
 

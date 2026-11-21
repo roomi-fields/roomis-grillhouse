@@ -256,7 +256,7 @@ export const RESPONSABLE = 'responsable';
 
 // The commands by which the supervisor answers a question (scripts/circuit.mjs): resume, extend
 // the plan, stop.
-const REPONSES =
+export const REPONSES =
   'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--mecanique [<commande>]` (avec `--contexte` : à l’arrêt du testwriter qui ne trouve aucun comportement à tester, le ticket bascule en circuit court sur le même plan, vers 1.1 avec sa commande, vers le développeur sans elle), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), `--reporter <heure>` (la question se tait jusqu’à l’heure, le circuit en attente), ou `--arreter`.';
 
 // The question of each stop no gesture settles, as a CI calls a person only for what no rule
@@ -305,6 +305,14 @@ export const MONTEES = Object.fromEntries(
       'La limite d’usage arrête la séance : le circuit se reporte seul à l’heure de reprise et reprend l’étape, il ne monte que si le superviseur l’a interrompu ; reprendre avant l’heure, ou arrêter le circuit ?',
   }).map(([arret, question]) => [arret, { question: `${question} ${REPONSES}`, qui: SUPERVISEUR }])
 );
+
+// The question <question> of a stop without the list of the answers it ends with (`REPONSES`), which
+// the session of supervision reads once, at its opening.
+const AMORCE_DES_REPONSES = REPONSES.slice(0, REPONSES.indexOf(':') + 1);
+export const sansLesReponses = question =>
+  String(question ?? '')
+    .split(AMORCE_DES_REPONSES)[0]
+    .trim();
 
 // The question of the stop <arret>, `{ question, qui }`, or null for a stop of no circuit.
 export const monteeDe = arret => MONTEES[arret] ?? null;

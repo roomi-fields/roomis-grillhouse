@@ -69,15 +69,11 @@ import { lireEtOuvrirLeDefautDeMain } from './ci-de-main.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
 import { circuitsDuServeur, ServeurMuet } from './circuits-du-serveur.mjs';
-import {
-  attendLeSuperviseur,
-  cleDe,
-  lireLesRemontees,
-  remonteesDe,
-} from './tableau.mjs';
+import { attendLeSuperviseur, cleDe, lireLesRemontees, remonteesDe } from './tableau.mjs';
 import { rappelDuProjet, reglageDuRappel } from './circuits-cles.mjs';
 import { lireGroupe } from './groupe-cles.mjs';
-import { etapeDuCircuit, libelle, SUPERVISEUR } from './etapes.mjs';
+import { etapeDuCircuit, libelle, REPONSES, sansLesReponses, SUPERVISEUR } from './etapes.mjs';
+import { sigleDuProjet } from './sigle-du-projet.mjs';
 import { enFileSansArchitecture, lireLesTickets } from './file-des-tickets.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
@@ -307,14 +303,18 @@ export function relever(
   try {
     const { depuis: depuisIntegrations, rendues } = lireLesIntegrations(racine, maintenant);
     const integres = circuits
-      .filter(c => c.integre && c.fin !== null && c.fin >= depuisIntegrations && !rendues.has(cleDe(c)))
+      .filter(
+        c => c.integre && c.fin !== null && c.fin >= depuisIntegrations && !rendues.has(cleDe(c))
+      )
       .map(enFin)
       .sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'));
     const fins = new Map(circuits.map(c => [cleDe(c), c.fin]));
     ecrireLesIntegrations(
       racine,
       maintenant,
-      [...rendues, ...integres.map(i => i.cle)].filter(k => (fins.get(k) ?? -Infinity) >= maintenant)
+      [...rendues, ...integres.map(i => i.cle)].filter(
+        k => (fins.get(k) ?? -Infinity) >= maintenant
+      )
     );
     const rouges = ciDeMain === undefined ? [] : releverLaCiDeMain(racine, ciDeMain, toutes);
     circuits = circuits.filter(c => !c.integre);
@@ -455,13 +455,46 @@ export function questionsEnAttente(
 // No ticket closed: the questions read without asking bd.
 const aucunFerme = () => new Set();
 
-// The lines of one question in the one rendering of the questions, shared by the message of the
-// greffon, the opening and the hooks of the session.
-export const ligneDeQuestion = q =>
+// The command that answers the question <q>, played from <dossier> when it is another project's:
+// the command of the circuit of its ticket, its answer left to the supervisor (the answers are
+// listed once, at the opening of the session), or the command of a question of no circuit (the CI
+// of main), as it is.
+const commandeDe = (q, dossier) => {
+  const duCircuit = `npx grillhouse circuit ${q.ticket}`;
+  const commande = String(q.commande ?? '').startsWith(`${duCircuit} `)
+    ? `${duCircuit} <réponse>`
+    : String(q.commande ?? '');
+  return commande && dossier ? `env -C ${dossier} ${commande}` : commande;
+};
+
+// The head of the line of <q>: what it is, its ticket, its step, its stop, and who answers it when
+// it is not the supervisor; under the sigle of its project (<o.sigle>) when it is another one's.
+const teteDe = (q, genre, { sigle } = {}) =>
   [
-    `- ${q.ticket}, à ${q.etape}, au ${q.qui}${q.representee ? ' (toujours sans réponse)' : ''} : ${q.question.replace(/\n/g, '\n  ')}`,
-    `  La réponse : \`${q.commande}\`.`,
-  ].join('\n');
+    `${sigle ? `[${sigle}] ` : ''}${genre}`,
+    q.ticket,
+    q.etape,
+    ...(q.arret ? [q.arret] : []),
+    ...(q.qui && q.qui !== SUPERVISEUR ? [`au ${q.qui}`] : []),
+  ].join(' · ');
+
+/**
+ * The lines of one question in the one rendering of the questions, shared by the message of the
+ * greffon, the opening and the hooks of the session: its head, its question without the list of
+ * the answers, and the command that answers it. A question presented again (`representee`) is its
+ * head alone, and one that waits at a hook of the session too (<o.courte>). <o.sigle> and
+ * <o.dossier> name the project of the question when it is not the session's.
+ */
+export const ligneDeQuestion = (q, o = {}) => {
+  if (q.representee) {
+    return teteDe(q, 'Toujours sans réponse', o);
+  }
+  const tete = teteDe(q, 'Question', o);
+  const commande = commandeDe(q, o.dossier);
+  return o.courte
+    ? tete
+    : [tete, sansLesReponses(q.question), ...(commande ? [`→ ${commande}`] : [])].join('\n');
+};
 
 /**
  * The message the greffon submits to the session of supervision for the questions <questions> of
@@ -472,33 +505,12 @@ export const ligneDeQuestion = q =>
  * @param {{ ticket: string, etape: string, question: string, qui: string, commande: string, representee?: boolean, integre?: boolean }[]} questions
  * @returns {string}
  */
-export function texteDesQuestions(questions) {
+export function texteDesQuestions(questions, o = {}) {
   const fins = questions.filter(q => q.integre);
   const attente = questions.filter(q => !q.integre);
-  const neuves = attente.filter(q => !q.representee);
-  const titre = neuves.length
-    ? attente.length > 1
-      ? '## Questions neuves des circuits'
-      : "## Question neuve d'un circuit"
-    : attente.length > 1
-      ? '## Questions toujours sans réponse'
-      : '## Question toujours sans réponse';
-  const enQuestions = attente.length
-    ? [
-        titre,
-        ...attente.map(ligneDeQuestion),
-      ]
-    : [];
-  const enFins = fins.length
-    ? [
-        fins.length > 1 ? '## Circuits intégrés' : '## Circuit intégré',
-        ...fins.map(q => `- ${q.ticket} est intégré, à ${q.etape} : son lot est sur main.`),
-      ]
-    : [];
   return [
-    ...enQuestions,
-    ...(enQuestions.length && enFins.length ? [''] : []),
-    ...enFins,
+    ...attente.map(q => ligneDeQuestion(q, o)),
+    ...fins.map(q => `${o.sigle ? `[${o.sigle}] ` : ''}Intégré · ${q.ticket}`),
   ].join('\n');
 }
 
@@ -576,6 +588,7 @@ export async function circuitsALOuverture(
     "Le greffon de ta séance pousse dans la file de tes messages chaque question neuve d'un circuit du dépôt, quel que soit son lanceur, et chaque fin de circuit, une fois ; il n'y a aucune attente à lancer. Une question sans réponse revient à intervalle réglable (`grillhouse.rappel`, 5 min par défaut) : ta réponse au circuit l'acquitte, et répondue elle ne revient plus. Tu ne te mets pas en attente du responsable tant qu'une question d'un circuit attend ta réponse : le crochet de fin de tour te le rappelle. Les questions en attente sont listées ci-dessous.",
     ...(panne ? ['', '## Les circuits du dépôt', panne] : []),
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
+    ...(questions.length ? ['', `Les réponses à une question : ${REPONSES}`] : []),
     ...(sansArchitecture.length
       ? [
           '',
@@ -689,15 +702,9 @@ export async function releverPourLeGreffon(
   }
   const parts = [await leReleveDe(racine, circuitsDe)];
   for (const p of voisinsSansSuperviseur(racine)) {
-    const texte = await leReleveDe(p.chemin, circuitsDe);
+    const texte = await leReleveDe(p.chemin, circuitsDe, true);
     if (texte) {
-      parts.push(
-        [
-          `# Projet ${p.nom} (${p.chemin})`,
-          `Ses réponses se jouent dans son dossier : \`env -C ${p.chemin} <la réponse>\`.`,
-          texte,
-        ].join('\n')
-      );
+      parts.push(texte);
     }
   }
   return parts.filter(Boolean).join('\n\n');
@@ -715,7 +722,7 @@ function paquetDe(racine) {
 // The message of one reading of the project at <racine>, under its own interval
 // (`grillhouse.rappel`) and its own state of the questions presented; empty when it gives nothing
 // or when its circuits do not read. A faulty interval throws, the project named.
-async function leReleveDe(racine, circuitsDe) {
+async function leReleveDe(racine, circuitsDe, voisin = false) {
   const { minutes, faute } = reglageDuRappel(paquetDe(racine));
   if (faute) {
     throw new Error(`${path.basename(racine)} : ${faute}`);
@@ -732,7 +739,11 @@ async function leReleveDe(racine, circuitsDe) {
     rappelMs: minutes * 60_000,
     ciDeMain: ciDeMainDe(racine),
   });
-  return lot.length ? texteDesQuestions(lot) : '';
+  // Another project's part bears its sigle, and its commands the folder they are played in.
+  const projet = voisin
+    ? { sigle: sigleDuProjet(racine).sigle ?? path.basename(racine), dossier: racine }
+    : {};
+  return lot.length ? texteDesQuestions(lot, projet) : '';
 }
 
 // The other projects of the group of the project at <racine> (`grillhouse.groupe`) that no other

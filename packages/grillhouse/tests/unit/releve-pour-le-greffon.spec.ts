@@ -77,7 +77,7 @@ describe('the reading for the greffon gives the message only to the session that
     const texte = await lire(racine);
     expect(texte).toContain('demo-1');
     expect(texte).toContain('Quel paquet lève ce rouge ?');
-    expect(texte).toContain('npx grillhouse circuit demo-1 --reprendre');
+    expect(texte).toContain('→ npx grillhouse circuit demo-1 <réponse>');
   });
 
   it('gives nothing to a session when no lock of the supervisor is held', async () => {
@@ -175,15 +175,15 @@ describe('the reading for the greffon covers the projects of the group that no o
   // The pid of a process that is gone: a git command that ended.
   const parti = () => spawnSync('git', ['--version']).pid;
 
-  it('gives the questions of a neighbour without a supervisor, under its name and its folder', async () => {
+  it('gives the questions of a neighbour without a supervisor, under its sigle, its commands played in its folder', async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: T0 });
     const { voisin, lireLeGroupe } = groupe(null);
     const texte = await lireLeGroupe();
     expect(texte).toContain('demo-1');
-    expect(texte).toContain(`# Projet ${path.basename(voisin)} (${voisin})`);
-    expect(texte).toContain(`env -C ${voisin} `);
-    expect(texte.indexOf('voisin-1')).toBeGreaterThan(texte.indexOf('# Projet'));
-    expect(texte.indexOf('demo-1')).toBeLessThan(texte.indexOf('# Projet'));
+    expect(texte).toMatch(/^Question · demo-1 · /);
+    expect(texte).toMatch(/\n\[[^\]]+\] Question · voisin-1 · /);
+    expect(texte).toContain(`→ env -C ${voisin} npx grillhouse circuit voisin-1 <réponse>`);
+    expect(texte).not.toContain('# Projet');
   });
 
   it('gives the questions of a neighbour whose supervisor is gone', async () => {

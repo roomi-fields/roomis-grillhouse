@@ -16,7 +16,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { circuitsDuServeur } from './circuits-du-serveur.mjs';
-import { questionsEnAttente, ticketsHorsAttente } from './superviseur.mjs';
+import { ligneDeQuestion, questionsEnAttente, ticketsHorsAttente } from './superviseur.mjs';
 
 /**
  * The root of the repository whose session of supervision works in <dossier>: null out of a git
@@ -81,10 +81,7 @@ export async function attenteAuTour(
     ...questions.map(q =>
       q.interrompu
         ? `- ${q.ticket} a fini sans son issue, à ${q.etape} : \`${q.commande}\`.`
-        : [
-            `- ${q.ticket}, à ${q.etape} : ${q.question.replace(/\n/g, '\n  ')}`,
-            `  La réponse : \`${q.commande}\`.`,
-          ].join('\n')
+        : `- ${ligneDeQuestion(q, { courte: true })}`
     ),
   ].join('\n');
 }
