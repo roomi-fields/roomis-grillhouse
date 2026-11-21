@@ -3,9 +3,7 @@
 // type is the name of its function, ./deroule.ts), its signals and its query by their names, what
 // they receive and give back, and the activities it calls (./activites.ts, each an act of
 // scripts/faits-du-circuit.mjs over scripts/integration/file.mjs). The workflows, their activities
-// and their clients share it. The types and activities of the former path (the CI of a ticket's
-// branch, the readings of the workflows of main) stay for the executions in flight, which replay
-// their history through `patched`; grillhouse-3uv.131 retires them.
+// and their clients share it.
 
 /** The id of the one queue of the repository at <racine>. */
 export const idDeLaFile = (racine: string) => `file:${racine}`;
@@ -48,8 +46,8 @@ export interface VueDeLaFile {
   enCours: string | null;
   attente: string[];
   /**
-   * Whether the queue enters main by the final pass; false on the former path. A queue recorded
-   * before this field answers without it, which reads as false.
+   * Whether the queue enters main by the final pass: always true; a queue recorded before this
+   * field answers without it, which reads as false (`temporal installer` restarts it).
    */
   surLaPasseFinale?: boolean;
 }
@@ -63,35 +61,6 @@ export interface IssueDeLaFile {
   raison: string;
   /** A branch reopened because it does not replay on main: its lot goes back to the developpeur. */
   conflit?: boolean;
-}
-
-/**
- * One reading of the CI of every expected workflow of a commit (`lireLesPassagesDeLaCI`): green,
- * its run the first workflow's; red, the run of the first red workflow `flux`; or under way, each
- * workflow `nom` with its run (null while it is looked for) and whether it finished.
- */
-export type LectureDesPassages =
-  | { etat: 'sans-ci' }
-  | { etat: 'non-lue'; raison: string }
-  | { etat: 'verte'; passage: string }
-  | { etat: 'rouge'; passage: string; flux: string }
-  | { etat: 'en-cours'; flux: { nom: string; passage: string | null; fini: boolean }[] };
-
-/** The verdict of the CI of a commit, its run, the reason of a CI not read. */
-export interface VerdictDeLaCI {
-  verdict: 'verte' | 'rouge' | 'sans-ci' | 'non-lue';
-  passage: string | null;
-  raison: string | null;
-}
-
-/** What the CI of a commit receives. */
-export interface EntreeDeLaCI {
-  racine: string;
-  ticket: string;
-  sha: string;
-  /** The branch the commit was pushed to, whose workflows run. */
-  branche: string;
-  ci?: DelaisDeLaCI;
 }
 
 /** Where the lot of a ticket stands: the status of the ticket in Beads, and its reason of closure. */
@@ -112,7 +81,7 @@ export interface ActivitesDeLaFile {
   /** Where the lot of <ticket> stands: closed, or to enter by the queue. */
   situerLeLot(e: { racine: string; ticket: string }): Promise<Lot>;
   /**
-   * The branch made the candidate its CI judges (scripts/integration/file.mjs
+   * The branch made the candidate the final pass judges (scripts/integration/file.mjs
    * `preparerLaBranche`): on top of main, replaced when main moved, pushed to origin; `{ entre }`,
    * a lot already on main; or the issue for the circuit, the ticket told of a branch out of the
    * queue or kept.
@@ -142,29 +111,7 @@ export interface ActivitesDeLaFile {
    */
   surveillerLaCiDeMain(e: { racine: string }): Promise<{ etat: 'verte' | 'rouge' | 'non-lue' }>;
   /**
-   * Former path (grillhouse-3uv.131): one reading of the CI of <sha> on <branche>, every expected
-   * workflow together; the act that answers it reads nothing.
-   */
-  lireLesPassagesDeLaCI(e: {
-    racine: string;
-    ticket: string;
-    sha: string;
-    branche: string;
-  }): Promise<LectureDesPassages>;
-  /**
-   * The CI of the candidate <sha> concluded at the ticket (`conclureLaCI`): `{ avancer: true }`,
-   * green or no CI for the branch; or the issue for the circuit, red or not read.
-   */
-  conclureLaCI(
-    e: {
-      racine: string;
-      ticket: string;
-      sha: string;
-      branche: string;
-    } & VerdictDeLaCI
-  ): Promise<({ avancer: true } | { issue: IssueDeLaFile }) & Rendus>;
-  /**
-   * Main moved forward onto the candidate <commit> its CI judged (`avancerMain`): `{ entre }`;
+   * Main moved forward onto the candidate <commit> the final pass judged (`avancerMain`): `{ entre }`;
    * `{ bouge: true }`, main moved meanwhile; or the issue for the circuit, main kept.
    */
   avancerMain(e: {
@@ -188,27 +135,6 @@ export interface ActivitesDeLaFile {
   }): Promise<
     { poussee: string | null; raison?: string | null; livraison?: string | null } & Rendus
   >;
-  /**
-   * The reading of the workflows of main of <sha>, pushed to <branche> at <poussee> ms, recorded as
-   * due (`inscrireLesFluxDeMain`): nothing is read, nothing waited for.
-   */
-  inscrireLesFluxDeMain(e: {
-    racine: string;
-    ticket: string;
-    sha: string;
-    branche: string;
-    brancheDuTicket: string;
-    poussee: number;
-  }): Promise<void>;
-  /**
-   * Every reading due of the workflows of main read once, without waiting (`relireLesLecturesDues`):
-   * the number still due; a red workflow reopens its ticket, a comment is given back.
-   */
-  relireLesFluxDeMain(e: {
-    racine: string;
-    maintenant: number;
-    ci?: DelaisDeLaCI;
-  }): Promise<{ dues: number } & Rendus>;
   /**
    * One effect <effet> an act of the queue gave back, written under the key of this activity (its
    * workflow, its run, its activity id, which the workflow sets): one that is not written fails.

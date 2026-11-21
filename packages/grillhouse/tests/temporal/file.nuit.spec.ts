@@ -9,8 +9,7 @@
 // death of the worker between the entry and the closure ends the ticket without reopening it; a
 // red final pass reopens the ticket, main unmoved, and its question goes up; `--reprendre` after a
 // green pass sends the branch again. The CI of main is read at the queue's start and after each
-// entry, never waited for. The activities of the former path (the CI of the branch) answer nothing
-// and are never called by an execution that starts now.
+// entry, never waited for. The CI of the branch is read no more.
 import path from 'node:path';
 import { ApplicationFailure } from '@temporalio/common';
 import { NativeConnection, Worker } from '@temporalio/worker';
@@ -128,7 +127,6 @@ function actes(
       return Promise.reject(new Error('aucun plan dans la file'));
     },
   };
-  const ancien = () => Promise.reject(new Error('l’ancien chemin de la CI de la branche'));
   const file: ActivitesDeLaFile = {
     situerLeLot({ ticket }) {
       return Promise.resolve({
@@ -179,10 +177,6 @@ function actes(
       journal.surveillances += 1;
       return Promise.resolve({ etat: 'verte' as const });
     },
-    lireLesPassagesDeLaCI: ancien,
-    conclureLaCI: ancien,
-    inscrireLesFluxDeMain: ancien,
-    relireLesFluxDeMain: ancien,
     // Each effect an act gave back, its activity id and its key.
     async jouerUnEffetDeLaFile({ effet }) {
       const { Context } = await import('@temporalio/activity');

@@ -1878,11 +1878,10 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   déroulé du ticket, le fait `file` de ses décisions. La file lit en revanche la CI de main
   (`surveillerLaCiDeMain`, l'acte du même nom, à son départ, après chaque entrée et chaque quart
   d'heure d'attente) sans jamais l'attendre : un passage rouge ouvre le ticket de défaut sous
-  `a-valider` (`scripts/ci-de-main.mjs`, « Main reste vert »). Les exécutions en vol gardent leur
-  histoire par `patched('passe-finale-de-main')` : leur ancien chemin (la CI de la branche lue par
-  `ciDuCommit`, les flux de main lus après la poussée) rejoue sans rien lire, ses actes répondant
-  vert ; le ticket grillhouse-3uv.131 le retire une fois la file drainée. La montée de version
-  relance la file : sa vue (`etatDeLaFile`) dit `surLaPasseFinale` (faux sur l'ancien chemin, absent
+  `a-valider` (`scripts/ci-de-main.mjs`, « Main reste vert »). Le déroulé n'a qu'un chemin : il retire le
+  marqueur `passe-finale-de-main` par `deprecatePatch` (grillhouse-3uv.131), et l'histoire d'une file
+  qui le porte rejoue sans erreur de déterminisme. La montée de version
+  relance la file : sa vue (`etatDeLaFile`) dit `surLaPasseFinale` (toujours vrai, absent
   d'une vue ancienne), et `temporal installer`, à chaque passage, à jour compris, après le
   redémarrage du travailleur, envoie le signal `relancer` à la file de la racine du projet quand sa
   vue le dit faux ou ne le dit pas ; une file déjà neuve n'est jamais signalée, ni un projet sans
@@ -1890,8 +1889,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   du signal se pose au départ, sur l'un et l'autre chemin ; la file au repos continue aussitôt
   (Continue-As-New, entre deux entrées, son attente emportée), la file occupée finit l'entrée en
   cours, en signale l'issue au circuit, puis repart avec celles qui attendent, sans en traiter
-  aucune avant : l'entrée en cours d'une file ancienne reste sur l'ancien chemin jusqu'à son issue,
-  et le run neuf lit `patched` vrai (passe finale, arbre jugé inscrit). Le rapport de l'installation
+  aucune avant : le run neuf juge chaque entrée par la passe finale (arbre jugé inscrit). Le rapport de l'installation
   dit « repartie », « repart après l'entrée de <ticket> » ou « aucune », que la commande écrit.
   Les gestes sont ceux de
   `scripts/integration/file.mjs`, que ses actes appellent ; un lot déjà sur main est entré, pas

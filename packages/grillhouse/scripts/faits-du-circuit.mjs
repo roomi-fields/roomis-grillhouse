@@ -50,10 +50,8 @@
 //   an effect not written has its outcome, said on the error output or the failure of its
 //   activity;
 // - the acts of the queue of a project (scripts/integration/file.mjs, grillhouse-4nr.8): `situer`,
-//   where the lot of a ticket stands (`situerLeLot`); `brancher`, the branch made the candidate its
-//   CI judges and pushed (`preparerLaBranche`); `passages`, one reading of the CI of a commit, its
-//   expected workflows together (`lireLesPassagesDeLaCI`); `conclure`, the CI concluded at the
-//   ticket (`conclureLaCI`); `avancer`,
+//   where the lot of a ticket stands (`situerLeLot`); `brancher`, the branch made the candidate the
+//   final pass judges (`preparerLaBranche`); `avancer`,
 //   main moved onto the candidate (`avancerMain`); each of `brancher` and `avancer` telling the
 //   ticket of a branch out of the queue or kept (`direLIssue`); `fermer`, the ticket closed and main
 //   pushed (`fermerLEntree`); `effet-de-la-file`, one effect they gave back, under the key of its
@@ -489,23 +487,6 @@ Object.assign(ACTES, {
       }
     }
     return { etat: lecture.etat };
-  },
-  // The acts of the former path of the queue (the CI of a ticket's branch, the readings of the
-  // workflows of main), kept for the executions in flight whose history replays them, retired
-  // by grillhouse-3uv.131 once they are drained: they read nothing and judge nothing, the lot
-  // having been prepared as the queue's former path did, and the final pass of its circuit
-  // having judged it.
-  async passages() {
-    return { etat: 'verte', passage: 'ancien-chemin' };
-  },
-  async 'inscrire-flux-de-main'() {
-    return null;
-  },
-  async 'relire-flux-de-main'() {
-    return { dues: 0, effets: [] };
-  },
-  async conclure() {
-    return { avancer: true, effets: [] };
   },
   // One effect an act of the queue gave back, under the key of its activity, with the outcome of
   // the queue when it is not written (`ecrireLEffet`).

@@ -1,4 +1,4 @@
-// The activities of the queue of a project and of the CI of a commit (./deroule.ts): each plays one
+// The activities of the queue of a project (./deroule.ts): each plays one
 // act of the queue (scripts/faits-du-circuit.mjs over scripts/integration/file.mjs) in a process
 // of its own (../acte.ts), so that a replacement of a branch and its install leave the worker
 // serving; the acts that write give back their effects, which the workflow plays one by one
@@ -37,27 +37,6 @@ export async function surveillerLaCiDeMain(
   e: Entree<'surveillerLaCiDeMain'>
 ): Promise<Sortie<'surveillerLaCiDeMain'>> {
   return jouer('surveiller-la-ci-de-main', e, e.racine);
-}
-
-// Former path (grillhouse-3uv.131): the acts that answer these activities read nothing.
-export async function lireLesPassagesDeLaCI(
-  e: Entree<'lireLesPassagesDeLaCI'>
-): Promise<Sortie<'lireLesPassagesDeLaCI'>> {
-  return jouer('passages', e, e.racine);
-}
-
-export async function conclureLaCI(e: Entree<'conclureLaCI'>): Promise<Sortie<'conclureLaCI'>> {
-  return jouer('conclure', e, e.racine);
-}
-
-export async function inscrireLesFluxDeMain(e: Entree<'inscrireLesFluxDeMain'>): Promise<void> {
-  await jouer('inscrire-flux-de-main', e, e.racine);
-}
-
-export async function relireLesFluxDeMain(
-  e: Entree<'relireLesFluxDeMain'>
-): Promise<Sortie<'relireLesFluxDeMain'>> {
-  return jouer('relire-flux-de-main', e, e.racine);
 }
 
 export async function jouerUnEffetDeLaFile(e: Entree<'jouerUnEffetDeLaFile'>): Promise<void> {

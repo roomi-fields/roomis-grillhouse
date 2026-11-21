@@ -99,7 +99,7 @@ export const rapportDuRefus = refus =>
   `L’intégration refuse ce lot : son refus, ci-dessous, est le rouge à lever ; les contrôles de ta copie, verts, ne le voient pas, et le lot ne repasse à l’intégration qu’avec un changement.\n\n${refus.rapport}`;
 
 // The stop of a ticket the queue reopens on its issue `{ raison, conflit }`, as it gives the circuit
-// (`direLIssue`, `conclureLaCI` of scripts/integration/file.mjs): `motif`, whose first line, the
+// (`direLIssue` of scripts/integration/file.mjs): `motif`, whose first line, the
 // fact of the question gone up, says why (the first line of the reason that is not a title), the
 // whole reason after it; `question`, for a branch that does not replay on main (its conflict), the
 // answer that serves, null for any other reason.

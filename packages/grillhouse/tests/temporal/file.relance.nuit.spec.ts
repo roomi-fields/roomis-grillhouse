@@ -4,9 +4,7 @@
 // activities simulated by the test (a worker of this process). The signal RELANCER makes the queue
 // continue as new between two entries: at rest, at once; busy, after the entry under way, whose
 // issue the circuit receives, carrying those that wait, none of which the run that got the signal
-// judges. The view of the queue says which path it is on (`surLaPasseFinale`). A queue recorded
-// before the final pass of main (the patch `passe-finale-de-main` read false) that a worker of the
-// new code takes over, signalled, restarts as a run whose patch is true and plays the final pass.
+// judges. The view of the queue says `surLaPasseFinale: true`.
 import path from 'node:path';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -26,7 +24,6 @@ import {
 } from './essai.js';
 
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
-const DEROULES_ANCIENS = path.resolve(__dirname, './histoires/deroule-d-avant-la-passe-finale.mjs');
 const RACINE = '/depot/essai';
 const FILE = 'essai-file';
 const CI = { rechercheMs: 2_000, attenteMs: 20_000, pasMs: 200 };
@@ -84,7 +81,6 @@ function actes(retenir: (ticket: string) => Promise<void> = () => Promise.resolv
       return Promise.reject(new Error('aucun plan dans la file'));
     },
   };
-  const ancien = () => Promise.reject(new Error('l’ancien chemin de la CI de la branche'));
   const file: ActivitesDeLaFile = {
     situerLeLot() {
       return Promise.resolve({ statut: 'open', raison: null });
@@ -113,10 +109,6 @@ function actes(retenir: (ticket: string) => Promise<void> = () => Promise.resolv
     surveillerLaCiDeMain() {
       return Promise.resolve({ etat: 'verte' as const });
     },
-    lireLesPassagesDeLaCI: ancien,
-    conclureLaCI: ancien,
-    inscrireLesFluxDeMain: ancien,
-    relireLesFluxDeMain: () => Promise.resolve({ dues: 0, effets: [] }),
     jouerUnEffetDeLaFile() {
       return Promise.resolve();
     },
@@ -221,41 +213,4 @@ describe('la relance de la file', () => {
       journal.file.indexOf('fermerLEntree essai-1')
     );
   }, 120_000);
-
-  it('a queue recorded before the final pass, taken over by the new code and signalled, restarts on the final pass and plays it', async () => {
-    const s = await serveur();
-    // The old queue: its history has no marker of the patch.
-    const arreterLAncien = await s.travailleur(DEROULES_ANCIENS, {
-      relireLesFluxDeMain: () => Promise.resolve({ dues: 0, effets: [] }),
-    });
-    await s.client.workflow.start('fileDuProjet', {
-      workflowId: idDeLaFile(RACINE),
-      taskQueue: FILE,
-      args: [{ racine: RACINE, ci: CI }],
-    });
-    await attendre('la file ancienne au repos', async () => {
-      const v = await lireLaFile(s.client, RACINE);
-      return v.enCours === null ? v : undefined;
-    });
-    await arreterLAncien();
-    // The version changes: the worker of the new code replays the old queue, which reads the patch false.
-    const { activites, journal } = actes();
-    await s.travailleur(DEROULES, activites);
-    const ancienne = await attendre('la vue de la file ancienne', async () => {
-      const v = await lireLaFile(s.client, RACINE);
-      return v.surLaPasseFinale === false ? v : undefined;
-    });
-    expect(ancienne.surLaPasseFinale).toBe(false);
-    const avant = await s.runDeLaFile();
-    await s.signaler();
-    const neuve = await attendre('la file repartie sur la passe finale', async () => {
-      const v = await lireLaFile(s.client, RACINE);
-      return v.surLaPasseFinale === true ? v : undefined;
-    });
-    expect(neuve.surLaPasseFinale).toBe(true);
-    expect(await s.runDeLaFile()).not.toBe(avant);
-    await s.demarrer('essai-1');
-    expect(await finDuCircuit(s.client, RACINE, 'essai-1')).toEqual({ code: 0, raison: 'integre' });
-    expect(journal.passes).toEqual(['essai-1']);
-  }, 180_000);
 });

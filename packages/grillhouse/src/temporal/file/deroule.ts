@@ -13,12 +13,8 @@
 // for none, which opens the defect ticket of a red passage; it never waits for it. Past its length
 // of history, or when the signal RELANCER asks it (the installation of a new version), the queue
 // continues as new between two entries, with those that wait: busy, it finishes its entry under
-// way first and treats none of those that wait before restarting.
-//
-// The former path, which the executions in flight replay (`patched('passe-finale-de-main')`):
-// the CI of the candidate's branch read by a child workflow (`ciDuCommit`), then the workflows of
-// main read after the push. It stays as it was, its acts answering without reading anything, until
-// grillhouse-3uv.131 retires it. Deterministic: it imports the workflow API and the contract.
+// way first and treats none of those that wait before restarting. The histories recorded with the
+// marker of the final pass (`deprecatePatch`) replay on it. Deterministic: it imports the workflow API and the contract.
 import {
   allHandlersFinished,
   ChildWorkflowCancellationType,
@@ -26,14 +22,12 @@ import {
   continueAsNew,
   defineQuery,
   defineSignal,
-  executeChild,
+  deprecatePatch,
   getExternalWorkflowHandle,
   isCancellation,
   ParentClosePolicy,
-  patched,
   proxyActivities,
   setHandler,
-  sleep,
   startChild,
   workflowInfo,
 } from '@temporalio/workflow';
@@ -45,19 +39,15 @@ import {
   L_ETAT_DE_LA_FILE,
   RELANCER,
   type ActivitesDeLaFile,
-  type DelaisDeLaCI,
   type EffetDeLaFile,
-  type EntreeDeLaCI,
   type EntreeDeLaFile,
   type EntreeDeLaFileDuProjet,
   type IssueDeLaFile,
-  type LectureDesPassages,
-  type VerdictDeLaCI,
   type VueDeLaFile,
 } from './contrat.js';
 
-// Every act of the queue: a replacement of a branch and its install last 2 h at most; the reading
-// of the CI a minute. An act played again after its worker died replays its gestures without harm
+// Every act of the queue: a replacement of a branch and its install last 2 h at most; the rest
+// are short. An act played again after its worker died replays its gestures without harm
 // (scripts/integration/file.mjs), and gives back its comments, which the workflow writes one per
 // activity, under the key of that activity (`jouerLesEffets`).
 const actes = proxyActivities<ActivitesDeLaFile>({
@@ -97,11 +87,6 @@ export const issueDeLaFile = defineSignal<[IssueDeLaFile]>(ISSUE_DE_LA_FILE);
 const lEtat = defineQuery<VueDeLaFile>(L_ETAT_DE_LA_FILE);
 const relancer = defineSignal<[]>(RELANCER);
 
-const DELAIS: Required<DelaisDeLaCI> = {
-  rechercheMs: 2 * 60_000,
-  attenteMs: 30 * 60_000,
-  pasMs: 10_000,
-};
 const LIMITE_D_HISTOIRE = 10_000;
 // How long the queue waits idle before it reads the CI of main again.
 const INTERVALLE_DE_LA_CI = 15 * 60_000;
@@ -123,57 +108,6 @@ function messageDe(e: unknown): string {
     c = suite;
   }
   return String((c as Error)?.message ?? c);
-}
-
-/**
- * The CI of a commit, read to its conclusion: its verdict, its run, the reason of a CI not read.
- * Every expected workflow is read at each reading (`lireLesPassagesDeLaCI`), which keeps nothing:
- * green when all are green, red as soon as one is, whatever the others do; the runs are looked for
- * during `rechercheMs` from the start, then waited for during `attenteMs` from the moment each
- * workflow has its run.
- */
-export async function ciDuCommit(e: EntreeDeLaCI): Promise<VerdictDeLaCI> {
-  const { rechercheMs, attenteMs, pasMs } = { ...DELAIS, ...e.ci };
-  const debut = Date.now();
-  let limite = Infinity;
-  for (;;) {
-    const l: LectureDesPassages = await actes.lireLesPassagesDeLaCI({
-      racine: e.racine,
-      ticket: e.ticket,
-      sha: e.sha,
-      branche: e.branche,
-    });
-    if (l.etat === 'sans-ci') {
-      return { verdict: 'sans-ci', passage: null, raison: null };
-    }
-    if (l.etat === 'non-lue') {
-      return { verdict: 'non-lue', passage: null, raison: l.raison };
-    }
-    if (l.etat === 'verte') {
-      return { verdict: 'verte', passage: l.passage, raison: null };
-    }
-    if (l.etat === 'rouge') {
-      return { verdict: 'rouge', passage: l.passage, raison: null };
-    }
-    const manquants = l.flux.filter(f => f.passage === null);
-    const enCours = l.flux.find(f => f.passage !== null && !f.fini);
-    const passage = enCours?.passage ?? null;
-    if (manquants.length === 0 && limite === Infinity) {
-      limite = Date.now() + attenteMs;
-    }
-    const reste = manquants.length > 0 ? debut + rechercheMs - Date.now() : limite - Date.now();
-    if (reste <= 0) {
-      const raison =
-        manquants.length > 0
-          ? `aucun passage de la CI pour ce commit en ${Math.round(rechercheMs / 1000)} s : ${manquants.map(f => `« ${f.nom} »`).join(', ')}.`
-          : `en ${Math.round(attenteMs / 60_000)} min, ${l.flux
-              .filter(f => !f.fini)
-              .map(f => `le passage ${f.passage} de « ${f.nom} » n'a pas fini`)
-              .join(', ')}.`;
-      return { verdict: 'non-lue', passage, raison };
-    }
-    await sleep(Math.min(pasMs, reste));
-  }
 }
 
 /**
@@ -209,11 +143,11 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
   // The restart asked: no entry waiting starts any more in this run. The handlers are set first,
   // outside the commands of the history, so that they answer on either path.
   let relance = false;
+  // The marker of the final pass, which the histories recorded under the former path carry.
+  deprecatePatch('passe-finale-de-main');
   setHandler(relancer, () => {
     relance = true;
   });
-  // False for an execution recorded before the final pass: it keeps its former path.
-  const surLaPasseFinale = patched('passe-finale-de-main');
   // An entry already in the queue, under way or waiting, is not added twice.
   setHandler(entrer, e => {
     if (enCours?.ticket !== e.ticket && !attente.some(a => a.ticket === e.ticket)) {
@@ -223,32 +157,15 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
   setHandler(lEtat, () => ({
     enCours: enCours?.ticket ?? null,
     attente: attente.map(a => a.ticket),
-    surLaPasseFinale,
+    surLaPasseFinale: true,
   }));
   const aContinuer = () =>
     workflowInfo().continueAsNewSuggested || workflowInfo().historyLength >= LIMITE_D_HISTOIRE;
-  let n = 0;
   let entrees = 0;
 
   // The commit main moved onto for the entry under way, until it is pushed.
   let avance: string | null = null;
-  // The CI of the candidate <sha> of <e> on its branch, read as a child workflow: its verdict, a
-  // reading that fails concluding it not read, the failure its reason.
-  const juger = async (e: EntreeDeLaFile, sha: string): Promise<VerdictDeLaCI> => {
-    n += 1;
-    try {
-      return await executeChild(ciDuCommit, {
-        workflowId: `${workflowInfo().workflowId}:ci:${workflowInfo().runId}:${n}`,
-        args: [{ racine, ticket: e.ticket, sha, branche: e.branche, ci: entree.ci }],
-      });
-    } catch (x) {
-      if (isCancellation(x)) {
-        throw x;
-      }
-      return { verdict: 'non-lue', passage: null, raison: `sa lecture échoue : ${messageDe(x)}` };
-    }
-  };
-  // The branch of <e> brought onto main once its CI judged it, the entry's <lieu> keying its
+  // The branch of <e> brought onto main once the final pass judged it, the entry's <lieu> keying its
   // effects: the commit main is at, or the issue for the circuit when main does not move.
   const surMain = async (
     e: EntreeDeLaFile,
@@ -265,30 +182,15 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
         return p.entre;
       }
       const sha = p.candidat.commit;
-      if (surLaPasseFinale) {
-        const j = await passeFinale.jugerLeCandidat({
-          racine,
-          ticket: e.ticket,
-          branche: e.branche,
-          commit: sha,
-        });
-        await jouerLesEffets(racine, j.effets, `${ici}:juger`);
-        if ('issue' in j) {
-          return j.issue;
-        }
-      } else {
-        const verdict = await juger(e, sha);
-        const c = await actes.conclureLaCI({
-          racine,
-          ticket: e.ticket,
-          sha,
-          branche: e.branche,
-          ...verdict,
-        });
-        await jouerLesEffets(racine, c.effets, `${ici}:conclure`);
-        if ('issue' in c) {
-          return c.issue;
-        }
+      const j = await passeFinale.jugerLeCandidat({
+        racine,
+        ticket: e.ticket,
+        branche: e.branche,
+        commit: sha,
+      });
+      await jouerLesEffets(racine, j.effets, `${ici}:juger`);
+      if ('issue' in j) {
+        return j.issue;
       }
       const a = await actes.avancerMain({
         racine,
@@ -306,7 +208,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     }
     return {
       etat: 'en-file',
-      raison: `${e.branche} reste en file : main bouge sans cesse, ${ESSAIS} jugements de sa CI n'ont pas suffi.`,
+      raison: `${e.branche} reste en file : main bouge sans cesse, ${ESSAIS} jugements n'ont pas suffi.`,
     };
   };
   // The entry <e> to its issue.
@@ -323,18 +225,6 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     avance = null;
-    // Former path: the push done, the reading of the workflows of main is recorded as due.
-    if (!surLaPasseFinale && f.poussee) {
-      await actes.inscrireLesFluxDeMain({
-        racine,
-        ticket: e.ticket,
-        sha: commit,
-        branche: f.poussee,
-        brancheDuTicket: e.branche,
-        poussee: Date.now(),
-      });
-      dues = true;
-    }
     // The lot is on main: its closure first, then why it is not pushed.
     const ferme = `intégré : ${commit.slice(0, 7)}`;
     return { etat: 'ferme', raison: [ferme, f.raison, f.livraison].filter(Boolean).join(' ; ') };
@@ -370,43 +260,15 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
       }
     }
   };
-  // Former path: each pass of the queue reads the readings due of the workflows of main, without
-  // waiting: once at its start (the file of the readings outlives the workflow), then while one is
-  // due, the bounds of the CI of the branch the same for the workflows of main.
-  const delais = { ...DELAIS, ...entree.ci };
-  let dues = true;
-  let lectures = 0;
-  const relireLesFluxDeMain = async () => {
-    lectures += 1;
-    const r = await actes.relireLesFluxDeMain({
-      racine,
-      maintenant: Date.now(),
-      ci: delais,
-    });
-    await jouerLesEffets(racine, r.effets, `flux-de-main:${lectures}`);
-    dues = r.dues > 0;
-  };
-
   let aSurveiller = true;
   for (;;) {
     const pret = () => attente.length > 0 || relance || aContinuer();
-    if (surLaPasseFinale) {
-      if (aSurveiller) {
-        await surveiller();
-        aSurveiller = false;
-      }
-      // Woken by an entry, or by the quarter of an hour that asks for another reading.
-      aSurveiller = !(await condition(pret, INTERVALLE_DE_LA_CI));
-    } else {
-      if (dues) {
-        await relireLesFluxDeMain();
-      }
-      if (dues) {
-        await condition(pret, delais.pasMs * 3);
-      } else {
-        await condition(pret);
-      }
+    if (aSurveiller) {
+      await surveiller();
+      aSurveiller = false;
     }
+    // Woken by an entry, or by the quarter of an hour that asks for another reading.
+    aSurveiller = !(await condition(pret, INTERVALLE_DE_LA_CI));
     if (attente.length > 0 && !relance) {
       enCours = attente.shift()!;
       const issue = await traiterSansTomber(enCours);
