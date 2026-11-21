@@ -7,7 +7,7 @@
 //   npx grillhouse hooks --absents [<project>]  prints the name of each absent hook, one per line
 //
 // - commit-msg: « un ticket fermé garde sa livraison ; un ticket rouvert reçoit ses corrections » (scripts/un-commit-par-ticket.mjs).
-// - pre-push: the night branch guard and the judged main (scripts/branche-de-nuit.mjs).
+// - pre-push: the judged main guard and the refusal of the retired key (scripts/branche-de-nuit.mjs).
 // - A hook lives in the folder git reads for the project (`git rev-parse --git-path hooks`, which
 //   follows `core.hooksPath`, Beads' `.beads/hooks` included); `core.hooksPath` is never changed
 //   here. The update of the frame (scripts/grillhouse-maj.mjs) places them by the same function.
@@ -50,7 +50,7 @@ export const CROCHETS = {
   'pre-push': {
     garde: 'branche-de-nuit.mjs',
     lignes: [
-      '# Night branch guard (Grillhouse): only the night pushes the branch of grillhouse.poussee.nuit, after its green. Without the package @roomi-fields/grillhouse installed, nothing.',
+      '# Judged main guard (Grillhouse): main receives only a tree a final pass or a verification judged green; a project that carries the retired grillhouse.poussee is refused. Without the package @roomi-fields/grillhouse installed, nothing.',
       COMMANDE,
       'if [ -x "$_gh_commande" ]; then _gh_entree=$(mktemp) && cat > "$_gh_entree" && "$_gh_commande" hook pre-push "$@" < "$_gh_entree" || { rm -f "$_gh_entree"; exit 1; }; exec < "$_gh_entree"; rm -f "$_gh_entree"; fi',
     ],

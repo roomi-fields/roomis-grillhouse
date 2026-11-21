@@ -969,11 +969,11 @@ silence, et le tableau comme l'ouverture de séance la montrent comme un rouge. 
 ouvert tant que son ticket ne l'est pas fermé. La publication (`release.yml`) appelle la CI et
 publie quand son résultat est `success` ou `skipped`, jamais sur un échec ni une annulation. Rien
 d'autre n'avance main : le crochet pre-push du cadre (`refusSurMain` de
-`scripts/branche-de-nuit.mjs`) refuse, dans tout projet, de pousser sur origin la branche de
-`grillhouse.poussee.commit` un commit dont l'arbre ni la passe finale de la file ni la vérification
+`scripts/branche-de-nuit.mjs`) refuse, dans tout projet, de pousser sur origin la branche main
+un commit dont l'arbre ni la passe finale de la file ni la vérification
 complète d'un lot direct n'a jugé vert (`scripts/arbres-juges.mjs`, le fichier
 `<dossier commun de git>/grillhouse/arbres-juges.json`, que `garderLeVert` et la file alimentent),
-et n'exige aucun passage de CI d'une branche de ticket ; une règle du dépôt sur GitHub (ruleset,
+et n'exige aucun passage de CI d'une branche de ticket ; main est la seule branche qui reçoit les lots, la clé `grillhouse.poussee` est retirée du cadre (le tronc unique de Google et de Chromium) : la file, la nuit et le crochet refusent par son nom un projet qui la porte (`scripts/poussee-retiree.mjs`), la nuit ne pousse rien et garde son dernier vert (`<dossier commun de git>/nuit/dernier-vert`), et une migration retire la clé ; une règle du dépôt sur GitHub (ruleset,
 vérifications requises) ne tient plus cette règle côté serveur. La nuit rejoue la passe complète. La mise à jour du cadre
 (`npx grillhouse maj`) finit par `npm run verifier` dans le projet, dont le vert pose le dernier
 vert sur l'arbre qu'elle laisse, comme Nx affected avance sa base au dernier commit vert de main ;

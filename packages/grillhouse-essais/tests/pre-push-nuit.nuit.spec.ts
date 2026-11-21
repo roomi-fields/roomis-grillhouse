@@ -22,10 +22,10 @@ const mettreAJour = enProcessus<Record<string, unknown>>(
   'mettreAJour'
 );
 
-// grillhouse-3uv.59: the frame's pre-push hook refuses every push to the branch named by
-// `grillhouse.poussee.nuit` that does not come from the night; scripts/nuit.sh makes itself known
-// to the hook by an environment variable it alone sets for its push. The update of the frame
-// (scripts/grillhouse-maj.mjs) places the hook in a project, its Beads section kept.
+// The frame's pre-push hook refuses a push of a project that still carries the retired key
+// `grillhouse.poussee`, by its name, and keeps its one refusal of a tree no pass judged; the night
+// pushes nothing (it notes its last green). The update of the frame (scripts/grillhouse-maj.mjs)
+// places the hook in a project, its Beads section kept.
 //
 // Each project below is a git repository whose hooks live in `.beads/hooks` (core.hooksPath), with
 // the pre-push Beads writes, brought to the frame of this repository by the update. Its remote,
@@ -97,8 +97,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     path.join(path.dirname(NUIT), '../package.json'),
     path.join(repo, 'packages/grillhouse/package.json')
   );
-  // The frame's package installed, as npm links it: the hook calls its `grillhouse hook pre-push`
-  // (grillhouse-3uv.84.5).
+  // The frame's package installed, as npm links it: the hook calls its `grillhouse hook pre-push`.
   mkdirSync(path.join(repo, 'node_modules/@roomi-fields'), { recursive: true });
   mkdirSync(path.join(repo, 'node_modules/.bin'), { recursive: true });
   symlinkSync(
@@ -118,7 +117,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   };
   if (grillhouse !== undefined) {
     pkg.grillhouse = grillhouse;
-    // grillhouse-ca7: a project of TypeScript declares its language in its architecture.
+    // A project of TypeScript declares its language in its architecture.
     declarerLesLangages(repo);
   }
   writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
@@ -140,8 +139,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
   git('commit', '-q', '--no-verify', '-m', 'suite');
   const tete = git('rev-parse', 'HEAD').trim();
   // The tree of the head is judged, as a final pass or the verification of a lot keeps it
-  // (scripts/arbres-juges.mjs): the hook lets a commit go to main on a judged tree alone
-  // (grillhouse-3uv.121), and these tests are of the night branch's guard.
+  // (scripts/arbres-juges.mjs): the hook lets a commit go to main on a judged tree alone.
   garderLArbreJuge(repo, git('rev-parse', 'HEAD^{tree}').trim());
   const ref = (b: string) =>
     spawnSync('git', ['--git-dir', bare, 'rev-parse', '--verify', '-q', `refs/heads/${b}`], {
@@ -163,6 +161,7 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     const f = existsSync(dossier) ? readdirSync(dossier).find(x => x.endsWith('.log')) : undefined;
     return f ? lire(path.join(dossier, f)) : '';
   };
+  const dernierVert = () => lire(path.join(repo, '.git', 'nuit', 'dernier-vert')).trim();
   return {
     repo,
     bin,
@@ -177,150 +176,129 @@ function projet(grillhouse: unknown, { hooksPath = true, prePush = true } = {}) 
     pousser,
     nuit,
     journal,
+    dernierVert,
     appels: () => lire(appels),
     entrees: () => lire(entrees),
   };
 }
 
-// The refusal line: it says that only the night pushes this branch, after its green.
+// The refusal line of the retired key: it cites the key and the gesture (remove it).
 const ligneDeRefus = (sortie: string) =>
-  sortie.split('\n').some(l => /seule la nuit/i.test(l) && /vert/i.test(l));
+  sortie.split('\n').some(l => l.includes('grillhouse.poussee') && /retire/i.test(l));
 
-describe('grillhouse-3uv.59 critère 1 — a push to the night branch is refused outside the night', () => {
-  it('critère 1: with poussee.nuit = main, git push origin HEAD:main is refused, main unchanged', () => {
+const CLES_RETIREES: unknown[] = [
+  { poussee: { nuit: 'main' } },
+  { poussee: { commit: 'travail', nuit: 'deploiement/nuit' } },
+  { poussee: { commit: 'main' } },
+  { poussee: null },
+  { poussee: 'main' },
+  { poussee: { nuit: '' } },
+];
+
+describe('a project that carries grillhouse.poussee is refused by its name at the push', () => {
+  it('refuses a push to main and to another branch, whatever the value, the refs unchanged', () => {
+    for (const cle of CLES_RETIREES) {
+      const p = projet(cle);
+      for (const cible of ['HEAD:main', 'HEAD:travail', 'HEAD:refs/heads/deploiement/nuit']) {
+        const r = p.pousser(cible);
+        expect(r.status, `${JSON.stringify(cle)} ${cible}\n${r.stderr}`).not.toBe(0);
+        expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
+      }
+      expect(p.ref('main')).toBe(p.base);
+      expect(p.ref('travail')).toBe(p.base);
+    }
+  });
+
+  it('says no longer that only the night pushes', () => {
     const p = projet({ poussee: { nuit: 'main' } });
     const r = p.pousser('HEAD:main');
-    expect(r.status, r.stderr).not.toBe(0);
-    expect(p.ref('main')).toBe(p.base);
-    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
+    expect(r.stderr).not.toMatch(/seule la nuit/i);
   });
-  it('critère 1: another branch, with a slash, named by its full ref, is refused the same way', () => {
-    const p = projet({
-      integration: 'impactes',
-      poussee: { commit: 'main', nuit: 'deploiement/nuit' },
-    });
-    const r = p.pousser('HEAD:refs/heads/deploiement/nuit');
-    expect(r.status, r.stderr).not.toBe(0);
-    expect(p.ref('deploiement/nuit')).toBe(p.base);
-    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
-  });
-  it('critère 1: pushing the local branch of the same name (git push origin main) is refused', () => {
-    const p = projet({ poussee: { nuit: 'main' } });
-    const r = p.pousser('main');
-    expect(r.status, r.stderr).not.toBe(0);
-    expect(p.ref('main')).toBe(p.base);
-    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
-  });
-});
 
-describe('grillhouse-3uv.59 critère 2 — the push of scripts/nuit.sh passes', () => {
-  it('critère 2: a green night pushes its commit onto poussee.nuit through the hook', () => {
+  it('reads the key as written in the working tree: removed there, the push passes', () => {
     const p = projet({ poussee: { nuit: 'main' } });
-    const r = p.nuit();
-    expect(r.status, p.journal()).toBe(0);
+    writeFileSync(
+      path.join(p.repo, 'package.json'),
+      JSON.stringify({ name: 'p', scripts: { test: 'node t.mjs' }, grillhouse: {} }, null, 2)
+    );
+    const r = p.pousser('HEAD:main');
+    expect(r.status, r.stderr).toBe(0);
     expect(p.ref('main')).toBe(p.tete);
-    expect(p.journal()).toMatch(/✓ poussée/);
-    expect(p.appels()).not.toMatch(/^create/m);
-    // The hook ran on the night's push: its Beads section was called.
-    expect(p.appels()).toMatch(/^hooks run pre-push origin /m);
   });
-  it('critère 2: another night branch, with a slash, receives the night commit too', () => {
-    const p = projet({ poussee: { commit: 'main', nuit: 'deploiement/nuit' } });
-    expect(p.nuit().status, p.journal()).toBe(0);
-    expect(p.ref('deploiement/nuit')).toBe(p.tete);
-    expect(p.ref('main')).toBe(p.base);
+
+  it('watches origin only', () => {
+    const p = projet({ poussee: { nuit: 'main' } });
+    const fourche = mkdtempSync(path.join(ESSAIS, 'fourche-'));
+    execFileSync('git', ['init', '-q', '--bare', fourche]);
+    p.git('remote', 'add', 'fourche', fourche);
+    p.git('push', '-q', '--no-verify', 'fourche', `${p.base}:refs/heads/main`);
+    const r = p.pousserVers('fourche', 'HEAD:main');
+    expect(r.status, r.stderr).toBe(0);
+    expect(p.git('--git-dir', fourche, 'rev-parse', 'refs/heads/main').trim()).toBe(p.tete);
   });
 });
 
-describe('grillhouse-3uv.59 critère 3 — without the key, or towards another branch, nothing changes', () => {
+describe('a project without the key pushes a judged tree to main, any branch passes', () => {
   const sansCle: [string, unknown][] = [
     ['without a grillhouse section', undefined],
-    ['without poussee', { integration: 'impactes' }],
-    ['with poussee but no nuit', { poussee: { commit: 'main' } }],
-    ['with a null poussee.nuit', { poussee: { commit: 'main', nuit: null } }],
+    ['with another key', { integration: 'impactes' }],
   ];
   for (const [cas, cle] of sansCle) {
-    it(`critère 3: ${cas}, git push origin HEAD:main passes`, () => {
+    it(`${cas}, git push origin HEAD:main passes`, () => {
       const p = projet(cle);
       const r = p.pousser('HEAD:main');
       expect(r.status, r.stderr).toBe(0);
       expect(p.ref('main')).toBe(p.tete);
     });
   }
-  it('critère 3: with poussee.nuit = main, a push to another branch passes', () => {
-    const p = projet({ poussee: { nuit: 'main' } });
+  it('a push to another branch passes, main unchanged', () => {
+    const p = projet({ integration: 'impactes' });
     const r = p.pousser('HEAD:travail');
     expect(r.status, r.stderr).toBe(0);
     expect(p.ref('travail')).toBe(p.tete);
     expect(p.ref('main')).toBe(p.base);
   });
-  it('critère 3: with poussee.nuit = deploiement/nuit, a push to main passes', () => {
-    const p = projet({ poussee: { nuit: 'deploiement/nuit' } });
-    const r = p.pousser('HEAD:main');
-    expect(r.status, r.stderr).toBe(0);
-    expect(p.ref('main')).toBe(p.tete);
-  });
 });
 
-describe('grillhouse-3uv.59 critère 4 — the hook keeps what it does for Beads', () => {
-  it('critère 4: an allowed push calls bd hooks run pre-push with the remote and the pushed refs', () => {
-    const p = projet({ poussee: { nuit: 'main' } });
+describe('the hook keeps what it does for Beads', () => {
+  it('an allowed push calls bd hooks run pre-push with the remote and the pushed refs', () => {
+    const p = projet({ integration: 'impactes' });
     const r = p.pousser('HEAD:travail');
     expect(r.status, r.stderr).toBe(0);
     expect(p.appels()).toMatch(new RegExp(`^hooks run pre-push origin ${p.bare}$`, 'm'));
     expect(p.entrees()).toBe(`HEAD ${p.tete} refs/heads/travail ${p.base}\n`);
   });
-  it('critère 4: a push Beads refuses stays refused, the key declared or not', () => {
-    for (const cle of [{ poussee: { nuit: 'main' } }, undefined]) {
-      const p = projet(cle);
-      writeFileSync(path.join(p.bin, 'BD_CODE'), '1');
-      const r = p.pousser('HEAD:travail');
-      expect(r.status, r.stderr).not.toBe(0);
-      expect(p.ref('travail')).toBe(p.base);
-    }
-  });
-});
-
-describe('grillhouse-3uv.59 critère 5 — the update of the frame places the hook', () => {
-  it('critère 5: after the update, the effective pre-push keeps its Beads section and carries the guard', () => {
-    const p = projet({ poussee: { nuit: 'main' } });
-    const crochet = path.join(p.repo, '.beads/hooks/pre-push');
-    const texte = readFileSync(crochet, 'utf8');
-    expect(texte.split(SECTION_BEADS).length - 1).toBe(1);
-    expect(texte.startsWith('#!')).toBe(true);
-    expect(statSync(crochet).mode & 0o111).toBe(0o111);
-    // It carries the guard: the push it now refuses is the one critère 1 names.
-    const r = p.pousser('HEAD:main');
-    expect(r.status, r.stderr).not.toBe(0);
-    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
-  });
-});
-
-describe('grillhouse-3uv.59 critère 6 — several refs or a deletion towards the night branch', () => {
-  it('critère 6: a push of several refs, one to the night branch, is refused whole; deleting the night branch is refused', () => {
-    const p = projet({ poussee: { nuit: 'main' } });
-    const r = p.pousser('HEAD:travail', 'HEAD:main');
+  it('a push Beads refuses stays refused', () => {
+    const p = projet(undefined);
+    writeFileSync(path.join(p.bin, 'BD_CODE'), '1');
+    const r = p.pousser('HEAD:travail');
     expect(r.status, r.stderr).not.toBe(0);
     expect(p.ref('travail')).toBe(p.base);
-    expect(p.ref('main')).toBe(p.base);
-    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
-    const s = p.pousser(':main');
-    expect(s.status, s.stderr).not.toBe(0);
-    expect(p.ref('main')).toBe(p.base);
-    expect(ligneDeRefus(s.stderr), s.stderr).toBe(true);
   });
 });
 
 // The repository's configuration without the merge driver of the CHANGELOG, which the update
-// writes with the hooks (grillhouse-tkv, scripts/fusion-du-changelog.mjs): the rest stays.
+// writes with the hooks (scripts/fusion-du-changelog.mjs): the rest stays.
 const sansLePilote = (config: string) =>
   config
     .split('\n')
     .filter(l => !l.startsWith('merge.grillhouse-changelog.'))
     .join('\n');
 
-describe('grillhouse-3uv.59 critère 7 — the update places the guard where git reads the hooks', () => {
-  it('critère 7: without core.hooksPath, or without pre-push, the update creates the effective hook, executable, config unchanged', () => {
+describe('the update of the frame places the hook where git reads it', () => {
+  it('keeps the Beads section once, executable, and carries the guard of the retired key', () => {
+    const p = projet({ poussee: { nuit: 'main' } });
+    const crochet = path.join(p.repo, '.beads/hooks/pre-push');
+    const texte = readFileSync(crochet, 'utf8');
+    expect(texte.split(SECTION_BEADS).length - 1).toBe(1);
+    expect(texte.startsWith('#!')).toBe(true);
+    expect(statSync(crochet).mode & 0o111).toBe(0o111);
+    const r = p.pousser('HEAD:main');
+    expect(r.status, r.stderr).not.toBe(0);
+    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
+  });
+
+  it('without core.hooksPath, or without pre-push, creates the effective hook, config unchanged', () => {
     const cas = [
       { opts: { hooksPath: false, prePush: false }, crochet: '.git/hooks/pre-push' },
       { opts: { hooksPath: true, prePush: false }, crochet: '.beads/hooks/pre-push' },
@@ -338,10 +316,8 @@ describe('grillhouse-3uv.59 critère 7 — the update places the guard where git
       expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
     }
   });
-});
 
-describe('grillhouse-3uv.59 critère 8 — a replayed update changes nothing', () => {
-  it('critère 8: after two more updates the hook is identical, its guard present once', () => {
+  it('a replayed update changes nothing, its guard present once', () => {
     const p = projet({ poussee: { nuit: 'main' } });
     const crochet = path.join(p.repo, '.beads/hooks/pre-push');
     const premier = readFileSync(crochet, 'utf8');
@@ -349,7 +325,6 @@ describe('grillhouse-3uv.59 critère 8 — a replayed update changes nothing', (
     mettreAJour(p.repo, DEPOT);
     const texte = readFileSync(crochet, 'utf8');
     expect(texte).toBe(premier);
-    // Outside the Beads section, no line of the frame appears twice.
     const hors = texte
       .split(SECTION_BEADS)
       .join('')
@@ -357,62 +332,28 @@ describe('grillhouse-3uv.59 critère 8 — a replayed update changes nothing', (
       .map(l => l.trim())
       .filter(l => l !== '' && !l.startsWith('#'));
     expect(new Set(hors).size, hors.join('\n')).toBe(hors.length);
-    const r = p.pousser('HEAD:main');
-    expect(r.status, r.stderr).not.toBe(0);
-    expect(ligneDeRefus(r.stderr), r.stderr).toBe(true);
   });
 });
 
-describe('grillhouse-3uv.59 critère 9 — the guard reads the key as written in the working tree', () => {
-  const ecrire = (repo: string, grillhouse: unknown) =>
-    writeFileSync(
-      path.join(repo, 'package.json'),
-      JSON.stringify({ name: 'p', scripts: { test: 'node t.mjs' }, grillhouse }, null, 2)
-    );
-  it('critère 9: the working tree package.json decides, and an invalid value refuses the push with a line citing the key', () => {
-    // The key written in the working tree only: the push to main is refused.
-    const a = projet(undefined);
-    ecrire(a.repo, { poussee: { nuit: 'main' } });
-    const ra = a.pousser('HEAD:main');
-    expect(ra.status, ra.stderr).not.toBe(0);
-    expect(a.ref('main')).toBe(a.base);
-    // The key removed from the working tree only: the push to main passes.
-    const b = projet({ poussee: { nuit: 'main' } });
-    ecrire(b.repo, { integration: 'impactes' });
-    const rb = b.pousser('HEAD:main');
-    expect(rb.status, rb.stderr).toBe(0);
-    expect(b.ref('main')).toBe(b.tete);
-    // Invalid values refuse any push, here to another branch, with a line that cites the key.
-    const invalides: [unknown, RegExp][] = [
-      [{ poussee: 'main' }, /grillhouse\.poussee\b/],
-      [{ poussee: ['main'] }, /grillhouse\.poussee\b/],
-      [{ poussee: { nuit: '' } }, /grillhouse\.poussee\.nuit/],
-      [{ poussee: { nuit: '   ' } }, /grillhouse\.poussee\.nuit/],
-      [{ poussee: { nuit: 3 } }, /grillhouse\.poussee\.nuit/],
-      [{ poussee: { nuit: { branche: 'main' } } }, /grillhouse\.poussee\.nuit/],
-    ];
-    for (const [cle, citee] of invalides) {
-      const p = projet(cle);
-      const r = p.pousser('HEAD:travail');
-      expect(r.status, `${JSON.stringify(cle)}\n${r.stderr}`).not.toBe(0);
-      expect(p.ref('travail')).toBe(p.base);
-      expect(r.stderr, JSON.stringify(cle)).toMatch(citee);
+describe('the night pushes nothing and notes its last green', () => {
+  it('a green night leaves every remote branch where it was and writes the last green', () => {
+    const p = projet({ integration: 'impactes' });
+    const r = p.nuit();
+    expect(r.status, p.journal()).toBe(0);
+    expect(p.dernierVert()).toBe(p.tete);
+    for (const b of ['main', 'travail', 'deploiement/nuit']) {
+      expect(p.ref(b), b).toBe(p.base);
     }
+    expect(p.journal()).not.toMatch(/poussée/);
+    expect(p.appels()).not.toMatch(/^hooks run pre-push/m);
   });
-});
 
-describe('grillhouse-3uv.59 critère 10 — the guard watches origin only', () => {
-  it('critère 10: with poussee.nuit = main, a push to main on another remote passes, origin stays refused', () => {
+  it('a night of a project that carries grillhouse.poussee is red before any work, citing the key', () => {
     const p = projet({ poussee: { nuit: 'main' } });
-    const fourche = mkdtempSync(path.join(ESSAIS, 'fourche-'));
-    execFileSync('git', ['init', '-q', '--bare', fourche]);
-    p.git('remote', 'add', 'fourche', fourche);
-    p.git('push', '-q', '--no-verify', 'fourche', `${p.base}:refs/heads/main`);
-    const r = p.pousserVers('fourche', 'HEAD:main');
-    expect(r.status, r.stderr).toBe(0);
-    expect(p.git('--git-dir', fourche, 'rev-parse', 'refs/heads/main').trim()).toBe(p.tete);
-    const o = p.pousser('HEAD:main');
-    expect(o.status, o.stderr).not.toBe(0);
+    const r = p.nuit();
+    expect(r.status).toBe(1);
+    expect(p.journal()).toMatch(/grillhouse\.poussee/);
+    expect(p.dernierVert()).toBe('');
     expect(p.ref('main')).toBe(p.base);
   });
 });

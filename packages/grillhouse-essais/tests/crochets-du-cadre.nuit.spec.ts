@@ -30,7 +30,7 @@ const mettreAJour = enProcessus<Record<string, unknown>>(
 
 // The frame's git hooks, on Husky's model (grillhouse-3uv.84.5, after grillhouse-3uv.59.1):
 // commit-msg (« un ticket fermé garde sa livraison », scripts/un-commit-par-ticket.mjs) and pre-push
-// (the night branch guard, scripts/branche-de-nuit.mjs).
+// (the judged main guard, scripts/branche-de-nuit.mjs).
 // - `grillhouse hooks` places both in the folder git reads, beside Beads' sections, and rewrites a
 //   line of the frame of a former version; the update of the frame (scripts/grillhouse-maj.mjs)
 //   places the same.
@@ -78,7 +78,7 @@ const LIGNES_59_1 = (scripts: string) => ({
     `node "$(git rev-parse --show-toplevel)/${scripts}/un-commit-par-ticket.mjs" "$1" || exit 1`,
   ],
   'pre-push': [
-    '# Night branch guard (Grillhouse): only the night pushes the branch of grillhouse.poussee.nuit, after its green.',
+    '# Judged main guard (Grillhouse): main receives only a tree a final pass or a verification judged green; a project that carries the retired grillhouse.poussee is refused.',
     `_gh_entree=$(mktemp) && cat > "$_gh_entree" && node "$(git rev-parse --show-toplevel)/${scripts}/branche-de-nuit.mjs" "$@" < "$_gh_entree" || { rm -f "$_gh_entree"; exit 1; }`,
     'exec < "$_gh_entree"',
     'rm -f "$_gh_entree"',
@@ -174,7 +174,6 @@ function projet({ paquet = true, hooksPath = false } = {}) {
       {
         name: 'p',
         scripts: { prepare: 'grillhouse hooks' },
-        grillhouse: { poussee: { nuit: 'main' } },
       },
       null,
       2
@@ -250,14 +249,14 @@ const brancheDistante = (d: string) =>
     encoding: 'utf8',
   }).stdout.trim();
 
-// The pre-push hook of the frame at work: with poussee.nuit = main, a push to main is refused
-// outside the night, and main is unchanged on the remote.
+// The pre-push hook of the frame at work: a push to main of a tree no pass judged is refused, and
+// main is unchanged on the remote.
 function verifierGardeDeNuit(repo: string) {
   const d = distant(repo);
   const r = gitBrut(repo, 'push', 'origin', 'HEAD:main');
-  expect(r.status, `the push to the night branch passed\n${r.stderr}`).not.toBe(0);
+  expect(r.status, `the push of an unjudged tree to main passed\n${r.stderr}`).not.toBe(0);
   expect(
-    r.stderr.split('\n').some(l => /seule la nuit/i.test(l) && /vert/i.test(l)),
+    r.stderr.split('\n').some(l => /passe finale/i.test(l)),
     r.stderr
   ).toBe(true);
   expect(brancheDistante(d)).toBe('');

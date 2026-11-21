@@ -47,9 +47,9 @@
 // ticket that fixes it.
 // At its entry on main (`fermerLEntree`), the branch's ticket closes « intégré : <commit> », loses
 // `en-file`, and the branch is deleted; a branch git does not delete (its copy still in place) is
-// written to the ticket, which closes all the same. Then main is pushed to origin, on the branch
-// `grillhouse.poussee.commit` of main's package.json (`main` without the key), which the pre-push
-// hook lets go as the tree is judged; a refused push is written to the ticket and does not stop the
+// written to the ticket, which closes all the same. Then main is pushed to origin, to the branch
+// main, which the pre-push hook lets go as the tree is judged (a main whose package.json carries the
+// retired key `grillhouse.poussee` is refused by its name, nothing pushed); a refused push is written to the ticket and does not stop the
 // queue. The working directory of its circuit (`.claude/worktrees/<ticket>.travail`,
 // scripts/circuit.mjs), which lives as long as the ticket, is removed then (`retirerLeTravail`).
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
@@ -70,7 +70,7 @@ import { A_REPASSER } from '../codes-de-sortie.mjs';
 import { BASE_DU_LOT } from '../dernier-vert.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
-import { lireCommit } from '../poussee-cles.mjs';
+import { pousseeRetiree } from '../poussee-retiree.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
 import { lotSurMain } from './integrer.mjs';
 import { ACTEUR, emettre } from '../effets.mjs';
@@ -427,11 +427,12 @@ function livrerLesCapacites(o, ticket, labels) {
  * The ticket of <entree> (`{ ticket, branche, commit }`) entered on main at <commit>, with the
  * tools <o>: it closes « intégré : <commit> » and loses `en-file` (a ticket already closed is left
  * as it is), the branch is deleted, then main is pushed to origin on the branch
- * `grillhouse.poussee.commit` of main's package.json; the queue is then done with the ticket, and
+ * main, unless main's package.json carries the retired key `grillhouse.poussee` (refused by its
+ * name, nothing pushed); the queue is then done with the ticket, and
  * removes the working directory of its circuit (`retirerLeTravail`). Each of its gestures replays
  * without harm (a ticket closed is left closed, a branch gone stays gone, a commit pushed is pushed
  * again as it is), and never reopens the ticket; its comments are effects (`commenterAu`), which
- * the workflow of the queue writes once each. `{ poussee, raison }`: the branch pushed to, or null
+ * the workflow of the queue writes once each. `{ poussee, raison }`: `main` once pushed, or null
  * and why, in one line (`enUneLigne`), its comment at the ticket whole.
  */
 export function fermerLEntree(o, entree) {
@@ -459,26 +460,26 @@ export function fermerLEntree(o, entree) {
   }
   retirerLeTravail(o, entree.ticket);
   const paquet = git('show', `refs/heads/${o.principale}:package.json`);
-  const { commit, faute } = lireCommit(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
-  if (faute) {
-    const raison = `Poussée non faite : grillhouse.poussee.commit vaut ${faute}, pas un nom de branche.`;
+  const retiree = pousseeRetiree(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
+  if (retiree) {
+    const raison = `Poussée non faite : ${retiree}`;
     commenter(raison);
     return { poussee: null, raison: enUneLigne(raison), ...ferme };
   }
   const sansInvite = { encoding: 'utf8', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } };
   const pousse = spawnSync(
     'git',
-    ['-C', racine, 'push', 'origin', `${entree.commit}:refs/heads/${commit}`],
+    ['-C', racine, 'push', 'origin', `${entree.commit}:refs/heads/main`],
     sansInvite
   );
   if (pousse.status !== 0) {
-    const raison = `La poussée de ${court} vers origin/${commit} (grillhouse.poussee.commit) est refusée :\n${pousse.stderr.trim()}`;
+    const raison = `La poussée de ${court} vers origin/main est refusée :\n${pousse.stderr.trim()}`;
     commenter(raison);
     o.dire(`⚠ poussée de ${court} refusée`);
     return { poussee: null, raison: enUneLigne(raison), ...ferme };
   }
-  o.dire(`✓ poussée : ${court} est sur origin/${commit}`);
-  return { poussee: commit, raison: null, ...ferme };
+  o.dire(`✓ poussée : ${court} est sur origin/main`);
+  return { poussee: 'main', raison: null, ...ferme };
 }
 
 /**

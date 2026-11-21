@@ -1,47 +1,41 @@
 #!/usr/bin/env node
-// The night branch guard: refuses a push to origin that reaches the branch named by
-// `grillhouse.poussee.nuit`, unless the night makes the push. Run by the pre-push hook of the
-// frame with git's arguments (remote name, remote URL) and, on the standard input, the lines
+// The judged main guard: a push to origin of the branch main carries only a commit whose tree a
+// final pass of the circuit, or the verification of a lot of the direct way, judged green
+// (scripts/arbres-juges.mjs), as bors and the merge queues enter only a tree already judged
+// (`refusSurMain`), in every project. Run by the pre-push hook of the frame with git's arguments
+// (remote name, remote URL) and, on the standard input, the lines
 // « <local ref> <local sha> <remote ref> <remote sha> » git writes.
 //
-// - Only the remote `origin` is watched, the one the night pushes to. A push of several refs one
-//   of which reaches the branch, and the deletion of that remote branch, are refused whole.
-// - The key is read as written in the package.json at the root of the working tree the push starts
-//   from; without the key (or null) nothing is refused. An invalid value (see
-//   scripts/poussee-cles.mjs) refuses the push, with a line that cites the key.
-// - The night makes itself known by GRILLHOUSE_NUIT=1, which scripts/nuit.sh sets for its push
-//   alone. It is a mark, not a secret: a human who sets it is trusted.
+// - Only the remote `origin` is watched. Main is the one branch that receives the lots; the queue
+//   pushes such a commit, and the CI of main plays after, by batches. No CI of a ticket's branch is
+//   asked.
+// - A project whose package.json carries the retired key `grillhouse.poussee` is refused by its
+//   name (scripts/poussee-retiree.mjs), whatever its value.
 // - Exit 0 lets the push go on; exit 1 refuses it, the reason on the standard error.
-//
-// The judged main: a push to origin of the branch main is pushed to (`grillhouse.poussee.commit`,
-// `main` by default) carries only a commit whose tree a final pass of the circuit, or the
-// verification of a lot of the direct way, judged green (scripts/arbres-juges.mjs), as bors and the
-// merge queues enter only a tree already judged (`refusSurMain`), in every project. The queue
-// pushes such a commit; the CI of main plays after, by batches. No CI of a ticket's branch is asked.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { commitEstJuge } from './arbres-juges.mjs';
-import { lireCommit, lirePoussee } from './poussee-cles.mjs';
+import { pousseeRetiree } from './poussee-retiree.mjs';
 
 // A sha of zeros: the deletion of the remote branch.
 const SUPPRESSION = /^0+$/;
 
 /**
- * The refusals for a push to `remote` of `refs` to the branch `principale`: each commit
- * <jugee(sha)> does not say judged by a final pass or a verification is refused, named.
+ * The refusals for a push to `remote` of `refs` to main: each commit <jugee(sha)> does not say
+ * judged by a final pass or a verification is refused, named.
  * @param {string} remote
  * @param {{ sha: string, distante: string }[]} refs
- * @param {{ principale: string | null, jugee: (sha: string) => boolean }} o
+ * @param {{ jugee: (sha: string) => boolean }} o
  * @returns {string[]}
  */
-export function refusSurMain(remote, refs, { principale, jugee }) {
-  if (remote !== 'origin' || !principale) {
+export function refusSurMain(remote, refs, { jugee }) {
+  if (remote !== 'origin') {
     return [];
   }
   return refs
-    .filter(r => r.distante === `refs/heads/${principale}` && !SUPPRESSION.test(r.sha))
+    .filter(r => r.distante === 'refs/heads/main' && !SUPPRESSION.test(r.sha))
     .filter(r => !jugee(r.sha))
     .map(
       r =>
@@ -49,22 +43,11 @@ export function refusSurMain(remote, refs, { principale, jugee }) {
     );
 }
 
-// The refusals for a push to `remote` of `refs` (the lines git writes) given the package.json
-// object `pkg`; an empty list lets the push go on.
-export function refus(remote, refs, pkg, env = process.env) {
-  if (remote !== 'origin' || env.GRILLHOUSE_NUIT === '1' || !pkg) {
-    return [];
-  }
-  const { nuit, fautes } = lirePoussee(pkg);
-  if (fautes.length) {
-    return fautes.map(
-      f => `⛔ La clé ${f.cle} vaut ${f.valeur} : valeur invalide, la poussée est refusée.`
-    );
-  }
-  if (nuit && refs.some(r => r.distante === `refs/heads/${nuit}`)) {
-    return [`⛔ Seule la nuit pousse origin/${nuit} (grillhouse.poussee.nuit), après son vert.`];
-  }
-  return [];
+// The refusals for a push to `remote` of `refs` given the package.json object `pkg`: the retired
+// key `grillhouse.poussee` refuses it by its name; an empty list lets the push go on.
+export function refus(remote, refs, pkg) {
+  const ligne = remote === 'origin' ? pousseeRetiree(pkg) : null;
+  return ligne ? [`⛔ ${ligne}`] : [];
 }
 
 // The pushed refs of git's standard input.
@@ -86,7 +69,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const lignes = [
     ...refus(process.argv[2], refs, pkg),
     ...refusSurMain(process.argv[2], refs, {
-      principale: pkg ? lireCommit(pkg).commit : null,
       jugee: sha => commitEstJuge(racine, sha),
     }),
   ];

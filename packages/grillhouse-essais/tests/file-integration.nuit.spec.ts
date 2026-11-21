@@ -224,14 +224,14 @@ describe('grillhouse-3uv.63 — the queue brings the branches onto main', () => 
     LONG
   );
   it(
-    'critère 7: the queue pushes main to the branch grillhouse.poussee.commit names',
+    'the queue refuses a main that carries grillhouse.poussee by its name and pushes nothing',
     () => {
       const m = chantier(ESSAIS, { grillhouse: { poussee: { commit: 'travail' } } });
       const base = m.distantSha('main');
       m.ticket('demo-1', { 'src/a/index.ts': 'export const a = 1;\n' });
       m.livrer('demo-1');
-      expect(m.file().status).toBe(0);
-      expect(m.distantSha('travail')).toBe(m.sha('main'));
+      m.file();
+      expect(m.distantSha('travail')).toBe('');
       expect(m.distantSha('main')).toBe(base);
     },
     LONG

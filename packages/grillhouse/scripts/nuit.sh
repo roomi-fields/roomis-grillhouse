@@ -66,26 +66,19 @@
 #   depended on a duration, one under load) waits for rest (`npx grillhouse pression attendre`,
 #   bound 15 min) and plays once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
 #   ends there, « à repasser », red if the full pass is.
-# - « À repasser » (exit 75): neither green nor red. The last green stays, no ticket opens, nothing
-#   is pushed, the log says so; the next night plays again.
+# - « À repasser » (exit 75): neither green nor red. The last green stays, no ticket opens,
+#   the log says so; the next night plays again.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
 #   an npm script (`npm pkg set grillhouse.nuit=<script>`). After the night tests, the night plays
 #   `npm run <script>` in its copy; a red script turns the night red, with a log line that names it.
 #   The key is read as written, before any work: without it (or with null) the night plays
 #   no script of the project; a value that is not a non-blank string, or a name absent from the scripts of
 #   that package.json, turns the night red, with a log line that cites it, and nothing runs.
-# - The night push: `grillhouse.poussee.nuit` in the package.json of the commit it plays names a
-#   remote branch (`npm pkg set grillhouse.poussee.nuit=<branch>`). After a green night, once the
-#   last green is written, the night runs `git push origin <commit>:<branch>` with GRILLHOUSE_NUIT=1
-#   set for that push alone, the mark by which the pre-push guard (scripts/branche-de-nuit.mjs)
-#   lets it through; any other push to that branch is refused there. Without the key
-#   (or with null, as for grillhouse.poussee itself) or after a red night it pushes nothing. The
-#   keys are read as written, before any work: a grillhouse.poussee that is neither null nor an
-#   object, or a grillhouse.poussee.nuit that is not a non-blank string, turns the night red with
-#   a log line that cites it, one line per faulty key. A refused push keeps the last green, opens
-#   the night ticket « La poussée de la nuit est refusée sur <commit> vers « origin/<branch> » »
-#   (or comments the open one that names « origin/<branch> »), and exits 1; a remote already at
-#   the commit accepts the push.
+# - The night pushes nothing: main receives every lot by the queue, on a tree judged; the night keeps
+#   its last green (`<git common dir>/nuit/dernier-vert`), a mark and not a branch. A project whose
+#   package.json carries the retired key `grillhouse.poussee`, whatever its value, turns the night
+#   red before any work, with a log line that names the key and the gesture (remove it,
+#   scripts/poussee-retiree.mjs).
 # - The copies whose content is on main: once its steps are played, whatever their verdict, the
 #   night passes each copy `git worktree list` names, the main tree and its own left out, through
 #   scripts/retirer-copie.sh without `--jetable` (scripts/retirer-les-copies-finies.mjs), as a CI cleans its
@@ -158,7 +151,6 @@ mkdir -p "$resultats"
 
 tete="$(git -C "$racine" rev-parse HEAD)"
 copie="$racine/.claude/worktrees/nuit"
-branche=
 # The red steps of the night, and its red tasks: those of the full pass, each with the command
 # that replays it alone when the language has one (in `rejeux`, which a bisect runs), then a step
 # red without a task of its own, named by its command (no command).
@@ -198,15 +190,15 @@ jouer() {
     echo "$raison"
     return 1
   fi
-  # The reading gives one line per finding: « script<TAB>name », « pousse<TAB>branch », or a fault
-  # « nuit-invalide<TAB>value as JSON », « nuit-absent<TAB>name », « poussee-invalide<TAB>value »,
-  # « poussee-nuit-invalide<TAB>value ». Every faulty key is reported before any work.
+  # The reading gives one line per finding: « script<TAB>name », or a fault « nuit-invalide<TAB>value
+  # as JSON », « nuit-absent<TAB>name », « poussee-retiree<TAB>line ». Every faulty key is reported
+  # before any work.
   local lecture ligne nuit=
   lecture="$(node --input-type=module -e '
     import { readFileSync } from "node:fs";
     import { pathToFileURL } from "node:url";
     const pkg = JSON.parse(readFileSync(process.argv[1], "utf8"));
-    const { lirePoussee } = await import(pathToFileURL(process.argv[2]).href);
+    const { pousseeRetiree } = await import(pathToFileURL(process.argv[2]).href);
     const out = (...l) => process.stdout.write(l.join("\t") + "\n");
     const vide = v => typeof v !== "string" || !v.trim();
     const v = pkg.grillhouse?.nuit;
@@ -215,26 +207,21 @@ jouer() {
       else if (!Object.hasOwn(pkg.scripts ?? {}, v)) out("nuit-absent", v);
       else out("script", v);
     }
-    const { nuit, fautes } = lirePoussee(pkg);
-    for (const f of fautes) out(f.cle === "grillhouse.poussee" ? "poussee-invalide" : "poussee-nuit-invalide", f.valeur);
-    if (nuit) out("pousse", nuit);
-  ' "$copie/package.json" "$ici/poussee-cles.mjs" 2>/dev/null)"
+    const retiree = pousseeRetiree(pkg);
+    if (retiree) out("poussee-retiree", retiree);
+  ' "$copie/package.json" "$ici/poussee-retiree.mjs" 2>/dev/null)"
   local faute=0
   while IFS= read -r ligne; do
     case "$ligne" in
       script$'\t'*) nuit="${ligne#script$'\t'}" ;;
-      pousse$'\t'*) branche="${ligne#pousse$'\t'}" ;;
       nuit-invalide$'\t'*)
         echo "✗ la clé grillhouse.nuit vaut ${ligne#nuit-invalide$'\t'}, pas un nom de script npm : rien n'est joué."
         faute=1 ;;
       nuit-absent$'\t'*)
         echo "✗ la clé grillhouse.nuit nomme « ${ligne#nuit-absent$'\t'} », absent des scripts du package.json : rien n'est joué."
         faute=1 ;;
-      poussee-invalide$'\t'*)
-        echo "✗ la clé grillhouse.poussee vaut ${ligne#poussee-invalide$'\t'}, pas un objet : rien n'est joué."
-        faute=1 ;;
-      poussee-nuit-invalide$'\t'*)
-        echo "✗ la clé grillhouse.poussee.nuit vaut ${ligne#poussee-nuit-invalide$'\t'}, pas un nom de branche : rien n'est joué."
+      poussee-retiree$'\t'*)
+        echo "✗ ${ligne#poussee-retiree$'\t'} Rien n'est joué."
         faute=1 ;;
     esac
   done <<< "$lecture"
@@ -393,21 +380,6 @@ signaler() {
 if [ "$verdict" -eq 0 ]; then
   echo "$tete" > "$dossier/dernier-vert"
   echo "✓ vert : ${tete:0:7} est le dernier vert." >> "$journal"
-  if [ -n "$branche" ]; then
-    if GRILLHOUSE_NUIT=1 GIT_TERMINAL_PROMPT=0 git -C "$racine" push origin "$tete:$branche" >> "$journal" 2>&1; then
-      echo "✓ poussée : ${tete:0:7} est sur origin/$branche." >> "$journal"
-    else
-      echo "✗ la poussée de ${tete:0:7} vers origin/$branche (grillhouse.poussee.nuit) est refusée." >> "$journal"
-      texte="La poussée de la nuit du $(date +%Y-%m-%d) est refusée : ${tete:0:7} vers origin/$branche (grillhouse.poussee.nuit).
-Le dernier vert reste ${tete:0:7}.
-Journal : $journal
-Fin du journal :
-$(tail -40 "$journal")"
-      signaler "origin/$branche" "La poussée de la nuit est refusée sur ${tete:0:7} vers « origin/$branche »" "$texte"
-      echo "✗ vert, poussée refusée : ticket ${numero:-neuf} (étiquette nuit)." >> "$journal"
-      exit 1
-    fi
-  fi
   exit 0
 fi
 

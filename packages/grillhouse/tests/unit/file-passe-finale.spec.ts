@@ -335,6 +335,55 @@ describe('l’entrée fermée : le ticket, la branche, main poussé, le travail 
     expect(existsSync(travail)).toBe(false);
   });
 
+  it('pushes to origin/main without reading any key, and says so in its result', () => {
+    const d = depot();
+    const { o } = outils(d, enFile());
+    const f = fermerLEntree(o, { ...ENTREE, commit: d.tip }) as {
+      poussee: string | null;
+      raison: string | null;
+    };
+    expect(f.poussee).toBe('main');
+    expect(f.raison).toBeNull();
+    expect(d.surOrigin('main')).toBe(d.tip);
+  });
+
+  it.each([
+    ['two branches', { commit: 'travail', nuit: 'main' }],
+    ['null', null],
+    ['a string', 'travail'],
+  ])(
+    'a main that carries grillhouse.poussee (%s) is refused by the key’s name: nothing pushed',
+    (_nom, valeur) => {
+      const d = depot();
+      writeFileSync(
+        path.join(d.racine, 'package.json'),
+        `${JSON.stringify({ grillhouse: { poussee: valeur } })}\n`
+      );
+      d.git('commit', '-qam', 'chore: clé');
+      const t = enFile();
+      const { o } = outils(d, t);
+      const f = fermerLEntree(o, { ...ENTREE, commit: d.tip }) as {
+        poussee: string | null;
+        raison: string;
+      };
+      expect(f.poussee).toBeNull();
+      expect(f.raison).toContain('grillhouse.poussee');
+      expect(f.raison).toMatch(/retire/i);
+      expect(f.raison).not.toMatch(/poussee\.commit|nom de branche|configurée/);
+      expect(d.absenteDOrigin('travail')).toBe(true);
+      expect(d.surOrigin('main')).not.toBe(d.tip);
+    }
+  );
+
+  it('the push refused: the reason names no configured branch of push', () => {
+    const d = depot();
+    d.git('remote', 'set-url', 'origin', path.join(ESSAIS, 'origine-absente'));
+    const { o } = outils(d, enFile());
+    const f = fermerLEntree(o, { ...ENTREE, commit: d.tip }) as { raison: string };
+    expect(f.raison).toContain('origin/main');
+    expect(f.raison).not.toContain('grillhouse.poussee');
+  });
+
   it('where the lot stands is its ticket in Beads: its status and its reason of closure', () => {
     const d = depot();
     const t = { ...enFile(), status: 'closed', close_reason: 'intégré : abc1234' };
