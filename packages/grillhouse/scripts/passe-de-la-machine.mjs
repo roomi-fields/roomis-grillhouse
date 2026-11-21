@@ -90,15 +90,17 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
  * The command line that runs <cmd> in a control group of its own under the part <part>: `systemd-run
  * --user --scope` (the manager of the user, no privilege), its CPU weight and its memory bound
  * drawn from the part, no hard ceiling of CPU, the command of the pass whole at the end after
- * `--`. <unite> names the scope, which a sampler reads. With <fils> (the precise threads of the
+ * `--`. <plafond> adds the hard CPU ceiling (`CPUQuota`, the cores of the part: the group of an
+ * agent's session); <memoire> false leaves the memory unbound. <unite> names the scope, which a
+ * sampler reads. With <fils> (the precise threads of the
  * part, the system delegating the cpuset controller to the account) the group allows those
  * threads only (`AllowedCPUs`), under the slice of the frame, which the programs out of the frame
  * are kept out of.
  * @param {{ part: { coeurs: number, memoire: number }, cmd: string, args: string[],
- *   unite?: string | null, fils?: number[] | null }} o
+ *   unite?: string | null, fils?: number[] | null, plafond?: boolean, memoire?: boolean }} o
  * @returns {{ cmd: string, args: string[] }}
  */
-export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null }) {
+export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null, plafond = false, memoire = true }) {
   return {
     cmd: LANCEUR_DE_GROUPE,
     args: [
@@ -113,8 +115,8 @@ export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null })
       'MemoryAccounting=yes',
       '-p',
       `CPUWeight=${poidsDeLaPart(part)}`,
-      '-p',
-      `MemoryMax=${Math.floor(part.memoire)}`,
+      ...(memoire ? ['-p', `MemoryMax=${Math.floor(part.memoire)}`] : []),
+      ...(plafond ? ['-p', `CPUQuota=${part.coeurs * 100}%`] : []),
       ...(fils ? ['-p', `AllowedCPUs=${listeDeCoeurs(fils)}`] : []),
       '--',
       cmd,

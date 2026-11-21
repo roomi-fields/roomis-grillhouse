@@ -130,7 +130,13 @@ import {
 export { paquetsDuLangage };
 import { cacheDesOutils, installer, versionDeLOutil } from '../aiguillage.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
-import { sousNiceEtIonice, travailleursDe, VARIABLE_TENUE } from '../places-de-la-machine.mjs';
+import {
+  partDeLaPasse,
+  sousNiceEtIonice,
+  travailleursDe,
+  VARIABLE_TENUE,
+} from '../places-de-la-machine.mjs';
+import { commandeDuGroupe, groupeIndisponible } from '../passe-de-la-machine.mjs';
 import { donneesDe } from '../donnees-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
@@ -305,8 +311,15 @@ export function environnementDeLaSeance(
  * environment of the session, GRILLHOUSE_TRAVAILLEURS set to max(1, cores ÷ places) of <env>.
  * @param {{ argsBwrap: string[], commande: string[], env: Record<string, string | undefined>,
  *   cacheNpm: string, paquets: string[], travail: string, outils?: Record<string, string>,
- *   donnees?: Record<string, string> }} o
- * @returns {{ cmd: string, args: string[], env: Record<string, string> }}
+ *   donnees?: Record<string, string>, part?: { coeurs: number, memoire: number },
+ *   sonde?: () => boolean }} o
+ * @returns {{ cmd: string, args: string[], env: Record<string, string>, sansBorne: string | null }}
+ *   `sansBorne`: why the session starts without a group (null when it has one)
+ *
+ * The session runs in a scope of its own (`systemd-run --user --scope`, a foreground scope that
+ * leaves with its process) with a hard CPU ceiling of the cores of the part of the project; the
+ * passes it launches play inside that ceiling. Without a part or a manager of groups, it starts as
+ * it is.
  */
 export function lancementDeLaSeance({
   argsBwrap,
@@ -317,10 +330,23 @@ export function lancementDeLaSeance({
   travail,
   outils,
   donnees,
+  part,
+  sonde,
 }) {
-  return {
+  const seance = {
     cmd: 'bwrap',
     args: [...argsBwrap, ...commandeEprouvee(sousNiceEtIonice(commande))],
+  };
+  const sansBorne = part
+    ? groupeIndisponible({ env, ...(sonde ? { sonde } : {}) })
+    : 'aucune part du projet connue';
+  const lancee =
+    sansBorne === null
+      ? commandeDuGroupe({ part, cmd: seance.cmd, args: seance.args, plafond: true, memoire: false })
+      : seance;
+  return {
+    ...lancee,
+    sansBorne,
     env: environnementDeLaSeance(env, {
       cacheNpm,
       paquets,
@@ -889,6 +915,14 @@ function envelopper(argv) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);
     code = CODE_REFUS;
   } else {
+    let part;
+    try {
+      part = partDeLaPasse({ racine: copie });
+    } catch (e) {
+      process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
+      temporaire.fermer();
+      return CODE_REFUS;
+    }
     const lancement = lancementDeLaSeance({
       argsBwrap: args,
       commande,
@@ -898,7 +932,11 @@ function envelopper(argv) {
       travail,
       outils,
       donnees,
+      part,
     });
+    if (lancement.sansBorne !== null) {
+      process.stderr.write(`⚠ la séance part sans borne de processeur : ${lancement.sansBorne}\n`);
+    }
     const r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
     if (r.error) {
       process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);

@@ -90,7 +90,11 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   ou que la mémoire garde le défaut de l'autre ; une part plus grande que le budget vaut le budget, une seule passe jouant alors à la
   fois. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
   (poids de processeur et plafond de mémoire tirés de la part, sans plafond dur de processeur), et
-  elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; la
+  elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; une
+  séance d'agent est bornée comme une passe : elle tourne dans un groupe de contrôle à elle, avec un
+  plafond dur de processeur égal aux cœurs de la part (les passes qu'elle lance jouent dans ce
+  plafond, sans groupe à elles) ; sans gestionnaire de groupes, elle part sans borne et le journal
+  du circuit le dit ; la
   nuit demande le budget entier et joue seule ; une mesure de temps joue sur des cœurs dédiés que
   personne d'autre ne touche (la clé `grillhouse.mesure`, `{ "coeurs": <entier ≥ 1> }`, comme
   `grillhouse.part` ; par défaut la part par défaut du budget), le reste de la machine continuant

@@ -1230,10 +1230,14 @@ elle prend sa part, que rien d'autre ne double.
   son poids de processeur (`CPUWeight`, 100 par cœur) et son plafond de mémoire (`MemoryMax`) tirés
   de sa part, sans plafond dur de processeur : un plafond met la passe en pause par à-coups, un poids
   ne ralentit rien sur une machine libre. Ses outils reçoivent les cœurs de sa part
-  (`GRILLHOUSE_TRAVAILLEURS`). Seules les commandes qu'un agent lance dans son enveloppe ne prennent
-  pas de part (la place de sa séance les couvre) et jouent sans groupe, comme un système sans
-  gestionnaire de groupes de l'utilisateur : la passe dit « joue sans part tenue : <raison> » une
-  fois. Une passe jouée sous la part de son parent (`GRILLHOUSE_PART_TENUE`) n'en prend pas de
+  (`GRILLHOUSE_TRAVAILLEURS`). Une séance d'agent est bornée comme une passe : son lancement
+  (`lancementDeLaSeance`) la tient dans un scope à elle (`systemd-run --user --scope`, de premier
+  plan, retiré avec son processus, séance tuée comprise) dont le plafond dur de processeur
+  (`CPUQuota`) vaut les cœurs de la part du projet ; sans gestionnaire de groupes, elle part sans
+  borne et l'enveloppe le dit sur la sortie d'erreur du circuit. Les commandes qu'un agent lance
+  dans son enveloppe ne prennent pas de part (le plafond de sa séance les couvre) et jouent sans
+  groupe, comme un système sans gestionnaire de groupes de l'utilisateur : la passe dit « joue sans
+  part tenue : <raison> » une fois. Une passe jouée sous la part de son parent (`GRILLHOUSE_PART_TENUE`) n'en prend pas de
   seconde.
 - **Une passe qui consomme nettement plus que sa part** (au-delà de 1,5 fois ses cœurs, ou de sa
   mémoire) le dit : à sa ligne du tableau et à la ligne de `npx grillhouse consommation`.

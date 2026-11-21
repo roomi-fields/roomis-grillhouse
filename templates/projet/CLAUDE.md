@@ -92,7 +92,10 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   fois. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
   (poids de processeur et plafond de mémoire tirés de la part, sans plafond dur de processeur), et
   elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; la
-  nuit et une mesure de temps demandent le budget entier et jouent seules.
+  nuit et une mesure de temps demandent le budget entier et jouent seules. Une séance d'agent est
+  bornée comme une passe : elle tourne dans un groupe de contrôle à elle, avec un plafond dur de
+  processeur égal aux cœurs de la part (les passes qu'elle lance jouent dans ce plafond, sans groupe
+  à elles) ; sans gestionnaire de groupes, elle part sans borne et le journal du circuit le dit.
 - Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
   espace, le nom court du projet aux affichages partagés entre projets : la ligne des places, qui
   nomme qui tient chaque place, et le panneau de plusieurs projets ; absente, le préfixe de tickets
