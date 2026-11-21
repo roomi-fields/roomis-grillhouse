@@ -195,7 +195,7 @@ reste dans son lot. Une configuration dont une garde mesure l'effet reste au cir
 réorganisation qui a du code garde sa règle : sous un plan qui dit « comportement tests-adaptés », la
 suite existante fait la preuve : elle accepte chaque vert, le testwriter garde ses tests, et le
 développeur écrit le code, puis les contrôles et la relecture ; « comportement inchangé » est le
-geste écrit à la main, le développeur seul, sans testwriter ni preuve. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
+geste écrit à la main, le développeur seul, sans testwriter ni preuve, sauf si le superviseur répond `--depuis testwriter` : sa commande explicite l'emporte sur la sorte du plan, le testwriter joue, la preuve accepte chaque vert, et le circuit reprend aux contrôles. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
 contrôles et à la relecture sans séance du développeur.
 La bascule marche dans les deux sens, sur le même plan, ses paquets et ses critères gardés : le
 testwriter qui ne trouve aucun comportement à tester s'arrête (motif `aucun-comportement`), et le

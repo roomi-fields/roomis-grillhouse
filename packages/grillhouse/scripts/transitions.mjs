@@ -52,7 +52,15 @@ export const MEMOIRE = [
   'conflitsRelances',
   'fichiersDuConflit',
   'retourDuConflit',
+  'testwriterDemande',
 ];
+
+// The mark « the supervisor asked the testwriter » after a start: set by `--depuis testwriter`, kept
+// by a `--reprendre` without `--depuis`, dropped by any other start (a new plan, no `--depuis`, a
+// `--depuis` of another step). As an operator replays a named step whatever the automatic rule
+// would have chosen.
+export const testwriterDemande = ({ depuis, reprendre, marque }) =>
+  depuis === 'testwriter' || Boolean(!depuis && reprendre && marque);
 
 // The steps of the circuit's state, read from the list of the steps.
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
@@ -111,10 +119,11 @@ export function refusDeLaFile({ raison, conflit = false } = {}) {
 // developpeur of a plan without tests (<sansTests>) or of a plan whose `comportement` is inchangé
 // (a gesture written by hand: no test can turn red, the existing suite proves it); else the
 // testwriter, for changé and tests-adaptés alike.
-export const etapeApresLePlan = ({ sorte, sansTests }) =>
+// The supervisor's `--depuis testwriter` (<demande>) wins over `inchangé`: the testwriter plays.
+export const etapeApresLePlan = ({ sorte, sansTests, demande = false }) =>
   sorte?.genre === 'mécanique'
     ? GESTE
-    : sansTests || sorte?.comportement === 'inchangé'
+    : sansTests || (sorte?.comportement === 'inchangé' && !demande)
       ? CODE
       : TESTS;
 
@@ -463,8 +472,17 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
           sorte:
             lire('mecanique') || ticket.sorte?.comportement === 'inchangé' ? ticket.sorte : null,
           sansTests: lire('sansTests'),
+          demande: Boolean(m('testwriterDemande')),
         })
       : null;
+  const demandeDuSuperviseur =
+    Boolean(m('testwriterDemande')) && ticket.sorte?.comportement === 'inchangé';
+  if (etape === TESTS && route === TESTS && demandeDuSuperviseur) {
+    commenter(
+      'testwriter',
+      'plan « comportement inchangé » : le superviseur a demandé la séance du testwriter (`--depuis testwriter`), qui l’emporte sur la sorte du plan.'
+    );
+  }
   if (route === GESTE) {
     geste('mecanique');
     etape = GESTE;

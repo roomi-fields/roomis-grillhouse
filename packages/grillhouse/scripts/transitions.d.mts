@@ -166,7 +166,15 @@ export function refusDeLaFile(issue?: { raison?: string | null; conflit?: boolea
 export function etapeApresLePlan(e: {
   sorte?: { genre?: string; comportement?: string } | null;
   sansTests?: boolean;
+  demande?: boolean;
 }): string;
+
+/** The mark « the supervisor asked the testwriter » after a start: set by `--depuis testwriter`, kept by a `--reprendre` without `--depuis`, dropped otherwise. */
+export function testwriterDemande(e: {
+  depuis?: string | null;
+  reprendre?: boolean;
+  marque?: boolean;
+}): boolean;
 
 /** The step after a proof that passes: the developpeur, or the checks. */
 export function apresLaPreuve(e: {

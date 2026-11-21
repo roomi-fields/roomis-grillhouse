@@ -1604,8 +1604,9 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: seuls = null } 
   // main's (scripts/registre-des-resultats.mjs): a test of the lot the registry holds existed, its
   // green accepted; one absent is new.
   const registre = lireLeRegistre(ctx.copie);
-  // A plan « comportement tests-adaptés »: every green of the lot is expected.
-  const inchange = ctx.sorte?.comportement === 'tests-adaptés';
+  // A plan « comportement tests-adaptés », or a testwriter session the supervisor asked
+  // (`--depuis testwriter`, `ctx.testwriterDemande`): every green of the lot is expected.
+  const inchange = ctx.sorte?.comportement === 'tests-adaptés' || Boolean(ctx.testwriterDemande);
   // The developpeur already ran after the last testwriter: the code is there, no test can turn red.
   const codePresent = codeDejaPresent(ctx);
   for (const { groupe, entier, code, resultats, constructions } of mesure) {

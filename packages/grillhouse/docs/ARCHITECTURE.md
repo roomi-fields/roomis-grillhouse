@@ -434,7 +434,7 @@ sorte du ticket (`sorte` de `resultats.mjs`, lue par `sorteDuPlan`) : `mécaniqu
 comportement neuf, avec sa raison et sa commande ; `comportement`, avec sa raison et son champ
 `comportement` à trois valeurs : `changé` (le testwriter écrit, un rouge est exigé ; la valeur du
 doute), `tests-adaptés` (le testwriter écrit, la preuve accepte chaque vert, puis le développeur)
-et `inchangé` (un geste écrit à la main : le développeur seul, sans testwriter ni preuve). Le circuit l'écrit dans la
+et `inchangé` (un geste écrit à la main : le développeur seul, sans testwriter ni preuve, sauf la réponse `--depuis testwriter` du superviseur, qui l'emporte sur la sorte : le circuit pose la marque `testwriterDemande` dans sa mémoire, le testwriter joue, la preuve accepte chaque vert et le lot passe aux contrôles ; la marque survit aux arrêts et à `--reprendre`, et tombe à tout autre départ). Le circuit l'écrit dans la
 description (« ## Sorte », après les critères) et au ticket avec le plan. Un ticket mécanique
 saute 2 Tests, 2.1 et 3 Code (le geste `mecanique`) : à 1.1 Geste mécanique, une séance de
 l'explorateur, dans l'enveloppe du plan (`lancer.sh --fiche geste`, le neuvième gabarit), joue la

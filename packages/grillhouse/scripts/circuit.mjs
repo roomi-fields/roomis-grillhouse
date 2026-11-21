@@ -649,6 +649,7 @@ import {
   questionsPosees,
   rapportDuRefus,
   TESTS,
+  testwriterDemande,
 } from './transitions.mjs';
 import { departDepuis } from './reprise.mjs';
 import {
@@ -1675,6 +1676,12 @@ const laQuestion = (ticket, { arret, qui, ou, question }) =>
 // the state <e> (null without one) on --reprendre, the integration or the queue played again on
 // the same lot after their stop, as bors retries, else the testwriter, the run starting over.
 function depart(ctx, e) {
+  // The supervisor's command wins over the sort of the plan: the mark of his `--depuis testwriter`.
+  ctx.testwriterDemande = testwriterDemande({
+    depuis: ctx.depuis ?? null,
+    reprendre: Boolean(ctx.reprendre),
+    marque: Boolean(ctx.testwriterDemande),
+  });
   // A --depuis plays its step and the ones after it, no result read back: no fingerprint kept, no
   // resumption at a red, no attribution counted.
   if (ctx.depuis) {
