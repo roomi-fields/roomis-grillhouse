@@ -27,6 +27,9 @@ import {
 import { langage } from '../../scripts/langages.mjs';
 import { dossier } from './essai.js';
 
+// The queue client of a server that runs no queue: no test reaches the account's server.
+const SANS_FILE = { vue: () => Promise.resolve(null), relancer: () => Promise.resolve() };
+
 // A trial project, its home and its directory of units, all empty.
 function lieux() {
   const racine = dossier('projet');
@@ -274,6 +277,7 @@ describe('an archive whose sum differs from the pinned one (criterion 7)', () =>
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(Buffer.from('pas une archive')),
       systemctl,
+      file: SANS_FILE,
     }).then(
       () => null,
       (e: unknown) => e

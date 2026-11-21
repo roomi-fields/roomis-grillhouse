@@ -15,6 +15,12 @@ export const ENTRER = 'entrer';
 export const ISSUE_DE_LA_FILE = 'issueDeLaFile';
 /** The query of the queue: the entry under way and those that wait. */
 export const L_ETAT_DE_LA_FILE = 'etatDeLaFile';
+/**
+ * The signal that asks the queue to restart as new (the installation of a new version): at rest it
+ * continues as new at once; busy, it finishes its entry under way, gives its issue to the circuit,
+ * then continues as new with those that wait, none of them treated before.
+ */
+export const RELANCER = 'relancer';
 
 /** The bounds of the reading of the CI, in ms: its search (2 min), its wait (30 min), its step (10 s). */
 export interface DelaisDeLaCI {
@@ -41,6 +47,11 @@ export interface EntreeDeLaFileDuProjet {
 export interface VueDeLaFile {
   enCours: string | null;
   attente: string[];
+  /**
+   * Whether the queue enters main by the final pass; false on the former path. A queue recorded
+   * before this field answers without it, which reads as false.
+   */
+  surLaPasseFinale?: boolean;
 }
 
 /**

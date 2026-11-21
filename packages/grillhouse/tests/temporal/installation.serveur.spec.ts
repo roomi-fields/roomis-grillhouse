@@ -33,6 +33,9 @@ const DatabaseSync = (
   }
 ).DatabaseSync;
 
+// The queue client of a server that runs no queue: no test reaches the account's server.
+const SANS_FILE = { vue: () => Promise.resolve(null), relancer: () => Promise.resolve() };
+
 const VERSION = '0.0.7';
 const EPINGLE_ESSAI = { version: VERSION, sommes: { linux_amd64: '0'.repeat(64) } };
 
@@ -52,6 +55,7 @@ function monde() {
   const options = {
     lieux: l,
     epingle: EPINGLE_ESSAI,
+    file: SANS_FILE,
     systemctl: (args: string[]) => {
       journal.push(`systemctl ${args.join(' ')}`);
       return { status: 0, stdout: '', stderr: '' };

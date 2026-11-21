@@ -11,7 +11,9 @@
 // on which the circuit of the ticket stops, and the queue goes on. The queue reads the CI of main
 // (`surveillerLaCiDeMain`) at its start, after each entry and at each quarter of an hour it waits
 // for none, which opens the defect ticket of a red passage; it never waits for it. Past its length
-// of history, the queue continues as new between two entries, with those that wait.
+// of history, or when the signal RELANCER asks it (the installation of a new version), the queue
+// continues as new between two entries, with those that wait: busy, it finishes its entry under
+// way first and treats none of those that wait before restarting.
 //
 // The former path, which the executions in flight replay (`patched('passe-finale-de-main')`):
 // the CI of the candidate's branch read by a child workflow (`ciDuCommit`), then the workflows of
@@ -41,6 +43,7 @@ import {
   ENTRER,
   ISSUE_DE_LA_FILE,
   L_ETAT_DE_LA_FILE,
+  RELANCER,
   type ActivitesDeLaFile,
   type DelaisDeLaCI,
   type EffetDeLaFile,
@@ -92,6 +95,7 @@ async function jouerLesEffets(racine: string, effets: EffetDeLaFile[], lieu: str
 const entrer = defineSignal<[EntreeDeLaFile]>(ENTRER);
 export const issueDeLaFile = defineSignal<[IssueDeLaFile]>(ISSUE_DE_LA_FILE);
 const lEtat = defineQuery<VueDeLaFile>(L_ETAT_DE_LA_FILE);
+const relancer = defineSignal<[]>(RELANCER);
 
 const DELAIS: Required<DelaisDeLaCI> = {
   rechercheMs: 2 * 60_000,
@@ -200,10 +204,16 @@ export async function entrerDansLaFile(
 /** The queue of the project at <racine>: one entry at a time, judged by a final pass before main moves. */
 export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void> {
   const { racine } = entree;
-  // False for an execution recorded before the final pass: it keeps its former path.
-  const surLaPasseFinale = patched('passe-finale-de-main');
   const attente: EntreeDeLaFile[] = [...(entree.suite?.attente ?? [])];
   let enCours: EntreeDeLaFile | null = null;
+  // The restart asked: no entry waiting starts any more in this run. The handlers are set first,
+  // outside the commands of the history, so that they answer on either path.
+  let relance = false;
+  setHandler(relancer, () => {
+    relance = true;
+  });
+  // False for an execution recorded before the final pass: it keeps its former path.
+  const surLaPasseFinale = patched('passe-finale-de-main');
   // An entry already in the queue, under way or waiting, is not added twice.
   setHandler(entrer, e => {
     if (enCours?.ticket !== e.ticket && !attente.some(a => a.ticket === e.ticket)) {
@@ -213,6 +223,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
   setHandler(lEtat, () => ({
     enCours: enCours?.ticket ?? null,
     attente: attente.map(a => a.ticket),
+    surLaPasseFinale,
   }));
   const aContinuer = () =>
     workflowInfo().continueAsNewSuggested || workflowInfo().historyLength >= LIMITE_D_HISTOIRE;
@@ -378,7 +389,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
 
   let aSurveiller = true;
   for (;;) {
-    const pret = () => attente.length > 0 || aContinuer();
+    const pret = () => attente.length > 0 || relance || aContinuer();
     if (surLaPasseFinale) {
       if (aSurveiller) {
         await surveiller();
@@ -396,7 +407,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
         await condition(pret);
       }
     }
-    if (attente.length > 0) {
+    if (attente.length > 0 && !relance) {
       enCours = attente.shift()!;
       const issue = await traiterSansTomber(enCours);
       // A circuit gone (stopped meanwhile) has no issue to await.
@@ -406,7 +417,7 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
       enCours = null;
       aSurveiller = true;
     }
-    if (aContinuer()) {
+    if (relance || aContinuer()) {
       await condition(allHandlersFinished);
       return continueAsNew<typeof fileDuProjet>({ ...entree, suite: { attente } });
     }

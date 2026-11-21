@@ -18,6 +18,9 @@ import {
 import { cacheDesOutils } from '../../scripts/aiguillage.mjs';
 import { dossier } from './essai.js';
 
+// The queue client of a server that runs no queue: no test reaches the account's server.
+const SANS_FILE = { vue: () => Promise.resolve(null), relancer: () => Promise.resolve() };
+
 const VERSION = '0.0.1';
 const EPINGLE_ESSAI = { version: VERSION, sommes: {} };
 const tous = (nom: string) => `/compte/bin/${nom}`;
@@ -56,6 +59,7 @@ function poserLesUnites(l: ReturnType<typeof monde>['l'], trouver = tous) {
     epingle: EPINGLE_ESSAI,
     systemctl: () => ({ status: 0, stdout: '', stderr: '' }),
     circuitsEnVol: () => [],
+    file: SANS_FILE,
     node: '/usr/bin/node',
     trouver,
     outil: v => path.join(cacheDesOutils(l.maison), v),
@@ -279,6 +283,7 @@ describe('the unit of the machine, which belongs to the project that wrote it', 
         return { status, stdout: '', stderr: status ? 'Failed to connect to bus' : '' };
       },
       circuitsEnVol: () => [],
+      file: SANS_FILE,
       node: '/usr/bin/node',
       trouver: tous,
       outil: (v: string) => path.join(cacheDesOutils(l.maison), v),

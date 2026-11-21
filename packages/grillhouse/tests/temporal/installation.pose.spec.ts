@@ -20,6 +20,9 @@ import {
 import path from 'node:path';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { describe, expect, it } from 'vitest';
+
+// The queue client of a server that runs no queue: no test reaches the account's server.
+const SANS_FILE = { vue: () => Promise.resolve(null), relancer: () => Promise.resolve() };
 import {
   cheminsDe,
   installer,
@@ -59,6 +62,7 @@ describe('the installation from an archive whose sum is the pinned one', () => {
   const appels: string[][] = [];
   const systemctl = (args: string[]) => (appels.push(args), { status: 0, stdout: '', stderr: '' });
   const options = {
+    file: SANS_FILE,
     lieux: l,
     epingle,
     plateforme: 'linux_amd64' as const,
@@ -130,6 +134,7 @@ describe('a systemctl that fails is played again at the next run', () => {
       : { status: 0, stdout: '', stderr: '' };
   };
   const options = {
+    file: SANS_FILE,
     lieux: l,
     epingle,
     plateforme: 'linux_amd64' as const,
@@ -180,6 +185,7 @@ describe('every refusal comes before any writing', () => {
     await expect(
       installer({
         lieux: l,
+        file: SANS_FILE,
         epingle: { version: '0.0.4', sommes: { linux_amd64: somme(contenu) } },
         plateforme: 'linux_amd64',
         obtenir: () => Promise.resolve(contenu),
@@ -210,6 +216,7 @@ describe('the other refusals come before any writing too', () => {
     const appels: string[][] = [];
     const e = await installer({
       lieux: l,
+      file: SANS_FILE,
       epingle: { version: '0.0.6', sommes: { linux_amd64: somme(contenu) } },
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(contenu),
@@ -273,6 +280,7 @@ describe('the published version of the frame under --maison', () => {
     const l = lieuxDe({ maison, unites: dossier('unites'), racine });
     await installer({
       lieux: l,
+      file: SANS_FILE,
       epingle: { version: '0.0.5', sommes: { linux_amd64: somme(contenu) } },
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(contenu),
@@ -300,6 +308,7 @@ describe('a package.json that already carries grillhouse.outils.TEMPORAL', () =>
     const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
     const r = await installer({
       lieux: l,
+      file: SANS_FILE,
       epingle: { version: '0.0.7', sommes: { linux_amd64: somme(contenu) } },
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(contenu),
@@ -326,6 +335,7 @@ describe('a package.json that already carries grillhouse.outils.TEMPORAL', () =>
     const l = lieuxDe({ maison: dossier('maison'), unites: dossier('unites'), racine });
     await installer({
       lieux: l,
+      file: SANS_FILE,
       epingle: { version: '0.0.8', sommes: { linux_amd64: somme(contenu) } },
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(contenu),
@@ -382,6 +392,7 @@ describe('the PATH of the workers names the tool of each language the architectu
     const appels: string[][] = [];
     const e = await installer({
       lieux: l,
+      file: SANS_FILE,
       epingle: { version: '0.1.0', sommes: { linux_amd64: somme(contenu) } },
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(contenu),
@@ -483,6 +494,7 @@ describe('a program newly laid down under a circuit in flight', () => {
     const appels: string[][] = [];
     const r = await installer({
       lieux: l,
+      file: SANS_FILE,
       epingle: { version: '0.0.2', sommes: { linux_amd64: somme(contenu) } },
       plateforme: 'linux_amd64',
       obtenir: () => Promise.resolve(contenu),

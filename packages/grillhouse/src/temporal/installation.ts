@@ -78,7 +78,9 @@ import {
 import { trouverDansLePath } from '../../scripts/commandes-du-path.mjs';
 import { langagesDe } from '../../scripts/langages.mjs';
 import { lireOutils } from '../../scripts/outils-cles.mjs';
+import type { Client } from '@temporalio/client';
 import { ATTRIBUTS_DE_RECHERCHE } from './attributs.js';
+import { idDeLaFile, L_ETAT_DE_LA_FILE, RELANCER, type VueDeLaFile } from './file/contrat.js';
 
 /** A platform the pin has an archive for, in the release's words. */
 export type Plateforme = 'linux_amd64' | 'linux_arm64' | 'darwin_amd64' | 'darwin_arm64';
@@ -408,6 +410,88 @@ export interface OptionsDInstallation extends OptionsDuProgramme {
   circuitsEnVol?: () => string[];
   /** Compacts the database file <base> and gives its size before and after (`compacterLaBase`). */
   compacter?: (base: string) => Compactage;
+  /**
+   * The queue of the project on the server, by its id (`idDeLaFile`): its view, null when no queue
+   * runs, a failure when the server does not answer; and the signal that restarts it as new
+   * (`laFileDuServeur`).
+   */
+  file?: ClientDeLaFile;
+}
+
+/** The client of the queue of a project that the installation reads and signals. */
+export interface ClientDeLaFile {
+  vue(id: string): Promise<VueDeLaFile | null>;
+  relancer(id: string): Promise<void>;
+}
+
+/**
+ * The client of the account's server (its address and namespace from Temporal's variables). A
+ * queue that is not there, or a server that does not answer within 5 s, is a failure, which the
+ * installation takes for no queue.
+ */
+function laFileDuServeur(): ClientDeLaFile {
+  const avec = async <T>(f: (client: Client) => Promise<T>): Promise<T> => {
+    const { ouvrirLeClient } = await import('./client.js');
+    const ouvert = ouvrirLeClient();
+    let minuteur: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        f(ouvert.client),
+        new Promise<never>((_, rejet) => {
+          minuteur = setTimeout(() => rejet(new Error('le serveur ne répond pas')), 5000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(minuteur);
+      await ouvert.fermer().catch(() => undefined);
+    }
+  };
+  return {
+    vue: id => avec(c => c.workflow.getHandle(id).query<VueDeLaFile>(L_ETAT_DE_LA_FILE)),
+    relancer: id => avec(c => c.workflow.getHandle(id).signal(RELANCER)),
+  };
+}
+
+const AUCUNE_FILE = 'aucune';
+
+/**
+ * The queue of the project <racine> restarted when it is on the former path (its view says
+ * `surLaPasseFinale` false, or does not say it): signalled once, its state for the report. A queue
+ * already new, no queue, a server that does not answer or a signal lost leave « aucune »; the next
+ * pass makes up a signal lost.
+ */
+async function relancerLaFile(file: ClientDeLaFile, racine: string): Promise<string> {
+  const id = idDeLaFile(racine);
+  try {
+    const vue = await file.vue(id);
+    if (vue === null || vue.surLaPasseFinale === true) {
+      return AUCUNE_FILE;
+    }
+    await file.relancer(id);
+    return vue.enCours === null ? 'repartie' : `repart après l'entrée de ${vue.enCours}`;
+  } catch {
+    return AUCUNE_FILE;
+  }
+}
+
+/** The line the command writes of a report. */
+export function texteDeLInstallation(r: RapportDInstallation): string {
+  if (!r.change) {
+    return 'temporal : l’installation est à jour, rien ne change.\n';
+  }
+  return (
+    `temporal : ${r.pose ? 'programme posé' : 'programme à jour'} (${r.programme}) ; ` +
+    `unités écrites : ${r.unites.join(', ') || 'aucune'} ; ` +
+    `appliquées : ${r.appliquees.join(', ') || 'aucune'}` +
+    (r.compactage
+      ? ` ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
+      : '') +
+    (r.serveurDiffere
+      ? ` ; l'unité du serveur attend, le serveur n'étant ni arrêté ni compacté : circuits en vol (${r.serveurDiffere.join(', ')}), à rejouer quand ils sont arrêtés`
+      : '') +
+    ` ; file : ${r.file}` +
+    '.\n'
+  );
 }
 
 /** The size of the database before and after its compaction, in bytes. */
@@ -434,6 +518,12 @@ export interface RapportDInstallation {
    * applies; absent when nothing deferred them.
    */
   serveurDiffere?: string[];
+  /**
+   * What became of the queue of the project: « repartie » (at rest, restarted as new), « repart
+   * après l'entrée de <ticket> » (busy, it restarts once that entry has its issue), or « aucune »
+   * (no queue in flight, a queue already on the final pass, or a server that does not answer).
+   */
+  file: string;
 }
 
 /**
@@ -788,6 +878,7 @@ export async function installer({
   trouver = nom => trouverDansLePath(nom),
   circuitsEnVol = () => circuitsEnVolDuServeur(cheminsDe(lieux, epingle.version).programme),
   compacter = compacterLaBase,
+  file = laFileDuServeur(),
 }: OptionsDInstallation): Promise<RapportDInstallation> {
   const { donnees, appliquees: fichierDesAppliquees } = cheminsDe(lieux, epingle.version);
   // Every refusal before any writing: the archive, the account's tools, the project's tools , then the worker of the published version, which lays that
@@ -863,12 +954,19 @@ export async function installer({
     };
     writeFileSync(fichierDesAppliquees, `${JSON.stringify(sommes, null, 2)}\n`);
   }
+  const etatDeLaFile = await relancerLaFile(file, lieux.racine);
   return {
     programme,
     pose,
     unites,
     appliquees,
-    change: pose || unites.length > 0 || appliquees.length > 0 || differe.length > 0,
+    change:
+      pose ||
+      unites.length > 0 ||
+      appliquees.length > 0 ||
+      differe.length > 0 ||
+      etatDeLaFile !== AUCUNE_FILE,
+    file: etatDeLaFile,
     ...(compactage ? { compactage } : {}),
     ...(differe.length ? { serveurDiffere: differe } : {}),
   };

@@ -1865,7 +1865,19 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   `a-valider` (`scripts/ci-de-main.mjs`, « Main reste vert »). Les exécutions en vol gardent leur
   histoire par `patched('passe-finale-de-main')` : leur ancien chemin (la CI de la branche lue par
   `ciDuCommit`, les flux de main lus après la poussée) rejoue sans rien lire, ses actes répondant
-  vert ; le ticket grillhouse-3uv.131 le retire une fois la file drainée. Les gestes sont ceux de
+  vert ; le ticket grillhouse-3uv.131 le retire une fois la file drainée. La montée de version
+  relance la file : sa vue (`etatDeLaFile`) dit `surLaPasseFinale` (faux sur l'ancien chemin, absent
+  d'une vue ancienne), et `temporal installer`, à chaque passage, à jour compris, après le
+  redémarrage du travailleur, envoie le signal `relancer` à la file de la racine du projet quand sa
+  vue le dit faux ou ne le dit pas ; une file déjà neuve n'est jamais signalée, ni un projet sans
+  file, et un serveur injoignable ou un signal perdu se rattrape au passage suivant. Le gestionnaire
+  du signal se pose au départ, sur l'un et l'autre chemin ; la file au repos continue aussitôt
+  (Continue-As-New, entre deux entrées, son attente emportée), la file occupée finit l'entrée en
+  cours, en signale l'issue au circuit, puis repart avec celles qui attendent, sans en traiter
+  aucune avant : l'entrée en cours d'une file ancienne reste sur l'ancien chemin jusqu'à son issue,
+  et le run neuf lit `patched` vrai (passe finale, arbre jugé inscrit). Le rapport de l'installation
+  dit « repartie », « repart après l'entrée de <ticket> » ou « aucune », que la commande écrit.
+  Les gestes sont ceux de
   `scripts/integration/file.mjs`, que ses actes appellent ; un lot déjà sur main est entré, pas
   écarté (la branche pointe sur le commit de main qui livre son ticket, ou chacun de ses commits a
   son équivalent sur main, même patch selon `git cherry`, le rejeu qu'écrit un rebase, ou la

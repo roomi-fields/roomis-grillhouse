@@ -34,6 +34,7 @@ import {
   lieuxDe,
   poserLeProgramme,
   systemctlDuCompte,
+  texteDeLInstallation,
   travailleurPerime,
 } from './installation.js';
 
@@ -99,20 +100,7 @@ async function principal(args: string[]): Promise<number> {
     return e.installe ? 0 : 1;
   }
   const r = await installer({ lieux, systemctl, ...obtenir });
-  process.stdout.write(
-    r.change
-      ? `temporal : ${r.pose ? 'programme posé' : 'programme à jour'} (${r.programme}) ; ` +
-          `unités écrites : ${r.unites.join(', ') || 'aucune'} ; ` +
-          `appliquées : ${r.appliquees.join(', ') || 'aucune'}` +
-          (r.compactage
-            ? ` ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
-            : '') +
-          (r.serveurDiffere
-            ? ` ; l'unité du serveur attend, le serveur n'étant ni arrêté ni compacté : circuits en vol (${r.serveurDiffere.join(', ')}), à rejouer quand ils sont arrêtés`
-            : '') +
-          '.\n'
-      : 'temporal : l’installation est à jour, rien ne change.\n'
-  );
+  process.stdout.write(texteDeLInstallation(r));
   return 0;
 }
 

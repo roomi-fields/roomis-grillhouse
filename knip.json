@@ -25,6 +25,7 @@
         "tests/temporal/acte-en-panne.mjs",
         "tests/temporal/acte-qui-dure.mjs",
         "tests/temporal/enregistrer-la-base-de-reference.mjs",
+        "tests/temporal/histoires/deroule-d-avant-la-passe-finale.mjs",
         "tests/temporal/relais-lent.mjs"
       ],
       "project": [
