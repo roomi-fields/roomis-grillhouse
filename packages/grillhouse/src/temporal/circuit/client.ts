@@ -10,7 +10,12 @@
 // from the step of its agent, on the task queue of the project's worker (decision Q2 of
 // grillhouse-4nr.12).
 import { lesReponses, SANS_ISSUE } from '../../../scripts/reponses-du-circuit.mjs';
-import { WorkflowNotFoundError, WorkflowUpdateFailedError, type Client } from '@temporalio/client';
+import {
+  WorkflowNotFoundError,
+  WorkflowUpdateFailedError,
+  type Client,
+  type WorkflowExecutionInfo,
+} from '@temporalio/client';
 import {
   ApplicationFailure,
   defaultPayloadConverter,
@@ -19,12 +24,53 @@ import {
 import { fileDuProjet } from '../installation.js';
 
 /**
- * The workflows a page of a list of the server gives at most. The server pages by 1000 by default,
+ * The workflows a page of a list of the server gives at first. The server pages by 1000 by default,
  * and a page of circuits, each with its memo, passes the 4 MB a gRPC message of the client takes
- * (« Received message larger than max », which the client retries until its deadline, read as
- * « Temporal ne répond pas en 5 s »): every list of the frame asks for pages of PAGE.
+ * (« Received message larger than max », read as « Temporal ne répond pas »): every list of the
+ * frame goes by `listerLesDeroules`, which asks for pages of PAGE and halves them when a page is
+ * still too large.
  */
-export const PAGE = 100;
+export const PAGE = 20;
+
+// Whether the error <e> of a list says a page larger than a gRPC message takes.
+const pageTropGrande = (e: unknown): boolean => {
+  for (
+    let x = e as { message?: unknown; cause?: unknown } | undefined;
+    x;
+    x = x.cause as typeof x
+  ) {
+    if (/RESOURCE_EXHAUSTED|larger than max/.test(String(x.message ?? ''))) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * The workflows the query <query> finds on the server, read whole, by pages of PAGE. No size of
+ * page is safe for good, a memo having no bound of its own: a page the client refuses as too large
+ * makes the list start again with pages of half the size, down to one workflow a page (pc3,
+ * 2026-11-21: 100 circuits passed the 4 MB by 3 kB, and the queues of the tickets of two projects
+ * failed on it).
+ */
+export async function listerLesDeroules(
+  client: Client,
+  query: string
+): Promise<WorkflowExecutionInfo[]> {
+  for (let taille = PAGE; ; taille = Math.floor(taille / 2)) {
+    try {
+      const lus: WorkflowExecutionInfo[] = [];
+      for await (const w of client.workflow.list({ query, pageSize: taille })) {
+        lus.push(w);
+      }
+      return lus;
+    } catch (e) {
+      if (taille <= 1 || !pageTropGrande(e)) {
+        throw e;
+      }
+    }
+  }
+}
 import {
   ARRETER,
   CIRCUIT,
@@ -464,10 +510,7 @@ export async function lireLesCircuits(
     status: { name: string };
     memo?: Record<string, unknown>;
   }[] = [];
-  for await (const w of client.workflow.list({
-    query: `WorkflowType = '${CIRCUIT}'`,
-    pageSize: PAGE,
-  })) {
+  for (const w of await listerLesDeroules(client, `WorkflowType = '${CIRCUIT}'`)) {
     if (w.workflowId.startsWith(prefixe)) {
       lus.push(w);
     }

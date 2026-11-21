@@ -19,7 +19,7 @@ import { ecrireLaTrace, traceDeLaFile } from '../../../scripts/journal-des-etats
 import { ouvrirLeClient } from '../client.js';
 import { disqueDesCopies } from '../../../scripts/disque-des-copies.mjs';
 import { reserverDesCircuits } from '../places/client.js';
-import { lireLesCircuits, PAGE } from '../circuit/client.js';
+import { lireLesCircuits, listerLesDeroules } from '../circuit/client.js';
 import { EN_ATTENTE_DE_PLACE, idDuCircuit } from '../circuit/contrat.js';
 import type { ActivitesDesTickets } from './contrat.js';
 
@@ -74,10 +74,10 @@ export async function circuitsVivants(e: Entree<'circuitsVivants'>): Promise<str
   const c = ouvrirLeClient();
   try {
     const vivants: string[] = [];
-    for await (const w of c.client.workflow.list({
-      query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
-      pageSize: PAGE,
-    })) {
+    for (const w of await listerLesDeroules(
+      c.client,
+      `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`
+    )) {
       if (w.workflowId.startsWith(prefixe)) {
         vivants.push(w.workflowId.slice(prefixe.length));
       }
@@ -115,10 +115,10 @@ export async function circuitsEnPause(e: Entree<'circuitsEnPause'>): Promise<str
   const c = ouvrirLeClient();
   try {
     const enPause: string[] = [];
-    for await (const w of c.client.workflow.list({
-      query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
-      pageSize: PAGE,
-    })) {
+    for (const w of await listerLesDeroules(
+      c.client,
+      `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`
+    )) {
       const memo = (w.memo ?? {}) as { question?: unknown; etape?: string; report?: unknown };
       if (
         w.workflowId.startsWith(prefixe) &&
@@ -145,10 +145,10 @@ export async function circuitsDeLaLimite(
     report: object | null;
   }[] = [];
   try {
-    for await (const w of c.client.workflow.list({
-      query: `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`,
-      pageSize: PAGE,
-    })) {
+    for (const w of await listerLesDeroules(
+      c.client,
+      `WorkflowType = 'circuitDuTicket' AND ExecutionStatus = 'Running'`
+    )) {
       if (w.workflowId.startsWith(prefixe)) {
         const memo = (w.memo ?? {}) as {
           question?: { qui?: string } | null;
