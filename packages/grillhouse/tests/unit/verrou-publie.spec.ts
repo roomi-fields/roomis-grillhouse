@@ -3,6 +3,7 @@
 // A medium test: the command of the copy is run for real on a folder, no trial repository is
 // mounted; the verdicts that need a git repository (a write out of the plan) are in
 // verrou-publie.nuit.test.ts.
+// @lit packages/grillhouse/scripts/**
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dossier, installe, npmEnPanne } from './outil-essai.js';

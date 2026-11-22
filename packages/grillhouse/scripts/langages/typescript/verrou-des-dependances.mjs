@@ -15,10 +15,13 @@
 // - A finding is `{ fichier, message }`, one per package and dependency, the message naming the
 //   command that writes the lock again (COMMANDE). A repository without a lock is not judged, nor
 //   one whose project declares package-lock.json in `grillhouse.engendres` (its command is its own).
+// - This module's top level uses Node alone: ./index.mjs imports it for the command, and the write
+//   lock of a session loads that module where the package's dependencies may not be installed.
+//   semver is required when the guard compares (`verifierLesConstats`), as ./mise-a-jour.mjs does.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import semver from 'semver';
 import { ecrireSarif } from '../../resultats.mjs';
 
 export const GARDE = 'verrou-des-dependances';
@@ -90,6 +93,8 @@ export function verifierLesConstats(racine) {
   if (!verrou || typeof verrou.packages !== 'object' || !racineManifeste) {
     return [];
   }
+  // semver, required when the guard compares, not when the module loads (see the header).
+  const semver = createRequire(import.meta.url)('semver');
   const packages = verrou.packages;
   const cles = ['', ...espaces(racine, racineManifeste)];
   const constats = [];
