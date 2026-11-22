@@ -61,6 +61,14 @@ describe('le groupe de contrôle lance sa commande telle qu’elle est écrite',
   });
 });
 
+describe('le groupe de contrôle n’écrit rien sur la sortie d’erreur de sa commande', () => {
+  it('commandeDuGroupe ne pose pas CPUAccounting, que systemd dit dépréciée sur la sortie d’erreur', () => {
+    const l = commandeDuGroupe({ part: part(4), cmd: 'x', args: [], plafond: true } as never);
+    expect(l.args.some(a => a.startsWith('CPUAccounting'))).toBe(false);
+    expect(l.args).toContain('MemoryAccounting=yes');
+  });
+});
+
 describe('le lancement d’une séance d’agent sous la part du projet', () => {
   it('lance la séance dans un scope du gestionnaire de l’utilisateur', () => {
     const l = lancer();

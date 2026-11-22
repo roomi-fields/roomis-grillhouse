@@ -112,8 +112,6 @@ export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null, p
       ...(unite ? [`--unit=${unite}`] : []),
       ...(fils ? [`--slice=${TRANCHE_DU_CADRE}`] : []),
       '-p',
-      'CPUAccounting=yes',
-      '-p',
       'MemoryAccounting=yes',
       '-p',
       `CPUWeight=${poidsDeLaPart(part)}`,

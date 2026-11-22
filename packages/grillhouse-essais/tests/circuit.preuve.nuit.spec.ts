@@ -52,8 +52,7 @@ EOF
 `;
 const ECRIT_CASSE = `cat > $c/test/casse.test.mjs <<'EOF'
 import { expect, it } from 'vitest';
-import { absent } from '../src/absent.mjs';
-it('critère 1 — absent rend 1', () => { expect(absent()).toBe(1); });
+it('critère 1 — une accolade manque', () => { expect(1).toBe(1);
 EOF
 `;
 
