@@ -75,7 +75,6 @@ const AVANT: Record<string, [number, number]> = {
   // grillhouse-1eq: three more expects, the preparation of the copy before a pass (527).
   'circuit.references': [30, 202],
   'circuit.refus': [3, 22],
-  'circuit.registre': [1, 9],
   'circuit.rejeu': [7, 50],
   'circuit.relance': [3, 10],
   'circuit.relecture': [14, 130],

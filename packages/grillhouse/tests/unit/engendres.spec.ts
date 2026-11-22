@@ -13,6 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { ARRETS, engendresAuLancement } from '../../scripts/circuit.mjs';
 import {
   aRejouer,
+  couvertPar,
   encoreDeclares,
   engendresDe,
   lireEngendres,
@@ -184,6 +185,24 @@ describe('critère 3 — a command that fails stops, the command and its output 
 // A generated file a lot removes from the key, with its command, is not played on the tree where
 // the lot is applied, and its files follow the lot. Witness: SyntHub, 2026-11-17, SH-br0.3, refused
 // at the integration on the command of « devices-json », whose script its lot deletes.
+describe('les fichiers qu’une référence couvre', () => {
+  it('un chemin, un dossier ou un motif (*, **) couvre un fichier, lu comme les entrées de Turborepo', () => {
+    expect(couvertPar(['reference.txt'], 'reference.txt')).toBe(true);
+    expect(couvertPar(['reference.txt'], 'autre/reference.txt')).toBe(false);
+    expect(couvertPar(['src/empreinte'], 'src/empreinte/a/une.json')).toBe(true);
+    expect(couvertPar(['src/empreinte/'], 'src/empreinte/une.json')).toBe(true);
+    expect(couvertPar(['src/empreinte'], 'src/empreinte-v2/une.json')).toBe(false);
+    expect(couvertPar(['src/empreinte/*.json'], 'src/empreinte/une.json')).toBe(true);
+    expect(couvertPar(['src/empreinte/*.json'], 'src/empreinte/a/une.json')).toBe(false);
+    expect(couvertPar(['src/empreinte/*.json'], 'src/empreinte/une.txt')).toBe(false);
+    expect(couvertPar(['packages/**/empreinte/**'], 'packages/tools/src/empreinte/a/b.json')).toBe(
+      true
+    );
+    expect(couvertPar(['a.txt', 'src/**/*.json'], 'src/x/y.json')).toBe(true);
+    expect(couvertPar([], 'reference.txt')).toBe(false);
+  });
+});
+
 describe('a generated file the applied tree no longer declares follows the lot', () => {
   const git = (dossier: string, ...args: string[]) =>
     spawnSync('git', ['-C', dossier, ...args], { encoding: 'utf8' });

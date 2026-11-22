@@ -466,6 +466,76 @@ describe('un tableau de transitions par étape', () => {
       ).d;
       expect(deja.suivant.etape).toBe(CODE);
     });
+    describe('un test du plan qui lit une référence périmée, à côté du rouge de la référence', () => {
+      const k = { ...ROUGE, references: [{ nom: 'ref' }], resume: 'RESUME' };
+      it('la régénération d’abord, dite avec son geste et sa phrase, puis les contrôles du plan sur l’arbre régénéré', () => {
+        const { d } = jouer(
+          { etat: etat(CONTROLES), memoire: { rienALivrer: 'R' } },
+          { controles: k, arbreApres: 'T' }
+        );
+        expect(d.suivant).toMatchObject({ etape: REFERENCES, finale: true });
+        expect(genres(d)).toContain('geste:regeneration');
+        const rapport = d.effets.find(e => e.genre === 'rapport' && e.etape === 'controles');
+        expect(rapport?.texte).toContain(
+          'des rouges sont ceux de références (ref) : à leur régénération, puis les contrôles du plan.'
+        );
+        expect(d.memoire.aRegenerer).toMatchObject({ suite: 'controles', rouges: k.tous });
+        // La régénération a changé un fichier : les contrôles du plan rejouent, la passe finale non.
+        const apres = jouer(
+          {
+            etat: etat(REFERENCES, { finale: true }),
+            memoire: { aRegenerer: d.memoire.aRegenerer },
+          },
+          {
+            regeneration: {
+              texte: 'G',
+              regenerees: ['ref'],
+              fichiers: ['reference.txt'],
+              restreinte: 'R',
+            },
+            arbreApres: 'T',
+          }
+        ).d;
+        expect(apres.suivant).toMatchObject({ etape: CONTROLES, finale: false });
+        expect(apres.memoire.regeneration).toBeNull();
+      });
+
+      it('les contrôles du plan après une régénération qui ne change rien ne rejouent pas : leurs rouges vont au développeur', () => {
+        const regeneration = { reportes: { rouges: ROUGE.tous, rejouee: false } };
+        const { d, demandes } = jouer(
+          {
+            etat: etat(CONTROLES, { tentative: 1 }),
+            memoire: { regeneration, regenereSur: { arbre: 'T', noms: ['ref'] } },
+          },
+          {
+            controles: { ...ROUGE, references: [{ nom: 'ref' }] },
+            arbreApres: 'T',
+            mecanique: false,
+            portes: { tests: [], code: ['packages/a/x.ts'] },
+          }
+        );
+        expect(demandes.find(b => b.fait === 'controles')).toMatchObject({
+          reportes: regeneration.reportes,
+        });
+        expect(d.suivant).toMatchObject({ etape: CODE, tentative: 2 });
+        expect(d.arret).toBeUndefined();
+      });
+    });
+    it('un développeur sans rien à livrer, des contrôles verts hors une référence : la passe finale rouge sur le plan le relance, sans sans-livraison', () => {
+      const regeneree = { regenereSur: { arbre: 'T', noms: ['ref'] } };
+      const { d } = jouer(
+        { etat: etat(CONTROLES, { finale: true }), memoire: regeneree },
+        {
+          passeFinale: { arbre: 'T', restreinte: null },
+          controles: ROUGE,
+          referencesDesRouges: [],
+          mecanique: false,
+          portes: { tests: [], code: ['packages/a/x.ts'] },
+        }
+      );
+      expect(d.arret).toBeUndefined();
+      expect(d.suivant).toMatchObject({ etape: CODE, tentative: 2 });
+    });
     describe('la dette des gardes qui baisse, vue aux contrôles du plan', () => {
       const NOTE = {
         garde: 'titres-de-tests',

@@ -17,6 +17,8 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as travail from '../../scripts/enveloppe/travail-de-la-copie.mjs';
+import * as activites from '../../scripts/activites.mjs';
+import { depotDeReferences } from './references-essai.js';
 
 interface Rendu {
   ok: boolean;
@@ -250,6 +252,27 @@ describe('la liste du cadre, sans référence donnée', () => {
     expect(sien.startsWith('// Généré')).toBe(true);
     expect(sien).not.toContain('"copie"');
     expect(sien).not.toContain('"main"');
+  });
+
+  it('lists, for a project of TypeScript, the frame’s references with what each reads and writes in full', () => {
+    const lesReferences = activites.lesReferences as (
+      ctx: object
+    ) => { nom: string; fichiers: string[]; lit: string[]; entiers: string[]; cadre: boolean }[];
+    const duCadre = lesReferences(depotDeReferences(ESSAIS, [])).filter(r => r.cadre);
+    expect(duCadre.map(r => r.nom)).toEqual([
+      "l'index des interfaces",
+      'les turbo.json des paquets',
+      "les rapports d'API",
+      'la dette des gardes',
+    ]);
+    const [index, turbo, api, dette] = duCadre;
+    // The index reads the interfaces whose generated part the API reports write.
+    expect(index!.lit).toContain('**/docs/INTERFACE.md');
+    expect(api!.fichiers).toContain('docs/INTERFACE.md');
+    expect(index!.entiers).toEqual(['docs/agents/index-des-interfaces.md']);
+    expect(turbo!.entiers).toEqual(['*/**/turbo.json']);
+    expect(api!.entiers).toEqual([]);
+    expect(dette!.fichiers).toEqual(['grillhouse-dette.json']);
   });
 
   it('a copy that declares no language is advanced, its references merged, and the fault is said', () => {

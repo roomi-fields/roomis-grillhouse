@@ -319,11 +319,6 @@
         "count": 1
       }
     },
-    "packages/grillhouse-essais/tests/circuit.references.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 28
-      }
-    },
     "packages/grillhouse-essais/tests/crochet-worktree.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 5

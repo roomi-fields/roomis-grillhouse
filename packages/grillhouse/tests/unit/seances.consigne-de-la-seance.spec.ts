@@ -4,9 +4,20 @@
 // at its launch, and its notes when it has some. A test of size medium: the launcher is a
 // stand-in that keeps the instruction it receives (./seance-d-essai.ts).
 // The task the supervisor gives a role is proved in circuit.contexte.spec.ts.
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
+import * as activites from '../../scripts/activites.mjs';
 import * as seances from '../../scripts/seances.mjs';
+import { depotDeReferences } from './references-essai.js';
 import { DESCRIPTION, monde, type Monde } from './seance-d-essai.js';
+
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'consigne-de-la-seance-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+const lesReferences = activites.lesReferences as (
+  ctx: object
+) => { nom: string; fichiers: string[] }[];
 
 const seance = seances.seance as unknown as (
   ctx: object,
@@ -151,4 +162,40 @@ describe('la description du ticket que porte la consigne', () => {
       /LES NOTES DU TICKET[^\n]*\n\nFait : le double\. Reste : le cas de zéro\.\n/
     );
   });
+});
+
+describe('les références que la consigne nomme', () => {
+  // La section des références d'une consigne : les lignes dont le circuit la remplit.
+  const referencesDe = (consigne: string) =>
+    /LES RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE[^\n]*\n\n([\s\S]*?)\n\n/.exec(consigne)?.[1] ?? null;
+
+  it.each(['testwriter', 'developpeur'])(
+    'celle du %s nomme les fichiers des références du projet et du cadre : la référence, l’index des interfaces, la dette des gardes',
+    async role => {
+      const ctx = depotDeReferences(ESSAIS, [
+        {
+          nom: 'la référence de la mesure',
+          commande: 'node regenerer.mjs',
+          fichiers: ['reference.txt'],
+        },
+      ]);
+      const m = monde();
+      m.fiche({ statut: 'FAIT' });
+      await m.jouer(() =>
+        seance(m.ctx, role, {
+          tentative: 1,
+          derniere: false,
+          seanceId: `seance-${role}`,
+          constats: [],
+          lectures: { lots: () => [], references: () => lesReferences(ctx) },
+          prendrePlace: PLACE,
+          signeDeVie: () => {},
+        })
+      );
+      const section = referencesDe(m.prompt(1));
+      expect(section).toContain('- la référence de la mesure : `reference.txt`');
+      expect(section).toContain("- l'index des interfaces : `docs/agents/index-des-interfaces.md`");
+      expect(section).toContain('- la dette des gardes : `grillhouse-dette.json`');
+    }
+  );
 });
