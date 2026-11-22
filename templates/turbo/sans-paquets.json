@@ -6,7 +6,9 @@
     "GRILLHOUSE_CHANGEMENTS",
     "GRILLHOUSE_AVANCEMENT",
     "TMPDIR",
-    "GRILLHOUSE_TRAVAILLEURS"
+    "GRILLHOUSE_TRAVAILLEURS",
+    "CARGO_HOME",
+    "RUSTUP_HOME"
   ],
   "tasks": {
     "build": {

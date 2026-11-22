@@ -13,6 +13,12 @@ on:
     - cron: '0 3 * * *'
   workflow_dispatch:
 
+# One run at a time on the runner of the project for this repository, the CI of the day (ci.yml) and
+# the night: a run that waits is never cancelled by the next one.
+concurrency:
+  group: pc2
+  cancel-in-progress: false
+
 # The night in n + 1 jobs per version of Node, as the CI plays the verification (ci.yml): each job
 # of `tranches` plays its tranche of the night tests out of the poste (`grillhouse tests-de-nuit
 # --hors-du-poste --tranche i/n`), and `fusion` merges the reports of the n tranches, which it
@@ -73,9 +79,10 @@ jobs:
       - name: Build
         run: npx --no-install turbo run build
 
-      # The night tests of the tranche, but those tagged @poste, without any measure of time.
+      # The night tests of the tranche, but those tagged @poste and @equipee (the equipment of a
+      # machine its default runner lacks), without any measure of time.
       - name: Night tests out of the poste, tranche ${{ matrix.tranche }}
-        run: npx --no-install grillhouse tests-de-nuit --hors-du-poste ${{ format('--tranche {0}/{1}', matrix.tranche, env.TRANCHES) }}
+        run: npx --no-install grillhouse tests-de-nuit --hors-du-poste --sans-equipement ${{ format('--tranche {0}/{1}', matrix.tranche, env.TRANCHES) }}
 
       # The reports of the tranche (Vitest's blob and the files of its part), red or green, which
       # the job fusion merges.

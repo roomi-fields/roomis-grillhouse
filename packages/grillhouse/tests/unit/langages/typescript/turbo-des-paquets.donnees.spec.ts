@@ -136,6 +136,8 @@ describe('grillhouse-3dr.5, critère 5 (initial) — les données du projet dans
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
       'GRILLHOUSE_TRAVAILLEURS',
+      'CARGO_HOME',
+      'RUSTUP_HOME',
       'SYNTHHUB_BIN',
     ]);
   });

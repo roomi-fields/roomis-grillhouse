@@ -20,11 +20,13 @@ import {
   GARDE,
   rapport,
   REGLE,
+  REGLE_EQUIPEE,
   verifier,
 } from '../../../../scripts/langages/typescript/tests-du-poste.mjs';
 import {
   nuit,
   porteLEtiquetteDuPoste,
+  porteLEtiquetteEquipee,
   testsDuPoste,
 } from '../../../../scripts/langages/typescript/vitest-config/cibles.mjs';
 
@@ -48,7 +50,10 @@ const lecteur = (fichiers: Record<string, string>) => (f: string) =>
 const ENVELOPPE =
   "import { canWrap } from '@roomi-fields/grillhouse-matiere/test-fixtures';\ndescribe.runIf(canWrap)('x', () => {});\n";
 const SIMPLE = "import { it } from 'vitest';\nit('a', () => {});\n";
-const ETIQUETTE = "// @poste: l'enveloppe bwrap\n";
+const ETIQUETTE = "// @poste: la session de l'utilisateur\n";
+const EQUIPEE = "// @equipee: l'enveloppe bwrap\n";
+const BD = "it.runIf(hasBd)('b', () => {});\n";
+const TEMPORAL = "spawn(t, ['server', 'start-dev']);\n";
 
 describe('the tag @poste lives in the comment at the head of the test', () => {
   it('a line « // @poste » before the first line of code tags the file', () => {
@@ -118,11 +123,11 @@ describe('the marks of the poste a night test shows', () => {
 
 describe('the guard of the night tests of the poste', () => {
   it('refuses a night test that depends on the poste without the tag, naming its marks', () => {
-    const r = projet({ 'tests/a.nuit.spec.ts': ENVELOPPE, 'tests/b.nuit.spec.ts': SIMPLE });
+    const r = projet({ 'tests/a.nuit.spec.ts': BD, 'tests/b.nuit.spec.ts': SIMPLE });
     expect(verifier(r)).toEqual([
       expect.objectContaining({ fichier: 'tests/a.nuit.spec.ts', regle: REGLE }),
     ]);
-    expect(verifier(r)[0]?.message).toContain("l'enveloppe bwrap");
+    expect(verifier(r)[0]?.message).toContain('le bd réel');
     const { code, lignes } = rapport(r, {});
     expect(code).toBe(1);
     expect(lignes[0]).toMatch(/^⛔ tests\/a\.nuit\.spec\.ts : /);
@@ -130,13 +135,202 @@ describe('the guard of the night tests of the poste', () => {
 
   it('passes a tagged night test, a tag without a mark, and a day test with a mark', () => {
     const r = projet({
-      'tests/a.nuit.spec.ts': `${ETIQUETTE}${ENVELOPPE}`,
+      'tests/a.nuit.spec.ts': `${EQUIPEE}${ENVELOPPE}`,
       'tests/b.nuit.spec.ts': `${ETIQUETTE}${SIMPLE}`,
       'tests/c.spec.ts': ENVELOPPE,
+      'tests/d.nuit.spec.ts': `${ETIQUETTE}${BD}`,
     });
     const { code, lignes } = rapport(r, {});
     expect(code).toBe(0);
-    expect(lignes.at(-1)).toContain('2 test(s) de nuit, 2 laissé(s) au poste');
+    expect(lignes.at(-1)).toContain('3 test(s) de nuit');
+  });
+});
+
+describe('the tag @equipee of a night test that needs the equipment of a machine', () => {
+  it('a line « // @equipee » before the first line of code tags the file, beside @poste', () => {
+    expect(porteLEtiquetteEquipee(`${EQUIPEE}${SIMPLE}`)).toBe(true);
+    expect(porteLEtiquetteEquipee(`${ETIQUETTE}${EQUIPEE}${SIMPLE}`)).toBe(true);
+    expect(porteLEtiquetteDuPoste(`${ETIQUETTE}${EQUIPEE}${SIMPLE}`)).toBe(true);
+  });
+
+  it('a file without the line, or with it after its first line of code, is not tagged', () => {
+    expect(porteLEtiquetteEquipee(SIMPLE)).toBe(false);
+    expect(porteLEtiquetteEquipee(`${SIMPLE}${EQUIPEE}`)).toBe(false);
+    expect(porteLEtiquetteEquipee('// @equipeement: rien\n')).toBe(false);
+    expect(porteLEtiquetteEquipee(`${ETIQUETTE}${SIMPLE}`)).toBe(false);
+  });
+
+  it('is not the tag @poste: a file tagged @equipee alone does not bear @poste', () => {
+    expect(porteLEtiquetteDuPoste(`${EQUIPEE}${SIMPLE}`)).toBe(false);
+  });
+
+  it('is asked for the envelope, a Temporal server, sccache and the binaries of the module cargo', () => {
+    const r = projet({
+      'tests/a.nuit.spec.ts': ENVELOPPE,
+      'tests/b.nuit.spec.ts': TEMPORAL,
+      'tests/c.nuit.spec.ts': "spawnSync('sccache', ['--show-stats']);\n",
+      'tests/d.nuit.spec.ts': "const G = path.join(RACINE, 'templates/cargo/package.json');\n",
+    });
+    const constats = verifier(r);
+    expect(constats.map(c => c.fichier).sort()).toEqual([
+      'tests/a.nuit.spec.ts',
+      'tests/b.nuit.spec.ts',
+      'tests/c.nuit.spec.ts',
+      'tests/d.nuit.spec.ts',
+    ]);
+    for (const c of constats) {
+      expect(c.regle).toBe(REGLE_EQUIPEE);
+      expect(c.message).toContain('@equipee');
+    }
+  });
+
+  it('is not asked for the real bd, systemd, the keyring, the session of the user or a session of claude, which ask @poste', () => {
+    const r = projet({
+      'tests/a.nuit.spec.ts': BD,
+      'tests/b.nuit.spec.ts': "spawnSync('systemctl', ['status']);\n",
+      'tests/c.nuit.spec.ts': "const K = '~/.local/share/keyrings';\n",
+      'tests/d.nuit.spec.ts': "const S = '/run/user/1000/bus';\n",
+      'tests/e.nuit.spec.ts': "spawnSync('claude', ['-p', 'bonjour']);\n",
+    });
+    const constats = verifier(r);
+    expect(constats).toHaveLength(5);
+    for (const c of constats) {
+      expect(c.regle).toBe(REGLE);
+      expect(c.message).toContain('@poste');
+    }
+  });
+
+  it('accepts the tag @equipee for what needs equipment, and refuses the tag @poste alone', () => {
+    const r = projet({
+      'tests/a.nuit.spec.ts': `${EQUIPEE}${ENVELOPPE}`,
+      'tests/b.nuit.spec.ts': `${ETIQUETTE}${ENVELOPPE}`,
+    });
+    expect(verifier(r)).toEqual([
+      expect.objectContaining({ fichier: 'tests/b.nuit.spec.ts', regle: REGLE_EQUIPEE }),
+    ]);
+  });
+
+  it('a test of both classes needs both tags, and each missing tag is its own finding', () => {
+    const texte = `${ENVELOPPE}${BD}`;
+    const r = projet({
+      'tests/a.nuit.spec.ts': `${ETIQUETTE}${EQUIPEE}${texte}`,
+      'tests/b.nuit.spec.ts': `${ETIQUETTE}${texte}`,
+      'tests/c.nuit.spec.ts': `${EQUIPEE}${texte}`,
+      'tests/d.nuit.spec.ts': texte,
+    });
+    const constats = verifier(r).map(c => `${c.fichier} ${c.regle}`);
+    expect(constats.sort()).toEqual(
+      [
+        `tests/b.nuit.spec.ts ${REGLE_EQUIPEE}`,
+        `tests/c.nuit.spec.ts ${REGLE}`,
+        `tests/d.nuit.spec.ts ${REGLE}`,
+        `tests/d.nuit.spec.ts ${REGLE_EQUIPEE}`,
+      ].sort()
+    );
+  });
+
+  it('follows the marks of the test material the test imports', () => {
+    const r = projet({
+      'tests/a.nuit.spec.ts': "import { banc } from './banc.js';\nbanc();\n",
+      'tests/banc.ts': `export const banc = () => { ${TEMPORAL} };\n`,
+    });
+    expect(verifier(r)).toEqual([
+      expect.objectContaining({ fichier: 'tests/a.nuit.spec.ts', regle: REGLE_EQUIPEE }),
+    ]);
+  });
+
+  it('refuses the finding through the guard’s report, and passes once the tag is written', () => {
+    const r = projet({ 'tests/a.nuit.spec.ts': TEMPORAL });
+    expect(rapport(r, {}).code).toBe(1);
+    const bon = projet({ 'tests/a.nuit.spec.ts': `${EQUIPEE}${TEMPORAL}` });
+    expect(rapport(bon, {}).code).toBe(0);
+  });
+});
+
+describe('the night picks its tests by tag', () => {
+  const duDepot = () =>
+    projet({
+      'tests/libre.nuit.spec.ts': SIMPLE,
+      'tests/poste.nuit.spec.ts': `${ETIQUETTE}${BD}`,
+      'tests/equipee.nuit.spec.ts': `${EQUIPEE}${ENVELOPPE}`,
+      'tests/les-deux.nuit.spec.ts': `${ETIQUETTE}${EQUIPEE}${ENVELOPPE}${BD}`,
+    });
+  const jouer = async (choix: string) => {
+    const r = duDepot();
+    const config: { root: string; test?: { include?: string[]; exclude?: string[] } } = {
+      root: r,
+    };
+    await nuit({ GRILLHOUSE_TESTS_DE_NUIT: choix }).config(config);
+    return config.test ?? {};
+  };
+
+  it('the night of an equipped runner plays everything but @poste, the tests tagged @equipee included', async () => {
+    const test = await jouer('hors-poste');
+    expect(test.include).toEqual(['**/*.nuit.{test,spec}.?(c|m)[jt]s?(x)']);
+    expect(test.exclude).toEqual(
+      expect.arrayContaining(['tests/poste.nuit.spec.ts', 'tests/les-deux.nuit.spec.ts'])
+    );
+    expect(test.exclude).not.toContain('tests/equipee.nuit.spec.ts');
+    expect(test.exclude).not.toContain('tests/libre.nuit.spec.ts');
+  });
+
+  it('the night of a runner without equipment plays everything but @poste and @equipee', async () => {
+    const test = await jouer('hors-poste-sans-equipement');
+    expect(test.include).toEqual(['**/*.nuit.{test,spec}.?(c|m)[jt]s?(x)']);
+    expect(test.exclude).toEqual(
+      expect.arrayContaining([
+        'tests/poste.nuit.spec.ts',
+        'tests/equipee.nuit.spec.ts',
+        'tests/les-deux.nuit.spec.ts',
+      ])
+    );
+    expect(test.exclude).not.toContain('tests/libre.nuit.spec.ts');
+  });
+
+  it('the night of the poste plays the tests tagged @poste alone', async () => {
+    const test = await jouer('du-poste');
+    expect([...(test.include ?? [])].sort()).toEqual([
+      'tests/les-deux.nuit.spec.ts',
+      'tests/poste.nuit.spec.ts',
+    ]);
+  });
+
+  it('the choice of the night’s complete play (nuit) still plays every night test', async () => {
+    const test = await jouer('nuit');
+    expect(test.include).toEqual(['**/*.nuit.{test,spec}.?(c|m)[jt]s?(x)']);
+    expect(test.exclude ?? []).not.toContain('tests/equipee.nuit.spec.ts');
+    expect(test.exclude ?? []).not.toContain('tests/poste.nuit.spec.ts');
+  });
+
+  it('runs: --sans-equipement and --du-poste are runs of their own, the measures alone another', () => {
+    const r = duDepot();
+    const avecBanc = projet({
+      'tests/a.nuit.spec.ts': SIMPLE,
+      'tests/temps.budget.test.ts': SIMPLE,
+    });
+    expect(runsDeLaNuit(r, { horsDuPoste: true, sansEquipement: true })).toEqual([
+      'hors-poste-sans-equipement',
+    ]);
+    expect(runsDeLaNuit(r, { duPoste: true })).toEqual(['du-poste']);
+    expect(runsDeLaNuit(avecBanc, { duPoste: true })).toEqual([]);
+    expect(runsDeLaNuit(avecBanc, { mesuresSeules: true })).toEqual(['mesures']);
+    expect(runsDeLaNuit(r, { mesuresSeules: true })).toEqual([]);
+  });
+
+  it('reads --sans-equipement beside --hors-du-poste, --du-poste and --mesures alone', () => {
+    expect(
+      lireLesArguments(['--hors-du-poste', '--sans-equipement', '--tranche', '1/3'])
+    ).toMatchObject({ horsDuPoste: true, sansEquipement: true, tranche: { index: 1, count: 3 } });
+    expect(lireLesArguments(['--du-poste'])).toMatchObject({ duPoste: true });
+    expect(lireLesArguments(['--mesures'])).toMatchObject({ mesuresSeules: true });
+    expect(lireLesArguments(['--du-poste']).erreur).toBeUndefined();
+    expect(lireLesArguments(['--mesures']).erreur).toBeUndefined();
+  });
+
+  it('refuses --sans-equipement without --hors-du-poste, and --du-poste with it', () => {
+    expect(lireLesArguments(['--sans-equipement']).erreur).toContain('--hors-du-poste');
+    expect(lireLesArguments(['--du-poste', '--hors-du-poste']).erreur).toBeTruthy();
+    expect(lireLesArguments(['--mesures', '--hors-du-poste']).erreur).toBeTruthy();
   });
 });
 
@@ -171,7 +365,7 @@ describe('the night of a shared machine', () => {
 
 describe('the night of a shared machine in tranches', () => {
   it('reads --tranche i/n beside --hors-du-poste, in both spellings', () => {
-    expect(lireLesArguments(['--hors-du-poste', '--tranche', '2/3'])).toEqual({
+    expect(lireLesArguments(['--hors-du-poste', '--tranche', '2/3'])).toMatchObject({
       horsDuPoste: true,
       tranche: { index: 2, count: 3 },
     });
@@ -179,7 +373,8 @@ describe('the night of a shared machine in tranches', () => {
       index: 1,
       count: 3,
     });
-    expect(lireLesArguments([])).toEqual({ horsDuPoste: false, tranche: undefined });
+    expect(lireLesArguments([])).toMatchObject({ horsDuPoste: false });
+    expect(lireLesArguments([]).tranche).toBeUndefined();
   });
 
   it('refuses a tranche not of the form i/n, a tranche of the poste, and an unknown argument', () => {
@@ -218,13 +413,13 @@ describe('migration 0.33.0 — the night tests of the poste without the tag insc
   });
 
   it('inscribes them once, rewrites no test, and the guard then refuses none', () => {
-    const r = projet({ 'tests/a.nuit.spec.ts': ENVELOPPE, 'tests/b.nuit.spec.ts': SIMPLE });
+    const r = projet({ 'tests/a.nuit.spec.ts': BD, 'tests/b.nuit.spec.ts': SIMPLE });
     const lignes = migration.migrer(r);
     expect(lignes).toHaveLength(1);
     expect(lignes[0]).toMatch(new RegExp(`^${FICHIER} : 1 test`));
     expect(lire(r)).toEqual({ [GARDE]: { 'tests/a.nuit.spec.ts': { [REGLE]: { count: 1 } } } });
     expect(juger(lire(r), GARDE, verifier(r)).refus).toEqual([]);
-    expect(readFileSync(path.join(r, 'tests/a.nuit.spec.ts'), 'utf8')).toBe(ENVELOPPE);
+    expect(readFileSync(path.join(r, 'tests/a.nuit.spec.ts'), 'utf8')).toBe(BD);
     expect(migration.migrer(r)).toEqual([]);
   });
 });

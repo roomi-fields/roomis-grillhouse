@@ -74,6 +74,7 @@ import * as titresNommantUnTicket from './migrations/0.30.0-titres-nommant-un-ti
 import * as binaireDeJour from './migrations/0.33.0-binaire-de-jour.mjs';
 import * as testsDuPoste from './migrations/0.33.0-tests-du-poste.mjs';
 import * as cacheDesOutils from './migrations/0.34.1-cache-des-outils.mjs';
+import * as testsEquipes from './migrations/0.49.0-tests-equipes.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -355,6 +356,7 @@ export default {
     binaireDeJour,
     testsDuPoste,
     cacheDesOutils,
+    testsEquipes,
   ],
   miseAJour: miseAJour(joueDesTests),
   squelette,

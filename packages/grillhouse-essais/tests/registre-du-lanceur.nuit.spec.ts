@@ -1,4 +1,4 @@
-// @poste: l'enveloppe bwrap
+// @equipee: l'enveloppe bwrap
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { userInfo } from 'node:os';

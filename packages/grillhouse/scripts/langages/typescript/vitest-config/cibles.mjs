@@ -106,6 +106,26 @@ export function porteLEtiquetteDuPoste(texte) {
   }
   return false;
 }
+// The tag of a night test that needs the equipment of a machine (the envelope, a Temporal server,
+// the binaries of the module cargo): `// @equipee: <reason>` in the comment at the head of the file,
+// beside `@poste` when the test needs both. A runner without equipment leaves it out.
+const ETIQUETTE_EQUIPEE = /^\/\/\s*@equipee\b/;
+/**
+ * Whether the text <texte> of a test file bears the tag `@equipee` in the comment at its head.
+ * @param {string} texte the text of the file
+ */
+export function porteLEtiquetteEquipee(texte) {
+  for (const ligne of texte.split('\n')) {
+    const l = ligne.trim();
+    if (ETIQUETTE_EQUIPEE.test(l)) {
+      return true;
+    }
+    if (l !== '' && !l.startsWith('//') && !l.startsWith('#!')) {
+      return false;
+    }
+  }
+  return false;
+}
 // Vitest's default `include` (its configDefaults).
 const INCLUDE = ['**/*.{test,spec}.?(c|m)[jt]s?(x)'];
 // The mark of a time witness: the import of `mesurerAuRepos`, on a line of its own, from the
@@ -289,6 +309,18 @@ async function cibler(config, test, valeur, temoins) {
  * @param {string} dir the directory searched
  */
 export function testsDuPoste(dir) {
+  return testsEtiquetes(dir, porteLEtiquetteDuPoste);
+}
+
+/**
+ * The night tests under <dir> that bear the tag `@equipee`, listed as `testsDuPoste` lists its own.
+ * @param {string} dir the directory searched
+ */
+export function testsEquipes(dir) {
+  return testsEtiquetes(dir, porteLEtiquetteEquipee);
+}
+
+function testsEtiquetes(dir, porte) {
   return [
     ...new Set(
       globSync([NUIT], { cwd: dir, exclude: d => HORS_TEMOINS.has(path.basename(d)) }).map(f =>
@@ -296,14 +328,16 @@ export function testsDuPoste(dir) {
       )
     ),
   ]
-    .filter(f => porteLEtiquetteDuPoste(lireTexte(path.join(dir, f))))
+    .filter(f => porte(lireTexte(path.join(dir, f))))
     .sort();
 }
 
 /**
  * The plugin of the night's configuration: the night tests, the benches and the time witnesses
  * under its directory, or, as <env> chooses in NUIT_VARIABLE, the night tests alone (`nuit`), the
- * night tests but those tagged `@poste` (`hors-poste`, the night of a shared machine: a CI), or the
+ * night tests but those tagged `@poste` (`hors-poste`, the night of an equipped runner), those
+ * tagged `@poste` or `@equipee` left out too (`hors-poste-sans-equipement`), those tagged `@poste`
+ * alone (`du-poste`, the night of the poste), or the
  * measures alone (`mesures`), the benches and the witnesses; every choice plays one file at a time
  * (`fileParallelism: false`), the night at rest; with NUIT_TRANCHE, the tranche it carries of these
  * files.
@@ -324,15 +358,25 @@ export const nuit = (env = process.env) => ({
     test.fileParallelism = false;
     if (choix === 'nuit') {
       test.include = [NUIT];
-    } else if (choix === 'hors-poste') {
+    } else if (choix === 'hors-poste' || choix === 'hors-poste-sans-equipement') {
       test.include = [NUIT];
-      const duPoste = testsDuPoste(path.resolve(config.root ?? process.cwd(), test.dir ?? ''));
-      if (duPoste.length) {
+      const dir = path.resolve(config.root ?? process.cwd(), test.dir ?? '');
+      const laisses = [
+        ...new Set([
+          ...testsDuPoste(dir),
+          ...(choix === 'hors-poste-sans-equipement' ? testsEquipes(dir) : []),
+        ]),
+      ].sort();
+      if (laisses.length) {
         test.exclude = [
           ...(test.exclude ?? ['**/node_modules/**']),
-          ...duPoste.map(r => r.replace(SPECIAUX, '\\$&')),
+          ...laisses.map(r => r.replace(SPECIAUX, '\\$&')),
         ];
       }
+    } else if (choix === 'du-poste') {
+      test.include = testsDuPoste(path.resolve(config.root ?? process.cwd(), test.dir ?? '')).map(
+        r => r.replace(SPECIAUX, '\\$&')
+      );
     } else if (choix === 'mesures') {
       test.include = [BUDGET, ...temoins];
     } else {

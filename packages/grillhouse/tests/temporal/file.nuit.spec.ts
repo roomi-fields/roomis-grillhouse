@@ -1,4 +1,4 @@
-// @poste: un serveur Temporal
+// @equipee: un serveur Temporal
 // grillhouse-4nr.8, grillhouse-3uv.121: the queue of integration of a project under Temporal, played
 // on a development server of trial (the pinned program TEMPORAL on a free port, a database file of
 // its own), its activities simulated by the test (a worker of this process).

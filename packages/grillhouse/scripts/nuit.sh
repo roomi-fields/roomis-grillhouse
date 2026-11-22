@@ -66,6 +66,16 @@
 #   depended on a duration, one under load) waits for rest (`npx grillhouse pression attendre`,
 #   bound 15 min) and plays once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
 #   ends there, « à repasser », red if the full pass is.
+# - The two parts of the night: a project whose `.github/workflows/nuit.yml` plays on the label
+#   `pc2` leaves PC2 its night tests but those tagged @poste and the measures of time (the flow's
+#   tranches, `tests-de-nuit --hors-du-poste`, then `--mesures`). The night of PC3 plays the tests
+#   tagged @poste alone (`tests-de-nuit --du-poste`, on its part), then reads the day's flow by `gh`
+#   (scripts/repli-de-la-nuit.mjs): a tranche whose job has not started 60 minutes after the flow's
+#   hour is cancelled and played on PC3, a tranche started then interrupted plays whole again, a
+#   tranche finished on PC2, green or red, is never replayed; the log says which tranches played
+#   where. Each part keeps its verdict (scripts/verdict-de-la-nuit.mjs: `nuit/verdict` for PC3,
+#   `nuit/verdict-pc2`), the night is red when either is, and a red tranche opens or comments its
+#   night ticket.
 # - « À repasser » (exit 75): neither green nor red. The last green stays, no ticket opens,
 #   the log says so; the next night plays again.
 # - The project's night script: `grillhouse.nuit` in the package.json of the commit it plays names
@@ -157,6 +167,12 @@ copie="$racine/.claude/worktrees/nuit"
 etapes=()
 taches=()
 rejeux=()
+# The part of PC2 of the night (the tranches of the Nuit flow), when the project's flow plays on PC2:
+# its red steps and tasks, kept apart from PC3's so that each part has its own verdict, and its exit
+# code (empty when the project has no part on PC2; 75 when a tranche is still to play there).
+etapes_pc2=()
+taches_pc2=()
+code_pc2=
 # Gets the copy ready on HEAD: detached, cleaned, its submodules set; `partages` holds the list the
 # pose fixes, which every mount gets. Prints the reason on failure.
 partages=
@@ -168,6 +184,57 @@ preparer() {
     git -C "$racine" worktree add -q --detach "$copie" "$tete" || return 1
   fi
   partages=$(bash "$ici/sous-modules.sh" pose "$copie")
+}
+# The part of PC2: reads the day's Nuit flow by `gh` (scripts/repli-de-la-nuit.mjs), which cancels the
+# run when a tranche has not started 60 minutes after the flow's hour, then plays on PC3, whole, each
+# tranche not played on PC2 (never one finished there, green or red). A tranche still running or
+# waiting leaves the part of PC2 « à repasser » (75). The statement says which tranches played where.
+repli() {
+  local depot decision ligne
+  code_pc2=0
+  if ! depot="$(cd "$racine" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)" || [ -z "$depot" ]; then
+    echo "⏱ le repli de la nuit ne lit pas le dépôt GitHub (gh) : la part de PC2 reste à repasser."
+    code_pc2=75
+    return
+  fi
+  if ! decision="$(node "$ici/repli-de-la-nuit.mjs" "$depot" "$tranches")"; then
+    echo "⏱ le repli de la nuit ne lit pas le flux Nuit : la part de PC2 reste à repasser."
+    code_pc2=75
+    return
+  fi
+  local lignes rejouer= rouges_pc2= attend=
+  lignes="$(printf '%s' "$decision" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s);const l=k=>(d[k]??[]).join(" ");process.stdout.write(["pc2","pc3","rouges","enAttente","enCours"].map(k=>k+"\t"+l(k)).join("\n")+"\n")})')"
+  while IFS= read -r ligne; do
+    case "$ligne" in
+      pc2$'\t'*) echo "relevé de la nuit : tranches jouées sur PC2 : ${ligne#pc2$'\t'}" ;;
+      pc3$'\t'*) rejouer="${ligne#pc3$'\t'}"; echo "relevé de la nuit : tranches jouées sur PC3 : ${rejouer:-aucune}" ;;
+      rouges$'\t'*) rouges_pc2="${ligne#rouges$'\t'}" ;;
+      enAttente$'\t'*|enCours$'\t'*) attend="$attend ${ligne#*$'\t'}" ;;
+    esac
+  done <<< "$lignes"
+  local t code
+  for t in $rouges_pc2; do
+    echo "✗ la tranche $t de la nuit est rouge sur PC2."
+    etapes_pc2+=("la tranche $t de la nuit sur PC2")
+    taches_pc2+=("la tranche $t de la nuit sur PC2")
+  done
+  for t in $rejouer; do
+    (cd "$copie" && monter node "$ici/commande-du-langage.mjs" tests-de-nuit --hors-du-poste --tranche "$t/$tranches")
+    code=$?
+    if [ "$code" -ne 0 ] && [ "$code" -ne 75 ]; then
+      echo "✗ la tranche $t, rejouée sur PC3, est rouge."
+      etapes_pc2+=("la tranche $t de la nuit, rejouée sur PC3")
+      taches_pc2+=("la tranche $t de la nuit sur PC3 (repli)")
+    elif [ "$code" -eq 75 ]; then
+      attend="$attend $t"
+    fi
+  done
+  if [ "${#etapes_pc2[@]}" -gt 0 ]; then
+    code_pc2=1
+  elif [ -n "${attend// /}" ]; then
+    echo "⏱ la part de PC2 reste à repasser : tranche(s) en cours, en attente ou à repasser :$attend."
+    code_pc2=75
+  fi
 }
 # Plays the copy; its status is the night's verdict. An existing copy that does not get ready is
 # removed (scripts/retirer-copie.sh --jetable) and created again, once.
@@ -297,7 +364,19 @@ process.exit(paquets(process.argv[2]).some(p => p.pkg.name === "@roomi-fields/gr
       rejeux+=("")
     fi
   fi
-  bancs() { (cd "$copie" && monter node "$ici/commande-du-langage.mjs" tests-de-nuit); }
+  # A project whose Nuit flow plays on PC2 (its runner label `pc2`) leaves PC2 the night tests that
+  # do not need the poste: PC3 plays the tests tagged @poste alone, then the tranches PC2 did not
+  # play (the fallback, scripts/repli-de-la-nuit.mjs); the measures of time play on PC2.
+  local sur_pc2=0 tranches=
+  if grep -q "\bpc2\b" "$copie/.github/workflows/nuit.yml" 2>/dev/null; then
+    sur_pc2=1
+    tranches="$(sed -n 's/^  TRANCHES: *\([0-9]*\).*/\1/p' "$copie/.github/workflows/nuit.yml")"
+  fi
+  bancs() {
+    local args=()
+    [ "$sur_pc2" -eq 0 ] || args=(--du-poste)
+    (cd "$copie" && monter node "$ici/commande-du-langage.mjs" tests-de-nuit "${args[@]}")
+  }
   bancs
   code=$?
   if [ "$code" -eq 75 ]; then
@@ -321,6 +400,9 @@ process.exit(paquets(process.argv[2]).some(p => p.pkg.name === "@roomi-fields/gr
     taches+=("les bancs de temps et les tests de nuit")
     rejeux+=("")
   fi
+  if [ "$sur_pc2" -eq 1 ]; then
+    repli
+  fi
   if [ -n "$nuit" ] && ! monter npm --prefix "$copie" run "$nuit"; then
     echo "✗ le script de nuit du projet \`npm run $nuit\` (grillhouse.nuit) a échoué."
     etapes+=("le script de nuit du projet (npm run $nuit, grillhouse.nuit)")
@@ -341,7 +423,20 @@ verdict=$?
 (cd "$racine" && node "$ici/retirer-les-copies-finies.mjs" "$copie") >> "$journal" 2>&1 || true
 # The project's durable verdict, read by the board: green on 0, red on any other code but 75, which
 # writes nothing (the previous verdict stays).
-node "$ici/verdict-de-la-nuit.mjs" "$commun" "$verdict" >> "$journal" 2>&1 || true
+node "$ici/verdict-de-la-nuit.mjs" "$commun" "$verdict" pc3 >> "$journal" 2>&1 || true
+# The part of PC2, when the project has one: its own durable verdict, and the night's, which is red
+# when either part is red and « à repasser » while a tranche of PC2 is still to play.
+if [ -n "$code_pc2" ]; then
+  node "$ici/verdict-de-la-nuit.mjs" "$commun" "$code_pc2" pc2 >> "$journal" 2>&1 || true
+  if [ "$code_pc2" -eq 1 ]; then
+    etapes+=("${etapes_pc2[@]}")
+    taches+=("${taches_pc2[@]}")
+    for _ in "${taches_pc2[@]}"; do rejeux+=(""); done
+    verdict=1
+  elif [ "$code_pc2" -eq 75 ] && [ "$verdict" -eq 0 ]; then
+    verdict=75
+  fi
+fi
 
 if [ "$verdict" -eq 75 ]; then
   echo "⏱ à repasser : ${tete:0:7} n'est ni vert ni rouge, la machine est restée chargée ; le dernier vert reste, aucun ticket, la nuit suivante rejoue." >> "$journal"

@@ -1,4 +1,4 @@
-// @poste: un serveur Temporal
+// @equipee: un serveur Temporal
 // The relaunch of the queue of a project (src/temporal/file/deroule.ts), played on a development
 // server of trial (the pinned program TEMPORAL on a free port, a database file of its own), its
 // activities simulated by the test (a worker of this process). The signal RELANCER makes the queue

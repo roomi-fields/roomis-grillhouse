@@ -872,6 +872,8 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
       'GRILLHOUSE_TRAVAILLEURS',
+      'CARGO_HOME',
+      'RUSTUP_HOME',
     ]);
     const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
     ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
@@ -883,6 +885,8 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
       'GRILLHOUSE_TRAVAILLEURS',
+      'CARGO_HOME',
+      'RUSTUP_HOME',
     ]);
   });
 
@@ -904,8 +908,74 @@ describe('the globalPassThroughEnv of the root names the results and the changes
       'GRILLHOUSE_AVANCEMENT',
       'TMPDIR',
       'GRILLHOUSE_TRAVAILLEURS',
+      'CARGO_HOME',
+      'RUSTUP_HOME',
     ]);
     expect(lancer(racine, []).status).toBe(0);
+  });
+});
+
+// The toolchain of a runner (CARGO_HOME, RUSTUP_HOME): a runner of the repository keeps one Rust
+// toolchain each, which Turborepo's strict mode keeps out of a task unless the root's
+// `globalPassThroughEnv` names it; no hash holds it, a path being the runner's, not the code's.
+describe('the globalPassThroughEnv of the root passes the Rust toolchain of the runner to the tasks', () => {
+  const conf = (racine: string) =>
+    parseJsonc(lire(racine, 'turbo.json'), [], { allowTrailingComma: true }) as {
+      globalEnv?: string[];
+      globalPassThroughEnv?: string[];
+      tasks?: Record<string, { env?: string[] }>;
+    };
+
+  it('names CARGO_HOME and RUSTUP_HOME with no gesture of the project', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    expect(conf(racine).globalPassThroughEnv).toEqual(
+      expect.arrayContaining(['CARGO_HOME', 'RUSTUP_HOME'])
+    );
+  });
+
+  it('puts them in no hash: not in globalEnv, not in the env of a task', () => {
+    const racine = depotAPaquets();
+    ecrire(racine);
+    const c = conf(racine);
+    expect(c.globalEnv ?? []).not.toContain('CARGO_HOME');
+    expect(c.globalEnv ?? []).not.toContain('RUSTUP_HOME');
+    for (const [nom, tache] of Object.entries(c.tasks ?? {})) {
+      expect(tache.env ?? [], nom).not.toContain('CARGO_HOME');
+      expect(tache.env ?? [], nom).not.toContain('RUSTUP_HOME');
+    }
+  });
+
+  it('the check refuses a root that lacks either, naming it and the command; the generator adds it, the project’s entries kept', () => {
+    for (const absente of ['CARGO_HOME', 'RUSTUP_HOME']) {
+      const racine = depotAPaquets();
+      ecrire(racine);
+      const t = JSON.parse(lire(racine, 'turbo.json')) as { globalPassThroughEnv: string[] };
+      t.globalPassThroughEnv = [
+        'MA_VARIABLE',
+        ...t.globalPassThroughEnv.filter(v => v !== absente),
+      ];
+      ecrireFichier(racine, 'turbo.json', JSON.stringify(t, null, 2));
+      const r = lancer(racine, []);
+      expect(r.status, absente).toBe(1);
+      expect(r.stderr).toContain(absente);
+      expect(r.stderr).toContain(COMMANDE);
+      expect(lancer(racine, ['--ecrire']).status).toBe(0);
+      const apres = conf(racine).globalPassThroughEnv;
+      expect(apres).toContain(absente);
+      expect(apres).toContain('MA_VARIABLE');
+      expect(lancer(racine, []).status).toBe(0);
+    }
+  });
+
+  it('a root of the template without packages names them too', () => {
+    const sans = mkdtempSync(path.join(ESSAIS, 'sans-paquets-'));
+    ecrireFichier(sans, 'package.json', pkg({ name: 'p', scripts: { build: 'tsc' } }));
+    ecrireFichier(sans, 'turbo.json', lire(DEPOT, 'templates/turbo/sans-paquets.json'));
+    expect(ecrire(sans)).toEqual([]);
+    expect(conf(sans).globalPassThroughEnv).toEqual(
+      expect.arrayContaining(['CARGO_HOME', 'RUSTUP_HOME'])
+    );
   });
 });
 

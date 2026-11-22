@@ -1,4 +1,4 @@
-// @poste: l'enveloppe bwrap
+// @equipee: l'enveloppe bwrap
 import { spawnSync } from 'node:child_process';
 import {
   accessSync,

@@ -1,4 +1,4 @@
-// @poste: un serveur Temporal
+// @equipee: un serveur Temporal
 // La fermeture de la machine par le superviseur, sur le déroulé des places (src/temporal/places/),
 // jouée sur un serveur d'essai avec le travailleur du cadre : la seule réservation de la machine,
 // avec son auteur et un jeton propre ; aucune place donnée, la demande attend avec sa

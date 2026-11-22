@@ -4,7 +4,10 @@
 // through its mounts.
 //
 //   node tests-de-nuit.mjs                   from the root of the copy: the night of the poste
-//   node tests-de-nuit.mjs --hors-du-poste   the night of a shared machine (a CI runner)
+//   node tests-de-nuit.mjs --hors-du-poste   the night of an equipped runner: all but @poste
+//   node tests-de-nuit.mjs --hors-du-poste --sans-equipement   all but @poste and @equipee
+//   node tests-de-nuit.mjs --du-poste        the tests tagged @poste alone (the night of PC3)
+//   node tests-de-nuit.mjs --mesures         the benches and the time witnesses alone
 //   node tests-de-nuit.mjs --hors-du-poste --tranche i/n   its tranche i of n
 //
 // - The files `*.nuit.test.*` and `*.nuit.spec.*` of the copy, outside node_modules, dist and
@@ -56,6 +59,7 @@ import {
   fichiersTemoins,
   NUIT_TRANCHE,
   NUIT_VARIABLE,
+  testsDuPoste,
 } from './vitest-config/cibles.mjs';
 import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
 
@@ -66,17 +70,26 @@ import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
  */
 export function lireLesArguments(args) {
   let horsDuPoste = false;
+  let sansEquipement = false;
+  let duPoste = false;
+  let mesuresSeules = false;
   let texte;
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--hors-du-poste') {
       horsDuPoste = true;
+    } else if (a === '--sans-equipement') {
+      sansEquipement = true;
+    } else if (a === '--du-poste') {
+      duPoste = true;
+    } else if (a === '--mesures') {
+      mesuresSeules = true;
     } else if (a === '--tranche') {
       texte = args[++i] ?? '';
     } else if (a.startsWith('--tranche=')) {
       texte = a.slice('--tranche='.length);
     } else {
-      return { horsDuPoste, erreur: `⛔ tests-de-nuit : argument inconnu « ${a} » (usage : tests-de-nuit [--hors-du-poste [--tranche ${LA_FORME}]]).` };
+      return { horsDuPoste, erreur: `⛔ tests-de-nuit : argument inconnu « ${a} » (usage : tests-de-nuit [--hors-du-poste [--sans-equipement] [--tranche ${LA_FORME}] | --du-poste | --mesures]).` };
     }
   }
   const tranche = texte === undefined ? undefined : (lireLaTranche(texte) ?? undefined);
@@ -86,7 +99,13 @@ export function lireLesArguments(args) {
   if (tranche && !horsDuPoste) {
     return { horsDuPoste, erreur: '⛔ --tranche découpe la nuit d\'une machine partagée : elle se donne avec --hors-du-poste ; la nuit du poste se joue entière.' };
   }
-  return { horsDuPoste, tranche };
+  if (sansEquipement && !horsDuPoste) {
+    return { horsDuPoste, erreur: '⛔ --sans-equipement choisit la nuit d\'une machine sans équipement : elle se donne avec --hors-du-poste.' };
+  }
+  if ((duPoste || mesuresSeules) && (horsDuPoste || (duPoste && mesuresSeules))) {
+    return { horsDuPoste, erreur: '⛔ --du-poste, --mesures et --hors-du-poste sont trois nuits à part : une seule à la fois.' };
+  }
+  return { horsDuPoste, sansEquipement, duPoste, mesuresSeules, tranche };
 }
 
 const CONFIGURATION = fileURLToPath(new URL('./vitest.nuit.config.mjs', import.meta.url));
@@ -114,9 +133,20 @@ function enTient(dossier, est) {
  * @param {{ horsDuPoste?: boolean }} [options] the night of a shared machine
  * @returns {string[]}
  */
-export function runsDeLaNuit(racine, { horsDuPoste = false } = {}) {
+export function runsDeLaNuit(
+  racine,
+  { horsDuPoste = false, sansEquipement = false, duPoste = false, mesuresSeules = false } = {}
+) {
   if (horsDuPoste) {
-    return enTient(racine, estUnTestDeNuit) ? ['hors-poste'] : [];
+    return enTient(racine, estUnTestDeNuit)
+      ? [sansEquipement ? 'hors-poste-sans-equipement' : 'hors-poste']
+      : [];
+  }
+  if (duPoste) {
+    return testsDuPoste(racine).length > 0 ? ['du-poste'] : [];
+  }
+  if (mesuresSeules) {
+    return enTient(racine, estUnBanc) || fichiersTemoins(racine).length > 0 ? ['mesures'] : [];
   }
   return [
     enTient(racine, estUnTestDeNuit) && 'nuit',
@@ -189,11 +219,11 @@ function jouerLeRun(racine, choix, options) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const { horsDuPoste, tranche, erreur } = lireLesArguments(process.argv.slice(2));
+  const { erreur, ...options } = lireLesArguments(process.argv.slice(2));
   if (erreur) {
     process.stderr.write(`${erreur}\n`);
     process.exitCode = 2;
   } else {
-    process.exitCode = testsDeNuit(process.cwd(), { horsDuPoste, tranche });
+    process.exitCode = testsDeNuit(process.cwd(), options);
   }
 }

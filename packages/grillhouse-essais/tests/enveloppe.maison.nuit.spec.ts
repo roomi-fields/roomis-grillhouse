@@ -1,4 +1,5 @@
-// @poste: l'enveloppe bwrap, le bd réel, un serveur Temporal, le trousseau
+// @poste: le bd réel, le trousseau
+// @equipee: l'enveloppe bwrap, un serveur Temporal
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';

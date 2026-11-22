@@ -24,29 +24,39 @@ describe('the night of the frame on GitHub', () => {
     expect(flux.on).toHaveProperty('schedule');
   });
 
-  it('runs each job on the runner of the variable RUNNER, GitHub’s ubuntu-latest without it', () => {
+  it('runs each job on the executors of PC2, by their labels self-hosted and pc2', () => {
     expect(jobs.length).toBeGreaterThan(0);
     for (const j of jobs) {
-      expect(j['runs-on']).toBe(`\${{ fromJSON(vars.RUNNER || '"ubuntu-latest"') }}`);
+      expect(j['runs-on']).toEqual(['self-hosted', 'pc2']);
     }
   });
 
-  it('installs its tools on GitHub’s runner alone', () => {
-    const installations = etapes.filter(
-      e => e.uses?.startsWith('astral-sh/setup-uv') || /npm install -g/.test(e.run ?? '')
-    );
-    expect(installations.length).toBeGreaterThan(0);
-    for (const e of installations) {
-      expect(e.if).toBe("runner.environment == 'github-hosted'");
+  it('installs no tool by a step that only GitHub’s runner takes', () => {
+    for (const e of etapes) {
+      expect(e.if ?? '', e.name).not.toContain('github-hosted');
     }
   });
 
-  it('plays the night tests out of the poste in tranches, merges them, and no other pass of tests', () => {
+  it('plays the night tests but those tagged @poste in tranches, the tests tagged @equipee included, merges them, and plays the measures alone after the tranches', () => {
     const passes = etapes.filter(e => /grillhouse|vitest|verifier|npm test/.test(e.run ?? ''));
     expect(passes.map(e => e.run?.trim())).toEqual([
       "npx --no-install grillhouse tests-de-nuit --hors-du-poste ${{ format('--tranche {0}/{1}', matrix.tranche, env.TRANCHES) }}",
       'npx --no-install grillhouse fusion-des-tranches',
+      'npx --no-install grillhouse tests-de-nuit --mesures',
     ]);
+    expect(passes.filter(e => /--sans-equipement/.test(e.run ?? ''))).toEqual([]);
+  });
+
+  it('plays the measures of time and of load in a job of its own, after the tranches, red or green', () => {
+    const mesures = Object.entries(flux.jobs).find(([, j]) =>
+      j.steps.some(e => /tests-de-nuit --mesures/.test(e.run ?? ''))
+    );
+    expect(mesures).toBeDefined();
+    const [nom, job] = mesures as [string, Job & { needs?: string | string[]; if?: string }];
+    expect(nom).not.toBe('tranches');
+    expect([job.needs].flat()).toEqual(expect.arrayContaining(['tranches']));
+    expect(job.if).toContain('!cancelled()');
+    expect(job.strategy?.matrix?.tranche).toBeUndefined();
   });
 
   it('lists the tranches 1 to TRANCHES, and merges them once they all ran', () => {

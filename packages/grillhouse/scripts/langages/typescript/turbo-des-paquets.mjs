@@ -155,7 +155,8 @@
 // (`TMPDIR`), the base of a pass (scripts/mesure/base-de-passe.mjs), where every task writes
 // its temporary files and which goes at the end of the pass; the workers of the tests of a task
 // (`GRILLHOUSE_TRAVAILLEURS`, scripts/places-de-la-machine.mjs), the bound a session or a pass
-// sets, which the tool of each language reads. The generator adds each
+// sets, which the tool of each language reads; the Rust toolchain of a runner (`CARGO_HOME`,
+// `RUSTUP_HOME`), which a runner of the repository holds per executor. The generator adds each
 // one the root lacks, the project's entries kept, and the check refuses a
 // root without one.
 //
@@ -319,8 +320,20 @@ const attenteDuTypage = racine => (paquets(racine).length ? ['build', '^build'] 
 // The temporary directory of a process, which names the base of its pass.
 const TEMPORAIRE = 'TMPDIR';
 // The variables the root's `globalPassThroughEnv` names, and why, as the check says it.
-const PASSAGES = [RESULTATS, CHANGEMENTS, AVANCEMENT, TEMPORAIRE, TRAVAILLEURS];
+const PASSAGES = [
+  RESULTATS,
+  CHANGEMENTS,
+  AVANCEMENT,
+  TEMPORAIRE,
+  TRAVAILLEURS,
+  'CARGO_HOME',
+  'RUSTUP_HOME',
+];
 const POURQUOI = {
+  CARGO_HOME:
+    "le CARGO_HOME de l'exécuteur, que cargo lit pour trouver sa chaîne ; sans lui un exécuteur à chaîne propre échoue",
+  RUSTUP_HOME:
+    "le RUSTUP_HOME de l'exécuteur, que rustup lit pour choisir une version de cargo ; sans lui un exécuteur à chaîne propre échoue",
   [RESULTATS]: "où les gardes, Turborepo et Vitest écrivent les résultats qu'un circuit lit",
   [CHANGEMENTS]:
     'les fichiers changés depuis le dernier vert, auxquels Vitest relie les tests que rejoue un paquet',

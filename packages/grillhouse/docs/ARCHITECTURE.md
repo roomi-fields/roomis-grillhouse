@@ -1471,25 +1471,44 @@ juste s'élargit, très au-dessus de la durée normale du test ; `npm run verifi
 à 75 pour un rouge. Ainsi une mesure ne se prend jamais sous la charge du jour, et le jour
 n'attend jamais la machine.
 
-**La nuit d'une machine partagée** (`.github/workflows/nuit.yml`, chaque nuit, sur l'exécuteur
-que nomme la variable `RUNNER` du dépôt, `ubuntu-latest` de GitHub sans elle) joue les tests de nuit
-du cadre sans aucune mesure de temps, puisqu'une machine partagée ne mesure pas un temps
-(`tests-de-nuit --hors-du-poste` du module typescript), en tranches comme la vérification de la
-CI : chaque job joue sa tranche (`--tranche i/n`), et `fusion-des-tranches` refuse un test de nuit
-qu'aucune tranche ne joue ou que deux jouent, puis réunit leurs rapports. Elle laisse au poste chaque test de nuit
-qui porte l'étiquette `@poste` : une ligne `// @poste: <raison>` du commentaire de sa tête, comme
-les étiquettes de Bazel (`manual`, `exclusive`) et les marqueurs de pytest vivent avec le test,
-jamais dans une liste à côté. La garde des tests du poste
+**La nuit de Grillhouse se joue sur PC2** (`.github/workflows/nuit.yml`, chaque nuit, sur les
+exécuteurs `[self-hosted, pc2]`, comme un flux planifié de GitHub Actions choisit sa machine par
+étiquette ; un projet garde la variable `RUNNER` pour le flux de son gabarit). Elle joue les tests
+de nuit du cadre sauf ceux qui portent `@poste` (`tests-de-nuit --hors-du-poste` du module
+typescript), ceux qui portent `@equipee` compris, en tranches comme la vérification de la CI :
+chaque job joue sa tranche (`--tranche i/n`), et `fusion-des-tranches` refuse un test de nuit
+qu'aucune tranche ne joue ou que deux jouent, puis réunit leurs rapports. Un job de mesures joue
+ensuite seul, sur les cœurs de `grillhouse.mesure`, les tests de temps et de charge
+(`tests-de-nuit --mesures`) ; sans eux, il ne joue rien et ne rougit pas. Le flux installe, quand
+l'exécuteur ne les a pas, ce que les tests exigent sans secret ni droit d'administrateur (le
+programme `temporal` à une version fixée et vérifiée par somme de contrôle, la commande `claude`
+à la version de `ci.yml`, `uv`).
+Les étiquettes sont deux, comme les étiquettes de Bazel (`manual`, `exclusive`) et les marqueurs de
+pytest, qui vivent avec le test, jamais dans une liste à côté : `// @poste: <raison>` (la session
+de l'utilisateur, un secret, le `bd` réel, le trousseau, systemd : PC3 seule joue ces tests, sur
+sa part, `tests-de-nuit --du-poste`) et `// @equipee: <raison>` (l'enveloppe, un serveur Temporal,
+les binaires du module cargo : le flux de PC2 les joue, un exécuteur hébergé par GitHub les laisse,
+`--sans-equipement`, comme le flux du gabarit de projet). La garde des tests du poste
 (`packages/grillhouse/scripts/langages/typescript/tests-du-poste.mjs`) refuse un test de nuit qui
-dépend du poste sans l'étiquette, vu par ses appels et par la matière de test qu'il importe par un
-chemin relatif : l'enveloppe (`canWrap`, `bwrap`, le lanceur ou l'enveloppe du cadre), le `bd`
-réel (`hasBd`), un serveur Temporal (`server start-dev`), sccache, systemd, le trousseau, la session
-de l'utilisateur (`/run/user/`), la commande `claude` lancée pour autre chose que `plugin` ou
-`--version` ; ce que la lecture ne voit pas (un chemin bâti à l'exécution, ce que lance le code du
-produit) prend l'étiquette à la main, et une étiquette sans marque passe. Un vert de cette nuit ne
-pose jamais le dernier vert : la nuit du poste (`scripts/nuit.sh`) seule le pose, après tous les
-tests de nuit, étiquetés compris, puis les mesures. Ainsi la CI joue chaque nuit ce qu'elle peut
-jouer, et le poste garde ce qu'il est seul à avoir.
+montre une de ces marques sans l'étiquette de sa classe, vue par ses appels et par la matière de
+test qu'il importe par un chemin relatif : pour `@equipee`, l'enveloppe (`canWrap`, `bwrap`, le
+lanceur ou l'enveloppe du cadre), un serveur Temporal (`server start-dev`) ; pour `@poste`, le `bd`
+réel (`hasBd`), sccache, systemd, le trousseau, la session de l'utilisateur (`/run/user/`), la
+commande `claude` lancée pour autre chose que `plugin` ou `--version` ; ce que la lecture ne voit
+pas prend l'étiquette à la main, et une étiquette sans marque passe.
+Le créneau de PC2 est 01:45 → 03:45 heure de Paris (le cron de `nuit.yml` est en UTC, 01:15), après
+le redémarrage de 01:30 et avant la nuit de BPScript : la CI des dépôts privés joue le jour, la nuit
+la nuit. Dans ce dépôt, `ci.yml` et `nuit.yml` (et ceux du gabarit) déclarent le même groupe de
+concurrence `pc2`, sans annulation de l'attente : un job attend l'autre, et l'attente compte dans
+le délai du repli. Le repli est mesuré par la nuit locale de PC3 (`scripts/nuit.sh`,
+`scripts/repli-de-la-nuit.mjs`), non par le flux : à son heure, elle lit par `gh` le flux Nuit du
+jour ; une tranche dont le job n'a pas démarré 60 minutes après l'heure du flux est annulée et jouée
+sur PC3, sur sa part ; une tranche terminée sur PC2, verte ou rouge, n'est jamais rejouée ; une
+tranche partie puis interrompue compte pour non jouée et se rejoue en entier. Le relevé dit quelles
+tranches ont joué où, et le verdict de la nuit au panneau comme le ticket de nuit rouge tiennent
+compte des deux parts, celle de PC2 et celle de PC3. Un vert du flux ne pose jamais le dernier
+vert : la nuit du poste seule le pose, après tous les tests de nuit puis les mesures. Ainsi PC2
+joue la nuit, PC3 garde ce qui fait attendre un ticket.
 
 **Le cadre porte la CI d'un projet** (`templates/projet/.github/workflows/`,
 `packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, la CI de main par paquets (les

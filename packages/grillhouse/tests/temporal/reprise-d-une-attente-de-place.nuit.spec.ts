@@ -1,4 +1,4 @@
-// @poste: un serveur Temporal
+// @equipee: un serveur Temporal
 // Un circuit qui attend une place (en pause rouverte, ou « a-repasser » d'une attente de place)
 // repart à neuf quand son histoire approche sa limite, depuis la boucle d'attente elle-même, sans
 // perdre son rang, son arrêt ni la vue du panneau. Seul un Temporal monté prouve la reprise à neuf

@@ -145,3 +145,87 @@ describe('un verdict qui ne se lit pas', () => {
     expect(lireLeVerdict(c)).toBeNull();
   });
 });
+
+// Le verdict à deux parts : la nuit de Grillhouse se joue sur deux machines, la part de PC2
+// (les tranches du flux de nuit, que PC3 lit par `gh`) et la part de PC3 (les tests du poste) ;
+// `noterLeVerdict(commun, code, part)` note une part (`pc3` quand elle n'est pas nommée, la part de
+// la machine qui joue), `lireLeVerdict` rend le verdict des deux, `lireLesParts` chacune.
+describe('le verdict de la nuit tient compte des deux parts', () => {
+  type Part = 'pc2' | 'pc3';
+  type Parts = { pc2: Verdict; pc3: Verdict };
+  const noter = async (c: string, code: number, part: Part) => {
+    const m = (await import('../../scripts/verdict-de-la-nuit.mjs')) as unknown as {
+      noterLeVerdict: (commun: string, code: number, part: Part) => Verdict;
+    };
+    return m.noterLeVerdict(c, code, part);
+  };
+  const parts = async (c: string) => {
+    const m = (await import('../../scripts/verdict-de-la-nuit.mjs')) as unknown as {
+      lireLesParts: (commun: string) => Parts;
+    };
+    return m.lireLesParts(c);
+  };
+
+  it('la part de PC2 rouge rend la nuit rouge, même quand la part de PC3 est verte', async () => {
+    const c = commun();
+    noterLeVerdict(c, 0);
+    await noter(c, 1, 'pc2');
+    expect(lireLeVerdict(c)).toBe('rouge');
+  });
+
+  it('la part de PC3 rouge rend la nuit rouge, même quand la part de PC2 est verte', async () => {
+    const c = commun();
+    await noter(c, 0, 'pc2');
+    noterLeVerdict(c, 1);
+    expect(lireLeVerdict(c)).toBe('rouge');
+  });
+
+  it('la nuit est verte quand les deux parts le sont', async () => {
+    const c = commun();
+    await noter(c, 0, 'pc2');
+    noterLeVerdict(c, 0);
+    expect(lireLeVerdict(c)).toBe('vert');
+  });
+
+  it('une part de PC2 verte seule, sans nuit de PC3 encore jouée, donne un verdict vert', async () => {
+    const c = commun();
+    await noter(c, 0, 'pc2');
+    expect(lireLeVerdict(c)).toBe('vert');
+  });
+
+  it('la part de PC2 relevée verte lève le rouge de la nuit précédente, la part de PC3 verte', async () => {
+    const c = commun();
+    noterLeVerdict(c, 0);
+    await noter(c, 1, 'pc2');
+    await noter(c, 0, 'pc2');
+    expect(lireLeVerdict(c)).toBe('vert');
+  });
+
+  it('une part à repasser (75) laisse le verdict précédent de cette part, l’autre intacte', async () => {
+    const c = commun();
+    await noter(c, 1, 'pc2');
+    noterLeVerdict(c, 0);
+    await noter(c, 75, 'pc2');
+    expect(await parts(c)).toEqual({ pc2: 'rouge', pc3: 'vert' });
+    expect(lireLeVerdict(c)).toBe('rouge');
+  });
+
+  it('chaque part se lit à part, null tant qu’elle n’a pas joué', async () => {
+    const c = commun();
+    expect(await parts(c)).toEqual({ pc2: null, pc3: null });
+    await noter(c, 0, 'pc2');
+    expect(await parts(c)).toEqual({ pc2: 'vert', pc3: null });
+    noterLeVerdict(c, 1);
+    expect(await parts(c)).toEqual({ pc2: 'vert', pc3: 'rouge' });
+  });
+
+  it('une part illisible ne rend aucun verdict pour elle et ne lève pas', async () => {
+    const c = commun();
+    await noter(c, 0, 'pc2');
+    for (const f of readdirSync(path.join(c, 'nuit'))) {
+      writeFileSync(path.join(c, 'nuit', f), '\u0000{pas un verdict');
+    }
+    expect(lireLeVerdict(c)).toBeNull();
+    expect(await parts(c)).toEqual({ pc2: null, pc3: null });
+  });
+});

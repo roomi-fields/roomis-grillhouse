@@ -1,4 +1,4 @@
-// @poste: l'enveloppe bwrap, un lanceur, un claude de remplacement (aucun vrai Claude, aucun token)
+// @equipee: l'enveloppe bwrap, un lanceur, un claude de remplacement (aucun vrai Claude, aucun token)
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

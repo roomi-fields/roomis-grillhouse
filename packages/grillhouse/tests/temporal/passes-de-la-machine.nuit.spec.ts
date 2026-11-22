@@ -1,4 +1,4 @@
-// @poste: un serveur Temporal
+// @equipee: un serveur Temporal
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // Une passe (ciblée ou lourde) prend sa part de la machine, jamais une place : les places sont
 // celles des séances d'agent et des circuits, la part seule borne une passe. Interface :

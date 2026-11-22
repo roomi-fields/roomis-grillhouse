@@ -30,7 +30,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MODE, trancher } from '../../dette.mjs';
 import { testsDuDepot } from './tailles-des-tests.mjs';
-import { estUnTestDeNuit, porteLEtiquetteDuPoste } from './vitest-config/cibles.mjs';
+import {
+  estUnTestDeNuit,
+  porteLEtiquetteDuPoste,
+  porteLEtiquetteEquipee,
+} from './vitest-config/cibles.mjs';
 import {
   code,
   IMPORT,
@@ -42,6 +46,7 @@ import {
 
 export const GARDE = 'tests-du-poste';
 export const REGLE = 'poste-sans-etiquette';
+export const REGLE_EQUIPEE = 'equipee-sans-etiquette';
 
 // A call that starts the command claude, its arguments to the end of the line.
 const CLAUDE =
@@ -49,27 +54,39 @@ const CLAUDE =
 // The subcommands of claude a shared machine plays: the plugins of the frame and its version.
 const CLAUDE_PARTAGE = new Set(['plugin', '--version']);
 
-/** The marks of what a shared machine does not have, each `{ nom, voit(code) }`. */
+/**
+ * The marks of what a shared machine does not have, each `{ nom, classe, voit(code) }`: the class
+ * `equipee` is the equipment of a machine (the tag `@equipee`: the envelope, a Temporal server,
+ * sccache, the binaries of the module cargo), the class `poste` what only the poste has (the tag
+ * `@poste`: the real bd, systemd, the keyring, the session of the user, a session of claude).
+ */
 export const DEPENDANCES = [
   {
     nom: "l'enveloppe bwrap",
+    classe: 'equipee',
     voit: c =>
       /\bcanWrap\b|['"`]bwrap['"`]|['"`/]enveloppe\/(?:lancer\.sh|enveloppe\.mjs)['"`]|['"`/]enveloppe(?:\.[\w-]+)?['"`]/.test(
         c
       ),
   },
-  { nom: 'le bd réel', voit: c => /\bhasBd\b/.test(c) },
+  { nom: 'le bd réel', classe: 'poste', voit: c => /\bhasBd\b/.test(c) },
   {
     nom: 'un serveur Temporal',
+    classe: 'equipee',
     voit: c => /['"`]server['"`]\s*,\s*['"`]start-dev['"`]/.test(c),
   },
-  { nom: 'sccache', voit: c => /['"`]sccache['"`]/.test(c) },
-  { nom: 'les binaires du module cargo', voit: c => /['"`/]templates\/cargo\b/.test(c) },
-  { nom: 'systemd', voit: c => /['"`](?:systemctl|systemd-run)['"`]/.test(c) },
-  { nom: 'le trousseau', voit: c => /\bkeyrings\b/.test(c) },
-  { nom: 'la session de l’utilisateur', voit: c => /\/run\/user\//.test(c) },
+  { nom: 'sccache', classe: 'equipee', voit: c => /['"`]sccache['"`]/.test(c) },
+  {
+    nom: 'les binaires du module cargo',
+    classe: 'equipee',
+    voit: c => /['"`/]templates\/cargo\b/.test(c),
+  },
+  { nom: 'systemd', classe: 'poste', voit: c => /['"`](?:systemctl|systemd-run)['"`]/.test(c) },
+  { nom: 'le trousseau', classe: 'poste', voit: c => /\bkeyrings\b/.test(c) },
+  { nom: 'la session de l’utilisateur', classe: 'poste', voit: c => /\/run\/user\//.test(c) },
   {
     nom: 'une séance de claude',
+    classe: 'poste',
     voit: c => [...c.matchAll(CLAUDE)].some(m => !m[1] || !CLAUDE_PARTAGE.has(m[2])),
   },
 ];
@@ -80,6 +97,11 @@ export const DEPENDANCES = [
  * the repository at <racine>: the names of DEPENDANCES, each once, in their order.
  */
 export function dependancesDu(fichier, lire = lireLeDisque, racine = path.parse(fichier).root) {
+  return marquesDu(fichier, lire, racine).map(d => d.nom);
+}
+
+// The marks (the entries of DEPENDANCES) the test file <fichier> shows, as `dependancesDu` reads them.
+function marquesDu(fichier, lire, racine) {
   const vus = new Set();
   const codes = [];
   const suivre = f => {
@@ -103,39 +125,59 @@ export function dependancesDu(fichier, lire = lireLeDisque, racine = path.parse(
   };
   suivre(fichier);
   const tout = codes.join('\n');
-  return DEPENDANCES.filter(d => d.voit(tout)).map(d => d.nom);
+  return DEPENDANCES.filter(d => d.voit(tout));
 }
 
 /**
- * Each night test of the repository at <racine>: `[{ fichier, etiquete, dependances }]`, `fichier`
- * from its root, `etiquete` whether it bears the tag `@poste`, `dependances` the marks of the poste
- * it shows.
+ * Each night test of the repository at <racine>: `[{ fichier, etiquete, equipee, marques }]`,
+ * `fichier` from its root, `etiquete` whether it bears the tag `@poste`, `equipee` whether it bears
+ * the tag `@equipee`, `marques` the marks it shows, `{ nom, classe }` each.
  */
 export function testsDeNuitDuDepot(racine) {
   return testsDuDepot(racine)
     .filter(estUnTestDeNuit)
     .map(fichier => {
       const abs = path.join(racine, fichier);
+      const texte = lireLeDisque(abs) ?? '';
       return {
         fichier,
-        etiquete: porteLEtiquetteDuPoste(lireLeDisque(abs) ?? ''),
-        dependances: dependancesDu(abs, lireLeDisque, racine),
+        etiquete: porteLEtiquetteDuPoste(texte),
+        equipee: porteLEtiquetteEquipee(texte),
+        marques: marquesDu(abs, lireLeDisque, racine).map(({ nom, classe }) => ({ nom, classe })),
       };
     });
 }
 
 /**
  * The findings of the repository at <racine>, in the debt's form (../../dette.mjs): one
- * `{ fichier, regle, message }` per night test that depends on the poste without the tag `@poste`.
+ * `{ fichier, regle, message }` per night test that shows a mark of the poste without the tag
+ * `@poste` (REGLE), and one per night test that shows a mark of equipment without the tag
+ * `@equipee` (REGLE_EQUIPEE).
  */
 export function verifier(racine, tous = testsDeNuitDuDepot(racine)) {
-  return tous
-    .filter(t => !t.etiquete && t.dependances.length > 0)
-    .map(({ fichier, dependances }) => ({
-      fichier,
-      regle: REGLE,
-      message: `${fichier} : ce test de nuit dépend du poste (${dependances.join(', ')}), qu'une machine partagée n'a pas ; il porte l'étiquette « // @poste: <raison> » dans le commentaire de sa tête, et la nuit de la CI le laisse au poste.`,
-    }));
+  const noms = (marques, classe) =>
+    marques.filter(m => m.classe === classe).map(m => m.nom);
+  return tous.flatMap(({ fichier, etiquete, equipee, marques }) => {
+    /** @type {{ fichier: string, regle: string, message: string }[]} */
+    const constats = [];
+    const poste = noms(marques, 'poste');
+    if (!etiquete && poste.length > 0) {
+      constats.push({
+        fichier,
+        regle: REGLE,
+        message: `${fichier} : ce test de nuit dépend du poste (${poste.join(', ')}), qu'aucun exécuteur n'a ; il porte l'étiquette « // @poste: <raison> » dans le commentaire de sa tête, et la nuit de PC3 seule le joue.`,
+      });
+    }
+    const equipement = noms(marques, 'equipee');
+    if (!equipee && equipement.length > 0) {
+      constats.push({
+        fichier,
+        regle: REGLE_EQUIPEE,
+        message: `${fichier} : ce test de nuit exige l'équipement d'une machine (${equipement.join(', ')}) ; il porte l'étiquette « // @equipee: <raison> » dans le commentaire de sa tête, et un exécuteur sans équipement le laisse.`,
+      });
+    }
+    return constats;
+  });
 }
 
 /**
@@ -157,7 +199,7 @@ export function rapport(racine, env = process.env) {
     lignes: [
       ...refus.map(r => `⛔ ${r.message}`),
       ...lignes,
-      `ℹ️  ${GARDE} : ${tous.length} test(s) de nuit, ${tous.filter(t => t.etiquete).length} laissé(s) au poste (@poste).`,
+      `ℹ️  ${GARDE} : ${tous.length} test(s) de nuit, ${tous.filter(t => t.etiquete).length} laissé(s) au poste (@poste), ${tous.filter(t => t.equipee).length} équipé(s) (@equipee).`,
     ],
     code: refus.length ? 1 : 0,
   };

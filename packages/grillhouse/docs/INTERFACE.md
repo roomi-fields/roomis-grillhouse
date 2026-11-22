@@ -315,16 +315,26 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     puis les bancs `tests/*_budget.rs` par nextest), 75 pour « à repasser ». Avec
     `--hors-du-poste` (`typescript`), la nuit d'une machine partagée (le workflow `nuit.yml`) : les
     tests de nuit seuls, sauf ceux qui portent l'étiquette `@poste` (une ligne `// @poste: <raison>`
-    du commentaire de leur tête), et aucune mesure de temps ; elle ne pose jamais de dernier vert.
-    Avec `--tranche i/n` (ou `--tranche=i/n`) à côté de `--hors-du-poste`, la i-ième des n parts
-    de ces tests (le découpage de Vitest, comme une tranche de la vérification), ses rapports écrits
-    sous `.vitest-reports/`, que `fusion-des-tranches` réunit. Une tranche qui n'a pas la forme
-    `i/n`, une tranche sans `--hors-du-poste` et tout autre argument sont refusés avant tout
-    travail, code 2.
-  - `tests-du-poste` (`typescript`), une garde : un test de nuit qui dépend du poste (l'enveloppe,
-    le `bd` réel, un serveur Temporal, sccache, systemd, le trousseau, la session, une séance de
-    `claude`, vus par ses appels et sa matière de test) sans l'étiquette `@poste` est refusé par
-    son nom, ses marques nommées ; la dette du projet les inscrit (migration 0.33.0).
+    du commentaire de leur tête : la session de l'utilisateur, un secret, le `bd` réel, le trousseau,
+    systemd), `@equipee` compris (une ligne `// @equipee: <raison>` : l'enveloppe, un serveur
+    Temporal, les binaires du module cargo, que l'exécuteur de PC2 a), et aucune mesure de temps ;
+    elle ne pose jamais de dernier vert. Avec `--sans-equipement` à côté de `--hors-du-poste` (un
+    exécuteur hébergé par GitHub, le flux du gabarit de projet), elle laisse aussi les tests
+    `@equipee`. Avec `--tranche i/n` (ou `--tranche=i/n`) à côté de `--hors-du-poste`, la i-ième
+    des n parts de ces tests (le découpage de Vitest, comme une tranche de la vérification), ses
+    rapports écrits sous `.vitest-reports/`, que `fusion-des-tranches` réunit. `--du-poste` joue
+    les seuls tests `@poste` (la nuit locale de PC3), sur sa part ; `--mesures` joue les seules
+    mesures de temps et de charge (l'étape de mesure de PC2, sur les cœurs de `grillhouse.mesure`),
+    sans rien jouer et sans rougir quand il n'y en a aucune. `--du-poste`, `--mesures` et
+    `--hors-du-poste` sont trois nuits à part. Une tranche qui n'a pas la forme `i/n`, une tranche
+    ou `--sans-equipement` sans `--hors-du-poste`, deux de ces nuits à la fois et tout autre
+    argument sont refusés avant tout travail, code 2.
+  - `tests-du-poste` (`typescript`), une garde à deux règles : un test de nuit qui dépend du poste
+    (le `bd` réel, sccache, systemd, le trousseau, la session, une séance de `claude`, vus par ses
+    appels et sa matière de test) sans l'étiquette `@poste`, et un test de nuit qui exige un
+    équipement de machine (l'enveloppe, un serveur Temporal, les binaires du module cargo) sans
+    l'étiquette `@equipee`, sont refusés par leur nom, leurs marques nommées ; la dette du projet
+    les inscrit (migrations 0.33.0 et 0.49.0).
   - `fusion-des-tranches` (`typescript` ; une sous-commande de tout projet), que la CI joue
     après les tranches d'une passe : chaque paquet doit tenir ses n tranches, les mêmes fichiers
     de la passe dans chacune, et chaque
