@@ -72,7 +72,8 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   circuits en attente du superviseur ; un circuit arrêté n'occupe aucune place de la machine ; lue dans l'arbre principal ; toute autre valeur est refusée par son nom avant tout
   travail). La machine borne aussi : un ticket ne part que s'il a une place de circuit de la
   machine, commune à ses projets et donnée dans l'ordre d'arrivée (`GRILLHOUSE_PLACES` de
-  `~/.config/grillhouse/machine.env`, 3 par défaut), et la place d'une copie de plus sur le disque
+  `~/.config/grillhouse/machine.env`, 3 par défaut ; un direct en tient une aussi, de son
+  agent à sa relecture), et la place d'une copie de plus sur le disque
   des copies (la plus grande copie mesurée du projet, sinon 1 Go, 8 Go pour Rust, plus 4 Go) ;
   sinon il reste en file, non démarré, et le panneau dit « attend une place » ou « attend le
   disque » avec les copies en pause qui l'occupent. Une passe (la passe lourde d'un circuit,
@@ -83,12 +84,14 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   `GRILLHOUSE_RESERVE_COEURS` et `GRILLHOUSE_RESERVE_MEMOIRE_GO` de `~/.config/grillhouse/machine.env`,
   4 Go par défaut, et en cœurs min(4, max(0, cœurs − 4)) : 0 sur 4 cœurs ou moins, 2 sur 6, 4 à
   partir de 8 ; zéro admis, une réserve réglée qui égale les cœurs est refusée ; lue dans l'arbre principal ; toute autre valeur est
-  refusée par son nom avant tout travail). Absente, la part vaut en cœurs le budget divisé par les
-  places de la machine (`GRILLHOUSE_PLACES`, la division entière, 2 au moins), et en mémoire le plus
+  refusée par son nom avant tout travail). Absente, la réservation vaut 3 cœurs pour un
+  circuit ordinaire, 2 pour un direct, et en mémoire le plus
   grand pic des passes de jour du projet à son registre des consommations, plus un quart, jamais
   sous le tiers du budget, qu'elle vaut quand le registre n'a pas de mesure ; une clé qui ne déclare que les cœurs
   ou que la mémoire garde le défaut de l'autre ; une part plus grande que le budget vaut le budget, une seule passe jouant alors à la
-  fois. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
+  fois. Les réservations s'additionnent contre le budget : une séance d'agent et une passe réservent
+  leurs cœurs le temps de leur phase, aucune à l'ouverture d'un circuit ni pendant qu'il est arrêté,
+  et ce qui ne tient pas attend dans l'ordre d'arrivée, son rang gardé d'une phase à l'autre. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
   (poids de processeur et plafond de mémoire tirés de la part, sans plafond dur de processeur), et
   elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; une
   séance d'agent est bornée comme une passe : elle tourne dans un groupe de contrôle à elle, avec un
@@ -99,7 +102,7 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   machine : les circuits et les passes des autres projets prennent leurs places et leurs parts
   pendant elle ; une mesure de temps, et un test qui exige de la charge, jouent sur des cœurs
   dédiés que personne d'autre ne touche (la clé `grillhouse.mesure`, `{ "coeurs": <entier ≥ 1> }`,
-  comme `grillhouse.part` ; par défaut la part par défaut du budget), le reste de la machine
+  comme `grillhouse.part` ; 3 cœurs par défaut), le reste de la machine
   continuant de travailler.
 - Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
   espace, le nom court du projet aux affichages partagés entre projets, comme le panneau de
