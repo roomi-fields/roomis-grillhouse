@@ -479,10 +479,16 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
 // it arrives at the end of the turn, without interrupting it. A question not answered comes back at
 // the interval `grillhouse.rappel` of the project; its answer to the circuit acknowledges it. The
 // state « presented at such a time » lives in the file of the stops gone up that the reading keeps.
+// A message queued is never taken back, so none is queued behind a turn, as a queue with
+// acknowledgement does not deliver a message whose object is already treated: while a turn of the
+// main loop runs (`tours`), no reading is asked, and the first period after its end reads the
+// circuits as they are then, in one message (a turn of forty minutes piled up one message per
+// reminder, each one a turn of its own, grillhouse-3uv.164).
 export const PERIODE_DES_QUESTIONS_MS = 15_000
 let relevee = false
+const tours = new Set<string>()
 export async function pousserLesQuestions($: EngineInterface): Promise<void> {
-  if (!eligible || relevee) return
+  if (!eligible || relevee || tours.size) return
   relevee = true
   try {
     const r = await $.process.run([GRILLHOUSE, 'superviseur', '--relever', cwd], { cwd, timeoutMs: 60_000 })
@@ -539,6 +545,18 @@ export const register: Register = on => {
     const attached = await next(e)
     await activer($)
     return attached
+  })
+
+  // The turns of the main loop that run: no reading of the questions is asked meanwhile
+  // (`pousserLesQuestions`).
+  on('turn.start', async ($, e, next) => {
+    const r = await next(e)
+    if (e.agentId === undefined) tours.add(e.turnId)
+    return r
+  })
+  on('turn.complete', (_$, e, next) => {
+    tours.delete(e.turnId)
+    return next(e)
   })
 
   // The command answers at once; the board comes from the follower's lines.

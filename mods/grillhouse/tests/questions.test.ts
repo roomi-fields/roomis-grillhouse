@@ -36,6 +36,8 @@ async function seance($: Banc[0], on: Banc[1], lecture: (n: number) => Lecture |
     return r
   })
   o('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  o('turn.start', (_: unknown, e: { turnId: string }) => ({ turnId: e.turnId }))
+  o('turn.complete', () => ({ text: '' }))
   projetGrillhouse(o)
   o('command.register', () => ({ value: undefined }))
   const horloge = mock.clock(o as never)
@@ -113,4 +115,48 @@ test('the clock asks for a reading at each period, and for no wait', async ($, o
   expect(lectures).toHaveLength(2)
   expect(messages).toHaveLength(2)
   for (const argv of lectures) expect(argv).not.toContain('--attendre')
+})
+
+// A message submitted while the session works waits in its queue until the end of the turn, and
+// nothing takes it back once its question is answered: a long turn piled up one message per
+// reminder (Grillhouse and SyntHub, 2026-11-22, grillhouse-3uv.164). While a turn of the main loop
+// runs the greffon asks no reading; the first period after its end reads the circuits as they are.
+const tour = (turnId: string, agentId?: string) => ({ text: '', turnId, ...(agentId ? { agentId } : {}) })
+const fin = (turnId: string, agentId?: string) => ({
+  answer: '',
+  durationMs: 1,
+  isAborted: false,
+  reason: 'answer' as const,
+  turnId,
+  ...(agentId ? { agentId } : {}),
+})
+type Tours = { turn: { start: (e: unknown) => Promise<unknown>; complete: (e: unknown) => Promise<unknown> } }
+
+test('while a turn of the main loop runs no reading is asked; the period after its end reads', async ($, on) => {
+  const { lectures, messages, horloge } = await seance($, on, () => ok('- demo-1 : Q ?\n'))
+  const t = ($ as unknown as Tours).turn
+  await t.start(tour('t1'))
+  for (let i = 0; i < 4; i++) await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(0)
+  expect(messages).toEqual([])
+  await t.complete(fin('t1'))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
+  expect(messages).toHaveLength(1)
+})
+
+test('a subagent’s turn does not hold the readings', async ($, on) => {
+  const { lectures, horloge } = await seance($, on, () => ok('- demo-1 : Q ?\n'))
+  const t = ($ as unknown as Tours).turn
+  await t.start(tour('a1', 'agent-1'))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
+  await t.start(tour('t1'))
+  await t.complete(fin('a1', 'agent-1'))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(1)
 })
