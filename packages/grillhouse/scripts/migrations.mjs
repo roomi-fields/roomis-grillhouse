@@ -44,7 +44,7 @@ import * as seuilDesCodesDeTickets from './migrations/0.44.0-seuil-des-codes-de-
 import * as ciDeMain from './migrations/0.47.0-ci-de-main.mjs';
 import * as pousseeRetiree from './migrations/0.48.0-poussee-retiree.mjs';
 import * as ciDeclencheeParLaFile from './migrations/0.48.0-ci-declenchee-par-la-file.mjs';
-import * as reservationDeTroisCoeurs from './migrations/0.48.0-reservation-de-trois-coeurs.mjs';
+import * as reservationDeTroisCoeurs from './migrations/0.49.0-reservation-de-trois-coeurs.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [

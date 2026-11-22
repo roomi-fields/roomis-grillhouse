@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any */
 // La part par défaut d'une passe, lue pour un projet (scripts/places-de-la-machine.mjs
-// `partDeLaPasse`, `prendreUnePart`) : les cœurs valent le budget divisé par les places de la
+// `partDeLaPasse`, `prendreUnePart`) : les cœurs valent 3, quelles que soient les places de la
 // machine, la mémoire le plus grand pic des passes de jour du registre des consommations plus un
 // quart. Les registres sont ceux de dépôts git d'essai ; la machine est celle d'un essai.
 import { spawnSync } from 'node:child_process';

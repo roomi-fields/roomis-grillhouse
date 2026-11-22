@@ -85,7 +85,7 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
     DO_NOT_TRACK: '1',
     GRILLHOUSE_PRESSION_CPU: path.join(racine, 'pression'),
     GRILLHOUSE_PARTS_DE_LA_MACHINE: path.join(racine, 'parts'),
-    // A machine of 12 cores and 32 GB at rest: the budget is 8 cores and 28 GB, the part 4 cores.
+    // A machine of 12 cores and 32 GB at rest: the budget is 8 cores and 28 GB, the pass reserves 3 cores.
     GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
       coeurs: 12,
       charge: 1,

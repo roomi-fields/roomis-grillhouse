@@ -161,10 +161,12 @@ describe('npm run verifier borne ses tests et sa mémoire', { timeout: 180_000 }
     transmettre(d, 'GRILLHOUSE_TRAVAILLEURS');
     const r = await lancer(d);
     expect(r.status, r.sortie).toBe(0);
-    // The workers share the cores of the part of the pass, not those of the machine: the trial
-    // machine (12 cores, 32 GB, a reserve of 4 cores and 4 GB) gives a default part of 4 cores.
-    // Two packages play tests: the tasks of tests side by side are two at most.
-    const coeurs = 4;
+    // The workers share the cores the pass reserves, not those of the machine: the trial project
+    // declares no `grillhouse.part`, so the pass reserves 3 cores, whatever the budget of the trial
+    // machine (12 cores, 32 GB, a reserve of 4 cores and 4 GB: 8 cores). The tasks side by side
+    // are half those cores, one at least, and two at most since two packages play tests: one task
+    // of tests at a time, which receives the 3 cores.
+    const coeurs = 3;
     const attendu = String(
       Math.max(1, Math.floor(coeurs / Math.min(Math.max(1, Math.floor(coeurs / 2)), 2)))
     );

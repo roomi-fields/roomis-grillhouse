@@ -1,11 +1,11 @@
-// From 0.48.0 a circuit reserves 3 cores (it reserved 4). A package.json of the project whose
+// From 0.49.0 a circuit reserves 3 cores (it reserved 4). A package.json of the project whose
 // `grillhouse.part.coeurs` is 4 gets 3, its other keys, its layout and its end of line kept; a
 // project without that value, without `grillhouse` or without package.json is left, and a second
 // pass changes nothing and says nothing.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const version = '0.48.0';
+export const version = '0.49.0';
 export const nom = 'reservation de trois coeurs';
 
 /** `grillhouse.part.coeurs` 4 turned into 3 in the package.json of <projet>; returns what it did. */
