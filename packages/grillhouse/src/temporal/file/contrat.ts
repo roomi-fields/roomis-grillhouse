@@ -129,7 +129,8 @@ export interface ActivitesDeLaFile {
   /**
    * The final pass on the candidate <commit>, the lot laid on the tip of main (`jugerLeCandidat`):
    * `{ juge: true }`, green or its tree already judged; or the issue for the circuit, red or to
-   * play again, the ticket told.
+   * play again, the ticket told: its comment names the reds of a red pass and the journal of the
+   * ticket, which holds the whole output of the pass.
    */
   jugerLeCandidat(e: {
     racine: string;

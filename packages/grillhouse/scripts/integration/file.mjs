@@ -40,9 +40,21 @@
 // which plays nothing again. Green, the tree is kept judged and main moves forward onto the
 // candidate (`avancerMain`, `merge --ff-only`), the tree the pass judged; main moved meanwhile, the
 // workflow replaces the branch again and judges it again. Red, the ticket loses `en-file` and
-// reopens, its comment giving the end of the output of the pass; main does not move, and the branch
-// stays. To play again (75, the part of the machine awaited), the branch stays in the queue, the
-// ticket told, neither reopened nor closed. A flaky test has no path of its own: the red comment
+// reopens; main does not move, and the branch stays. To play again (75, the part of the machine
+// awaited), the branch stays in the queue, the ticket told, neither reopened nor closed. A pass
+// that is not green reports as the checks of the circuit do, and as a merge queue keeps the logs of
+// the job that refuses a lot and lists its failed tests (bors, Zuul): its whole output is added to
+// the journal of the ticket (`.claude/worktrees/<ticket>.log`, the circuit's own), under a header
+// line (a copy that does not open plays no verification, and its header says so), and the comment
+// names that file; the pass names a results directory (`GRILLHOUSE_RESULTATS`,
+// scripts/resultats.mjs) in a base of its own (scripts/mesure/base-de-passe.mjs, genre `file`),
+// removed at its end and swept by the next pass when its act was killed, as the passes of the
+// circuit keep theirs in the base of their run; the comment of a red names each red read there
+// (test, file, message; finding; failed task) by the reading of the checks (`rougesDUnePasse` of
+// scripts/activites.mjs, which the act gives the queue's tools, built with it or refused), in
+// every language, and the journal holds them all; the comment lists them up to a bound
+// (`ROUGES_AU_COMMENTAIRE`), says their count and sends to the journal for the rest; the end of
+// the output comes only when that reading names none. A flaky test has no path of its own: the red comment
 // gives the charter's rule, a test known red goes into quarantine in the test itself, with the
 // ticket that fixes it.
 // At its entry on main (`fermerLEntree`), the branch's ticket closes « intégré : <commit> », loses
@@ -60,7 +72,7 @@
 // Every comment and change of the queue at a ticket is written under the author `file`, which bd
 // reads in BEADS_ACTOR, as the circuit writes its own lines under `circuit`.
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import {
   aRejouer,
@@ -75,6 +87,8 @@ import { A_REPASSER } from '../codes-de-sortie.mjs';
 import { BASE_DU_LOT } from '../dernier-vert.mjs';
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { matieresDeclareesDe } from '../matieres-cles.mjs';
+import { ouvrirBase } from '../mesure/base-de-passe.mjs';
+import { RESULTATS } from '../resultats.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
 import { pousseeRetiree } from '../poussee-retiree.mjs';
 import { ouvrirCopie } from './rejeu.mjs';
@@ -98,33 +112,61 @@ const commenterAu = (o, ticket, texte) =>
 // circuit reads to name that commit (scripts/circuit.mjs, the tri of the discoveries).
 export const INTEGRE = 'intégré : ';
 
-// The lines of the end of the output of a pass the comment of a red gives.
+// The lines of the end of the output of a pass, which the comment gives when no red is named.
 const FIN_DE_LA_SORTIE = 60;
 
+// The characters of the list of the reds a comment holds, one argument of `bd comments add`: the
+// reds beyond are counted there and read in the journal.
+const ROUGES_AU_COMMENTAIRE = 20000;
+
+// The journal of the ticket <ticket> in the main tree <racine>, the one its circuit writes
+// (scripts/circuit.mjs).
+const journalDuTicket = (racine, ticket) =>
+  path.join(racine, '.claude', 'worktrees', `${ticket}.log`);
+
 /**
- * The final pass played in the queue's own copy (`.claude/worktrees/file`) on the commit <commit>:
- * `{ code, sortie }`, the code of `npm run verifier` (0 green, 75 to play again, any other red) and
- * its output. The copy is made ready on <commit> (detached, its dependencies in agreement with the
- * lock file), the pass measured against the tip of main (`GRILLHOUSE_BASE_DU_LOT`, the commit's base
- * as the lot lies on it), as the pass of the circuit measures itself.
+ * The final pass played in the queue's own copy (`.claude/worktrees/file`) on the commit <commit>
+ * for the ticket <ticket>: `{ code, sortie, rouges }`, the code of `npm run verifier` (0 green, 75
+ * to play again, any other red), its output, and the lines of the reds of a red pass. The copy is
+ * made ready on <commit> by <ouvrir> (detached, its dependencies in agreement with the lock file),
+ * the pass measured against the tip of main (`GRILLHOUSE_BASE_DU_LOT`, the commit's base as the lot
+ * lies on it), as the pass of the circuit measures itself. The pass names a results directory
+ * (`GRILLHOUSE_RESULTATS`) in a base of its own (`ouvrirBase('file')`), where <rouges> reads the
+ * reds of a red pass (`{ copie, dossier, code, ticket, journal }` → their lines); the base is
+ * closed at the end of the pass, and swept by the next one when the act was killed. A copy that
+ * does not open plays no pass: 75, its refusal as the output, `refus` true.
  */
-function passeDeLaFile(racine, principale, dire) {
-  return ({ commit }) => {
+function passeDeLaFile(racine, principale, dire, { rouges, ouvrir }) {
+  return ({ commit, ticket }) => {
     const copie = path.join(racine, '.claude', 'worktrees', 'file');
-    const ouverte = ouvrirCopie({ racine, copie, ref: commit, dire });
+    const ouverte = ouvrir({ racine, copie, ref: commit, dire });
     if (ouverte.refus) {
-      return { code: A_REPASSER, sortie: ouverte.refus };
+      return { code: A_REPASSER, sortie: ouverte.refus, rouges: [], refus: true };
     }
     const base = spawnSync('git', ['-C', racine, 'rev-parse', `refs/heads/${principale}`], {
       encoding: 'utf8',
     }).stdout.trim();
-    const r = spawnSync('bash', ouverte.monter('npm', 'run', 'verifier'), {
-      cwd: copie,
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-      env: base ? { ...process.env, [BASE_DU_LOT]: base } : process.env,
-    });
-    return { code: r.status ?? 1, sortie: `${r.stdout ?? ''}${r.stderr ?? ''}` };
+    const laBase = ouvrirBase('file');
+    try {
+      const dossier = mkdtempSync(path.join(laBase.dossier, 'resultats-'));
+      const r = spawnSync('bash', ouverte.monter('npm', 'run', 'verifier'), {
+        cwd: copie,
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        env: { ...process.env, [RESULTATS]: dossier, ...(base ? { [BASE_DU_LOT]: base } : {}) },
+      });
+      const code = r.status ?? 1;
+      const rouge = code !== 0 && code !== A_REPASSER;
+      return {
+        code,
+        sortie: `${r.stdout ?? ''}${r.stderr ?? ''}`,
+        rouges: rouge
+          ? rouges({ copie, dossier, code, ticket, journal: journalDuTicket(racine, ticket) })
+          : [],
+      };
+    } finally {
+      laBase.fermer();
+    }
   };
 }
 
@@ -132,9 +174,21 @@ function passeDeLaFile(racine, principale, dire) {
  * The tools of the queue on the main tree <racine>, its lines said by <dire>: `{ racine,
  * principale, bd, passe, dire, avancement }`, bd run under the queue's author (BEADS_ACTOR), the
  * branch of the main tree (null when it is on none), `passe` the final pass played in the queue's
- * copy.
+ * copy. <ports> gives what the pass plays with: `rouges`, the reading of the reds of a red pass,
+ * without which the tools are refused, and `ouvrir`, which makes the queue's copy ready
+ * (`ouvrirCopie`).
  */
-export function outilsDeLaFile(racine, dire, avancement = null) {
+export function outilsDeLaFile(
+  racine,
+  dire,
+  avancement = null,
+  { rouges, ouvrir = ouvrirCopie } = {}
+) {
+  if (typeof rouges !== 'function') {
+    throw new Error(
+      "Les outils de la file se bâtissent avec la lecture des rouges d'une passe (rouges)."
+    );
+  }
   const bd = (...a) => {
     const r = spawnSync('bd', a, {
       cwd: racine,
@@ -155,7 +209,7 @@ export function outilsDeLaFile(racine, dire, avancement = null) {
     racine,
     principale,
     bd,
-    passe: passeDeLaFile(racine, principale ?? 'main', dire),
+    passe: passeDeLaFile(racine, principale ?? 'main', dire, { rouges, ouvrir }),
     dire,
     avancement,
   };
@@ -339,9 +393,10 @@ export function preparerLaBranche(o, entree) {
  * The candidate <commit> of <entree> (`{ ticket, branche, commit }`) judged by the final pass with
  * the tools <o>: `{ juge: true }`, green (or its tree already judged: nothing is played again), its
  * tree kept judged (scripts/arbres-juges.mjs); or `{ issue }`, the issue for the circuit
- * (src/temporal/file/deroule.ts): red, `rouvert`, the end of the output of the pass in the comment,
+ * (src/temporal/file/deroule.ts): red, `rouvert`, the reds of the pass named in the comment (the end
+ * of its output when it names none), its whole output in the journal of the ticket,
  * the ticket reopened without `en-file`; to play again (75), `en-file`, the ticket told, neither
- * reopened nor closed. `o.passe({ commit })` gives `{ code, sortie }`.
+ * reopened nor closed. `o.passe({ commit, ticket })` gives `{ code, sortie, rouges }`.
  */
 export function jugerLeCandidat(o, entree) {
   const git = (...args) => spawnSync('git', ['-C', o.racine, ...args], { encoding: 'utf8' });
@@ -351,7 +406,12 @@ export function jugerLeCandidat(o, entree) {
     o.dire(`✓ arbre de ${court} déjà jugé par une passe finale`);
     return { juge: true };
   }
-  const { code, sortie } = o.passe({ commit: entree.commit });
+  const {
+    code,
+    sortie,
+    rouges = [],
+    refus = false,
+  } = o.passe({ commit: entree.commit, ticket: entree.ticket });
   if (code === 0) {
     if (arbre) {
       garderLArbreJuge(o.racine, arbre);
@@ -359,14 +419,42 @@ export function jugerLeCandidat(o, entree) {
     o.dire(`✓ passe finale verte sur ${court}`);
     return { juge: true };
   }
-  const fin = `${sortie ?? ''}`.trim().split('\n').slice(-FIN_DE_LA_SORTIE).join('\n');
+  const entiere = `${sortie ?? ''}`;
+  const fin = entiere.trim().split('\n').slice(-FIN_DE_LA_SORTIE).join('\n');
+  // The whole output, added to the journal of the ticket under its header line, then every red
+  // the pass read; a copy that did not open played no verification.
+  const journal = journalDuTicket(o.racine, entree.ticket);
+  mkdirSync(path.dirname(journal), { recursive: true });
+  const entete = refus
+    ? `La copie de la file ne s'ouvre pas sur ${court} : aucune passe finale jouée (code ${code})`
+    : `$ npm run verifier — la passe finale de la file sur ${court} (code ${code})`;
+  const lesRouges = rouges.length
+    ? `Les rouges de la passe finale de la file sur ${court} (${rouges.length}) :\n${rouges.map(r => `- ${r}`).join('\n')}\n`
+    : '';
+  appendFileSync(journal, `${entete}\n${entiere}${entiere.endsWith('\n') ? '' : '\n'}${lesRouges}`);
+  const saSortie = `Sa sortie entière : ${journal}`;
   if (code === A_REPASSER) {
-    const texte = `## ${TITRE_PASSE_FINALE} à repasser\n\nLa passe finale de ${court} sur ${entree.branche} est à repasser (code ${code}) :\n\n${fin}\n\n${o.principale} n'avance pas sans son vert ; la branche reste en file, et la reprise du circuit la renvoie.`;
+    const texte = `## ${TITRE_PASSE_FINALE} à repasser\n\nLa passe finale de ${court} sur ${entree.branche} est à repasser (code ${code}) :\n\n${fin}\n\n${saSortie}\n\n${o.principale} n'avance pas sans son vert ; la branche reste en file, et la reprise du circuit la renvoie.`;
     commenterAu(o, entree.ticket, texte);
     o.dire(`⚠ passe finale de ${court} à repasser`);
     return { issue: { etat: 'en-file', raison: texte } };
   }
-  const texte = `## ${TITRE_PASSE_FINALE} rouge\n\nLa passe finale de ${court} sur ${entree.branche}, le lot posé sur la pointe de ${o.principale}, est rouge (code ${code}). La fin de sa sortie :\n\n${fin}\n\n${o.principale} n'avance pas et le ticket est rouvert : sa correction entre sous son numéro. Un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`;
+  // The reds the pass read in its results, listed up to the bound of a comment, the first always,
+  // the others counted and left to the journal; or, when it names none, the end of its output.
+  const listes = [];
+  let taille = 0;
+  for (const r of rouges) {
+    taille += r.length;
+    if (listes.length && taille > ROUGES_AU_COMMENTAIRE) {
+      break;
+    }
+    listes.push(`- ${r.slice(0, ROUGES_AU_COMMENTAIRE)}`);
+  }
+  const autres = rouges.length - listes.length;
+  const ce = rouges.length
+    ? `Ses rouges (${rouges.length}) :\n\n${listes.join('\n')}${autres ? `\n\n… et ${autres} autre(s), au journal.` : ''}`
+    : `La fin de sa sortie :\n\n${fin}`;
+  const texte = `## ${TITRE_PASSE_FINALE} rouge\n\nLa passe finale de ${court} sur ${entree.branche}, le lot posé sur la pointe de ${o.principale}, est rouge (code ${code}). ${ce}\n\n${saSortie}\n\n${o.principale} n'avance pas et le ticket est rouvert : sa correction entre sous son numéro. Un test connu instable se met en quarantaine dans le test, avec le ticket qui le corrige.`;
   commenterAu(o, entree.ticket, texte);
   o.bd('update', entree.ticket, '--status', 'open', '--remove-label', 'en-file');
   o.dire(`✗ passe finale de ${court} rouge : ${entree.ticket} rouvert`);

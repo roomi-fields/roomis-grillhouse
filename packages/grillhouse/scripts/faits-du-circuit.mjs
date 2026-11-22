@@ -95,6 +95,7 @@ import {
   ouvrirLeDefautDeMain,
 } from './ci-de-main.mjs';
 
+import { rougesDUnePasse } from './activites.mjs';
 import { ecrireLEffet } from './effets.mjs';
 import { Arret, commenter, geste } from './ticket-du-circuit.mjs';
 import { arretDeLaLimiteDUsage, MEMOIRE } from './transitions.mjs';
@@ -154,9 +155,14 @@ function leContexte(ticket, memoire = {}, options = {}) {
 
 // The tools of the queue on the main tree <racine> (the act plays there), its lines on the error
 // output, the progress directory <avancement> of a reading of the CI, the effects it emits
-// gathered (`rendus`), which the act gives back.
+// gathered (`rendus`), which the act gives back. Its final pass reads its reds as the checks of the
+// circuit do (`rougesDUnePasse`), the port every tool of the queue is built with.
+const outilsDeLActe = (racine, avancement = null) =>
+  outilsDeLaFile(racine, l => process.stderr.write(`${l}\n`), avancement, {
+    rouges: rougesDUnePasse,
+  });
 const laFile = (racine, avancement = null) => {
-  const o = outilsDeLaFile(racine, l => process.stderr.write(`${l}\n`), avancement);
+  const o = outilsDeLActe(racine, avancement);
   o.rendus = [];
   return o;
 };
@@ -499,14 +505,9 @@ Object.assign(ACTES, {
   // One effect an act of the queue gave back, under the key of its activity, with the outcome of
   // the queue when it is not written (`ecrireLEffet`).
   async 'effet-de-la-file'({ racine, effet, cle, derniere }) {
-    ecrireLEffet(
-      outilsDeLaFile(racine, l => process.stderr.write(`${l}\n`)),
-      effet,
-      cle,
-      {
-        reessayer: derniere === false,
-      }
-    );
+    ecrireLEffet(outilsDeLActe(racine), effet, cle, {
+      reessayer: derniere === false,
+    });
     return null;
   },
 });

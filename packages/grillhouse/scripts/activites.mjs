@@ -1861,7 +1861,7 @@ function dansLesEcartes(ctx, chemin) {
 // whether a path of the plan holds it (none for a red without a file), the package that holds it
 // and that package again when it is out of the plan, whether it is a finding to settle
 // (`a-arbitrer`), and the package whose task gave it, as Turborepo names it (« // » for the
-// root's guards; null for a red of the command).
+// root's guards; null for a red of the command, which carries `sansResultat`).
 // As SARIF 2.1.0 and GitHub code scanning, a finding of level error fails, a warning or a note
 // shows without failing: `{ rouges, avertissements }`, `avertissements` the lines of the findings
 // of another level, which the report lists apart. A guards' task red without a finding of level
@@ -1963,9 +1963,23 @@ export function rougesDe(ctx, liste, c) {
     out.push({
       texte: `${ligneDeCommande(c)} rouge (code ${c.code}), sans résultat qui situe son rouge — le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`,
       ...situer(ctx, liste, null),
+      sansResultat: true,
     });
   }
   return { rouges: out, avertissements };
+}
+
+// The lines of the reds of a red pass `npm run verifier` played out of a circuit, in the copy
+// <copie>, its results under <dossier>: the reading of the checks (`rougesDe`) on the whole copy,
+// each red its line (test, file, message; finding; failed task), a failed build with the beginning
+// of its log. A pass whose results situate no red gives none: its caller holds its output (the
+// queue's final pass, scripts/integration/file.mjs).
+export function rougesDUnePasse({ copie, dossier, code, ticket, journal }) {
+  const ctx = { copie, paquets: ['.'], ecartes: [], ticket, journal };
+  const liste = composantsDe(copie).filter(p => !p.hors);
+  return rougesDe(ctx, liste, { args: ['run', 'verifier'], code, dossier })
+    .rouges.filter(r => !r.sansResultat)
+    .map(r => (r.detail ? `${r.texte}\n\n${r.detail}` : r.texte));
 }
 
 const ligneDeCommande = c =>

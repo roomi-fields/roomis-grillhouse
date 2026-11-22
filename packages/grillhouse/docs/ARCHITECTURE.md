@@ -1964,9 +1964,18 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   juge, sauf si son arbre est déjà jugé (`scripts/arbres-juges.mjs`) ; verte, l'arbre est gardé
   jugé, main avance en avance rapide sur la candidate, l'arbre jugé, le ticket se ferme et main se
   pousse ; main a bougé entre-temps, la branche se replace et sa passe se rejoue, cinq jugements au
-  plus. Rouge, main ne bouge pas, le ticket se rouvre avec la fin de la sortie de la passe ; à
-  repasser (75, la part de la machine attendue), la branche reste en file, le ticket est
-  prévenu. La file ne lit aucune CI et ne pousse aucune branche de ticket. Son issue revient au
+  plus. Rouge, main ne bouge pas, et le ticket se rouvre sur le rapport de la passe, celui des
+  contrôles du circuit, comme une file de fusion garde le journal du job qui refuse un lot et
+  nomme ses tests en échec (bors, Zuul) : la sortie entière de la passe s'ajoute au journal du
+  ticket (`.claude/worktrees/<ticket>.log`), que le commentaire nomme, et le commentaire nomme
+  chaque rouge (test, fichier, message ; constat ; tâche rouge) lu dans les résultats de la passe
+  par la lecture des contrôles (`rougesDUnePasse` de `scripts/activites.mjs`), dans chaque
+  langage, jusqu'à une borne au-delà de laquelle il dit leur compte et renvoie au journal, qui
+  les garde tous ; la fin de la sortie ne vient que si cette lecture ne nomme aucun rouge. Les
+  résultats de la passe vivent dans une base à elle (`scripts/mesure/base-de-passe.mjs`, le genre
+  `file`), retirée à sa fin et balayée par la passe suivante quand son acte est tué
+  (grillhouse-3uv.176). À repasser (75, la part de la machine attendue), la branche reste en
+  file, le ticket est prévenu, la sortie gardée de même. La file ne lit aucune CI et ne pousse aucune branche de ticket. Son issue revient au
   déroulé du ticket, le fait `file` de ses décisions. La file lit en revanche la CI de main
   (`surveillerLaCiDeMain`, l'acte du même nom, à son départ, après chaque entrée et chaque quart
   d'heure d'attente), la déclenche d'abord quand la pointe de main et l'heure le demandent, sans

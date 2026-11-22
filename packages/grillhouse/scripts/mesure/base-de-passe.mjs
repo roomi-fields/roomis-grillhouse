@@ -15,7 +15,8 @@
 //   (`globalPassThroughEnv`, scripts/langages/typescript/turbo-des-paquets.mjs); `circuit`, the results and progress
 //   of the passes of a circuit's run (scripts/circuit.mjs; its working directory is the ticket's,
 //   beside its copy, which no sweep touches); `integration`, the working directory of an
-//   integration (scripts/integration/integrer.mjs); `enveloppe`, the throwaway state of a session's envelope
+//   integration (scripts/integration/integrer.mjs); `file`, the results of the final pass of the queue
+//   (scripts/integration/file.mjs); `enveloppe`, the throwaway state of a session's envelope
 //   (scripts/enveloppe/enveloppe.mjs).
 // - The owner of a base is the process that opens it, for a pass and a session out of a ticket
 //   (the night, a verification); a ticket (`ouvrirBaseDuTicket`: `<dans>/grillhouse-ticket-<id>/`,
