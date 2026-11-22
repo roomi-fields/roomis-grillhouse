@@ -1,5 +1,6 @@
 // The activities of the queue of the tickets of a project (./deroule.ts): the tickets that start,
-// read from Beads in the main tree of the repository with the setting of its package.json, the
+// read from Beads in the main tree of the repository with the setting of its package.json, those
+// whose lot is on main left out, the
 // circuits of the project alive and those not integrated, read from the server, those alive whose
 // ticket was closed outside them, and the places of the machine its tickets may start on. A
 // package.json that does not parse, or a Beads that fails, is a fault named, never a key absent nor
@@ -12,6 +13,7 @@ import {
   fermesHorsCircuit as lesFermes,
   lireLesExternes,
   lireLesTickets,
+  lotEstSurMain,
   ticketsAPartir as aPartir,
 } from '../../../scripts/file-des-tickets.mjs';
 import { lireGroupe } from '../../../scripts/groupe-cles.mjs';
@@ -63,6 +65,7 @@ export function ticketsAPartir(e: Entree<'ticketsAPartir'>): Promise<Sortie<'tic
     partir: aPartir(tickets, {
       enCours: new Set(e.enCours),
       externes: lireLesExternes(e.racine, tickets),
+      surMain: lotEstSurMain(e.racine),
     }).map(t => t.id),
     max: reglage.max,
     faute: null,

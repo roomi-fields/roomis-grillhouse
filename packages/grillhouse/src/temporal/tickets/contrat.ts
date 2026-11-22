@@ -36,7 +36,8 @@ export interface VueDesTickets {
 export interface ActivitesDesTickets {
   /**
    * The tickets of the project that start now (`ticketsAPartir` of scripts/file-des-tickets.mjs,
-   * those of <enCours> aside), in their order, and the setting (`reglageDesCircuits` of
+   * those of <enCours> aside, and those whose lot is on main, `lotEstSurMain`), in their order,
+   * and the setting (`reglageDesCircuits` of
    * scripts/circuits-cles.mjs): the number of circuits at once, or, with nothing to start, the
    * fault by its name (the setting, a package.json that does not parse, a Beads that fails).
    */

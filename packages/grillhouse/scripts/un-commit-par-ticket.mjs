@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // A closed ticket keeps its one delivery: refuses a commit message whose title line names a ticket
 // an earlier commit already delivers, unless that ticket is open in Beads. An open ticket that
-// already has its delivery is a ticket reopened for a fix (by the queue or the CI): the commit is a
-// correction and passes. A closed ticket is finished: new work opens a new ticket, created under it
-// (`--parent`). Run by the commit-msg hook (`grillhouse hook commit-msg`, scripts/crochets.mjs), with
+// already has its delivery is a ticket reopened for a fix led by hand: the commit is a correction
+// and passes. The queue of the tickets never starts such a ticket again (its lot is on main,
+// scripts/file-des-tickets.mjs). A closed ticket is finished: new work opens a new ticket, created
+// under it (`--parent`). Run by the commit-msg hook (`grillhouse hook commit-msg`, scripts/crochets.mjs), with
 // the message file as argument.
 //
 // - A ticket is open when its Beads status (`bd show <id> --json`) is anything but `closed`; a

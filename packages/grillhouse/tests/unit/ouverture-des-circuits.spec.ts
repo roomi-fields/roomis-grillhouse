@@ -173,4 +173,20 @@ describe('the opening names the tickets of the queue without their architecture'
     expect(avec).not.toContain('## La file des tickets');
     expect(panne).not.toContain('## La file des tickets');
   });
+
+  it('names each ticket of the queue whose lot is already on main, and what to do of it', async () => {
+    const texte = await circuitsALOuverture(depot(), {
+      fermes: () => new Set(),
+      circuitsDe: lus([]),
+      ticketsDe: () => [
+        ticket('demo-2', '## Architecture\n\n- Adresse.'),
+        ticket('demo-7', '## Architecture\n\n- Adresse.'),
+      ],
+      surMainDe: () => (id: string) => id === 'demo-7',
+    });
+    expect(texte).toContain('\n## La file des tickets\nEn file, lot déjà sur main : demo-7.');
+    expect(texte).toContain('bd close');
+    expect(texte).toContain('ticket neuf');
+    expect(texte).not.toContain('demo-2');
+  });
 });

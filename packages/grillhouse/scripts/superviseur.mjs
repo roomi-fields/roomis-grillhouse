@@ -74,7 +74,13 @@ import { rappelDuProjet, reglageDuRappel } from './circuits-cles.mjs';
 import { lireGroupe } from './groupe-cles.mjs';
 import { etapeDuCircuit, libelle, REPONSES, sansLesReponses, SUPERVISEUR } from './etapes.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
-import { enFileSansArchitecture, lireLesTickets } from './file-des-tickets.mjs';
+import {
+  enFileSansArchitecture,
+  enFileSurMain,
+  lireLesExternes,
+  lireLesTickets,
+  lotEstSurMain,
+} from './file-des-tickets.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
 const COQUILLES = new Set(['sh', 'bash', 'dash', 'zsh']);
@@ -526,19 +532,27 @@ export function texteDesQuestions(questions, o = {}) {
  * their re-presentation. Last, « ## La
  * file des tickets » names the tickets of the queue without their section « ## Architecture »
  * (`enFileSansArchitecture` of scripts/file-des-tickets.mjs, the tickets read by <ticketsDe>,
- * `lireLesTickets` by default; a Beads that fails says nothing), which the queue never starts.
+ * `lireLesTickets` by default; a Beads that fails says nothing), which the queue never starts,
+ * then those whose lot is already on main (`enFileSurMain`, main read by <surMainDe>,
+ * `lotEstSurMain` by default), which it never starts again.
  * @param {string} racine the root of the repository
  * The circuits are read once, by <circuitsDe> (one call to the Temporal server,
  * scripts/circuits-du-serveur.mjs, by default); a server that does not answer is said, and no
  * question goes up.
  * @param {{ fermes?: (racine: string, ids: string[]) => Set<string> | null,
  *   circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]>,
- *   ticketsDe?: (racine: string) => import('./file-des-tickets.mjs').TicketDeBeads[] }} options
+ *   ticketsDe?: (racine: string) => import('./file-des-tickets.mjs').TicketDeBeads[],
+ *   surMainDe?: (racine: string) => (id: string) => boolean }} options
  * @returns {Promise<string>}
  */
 export async function circuitsALOuverture(
   racine,
-  { fermes = ticketsHorsAttente, circuitsDe = circuitsDuServeur, ticketsDe = lireLesTickets } = {}
+  {
+    fermes = ticketsHorsAttente,
+    circuitsDe = circuitsDuServeur,
+    ticketsDe = lireLesTickets,
+    surMainDe = lotEstSurMain,
+  } = {}
 ) {
   let circuits = null;
   let panne = null;
@@ -573,9 +587,15 @@ export async function circuitsALOuverture(
       : ligneDeQuestion(q),
   });
   let sansArchitecture = [];
+  let dejaSurMain = [];
   try {
-    sansArchitecture = enFileSansArchitecture(ticketsDe(racine), {
-      enCours: new Set((circuits ?? []).map(c => c.ticket)),
+    const tickets = ticketsDe(racine);
+    const enCours = new Set((circuits ?? []).map(c => c.ticket));
+    sansArchitecture = enFileSansArchitecture(tickets, { enCours }).map(t => t.id);
+    dejaSurMain = enFileSurMain(tickets, {
+      enCours,
+      externes: lireLesExternes(racine, tickets),
+      surMain: surMainDe(racine),
     }).map(t => t.id);
   } catch {
     // Beads fails: the board says it, the opening names no ticket.
@@ -589,11 +609,15 @@ export async function circuitsALOuverture(
     ...(panne ? ['', '## Les circuits du dépôt', panne] : []),
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
     ...(questions.length ? ['', `Les réponses à une question : ${REPONSES}`] : []),
+    ...(sansArchitecture.length || dejaSurMain.length ? ['', '## La file des tickets'] : []),
     ...(sansArchitecture.length
       ? [
-          '',
-          '## La file des tickets',
           `En file sans architecture : ${sansArchitecture.join(', ')}. La file ne démarre pas un ticket sans la section « ## Architecture » de sa description : écris-la (le modèle mûr, l'adresse, le mécanisme commun), puis la file le démarre.`,
+        ]
+      : []),
+    ...(dejaSurMain.length
+      ? [
+          `En file, lot déjà sur main : ${dejaSurMain.join(', ')}. La file ne relance pas un ticket dont le lot est sur main, resté ouvert ou rouvert : ferme-le (\`bd close <ticket> --reason "intégré : <commit>"\`, une dépendance ouverte levée d'abord), et ouvre un ticket neuf pour ce qui reste à faire.`,
         ]
       : []),
   ].join('\n');

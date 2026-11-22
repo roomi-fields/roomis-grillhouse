@@ -1286,7 +1286,14 @@ relatif à la racine du projet, car `.beads/config.yaml` est commité : aucune a
 n'y entre, et la file le lit depuis l'arbre principal (`cheminDuProjetExterne`). Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
 d'entrée, un ticket sans sa section ne part jamais (grillhouse-d4n.10) : le panneau (une alerte)
 et l'ouverture de la séance du superviseur (« ## La file des tickets ») le nomment, « En file sans
-architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Le déroulé de la file des tickets sous
+architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Comme une
+file de fusion sort une entrée fusionnée quel que soit l'état de son ticket (bors, la file de
+fusion de GitHub), un ticket dont le lot est sur main ne repart jamais, resté ouvert ou rouvert
+(grillhouse-3uv.157) : la file lit main pour un ticket qui partirait (`lotEstSurMain`, sur la règle
+unique `lotSurMain`), et le panneau (une alerte) et l'ouverture de la séance du superviseur le
+nomment, « En file, lot déjà sur main : <tickets> » (`enFileSurMain`), pour que le superviseur le
+ferme ; un travail à refaire sur un lot intégré est un ticket neuf, et un lot retiré par un revert
+repart. Le déroulé de la file des tickets sous
 Temporal la mène (ci-dessous).
 
 **Une passe lourde garde ce qu'elle consomme** (comme Bazel garde le profil de chaque action et
@@ -1970,7 +1977,12 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   pose son arrêt « inattendu », et la file continue avec les entrées suivantes ; une fermeture qui
   échoue une fois main avancé le dit (le main local porte le lot, non poussé), et `--reprendre`
   repasse le ticket par la file, qui trouve son lot sur main, le ferme et le pousse sans le juger
-  de nouveau. Un acte
+  de nouveau. Une fermeture que Beads refuse (`bd close` sur un ticket qu'une dépendance ouverte
+  bloque) est une faute nommée (grillhouse-3uv.157) : `fermerLEntree` la rend (`fermeture`) et
+  l'écrit au ticket, ne livre aucune capacité, garde le dossier de travail et pousse main ; la file
+  rend alors l'issue `echec` (`issueDeLEntree` de `src/temporal/file/contrat.ts`), le circuit
+  s'arrête sur sa question au superviseur, et `--reprendre`, la dépendance levée, repasse par la
+  file, qui ferme le ticket, livre ses capacités et retire son dossier de travail. Un acte
   arrêté (`--arreter`, le délai d'une activité) finit son groupe de processus, les commandes
   qu'il lance comprises, avant que son activité échoue. Les histoires enregistrées de la file se
   rejouent sur le code courant. Une passe finale rouge rouvre le ticket, et sa question
@@ -1987,7 +1999,8 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   ticket qui part (`ticketsAPartir` de `scripts/file-des-tickets.mjs` : ouvert, étiqueté `circuit`, sa
   section « ## Architecture » écrite, ses dépendances fermées, celles vers un autre projet
   (`external:<projet>:<capacité>`) livrées par un ticket fermé `provides:<capacité>` de ce projet,
-  lu par `external_projects` de Beads que `grillhouse maj` pose depuis `grillhouse.groupe`, par
+  lu par `external_projects` de Beads que `grillhouse maj` pose depuis `grillhouse.groupe`, son lot
+  absent de main (`lotEstSurMain`), par
   priorité), pas plus de vivants à la fois que le réglage
   du projet (`grillhouse.circuits` du `package.json`, `scripts/circuits-cles.mjs`, 1 quand il
   manque), et chacun seulement quand il tient une place de circuit de la machine : la file donne
@@ -2026,7 +2039,8 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   de rouvrir. À 1, le suivant part quand le précédent finit ou se met en pause. Un déroulé ne se ferme qu'intégré (son ticket fermé dans Beads) ou arrêté sur le
   mot du superviseur (`--arreter`, l'étiquette `circuit` retirée par l'acte de l'arrêt, `sortirDeLaFile` de
   `scripts/circuit.mjs`, et remise par le run qui s'ouvre sur sa réponse, `rentrerDansLaFile`) : Beads, le registre durable,
-  le garde de repartir. Un circuit vivant dont le ticket est fermé hors de son circuit (livré en
+  le garde de repartir, et main aussi : un ticket dont le lot est sur main ne repart pas, même
+  resté ouvert (grillhouse-3uv.157). Un circuit vivant dont le ticket est fermé hors de son circuit (livré en
   direct), avant son intégration, ne compte plus : la file l'arrête (`ARRETER`) à son réveil
   suivant et écrit sa ligne « termine » au journal des états (`fermesHorsCircuit` de
   `scripts/file-des-tickets.mjs`), comme Zuul retire de son pipeline un changement abandonné ou

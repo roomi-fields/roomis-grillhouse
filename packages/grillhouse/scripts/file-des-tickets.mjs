@@ -16,6 +16,12 @@
 // - A circuit alive whose ticket was closed outside it (delivered directly) holds no place: the
 //   queue stops it (`fermesHorsCircuit`).
 // - A ticket whose dependency is open stays: the board says « attend <ticket> » (scripts/tableau.mjs).
+// - A ticket whose lot is on main never starts again, left open or reopened, as a merge queue
+//   drops a merged entry whatever the state of its ticket (bors, GitHub's merge queue): work to
+//   do again on an integrated lot is a new ticket, and a lot withdrawn by a revert starts again.
+//   `lotEstSurMain` reads it (the one rule `lotSurMain` of ./integration/integrer.mjs), for a
+//   ticket that would start alone; `enFileSurMain` names it, for the board and the opening of
+//   the supervisor, who closes it.
 // - A dependency on another project (`external:<project>:<capability>`, Beads' cross-project
 //   dependency) holds the ticket until the provider delivered the capability: a closed ticket of
 //   that project labelled `provides:<capability>` (which `bd ship` sets; `export:` alone does
@@ -25,6 +31,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { ETAPES } from './etapes.mjs';
+import { lotSurMain } from './integration/integrer.mjs';
 
 // Whether the description of <t> holds its section « ## Architecture »: the rule the queue and the
 // board both read.
@@ -89,35 +96,76 @@ export function attendDeLAutreProjet(t, externes) {
     }));
 }
 
+// The tickets of <tous> in the queue that nothing of Beads holds: their section written, every
+// dependency closed, every capability of another project delivered.
+const prets = (tous, enCours, externes) => {
+  const fermes = new Set(tous.filter(t => t.status === 'closed').map(t => t.id));
+  return enFile(tous, enCours).filter(
+    t =>
+      aSonArchitecture(t) &&
+      (t.dependencies ?? []).every(
+        d =>
+          d.type !== 'blocks' ||
+          (d.depends_on_id.startsWith('external:') ? true : fermes.has(d.depends_on_id))
+      ) &&
+      dependancesExternes(t).every(d => livree(externes, d.projet, d.capacite))
+  );
+};
+
 /**
  * The tickets of <tous> that start now, in the order they start.
  * @param {Array<{ id: string, status: string, priority?: number, labels?: string[],
  *   created_at?: string, description?: string,
  *   dependencies?: Array<{ type: string, depends_on_id: string }> }>} tous
  *   every ticket of the project, the closed ones too
- * @param {{ enCours?: Set<string>, externes?: Record<string, typeof tous> }} [o] `enCours`, the
- *   tickets whose circuit already runs; `externes`, the tickets of each other project by its name
+ * @param {{ enCours?: Set<string>, externes?: Record<string, typeof tous>,
+ *   surMain?: (id: string) => boolean }} [o] `enCours`, the tickets whose circuit already runs;
+ *   `externes`, the tickets of each other project by its name; `surMain`, whether the lot of a
+ *   ticket is on main (`lotEstSurMain`), asked for a ticket that would start alone
  * @returns {typeof tous}
  */
-export function ticketsAPartir(tous, { enCours = new Set(), externes } = {}) {
-  const fermes = new Set(tous.filter(t => t.status === 'closed').map(t => t.id));
-  return enFile(tous, enCours)
-    .filter(
-      t =>
-        aSonArchitecture(t) &&
-        (t.dependencies ?? []).every(
-          d =>
-            d.type !== 'blocks' ||
-            (d.depends_on_id.startsWith('external:') ? true : fermes.has(d.depends_on_id))
-        ) &&
-        dependancesExternes(t).every(d => livree(externes, d.projet, d.capacite))
-    )
+export function ticketsAPartir(
+  tous,
+  { enCours = new Set(), externes, surMain = () => false } = {}
+) {
+  return prets(tous, enCours, externes)
+    .filter(t => !surMain(t.id))
     .sort(
       (a, b) =>
         (a.priority ?? 2) - (b.priority ?? 2) ||
         Date.parse(a.created_at ?? '') - Date.parse(b.created_at ?? '') ||
         a.id.localeCompare(b.id, 'en')
     );
+}
+
+/**
+ * The tickets of <tous> in the queue that never start because their lot is on main, sorted by id:
+ * those nothing else holds, as `ticketsAPartir` leaves them out.
+ * @param {Parameters<typeof ticketsAPartir>[0]} tous every ticket of the project
+ * @param {Parameters<typeof ticketsAPartir>[1]} [o]
+ * @returns {typeof tous}
+ */
+export function enFileSurMain(tous, { enCours = new Set(), externes, surMain = () => false } = {}) {
+  return prets(tous, enCours, externes)
+    .filter(t => surMain(t.id))
+    .sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
+}
+
+/**
+ * Whether the lot of a ticket is on the main of the main tree <racine> (`lotSurMain`), as a
+ * function of its id; a prefix of the tickets that does not read holds no ticket, the circuit
+ * naming that fault.
+ * @param {string} racine
+ * @returns {(id: string) => boolean}
+ */
+export function lotEstSurMain(racine) {
+  return id => {
+    try {
+      return lotSurMain({ racine }, id) !== null;
+    } catch {
+      return false;
+    }
+  };
 }
 
 // The states of the steps of the integration (5.1, 5.2, 5.3): the circuit's own queue closes the

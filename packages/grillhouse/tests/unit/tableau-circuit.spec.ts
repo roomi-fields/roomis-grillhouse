@@ -548,4 +548,23 @@ describe('the tickets of the queue without their architecture', () => {
     const t = plateau([enFile('demo-41', { description: SECTION })], [], [], []);
     expect(t.alertes).toEqual([]);
   });
+
+  it('one alert names each ticket of the queue whose lot is already on main, which never starts again', () => {
+    const tous = [
+      enFile('demo-40', { description: SECTION, labels: ['circuit'] }),
+      enFile('demo-41', { description: SECTION, labels: ['circuit'] }),
+      enFile('demo-42', { description: SECTION, labels: ['circuit'] }),
+    ];
+    const t = assembler({
+      tous,
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      circuits: [circuitLu('demo-42', { vivant: true })],
+      maintenant: MAINTENANT,
+      jour: MAINTENANT - 24 * 60 * MIN,
+      lotSurMain: (id: string) => id !== 'demo-41',
+    }) as Board;
+    expect(t.alertes.map(x => x.texte)).toEqual(['En file, lot déjà sur main : 40']);
+  });
 });

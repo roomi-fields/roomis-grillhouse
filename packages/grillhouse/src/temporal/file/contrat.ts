@@ -1,9 +1,9 @@
 // The contract of the queue of integration of a project (grillhouse-4nr.8), the final pass judging
 // the lot laid on the tip of main before main moves (grillhouse-3uv.121): the id of the queue (its
 // type is the name of its function, ./deroule.ts), its signals and its query by their names, what
-// they receive and give back, and the activities it calls (./activites.ts, each an act of
-// scripts/faits-du-circuit.mjs over scripts/integration/file.mjs). The workflows, their activities
-// and their clients share it.
+// they receive and give back, the issue of an entry on main (`issueDeLEntree`), and the
+// activities it calls (./activites.ts, each an act of scripts/faits-du-circuit.mjs over
+// scripts/integration/file.mjs). The workflows, their activities and their clients share it.
 
 /** The id of the one queue of the repository at <racine>. */
 export const idDeLaFile = (racine: string) => `file:${racine}`;
@@ -62,6 +62,35 @@ export interface IssueDeLaFile {
   raison: string;
   /** A branch reopened because it does not replay on main: its lot goes back to the developpeur. */
   conflit?: boolean;
+}
+
+/**
+ * The issue of the entry of <ticket> on main at <commit>, from what its closure <f> gave back
+ * (`fermerLEntree`): « ferme », its closure first, then why main is not pushed and the capability
+ * not delivered; « echec » for a closure that failed (`fermeture`), on which the circuit stops,
+ * its question up, the lot on main and the ticket open named, with the resumption that closes it.
+ */
+export function issueDeLEntree(
+  ticket: string,
+  commit: string,
+  f: { raison?: string | null; livraison?: string | null; fermeture?: string | null }
+): IssueDeLaFile {
+  const court = commit.slice(0, 7);
+  if (f.fermeture) {
+    return {
+      etat: 'echec',
+      raison: [
+        `le lot de ${ticket} est sur main en ${court}, mais son ticket n'est pas fermé : ${f.fermeture}. Lève ce qui l'empêche, puis --reprendre, qui repasse par la file et le ferme ; la file des tickets ne relance pas un ticket dont le lot est sur main`,
+        f.raison,
+      ]
+        .filter(Boolean)
+        .join(' ; '),
+    };
+  }
+  return {
+    etat: 'ferme',
+    raison: [`intégré : ${court}`, f.raison, f.livraison].filter(Boolean).join(' ; '),
+  };
 }
 
 /** Where the lot of a ticket stands: the status of the ticket in Beads, and its reason of closure. */
@@ -132,15 +161,16 @@ export interface ActivitesDeLaFile {
   /**
    * The ticket closed, its branch deleted, main pushed (`fermerLEntree`): the branch pushed to, or
    * null and why, in one line; `livraison`, the fault of a `bd ship` of a capability the ticket
-   * exports, in one line, null without one.
+   * exports, in one line, null without one; `fermeture`, the fault of a `bd close` that failed,
+   * in one line, null without one (absent of a history recorded before it).
    */
-  fermerLEntree(e: {
-    racine: string;
-    ticket: string;
-    branche: string;
-    commit: string;
-  }): Promise<
-    { poussee: string | null; raison?: string | null; livraison?: string | null } & Rendus
+  fermerLEntree(e: { racine: string; ticket: string; branche: string; commit: string }): Promise<
+    {
+      poussee: string | null;
+      raison?: string | null;
+      livraison?: string | null;
+      fermeture?: string | null;
+    } & Rendus
   >;
   /**
    * One effect <effet> an act of the queue gave back, written under the key of this activity (its

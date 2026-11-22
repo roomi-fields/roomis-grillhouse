@@ -47,7 +47,12 @@
 // ticket that fixes it.
 // At its entry on main (`fermerLEntree`), the branch's ticket closes « intégré : <commit> », loses
 // `en-file`, and the branch is deleted; a branch git does not delete (its copy still in place) is
-// written to the ticket, which closes all the same. Then main is pushed to origin, to the branch
+// written to the ticket, which closes all the same. A closure Beads refuses (a ticket an open
+// dependency blocks) is a fault named, `fermeture`: its comment at the ticket says it whole, no
+// capability is delivered, the working directory stays, main is pushed, and the workflow gives the
+// circuit the issue « echec », on which it stops with its question; its resumption, once what
+// holds the closure is lifted, plays the entry again, which closes the ticket; the queue of the
+// tickets never starts again a ticket whose lot is on main (scripts/file-des-tickets.mjs). Then main is pushed to origin, to the branch
 // main, which the pre-push hook lets go as the tree is judged (a main whose package.json carries the
 // retired key `grillhouse.poussee` is refused by its name, nothing pushed); a refused push is written to the ticket and does not stop the
 // queue. The working directory of its circuit (`.claude/worktrees/<ticket>.travail`,
@@ -434,8 +439,11 @@ function livrerLesCapacites(o, ticket, labels) {
  * removes the working directory of its circuit (`retirerLeTravail`). Each of its gestures replays
  * without harm (a ticket closed is left closed, a branch gone stays gone, a commit pushed is pushed
  * again as it is), and never reopens the ticket; its comments are effects (`commenterAu`), which
- * the workflow of the queue writes once each. `{ poussee, raison }`: `main` once pushed, or null
- * and why, in one line (`enUneLigne`), its comment at the ticket whole.
+ * the workflow of the queue writes once each. `{ poussee, raison, fermeture }`: `main` once
+ * pushed, or null and why, in one line (`enUneLigne`), its comment at the ticket whole;
+ * `fermeture`, the fault of a `bd close` that fails, in one line (the command and Beads' reason),
+ * null without one: the ticket stays open, no capability is delivered and the working directory
+ * stays, for the circuit that stops on it, and the entry played again closes the ticket.
  */
 export function fermerLEntree(o, entree) {
   const { racine } = o;
@@ -444,23 +452,38 @@ export function fermerLEntree(o, entree) {
   const commenter = texte => commenterAu(o, entree.ticket, texte);
   const show = o.bd('show', entree.ticket, '--json');
   const lu = show.status === 0 ? (JSON.parse(show.stdout)[0] ?? null) : null;
+  let fermeture = null;
   if ((lu?.status ?? null) !== 'closed') {
     o.bd('update', entree.ticket, '--remove-label', 'en-file');
-    o.bd('close', entree.ticket, '--reason', `${INTEGRE}${court}`);
+    const r = o.bd('close', entree.ticket, '--reason', `${INTEGRE}${court}`);
+    if (r.status !== 0) {
+      const raison = `${r.stderr ?? ''}`.trim() || `${r.stdout ?? ''}`.trim() || `code ${r.status}`;
+      commenter(
+        `Le ticket n'est pas fermé : son lot est sur ${o.principale} en ${court}, mais \`bd close ${entree.ticket}\` échoue :\n${raison}\n\nLève ce qui l'empêche, puis reprends son circuit (\`--reprendre\`) : il repasse par la file, qui ferme le ticket, livre ses capacités et retire son dossier de travail. La file ne relance pas un ticket dont le lot est sur ${o.principale}.`
+      );
+      o.dire(`⚠ bd close ${entree.ticket} échoue`);
+      fermeture = `bd close ${entree.ticket} échoue : ${enUneLigne(raison)}`;
+    }
   }
   // The capabilities the ticket exports (`export:<capability>`) are delivered once it is closed.
-  const ferme = livrerLesCapacites(o, entree.ticket, lu?.labels ?? []);
+  const ferme = {
+    ...(fermeture ? { livraison: null } : livrerLesCapacites(o, entree.ticket, lu?.labels ?? [])),
+    fermeture,
+  };
   o.dire(`✓ ${entree.branche} entre sur ${o.principale} : ${court}`);
   if (git('rev-parse', '--verify', '-q', `refs/heads/${entree.branche}`).status === 0) {
     const efface = git('branch', '-D', entree.branche);
     if (efface.status !== 0) {
       commenter(
-        `La branche ${entree.branche} reste en place après son entrée sur ${o.principale} (${efface.stderr.trim()}) : sa copie est encore en place. Le ticket est fermé.`
+        `La branche ${entree.branche} reste en place après son entrée sur ${o.principale} (${efface.stderr.trim()}) : sa copie est encore en place.${fermeture ? '' : ' Le ticket est fermé.'}`
       );
       o.dire(`⚠ ${entree.branche} n'est pas effacée`);
     }
   }
-  retirerLeTravail(o, entree.ticket);
+  // The working directory lives as long as the ticket: one left open keeps it, for its circuit.
+  if (!fermeture) {
+    retirerLeTravail(o, entree.ticket);
+  }
   const paquet = git('show', `refs/heads/${o.principale}:package.json`);
   const retiree = pousseeRetiree(paquet.status === 0 ? JSON.parse(paquet.stdout) : null);
   if (retiree) {

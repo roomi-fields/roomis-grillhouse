@@ -158,7 +158,9 @@ import {
   aSonArchitecture,
   attendDeLAutreProjet,
   enFileSansArchitecture,
+  enFileSurMain,
   lireLesExternes,
+  lotEstSurMain,
 } from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { duree as dureeDeLaFermeture } from './regles-des-places.mjs';
@@ -248,6 +250,7 @@ export const TONS = Object.freeze({
   sansRienQuiTourne: 'attention',
   silencieux: 'attention',
   sansArchitecture: 'attention',
+  lotSurMain: 'attention',
   outilNonInstallable: 'attention',
   machineChargee: 'attention',
   fige: 'alerte',
@@ -928,6 +931,7 @@ export function assembler({
   superviseur = {},
   externes,
   limite = null,
+  lotSurMain = () => false,
 }) {
   // A circuit's lines are its steps, no agent's passage.
   const etapesFinies = lignesDuRegistre.filter(r => r.role === ROLE_DU_CIRCUIT);
@@ -1410,6 +1414,18 @@ export function assembler({
   if (sansArchitecture.length) {
     alerter('sansArchitecture', {
       texte: `En file sans architecture : ${sansArchitecture.map(t => numero(t.id)).join(', ')}`,
+    });
+  }
+  // The tickets of the queue whose lot is already on main, which the queue never starts again
+  // (scripts/file-des-tickets.mjs): one line names them all, for the supervisor to close them.
+  const dejaSurMain = enFileSurMain(tous, {
+    enCours: new Set(parCircuit.keys()),
+    externes,
+    surMain: lotSurMain,
+  });
+  if (dejaSurMain.length) {
+    alerter('lotSurMain', {
+      texte: `En file, lot déjà sur main : ${dejaSurMain.map(t => numero(t.id)).join(', ')}`,
     });
   }
   for (const b of blocs) {
@@ -2797,6 +2813,7 @@ function lire(
     superviseur,
     externes: lireLesExternes(racine, tous),
     limite: maxDuProjet(commun ? path.dirname(commun) : racine) ?? null,
+    lotSurMain: lotEstSurMain(commun ? path.dirname(commun) : racine),
   });
   return { t, prefix, tous, vivants, commun };
 }

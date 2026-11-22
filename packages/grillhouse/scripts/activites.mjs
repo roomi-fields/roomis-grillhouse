@@ -1044,8 +1044,7 @@ export function integrer(ctx) {
   // The integration is not played when the lot is already on main or the copy holds no file to
   // commit: one check, as a merge queue closes an entry already merged (Zuul). It is looked for
   // when the ticket is labelled `en-file` (the queue takes it off) or the copy holds no file of the
-  // lot (a copy that holds one still has a lot to commit — a second commit of a reopened ticket, for
-  // example).
+  // lot (a copy that holds one still has a lot to commit).
   const sansLot = !(tests.length || code.length);
   if (enFile || sansLot) {
     // A lot already on main (`lotSurMain`, the one rule the integrator publishes): the ticket

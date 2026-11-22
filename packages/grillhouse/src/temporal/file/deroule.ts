@@ -38,6 +38,7 @@ import { WorkflowExecutionAlreadyStartedError } from '@temporalio/common';
 import {
   idDeLaFile,
   ENTRER,
+  issueDeLEntree,
   ISSUE_DE_LA_FILE,
   L_ETAT_DE_LA_FILE,
   RELANCER,
@@ -235,9 +236,9 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     const f = await actes.fermerLEntree({ racine, ticket: e.ticket, branche: e.branche, commit });
     await jouerLesEffets(racine, f.effets, `${lieu}:fermer`);
     avance = null;
-    // The lot is on main: its closure first, then why it is not pushed.
-    const ferme = `intégré : ${commit.slice(0, 7)}`;
-    return { etat: 'ferme', raison: [ferme, f.raison, f.livraison].filter(Boolean).join(' ; ') };
+    // The lot is on main: its closure first, then why it is not pushed; a closure that failed
+    // stops the circuit (`issueDeLEntree`).
+    return issueDeLEntree(e.ticket, commit, f);
   };
 
   // The entry <e> to its issue, an act that fails included: the queue goes on with the next

@@ -18,8 +18,25 @@ export function aSonArchitecture(t: { description?: string }): boolean;
 /** The tickets of <tous> that start now, in the order they start. */
 export function ticketsAPartir<T extends TicketDeBeads>(
   tous: T[],
-  o?: { enCours?: Set<string>; externes?: Record<string, TicketDeBeads[]> }
+  o?: {
+    enCours?: Set<string>;
+    externes?: Record<string, TicketDeBeads[]>;
+    surMain?: (id: string) => boolean;
+  }
 ): T[];
+
+/** The tickets of <tous> in the queue that never start because their lot is on main. */
+export function enFileSurMain<T extends TicketDeBeads>(
+  tous: T[],
+  o?: {
+    enCours?: Set<string>;
+    externes?: Record<string, TicketDeBeads[]>;
+    surMain?: (id: string) => boolean;
+  }
+): T[];
+
+/** Whether the lot of a ticket is on the main of the main tree <racine>, as a function of its id. */
+export function lotEstSurMain(racine: string): (id: string) => boolean;
 
 /**
  * What each ticket of the queue waits for from another project (`external:<project>:<capability>`
