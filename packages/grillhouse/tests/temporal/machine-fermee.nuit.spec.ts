@@ -1,10 +1,10 @@
 // @poste: un serveur Temporal
 // La fermeture de la machine par le superviseur, sur le déroulé des places (src/temporal/places/),
-// jouée sur un serveur d'essai avec le travailleur du cadre : la même réservation que celle de la
-// nuit, avec son auteur et un jeton propre ; aucune place donnée, la demande attend avec sa
+// jouée sur un serveur d'essai avec le travailleur du cadre : la seule réservation de la machine,
+// avec son auteur et un jeton propre ; aucune place donnée, la demande attend avec sa
 // raison sans être retirée, ce qui tourne finit, la fermeture survit à une continuation et à un
 // rejeu du déroulé, ne périme jamais, et la réouverture donne la place d'elle-même ; fermer deux
-// fois, ou rouvrir une machine ouverte, ne change rien ; la nuit garde sa réservation.
+// fois, ou rouvrir une machine ouverte, ne change rien ; la vue ne porte aucune nuit.
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -19,7 +19,6 @@ import {
   prendreUnePlaceParTemporal,
   rendreLaPlace,
   reserverDesCircuits,
-  reserverLaMachineEntiere,
   rouvrirLaMachine,
   tirerUnRangParTemporal,
 } from '../../src/temporal/places/client.js';
@@ -83,7 +82,6 @@ describe('la fermeture de la machine par le superviseur', () => {
     const vue = await lireLesPlaces(client);
     expect(vue.fermeture).toMatchObject({ auteur: 'superviseur', phase: 'vide' });
     expect(vue.fermeture?.depuis).toBeGreaterThan(0);
-    expect(vue.nuit ?? null).toBeNull();
     expect(vue.prises).toHaveLength(0);
     expect(vue.attentes.map(x => x.ticket)).toEqual(['c']);
     expect(vue.attentes[0]?.raison).toMatch(/machine fermée par le superviseur/);
@@ -160,25 +158,14 @@ describe('la fermeture de la machine par le superviseur', () => {
   }, 120_000);
 });
 
-describe('la nuit garde sa propre réservation', () => {
-  it('la nuit tient la machine : la fermeture ne prend pas de seconde réservation, la réouverture ne la lève pas', async () => {
+describe('la vue des places ne porte plus de nuit', () => {
+  it('la machine fermée puis rouverte ne montre jamais de phase de nuit', async () => {
     const client = await machine();
-    await reserverLaMachineEntiere(client, { jeton: 'jeton-d-essai' });
-    expect(await fermerLaMachine(client)).toBe('nuit-tient');
-    expect(await rouvrirLaMachine(client)).toBe('nuit-tient');
-    const vue = await lireLesPlaces(client);
-    expect(vue.nuit?.phase).toBe('en cours');
-    expect(vue.fermeture).toMatchObject({ auteur: 'nuit' });
-  }, 120_000);
-
-  it('une nuit qui demande la machine fermée par le superviseur ne la prend pas et n’échoue pas', async () => {
-    const client = await machine();
+    expect(Object.keys(await lireLesPlaces(client))).not.toContain('nuit');
     await fermerLaMachine(client);
-    await expect(
-      reserverLaMachineEntiere(client, { jeton: 'jeton-d-essai' })
-    ).resolves.toMatchObject({ prise: false });
     const vue = await lireLesPlaces(client);
     expect(vue.fermeture?.auteur).toBe('superviseur');
-    expect(vue.nuit ?? null).toBeNull();
+    expect(Object.keys(vue)).not.toContain('nuit');
+    expect(await rouvrirLaMachine(client)).toBe('rouverte');
   }, 120_000);
 });

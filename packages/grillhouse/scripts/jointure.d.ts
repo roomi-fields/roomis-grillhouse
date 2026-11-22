@@ -486,7 +486,6 @@ export function surUnePart(
   o?: {
     env?: NodeJS.ProcessEnv;
     racine?: string;
-    entiere?: boolean;
     mesure?: boolean;
     dire?: (l: string) => void;
   }

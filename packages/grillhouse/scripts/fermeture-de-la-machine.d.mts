@@ -3,13 +3,13 @@
 
 /** What the command of closure does on the reservation in place. */
 export function decisionDeFermeture(
-  reservation: { auteur?: 'nuit' | 'superviseur' } | null | undefined
-): 'fermer' | 'deja-fermee' | 'nuit-tient';
+  reservation: object | null | undefined
+): 'fermer' | 'deja-fermee';
 
 /** What the command of reopening does on the reservation in place. */
 export function decisionDeReouverture(
-  reservation: { auteur?: 'nuit' | 'superviseur' } | null | undefined
-): 'rouvrir' | 'deja-ouverte' | 'nuit-tient';
+  reservation: object | null | undefined
+): 'rouvrir' | 'deja-ouverte';
 
 /** What still runs by project and by ticket, or « la machine est vide ». */
 export function direCeQuiTourne(o: {

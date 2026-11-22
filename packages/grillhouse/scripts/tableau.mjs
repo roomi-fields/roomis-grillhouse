@@ -898,8 +898,8 @@ export function lignesDesParts({
  *   places?: { prises: number, plafond: number, faute?: string | null, charge: number,
  *   coeurs: number, memoireGo: number, memoireTotaleGo: number,
  *   tenues?: { ticket: string | null, racine?: string | null }[], attentes: { ticket: string,
- *   depuis: number, disque?: string | null }[], nuit?: 'attend' | 'en cours' | null,
- *   fermeture?: { auteur: 'nuit' | 'superviseur', depuis: number, phase: string } | null } | null,
+ *   depuis: number, disque?: string | null }[],
+ *   fermeture?: { auteur: 'superviseur', depuis: number, phase: string } | null } | null,
  *   nuit?: { racine: string, depuis: number | null } | null, muet?: boolean, faute?: string | null,
  *   echecPrefixe?: string | null, voies?: Record<string, 'complet' | 'court'> }} lu
  */
@@ -1702,7 +1702,7 @@ const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null)
  * and its witness (`temoin`: the part it holds or waits for, « · <sorte> faits/prévus · <durée> »,
  * « · part <sorte> · <durée> », else the progress of its automatic pass, `temoinDe`), in this
  * order: frozen; ended without its issue; its question (to the supervisor or to another); stopped;
- * its wait for the disk, a place (« nuit » while the night holds the machine), a part or its first
+ * its wait for the disk, a place, a part or its first
  * state; else it runs. `lignes`: one entry per
  * ticket's line of AGENTS, its id, its project on a board of several and its sign: each circuit,
  * each ticket led in direct (▶) and each agent shown out of a circuit (▶).
@@ -1770,7 +1770,7 @@ export function etatsDAgents(t) {
     return attendLeDisque.has(c.id)
       ? ['attendLeDisque', 'disque']
       : attendUnePlace.has(c.id)
-        ? ['attendUnePlace', p?.nuit ? 'nuit' : 'attend une place']
+        ? ['attendUnePlace', 'attend une place']
         : attendUnePart.has(c.id)
           ? ['attendUnePart', '']
           : !etape
@@ -1973,43 +1973,28 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         ticket: w.ticket,
       });
     }
-    // The night reserving the machine (`nuit` of the places: `attend`, `en cours`, none outside
-    // the night): the stages under way finish, then the nights play.
-    if (p.nuit) {
-      poser({
-        texte: cadre(
-          p.nuit === 'attend' ? 'nuit : attend la fin des étapes en cours' : 'nuit en cours',
-          '',
-          largeur
-        ),
-        ton: p.nuit === 'attend' ? TONS.attendLeDisque : TONS.nuitEnCours,
-      });
-    }
-    // The machine closed (`fermeture` of the places: its author, `superviseur` or `nuit`, since
-    // when, its phase): said, with how long it has lasted, so a closure forgotten is seen.
+    // The machine closed by the supervisor (`fermeture` of the places: since when, its phase): said,
+    // with how long it has lasted, so a closure forgotten is seen; it holds no place itself, so it
+    // says what its places still do.
     if (p.fermeture) {
-      const { auteur, depuis, phase } = p.fermeture;
-      const duJour = auteur === 'superviseur';
+      const { depuis, phase } = p.fermeture;
       poser({
         texte: couperAvant(
-          `machine fermée par ${duJour ? 'le superviseur' : 'la nuit'}`,
+          'machine fermée par le superviseur',
           ` · depuis ${dureeDeLaFermeture(maintenant - depuis)}`,
           '',
           largeur
         ),
-        ton: duJour ? TONS.attendLeDisque : TONS.nuitEnCours,
+        ton: TONS.attendLeDisque,
       });
-      // The closure of the supervisor holds no place itself: it says what its places still do.
-      if (duJour) {
-        poser({
-          texte: cadre(
-            phase === 'vide' ? 'la machine est vide' : 'attend la fin des étapes en cours',
-            '',
-            largeur
-          ),
-          ton: TONS.attendLeDisque,
-        });
-      }
+      poser({
+        texte: cadre(
+          phase === 'vide' ? 'la machine est vide' : 'attend la fin des étapes en cours',
+          '',
+          largeur
+        ),
+        ton: TONS.attendLeDisque,
+      });
     }
   }
   // A project at its limit of circuits (`grillhouse.circuits`) names the circuits that hold it

@@ -15,7 +15,6 @@
 //   again. Past its length of history it continues as new with its queue.
 // Deterministic: it imports the workflow API and the contract.
 import {
-  CancellationScope,
   allHandlersFinished,
   condition,
   continueAsNew,
@@ -23,7 +22,6 @@ import {
   defineSignal,
   proxyActivities,
   setHandler,
-  uuid4,
   workflowInfo,
 } from '@temporalio/workflow';
 import {
@@ -42,12 +40,6 @@ const actes = proxyActivities<ActivitesDesNuits>({
 // A night lasts hours; its heartbeat says it lives. Played again once after its worker died: the
 // attempt ends the group the dead one left before it plays.
 const { jouerLaNuit } = proxyActivities<ActivitesDesNuits>({
-  startToCloseTimeout: '12 hours',
-  heartbeatTimeout: '5 minutes',
-  retry: { maximumAttempts: 2 },
-});
-// The wait of the stages under way is as long as the longest of them; its heartbeat says it lives.
-const { reserverLaMachine } = proxyActivities<ActivitesDesNuits>({
   startToCloseTimeout: '12 hours',
   heartbeatTimeout: '5 minutes',
   retry: { maximumAttempts: 2 },
@@ -83,76 +75,46 @@ export async function nuitsDeLaMachine(entree: EntreeDesNuits = {}): Promise<Vue
   });
   setHandler(lEtat, () => vue);
 
-  // The reservation of the whole machine (`reserverLaMachine`): made once, before the first night
-  // that plays, lifted when the nights are done, whatever ends them (a failure, a cancellation);
-  // a Continue-As-New carries it.
-  let jeton = entree.etat?.jeton ?? null;
-  let suite = false;
-  const lever = async () => {
-    if (jeton === null) {
-      return;
-    }
-    const j = jeton;
-    jeton = null;
-    await CancellationScope.nonCancellable(() => actes.leverLaMachine({ jeton: j }));
-  };
-
+  // A night reserves nothing: its pass takes the part of its project, as every pass of the machine
+  // (scripts/places-de-la-machine.mjs), and waits for it, without bound under the closure of the
+  // supervisor.
   const limite = entree.limiteDHistoire ?? LIMITE_D_HISTOIRE;
-  try {
-    for (;;) {
-      if (planifiees > 0) {
-        planifiees = 0;
-        const choix = await actes.choisirLesNuits();
-        for (const saut of choix.sautes) {
-          await actes.noterLeSaut(saut);
-        }
-        vue.sautes.push(...choix.sautes);
-        vue.ecartes.push(...choix.ecartes);
-        choix.jouer.forEach(inscrire);
+  for (;;) {
+    if (planifiees > 0) {
+      planifiees = 0;
+      const choix = await actes.choisirLesNuits();
+      for (const saut of choix.sautes) {
+        await actes.noterLeSaut(saut);
+      }
+      vue.sautes.push(...choix.sautes);
+      vue.ecartes.push(...choix.ecartes);
+      choix.jouer.forEach(inscrire);
+      continue;
+    }
+    const racine = vue.attente.shift();
+    if (racine === undefined) {
+      // A request that arrives while the handlers finish is read before the end.
+      await condition(allHandlersFinished);
+      if (planifiees > 0 || vue.attente.length > 0) {
         continue;
       }
-      const racine = vue.attente.shift();
-      if (racine === undefined) {
-        // A request that arrives while the handlers finish is read before the end.
-        await condition(allHandlersFinished);
-        if (planifiees > 0 || vue.attente.length > 0) {
-          continue;
-        }
-        return vue;
-      }
-      if (jeton === null) {
-        // The stages under way finish; the night starts once no place is held.
-        const demande = uuid4();
-        const reservation = await reserverLaMachine({ jeton: demande });
-        if (!reservation.prise) {
-          // The supervisor closed the machine: this night is skipped, its reason written like any
-          // skip, and not caught up at the reopening: the next planned night plays it.
-          vue.sautes.push(await actes.sauterLaNuit({ racine, raison: reservation.raison }));
-          continue;
-        }
-        jeton = demande;
-      }
-      vue.enCours = racine;
-      vue.depuis = Date.now();
-      try {
-        vue.jouees.push({ racine, code: await jouerLaNuit({ racine, jeton }), echec: null });
-      } catch (e) {
-        vue.jouees.push({ racine, code: null, echec: e instanceof Error ? e.message : String(e) });
-      }
-      vue.enCours = null;
-      vue.depuis = null;
-      if (workflowInfo().continueAsNewSuggested || workflowInfo().historyLength >= limite) {
-        await condition(allHandlersFinished);
-        suite = true;
-        await continueAsNew<typeof nuitsDeLaMachine>({
-          ...entree,
-          etat: { attente: vue.attente, planifiees, jeton },
-        });
-      }
+      return vue;
     }
-  } finally {
-    if (!suite) {
-      await lever();
+    vue.enCours = racine;
+    vue.depuis = Date.now();
+    try {
+      vue.jouees.push({ racine, code: await jouerLaNuit({ racine }), echec: null });
+    } catch (e) {
+      vue.jouees.push({ racine, code: null, echec: e instanceof Error ? e.message : String(e) });
+    }
+    vue.enCours = null;
+    vue.depuis = null;
+    if (workflowInfo().continueAsNewSuggested || workflowInfo().historyLength >= limite) {
+      await condition(allHandlersFinished);
+      await continueAsNew<typeof nuitsDeLaMachine>({
+        ...entree,
+        etat: { attente: vue.attente, planifiees },
+      });
     }
   }
 }

@@ -9,29 +9,22 @@ import { duree } from './regles-des-places.mjs';
 
 /**
  * What the command of closure does on the reservation <reservation> of the machine (null without):
- * `'fermer'` when none stands, `'deja-fermee'` under the supervisor's own closure, `'nuit-tient'`
- * when the night holds the machine (an absent author is the night's): no second reservation.
- * @param {{ auteur?: 'nuit' | 'superviseur' } | null | undefined} reservation
- * @returns {'fermer' | 'deja-fermee' | 'nuit-tient'}
+ * `'fermer'` when none stands, `'deja-fermee'` under the supervisor's closure.
+ * @param {object | null | undefined} reservation
+ * @returns {'fermer' | 'deja-fermee'}
  */
 export function decisionDeFermeture(reservation) {
-  if (!reservation) {
-    return 'fermer';
-  }
-  return reservation.auteur === 'superviseur' ? 'deja-fermee' : 'nuit-tient';
+  return reservation ? 'deja-fermee' : 'fermer';
 }
 
 /**
  * What the command of reopening does on the reservation <reservation>: `'rouvrir'` the supervisor's
- * closure, `'deja-ouverte'` when none stands, `'nuit-tient'` for a night's, which it never lifts.
- * @param {{ auteur?: 'nuit' | 'superviseur' } | null | undefined} reservation
- * @returns {'rouvrir' | 'deja-ouverte' | 'nuit-tient'}
+ * closure, `'deja-ouverte'` when none stands.
+ * @param {object | null | undefined} reservation
+ * @returns {'rouvrir' | 'deja-ouverte'}
  */
 export function decisionDeReouverture(reservation) {
-  if (!reservation) {
-    return 'deja-ouverte';
-  }
-  return reservation.auteur === 'superviseur' ? 'rouvrir' : 'nuit-tient';
+  return reservation ? 'rouvrir' : 'deja-ouverte';
 }
 
 // The folder name of a root of project, « alpha » for « /depots/alpha ».
@@ -77,9 +70,8 @@ export function direCeQuiTourne({ prises, parts }) {
 }
 
 /**
- * The lines a command says once it has played: its <issue> (`fermee`, `deja-fermee`, `nuit-tient`
- * for the closure; `rouverte`, `deja-ouverte`, `nuit-tient` for the reopening), then, for a closure
- * or a night that holds the machine, what still runs. <reservation> is the one in place after the
+ * The lines a command says once it has played: its <issue> (`fermee`, `deja-fermee` for the
+ * closure; `rouverte`, `deja-ouverte` for the reopening), then, for a closure, what still runs. <reservation> is the one in place after the
  * command (its start gives how long the closure has lasted), <maintenant> the time in ms.
  * @param {{ issue: string, reservation: { depuis: number } | null,
  *   prises: Parameters<typeof direCeQuiTourne>[0]['prises'],
@@ -96,8 +88,6 @@ export function direLaFermeture({ issue, reservation, prises, parts, maintenant 
         `machine déjà fermée par le superviseur, depuis ${reservation ? duree(maintenant - reservation.depuis) : '?'}`,
         ...tourne,
       ];
-    case 'nuit-tient':
-      return ['la nuit tient la machine : elle garde sa réservation, aucune autre n’est prise', ...tourne];
     case 'rouverte':
       return ['machine rouverte : les circuits reprennent d’eux-mêmes à l’étape suivante'];
     case 'deja-ouverte':

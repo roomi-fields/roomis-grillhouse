@@ -14,7 +14,6 @@ import {
 const H = 3_600_000;
 const MAINTENANT = Date.parse('2026-11-21T10:00:00Z');
 const FERMEE = { auteur: 'superviseur', jeton: 'j-sup', depuis: MAINTENANT - 3 * H };
-const NUIT = { auteur: 'nuit', jeton: 'j-nuit', depuis: 1, battement: 1 };
 
 describe('la décision de fermer la machine', () => {
   it('sans réservation : fermer', () => {
@@ -26,12 +25,10 @@ describe('la décision de fermer la machine', () => {
     expect(decisionDeFermeture(FERMEE)).toBe('deja-fermee');
   });
 
-  it('la nuit tient la machine : pas de seconde réservation', () => {
-    expect(decisionDeFermeture(NUIT)).toBe('nuit-tient');
-  });
-
-  it('une réservation sans auteur est celle de la nuit', () => {
-    expect(decisionDeFermeture({ jeton: 'j', depuis: 1, battement: 1 })).toBe('nuit-tient');
+  it('la nuit ne tient pas la machine : la décision n’a que deux issues, fermer ou déjà fermée', () => {
+    for (const r of [null, undefined, FERMEE]) {
+      expect(['fermer', 'deja-fermee']).toContain(decisionDeFermeture(r));
+    }
   });
 });
 
@@ -45,9 +42,10 @@ describe('la décision de rouvrir la machine', () => {
     expect(decisionDeReouverture(undefined)).toBe('deja-ouverte');
   });
 
-  it('la réouverture ne lève jamais la réservation d’une nuit', () => {
-    expect(decisionDeReouverture(NUIT)).toBe('nuit-tient');
-    expect(decisionDeReouverture({ jeton: 'j', depuis: 1, battement: 1 })).toBe('nuit-tient');
+  it('la réouverture n’a que deux issues, rouvrir ou déjà ouverte : aucune réservation de nuit à respecter', () => {
+    for (const r of [null, undefined, FERMEE]) {
+      expect(['rouvrir', 'deja-ouverte']).toContain(decisionDeReouverture(r));
+    }
   });
 });
 
@@ -119,11 +117,8 @@ describe('ce que dit la commande de fermeture', () => {
     expect(t).toContain('demo-1');
   });
 
-  it('la nuit tient la machine : le dit, donne ce qui tourne, ne dit pas fermée par le superviseur', () => {
-    const t = dire('nuit-tient', { reservation: NUIT });
-    expect(t).toMatch(/la nuit tient la machine/);
-    expect(t).toContain('demo-1');
-    expect(t).not.toMatch(/fermée par le superviseur/);
+  it('l’issue « la nuit tient la machine » n’existe plus : elle est refusée par son nom', () => {
+    expect(() => dire('nuit-tient')).toThrow(/issue inconnue : nuit-tient/);
   });
 });
 
@@ -131,7 +126,7 @@ describe('ce que dit la commande de réouverture', () => {
   const dire = (issue: string) =>
     direLaFermeture({
       issue,
-      reservation: issue === 'nuit-tient' ? NUIT : null,
+      reservation: null,
       prises: [],
       parts: [],
       maintenant: MAINTENANT,
@@ -143,9 +138,5 @@ describe('ce que dit la commande de réouverture', () => {
 
   it('déjà ouverte : le dit, sans effet', () => {
     expect(dire('deja-ouverte')).toMatch(/déjà ouverte/);
-  });
-
-  it('une nuit tient la machine : la réouverture le dit et ne la lève pas', () => {
-    expect(dire('nuit-tient')).toMatch(/la nuit tient la machine/);
   });
 });

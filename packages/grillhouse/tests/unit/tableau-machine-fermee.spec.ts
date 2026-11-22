@@ -1,7 +1,7 @@
 // La machine fermée sur le panneau (scripts/tableau.mjs) : l'état des places reprend la fermeture
 // de la vue des places (`lues.fermeture`, `{ auteur, depuis, phase }`), et une ligne d'AGENTS dit
-// « machine fermée par le superviseur » ou « par la nuit », depuis quand. Une fermeture du
-// superviseur n'est pas une nuit : aucune ligne de nuit. Hors fermeture, aucune ligne.
+// « machine fermée par le superviseur », depuis quand. La nuit ne ferme pas la machine : aucune
+// ligne de nuit. Hors fermeture, aucune ligne.
 // Petits tests : le panneau assemblé en mémoire.
 import { describe, expect, it } from 'vitest';
 import { etatDesPlaces } from '../../scripts/places-de-la-machine.mjs';
@@ -10,7 +10,7 @@ import { assembler, LARGEUR, lignes } from '../../scripts/tableau.mjs';
 const MAINTENANT = Date.parse('2026-11-21T10:00:00Z');
 const H = 3_600_000;
 
-type Fermeture = { auteur: 'superviseur' | 'nuit'; depuis: number; phase: string };
+type Fermeture = { auteur: 'superviseur'; depuis: number; phase: string };
 
 describe('l’état des places porte la fermeture de la machine', () => {
   const MESURE = JSON.stringify({
@@ -19,11 +19,10 @@ describe('l’état des places porte la fermeture de la machine', () => {
     memoireLibre: 2 ** 33,
     memoireTotale: 2 ** 34,
   });
-  const etat = (fermeture?: Fermeture | null, nuit?: { phase: string } | null) =>
+  const etat = (fermeture?: Fermeture | null) =>
     (
       etatDesPlaces as unknown as (o: unknown) => {
         fermeture: Fermeture | null;
-        nuit: string | null;
       }
     )({
       env: { CI: '1', GRILLHOUSE_MESURE_D_ESSAI: MESURE },
@@ -32,19 +31,12 @@ describe('l’état des places porte la fermeture de la machine', () => {
         prises: [],
         attentes: [],
         ...(fermeture === undefined ? {} : { fermeture }),
-        ...(nuit === undefined ? {} : { nuit }),
       },
     });
 
   it('rend l’auteur, le début et la phase de la fermeture du superviseur', () => {
     const f = { auteur: 'superviseur', depuis: 5, phase: 'attend' } as const;
     expect(etat(f).fermeture).toEqual(f);
-    expect(etat(f).nuit).toBeNull();
-  });
-
-  it('rend la fermeture de la nuit, la phase de la nuit gardée', () => {
-    const f = { auteur: 'nuit', depuis: 5, phase: 'en cours' } as const;
-    expect(etat(f, { phase: 'en cours' })).toMatchObject({ fermeture: f, nuit: 'en cours' });
   });
 
   it('rend null hors fermeture', () => {
@@ -97,13 +89,6 @@ describe('la machine fermée dans AGENTS', () => {
     expect(l.some(x => /^nuit/.test(x))).toBe(false);
   });
 
-  it('fermée par la nuit : la ligne le dit et dit depuis quand', () => {
-    const l = agents({ auteur: 'nuit', depuis: MAINTENANT - 2 * H, phase: 'en cours' });
-    const f = l.find(x => /fermée par la nuit/.test(x));
-    expect(f).toMatch(/machine fermée par la nuit/);
-    expect(f).toMatch(/depuis 2 h|depuis 120 min/);
-  });
-
   it('une fermeture du superviseur dont les places sont vides le dit', () => {
     const l = agents({ auteur: 'superviseur', depuis: MAINTENANT - H, phase: 'vide' });
     expect(l.some(x => /machine fermée par le superviseur.*vide|machine est vide/.test(x))).toBe(
@@ -118,10 +103,12 @@ describe('la machine fermée dans AGENTS', () => {
   });
 
   it('les lignes tiennent dans la largeur du panneau', () => {
-    for (const a of ['superviseur', 'nuit'] as const) {
-      for (const x of agents({ auteur: a, depuis: MAINTENANT - 50 * H, phase: 'attend' })) {
-        expect(colonnes(x), x).toBeLessThanOrEqual(LARGEUR);
-      }
+    for (const x of agents({
+      auteur: 'superviseur',
+      depuis: MAINTENANT - 50 * H,
+      phase: 'attend',
+    })) {
+      expect(colonnes(x), x).toBeLessThanOrEqual(LARGEUR);
     }
   });
 });

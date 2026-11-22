@@ -6,9 +6,9 @@
 // passe à <mesure> l'environnement de ses enfants, et scripts/places-de-la-machine.mjs
 // (`prendreUnePart`, `lirePlaces`, `lireLesParts`). Les places vivent sur un serveur d'essai
 // (./machine-d-essai.ts), les parts dans le dossier d'état de la machine d'essai.
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -27,6 +27,14 @@ const prendreUnePlace = (...a: any[]) => charger(PLACES).prendreUnePlace(...a);
 /* eslint-enable @typescript-eslint/no-explicit-any */
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'passes-de-la-machine-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
+// Un projet dont la part déclarée dépasse le budget : sa part est le budget entier.
+const TENANT = path.join(ESSAIS, 'tenant');
+mkdirSync(TENANT);
+writeFileSync(
+  path.join(TENANT, 'package.json'),
+  JSON.stringify({ name: 'tenant', grillhouse: { part: { coeurs: 1000, memoireGo: 1000 } } })
+);
+execFileSync('git', ['-C', TENANT, 'init', '-q']);
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
 // Sans groupe de contrôle : la passe joue sur sa part seule, ce que ces cas mesurent.
 const SANS_GROUPE = { sonde: () => false };
@@ -35,7 +43,7 @@ const MUET = { dire: () => {}, ...SANS_GROUPE };
 // A child that holds the whole budget of the machine <env> until its death (a pass under way).
 async function passeEnCours(env: Record<string, string>): Promise<ChildProcess> {
   const source = `import * as P from ${JSON.stringify(pathToFileURL(PLACES).href)};
-P.prendreUnePart({ env: process.env, racine: ${JSON.stringify(ESSAIS)}, entiere: true, dire() {} });
+P.prendreUnePart({ env: process.env, racine: ${JSON.stringify(TENANT)}, dire() {} });
 process.stdout.write('tenu\\n');
 Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120000);`;
   const e = spawn(process.execPath, ['--input-type=module', '-e', source], {

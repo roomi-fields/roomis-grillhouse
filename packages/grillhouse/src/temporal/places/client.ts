@@ -9,17 +9,13 @@ import { setTimeout as dormir } from 'node:timers/promises';
 import type { Client } from '@temporalio/client';
 import { FILE_DE_LA_MACHINE } from '../installation.js';
 import {
-  BATTRE_LA_RESERVATION,
   FERMER_LA_MACHINE,
   ROUVRIR_LA_MACHINE,
   type IssueDeLaFermeture,
   type IssueDeLaReouverture,
-  type PriseDeLaMachine,
   ID_DES_PLACES,
   LA_DEMANDE,
   LES_PLACES,
-  LEVER_LA_RESERVATION,
-  RESERVER_LA_MACHINE,
   PLACES,
   PRENDRE,
   RATTACHER,
@@ -115,24 +111,8 @@ export async function lireLesPlaces(client: Client, id = ID_DES_PLACES): Promise
 }
 
 /**
- * Reserves the whole machine for the night <jeton> (RESERVER_LA_MACHINE): no place is given but to
- * the requests that carry the jeton, no circuit starts, the places taken finish. The update
- * returns at once; the phase is read in `lireLesPlaces`.
- */
-export async function reserverLaMachineEntiere(
-  client: Client,
-  { jeton }: { jeton: string },
-  id = ID_DES_PLACES
-): Promise<PriseDeLaMachine> {
-  return client.workflow
-    .getHandle(id)
-    .executeUpdate<PriseDeLaMachine, [string]>(RESERVER_LA_MACHINE, { args: [jeton] });
-}
-
-/**
  * Closes the machine as the supervisor (FERMER_LA_MACHINE, `cordon` of kubectl): no place is given,
- * no circuit starts, the places taken finish. `nuit-tient` when the night holds the machine (no
- * second reservation), `deja-fermee` when it is closed already.
+ * no circuit starts, the places taken finish. `deja-fermee` when it is closed already.
  */
 export async function fermerLaMachine(
   client: Client,
@@ -143,35 +123,13 @@ export async function fermerLaMachine(
 
 /**
  * Reopens the machine the supervisor closed (ROUVRIR_LA_MACHINE, `uncordon`): the places wait are
- * given again by themselves. A night's reservation is never lifted (`nuit-tient`).
+ * given again by themselves.
  */
 export async function rouvrirLaMachine(
   client: Client,
   id = ID_DES_PLACES
 ): Promise<IssueDeLaReouverture> {
   return client.workflow.getHandle(id).executeUpdate<IssueDeLaReouverture, []>(ROUVRIR_LA_MACHINE);
-}
-
-/** Renews the reservation <jeton>: its beat, which keeps it from going out of date. */
-export async function battreLaReservation(
-  client: Client,
-  jeton: string,
-  id = ID_DES_PLACES
-): Promise<void> {
-  await client.workflow
-    .getHandle(id)
-    .executeUpdate<void, [string]>(BATTRE_LA_RESERVATION, { args: [jeton] });
-}
-
-/** Lifts the reservation <jeton>; another jeton lifts nothing. */
-export async function leverLaReservation(
-  client: Client,
-  jeton: string,
-  id = ID_DES_PLACES
-): Promise<void> {
-  await client.workflow
-    .getHandle(id)
-    .executeUpdate<void, [string]>(LEVER_LA_RESERVATION, { args: [jeton] });
 }
 
 /**

@@ -165,7 +165,7 @@ describe('la part par défaut d’une passe pour un projet', () => {
   });
 });
 
-describe('la nuit et la mesure de temps gardent leur part', () => {
+describe('la nuit prend la part du projet, la mesure de temps ses cœurs dédiés', () => {
   const topologie = {
     lisible: true,
     coeurs: Array.from({ length: 16 }, (_, c) => ({ fils: [c, c + 16], noeud: 0 })),
@@ -192,9 +192,9 @@ describe('la nuit et la mesure de temps gardent leur part', () => {
     n.rendre();
   });
 
-  it('la nuit garde le budget entier', () => {
-    const n = prendre(poste('7'), projet(), { entiere: true });
-    expect(n.part).toEqual({ coeurs: 28, memoire: 60 * GO });
+  it('la nuit prend la part du projet, sans réserver le budget entier', () => {
+    const n = prendre(poste('7'), projet(), { sorte: 'Nuit' });
+    expect(n.part).toEqual({ coeurs: 4, memoire: Math.floor((60 * GO * 10) / 28) });
     n.rendre();
   });
 });

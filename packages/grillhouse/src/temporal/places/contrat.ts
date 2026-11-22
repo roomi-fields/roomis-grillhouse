@@ -26,68 +26,39 @@ export const LA_DEMANDE = 'laDemande';
  */
 export const RESERVER = 'reserverDesCircuits';
 /**
- * The update by which the nights reserve the whole machine (grillhouse-giw): no place is given but
- * to the requests that carry the jeton of the night, and the places taken finish.
- */
-export const RESERVER_LA_MACHINE = 'reserverLaMachine';
-/** The update by which the nights renew their reservation: its beat. */
-export const BATTRE_LA_RESERVATION = 'battreLaReservation';
-/** The update by which the nights lift their reservation, by its jeton. */
-export const LEVER_LA_RESERVATION = 'leverLaReservation';
-
-/**
- * The update by which the supervisor closes the machine (`cordon` of kubectl): the same
- * reservation as the night's, its author `superviseur`, a jeton of its own, no beat. Its issue says
- * what it did.
+ * The update by which the supervisor closes the machine (`cordon` of kubectl): the only reservation
+ * of the machine, its author `superviseur`. Its issue says what it did.
  */
 export const FERMER_LA_MACHINE = 'fermerLaMachine';
-/** The update by which the supervisor reopens the machine; it never lifts a night's reservation. */
+/** The update by which the supervisor reopens the machine. */
 export const ROUVRIR_LA_MACHINE = 'rouvrirLaMachine';
 
-/** The author of the reservation of the machine; an absent one is the night's. */
-type AuteurDeLaReservation = 'nuit' | 'superviseur';
+/** The author of the reservation of the machine: the supervisor. */
+type AuteurDeLaReservation = 'superviseur';
 
-/** What the closure did: made, already there, or the night holds the machine. */
-export type IssueDeLaFermeture = 'fermee' | 'deja-fermee' | 'nuit-tient';
-/** What the reopening did: made, nothing to do, or the night holds the machine. */
-export type IssueDeLaReouverture = 'rouverte' | 'deja-ouverte' | 'nuit-tient';
-/** What the nights learn of their reservation: taken, or not (the supervisor's closure stands). */
-export interface PriseDeLaMachine {
-  prise: boolean;
-}
+/** What the closure did: made, or already there. */
+export type IssueDeLaFermeture = 'fermee' | 'deja-fermee';
+/** What the reopening did: made, or nothing to do. */
+export type IssueDeLaReouverture = 'rouverte' | 'deja-ouverte';
 
-/** The reservation of the whole machine, by the night or by the supervisor. */
+/** The closure of the whole machine by the supervisor. */
 interface Reservation {
-  /** Absent in a state of before: the night's. */
-  auteur?: AuteurDeLaReservation;
-  jeton: string;
+  auteur: AuteurDeLaReservation;
   /** The time it was made, in ms. */
   depuis: number;
-  /** The time of its last beat, in ms; the supervisor's closure has none and never goes out of date. */
-  battement?: number;
 }
 
 /** The machine closed as the places show it: its author, since when, and its phase. */
 interface FermetureDesPlaces {
   auteur: AuteurDeLaReservation;
   depuis: number;
-  /** `attend` while the places taken finish, `en cours` (night) or `vide` (closure) once none is. */
-  phase: 'attend' | 'en cours' | 'vide';
-}
-
-/** The night as the places show it: its reservation and its phase. */
-interface NuitDesPlaces {
-  /** `attend` while the places taken finish, `en cours` once none is. */
-  phase: 'attend' | 'en cours';
-  depuis: number;
-  battement: number;
+  /** `attend` while the places taken finish, `vide` once none is. */
+  phase: 'attend' | 'vide';
 }
 
 /** A place taken. */
 interface Prise {
   id: string;
-  /** The jeton of the night the request carried, null without. */
-  jeton?: string | null;
   pid: number;
   /** The start of the process (`departDe`), null when unknown. */
   depart: string | null;
@@ -102,7 +73,6 @@ interface Prise {
 /** A taking that waits, and why. */
 interface Attente {
   id: string;
-  jeton?: string | null;
   pid: number;
   depart: string | null;
   ticket: string | null;
@@ -141,7 +111,7 @@ export interface EtatDesPlaces {
   attentes: Attente[];
   /** The places of the circuits of the machine; absent in a state of before. */
   circuits?: PlaceDeCircuit[];
-  /** The reservation of the machine by the night; absent in a state of before, null without. */
+  /** The closure of the machine by the supervisor; absent in a state of before, null without. */
   reservation?: Reservation | null;
 }
 
@@ -180,8 +150,6 @@ export interface DemandeDePlace {
   ticket?: string | null;
   /** The root of the main tree of the project that asks. */
   racine?: string | null;
-  /** The jeton of the reservation of the night, which the passes of the night carry. */
-  jeton?: string | null;
   /** The rank of arrival of the circuit; drawn by the workflow, past every rank given, when absent. */
   rang?: number;
 }
@@ -203,15 +171,10 @@ export interface VueDesPlaces {
   prises: Prise[];
   attentes: Attente[];
   circuits?: PlaceDeCircuit[];
-  /** The night when it reserves the machine; absent without (a closure of the supervisor is none). */
-  nuit?: NuitDesPlaces | null;
   /** The machine closed, by whom and since when; absent without. */
   fermeture?: FermetureDesPlaces | null;
-  /**
-   * The reservation of the machine, by the night or by the supervisor, as the parts of the passes
-   * read it: its author and its jeton; null without one.
-   */
-  reservation?: { auteur: AuteurDeLaReservation; jeton: string } | null;
+  /** The closure of the machine, as the parts of the passes read it; null without one. */
+  reservation?: { auteur: AuteurDeLaReservation } | null;
 }
 
 /** Where a request stands. */

@@ -22,8 +22,8 @@
 // - `rendre` gives the place <id> back (or withdraws its request), `rattacher` names the process
 //   that holds it; `lire` writes the places as the board reads them (`{ plafond, faute, prises,
 //   attentes }`); `fermer` and `rouvrir` close and reopen the machine (the supervisor's
-//   reservation), and write their issue (`fermee`, `deja-fermee`, `nuit-tient`; `rouverte`,
-//   `deja-ouverte`, `nuit-tient`).
+//   reservation), and write their issue (`fermee`, `deja-fermee`; `rouverte`,
+//   `deja-ouverte`).
 // - Each call waits DELAI_MS for the server, and is played again ESSAIS times when it fails
 //   transiently. Still failing, its port open: the server is busy, said on the error stream, exit
 //   75. A port refused (no server), another failure, or a client not built: said on the error

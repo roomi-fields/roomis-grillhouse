@@ -74,13 +74,6 @@ describe('the machine command plays its loop', () => {
     expect(r.dit).toContain('la machine est vide');
   });
 
-  it('exits 0 without looping when the night holds the machine, even with --attendre', async () => {
-    const r = await jouerAvec('fermer', ['--attendre'], 'nuit-tient', [etat(2, 1)]);
-    expect(r.code).toBe(0);
-    expect(r.dormir).not.toHaveBeenCalled();
-    expect(r.dit[0]).toContain('la nuit tient la machine');
-  });
-
   it('exits 0 on reopening, without sleeping', async () => {
     const r = await jouerAvec('rouvrir', [], 'rouverte', [etat(1, 0)]);
     expect(r.code).toBe(0);

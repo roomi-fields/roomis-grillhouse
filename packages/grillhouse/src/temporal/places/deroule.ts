@@ -21,7 +21,6 @@
 // (one activity for all of them) is removed for good then. Past its length of history
 // (`continueAsNewSuggested`, or `limiteDHistoire`), the workflow continues as new with its state.
 // Deterministic: it imports the workflow API, the contract and the pure rule.
-import { ApplicationFailure } from '@temporalio/common';
 import {
   allHandlersFinished,
   condition,
@@ -31,7 +30,6 @@ import {
   defineUpdate,
   proxyActivities,
   setHandler,
-  uuid4,
   workflowInfo,
 } from '@temporalio/workflow';
 import {
@@ -39,23 +37,17 @@ import {
   decisionDeReouverture,
 } from '../../../scripts/fermeture-de-la-machine.mjs';
 import {
-  phaseDeLaNuit,
   phaseDeLaReservation,
   refusDeLaPlace,
-  reservationPerimee,
   reserverDesCircuits,
 } from '../../../scripts/regles-des-places.mjs';
 import type * as activites from './activites.js';
 import {
-  BATTRE_LA_RESERVATION,
   FERMER_LA_MACHINE,
   ROUVRIR_LA_MACHINE,
   type IssueDeLaFermeture,
   type IssueDeLaReouverture,
-  type PriseDeLaMachine,
   LA_DEMANDE,
-  LEVER_LA_RESERVATION,
-  RESERVER_LA_MACHINE,
   LES_PLACES,
   PRENDRE,
   RATTACHER,
@@ -83,11 +75,8 @@ const { mesurerLaMachine, plafondDeLaMachine, processusVivants } = proxyActiviti
 const prendre = defineUpdate<PlaceDonnee, [DemandeDePlace]>(PRENDRE);
 const tirerUnRang = defineUpdate<number, []>(TIRER_UN_RANG);
 const reserver = defineUpdate<string[], [CircuitsDuProjet]>(RESERVER);
-const reserverLaMachine = defineUpdate<PriseDeLaMachine, [string]>(RESERVER_LA_MACHINE);
 const fermerLaMachine = defineUpdate<IssueDeLaFermeture, []>(FERMER_LA_MACHINE);
 const rouvrirLaMachine = defineUpdate<IssueDeLaReouverture, []>(ROUVRIR_LA_MACHINE);
-const battreLaReservation = defineUpdate<void, [string]>(BATTRE_LA_RESERVATION);
-const leverLaReservation = defineUpdate<void, [string]>(LEVER_LA_RESERVATION);
 const rendre = defineSignal<[string]>(RENDRE);
 const rattacher = defineSignal<[Rattachement]>(RATTACHER);
 const lesPlaces = defineQuery<VueDesPlaces>(LES_PLACES);
@@ -168,7 +157,6 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
           espacementMs: entree.espacementMs,
           maintenant: Date.now(),
           mesurer: m,
-          jeton: a.jeton ?? null,
         });
       let raison: string | null;
       try {
@@ -197,7 +185,6 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
           depart: a.depart,
           ticket: a.ticket,
           racine: a.racine ?? null,
-          ...(a.jeton ? { jeton: a.jeton } : {}),
           rang: a.rang,
           depuis: Date.now(),
         });
@@ -223,7 +210,6 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
       depart: demande.depart,
       ticket: demande.ticket ?? null,
       racine: demande.racine ?? null,
-      ...(demande.jeton ? { jeton: demande.jeton } : {}),
       rang,
       raison: 'pas encore jugée',
       depuis: Date.now(),
@@ -245,58 +231,26 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
     etat.rang = r.rang;
     return r.accordes;
   });
-  // The reservation of the whole machine by the night (`reservation` of the state): while it
-  // stands, only the requests that carry its jeton are given a place (`refusDeLaPlace`), the
-  // circuits of the queues get none new (`reserverDesCircuits`), the places taken finish.
-  // A night that asks while the supervisor's closure stands does not take the machine and does not
-  // fail: it learns it is not taken, and is skipped (src/temporal/nuits/).
-  setHandler(reserverLaMachine, jeton => {
-    if (etat.reservation?.auteur === 'superviseur') {
-      return { prise: false };
-    }
-    if (etat.reservation && etat.reservation.jeton !== jeton) {
-      throw ApplicationFailure.nonRetryable(
-        'la machine est déjà réservée par une autre nuit',
-        'ReservationTenue'
-      );
-    }
-    if (!etat.reservation) {
-      etat.reservation = { auteur: 'nuit', jeton, depuis: Date.now(), battement: Date.now() };
-      changer();
-    }
-    return { prise: true };
-  });
-  // The closure of the supervisor (`cordon`): the same reservation, its author and a jeton of its
-  // own that no pass nor session carries, no beat, so it never goes out of date. A night that
-  // holds the machine keeps its reservation: no second one is taken.
+  // The closure of the supervisor (`cordon`), the only reservation of the machine (`reservation`
+  // of the state): no place is given (`refusDeLaPlace`), the circuits of the queues get none new
+  // (`reserverDesCircuits`), the places taken finish. It has no beat and never goes out of date.
   setHandler(fermerLaMachine, () => {
     const decision = decisionDeFermeture(etat.reservation);
     if (decision !== 'fermer') {
       return decision;
     }
-    etat.reservation = { auteur: 'superviseur', jeton: uuid4(), depuis: Date.now() };
+    etat.reservation = { auteur: 'superviseur', depuis: Date.now() };
     changer();
     return 'fermee';
   });
   setHandler(rouvrirLaMachine, () => {
     const decision = decisionDeReouverture(etat.reservation);
     if (decision !== 'rouvrir') {
-      return decision === 'deja-ouverte' ? 'deja-ouverte' : 'nuit-tient';
+      return decision;
     }
     etat.reservation = null;
     changer();
     return 'rouverte';
-  });
-  setHandler(battreLaReservation, jeton => {
-    if (etat.reservation?.jeton === jeton) {
-      etat.reservation.battement = Date.now();
-    }
-  });
-  setHandler(leverLaReservation, jeton => {
-    if (etat.reservation?.jeton === jeton) {
-      etat.reservation = null;
-      changer();
-    }
   });
   setHandler(tirerUnRang, () => {
     etat.rang += 1;
@@ -324,24 +278,14 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
     circuits: [...(etat.circuits ?? [])].sort((a, b) => a.rang - b.rang),
     prises: etat.prises,
     attentes: [...etat.attentes].sort((a, b) => a.rang - b.rang),
-    nuit:
-      etat.reservation && etat.reservation.auteur !== 'superviseur'
-        ? {
-            phase: phaseDeLaNuit(etat) ?? 'en cours',
-            depuis: etat.reservation.depuis,
-            battement: etat.reservation.battement ?? etat.reservation.depuis,
-          }
-        : null,
     fermeture: etat.reservation
       ? {
-          auteur: etat.reservation.auteur ?? 'nuit',
+          auteur: etat.reservation.auteur,
           depuis: etat.reservation.depuis,
-          phase: phaseDeLaReservation(etat) ?? 'en cours',
+          phase: phaseDeLaReservation(etat) ?? 'vide',
         }
       : null,
-    reservation: etat.reservation
-      ? { auteur: etat.reservation.auteur ?? 'nuit', jeton: etat.reservation.jeton }
-      : null,
+    reservation: etat.reservation ? { auteur: etat.reservation.auteur } : null,
   }));
   setHandler(laDemande, id => {
     const p = etat.prises.find(x => x.id === id);
@@ -364,11 +308,6 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
   for (;;) {
     await condition(() => version !== jugee || aContinuer(), entree.veilleMs);
     jugee = version;
-    // A reservation whose night no longer beats is lifted, as a place of a circuit is gone.
-    if (etat.reservation && reservationPerimee(etat.reservation, Date.now())) {
-      etat.reservation = null;
-      changer();
-    }
     if (etat.prises.length || etat.attentes.length) {
       await purger();
       await lireLePlafond();

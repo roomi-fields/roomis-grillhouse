@@ -49,8 +49,7 @@ afterEach(async () => {
 function machine(choix: ChoixDesNuits, verdicts: Record<string, number | 'echec'> = {}) {
   const notes: Saut[] = [];
   const debuts: string[] = [];
-  // The reservations of the machine and the nights, in their order: « reserver:<jeton> »,
-  // « nuit:<racine>:<jeton> », « lever:<jeton> ».
+  // The nights, in their order: « nuit:<racine> ». No night reserves the machine.
   const journal: string[] = [];
   let enCours = 0;
   let auPlus = 0;
@@ -63,18 +62,10 @@ function machine(choix: ChoixDesNuits, verdicts: Record<string, number | 'echec'
       notes.push(s);
       return Promise.resolve();
     },
-    reserverLaMachine: ({ jeton }) => {
-      journal.push(`reserver:${jeton}`);
-      return Promise.resolve({ prise: true as const });
-    },
     sauterLaNuit: ({ racine, raison }) =>
       Promise.resolve({ racine, raison, sommet: '', reference: null }),
-    leverLaMachine: ({ jeton }) => {
-      journal.push(`lever:${jeton}`);
-      return Promise.resolve();
-    },
-    jouerLaNuit: async ({ racine, jeton }) => {
-      journal.push(`nuit:${racine}:${jeton}`);
+    jouerLaNuit: async ({ racine }) => {
+      journal.push(`nuit:${racine}`);
       debuts.push(racine);
       enCours += 1;
       auPlus = Math.max(auPlus, enCours);
@@ -182,28 +173,16 @@ describe('the scheduled nights play one after the other', () => {
   }, 120_000);
 });
 
-// The jeton of the reservation of a journal: the one of its first « reserver:<jeton> ».
-const jetonDe = (journal: string[]) =>
-  journal.find(l => l.startsWith('reserver:'))?.slice('reserver:'.length);
-
-describe('the nights reserve the whole machine once, before the first night, and lift it after the last', () => {
-  it('reserves once for several nights, each night carries its jeton, then lifts', async () => {
+describe('the nights reserve nothing: each plays on its project’s part', () => {
+  it('several nights play one after the other, no reservation before nor after them', async () => {
     const m = machine({ jouer: ['/depot/a', '/depot/b', '/depot/c'], sautes: [], ecartes: [] });
     const client = await serveur(m.activites);
     await demanderDesNuits(client, { planifiee: true }, { file: FILE });
     await resultat(client);
-    const jeton = jetonDe(m.journal);
-    expect(jeton).toBeTruthy();
-    expect(m.journal).toEqual([
-      `reserver:${jeton}`,
-      `nuit:/depot/a:${jeton}`,
-      `nuit:/depot/b:${jeton}`,
-      `nuit:/depot/c:${jeton}`,
-      `lever:${jeton}`,
-    ]);
+    expect(m.journal).toEqual(['nuit:/depot/a', 'nuit:/depot/b', 'nuit:/depot/c']);
   }, 120_000);
 
-  it('lifts it when a night fails, ends red or ends with 75, and the nights after it play', async () => {
+  it('a night that fails, ends red or ends with 75 does not stop the nights after it', async () => {
     const m = machine(
       { jouer: ['/depot/a', '/depot/b', '/depot/c'], sautes: [], ecartes: [] },
       { '/depot/a': 75, '/depot/b': 'echec', '/depot/c': 1 }
@@ -211,17 +190,13 @@ describe('the nights reserve the whole machine once, before the first night, and
     const client = await serveur(m.activites);
     await demanderDesNuits(client, { planifiee: true }, { file: FILE });
     await resultat(client);
-    const jeton = jetonDe(m.journal);
-    expect(m.journal.filter(l => l.startsWith('reserver:'))).toHaveLength(1);
     // A night that fails is played again once (the retry of jouerLaNuit): three nights, each played.
-    expect(new Set(m.journal.filter(l => l.startsWith('nuit:')))).toEqual(
-      new Set([`nuit:/depot/a:${jeton}`, `nuit:/depot/b:${jeton}`, `nuit:/depot/c:${jeton}`])
+    expect(new Set(m.journal)).toEqual(
+      new Set(['nuit:/depot/a', 'nuit:/depot/b', 'nuit:/depot/c'])
     );
-    expect(m.journal.at(-1)).toBe(`lever:${jeton}`);
-    expect(m.journal.filter(l => l.startsWith('lever:'))).toHaveLength(1);
   }, 120_000);
 
-  it('lifts it when the workflow is cancelled during a night', async () => {
+  it('the workflow cancelled during a night ends it, with nothing to lift', async () => {
     const m = machine({ jouer: ['/depot/a'], sautes: [], ecartes: [] });
     m.retenir('/depot/a');
     const client = await serveur(m.activites);
@@ -230,15 +205,12 @@ describe('the nights reserve the whole machine once, before the first night, and
       (await lireLesNuits(client)).enCours === '/depot/a' ? true : undefined
     );
     await client.workflow.getHandle(ID_DES_NUITS).cancel();
-    const jeton = jetonDe(m.journal);
-    await attendre('la levée', () =>
-      Promise.resolve(m.journal.includes(`lever:${jeton}`) ? true : undefined)
-    );
     // The held night ends, so the worker stops at the end of the test.
     m.liberer('/depot/a');
+    expect(m.journal).toEqual(['nuit:/depot/a']);
   }, 120_000);
 
-  it('reserves nothing when no night is to play', async () => {
+  it('plays nothing when no night is to play', async () => {
     const m = machine({ jouer: [], sautes: [], ecartes: [] });
     const client = await serveur(m.activites);
     await demanderDesNuits(client, { planifiee: true }, { file: FILE });
@@ -246,7 +218,7 @@ describe('the nights reserve the whole machine once, before the first night, and
     expect(m.journal).toEqual([]);
   }, 120_000);
 
-  it('a night asked while the nights play joins the same reservation', async () => {
+  it('a night asked while the nights play joins the same workflow, after the one under way', async () => {
     const m = machine({ jouer: ['/depot/a'], sautes: [], ecartes: [] });
     m.retenir('/depot/a');
     const client = await serveur(m.activites);
@@ -257,9 +229,7 @@ describe('the nights reserve the whole machine once, before the first night, and
     await demanderDesNuits(client, { projet: '/depot/b' }, { file: FILE });
     m.liberer('/depot/a');
     await resultat(client);
-    expect(m.journal.filter(l => l.startsWith('reserver:'))).toHaveLength(1);
-    expect(m.journal.filter(l => l.startsWith('lever:'))).toHaveLength(1);
-    expect(m.journal.indexOf(`lever:${jetonDe(m.journal)}`)).toBe(m.journal.length - 1);
+    expect(m.journal).toEqual(['nuit:/depot/a', 'nuit:/depot/b']);
   }, 120_000);
 });
 

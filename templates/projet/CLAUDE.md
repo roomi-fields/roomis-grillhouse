@@ -109,7 +109,8 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   fois. La passe n'a que cette part : le système la tient dans un groupe de contrôle de Linux à elle
   (poids de processeur et plafond de mémoire tirés de la part, sans plafond dur de processeur), et
   elle attend, en disant ce qu'elle attend (cœurs, mémoire, charge), quand le budget manque ; la
-  nuit et une mesure de temps demandent le budget entier et jouent seules. Une séance d'agent est
+  nuit joue sur la part du projet, comme une passe, sans réserver la machine ; une mesure de temps
+  et un test qui exige de la charge jouent sur des cœurs dédiés (la clé `grillhouse.mesure`). Une séance d'agent est
   bornée comme une passe : elle tourne dans un groupe de contrôle à elle, avec un plafond dur de
   processeur égal aux cœurs de la part (les passes qu'elle lance jouent dans ce plafond, sans groupe
   à elles) ; sans gestionnaire de groupes, elle part sans borne et le journal du circuit le dit.

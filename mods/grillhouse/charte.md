@@ -138,9 +138,13 @@ le jour avance, et une mesure se prend au repos.
 
 **Un test qui exige de la charge joue la nuit** (les tests de résistance de Chromium et de rustc,
 hors de la passe de chaque changement) : un test qui a besoin d'une machine chargée produit sa
-charge lui-même et est un test de nuit, joué seul. De jour, personne ne fabrique de charge : un
-test soupçonné instable se rejoue par `npm run test:forcer`, sans boucle ni processus lancés pour
-occuper la machine. Ainsi la charge d'un test reste la sienne, et le jour garde sa machine.
+charge lui-même et est un test de nuit, joué seul, sur des cœurs dédiés (`grillhouse.mesure`),
+comme une mesure de temps. La nuit d'un projet joue sur la part du projet, comme une passe, sans
+réserver la machine (l'étiquette `exclusive` de Bazel est donnée aux seuls tests qui l'exigent,
+non à la suite) : seuls une mesure de temps et un test qui exige de la charge réservent ce qu'ils
+exigent, et les autres projets continuent de travailler. De jour, personne ne fabrique de charge :
+un test soupçonné instable se rejoue par `npm run test:forcer`, sans boucle ni processus lancés
+pour occuper la machine. Ainsi la charge d'un test reste la sienne, et le jour garde sa machine.
 
 **Un projet a plusieurs langages, un paquet un seul** : chaque paquet relève du langage de son
 outil, et `npm test`, la vérification et le circuit jouent chaque paquet avec cet outil. Ainsi

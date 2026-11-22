@@ -102,10 +102,17 @@ export function depotDeVerdict(racine, sorte, { base, pression = 1 }) {
 export function tenirLaMachine(places, env, dossier) {
   const tenu = path.join(dossier, 'tenu');
   const libere = path.join(dossier, 'libere');
+  // A project whose declared part is larger than the budget: its part is the whole budget.
+  const tenant = path.join(dossier, 'tenant');
+  ecrireDans(tenant)(
+    'package.json',
+    JSON.stringify({ name: 'tenant', grillhouse: { part: { coeurs: 1000, memoireGo: 1000 } } })
+  );
+  initialiser(tenant);
   const code = `
     import { existsSync, writeFileSync } from 'node:fs';
     import { prendreUnePart } from ${JSON.stringify(places)};
-    const part = prendreUnePart({ racine: ${JSON.stringify(dossier)}, entiere: true });
+    const part = prendreUnePart({ racine: ${JSON.stringify(tenant)} });
     writeFileSync(${JSON.stringify(tenu)}, '');
     while (!existsSync(${JSON.stringify(libere)})) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
     part.rendre();

@@ -296,12 +296,12 @@ export const jugeLaChargeDuJeu = ({ dediee, voie, env = process.env }) =>
  * @param {(env: Record<string, string | undefined>,
  *   contexte: { part: { coeurs: number, memoire: number } | null, groupe: boolean,
  *   unite: string | null }) => T} mesure
- * @param {{ lourde?: boolean, mode?: 'processus' | 'commande', entiere?: boolean,
+ * @param {{ lourde?: boolean, mode?: 'processus' | 'commande',
  *   env?: Record<string, string | undefined>, racine?: string, ticket?: string, sorte?: string,
  *   dire?: (l: string) => void, borneMs?: number, rappelMs?: number, scope?: object,
  *   horloge?: () => number, coeurs?: number, sonde?: () => boolean } & Record<string, unknown>} options
  *   `mode` « processus » (by default): the pass is the process itself, which enters its group;
- *   `entiere`: the whole budget, the night's part; `mesure`: a measure of time, which plays on
+ *   `mesure`: a measure of time, which plays on
  *   dedicated cores (scripts/coeurs-dedies.mjs), attached to them (`contexte.fils`,
  *   `contexte.affinite`) and judged on the load of those cores out of it
  * @returns {T}
@@ -488,9 +488,8 @@ function attacherLeProcessus(fils) {
  * held, in the envelope of an agent).
  * @param {(env: Record<string, string | undefined>,
  *   part: { coeurs: number, memoire: number } | null) => number} passe
- * @param {{ env?: Record<string, string | undefined>, racine?: string, entiere?: boolean,
- *   mesure?: boolean, dire?: (l: string) => void }} [o] `entiere`: the whole budget as its part
- *   (the night); `mesure`: dedicated physical cores as its part (a measure of time)
+ * @param {{ env?: Record<string, string | undefined>, racine?: string,
+ *   mesure?: boolean, dire?: (l: string) => void }} [o] `mesure`: dedicated physical cores as its part (a measure of time)
  * @returns {number}
  */
 export function surUnePart(
@@ -498,7 +497,6 @@ export function surUnePart(
   {
     env = process.env,
     racine = process.cwd(),
-    entiere = false,
     mesure = false,
     dire = l => process.stderr.write(`${l}\n`),
   } = {}
@@ -506,7 +504,6 @@ export function surUnePart(
   try {
     return avecLaPasse((e, { part }) => passe(e, part), {
       lourde: false,
-      entiere,
       mesure,
       env,
       racine,

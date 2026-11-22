@@ -95,10 +95,12 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
   plafond dur de processeur égal aux cœurs de la part (les passes qu'elle lance jouent dans ce
   plafond, sans groupe à elles) ; sans gestionnaire de groupes, elle part sans borne et le journal
   du circuit le dit ; la
-  nuit demande le budget entier et joue seule ; une mesure de temps joue sur des cœurs dédiés que
-  personne d'autre ne touche (la clé `grillhouse.mesure`, `{ "coeurs": <entier ≥ 1> }`, comme
-  `grillhouse.part` ; par défaut la part par défaut du budget), le reste de la machine continuant
-  de travailler.
+  nuit d'un projet joue sur sa part, comme une passe (sa sorte est « nuit »), sans réserver la
+  machine : les circuits et les passes des autres projets prennent leurs places et leurs parts
+  pendant elle ; une mesure de temps, et un test qui exige de la charge, jouent sur des cœurs
+  dédiés que personne d'autre ne touche (la clé `grillhouse.mesure`, `{ "coeurs": <entier ≥ 1> }`,
+  comme `grillhouse.part` ; par défaut la part par défaut du budget), le reste de la machine
+  continuant de travailler.
 - Le sigle du projet : la clé `grillhouse.sigle` du `package.json` (une chaîne non vide sans
   espace, le nom court du projet aux affichages partagés entre projets, comme le panneau de
   plusieurs projets ; absente, le préfixe de tickets

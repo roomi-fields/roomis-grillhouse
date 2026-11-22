@@ -1,18 +1,17 @@
 // Le refus d'une part sous la réservation de la machine (scripts/regles-des-places.mjs,
 // `refusDePart`), comme `kubectl cordon` : un nœud fermé ne reçoit aucun travail neuf. Sous la
-// fermeture du superviseur aucune passe ne prend sa part, aucun jeton n'y ouvre rien ; sous la
-// réservation de la nuit, seule la passe qui porte le jeton de la réservation la prend ; hors de
-// toute réservation, rien ne change. Petits tests : une règle pure.
+// fermeture du superviseur aucune passe ne prend sa part, aucun jeton n'y ouvre rien ; hors de
+// toute réservation, rien ne change, la nuit comprise : elle ne réserve rien et ne refuse la part
+// de personne. Petits tests : une règle pure.
 import { describe, expect, it } from 'vitest';
 import { refusDePart } from '../../scripts/regles-des-places.mjs';
 
-type Reservation = { auteur?: 'nuit' | 'superviseur'; jeton: string; depuis?: number } | null;
+type Reservation = { auteur: 'superviseur'; jeton: string; depuis?: number } | null;
 const GO = 1024 ** 3;
 const budget = { coeurs: 8, memoire: 16 * GO };
 const part = { coeurs: 2, memoire: 2 * GO };
 const calme = { coeurs: 12, charge: 1, memoireLibre: 16 * GO };
 const FERMEE = { auteur: 'superviseur', jeton: 'j-sup', depuis: 1 } as const;
-const NUIT = { auteur: 'nuit', jeton: 'j-nuit', depuis: 1 } as const;
 
 const refus = (
   reservation: Reservation | undefined,
@@ -44,23 +43,17 @@ describe('le refus d’une part sous la fermeture du superviseur', () => {
   });
 });
 
-describe('le refus d’une part sous la réservation de la nuit', () => {
-  it('une passe sans jeton est refusée : la nuit tient la machine', () => {
-    expect(refus(NUIT, undefined)).toMatch(/la nuit tient la machine/);
-    expect(refus(NUIT, null)).toMatch(/la nuit tient la machine/);
+describe('la nuit ne refuse la part de personne', () => {
+  it('une part dont le budget a la place passe, la nuit jouant ou non : aucune raison « la nuit »', () => {
+    const nuit = { id: 'nuit', sorte: 'Nuit', coeurs: 4, memoire: 4 * GO };
+    expect(refus(null, undefined, { prises: [nuit] })).toBeNull();
   });
 
-  it('une passe au jeton d’une autre nuit est refusée', () => {
-    expect(refus(NUIT, 'j-ancien')).toMatch(/la nuit tient la machine/);
-  });
-
-  it('une réservation sans auteur est celle de la nuit', () => {
-    expect(refus({ jeton: 'j-nuit' }, 'autre')).toMatch(/la nuit tient la machine/);
-    expect(refus({ jeton: 'j-nuit' }, 'j-nuit')).toBeNull();
-  });
-
-  it('la passe qui porte le jeton de la réservation prend sa part', () => {
-    expect(refus(NUIT, 'j-nuit')).toBeNull();
+  it('une part qui attend le budget le dit en cœurs, pas par la nuit', () => {
+    const nuit = { id: 'nuit', sorte: 'Nuit', coeurs: 7, memoire: 4 * GO };
+    const r = refus(null, undefined, { prises: [nuit] });
+    expect(r).toMatch(/cœurs : 2 demandés, 1 libres sur 8/);
+    expect(r).not.toMatch(/la nuit tient la machine/);
   });
 });
 

@@ -76,7 +76,7 @@ export async function jouer(
     return prises.length + parts.length;
   };
   const restent = dit();
-  if (!attendre || issue === 'nuit-tient') {
+  if (!attendre) {
     return 0;
   }
   let encore = restent;

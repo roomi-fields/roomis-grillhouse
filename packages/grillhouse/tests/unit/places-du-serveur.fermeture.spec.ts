@@ -65,16 +65,4 @@ describe('l’attente d’une place sous la fermeture du superviseur', () => {
     expect(e.retraits).toEqual(['moi']);
     expect(e.lignes.join('')).toMatch(/bornée/);
   });
-
-  it('l’attente sous la nuit garde sa borne', async () => {
-    const e = essai([
-      {
-        etat: 'attend',
-        rang: 1,
-        raison: 'la nuit tient la machine : la place est donnée à la fin des nuits',
-      },
-    ]);
-    expect(await e.jouer()).toBe(75);
-    expect(e.retraits).toEqual(['moi']);
-  });
 });

@@ -79,8 +79,8 @@ export interface VueDesNuits {
 export interface EntreeDesNuits {
   /** The length of history past which the workflow continues as new; 2000 by default. */
   limiteDHistoire?: number;
-  /** The jeton of the reservation of the machine, kept across a Continue-As-New. */
-  etat?: { attente: string[]; planifiees: number; jeton?: string | null };
+  /** The queue and the scheduled requests, kept across a Continue-As-New. */
+  etat?: { attente: string[]; planifiees: number };
 }
 
 export interface ActivitesDesNuits {
@@ -97,24 +97,15 @@ export interface ActivitesDesNuits {
   noterLeSaut(saut: Saut): Promise<void>;
   /**
    * The pass of the night of the project at <racine> (`node_modules/.bin/grillhouse nuit`, which
-   * runs scripts/nuit.sh), in its main tree, in a process group of its own: its exit code.
+   * runs scripts/nuit.sh), in its main tree, in a process group of its own: its exit code. The
+   * pass takes the part of its project, as every pass of the machine.
    */
-  jouerLaNuit(e: { racine: string; jeton: string }): Promise<number>;
-  /**
-   * Reserves the whole machine for the nights under <jeton> (the workflow of the places,
-   * ../places/deroule.ts) and returns once the stages under way have finished: no place is taken
-   * by anything but the night, and the activity renews the reservation while it waits.
-   */
-  reserverLaMachine(e: {
-    jeton: string;
-  }): Promise<{ prise: true } | { prise: false; raison: string }>;
+  jouerLaNuit(e: { racine: string }): Promise<number>;
   /**
    * The skip of the night of <racine> for <raison> (the machine closed by the supervisor), noted
    * as a skip the marker decides, in the journal of the night and in the register: the skip.
    */
   sauterLaNuit(e: { racine: string; raison: string }): Promise<Saut>;
-  /** Lifts the reservation of the machine <jeton>, so that the circuits resume. */
-  leverLaMachine(e: { jeton: string }): Promise<void>;
   /** The scheduled nights asked of the workflow of the nights, started when none runs. */
   demanderLesNuitsPlanifiees(): Promise<void>;
 }

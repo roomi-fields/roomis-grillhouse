@@ -36,9 +36,10 @@
 // - The exit code: 0 when every run is green; 75, « à repasser », when every red run is at 75
 //   (every failure depended on a duration, one under load, ./vitest-config/duree.reporter.mjs);
 //   else the code of the first red run.
-// - They play on the whole budget of the machine as their part (`avecLaPasse` of
-//   scripts/passe-de-la-machine.mjs, `entiere`), alone, once the temporary directory and the disk of
-//   the copy have room, as every pass: a wait that reaches its bound ends at 75.
+// - The night tests play on the part of their project (`avecLaPasse` of
+//   scripts/passe-de-la-machine.mjs, the sort « Nuit »), the measures of time on dedicated cores
+//   (`mesure`, `grillhouse.mesure`), once the temporary directory and the disk of the copy have
+//   room, as every pass: a wait that reaches its bound ends at 75.
 import { spawnSync } from 'node:child_process';
 import { readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -136,27 +137,35 @@ export function testsDeNuit(racine, options = {}) {
   if (runs.length === 0) {
     return 0;
   }
-  // The night tests and the measures of time ask for the whole budget as their part: they play
-  // alone, once the room of the temporary directory and of the copy is there.
-  try {
-    return avecLaPasse(() => jouerLesRuns(racine, runs, options), {
-      lourde: false,
-      entiere: true,
-      racine,
-      sorte: 'Tests de nuit',
-    });
-  } catch (e) {
-    if (e?.name !== 'AttenteDeLaMachine') {
-      throw e;
+  // The night tests play on the part of the project, as a pass; the measures of time play on
+  // dedicated cores (`grillhouse.mesure`) that nobody else touches, once the temporary directory
+  // and the disk of the copy have room.
+  const codes = runs.map(choix => {
+    const mesure = choix === 'mesures';
+    try {
+      return avecLaPasse(() => jouerLeRun(racine, choix, options), {
+        lourde: false,
+        mesure,
+        racine,
+        sorte: mesure ? 'Mesures de nuit' : 'Nuit',
+      });
+    } catch (e) {
+      if (e?.name !== 'AttenteDeLaMachine') {
+        throw e;
+      }
+      process.stdout.write(`${e.message}\n`);
+      return e.code;
     }
-    process.stdout.write(`${e.message}\n`);
-    return e.code;
+  });
+  const rouges = codes.filter(c => c !== 0);
+  if (rouges.length === 0) {
+    return 0;
   }
+  return rouges.every(c => c === A_REPASSER) ? A_REPASSER : rouges.find(c => c !== A_REPASSER);
 }
 
-// The runs <runs> of Vitest of the night, in the copy at <racine>: the code of the first red one,
-// 75 when every red is « à repasser ».
-function jouerLesRuns(racine, runs, options) {
+// The run <choix> of Vitest of the night, in the copy at <racine>: its exit code.
+function jouerLeRun(racine, choix, options) {
   const { tranche } = options;
   const rapports = path.join(racine, RAPPORTS);
   if (tranche) {
@@ -167,23 +176,16 @@ function jouerLesRuns(racine, runs, options) {
   const enTranche = tranche
     ? { [NUIT_TRANCHE]: JSON.stringify({ tranche: `${tranche.index}/${tranche.count}`, rapports }) }
     : {};
-  const codes = runs.map(choix => {
-    const r = spawnSync(
-      'npx',
-      ['--no-install', 'vitest', 'run', '--root', racine, '--config', CONFIGURATION],
-      {
-        cwd: racine,
-        stdio: 'inherit',
-        env: { ...process.env, [NUIT_VARIABLE]: choix, ...enTranche },
-      }
-    );
-    return r.status ?? 1;
-  });
-  const rouges = codes.filter(c => c !== 0);
-  if (rouges.length === 0) {
-    return 0;
-  }
-  return rouges.every(c => c === A_REPASSER) ? A_REPASSER : rouges.find(c => c !== A_REPASSER);
+  const r = spawnSync(
+    'npx',
+    ['--no-install', 'vitest', 'run', '--root', racine, '--config', CONFIGURATION],
+    {
+      cwd: racine,
+      stdio: 'inherit',
+      env: { ...process.env, [NUIT_VARIABLE]: choix, ...enTranche },
+    }
+  );
+  return r.status ?? 1;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

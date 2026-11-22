@@ -10,8 +10,6 @@
 export const MEMOIRE_MIN = 4 * 1024 ** 3;
 
 export const VARIABLE_ESPACEMENT = 'GRILLHOUSE_ESPACEMENT_MS';
-/** The jeton of the reservation of the machine by the night, which the passes of the night carry. */
-export const VARIABLE_JETON = 'GRILLHOUSE_JETON_DE_LA_NUIT';
 /** Why a place waits under the closure of the machine by the supervisor (`cordon` of kubectl). */
 export const RAISON_FERMEE =
   'machine fermée par le superviseur : la place est donnée à la réouverture';
@@ -81,24 +79,16 @@ export function admission({ coeurs, charge, memoireLibre }) {
  */
 export function refusDeLaPlace(
   etat,
-  { id, rang, plafond, espacementMs, maintenant, mesurer, jeton = null }
+  { id, rang, plafond, espacementMs, maintenant, mesurer }
 ) {
-  const reservation = etat.reservation ?? null;
-  // The supervisor's closure gives no place to anyone, its own jeton included: no pass nor session
-  // carries it.
-  if (reservation?.auteur === 'superviseur') {
+  // The supervisor's closure, the only reservation of the machine, gives no place to anyone.
+  if (etat.reservation) {
     return RAISON_FERMEE;
-  }
-  if (reservation && jeton !== reservation.jeton) {
-    return 'la nuit tient la machine : la place est donnée à la fin des nuits';
   }
   if (etat.prises.length >= plafond) {
     return `aucune place libre : ${etat.prises.length} prises sur ${plafond}`;
   }
-  // Under a reservation, only the waits of the night count for the turn: the others wait for it.
-  const avant = etat.attentes.find(
-    a => a.id !== id && a.rang < rang && (!reservation || (a.jeton ?? null) === reservation.jeton)
-  );
+  const avant = etat.attentes.find(a => a.id !== id && a.rang < rang);
   if (avant) {
     return `place réservée : ${avant.ticket ?? 'un départ'} est arrivé avant et attend (${avant.raison})`;
   }
@@ -166,16 +156,13 @@ export function admissionDePart({ part, budget, prises, mesure }) {
 
 /** Why a pass waits under the supervisor's closure of the machine. */
 export const RAISON_DE_LA_FERMETURE = 'machine fermée par le superviseur';
-/** Why a pass without the jeton of the night waits under its reservation. */
-export const RAISON_DE_LA_NUIT = 'la nuit tient la machine';
 
 /**
  * Why the pass <id> of the rank <rang> does not take its part <part> now on the state <etat>
  * (`prises`, `attentes`), null when it does: its part does not fit in the <budget>; a wait of a
  * lower rank, alive, which keeps its turn (the measure of the frame has the lower rank of a
  * project's, then the order of arrival); the admission at the load and the memory <mesurer> gives
- * (read only when the part and the turn pass). The night asks for the whole budget as its part: it
- * plays alone. A measure of time (<dediee>) asks for dedicated cores: when they lack, its refusal
+ * (read only when the part and the turn pass). A measure of time (<dediee>) asks for dedicated cores: when they lack, its refusal
  * says « cœurs dédiés » and names the passes that hold them; a pass that comes after it waits
  * behind it, its rank reserved, and one measure plays at a time, whatever its part would fit in the free cores; once it plays, an
  * ordinary pass whose part fits in the cores left goes on.
@@ -188,17 +175,11 @@ export const RAISON_DE_LA_NUIT = 'la nuit tient la machine';
  */
 export function refusDePart(
   etat,
-  { id, rang, part, budget, mesurer, dediee = false, reservation = null, jeton = null }
+  { id, rang, part, budget, mesurer, dediee = false, reservation = null }
 ) {
-  // A closed machine gives no new work (`cordon` of kubectl): the supervisor's closure refuses
-  // every pass, whatever its jeton; the night's reservation refuses the pass without its jeton.
+  // A closed machine gives no new work (`cordon` of kubectl): the supervisor's closure refuses every pass.
   if (reservation) {
-    if (reservation.auteur === 'superviseur') {
-      return RAISON_DE_LA_FERMETURE;
-    }
-    if (jeton !== reservation.jeton) {
-      return RAISON_DE_LA_NUIT;
-    }
+    return RAISON_DE_LA_FERMETURE;
   }
   const prises = etat.prises.filter(p => p.id !== id);
   // Two measures of time never play side by side: each would be the load the other is judged on.
@@ -226,49 +207,18 @@ export function refusDePart(
 export const PERIME_MS = 10 * 60_000;
 
 /**
- * The phase of a reservation of the machine, whoever its author: null without a reservation;
- * `'attend'` while a place is held that is not one of the night's passes (the stages under way
- * finish); then `'en cours'` for the night, `'vide'` for the supervisor's closure (it holds no
- * place itself: every place held waits to be given back).
- * @param {{ prises: { jeton?: string | null }[],
- *   reservation?: { jeton: string, auteur?: 'nuit' | 'superviseur' } | null }} etat
- * @returns {'attend' | 'en cours' | 'vide' | null}
+ * The phase of the supervisor's closure of the machine: null without one; `'attend'` while a place
+ * is held (the stages under way finish); then `'vide'` (it holds no place itself: every place held
+ * waits to be given back).
+ * @param {{ prises: object[], reservation?: object | null }} etat
+ * @returns {'attend' | 'vide' | null}
  */
 export function phaseDeLaReservation({ prises, reservation = null }) {
   if (!reservation) {
     return null;
   }
-  if (reservation.auteur === 'superviseur') {
-    return prises.length > 0 ? 'attend' : 'vide';
-  }
-  return prises.some(p => (p.jeton ?? null) !== reservation.jeton) ? 'attend' : 'en cours';
+  return prises.length > 0 ? 'attend' : 'vide';
 }
-
-/**
- * The phase of the night on a state of the places: that of its reservation, null without one or
- * when the reservation is the supervisor's closure, which is not a night.
- * @param {{ prises: { jeton?: string | null }[],
- *   reservation?: { jeton: string, auteur?: 'nuit' | 'superviseur' } | null }} etat
- * @returns {'attend' | 'en cours' | null}
- */
-export function phaseDeLaNuit(etat) {
-  if (etat.reservation?.auteur === 'superviseur') {
-    return null;
-  }
-  const phase = phaseDeLaReservation(etat);
-  return phase === 'vide' ? null : phase;
-}
-
-/**
- * Whether a reservation of the machine is out of date at <maintenant>: its last beat, the one the
- * workflow of the nights renews, is PERIME_MS old, as a place of a circuit is. The supervisor's
- * closure has no beat and never goes out of date, as `cordon` has no delay.
- * @param {{ battement?: number, auteur?: 'nuit' | 'superviseur' }} reservation
- * @param {number} maintenant
- * @returns {boolean}
- */
-export const reservationPerimee = (reservation, maintenant) =>
-  reservation.auteur !== 'superviseur' && maintenant - (reservation.battement ?? 0) >= PERIME_MS;
 
 /**
  * The places of the circuits of the machine once a demand comes, as Buildkite bounds its pipelines

@@ -4,8 +4,7 @@
 // d'attente par son lecteur (`lireLaReservation`, donné par l'essai : la vue du déroulé des places
 // par défaut), jamais sous le verrou d'admission. Sous la fermeture du superviseur, une passe neuve
 // attend sans borne, écrit sa part « attend » avec « machine fermée par le superviseur », et la
-// prend à la réouverture ; sous la nuit, seule la passe au jeton de la réservation passe, les autres
-// gardent la borne (75). Un lecteur qui échoue vaut « pas de réservation ». La machine, le temps et
+// prend à la réouverture ; la nuit ne réserve rien. Un lecteur qui échoue vaut « pas de réservation ». La machine, le temps et
 // les disques sont ceux d'un essai.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -18,7 +17,6 @@ import {
   lireLesParts,
   poserLaPart,
   prendreUnePart,
-  VARIABLE_JETON,
 } from '../../scripts/places-de-la-machine.mjs';
 
 const GO = 1024 ** 3;
@@ -48,9 +46,8 @@ const poste = (extra: Record<string, string> = {}): Record<string, string> => ({
   ...extra,
 });
 
-type Reservation = { auteur?: 'nuit' | 'superviseur'; jeton: string; depuis?: number } | null;
+type Reservation = { auteur: 'superviseur'; jeton: string; depuis?: number } | null;
 const FERMEE: Reservation = { auteur: 'superviseur', jeton: 'j-sup', depuis: 1 };
-const NUIT: Reservation = { auteur: 'nuit', jeton: 'j-nuit', depuis: 1 };
 
 // Un temps d'essai : chaque sommeil avance l'horloge de <pas> ms, très au-delà de la borne.
 function essai(
@@ -120,14 +117,6 @@ describe('la part d’une passe neuve sous la fermeture du superviseur', () => {
     expect(vue[0].raison).toMatch(/machine fermée par le superviseur/);
   });
 
-  it('le jeton de la nuit, même égal à celui de la fermeture, n’ouvre rien', () => {
-    const env = poste({ [VARIABLE_JETON]: 'j-sup' });
-    const e = essai(env, [FERMEE, FERMEE, FERMEE, null]);
-    const prise = e.prendre();
-    expect(e.appels()).toBe(4);
-    prise.rendre();
-  });
-
   it('une passe en attente de budget quand la machine ferme ne prend pas sa part au tour suivant', () => {
     const env = poste();
     const dossier = dossierDesParts(env);
@@ -152,46 +141,6 @@ describe('la part d’une passe neuve sous la fermeture du superviseur', () => {
     const prise = e.prendre();
     // Prise au 4e tour seulement : ni au tour où le budget se libère, ni au suivant, sous fermeture.
     expect(e.appels()).toBe(4);
-    prise.rendre();
-  });
-});
-
-describe('la part d’une passe sous la réservation de la nuit', () => {
-  it('la passe de la nuit, qui porte le jeton de la réservation, prend sa part', () => {
-    const env = poste({ [VARIABLE_JETON]: 'j-nuit' });
-    const prise = essai(env, [NUIT]).prendre();
-    expect(prise.part).not.toBeNull();
-    prise.rendre();
-  });
-
-  it('une passe sans jeton garde la borne de son attente : 75 à la borne, « la nuit tient la machine »', () => {
-    const env = poste();
-    const e = essai(env, [NUIT]);
-    let erreur: any;
-    try {
-      e.prendre();
-    } catch (x) {
-      erreur = x;
-    }
-    expect(erreur?.code).toBe(75);
-    expect(String(erreur?.message)).toMatch(/la nuit tient la machine/);
-  });
-
-  it('la variable seule, ou le jeton d’une nuit passée, n’ouvre rien : la passe attend, 75 à la borne', () => {
-    const env = poste({ [VARIABLE_JETON]: 'j-ancienne-nuit' });
-    let erreur: any;
-    try {
-      essai(env, [NUIT]).prendre();
-    } catch (x) {
-      erreur = x;
-    }
-    expect(erreur?.code).toBe(75);
-  });
-
-  it('la nuit levée avant la borne, la passe sans jeton prend sa part', () => {
-    const env = poste();
-    const prise = essai(env, [NUIT, null], { pas: 1 }).prendre();
-    expect(prise.part).not.toBeNull();
     prise.rendre();
   });
 });

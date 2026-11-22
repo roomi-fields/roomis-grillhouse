@@ -76,17 +76,15 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   fusion-des-tranches` réunit leurs rapports et refuse un fichier de la passe qu'aucune tranche ne
   joue ou que deux jouent. Une tranche mal écrite est refusée avant tout travail ; ni une tranche
   ni la passe sans tests ne garde de dernier vert.
-- **R2.6.** À la nuit, la machine entière : au déclenchement, le déroulé des nuits la réserve au
-  déroulé des places, comme `kubectl drain` vide un nœud avant sa maintenance. Dès lors aucune
-  place neuve n'est donnée à une demande qui ne porte pas le jeton de la nuit (elle reste dans les
-  attentes avec la nuit pour raison, jamais refusée ni retirée) et la file des tickets ne lance
-  aucun circuit ; ce qui tourne finit (la maille est la prise : une séance ou une passe en cours
-  va à son terme, la suivante d'une même étape attend la fin des nuits), puis les nuits jouent
-  seules, et à leur fin, vertes, rouges, interrompues ou annulées, la machine est rendue : les
-  circuits reprennent à leur étape suivante. La réservation se fait une fois par déroulé, se
-  renouvelle par un battement, et le déroulé des places la lève d'elle-même quand le battement
-  manque depuis la durée de péremption des places de circuit. Aucune borne d'attente de la fin des
-  étapes en cours, aucun créneau horaire hors de l'heure de la planification, aucun gel de processus.
+- **R2.6.** La nuit d'un projet joue sur sa part : sa passe prend la part du projet (sorte « nuit »,
+  la part que déclare `grillhouse.part`, sinon la part par défaut), l'attend en disant ce qu'elle
+  attend (cœurs, mémoire, charge) et la rend à sa fin, verte, rouge, interrompue ou annulée,
+  comme toute passe. Aucune réservation de la machine : les circuits et les passes des autres
+  projets prennent leurs places et leurs parts pendant elle, comme une étiquette `exclusive` de
+  Bazel n'est donnée qu'aux tests qui l'exigent. Une mesure de temps, et un test qui exige de la
+  charge, jouent sur des cœurs dédiés (`grillhouse.mesure`). Seule la fermeture de la machine par
+  le superviseur retient les places, et la passe de la nuit attend alors sans borne la réouverture.
+  Aucun créneau horaire hors de l'heure de la planification, aucun gel de processus.
 
 ## Ce qu'il refuse
 

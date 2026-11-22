@@ -1179,7 +1179,8 @@ elle prend sa part, que rien d'autre ne double.
   places et le plus grand pic) ; la lecture du registre et des places se fait dans `partDeLaPasse` et
   dans la demande des cœurs de la mesure. Une part déclarée ou par défaut plus grande que le
   budget vaut le budget (une seule passe à la fois, comme sous le verrou), et jamais moins d'un
-  cœur. La nuit demande le budget entier : elle joue seule.
+  cœur. La nuit d'un projet prend la part du projet, comme une passe (sorte « nuit »), sans
+  réserver la machine.
 - **Les cœurs dédiés d'une mesure de temps** (`scripts/coeurs-dedies.mjs`, des fonctions pures,
   le système en entrée ; modèle : `pyperf system tune`, `cset shield`, la politique `static` du CPU
   Manager de Kubernetes, qui isolent des cœurs et y attachent la mesure) : une mesure de temps
@@ -2058,53 +2059,43 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   crée la planification, ou met à jour celle qui existe ; sans `--heure`, elle garde l'heure
   qu'elle a déjà. L'ouverture de séance ne propose aucune ligne de
   la table des tâches, et nomme une ligne qui lance encore la nuit, avec son retrait.
-  **La nuit draine la machine** (grillhouse-giw ; modèle : `kubectl drain`, un ordonnanceur de
-  lots qui réserve la machine pour un travail exclusif) : avant sa première nuit en attente, le
-  déroulé des nuits réserve la machine entière au déroulé des places (`reserverLaMachine`, un
-  jeton). Dès lors le déroulé des places ne donne de place qu'à une demande qui porte ce jeton, la
-  réservation des circuits n'en donne aucune neuve, et ce qui est pris finit, à la maille de la
-  prise ; la phase se lit dans `lesPlaces` (`nuit.phase`, `attend` puis `en cours`) et le tableau
-  la dit. Une fois les places rendues, les nuits jouent l'une après l'autre, leurs passes portant
-  le jeton par l'environnement (`GRILLHOUSE_JETON_DE_LA_NUIT`) ; la réservation se lève après la
-  dernière, ou à l'échec, au code rouge ou 75, à l'annulation, et les circuits reprennent d'eux-
-  mêmes. Le déroulé des nuits la bat tant qu'il vit ; sans battement depuis la péremption des
-  places de circuit, le déroulé des places la lève. Aucune attente bornée, aucun créneau horaire.
+  **La nuit joue sur sa part** (grillhouse-3uv.170 ; modèle : l'étiquette `exclusive` de Bazel,
+  donnée aux seuls tests qui l'exigent, le reste de la suite partageant les machines) : le
+  déroulé des nuits ne réserve rien. La passe de la nuit d'un projet prend la part du projet
+  (`prendreUnePart`, sorte « nuit », la part de `grillhouse.part`), l'attend en disant ce qu'elle
+  attend (cœurs, mémoire, charge), la rend à sa fin, même rouge, et les circuits et les passes
+  des autres projets prennent leurs places et leurs parts pendant elle ; la table des parts la
+  montre comme une passe, avec ses cœurs. Les nuits jouent l'une après l'autre, aucun créneau
+  horaire. Une mesure de temps, et un test qui exige de la charge, jouent sur des cœurs dédiés
+  (`grillhouse.mesure`).
   **Le superviseur ferme la machine** (grillhouse-3uv.147 ; modèle : `kubectl cordon`, `drain`,
-  `uncordon`) : `npx grillhouse machine fermer` pose, dans le déroulé des places, **la même
-  réservation que celle de la nuit**, avec son auteur (`superviseur`, ou `nuit` quand il est
-  absent) et un jeton à elle qu'aucune passe ni séance ne porte ; une seule réservation à la fois,
-  et la règle des places (`refusDeLaPlace`, `reserverDesCircuits`) la traite comme celle de la nuit,
-  quel que soit l'auteur, sauf que même le jeton de la fermeture ne donne aucune place. Un circuit en
+  `uncordon`) : `npx grillhouse machine fermer` pose, dans le déroulé des places, **la seule
+  réservation de la machine**, avec son auteur (`superviseur`) ; la règle des places
+  (`refusDeLaPlace`, `reserverDesCircuits`) ne donne alors aucune place. Un circuit en
   vol garde sa place de circuit, finit son étape, puis sa séance suivante redemande une place de
   séance, refusée : la demande attend, sans borne (ni sortie 75, ni retrait), sa raison « machine
   fermée par le superviseur », jusqu'à la réouverture, où elle est jugée de nouveau et donnée
   d'elle-même. La fermeture du superviseur n'a pas de battement et ne périme jamais, comme `cordon`
-  n'a pas de délai ; celle de la nuit garde son battement et sa péremption. L'état vit dans la
+  n'a pas de délai. L'état vit dans la
   réservation de l'état du déroulé, que Temporal garde : il passe un Continue-As-New et un rejeu,
   un redémarrage du poste le retrouve fermé, et aucun circuit ne repart avant `npx grillhouse
   machine rouvrir`. La commande rend la main aussitôt (comme `cordon`) en disant, par projet et
   par ticket, ce qui tourne encore (séances : places du déroulé ; passes : parts) et « la machine est
   vide » quand rien ne joue, `--attendre` ne la rendant qu'à la machine vide (comme `drain`) ;
   relancée, elle relit cet état, et dit depuis quand dure la fermeture. Fermer une machine fermée,
-  ou rouvrir une machine ouverte, réussit sans effet et le dit ; quand la nuit tient la machine, la
-  fermeture ne prend pas de seconde réservation et la réouverture ne lève jamais celle de la nuit
-  (`nuit-tient`). Une nuit qui demande la machine fermée par le superviseur ne la prend pas et
-  n'échoue pas : elle est sautée, la raison « machine fermée par le superviseur » au journal de la
-  nuit du projet et au registre de la machine, sans rattrapage à la réouverture. `lesPlaces` porte
-  `fermeture` (`{ auteur, depuis, phase }`, `phase` `attend`, `vide` ou `en cours`) et le tableau
-  dit « machine fermée par le superviseur » ou « par la nuit », depuis quand.
-  **La réservation ferme aussi la part des passes** (grillhouse-3uv.147.1 ; `kubectl cordon` : un
+  ou rouvrir une machine ouverte, réussit sans effet et le dit. La passe d'une nuit lancée sous la
+  fermeture attend sans borne la réouverture, comme toute passe. `lesPlaces` porte `fermeture`
+  (`{ auteur, depuis, phase }`, `phase` `attend` ou `vide`) et le tableau dit « machine fermée par
+  le superviseur », depuis quand.
+  **La fermeture ferme aussi la part des passes** (grillhouse-3uv.147.1 ; `kubectl cordon` : un
   nœud fermé ne reçoit aucun travail neuf, de quelque sorte) : `lesPlaces` porte `reservation`
-  (`{ auteur, jeton }`, null sans réservation), et `prendreUnePart` la lit à chaque tour de sa
+  (`{ auteur }`, null sans fermeture), et `prendreUnePart` la lit à chaque tour de sa
   boucle d'attente, avant le verrou d'admission et non sous lui, par la lecture des places du
   serveur, bornée par le délai d'un appel ; une lecture qui échoue ou dépasse son délai vaut « pas de
-  réservation » (le serveur muet ne bloque aucune passe). `refusDePart` la reçoit avec le jeton de la
-  passe (la valeur de sa variable) : la fermeture du superviseur refuse toute passe, aucun jeton n'y
-  ouvre rien (« machine fermée par le superviseur ») ; la réservation de la nuit refuse la passe dont
-  le jeton n'égale pas le sien (« la nuit tient la machine »). Sous la fermeture la passe attend sans
+  réservation » (le serveur muet ne bloque aucune passe). `refusDePart` la reçoit : la fermeture du
+  superviseur refuse toute passe (« machine fermée par le superviseur »). Sous la fermeture la passe attend sans
   borne, sa part « attend » écrite au dossier des parts avec cette raison (le tableau et `machine
-  fermer --attendre` la voient attendre), et la prend à la réouverture ; sous la nuit elle garde la
-  borne de son attente (75). Une part déjà « tient » finit ; une part « attend » quand la machine
+  fermer --attendre` la voient attendre), et la prend à la réouverture. Une part déjà « tient » finit ; une part « attend » quand la machine
   ferme attend.
 
 Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition

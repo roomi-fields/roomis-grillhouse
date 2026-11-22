@@ -5,8 +5,6 @@
 export const MEMOIRE_MIN: number;
 
 export const VARIABLE_ESPACEMENT: string;
-/** The jeton of the reservation of the machine by the night, which the passes of the night carry. */
-export const VARIABLE_JETON: string;
 /** The gap between two starts when GRILLHOUSE_ESPACEMENT_MS names none, in ms. */
 export const ESPACEMENT_MS: number;
 /** The gap between two starts under <env>, in ms. */
@@ -35,10 +33,9 @@ export function refusDeLaPlace(
       rang: number;
       ticket?: string | null;
       raison?: string;
-      jeton?: string | null;
     }[];
     dernier: number;
-    reservation?: { jeton: string; auteur?: 'nuit' | 'superviseur' } | null;
+    reservation?: ReservationDeLaMachine | null;
   },
   o: {
     id: string;
@@ -47,7 +44,6 @@ export function refusDeLaPlace(
     espacementMs: number;
     maintenant: number;
     mesurer: () => MesureDeLaMachine;
-    jeton?: string | null;
   }
 ): string | null;
 
@@ -90,46 +86,27 @@ export function refusDePart(
     mesurer: () => MesureDeLaMachine;
     dediee?: boolean;
     /** The reservation of the machine read this turn, null without. */
-    reservation?: { auteur?: 'nuit' | 'superviseur'; jeton: string } | null;
-    /** The jeton of the night the pass carries (its variable), null without. */
-    jeton?: string | null;
+    reservation?: ReservationDeLaMachine | null;
   }
 ): string | null;
 
 /** Why a pass waits under the supervisor's closure of the machine. */
 export const RAISON_DE_LA_FERMETURE: string;
-/** Why a pass without the jeton of the night waits under its reservation. */
-export const RAISON_DE_LA_NUIT: string;
 
 /** A place of a circuit not given by its project's queue for this long is gone, in ms: 10 min. */
 export const PERIME_MS: number;
 
-/** The reservation of the machine: the night's (absent author) or the supervisor's closure. */
+/** The reservation of the machine: the supervisor's closure, the only one. */
 export interface ReservationDeLaMachine {
-  auteur?: 'nuit' | 'superviseur';
-  jeton: string;
+  auteur?: 'superviseur';
   depuis: number;
-  /** The night's last beat; the supervisor's closure has none. */
-  battement?: number;
 }
 
-/** The phase of a reservation: none without one, waiting, under way (night) or empty (closure). */
+/** The phase of the closure: none without one, waiting (a place is held) or empty. */
 export function phaseDeLaReservation(etat: {
-  prises: readonly { id?: string; jeton?: string | null }[];
-  reservation?: { jeton: string; auteur?: 'nuit' | 'superviseur' } | null;
-}): 'attend' | 'en cours' | 'vide' | null;
-
-/** The phase of the night on the places: none without a reservation or under a closure. */
-export function phaseDeLaNuit(etat: {
-  prises: readonly { id?: string; jeton?: string | null }[];
-  reservation?: { jeton: string; auteur?: 'nuit' | 'superviseur' } | null;
-}): 'attend' | 'en cours' | null;
-
-/** Whether a reservation's last beat is PERIME_MS old at <maintenant>; a closure never is. */
-export function reservationPerimee(
-  reservation: { battement?: number; auteur?: 'nuit' | 'superviseur' },
-  maintenant: number
-): boolean;
+  prises: readonly object[];
+  reservation?: ReservationDeLaMachine | null;
+}): 'attend' | 'vide' | null;
 
 /** Why a place waits under the supervisor's closure. */
 export const RAISON_FERMEE: string;

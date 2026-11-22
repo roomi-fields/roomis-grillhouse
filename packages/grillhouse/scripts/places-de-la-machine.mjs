@@ -94,16 +94,11 @@ import {
   plafondDe,
   reserveDe,
 } from './plafond-de-la-machine.mjs';
-import { duree, refusDePart, VARIABLE_JETON } from './regles-des-places.mjs';
+import { duree, refusDePart } from './regles-des-places.mjs';
 import { attendreUnPeu, lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 
-// The spacing and the jeton of the night are rules (./regles-des-places.mjs), published here too.
-export {
-  ESPACEMENT_MS,
-  espacementDe,
-  VARIABLE_ESPACEMENT,
-  VARIABLE_JETON,
-} from './regles-des-places.mjs';
+// The spacing is a rule (./regles-des-places.mjs), published here too.
+export { ESPACEMENT_MS, espacementDe, VARIABLE_ESPACEMENT } from './regles-des-places.mjs';
 export const VARIABLE_TRAVAILLEURS = 'GRILLHOUSE_TRAVAILLEURS';
 
 /**
@@ -225,23 +220,19 @@ export function prendreUnRang({ env = process.env } = {}) {
 
 /**
  * The request of a place for the process <pid>: its start, its ticket, the root of its project,
- * the rank of its circuit, and the jeton of the night when <env> carries it (VARIABLE_JETON: the
- * passes of the night), which the workflow of the machine lets pass during the reservation of the
- * machine.
- * @param {{ env?: Record<string, string | undefined>, pid: number, depart?: string | null,
+ * and the rank of its circuit.
+ * @param {{ pid: number, depart?: string | null,
  *   ticket?: string | null, racine?: string, rang?: number | null }} o
  * @returns {{ pid: number, depart: string | null, ticket: string | null, racine?: string | null,
- *   rang?: number, jeton?: string }}
+ *   rang?: number }}
  */
-export function demandeDePlace({ env = process.env, pid, depart, ticket = null, racine, rang }) {
-  const jeton = env[VARIABLE_JETON];
+export function demandeDePlace({ pid, depart, ticket = null, racine, rang }) {
   return {
     pid,
     depart: depart === undefined ? departDe(pid) : depart,
     ticket,
     ...(racine === undefined ? {} : { racine: racineDuDepot(racine) }),
     ...(rang === undefined || rang === null ? {} : { rang }),
-    ...(jeton ? { jeton } : {}),
   };
 }
 
@@ -276,7 +267,7 @@ export function prendreUnePlace({
     return { id: null, rang: rang ?? null, env, rendre: () => {}, rattacher: () => {} };
   }
   const demande = {
-    ...demandeDePlace({ env, pid, depart, ticket, racine, rang }),
+    ...demandeDePlace({ pid, depart, ticket, racine, rang }),
     borneMs,
     rappelMs,
   };
@@ -569,17 +560,16 @@ export function lecteurDeLaCharge(env = process.env, systeme = chargeDesCoeursDu
  * writes on (`attendreDeLaPlace`), then the part: it is taken once it fits in what the parts held
  * leave of the budget and the load and the memory of the machine admit it, the waits of a smaller
  * rank passing first. Its state is one file of the parts (`poserLaPart`), « attend » then
- * « tient ». The night (VARIABLE_JETON) and a pass that asks for the <entiere> budget take the
- * whole budget: they play alone. A <mesure> of time takes dedicated cores (`fils`, whole physical
+ * « tient ». The night of a project is a pass like another, of the sort « Nuit »: it takes the part of
+ * its project. A <mesure> of time takes dedicated cores (`fils`, whole physical
  * cores), waits for them and for their rest (<chargeDesCoeurs>: the load of the threads it gives,
  * null without a reading, by default `lecteurDeLaCharge`; <topologie>, the topology of the system, for a trial).
  * The reservation of the machine (<lireLaReservation>, the places of the server by default) is read at each
  * turn of the wait, before the admission lock: under the supervisor's closure the pass waits without bound
- * (« machine fermée par le superviseur »), under the night's it waits unless it carries its jeton, within
- * the bound; a reading that fails stands for no reservation. Where no part is taken (the envelope of an agent, a part already
+ * (« machine fermée par le superviseur »); a reading that fails stands for no reservation. Where no part is taken (the envelope of an agent, a part already
  * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
- *   sorte?: string, entiere?: boolean, borneMs?: number, rappelMs?: number,
+ *   sorte?: string, mesure?: boolean, borneMs?: number, rappelMs?: number,
  *   dire?: (l: string) => void, maintenant?: () => number, dormir?: (ms: number) => void,
  *   libre?: (d: string) => number, occupe?: (d: string) => string,
  *   occupeLaCopie?: (r: string) => string }} [o]
@@ -595,7 +585,6 @@ export function prendreUnePart({
   racine = process.cwd(),
   ticket,
   sorte,
-  entiere = false,
   mesure = false,
   topologie,
   chargeDesCoeurs = lecteurDeLaCharge(env),
@@ -639,7 +628,7 @@ export function prendreUnePart({
       }
       part = { coeurs: fils, memoire: Math.floor((budget.memoire * fils) / budget.coeurs) };
     } else {
-      part = entiere || env[VARIABLE_JETON] ? budget : partDeLaPasse({ racine, env });
+      part = partDeLaPasse({ racine, env });
     }
   } catch (e) {
     throw e instanceof AttenteDeLaMachine ? e : new AttenteDeLaMachine(`✗ ${e.message}`, 1);
@@ -701,7 +690,6 @@ export function prendreUnePart({
             mesurer: () => machineDe(env),
             dediee: mesure,
             reservation,
-            jeton: env[VARIABLE_JETON] ?? null,
           }
         );
         let fils = null;
@@ -894,17 +882,16 @@ function commandeDeLaFermeture(mode, env) {
 
 /**
  * Closes the machine under <env> (the supervisor's reservation of the places, `cordon` of
- * kubectl): its issue, `fermee`, `deja-fermee`, or `nuit-tient` when the night holds the machine.
+ * kubectl): its issue, `fermee` or `deja-fermee`.
  * @param {{ env?: Record<string, string | undefined> }} [o]
- * @returns {'fermee' | 'deja-fermee' | 'nuit-tient'}
+ * @returns {'fermee' | 'deja-fermee'}
  */
 export const fermerLaMachine = ({ env = process.env } = {}) => commandeDeLaFermeture('fermer', env);
 
 /**
- * Reopens the machine under <env>: its issue, `rouverte`, `deja-ouverte`, or `nuit-tient` (the
- * reopening never lifts a night's reservation).
+ * Reopens the machine under <env>: its issue, `rouverte` or `deja-ouverte`.
  * @param {{ env?: Record<string, string | undefined> }} [o]
- * @returns {'rouverte' | 'deja-ouverte' | 'nuit-tient'}
+ * @returns {'rouverte' | 'deja-ouverte'}
  */
 export const rouvrirLaMachine = ({ env = process.env } = {}) =>
   commandeDeLaFermeture('rouvrir', env);
@@ -960,7 +947,7 @@ function mesureDEssai(env) {
  *   }} [o] `lues`, the places as the server holds them (`lirePlaces` by default); `tenues` of the
  *   result gives each place taken, its ticket and the root of its project (null without one)
  * @returns {{ prises: number, tenues: { ticket: string | null, racine: string | null }[],
- *   fermeture: { auteur: 'nuit' | 'superviseur', depuis: number, phase: string } | null,
+ *   fermeture: { auteur: 'superviseur', depuis: number, phase: string } | null,
  *   plafond: number, faute: string | null, charge: number, coeurs: number, memoireGo: number,
  *   memoireTotaleGo: number, attentes: { ticket: string, depuis: number, disque?: string | null }[] }}
  * @throws {Error} naming GRILLHOUSE_MESURE_D_ESSAI when its value is faulty
@@ -972,7 +959,6 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine, 
     faute = null,
     attentes,
     circuits = [],
-    nuit = null,
     fermeture = null,
   } = lues ?? lirePlaces({ env });
   const m = fixee ?? mesurer();
@@ -984,7 +970,6 @@ export function etatDesPlaces({ env = process.env, mesurer = mesureDeLaMachine, 
   return {
     prises: tenues.length,
     tenues,
-    nuit: nuit?.phase ?? null,
     fermeture,
     plafond,
     faute,

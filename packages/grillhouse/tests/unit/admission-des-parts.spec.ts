@@ -1,7 +1,7 @@
 // L'admission d'une passe par sa part (scripts/regles-des-places.mjs) : une règle pure. La part tient
 // dans le budget restant (cœurs, mémoire), puis les seuils de l'admission restent (charge sous les
 // cœurs, 4 Go libres) ; une passe refusée dit ce qu'elle attend, chiffres à l'appui ; les rangs
-// départagent, la nuit et une mesure de temps demandent le budget entier.
+// départagent, une mesure de temps demande des cœurs dédiés.
 import { describe, expect, it } from 'vitest';
 import { admissionDePart, refusDePart } from '../../scripts/regles-des-places.mjs';
 
@@ -179,7 +179,7 @@ describe('le tour d’une passe qui attend sa part', () => {
     expect(lues).toBe(1);
   });
 
-  it('la nuit, qui demande le budget entier, joue seule', () => {
+  it('une part égale au budget entier joue seule', () => {
     const entier = { ...budget };
     expect(jouer(vide(), { part: entier })).toBeNull();
     expect(jouer({ ...vide(), prises: [prise('a', 1, 1)] }, { part: entier })).toMatch(/cœurs/);
