@@ -8,3 +8,7 @@ export const CODE: string;
 export const TYPAGE: string;
 /** The names listed in `racine`'s `docs/agents/hors-cadre.txt`: empty without the file. */
 export function horsCadre(racine: string): Set<string>;
+/** Those of `chemins` (absolute, under `racine`), each as given, that git ignores in the repository
+ * at `racine`; a path under a submodule is never one. Empty when `racine` is not the root of a git
+ * repository (it holds no `.git`), or when git does not answer. */
+export function ignoresParGit(racine: string, chemins: string[]): Set<string>;

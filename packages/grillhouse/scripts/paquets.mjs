@@ -10,11 +10,16 @@
 // `docs/agents/hors-cadre.txt` (read by `horsCadre`, below) lists it: a directory under
 // `packages/` or `src/`.
 //
+// What git ignores holds no component (`ignoresParGit`, below): the modules of language that find
+// their components on the disk (c, python, typescript) leave it out, as ripgrep and ESLint judge
+// the tree git follows.
+//
 // This module and the ones it imports use Node alone: the update runs them from a source checkout
 // of the frame that installs no dependency.
 //
 // A project's guard imports `horsCadre` by the package's entry `@roomi-fields/grillhouse/paquets`,
 // its types in ./paquets.d.ts (docs/ARCHITECTURE.md, the package's named entries).
+import { spawnSync } from 'node:child_process';
 import { existsSync, globSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -43,6 +48,58 @@ export function horsCadre(racine) {
     }
   }
   return noms;
+}
+
+/**
+ * Those of <chemins> (absolute, under <racine>), each as given, that git ignores in the repository
+ * at <racine>, as `git check-ignore` reads its exclusion rules: a path under an ignored folder is
+ * ignored, a file git tracks never is. A path under a submodule is never ignored: the submodule
+ * is tracked, and git refuses to judge a path inside it. Empty when <racine> is not the root of a
+ * git repository (it holds no `.git`), or when git does not answer: the disk alone is then read.
+ * @param {string} racine the root of the project
+ * @param {string[]} chemins
+ * @returns {Set<string>}
+ */
+export function ignoresParGit(racine, chemins) {
+  if (chemins.length === 0 || !existsSync(path.join(racine, '.git'))) {
+    return new Set();
+  }
+  const git = (args, input) =>
+    spawnSync('git', ['-C', racine, ...args], {
+      input,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    });
+  // The submodules of the index (its entries of mode 160000), each a path from the root.
+  const index = git(['ls-files', '--stage', '-z']);
+  if (index.status !== 0) {
+    return new Set();
+  }
+  const sousModules = index.stdout
+    .split('\0')
+    .filter(l => l.startsWith('160000 '))
+    .map(l => l.slice(l.indexOf('\t') + 1));
+  const parRel = new Map();
+  for (const c of chemins) {
+    const rel = path.relative(racine, c).split(path.sep).join('/');
+    if (!sousModules.some(s => rel === s || rel.startsWith(`${s}/`))) {
+      parRel.set(rel, c);
+    }
+  }
+  if (parRel.size === 0) {
+    return new Set();
+  }
+  const r = git(['check-ignore', '-z', '--stdin'], [...parRel.keys()].join('\0'));
+  // 0: at least one path is ignored; 1: none; any other code, git did not answer.
+  if (r.status !== 0) {
+    return new Set();
+  }
+  return new Set(
+    r.stdout
+      .split('\0')
+      .filter(rel => parRel.has(rel))
+      .map(rel => parRel.get(rel))
+  );
 }
 
 // The names of <racine>'s `docs/agents/hors-cadre.txt` that no directory under `packages/` or

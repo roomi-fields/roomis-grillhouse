@@ -4,7 +4,8 @@
 // `entreesDeLIndex`).
 //
 // - A component is a folder that holds a pyproject.toml, found under the root, the folders whose
-//   name begins with a dot and those of LAISSES left out: its folder, its name the folder's, its
+//   name begins with a dot and those of LAISSES left out, and a pyproject.toml git ignores (the
+//   local clone of another repository) left out too: its folder, its name the folder's, its
 //   package the `name` of its table `[project]`, null without one. The language of a package is
 //   declared in the architecture (decision D2 of grillhouse-1zu); its pyproject.toml, its group
 //   `test` and its uv.lock are there because uv asks them.
@@ -32,6 +33,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { ignoresParGit } from '../../paquets.mjs';
 import { luUneFois } from '../../services-du-noyau.mjs';
 
 const require = createRequire(import.meta.url);
@@ -83,7 +85,13 @@ export function composants(racine) {
 
 // The components of `composants`, read at each call.
 function lireLesComposants(racine) {
-  return dossiersAvecManifeste(racine)
+  const trouves = dossiersAvecManifeste(racine);
+  const ignores = ignoresParGit(
+    racine,
+    trouves.map(d => path.join(d, MANIFESTE))
+  );
+  return trouves
+    .filter(d => !ignores.has(path.join(d, MANIFESTE)))
     .sort()
     .map(dossier => ({
       dossier,

@@ -227,6 +227,11 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   `python`, chaque dossier qui tient un `pyproject.toml` ; `c`, chaque dossier dont le
   `CMakeLists.txt` appelle `project(` (casse libre, commentaires `#` retirés), son nom celui de
   `project()` ; le `CMakeLists.txt` de `tests/`, sans `project(`, est la matière du paquet.
+  Un dossier que git ignore (le clone local d'un autre dépôt) ne donne aucun composant aux
+  modules qui cherchent sur le disque, `typescript`, `python` et `c` : son manifeste, lu par
+  `git check-ignore` (`ignoresParGit` de l'entrée `paquets`), est laissé ; un manifeste que git
+  suit reste trouvé, celui d'un sous-module compris, et un dossier sans git se lit au disque seul. `cargo` suit les membres que
+  déclare le manifeste de l'espace de travail.
   L'enveloppe et le lanceur y lisent le plan : un plan qui nomme un composant (un paquet, un
   crate) ouvre ce composant seul en écriture.
 - `composantDe` : le composant qui tient un fichier, ou null pour un fichier hors de tout

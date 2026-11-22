@@ -2195,7 +2195,8 @@ nom et l'une de ses entrées (le champ `exports`), jamais par l'adresse d'un fic
 la fonction, sans réexport, avec sa déclaration de types à côté (`scripts/<module>.d.ts`) :
 `@roomi-fields/grillhouse/dette` (`trancher`, la dette connue d'une garde du projet),
 `@roomi-fields/grillhouse/consommateurs` (`matieres`, les paquets de la matière de test
-partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre),
+partagée), `@roomi-fields/grillhouse/paquets` (`horsCadre`, les paquets hors cadre ; `ignoresParGit`, ce
+que git ignore, que la recherche des composants laisse),
 `@roomi-fields/grillhouse/resultats` (`ecrireSarif`, les constats d'une garde du projet en
 SARIF), `@roomi-fields/grillhouse/jointure` (`langageDe`, les modules de langage d'un projet composés, et les
 types de la jointure, `scripts/jointure.d.ts`), `@roomi-fields/grillhouse/conformite` (`cas` et

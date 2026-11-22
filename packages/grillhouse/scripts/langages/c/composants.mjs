@@ -3,7 +3,8 @@
 // `lecteurs`, `estUnTest`, `manifestes`, `entreesDeLIndex`).
 //
 // - A component is a folder whose CMakeLists.txt calls `project(<nom>`, found under the root, the
-//   folders whose name begins with a dot (`.build-cmake` included) and those of LAISSES left out:
+//   folders whose name begins with a dot (`.build-cmake` included) and those of LAISSES left out,
+//   and a CMakeLists.txt git ignores (the local clone of another repository) left out too:
 //   its folder, its name and its package the name `project()` gives. The CMakeLists.txt of
 //   `tests/`, which calls no `project(`, is the package's matter, never a component. `project(` is
 //   read in any case, after the comments (`#`) are cut, a space before the parenthesis allowed,
@@ -22,6 +23,7 @@
 //   `docs/INTERFACE.md`, and the root's, as the module python's.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { ignoresParGit } from '../../paquets.mjs';
 import { luUneFois } from '../../services-du-noyau.mjs';
 
 export const MANIFESTE = 'CMakeLists.txt';
@@ -63,11 +65,17 @@ function dossiersAvecProjet(dossier) {
 /** The components of the project at <racine>, sorted by folder; read once in a scope of the core
  * (`luUneFois`): a sweep asks it of every file of a folder. */
 export function composants(racine) {
-  return luUneFois(`c composants ${path.resolve(racine)}`, () =>
-    dossiersAvecProjet(racine)
+  return luUneFois(`c composants ${path.resolve(racine)}`, () => {
+    const trouves = dossiersAvecProjet(racine);
+    const ignores = ignoresParGit(
+      racine,
+      trouves.map(t => path.join(t.dossier, MANIFESTE))
+    );
+    return trouves
+      .filter(t => !ignores.has(path.join(t.dossier, MANIFESTE)))
       .sort((a, b) => (a.dossier < b.dossier ? -1 : a.dossier > b.dossier ? 1 : 0))
-      .map(({ dossier, nom }) => ({ dossier, nom, paquet: nom }))
-  );
+      .map(({ dossier, nom }) => ({ dossier, nom, paquet: nom }));
+  });
 }
 
 /** The component of <liste> that holds <fichier> (absolute, or from <racine>), the longest folder. */

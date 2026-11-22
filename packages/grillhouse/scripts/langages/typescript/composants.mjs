@@ -5,9 +5,11 @@
 // file) both import.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { horsCadre } from '../../paquets.mjs';
+import { horsCadre, ignoresParGit } from '../../paquets.mjs';
 
-// Every directory under `packages/` and `src/` of the repository at <racine>: [{ nom, dir }].
+// Every directory under `packages/` and `src/` of the repository at <racine>: [{ nom, dir }], a
+// directory git ignores (the local clone of another repository) left out: its package.json when
+// it holds one, the directory itself otherwise.
 function tousDossiers(racine) {
   const found = [];
   for (const parent of ['packages', 'src']) {
@@ -21,7 +23,12 @@ function tousDossiers(racine) {
       }
     }
   }
-  return found;
+  const lu = d => {
+    const manifeste = path.join(d.dir, 'package.json');
+    return existsSync(manifeste) ? manifeste : d.dir;
+  };
+  const ignores = ignoresParGit(racine, found.map(lu));
+  return found.filter(d => !ignores.has(lu(d)));
 }
 
 // The component directories of the repository at <racine>: [{ nom, dir }], each directory under
