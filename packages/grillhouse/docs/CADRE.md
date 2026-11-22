@@ -65,7 +65,9 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   en conflit), si bien qu'aucune construction ne joue sur un fichier marqué. Le lanceur accepte
   la relance d'un rôle sur une copie aux conflits non résolus ou au lot gardé quand il écrit un de
   ces fichiers, et le refuse sinon ; un conflit que la seconde séance du rôle ne lève pas monte
-  (arrêt « lancement »), chaque fichier nommé.
+  (arrêt « lancement »), chaque fichier nommé. La fiche FAIT d'une séance est refusée tant qu'un
+  fichier de son rôle porte une marque de conflit, le fichier nommé ; un lancement refusé parce
+  que les fichiers marqués sont à l'autre rôle va d'abord à ce rôle, puis se relance une fois.
 - **R2.5.** À la CI, la vérification en morceaux qui, réunis, font la passe complète, comme Vitest
   découpe une passe (`--shard`, puis `--merge-reports`) : `npm run verifier -- --sans-tests` joue
   chaque tâche sauf les tests (gardes, typage, mise en forme, lint) ; `npm run verifier --

@@ -27,6 +27,8 @@ import path from 'node:path';
 import { GREFFON } from './cadre.mjs';
 import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
 import { ecrireLaListe } from './enveloppe/paquets-du-plan.mjs';
+import { ecritPar, marquesRestantes } from './enveloppe/travail-de-la-copie.mjs';
+import { langageDe } from './langages.mjs';
 import { nomDuRole } from './etapes.mjs';
 import { departDe } from './mesure/base-de-passe.mjs';
 import { groupeVivant, signalerGroupe } from './mesure-de-la-machine.mjs';
@@ -649,9 +651,14 @@ export function consigne(valeurs, rang = 0) {
 // <change> says what changed on a resumption, when it is not the proof or the checks (the
 // integration's refusal of the lot, `refus`). Returns the sheet and the findings it leaves,
 // which the circuit keeps: the activity writes nothing of the circuit's memory.
+// A file left with the marks of a conflict never closes the copy, as git refuses to record an
+// unmerged path and pre-commit's check-merge-conflict a file that carries a marker
+// (`marquesDuRole`): the instruction names the files of the role that carry marks, and its sheet
+// FAIT is refused while one of them does, the file named, as a sheet out of conformity (a sheet
+// BLOQUÉ or BESOIN goes up as it is).
 // Throws an Arret for a launch that stops before its session, a motionless session, or
 // a session that ends twice without a sheet that conforms.
-export async function seance(
+async function uneSeance(
   ctx,
   role,
   {
@@ -666,22 +673,33 @@ export async function seance(
     constats: gardes = [],
     reprise: gardee = null,
     retenir = () => {},
+    estUnTest = rouleDeTest(ctx),
     ...activite
   }
 ) {
   // A resumption at the step that carries a red (`fichiers`, the files the red names): the session
   // carries these files alone, the rest of the lot being green.
-  const rapport = fichiers?.length
+  const porte = fichiers?.length
     ? `${rapportBrut ?? ''}\n\nCette séance ne porte que ${fichiers.join(', ')} : le reste du lot est vert et ne se touche pas.`.trim()
     : rapportBrut;
+  const marques = () => marquesDuRole(ctx, role, estUnTest).siens;
+  const enConflit = marques();
+  const rapport = enConflit.length
+    ? `${porte ?? ''}\n\nLa copie garde un conflit non résolu dans ces fichiers de ton rôle : ${enConflit.join(', ')}. ${RESOUDRE}`.trim()
+    : porte;
   const nom = nomDuRole(role);
   const reprise = tentative > 1 && !derniere && gardee?.agent === role ? gardee : null;
-  const { tache, ouverts, constats, valider, repondre } = constatsDeLaSeance(
-    ctx.contexte,
-    gardes,
-    role,
-    ctx.destinataire ?? null
-  );
+  const {
+    tache,
+    ouverts,
+    constats,
+    valider: repond,
+    repondre,
+  } = constatsDeLaSeance(ctx.contexte, gardes, role, ctx.destinataire ?? null);
+  const valider = f =>
+    [repond(f), f.statut === 'FAIT' ? fauteDesMarques(marques()) : null]
+      .filter(Boolean)
+      .join(' ; ') || null;
   // The last sign of life of a launch of this session, which a fresh session after a failed
   // resumption waits for while its group runs.
   let dernierSigne = activite.precedent ?? null;
@@ -775,6 +793,83 @@ export async function seance(
       precedent: dernierSigne,
     })
   );
+}
+
+// How a file in conflict is resolved, as every instruction that names one says it.
+const RESOUDRE =
+  'Les marques de conflit sont dans la copie (`<<<<<<<`, `=======`, `>>>>>>>`) : tu résous chaque fichier, marques retirées.';
+
+/**
+ * The rule of a test file of the module of the language of the copy of <ctx> (`estUnTest`); a copy
+ * the module does not read judges every file the developpeur's.
+ * @param {{ copie: string }} ctx
+ */
+export function rouleDeTest(ctx) {
+  return fichier => {
+    try {
+      return langageDe(ctx.copie).estUnTest(fichier, ctx.copie);
+    } catch {
+      return null;
+    }
+  };
+}
+
+// The files of the copy of <ctx> that still carry the marks of a conflict (`marquesRestantes`, the
+// files of the conflict the circuit keeps among them), by who writes them: `siens`, those <role>
+// writes (`ecritPar`), `autres`, the other role's. A role that writes no file has none.
+function marquesDuRole(ctx, role, estUnTest) {
+  const ecrit = ecritPar(role, estUnTest);
+  if (!ecrit) {
+    return { siens: [], autres: [] };
+  }
+  const marques = marquesRestantes(ctx.copie, ctx.fichiersDuConflit ?? []);
+  return { siens: marques.filter(f => ecrit(f)), autres: marques.filter(f => !ecrit(f)) };
+}
+
+// What refuses a sheet whose session leaves <fichiers> with the marks of a conflict, or null.
+const fauteDesMarques = fichiers =>
+  fichiers.length
+    ? `conflit non résolu : ${fichiers.join(', ')} ${fichiers.length > 1 ? 'portent' : 'porte'} encore des marques de conflit (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`), à retirer en résolvant ${fichiers.length > 1 ? 'chaque fichier' : 'le fichier'}`
+    : null;
+
+/**
+ * The session of <role> on the whole ticket (`uneSeance`), the role that can lift a conflict
+ * always launched, as GitHub leaves the resolution to who can write the file: a launch the
+ * launcher refuses (the stop « lancement ») while files of the other role carry the marks of a
+ * conflict (the launcher accepts only the role that writes one of them,
+ * scripts/enveloppe/travail-de-la-copie.mjs `--role`) goes to that role first, a fresh session
+ * that carries these files alone, each named; then the session of <role> launches again, once: a
+ * second refusal goes up.
+ */
+export async function seance(ctx, role, options) {
+  try {
+    return await uneSeance(ctx, role, options);
+  } catch (e) {
+    const { autres } =
+      e instanceof Arret && e.nom === 'lancement'
+        ? marquesDuRole(ctx, role, options.estUnTest ?? rouleDeTest(ctx))
+        : { autres: [] };
+    if (!autres.length) {
+      throw e;
+    }
+    const autre = role === 'testwriter' ? 'developpeur' : 'testwriter';
+    commenter(
+      ctx,
+      role,
+      `lancement refusé sur un conflit dans des fichiers du ${nomDuRole(autre)} (${autres.join(', ')}) : sa séance d'abord, puis celle-ci.`
+    );
+    const { constats } = await uneSeance(ctx, autre, {
+      ...options,
+      tentative: 1,
+      reprise: null,
+      retenir: () => {},
+      change: undefined,
+      fichiers: autres,
+      rapport: `Le lancement de la séance du ${nomDuRole(role)} s'arrête sur un conflit de la copie dans des fichiers de ton rôle.`,
+      seanceId: idDeSeance(ctx, `conflit:${autre}`),
+    });
+    return uneSeance(ctx, role, { ...options, constats });
+  }
 }
 
 // The findings of the reviewer open for <role> among <constats>, as a session of the run whose
@@ -1013,19 +1108,14 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
   for (let essai = premier; essai <= 2; essai++) {
     const courte = () => consigne({ ticket: ctx.ticket, sujet: ctx.sujet, erreur: lu.erreur }, 2);
     const avantLeJournal = tailleDuJournal(ctx);
-    const r = await lancer(
-      ctx,
-      role,
-      etendu ?? (essai === 1 || !lu ? texte : courte()),
-      {
-        ...reste,
-        precedent: derniere,
-        evenement,
-        relance: essai,
-        signeDeVie,
-        ...ouvrir(etendu || essai > 1 ? 'reprend' : premiere),
-      }
-    );
+    const r = await lancer(ctx, role, etendu ?? (essai === 1 || !lu ? texte : courte()), {
+      ...reste,
+      precedent: derniere,
+      evenement,
+      relance: essai,
+      signeDeVie,
+      ...ouvrir(etendu || essai > 1 ? 'reprend' : premiere),
+    });
     etendu = null;
     // The usage limit stops a session that does not end on its own: neither a sheet missing nor a
     // sheet to resume, the circuit waits for the hour the usage returns (« limite-d-usage »).
@@ -1036,11 +1126,11 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
     if (limite) {
       throw new Arret(
         'limite-d-usage',
-        `La séance du ${nomDuRole(role)} est arrêtée par la limite d'usage ; elle reprend ${limite.lisible ? `à l'heure que la limite donne (${new Date(limite.reprise).toISOString()})` : "dans une heure, la limite ne donne aucune heure lisible"}.`,
+        `La séance du ${nomDuRole(role)} est arrêtée par la limite d'usage ; elle reprend ${limite.lisible ? `à l'heure que la limite donne (${new Date(limite.reprise).toISOString()})` : 'dans une heure, la limite ne donne aucune heure lisible'}.`,
         { resultat: limite }
       );
     }
-    const extension =seanceLancee(ctx, role, r)?.etendre;
+    const extension = seanceLancee(ctx, role, r)?.etendre;
     if (extension) {
       ctx.etendreEnVol(extension);
       courante = r.id ?? courante;

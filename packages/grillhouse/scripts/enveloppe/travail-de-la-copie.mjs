@@ -49,6 +49,10 @@
 //     even when the index no longer says them in conflict); a conflict the session of the role
 //     does not lift goes up to the supervisor, the stop « lancement », each file named. A file
 //     without marker left in the copy counts as resolved (put in the index by the circuit).
+//     At the launch of a session, the circuit plays the rule too (scripts/seances.mjs `seance`):
+//     the launch refused goes to the other role first while files of its own carry marks
+//     (`marquesRestantes`), and the sheet FAIT of a session is refused while a file of its role
+//     carries them.
 //   - A copy still in conflict (unmerged entries in its index) or whose branch has left main
 //     (commits on both sides, no fast-forward) is not touched; the output says why; exit 1. A
 //     fast-forward that fails after the work is set aside (an untracked file in the way) gives
@@ -217,6 +221,21 @@ function morceauxDuLot(lot) {
 function porteDesMarques(copie, f) {
   const chemin = path.join(copie, f);
   return existsSync(chemin) && /^(<{7}|>{7}) /m.test(readFileSync(chemin, 'latin1'));
+}
+
+/**
+ * The files of <copie> that still carry the marks of a conflict: those unmerged in its index, and
+ * those of <suspects> (the files an earlier advance left in conflict, which the index may no longer
+ * say so). Nothing is written: a session's sheet and a refused launch are judged on it.
+ * @param {string} copie
+ * @param {string[]} [suspects]
+ * @returns {string[]}
+ */
+export function marquesRestantes(copie, suspects = []) {
+  if (!existsSync(copie)) {
+    return [];
+  }
+  return [...new Set([...enConflit(copie), ...suspects])].filter(f => porteDesMarques(copie, f));
 }
 
 // The files of <copie> that carry no conflict marker any more, among those unmerged: the work of a

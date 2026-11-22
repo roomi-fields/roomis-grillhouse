@@ -607,7 +607,15 @@ rôle relancé revient à la passe, pas à l'étape qui suit son rôle : la pass
 marques cherchées aussi dans les fichiers du conflit, l'index dût-il ne plus les dire en conflit)
 et relance l'autre rôle tant qu'un de ses fichiers les garde, si bien qu'aucune construction ne
 joue sur un fichier marqué ; le lanceur
-accepte la séance du rôle qui écrit au moins un de ces fichiers (`preparer --role`). Une
+accepte la séance du rôle qui écrit au moins un de ces fichiers (`preparer --role`). Un fichier
+laissé avec ses marques ne ferme jamais la copie, comme git refuse d'enregistrer un chemin non
+fusionné et le contrôle check-merge-conflict de pre-commit un fichier marqué (`seance` de
+`scripts/seances.mjs`) : la consigne d'une séance nomme les fichiers de son rôle qui portent des
+marques, sa fiche FAIT est refusée tant que l'un d'eux en porte, le fichier nommé, et la séance
+reprise une fois, comme pour une fiche non conforme ; un lancement que le lanceur refuse parce
+que les fichiers marqués sont à l'autre rôle va d'abord à ce rôle, une séance neuve qui ne porte
+que ces fichiers, puis la séance refusée se relance, une fois (SyntHub, SH-ae6.10.32 : une fiche
+acceptée avec « <<<<<<< ours », puis deux lancements du testwriter refusés). Une
 préparation qui échoue autrement (un conflit que la seconde séance du rôle ne lève pas, une
 branche partie de main, un sous-module ou une installation en échec) arrête le circuit en
 `lancement`, avant la passe : sa question nomme la copie, chaque fichier en conflit et le geste

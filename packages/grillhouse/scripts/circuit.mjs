@@ -700,7 +700,14 @@ import {
 } from './ticket-du-circuit.mjs';
 import { emettre } from './effets.mjs';
 import { heureLocale } from './journal-des-etats.mjs';
-import { consigne, auLancement, idDeSeance, jusquALaFiche, seance } from './seances.mjs';
+import {
+  consigne,
+  auLancement,
+  idDeSeance,
+  jusquALaFiche,
+  rouleDeTest,
+  seance,
+} from './seances.mjs';
 import { releve } from './composants-affectes.mjs';
 import { ligneDEtape, transcriptionsDeLaCopie } from './registre.mjs';
 import {
@@ -1007,18 +1014,6 @@ function inscrireEtape(ctx, { etape, debut }) {
       fin: new Date().toISOString(),
     }),
   });
-}
-
-// The rule of a test file of the module of the language of the copy of <ctx> (`estUnTest`); a copy
-// the module does not read judges every file the developpeur's.
-function rouleDeTest(ctx) {
-  return fichier => {
-    try {
-      return langageDe(ctx.copie).estUnTest(fichier, ctx.copie);
-    } catch {
-      return null;
-    }
-  };
 }
 
 // The steps whose pass judges the lot, 3.1 and 4.1 (one state, `finale` apart): the copy is
