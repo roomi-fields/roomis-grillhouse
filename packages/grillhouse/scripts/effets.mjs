@@ -14,7 +14,7 @@
 // - `commentaire` `{ ticket, texte, auteur }`: a comment at a ticket, by its author;
 // - `fiche` `{ entree }`: a line of the ticket's sheets (`<ticket>.fiches.jsonl`), dated;
 // - `decouverte` `{ role, sujet, corps, composants }`: a discovery filed closed under the ticket
-//   (scripts/ticket.sh, label `decouverte`), then its line among the sheets (`{ id, sujet }`);
+//   (scripts/ticket.mjs, label `decouverte`), then its line among the sheets (`{ id, sujet }`);
 // - `registre` `{ ligne }`: a line of the register of the steps (scripts/registre.mjs);
 // - `trace` `{ ligne }`: a line of the journal of states (scripts/journal-des-etats.mjs), whose
 //   failure is said once and never stops the circuit;
@@ -65,7 +65,7 @@ export const AVEC_CLE = new Set([
 export const ACTEUR = 'BEADS_ACTOR';
 export { AUTEUR_DU_CIRCUIT };
 export const PREFIXE = 'Circuit · ';
-const TICKET_SH = path.join(import.meta.dirname, 'ticket.sh');
+const TICKET = path.join(import.meta.dirname, 'ticket.mjs');
 
 const ok = { status: 0, stdout: '', stderr: '' };
 // A failure of a player, as bd answers one.
@@ -189,9 +189,9 @@ const JOUEURS = {
     }
     if (!id) {
       const r = spawnSync(
-        'bash',
+        process.execPath,
         [
-          TICKET_SH,
+          TICKET,
           ctx.ticket,
           sujet,
           composants,

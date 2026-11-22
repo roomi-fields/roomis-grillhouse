@@ -537,6 +537,42 @@ Le paquet publie, hors des entrées de `exports`, la sous-commande `grillhouse t
 - Le déroulé de la machine, qui tient ses places (grillhouse-4nr.7) : son type `placesDeLaMachine`, son identifiant `grillhouse-places-de-la-machine`, sur la file `grillhouse-machine` ; la mise à jour `prendre` (`{ id, pid, depart, ticket?, rang? }`, l'identifiant tiré par l'appelant : elle inscrit la demande et rend `{ id, rang }` aussitôt ; un rang donné avance le rang tiré), la requête `laDemande` (l'identifiant : `donnee`, `attend` avec sa raison, ou `inconnue` une fois retirée ou son processus disparu), les signaux `rendre` (l'identifiant : rend la place ou retire la demande) et `rattacher` (`{ id, pid, depart }`), la requête `lesPlaces` (`{ plafond, faute, prises, attentes }`, les attentes dans l'ordre d'arrivée ; `plafond`, le dernier lu sur le poste, que l'activité `plafondDeLaMachine` relit à chaque jugement, `faute` la valeur fautive de cette lecture par son nom, le plafond d'avant gardé, null sans elle ; son entrée ne porte plus de plafond), la mise à jour `tirerUnRang` (le prochain rang d'arrivée, qu'un circuit tire à son lancement), la mise à jour `reserverDesCircuits` (`{ racine, vivants?, candidats?, disque?, reprise? }` : les tickets de la demande qui tiennent une place de circuit, `disque` la raison qui retient les candidats sans place disque, `reprise` (`{ ticket, rang }`) la redemande d'un circuit repris après sa question, avec son rang d'arrivée, `groupe` l'identité du groupe déclaré du projet (absente hors groupe), `priorites` (`{ <ticket>: { priorite, creation } }`, par candidat) ; accordées dans l'ordre d'arrivée de tous les projets, sauf que les circuits non accordés d'un même groupe se redistribuent leurs rangs par priorité (P0 à P4), ancienneté, puis rang, sous le plafond, la règle `reserverDesCircuits` de `scripts/regles-des-places.mjs` ; `lesPlaces` les rend sous `circuits`) ; la nuit ne réserve pas la machine (grillhouse-3uv.170) : sa passe prend la part de son projet, sans mise à jour ni jeton ; son client `src/temporal/places/client.ts` (`demarrerLesPlaces`, `reserverDesCircuits`, qui rend tous les candidats quand aucun déroulé de la machine ne tourne, `prendreUnePlaceParTemporal`, qui inscrit la demande puis la lit jusqu'à la place donnée et la retire sur son signal d'abandon, `rendreLaPlace`, `rattacherLaPlace`, `lireLesPlaces`, `tirerUnRangParTemporal`). `scripts/places-de-la-machine.mjs` le lit et le prend par `scripts/places-du-serveur.mjs` (`rang`, `prendre <demande>`, `rendre <id>`, `rattacher <id> <pid> <depart>`, `lire`), et la jointure publie `avecLaPasse` aux modules de langage : la part, tenue par le système.
 - Les nuits du poste (grillhouse-4nr.13) : la sous-commande `grillhouse nuit` (seule, la passe de nuit du projet du dossier courant, `scripts/nuit.sh`, son code de sortie ; `grillhouse nuit <projet>`, la nuit de l'arbre principal de ce projet demandée au déroulé des nuits, 0 demandée, 2 un projet écarté par sa raison, 1 un serveur qui ne répond pas ; `grillhouse nuit --planifier [--heure <0-23>]`, la planification créée ou mise à jour, à l'heure donnée, sinon à celle qu'elle a déjà, 1 h pour une neuve ; `-h`, `--help`, l'usage, 0 ; un appel mal formé, 2) ; la planification `grillhouse-nuits` (chaque jour à son heure, dans le fuseau du poste, chevauchement SKIP, rattrapage 24 h) qui démarre le déroulé `nuitPlanifiee` (`grillhouse-nuit-planifiee`, suffixé par le serveur) sur la file `grillhouse-machine` ; le déroulé `nuitsDeLaMachine`, son identifiant `grillhouse-nuits-de-la-machine`, sur la même file, son entrée `{ limiteDHistoire?, etat? }`, le signal `demander` (`{ projet }` une nuit demandée à la main, `{ planifiee: true }` les nuits planifiées), la requête `etatDesNuits` (`{ enCours, depuis, attente, jouees, sautes, ecartes }`, `depuis` le début de la nuit en cours, en ms, null sans elle), son résultat la même vue ; ses activités `choisirLesNuits`, `noterLeSaut`, `sauterLaNuit` (`{ racine, raison }` : le saut d'une nuit sous la fermeture du superviseur, noté au journal de la nuit du projet et au registre de la machine), `jouerLaNuit` (`{ racine }` : le code de sortie de la passe, qui prend la part de son projet, sorte « nuit »), `demanderLesNuitsPlanifiees` ; le déroulé ne réserve rien : les nuits jouent l'une après l'autre sur la part du projet ; son client `src/temporal/nuits/client.ts` (`demanderDesNuits`, `lireLesNuits`, `optionsDeLaPlanification`, `planifierLesNuits`, `heureDeLaPlanification`, `HEURE_PAR_DEFAUT`). Le marqueur de la dernière nuit verte est `<git common dir>/nuit/dernier-vert`, que la nuit verte écrit (`scripts/nuit.sh`) ; une nuit sautée laisse au registre une ligne de rôle `nuit` (`ligneDeNuit` de `scripts/registre.mjs`, `{ verdict: 'sautee', raison, sommet, reference }` sous `nuit`, une clé par projet, sommet et jour).
 
+## La création d'un ticket
+
+`grillhouse ticket <mère> <sujet> <composants> <corps> [étiquette]` (`scripts/ticket.mjs`) crée un
+ticket sous sa mère, le titre « <numéro> — <sujet> — <composants> » (le numéro est l'id sans le
+préfixe entier du projet, lu dans `.beads/config.yaml`) et écrit son id, seul, sur la sortie
+standard. Un corps `@<fichier>` se lit dans ce fichier ; l'étiquette vaut `a-valider` quand elle est
+absente ou vide ; `decouverte` crée le ticket fermé (« découverte consignée »). Le circuit consigne
+ses découvertes par cette commande (`scripts/effets.mjs`).
+
+- Ses codes : 0, le ticket créé ou retrouvé, son id sur la sortie ; 1, rien sur la sortie et la
+  raison en une ligne sur la sortie d'erreur (le préfixe illisible, ou l'appel de Beads qui échoue,
+  nommé : « bd create : … ») ; 2, moins de quatre arguments, l'usage sur la sortie d'erreur.
+- Rejouée, elle ne crée pas un second ticket (« create if not exists », l'`Idempotency-Key` des
+  API de paiement) : sa clé est la mère et le titre entier, sujet et composants. Elle lit d'abord
+  les enfants de la mère ; un enfant qui porte ce titre est le ticket : elle ne crée rien, dit
+  « <id> existe déjà sous <mère> avec ce titre, aucun ticket créé » sur la sortie d'erreur et rend
+  son id, code 0.
+- Un enfant fermé ne compte que pour une découverte, créée fermée. Sous toute autre étiquette un
+  ticket fermé de même titre n'empêche rien : un défaut qui revient reçoit un ticket neuf.
+- Un enfant qui porte le sujet nu et le corps de la demande est une création arrêtée avant son
+  titre : elle la finit (le titre, puis la clôture d'une découverte qu'elle a étiquetée). Un sujet nu
+  sous un autre corps est le ticket d'un autre, laissé tel quel.
+- Une lecture des enfants qui échoue, ou qui ne rend aucune liste, ne crée rien (code 1).
+- Une création à la fois par projet : la lecture et la création sont une seule étape sous le verrou
+  `.beads/grillhouse-ticket.lock` de l'arbre principal, dont les copies partagent le magasin. Une
+  création lancée pendant qu'une autre tourne l'attend, puis retrouve son ticket. Le verrou se juge
+  à son âge (5 min, réécrit après chaque appel de Beads) : celui d'une commande tuée est repris
+  passé cet âge. Une commande que son appelant coupe (SIGTERM, SIGINT) lâche le verrou avant de
+  finir, tuée par ce signal (143 ou 130 vu d'un shell) : la création suivante n'attend pas.
+- Quand elle dure, elle dit ce qu'elle attend sur la sortie d'erreur, passé 5 s puis toutes les
+  10 s : l'appel de Beads en cours (Beads sert un processus à la fois) ou la fin d'une autre
+  création.
+- Ses limites : deux découvertes de même sujet et de mêmes composants sous un même ticket sont une
+  seule ; une commande tuée dont l'appel de Beads survit peut encore créer son ticket après que la
+  suivante a créé le sien.
+
 ## Consommateurs
 
 Les paquets de Grillhouse qui importent le cadre par son nom ; un projet le lit par ses entrées

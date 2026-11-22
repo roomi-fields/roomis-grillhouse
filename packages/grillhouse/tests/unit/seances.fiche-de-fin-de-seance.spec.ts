@@ -157,7 +157,7 @@ describe('la séance de l’enveloppe, de son lanceur à sa fiche', () => {
 });
 
 describe('une découverte de la fiche', () => {
-  // A stand-in for bd on the PATH, for scripts/ticket.sh: each call written in <journal>, the
+  // A stand-in for bd on the PATH, for scripts/ticket.mjs: each call written in <journal>, the
   // ticket it creates « demo-9 ».
   function fauxBd() {
     const dossier = mkdtempSync(path.join(ESSAIS, 'bd-'));
@@ -166,7 +166,7 @@ describe('une découverte de la fiche', () => {
     mkdirSync(bin);
     writeFileSync(
       path.join(bin, 'bd'),
-      `#!/bin/sh\nprintf '%s\\n' "$*" >> ${journal}\ncase "$1" in create) echo demo-9;; esac\n`
+      `#!/bin/sh\nprintf '%s\\n' "$*" >> ${journal}\ncase "$1" in create) echo demo-9;; list) echo '[]';; esac\n`
     );
     chmodSync(path.join(bin, 'bd'), 0o755);
     return { journal, bin };

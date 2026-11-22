@@ -46,7 +46,7 @@ type Ctx = {
   rendus?: { genre: string }[];
 };
 
-// A stand-in for bd on the PATH, for scripts/ticket.sh: each call written in <journal>, the ticket
+// A stand-in for bd on the PATH, for scripts/ticket.mjs: each call written in <journal>, the ticket
 // it creates « demo-9 ».
 function fauxBd(dossier: string) {
   const journal = path.join(dossier, 'bd.log');
@@ -54,7 +54,7 @@ function fauxBd(dossier: string) {
   mkdirSync(bin, { recursive: true });
   writeFileSync(
     path.join(bin, 'bd'),
-    `#!/bin/sh\nprintf '%s\\n' "$*" >> ${journal}\ncase "$1" in create) echo demo-9;; config) echo demo;; esac\n`
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> ${journal}\ncase "$1" in create) echo demo-9;; list) echo '[]';; config) echo demo;; esac\n`
   );
   chmodSync(path.join(bin, 'bd'), 0o755);
   return { journal, bin };
@@ -110,7 +110,7 @@ const lignes = (ctx: Ctx) =>
         .map(l => JSON.parse(l) as Record<string, unknown>)
     : [];
 
-// <f> with the stand-in bd on the PATH (scripts/ticket.sh calls it).
+// <f> with the stand-in bd on the PATH (scripts/ticket.mjs calls it).
 function avecBd<T>(bin: string, f: () => T): T {
   const avant = process.env.PATH;
   process.env.PATH = `${bin}:${avant}`;

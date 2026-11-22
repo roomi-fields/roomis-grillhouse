@@ -80,7 +80,7 @@ export const SOUS_COMMANDES = {
   temporaire: 'mesure/base-de-passe.mjs',
   temporal: '../dist/temporal/commande.js',
   tests: { langage: 'tester' },
-  ticket: 'ticket.sh',
+  ticket: 'ticket.mjs',
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
   verifier: { langage: 'verifier' },
   verrou: 'verrous/verrou.mjs',

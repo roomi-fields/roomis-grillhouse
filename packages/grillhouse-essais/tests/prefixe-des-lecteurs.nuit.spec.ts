@@ -3,7 +3,8 @@
 // `bd config get issue_prefix` (absent en CI) : le crochet un-commit-par-ticket, l'intégrateur appelé
 // sans lot et nuit.sh, chacun lancé comme processus dans un dépôt d'essai. Un faux `bd` en tête du
 // PATH note ses appels et échoue sur `config` : un lecteur qui lit encore le préfixe par bd le montre.
-// Les cas de ticket.sh, qui ne demandent pas git, sont de jour (ticket-sh-prefixe.spec.ts).
+// Les cas de la création d'un ticket (scripts/ticket.mjs), qui ne demandent pas git, sont de jour
+// (titre-des-tickets.spec.ts).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

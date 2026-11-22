@@ -82,7 +82,7 @@ export function ecrireLePrefixe(racine, valeur) {
   return ligne;
 }
 
-// Run as `node prefixe-des-tickets.mjs <racine>`, the shell scripts (ticket.sh, nuit.sh) read the
+// Run as `node prefixe-des-tickets.mjs <racine>`, the shell scripts (nuit.sh) read the
 // prefix by the same function: it prints the prefix, or the message of the refusal with exit 1.
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   try {

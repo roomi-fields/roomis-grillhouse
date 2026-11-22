@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-// grillhouse-3uv.56 critère 8: scripts/ticket.sh titles a ticket by stripping the whole prefix of
+// grillhouse-3uv.56 critère 8: scripts/ticket.mjs titles a ticket by stripping the whole prefix of
 // the project (the key `issue-prefix` of its `.beads/config.yaml`), not the text before the first dash: with the prefix
 // bp-mono, the title of bp-mono-vbwf.322.6.6.12 starts with « vbwf.322.6.6.12 — ».
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'titre-des-tickets-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const DEPOT = path.resolve(__dirname, '../../../..');
-const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/ticket.sh');
+const SCRIPT = path.join(DEPOT, 'packages/grillhouse/scripts/ticket.mjs');
 
 // The script run in a folder whose `.beads/config.yaml` holds <config> (absent when null), against
 // a Beads that answers <id> to the creation and fails on `config`: its result, the calls of Beads
@@ -30,12 +30,12 @@ function lancer(config: string | null, id: string, composants = 'le component') 
       '#!/bin/sh',
       `printf '%s\\n' "$*" >> ${appels}`,
       'case "$1" in config) echo "bd config appelé" >&2; exit 9;; esac',
-      `case "$1" in create) echo ${id};; esac`,
+      `case "$1" in create) echo ${id};; list) echo '[]';; esac`,
       '',
     ].join('\n'),
     { mode: 0o755 }
   );
-  const r = spawnSync('bash', [SCRIPT, 'parent-x', 'le subject', composants, 'le body'], {
+  const r = spawnSync(process.execPath, [SCRIPT, 'parent-x', 'le subject', composants, 'le body'], {
     encoding: 'utf8',
     cwd: depot,
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
@@ -80,7 +80,7 @@ describe('a ticket names its components, the provider first', () => {
   });
 });
 
-describe('ticket.sh lit le préfixe par prefixe : sans clé, il s’arrête avant de créer un ticket', () => {
+describe('la création d’un ticket lit le préfixe par prefixe : sans clé, il s’arrête avant de créer un ticket', () => {
   it('une clé absente donne le message nommé de prefixe, aucun ticket créé', () => {
     const { r, lesAppels } = lancer('# issue-prefix: ""\n', 'demo-7');
     expect(r.status).not.toBe(0);

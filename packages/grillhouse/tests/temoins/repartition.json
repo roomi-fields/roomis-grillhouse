@@ -176,7 +176,7 @@
     "scripts/tableau.mjs",
     "scripts/taches-du-graphe.mjs",
     "scripts/ticket-du-circuit.mjs",
-    "scripts/ticket.sh",
+    "scripts/ticket.mjs",
     "scripts/transitions.d.mts",
     "scripts/transitions.mjs",
     "scripts/un-commit-par-ticket.mjs",

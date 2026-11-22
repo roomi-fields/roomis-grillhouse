@@ -148,7 +148,7 @@
 //   (`lancement`, its role and its session id), each end of a run on a question (`montee`: its
 //   code, its stop and the supervisor's session that ran it, `superviseur`, the session the
 //   entry of the workflow carries, `ctx.superviseur`), which the bilan reads; and each
-//   of its discoveries (`decouvertes`) filed closed under the ticket (scripts/ticket.sh, label
+//   of its discoveries (`decouvertes`) filed closed under the ticket (scripts/ticket.mjs, label
 //   `decouverte`). A session that ends without a sheet that conforms (none, one out of its schema,
 //   a code other than 0) is resumed once, the same session, with the third template, which names
 //   what lacks; a second one stops the circuit at « sans-fiche ». The handover at the ticket (`bd
