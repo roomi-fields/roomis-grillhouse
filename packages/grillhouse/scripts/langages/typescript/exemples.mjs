@@ -7,7 +7,8 @@
 //   interface, and the generated files are written by their own commands (the index of the
 //   interfaces, the turbo.json of the packages): `aJour`; the same with each generated file out
 //   of date: the interface of `a` changed after its index, a fault listed that its code never
-//   produces (the check of the interfaces against the code), the turbo.json of `b` stale:
+//   produces (the check of the interfaces against the code), the turbo.json of `b` stale, a
+//   dependency of `a` that the lock does not hold:
 //   `enRetard`; the same where the code of `b` imports `a` and the
 //   code of `c` imports `b`: `lus`; the same with a second commit that changes a file of `a`:
 //   `lot`. A directory whose package.json names no package: `vide`. A
@@ -57,6 +58,29 @@ function depot(dans) {
       `# ${nom}\n\n${nom.toUpperCase()} rend un nombre.\n`
     );
   }
+  // The lock npm writes for them: the workspaces linked, each entry with its dependencies.
+  ecrire(
+    'package-lock.json',
+    json({
+      name: 'e',
+      lockfileVersion: 3,
+      requires: true,
+      packages: {
+        '': { name: 'e', workspaces: ['packages/*'] },
+        ...Object.fromEntries(
+          Object.keys(PAQUETS).flatMap(nom => [
+            [`node_modules/@e/${nom}`, { resolved: `packages/${nom}`, link: true }],
+            [
+              `packages/${nom}`,
+              Object.fromEntries(
+                Object.entries(PAQUETS[nom]).filter(([k]) => k !== 'name' && k !== 'exports')
+              ),
+            ],
+          ])
+        ),
+      },
+    })
+  );
   mkdirSync(path.join(racine, 'docs/agents'), { recursive: true });
   node(racine, 'turbo-des-paquets.mjs', '--ecrire');
   node(racine, 'index-interfaces.mjs');
@@ -125,6 +149,11 @@ export default {
       '# a\n\nA rend un autre nombre.\n\n## Les fautes\n\n- `A_ABSENTE` : jamais produite.\n'
     );
     writeFileSync(path.join(enRetard, 'packages/b/turbo.json'), '{}\n');
+    // A dependency added to `a` that its lock does not hold.
+    writeFileSync(
+      path.join(enRetard, 'packages/a/package.json'),
+      json({ type: 'module', ...PAQUETS.a, devDependencies: { '@e/m': '*' } })
+    );
     // The specifiers are written apart, so that no reading of the package's imports takes a
     // trial's for its own.
     const lus = depot(dans);
@@ -181,6 +210,7 @@ export default {
           'tests-du-poste',
           'titres-de-tests',
           'turbo-des-paquets',
+          'verrou-des-dependances',
         ],
         invalide: ['tester', 'deployer'],
         attendu: ['deployer : absente'],
@@ -234,6 +264,7 @@ export default {
           "l'index des interfaces : en retard",
           'les turbo.json des paquets : en retard',
           "les rapports d'API : en retard",
+          'le verrou des dépendances : en retard',
         ],
       },
       gardes: {
@@ -250,6 +281,7 @@ export default {
           'titres-de-tests',
           'chemins-des-tests',
           'resumes',
+          'verrou-des-dependances',
         ],
       },
       elementsDuLot: {

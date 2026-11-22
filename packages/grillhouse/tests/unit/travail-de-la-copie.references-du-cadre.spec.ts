@@ -263,9 +263,19 @@ describe('la liste du cadre, sans référence donnée', () => {
       "l'index des interfaces",
       'les turbo.json des paquets',
       "les rapports d'API",
+      'le verrou des dépendances',
       'la dette des gardes',
     ]);
-    const [index, turbo, api, dette] = duCadre;
+    const [index, turbo, api, verrou, dette] = duCadre;
+    // The npm lock: written in full from the package.json of the root and of the packages, by
+    // npm without the registry's audit, and judged by the guard of the lock.
+    expect(verrou).toMatchObject({
+      fichiers: ['package-lock.json'],
+      entiers: ['package-lock.json'],
+      commande: 'npm install --package-lock-only --no-audit --no-fund',
+      gardes: ['verrou-des-dependances'],
+    });
+    expect(verrou!.lit).toEqual(expect.arrayContaining(['package.json', '**/package.json']));
     // The index reads the interfaces whose generated part the API reports write.
     expect(index!.lit).toContain('**/docs/INTERFACE.md');
     expect(api!.fichiers).toContain('docs/INTERFACE.md');

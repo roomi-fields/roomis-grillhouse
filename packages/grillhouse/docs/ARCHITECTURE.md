@@ -382,7 +382,18 @@ entre dans le commit. Le circuit lui passe les références du cadre (`--referen
 sa seule liste. L'avance d'une copie sur main suit la même règle pour ces références, sans clé du
 projet : la version de main, puis le générateur du cadre sur le travail appliqué
 (`scripts/enveloppe/travail-de-la-copie.mjs` ; BPScript, 2026-11-22, l'index des interfaces en
-conflit à l'avance de deux copies). Les rapports d'API (`INTERFACE.api.md` et la partie générée
+conflit à l'avance de deux copies). Le verrou npm (`package-lock.json`) est de ces références, pour
+le seul module typescript : il lit les `package.json` de la racine et des paquets, et sa commande,
+`npm install --package-lock-only --no-audit --no-fund`, se joue avec les outils du projet, dans la
+copie, sur le lot appliqué, à l'étape de régénération des références (4.2), avant les contrôles et
+la passe finale, que l'agent n'écrit jamais (le verrou reste en lecture seule dans son enveloppe) ;
+la garde `verrou-des-dependances` compare, sans registre, chaque `package.json` à l'entrée de son
+paquet dans le verrou et refuse, avec cette commande, une dépendance absente, retirée, de plage
+changée, ou dont la version résolue ne satisfait plus la plage (BPScript, 2026-11-22,
+bp-mono-vbwf.320.6.2.2 : un lot entré avec un verrou en retard de 12 lignes). Un projet qui déclare
+lui-même `package-lock.json` sous `grillhouse.engendres` garde sa commande : la référence du cadre
+n'est pas ajoutée, et sa garde ne joue pas pour lui. Cargo.lock et uv.lock ne suivent pas cette
+règle ; le CHANGELOG le dit. Les rapports d'API (`INTERFACE.api.md` et la partie générée
 d'un `INTERFACE.md`) et la dette des gardes, que le cadre ne donne pas pour écrits en entier,
 restent fusionnés ; une copie dont le cadre ne lit pas les références (aucun langage déclaré)
 avance quand même, ses références fusionnées, et la préparation dit la faute dans son journal. Un

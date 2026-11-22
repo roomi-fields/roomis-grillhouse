@@ -75,6 +75,7 @@ import * as binaireDeJour from './migrations/0.33.0-binaire-de-jour.mjs';
 import * as testsDuPoste from './migrations/0.33.0-tests-du-poste.mjs';
 import * as cacheDesOutils from './migrations/0.34.1-cache-des-outils.mjs';
 import * as testsEquipes from './migrations/0.49.0-tests-equipes.mjs';
+import { COMMANDE as COMMANDE_DU_VERROU } from './verrou-des-dependances.mjs';
 
 // The scripts of this module, beside this file.
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
@@ -98,6 +99,7 @@ const OUTILS = [
   'tests-du-poste',
   'titres-de-tests',
   'turbo-des-paquets',
+  'verrou-des-dependances',
 ];
 
 // The component of <liste> that holds <fichier> (absolute, or from <racine>), null for none.
@@ -325,6 +327,20 @@ export default {
       'interfaces-contre-code.mjs',
       []
     ),
+    // The lock of npm, written in full by npm on the lot applied, without the audit; the guard
+    // compares it with the package.json it locks (./verrou-des-dependances.mjs).
+    engendre(
+      {
+        nom: 'le verrou des dépendances',
+        commande: COMMANDE_DU_VERROU,
+        fichiers: ['package-lock.json'],
+        lit: ['package.json', '**/package.json'],
+        gardes: ['verrou-des-dependances'],
+        entiers: ['package-lock.json'],
+      },
+      'verrou-des-dependances.mjs',
+      []
+    ),
   ],
   // Loaded at the call: ./index-interfaces.mjs imports the services of the core, which import the
   // join that loads this module.
@@ -342,6 +358,7 @@ export default {
     [ici('titres-de-tests.mjs')],
     [ici('chemins-des-tests.mjs')],
     [ici('resumes.mjs')],
+    [ici('verrou-des-dependances.mjs')],
   ],
   migrations: [
     configVitest,

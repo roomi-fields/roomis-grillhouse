@@ -233,6 +233,7 @@
     "scripts/langages/typescript/titres-de-tests.mjs",
     "scripts/langages/typescript/turbo-des-paquets.mjs",
     "scripts/langages/typescript/verdict.mjs",
+    "scripts/langages/typescript/verrou-des-dependances.mjs",
     "scripts/langages/typescript/verifier.mjs",
     "scripts/langages/typescript/vitest-config/avancement.reporter.mjs",
     "scripts/langages/typescript/vitest-config/base.d.ts",

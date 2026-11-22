@@ -85,4 +85,20 @@ describe('les références du circuit', () => {
     expect(noms(rs)).not.toContain("l'index des interfaces");
     expect(noms(rs)).toContain('la dette des gardes');
   });
+
+  it('le verrou des dépendances est une référence du cadre, sauf quand le projet déclare lui-même package-lock.json', () => {
+    const sans = lesReferences(depotDeReferences(ESSAIS, []));
+    expect(sans.find(r => r.nom === 'le verrou des dépendances')).toMatchObject({
+      cadre: true,
+      commande: 'npm install --package-lock-only --no-audit --no-fund',
+    });
+    const avec = lesReferences(
+      depotDeReferences(ESSAIS, [
+        { nom: 'mon verrou', commande: 'node verrou.mjs', fichiers: ['package-lock.json'] },
+      ])
+    );
+    expect(avec.filter(r => r.fichiers.includes('package-lock.json')).map(r => r.nom)).toEqual([
+      'mon verrou',
+    ]);
+  });
 });
