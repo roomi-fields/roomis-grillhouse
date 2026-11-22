@@ -36,7 +36,11 @@ function monter(sorties: { texte: string; code?: number }[]) {
   writeFileSync(
     faux,
     '#!/bin/sh\nd="$(dirname "$0")"\nn=$(( $(cat "$d/n" 2>/dev/null || echo 0) + 1 ))\n' +
-      'echo $n > "$d/n"\ncat "$d/sortie-$n"\nexit $(cat "$d/code-$n" 2>/dev/null || echo 0)\n'
+      'echo $n > "$d/n"\n' +
+      // The transcript of its session, as claude writes it.
+      'avant=; for a in "$@"; do case "$avant" in --session-id|--resume) id=$a;; esac; avant=$a; done\n' +
+      'echo "{}" > "$d/transcriptions/$id.jsonl"\n' +
+      'cat "$d/sortie-$n"\nexit $(cat "$d/code-$n" 2>/dev/null || echo 0)\n'
   );
   chmodSync(faux, 0o755);
   sorties.forEach((s, i) => {

@@ -2,7 +2,7 @@
 // death of the worker during a session (./circuit.nuit.spec.ts, criterion 6): it answers each act of
 // the circuit (scripts/faits-du-circuit.mjs, its same protocol) with a ticket of trial whose only
 // session is a true one (`jusquALaFiche` of scripts/seances.mjs, out of the envelope), its agent a
-// fake claude that ends at once without a sheet and leaves in its group, at its first launch, a
+// fake claude that writes the transcript of its session, ends at once without a sheet and leaves in its group, at its first launch, a
 // process that lasts until the test writes the file `libere` beside the trace; each attempt of a
 // fact (its key), each launch and each end of that process are written in the trace
 // GRILLHOUSE_TRACE_D_ESSAI, with their time in ms, and the process group of each launch
@@ -21,7 +21,7 @@ async function seance(precedent, essai) {
   if (!existsSync(faux)) {
     writeFileSync(
       faux,
-      `#!/bin/sh\necho "lance $(($(date +%s%N)/1000000))" >> ${trace}\necho "groupe $(ps -o pgid= $$ | tr -d ' ')" >> ${trace}\nif [ ! -e ${dossier}/premier ]; then touch ${dossier}/premier; (while [ ! -e ${dossier}/libere ]; do sleep 0.2; done; echo "fin $(($(date +%s%N)/1000000))" >> ${trace}) & fi\nexit 0\n`
+      `#!/bin/sh\necho "lance $(($(date +%s%N)/1000000))" >> ${trace}\necho "groupe $(ps -o pgid= $$ | tr -d ' ')" >> ${trace}\nmkdir -p ${dossier}/transcriptions; echo '{}' > ${dossier}/transcriptions/seance-essai.jsonl\nif [ ! -e ${dossier}/premier ]; then touch ${dossier}/premier; (while [ ! -e ${dossier}/libere ]; do sleep 0.2; done; echo "fin $(($(date +%s%N)/1000000))" >> ${trace}) & fi\nexit 0\n`
     );
     chmodSync(faux, 0o755);
   }

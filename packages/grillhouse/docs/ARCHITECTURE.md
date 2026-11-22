@@ -1987,7 +1987,13 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     la dit au ticket, rend sa place de circuit comme tout report à une heure et reprend l'étape sur
     la copie telle que la séance coupée l'a laissée ; le mémo garde le report (`report`,
     `{ raison: 'limite-d-usage', reprise }`), que le tableau lit ; la limite ne compte dans aucune des
-    deux séances sans fiche, et les limites successives n'ont aucune borne. Un « a-repasser » (75) se rejoue seul après
+    deux séances sans fiche, et les limites successives n'ont aucune borne. Une séance ne se reprend que si claude en tient la conversation
+    (sa transcription, `<id>.jsonl`, parmi celles de la copie ou de l'arbre principal,
+    `conversationOuverte` de `scripts/seances.mjs`) : sans elle (son lancement a fini en erreur avant
+    que claude ne l'ouvre), il n'y a rien à reprendre ni fiche
+    manquée, comme un cache manqué se reconstruit ; la relance est un lancement neuf sous le même
+    identifiant, une fois, avec la consigne entière de son rôle, le circuit le dit au ticket, et
+    la séance garde sa propre reprise (BP 320.20.1). Un « a-repasser » (75) se rejoue seul après
     10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Un « a-repasser » des
     contrôles qui est une attente de place, de part de la machine ou de place disque à sa borne
     (`attente` des contrôles) se rejoue tout de suite, sans limite et sans compter, et ne monte
@@ -2228,7 +2234,8 @@ lancement et à chaque pas de sa veille, puis null à sa fin ; le circuit l'écr
 groupe ; une annulation (un `AbortSignal`) le tue et la séance finit sur `SeanceAnnulee` ; un
 lancement qui trouve vivant le groupe d'un lancement d'avant (son dernier signe de vie : le même
 processus, par son départ) l'attend, sous la même veille, avant de prendre sa place (`lancer`) :
-le second essai de `jusquALaFiche`, et la séance neuve qui suit une reprise en échec. L'identifiant
+le second essai de `jusquALaFiche`, la séance neuve qui suit une reprise en échec, et le
+lancement neuf d'une séance sans conversation à reprendre. L'identifiant
 de chaque séance vient de son appelant, qui en donne un neuf à chaque séance qu'il lance ; sans
 lui, la séance est refusée avant tout lancement. Les lectures et écritures du ticket que le circuit et ses activités
 partagent (commentaires, fiches, journal, l'arrêt `Arret`, les gestes `geste`) vivent dans

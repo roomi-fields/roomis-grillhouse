@@ -23,6 +23,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { GREFFON } from './cadre.mjs';
 import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
@@ -34,6 +35,7 @@ import { departDe } from './mesure/base-de-passe.mjs';
 import { groupeVivant, signalerGroupe } from './mesure-de-la-machine.mjs';
 import { lancementDeLaPasse } from './passe-de-la-machine.mjs';
 import { prendreUnePlace } from './places-de-la-machine.mjs';
+import { transcriptionsDeLaCopie } from './registre.mjs';
 import { cleDuConstat, lireFiche, reponsesAuxConstats, schemaDeFiche } from './resultats.mjs';
 import {
   ACTEUR,
@@ -1093,6 +1095,15 @@ function relanceDeLaMorte(ctx, evenement, precedent) {
   return precedent.lancement === `lancement:${evenement}:2` ? 2 : 1;
 }
 
+// Whether claude holds a conversation under the session <id> of <ctx>: its transcript,
+// `<id>.jsonl`, among those of the ticket's copy (`ctx.transcriptions`), or among those of the
+// main tree, where a session out of the envelope runs before the copy exists.
+function conversationOuverte(ctx, id) {
+  return [ctx.transcriptions, transcriptionsDeLaCopie(ctx.racine, os.homedir())].some(d =>
+    existsSync(path.join(d, `${id}.jsonl`))
+  );
+}
+
 // The session of <role> with the instruction <texte>, its sheet read in its result
 // (scripts/resultats.mjs): the sheet, kept with the ticket's sheets, its discoveries filed. A
 // session that ends without a sheet that conforms (none, one out of its schema, a code other than
@@ -1100,7 +1111,12 @@ function relanceDeLaMorte(ctx, evenement, precedent) {
 // third template). The session opens under the id <id>, which its caller gives (a caller that plays
 // an attempt again gives the same, and the session resumes), or resumes it with <premiere>
 // « reprend »; with <repli> (a resumption), a session that ends in error returns null, for a
-// fresh session in its place. Throws an Arret for a launch that stops before its session, a
+// fresh session in its place. A session it opened is resumed only when claude holds its
+// conversation (`conversationOuverte`, its transcript): without one (its launch ended in error
+// before claude opened it), there is nothing to resume, as a cache
+// missed is built again, and the session launches afresh under the same id, once, with <texte>,
+// the whole instruction of its role, said at the ticket, and keeps its own resumption.
+// Throws an Arret for a launch that stops before its session, a
 // motionless session, or twice no sheet that conforms (« sans-fiche »). <avec> joins its fields
 // to the sheet's entry (the lot a review read); <valider>(sheet, attempt) names what makes a sheet
 // out of conformity beyond its schema at that attempt (an unknown package of a plan, an answer
@@ -1153,17 +1169,43 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
   // The instruction of a resumption after the plan extended to a package the ticket names: the
   // session goes on where its lock stopped it, and the launch is neither a first nor a second.
   let etendu = null;
+  // Whether the session already launched afresh for want of a conversation to resume, and
+  // whether this call launched it: the launch of a dead attempt is taken up as it is (`lancer`).
+  let repartie = false;
+  let lancee = false;
   for (let essai = premier; essai <= 2; essai++) {
     const courte = () => consigne({ ticket: ctx.ticket, sujet: ctx.sujet, erreur: lu.erreur }, 2);
     const avantLeJournal = tailleDuJournal(ctx);
+    let mode = etendu || essai > 1 ? 'reprend' : premiere;
+    // The session this call opened has no conversation to resume: it launches afresh, its first
+    // launch again, with its whole instruction.
+    if (
+      mode === 'reprend' &&
+      premiere === 'ouvre' &&
+      !etendu &&
+      lancee &&
+      !repartie &&
+      !conversationOuverte(ctx, courante)
+    ) {
+      repartie = true;
+      commenter(
+        ctx,
+        role,
+        `aucune conversation à reprendre sous la séance ${courante} : séance neuve et entière.`
+      );
+      lu = null;
+      essai = 1;
+      mode = 'ouvre';
+    }
     const r = await lancer(ctx, role, etendu ?? (essai === 1 || !lu ? texte : courte()), {
       ...reste,
       precedent: derniere,
       evenement,
       relance: essai,
       signeDeVie,
-      ...ouvrir(etendu || essai > 1 ? 'reprend' : premiere),
+      ...ouvrir(mode),
     });
+    lancee = true;
     etendu = null;
     // The usage limit stops a session that does not end on its own: neither a sheet missing nor a
     // sheet to resume, the circuit waits for the hour the usage returns (« limite-d-usage »).

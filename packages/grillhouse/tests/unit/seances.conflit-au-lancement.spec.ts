@@ -84,6 +84,7 @@ function essai({
       `if [ "$role" = testwriter ] && { [ ${refus ? 1 : 0} -eq 1 ] || grep -q '^<<<<<<< ' ${copie}/${CODE}; }; then echo "la copie garde des conflits" >&2; exit 3; fi`,
       `r=${tmp}/seances/$id`,
       'mkdir -p $r',
+      `mkdir -p ${tmp}/transcriptions; echo '{}' > ${tmp}/transcriptions/$id.jsonl`,
       `if [ "$role" = developpeur ] && [ $(grep -c " developpeur " ${compte}) -ge ${resout} ]; then printf 'resolu\n' > ${copie}/${CODE}; fi`,
       `if [ "$role" = developpeur ] && [ ${indexe ? 1 : 0} -eq 1 ]; then git -C ${copie} add -- ${CODE}; fi`,
       `if [ "$role" = developpeur ] && [ ${remet ? 1 : 0} -eq 1 ] && [ $(grep -c " developpeur " ${compte}) -ge 2 ]; then git -C ${copie} reset -q; fi`,

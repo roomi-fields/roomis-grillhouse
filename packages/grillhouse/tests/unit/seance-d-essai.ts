@@ -21,8 +21,9 @@ import { resoudreComposant } from '../../scripts/depart-du-ticket.mjs';
 // envelope: the explorateur, the questionneur, the reviewer) and one for the launcher
 // (`GRILLHOUSE_LANCEUR`, the sessions of the envelope: the testwriter, the developpeur). Each
 // stand-in keeps, for its n-th call, its arguments (`args-<n>`, NUL-separated) and the
-// instruction it received (`prompt-<n>`), and answers with the sheet `fiche-<n>` the test wrote,
-// none when it wrote none.
+// instruction it received (`prompt-<n>`), writes the transcript of its session as claude does
+// (`<id>.jsonl` among the transcripts of the copy), and answers with the sheet `fiche-<n>` the
+// test wrote, none when it wrote none.
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'seance-d-essai-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -152,6 +153,8 @@ d=${sorties}
 n=$(( $(ls $d | grep -c '^prompt-') + 1 ))
 cat > $d/prompt-$n
 printf '%s\\0' "$@" > $d/args-$n
+avant=; for a in "$@"; do case "$avant" in --session-id|--resume) id=$a;; esac; avant=$a; done
+mkdir -p ${tmp}/transcriptions; echo '{}' > ${tmp}/transcriptions/$id.jsonl
 if [ -f $d/fiche-$n ]; then echo "{\\"type\\":\\"result\\",\\"session_id\\":\\"s\\",\\"structured_output\\": $(cat $d/fiche-$n)}"; fi
 `
   );
@@ -166,6 +169,7 @@ cp "$dernier" $d/prompt-$n
 id=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')
 r=${tmp}/seances/$id
 mkdir -p $r
+mkdir -p ${tmp}/transcriptions; echo '{}' > ${tmp}/transcriptions/$id.jsonl
 if [ -f $d/fiche-$n ]; then echo "{\\"structured_output\\": $(cat $d/fiche-$n)}" > $r/resultat.json; else echo '{}' > $r/resultat.json; fi
 echo 0 > $r/fin
 `

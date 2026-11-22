@@ -126,7 +126,7 @@ describe('le signe de vie, et l’annulation qui tue le groupe', () => {
 
 describe('un second essai sur un groupe encore vivant l’attend, ou le tue immobile', () => {
   // A copy of trial and the context of a session out of the envelope: the fake claude
-  // (CLAUDE_BIN) ends at once without a sheet and leaves in its group a process of <reste>
+  // (CLAUDE_BIN) writes the transcript of its session, ends at once without a sheet and leaves in its group a process of <reste>
   // seconds, which writes its end in the trace; the place of the machine is a fake one.
   function essai(reste: number, immobileMs: number, repriseEnEchec = false) {
     const dossier = mkdtempSync(path.join(ESSAIS, 'essai-'));
@@ -134,7 +134,7 @@ describe('un second essai sur un groupe encore vivant l’attend, ou le tue immo
     const faux = path.join(dossier, 'claude');
     writeFileSync(
       faux,
-      `#!/bin/sh\necho "lance $(date +%s%N)" >> ${trace}\n(sleep ${reste}; echo "fin $(date +%s%N)" >> ${trace}) &\n${
+      `#!/bin/sh\necho "lance $(date +%s%N)" >> ${trace}\navant=; for a in "$@"; do case "$avant" in --session-id|--resume) id=$a;; esac; avant=$a; done\nmkdir -p ${dossier}/transcriptions; echo '{}' > ${dossier}/transcriptions/$id.jsonl\n(sleep ${reste}; echo "fin $(date +%s%N)" >> ${trace}) &\n${
         repriseEnEchec ? `case "$*" in *--resume*) exit 1;; esac\n` : ''
       }exit 0\n`
     );
@@ -276,7 +276,7 @@ describe('une séance reprend le résultat de l’essai mort, ou repart sous son
     const lanceur = path.join(dossier, 'lancer.sh');
     writeFileSync(
       lanceur,
-      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\ncase "$*" in *'--reprise seance-reprise'*) echo '{}' > $r/resultat.json; echo 1 > $r/fin; exit 0;; esac\nif [ $(grep -vc -- '--reprise seance-reprise' ${compte}) -eq 1 ]; then echo '{}' > $r/resultat.json; else echo '{"structured_output":{"statut":"FAIT"}}' > $r/resultat.json; fi\necho 0 > $r/fin\n`
+      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\nmkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/$id.jsonl\ncase "$*" in *'--reprise seance-reprise'*) echo '{}' > $r/resultat.json; echo 1 > $r/fin; exit 0;; esac\nif [ $(grep -vc -- '--reprise seance-reprise' ${compte}) -eq 1 ]; then echo '{}' > $r/resultat.json; else echo '{"structured_output":{"statut":"FAIT"}}' > $r/resultat.json; fi\necho 0 > $r/fin\n`
     );
     chmodSync(lanceur, 0o755);
     const lancements = () => {
@@ -476,7 +476,7 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
       lanceur,
       `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\n${
         transcription
-          ? `mkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/s.jsonl\n`
+          ? `mkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/$id.jsonl\n`
           : ''
       }cat ${message} >&2\necho '' > $r/resultat.json\necho 1 > $r/fin\nexit 1\n`
     );
@@ -529,7 +529,7 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
   });
 
   it('un code non nul sans ligne « bwrap: »: une reprise, puis sans-fiche', async () => {
-    const { ctx, lanceur, lancements } = essai('un outil a échoué');
+    const { ctx, lanceur, lancements } = essai('un outil a échoué', true);
     const e = await jouer(ctx, lanceur);
     expect(e?.nom).toBe('sans-fiche');
     expect(lancements()).toHaveLength(2);
@@ -537,7 +537,10 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
   });
 
   it('« bwrap: » au milieu d’une ligne n’est pas un refus de l’enveloppe', async () => {
-    const { ctx, lanceur, lancements } = essai(`le test cite « ${MESSAGE} » sans l'avoir subi`);
+    const { ctx, lanceur, lancements } = essai(
+      `le test cite « ${MESSAGE} » sans l'avoir subi`,
+      true
+    );
     const e = await jouer(ctx, lanceur);
     expect(e?.nom).toBe('sans-fiche');
     expect(lancements()).toHaveLength(2);

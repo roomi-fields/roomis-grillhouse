@@ -53,7 +53,11 @@ describe('une fiche refusée dit toutes ses fautes à la fois', () => {
   it('the session’s own validation names its faults in the same refusal', async () => {
     const dossier = mkdtempSync(path.join(ESSAIS, 'essai-'));
     const faux = path.join(dossier, 'claude');
-    writeFileSync(faux, `#!/bin/sh\ncat <<'FICHE'\n${sortie(RENDU_SANS_BLOQUANT)}\nFICHE\n`);
+    // The stand-in writes the transcript of its session, as claude does, then its sheet.
+    writeFileSync(
+      faux,
+      `#!/bin/sh\nmkdir -p ${dossier}/transcriptions; echo '{}' > ${dossier}/transcriptions/seance-essai.jsonl\ncat <<'FICHE'\n${sortie(RENDU_SANS_BLOQUANT)}\nFICHE\n`
+    );
     chmodSync(faux, 0o755);
     const ctx = {
       racine: dossier,
