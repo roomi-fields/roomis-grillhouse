@@ -374,7 +374,9 @@ describe.runIf(canWrap)(
       const nu = essai('home-nu-');
       mkdirSync(path.join(nu, '.claude'));
       const r = run('echo ok', nu);
-      expect(r.stderr).toBe('');
+      // A bare home reaches no manager of control groups: the session starts unbounded, and the
+      // envelope says so in one line; nothing else is written.
+      expect(r.stderr.replace(/^⚠ la séance part sans borne de processeur : .*\n/, '')).toBe('');
       expect(r.status).toBe(0);
       expect(r.stdout).toBe('ok\n');
     });

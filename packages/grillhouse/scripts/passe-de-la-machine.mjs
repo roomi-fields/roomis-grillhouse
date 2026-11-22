@@ -90,7 +90,8 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
  * The command line that runs <cmd> in a control group of its own under the part <part>: `systemd-run
  * --user --scope` (the manager of the user, no privilege), its CPU weight and its memory bound
  * drawn from the part, no hard ceiling of CPU, the command of the pass whole at the end after
- * `--`. <plafond> adds the hard CPU ceiling (`CPUQuota`, the cores of the part: the group of an
+ * `--`, given as written (`--expand-environment=no`: systemd-run would otherwise expand each
+ * `${…}` of its arguments, a shell script's included). <plafond> adds the hard CPU ceiling (`CPUQuota`, the cores of the part: the group of an
  * agent's session); <memoire> false leaves the memory unbound. <unite> names the scope, which a
  * sampler reads. With <fils> (the precise threads of the
  * part, the system delegating the cpuset controller to the account) the group allows those
@@ -107,6 +108,7 @@ export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null, p
       '--user',
       '--scope',
       '--quiet',
+      '--expand-environment=no',
       ...(unite ? [`--unit=${unite}`] : []),
       ...(fils ? [`--slice=${TRANCHE_DU_CADRE}`] : []),
       '-p',

@@ -45,6 +45,22 @@ describe('le plafond dur de processeur du groupe de contrôle', () => {
   });
 });
 
+describe('le groupe de contrôle lance sa commande telle qu’elle est écrite', () => {
+  it('commandeDuGroupe coupe l’expansion des variables de systemd-run, avant la commande', () => {
+    const l = commandeDuGroupe({ part: part(4), cmd: 'sh', args: ['-c', 'echo "${1-}"'] });
+    const i = l.args.indexOf('--expand-environment=no');
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(i).toBeLessThan(l.args.indexOf('--'));
+    expect(l.args.at(-1)).toBe('echo "${1-}"');
+  });
+
+  it('le lancement d’une séance garde le script de l’enveloppe et ses « ${…} » sans expansion', () => {
+    const l = lancer();
+    expect(l.args.indexOf('--expand-environment=no')).toBeLessThan(l.args.indexOf('--'));
+    expect(l.args.some(a => a.includes('${$1-}'))).toBe(true);
+  });
+});
+
 describe('le lancement d’une séance d’agent sous la part du projet', () => {
   it('lance la séance dans un scope du gestionnaire de l’utilisateur', () => {
     const l = lancer();

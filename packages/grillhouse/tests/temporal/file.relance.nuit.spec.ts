@@ -179,7 +179,11 @@ describe('la relance de la file', () => {
       return r !== avant ? r : undefined;
     });
     expect(apres).not.toBe(avant);
-    const vue = await lireLaFile(s.client, RACINE);
+    // The new run reads the version by its activity: the view carries it once the activity ended.
+    const vue = await attendre('la version lue par le run neuf', async () => {
+      const v = await lireLaFile(s.client, RACINE);
+      return v.version ? v : undefined;
+    });
     expect(vue).toMatchObject({ enCours: null, attente: [], version: VERSION_D_ESSAI });
   }, 120_000);
 
