@@ -648,11 +648,13 @@ export const bloquantsDeLaFiche = fiche => [
 // its entry in the INTERFACE of its package. A line on a changed file, a source or not, names it
 // alone or one of its parts, `<fichier>#<nom>`, as a review on GitHub or Gerrit accepts a comment
 // on any line of any changed file (BP 320.17: lines on an INTERFACE.md, a CADRE.md and a ceiling
-// the commit changes, refused); a changed file asks no line. The fault, or null.
-export function conformiteDuLot(fiche, { elements, fichiers }) {
+// the commit changes, refused); a changed file asks no line, but a reference file the lot changes
+// (<references>, their paths, `differencesDesReferences`) asks one, its `element` its path. The
+// fault, or null.
+export function conformiteDuLot(fiche, { elements, fichiers, references = [] }) {
   const lignes = fiche.conformite ?? [];
   const ids = new Set(elements.map(e => e.id));
-  const hors = new Set(fichiers ?? []);
+  const hors = new Set([...(fichiers ?? []), ...references]);
   const duLot = element => {
     if (ids.has(element) || hors.has(element)) {
       return true;
@@ -661,7 +663,9 @@ export function conformiteDuLot(fiche, { elements, fichiers }) {
     return diese > 0 && diese < element.length - 1 && hors.has(element.slice(0, diese));
   };
   const fautes = [];
-  const sans = elements.filter(e => !lignes.some(l => l.element === e.id)).map(e => e.id);
+  const sans = [...elements.map(e => e.id), ...references].filter(
+    id => !lignes.some(l => l.element === id)
+  );
   if (sans.length) {
     fautes.push(`conformite : sans ligne pour ${sans.join(', ')}`);
   }

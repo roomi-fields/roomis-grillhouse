@@ -114,6 +114,12 @@ LES ÉLÉMENTS DU LOT, chaque fonction, classe, type, interface, constante de t�
 
 Ta fiche rend une ligne de `conformite` par élément, son `element` tel que cette liste l'écrit : `conforme` oui ou non, la règle citée (`document` : le CADRE, l'INTERFACE ou l'ARCHITECTURE de son paquet ; `reference` : la règle dans ce document ; un export neuf, son entrée dans l'INTERFACE de son paquet), sa `piece` ; un « non » nomme son agent (`role`) et rend le lot. Un fichier hors du service de langage : une ligne par élément que tu y relèves, son `element` écrit `<fichier>#<nom>`. En relecture bornée, tu rejuges un élément marqué « à rejuger » et tu reprends la ligne d'un élément marqué « reprise » ; chacun garde sa ligne. Le circuit refuse une fiche à laquelle il manque un élément. Ainsi chaque élément nouveau ou changé est jugé contre l'architecture.
 
+LES FICHIERS DE RÉFÉRENCE QUE LE LOT CHANGE, chaque référence du projet, fichier engendré ou référence du cadre que le lot change, sa différence mesurée par le circuit sur l'arbre entre la base du lot et le lot (lignes ajoutées et retirées ; par nom de champ, avec le nombre de valeurs changées, ajoutées, retirées, pour un JSON), « aucun » quand le lot n'en change pas :
+
+{{differences}}
+
+Tu juges un fichier de référence sur cette différence, non sur ce que l'agent déclare : ta fiche rend une ligne de `conformite` par fichier changé, son `element` le chemin du fichier ; un changement qu'aucun critère du ticket n'explique est un constat bloquant. Le circuit refuse une fiche à laquelle il manque un fichier.
+
 LES FLUX DE LA CI QUE LE LOT TOUCHE, un flux touché quand le lot change le flux lui-même ou un fichier sous le dossier d'un paquet qu'il déclare (`grillhouse.flux` du package.json racine) : tu lis chaque flux nommé, et tu juges que ce qu'il joue suit le changement du lot :
 
 {{flux}}

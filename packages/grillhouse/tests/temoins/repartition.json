@@ -145,6 +145,7 @@
     "scripts/preparation.mjs",
     "scripts/recommencer.d.mts",
     "scripts/recommencer.mjs",
+    "scripts/references-changees.mjs",
     "scripts/registre-des-resultats.mjs",
     "scripts/repli-de-la-nuit.mjs",
     "scripts/registre.d.mts",

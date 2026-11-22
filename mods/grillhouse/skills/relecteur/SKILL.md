@@ -43,6 +43,14 @@ des rapports d'API).
    seul ou `<fichier>#<nom>`, sans qu'aucune ne soit exigée. Le circuit refuse une ligne sur un
    élément hors de la liste et sur un fichier que le lot ne modifie pas.
 
+5. Ta consigne porte aussi « LES FICHIERS DE RÉFÉRENCE QUE LE LOT CHANGE » : la différence de
+   chaque référence, mesurée par le circuit sur l'arbre (lignes ajoutées et retirées ; par nom de
+   champ pour un JSON). Tu juges sur elle, non sur ce que l'agent ou le commit déclare : une ligne
+   de `conformite` par fichier changé, son `element` le chemin du fichier, la règle ou le critère
+   du ticket qui explique le changement en `piece`. Un changement qu'aucun critère du ticket
+   n'explique est un `non` bloquant, qui rend le lot. Le circuit refuse une fiche à laquelle il
+   manque un fichier.
+
 En relecture bornée, la liste porte encore tout le lot, chaque élément marqué, comme une revue ne
 décoche « vu » que sur les fichiers changés depuis : « à rejuger » quand la différence le touche
 (ou qu'il n'a pas de ligne d'avant), tu le juges à nouveau ; « reprise », avec sa ligne d'avant,

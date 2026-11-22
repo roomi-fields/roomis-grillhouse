@@ -33,6 +33,11 @@ import { BASE as GARDES_DE_LA_BASE, FICHIER as DETTE } from './dette.mjs';
 import { commandesPermises, optionsDuRole } from './droits.mjs';
 import { cheminsLus } from './composants-affectes.mjs';
 import { couvertPar } from './engendres.mjs';
+import {
+  differencesDesReferences,
+  ligneDesReferences,
+  texteDesDifferences,
+} from './references-changees.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
 import { etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
 import { gardesDuCadre, nomsDesGardes } from './gardes-du-cadre.mjs';
@@ -273,6 +278,15 @@ export async function relire(
   }
   const affirmations = path.join(ctx.tmp, 'affirmations.md');
   writeFileSync(affirmations, leTicket(ctx).description);
+  // The reference files the lot changes, measured on the tree between its base and the lot kept.
+  const differences = lot
+    ? differencesDesReferences({
+        copie: ctx.copie,
+        references: lesReferences(ctx),
+        base: lot.base,
+        lot: lot.commit,
+      })
+    : [];
   const liste = lot
     ? langageDe(ctx.copie).elementsDuLot(ctx.copie, { avant: 'HEAD', apres: lot.commit })
     : { etat: 'impossible', raison: 'le lot n’a pas pu être gardé', elements: [] };
@@ -306,6 +320,7 @@ export async function relire(
     precedente,
     affirmations,
     elements: texteDesElements(liste, bornee),
+    differences: texteDesDifferences(differences),
     flux: consigneDesFlux(ctx.racine, [...tests, ...code]),
     rapports: rapports.join('\n\n') || 'aucun',
     // The supervisor's context of a resumption, his answer to a question of the reviewer among them.
@@ -320,7 +335,9 @@ export async function relire(
     avec: lot ? { lot: { ...lot, fichiers: [...tests, ...code] } } : {},
     // Every review judges the findings still open, bounded or whole (`suiviDesConstats`).
     valider: f =>
-      [conformiteDuLot(f, liste), suiviDesConstats(f, ouvertsALaRelecture)]
+      [
+        conformiteDuLot(f, { ...liste, references: differences.map(d => d.fichier) }),
+        suiviDesConstats(f, ouvertsALaRelecture)]
         .filter(Boolean)
         .join(' ; ') || null,
   });
@@ -1308,7 +1325,17 @@ function messageDeCommit(ctx) {
   });
   const type = TYPES_DE_COMMIT[ctx.type] ?? 'feat';
   const portee = noms.length ? `(${noms.join(',')})` : '';
+  // The reference files the lot changes, measured on the tree of the lot (the copy against HEAD).
+  const lot = garderLeLot(ctx, null);
   return messageDuLot({
+    references: lot
+      ? differencesDesReferences({
+          copie: ctx.copie,
+          references: lesReferences(ctx),
+          base: lot.base,
+          lot: lot.commit,
+        })
+      : [],
     entete: `${type}${portee}: ${ctx.sujet} (${ctx.ticket})`,
     description: leTicket(ctx).description,
     fiches: lesFiches(ctx)
@@ -1322,8 +1349,9 @@ function messageDeCommit(ctx) {
 // section of the criteria of the plan <description> (its heading begins with « Critères »), what
 // the lot changes; a paragraph per deviation the sheets <fiches> carry (`ecarts`), each subject
 // once, in the order it first appears, with the value of the last sheet that carries it (a
-// subject known again whatever its case and spacing); then the trailer.
-export function messageDuLot({ entete, description, fiches }) {
+// subject known again whatever its case and spacing); the line of the reference files the lot
+// changes (<references>, `ligneDesReferences`, none when it changes none); then the trailer.
+export function messageDuLot({ entete, description, fiches, references = [] }) {
   const criteres = [];
   let dedans = false;
   for (const ligne of String(description ?? '').split('\n')) {
@@ -1343,6 +1371,7 @@ export function messageDuLot({ entete, description, fiches }) {
   return [
     entete,
     criteres.join('\n').trim(),
+    ligneDesReferences(references),
     ...[...ecarts.values()].map(e => `${e.sujet} : ${e.texte}`),
     'Co-Authored-By: Claude <noreply@anthropic.com>',
   ]
