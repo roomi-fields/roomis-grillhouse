@@ -1473,7 +1473,10 @@ sous-module privé par le secret `SOUS_MODULES` du dépôt, sinon par le jeton d
 Vitest par son découpage (`--shard`), cargo par celui de nextest (`--partition hash:i/n`, ses
 doctests dans la première tranche), Python, que pytest ne découpe pas, dans la première tranche
 seule ; la fusion ne relit que les rapports de Vitest, et un rouge de cargo ou de Python est le
-rouge du job de sa tranche. La construction se prouve dans le job des gardes, dont les tâches
+rouge du job de sa tranche. La fusion est une sous-commande de tout projet, puisque le flux
+l'appelle dans chacun : sans module qui la décrive (cargo seul, python seul, c seul), la commande
+composée ne joue aucun module et sort verte. La construction se prouve dans le job des gardes,
+dont les tâches
 attendent la construction de chaque paquet : aucun job ne construit une seconde fois. Un workflow du cadre porte sur sa première ligne la marque « Généré par `npx grillhouse
 maj` », comme un fichier engendré : `grillhouse init` les copie, et `npx grillhouse maj` réécrit
 chaque workflow marqué qui diffère du gabarit et écrit celui qui manque à un projet qui en tient

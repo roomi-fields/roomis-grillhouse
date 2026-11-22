@@ -13,6 +13,11 @@
 //   (scripts/langages.mjs); each other command it describes is a subcommand by its name
 //   (`frontieres`, `index-interfaces`, `typer`, `construire`), as a backend of Pants brings its
 //   goals.
+// - `fusion-des-tranches` is a subcommand of every project (DE_TOUT_PROJET), which the frame's
+//   workflows call after the tranches of a pass, whatever the languages: the command of the
+//   modules that describe it (typescript, which merges Vitest's reports), else the composed
+//   command by its name, which finds no module to play and is green (cargo alone, python alone, c
+//   alone: no report of a tranche to merge, a red of theirs is the red of its tranche's job).
 // - `nuit` runs the build of src/temporal/nuits/commande.ts, which plays the night's pass
 //   (`nuit.sh`) when called alone: the script it replaces is that pass (`PASSES`).
 // - `temporal` runs the build of src/temporal/commande.ts (dist/temporal/commande.js), the
@@ -88,14 +93,23 @@ const PASSES = { nuit: 'nuit.sh' };
 // subcommand by their name: the ones `tests` and `verifier` run.
 const DU_NOYAU = new Set(['tester', 'verifier']);
 
+// The commands of the modules that every project has as a subcommand, the frame's workflows
+// calling them in each project: in a project no module of which describes one, the composed
+// command plays it (scripts/commandes-composees.mjs), in no module, green.
+const DE_TOUT_PROJET = ['fusion-des-tranches'];
+const COMMANDES_COMPOSEES = path.join(SCRIPTS, 'commandes-composees.mjs');
+
 /**
- * The subcommands in the project at <racine>, sorted: the core's (SOUS_COMMANDES), and the
- * commands of the module of its language, each `{ langage }`, its name in `commandes`.
+ * The subcommands in the project at <racine>, sorted: the core's (SOUS_COMMANDES), the commands
+ * of the module of its language and those every project has (DE_TOUT_PROJET), each
+ * `{ langage }`, its name in `commandes`.
  * @param {string} [racine] the root of the project, the working directory by default
  * @returns {Record<string, string | { langage: string }>}
  */
 export function sousCommandes(racine = process.cwd()) {
-  const du = Object.keys(langageDe(racine).commandes(racine)).filter(n => !DU_NOYAU.has(n));
+  const du = [
+    ...new Set([...Object.keys(langageDe(racine).commandes(racine)), ...DE_TOUT_PROJET]),
+  ].filter(n => !DU_NOYAU.has(n));
   return Object.fromEntries(
     [...Object.entries(SOUS_COMMANDES), ...du.map(n => [n, { langage: n }])].sort(([a], [b]) =>
       a.localeCompare(b, 'en')
@@ -105,7 +119,8 @@ export function sousCommandes(racine = process.cwd()) {
 
 /**
  * The command of the subcommand <nom> in the project at <racine>, the script absolute; null for a
- * name neither the core nor the module of its language has.
+ * name neither the core nor the module of its language has, unless every project has it
+ * (DE_TOUT_PROJET): the composed command by its name then.
  * @param {string} nom the subcommand
  * @param {string} [racine] the root of the project, the working directory by default
  * @returns {import('./jointure.js').Commande | null}
@@ -118,14 +133,14 @@ export function commandeDe(nom, racine = process.cwd()) {
   const commandes = langageDe(racine).commandes(racine);
   const n = s?.langage ?? (DU_NOYAU.has(nom) ? null : nom);
   if (n === null || !Object.hasOwn(commandes, n)) {
-    return null;
+    return DE_TOUT_PROJET.includes(nom) ? { script: COMMANDES_COMPOSEES, args: [nom] } : null;
   }
   // The verification of a project whose one module is not the one of package.json (cargo alone,
   // python alone) goes by the composed command, which keeps its last green and its judged tree: no
   // pass of the graph does it there (scripts/commandes-composees.mjs, `garderSansLeGraphe`).
   const modules = langagesDe(racine);
   if (n === 'verifier' && modules.length === 1 && modules[0].manifeste !== 'package.json') {
-    return { script: path.join(SCRIPTS, 'commandes-composees.mjs'), args: [n] };
+    return { script: COMMANDES_COMPOSEES, args: [n] };
   }
   return commandes[n];
 }

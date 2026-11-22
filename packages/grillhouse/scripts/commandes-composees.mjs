@@ -12,7 +12,9 @@
 //   these, in the working directory, with this process's standard streams and environment, its
 //   results directory included (`GRILLHOUSE_RESULTATS`), where each module writes under names of
 //   its own. A line on the error stream names each module before it plays, so that what a
-//   command prints on its standard output stays its own.
+//   command prints on its standard output stays its own. A command no module of the project
+//   describes plays nothing and is green, said in one line: `fusion-des-tranches`, which every
+//   project has (scripts/sous-commandes.mjs), in a project without the module typescript.
 // - `tester`, `tests-du-paquet`, `construire` and `typer` (the last three: one package, as the
 //   scripts of its package.json call them): an argument that begins with « - » is an option, given to every module; any other is
 //   a path from the root, given to the module of the component that holds it
@@ -141,6 +143,10 @@ export function jouer(
   } = {}
 ) {
   const avec = modules.filter(m => Object.hasOwn(m.commandes(racine), nom));
+  if (avec.length === 0) {
+    dire(`↳ ${nom} : aucun langage du projet ne décrit cette commande : rien à jouer.`);
+    return 0;
+  }
   const r = repartir(nom, args, avec, racine);
   if (r.refus) {
     for (const a of r.refus) {

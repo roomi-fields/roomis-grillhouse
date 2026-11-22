@@ -74,7 +74,9 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   --tranche i/n` joue les seuls tests de la tranche i sur n, avec les constructions dont ils
   dépendent, chaque paquet de Vitest jouant la i-ième part de ses fichiers de tests ; `grillhouse
   fusion-des-tranches` réunit leurs rapports et refuse un fichier de la passe qu'aucune tranche ne
-  joue ou que deux jouent. Une tranche mal écrite est refusée avant tout travail ; ni une tranche
+  joue ou que deux jouent ; la commande existe dans tout projet, et un projet dont aucun langage
+  n'écrit de rapport de tranche (cargo seul, python seul, c seul) n'a rien à réunir : elle y est
+  verte. Une tranche mal écrite est refusée avant tout travail ; ni une tranche
   ni la passe sans tests ne garde de dernier vert.
 - **R2.6.** La nuit d'un projet joue sur sa part : sa passe prend la part du projet (sorte « nuit »,
   la part que déclare `grillhouse.part`, sinon la part par défaut), l'attend en disant ce qu'elle

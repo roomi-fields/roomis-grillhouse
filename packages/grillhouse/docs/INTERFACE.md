@@ -317,12 +317,16 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     le `bd` réel, un serveur Temporal, sccache, systemd, le trousseau, la session, une séance de
     `claude`, vus par ses appels et sa matière de test) sans l'étiquette `@poste` est refusé par
     son nom, ses marques nommées ; la dette du projet les inscrit (migration 0.33.0).
-  - `fusion-des-tranches` (`typescript`), que la CI joue après les tranches d'une passe : chaque
-    paquet doit tenir ses n tranches, les mêmes fichiers de la passe dans chacune, et chaque
+  - `fusion-des-tranches` (`typescript` ; une sous-commande de tout projet), que la CI joue
+    après les tranches d'une passe : chaque paquet doit tenir ses n tranches, les mêmes fichiers
+    de la passe dans chacune, et chaque
     fichier de la passe joué par une tranche exactement, chaque faute nommée ; puis Vitest réunit
     leurs rapports blob en un seul (`vitest run --merge-reports .vitest-reports/blobs`). 0 quand
     les tranches tiennent et que le rapport réuni est vert, ou qu'aucune tranche n'a de fichier de
-    tests ; 1 sinon.
+    tests ; 1 sinon. Dans un projet dont aucun module ne la décrit (cargo seul, python seul, c
+    seul), la commande composée la sert : aucun module ne joue, une ligne le dit, et le code est
+    0 ; nextest découpe seul et n'écrit aucun rapport à réunir, pytest et CTest jouent dans la
+    première tranche seule.
 - La vérification écrit ses tâches rouges dans le fichier que nomme `GRILLHOUSE_ROUGES`, une par
   ligne, `<tâche>`, puis une tabulation et la commande qui la rejoue seule quand le langage en a
   une (`typescript`, `npx turbo run <tâche> --filter=<paquet>`) ; la nuit en tire sa commande
