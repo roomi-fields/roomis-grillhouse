@@ -1928,9 +1928,12 @@ const STYLE = new Set(['lint', 'format:check']);
 // names « . », which holds the whole copy.
 // A path of a component the plan set apart from the survey (`ctx.ecartes`) counts as the plan's:
 // `ecarte`, its directory, says so, and the circuit extends the plan to it.
+// A test file of a reader package the plan extended to its tests (`ctx.testsEtendus`, their
+// directories) counts as the plan's.
 function situer(ctx, liste, chemin) {
-  const dedans = chemin ? dansLePlan(ctx, chemin) : nommeLaRacine(ctx);
   const p = chemin ? liste.find(x => chemin.startsWith(`${x.dossier}/`)) : null;
+  const etendu = Boolean(chemin) && dansLesTestsEtendus(ctx, chemin);
+  const dedans = chemin ? dansLePlan(ctx, chemin) || etendu : nommeLaRacine(ctx);
   const paquet = p ? p.pkg.name : null;
   const ecarte = !dedans && p && dansLesEcartes(ctx, chemin) ? p.dossier : null;
   return {
@@ -1938,7 +1941,30 @@ function situer(ctx, liste, chemin) {
     paquet,
     horsTitre: dedans || ecarte !== null ? null : paquet,
     ecarte,
+    // The package out of the plan that holds the path, and whether the path is a test file: the
+    // reds of one package that all lie in test files extend the plan to its tests.
+    lecteur: !dedans && p ? p.dossier : null,
+    test: Boolean(chemin) && estUnFichierDeTest(ctx, chemin),
   };
+}
+
+// Whether <chemin> is a test file of the module of the language of the copy (not the shared
+// test material, which the lock lets the testwriter write anywhere).
+function estUnFichierDeTest(ctx, chemin) {
+  try {
+    const classe = langageDe(ctx.copie).estUnTest(chemin, ctx.copie);
+    return Boolean(classe?.test) && !classe.matiere;
+  } catch {
+    return false;
+  }
+}
+
+// Whether <chemin> is a test file of a package the plan extended to its tests.
+function dansLesTestsEtendus(ctx, chemin) {
+  return (
+    (ctx.testsEtendus ?? []).some(d => chemin.startsWith(`${d}/`)) &&
+    estUnFichierDeTest(ctx, chemin)
+  );
 }
 
 // Whether a directory of the components the plan set apart (`ctx.ecartes`) holds <chemin>.
@@ -2164,7 +2190,7 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
   // A red two commands both play (a package of the plan and a component set apart that share a
   // task) is one red.
   const vusDesCommandes = new Set();
-  const tous = [
+  const lus = [
     ...resultats
       .flatMap(r => r.rouges)
       .filter(r => {
@@ -2175,6 +2201,20 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
       r => !reportes.rejouee || (Boolean(r.joue) && !joues.has(r.joue))
     ),
   ];
+  // A reader package out of the plan (set apart from the survey, or out of the title) whose every
+  // red lies in a test file (not yet extended to its tests): the plan extends to those test files
+  // alone, and its reds go on as the plan's. One red in its code, or in a task of the package (a
+  // build, a typing), keeps the package out of the plan: the circuit does not guess the repair.
+  const testsLecteurs = [
+    ...new Set(lus.filter(r => r.lecteur && r.test).map(r => r.lecteur)),
+  ]
+    .filter(d => lus.filter(r => r.lecteur === d).every(r => r.test))
+    .sort();
+  const tous = lus.map(r =>
+    r.lecteur && testsLecteurs.includes(r.lecteur)
+      ? { ...r, dansLePlan: true, horsTitre: null, ecarte: null }
+      : r
+  );
   // Out of the final pass, the reds of the plan are the developpeur's; a red of a reference goes to
   // its regeneration (4.2), before any red goes to him; the others (the root, a red no file situates, a
   // package out of the plan) wait for the final pass.
@@ -2274,6 +2314,9 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
     horsTitre: [...new Set(rouges.map(r => r.horsTitre).filter(Boolean))].sort(),
     // The directories of the components the plan set apart that hold a red: the plan extends to them.
     ecartesRouges: [...new Set(rouges.map(r => r.ecarte).filter(Boolean))].sort(),
+    // The directories of the reader packages whose reds all lie in test files: the plan extends to
+    // those tests, and not to the packages.
+    testsLecteurs,
     lieux: rouges.map(lieu),
     references,
     tous,
@@ -2469,9 +2512,15 @@ export function portesDuRouge(ctx, lieux) {
   const nommes = [
     ...new Set((lieux ?? []).flatMap(l => [l.fichier, ...(l.nommes ?? [])]).filter(Boolean)),
   ];
+  // The test files of the readers the plan extended to their tests are the testwriter's too: he
+  // alone writes them (`lecteurs`).
+  const lecteurs = nommes.filter(f => !dulot.has(f) && dansLesTestsEtendus(ctx, f));
   return {
-    tests: nommes.filter(f => dulot.has(f)),
-    code: nommes.filter(f => !dulot.has(f) && (dansLePlan(ctx, f) || dansLesEcartes(ctx, f))),
+    tests: nommes.filter(f => dulot.has(f) || lecteurs.includes(f)),
+    code: nommes.filter(
+      f => !dulot.has(f) && !lecteurs.includes(f) && (dansLePlan(ctx, f) || dansLesEcartes(ctx, f))
+    ),
+    ...(lecteurs.length ? { lecteurs } : {}),
   };
 }
 

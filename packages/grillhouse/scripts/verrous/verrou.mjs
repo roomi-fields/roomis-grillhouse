@@ -45,6 +45,7 @@ import {
   paquetQuiTient,
   paquetsDeLEnveloppe,
   paquetsDuLangage,
+  testsEtendusDeLEnveloppe,
 } from '../enveloppe/paquets-du-plan.mjs';
 import { langageDeLaCopie } from '../langages.mjs';
 
@@ -121,6 +122,15 @@ export function horsDuPlan(input, { tmp = tmpdir(), env = process.env, role = nu
     return null;
   }
   if (role === TESTWRITER && langage.manifestes.verrous.includes(rel)) {
+    return null;
+  }
+  // The test files of a reader package the circuit extended the plan to (`testsEtendus`, given to
+  // the testwriter's envelope alone): never its code nor its manifest.
+  if (
+    role === TESTWRITER &&
+    testsEtendusDeLEnveloppe(env).some(d => rel.startsWith(`${d}/`)) &&
+    langage.estUnTest(file, copie)?.test
+  ) {
     return null;
   }
   const tenant = paquetQuiTient(rel, liste);

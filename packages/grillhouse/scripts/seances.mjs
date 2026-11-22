@@ -27,7 +27,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { GREFFON } from './cadre.mjs';
 import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
-import { ecrireLaListe } from './enveloppe/paquets-du-plan.mjs';
+import { ecrireLaListe, VARIABLE_TESTS_ETENDUS } from './enveloppe/paquets-du-plan.mjs';
 import { ecritPar, marquesRestantes } from './enveloppe/travail-de-la-copie.mjs';
 import { langageDe } from './langages.mjs';
 import { nomDuRole } from './etapes.mjs';
@@ -354,7 +354,12 @@ export async function lancer(
   // A session out of the envelope (the relecteur, which plays tests) plays them on its share of
   // the cores, under nice and ionice; the launcher of an enveloped one does it in the envelope.
   const jouer = async base => {
-    const env = { ...base, ...place.env, [ACTEUR]: role };
+    // The reader packages the plan extended to their tests: the testwriter alone is given them.
+    const testsEtendus =
+      role === 'testwriter' && ctx.testsEtendus?.length
+        ? { [VARIABLE_TESTS_ETENDUS]: ecrireLaListe(ctx.testsEtendus) }
+        : {};
+    const env = { ...base, ...place.env, ...testsEtendus, [ACTEUR]: role };
     const lancement = horsEnveloppe
       ? lancementDeLaPasse({ lourde: false, cmd: commande.cmd, args: commande.args, env })
       : { cmd: commande.cmd, args: commande.args, env };
@@ -1036,6 +1041,20 @@ export function seanceLancee(ctx, role, r) {
         etendre: { paquet: ecriture.paquet, chemin: ecriture.chemin, piece: nomme.piece },
       };
     }
+    // A test file of a reader package, written by the testwriter, extends the plan to the tests of
+    // that package alone, without a stop: its code stays out of the plan, and no other role writes it.
+    if (role === 'testwriter' && ecriture && !ecriture.racine) {
+      const classe = rouleDeTest(ctx)(ecriture.chemin);
+      if (classe?.test && !classe.matiere) {
+        return {
+          etendreTests: {
+            paquet: ecriture.paquet,
+            chemin: ecriture.chemin,
+            piece: `${ecriture.chemin} est un fichier de test de ${ecriture.paquet}, un paquet lecteur que le lot fait rougir`,
+          },
+        };
+      }
+    }
     const nom = ecriture ? (ecriture.racine ? 'la racine du dépôt' : ecriture.paquet) : null;
     const dit = ecriture ? `${ecriture.chemin} est dans ${nom}` : null;
     const question = !ecriture
@@ -1230,7 +1249,16 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
         { resultat: limite }
       );
     }
-    const extension = seanceLancee(ctx, role, r)?.etendre;
+    const suite = seanceLancee(ctx, role, r);
+    const extensionDesTests = suite?.etendreTests;
+    if (extensionDesTests) {
+      ctx.etendreTestsEnVol(extensionDesTests);
+      courante = r.id ?? courante;
+      etendu = `Le plan du ticket s'étend aux tests de ${extensionDesTests.paquet} (${extensionDesTests.piece}) : le crochet qui t'a arrêté sur ${extensionDesTests.chemin} le laisse maintenant passer, les fichiers de test de ce paquet seuls ; son code reste hors du plan. Reprends ta tâche là où il t'a arrêté.`;
+      essai--;
+      continue;
+    }
+    const extension = suite?.etendre;
     if (extension) {
       ctx.etendreEnVol(extension);
       courante = r.id ?? courante;

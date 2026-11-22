@@ -445,16 +445,37 @@ export function depart({ depuis = null, reprendre = false, marque = false, etat,
 // The sending to the testwriter in the developpeur's sheet <fiche> (its `renvoi`): what the
 // testwriter receives, the sending, the developpeur's handover <passation> (null: « aucune »), then
 // the red output of the last checks <controlesRouges> when checks ran since the testwriter's
-// session; null without a sending.
-export function renvoiDe({ fiche, passation, controlesRouges }) {
+// session; null without a sending. <fichiersRouges> lists, in one go, every test file the lot
+// breaks, the plan's and the extended readers' (`fichiersDeTestRouges`).
+export function renvoiDe({ fiche, passation, controlesRouges, fichiersRouges = [] }) {
   if (!fiche.renvoi) {
     return null;
   }
   const raison = fiche.raison ? ` : ${fiche.raison}` : '';
+  const fichiers = fichiersRouges.length
+    ? `\n\nLes fichiers de test rouges, tous à lever en une séance : ${fichiersRouges.join(', ')}.`
+    : '';
   const controles = controlesRouges
     ? `\n\nLa sortie rouge des derniers contrôles :\n\n${controlesRouges}`
     : '';
-  return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.\n\nSa passation :\n\n${passation ?? 'aucune'}${controles}`;
+  return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.${fichiers}\n\nSa passation :\n\n${passation ?? 'aucune'}${controles}`;
+}
+
+// The test files the red output <controlesRouges> of checks names (its lines `- test <fichier> › …`
+// and `- test <fichier> — …`), each once, in order.
+export function fichiersDeTestRouges(controlesRouges) {
+  const vus = new Set();
+  for (const ligne of String(controlesRouges ?? '').split('\n')) {
+    if (!ligne.startsWith('- test ')) {
+      continue;
+    }
+    const mot = ligne.slice('- test '.length).split(' ')[0];
+    const suite = ligne.slice('- test '.length + mot.length).trimStart();
+    if (mot && (suite.startsWith('›') || suite.startsWith('—'))) {
+      vus.add(mot);
+    }
+  }
+  return [...vus];
 }
 
 // The context `--etendre` gives the sessions of the run it resumes on the stop <question>: the
@@ -1119,6 +1140,12 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     // the ticket).
     if (k.rouge && k.ecartesRouges?.length) {
       lire('etendreAuxEcartes', { composants: k.ecartesRouges, rouges: k.tous });
+    }
+    // The reds of a reader package out of the plan that all lie in test files: the plan extends to
+    // those tests alone, without a stop, and the testwriter, who alone writes them, is relaunched
+    // by the attribution below (the circuit writes the extension, with its piece, at the ticket).
+    if (k.rouge && k.testsLecteurs?.length) {
+      lire('etendreAuxTests', { composants: k.testsLecteurs, rouges: k.tous });
     }
     if (k.rouge && passeFinale && k.horsTitre.length) {
       return arret(

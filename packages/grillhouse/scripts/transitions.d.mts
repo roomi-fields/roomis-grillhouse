@@ -56,7 +56,11 @@ export function renvoiDe(entree: {
   fiche: { renvoi?: { role: string } | null; raison?: string };
   passation: string | null;
   controlesRouges: string | null;
+  fichiersRouges?: string[];
 }): string | null;
+
+/** The test files the red output of checks names, each once. */
+export function fichiersDeTestRouges(controlesRouges: string | null): string[];
 
 /** The context `--etendre` gives the sessions of the run it resumes. */
 export function contexteDeLExtension(entree: {

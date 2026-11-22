@@ -125,6 +125,24 @@ arrêt (le fait `etendreAuxEcartes`), l'écrit au ticket avec sa pièce (le roug
 l'écart qu'il dément), et le rouge va au développeur. Un rouge dans un paquet que ni le plan ni les
 écartés ne nomment arrête toujours le circuit (« hors du plan du ticket »).
 
+**Le plan s'étend seul aux tests d'un paquet lecteur que le lot fait rougir** (troisième cas où le
+circuit étend le plan, après un fichier que le ticket nomme et un écarté qui rougit ; comme les
+cibles affectées de Nx et `bazel query rdeps`, le périmètre d'un changement comprend les lecteurs
+qu'il casse). Quand chaque lieu rouge d'un paquet hors du plan, écarté ou hors du titre, est un
+fichier de test (`testsLecteurs` du relevé des contrôles, 3.1 comme passe finale), le circuit étend
+le plan à ces fichiers de test seuls (le fait `etendreAuxTests`) : le titre ne change pas, le paquet
+n'y entre pas, la liste `testsEtendus` se garde parmi les fiches du circuit (`testsEtendusDuPlan`,
+comme `etendus`, gardée d'un plan réécrit ou repris), et sa pièce au ticket dit le paquet, les
+fichiers de test rouges et, pour un écarté, la raison de l'écart que le rouge dément. L'enveloppe
+donne la liste au seul testwriter (`GRILLHOUSE_TESTS_ETENDUS`, le paquet monté en écriture pour lui,
+en lecture pour les autres) et son verrou laisse écrire les fichiers de test de ces paquets, aucun
+autre fichier : le développeur n'y écrit rien, une écriture de son code reste « hors-plan ». Un
+testwriter arrêté « hors-plan » sur un fichier de test d'un lecteur étend le plan de même, en vol.
+Un rouge dont un lieu est un fichier de code (construction, typage, test dont le message nomme son
+code) n'étend rien et monte comme avant. Le rouge d'un fichier de test d'un lecteur étendu va au
+testwriter (`attribuerLeRouge`), le renvoi les nomme tous en une fois, et chaque renvoi compte dans
+la limite des relances du testwriter ; un paquet déjà étendu aux tests n'est pas étendu de nouveau.
+
 **Une garde ne part pas avant la construction de ce qu'elle lit** : comme une tâche de Turborepo
 attend par son `dependsOn` la construction dont elle lit le produit, et comme les deps d'une cible
 Bazel, les tâches de gardes de la racine attendent la construction de chaque paquet du cadre (le

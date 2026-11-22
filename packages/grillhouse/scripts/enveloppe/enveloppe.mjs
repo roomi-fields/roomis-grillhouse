@@ -125,7 +125,9 @@ import {
   ecrireLaListe,
   lireLaListe,
   paquetsDuLangage,
+  testsEtendusDeLEnveloppe,
   VARIABLE,
+  VARIABLE_TESTS_ETENDUS,
 } from './paquets-du-plan.mjs';
 
 export { paquetsDuLangage };
@@ -310,7 +312,7 @@ export function dossierDeTravail(copie, env = process.env) {
 // Nothing else of <env> enters.
 export function environnementDeLaSeance(
   env,
-  { cacheNpm, paquets, travail, outils = {}, donnees = {}, travailleurs }
+  { cacheNpm, paquets, travail, outils = {}, donnees = {}, travailleurs, testsEtendus = [] }
 ) {
   const declare = nom =>
     ENVIRONNEMENT_DECLARE.includes(nom) ||
@@ -327,6 +329,7 @@ export function environnementDeLaSeance(
     TMP: travail,
     TEMP: travail,
     [VARIABLE]: ecrireLaListe(paquets),
+    ...(testsEtendus.length ? { [VARIABLE_TESTS_ETENDUS]: ecrireLaListe(testsEtendus) } : {}),
     ...(travailleurs === undefined ? {} : { GRILLHOUSE_TRAVAILLEURS: String(travailleurs) }),
   };
 }
@@ -358,6 +361,7 @@ export function lancementDeLaSeance({
   donnees,
   part,
   sonde,
+  testsEtendus,
 }) {
   const seance = {
     cmd: 'bwrap',
@@ -379,6 +383,7 @@ export function lancementDeLaSeance({
       travail,
       outils,
       donnees,
+      testsEtendus,
       travailleurs: travailleursDe({ env }),
     }),
   };
@@ -606,6 +611,7 @@ export function jugerComposant({ depot, composant, paquets = [] }, fs) {
  *   paquets?: string[],
  *   role?: string,
  *   matieres?: string[],
+ *   testsEtendus?: string[],
  *   verrous?: string[],
  *   montages?: { chemin: string, source?: string, ecriture?: boolean, vide?: boolean, scelle?: boolean, lien?: string }[],
  *   magasins?: string[],
@@ -623,6 +629,7 @@ export function plan(
     paquets = [],
     role,
     matieres = [],
+    testsEtendus = [],
     verrous = [],
     montages = [],
     magasins = [],
@@ -767,6 +774,14 @@ export function plan(
       const d = path.join(copie, e);
       args.push('--bind', d, d);
     }
+    // The reader packages the plan extended to their tests: the testwriter writes them (his lock
+    // lets only their test files through), every other role reads them.
+    for (const e of testsEtendus.filter(t => !ecrits.includes(t))) {
+      const d = path.join(copie, e);
+      if (fs.existe(d)) {
+        args.push(role === 'testwriter' ? '--bind' : '--ro-bind', d, d);
+      }
+    }
     // The lock files of the versions, which a run of the testwriter's tests brings in line with
     // the dependencies of his tests, are written by him alone.
     for (const v of verrous.map(v => path.join(copie, v))) {
@@ -840,6 +855,8 @@ function envelopper(argv) {
   }
   const copie = path.resolve(copieArg);
   const paquets = lireLaListe(liste);
+  // The reader packages extended to their tests, for the testwriter alone.
+  const testsEtendus = role === 'testwriter' ? testsEtendusDeLEnveloppe(process.env) : [];
   // A launch from a package of a repository of workspaces sets npm's `workspace`, which
   // `npm config` refuses: the cache is the user's, whatever the workspace.
   const cacheNpm = execFileSync('npm', ['config', 'get', 'cache', '--workspaces=false'], {
@@ -937,6 +954,7 @@ function envelopper(argv) {
       paquets,
       role,
       matieres,
+      testsEtendus,
       verrous: langage.manifestes.verrous,
       montages,
       magasins,
@@ -980,6 +998,7 @@ function envelopper(argv) {
       outils,
       donnees,
       part,
+      testsEtendus,
     });
     if (lancement.sansBorne !== null) {
       process.stderr.write(`⚠ la séance part sans borne de processeur : ${lancement.sansBorne}\n`);

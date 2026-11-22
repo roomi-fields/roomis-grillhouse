@@ -28,6 +28,15 @@ export const lireLaListe = texte =>
     .split(path.delimiter)
     .filter(Boolean);
 
+// The variable that lists, in the same form, the reader packages the circuit extended the plan to
+// for their tests alone: given to the session of the testwriter only, which writes their test
+// files and no other file of those packages.
+export const VARIABLE_TESTS_ETENDUS = 'GRILLHOUSE_TESTS_ETENDUS';
+
+// The directories of the reader packages extended to their tests named in <env>.
+export const testsEtendusDeLEnveloppe = (env = process.env) =>
+  env[VARIABLE_TESTS_ETENDUS] ? lireLaListe(env[VARIABLE_TESTS_ETENDUS]) : [];
+
 // The packages of the plan of the envelope named in <env>, or null outside an envelope.
 export const paquetsDeLEnveloppe = (env = process.env) =>
   env[VARIABLE] ? lireLaListe(env[VARIABLE]) : null;

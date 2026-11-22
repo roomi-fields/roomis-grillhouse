@@ -44,10 +44,15 @@ export function attribuerLeRouge({ lieux, portes }) {
     .filter(l => !tests.has(l.fichier))
     .flatMap(l => l.nommes ?? [])
     .filter(f => tests.has(f));
+  // A test file of a reader package extended to its tests (`portes.lecteurs`): the testwriter
+  // alone writes it, the developpeur's lock refuses it.
+  const lecteurs = new Set(portes.lecteurs ?? []);
   const refuses = [
     ...new Set([
       ...nommes.filter(
-        f => tests.has(f) && avecFichier.some(l => l.fichier === f && (l.gardes ?? []).length > 0)
+        f =>
+          tests.has(f) &&
+          (lecteurs.has(f) || avecFichier.some(l => l.fichier === f && (l.gardes ?? []).length > 0))
       ),
       ...designes,
     ]),

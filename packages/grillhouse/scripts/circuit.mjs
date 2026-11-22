@@ -655,6 +655,7 @@ import {
   depart,
   etendre as reprendreEtendu,
   renvoiDe,
+  fichiersDeTestRouges,
   TESTS,
 } from './transitions.mjs';
 import {
@@ -857,6 +858,10 @@ export function contexte(o) {
   };
   // The extension of the plan a write out of the plan in a file the ticket names asks for.
   ctx.etendreEnVol = e => etendreEnVol(ctx, e);
+  // The same for a write of the testwriter in a test file of a reader package out of the plan.
+  ctx.etendreTestsEnVol = e => etendreTestsEnVol(ctx, e);
+  // The reader packages the plan extended to their tests (kept among the circuit's sheets).
+  ctx.testsEtendus = testsEtendusDuPlan(ctx, ctx.paquets);
   // The components the plan set apart from the survey, which the checks keep verifying.
   ctx.ecartes = ecartesDuPlan(fichesDuPlan(ctx), ctx.paquets, resoudre);
   return ctx;
@@ -918,6 +923,82 @@ function etendreAuxEcartes(ctx, { composants, rouges = [] }) {
   );
   ctx.paquets = [...plan];
   ctx.ecartes = ctx.ecartes.filter(d => !gagnes.includes(d));
+}
+
+// The test files <rouges> (the texts of reds) name inside the directory <dossier>, each once.
+const fichiersRougesDe = (rouges, dossier) => [
+  ...new Set(
+    rouges
+      .flatMap(r => [r.fichier, ...String(r.texte ?? '').split(' ')])
+      .filter(t => typeof t === 'string' && t.startsWith(`${dossier}/`))
+      .map(t => t.split(':')[0]),
+  ),
+];
+
+// The plan of <ctx> extended, without a stop, to the tests alone of the reader packages
+// <composants> (directories) whose reds all lie in test files (`testsLecteurs` of the checks): the
+// title of the plan does not change, the package does not enter the plan, and the testwriter alone
+// writes those test files (the lock and the envelope read `ctx.testsEtendus`). Said at the ticket
+// with its piece, the package, its red test files and, for one the plan set apart, the reason that
+// the red belies; kept among the circuit's sheets (`testsEtendus`) as `etendus` is. A package
+// already extended to its tests, or that the plan holds, is not extended again.
+function etendreAuxTests(ctx, { composants, rouges = [] }) {
+  const dedans = d => ctx.paquets.some(p => p === '.' || d === p || d.startsWith(`${p}/`));
+  const gagnes = composants.filter(c => !(ctx.testsEtendus ?? []).includes(c) && !dedans(c));
+  if (!gagnes.length) {
+    return;
+  }
+  // The reasons of the last sheet of the explorateur that says `ecartes` (his answer to the
+  // questionneur that says none leaves those of the plan it answers).
+  const raisons = new Map(
+    (
+      lesFiches(ctx)
+        .filter(e => e.role === EXPLORATEUR && Array.isArray(e.fiche?.ecartes))
+        .at(-1)?.fiche.ecartes ?? []
+    ).flatMap(e => {
+      try {
+        return [[ctx.resoudre(e.composant), e.raison]];
+      } catch {
+        return [];
+      }
+    })
+  );
+  const pieces = gagnes.map(c => {
+    const fichiers = fichiersRougesDe(rouges, c);
+    const rouge = fichiers.length ? fichiers.join(', ') : 'un rouge de test';
+    return raisons.has(c)
+      ? `${c} : ${rouge} ; écarté du relevé pour « ${raisons.get(c)} », ce que ce rouge dément`
+      : `${c} : ${rouge} ; hors du titre du plan, que le plan n'a pas écarté`;
+  });
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    // No fingerprint: the plan has passed already, and the title does not change.
+    plan: { testsEtendus: gagnes },
+  });
+  commenter(
+    ctx,
+    'plan',
+    `le circuit étend le plan aux tests de ${gagnes.join(', ')}, des paquets lecteurs que le lot fait rougir : leurs fichiers de test seuls entrent au plan, pour le testwriter ; le code de ces paquets reste hors du plan, et ils n'entrent pas au titre (${ctx.paquets.join(', ')}).\n${pieces.map(p => `- ${p}`).join('\n')}`
+  );
+  ctx.testsEtendus = [...(ctx.testsEtendus ?? []), ...gagnes];
+}
+
+// The same extension for the package <paquet> of a test file <chemin> that the lock stopped the
+// testwriter on (« hors-plan »), <piece> saying why: the session resumes.
+function etendreTestsEnVol(ctx, { paquet, chemin, piece }) {
+  if ((ctx.testsEtendus ?? []).includes(paquet)) {
+    return;
+  }
+  inscrire(ctx, {
+    role: AUTEUR_DU_CIRCUIT,
+    plan: { testsEtendus: [paquet] },
+  });
+  commenter(
+    ctx,
+    'plan',
+    `le circuit étend le plan aux tests de ${paquet} : ${chemin}, un fichier de test d'un paquet lecteur que le testwriter écrit (${piece}) ; le code de ${paquet} reste hors du plan.`
+  );
+  ctx.testsEtendus = [...(ctx.testsEtendus ?? []), paquet];
 }
 
 // The plan of <ctx> extended to the package <paquet>, the home of <chemin>, a file the ticket's
@@ -1265,6 +1346,7 @@ const renvoiDuTestwriter = (ctx, fiche) =>
     fiche,
     passation: derniereDe(ctx, 'developpeur')?.text ?? null,
     controlesRouges: ctx.controlesRouges,
+    fichiersRouges: fichiersDeTestRouges(ctx.controlesRouges),
   });
 
 // The findings still open once the reviewer's sheet RENDU <fiche> is read, as the issues of a
@@ -1493,6 +1575,9 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
       return portesDuRouge(ctx, parametres.lieux);
     case 'etendreAuxEcartes':
       etendreAuxEcartes(ctx, parametres);
+      return true;
+    case 'etendreAuxTests':
+      etendreAuxTests(ctx, parametres);
       return true;
     case 'empreinteAvant':
     case 'empreinte':
@@ -1985,6 +2070,21 @@ const etendusDuPlan = ctx => [
     lesFiches(ctx).flatMap(e => (e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.etendus ?? []) : []))
   ),
 ];
+
+/**
+ * The directories of the reader packages the plan of <ctx> extended to their tests alone
+ * (`testsEtendus`, kept among the circuit's sheets), less those the plan <paquets> holds: a package
+ * that enters the plan leaves the list. A plan written again keeps it, and never reads it into
+ * its title (`avecLesEtendus` reads `etendus` alone).
+ */
+export function testsEtendusDuPlan(ctx, paquets) {
+  const dedans = d => paquets.some(p => p === '.' || d === p || d.startsWith(`${p}/`));
+  return [
+    ...new Set(
+      lesFiches(ctx).flatMap(e => (e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.testsEtendus ?? []) : []))
+    ),
+  ].filter(d => !dedans(d));
+}
 
 /**
  * The plan <paquets> the explorateur writes for <ctx>, with each package the supervisor gave the
