@@ -2,14 +2,18 @@
 import { rmSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit-essai.js';
+import { CODE_JUSTE, ECRIT_ROUGE, circuitEssai, sortie } from './circuit-essai.js';
 
 // The circuit replays only what changed (grillhouse-3uv.89, L3), as Bazel plays the targets a
 // change affects (`rdeps`), Turborepo the packages changed since a commit and their dependents
 // (`--filter=...[<base>]`), and Gerrit has the next review read the difference between two patch
 // sets, the votes kept. Witness: BPScript 320.3 (2026-10-20), whose three rounds of review played
-// every component again and the whole final pass each time (210 min), whose second review read
-// the whole lot again, and whose finding for a developpeur was lost when the proof had no red.
+// every component again and the whole final pass each time (210 min). The one journey that stays
+// whole in the night: the real Turborepo plays the final pass on the band of the lot, from its
+// base, and leaves the package the lot does not touch out. The rules of the findings carried from
+// one review to the next, of the review's instruction and of the checks of the plan are proved
+// small (tests/unit of the package grillhouse: circuit.constats-d-un-rendu-a-l-autre.spec.ts,
+// activites.relecture-bornee.spec.ts, controles.hors-du-plan-laisse-a-la-passe-finale.spec.ts).
 // Every step is one for the whole ticket (grillhouse-3uv.95.6).
 // The trial repository and its stand-ins: ./circuit-essai.ts, here with a third package,
 // `060-sheet`, which depends on no other (`030-binder` depends on `000-forms`).
@@ -22,8 +26,6 @@ const {
   ticket,
   scenario,
   circuit,
-  essai,
-  sessions,
   etat,
   ordre,
   journal,
@@ -154,185 +156,5 @@ describe.runIf(canWrap)('the circuit replays only what changed', { timeout: 300_
       expect.stringMatching(/^Circuit · relecture : ACCEPTÉ ; le lot va à l’intégration\./)
     );
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-  });
-
-  // BPScript 325 (BP 320.4, n° 12): on a RENDU naming 000, 030, 040 and 995, 000's developpeur sent
-  // his red to his testwriter, and the findings of 030, 040 and 995 were skipped.
-  it('keeps, at a developpeur sending to the testwriter during a RENDU, every finding still open: the developpeur after it receives them all', () => {
-    const id = 'demo-rejeu-renvoi';
-    ticket(id, TROIS);
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(
-      id,
-      'relecteur-1',
-      rendu(
-        ['developpeur', 'packages/forms/src/index.mjs', 'mesure de 0 doit rendre 0.'],
-        ['developpeur', 'packages/sheet/src/index.mjs', 'mesure de 1 doit rendre 2.']
-      )
-    );
-    // The developpeur sends his red to the testwriter, whose new test turns red.
-    scenario(
-      id,
-      'developpeur-2',
-      `printf '// essai\\n' >> $c/src/index.mjs
-passation 'Le rouge qui reste est dans les tests de forms.'
-fiche '{"statut":"BLOQUÉ","raison":"le test attend un autre type.","piece":"packages/forms/src/index.mjs:1","renvoi":{"role":"testwriter"}}'
-`
-    );
-    scenario(
-      id,
-      'testwriter-2',
-      `cat > $c/test/zero.test.mjs <<'EOF'
-import { expect, it } from 'vitest';
-import * as m from '../src/index.mjs';
-it('critère 1 — zero rend 0', () => { expect(m.zero?.()).toBe(0); });
-EOF
-passation 'Le cas 0 testé.'
-fiche '{"statut":"FAIT"}'
-`
-    );
-    scenario(
-      id,
-      'developpeur-3',
-      `printf 'export const zero = () => 0;\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`
-    );
-    scenario(
-      id,
-      'relecteur-2',
-      accepte('packages/forms/src/index.mjs', 'packages/sheet/src/index.mjs')
-    );
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id).slice(3)).toEqual(['developpeur', 'testwriter', 'developpeur', 'relecteur']);
-    // The developpeur after the sending receives both findings, still open.
-    for (const constat of ['mesure de 0 doit rendre 0.', 'mesure de 1 doit rendre 2.']) {
-      expect(essai(id, 'developpeur-3.prompt')).toContain(constat);
-    }
-    expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-  });
-
-  it('has the next review read the difference of the lot since the review before, and its findings, never the whole lot', () => {
-    const id = 'demo-rejeu-relecture';
-    ticket(id, TROIS);
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    scenario(id, 'developpeur-2', `printf '// rendu\\n' >> $c/src/index.mjs\npassation 'Rendu.'\n`);
-    scenario(
-      id,
-      'relecteur-1',
-      rendu(['developpeur', 'packages/forms/src/index.mjs', 'mesure de 0 doit rendre 0.'])
-    );
-    scenario(
-      id,
-      'relecteur-2',
-      `fiche '${JSON.stringify({
-        verdict: 'ACCEPTÉ',
-        suivi: [
-          { titre: 'packages/forms/src/index.mjs', etat: 'levé', preuve: 'mesure(0) rend 0.' },
-        ],
-      })}'\n`
-    );
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    const premiere = essai(id, 'relecteur-1.prompt');
-    expect(premiere).toContain("LA RELECTURE D'AVANT : aucune");
-    expect(premiere).toContain('packages/forms/test/mesure.test.mjs');
-    const consigne = essai(id, 'relecteur-2.prompt');
-    const [lot1, lot2] = lotsRelus(id);
-    // The difference between the two patch sets, which the review reads in the copy.
-    expect(consigne).toContain(`git diff ${lot1} ${lot2}`);
-    // The files it reads: those the fix changed, not the lot that did not move.
-    const lots = /LOTS À LIRE : ([^\n]*)/.exec(consigne)?.[1] ?? '';
-    expect(lots).toContain('packages/forms/src/index.mjs');
-    expect(lots).not.toContain('mesure.test.mjs');
-    // The findings still open, with their agents, which it judges lifted or not.
-    expect(consigne).toMatch(
-      /LA RELECTURE D'AVANT : [^\n]*\n[\s\S]*### Constat 1 — packages\/forms\/src\/index\.mjs\nBloquant : critère 1\nAgent : developpeur\nmesure de 0 doit rendre 0\./
-    );
-    expect(consigne).not.toContain('{{');
-    // Its verdict at the ticket names each finding before it, lifted or not.
-    expect(commentaires(id)).toContainEqual(
-      expect.stringMatching(
-        /^ACCEPTÉ\n\n## Constats d'avant\n\n- packages\/forms\/src\/index\.mjs : levé — mesure\(0\) rend 0\./
-      )
-    );
-  });
-
-  it('launches the developpeur a finding names, each agent receiving the findings of its own role', () => {
-    const id = 'demo-rejeu-constat';
-    ticket(id, '000-forms');
-    scenario(id, 'testwriter-1', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-    scenario(id, 'developpeur-1', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    // The testwriter adds a case that turns red.
-    scenario(
-      id,
-      'testwriter-2',
-      `cat > $c/test/zero.test.mjs <<'EOF'
-import { expect, it } from 'vitest';
-import * as m from '../src/index.mjs';
-it('critère 1 — zero rend 0', () => { expect(m.zero?.()).toBe(0); });
-EOF
-passation 'Le cas 0 testé.'
-fiche '{"statut":"FAIT"}'
-`
-    );
-    scenario(
-      id,
-      'developpeur-2',
-      `printf '// mesure : le double\\nexport const zero = () => 0;\\n' >> $c/src/index.mjs\npassation 'Commentaire écrit.'\n`
-    );
-    scenario(
-      id,
-      'relecteur-1',
-      rendu(
-        ['testwriter', 'packages/forms/test/mesure.test.mjs', 'Le cas 0 manque.'],
-        ['developpeur', 'packages/forms/src/index.mjs:1', 'Le commentaire manque.']
-      )
-    );
-    scenario(
-      id,
-      'relecteur-2',
-      accepte('packages/forms/test/mesure.test.mjs', 'packages/forms/src/index.mjs:1')
-    );
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(sessions(id, 'developpeur')).toBe(2);
-    const rendus = historique(id).indexOf('relecture');
-    expect(historique(id).slice(rendus, rendus + 5)).toEqual([
-      'relecture',
-      'testwriter',
-      'preuve',
-      'developpeur',
-      'controles',
-    ]);
-    // Each agent receives the findings of its own role.
-    expect(essai(id, 'developpeur-2.prompt')).toContain('Le commentaire manque.');
-    expect(essai(id, 'developpeur-2.prompt')).not.toContain('Le cas 0 manque.');
-    expect(essai(id, 'testwriter-2.prompt')).toContain('Le cas 0 manque.');
-    expect(essai(id, 'testwriter-2.prompt')).not.toContain('Le commentaire manque.');
-    expect(gitRepo('show', 'main:packages/forms/src/index.mjs')).toContain('// mesure : le double');
-  });
-
-  it('judges at the checks of the plan only its packages: a finding on a file out of the plan waits for the final pass, which sends it up', () => {
-    const id = 'demo-rejeu-gardes';
-    ticket(id, '030-binder, 060-sheet');
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    // Binder's code makes the guard red on a file of forms, out of the plan.
-    scenario(
-      id,
-      'developpeur',
-      `${CODE_JUSTE}echo rouge > $c/garde-rouge.txt\npassation 'Code écrit.'\n`
-    );
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(ARRETS.controles);
-    expect(ordre(id)).toEqual(['testwriter', 'developpeur']);
-    const controles = commentaires(id).filter(t => t.startsWith('Circuit · controles'));
-    expect(controles[0]).toMatch(/^Circuit · controles : verts : /);
-    expect(controles[0]).toContain('laissés à la passe finale, 1 rouge(s)');
-    // Its checks play the plan's packages, not forms'.
-    expect(controles[0]).not.toContain('npm test -- packages/forms');
-    expect(etat(id)?.rapport).toContain('hors du plan du ticket');
-    expect(etat(id)?.rapport).toContain('000-forms');
   });
 });

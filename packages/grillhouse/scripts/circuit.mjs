@@ -642,17 +642,17 @@ import {
   SUITE,
 } from './etapes.mjs';
 import {
-  CODE,
   CONTROLES,
   correctionsDuPlan,
   ouvertesDuPlan,
   pasDuPlan,
   questionsPosees,
-  rapportDuRefus,
+  contexteDeLExtension,
+  depart,
+  etendre as reprendreEtendu,
+  renvoiDe,
   TESTS,
-  testwriterDemande,
 } from './transitions.mjs';
-import { departDepuis } from './reprise.mjs';
 import {
   arbreDeLaCopie,
   controles,
@@ -1271,21 +1271,15 @@ function arretHorsDuPlan(ctx, tentative, fiche) {
   );
 }
 
-// The sending to the testwriter in the developpeur's sheet <fiche> (its `renvoi`): what the
-// testwriter receives, the sending, the developpeur's handover, then the red output of the last
-// checks when checks ran since the testwriter's session (`ctx.controlesRouges`); null without a
-// sending.
-function renvoiDe(ctx, fiche) {
-  if (!fiche.renvoi) {
-    return null;
-  }
-  const passation = derniereDe(ctx, 'developpeur')?.text ?? 'aucune';
-  const raison = fiche.raison ? ` : ${fiche.raison}` : '';
-  const controles = ctx.controlesRouges
-    ? `\n\nLa sortie rouge des derniers contrôles :\n\n${ctx.controlesRouges}`
-    : '';
-  return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.\n\nSa passation :\n\n${passation}${controles}`;
-}
+// The sending to the testwriter in the developpeur's sheet <fiche> (its `renvoi`), as the table of
+// the transitions words it (`renvoiDe`) from the developpeur's last handover and the red output of
+// the last checks (`ctx.controlesRouges`).
+const renvoiDuTestwriter = (ctx, fiche) =>
+  renvoiDe({
+    fiche,
+    passation: derniereDe(ctx, 'developpeur')?.text ?? null,
+    controlesRouges: ctx.controlesRouges,
+  });
 
 // The findings still open once the reviewer's sheet RENDU <fiche> is read, as the issues of a
 // review stay open until the review that resolves them: each blocking finding of the sheet (a
@@ -1518,7 +1512,7 @@ export async function lireLeFait(ctx, fait, parametres, faits) {
     case 'empreinte':
       return empreinte(ctx);
     case 'renvoi':
-      return renvoiDe(ctx, faits.seance);
+      return renvoiDuTestwriter(ctx, faits.seance);
     case 'passation':
       return passations(ctx).at(-1)?.text ?? null;
     case 'arbreAvant':
@@ -1663,61 +1657,22 @@ export function monter(ctx, a) {
 const laQuestion = (ticket, { arret, qui, ou, question }) =>
   `⛔ Circuit de ${ticket} : question au ${qui} (${arret}, à ${ou}) : ${String(question ?? '').trim()}\n\nLa réponse : \`${lesReponses(ticket, 'RUNNING', true)}\`.\n`;
 
-// Where the run starts: after a stop « integration », on --depuis developpeur, the developpeur,
-// the refusal (`refus`) as his report, the session so launched marked (`lance`), as a merge queue
-// sends the lot back to its author with the log of its check; else the step a --depuis names (the
-// testwriter's, which makes the lot again, the refusal dropped, or the developpeur's), the step of
-// the state <e> (null without one) on --reprendre, the integration or the queue played again on
-// the same lot after their stop, as bors retries, else the testwriter, the run starting over.
-function depart(ctx, e) {
-  // The supervisor's command wins over the sort of the plan: the mark of his `--depuis testwriter`.
-  ctx.testwriterDemande = testwriterDemande({
+// Where the run starts (`depart` of the table of the transitions): the memory it changes is applied
+// to <ctx>, a refusal is a Usage; the state <e> (null without one) is the one of the stop.
+function departDuCircuit(ctx, e) {
+  const d = depart({
     depuis: ctx.depuis ?? null,
     reprendre: Boolean(ctx.reprendre),
     marque: Boolean(ctx.testwriterDemande),
+    etat: e,
+    refus: ctx.refus,
+    ticket: ctx.ticket,
   });
-  // A --depuis plays its step and the ones after it, no result read back: no fingerprint kept, no
-  // resumption at a red, no attribution counted.
-  if (ctx.depuis) {
-    ctx.verts = {};
-    ctx.reprise = null;
-    ctx.relancesTestwriter = null;
+  if (d.usage) {
+    throw new Usage(d.usage);
   }
-  if (ctx.depuis === 'developpeur' && e?.raison === 'integration' && ctx.refus) {
-    ctx.refus = { ...ctx.refus, lance: true, relance: false };
-    return { etape: CODE, tentative: 1, rapport: rapportDuRefus(ctx.refus), finale: false };
-  }
-  if (ctx.depuis === 'testwriter') {
-    ctx.refus = null;
-  }
-  if (ctx.depuis) {
-    const { etape, tentative, rapport, finale } = departDepuis(ctx.depuis);
-    return { etape, tentative, rapport, finale };
-  }
-  if (!ctx.reprendre) {
-    // The run starts over: no lot verified, no finding of a review open, no refusal, no checks played.
-    ctx.verts = null;
-    ctx.reprise = null;
-    ctx.relancesTestwriter = null;
-    ctx.verifie = null;
-    ctx.toursDeLaPasseFinale = null;
-    ctx.constats = [];
-    ctx.refus = null;
-    ctx.controlesRouges = null;
-    return { etape: TESTS, tentative: 1, rapport: null, finale: false };
-  }
-  if (!e) {
-    throw new Usage(`rien à reprendre : le circuit de ${ctx.ticket} n'a aucun état d'arrêt.`);
-  }
-  if (e.etape === 'integre') {
-    throw new Usage(`rien à reprendre : le lot de ${ctx.ticket} est intégré.`);
-  }
-  return {
-    etape: e.etape,
-    tentative: e.etape === CONTROLES ? 0 : 1,
-    rapport: e.rapport,
-    finale: e.finale === true,
-  };
+  Object.assign(ctx, d.memoire);
+  return d.suivant;
 }
 
 // The end of the run, its exit code <code>: an end on a stop kept with the circuit's results
@@ -2479,26 +2434,12 @@ const ORDRE_LU = {
     " (le paquet gagné va en fin de plan : ni la copie ni l'arbre principal ne se chargent pour l'ordonner)",
 };
 
-// The context `--etendre` gives the sessions of the run it resumes on the stop <question>: the
-// supervisor's answer (the packages <etendus> the plan gains, the plan <plan> as it is now), then his own text <contexte>. The stop's fact
-// and piece stay out of it: they say the plan as it was and tell a session to stop (a lock's
-// message), and a session reads its context as the supervisor's word. Without a question, his
-// text alone, or null.
-export function contexteDeLExtension({ question, etendus, plan, contexte }) {
-  const reponse = question
-    ? `Le superviseur a étendu le plan à ${etendus.join(', ')} ; le plan du ticket est maintenant : ${plan}.`
-    : null;
-  return [reponse, contexte].filter(Boolean).join('\n\n') || null;
-}
+export { contexteDeLExtension };
 
 // The plan extended by the supervisor to the packages of `--etendre` (each a path or a package
 // name of the repository, else a Usage): each one enters the title in the order of
-// `ordonnerLePlan`, written by bd and said at the ticket. With the state <e>, the run then resumes
-// the step under way, as `--reprendre` does, the supervisor's answer to the stop
-// (`contexteDeLExtension`) and the text of `--contexte` as the context of its sessions; a stop « sans-livraison » whose developpeur's last
-// sheet sends the red to the testwriter (`renvoi`, twice in a row) resumes at the step of the role
-// it names, the testwriter's, as a retry plays the job that failed. Without a state, it starts on
-// the plan extended. The state the run resumes from.
+// `ordonnerLePlan`, written by bd and said at the ticket. Where the run then resumes is the
+// decision `etendre` of the table of the transitions. The state the run resumes from.
 function etendre(ctx, e) {
   const gagnes = [...new Set(ctx.etendre.map(ctx.resoudre))].filter(c => !ctx.paquets.includes(c));
   const { plan, lu } = planEtendu(ctx, ctx.paquets, gagnes);
@@ -2518,21 +2459,18 @@ function etendre(ctx, e) {
     'plan',
     `le superviseur étend le plan à ${ctx.etendre.join(', ')} : ${titre.split(' — ').at(-1)}${ORDRE_LU[lu]}.`
   );
-  if (!e) {
-    return e;
-  }
-  ctx.contexte = contexteDeLExtension({
-    question: e.question,
+  const d = reprendreEtendu({
+    etat: e,
     etendus: ctx.etendre,
     plan: titre.split(' — ').at(-1),
     contexte: ctx.contexte,
+    renvoi: fichesDe(ctx, 'developpeur').at(-1)?.renvoi ?? null,
   });
-  ctx.reprendre = true;
-  const renvoi =
-    e.etape === CODE && e.raison === 'sans-livraison'
-      ? fichesDe(ctx, 'developpeur').at(-1)?.renvoi
-      : null;
-  return renvoi?.role === 'testwriter' ? { ...e, etape: TESTS } : e;
+  if (d.reprend) {
+    ctx.contexte = d.contexte;
+    ctx.reprendre = true;
+  }
+  return d.suivant;
 }
 
 // The opening of <ctx> on <e> before its plan: `{ debut }`, or `{ code }`, a stop gone up.
@@ -2559,7 +2497,7 @@ async function avantLePlan(ctx, e) {
     commenter(ctx, 'questionnement', 'le plan passe tel qu’il est, sur la reprise du superviseur.');
     inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte: empreinteDuPlan(leTicket(ctx)) } });
   }
-  const d = depart(ctx, e);
+  const d = departDuCircuit(ctx, e);
   // A ticket labelled arbitrage starts and resumes only on the arbitrage its integration will
   // ask for: the integration's rule, before any session.
   const arbitrage = refusArbitrage({ id: ctx.ticket, ...leTicket(ctx) }, lesCommentaires(ctx));

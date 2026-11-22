@@ -38,8 +38,7 @@
 //   server that does not answer, or Beads that fails, is said on the error stream, exit 1.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { WorkflowNotFoundError } from '@temporalio/client';
-import { DepartRefuse, ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
+import { ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
 import { retirerLaCopieDuTicket } from '../../../scripts/recommencer.mjs';
 import { heureDuReport } from '../../../scripts/reponses-du-circuit.mjs';
 import { sansReponseEn } from '../../../scripts/sans-reponse.mjs';
@@ -49,9 +48,7 @@ import {
   ouvrirLeClient,
   serveurJoignable,
 } from '../client.js';
-import { fileDuProjet } from '../installation.js';
-import { demarrerLesTickets } from '../tickets/client.js';
-import { USAGE, Usage, lireLAppel, refusDuLancementApresArret, type Appel } from './appel.js';
+import { USAGE, Usage, lireLAppel, type Appel } from './appel.js';
 import {
   arreterLeCircuit,
   basculerEnMecanique,
@@ -60,8 +57,11 @@ import {
   reprendreDepuis,
   reprendreLeCircuit,
   ReponseRefusee,
+  aLaPorte,
+  bd,
+  mettreEnFile,
+  seanceDuSuperviseur,
 } from './client.js';
-import { idDuCircuit } from './contrat.js';
 
 // The main tree of the repository of the working directory, from git's common directory.
 function arbrePrincipal(): string {
@@ -72,65 +72,6 @@ function arbrePrincipal(): string {
     throw new Error(`le dépôt ne se lit pas (git rev-parse) : ${r.stderr.trim()}`);
   }
   return path.dirname(r.stdout.trim());
-}
-
-// bd in the repository at <racine>: its output, or the failure of Beads by its reason.
-function bd(racine: string, ...args: string[]): string {
-  const r = spawnSync('bd', args, { cwd: racine, encoding: 'utf8' });
-  if (r.status !== 0) {
-    throw new Error(`bd ${args[0]} échoue : ${(r.stderr || r.error?.message || '').trim()}`);
-  }
-  return r.stdout;
-}
-
-// <f>, a reading of the ticket at the door (scripts/depart-du-ticket.mjs), its refusal a refused
-// answer, by its reason.
-function aLaPorte<T>(f: () => T): T {
-  try {
-    return f();
-  } catch (x) {
-    if (x instanceof DepartRefuse) {
-      throw new ReponseRefusee(x.message);
-    }
-    throw x;
-  }
-}
-
-// The supervisor's session that runs the command (Claude Code's `CLAUDE_CODE_SESSION_ID`), which the
-// circuit's stop gone up keeps (`EntreeDuCircuit.superviseur`); null out of a session.
-const seanceDuSuperviseur = (): string | null => process.env.CLAUDE_CODE_SESSION_ID || null;
-
-// The ticket <ticket> of <racine> put in the queue of the tickets of the project: its line. With
-// <recommence>, its circuit stopped on the supervisor's word was just started over: that stop no
-// longer refuses the launch.
-async function mettreEnFile(
-  client: Parameters<typeof demarrerLesTickets>[0],
-  racine: string,
-  ticket: string,
-  recommence = false
-): Promise<string> {
-  aLaPorte(() => ticketAuLancement(racine, ticket));
-  try {
-    const d = await client.workflow.getHandle(idDuCircuit(racine, ticket)).describe();
-    if (d.status.name === 'RUNNING') {
-      throw new ReponseRefusee(
-        `un circuit tourne déjà sur ${ticket} : il mène le ticket à sa fin, \`--arreter\` l'arrête.`
-      );
-    }
-    const fin = (await client.workflow.getHandle(idDuCircuit(racine, ticket)).result()) as {
-      raison?: string;
-    };
-    if (fin?.raison === 'arrete' && !recommence) {
-      throw new ReponseRefusee(refusDuLancementApresArret(ticket));
-    }
-  } catch (x) {
-    if (!(x instanceof WorkflowNotFoundError)) {
-      throw x;
-    }
-  }
-  bd(racine, 'update', ticket, '--add-label', 'circuit');
-  await demarrerLesTickets(client, { racine }, fileDuProjet(racine), seanceDuSuperviseur());
-  return `▶ ${ticket} est dans la file des tickets du projet : son circuit part dès que ses dépendances sont fermées et qu'une place du réglage est libre ; sa question arrive dans la file de la séance du superviseur (le greffon la pousse), sa fin se lit au panneau.`;
 }
 
 // The answer <appel> to the circuit of its ticket in <racine>: its line.

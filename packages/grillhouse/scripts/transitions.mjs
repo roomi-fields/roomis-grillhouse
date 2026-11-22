@@ -30,7 +30,7 @@
 // the facts read so far, as Temporal replays a workflow on its history: the same facts give the
 // same decision.
 import { ARRETS, boucle, RESPONSABLE, SUITE } from './etapes.mjs';
-import { attribuerLeRouge } from './reprise.mjs';
+import { attribuerLeRouge, departDepuis } from './reprise.mjs';
 
 // What the circuit keeps between steps, which the decisions read and change: the one list the
 // opening reads back (scripts/faits-du-circuit.mjs `GARDEE`) and the memo of a circuit keeps
@@ -375,6 +375,115 @@ export const etatDeReprise = etat =>
         questionnement: { objet: 'plan' },
       }
     : etat;
+
+// Where the run starts, from the command's options and the state of the stop: `{ suivant, memoire }`
+// (the state the run starts at, the memory it changes), or `{ usage }`, a refusal. After a stop
+// « integration », on --depuis developpeur, the developpeur, the refusal (`refus`) as his report,
+// the session so launched marked (`lance`), as a merge queue sends the lot back to its author with
+// the log of its check; else the step a --depuis names (the testwriter's, which makes the lot
+// again, the refusal dropped, or the developpeur's), the step of the state `etat` (null without
+// one) on --reprendre, the integration or the queue played again on the same lot after their stop,
+// as bors retries, else the testwriter, the run starting over.
+export function depart({ depuis = null, reprendre = false, marque = false, etat, refus, ticket }) {
+  // The supervisor's command wins over the sort of the plan: the mark of his `--depuis testwriter`.
+  const memoire = {
+    testwriterDemande: testwriterDemande({ depuis, reprendre: Boolean(reprendre), marque }),
+  };
+  // A --depuis plays its step and the ones after it, no result read back: no fingerprint kept, no
+  // resumption at a red, no attribution counted.
+  if (depuis) {
+    Object.assign(memoire, { verts: {}, reprise: null, relancesTestwriter: null });
+  }
+  if (depuis === 'developpeur' && etat?.raison === 'integration' && refus) {
+    memoire.refus = { ...refus, lance: true, relance: false };
+    return {
+      suivant: { etape: CODE, tentative: 1, rapport: rapportDuRefus(memoire.refus), finale: false },
+      memoire,
+    };
+  }
+  if (depuis === 'testwriter') {
+    memoire.refus = null;
+  }
+  if (depuis) {
+    const { etape, tentative, rapport, finale } = departDepuis(depuis);
+    return { suivant: { etape, tentative, rapport, finale }, memoire };
+  }
+  if (!reprendre) {
+    // The run starts over: no lot verified, no finding of a review open, no refusal, no checks played.
+    Object.assign(memoire, {
+      verts: null,
+      reprise: null,
+      relancesTestwriter: null,
+      verifie: null,
+      toursDeLaPasseFinale: null,
+      constats: [],
+      refus: null,
+      controlesRouges: null,
+    });
+    return { suivant: { etape: TESTS, tentative: 1, rapport: null, finale: false }, memoire };
+  }
+  if (!etat) {
+    return { usage: `rien à reprendre : le circuit de ${ticket} n'a aucun état d'arrêt.` };
+  }
+  if (etat.etape === 'integre') {
+    return { usage: `rien à reprendre : le lot de ${ticket} est intégré.` };
+  }
+  return {
+    suivant: {
+      etape: etat.etape,
+      tentative: etat.etape === CONTROLES ? 0 : 1,
+      rapport: etat.rapport,
+      finale: etat.finale === true,
+    },
+    memoire,
+  };
+}
+
+// The sending to the testwriter in the developpeur's sheet <fiche> (its `renvoi`): what the
+// testwriter receives, the sending, the developpeur's handover <passation> (null: « aucune »), then
+// the red output of the last checks <controlesRouges> when checks ran since the testwriter's
+// session; null without a sending.
+export function renvoiDe({ fiche, passation, controlesRouges }) {
+  if (!fiche.renvoi) {
+    return null;
+  }
+  const raison = fiche.raison ? ` : ${fiche.raison}` : '';
+  const controles = controlesRouges
+    ? `\n\nLa sortie rouge des derniers contrôles :\n\n${controlesRouges}`
+    : '';
+  return `Le développeur renvoie le rouge qui reste aux tests du lot${raison}.\n\nSa passation :\n\n${passation ?? 'aucune'}${controles}`;
+}
+
+// The context `--etendre` gives the sessions of the run it resumes on the stop <question>: the
+// supervisor's answer (the packages <etendus> the plan gains, the plan <plan> as it is now), then his own text <contexte>. The stop's fact
+// and piece stay out of it: they say the plan as it was and tell a session to stop (a lock's
+// message), and a session reads its context as the supervisor's word. Without a question, his
+// text alone, or null.
+export function contexteDeLExtension({ question, etendus, plan, contexte }) {
+  const reponse = question
+    ? `Le superviseur a étendu le plan à ${etendus.join(', ')} ; le plan du ticket est maintenant : ${plan}.`
+    : null;
+  return [reponse, contexte].filter(Boolean).join('\n\n') || null;
+}
+
+// Where the circuit resumes when the supervisor extends the plan: without a state <etat>, it starts
+// on the plan extended (`suivant` null); else it resumes the step under way, as `--reprendre`
+// does, the supervisor's answer to the stop as the context of its sessions; a stop
+// « sans-livraison » whose developpeur's last sheet sends the red to the testwriter (<renvoi>)
+// resumes at the step of the testwriter, as a retry plays the job that failed.
+export function etendre({ etat, etendus, plan, contexte, renvoi }) {
+  if (!etat) {
+    return { suivant: null };
+  }
+  const suite = contexteDeLExtension({ question: etat.question, etendus, plan, contexte });
+  const auTestwriter =
+    etat.etape === CODE && etat.raison === 'sans-livraison' && renvoi?.role === 'testwriter';
+  return {
+    suivant: auTestwriter ? { ...etat, etape: TESTS } : etat,
+    contexte: suite,
+    reprend: true,
+  };
+}
 
 // The decision of the step of <entree> (see the header), or the next fact it needs.
 export function transition(entree) {

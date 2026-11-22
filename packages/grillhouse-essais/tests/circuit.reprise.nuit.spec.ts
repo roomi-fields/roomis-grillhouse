@@ -2,15 +2,14 @@
 import { rmSync } from 'node:fs';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { canWrap, racineSousLaMaison } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
+import { sortie, ARRETS, ECRIT_ROUGE, circuitEssai } from './circuit-essai.js';
 
 // The circuit of a ticket (scripts/circuit.mjs, tests/unit/circuit.spec.ts): a relaunch of an
-// agent on its step resumes its session. The first session of an agent on a step carries a session
-// id the circuit sets (`--session-id`), kept in the state (`seanceReprise`); its relaunches on the
-// same step (the testwriter after a refused proof, the developpeur after red checks) resume
-// it (`--resume`) with the short template of consigne-agent.md, save the last attempt, a fresh and
-// whole session. A resumed session's sheet refused is asked again once of that same session; a
-// resumption that ends in error falls back on a fresh and whole session.
+// agent on its step resumes its session. The one journey that stays whole in the night: the real
+// launcher (lancer.sh) under the real envelope, which turns `--seance` into claude's `--session-id`
+// and `--reprise` into `--resume`, and finds the transcript of a session by its working directory.
+// The rules of the resumption itself (which attempt resumes, the short instruction, the sheet asked
+// again, the fall back on a fresh session) are proved small: tests/unit/seances.reprise-de-la-seance.spec.ts.
 // The trial repository and its stand-ins: ./circuit-essai.ts (its claude keeps a session's
 // transcript under its id, and fails a `--resume` it does not find); each file of the circuit's
 // tests builds its own, in a trial directory of its own.
@@ -18,7 +17,7 @@ import { sortie, ARRETS, CODE_JUSTE, ECRIT_ROUGE, circuitEssai } from './circuit
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { revenirAuDebut, ticket, scenario, circuit, essai, sessions, args, etat, commentaires } =
+const { revenirAuDebut, ticket, scenario, circuit, essai, sessions, args, etat } =
   circuitEssai(ESSAIS);
 
 const valeur = (a: string[], option: string) =>
@@ -27,13 +26,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // What tells the two templates apart: the whole instruction, the short one of a resumption.
 const ENTIERE = 'LE TICKET, sa description et ses critères';
 const COURTE = 'TA SÉANCE REPRISE';
-// A test green on the code of today, no expected green of a sheet naming it: the proof refuses it.
-const ECRIT_VERT = `cat > $c/test/forme.test.mjs <<'EOF'
-import { expect, it } from 'vitest';
-import { mesure } from '../src/index.mjs';
-it('critère 1 — mesure rend un nombre', () => { expect(typeof mesure(1)).toBe('number'); });
-EOF
-`;
 
 describe.runIf(canWrap)(
   'a relaunch resumes the same session, save the last',
@@ -79,102 +71,6 @@ describe.runIf(canWrap)(
       expect(valeur(a3, '--model')).toBe('opus');
       expect(essai(id, 'developpeur-3.prompt')).toContain(ENTIERE);
       expect(etat(id)?.seanceReprise).toEqual({ agent: 'developpeur', seance: derniere });
-    });
-
-    it('a resumption that ends in error falls back on a fresh and whole session', () => {
-      const id = 'demo-reprise-ratee';
-      ticket(id, '000-forms');
-      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-      // The first session's transcript is lost: claude does not find the session to resume.
-      scenario(
-        id,
-        'developpeur-1',
-        `touch $c/essai.txt\nrm -f "$d"/*.jsonl\npassation 'Un essai.'\n`
-      );
-      scenario(id, 'developpeur-3', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      const r = circuit([id]);
-      expect(r.status, sortie(r)).toBe(0);
-      expect(sessions(id, 'developpeur')).toBe(3);
-      const premiere = valeur(args(id, 'developpeur', 1), '--session-id');
-      expect(valeur(args(id, 'developpeur', 2), '--resume')).toBe(premiere);
-      const a3 = args(id, 'developpeur', 3);
-      expect(valeur(a3, '--session-id')).toMatch(UUID);
-      expect(valeur(a3, '--session-id')).not.toBe(premiere);
-      expect(a3).not.toContain('--resume');
-      expect(valeur(a3, '--model')).toBe('sonnet');
-      expect(essai(id, 'developpeur-3.prompt')).toContain(ENTIERE);
-      expect(essai(id, 'developpeur-3.prompt')).toContain('critère 1 — mesure rend le double');
-      expect(commentaires(id)).toContainEqual(
-        expect.stringMatching(
-          /^Circuit · developpeur : reprise de la séance .* séance neuve et entière/
-        )
-      );
-      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-    });
-
-    // BP 320.3.9: a resumed developpeur's BESOIN, its sheet refused, was lost to a fresh session.
-    it('a resumed session whose sheet is refused is asked it again once, the same session, with the reason; its question goes up', () => {
-      const id = 'demo-reprise-fiche-refusee';
-      ticket(id, '000-forms');
-      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits.'\n`);
-      scenario(id, 'developpeur-1', `touch $c/essai.txt\npassation 'Un essai.'\n`);
-      scenario(
-        id,
-        'developpeur-2',
-        `fiche '{"statut":"BESOIN","question":"la garde demande un arbitrage : trancher isHeadLayer ?","piece":"packages/forms/src/native.ts:234"}'\n`
-      );
-      scenario(
-        id,
-        'developpeur-3',
-        `fiche '{"statut":"BESOIN","question":"la garde demande un arbitrage : trancher isHeadLayer ?","piece":"packages/forms/src/index.mjs:1"}'\n`
-      );
-      const r = circuit([id]);
-      expect(r.status, sortie(r)).toBe(ARRETS.besoin);
-      expect(sessions(id, 'developpeur')).toBe(3);
-      const premiere = valeur(args(id, 'developpeur', 1), '--session-id');
-      expect(valeur(args(id, 'developpeur', 2), '--resume')).toBe(premiere);
-      const a3 = args(id, 'developpeur', 3);
-      expect(valeur(a3, '--resume')).toBe(premiere);
-      expect(a3).not.toContain('--session-id');
-      const relance = essai(id, 'developpeur-3.prompt');
-      expect(relance).not.toContain(ENTIERE);
-      expect(relance).toContain(
-        'piece : packages/forms/src/native.ts:234 introuvable dans la copie'
-      );
-      expect(commentaires(id)).toContainEqual(
-        expect.stringMatching(/^Circuit · developpeur : séance finie sans fiche conforme/)
-      );
-      expect(commentaires(id)).not.toContainEqual(expect.stringMatching(/séance neuve et entière/));
-      expect(JSON.stringify(etat(id)?.question)).toContain('trancher isHeadLayer');
-    });
-
-    it('the testwriter relaunched after a refused proof resumes its first session; its last attempt is fresh and whole', () => {
-      const id = 'demo-reprise-testwriter';
-      ticket(id, '000-forms');
-      scenario(
-        id,
-        'testwriter',
-        `${ECRIT_ROUGE}${ECRIT_VERT}passation 'Tests écrits.'\nfiche '${JSON.stringify({ statut: 'FAIT', portent_le_travail: [{ fichier: 'packages/forms/test/forme.test.mjs', test: 'critère 1 — mesure rend un nombre' }] })}'\n`
-      );
-      const r = circuit([id]);
-      expect(r.status, sortie(r)).toBe(ARRETS.preuve);
-      expect(sessions(id, 'testwriter')).toBe(3);
-      const [a1, a2, a3] = [1, 2, 3].map(n => args(id, 'testwriter', n));
-      const premiere = valeur(a1, '--session-id');
-      expect(premiere).toMatch(UUID);
-      expect(valeur(a2, '--resume')).toBe(premiere);
-      expect(a2).not.toContain('--session-id');
-      const courte = essai(id, 'testwriter-2.prompt');
-      expect(courte).toContain(COURTE);
-      expect(courte).not.toContain(ENTIERE);
-      // The proof's report: the green test the sheet names.
-      expect(courte).toContain('critère 1 — mesure rend un nombre');
-      expect(courte).toContain('Tests qui portent le travail, verts avant le code');
-      const derniere = valeur(a3, '--session-id');
-      expect(derniere).toMatch(UUID);
-      expect(derniere).not.toBe(premiere);
-      expect(a3).not.toContain('--resume');
-      expect(essai(id, 'testwriter-3.prompt')).toContain(ENTIERE);
     });
   }
 );

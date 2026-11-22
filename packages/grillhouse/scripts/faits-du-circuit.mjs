@@ -180,7 +180,7 @@ const arretDeLEtat = (ctx, code, etat) => ({
 });
 
 // The options of a run on the supervisor's answer <reponse>.
-const optionsDe = reponse => {
+export const optionsDe = reponse => {
   if (!reponse) {
     return {};
   }

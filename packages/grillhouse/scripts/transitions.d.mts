@@ -36,6 +36,41 @@ export const MEMOIRE: string[];
 /** The decision of the step of <entree>, or the next fact it needs. */
 export function transition(entree: EntreeDeLaTransition): Transition;
 
+/** Where the run starts: the state and the memory it changes, or a refusal (`usage`). */
+export function depart(entree: {
+  depuis?: string | null;
+  reprendre?: boolean;
+  marque?: boolean;
+  etat?: (Partial<EtatDeLaTransition> & { etape: string; raison?: string }) | null;
+  refus?: { rapport: string; [cle: string]: unknown } | null;
+  ticket?: string;
+}): { suivant?: EtatDeLaTransition; memoire?: Record<string, unknown>; usage?: string };
+
+/** What the testwriter receives of a developpeur's sheet that sends the red back; null without a sending. */
+export function renvoiDe(entree: {
+  fiche: { renvoi?: { role: string } | null; raison?: string };
+  passation: string | null;
+  controlesRouges: string | null;
+}): string | null;
+
+/** The context `--etendre` gives the sessions of the run it resumes. */
+export function contexteDeLExtension(entree: {
+  question?: unknown;
+  etendus: string[];
+  plan: string;
+  contexte: string | null;
+}): string | null;
+
+/** Where the circuit resumes when the supervisor extends the plan: `suivant` null without a state. */
+export function etendre(entree: {
+  etat:
+    (Partial<EtatDeLaTransition> & { etape: string; raison?: string; question?: unknown }) | null;
+  etendus: string[];
+  plan: string;
+  contexte: string | null;
+  renvoi: { role: string } | null;
+}): { suivant: EtatDeLaTransition | null; contexte?: string | null; reprend?: boolean };
+
 /** The state of the plan of a ticket: the explorateur's sheet, the questionneur's, the questions put, the answer. */
 export interface EtatDuPlan {
   plan: { questions: unknown[] } | null;
