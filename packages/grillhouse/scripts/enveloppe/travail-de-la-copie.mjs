@@ -69,7 +69,16 @@
 //   named, the rest of the lot in the copy; a faulty key refuses, named, before the copy is
 //   touched (OSC Bridge, 2026-10-31: four conflicts in one day on the generated files of synthhub
 //   and open-synth-descriptors, each copy moved by hand). A lot in conflict on another file is not
-//   regenerated: its conflicts come first.
+//   regenerated: its conflicts come first. A reference the frame generates itself and writes in
+//   full (`fichiersEngendres` of the module of the language, its `entiers`: the index of the
+//   interfaces, the turbo.json of the packages) follows the same rule, with no key of the project:
+//   main's version, then the frame's generator, whose code is not read, a real failure aside
+//   (BPScript, 2026-11-22: « UU docs/agents/index-des-interfaces.md » at the advance of two
+//   copies). The reports of API (INTERFACE.api.md and the generated part of an INTERFACE.md) and
+//   the debt of the guards, which the frame does not give as written in full (no `entiers`), are
+//   still merged. A copy whose references the module of the language does not read (no language
+//   declared) is advanced all the same, its references merged as files written by hand, and the
+//   fault is said: on stderr, in the log of the preparation for the circuit.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import path from 'node:path';
@@ -78,6 +87,7 @@ import { couvertPar, encoreDeclares, engendresDe, regenerer, touchesPar } from '
 import { avecLesDonnees, donneesDe } from '../donnees-cles.mjs';
 import { matieresDeclareesDe } from '../matieres-cles.mjs';
 import { avecLesOutils, empreintesDe, outilsDe } from '../outils-cles.mjs';
+import { langageDe } from '../langages.mjs';
 
 const LOT = 'grillhouse-travail.patch';
 
@@ -102,16 +112,52 @@ const fichiersDuLot = (copie, lot) =>
     .filter(Boolean);
 
 /**
- * The keys of the project that holds <copie>, read before any work: `{ engendres, env }`, its
- * generated files and the environment of their commands with its tools, or `{ refus }`.
+ * The references the frame generates itself in <copie> and writes in full (`fichiersEngendres` of
+ * the module of its language, those with `entiers`: the index of the interfaces, the turbo.json of
+ * the packages), as the circuit regenerates them at 4.2; none for a copy the module does not read,
+ * whose fault goes to <dire>.
  * @param {string} copie
+ * @param {(texte: string) => void} dire
+ * @returns {{ nom: string, commande: string, fichiers: string[], lit: string[], entiers: string[] }[]}
+ */
+function referencesEntieresDuCadre(copie, dire) {
+  try {
+    return langageDe(copie)
+      .fichiersEngendres(copie)
+      .filter(r => r.entiers.length)
+      .map(({ verifier: _verifier, ...reference }) => reference);
+  } catch (e) {
+    dire(
+      `⚠ Les références du cadre ne se lisent pas dans la copie ${copie} : celles qu'il écrit en entier (l'index des interfaces, les turbo.json des paquets) sont fusionnées comme des fichiers écrits à la main.\n${/** @type {Error} */ (e).message}\n`
+    );
+    return [];
+  }
+}
+
+// Where a fault that does not refuse the advance is said, by default.
+const surStderr = texte => void process.stderr.write(texte);
+
+/**
+ * The keys of the project that holds <copie>, read before any work: `{ engendres, env }`, its
+ * generated files, then the references the frame writes in full (<duCadre>, each marked `cadre`,
+ * but one whose first file a generated file of the project writes), and the environment of their
+ * commands with its tools, or `{ refus }`. A fault that refuses nothing goes to <dire>.
+ * @param {string} copie
+ * @param {(copie: string, dire: (texte: string) => void) => { nom: string, commande: string, fichiers: string[], lit: string[], entiers: string[] }[]} [duCadre]
+ * @param {(texte: string) => void} [dire]
  * @returns {{ engendres: any[], env: NodeJS.ProcessEnv, refus?: undefined } | { refus: string }}
  */
-function lesCles(copie) {
+function lesCles(copie, duCadre = referencesEntieresDuCadre, dire = surStderr) {
   try {
     matieresDeclareesDe(copie);
+    const duProjet = engendresDe(copie);
     return {
-      engendres: engendresDe(copie),
+      engendres: [
+        ...duProjet,
+        ...duCadre(copie, dire)
+          .filter(c => !duProjet.some(e => couvertPar(e.entiers, c.fichiers[0])))
+          .map(c => ({ ...c, cadre: true })),
+      ],
       env: avecLesDonnees(
         donneesDe(copie),
         avecLesOutils(outilsDe(copie), process.env, empreintesDe(copie))
@@ -172,7 +218,13 @@ function appliquer(copie, lot, cles = null, autres = []) {
   // The generated files the lot removes from the key follow the lot: main's version is not kept.
   // A package.json left in conflict is read at the two versions of its conflict in the index.
   const etage = n => String(git(copie, ['show', `:${n}:package.json`]).stdout);
-  const vivants = encoreDeclares(touches, copie, () => ({ base: etage(1), lot: etage(3) }));
+  // A reference of the frame is always declared: no key of the project names it.
+  const declares = encoreDeclares(
+    touches.filter(e => !e.cadre),
+    copie,
+    () => ({ base: etage(1), lot: etage(3) })
+  );
+  const vivants = touches.filter(e => e.cadre || declares.includes(e));
   for (const { morceau, noms } of laisses) {
     if (noms.every(f => vivants.some(e => couvertPar(e.entiers, f)))) {
       continue;
@@ -191,7 +243,7 @@ function appliquer(copie, lot, cles = null, autres = []) {
     return { conflits, enAttente, restant };
   }
   const refus = regenerer({
-    refs: vivants.map(e => ({ ...e, cadre: false })),
+    refs: vivants.map(e => ({ ...e, cadre: Boolean(e.cadre) })),
     lancer: commande =>
       spawnSync('bash', ['-c', commande], {
         cwd: copie,
@@ -286,16 +338,17 @@ export function ecritPar(role, estUnTest) {
 }
 
 /**
- * The lot from <base> to <pointe> as local work of <copie>; returns `{ ok, message }`.
+ * The lot from <base> to <pointe> as local work of <copie>; returns `{ ok, message }`. <dire>
+ * receives a fault that does not refuse the lot (stderr by default).
  * @param {string} copie
- * @param {{ base: string, pointe: string }} o
+ * @param {{ base: string, pointe: string, duCadre?: (copie: string) => any[], dire?: (texte: string) => void }} o
  */
-export function reporter(copie, { base, pointe }) {
+export function reporter(copie, { base, pointe, duCadre, dire }) {
   const d = git(copie, ['diff', '--binary', base, pointe]);
   if (d.status !== 0) {
     return { ok: false, message: `⛔ Le lot de ${base} à ${pointe} ne se lit pas : ${texte(d)}` };
   }
-  const cles = lesCles(copie);
+  const cles = lesCles(copie, duCadre, dire);
   if (cles.refus !== undefined) {
     return { ok: false, message: cles.refus };
   }
@@ -326,11 +379,12 @@ const conflit = (copie, conflits, entete) =>
  * lot waiting is accepted (`ok`) when that role writes one of their files. <suspects>, the files
  * an earlier advance left in conflict: one that still carries its marks counts as in conflict,
  * even when the index no longer says so (a session wrote it, or put it in the index, unresolved).
+ * <dire> receives a fault that does not refuse the advance (stderr by default).
  * @param {string} copie
  * @param {string} cible
- * @param {{ ecrit?: (fichier: string) => boolean, suspects?: string[] }} [o]
+ * @param {{ ecrit?: (fichier: string) => boolean, suspects?: string[], duCadre?: (copie: string) => any[], dire?: (texte: string) => void }} [o]
  */
-export function avancer(copie, cible, { ecrit, suspects = [] } = {}) {
+export function avancer(copie, cible, { ecrit, suspects = [], duCadre, dire } = {}) {
   releverLesResolus(copie);
   const restants = [
     ...new Set([...enConflit(copie), ...suspects.filter(f => porteDesMarques(copie, f))]),
@@ -377,7 +431,7 @@ export function avancer(copie, cible, { ecrit, suspects = [] } = {}) {
       enAttente: siens(attendus),
     };
   }
-  const cles = lesCles(copie);
+  const cles = lesCles(copie, duCadre, dire);
   if (cles.refus !== undefined) {
     return { ok: false, message: cles.refus };
   }
@@ -479,7 +533,7 @@ const SOUS_MODULES = path.join(import.meta.dirname, '..', 'sous-modules.sh');
  * Prepares <copie> for a pass or a session (see the header, `preparer`): with <cible>, the guard of
  * its submodules and its advance to <cible>; then the pose of its submodules, the check of their
  * read-only mount, and the installation when the lock file is newer than it. The output of each
- * command goes to the file descriptor <sortie>; returns `{ ok, message, partages }`.
+ * command, and a fault of the advance that does not refuse it, go to the file descriptor <sortie>; returns `{ ok, message, partages }`.
  * @param {string} copie
  * @param {string | null} cible
  * @param {{ env?: NodeJS.ProcessEnv, sortie?: number, ecrit?: (fichier: string) => boolean,
@@ -509,7 +563,11 @@ export function preparer(copie, cible, { env = process.env, sortie = 2, ecrit, s
     if (g.status !== 0) {
       return echec(g, 'La garde des sous-modules');
     }
-    const a = avancer(copie, cible, { ecrit, suspects });
+    const a = avancer(copie, cible, {
+      ecrit,
+      suspects,
+      dire: texte => void writeSync(sortie, texte),
+    });
     if (!a.ok) {
       return { ...a, partages: '' };
     }

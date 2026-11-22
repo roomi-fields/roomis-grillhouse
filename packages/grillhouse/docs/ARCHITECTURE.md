@@ -350,8 +350,15 @@ n'applique pas du lot un fichier qu'une référence écrit en entier (`entiers` 
 interfaces, les `turbo.json` des paquets) ; elle rejoue la référence qui l'écrit dans la copie
 d'intégration, sur main à jour, après l'installation et avant la vérification, et ce qu'elle écrit
 entre dans le commit. Le circuit lui passe les références du cadre (`--references`), tirées de
-sa seule liste. Un projet déclare les fichiers engendrés qu'il garde commités (une page lue sur
-GitHub, une somme de contrôle publiée) sous `grillhouse.engendres` de son `package.json`
+sa seule liste. L'avance d'une copie sur main suit la même règle pour ces références, sans clé du
+projet : la version de main, puis le générateur du cadre sur le travail appliqué
+(`scripts/enveloppe/travail-de-la-copie.mjs` ; BPScript, 2026-11-22, l'index des interfaces en
+conflit à l'avance de deux copies). Les rapports d'API (`INTERFACE.api.md` et la partie générée
+d'un `INTERFACE.md`) et la dette des gardes, que le cadre ne donne pas pour écrits en entier,
+restent fusionnés ; une copie dont le cadre ne lit pas les références (aucun langage déclaré)
+avance quand même, ses références fusionnées, et la préparation dit la faute dans son journal. Un
+projet déclare les fichiers engendrés qu'il garde commités (une page lue sur GitHub, une somme de
+contrôle publiée) sous `grillhouse.engendres` de son `package.json`
 (`{ "<nom>": { "commande": "<ligne du shell>", "fichiers": ["<motif>"], "lit": ["<motif>"] } }`),
 lue à côté des fichiers engendrés du module du langage, dans la même forme, toujours dans l'arbre
 principal (`packages/grillhouse/scripts/engendres.mjs`) ; une clé sans commande, sans fichiers ou
