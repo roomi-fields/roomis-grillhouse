@@ -595,7 +595,7 @@ describe('a ticket in progress with children', () => {
       .map(x => x.texte)
       .join('\n');
     expect(texte).toMatch(
-      /\n▾ 3 · Code · développeur\n {2}⤷ Question · superviseur\n⏸ m {2}La mère /
+      /\n▾ 3 · Code · développeur\n {2}⤷ Question · superviseur *\n⏸ m {2}La mère /
     );
     expect(texte).toMatch(/\n {2}en cours +1\n {3}m\.1 {2}L’enfant en cours/);
   });

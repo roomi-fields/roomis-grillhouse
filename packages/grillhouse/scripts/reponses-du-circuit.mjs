@@ -33,9 +33,11 @@ export function lesReponses(ticket, statut, ecrit) {
   }
   const etendre = '--etendre <paquet>';
   const mecanique = '--mecanique [<commande>] --contexte <raison>';
+  // The question carried to the owner: it stays quiet until the circuit answers.
+  const chez = '--chez-le-responsable';
   return statut === 'RUNNING'
-    ? `${circuit} --reprendre\`, \`${depuis}\`, \`${mecanique}\`, \`${etendre}\`, \`--reporter <heure>\` ou \`--arreter`
-    : `${circuit} --reprendre\`, \`${depuis}\`, \`${mecanique}\` ou \`${etendre}`;
+    ? `${circuit} --reprendre\`, \`${depuis}\`, \`${mecanique}\`, \`${etendre}\`, \`--reporter <heure>\`, \`${chez}\` ou \`--arreter`
+    : `${circuit} --reprendre\`, \`${depuis}\`, \`${mecanique}\`, \`${etendre}\` ou \`${chez}`;
 }
 
 /**

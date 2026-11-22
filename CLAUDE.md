@@ -42,9 +42,9 @@ interface publiée…>. Le cadre et l'architecture montent toujours (charte comm
 - Les sous-modules partagés : la clé `grillhouse.partage` du `package.json` (les chemins des
   sous-modules qu'aucun ticket n'écrit ; chaque copie les lit dans le dépôt principal, en lecture
   seule, au lieu d'en recevoir un exemplaire).
-- Le rappel des questions : la clé `grillhouse.rappel` du `package.json` (un nombre > 0, **5** quand
-  elle est absente : les minutes au bout desquelles une question de circuit sans réponse revient dans
-  la file des messages de la séance du superviseur ; une autre valeur est refusée par son nom).
+- Le rappel des questions : la clé `grillhouse.rappel` du `package.json` (un nombre > 0, **10** quand
+  elle est absente : les minutes au bout desquelles une question de circuit lue et sans réponse revient
+  dans la file des messages de la séance du superviseur, comptées depuis sa lecture ; une autre valeur est refusée par son nom).
 - La plage de nuit : la clé `grillhouse.plageDeNuit` du `package.json` (`{ "debut": 23, "fin": 8 }`
   par défaut : les heures, à l'heure locale, où l'attente d'une réponse compte au bilan comme nuit,
   à part de l'attente du superviseur et de celle du responsable).

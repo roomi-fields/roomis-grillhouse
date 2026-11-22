@@ -959,12 +959,30 @@ rapporte les dépôts de son locataire à un même lecteur (grillhouse-3uv.133 :
 osc-bridge, open-synth-descriptors et synthhub ne recevait plus rien des deux derniers) : la part
 d'un voisin porte le sigle de son projet en tête de chaque ligne (« [SH] Question · … ») et joue
 sa commande dans son dossier (« → env -C <dossier> npx grillhouse circuit … »), avec
-l'intervalle et l'état de ce projet ; un voisin qu'une autre séance supervise reste à elle. La réponse au circuit acquitte la question :
-tant qu'elle attend (le circuit est arrêté sur la même clé), elle revient à l'échéance du rappel,
-lue ou non, comme SQS redonne un message non acquitté après son délai de visibilité ; répondue, elle
-sort du fichier et ne revient plus. L'intervalle du rappel est la clé `grillhouse.rappel` du
-`package.json` (minutes, un nombre > 0, 5 par défaut, `reglageDuRappel` de `circuits-cles.mjs`),
-appliquée à chaque relevé. Le relevé, le rappel et le fichier des questions remontées sont une
+l'intervalle et l'état de ce projet ; un voisin qu'une autre séance supervise reste à elle. La réponse au circuit acquitte la question,
+dans une file à accusé de réception (les états « envoyé, remis, lu » d'une messagerie ; le délai de
+visibilité d'un message SQS, qui ne court qu'à partir de sa réception) : une question a trois états
+que le greffon tient dans le fichier des questions remontées. **Envoyée** : le relevé l'a mise dans
+le message de la séance (`presentee`) ; elle n'est jamais renvoyée tant qu'elle n'est pas lue, quel
+que soit le temps écoulé. **Lue** (`lue`) : un tour de la séance a démarré avec son message
+(`turn.start` porte le texte du prompt ; le greffon retient le texte qu'il soumet, reconnaît le
+message par inclusion et marque lues, à l'heure du démarrage, les questions envoyées jusque-là, par
+`superviseur --lue`), ou l'ouverture de la séance l'a listée (elle marque lues toutes les questions
+qu'elle liste : un message envoyé à une séance fermée, ou jamais reconnu, est lu par la séance
+suivante). Une question lue et sans réponse (le circuit est arrêté sur la même clé) revient quand
+l'intervalle du rappel est écoulé depuis sa lecture, une fois par intervalle (le rappel envoyé la
+rend de nouveau « envoyée » jusqu'à sa lecture), sur une ligne « Toujours sans réponse » suivie de
+la commande du circuit, qui nomme `--chez-le-responsable`. **Répondue** : le circuit est reparti
+ou fini, ou la question est reportée ; elle sort du fichier et ne revient plus. La réponse
+`--chez-le-responsable` du circuit (`superviseur --chez-le-responsable`) marque `chez` : portée au
+responsable, la question se tait jusqu'à la réponse du circuit, qui retire la marque avec son
+arrêt. Un fichier sans champ de lecture (ancien format) vaut « envoyée » ; l'alerte de la CI de
+main n'est la question d'aucun circuit : sans état, sans rappel. Le tableau écrit l'état à droite
+de la ligne « ⤷ Question · <qui> » (« envoyée », « lue il y a N min », « chez lui · N min », sous
+« responsable », que « toi : … question » compte), et l'alerte « attend le superviseur depuis N min »
+ne parle plus d'une question lue ou portée au responsable. L'intervalle du rappel est la clé
+`grillhouse.rappel` du `package.json` (minutes, un nombre > 0, 10 par défaut, `reglageDuRappel` de
+`circuits-cles.mjs`), appliquée à chaque relevé. Le relevé, le rappel et le fichier des questions remontées sont une
 seule fonction, `relever` de `superviseur.mjs`. Sans séance de superviseur qui tienne le verrou, ou
 sans greffon (un autre moteur), rien n'est soumis et le cadre n'y supplée pas : les questions
 restent au tableau, l'ouverture de la séance suivante les liste toutes, et le crochet de fin de
@@ -1010,7 +1028,7 @@ sans son issue) : le panneau la lit, et `questionsEnAttente` de `superviseur.mjs
 l'ouverture et le relevé. Une question remontée (par le relevé, ou nommée à
 l'ouverture) s'inscrit dans `.claude/worktrees/questions-remontees.json`, par son ticket, le run
 de son déroulé, le rang de sa question dans ce run et son arrêt , avec l'heure de sa
-dernière soumission : elle n'est pas soumise deux fois avant l'échéance de son rappel, et elle en sort une fois répondue, le circuit reparti ou fini (grillhouse-pq6 :
+dernière soumission, de sa lecture et de sa mise chez le responsable : elle n'est pas soumise deux fois avant l'échéance de son rappel, compté depuis sa lecture, et elle en sort une fois répondue, le circuit reparti ou fini (grillhouse-pq6 :
 SH-ae6.5.2, SH-ae6.5.6 et SH-br0.1.5 de SyntHub, lancés par une file en arrière-plan, ont
 attendu des heures leur réponse). L'ouverture nomme toutes les questions en attente, remontées
 ou non : une séance fermée puis rouverte les retrouve. L'inscription se fait sous le verrou du

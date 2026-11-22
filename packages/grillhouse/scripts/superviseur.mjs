@@ -47,11 +47,17 @@
 //   writes the message of the reading (`texteDesQuestions`) when `relever` gives something,
 //   nothing otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` is at
 //   fault. A reading is one reading: no process waits.
+// - A question has three states the greffon keeps in the file of the stops gone up: sent (put in the
+//   message of the session by `relever`), read (a turn of the session started with that message,
+//   `superviseur --lue <dossier> <lueA> <envoyeesAvant>`, or the opening listed it), answered (it
+//   leaves the file). It comes back only once read, <rappelMs> after its reading, as SQS counts the
+//   visibility timeout of a message from its reception: one still in the queue is never sent again.
+//   `superviseur --chez-le-responsable <dossier> <ticket>` (the answer `--chez-le-responsable` of
+//   the circuit) marks a question carried to the owner: silent until the circuit answers.
 // - `relever` is the one function of the reading, of the re-presentation and of the file of the
-//   stops gone up: each question of a circuit that never went up or whose last presentation is
-//   <rappelMs> old (`grillhouse.rappel` minutes, 5 by default, scripts/circuits-cles.mjs) is given,
-//   once per due time, whatever the state of the session, while its circuit stands on the same stop,
-//   as SQS gives a message not acknowledged again after its visibility timeout; one answered (its
+//   stops gone up: each question of a circuit that never went up or that was read <rappelMs> ago
+//   (`grillhouse.rappel` minutes, 10 by default, scripts/circuits-cles.mjs) is given,
+//   once per due time, while its circuit stands on the same stop; one answered (its
 //   circuit left the stop) leaves the file `.claude/worktrees/questions-remontees.json` and is not
 //   given again. The stops are kept there each by its ticket, the run of its workflow, the rank of
 //   its question in that run and its stop, with the time of the first going up and of the last
@@ -69,7 +75,13 @@ import { lireEtOuvrirLeDefautDeMain } from './ci-de-main.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
 import { circuitsDuServeur, ServeurMuet } from './circuits-du-serveur.mjs';
-import { attendLeSuperviseur, cleDe, lireLesRemontees, remonteesDe } from './tableau.mjs';
+import {
+  attendLeSuperviseur,
+  cleDe,
+  estLue,
+  lireLesRemontees,
+  remonteesDe,
+} from './tableau.mjs';
 import { rappelDuProjet, reglageDuRappel } from './circuits-cles.mjs';
 import { lireGroupe } from './groupe-cles.mjs';
 import { etapeDuCircuit, libelle, REPONSES, sansLesReponses, SUPERVISEUR } from './etapes.mjs';
@@ -277,6 +289,85 @@ function ecrireLesIntegrations(racine, depuis, rendues) {
   }
 }
 
+// The file of the stops gone up as text: each stop with its key, its times, and its reading and its
+// mark when it has them, sorted by key.
+const enTexteDesRemontees = liste =>
+  `${JSON.stringify(
+    {
+      remontees: liste
+        .map(r => ({
+          cle: r.cle,
+          depuis: r.depuis,
+          presentee: r.presentee,
+          ...(Number.isFinite(r.lue) ? { lue: r.lue } : {}),
+          ...(Number.isFinite(r.chez) ? { chez: r.chez } : {}),
+        }))
+        .sort((a, b) => a.cle.localeCompare(b.cle, 'en')),
+    },
+    null,
+    2
+  )}\n`;
+
+// Writes the file of the stops gone up of <racine> as <ecrit> when it differs from what it holds
+// (<rien>: nothing to write when no file yet), by a rename. Under the lock of the file.
+function ecrireLesRemontees(racine, ecrit, rien = false) {
+  const f = remonteesDe(racine);
+  let enFichier = '';
+  try {
+    enFichier = readFileSync(f, 'utf8');
+  } catch {
+    // no file yet
+  }
+  if (ecrit !== enFichier && !rien) {
+    const provisoire = `${f}.${process.pid}`;
+    writeFileSync(provisoire, ecrit);
+    renameSync(provisoire, f);
+  }
+}
+
+// Changes the entries of the file of the stops gone up of <racine> by <change> (entry → entry), under
+// its lock; nothing is written when no file holds a stop.
+function changerLesRemontees(racine, change) {
+  const f = remonteesDe(racine);
+  if (!lireLesRemontees(racine, Date.now()).length) {
+    return;
+  }
+  mkdirSync(path.dirname(f), { recursive: true });
+  const verrou = `${f}.verrou`;
+  prendreVerrou(verrou, { attendre: true, perime: 30_000 });
+  try {
+    ecrireLesRemontees(racine, enTexteDesRemontees(lireLesRemontees(racine, Date.now()).map(change)));
+  } finally {
+    lacherVerrou(verrou);
+  }
+}
+
+/**
+ * A turn of the session read, at <lueA> ms, the messages sent up to <envoyeesAvant> ms: each stop of
+ * the file of the stops gone up of <racine> sent by then and not read since its last sending is
+ * read at <lueA>. A stop read keeps the time of its reading. The opening and the greffon's turn
+ * (`superviseur --lue`) call it.
+ * @param {string} racine
+ * @param {{ lueA: number, envoyeesAvant: number }} options
+ */
+export function marquerLues(racine, { lueA, envoyeesAvant }) {
+  changerLesRemontees(racine, r =>
+    r.presentee <= envoyeesAvant && !estLue(r) ? { ...r, lue: lueA } : r
+  );
+}
+
+/**
+ * The supervisor carried the question of the stop <cle> to the owner, at <depuisA> ms: it is
+ * silent until the circuit answers (its stop leaves the file, and the mark with it).
+ * @param {string} racine
+ * @param {{ cle: string, depuisA: number }} options
+ * @returns {boolean} whether the file holds that stop (the question was sent)
+ */
+export function marquerChezLeResponsable(racine, { cle, depuisA }) {
+  changerLesRemontees(racine, r => (r.cle === cle ? { ...r, chez: depuisA } : r));
+  return lireLesRemontees(racine, depuisA).some(r => r.cle === cle);
+}
+
 /**
  * One reading of the circuits <circuits> (those integrated included) of the repository at <racine>,
  * at <maintenant> ms, under the lock of the file of the stops gone up; what the greffon of the
@@ -326,9 +417,16 @@ export function relever(
     circuits = circuits.filter(c => !c.integre);
     const avant = new Map(lireLesRemontees(racine, maintenant).map(r => [r.cle, r]));
     const debout = questionsEnAttente(racine, circuits, { fermes: aucunFerme });
+    // A question comes back from its reading, never from its sending: one read, not carried to the
+    // owner, whose delay has passed since its reading. One still in the queue (sent, unread) or
+    // carried to the owner is never given again.
     const aRendre = debout.filter(q => {
       const r = avant.get(q.cle);
-      return toutes || !r || maintenant - r.presentee >= rappelMs;
+      return (
+        toutes ||
+        !r ||
+        (estLue(r) && r.chez === undefined && maintenant - r.lue >= rappelMs)
+      );
     });
     const fermesDe = aRendre.length
       ? fermes(
@@ -347,40 +445,22 @@ export function relever(
     // A question whose ticket is closed is not given, so not counted presented: it is given once
     // its ticket waits again.
     const presentes = new Set(rendu.map(q => q.cle));
-    const enTexte = liste =>
-      `${JSON.stringify(
-        {
-          remontees: liste
-            .map(r => ({ cle: r.cle, depuis: r.depuis, presentee: r.presentee }))
-            .sort((a, b) => a.cle.localeCompare(b.cle, 'en')),
-        },
-        null,
-        2
-      )}\n`;
     // A question never presented, its ticket unread, is not written: the next reading gives it.
-    const ecrit = enTexte(
+    // Sent now, it is sent: its reading (`lue`) is the turn's, and its mark (`chez`) the supervisor's.
+    const ecrit = enTexteDesRemontees(
       debout
         .filter(q => presentes.has(q.cle) || avant.has(q.cle))
         .map(q => {
           const r = avant.get(q.cle);
           return {
+            ...(r ?? {}),
             cle: q.cle,
             depuis: r?.depuis ?? maintenant,
             presentee: presentes.has(q.cle) ? maintenant : r.presentee,
           };
         })
     );
-    let enFichier = '';
-    try {
-      enFichier = readFileSync(f, 'utf8');
-    } catch {
-      // no file yet
-    }
-    if (ecrit !== enFichier && !(debout.length === 0 && avant.size === 0)) {
-      const provisoire = `${f}.${process.pid}`;
-      writeFileSync(provisoire, ecrit);
-      renameSync(provisoire, f);
-    }
+    ecrireLesRemontees(racine, ecrit, debout.length === 0 && avant.size === 0);
     return [...rendu, ...integres, ...rouges];
   } finally {
     lacherVerrou(verrou);
@@ -493,7 +573,12 @@ const teteDe = (q, genre, { sigle } = {}) =>
  */
 export const ligneDeQuestion = (q, o = {}) => {
   if (q.representee) {
-    return teteDe(q, 'Toujours sans réponse', o);
+    const tete = teteDe(q, 'Toujours sans réponse', o);
+    const commande = o.courte ? '' : commandeDe(q, o.dossier);
+    // The reminder names the answer of a question carried to the owner beside the command of the circuit.
+    return commande.endsWith('<réponse>')
+      ? `${tete}\n→ ${commande} ou --chez-le-responsable`
+      : tete;
   }
   const tete = teteDe(q, 'Question', o);
   const commande = commandeDe(q, o.dossier);
@@ -566,15 +651,19 @@ export async function circuitsALOuverture(
         : `Les circuits ne se lisent pas : ${message}.`;
   }
   ecrireLesIntegrations(racine, Date.now(), []);
+  const ouverteA = Date.now();
   const questions = circuits
     ? relever(racine, circuits, {
         fermes,
-        maintenant: Date.now(),
+        maintenant: ouverteA,
         rappelMs: rappelDuProjet(racine) * 60_000,
         toutes: true,
         ciDeMain: ciDeMainDe(racine),
       }).filter(q => !q.integre)
     : [];
+  // The opening lists every question that waits: the session reads them, and their reminder runs
+  // from now (a question sent to a closed session, or whose message was never recognised, included).
+  marquerLues(racine, { lueA: ouverteA, envoyeesAvant: ouverteA });
   const tournent = enAttente(
     (circuits ?? []).filter(c => c.vivant),
     racine,
@@ -605,7 +694,7 @@ export async function circuitsALOuverture(
   );
   return [
     '## Les questions des circuits',
-    "Le greffon de ta séance pousse dans la file de tes messages chaque question neuve d'un circuit du dépôt, quel que soit son lanceur, et chaque fin de circuit, une fois ; il n'y a aucune attente à lancer. Une question sans réponse revient à intervalle réglable (`grillhouse.rappel`, 5 min par défaut) : ta réponse au circuit l'acquitte, et répondue elle ne revient plus. Tu ne te mets pas en attente du responsable tant qu'une question d'un circuit attend ta réponse : le crochet de fin de tour te le rappelle. Les questions en attente sont listées ci-dessous.",
+    "Le greffon de ta séance pousse dans la file de tes messages chaque question neuve d'un circuit du dépôt, quel que soit son lanceur, et chaque fin de circuit, une fois ; il n'y a aucune attente à lancer. Une question sans réponse revient une fois lue, à intervalle réglable depuis sa lecture (`grillhouse.rappel`, 10 min par défaut) : ta réponse au circuit l'acquitte, et répondue elle ne revient plus ; une question que tu as portée au responsable se tait par `npx grillhouse circuit <ticket> --chez-le-responsable`, jusqu'à la réponse du circuit. Tu ne te mets pas en attente du responsable tant qu'une question d'un circuit attend ta réponse : le crochet de fin de tour te le rappelle. Les questions en attente sont listées ci-dessous.",
     ...(panne ? ['', '## Les circuits du dépôt', panne] : []),
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
     ...(questions.length ? ['', `Les réponses à une question : ${REPONSES}`] : []),
@@ -811,6 +900,39 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     } catch (e) {
       process.stderr.write(`${e.message}\n`);
       process.exitCode = 1;
+    }
+  } else if (process.argv[2] === '--chez-le-responsable') {
+    // superviseur --chez-le-responsable <dossier> <ticket> : the question of the circuit of <ticket>
+    // is carried to the owner, now (`grillhouse circuit <ticket> --chez-le-responsable`); exit 2 and
+    // its reason on the error stream when the circuit waits for no question, or when the question
+    // is not in the file of the stops gone up.
+    const [, , , dossier, ticket] = process.argv;
+    const racine = racineDe(dossier ?? process.cwd());
+    const circuits = await circuitsDuServeur(racine);
+    const c = circuits.find(x => x.ticket === ticket);
+    if (!c || !attendLeSuperviseur(c)) {
+      process.stderr.write(`--chez-le-responsable : le circuit de ${ticket} n'attend aucune question.\n`);
+      process.exitCode = 2;
+    } else if (!marquerChezLeResponsable(racine, { cle: cleDe(c), depuisA: Date.now() })) {
+      process.stderr.write(
+        `--chez-le-responsable : la question de ${ticket} n'est pas encore remontée au superviseur.\n`
+      );
+      process.exitCode = 2;
+    }
+  } else if (process.argv[2] === '--lue') {
+    // superviseur --lue <dossier> <lueA> <envoyeesAvant> : the turn of the session that read, at
+    // <lueA> ms, the messages sent up to <envoyeesAvant> ms (the greffon's turn.start).
+    const [, , , dossier, lueA, envoyeesAvant] = process.argv;
+    if (!dossier || !Number.isFinite(Number(lueA)) || !Number.isFinite(Number(envoyeesAvant))) {
+      process.stderr.write('usage : superviseur --lue <dossier> <lueA> <envoyeesAvant>\n');
+      process.exitCode = 1;
+    } else {
+      const racine = racineDe(dossier);
+      const lues = { lueA: Number(lueA), envoyeesAvant: Number(envoyeesAvant) };
+      marquerLues(racine, lues);
+      for (const p of voisinsSansSuperviseur(racine)) {
+        marquerLues(p.chemin, lues);
+      }
     }
   } else {
     const texte = await superviseur(process.argv[2] ?? process.cwd());

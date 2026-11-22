@@ -475,8 +475,8 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
 // messages (grillhouse-3uv.110): at each period the greffon asks one reading of the circuits of the
 // project and of its group (`grillhouse superviseur --relever`, which reads the circuits as the board does and
 // answers nothing unless this session holds the lock of the supervisor) and submits what it prints,
-// one message per reading, to the session (`$.prompt.submit`). A question not answered comes back at
-// the interval `grillhouse.rappel` of the project; its answer to the circuit acknowledges it. The
+// one message per reading, to the session (`$.prompt.submit`). A question read and not answered comes back
+// at the interval `grillhouse.rappel` of the project after its reading; its answer to the circuit acknowledges it. The
 // state « presented at such a time » lives in the file of the stops gone up that the reading keeps.
 // A message submitted while the session works waits in its queue until the end of the turn, and a
 // message queued is never taken back, so none is queued behind a turn, as a queue with
@@ -484,9 +484,37 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
 // main loop runs (`tours`), no reading is asked, and the first period after its end reads the
 // circuits as they are then, in one message (a turn of forty minutes piled up one message per
 // reminder, each one a turn of its own, grillhouse-3uv.164).
+//
+// A question has three states (grillhouse-3uv.185): sent (put in the message the greffon submits),
+// read (a turn of the session starts with that message: `turn.start` carries the text of the prompt,
+// the greffon recognises the message it submitted in it and marks its questions read, at the time of
+// the start, by `superviseur --lue`), answered (the circuit has its answer: it leaves the file). The
+// reminder runs from the reading, as the visibility delay of a message of a queue runs from its
+// reception; a message never recognised is read by the opening of the next session of supervision.
 export const PERIODE_DES_QUESTIONS_MS = 15_000
+const MESSAGES_RETENUS = 20
 let relevee = false
 const tours = new Set<string>()
+// The messages submitted and not yet read: their text, and the time they were put in the queue.
+const soumis: { texte: string; envoyeA: number }[] = []
+
+// A turn started at <lueA> with <texte>: the questions of each message it contains are read, those
+// sent up to the latest such message. A text that holds no submitted message marks nothing.
+export async function marquerLesLues($: EngineInterface, texte: string, lueA: number): Promise<void> {
+  if (!eligible || !texte) return
+  const lus = soumis.filter(m => texte.includes(m.texte))
+  if (!lus.length) return
+  for (const m of lus) soumis.splice(soumis.indexOf(m), 1)
+  const envoyeesAvant = Math.max(...lus.map(m => m.envoyeA))
+  try {
+    await $.process.run([GRILLHOUSE, 'superviseur', '--lue', cwd, String(lueA), String(envoyeesAvant)], {
+      cwd,
+      timeoutMs: 60_000,
+    })
+  } catch {
+    // a reading not marked is marked by the opening of the next session
+  }
+}
 export async function pousserLesQuestions($: EngineInterface): Promise<void> {
   if (!eligible || relevee || tours.size) return
   relevee = true
@@ -498,7 +526,13 @@ export async function pousserLesQuestions($: EngineInterface): Promise<void> {
       return
     }
     const texte = (r.stdout || '').trim()
-    if (texte) void $.prompt.submit({ text: texte })
+    if (texte) {
+      // The questions of this message are sent: kept with the time they were put in it, until a
+      // turn starts with its text (`marquerLesLues`).
+      soumis.push({ texte, envoyeA: Date.now() })
+      if (soumis.length > MESSAGES_RETENUS) soumis.shift()
+      void $.prompt.submit({ text: texte })
+    }
   } catch {
     // a reading that fails is taken again at the next period
   } finally {
@@ -553,6 +587,7 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     const r = await next(e)
     tours.add(e.turnId)
+    await marquerLesLues($, e.text, Date.now())
     return r
   })
   on('turn.complete', (_$, e, next) => {

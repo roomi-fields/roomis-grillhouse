@@ -90,13 +90,24 @@ const sansIssue = (ticket: string) =>
 
 // A reading of the circuits <circuits> of <racine> at <minutes> minutes after T0, <rappel> minutes
 // of re-presentation (5 by default).
-const lire = (racine: string, circuits: Circuit[], minutes: number, rappel = 5, extra = {}) =>
-  relever(racine, circuits, {
+// The session reads at once what the reading sends (the reminder is counted from the reading: the
+// cases of the reminder below read their questions as they come; the file `rappel-depuis-la-lecture`
+// holds the cases where the reading comes later or never).
+const lire = (racine: string, circuits: Circuit[], minutes: number, rappel = 5, extra = {}) => {
+  const maintenant = T0 + minutes * MIN;
+  const lot = relever(racine, circuits, {
     fermes: aucun,
-    maintenant: T0 + minutes * MIN,
+    maintenant,
     rappelMs: rappel * MIN,
     ...extra,
   });
+  (
+    superviseur as unknown as {
+      marquerLues: (racine: string, o: { lueA: number; envoyeesAvant: number }) => void;
+    }
+  ).marquerLues(racine, { lueA: maintenant, envoyeesAvant: maintenant });
+  return lot;
+};
 const tickets = (lot: Donnee[]) => lot.map(q => q.ticket);
 
 describe('the questions that wait for the supervisor, one source', () => {
@@ -184,7 +195,7 @@ describe('a new question is given once, in one reading', () => {
     expect(lot[0]).toMatchObject({ ticket: 'demo-1', question: 'Q1 bis ?' });
     expect(lot[0]).not.toHaveProperty('representee', true);
     expect(lireFichier(racine).remontees).toEqual([
-      { cle: cle('demo-1', 2), depuis: T0 + 2 * MIN, presentee: T0 + 2 * MIN },
+      { cle: cle('demo-1', 2), depuis: T0 + 2 * MIN, presentee: T0 + 2 * MIN, lue: T0 + 2 * MIN },
     ]);
     // Another run of its workflow, its first question: another stop.
     const autre = lire(racine, [arrete('demo-1', 'Q1 ?', { run: 'run-2', numero: 1 })], 3);
@@ -276,11 +287,11 @@ describe('the file of the stops gone up holds the state « presented at such a t
     const circuits = [arrete('demo-1', 'Q1 ?')];
     lire(racine, circuits, 0);
     expect(lireFichier(racine).remontees).toEqual([
-      { cle: cle('demo-1'), depuis: T0, presentee: T0 },
+      { cle: cle('demo-1'), depuis: T0, presentee: T0, lue: T0 },
     ]);
     lire(racine, circuits, 5);
     expect(lireFichier(racine).remontees).toEqual([
-      { cle: cle('demo-1'), depuis: T0, presentee: T0 + 5 * MIN },
+      { cle: cle('demo-1'), depuis: T0, presentee: T0 + 5 * MIN, lue: T0 + 5 * MIN },
     ]);
   });
 
@@ -296,7 +307,7 @@ describe('the file of the stops gone up holds the state « presented at such a t
     const racine = depot();
     writeFileSync(
       fichier(racine),
-      `${JSON.stringify({ remontees: [{ cle: cle('demo-1'), depuis: T0, presentee: T0 }] })}\n`
+      `${JSON.stringify({ remontees: [{ cle: cle('demo-1'), depuis: T0, presentee: T0, lue: T0 }] })}\n`
     );
     const circuits = [arrete('demo-1', 'Q1 ?')];
     expect(lire(racine, circuits, 4)).toEqual([]);
@@ -310,7 +321,7 @@ describe('the file of the stops gone up holds the state « presented at such a t
     expect(lire(racine, circuits, 0)).toEqual([]);
     expect(tickets(lire(racine, circuits, 5))).toEqual(['demo-1']);
     expect(lireFichier(racine).remontees).toEqual([
-      { cle: cle('demo-1'), depuis: T0, presentee: T0 + 5 * MIN },
+      { cle: cle('demo-1'), depuis: T0, presentee: T0 + 5 * MIN, lue: T0 + 5 * MIN },
     ]);
   });
 
@@ -466,6 +477,7 @@ describe('the one message of a reading', () => {
         'Question de SH-1 ?',
         '→ env -C /projets/synthhub npx grillhouse circuit SH-1 <réponse>',
         '[SH] Toujours sans réponse · SH-2 · 3.1 Contrôles',
+        '→ env -C /projets/synthhub npx grillhouse circuit SH-2 <réponse> ou --chez-le-responsable',
         '[SH] Intégré · SH-3',
       ].join('\n')
     );
@@ -482,10 +494,10 @@ describe('the one message of a reading', () => {
     expect(texte.split('\n').at(-1)).toBe('Intégré · demo-3');
   });
 
-  it('says on one line that a question presented again still waits for an answer', () => {
+  it('says that a question presented again still waits for an answer, and names the answer « chez le responsable » beside the command of the circuit', () => {
     const q1 = q('demo-1');
     expect(texteDesQuestions([{ ...q1, representee: true }])).toBe(
-      'Toujours sans réponse · demo-1 · 3.1 Contrôles'
+      'Toujours sans réponse · demo-1 · 3.1 Contrôles\n→ npx grillhouse circuit demo-1 <réponse> ou --chez-le-responsable'
     );
     expect(texteDesQuestions([q1])).not.toMatch(/sans réponse/i);
   });

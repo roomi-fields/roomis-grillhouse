@@ -31,7 +31,7 @@ describe('grillhouse.circuits', () => {
 });
 
 // The key `grillhouse.rappel`: the minutes between two presentations of a question of a circuit
-// that nobody answered, a number above 0, 5 by default; any other value is a fault, named with its
+// that nobody answered, a number above 0, 10 by default; any other value is a fault, named with its
 // value, as the other keys `grillhouse.*` are.
 describe('grillhouse.rappel', () => {
   const lire = (pkg: unknown) =>
@@ -41,11 +41,11 @@ describe('grillhouse.rappel', () => {
       }
     ).reglageDuRappel(pkg);
 
-  it('absent or null: 5 minutes', () => {
-    expect(lire({})).toEqual({ minutes: 5, faute: null });
-    expect(lire({ grillhouse: {} })).toEqual({ minutes: 5, faute: null });
-    expect(lire({ grillhouse: { rappel: null } })).toEqual({ minutes: 5, faute: null });
-    expect(lire(null)).toEqual({ minutes: 5, faute: null });
+  it('absent or null: 10 minutes', () => {
+    expect(lire({})).toEqual({ minutes: 10, faute: null });
+    expect(lire({ grillhouse: {} })).toEqual({ minutes: 10, faute: null });
+    expect(lire({ grillhouse: { rappel: null } })).toEqual({ minutes: 10, faute: null });
+    expect(lire(null)).toEqual({ minutes: 10, faute: null });
   });
 
   it('a number above 0: the interval, fractions included', () => {

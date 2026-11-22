@@ -221,12 +221,15 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   qu'ils sont alors, et il met dans la file de mes messages un seul message par relevé (une
   question neuve d'un circuit lancé seul, dans une file ou par une autre séance, en trois lignes : « Question · ticket · étape · arrêt », la question, puis « → npx
   grillhouse circuit <ticket> <réponse> », où je mets ma réponse, `--reprendre`, `--depuis`,
-  `--mecanique`, `--etendre`, `--reporter` ou `--arreter` ; un circuit intégré, une fois, sur
+  `--mecanique`, `--etendre`, `--reporter`, `--chez-le-responsable` ou `--arreter` ; un circuit intégré, une fois, sur
   une ligne « Intégré · ticket » ; la ligne d'un autre projet de mon groupe porte son sigle
   (« [SH] … ») et sa commande son dossier (`env -C`)). Une question qu'aucune réponse n'a levée (son circuit est
-  toujours arrêté sur le même arrêt) revient à intervalle réglable (`grillhouse.rappel` du
-  `package.json`, 5 min par défaut), sur une ligne « Toujours sans réponse · ticket · étape », jusqu'à sa réponse : je
-  la réponds, ou je la porte au responsable. Je ne me mets pas en attente du responsable tant
+  toujours arrêté sur le même arrêt) revient une fois lue (un tour de ma séance a démarré avec son
+  message), à intervalle réglable depuis sa lecture (`grillhouse.rappel` du `package.json`, 10 min
+  par défaut ; jamais tant qu'elle est en file), sur deux lignes « Toujours sans réponse · ticket ·
+  étape » et la commande du circuit, jusqu'à sa réponse : je la réponds, ou je la porte au
+  responsable et je le dis au circuit (`npx grillhouse circuit <ticket> --chez-le-responsable`) :
+  elle se tait alors jusqu'à la réponse du circuit, et le tableau la montre « chez lui ». Je ne me mets pas en attente du responsable tant
   qu'une question d'un circuit attend ma réponse : le crochet de fin de tour me bloque une fois
   par question, la liste à l'appui. Le tableau montre au responsable une alerte horodatée pour
   chaque question en attente. Sans greffon (un autre moteur), rien n'est poussé : l'ouverture

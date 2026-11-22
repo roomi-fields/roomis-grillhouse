@@ -23,11 +23,12 @@ export function reglageDesCircuits(pkg) {
   return { max: c, faute: null };
 }
 
-// The minutes between two presentations of a question of a circuit that nobody answered, by default.
-export const RAPPEL_PAR_DEFAUT = 5;
+// The minutes between the reading of a question of a circuit that nobody answered and its
+// reminder, by default.
+export const RAPPEL_PAR_DEFAUT = 10;
 
-// The reading of the key `grillhouse.rappel` of a package.json: the minutes between two
-// presentations of a question not answered, a number above 0; absent or null, 5. Any other value
+// The reading of the key `grillhouse.rappel` of a package.json: the minutes between the reading of
+// a question and its reminder, a number above 0; absent or null, 10. Any other value
 // is a fault, named with its value.
 // Returns { minutes, faute }: `minutes` null on a fault; `faute` null when the key reads.
 export function reglageDuRappel(pkg) {
@@ -46,7 +47,7 @@ export function reglageDuRappel(pkg) {
 
 /**
  * The re-presentation interval, in minutes, of the project at <racine>, as its package.json sets
- * it; 5 when the package.json does not read, and 5 too on a fault (the greffon names it).
+ * it; 10 when the package.json does not read, and 10 too on a fault (the greffon names it).
  * @param {string} racine
  * @returns {number}
  */

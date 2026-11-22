@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { releverPourLeGreffon, seance } from '../../scripts/superviseur.mjs';
+import { marquerLues, releverPourLeGreffon, seance } from '../../scripts/superviseur.mjs';
 import { circuitLu } from './tableau-essai.js';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'releve-pour-le-greffon-'));
@@ -69,6 +69,9 @@ const circuits = () =>
   ]);
 const lire = (racine: string, env: Record<string, string | undefined> = {}) =>
   releverPourLeGreffon(racine, { env, circuitsDe: circuits });
+// The session reads what the greffon pushed, now: its questions are read, the reminder runs.
+const lues = (racine: string) =>
+  marquerLues(racine, { lueA: Date.now(), envoyeesAvant: Date.now() });
 
 describe('the reading for the greffon gives the message only to the session that holds the lock', () => {
   it('gives the message of the question to the session that holds the lock of the supervisor', async () => {
@@ -122,25 +125,38 @@ describe('the reading for the greffon applies the key grillhouse.rappel at each 
     }
   });
 
-  it('gives a question again every 5 minutes by default, not before', async () => {
+  it('gives a question read again 10 minutes after its reading by default, not before', async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: T0 });
     const { racine } = depot();
     expect(await lire(racine)).toContain('demo-1');
-    vi.setSystemTime(T0 + 4 * MIN);
-    expect(await lire(racine)).toBe('');
-    vi.setSystemTime(T0 + 5 * MIN);
-    expect(await lire(racine)).toContain('demo-1');
-  });
-
-  it('gives a question again at the interval the key sets, read at each reading', async () => {
-    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
-    const { racine } = depot({ grillhouse: { rappel: 10 } });
-    expect(await lire(racine)).toContain('demo-1');
+    lues(racine);
     vi.setSystemTime(T0 + 9 * MIN);
     expect(await lire(racine)).toBe('');
     vi.setSystemTime(T0 + 10 * MIN);
     expect(await lire(racine)).toContain('demo-1');
-    vi.setSystemTime(T0 + 19 * MIN);
+  });
+
+  it('gives a question never read no more, whatever the time since its sending', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    const { racine } = depot();
+    expect(await lire(racine)).toContain('demo-1');
+    for (const m of [10, 60, 600]) {
+      vi.setSystemTime(T0 + m * MIN);
+      expect(await lire(racine)).toBe('');
+    }
+  });
+
+  it('gives a question again at the interval the key sets, read at each reading', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    const { racine } = depot({ grillhouse: { rappel: 3 } });
+    expect(await lire(racine)).toContain('demo-1');
+    lues(racine);
+    vi.setSystemTime(T0 + 2 * MIN);
+    expect(await lire(racine)).toBe('');
+    vi.setSystemTime(T0 + 3 * MIN);
+    expect(await lire(racine)).toContain('demo-1');
+    lues(racine);
+    vi.setSystemTime(T0 + 5 * MIN);
     expect(await lire(racine)).toBe('');
   });
 });
@@ -200,13 +216,15 @@ describe('the reading for the greffon covers the projects of the group that no o
 
   it('gives a neighbour its questions again at its own interval', async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: T0 });
-    const { lireLeGroupe } = groupe(null, { grillhouse: { rappel: 10 } });
+    const { soi, voisin, lireLeGroupe } = groupe(null, { grillhouse: { rappel: 20 } });
     expect(await lireLeGroupe()).toContain('voisin-1');
-    vi.setSystemTime(T0 + 5 * MIN);
+    lues(soi);
+    lues(voisin);
+    vi.setSystemTime(T0 + 10 * MIN);
     const texte = await lireLeGroupe();
     expect(texte).toContain('demo-1');
     expect(texte).not.toContain('voisin-1');
-    vi.setSystemTime(T0 + 10 * MIN);
+    vi.setSystemTime(T0 + 20 * MIN);
     expect(await lireLeGroupe()).toContain('voisin-1');
   });
 

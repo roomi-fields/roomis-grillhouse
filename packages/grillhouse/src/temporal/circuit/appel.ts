@@ -7,7 +7,7 @@ export const USAGE =
   '--depuis <testwriter|preuve|developpeur|controles|passe-finale> --contexte <texte> | ' +
   '--mecanique [<commande>] --contexte <raison> | ' +
   '--etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>] | ' +
-  '--reporter <heure> [--contexte <motif>] | ' +
+  '--reporter <heure> [--contexte <motif>] | --chez-le-responsable | ' +
   '--recommencer]\n';
 
 /** A malformed call, by its reason. */
@@ -22,6 +22,8 @@ export interface Appel {
   arreter: boolean;
   /** The hour its question waits for (`bd update --defer`), the circuit left in its wait. */
   reporter: string | null;
+  /** The question carried to the owner: silent until the circuit answers (`--chez-le-responsable`). */
+  chezLeResponsable: boolean;
   recommencer: boolean;
   /**
    * The answer to a stop of the testwriter that finds no behaviour to test, or of the proof of
@@ -47,6 +49,7 @@ export function lireLAppel(argv: string[]): Appel {
     etendre: null,
     arreter: false,
     reporter: null,
+    chezLeResponsable: false,
     recommencer: false,
     mecanique: null,
     contexte: null,
@@ -64,6 +67,8 @@ export function lireLAppel(argv: string[]): Appel {
       }
       o.reporter = suivant;
       i++;
+    } else if (a === '--chez-le-responsable') {
+      o.chezLeResponsable = true;
     } else if (a === '--recommencer') {
       o.recommencer = true;
     } else if (a === '--mecanique') {
@@ -112,6 +117,20 @@ export function lireLAppel(argv: string[]): Appel {
   ) {
     throw new Usage(
       '--mecanique va seule, avec son --contexte : le ticket bascule en circuit court sur le même plan.'
+    );
+  }
+  if (
+    o.chezLeResponsable &&
+    (o.reprendre ||
+      o.depuis ||
+      o.etendre ||
+      o.arreter ||
+      o.recommencer ||
+      o.reporter ||
+      o.mecanique)
+  ) {
+    throw new Usage(
+      '--chez-le-responsable va seule : la question se tait jusqu’à la réponse du circuit.'
     );
   }
   if (o.mecanique && (o.contexte === null || o.contexte.trim() === '')) {

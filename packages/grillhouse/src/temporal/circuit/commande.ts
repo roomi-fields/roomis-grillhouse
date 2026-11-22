@@ -9,7 +9,12 @@
 //   grillhouse circuit <ticket> --mecanique [<commande>] --contexte <raison>
 //   grillhouse circuit <ticket> --arreter [--contexte <motif>]
 //   grillhouse circuit <ticket> --recommencer
+//   grillhouse circuit <ticket> --chez-le-responsable
 //
+// - `--chez-le-responsable` marks the question of the circuit as carried to the owner, in the file
+//   of the stops gone up: the circuit stays waiting, its question is silent until the circuit
+//   answers, and the board says it. It goes alone; refused (exit 2) for a circuit that waits for
+//   nothing or whose question the greffon has not sent.
 // - The repository is the main tree of the working directory (git's common directory), as the
 //   worker of the project runs there; the server, TEMPORAL_ADDRESS or the account's.
 // - Alone, the ticket goes in the queue of the tickets of the project (../tickets/), which starts
@@ -39,6 +44,7 @@
 //   server that does not answer, or Beads that fails, is said on the error stream, exit 1.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
 import { retirerLaCopieDuTicket } from '../../../scripts/recommencer.mjs';
 import { heureDuReport } from '../../../scripts/reponses-du-circuit.mjs';
@@ -64,6 +70,9 @@ import {
   seanceDuSuperviseur,
 } from './client.js';
 
+// The command of the supervisor, which marks the question carried to the owner.
+const SUPERVISEUR = fileURLToPath(new URL('../../../scripts/superviseur.mjs', import.meta.url));
+
 // The main tree of the repository of the working directory, from git's common directory.
 function arbrePrincipal(): string {
   const r = spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
@@ -82,6 +91,21 @@ async function repondre(
   appel: Appel
 ): Promise<string> {
   const { ticket, contexte } = appel;
+  if (appel.chezLeResponsable) {
+    // The question carried to the owner: marked in the file of the stops gone up, the circuit left
+    // waiting; it stays quiet until the circuit answers. The command of the supervisor
+    // (`superviseur --chez-le-responsable`) holds the file and its refusals, as `--lue` does.
+    const r = spawnSync(process.execPath, [SUPERVISEUR, '--chez-le-responsable', racine, ticket], {
+      encoding: 'utf8',
+    });
+    if (r.status === 2) {
+      throw new ReponseRefusee(r.stderr.trim());
+    }
+    if (r.status !== 0) {
+      throw new Error(`--chez-le-responsable : ${r.stderr.trim() || `code ${String(r.status)}`}`);
+    }
+    return `▶ Circuit de ${ticket} : sa question est chez le responsable ; elle se tait jusqu'à la réponse du circuit.`;
+  }
   if (appel.reporter) {
     // The ticket deferred, its circuit left waiting on its question: the wait, the stop and the
     // opening keep it quiet until the hour (scripts/superviseur.mjs `horsAttente`).
@@ -146,6 +170,7 @@ async function principal(argv: string[]): Promise<number> {
       appel.etendre ||
       appel.mecanique ||
       appel.arreter ||
+      appel.chezLeResponsable ||
       appel.reporter;
     let ligne: string;
     if (appel.recommencer) {

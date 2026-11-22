@@ -780,12 +780,14 @@ export const remonteesDe = racine =>
 
 /**
  * The stops gone up of the repository at <racine>, each with its key, `depuis` (the time of its
- * first going up) and `presentee` (the time of its last presentation), in ms. An older file, a
- * list of keys, reads without error: its stops take the time <maintenant> of the reading. A file
- * that does not read holds none.
+ * first going up) and `presentee` (the time of its last presentation), in ms; `lue` (the time a
+ * turn of the session read the message that held it) and `chez` (the time the supervisor carried
+ * it to the owner) when it has them. An older file, a list of keys, reads without error: its stops
+ * take the time <maintenant> of the reading and are sent, never read. A file that does not read
+ * holds none.
  * @param {string} racine
  * @param {number} maintenant
- * @returns {{ cle: string, depuis: number, presentee: number }[]}
+ * @returns {{ cle: string, depuis: number, presentee: number, lue?: number, chez?: number }[]}
  */
 export function lireLesRemontees(racine, maintenant) {
   try {
@@ -800,12 +802,22 @@ export function lireLesRemontees(racine, maintenant) {
             cle: String(r.cle),
             depuis: Number.isFinite(r.depuis) ? r.depuis : maintenant,
             presentee: Number.isFinite(r.presentee) ? r.presentee : maintenant,
+            ...(Number.isFinite(r.lue) ? { lue: r.lue } : {}),
+            ...(Number.isFinite(r.chez) ? { chez: r.chez } : {}),
           }
     );
   } catch {
     return [];
   }
 }
+
+/**
+ * Whether the question of the entry <r> of the file of the stops gone up is read: a turn of the
+ * session read it after its last sending (a reminder sent again is unread until its next reading).
+ * @param {{ presentee?: number, lue?: number }} r
+ * @returns {boolean}
+ */
+export const estLue = r => Number.isFinite(r.lue) && !(r.lue < r.presentee);
 
 // A ticket's number, subject and component: its title « number — subject — component » when
 // the number ends its id, else its id without the prefix and its whole title.
@@ -1401,7 +1413,11 @@ export function assembler({
   // A circuit stopped on a question to the supervisor: the tone of that wait, whatever its length,
   // and how long it has waited (from the `depuis` of its stop in the file of the stops gone up);
   // it falls when the circuit leaves the stop.
-  const depuisDe = new Map(remontees.map(r => [r.cle, r.depuis]));
+  // Once read, or carried to the owner, its state stands on its line « ⤷ Question »: the alert
+  // speaks of the question not read yet.
+  const depuisDe = new Map(
+    remontees.filter(r => !estLue(r) && !Number.isFinite(r.chez)).map(r => [r.cle, r.depuis])
+  );
   const enAttenteDuSuperviseur = [...parCircuit.values()]
     .filter(attendLeSuperviseur)
     .sort((a, b) => ordre({ id: a.ticket }, { id: b.ticket }));
@@ -1549,6 +1565,7 @@ export function assembler({
     alertes,
     limite: limiteTenue,
     circuits: lesCircuits,
+    remontees,
     horsCircuit,
     chantiers,
     autres,
@@ -1718,7 +1735,25 @@ const signeDuTon = (ton, court = false) =>
 const etapeDuCircuitLu = c => etapeDuCircuit({ ...c, raison: c.arret });
 // A circuit that waits for the supervisor (`attendLeSuperviseur`, the one rule): who must answer
 // its question, the supervisor when its stop names no one.
-const enQuestion = c => (attendLeSuperviseur(c) ? (c.qui ?? SUPERVISEUR) : null);
+// A question the supervisor carried to the owner (`chez` in the file of the stops gone up) is the
+// owner's.
+const enQuestion = (c, chez = new Set()) =>
+  attendLeSuperviseur(c) ? (chez.has(cleDe(c)) ? 'responsable' : (c.qui ?? SUPERVISEUR)) : null;
+const chezLui = t => new Set((t.remontees ?? []).filter(r => Number.isFinite(r.chez)).map(r => r.cle));
+// The state at the right of the line « ⤷ Question » of the circuit <c>: « chez lui · N min » (N from
+// the mark), « lue il y a N min » (from the reading), « envoyée » (in the queue of the session);
+// empty when the greffon has not sent it.
+const etatDeLaQuestion = (c, t) => {
+  const r = (t.remontees ?? []).find(x => x.cle === cleDe(c));
+  const min = depuis => `${Math.max(0, Math.floor(((t.maintenant ?? Date.now()) - depuis) / MINUTE))} min`;
+  return !r
+    ? ''
+    : Number.isFinite(r.chez)
+      ? `chez lui · ${min(r.chez)}`
+      : estLue(r)
+        ? `lue il y a ${min(r.lue)}`
+        : 'envoyée';
+};
 
 /**
  * The state of each ticket's line of AGENTS on the board <t>, the one source of its signs, which
@@ -1784,7 +1819,7 @@ export function etatsDAgents(t) {
       return ['reporteLimite', `limite d'usage · reprise ${heure}`];
     }
     if (!c.vivant) {
-      const qui = enQuestion(c);
+      const qui = enQuestion(c, chezLui(t));
       return c.sansIssue
         ? ['sansIssue', 'fini sans son issue']
         : qui === SUPERVISEUR
@@ -1815,7 +1850,11 @@ export function etatsDAgents(t) {
       etat,
       raison,
       ton: TONS[etat],
-      signe: signeDuTon(TONS[etat], c.court),
+      // A question carried to the owner is his to answer: ⛔, which « toi : … question » counts.
+      signe:
+        etat === 'attendLeResponsable' && chezLui(t).has(cleDe(c))
+          ? '⛔'
+          : signeDuTon(TONS[etat], c.court),
       temoin,
     });
   }
@@ -2179,13 +2218,14 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       ...(temoin ? { avancement: true } : {}),
     });
   };
+  const chez = chezLui(t);
   const contenu = b => {
     const tous = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
-    const circuits = tous.filter(c => !enQuestion(c));
+    const circuits = tous.filter(c => !enQuestion(c, chez));
     // The circuits on a question, by who must answer it, the supervisor first.
-    const enQuestions = [SUPERVISEUR, ...new Set(tous.map(enQuestion).filter(Boolean))]
+    const enQuestions = [SUPERVISEUR, ...new Set(tous.map(c => enQuestion(c, chez)).filter(Boolean))]
       .filter((qui, i, l) => l.indexOf(qui) === i)
-      .map(qui => [qui, tous.filter(c => enQuestion(c) === qui)])
+      .map(qui => [qui, tous.filter(c => enQuestion(c, chez) === qui)])
       .filter(([, l]) => l.length);
     const enCours = b.enCours.filter(x => !enCircuit.has(x.id));
     return {
@@ -2212,7 +2252,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       );
     }
     for (const [qui, l] of enQuestions) {
-      L(cadre(`${retrait}⤷ Question · ${qui}`, '', largeur), TONS.titre);
+      L(cadre(`${retrait}⤷ Question · ${qui}`, etatDeLaQuestion(l[0], t) || ' ', largeur), TONS.titre);
       for (const c of l) {
         ligneDuCircuit(c);
       }
