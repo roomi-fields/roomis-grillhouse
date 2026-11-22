@@ -1229,6 +1229,7 @@ la machine, quel que soit son dépôt : la passe lourde d'un circuit (lancée pa
 lui-même), `npm run verifier`, un `npm test` ciblé, une tranche de la CI sur une machine à nous, la
 nuit. Une passe ne prend plus de place de circuit ni le verrou exclusif de la machine, supprimé :
 elle prend sa part, que rien d'autre ne double.
+
 - **Le budget** (`scripts/plafond-de-la-machine.mjs`, des fonctions pures, matériel et réglages en
   entrée) : les cœurs de la machine moins la réserve de l'utilisateur (`GRILLHOUSE_RESERVE_COEURS`,
   par défaut min(4, max(0, cœurs − 4)) : 0 sur 4 cœurs ou moins, 2 sur 6, 4 à partir de 8), la
@@ -1345,7 +1346,7 @@ elle prend sa part, que rien d'autre ne double.
   seconde.
 - **Une passe qui consomme nettement plus que sa part** (au-delà de 1,5 fois ses cœurs, ou de sa
   mémoire) le dit : à sa ligne du tableau et à la ligne de `npx grillhouse consommation`.
-Ainsi une passe ne prend que ce que sa part lui donne, et une machine libre ne ralentit aucune.
+  Ainsi une passe ne prend que ce que sa part lui donne, et une machine libre ne ralentit aucune.
 
 **La file des tickets** : chaque projet garde la sienne, ses tickets `circuit`, hors de ceux
 étiquetés `direct`, menés hors du circuit, qu'elle ne prend jamais ; ceux dont la
@@ -1439,22 +1440,31 @@ aucune ; puis chaque ticket pris (`in_progress`) sans circuit sur le serveur qui
 une de ses mères ou un ticket sous lui (un circuit qui tourne ou attend une réponse ; un circuit que
 le superviseur a arrêté n'en tient aucun), et chaque ticket étiqueté `direct`, ouvert ou en cours,
 travaillé en direct : une ligne, une seule, hors des étapes,
-« ✎ <numéro>  <sujet> · en direct · <assignee> », de sa prise à sa fermeture (aucune tant que les
+« ✎ <numéro> <sujet> · en direct · <assignee> », de sa prise à sa fermeture (aucune tant que les
 circuits ne se lisent pas) ; tant que l'agent d'un direct travaille (`npx grillhouse direct`, le rôle
 `direct`, `scripts/direct.mjs`), le ticket n'a pas cette ligne : il est sous le bloc « Direct », en
-tête de la liste des agents, « ▶ <numéro>  <sujet> · direct · <durée> » ; puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
-dépendance ouverte, « attend <ticket> ». La part ou l'attente d'un circuit que montrent les
-agents tient sur la ligne de ce circuit, une ligne par ticket, à la place de l'avancement de sa
-passe : « · <sorte> faits/prévus · <durée> », « · part <sorte> · <durée> », la sorte en minuscules.
-Les autres vont en tête des agents (`lignesDesParts` de `scripts/tableau.mjs`) : d'abord le budget
-pris, « Parts · 2 passes · 6 sur 8 cœurs · 11 sur 16 Go » (les passes en cours, les cœurs et la
-mémoire réservés sur le total) ; puis « 🔒 <sorte> · <projet> · <qui> · 4 cœurs · 8 Go » pour
-chaque passe qui tient une part, suivi de « ⚠ » et de ce qu'elle consomme au-delà de sa part quand
-elle le fait ; puis « ⏳ <sorte> · <projet> · <qui> · attend <raison> » pour chaque passe qui
-attend, dans l'ordre de son rang, ce qu'elle attend (cœurs, mémoire, charge) avec ses chiffres.
-<qui> est son ticket sans son préfixe. Un circuit qui attend montre aussi ⏳ en tête de sa ligne. Une
-ligne part avec son processus, et une passe morte ne s'affiche pas. La ligne d'état compte les
-alertes par leur signe, puis le nombre de passes qui tiennent une part et de celles qui attendent.
+tête de la liste des agents, « ▶ <numéro> <sujet> · direct · <durée> » ; puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
+dépendance ouverte, « attend <ticket> ». La part ou l'attente de la passe d'un ticket que montrent
+les agents (un circuit, un ticket mené en direct, un ticket travaillé hors circuit, un agent) tient
+sur la ligne de ce ticket, une ligne par ticket : « 🔒 » (elle tient sa part) ou « ⏳ » (elle attend
+la sienne) juste après la tête et avant le sujet, qui s'ajoute au signe de la ligne sans le
+remplacer, puis « · <sorte> · 2 cœurs · <durée> », suivi de « ⚠ » et de ce qu'elle consomme au-delà
+de sa part quand elle le fait, « · <sorte> figée <durée> » d'une passe figée, ou « · attend 2 cœurs ·
+26 réservés sur 28 · <durée> » d'une passe qui attend, la sorte en minuscules ; un circuit y met
+aussi « faits/prévus », à la place de l'avancement de sa passe. Sous « Parts », en tête des agents
+(`lignesDesParts` de `scripts/tableau.mjs`), reste d'abord le budget pris, « Parts · 2 passes · 6 sur
+8 cœurs · 11 sur 16 Go » (les passes en cours, les cœurs et la mémoire réservés sur le total), qui
+compte toutes les passes, celles d'un ticket que le panneau ne montre pas comprises : une telle passe
+n'a ni ligne ni icône, et n'est que dans ce compte ; puis, pour une passe sans ticket (une
+vérification lancée à la main, la nuit, une mesure), « 🔒 <sorte> · <projet> · 4 cœurs · 8 Go » quand
+elle tient une part, suivi de « ⚠ » et de ce qu'elle consomme au-delà de sa part quand elle le fait,
+et « ⏳ <sorte> · <projet> · attend <raison> » quand elle attend, dans l'ordre de son rang, ce
+qu'elle attend (cœurs, mémoire, charge) avec ses chiffres. Comme l'icône d'état d'un job dans la
+liste d'un pipeline de CI, l'état se lit sur la ligne de ce qu'il qualifie, non dans une liste à
+recouper. Une ligne part avec son processus, et une passe morte ne s'affiche pas. La ligne d'état
+compte les alertes par leur signe, puis le nombre de passes qui tiennent une part et de celles qui
+attendent : « Parts · N passes » se recoupe avec elle, et avec les icônes du déroulé plus les lignes
+sans ticket sous « Parts ».
 Comme `squeue` de Slurm nomme qui tient quoi et ce qu'un travail attend. Ainsi une attente se voit,
 avec ce qui la bloque, depuis n'importe quel projet.
 
@@ -2182,17 +2192,17 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   première séance notée. Un projet dont la racine n'existe plus, ou sans nuit branchée
   (`node_modules/.bin/grillhouse`, le script `verifier`, un commit), est écarté avec sa raison ;
   un projet dont le sommet est le commit de sa dernière nuit verte (`<git common
-  dir>/nuit/dernier-vert`, que la nuit verte seule écrit, à part du dernier vert que les passes du
+dir>/nuit/dernier-vert`, que la nuit verte seule écrit, à part du dernier vert que les passes du
   jour écrivent aussi) est sauté, sa raison, le sommet et la référence écrits au journal de sa
   nuit et au registre (une ligne de rôle `nuit`, que le tableau ne compte nulle part) ; un projet
   sans marqueur, ou dont le marqueur ne se lit plus comme un commit, joue. Un projet intégré vert
   dans la journée rejoue donc ses tests de nuit et ses bancs. Les nuits passent l'une après
   l'autre, chacune à la fin de la précédente, quel que soit son verdict : une nuit rouge, ou une
   activité en échec, n'arrête pas les suivantes. La passe d'une nuit est `node_modules/.bin/
-  grillhouse nuit` dans l'arbre principal du projet (`scripts/nuit.sh`, inchangé, de la version
+grillhouse nuit` dans l'arbre principal du projet (`scripts/nuit.sh`, inchangé, de la version
   que le projet installe), dans un groupe de processus à elle ; une tentative rejouée après la
   mort de son travailleur termine d'abord le groupe que la morte a laissé. `npx grillhouse nuit
-  <projet>` demande la nuit d'un projet sans lire son marqueur, par le même déroulé ; un projet
+<projet>` demande la nuit d'un projet sans lire son marqueur, par le même déroulé ; un projet
   déjà en file ou en cours n'est pas joué deux fois. `npx grillhouse nuit --planifier [--heure <0-23>]`
   crée la planification, ou met à jour celle qui existe ; sans `--heure`, elle garde l'heure
   qu'elle a déjà. L'ouverture de séance ne propose aucune ligne de
@@ -2217,7 +2227,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   n'a pas de délai. L'état vit dans la
   réservation de l'état du déroulé, que Temporal garde : il passe un Continue-As-New et un rejeu,
   un redémarrage du poste le retrouve fermé, et aucun circuit ne repart avant `npx grillhouse
-  machine rouvrir`. La commande rend la main aussitôt (comme `cordon`) en disant, par projet et
+machine rouvrir`. La commande rend la main aussitôt (comme `cordon`) en disant, par projet et
   par ticket, ce qui tourne encore (séances : places du déroulé ; passes : parts) et « la machine est
   vide » quand rien ne joue, `--attendre` ne la rendant qu'à la machine vide (comme `drain`) ;
   relancée, elle relit cet état, et dit depuis quand dure la fermeture. Fermer une machine fermée,
@@ -2233,7 +2243,7 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
   réservation » (le serveur muet ne bloque aucune passe). `refusDePart` la reçoit : la fermeture du
   superviseur refuse toute passe (« machine fermée par le superviseur »). Sous la fermeture la passe attend sans
   borne, sa part « attend » écrite au dossier des parts avec cette raison (le tableau et `machine
-  fermer --attendre` la voient attendre), et la prend à la réouverture. Une part déjà « tient » finit ; une part « attend » quand la machine
+fermer --attendre` la voient attendre), et la prend à la réouverture. Une part déjà « tient » finit ; une part « attend » quand la machine
   ferme attend.
 
 Ainsi les déroulés du cadre survivent à une séance fermée et à un redémarrage, et chaque transition

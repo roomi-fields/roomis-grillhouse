@@ -79,16 +79,20 @@
 //   the tone of an alert.
 // - The parts of the machine (scripts/places-de-la-machine.mjs, read by `lireLaMesure`), as Slurm's
 //   `squeue` names who holds what and what a job waits for. A part held or waited for by a circuit
-//   AGENTS shows stands on that circuit's line, one line per ticket, in place of the progress of
-//   its pass: « · <sorte> faits/prévus · <durée> » since it took its part, « · <sorte> figée
-//   <durée> · faits/prévus » past FIGEE without a sign, « · part <sorte> · <durée> » for a wait,
-//   the kind in lower case. The others stand at the head of AGENTS (`lignesDesParts`): the budget
-//   taken, « Parts · 2 passes · 6 sur 8 cœurs · 11 sur 16 Go »; each pass that holds a part,
-//   « 🔒 <sorte> · <projet> · <qui> · 4 cœurs · 8 Go », with « ⚠ » and what it consumes beyond its
-//   part when it does; each pass that waits, in the order of its rank, « ⏳ <sorte> · <projet> ·
-//   <qui> · attend <raison> » (cores, memory, load, with the figures). <qui> is its ticket without
-//   its prefix (`courtDuTicket`). Such a line is marked `avancement`, which the pane measures
-//   again more often.
+//   AGENTS shows on a line (a circuit, a ticket led in direct, a ticket worked out of a circuit,
+//   an agent) stands on that ticket's line, « 🔒 » (it holds a part) or « ⏳ » (it waits for one)
+//   after the head, before the subject, never in place of its sign: « · <sorte> · 2 cœurs ·
+//   <durée> » since it took its part, with « ⚠ » and what it consumes beyond its part when it
+//   does, « · <sorte> figée <durée> » past FIGEE without a sign, « · attend 2 cœurs · 26 réservés
+//   sur 28 · <durée> » for a wait, the kind in lower case; a circuit adds faits/prévus, and says
+//   it in place of the progress of its pass. The block at the head of AGENTS (`lignesDesParts`)
+//   keeps the budget taken, « Parts · 2 passes · 6 sur 8 cœurs · 11 sur 16 Go », which counts
+//   every pass that holds a part, those of a ticket the board does not show included, which
+//   has no other trace; and the lines of the passes with no ticket (a check launched by hand, the
+//   night, a measure): « 🔒 <sorte> · <projet> · 4 cœurs · 8 Go », with « ⚠ », then each one that
+//   waits, in the order of its rank, « ⏳ <sorte> · <projet> · attend <raison> » (cores, memory,
+//   load, with the figures). Such a line is marked `avancement`, which the pane measures again
+//   more often.
 // - Signs: each sign keeps one sense (the owner's decisions of 2026-11-01 and 2026-11-12). A
 //   ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step works (cyan,
 //   the hollow ▷ in a short circuit, counted with it),
@@ -96,8 +100,9 @@
 //   on its right (« attend une place », « verrou », « disque », « démarre » in grey, the
 //   circuit waiting for the machine; « question au superviseur », « question au responsable »,
 //   « arrêté » in yellow, the circuit waiting for someone); ⛔ it stopped on a fault or its pass is
-//   frozen, to correct (red). The head of AGENTS, the machine's lines: 🔒 a pass that holds a part,
-//   ⏳ a pass that waits for one or for room, 🌙 the night under way. The alerts: 💤 a ticket
+//   frozen, to correct (red). On a ticket's line, after its head: 🔒 its pass holds a part, ⏳ it
+//   waits for one; at the head of AGENTS, the same two for a pass with no ticket, and 🌙 the night
+//   under way. The alerts: 💤 a ticket
 //   claimed with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A
 //   sign two columns wide stands as the others, a sign then a space; the width of a line counts
 //   its columns (`colonnes`), ⏳ and ⛔ two.
@@ -864,8 +869,8 @@ const goDe = octets => chiffre(Math.round((octets / 1024 ** 3) * 10) / 10);
  * part, « 🔒 <sorte> · <projet> · <qui> · 4 cœurs · 8 Go » (with « ⚠ » and what it consumes beyond
  * its part, when it does), then each pass that waits, in the order of its rank, « ⏳ <sorte> ·
  * <projet> · <qui> · attend <raison> », what it waits for (cores, memory, load) with its figures.
- * <masquer> leaves out the lines of the passes it names (those of a circuit's ticket, shown on its
- * line), <court> gives the ticket as the board names it.
+ * <masquer> leaves out the lines of the passes it names (those of a ticket, shown on its line or
+ * not shown at all: the count keeps them), <court> gives the ticket as the board names it.
  * @param {{ budget: { coeurs: number, memoire: number }, prises: DUnePart[], attentes: DUnePart[],
  *   masquer?: (p: DUnePart) => boolean, court?: (ticket: string) => string }} o
  * @returns {string[]}
@@ -1739,13 +1744,15 @@ const etapeDuCircuitLu = c => etapeDuCircuit({ ...c, raison: c.arret });
 // owner's.
 const enQuestion = (c, chez = new Set()) =>
   attendLeSuperviseur(c) ? (chez.has(cleDe(c)) ? 'responsable' : (c.qui ?? SUPERVISEUR)) : null;
-const chezLui = t => new Set((t.remontees ?? []).filter(r => Number.isFinite(r.chez)).map(r => r.cle));
+const chezLui = t =>
+  new Set((t.remontees ?? []).filter(r => Number.isFinite(r.chez)).map(r => r.cle));
 // The state at the right of the line « ⤷ Question » of the circuit <c>: « chez lui · N min » (N from
 // the mark), « lue il y a N min » (from the reading), « envoyée » (in the queue of the session);
 // empty when the greffon has not sent it.
 const etatDeLaQuestion = (c, t) => {
   const r = (t.remontees ?? []).find(x => x.cle === cleDe(c));
-  const min = depuis => `${Math.max(0, Math.floor(((t.maintenant ?? Date.now()) - depuis) / MINUTE))} min`;
+  const min = depuis =>
+    `${Math.max(0, Math.floor(((t.maintenant ?? Date.now()) - depuis) / MINUTE))} min`;
   return !r
     ? ''
     : Number.isFinite(r.chez)
@@ -1765,13 +1772,23 @@ const etatDeLaQuestion = (c, t) => {
  * its wait for the disk, a place, a part or its first
  * state; else it runs. `lignes`: one entry per
  * ticket's line of AGENTS, its id, its project on a board of several and its sign: each circuit,
- * each ticket led in direct (▶) and each agent shown out of a circuit (▶).
+ * each ticket led in direct (▶) and each agent shown out of a circuit (▶). `parts`: by ticket, the
+ * pass of each ticket AGENTS shows (circuit, direct, out of a circuit, agent), its icon (`icone`,
+ * 🔒 it holds a part, ⏳ it waits for one) and its text (`texte`), which the ticket's line bears.
  */
 export function etatsDAgents(t) {
   const maintenant = t.maintenant ?? Date.now();
   const p = t.places;
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
-  const duCircuit = x => Boolean(x.ticket && enCircuit.has(x.ticket));
+  // The tickets AGENTS shows on a line: each circuit, each ticket worked out of a circuit, each
+  // agent and each direct. The part of a pass of one of them stands on its line.
+  const montres = new Set([
+    ...enCircuit,
+    ...(t.horsCircuit ?? []).map(x => x.id),
+    ...t.agents.flatMap(b => b.enCours.map(x => x.id)),
+    ...(t.directs ?? []).map(x => x.id),
+  ]);
+  const duCircuit = x => Boolean(x.ticket && montres.has(x.ticket));
   const partDe = new Map();
   const tientUnePart = new Set();
   for (const tenu of t.machine?.prises ?? []) {
@@ -1786,6 +1803,7 @@ export function etatsDAgents(t) {
     const sorte = tenu.sorte.toLocaleLowerCase('fr');
     partDe.set(tenu.ticket, {
       fige,
+      icone: '🔒',
       texte: fige
         ? ` · ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
         : ` · ${sorte}${compte ? ` ${compte}` : ''}${tenu.coeurs ? ` · ${tenu.coeurs} cœurs` : ''} · ${ilYa(maintenant - (tenu.depuis ?? maintenant))}${tenu.depasse ? ` · ⚠ ${tenu.depasse}` : ''}`,
@@ -1797,7 +1815,8 @@ export function etatsDAgents(t) {
       const budget = t.machine?.budget?.coeurs;
       partDe.set(w.ticket, {
         fige: false,
-        texte: ` · attend ${w.coeurs} cœurs · ${reserves} réservés sur ${budget} · ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
+        icone: '⏳',
+        texte: ` · attend ${w.coeurs} cœurs · ${reserves} réservés sur ${budget} · ${ilYa(maintenant - w.depuis)}`,
       });
     }
   }
@@ -1843,8 +1862,7 @@ export function etatsDAgents(t) {
   for (const c of t.circuits ?? []) {
     const etape = etapeDuCircuitLu(c);
     const temoin =
-      partDe.get(c.id) ??
-      (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
+      partDe.get(c.id) ?? (c.vivant && etape?.qui.includes(AUTO) ? temoinDe(c, maintenant) : null);
     const [etat, raison] = etatDuCircuit(c, temoin);
     circuits.set(c.id, {
       etat,
@@ -1861,6 +1879,7 @@ export function etatsDAgents(t) {
   const ligne = (x, signe) => ({ id: x.id, projet: x.projet, signe });
   return {
     circuits,
+    parts: partDe,
     lignes: [
       ...(t.circuits ?? []).map(c => ligne(c, circuits.get(c.id).signe)),
       ...(t.horsCircuit ?? []).map(x => ligne(x, '▶')),
@@ -2088,10 +2107,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     });
   }
   const enCircuit = new Set((t.circuits ?? []).map(c => c.id));
-  const duCircuit = x => Boolean(x.ticket && enCircuit.has(x.ticket));
   // The parts of the machine (`lireLaMesure`, `lignesDesParts`): the budget taken, then who holds
-  // a part and who waits for what; the part of each circuit shown stands on its line
-  // (`etatsDAgents`), any other here. A reserve of the user that is faulty is said by its name.
+  // a part and who waits for what; the part of each ticket shown stands on its line
+  // (`etatsDAgents`), a ticket's pass the board does not show nowhere but in the count, the pass
+  // without a ticket here. A reserve of the user that is faulty is said by its name.
   const m = t.machine;
   if (m?.faute) {
     poser({
@@ -2104,12 +2123,16 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       budget: m.budget,
       prises: m.prises,
       attentes: m.attentes,
-      masquer: duCircuit,
+      masquer: p => Boolean(p.ticket),
       court: courtDuTicket,
     })) {
       poser({
         texte: cadre(l, '', largeur),
-        ton: l.startsWith('⏳') ? TONS.attendUnePart : l.startsWith('Parts') ? TONS.mesure : TONS.enCours,
+        ton: l.startsWith('⏳')
+          ? TONS.attendUnePart
+          : l.startsWith('Parts')
+            ? TONS.mesure
+            : TONS.enCours,
         ...(l.startsWith('Parts') ? {} : { avancement: true }),
       });
     }
@@ -2169,17 +2192,29 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   );
   // A ticket's line in AGENTS: « <signe> <numéro>  <sujet> … <droite> »; on several projects'
   // board « <[projet]> <id>  <sujet> … <signe> <droite> », the owner's maquette (grillhouse-erp.1).
+  // The icon of its pass (🔒 holds a part, ⏳ waits for one) follows the head, before the subject.
   const teteDe = (signe, x) =>
-    plusieurs
-      ? `${colonneDe(x.projet)}${nomme(x).padEnd(colonne)}  `
-      : `${signe} ${nomme(x).padEnd(colonne)}  `;
+    `${
+      plusieurs
+        ? `${colonneDe(x.projet)}${nomme(x).padEnd(colonne)}  `
+        : `${signe} ${nomme(x).padEnd(colonne)}  `
+    }${etats.parts.has(x.id) ? `${etats.parts.get(x.id).icone} ` : ''}`;
+  // What the pass of the ticket <x> says on its line, after its kind.
+  const partDuTicket = x => etats.parts.get(x.id)?.texte ?? '';
   const droiteDe = (signe, droite) =>
     plusieurs ? `${signe}${droite ? ` ${droite}` : ''}` : droite;
   // A ticket's line of `largeur` columns: its head <tete> (its sign and number, or its project and
   // id) whole, then its subject, cut to leave <suite> and the right part <droite> whole; without
   // room for the subject, <suite> is cut, never the head.
-  const ligneDuTicket = (tete, sujet, suite, droite) => {
-    const place = largeur - colonnes(tete) - colonnes(suite) - (droite ? colonnes(droite) + 1 : 0);
+  const ligneDuTicket = (tete, sujet, suiteEntiere, droite, coupable = false) => {
+    const libre = largeur - colonnes(tete) - (droite ? colonnes(droite) + 1 : 0);
+    // The subject keeps its room (PLACE_DU_SUJET at most), the suite is cut for it.
+    const gardee = Math.min(PLACE_DU_SUJET, colonnes(sujet));
+    const suite =
+      coupable && colonnes(suiteEntiere) > libre - gardee && libre - gardee >= 2
+        ? `${debutDe(suiteEntiere, libre - gardee - 1)}…`
+        : suiteEntiere;
+    const place = libre - colonnes(suite);
     if (place < 2) {
       return couper(`${tete}${suite}`, droite, largeur);
     }
@@ -2223,7 +2258,10 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const tous = (t.circuits ?? []).filter(c => blocDuCircuit(c) === b);
     const circuits = tous.filter(c => !enQuestion(c, chez));
     // The circuits on a question, by who must answer it, the supervisor first.
-    const enQuestions = [SUPERVISEUR, ...new Set(tous.map(c => enQuestion(c, chez)).filter(Boolean))]
+    const enQuestions = [
+      SUPERVISEUR,
+      ...new Set(tous.map(c => enQuestion(c, chez)).filter(Boolean)),
+    ]
       .filter((qui, i, l) => l.indexOf(qui) === i)
       .map(qui => [qui, tous.filter(c => enQuestion(c, chez) === qui)])
       .filter(([, l]) => l.length);
@@ -2246,13 +2284,22 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     }
     for (const x of enCours) {
       L(
-        ligneDuTicket(teteDe('▶', x), x.sujet, '', droiteDe('▶', conso(x.travail, x.jetons))),
+        ligneDuTicket(
+          teteDe('▶', x),
+          x.sujet,
+          partDuTicket(x),
+          droiteDe('▶', conso(x.travail, x.jetons)),
+          true
+        ),
         TONS.enCours,
         x.id
       );
     }
     for (const [qui, l] of enQuestions) {
-      L(cadre(`${retrait}⤷ Question · ${qui}`, etatDeLaQuestion(l[0], t) || ' ', largeur), TONS.titre);
+      L(
+        cadre(`${retrait}⤷ Question · ${qui}`, etatDeLaQuestion(l[0], t) || ' ', largeur),
+        TONS.titre
+      );
       for (const c of l) {
         ligneDuCircuit(c);
       }
@@ -2273,8 +2320,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         texte: ligneDuTicket(
           teteDe('▶', x),
           x.sujet,
-          ` · ${ROLE_DIRECT}`,
-          droiteDe('▶', conso(x.travail, x.jetons))
+          ` · ${ROLE_DIRECT}${partDuTicket(x)}`,
+          droiteDe('▶', conso(x.travail, x.jetons)),
+          true
         ),
         ton: TONS.enCours,
         ticket: x.id,
@@ -2285,7 +2333,13 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // their claim to their close: « ▶ <numéro>  <sujet> · en direct ».
   for (const x of t.horsCircuit ?? []) {
     poser({
-      texte: ligneDuTicket(teteDe('▶', x), x.sujet, ' · en direct', droiteDe('▶', '')),
+      texte: ligneDuTicket(
+        teteDe('▶', x),
+        x.sujet,
+        ` · en direct${partDuTicket(x)}`,
+        droiteDe('▶', ''),
+        true
+      ),
       ton: TONS.enDirect,
       ticket: x.id,
     });
@@ -2354,11 +2408,11 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
                 ? 'attend archi'
                 : n.etat === 'enAttente'
                   ? 'en attente'
-                : n.etat === 'reportes'
-                  ? 'reporté'
-                  : n.etat === 'fermes'
-                    ? '✓'
-                    : '';
+                  : n.etat === 'reportes'
+                    ? 'reporté'
+                    : n.etat === 'fermes'
+                      ? '✓'
+                      : '';
     // Every open ticket of the chantier has its line under the title of its state, the states in
     // their order, the tickets in their numbers' order. A ticket an agent block shows stands there
     // alone; its children keep their lines.
