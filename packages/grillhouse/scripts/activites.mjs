@@ -1627,7 +1627,9 @@ export const portentLeTravail = fiches =>
   fiches.filter(f => Array.isArray(f.portent_le_travail)).at(-1)?.portent_le_travail ?? [];
 
 // The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` the
-// report, written whole to its file beside the copy. A
+// report, written whole to its file beside the copy. The tests judged are those of the files the
+// lot changes: a module of a single integration binary the lot does not change is main's, its
+// greens left out and its reds existing reds. A
 // green test is a defect when the testwriter's sheets name it (`portent_le_travail`), read at
 // each proof, and accepted when they do not; a test's full name is read whatever the
 // separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
@@ -1677,6 +1679,12 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
   // A plan « comportement tests-adaptés », or a testwriter session the supervisor asked
   // (`--depuis testwriter`, `ctx.testwriterDemande`): every green of the lot is expected.
   const inchange = ctx.sorte?.comportement === 'tests-adaptés' || Boolean(ctx.testwriterDemande);
+  // The files the lot changes: a result of the run under another file is main's.
+  const duLot = new Set(
+    changements(ctx)
+      .filter(c => !c.supprime)
+      .map(c => c.fichier)
+  );
   // The developpeur already ran after the last testwriter: the code is there, no test can turn red.
   const codePresent = codeDejaPresent(ctx);
   for (const { groupe, entier, code, resultats, constructions } of mesure) {
@@ -1703,12 +1711,22 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
       }
     }
     // The files judged: those of the lot in the group, and, for a single integration binary that
-    // plays its modules (Rust `tests/it/main.rs`), each module file the run reports — the group names
-    // the binary, the results name the modules, so a module's reds are credited to the lot, and the
-    // aggregator is no false casse. A package played whole (`entier`) keeps its own branch above.
-    const fichiersDuGroupe = entier
-      ? groupe
-      : [...new Set([...groupe, ...resultats.map(r => path.relative(ctx.copie, r.fichier))])];
+    // plays its modules (Rust `tests/it/main.rs`), each module file the run reports that the lot
+    // changes — the group names the binary, the results name the modules, so a module's reds are
+    // credited to the lot, and the aggregator is no false casse. A module the lot does not change
+    // is main's: its greens say nothing of the lot, and its reds are existing reds, as those of a
+    // package played whole (`entier`), which keeps its own branch above.
+    const modules = entier ? [] : resultats.map(r => path.relative(ctx.copie, r.fichier));
+    const fichiersDuGroupe = [...new Set([...groupe, ...modules.filter(f => duLot.has(f))])];
+    for (const res of entier ? [] : resultats) {
+      const f = path.relative(ctx.copie, res.fichier);
+      if (fichiersDuGroupe.includes(f)) {
+        continue;
+      }
+      for (const a of res.tests.filter(x => x.etat === 'failed')) {
+        rouges.push(`rouge existant : ${f} › ${a.nom} — ${premiereLigne(a.message)}`);
+      }
+    }
     for (const f of fichiersDuGroupe) {
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];

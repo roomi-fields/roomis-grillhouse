@@ -209,7 +209,8 @@ développeur écrit le code, puis les contrôles et la relecture ; « comporteme
 geste écrit à la main, le développeur seul, sans testwriter ni preuve, sauf si le superviseur répond `--depuis testwriter` : sa commande explicite l'emporte sur la sorte du plan, le testwriter joue, la preuve accepte chaque vert, et le circuit reprend aux contrôles. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
 contrôles et à la relecture sans séance du développeur.
 La bascule marche dans les deux sens, sur le même plan, ses paquets et ses critères gardés : le
-testwriter qui ne trouve aucun comportement à tester s'arrête (motif `aucun-comportement`), et le
+testwriter qui ne trouve aucun comportement à tester s'arrête (motif `aucun-comportement`), ou la
+preuve du rouge refuse un lot de tests dont aucun ne peut rougir (arrêt `preuve`), et le
 superviseur répond `--mecanique [<commande>]` (avec sa commande vers 1.1, sans elle vers le
 développeur) ; le relecteur d'un lot du circuit court qui voit un comportement changer le rend
 avec le motif `comportement-change`, et le ticket repart à 2 Tests, sa sorte changée. Cette

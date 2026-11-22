@@ -24,7 +24,8 @@ export interface Appel {
   reporter: string | null;
   recommencer: boolean;
   /**
-   * The answer to a stop of the testwriter that finds no behaviour to test (`--mecanique`): the
+   * The answer to a stop of the testwriter that finds no behaviour to test, or of the proof of
+   * the red that refuses the lot of tests (`--mecanique`): the
    * command a gesture plays (1.1), or none for a gesture written by hand (the developpeur).
    */
   mecanique: { commande: string | null } | null;

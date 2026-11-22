@@ -1977,8 +1977,8 @@ function ecrireLaSorte(ctx, sorte) {
   commenter(ctx, 'plan', `la sorte du ticket devient ${texteDeLaSorte(sorte)} ; le plan reste.`);
 }
 
-// The `--mecanique` answer of <ctx> to the stop <e> of the testwriter (`reponseMecanique` of
-// scripts/reponses-du-circuit.mjs, which refuses out of that stop, without a reason or on a
+// The `--mecanique` answer of <ctx> to the stop <e> of the testwriter or of the proof of the red
+// (`reponseMecanique` of scripts/reponses-du-circuit.mjs, which refuses out of those stops, without a reason or on a
 // ticket already mechanical: a Usage): the sort turned, the plan kept as it is, and the stop's
 // state moved to the step the sort asks, 1.1 with a command, the developpeur without.
 function basculer(ctx, e) {

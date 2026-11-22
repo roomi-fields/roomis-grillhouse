@@ -20,9 +20,10 @@
 //   component the repository does not hold); so is a ticket whose circuit runs (`--arreter` stops
 //   it), and one stopped on the supervisor's word (`--reprendre`, `--depuis` or `--recommencer`
 //   reopens it).
-// - `--mecanique` answers the stop of the testwriter that finds no behaviour to test: the ticket
+// - `--mecanique` answers the stop of the testwriter that finds no behaviour to test, or of the
+//   proof of the red that refuses the lot of tests: the ticket
 //   goes the short circuit on the same plan, to 1.1 with a command, to the developpeur without one
-//   (its `--contexte`, the reason, is required); refused (exit 2) out of that stop or when the ticket
+//   (its `--contexte`, the reason, is required); refused (exit 2) out of those stops or when the ticket
 //   is already mechanical.
 // - `--reprendre`, `--depuis` and `--etendre` answer the stop of the circuit (the updates of its
 //   workflow, or a new workflow on the state a stopped one gave back), `--arreter` stops it (its

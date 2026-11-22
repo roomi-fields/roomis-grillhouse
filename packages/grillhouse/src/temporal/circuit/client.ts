@@ -406,7 +406,8 @@ export async function etendreLeCircuit(
 }
 
 /**
- * Turns the circuit of <ticket>, stopped on the testwriter's question or blocked word, to the
+ * Turns the circuit of <ticket>, stopped on the testwriter's question or blocked word, or on the
+ * proof of the red, to the
  * short circuit on the same plan, its reason <contexte> (`--mecanique`): with a <commande>, the
  * gesture of 1.1; without, the developpeur writes. Refused out of such a stop, by its name.
  */

@@ -1,14 +1,19 @@
 // The answers a circuit accepts from the supervisor, by the status of its workflow, with no input
 // nor output: the one rule the client (src/temporal/circuit/client.ts: its refusals and the
 // circuits it reads), the opening, the wait, the board and the line of a stop name; and the
-// answer `--mecanique`, which turns the sort of a ticket stopped on the testwriter.
-import { CODE, GESTE, TESTS } from './transitions.mjs';
+// answer `--mecanique`, which turns the sort of a ticket stopped on the testwriter or on the proof
+// of the red.
+import { CODE, GESTE, PREUVE, TESTS } from './transitions.mjs';
 
 /** The statuses of a workflow ended without its issue. */
 export const SANS_ISSUE = new Set(['TERMINATED', 'FAILED', 'TIMED_OUT', 'CANCELLED']);
 
-/** The stops of the testwriter that `--mecanique` answers: his question, his blocked word. */
-export const ARRETS_DU_TESTWRITER = ['besoin', 'hors-portee'];
+/**
+ * The stops `--mecanique` answers, by the step they stand at: the testwriter's question and his
+ * blocked word, and the proof of the red that refuses the lot of tests, both the sign that no
+ * honest test can turn red before the lot.
+ */
+export const ARRETS_DE_LA_BASCULE = { [TESTS]: ['besoin', 'hors-portee'], [PREUVE]: ['preuve'] };
 
 /**
  * The answers accepted for the circuit of <ticket> whose workflow has the status <statut>, a state
@@ -63,7 +68,8 @@ export function heureDuReport(heure, maintenant) {
 /**
  * The answer `--mecanique [<commande>] --contexte <raison>` to the stop <etat> (`{ etape, raison }`)
  * of a ticket of sort <sorte>: a refusal `{ refus }` unless the ticket is stopped on the testwriter
- * (his question or his blocked word) with a reason, its sort not already mechanical; else the sort
+ * (his question or his blocked word) or on the proof of the red (`ARRETS_DE_LA_BASCULE`) with a
+ * reason, its sort not already mechanical; else the sort
  * it becomes and the step the circuit resumes at, the plan kept as it is. With a <commande>, the
  * gesture a command plays: sort mécanique, 1.1. Without, the gesture written by hand: sort
  * comportement « inchangé », the developpeur writes and the existing suite makes the proof.
@@ -72,9 +78,9 @@ export function heureDuReport(heure, maintenant) {
  * @returns {{ refus: string } | { sorte: object, suivant: { etape: string } }}
  */
 export function reponseMecanique({ etat, sorte, commande, contexte }) {
-  if (etat?.etape !== TESTS || !ARRETS_DU_TESTWRITER.includes(etat.raison ?? '')) {
+  if (!ARRETS_DE_LA_BASCULE[etat?.etape]?.includes(etat.raison ?? '')) {
     return {
-      refus: `--mecanique répond à un arrêt du testwriter (besoin ou hors-portee) : le circuit est à ${etat?.etape ?? 'aucun état'}${etat?.raison ? `, arrêté sur ${etat.raison}` : ''}.`,
+      refus: `--mecanique répond à un arrêt du testwriter (besoin ou hors-portee) ou de la preuve du rouge (preuve) : le circuit est à ${etat?.etape ?? 'aucun état'}${etat?.raison ? `, arrêté sur ${etat.raison}` : ''}.`,
     };
   }
   const raison = String(contexte ?? '').trim();

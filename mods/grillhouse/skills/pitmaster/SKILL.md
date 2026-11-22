@@ -143,7 +143,15 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   pas un geste que la copie porte déjà, ou j'arrête. Sous un plan « comportement tests-adaptés », la
   preuve accepte chaque vert, puis le développeur écrit le code, les contrôles et la relecture ;
   sous « comportement inchangé » (geste écrit à la main), le développeur seul, sans testwriter ni preuve ;
-  hors de ce cas, une preuve sans rouge passe aux contrôles sans séance du développeur. Une sorte absente ou
+  hors de ce cas, une preuve sans rouge passe aux contrôles sans séance du développeur. Quand le
+  testwriter ne trouve aucun comportement à tester (arrêt `besoin` ou `hors-portee`), ou que la
+  preuve du rouge refuse un lot dont aucun test ne peut rougir (arrêt `preuve`), je bascule le
+  ticket par `--mecanique [<commande>] --contexte <raison>`, sur le même plan : avec sa commande
+  vers 1.1, sans elle vers le développeur ; le circuit ne relit pas « ## Sorte » de la description,
+  l'amender à la main ne change rien. Les tests que le testwriter a laissés dans la copie y
+  restent après la bascule : avant de répondre avec une commande, je les retire de la copie, car
+  le relecteur d'un lot mécanique rend tout fichier que la commande n'explique pas ; sinon je
+  réponds sans commande, et le développeur en juge. Une sorte absente ou
   illisible vaut « comportement » : le circuit entier. Ainsi un geste sans comportement neuf ne
   coûte ni testwriter ni développeur.
 - **La fin du circuit dit la suite** : à `integre`, le lot est sur main et le ticket fermé ; le

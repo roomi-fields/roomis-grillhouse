@@ -167,6 +167,11 @@ describe('la preuve rejouée sur une copie qui porte ou non le code de productio
   // aggregator is no false casse, and each module's reds are credited to the lot.
   it('credits the reds of the modules of a single integration binary that exits non-zero', () => {
     const c = copieAvec(['explorateur', 'testwriter'], false);
+    // The lot adds both modules: their files are in the copy, changed against its HEAD.
+    mkdirSync(path.join(c.copie, 'crates/service/tests/it'), { recursive: true });
+    for (const nom of ['anonymous_reads', 'access_identifier']) {
+      writeFileSync(path.join(c.copie, `crates/service/tests/it/${nom}.rs`), '// a module\n');
+    }
     const resultat = (nom: string) => ({
       fichier: path.join(c.copie, `crates/service/tests/it/${nom}.rs`),
       etat: 'failed',
@@ -189,6 +194,7 @@ describe('la preuve rejouée sur une copie qui porte ou non le code de productio
     expect(r.rouges).toBe(2);
     expect(r.ok).toBe(true);
     expect(r.texte).not.toContain('ne se charge pas');
+    expect(r.texte).not.toContain('rouge existant');
   });
 });
 

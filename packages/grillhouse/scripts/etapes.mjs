@@ -259,7 +259,7 @@ export const RESPONSABLE = 'responsable';
 // The commands by which the supervisor answers a question (scripts/circuit.mjs): resume, extend
 // the plan, stop.
 export const REPONSES =
-  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--mecanique [<commande>]` (avec `--contexte` : à l’arrêt du testwriter qui ne trouve aucun comportement à tester, le ticket bascule en circuit court sur le même plan, vers 1.1 avec sa commande, vers le développeur sans elle), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), `--reporter <heure>` (la question se tait jusqu’à l’heure, le circuit en attente), ou `--arreter`.';
+  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--mecanique [<commande>]` (avec `--contexte` : à l’arrêt du testwriter qui ne trouve aucun comportement à tester, ou de la preuve du rouge qui refuse le lot de tests, le ticket bascule en circuit court sur le même plan, vers 1.1 avec sa commande, vers le développeur sans elle), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), `--reporter <heure>` (la question se tait jusqu’à l’heure, le circuit en attente), ou `--arreter`.';
 
 // The question of each stop no gesture settles, as a CI calls a person only for what no rule
 // settles (the approval of a review): every stop of ARRETS, « a-repasser » once the circuit has
@@ -279,7 +279,7 @@ export const MONTEES = Object.fromEntries(
     'sans-fiche':
       'La séance finit deux fois sans fiche conforme : reprendre l’étape, ou arrêter le circuit ?',
     preuve:
-      'La troisième preuve du rouge refuse le lot de tests : quel contexte donner au testwriter, ou le plan doit-il changer ?',
+      'La troisième preuve du rouge refuse le lot de tests : quel contexte donner au testwriter, le lot n’a-t-il aucun comportement à prouver (`--mecanique`), ou le plan doit-il changer ?',
     controles:
       'Un rouge reste, que le circuit ne rend pas au développeur (hors du plan, sans fichier, à arbitrer, le lot d’un geste mécanique), ou que trois séances n’ont pas levé : avec quel contexte le lever, ou le plan doit-il s’étendre ?',
     'sans-livraison':

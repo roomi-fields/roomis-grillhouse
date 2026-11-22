@@ -23,7 +23,8 @@ export const DEPUIS = 'depuis';
 /** The update that extends the plan of a stopped circuit, then resumes it (`--etendre`). */
 export const ETENDRE = 'etendre';
 /**
- * The update that turns a ticket stopped on the testwriter to the short circuit on the same plan,
+ * The update that turns a ticket stopped on the testwriter, or on the proof of the red, to the
+ * short circuit on the same plan,
  * then resumes it (`--mecanique`).
  */
 export const MECANIQUE = 'mecanique';

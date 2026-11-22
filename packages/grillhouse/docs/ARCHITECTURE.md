@@ -498,7 +498,10 @@ puis `--reprendre`, qui ne rejoue pas un geste que la copie porte déjà, ou arr
 rouge, sans constat ouvert pour le développeur, passe aux contrôles sans lui (`apresLaPreuve`) ;
 sous un plan « comportement tests-adaptés », comme dans un grand changement de Google, la suite
 existante fait la preuve : rien n'a à rougir et chaque vert du lot passe, seul un fichier du
-lot qui ne se charge pas refuse la preuve (`preuveReussie`) ; un fichier de test qui ne se charge
+lot qui ne se charge pas refuse la preuve (`preuveReussie`) ; les
+tests jugés sont ceux des fichiers que le lot change : un module d'un exécutable d'intégration
+unique (Rust `tests/it/main.rs`) que le lot ne change pas est à main, ses verts ne sont ni listés
+ni comptés, ses rouges sont des rouges existants (grillhouse-3uv.120) ; un fichier de test qui ne se charge
 pas parce qu'il importe un module absent de la copie, celui que le code du ticket crée, est un
 rouge et non un refus, comme une cible de test qui ne compile pas en Rust ou en C : le module du
 langage nomme ce module (`moduleAbsent`), la preuve vérifie qu'il manque (`casseDeChargement`,
@@ -578,7 +581,7 @@ le circuit la garde, avec la durée du vert, par étape finie verte dans son mé
 une reprise conservent) ; une étape à l'empreinte de son dernier vert ne se rejoue pas, son résultat se relit et le ticket le
 dit, une entrée changée, même dans un dépendant ou la configuration, la rejoue, et un rouge ne laisse pas son étape en
 dernier vert. La preuve du rouge ne se relit que si ni ses tests ni le code qu'ils exercent n'ont changé. Le bilan compte
-à part, par étape, la durée rejouée après un rouge et celle relue sans rejouer. `--mecanique [<commande>]` (avec `--contexte`, sa raison), réponse à un arrêt du testwriter (motif `aucun-comportement`), bascule le ticket sans refaire le plan : avec une commande la sorte devient `mécanique` et le circuit reprend à 1.1, sans elle la sorte reste `comportement` `inchangé` et le circuit reprend au développeur ; le relecteur d'un lot du circuit court qui rend le motif `comportement-change` change la sorte en `comportement` (raison : le verdict) et reprend à 2 Tests, la bascule comptant dans les `RENDU`. La sorte est ainsi décidée par le critère « aucun test honnête ne peut rougir avant le lot », dans les deux sens. `--etendre <paquet>` ajoute un paquet au plan, puis reprend
+à part, par étape, la durée rejouée après un rouge et celle relue sans rejouer. `--mecanique [<commande>]` (avec `--contexte`, sa raison), réponse à un arrêt du testwriter (motif `aucun-comportement`) ou à l'arrêt `preuve` de la preuve du rouge qui refuse le lot de tests (`ARRETS_DE_LA_BASCULE` de `scripts/reponses-du-circuit.mjs` ; grillhouse-3uv.120, SyntHub SH-cgi.17 : la preuve refusait trois fois un lot sans comportement à prouver, et aucune réponse ne changeait sa sorte ; le circuit ne relit pas la section « ## Sorte » de la description, il ne lit aucun texte libre), bascule le ticket sans refaire le plan : avec une commande la sorte devient `mécanique` et le circuit reprend à 1.1, sans elle la sorte reste `comportement` `inchangé` et le circuit reprend au développeur ; le relecteur d'un lot du circuit court qui rend le motif `comportement-change` change la sorte en `comportement` (raison : le verdict) et reprend à 2 Tests, la bascule comptant dans les `RENDU`. La sorte est ainsi décidée par le critère « aucun test honnête ne peut rougir avant le lot », dans les deux sens. `--etendre <paquet>` ajoute un paquet au plan, puis reprend
 l'étape en cours, celle du testwriter après un arrêt sur un renvoi du développeur vers lui. Comme
 une file de fusion (GitHub merge queue, bors, Zuul) renvoie le lot à son auteur avec le journal de
 sa vérification, et ne le laisse repasser qu'avec un changement, `--depuis developpeur` après un
