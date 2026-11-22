@@ -413,7 +413,10 @@ qu'elle lit : l'index des interfaces se refait quand un `INTERFACE.md` change. U
 refuse le lot ; une commande en échec, sa commande et sa sortie nommées, ou un fichier changé
 qu'aucune référence rejouée n'écrit, aussi (OSC Bridge, 2026-10-31 : quatre conflits en un jour
 sur les fichiers engendrés de synthhub et d'open-synth-descriptors, chaque copie avancée à la
-main). Les rapports d'API, qui lisent la construction, et la
+main). À l'avance d'une copie, la sortie d'une commande rejouée est un message : elle va au journal
+de la préparation, jamais à sa sortie standard, qui est sa donnée, la seule liste des sous-modules
+partagés que le lanceur lit (BPScript, 2026-11-22 : la sortie de `npm install --package-lock-only`
+lue comme cette liste, le montage refusé sur « usage: sous-modules.sh … »). Les rapports d'API, qui lisent la construction, et la
 dette, qui lit les notes d'une passe, ne s'écrivent pas en entier : ils s'appliquent comme le reste
 du lot. Ainsi deux tickets qui régénèrent le même index s'intègrent l'un après l'autre (BP 320.30 :
 refusé deux fois sur le seul index des interfaces, régénéré sur main entre-temps, levé à la main).

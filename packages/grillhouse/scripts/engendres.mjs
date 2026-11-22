@@ -271,7 +271,8 @@ export const touchesPar = (engendres, fichiers) =>
  * Plays the command of each of <refs>, in order (`lancer`, which runs a line of the shell at the
  * root of the tree and gives the result of spawnSync), then stages every file they changed (`dansCopie`, git in the
  * tree, its strings in UTF-8). Null, or the refusal (see the header). The output of a command that
- * passes goes to <ecrire>.
+ * passes goes to <ecrire>, the standard output by default: a caller whose standard output is read
+ * as data gives its own (scripts/enveloppe/travail-de-la-copie.mjs).
  * @param {{ refs: { nom: string, commande: string, fichiers: string[], cadre?: boolean }[], lancer: (commande: string) => import('node:child_process').SpawnSyncReturns<string>, dansCopie: (...args: string[]) => import('node:child_process').SpawnSyncReturns<string>, ecrire?: (s: string) => void }} o
  * @returns {string | null}
  */

@@ -65,8 +65,13 @@
 //   when the lot touches one of its files, or one it reads (the copy's untracked files counting),
 //   the application leaves its files out (main's version stays), then its command writes them
 //   again in the copy, the lot applied, with the tools of the project (`grillhouse.outils`), out
-//   of the envelope. A command that fails stops, exit 1, the command, its code and its output
-//   named, the rest of the lot in the copy; a faulty key refuses, named, before the copy is
+//   of the envelope. The output of a command that passes is a message, never the data of the
+//   preparation: it goes where the faults go (stderr, the log of the preparation for the circuit),
+//   so the standard output of `preparer` holds the list of its pose alone (BPScript, 2026-11-22:
+//   the output of « npm install --package-lock-only » read as the list of the shared submodules,
+//   the mount refused on « usage: sous-modules.sh … »). A command that fails stops, exit 1, the
+//   command, its code and its output named, the rest of the lot in the copy; a faulty key
+//   refuses, named, before the copy is
 //   touched (OSC Bridge, 2026-10-31: four conflicts in one day on the generated files of synthhub
 //   and open-synth-descriptors, each copy moved by hand). A lot in conflict on another file is not
 //   regenerated: its conflicts come first. A reference the frame generates itself and writes in
@@ -182,14 +187,15 @@ function lesCles(copie, duCadre = referencesEntieresDuCadre, dire = surStderr) {
  * then written again by their command once the lot applies without conflict; `refus`, a command
  * that fails. A generated file the lot removes from the key (`encoreDeclares`) follows the lot
  * instead: its deletion is done, any other change applied as a file of the lot, its command not
- * played.
+ * played. The output of a command that passes goes to <dire>.
  * @param {string} copie
  * @param {Buffer} lot
  * @param {{ engendres: any[], env: NodeJS.ProcessEnv } | null} [cles]
  * @param {string[]} [autres]
+ * @param {(texte: string) => void} [dire]
  * @returns {{ conflits: string[], enAttente: string[], restant: Buffer, refus?: string | null }}
  */
-function appliquer(copie, lot, cles = null, autres = []) {
+function appliquer(copie, lot, cles = null, autres = [], dire = surStderr) {
   const fichiers = cles ? [...fichiersDuLot(copie, lot), ...autres] : [];
   const touches = cles ? touchesPar(cles.engendres, fichiers) : [];
   const exclus = fichiers.filter(f => touches.some(e => couvertPar(e.entiers, f)));
@@ -256,6 +262,8 @@ function appliquer(copie, lot, cles = null, autres = []) {
         maxBuffer: 1024 * 1024 * 1024,
       }),
     dansCopie: (...args) => spawnSync('git', ['-C', copie, ...args], { encoding: 'utf8' }),
+    // A command that says nothing leaves no message.
+    ecrire: sortie => void (sortie && dire(sortie)),
   });
   return { conflits, enAttente, restant, refus };
 }
@@ -348,11 +356,12 @@ export function ecritPar(role, estUnTest) {
 
 /**
  * The lot from <base> to <pointe> as local work of <copie>; returns `{ ok, message }`. <dire>
- * receives a fault that does not refuse the lot (stderr by default).
+ * receives a fault that does not refuse the lot, and the output of the command of a generated file
+ * played again (stderr by default).
  * @param {string} copie
  * @param {{ base: string, pointe: string, duCadre?: (copie: string) => any[], dire?: (texte: string) => void }} o
  */
-export function reporter(copie, { base, pointe, duCadre, dire }) {
+export function reporter(copie, { base, pointe, duCadre, dire = surStderr }) {
   const d = git(copie, ['diff', '--binary', base, pointe]);
   if (d.status !== 0) {
     return { ok: false, message: `⛔ Le lot de ${base} à ${pointe} ne se lit pas : ${texte(d)}` };
@@ -361,7 +370,7 @@ export function reporter(copie, { base, pointe, duCadre, dire }) {
   if (cles.refus !== undefined) {
     return { ok: false, message: cles.refus };
   }
-  const a = appliquer(copie, d.stdout, cles);
+  const a = appliquer(copie, d.stdout, cles, [], dire);
   if (a.enAttente.length) {
     return {
       ok: false,
@@ -388,12 +397,13 @@ const conflit = (copie, conflits, entete) =>
  * lot waiting is accepted (`ok`) when that role writes one of their files. <suspects>, the files
  * an earlier advance left in conflict: one that still carries its marks counts as in conflict,
  * even when the index no longer says so (a session wrote it, or put it in the index, unresolved).
- * <dire> receives a fault that does not refuse the advance (stderr by default).
+ * <dire> receives a fault that does not refuse the advance, and the output of the command of a
+ * generated file played again (stderr by default).
  * @param {string} copie
  * @param {string} cible
  * @param {{ ecrit?: (fichier: string) => boolean, suspects?: string[], duCadre?: (copie: string) => any[], dire?: (texte: string) => void }} [o]
  */
-export function avancer(copie, cible, { ecrit, suspects = [], duCadre, dire } = {}) {
+export function avancer(copie, cible, { ecrit, suspects = [], duCadre, dire = surStderr } = {}) {
   releverLesResolus(copie);
   const restants = [
     ...new Set([...enConflit(copie), ...suspects.filter(f => porteDesMarques(copie, f))]),
@@ -495,7 +505,7 @@ export function avancer(copie, cible, { ecrit, suspects = [], duCadre, dire } = 
     };
   }
   const libres = lignes(git(copie, ['ls-files', '--others', '--exclude-standard']));
-  const { conflits, enAttente, restant, refus } = appliquer(copie, d.stdout, cles, libres);
+  const { conflits, enAttente, restant, refus } = appliquer(copie, d.stdout, cles, libres, dire);
   if (enAttente.length) {
     writeFileSync(garde, restant);
   } else {
@@ -542,7 +552,9 @@ const SOUS_MODULES = path.join(import.meta.dirname, '..', 'sous-modules.sh');
  * Prepares <copie> for a pass or a session (see the header, `preparer`): with <cible>, the guard of
  * its submodules and its advance to <cible>; then the pose of its submodules, the check of their
  * read-only mount, and the installation when the lock file is newer than it. The output of each
- * command, and a fault of the advance that does not refuse it, go to the file descriptor <sortie>; returns `{ ok, message, partages }`.
+ * command, the command of a generated file the advance plays again included, and a fault of the
+ * advance that does not refuse it, go to the file descriptor <sortie>; returns
+ * `{ ok, message, partages }`.
  * @param {string} copie
  * @param {string | null} cible
  * @param {{ env?: NodeJS.ProcessEnv, sortie?: number, ecrit?: (fichier: string) => boolean,
