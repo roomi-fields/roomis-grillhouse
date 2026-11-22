@@ -21,6 +21,10 @@
 //   time (GRILLHOUSE_TESTS_DE_NUIT=mesures), as Bazel plays a test tagged `exclusive` after the
 //   others, nothing beside it, and as the module cargo plays its benches after its night tests
 //   (grillhouse-bd7). Each run plays when the copy holds its files.
+// - Each run plays one Vitest per unit: the root under the frame's configuration alone, and each
+//   directory below it that holds a Vitest configuration (`vitest.config.*`, else `vite.config.*`)
+//   with `--root` at that directory, under that configuration merged with the frame's, what the
+//   night sets winning (./vitest.nuit.config.mjs, `unitesDeLaNuit`).
 // - With `--hors-du-poste`, the night of a shared machine: the night tests alone, but those that
 //   bear the tag `@poste` (`porteLEtiquetteDuPoste` of ./vitest-config/cibles.mjs, which the guard
 //   ./tests-du-poste.mjs asks of a night test that depends on the poste), in one run
@@ -44,7 +48,7 @@
 //   (`mesure`, `grillhouse.mesure`), once the temporary directory and the disk of the copy have
 //   room, as every pass: a wait that reaches its bound ends at 75.
 import { spawnSync } from 'node:child_process';
-import { readdirSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -57,6 +61,7 @@ import {
   estUnBanc,
   estUnTestDeNuit,
   fichiersTemoins,
+  NUIT_PAQUET,
   NUIT_TRANCHE,
   NUIT_VARIABLE,
   testsDuPoste,
@@ -187,11 +192,7 @@ export function testsDeNuit(racine, options = {}) {
       return e.code;
     }
   });
-  const rouges = codes.filter(c => c !== 0);
-  if (rouges.length === 0) {
-    return 0;
-  }
-  return rouges.every(c => c === A_REPASSER) ? A_REPASSER : rouges.find(c => c !== A_REPASSER);
+  return plierLesCodes(codes);
 }
 
 // The run <choix> of Vitest of the night, in the copy at <racine>: its exit code.
@@ -206,16 +207,103 @@ function jouerLeRun(racine, choix, options) {
   const enTranche = tranche
     ? { [NUIT_TRANCHE]: JSON.stringify({ tranche: `${tranche.index}/${tranche.count}`, rapports }) }
     : {};
-  const r = spawnSync(
-    'npx',
-    ['--no-install', 'vitest', 'run', '--root', racine, '--config', CONFIGURATION],
-    {
-      cwd: racine,
-      stdio: 'inherit',
-      env: { ...process.env, [NUIT_VARIABLE]: choix, ...enTranche },
+  // One run per unit, each under the configuration of its package; the code of the unit runs
+  // folds as the runs' do: 0, 75 when every red one is at 75, else the first red code.
+  const codes = unitesDeLaNuit(racine).map(({ dossier, config, exclus }) => {
+    const r = spawnSync(
+      'npx',
+      [
+        '--no-install',
+        'vitest',
+        'run',
+        '--root',
+        dossier,
+        '--config',
+        CONFIGURATION,
+      ],
+      {
+        cwd: racine,
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          [NUIT_VARIABLE]: choix,
+          [NUIT_PAQUET]: JSON.stringify({ config, exclus }),
+          ...enTranche,
+        },
+      }
+    );
+    return r.status ?? 1;
+  });
+  return plierLesCodes(codes);
+}
+
+// The code of <codes>: 0 when all are, 75 when every red one is, else the first red code.
+function plierLesCodes(codes) {
+  const rouges = codes.filter(c => c !== 0);
+  if (rouges.length === 0) {
+    return 0;
+  }
+  return rouges.every(c => c === A_REPASSER) ? A_REPASSER : rouges.find(c => c !== A_REPASSER);
+}
+
+const SAUTES_DES_UNITES = new Set(['node_modules', 'dist', '.git', '.turbo', '.claude']);
+const CONFIGURATIONS = ['vitest.config', 'vite.config'];
+const EXTENSIONS = ['ts', 'mts', 'cts', 'js', 'mjs', 'cjs'];
+
+// The Vitest configuration of the directory <dossier>, as Vitest looks for it: the first
+// `vitest.config.*`, else the first `vite.config.*`; undefined when it has none.
+function configurationDe(dossier) {
+  for (const nom of CONFIGURATIONS) {
+    for (const ext of EXTENSIONS) {
+      const f = path.join(dossier, `${nom}.${ext}`);
+      if (existsSync(f)) {
+        return f;
+      }
     }
-  );
-  return r.status ?? 1;
+  }
+  return undefined;
+}
+
+/**
+ * The units a run of the night plays in the copy at <racine>: the root, under the frame's
+ * configuration alone, and each directory below it that holds a Vitest configuration, under that
+ * configuration. Each unit leaves out the directories of the units below it.
+ * @param {string} racine the root of the copy
+ * @returns {{ dossier: string, config?: string, exclus: string[] }[]}
+ */
+export function unitesDeLaNuit(racine) {
+  const configures = [];
+  const parcourir = dossier => {
+    for (const e of readdirSync(dossier, { withFileTypes: true })) {
+      if (e.isDirectory() && !SAUTES_DES_UNITES.has(e.name)) {
+        const d = path.join(dossier, e.name);
+        const config = configurationDe(d);
+        if (config) {
+          configures.push({ dossier: d, config });
+        }
+        parcourir(d);
+      }
+    }
+  };
+  parcourir(racine);
+  const unites = [{ dossier: racine }, ...configures];
+  const dessous = (parent, d) => {
+    const r = path.relative(parent, d);
+    return r !== '' && !r.startsWith('..') && !path.isAbsolute(r);
+  };
+  return unites
+    .map(u => ({
+      ...u,
+      exclus: configures
+        .filter(c => dessous(u.dossier, c.dossier))
+        .map(c => `${path.relative(u.dossier, c.dossier).split(path.sep).join('/')}/**`),
+    }))
+    .filter(
+      u =>
+        u.dossier === racine ||
+        enTient(u.dossier, f => estUnTestDeNuit(f) || estUnBanc(f)) ||
+        fichiersTemoins(u.dossier).length > 0
+    );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

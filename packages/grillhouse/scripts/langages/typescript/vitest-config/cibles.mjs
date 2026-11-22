@@ -73,6 +73,12 @@ export const NUIT_VARIABLE = 'GRILLHOUSE_TESTS_DE_NUIT';
  * `i/n`, and `rapports`, the directory of its reports (`trancher`, ../tranches.mjs).
  */
 export const NUIT_TRANCHE = 'GRILLHOUSE_TRANCHE_DE_NUIT';
+/**
+ * The variable that carries the unit of a run of the night's configuration, JSON: `config`, the
+ * configuration of the package of the run (absent for the root), and `exclus`, the patterns of
+ * the units below it, which it leaves out.
+ */
+export const NUIT_PAQUET = 'GRILLHOUSE_NUIT_PAQUET';
 // Whether the file at <fichier> bears the name of <motif>, a globstar then a name: by the name of
 // the file, since a globstar passes no directory whose name starts with a dot, and a ticket's copy
 // lives under `.claude/worktrees/`.
