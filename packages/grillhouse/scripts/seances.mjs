@@ -674,6 +674,7 @@ async function uneSeance(
     reprise: gardee = null,
     retenir = () => {},
     estUnTest = rouleDeTest(ctx),
+    evenement = 'neuve',
     ...activite
   }
 ) {
@@ -682,7 +683,13 @@ async function uneSeance(
   const porte = fichiers?.length
     ? `${rapportBrut ?? ''}\n\nCette séance ne porte que ${fichiers.join(', ')} : le reste du lot est vert et ne se touche pas.`.trim()
     : rapportBrut;
-  const marques = () => marquesDuRole(ctx, role, estUnTest).siens;
+  // The files seen with marks stay looked at, whatever the index says of them afterwards.
+  const vus = new Set(ctx.fichiersDuConflit ?? []);
+  const marques = () => {
+    const { siens } = marquesDuRole(ctx, role, estUnTest, [...vus]);
+    siens.forEach(f => vus.add(f));
+    return siens;
+  };
   const enConflit = marques();
   const rapport = enConflit.length
     ? `${porte ?? ''}\n\nLa copie garde un conflit non résolu dans ces fichiers de ton rôle : ${enConflit.join(', ')}. ${RESOUDRE}`.trim()
@@ -788,7 +795,7 @@ async function uneSeance(
       fort,
       valider,
       id: seanceId,
-      evenement: 'neuve',
+      evenement,
       ...suivie,
       precedent: dernierSigne,
     })
@@ -817,12 +824,12 @@ export function rouleDeTest(ctx) {
 // The files of the copy of <ctx> that still carry the marks of a conflict (`marquesRestantes`, the
 // files of the conflict the circuit keeps among them), by who writes them: `siens`, those <role>
 // writes (`ecritPar`), `autres`, the other role's. A role that writes no file has none.
-function marquesDuRole(ctx, role, estUnTest) {
+function marquesDuRole(ctx, role, estUnTest, suspects = ctx.fichiersDuConflit ?? []) {
   const ecrit = ecritPar(role, estUnTest);
   if (!ecrit) {
     return { siens: [], autres: [] };
   }
-  const marques = marquesRestantes(ctx.copie, ctx.fichiersDuConflit ?? []);
+  const marques = marquesRestantes(ctx.copie, suspects);
   return { siens: marques.filter(f => ecrit(f)), autres: marques.filter(f => !ecrit(f)) };
 }
 
@@ -838,7 +845,10 @@ const fauteDesMarques = fichiers =>
  * launcher refuses (the stop « lancement ») while files of the other role carry the marks of a
  * conflict (the launcher accepts only the role that writes one of them,
  * scripts/enveloppe/travail-de-la-copie.mjs `--role`) goes to that role first, a fresh session
- * that carries these files alone, each named; then the session of <role> launches again, once: a
+ * whose report names these files as the conflict it resolves, as the relaunch before a pass names
+ * them (scripts/circuit.mjs `avantLaPasse`), under an id and an event of its own (« conflit »):
+ * an attempt played again never takes its sheet for the one of <role>. Its sheet BLOQUÉ or BESOIN
+ * goes up as its own (`arretDuStatut`); on FAIT, the session of <role> launches again, once: a
  * second refusal goes up.
  */
 export async function seance(ctx, role, options) {
@@ -858,18 +868,56 @@ export async function seance(ctx, role, options) {
       role,
       `lancement refusé sur un conflit dans des fichiers du ${nomDuRole(autre)} (${autres.join(', ')}) : sa séance d'abord, puis celle-ci.`
     );
-    const { constats } = await uneSeance(ctx, autre, {
+    const { fiche, constats } = await uneSeance(ctx, autre, {
       ...options,
       tentative: 1,
       reprise: null,
       retenir: () => {},
       change: undefined,
-      fichiers: autres,
-      rapport: `Le lancement de la séance du ${nomDuRole(role)} s'arrête sur un conflit de la copie dans des fichiers de ton rôle.`,
+      fichiers: null,
+      rapport: `Le lancement de la séance du ${nomDuRole(role)} s'arrête sur un conflit de la copie dans des fichiers de ton rôle, nommés ci-dessous : ta séance ne porte que leur résolution, puis la sienne se relance.`,
       seanceId: idDeSeance(ctx, `conflit:${autre}`),
+      evenement: 'conflit',
     });
+    if (fiche.statut !== 'FAIT') {
+      throw arretDuStatut(
+        ctx,
+        autre,
+        1,
+        fiche,
+        `Sa séance devait lever un conflit de la copie (${autres.join(', ')}) avant celle du ${nomDuRole(role)}.`
+      );
+    }
     return uneSeance(ctx, role, { ...options, constats });
   }
+}
+
+/**
+ * The stop for the sheet <fiche> of the session <tentative> of <role>, BLOQUÉ (« hors-portee »)
+ * or BESOIN (« besoin »): its reason or question first, then its handover; the sheet's piece as
+ * its own, and the agent's question as its own. <suite> says what follows a BLOQUÉ.
+ */
+export function arretDuStatut(
+  ctx,
+  role,
+  tentative,
+  fiche,
+  suite = 'Le circuit ne le relance pas sur ce rouge.'
+) {
+  const passation = derniereDe(ctx, role)?.text ?? 'aucune';
+  const qui = `Le ${nomDuRole(role)}`;
+  const { piece } = fiche;
+  return fiche.statut === 'BESOIN'
+    ? new Arret(
+        'besoin',
+        `${qui} attend une réponse (séance ${tentative}) : ${fiche.question}\n\nSa passation :\n\n${passation}`,
+        { piece, question: `${qui} demande : ${fiche.question}` }
+      )
+    : new Arret(
+        'hors-portee',
+        `${qui} se déclare bloqué (séance ${tentative}) : ${fiche.raison}\n\n${suite} Sa passation :\n\n${passation}`,
+        { piece }
+      );
 }
 
 // The findings of the reviewer open for <role> among <constats>, as a session of the run whose

@@ -642,7 +642,6 @@ import {
   EXPLORATEUR,
   libelle,
   monteeDe,
-  nomDuRole,
   QUESTIONNEUR,
   SUITE,
 } from './etapes.mjs';
@@ -706,6 +705,7 @@ import {
 import { emettre } from './effets.mjs';
 import { heureLocale } from './journal-des-etats.mjs';
 import {
+  arretDuStatut,
   consigne,
   auLancement,
   idDeSeance,
@@ -1236,26 +1236,6 @@ export function fluxAuLancement(racine) {
       },
     };
   }
-}
-
-// The stop for the sheet <fiche> of the session <tentative> of <role>, BLOQUÉ (« hors-portee »)
-// or BESOIN (« besoin »): its reason or question first, then its handover; the sheet's piece as
-// its own, and the agent's question as its own.
-function arretDuStatut(ctx, role, tentative, fiche) {
-  const passation = derniereDe(ctx, role)?.text ?? 'aucune';
-  const qui = `Le ${nomDuRole(role)}`;
-  const { piece } = fiche;
-  return fiche.statut === 'BESOIN'
-    ? new Arret(
-        'besoin',
-        `${qui} attend une réponse (séance ${tentative}) : ${fiche.question}\n\nSa passation :\n\n${passation}`,
-        { piece, question: `${qui} demande : ${fiche.question}` }
-      )
-    : new Arret(
-        'hors-portee',
-        `${qui} se déclare bloqué (séance ${tentative}) : ${fiche.raison}\n\nLe circuit ne le relance pas sur ce rouge. Sa passation :\n\n${passation}`,
-        { piece }
-      );
 }
 
 // The stop « hors-portee » for the developpeur's sheet FAIT <fiche> of the session <tentative>

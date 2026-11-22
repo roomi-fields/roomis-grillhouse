@@ -655,9 +655,15 @@ laissé avec ses marques ne ferme jamais la copie, comme git refuse d'enregistre
 fusionné et le contrôle check-merge-conflict de pre-commit un fichier marqué (`seance` de
 `scripts/seances.mjs`) : la consigne d'une séance nomme les fichiers de son rôle qui portent des
 marques, sa fiche FAIT est refusée tant que l'un d'eux en porte, le fichier nommé, et la séance
-reprise une fois, comme pour une fiche non conforme ; un lancement que le lanceur refuse parce
-que les fichiers marqués sont à l'autre rôle va d'abord à ce rôle, une séance neuve qui ne porte
-que ces fichiers, puis la séance refusée se relance, une fois (SyntHub, SH-ae6.10.32 : une fiche
+reprise une fois, comme pour une fiche non conforme ; un fichier marqué que la séance a mis à
+l'index compte aussi, l'index ne le disant plus en conflit (`marquesRestantes` lit les fichiers
+que l'index tient à part de HEAD, comme check-merge-conflict lit les fichiers indexés). Un
+lancement que le lanceur refuse parce que les fichiers marqués sont à l'autre rôle va d'abord à
+ce rôle : une séance neuve dont le rapport nomme ces fichiers comme le conflit qu'elle résout,
+sous un identifiant et un événement de lancement à elle (« conflit »), si bien qu'un essai rejoué
+ne prend pas sa fiche pour celle du rôle demandé ; sa fiche BLOQUÉ ou BESOIN monte avec sa raison
+ou sa question (« hors-portee », « besoin »), et sur sa fiche FAIT la séance refusée se relance,
+une fois (SyntHub, SH-ae6.10.32 : une fiche
 acceptée avec « <<<<<<< ours », puis deux lancements du testwriter refusés). Une
 préparation qui échoue autrement (un conflit que la seconde séance du rôle ne lève pas, une
 branche partie de main, un sous-module ou une installation en échec) arrête le circuit en

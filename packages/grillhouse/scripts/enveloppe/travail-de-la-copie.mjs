@@ -52,7 +52,7 @@
 //     At the launch of a session, the circuit plays the rule too (scripts/seances.mjs `seance`):
 //     the launch refused goes to the other role first while files of its own carry marks
 //     (`marquesRestantes`), and the sheet FAIT of a session is refused while a file of its role
-//     carries them.
+//     carries them, one the session put in the index with its marks included.
 //   - A copy still in conflict (unmerged entries in its index) or whose branch has left main
 //     (commits on both sides, no fast-forward) is not touched; the output says why; exit 1. A
 //     fast-forward that fails after the work is set aside (an untracked file in the way) gives
@@ -102,6 +102,10 @@ const lignes = r =>
 
 // The files of <copie> unmerged in its index.
 const enConflit = copie => lignes(git(copie, ['diff', '--name-only', '--diff-filter=U']));
+
+// The files of <copie> its index holds apart from HEAD, a deletion aside: those a session put
+// there, the circuit leaving the index as HEAD has it.
+const aLIndex = copie => lignes(git(copie, ['diff', '--cached', '--name-only', '--diff-filter=d']));
 
 // The files the lot <lot> touches in <copie>: each added, modified or deleted, a rename its source
 // and its destination.
@@ -276,9 +280,12 @@ function porteDesMarques(copie, f) {
 }
 
 /**
- * The files of <copie> that still carry the marks of a conflict: those unmerged in its index, and
- * those of <suspects> (the files an earlier advance left in conflict, which the index may no longer
- * say so). Nothing is written: a session's sheet and a refused launch are judged on it.
+ * The files of <copie> that still carry the marks of a conflict: those unmerged in its index, those
+ * its index holds apart from HEAD (a file a session put in the index with its marks, after a
+ * conflict the launcher's advance posed, is no longer unmerged), as pre-commit's
+ * check-merge-conflict reads the staged files, and those of <suspects> (the files an earlier
+ * advance left in conflict, which the index may no longer say so). Nothing is written: a session's
+ * sheet and a refused launch are judged on it.
  * @param {string} copie
  * @param {string[]} [suspects]
  * @returns {string[]}
@@ -287,7 +294,9 @@ export function marquesRestantes(copie, suspects = []) {
   if (!existsSync(copie)) {
     return [];
   }
-  return [...new Set([...enConflit(copie), ...suspects])].filter(f => porteDesMarques(copie, f));
+  return [...new Set([...enConflit(copie), ...aLIndex(copie), ...suspects])].filter(f =>
+    porteDesMarques(copie, f)
+  );
 }
 
 // The files of <copie> that carry no conflict marker any more, among those unmerged: the work of a
