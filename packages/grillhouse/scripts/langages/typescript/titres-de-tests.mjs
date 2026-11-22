@@ -22,12 +22,14 @@
 //   above its debt, or absent from the debt with a title counted, is refused by its name; a debt
 //   above the real count is refused too, so that the lot lowers it by `npm run
 //   grillhouse:dette:elaguer`. A test file moved or renamed by the lot, its content kept (or
-//   nearly), takes the debt of its former name (`renommesDuLot`).
+//   nearly), takes the debt of its former name (`renommesDuLot`). In the envelope of a plan, a debt
+//   above its count is judged in the files of the plan's packages alone (`mesureDuPlan` of
+//   ../../dette.mjs); the final pass judges the others.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { FICHIER, lire as lireDette, trancher } from '../../dette.mjs';
+import { FICHIER, lire as lireDette, mesureDuPlan, trancher } from '../../dette.mjs';
 import { A_ELAGUER, ecrireSarif } from '../../resultats.mjs';
 import { prefixe } from '../../services-du-noyau.mjs';
 import { testsDuDepot } from './tailles-des-tests.mjs';
@@ -206,9 +208,11 @@ export function renommesDuLot(racine) {
  * The refusals of the findings <constats> against the <dette> read from the file: one
  * `{ fichier, message }` per file whose count rises above its debt (a file absent from the debt
  * has none) and per file whose debt stays above its count. <renommes> (`{ nouveau: ancien }`)
- * gives a file moved or renamed the debt of its former name.
+ * gives a file moved or renamed the debt of its former name. <mesure> says whether the run
+ * measures a file for the debt (`mesureDuPlan` of ../../dette.mjs; every file by default): a debt
+ * above its count is judged among those files alone.
  */
-export function jugerLesTitres(dette, constats, renommes = {}) {
+export function jugerLesTitres(dette, constats, renommes = {}, mesure = () => true) {
   const inscrite = dette?.[GARDE] ?? {};
   const permis = f => inscrite[f]?.[REGLE]?.count ?? 0;
   const comptes = new Map();
@@ -225,7 +229,7 @@ export function jugerLesTitres(dette, constats, renommes = {}) {
         regle: REGLE,
         message: `${fichier} : ${trouve} titre(s) nomment un ticket ou un « critère N » pour ${droit} inscrit(s) dans ${FICHIER} : ${MESSAGE_FIN}`,
       });
-    } else if (trouve < droit) {
+    } else if (trouve < droit && mesure(fichier)) {
       refus.push({
         fichier,
         regle: REGLE,
@@ -236,7 +240,7 @@ export function jugerLesTitres(dette, constats, renommes = {}) {
     }
   }
   for (const fichier of Object.keys(inscrite)) {
-    if (comptes.has(fichier) || reprises.has(fichier) || !permis(fichier)) {
+    if (comptes.has(fichier) || reprises.has(fichier) || !permis(fichier) || !mesure(fichier)) {
       continue;
     }
     refus.push({
@@ -282,7 +286,7 @@ function main() {
     refus = r.refus;
     lignes = r.lignes;
   } else {
-    refus = jugerLesTitres(lireDette(racine), constats, renommes);
+    refus = jugerLesTitres(lireDette(racine), constats, renommes, mesureDuPlan(racine));
     // Each refusal is a finding in SARIF; a debt above the count is also a note `a-elaguer`, by
     // which the circuit lowers the debt d'office.
     ecrireSarif({

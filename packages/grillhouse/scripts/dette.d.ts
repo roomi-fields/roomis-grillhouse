@@ -13,7 +13,8 @@ export type Constat = {
  * Judges the findings of `garde` at `racine` against `grillhouse-dette.json`, in the mode `mode`
  * (`GRILLHOUSE_DETTE` by default): `refus` the findings to print as refusals, `lignes` the lines
  * to print after them. A guard that reads a part of the repository gives `mesure`, whether it read
- * a file (from the root): the keys of the other files stay as they are.
+ * a file (from the root): the keys of the other files stay as they are, as do, in the envelope of
+ * a plan (`GRILLHOUSE_ENVELOPPE` of `env`), the keys of the files out of the plan's packages.
  */
 export function trancher(
   racine: string,

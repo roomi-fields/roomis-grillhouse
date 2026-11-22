@@ -23,12 +23,18 @@
 //   drops the keys at zero, never raising a count nor adding a key. Each guard then judges against
 //   the file it wrote. The npm scripts `grillhouse:dette:inscrire` and `grillhouse:dette:elaguer`
 //   run every guard so.
+// - A debt comes down by the lot that resorbs it, on what the run measured: a guard that reads a
+//   part of the repository says which files it read (`mesure`), and a run in the envelope of a
+//   plan measures the files of the plan's packages alone, whatever its guard reads
+//   (`mesureDuPlan`); the keys of the other files are neither judged corrected, nor noted, nor
+//   pruned, nor written again. A pass out of any envelope (the final pass) measures them.
 //
 // A project's guard imports `trancher` by the package's entry `@roomi-fields/grillhouse/dette`,
 // its types in ./dette.d.ts (docs/ARCHITECTURE.md, the package's named entries).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
 import { A_ELAGUER, A_INSCRIRE, ecrireSarif } from './resultats.mjs';
 
 // The environment variable that names the guards of the lot's base (main), a JSON list.
@@ -83,6 +89,33 @@ export function lire(racine) {
 // Every file is measured: the answer of a guard that reads the whole repository.
 const TOUT = () => true;
 
+/**
+ * Whether a run at <racine> in <env> measures the file <fichier> (from the root) for the known
+ * debt: every file out of an envelope; in the envelope of a plan (`GRILLHOUSE_ENVELOPPE`,
+ * scripts/enveloppe/paquets-du-plan.mjs), a file under a path the plan names, every file when the
+ * plan names the root. The copy of a plan holds what its packages need, not what the others do
+ * (their builds, their shared test material): what a guard reads of them there is no measure of
+ * their debt, as `eslint --prune-suppressions` prunes the files it linted only.
+ * @param {string} racine
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {(fichier: string) => boolean}
+ */
+export function mesureDuPlan(racine, env = process.env) {
+  const plan = paquetsDeLEnveloppe(env);
+  if (plan === null) {
+    return TOUT;
+  }
+  const base = path.resolve(racine);
+  const dossiers = plan.map(p => path.resolve(base, p));
+  if (dossiers.includes(base)) {
+    return TOUT;
+  }
+  return fichier => {
+    const f = path.resolve(base, fichier);
+    return dossiers.some(d => f === d || f.startsWith(d + path.sep));
+  };
+}
+
 // The keys of the section <ancienne> of a guard, as counts, that a run did not measure (<mesure>,
 // whether it read a file): a guard that reads a part of the repository (the components of a plan,
 // in an envelope) knows nothing of the others, as a baseline of PHPStan is pruned of the files
@@ -97,11 +130,13 @@ function nonMesurees(ancienne, mesure) {
   return out;
 }
 
-// <dette> with the section of <garde> replaced by what <constats> count, the keys of the files the
-// run did not measure (<mesure>) kept; the guard leaves the file when nothing remains.
+// <dette> with the section of <garde> replaced by what <constats> count in the files the run
+// measured (<mesure>), the keys of the others kept as they are, whatever the guard finds there;
+// the guard leaves the file when nothing remains.
 export function inscrire(dette, garde, constats, mesure = TOUT) {
   const { [garde]: ancienne = {}, ...reste } = dette;
-  const comptes = new Map([...nonMesurees(ancienne, mesure), ...compter(constats)]);
+  const mesures = constats.filter(c => !c.fichier || mesure(c.fichier));
+  const comptes = new Map([...compter(mesures), ...nonMesurees(ancienne, mesure)]);
   return comptes.size ? { ...reste, [garde]: section(comptes) } : reste;
 }
 
@@ -174,7 +209,8 @@ export function juger(dette, garde, constats, mesure = TOUT) {
 // each with its file, its line when the guard gives one, and its rule; beside them, each key
 // inscribed above what the guard finds is a note (`a-elaguer`, level `note`), no red, by which the
 // circuit lowers the debt d'office at the final pass (scripts/circuit.mjs, 4.2). A guard that
-// reads a part of the repository gives <mesure>, whether it read a file (from the root): the keys
+// reads a part of the repository gives <mesure>, whether it read a file (from the root), and a run
+// in the envelope of a plan measures the files of its packages alone (`mesureDuPlan`): the keys
 // of the others are neither judged corrected, nor pruned, nor written again.
 export function trancher(
   racine,
@@ -184,7 +220,15 @@ export function trancher(
   env,
   mesure = TOUT
 ) {
-  const { refus, lignes, corriges } = juge(racine, garde, constats, mode, mesure);
+  const lEnv = env ?? process.env;
+  const duPlan = mesureDuPlan(racine, lEnv);
+  const { refus, lignes, corriges } = juge(
+    racine,
+    garde,
+    constats,
+    mode,
+    fichier => mesure(fichier) && duPlan(fichier)
+  );
   const notes = corriges.map(c => ({
     fichier: c.fichier,
     regle: c.regle,
@@ -193,7 +237,6 @@ export function trancher(
     trouve: c.trouve,
     message: `${c.trouve} constat(s) pour ${c.inscrit} inscrit(s) dans ${FICHIER} : la dette s'abaisse.`,
   }));
-  const lEnv = env ?? process.env;
   ecrireSarif({
     garde,
     constats: [...refus, ...notes, ...aInscrire(garde, refus, lEnv)],
