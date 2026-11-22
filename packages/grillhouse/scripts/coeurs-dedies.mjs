@@ -4,7 +4,7 @@
 // guaranteed class cores of its own, and as Slurm binds a job to its cores. Functions with the
 // system as input (what it reads is passed in, nothing is changed here):
 // - The key `grillhouse.mesure` of a project (`{ "coeurs": <integer ≥ 1> }`) and the number of
-//   dedicated cores: the default one is the default part of the budget (`partParDefautDe`).
+//   dedicated cores: the default one is 3 (`COEURS_PAR_DEFAUT`).
 // - The topology of the system (the sibling threads of a core, the memory node): a unit of
 //   dedicated core is a physical core whole, its sibling threads with it. The count stays in
 //   threads (« cores » of the budget), as the budget does.
@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
-import { partParDefautDe } from './plafond-de-la-machine.mjs';
+import { COEURS_PAR_DEFAUT } from './plafond-de-la-machine.mjs';
 
 /** The tool that pins a command, and its children, to cores (util-linux). */
 export const OUTIL_D_AFFINITE = 'taskset';
@@ -63,8 +63,8 @@ export function mesureDeclareeDe(pkg) {
  *   places: number }} o
  * @returns {number}
  */
-export function coeursDeLaMesureDe({ declaree, budget, places }) {
-  const voulus = declaree?.coeurs ?? partParDefautDe(budget, places, undefined).coeurs;
+export function coeursDeLaMesureDe({ declaree, budget }) {
+  const voulus = declaree?.coeurs ?? COEURS_PAR_DEFAUT;
   return Math.max(1, Math.min(budget.coeurs, voulus));
 }
 

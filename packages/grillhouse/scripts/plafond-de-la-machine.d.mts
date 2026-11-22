@@ -14,8 +14,10 @@ export const PLAFOND_PAR_DEFAUT: 3;
 export const RESERVE_COEURS_PAR_DEFAUT: 4;
 /** The memory the reserve of the user keeps when nothing names another, in GB. */
 export const RESERVE_MEMOIRE_GO_PAR_DEFAUT: 4;
-/** The cores a default part holds at least. */
-export const MIN_COEURS_DE_LA_PART: 4;
+/** The cores the reservation of an ordinary pass holds when its project declares none. */
+export const COEURS_PAR_DEFAUT: 3;
+/** The cores the reservation of a direct pass holds, fixed. */
+export const COEURS_DU_DIRECT: 2;
 
 /**
  * The ceiling of the places under <env>: GRILLHOUSE_PLACES of the environment, else of the file of
@@ -41,21 +43,13 @@ export function budgetDe(
   reserve: PartDeLaPasse
 ): PartDeLaPasse;
 
-/** The part of a pass when its project declares none: the budget divided by the places (2 cores
- * at least), the largest measured peak of memory plus a quarter, never under its floor, a third of
- * the budget (the floor alone without a measure). */
-export function partParDefautDe(
-  budget: PartDeLaPasse,
-  places: number,
-  pic: number | undefined
-): PartDeLaPasse;
-
-/** The part of a pass: the declared one, its missing values from the default, within the budget. */
+/** The reservation of a pass: the declared cores, else 3, within the budget (a direct pass: 2,
+ * fixed); its memory the declared one, else the default memory, within the budget. */
 export function partDe(o: {
   declaree: { coeurs?: number; memoire?: number } | null;
   budget: PartDeLaPasse;
-  places: number;
   pic: number | undefined;
+  direct?: boolean;
 }): PartDeLaPasse;
 
 /** The part a project declares in `grillhouse.part` of its package.json, or the fault naming it. */

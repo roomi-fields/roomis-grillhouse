@@ -30,7 +30,7 @@ function projet() {
   return racine;
 }
 // Le poste d'essai : 32 cœurs dont 4 réservés (budget 28), 64 Go dont 4 réservés, 7 places : la
-// part par défaut d'une passe est de 4 cœurs.
+// part par défaut d'une passe est de 3 cœurs.
 const poste = (extra: Record<string, string> = {}): Record<string, string> => ({
   HOME: unDossier('maison'),
   TMPDIR: unDossier('tmp'),
@@ -77,9 +77,9 @@ function prendre(env: Record<string, string>, o: Record<string, unknown> = {}) {
 }
 
 describe('la nuit prend la part de son projet, sans réserver la machine', () => {
-  it('sa part est celle du projet, quatre cœurs ici, même avec l’ancien jeton dans l’environnement', () => {
+  it('sa part est celle du projet, trois cœurs sans clé, même avec l’ancien jeton dans l’environnement', () => {
     const { prise } = prendre(poste(ANCIEN_JETON));
-    expect(prise.part.coeurs).toBe(4);
+    expect(prise.part.coeurs).toBe(3);
     expect(prise.part.memoire).toBeLessThan(60 * GO);
     prise.rendre();
   });
@@ -91,7 +91,7 @@ describe('la nuit prend la part de son projet, sans réserver la machine', () =>
     expect(autres).toEqual([]);
     expect(moi.etat).toBe('tient');
     expect(String(moi.sorte).toLowerCase()).toBe('nuit');
-    expect(moi.coeurs).toBe(4);
+    expect(moi.coeurs).toBe(3);
     prise.rendre();
   });
 
@@ -111,7 +111,7 @@ describe('la nuit prend la part de son projet, sans réserver la machine', () =>
     const env = poste(ANCIEN_JETON);
     const nuit = prendre(env).prise;
     const autre = prendre(env, { sorte: 'Vérification', borneMs: 0 });
-    expect(autre.prise.part.coeurs).toBe(4);
+    expect(autre.prise.part.coeurs).toBe(3);
     expect(autre.dit.join('\n')).not.toMatch(/nuit/);
     expect(lireLesParts(dossierDesParts(env)).prises).toHaveLength(2);
     autre.prise.rendre();
@@ -163,7 +163,7 @@ describe('la nuit attend sa part en disant ce qu’elle attend', () => {
     return () => rmSync(path.join(dossier, 'autre.json'), { force: true });
   };
 
-  it('sa raison dit les cœurs : quatre demandés, aucun libre sur vingt-huit', () => {
+  it('sa raison dit les cœurs : trois demandés, aucun libre sur vingt-huit', () => {
     const env = poste(ANCIEN_JETON);
     const lacher = tenirTout(env);
     let vue: any[] = [];
@@ -181,8 +181,8 @@ describe('la nuit attend sa part en disant ce qu’elle attend', () => {
     });
     expect(vue).toHaveLength(1);
     expect(String(vue[0].sorte).toLowerCase()).toBe('nuit');
-    expect(vue[0].raison).toMatch(/cœurs : 4 demandés, 0 libres sur 28/);
-    expect(dit.join('\n')).toMatch(/cœurs : 4 demandés, 0 libres sur 28/);
+    expect(vue[0].raison).toMatch(/cœurs : 3 demandés, 0 libres sur 28/);
+    expect(dit.join('\n')).toMatch(/cœurs : 3 demandés, 0 libres sur 28/);
     expect(dit.join('\n')).not.toMatch(/la nuit tient la machine/);
     prise.rendre();
   });
@@ -199,7 +199,7 @@ describe('la nuit attend sa part en disant ce qu’elle attend', () => {
         }
       },
     });
-    expect(prise.part.coeurs).toBe(4);
+    expect(prise.part.coeurs).toBe(3);
     prise.rendre();
   });
 });

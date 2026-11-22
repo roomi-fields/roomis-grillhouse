@@ -59,19 +59,10 @@ const poste = (places?: string, fils = 32): Record<string, string> => ({
 });
 
 describe('la part par défaut d’une passe pour un projet', () => {
-  it('les cœurs valent le budget divisé par les places de la machine', () => {
-    expect(partDeLaPasse({ racine: projet(), env: poste('7') }).coeurs).toBe(4);
-    expect(partDeLaPasse({ racine: projet(), env: poste('2') }).coeurs).toBe(14);
-  });
-
-  it('sans GRILLHOUSE_PLACES, la division se fait par le plafond par défaut, 3 places', () => {
-    expect(partDeLaPasse({ racine: projet(), env: poste() }).coeurs).toBe(9);
-  });
-
-  it('une valeur fautive de GRILLHOUSE_PLACES est refusée par son nom', () => {
-    expect(() => partDeLaPasse({ racine: projet(), env: poste('beaucoup') })).toThrow(
-      /GRILLHOUSE_PLACES/
-    );
+  it('sans clé, les cœurs valent 3, quelles que soient les places de la machine', () => {
+    expect(partDeLaPasse({ racine: projet(), env: poste('7') }).coeurs).toBe(3);
+    expect(partDeLaPasse({ racine: projet(), env: poste('2') }).coeurs).toBe(3);
+    expect(partDeLaPasse({ racine: projet(), env: poste() }).coeurs).toBe(3);
   });
 
   it('sans mesure au registre, la mémoire est le tiers du budget, quelles que soient les places', () => {
@@ -88,7 +79,7 @@ describe('la part par défaut d’une passe pour un projet', () => {
       ligne({ memoirePic: 32 * GO, sorte: 'controles', ticket: 'grillhouse-x.1' }),
       ligne({ memoirePic: 28 * GO })
     );
-    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 4, memoire: 40 * GO });
+    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 3, memoire: 40 * GO });
   });
 
   it('un registre de passes légères seules garde le plancher, le tiers du budget', () => {
@@ -152,10 +143,10 @@ describe('la part par défaut d’une passe pour un projet', () => {
     expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 6, memoire: 40 * GO });
   });
 
-  it('une mémoire seule déclarée garde les cœurs budget divisé par les places', () => {
+  it('une mémoire seule déclarée garde les cœurs par défaut, 3', () => {
     const racine = projet({ part: { memoireGo: 3 } });
     garder(racine, ligne({ memoirePic: 4 * GO }));
-    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 4, memoire: 3 * GO });
+    expect(partDeLaPasse({ racine, env: poste('7') })).toEqual({ coeurs: 3, memoire: 3 * GO });
   });
 
   it('une part déclarée en entier reste telle quelle', () => {
@@ -183,18 +174,18 @@ describe('la nuit prend la part du projet, la mesure de temps ses cœurs dédié
       ...o,
     });
 
-  it('sans grillhouse.mesure, la mesure demande le budget divisé par les places', () => {
+  it('sans grillhouse.mesure, la mesure demande 3 cœurs arrondis aux cœurs entiers, quelles que soient les places', () => {
     const m = prendre(poste('7'), projet(), { mesure: true });
     expect(m.part.coeurs).toBe(4);
     m.rendre();
     const n = prendre(poste('2'), projet(), { mesure: true });
-    expect(n.part.coeurs).toBe(14);
+    expect(n.part.coeurs).toBe(4);
     n.rendre();
   });
 
   it('la nuit prend la part du projet, sans réserver le budget entier', () => {
     const n = prendre(poste('7'), projet(), { sorte: 'Nuit' });
-    expect(n.part).toEqual({ coeurs: 4, memoire: Math.floor((60 * GO * 10) / 28) });
+    expect(n.part).toEqual({ coeurs: 3, memoire: Math.floor((60 * GO * 10) / 28) });
     n.rendre();
   });
 });

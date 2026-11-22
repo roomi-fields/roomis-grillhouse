@@ -176,9 +176,9 @@ describe('les passes ordinaires continuent pendant une mesure de temps', () => {
     const m = prendre(env, racine, { mesure: true });
     const a = prendre(env, racine);
     const b = prendre(env, racine);
-    expect(a.part.coeurs).toBe(4);
+    expect(a.part.coeurs).toBe(3);
     const tous = [...m.fils, ...a.fils, ...b.fils];
-    expect(new Set(tous).size).toBe(12);
+    expect(new Set(tous).size).toBe(4 + 3 + 3);
     for (const f of a.fils) {
       expect(m.fils).not.toContain(f);
     }
@@ -426,7 +426,7 @@ describe('le repos des cœurs dédiés avant de partir', () => {
 
   it('une passe ordinaire n’attend aucun repos', () => {
     const m = prendre(poste(), projet(), { chargeDesCoeurs: () => 0.9 });
-    expect(m.part.coeurs).toBe(4);
+    expect(m.part.coeurs).toBe(3);
     m.rendre();
   });
 });

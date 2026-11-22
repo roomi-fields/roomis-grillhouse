@@ -1753,14 +1753,16 @@ export function etatsDAgents(t) {
       fige,
       texte: fige
         ? ` · ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
-        : ` · ${sorte}${compte ? ` ${compte}` : ''} · ${ilYa(maintenant - (tenu.depuis ?? maintenant))}${tenu.depasse ? ` · ⚠ ${tenu.depasse}` : ''}`,
+        : ` · ${sorte}${compte ? ` ${compte}` : ''}${tenu.coeurs ? ` · ${tenu.coeurs} cœurs` : ''} · ${ilYa(maintenant - (tenu.depuis ?? maintenant))}${tenu.depasse ? ` · ⚠ ${tenu.depasse}` : ''}`,
     });
   }
+  const reserves = (t.machine?.prises ?? []).reduce((n, x) => n + (x.coeurs ?? 0), 0);
   for (const w of t.machine?.attentes ?? []) {
     if (duCircuit(w) && !partDe.has(w.ticket)) {
+      const budget = t.machine?.budget?.coeurs;
       partDe.set(w.ticket, {
         fige: false,
-        texte: ` · part ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
+        texte: ` · attend ${w.coeurs} cœurs · ${reserves} réservés sur ${budget} · ${w.sorte.toLocaleLowerCase('fr')} · ${ilYa(maintenant - w.depuis)}`,
       });
     }
   }

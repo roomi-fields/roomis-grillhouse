@@ -46,8 +46,12 @@ export const PLAFOND_PAR_DEFAUT = 3;
 export const RESERVE_COEURS_PAR_DEFAUT = 4;
 /** The memory the reserve of the user keeps when nothing names another, in GB. */
 export const RESERVE_MEMOIRE_GO_PAR_DEFAUT = 4;
-/** The cores a default part holds at least. */
-export const MIN_COEURS_DE_LA_PART = 4;
+/** The cores the reservation of an ordinary pass holds when its project declares none. */
+export const COEURS_PAR_DEFAUT = 3;
+/** The cores the reservation of a direct pass holds, fixed. */
+export const COEURS_DU_DIRECT = 2;
+// The cores the reserve of the user leaves the passes at least; the floor of the memory.
+const COEURS_LAISSES_AUX_PASSES = 4;
 
 /**
  * The ceiling of the places under <env>: GRILLHOUSE_PLACES of the environment, else of the file
@@ -121,7 +125,7 @@ export function reserveDe(env = process.env, o = {}) {
   const coeursDeLaMachine = o.coeurs ?? cpus().length;
   const parDefaut = Math.min(
     RESERVE_COEURS_PAR_DEFAUT,
-    Math.max(0, coeursDeLaMachine - MIN_COEURS_DE_LA_PART)
+    Math.max(0, coeursDeLaMachine - COEURS_LAISSES_AUX_PASSES)
   );
   return {
     coeurs: entierDuPoste(env, VARIABLE_RESERVE_COEURS, parDefaut, o.lire),
@@ -155,54 +159,34 @@ export function budgetDe({ coeurs, memoireTotale }, reserve) {
 /** The margin over the largest measured peak of memory: a quarter. */
 const MARGE_DE_LA_MEMOIRE = 1.25;
 
-/**
- * The part of a pass when its project declares none, pure: the budget divided by the <places> of
- * the machine in cores (whole division, 2 at least, within the budget and one core at least), and
- * in memory the largest measured peak <pic> plus a quarter (the hard ceiling of the group kills a
- * pass above it, so a percentile would not do), within the budget and never under its floor, the
- * proportion of the cores of a part before the division (a third of the budget): the peak raises
- * the memory, it does not lower it; the floor alone when <pic> is absent.
- * @param {{ coeurs: number, memoire: number }} budget
- * @param {number} places
- * @param {number | undefined} pic the largest peak of memory of the day passes, absent unmeasured
- * @returns {{ coeurs: number, memoire: number }}
- */
-export function partParDefautDe(budget, places, pic) {
-  const coeurs = Math.max(
-    1,
-    Math.min(budget.coeurs, Math.max(2, Math.floor(budget.coeurs / places)))
-  );
-  return { coeurs, memoire: memoireParDefautDe(budget, pic) };
-}
-
-// The default memory, independent of the division by the places: its floor, the proportion of the
-// cores a part had before the division (MIN_COEURS_DE_LA_PART, or a third of the budget rounded up
-// when that is more), raised to the peak plus a quarter when the register measured more. A
+// The default memory: its floor, the proportion of the budget a part of 4 cores held (or a third
+// of the budget rounded up when that is more), raised to the largest measured peak <pic> plus a
+// quarter (the hard ceiling of the group kills a pass above it) when the register measured more. A
 // register that holds light passes alone (the guards, a pass of 50 ms: a peak of 16 Mo) would
 // else give the next pass a ceiling its kernel kills it under, as the Vertical Pod Autoscaler
 // bounds its recommendation by a minimum (`minAllowed`).
 function memoireParDefautDe(budget, pic) {
   const coeursDAvant = Math.max(
     1,
-    Math.min(budget.coeurs, Math.max(MIN_COEURS_DE_LA_PART, Math.ceil(budget.coeurs / 3)))
+    Math.min(budget.coeurs, Math.max(COEURS_LAISSES_AUX_PASSES, Math.ceil(budget.coeurs / 3)))
   );
   const plancher = Math.floor((budget.memoire * coeursDAvant) / budget.coeurs);
   return Math.min(budget.memoire, Math.max(plancher, Math.floor((pic ?? 0) * MARGE_DE_LA_MEMOIRE)));
 }
 
 /**
- * The part of a pass: the one its project declares (`partDeclareeDe`), its missing values from the
- * default part, within the budget and one core at least.
+ * The reservation of a pass: the cores its project declares (`partDeclareeDe`), else 3, within the
+ * budget and one core at least; a direct pass reserves 2 cores, fixed. Its memory is the declared
+ * one, else the default memory, within the budget.
  * @param {{ declaree: { coeurs?: number, memoire?: number } | null,
- *   budget: { coeurs: number, memoire: number }, places: number, pic: number | undefined }} o
+ *   budget: { coeurs: number, memoire: number }, pic: number | undefined, direct?: boolean }} o
  * @returns {{ coeurs: number, memoire: number }}
  */
-export function partDe({ declaree, budget, places, pic }) {
-  const defaut = partParDefautDe(budget, places, pic);
-  const coeurs = Math.max(1, Math.min(budget.coeurs, declaree?.coeurs ?? defaut.coeurs));
+export function partDe({ declaree, budget, pic, direct = false }) {
+  const voulus = direct ? COEURS_DU_DIRECT : (declaree?.coeurs ?? COEURS_PAR_DEFAUT);
   return {
-    coeurs,
-    memoire: Math.min(budget.memoire, declaree?.memoire ?? defaut.memoire),
+    coeurs: Math.max(1, Math.min(budget.coeurs, voulus)),
+    memoire: Math.min(budget.memoire, declaree?.memoire ?? memoireParDefautDe(budget, pic)),
   };
 }
 

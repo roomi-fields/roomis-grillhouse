@@ -133,6 +133,7 @@ import { cacheDesOutils, installer, versionDeLOutil } from '../aiguillage.mjs';
 import { ouvrirBase } from '../mesure/base-de-passe.mjs';
 import {
   partDeLaPasse,
+  prendreUnePart,
   sousNiceEtIonice,
   travailleursDe,
   VARIABLE_TENUE,
@@ -950,9 +951,20 @@ function envelopper(argv) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);
     code = CODE_REFUS;
   } else {
+    // The session reserves its cores for its phase alone (3, a direct's 2) against the budget of
+    // the machine, and gives them back at its end; under a part already held, its cap is that part.
     let part;
+    let prise = null;
     try {
-      part = partDeLaPasse({ racine: copie });
+      const direct = role === 'direct';
+      prise = prendreUnePart({
+        racine: copie,
+        ticket: path.basename(copie),
+        sorte: `séance ${role ?? ''}`.trim(),
+        direct,
+        dire: l => process.stderr.write(`${l}\n`),
+      });
+      part = prise.part ?? partDeLaPasse({ racine: copie, direct });
     } catch (e) {
       process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
       temporaire.fermer();
@@ -972,7 +984,12 @@ function envelopper(argv) {
     if (lancement.sansBorne !== null) {
       process.stderr.write(`⚠ la séance part sans borne de processeur : ${lancement.sansBorne}\n`);
     }
-    const r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
+    let r;
+    try {
+      r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
+    } finally {
+      prise.rendre();
+    }
     if (r.error) {
       process.stderr.write(`⛔ ENVELOPPE IMPOSSIBLE — ${r.error.message}\n`);
     }

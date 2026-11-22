@@ -213,10 +213,19 @@ describe('la copie d’un direct est verrouillée par git', () => {
 function ports(fiches: object[], verdicts: ('ACCEPTÉ' | 'RENDU')[] = ['ACCEPTÉ']) {
   const journal: string[] = [];
   const lancees: { role: string; constats: unknown[] }[] = [];
+  const places: string[] = [];
   return {
     journal,
     lancees,
+    places,
     ports: {
+      // La place de circuit de la machine : prise au départ, rendue par la fonction rendue.
+      place: () => {
+        places.push('prise');
+        return () => {
+          places.push('rendue');
+        };
+      },
       copie: () => {
         journal.push('copie');
         return '/depot/.claude/worktrees/demo-9';
@@ -256,6 +265,57 @@ describe('la commande lance l’agent, puis le relecteur, et s’arrête', () =>
       verdict: 'ACCEPTÉ',
       copie: '/depot/.claude/worktrees/demo-9',
     });
+  });
+
+  it('un direct prend une place de circuit de la machine avant l’agent et la rend après la relecture', async () => {
+    const p = ports([]);
+    const journal: string[] = [];
+    const place = p.ports.place;
+    p.ports.place = () => {
+      journal.push('place:prise');
+      const rendre = place();
+      return () => {
+        journal.push('place:rendue');
+        rendre();
+      };
+    };
+    const seance = p.ports.seance;
+    p.ports.seance = (...a: Parameters<typeof seance>) => {
+      journal.push('seance');
+      return seance(...a);
+    };
+    const relecture = p.ports.relecture;
+    p.ports.relecture = () => {
+      journal.push('relecture');
+      return relecture();
+    };
+    await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    expect(journal).toEqual(['place:prise', 'seance', 'relecture', 'place:rendue']);
+    expect(p.places).toEqual(['prise', 'rendue']);
+  });
+
+  it('un direct rend sa place quand l’agent s’arrête, ou que la séance échoue', async () => {
+    const arret = ports([]);
+    arret.ports.seance = () => ({ statut: 'BLOQUÉ' }) as never;
+    await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: arret.ports });
+    expect(arret.places).toEqual(['prise', 'rendue']);
+
+    const echec = ports([]);
+    echec.ports.seance = () => {
+      throw new Error('séance tombée');
+    };
+    await expect(
+      lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: echec.ports })
+    ).rejects.toThrow(/séance tombée/);
+    expect(echec.places).toEqual(['prise', 'rendue']);
+  });
+
+  it('un ticket qui n’est pas direct ne prend aucune place', async () => {
+    const p = ports([]);
+    await expect(
+      lancerLeDirect({ id: 'demo-9', ticket: ticket(['circuit']), ports: p.ports })
+    ).rejects.toThrow();
+    expect(p.places).toEqual([]);
   });
 
   it('ne joue ni plan, ni preuve du rouge, ni contrôles, ni file : seuls l’agent direct et le relecteur', async () => {

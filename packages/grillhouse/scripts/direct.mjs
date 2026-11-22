@@ -31,6 +31,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { prendreUnePlace, VARIABLE_TENUE } from './places-de-la-machine.mjs';
 import { bloquantsDeLaFiche } from './resultats.mjs';
 import { consigne } from './seances.mjs';
 
@@ -164,12 +165,19 @@ export async function lancerLeDirect({ id, ticket, options = [], ports }) {
     };
   }
   const constats = decision.constats ?? [];
-  const fiche = await ports.seance('direct', { constats, paquets: plan });
-  if (fiche?.statut && fiche.statut !== 'FAIT') {
-    return { arret: true, statut: fiche.statut, fiche, copie };
+  // A direct holds a place of circuit of the machine, counted with the circuits, from its agent to
+  // its review; given back at the end, whatever the end.
+  const rendre = ports.place();
+  try {
+    const fiche = await ports.seance('direct', { constats, paquets: plan });
+    if (fiche?.statut && fiche.statut !== 'FAIT') {
+      return { arret: true, statut: fiche.statut, fiche, copie };
+    }
+    const relue = await ports.relecture({ constats });
+    return { verdict: relue.verdict, constats: relue.constats ?? [], fiche: relue.fiche, copie };
+  } finally {
+    rendre();
   }
-  const relue = await ports.relecture({ constats });
-  return { verdict: relue.verdict, constats: relue.constats ?? [], fiche: relue.fiche, copie };
 }
 
 // The task the agent of a direct reads at the head of its instruction.
@@ -204,6 +212,27 @@ async function portsDuProjet(id, { contexteDuSuperviseur }) {
           }
         }
         return ctx.copie;
+      },
+      // The place of circuit the direct holds for its whole run: the sessions it launches then
+      // hold nothing more (GRILLHOUSE_PLACE_TENUE), as under any place already held.
+      place: () => {
+        const p = prendreUnePlace({
+          ticket: id,
+          racine: ctx.racine,
+          dire: l => process.stdout.write(`${l}\n`),
+        });
+        const avant = process.env[VARIABLE_TENUE];
+        if (p.id) {
+          process.env[VARIABLE_TENUE] = p.id;
+        }
+        return () => {
+          if (avant === undefined) {
+            delete process.env[VARIABLE_TENUE];
+          } else {
+            process.env[VARIABLE_TENUE] = avant;
+          }
+          p.rendre();
+        };
       },
       verrouiller: copie => verrouillerLaCopie(copie, git),
       fiches: () =>

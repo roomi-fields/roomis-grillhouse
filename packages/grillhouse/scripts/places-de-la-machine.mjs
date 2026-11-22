@@ -458,7 +458,7 @@ export function budgetDeLaPasse(env = process.env) {
  * @returns {{ coeurs: number, memoire: number }}
  * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
  */
-export function partDeLaPasse({ racine, env = process.env }) {
+export function partDeLaPasse({ racine, env = process.env, direct = false }) {
   const { declaree, faute } = partDeclareeDe(packageDuDepot(racine));
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
@@ -466,7 +466,7 @@ export function partDeLaPasse({ racine, env = process.env }) {
   return partDe({
     declaree,
     budget: budgetDeLaPasse(env),
-    places: plafondDe(env),
+    ...(direct ? { direct } : {}),
     pic: plusGrandPicDeJour(racineDuDepot(racine)),
   });
 }
@@ -516,12 +516,12 @@ function packageDuDepot(racine) {
  * @returns {number}
  * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
  */
-function coeursDeLaMesure({ racine, budget, env }) {
+function coeursDeLaMesure({ racine, budget }) {
   const { declaree, faute } = mesureDeclareeDe(packageDuDepot(racine));
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
   }
-  return coeursDeLaMesureDe({ declaree, budget, places: plafondDe(env) });
+  return coeursDeLaMesureDe({ declaree, budget });
 }
 
 const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
@@ -569,7 +569,7 @@ export function lecteurDeLaCharge(env = process.env, systeme = chargeDesCoeursDu
  * (« machine fermée par le superviseur »); a reading that fails stands for no reservation. Where no part is taken (the envelope of an agent, a part already
  * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
- *   sorte?: string, mesure?: boolean, borneMs?: number, rappelMs?: number,
+ *   sorte?: string, mesure?: boolean, direct?: boolean, borneMs?: number, rappelMs?: number,
  *   dire?: (l: string) => void, maintenant?: () => number, dormir?: (ms: number) => void,
  *   libre?: (d: string) => number, occupe?: (d: string) => string,
  *   occupeLaCopie?: (r: string) => string }} [o]
@@ -586,6 +586,7 @@ export function prendreUnePart({
   ticket,
   sorte,
   mesure = false,
+  direct = false,
   topologie,
   chargeDesCoeurs = lecteurDeLaCharge(env),
   borneMs = borneDe(env),
@@ -618,7 +619,7 @@ export function prendreUnePart({
     topo = topologie ?? lireLaTopologie({ nombreDeFils: machineDe(env).coeurs });
     budgetFils = budgetEnFils({ topologie: topo, budget: budget.coeurs });
     if (mesure) {
-      const demande = coeursDeLaMesure({ racine, budget, env });
+      const demande = coeursDeLaMesure({ racine, budget });
       let fils = filsDeLaMesure({ budget: budgetFils, topologie: topo, demande });
       if (fils === null || !topo.lisible) {
         // No whole core in the budget, or a topology that does not read: each thread is a core.
@@ -628,7 +629,7 @@ export function prendreUnePart({
       }
       part = { coeurs: fils, memoire: Math.floor((budget.memoire * fils) / budget.coeurs) };
     } else {
-      part = partDeLaPasse({ racine, env });
+      part = partDeLaPasse({ racine, env, direct });
     }
   } catch (e) {
     throw e instanceof AttenteDeLaMachine ? e : new AttenteDeLaMachine(`✗ ${e.message}`, 1);
