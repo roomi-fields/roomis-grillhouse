@@ -135,6 +135,7 @@ describe('la consigne du relecteur sur un lot qu’il a déjà relu', () => {
     ecrire(m.copie, 'packages/forms/src/index.mjs', 'export const mesure = x => 2 * x;\n');
     const consigne = await lire(m, [], { verdict: 'ACCEPTÉ' });
     expect(consigne).toContain("LA RELECTURE D'AVANT : aucune");
+    expect(consigne).toContain('REPRISE : non');
     expect(consigne).toContain('packages/forms/test/mesure.test.mjs');
     expect(consigne).toContain('packages/forms/src/index.mjs');
     expect(consigne).not.toContain('{{');
@@ -173,6 +174,7 @@ describe('la consigne du relecteur sur un lot qu’il a déjà relu', () => {
       .map(e => e.lot?.commit)
       .reverse();
     expect(consigne).toContain(`git diff ${lots[0]} ${dernierLot}`);
+    expect(consigne).toContain("REPRISE : oui : 1 relecture(s) d'avant ont rendu le lot");
     const aLire = /LOTS À LIRE : ([^\n]*)/.exec(consigne)?.[1] ?? '';
     expect(aLire).toContain('packages/forms/src/index.mjs');
     expect(aLire).not.toContain('mesure.test.mjs');

@@ -309,11 +309,6 @@
         "count": 13
       }
     },
-    "packages/grillhouse-essais/tests/circuit.arbitrage.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 2
-      }
-    },
     "packages/grillhouse-essais/tests/circuit.consigne.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 1
@@ -344,11 +339,6 @@
         "count": 28
       }
     },
-    "packages/grillhouse-essais/tests/circuit.relecture.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 5
-      }
-    },
     "packages/grillhouse-essais/tests/circuit.style.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 5
@@ -357,11 +347,6 @@
     "packages/grillhouse-essais/tests/circuit.tests-de-head.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 1
-      }
-    },
-    "packages/grillhouse-essais/tests/circuit.tri.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 5
       }
     },
     "packages/grillhouse-essais/tests/circuit.vert-par-fichier.nuit.spec.ts": {

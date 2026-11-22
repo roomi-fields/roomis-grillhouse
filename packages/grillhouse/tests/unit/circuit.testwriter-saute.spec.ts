@@ -102,6 +102,7 @@ describe('grillhouse-26x, critères 1 et 2 — un constat au testwriter que le p
     expect(arret?.rapport).toContain(`« ${AU_TESTWRITER.titre} »`);
     expect(arret?.rapport).toContain('testwriter');
     expect(arret?.rapport).toContain('packages/site');
+    expect(arret?.rapport).toContain('quand le plan saute le testwriter');
     expect(arret?.rapport).toContain('aucun paquet du plan ne joue de tests');
     expect(arret?.rapport).toContain('le verdict');
     expect(arret?.rapport).not.toContain(AU_DEVELOPPEUR.titre);

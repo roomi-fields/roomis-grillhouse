@@ -1333,7 +1333,7 @@ export const cheminMecanique = ctx =>
   ctx.sorte?.genre === 'mécanique' && !ctx.depuis && !lotTravaille(ctx);
 
 // The RENDU verdicts since the ticket's last ACCEPTÉ: a lot the queue sent back starts a new count.
-function rendusDepuisAccepte(ctx) {
+export function rendusDepuisAccepte(ctx) {
   const verdicts = fichesDe(ctx, 'relecteur').map(f => f.verdict);
   return verdicts.length - (verdicts.lastIndexOf('ACCEPTÉ') + 1);
 }

@@ -904,5 +904,6 @@ export function circuitEssai(
     commentaires,
     historique,
     bilans,
+    tous,
   };
 }

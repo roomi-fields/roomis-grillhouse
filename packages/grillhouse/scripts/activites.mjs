@@ -354,7 +354,7 @@ export function relectureEntiere(constats) {
 // every one, and the lines of the review before by element), each marked to judge again, or to
 // take up with its line before; then the changed sources the language service does not read,
 // whose elements he surveys himself, one line of conformity each as `<fichier>#<nom>`, and why.
-function texteDesElements(liste, bornee = null) {
+export function texteDesElements(liste, bornee = null) {
   if (liste.etat !== 'fait') {
     return `aucun : la liste n'a pas pu être calculée (${liste.raison}) ; tu relèves toi-même chaque élément du lot.`;
   }
@@ -386,7 +386,7 @@ function texteDesElements(liste, bornee = null) {
 // The last review of the ticket and the lot it read: its sheet's entry (`{ fiche, lot: { commit,
 // arbre, base, fichiers } }`), or null before any, without a copy, or when the lot or its base is
 // not kept (the repository no longer holds one of them).
-function relectureDAvant(ctx) {
+export function relectureDAvant(ctx) {
   const e = lesFiches(ctx).findLast(x => x.role === 'relecteur');
   if (!e?.lot?.commit || !e.lot.base || !existsSync(ctx.copie)) {
     return null;

@@ -54,6 +54,26 @@ describe('a whole review receives the findings still open (critère 1)', () => {
     expect(texte).toMatch(/`suivi`/);
   });
 
+  it('the answer of the developpeur is read under its finding with its piece: lifted, or contested with its reason', () => {
+    const leve = relectureEntiere([OUVERT]);
+    expect(leve).toContain(
+      'Pièce : packages/a/src/x.ts:12\nRéponse du développeur : levé\nPièce de la réponse : packages/a/src/x.ts:14'
+    );
+    const conteste = relectureEntiere([
+      {
+        ...OUVERT,
+        reponse: {
+          etat: 'contesté',
+          raison: 'le critère 1 demande ce comportement.',
+          piece: 'packages/a/src/x.ts:1 rend la mesure.',
+        },
+      },
+    ]);
+    expect(conteste).toContain(
+      'Réponse du développeur : contesté — le critère 1 demande ce comportement.\nPièce de la réponse : packages/a/src/x.ts:1 rend la mesure.'
+    );
+  });
+
   it("the reviewer's instruction carries them under « LA RELECTURE D'AVANT »", () => {
     const texte = consigne({ precedente: relectureEntiere([OUVERT]) }, 1);
     const ligne = texte.indexOf("LA RELECTURE D'AVANT");

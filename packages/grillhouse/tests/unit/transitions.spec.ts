@@ -687,10 +687,13 @@ describe('un tableau de transitions par étape', () => {
           mecanique: false,
         }
       ).d;
-      expect(dev.suivant.etape).toBe(CODE);
-      expect(
-        jouer({ etat: etat(RELECTURE) }, { relecture: v(), rendus: T.RELECTURES }).d.arret?.nom
-      ).toBe('relecture-arret');
+      expect(dev.suivant).toMatchObject({ etape: CODE, tentative: 1 });
+      const troisieme = jouer({ etat: etat(RELECTURE) }, { relecture: v(), rendus: T.RELECTURES }).d
+        .arret;
+      expect(troisieme?.nom).toBe('relecture-arret');
+      expect(troisieme?.rapport).toContain(
+        `${T.RELECTURES} relectures ont rendu le lot : le circuit s'arrête à la troisième.`
+      );
     });
     it('un constat sans destinataire, au testwriter sauté, ou sur un lot mécanique : relecture-arret', () => {
       const sans = { arret: { nom: 'relecture-arret', rapport: 'R', piece: 'P' } };
