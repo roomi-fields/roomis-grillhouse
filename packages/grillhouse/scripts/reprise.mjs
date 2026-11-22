@@ -8,11 +8,14 @@ import { SUITE } from './etapes.mjs';
 const etatDe = n => SUITE.find(e => e.numero === n).etat;
 
 /**
- * The step that carries the red whose places are <lieux> (`{ paquet, fichier, gardes,
+ * The step that carries the red whose places are <lieux> (`{ paquet, fichier, gardes, nommes,
  * dansLePlan }`), by the files the red names against what the testwriter (`portes.tests`) and the
- * developpeur (`portes.code`) wrote: `{ etape, fichiers, motif? }`. A test file that a guard or
- * the style refuses (`gardes` not empty) is the testwriter's, the earliest step (the developpeur
- * replays after him); a test that fails (no guard) and a file of code are the developpeur's. A red
+ * developpeur (`portes.code`) wrote: `{ etape, fichiers, motif? }`. A test file of the lot that a
+ * guard or the style refuses (`gardes` not empty), or that the message of a failed test out of
+ * the lot names (`nommes`, a guard written as a test, which lists what it finds), is the testwriter's, the
+ * earliest step (the developpeur replays after him): a red goes to who writes the file it names,
+ * as Gerrit gives a failed check back to the author of the file. A test that fails and names no
+ * test file of the lot (no guard) and a file of code are the developpeur's. A red
  * that names no file but lies in a package of the plan (a red task: lint, format check, typing,
  * build) is the developpeur's, no file named, as a red job of a CI goes back to its author (the
  * owner's decision on grillhouse-4nr.14.1); one out of the plan, or a file nobody wrote, is never
@@ -36,11 +39,22 @@ export function attribuerLeRouge({ lieux, portes }) {
       motif: `le rouge nomme ${inconnus.join(', ')}, que ni le testwriter ni le développeur ne portent`,
     };
   }
-  const refuses = nommes.filter(
-    f => tests.has(f) && avecFichier.some(l => l.fichier === f && (l.gardes ?? []).length > 0)
-  );
+  // The test files of the lot the message of a failed test out of the lot names.
+  const designes = avecFichier
+    .filter(l => !tests.has(l.fichier))
+    .flatMap(l => l.nommes ?? [])
+    .filter(f => tests.has(f));
+  const refuses = [
+    ...new Set([
+      ...nommes.filter(
+        f => tests.has(f) && avecFichier.some(l => l.fichier === f && (l.gardes ?? []).length > 0)
+      ),
+      ...designes,
+    ]),
+  ];
+  const tous = [...new Set([...nommes, ...designes])];
   return refuses.length
-    ? { etape: 'testwriter', fichiers: refuses.length === nommes.length ? refuses : nommes }
+    ? { etape: 'testwriter', fichiers: refuses.length === tous.length ? refuses : tous }
     : { etape: 'developpeur', fichiers: nommes };
 }
 

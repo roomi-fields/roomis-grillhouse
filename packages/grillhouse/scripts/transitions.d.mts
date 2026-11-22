@@ -17,6 +17,11 @@ export interface EntreeDeLaTransition {
   ticket: { id: string; paquets: string[]; sorte: unknown; copie: string };
   reprend?: boolean;
   faits?: Record<string, unknown>;
+  /**
+   * The markers of the workflow of a ticket (`patched`), each true when the run carries it; a run
+   * recorded before a marker decides as before it.
+   */
+  marqueurs?: { attributionAvantSansLivraison?: boolean };
 }
 
 /** The next fact to read, with what the step decided before it; or the decision of the step. */

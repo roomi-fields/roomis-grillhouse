@@ -1379,6 +1379,50 @@ function changements(ctx) {
 // language (`estUnTest`, scripts/jointure.d.ts).
 const duTestwriter = (ctx, fichier) => langageDe(ctx.copie).estUnTest(fichier, ctx.copie) !== null;
 
+// The files of the lot the testwriter writes (test files and the shared test material), present
+// in the copy, from its root.
+const fichiersDuTestwriter = ctx =>
+  changements(ctx)
+    .filter(c => !c.supprime && duTestwriter(ctx, c.fichier))
+    .map(c => c.fichier);
+
+// The characters of a file name, and those of a path.
+const DE_NOM = new Set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-');
+const DE_CHEMIN = new Set([...DE_NOM, '.', '/']);
+
+// The files of <candidats> (from the root of the copy) that <message>, the message of a failed
+// test of the file <fichier>, names: each written from the root, or from the directory <dossier>
+// of the package of <fichier>, as a guard written as a test lists what it finds (« tests/a.spec.ts:23:
+// ESSAIS »). The stack of the error is not read: a file it goes through is not named. <fichier>
+// itself is never one of them.
+function nommesParLeMessage(message, fichier, dossier, candidats) {
+  const lignes = String(message ?? '').split('\n');
+  // The first line of the stack: indented, « at … ».
+  const pile = lignes.findIndex(l => l !== l.trimStart() && l.trimStart().startsWith('at '));
+  const texte = (pile < 0 ? lignes : lignes.slice(0, pile)).join('\n');
+  // Whether <texte> holds <chemin> as a whole path: no character of a path right before it, and
+  // after it neither one of a longer name nor a further extension (« .ts:23 » and « .ts. » end it).
+  const nomme = chemin => {
+    for (let i = texte.indexOf(chemin); i >= 0; i = texte.indexOf(chemin, i + 1)) {
+      const avant = texte[i - 1] ?? '\n';
+      const apres = texte[i + chemin.length] ?? '\n';
+      const suite = texte[i + chemin.length + 1] ?? '\n';
+      if (
+        !DE_CHEMIN.has(avant) &&
+        !DE_NOM.has(apres) &&
+        apres !== '/' &&
+        !(apres === '.' && DE_NOM.has(suite))
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+  return candidats.filter(
+    c => c !== fichier && (nomme(c) || (dossier ? nomme(path.posix.relative(dossier, c)) : false))
+  );
+}
+
 // The test files of the lot that the testwriter writes, present in the copy: in the packages of
 // the plan and in the shared test material. <langage> reads the class of a file: the strict join
 // by default, the join of the copy (`langageDeLaCopie`) for the launch of a session, which must
@@ -1855,9 +1899,10 @@ function dansLesEcartes(ctx, chemin) {
 // The reds of the check <c> (`{ args, env, code, dossier }`), read in its results: each failed
 // test of the reports of Vitest, each finding of the guards' SARIF, each failed build, and each
 // failed task none of those situates; a red check with none of them is one red of the command.
-// Each red `{ texte, fichier, gardes, detail, dansLePlan, paquet, horsTitre, arbitrer, joue }`: the
+// Each red `{ texte, fichier, gardes, nommes, detail, dansLePlan, paquet, horsTitre, arbitrer, joue }`: the
 // line that names it (test or finding, file, message), its file (null for a red of a task), the
-// names its finding carries (its guard and its rule), the beginning of its task's log for a build,
+// names its finding carries (its guard and its rule), the files of the lot the testwriter writes
+// that the message of a failed test names (`nommesParLeMessage`), the beginning of its task's log for a build,
 // whether a path of the plan holds it (none for a red without a file), the package that holds it
 // and that package again when it is out of the plan, whether it is a finding to settle
 // (`a-arbitrer`), and the package whose task gave it, as Turborepo names it (« // » for the
@@ -1883,6 +1928,8 @@ export function rougesDe(ctx, liste, c) {
   const out = [];
   const testes = new Set();
   const langage = langageDe(ctx.copie);
+  // The files of the lot the testwriter writes, read at the first failed test.
+  let duLot = null;
   for (const res of langage.verdict(c.dossier).rapports) {
     const f = path.relative(ctx.copie, res.fichier);
     const lieu = situer(ctx, liste, f);
@@ -1896,9 +1943,24 @@ export function rougesDe(ctx, liste, c) {
       testes.add(paquetDe(liste, f));
     }
     for (const a of res.tests.filter(x => x.etat === 'failed')) {
+      duLot ??= fichiersDuTestwriter(ctx);
+      // The files of the lot the message of a test out of the lot names (a guard written as a
+      // test), which the first line of the red may not show. The message of a test of the lot is
+      // not read: its red is the developpeur's, whatever it names.
+      const nommes = duLot.includes(f)
+        ? []
+        : nommesParLeMessage(
+            a.message,
+            f,
+            liste.find(x => f.startsWith(`${x.dossier}/`))?.dossier ?? null,
+            duLot
+          );
+      const premiere = premiereLigne(a.message);
+      const tus = nommes.filter(n => !premiere.includes(n));
       out.push({
-        texte: `test ${f} › ${a.nom} — ${premiereLigne(a.message)}`,
+        texte: `test ${f} › ${a.nom} — ${premiere}${tus.length ? ` (il nomme ${tus.join(', ')})` : ''}`,
         fichier: f,
+        nommes,
         ...lieu,
         joue: lieu.paquet,
       });
@@ -2002,8 +2064,9 @@ const ligneDeCommande = c =>
 // report of the checks (empty without one); `auDeveloppeur` whether a red lies
 // in a package of the plan; `horsTitre` the packages out of the plan that hold a red; `arbitrer`
 // when every red of the plan is a finding to settle; `lieux` the place of each red, `{ fichier,
-// gardes, dansLePlan }`, its file (null for a red without one), the names its finding carries
-// (none for a test or a task), and whether a path of the plan holds it; `references`, out of the final pass, the references whose reds the checks saw,
+// gardes, dansLePlan, nommes }`, its file (null for a red without one), the names its finding carries
+// (none for a test or a task), whether a path of the plan holds it, and, when there are some, the
+// files of the lot the testwriter writes that the message of its failed test names; `references`, out of the final pass, the references whose reds the checks saw,
 // which their regeneration lifts before the checks judge the lot again, or before the final pass; `tous` every red as it was read; `notes`,
 // at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
 // fichier, regle, trouve }`.
@@ -2069,6 +2132,7 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
     fichier: r.fichier ?? null,
     gardes: r.gardes ?? [],
     dansLePlan: Boolean(r.dansLePlan),
+    ...(r.nommes?.length ? { nommes: r.nommes } : {}),
   });
   const deReference = r => referencesDesRouges(ctx, [lieu(r)]).length > 0;
   const siens = r => finale || (r.dansLePlan && !deReference(r));
@@ -2348,14 +2412,13 @@ export function empreinteDeLEtape(ctx, etape) {
 // The test files and the files of code a red lies in (<lieux>, the places of the red as the
 // checks name them) that the testwriter and the developpeur carry (scripts/reprise.mjs
 // `attribuerLeRouge`): `{ tests, code }`. The testwriter carries the test files of the lot; the
-// developpeur, every other file of a path of the plan.
+// developpeur, every other file of a path of the plan. A file the message of a failed test names
+// (`nommes` of its place) is one the red lies in, as the file that fails.
 export function portesDuRouge(ctx, lieux) {
-  const dulot = new Set(
-    changements(ctx)
-      .filter(c => !c.supprime && duTestwriter(ctx, c.fichier))
-      .map(c => c.fichier)
-  );
-  const nommes = [...new Set((lieux ?? []).map(l => l.fichier).filter(Boolean))];
+  const dulot = new Set(fichiersDuTestwriter(ctx));
+  const nommes = [
+    ...new Set((lieux ?? []).flatMap(l => [l.fichier, ...(l.nommes ?? [])]).filter(Boolean)),
+  ];
   return {
     tests: nommes.filter(f => dulot.has(f)),
     code: nommes.filter(f => !dulot.has(f) && (dansLePlan(ctx, f) || dansLesEcartes(ctx, f))),

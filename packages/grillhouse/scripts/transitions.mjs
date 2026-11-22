@@ -5,7 +5,7 @@
 // reads no file, launches no process and imports no module that does (a guard holds it:
 // tests/unit/transitions.spec.ts).
 //
-// `transition({ etat, memoire, ticket, reprend, faits })`:
+// `transition({ etat, memoire, ticket, reprend, faits, marqueurs })`:
 //
 // - `etat`, the run at its step: `{ etape, tentative, rapport, finale, relanceSurLeRefus }`;
 // - `memoire`, what the circuit keeps between steps (`controlesRouges`, `renvoiAuTestwriter`,
@@ -13,7 +13,10 @@
 //   `toursDeLaPasseFinale`, `constats`);
 // - `ticket`, `{ id, paquets, sorte, copie }`;
 // - `reprend`, whether this step is the first of a `--reprendre`;
-// - `faits`, the facts read for this step, by their name.
+// - `faits`, the facts read for this step, by their name;
+// - `marqueurs`, the markers of the workflow of a ticket (`patched`), each true when the run
+//   carries it: `attributionAvantSansLivraison`, without which red checks after a developpeur who
+//   had nothing to deliver stop before any attribution, as a run recorded before it replays.
 //
 // It returns either the next fact to read, `{ besoin: { fait, ...parametres }, effets, memoire }` (a
 // session, a pass, a reading of the copy), which the circuit reads and gives back in `faits` with
@@ -510,7 +513,7 @@ export function transition(entree) {
   }
 }
 
-function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel) {
+function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }, lire, partiel) {
   let { etape, tentative, rapport, finale } = etat;
   let relanceSurLeRefus = Boolean(etat.relanceSurLeRefus);
   const maj = {};
@@ -1142,14 +1145,24 @@ function decider({ etat, memoire = {}, ticket, reprend = false }, lire, partiel)
         `Le ticket est mécanique (${ticket.sorte.raison}) : ni testwriter ni développeur ne lève ce rouge du lot de sa commande. Le superviseur fait corriger le lot (\`--depuis developpeur\`, le rouge en \`--contexte\`), corrige le geste dans la copie puis \`--reprendre\`, ou arrête le circuit (\`--arreter\`).`
       );
     }
-    // The stop stands at the developpeur's step, which a resumption plays again.
-    if (k.rouge && rien) {
+    // A run recorded before the marker `attribution-avant-sans-livraison` of the workflow of a
+    // ticket (src/temporal/circuit/deroule.ts) keeps the former order: the stop of a developpeur
+    // who had nothing to deliver before any attribution, the fact « portes » not read, as its
+    // history replays. This path leaves once those runs have ended (grillhouse-3uv.177).
+    if (k.rouge && rien && !marqueurs.attributionAvantSansLivraison) {
       return arret('sans-livraison', rien, CODE);
     }
-    if (k.rouge && suivante <= SEANCES_DEVELOPPEUR) {
-      // The red goes back to the step that carries it, by the files it names (scripts/reprise.mjs).
-      const portes = lire('portes', { lieux: k.lieux });
-      const a = attribuerLeRouge({ lieux: k.lieux, portes });
+    // The red goes back to the step that carries it, by the files it names (scripts/reprise.mjs).
+    const portes =
+      k.rouge && suivante <= SEANCES_DEVELOPPEUR ? lire('portes', { lieux: k.lieux }) : null;
+    const a = portes ? attribuerLeRouge({ lieux: k.lieux, portes }) : null;
+    // A developpeur who had nothing to deliver stops the circuit on a red that is his: the stop
+    // stands at his step, which a resumption plays again. A red that names a test file of the lot
+    // is the testwriter's, who is relaunched: the developpeur had nothing to write for it.
+    if (k.rouge && rien && a?.etape !== 'testwriter') {
+      return arret('sans-livraison', rien, CODE);
+    }
+    if (a) {
       if (!a.etape) {
         return arret('controles', `Le rouge n'est attribué à aucune étape : ${a.motif}.`);
       }

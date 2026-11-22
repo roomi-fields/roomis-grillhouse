@@ -292,6 +292,9 @@ describe('grillhouse-3uv.50, critère 1 — a root under the home creates its pa
   });
 });
 
+// Each assertion on the files of the repository carries what it finds as its message (« file:line:
+// … », one per line): the report of the red names the file, and the circuit gives the red to who
+// writes it.
 describe('the trial directories of the tests', () => {
   const fichiers = fichiersDeTest();
   const sources = fichiers.map(f => ({ f, s: readFileSync(path.join(DEPOT, f), 'utf8') }));
@@ -303,16 +306,18 @@ describe('the trial directories of the tests', () => {
 
   it('critère 2 — no test names a fixed directory under the home: every path there is made by mkdtemp', () => {
     const fixes = sources.flatMap(({ f, s }) => cheminsFixes(s).map(x => `${f}:${x}`));
-    expect(fixes.filter(x => /homedir/.test(x))).toEqual([]);
+    const sousLaMaison = fixes.filter(x => /homedir/.test(x));
+    expect(sousLaMaison, sousLaMaison.join('\n')).toEqual([]);
   });
 
   it('grillhouse-3uv.50, critère 1 — every root under the home is made by racineSousLaMaison', () => {
-    expect(sources.flatMap(({ f, s }) => racinesSansParent(s).map(x => `${f}:${x}`))).toEqual([]);
+    const sansParent = sources.flatMap(({ f, s }) => racinesSansParent(s).map(x => `${f}:${x}`));
+    expect(sansParent, sansParent.join('\n')).toEqual([]);
   });
 
   it('critère 6 — no test names a fixed directory under the temp directory: every path there is made by mkdtemp', () => {
     const fixes = sources.flatMap(({ f, s }) => cheminsFixes(s).map(x => `${f}:${x}`));
-    expect(fixes).toEqual([]);
+    expect(fixes, fixes.join('\n')).toEqual([]);
   });
 
   it('critère 2 — no test names a fixed directory grillhouse-essais-*: the name is a mkdtemp prefix', () => {
@@ -325,11 +330,12 @@ describe('the trial directories of the tests', () => {
         }
       }
     }
-    expect(fixes).toEqual([]);
+    expect(fixes, fixes.join('\n')).toEqual([]);
   });
 
   it('critère 2 — every trial directory made in the temp directory or under the home is the root of its file', () => {
-    expect(sources.flatMap(({ f, s }) => horsRacine(s).map(l => `${f}:${l}`))).toEqual([]);
+    const hors = sources.flatMap(({ f, s }) => horsRacine(s).map(l => `${f}:${l}`));
+    expect(hors, hors.join('\n')).toEqual([]);
   });
 
   it('critère 2 — each run removes the root of trial of each file, in the temp directory or outside it, at its end', () => {
@@ -344,7 +350,7 @@ describe('the trial directories of the tests', () => {
         }
       }
     }
-    expect(restent).toEqual([]);
+    expect(restent, restent.join('\n')).toEqual([]);
     // The guard sees the roots in the temp directory too, as the one of the tests of the machine.
     const s = sources.find(x => x.f === 'tests/unit/machine.spec.ts')?.s ?? '';
     expect(racines(s).map(r => r.nom)).toEqual(['ESSAIS']);
@@ -365,7 +371,7 @@ describe('the trial directories of the tests', () => {
         }
       }
     }
-    expect(fautes).toEqual([]);
+    expect(fautes, fautes.join('\n')).toEqual([]);
     // The envelope and the locks each need one: the envelope hides the temp directory, and the
     // hook command of the locks takes it for the scratchpad.
     expect(vues).toBeGreaterThanOrEqual(2);

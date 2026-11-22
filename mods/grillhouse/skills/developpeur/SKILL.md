@@ -142,7 +142,7 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   sur un rouge (de la preuve, un `rouge existant` compris, ou des contrôles), sur un constat du
   relecteur ouvert pour toi, ou directement sur un plan qui ne porte aucun test (aucun paquet qui
   joue des tests, un script `test:unit` en typescript), sans testwriter ni preuve : une séance qui ne change aucun fichier du
-  plan n'a rien à livrer, et ses contrôles rouges arrêtent le circuit (`sans-livraison`) ; ta
+  plan n'a rien à livrer, et ses contrôles rouges arrêtent le circuit (`sans-livraison`), sauf un rouge qui nomme un fichier de test du lot, qui va au testwriter ; ta
   passation dit pourquoi. Lancé après un refus de l'intégration, ton rapport porte ce refus : c'est
   le rouge à lever, que les contrôles de ta copie, verts, ne voient pas ; une séance qui ne change
   rien au lot refusé est relancée une fois avec lui, puis le circuit s'arrête (`sans-livraison`). Tes propres lancements pendant le travail restent les tiens. Ainsi ton

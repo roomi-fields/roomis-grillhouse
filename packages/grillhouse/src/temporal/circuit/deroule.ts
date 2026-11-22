@@ -31,6 +31,7 @@ import {
   defineUpdate,
   isCancellation,
   makeContinueAsNewFunc,
+  patched,
   proxyActivities,
   setHandler,
   upsertMemo,
@@ -172,6 +173,13 @@ const nomDe = (a: ArretDecide) =>
 
 /** The circuit of a ticket, from its plan to its integration or to the supervisor's stop. */
 export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCircuit> {
+  // Versioned (`patched('attribution-avant-sans-livraison')`, read once, at the start of the run):
+  // red checks after a developpeur who had nothing to deliver read the fact « portes » before the
+  // stop « sans-livraison », an activity more than before. A run recorded before the marker
+  // replays without it and keeps the former order to its end (scripts/transitions.mjs).
+  const marqueurs = {
+    attributionAvantSansLivraison: patched('attribution-avant-sans-livraison'),
+  };
   const repasserMs = entree.repasserMs ?? REPASSER_MS;
   const repassesMax = entree.repassesMax ?? REPASSES_MAX;
   let ouverture: Ouverture | null = entree.suite?.ouverture ?? null;
@@ -538,7 +546,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       const faits: Record<string, unknown> = {};
       let d: Transition;
       for (;;) {
-        d = transition({ etat, memoire, ticket, reprend, faits });
+        d = transition({ etat, memoire, ticket, reprend, faits, marqueurs });
         if (!d.besoin) {
           break;
         }

@@ -138,6 +138,16 @@ l'interface, le lancement réel abandonné ou, si le plan le prescrit grand, éc
 seulement quand la logique n'a aucune interface petite publiée (le paragraphe d'avant). Ainsi le
 testwriter ne propose jamais un grand test de jour, et le circuit ne boucle pas.
 
+**Chaque racine d'essai est retirée à la fin de son fichier** : un fichier de test crée ses dossiers
+et fichiers temporaires sous une racine que fait l'outil de son langage (en TypeScript,
+`const ESSAIS = mkdtempSync(path.join(tmpdir(), '<préfixe>-'))`), et la retire à sa fin, test rouge
+compris (`afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }))`). Avant de rendre ta
+fiche, tu rejoues sa garde : `npm test -- <tes fichiers>`, dont la passe échoue en nommant ce qu'un
+test laisse dans le dossier temporaire, puis la garde des dossiers d'essai de ton projet, s'il en a
+une. Tu ne rends FAIT que sur elles vertes : un rouge des contrôles qui nomme un de tes fichiers te
+revient.
+Ainsi le dossier temporaire ne garde rien, et le circuit ne s'arrête pas sur une racine oubliée.
+
 **Le rouge prouve le travail du ticket** : tu lances tes tests sur le code présent
 (`npm test -- <fichier>`, le chemin écrit depuis la racine du dépôt), et ta fiche nomme dans
 `portent_le_travail` ceux qui portent le travail du ticket : seuls ceux-là rougissent d'abord. Les
