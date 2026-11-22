@@ -4,6 +4,8 @@
 // the frame, and a workflow without the frame's mark, stay untouched.
 //
 // Small tests: a project of files, the update called by its interface, without a process.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

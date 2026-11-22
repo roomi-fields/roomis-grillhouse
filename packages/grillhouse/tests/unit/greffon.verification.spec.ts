@@ -3,6 +3,8 @@
 // which the verification plays beside the frame's (scripts/langages/typescript/verifier.mjs), as the
 // root task `//#gardes` of Turborepo, cached on the root's inputs. The CI installs the command
 // claude at a fixed version before the verification.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

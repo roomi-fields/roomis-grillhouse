@@ -2,7 +2,7 @@
 // today (scripts/crochets.mjs `CROCHETS`): a committed hook left on a former text is rewritten by
 // the frame at each push, and the working tree is then never clean.
 //
-// @lit .beads/hooks/** packages/grillhouse/scripts/crochets.mjs
+// @lit .beads/hooks/commit-msg .beads/hooks/pre-push packages/grillhouse/scripts/crochets.mjs
 //
 // Small test: the text of the committed files against the table of the frame.
 import { readFileSync } from 'node:fs';

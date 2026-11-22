@@ -6,6 +6,9 @@
 // CI of the project template has none: its job of the guards waits for the build of every package. The CI of Grillhouse plays the
 // verification in several jobs (`--sans-tests`, then its tranches, `--tranche i/n`, merged by
 // `grillhouse fusion-des-tranches`): each of its jobs but build calls the verification alone.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
+// @lit package.json templates/projet/package.json .gitignore templates/projet/_gitignore
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

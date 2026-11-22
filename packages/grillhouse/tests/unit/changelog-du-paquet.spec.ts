@@ -3,6 +3,8 @@
 // package, carried by its npm archive), so the plan of any lot of the package holds it. A project
 // whose root is its package keeps its CHANGELOG.md at the root. No test reads the CHANGELOG
 // (grillhouse-an7): these tests read where it is, the readers' paths and the texts' wording.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

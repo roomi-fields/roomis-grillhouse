@@ -67,6 +67,10 @@
 //   root's task sets none, since `$TURBO_EXTENDS$` then extends an empty list; then
 //   `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each trace whose
 //   output one of them overlaps (`<producer>#trace:<name>`); the producer declares nothing for it.
+//   The patterns its test files declare they read (`// @lit <motif>` at their head,
+//   ./vitest-config/lances.mjs) are hashed with them (`$TURBO_ROOT$/<motif>` each, those `lit`
+//   already covers left out), a package without `lit` included: one declaration, read by the
+//   choice of the tests of a pass and by Turborepo's cache.
 // - `traces`: each trace the package produces, its command the package's script of the same name,
 //   `trace:<name>`. Its task waits for `build` and `^build`, and for the traces its `lit` overlaps;
 //   it hashes the package's files and its `lit`, its output left out, and Turborepo caches its
@@ -174,6 +178,7 @@ import {
   VARIABLE_TRAVAILLEURS as TRAVAILLEURS,
 } from '../../services-du-noyau.mjs';
 import { matieres } from './consommateurs.mjs';
+import { lecturesDeclarees, testsDuPaquet } from './vitest-config/lances.mjs';
 import { parcourir } from './parcours.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { ecrireSarif, RESULTATS } from '../../resultats.mjs';
@@ -717,6 +722,17 @@ function declarations(liste) {
     });
 }
 
+// The patterns the test files of the package at <dossier> (absolute) declare they read (`// @lit`
+// at their head, ./vitest-config/lances.mjs), each a glob from the root, those the paths <lit> of
+// the package already cover left out; sorted.
+function lecturesDesTests(dossier, lit) {
+  return [
+    ...new Set(testsDuPaquet(dossier).flatMap(t => lecturesDeclarees(readFileSync(t, 'utf8')))),
+  ]
+    .filter(m => !lit.some(l => m === l || m.startsWith(`${l}/`)))
+    .sort();
+}
+
 // The text of a package's turbo.json, whose tasks are <taches>.
 const texte = taches =>
   `// Généré par \`${COMMANDE}\` depuis les package.json, le turbo.json racine et docs/agents/hors-cadre.txt ; ne pas éditer.\n${JSON.stringify(
@@ -821,12 +837,14 @@ export function attendus(racine) {
         }
       }
       const decl = decls.get(dossier);
-      if (decl.lit.length) {
+      const declares = lecturesDesTests(path.join(racine, dossier), decl.lit);
+      if (decl.lit.length || declares.length) {
         taches[TESTS] = {
           dependsOn: [...deplier(deRacine.get(TESTS)?.dependsOn ?? []), ...jointes(decl.lit)],
           inputs: [
             base(TESTS),
             ...decl.lit.map(l => `$TURBO_ROOT$/${l}/**`),
+            ...declares.map(m => `$TURBO_ROOT$/${m}`),
             ...gitsExclus(decl.lit, sm),
           ],
         };

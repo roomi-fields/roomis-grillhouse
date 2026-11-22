@@ -5,6 +5,8 @@
 // declared flow without file; the reviewer's instruction carries one line per flow the lot touches.
 // Witness: SyntHub, a release trial that did not follow a change of the service, which no review
 // read.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

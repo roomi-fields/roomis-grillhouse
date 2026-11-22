@@ -5,6 +5,8 @@
 // project's copy that bears the frame's mark, and leaves a copy without the mark alone.
 //
 // Small tests: the text of the workflows, and the update called by its interface.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

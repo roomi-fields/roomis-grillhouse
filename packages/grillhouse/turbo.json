@@ -45,7 +45,23 @@
         "$TURBO_ROOT$/packages/grillhouse/CHANGELOG.md/**",
         "$TURBO_ROOT$/packages/grillhouse/bin/**",
         "$TURBO_ROOT$/templates/**",
-        "$TURBO_ROOT$/tsdoc.json/**"
+        "$TURBO_ROOT$/tsdoc.json/**",
+        "$TURBO_ROOT$/.gitignore",
+        "$TURBO_ROOT$/CONTRIBUTING.md",
+        "$TURBO_ROOT$/CREDITS.md",
+        "$TURBO_ROOT$/README.md",
+        "$TURBO_ROOT$/STRUCTURE.md",
+        "$TURBO_ROOT$/docs/agents/**",
+        "$TURBO_ROOT$/packages/grillhouse/docs/**",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/**",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/**/*.d.ts",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/**/*.mjs",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/crochets.mjs",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/{activites,effets,bilan}.mjs",
+        "$TURBO_ROOT$/packages/grillhouse/scripts/{circuit,transitions,seances,ticket-du-circuit}.mjs",
+        "$TURBO_ROOT$/packages/grillhouse/src/**",
+        "$TURBO_ROOT$/packages/grillhouse/tests/**",
+        "$TURBO_ROOT$/packages/grillhouse/tests/temoins/repartition.json"
       ]
     }
   }

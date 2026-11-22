@@ -4,6 +4,8 @@
 // tells the project that its workflows play Node 26 alone, with no proof of the version it declares.
 // The frame's workflows of the project are written again from the template. Small tests: files
 // under a temporary directory.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

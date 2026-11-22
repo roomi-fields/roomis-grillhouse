@@ -4,6 +4,8 @@
 // not know, so the guard stays red until the project names the package the flow exercises. The read
 // is `fluxSansEntree` of the guard (scripts/flux-des-paquets.mjs). Witness: SyntHub at 0.34.0, whose
 // flows the CHANGELOG had never told to declare.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

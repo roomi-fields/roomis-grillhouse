@@ -3,6 +3,8 @@
 // each job that plays a version lists « 26.x » and nothing else, and the release passes no version
 // to the CI it calls; the build job plays Node 26; `engines.node` is `>=26.0.0` at the root, in the
 // published package and in the template.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

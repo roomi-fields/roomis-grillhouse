@@ -1,3 +1,4 @@
+// @lit packages/grillhouse/tests/** packages/grillhouse/src/** packages/grillhouse-essais/tests/**
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

@@ -3,6 +3,8 @@
 // private one by the repository's secret SOUS_MODULES, else by the workflow's own token.
 //
 // Small tests: the text of each workflow, without a repository or a process.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

@@ -1,6 +1,8 @@
 // The CI of the project template installs uv on a hosted runner as soon as a CMakeLists.txt exists
 // (the module c's clang tools come through uv), besides the pyproject.toml condition; clang-format
 // and clang-tidy come from the step `npx grillhouse binaires` that follows.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

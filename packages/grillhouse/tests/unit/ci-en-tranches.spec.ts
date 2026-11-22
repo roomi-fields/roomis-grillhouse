@@ -6,6 +6,8 @@
 // alone.
 //
 // Small tests: the text of the workflow, read.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

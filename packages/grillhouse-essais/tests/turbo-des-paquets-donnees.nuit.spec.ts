@@ -699,3 +699,40 @@ describe('a declared file the build of its package reads', () => {
     expect(donnees.get('040-checker#test:unit')).not.toBe(apres.get('040-checker#test:unit'));
   });
 });
+
+// What a test declares it reads (`// @lit <motif>` at its head) is hashed with its package's test
+// task, a package without `grillhouse.lit` included. Witness: SyntHub (SH-ae6.10.31), whose
+// `packages/interface` held no key: a lot that changed `site/pages/site.py`, which a test declared
+// it read, replayed a green of before, and the red entered main.
+describe('a pattern a test declares it reads moves the hash of its package’s tests', () => {
+  const depotQuiDeclare = () => {
+    const racine = depotBP();
+    ecrireFichier(
+      racine,
+      'packages/010-parser/tests/pages.spec.ts',
+      "// @lit site/pages/**\nimport { it } from 'vitest';\nit('x', () => {});\n"
+    );
+    ecrireFichier(racine, 'site/pages/site.py', 'PAGES = ["a"]\n');
+    ecrireFichier(racine, 'site/autre.py', 'X = 1\n');
+    git(racine, ['add', '-A']);
+    return racine;
+  };
+
+  it('a file under the pattern, changed, replays the tests of the package that declares it, and no other', () => {
+    const racine = depotQuiDeclare();
+    ecrire(racine);
+    expect(tachesDe(racine, 'packages/010-parser')['test:unit'].inputs).toEqual([
+      '$TURBO_EXTENDS$',
+      '$TURBO_ROOT$/site/pages/**',
+    ]);
+    const empreintes = () =>
+      new Map([...sec(racine, ['test:unit'])].map(([id, t]) => [id, t.hash]));
+    const avant = empreintes();
+    ecrireFichier(racine, 'site/pages/site.py', 'PAGES = ["a", "b"]\n');
+    const apres = empreintes();
+    expect(apres.get('010-parser#test:unit')).not.toBe(avant.get('010-parser#test:unit'));
+    expect(apres.get('040-checker#test:unit')).toBe(avant.get('040-checker#test:unit'));
+    ecrireFichier(racine, 'site/autre.py', 'X = 2\n');
+    expect(empreintes().get('010-parser#test:unit')).toBe(apres.get('010-parser#test:unit'));
+  });
+});

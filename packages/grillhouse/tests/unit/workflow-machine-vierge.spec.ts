@@ -4,6 +4,8 @@
 // starts it, so a red pass never blocks the queue of the lots.
 //
 // Small tests: the text of the template, read as the queue reads it, without a process.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

@@ -5,6 +5,8 @@
 // the release commit, locally: it pushes nothing. The push of the tag publishes the package on the
 // npm registry, after the green CI of its commit (.github/workflows/release.yml). The command run
 // in a git repository is the night's (packages/grillhouse-essais/tests/version.nuit.spec.ts).
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

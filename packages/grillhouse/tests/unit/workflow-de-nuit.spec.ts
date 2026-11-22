@@ -2,6 +2,8 @@
 // tests but those tagged @poste, no measure of time, on the runner of the variable RUNNER.
 //
 // Small tests: the text of the workflow, without a process.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

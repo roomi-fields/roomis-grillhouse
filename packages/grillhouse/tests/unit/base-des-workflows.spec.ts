@@ -4,6 +4,8 @@
 // play the complete pass. The control reads the text of each workflow of `.github/workflows`.
 //
 // Small tests: the text of a workflow, without a repository or a process.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';

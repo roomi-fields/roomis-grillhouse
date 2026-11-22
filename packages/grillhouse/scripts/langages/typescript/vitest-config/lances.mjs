@@ -39,7 +39,9 @@
 //   target of Bazel declares its `data`: a line `// @lit <motif> …` of the comment at its head,
 //   each pattern a glob from the top of the repository (`// @lit packages/grillhouse/scripts/**`).
 //   ./changements.mjs adds it to the tests of every pass, targeted or not, whose changes, files
-//   changed, added or removed, one of its patterns covers.
+//   changed, added or removed, one of its patterns covers; the generator of the packages'
+//   turbo.json (../turbo-des-paquets.mjs) writes each pattern in the inputs of the package's test
+//   task, so that Turborepo's cache follows the same declaration.
 // - What a test names without the frame reading it (`nonDeclares`): a string of the test's code or
 //   of its material that ends the path of a module of its package (`'verrou.mjs'`,
 //   `'verrous/verrou.mjs'`), out of a directory of tests, the module out of what the test reads and

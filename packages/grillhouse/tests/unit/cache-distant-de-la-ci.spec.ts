@@ -7,6 +7,8 @@
 //
 // Small tests: the text of the workflows and of turbo.json, read; the expression of TURBO_CACHE
 // evaluated by a reading of GitHub's operators on the cases of the events.
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

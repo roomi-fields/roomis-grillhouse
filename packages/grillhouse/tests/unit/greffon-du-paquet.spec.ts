@@ -10,6 +10,8 @@
 // resolves in a plugin's skills, and in the charter as the file beside it; the package publishes
 // its architecture (`docs/`), which the charter names at its path in a project
 // (grillhouse-3uv.84.8).
+//
+// @lit .github/workflows/** templates/projet/.github/workflows/**
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
