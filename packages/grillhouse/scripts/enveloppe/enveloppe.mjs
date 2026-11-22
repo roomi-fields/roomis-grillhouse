@@ -72,7 +72,8 @@
 //   at its real path, never at a link, by that same mechanism.
 // - A worktree of the repository under an emptied directory (the home, `/tmp`) comes back
 //   read-only, `.git` included; the copy's packages of the plan and the tickets base are then
-//   written as above.
+//   written as above. The copy of another ticket is an optional mount (`--ro-bind-try`): its
+//   circuit removes it at any moment, and the session leaves without it.
 // - An envelope on the main tree is refused, so is a plan that names no package, and so is a path
 //   of the plan that does not exist; when it is the name of a package of the copy, the refusal
 //   gives its path.
@@ -265,9 +266,16 @@ const VARIABLES_DE_CHEMIN = [
   'NVM_DIR',
   'XDG_RUNTIME_DIR',
 ];
-// Run inside the envelope before the command: unsets each named variable whose path does not
-// exist there, then runs the command. `sh -c EPREUVE sh <variables…> -- <commande…>`.
+// The witness that the envelope started its command: an empty file the command writes as its first
+// gesture inside the envelope, in the session's working directory (`TMPDIR` there). The launcher
+// (lancer.sh) removes it before the envelope and ranges it with the session's result after: a
+// launch bwrap refuses, on a mount or anything else, leaves none.
+export const TEMOIN_DE_DEMARRAGE = '.demarree';
+// Run inside the envelope before the command: leaves the witness of its start, unsets each named
+// variable whose path does not exist there, then runs the command.
+// `sh -c EPREUVE sh <variables…> -- <commande…>`.
 const EPREUVE =
+  `[ -z "\${TMPDIR-}" ] || touch "$TMPDIR/${TEMOIN_DE_DEMARRAGE}" || :; ` +
   'while [ "$1" != -- ]; do eval "p=\\${$1-}"; ' +
   'if [ -n "$p" ] && [ ! -e "$p" ]; then unset "$1"; fi; shift; done; shift; exec "$@"';
 
@@ -693,8 +701,17 @@ export function plan(
     args.push('--symlink', lien, chemin);
   }
   // A worktree that an emptied directory covers comes back read-only, before the copy is written.
+  // The main tree and the copy of the session are mounted as they are found; the copy of another
+  // ticket, which its circuit removes at any moment, is an optional mount: bwrap skips it when its
+  // source is gone by then, as a container skips an optional mount.
   for (const t of trees) {
-    if (videes.some(v => inside(t, v)) && fs.existe(t)) {
+    if (!videes.some(v => inside(t, v))) {
+      continue;
+    }
+    const tenu = [trees[0], copie].some(a => path.resolve(a) === path.resolve(t));
+    if (!tenu) {
+      args.push('--ro-bind-try', t, t);
+    } else if (fs.existe(t)) {
       args.push('--ro-bind', t, t);
     }
   }

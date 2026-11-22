@@ -132,7 +132,8 @@ const mtime = f => {
 /**
  * Where the session <id> of <ctx> keeps its result, in the working directory of the ticket
  * (`<copie>.travail/seances/<id>/`, as lancer.sh writes it): its exit code (`fin`), claude's JSON
- * result (`resultat.json`) and the reason of a write out of the plan (`hors-plan`).
+ * result (`resultat.json`), the reason of a write out of the plan (`hors-plan`) and the witness
+ * that the envelope started its command (`demarree`).
  */
 export function rangDeLaSeance(ctx, id) {
   const dossier = path.join(ctx.tmp, 'seances', id);
@@ -142,11 +143,13 @@ export function rangDeLaSeance(ctx, id) {
     resultat: path.join(dossier, 'resultat.json'),
     horsPlan: path.join(dossier, 'hors-plan'),
     horsPlanFait: path.join(dossier, 'hors-plan.json'),
+    demarree: path.join(dossier, 'demarree'),
   };
 }
 
-// The result the session ranged at <rang> left, or null without its end file.
-function resultatRange(rang, id) {
+// The result the session ranged at <rang> left, or null without its end file; <horsEnveloppe>, a
+// session no envelope holds, has no witness of its start.
+function resultatRange(rang, id, { horsEnveloppe = false } = {}) {
   if (!existsSync(rang.fin)) {
     return null;
   }
@@ -159,13 +162,15 @@ function resultatRange(rang, id) {
     erreur: null,
     sortie: lire(rang.resultat).trim(),
     id,
+    demarree: horsEnveloppe ? null : existsSync(rang.demarree),
   };
 }
 
-// One launch of a session: `{ code, seance, bloque, erreur, sortie, id }`, `seance` the session's
-// exit code (from lancer.sh's end file for a session in the envelope), null when the launch
-// stopped before it, `sortie` claude's JSON result, its sheet in `structured_output`, `id` the
-// session whose result it is. Every
+// One launch of a session: `{ code, seance, bloque, erreur, sortie, id, demarree }`, `seance` the
+// session's exit code (from lancer.sh's end file for a session in the envelope), null when the
+// launch stopped before it, `sortie` claude's JSON result, its sheet in `structured_output`, `id`
+// the session whose result it is, `demarree` whether the envelope started its command (the
+// witness lancer.sh ranges; null for a session no envelope holds). Every
 // session runs with the author of its role (BEADS_ACTOR). A session in the envelope, on the whole
 // ticket (`.` its component, the plan its `--paquets`), opens under the id <ouvre> (lancer.sh
 // --seance), or resumes the session <reprend> (lancer.sh --reprise); its result is the file
@@ -237,7 +242,9 @@ export async function lancer(
   // attempt made last (its sign of life names it and its session), takes the result that session
   // ranged: no second session. Dead without a result, it is launched anew, under this id.
   if ((ctx.essaiDeLActe ?? 1) > 1 && precedent?.lancement === identite && precedent.seanceId) {
-    const mort = resultatRange(rangDeLaSeance(ctx, precedent.seanceId), precedent.seanceId);
+    const mort = resultatRange(rangDeLaSeance(ctx, precedent.seanceId), precedent.seanceId, {
+      horsEnveloppe,
+    });
     if (mort) {
       // The launch line of the dead attempt died in memory with it: written now, under its
       // session, which the bilan counts as the circuit's.
@@ -254,6 +261,7 @@ export async function lancer(
   rmSync(rang.resultat, { force: true });
   rmSync(rang.horsPlan, { force: true });
   rmSync(rang.horsPlanFait, { force: true });
+  rmSync(rang.demarree, { force: true });
   inscrire(ctx, {
     role: AUTEUR_DU_CIRCUIT,
     lancement: { role, seance: id, ...(objet ? { objet } : {}) },
@@ -428,6 +436,7 @@ export async function lancer(
     erreur: r.erreur ?? lire(erreurs),
     sortie,
     id,
+    demarree: horsEnveloppe ? null : existsSync(rang.demarree),
   };
 }
 
@@ -1047,13 +1056,14 @@ export function seanceLancee(ctx, role, r) {
       `La transcription de la séance du ${role} n'a pas bougé en ${minutes ? `${minutes} min` : `${ctx.immobileMs} ms`} : la séance est arrêtée. Les dernières lignes du journal :\n\n${fin(lire(ctx.journal), 40)}`
     );
   }
-  // The envelope's refusal (a line of the error stream that begins with `bwrap: `) of a session
-  // that wrote no transcript: the launch died before its session, as bwrap says.
-  const refus = (r.erreur ?? '').split('\n').find(l => l.startsWith('bwrap: '));
-  if (refus !== undefined && r.seance !== 0 && derniereTrace(ctx.transcriptions) === 0) {
+  // The envelope's refusal: it ended on a code other than 0 without the witness that its command
+  // started (`demarree`, a state, never a text of the log): the launch died before its session,
+  // whether the ticket already holds transcripts or not. The end of the log, where the envelope
+  // says why, is cited in the report.
+  if (r.demarree === false && r.seance !== null && r.seance !== 0) {
     throw new Arret(
       'lancement',
-      `L'enveloppe refuse le lancement de la séance du ${role} (code ${r.seance ?? r.code}).\n${refus.trim()}\n\n${fin(lire(ctx.journal), 20)}`
+      `L'enveloppe refuse le lancement de la séance du ${role} (code ${r.seance}) : sa commande n'a pas démarré.\n\n${fin(lire(ctx.journal), 20)}`
     );
   }
   if (r.seance === null) {

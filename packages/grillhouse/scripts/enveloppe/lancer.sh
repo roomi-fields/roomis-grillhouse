@@ -108,6 +108,9 @@
 #   launcher writes the session's exit code to `fin` in the folder of the session, which a launch
 #   removes first: a launch that stops before its session leaves none, so the circuit
 #   (scripts/circuit.mjs) tells a code of the session from CODE_USAGE, CODE_REFUS and CODE_COPIE.
+#   The command the envelope runs leaves a witness of its start in the working directory, which the
+#   launcher ranges beside it (`demarree`, removed first): an envelope that ends without it refused
+#   the launch before the session, whatever its code (scripts/seances.mjs `seanceLancee`).
 #   A session its lock stopped on a write out of the plan (scripts/verrous/verrou.mjs) left the
 #   reason in its working directory (`hors-plan`, removed before the session): the launcher moves
 #   it to `hors-plan` in the folder of the session, which a launch removes first and the circuit reads,
@@ -183,8 +186,9 @@ fin="$rang/fin"
 resultat="$rang/resultat.json"
 hors_plan="$rang/hors-plan"
 hors_plan_fait="$rang/hors-plan.json"
+demarree="$rang/demarree"
 mkdir -p "$(dirname "$copie")" "$rang"
-rm -f "$fin" "$resultat" "$hors_plan" "$hors_plan_fait"
+rm -f "$fin" "$resultat" "$hors_plan" "$hors_plan_fait" "$demarree"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
 # The temporary directory of the ticket (`ouvrirBaseDuTicket`, scripts/mesure/base-de-passe.mjs):
 # TMPDIR, TMP and TEMP of the rest of the launch and of the session, whose scratchpads and working
@@ -244,8 +248,10 @@ publie=$(cd "$copie" && node "$ici/../../bin/grillhouse.mjs" index-interfaces --
 # The session's working directory, the one the envelope gives as TMPDIR, follows them.
 travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/enveloppe.mjs'; process.stdout.write(dossierDeTravail(process.argv[1]));" "$copie" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Le dossier de travail de la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
-# The mark a lock leaves there when it stops the session out of the plan: none before the session.
-rm -f "$travail/hors-plan"
+# The mark a lock leaves there when it stops the session out of the plan, and the witness the
+# envelope's command leaves there at its start (`TEMOIN_DE_DEMARRAGE` of enveloppe.mjs): none before
+# the session.
+rm -f "$travail/hors-plan" "$travail/.demarree"
 dossier=$'\n\n'"## Ton dossier de travail"$'\n\n'"Tout fichier temporaire s'écrit dans \`$travail\`, que \`\$TMPDIR\` nomme aussi."
 construction=
 if [ -s "$echec" ]; then
@@ -288,6 +294,11 @@ else
   lancer_claude >> "$journal" 2>&1 || code=$?
 fi
 rm -f "$prompt"
+# The witness that the envelope started its command goes to the circuit: a launch the envelope
+# refuses before the session (a mount bwrap cannot make) leaves none.
+if [ -f "$travail/.demarree" ]; then
+  mv "$travail/.demarree" "$demarree"
+fi
 # A session its lock stopped out of the plan (scripts/verrous/verrou.mjs): its reason goes to the
 # circuit, and to the log.
 if [ -f "$travail/hors-plan" ]; then

@@ -94,7 +94,14 @@ index compris (`.codegraph`, `.rtfm`), et n'écrit que les composants que le pla
 nomme (les paquets du titre), la base des tickets et les sorties du module de son langage (le
 cache de Turborepo ; le `target/` et les magasins de cargo, sa maison `~/.cargo` et `~/.rustup`
 en lecture) ; `.git` reste en lecture seule, et la matière de test partagée s'écrit par le seul
-testwriter. Le plan se juge sur les composants du module (un paquet TypeScript, un crate, un
+testwriter. La copie d'un autre ticket, que son circuit retire à tout moment, est un montage
+facultatif (`--ro-bind-try`, comme les montages optionnels des conteneurs) : la séance part sans
+celle qui a disparu. Un lancement que l'enveloppe refuse avant la séance se reconnaît à un état,
+jamais au texte du journal : la commande que l'enveloppe lance écrit d'abord un témoin de son
+démarrage dans le dossier de travail de la séance, que le lanceur range avec son résultat
+(`demarree`, à côté de `fin`) ; une enveloppe qui finit sur un code non nul sans ce témoin est
+l'arrêt « lancement », que le ticket ait déjà des transcriptions ou non, jamais une séance en
+erreur à reprendre, et un essai rejoué lit le même témoin. Le plan se juge sur les composants du module (un paquet TypeScript, un crate, un
 paquet hors cadre) : un chemin du plan hors de tout composant écrit la racine, toute la copie. Le
 circuit résout les composants du titre sur la même liste (`paquetsDuLangage`) : un crate racine
 est le composant `.`, nommé par son crate (osc-bridge). `GRILLHOUSE_ENVELOPPE` porte la liste aux commandes du

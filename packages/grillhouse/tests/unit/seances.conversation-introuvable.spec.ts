@@ -39,14 +39,17 @@ interface Appel {
   code?: number;
   mort?: boolean;
 }
-// The launch ends in error before claude opens a conversation: no transcript of its session.
+// The launch ends in error before claude opens a conversation: no transcript of its session. The
+// envelope started its command all the same: a launch the envelope refuses is another stop
+// (« lancement », scripts/seances.mjs `seanceLancee`).
 const MORT: Appel = { code: 1, mort: true };
 // A session that ran and ended in error.
 const ERREUR: Appel = { code: 1 };
 
 // The launcher: its call n writes `args-n` and `consigne-n`, the transcript of its session
 // unless `mort-n` is there, and ranges `fiche-n` as the sheet of the session (none without), its
-// exit code `code-n` (0 by default).
+// exit code `code-n` (0 by default) and the witness that the envelope started its command, as
+// lancer.sh does.
 const LANCEUR = (dossier: string) => `#!/bin/bash
 d=${dossier}/appels
 n=$(( $(cat $d/n 2>/dev/null || echo 0) + 1 )); echo $n > $d/n
@@ -57,6 +60,7 @@ r=${dossier}/seances/$id
 mkdir -p $r
 if [ ! -f $d/mort-$n ]; then echo '{}' > ${dossier}/transcriptions/$id.jsonl; fi
 if [ -f $d/fiche-$n ]; then echo "{\\"structured_output\\": $(cat $d/fiche-$n)}" > $r/resultat.json; fi
+echo > $r/demarree
 echo "$(cat $d/code-$n 2>/dev/null || echo 0)" > $r/fin
 `;
 

@@ -49,7 +49,7 @@ const { args = [] } = plan(
 );
 // The mounts of the plan as `<flag> <target>`, in order.
 const montes = args.flatMap((a, i) =>
-  a === '--bind' || a === '--ro-bind'
+  a === '--bind' || a === '--ro-bind' || a === '--ro-bind-try'
     ? [`${a} ${args[i + 2]}`]
     : a === '--tmpfs' || a === '--remount-ro' || a === '--symlink'
       ? [`${a} ${args[i + (a === '--symlink' ? 2 : 1)]}`]
@@ -66,7 +66,7 @@ describe('the envelope shows of the home and the session only what it declares',
       ).toMatchObject({ vide: true, scelle: true });
       expect(montes.indexOf(`--tmpfs ${d}`), d).toBeGreaterThan(-1);
       const dernierMontage = montes.reduce(
-        (n, m, i) => (m.startsWith('--bind ') || m.startsWith('--ro-bind ') ? i : n),
+        (n, m, i) => (/^--(bind|ro-bind|ro-bind-try) /.test(m) ? i : n),
         -1
       );
       expect(montes.lastIndexOf(`--remount-ro ${d}`), d).toBeGreaterThan(dernierMontage);
@@ -136,9 +136,11 @@ describe('the envelope shows of the home and the session only what it declares',
   });
 
   it('keeps the repository of the home: every tree in sight, the copy read before its package is written', () => {
-    for (const t of [REPO, COPIE, AUTRE]) {
+    for (const t of [REPO, COPIE]) {
       expect(montes.indexOf(`--ro-bind ${t}`), t).toBeGreaterThan(montes.indexOf('--tmpfs /h'));
     }
+    // The copy of another ticket, by a mount bwrap skips when its circuit removed it meanwhile.
+    expect(montes.indexOf(`--ro-bind-try ${AUTRE}`)).toBeGreaterThan(montes.indexOf('--tmpfs /h'));
     expect(montes.lastIndexOf(`--ro-bind ${COPIE}`)).toBeLessThan(
       montes.indexOf(`--bind ${COPIE}/packages/a`)
     );

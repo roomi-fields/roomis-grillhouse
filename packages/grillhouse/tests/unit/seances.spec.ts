@@ -254,7 +254,7 @@ describe('un second essai sur un groupe encore vivant l’attend, ou le tue immo
 describe('une séance reprend le résultat de l’essai mort, ou repart sous son propre identifiant', () => {
   // A session in the envelope, its launcher a program of trial (GRILLHOUSE_LANCEUR, in place of
   // lancer.sh) that ranges its exit code and its result under the session it opens or resumes, as
-  // lancer.sh does: the resumption of seance-reprise ends in error, the first other launch gives a
+  // lancer.sh does: the resumption of seance-reprise, started, ends in error, the first other launch gives a
   // result without a sheet, the next ones a sheet; each launch written with its arguments.
   function enveloppe(essaiDeLActe = 1) {
     const dossier = mkdtempSync(path.join(ESSAIS, 'enveloppe-'));
@@ -276,7 +276,7 @@ describe('une séance reprend le résultat de l’essai mort, ou repart sous son
     const lanceur = path.join(dossier, 'lancer.sh');
     writeFileSync(
       lanceur,
-      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\nmkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/$id.jsonl\ncase "$*" in *'--reprise seance-reprise'*) echo '{}' > $r/resultat.json; echo 1 > $r/fin; exit 0;; esac\nif [ $(grep -vc -- '--reprise seance-reprise' ${compte}) -eq 1 ]; then echo '{}' > $r/resultat.json; else echo '{"structured_output":{"statut":"FAIT"}}' > $r/resultat.json; fi\necho 0 > $r/fin\n`
+      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\nmkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/$id.jsonl\ncase "$*" in *'--reprise seance-reprise'*) echo '{}' > $r/resultat.json; echo > $r/demarree; echo 1 > $r/fin; exit 0;; esac\nif [ $(grep -vc -- '--reprise seance-reprise' ${compte}) -eq 1 ]; then echo '{}' > $r/resultat.json; else echo '{"structured_output":{"statut":"FAIT"}}' > $r/resultat.json; fi\necho 0 > $r/fin\n`
     );
     chmodSync(lanceur, 0o755);
     const lancements = () => {
@@ -443,17 +443,22 @@ describe('une séance reprend le résultat de l’essai mort, ou repart sous son
   });
 });
 
-// Une séance dont le lancement meurt sur un refus de l'enveloppe (sa sortie d'erreur porte une ligne
-// `bwrap: …`, aucune transcription écrite) est un arrêt « lancement », son message cité, sans
-// reprise ; une séance qui finit en erreur sans cette ligne est reprise une fois, puis « sans-fiche ».
+// Une séance dont le lancement meurt sur un refus de l'enveloppe est un arrêt « lancement », sans
+// reprise, que le ticket ait déjà des transcriptions ou non. Le circuit le reconnaît à l'état, jamais
+// au texte du journal : l'enveloppe finit sur un code non nul sans le témoin que sa commande a
+// démarré (`demarree`, que lancer.sh range à côté de `fin`). Une séance démarrée qui finit en
+// erreur est reprise une fois, puis « sans-fiche ».
 describe('un refus de l’enveloppe arrête le lancement, une autre erreur est reprise', () => {
   const MESSAGE =
-    "bwrap: Can't bind mount /oldroot/mnt/ssd/pc2/.cargo/registry on /newroot/home/romi/.cargo/registry: Unable to mount source on destination: No such file or directory";
+    "bwrap: Can't find source path /home/u/projet/.claude/worktrees/demo-2: No such file or directory";
   const PLACE = () => ({ rattacher: () => {}, rendre: () => {} });
 
-  // Un lanceur d'essai qui écrit <stderr> sur sa sortie d'erreur, finit en code 1 et, quand
-  // <transcription>, laisse une transcription de la séance.
-  function essai(stderr: string, transcription = false) {
+  // Un lanceur d'essai dans la forme de lancer.sh : la sortie d'erreur de l'enveloppe va au journal
+  // du ticket (`2>> "$journal"`), rien à la sortie d'erreur du lanceur ; il range le code 1 de
+  // l'enveloppe (`fin`) et, quand <demarree>, le témoin que sa commande a démarré, avec la
+  // transcription de la séance, que claude écrit. Quand <dejaLa>,
+  // le ticket porte avant le lancement la transcription d'une séance passée.
+  function essai({ demarree = false, dejaLa = false, essaiDeLActe = 1 } = {}) {
     const dossier = mkdtempSync(path.join(ESSAIS, 'refus-'));
     const ctx = {
       racine: dossier,
@@ -466,19 +471,24 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
       fiches: path.join(dossier, 'fiches.jsonl'),
       transcriptions: path.join(dossier, 'transcriptions'),
       immobileMs: 60_000,
+      essaiDeLActe,
       bd: () => ({ status: 0, stdout: '[{}]', stderr: '' }),
     };
+    if (dejaLa) {
+      mkdirSync(ctx.transcriptions, { recursive: true });
+      writeFileSync(path.join(ctx.transcriptions, 'passee.jsonl'), '{}\n');
+    }
     const compte = path.join(dossier, 'lancements');
     const lanceur = path.join(dossier, 'lancer.sh');
     const message = path.join(dossier, 'message');
-    writeFileSync(message, `${stderr}\n`);
+    writeFileSync(message, `${MESSAGE}\n`);
     writeFileSync(
       lanceur,
-      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\n${
-        transcription
-          ? `mkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/$id.jsonl\n`
+      `#!/bin/sh\necho "$*" >> ${compte}\nid=$(echo "$*" | sed -n 's/.*--\\(seance\\|reprise\\) \\([^ ]*\\).*/\\2/p')\nr=${dossier}/seances/$id\nmkdir -p $r\ncat ${message} >> ${ctx.journal}\n${
+        demarree
+          ? `mkdir -p ${ctx.transcriptions}; echo '{}' > ${ctx.transcriptions}/$id.jsonl\necho > $r/demarree\n`
           : ''
-      }cat ${message} >&2\necho '' > $r/resultat.json\necho 1 > $r/fin\nexit 1\n`
+      }echo '' > $r/resultat.json\necho 1 > $r/fin\nexit 1\n`
     );
     chmodSync(lanceur, 0o755);
     const lancements = () => {
@@ -490,7 +500,7 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
     };
     return { ctx, lanceur, lancements };
   }
-  const jouer = async (ctx: object, lanceur: string) => {
+  const jouer = async (ctx: object, lanceur: string, precedent: object | null = null) => {
     const avant = process.env.GRILLHOUSE_LANCEUR;
     process.env.GRILLHOUSE_LANCEUR = lanceur;
     try {
@@ -499,6 +509,7 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
         evenement: 'neuve',
         prendrePlace: PLACE,
         signeDeVie: () => {},
+        precedent,
       }).then(
         () => null,
         (e: Error & { nom?: string; rapport?: string }) => e
@@ -512,45 +523,53 @@ describe('un refus de l’enveloppe arrête le lancement, une autre erreur est r
     }
   };
 
-  it('le lancement meurt sur « bwrap: » sans transcription: arrêt lancement, message cité, un seul lancement', async () => {
-    const { ctx, lanceur, lancements } = essai(MESSAGE);
+  it('l’enveloppe finit en erreur sans que sa commande ait démarré: arrêt lancement, la fin du journal citée, un seul lancement', async () => {
+    const { ctx, lanceur, lancements } = essai();
     const e = await jouer(ctx, lanceur);
     expect(e?.nom).toBe('lancement');
     expect(e?.rapport).toContain(MESSAGE);
     expect(lancements()).toHaveLength(1);
   });
 
-  it('la ligne « bwrap: » n’est pas la première de la sortie d’erreur: elle est reconnue', async () => {
-    const { ctx, lanceur, lancements } = essai(`avertissement\n${MESSAGE}`);
+  it('le même refus dans un ticket qui a déjà des transcriptions: arrêt lancement, un seul lancement', async () => {
+    const { ctx, lanceur, lancements } = essai({ dejaLa: true });
     const e = await jouer(ctx, lanceur);
     expect(e?.nom).toBe('lancement');
-    expect(e?.rapport).toContain(MESSAGE);
     expect(lancements()).toHaveLength(1);
   });
 
-  it('un code non nul sans ligne « bwrap: »: une reprise, puis sans-fiche', async () => {
-    const { ctx, lanceur, lancements } = essai('un outil a échoué', true);
+  it('une séance démarrée qui finit en erreur: une reprise, puis sans-fiche, quoi que dise le journal', async () => {
+    const { ctx, lanceur, lancements } = essai({ demarree: true });
     const e = await jouer(ctx, lanceur);
     expect(e?.nom).toBe('sans-fiche');
     expect(lancements()).toHaveLength(2);
     expect(lancements()[1]).toContain('--reprise seance-essai');
   });
 
-  it('« bwrap: » au milieu d’une ligne n’est pas un refus de l’enveloppe', async () => {
-    const { ctx, lanceur, lancements } = essai(
-      `le test cite « ${MESSAGE} » sans l'avoir subi`,
-      true
-    );
+  it('le témoin d’un lancement d’avant ne vaut pas pour le suivant: il est retiré avant le lancement', async () => {
+    const { ctx, lanceur, lancements } = essai();
+    const r = rangDeLaSeance(ctx, 'seance-essai') as { dossier: string; demarree?: string };
+    mkdirSync(r.dossier, { recursive: true });
+    writeFileSync(path.join(r.dossier, 'demarree'), '');
     const e = await jouer(ctx, lanceur);
-    expect(e?.nom).toBe('sans-fiche');
-    expect(lancements()).toHaveLength(2);
+    expect(e?.nom).toBe('lancement');
+    expect(lancements()).toHaveLength(1);
   });
 
-  it('une séance qui a écrit une transcription n’est pas un refus de l’enveloppe: reprise, puis sans-fiche', async () => {
-    const { ctx, lanceur, lancements } = essai(MESSAGE, true);
-    const e = await jouer(ctx, lanceur);
-    expect(e?.nom).toBe('sans-fiche');
-    expect(lancements()).toHaveLength(2);
+  it('un essai rejoué lit le refus que l’essai mort a rangé: arrêt lancement, aucun lancement', async () => {
+    const { ctx, lanceur, lancements } = essai({ essaiDeLActe: 2 });
+    const r = rangDeLaSeance(ctx, 'seance-morte');
+    mkdirSync(r.dossier, { recursive: true });
+    writeFileSync(r.fin, '1\n');
+    writeFileSync(r.resultat, '\n');
+    const e = await jouer(ctx, lanceur, {
+      pid: 2_000_000_000,
+      depart: null,
+      seanceId: 'seance-morte',
+      lancement: 'lancement:neuve:1',
+    });
+    expect(e?.nom).toBe('lancement');
+    expect(lancements()).toEqual([]);
   });
 });
 

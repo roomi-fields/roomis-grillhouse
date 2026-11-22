@@ -567,7 +567,12 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     'i',
   ]);
   const home = essai('home-');
-  const lancer = (ticket: string, options: string[], texte = '') => {
+  const lancer = (
+    ticket: string,
+    options: string[],
+    texte = '',
+    env: Record<string, string> = {}
+  ) => {
     const consigne = path.join(repo, `${ticket}.txt`);
     writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.${texte}`);
     const r = spawnSync(
@@ -576,7 +581,12 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
       {
         cwd: repo,
         encoding: 'utf8',
-        env: { ...process.env, CLAUDE_BIN: path.join(repo, 'faux-claude.sh'), HOME: home },
+        env: {
+          ...process.env,
+          CLAUDE_BIN: path.join(repo, 'faux-claude.sh'),
+          HOME: home,
+          ...env,
+        },
       }
     );
     const copie = path.join(repo, '.claude/worktrees', ticket);
@@ -616,5 +626,37 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     // The next launch starts without it.
     lancer('demo-h', ['--paquets', 'packages/a']);
     expect(existsSync(`${copie}.travail/seances/courante/hors-plan`)).toBe(false);
+  });
+  // The witness that the envelope started its command (`TEMOIN_DE_DEMARRAGE` of enveloppe.mjs),
+  // which the circuit reads to tell a session in error from a launch the envelope refused
+  // (scripts/seances.mjs `seanceLancee`).
+  it('range au circuit le témoin que l’enveloppe a démarré sa commande, et le retire du dossier de travail', () => {
+    const { r, copie } = lancer('demo-d', ['--paquets', 'packages/a']);
+    expect(r.status, r.stderr).toBe(0);
+    expect(existsSync(`${copie}.travail/seances/courante/demarree`)).toBe(true);
+    const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
+    expect(existsSync(path.join(travail, '.demarree'))).toBe(false);
+  });
+  it('un lancement que l’enveloppe refuse laisse un code de fin non nul, sans le témoin d’un lancement d’avant', () => {
+    // A first launch that starts leaves its witness.
+    const { r: premier, copie } = lancer('demo-r', ['--paquets', 'packages/a']);
+    expect(premier.status, premier.stderr).toBe(0);
+    const rang = `${copie}.travail/seances/courante`;
+    expect(existsSync(`${rang}/demarree`)).toBe(true);
+    // A stand-in for bwrap, first on the PATH of the second launch: it refuses as bwrap does when
+    // a mount cannot be made (a message, the code 1), and runs no command.
+    const bin = essai('bwrap-refuse-');
+    writeFileSync(
+      path.join(bin, 'bwrap'),
+      '#!/bin/sh\necho "bwrap: Can\'t find source path /absent: No such file or directory" >&2\nexit 1\n',
+      { mode: 0o755 }
+    );
+    const { r } = lancer('demo-r', ['--paquets', 'packages/a'], '', {
+      PATH: `${bin}:${process.env.PATH}`,
+    });
+    expect(r.status, r.stderr).toBe(1);
+    expect(readFileSync(`${rang}/fin`, 'utf8').trim()).toBe('1');
+    expect(existsSync(`${rang}/demarree`)).toBe(false);
+    expect(readFileSync(`${copie}.log`, 'utf8')).toContain("bwrap: Can't find source path");
   });
 });
