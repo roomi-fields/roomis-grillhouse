@@ -40,6 +40,12 @@ describe('casseDeChargement — un fichier de test sans résultat propre', () =>
     expect(casse({ res: undefined, code: 1, constructions: [{ nom: 'osc-bridge' }] })).toBe(null);
   });
 
+  it('un fichier sans test dont le paquet ne se construit pas joue aux contrôles, pas un casse', () => {
+    const res = { tests: [], etat: 'failed', message: 'Failed to load url' };
+    expect(casse({ res, code: 1, constructions: [{ nom: '030-binder' }] })).toBe(null);
+    expect(casse({ res, code: 1, constructions: [] })).toBe('ne-charge-pas');
+  });
+
   it('un résultat présent, sans test, qui a échoué est un casse (ne se charge pas, inchangé)', () => {
     expect(
       casse({ res: { tests: [], etat: 'failed', message: 'erreur' }, code: 0, constructions: [] })

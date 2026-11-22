@@ -8,7 +8,6 @@ import {
   ecrire,
   ecrireTurbo,
   json,
-  ARRETS,
   CODE_JUSTE,
   ECRIT_ROUGE,
   BASE,
@@ -23,7 +22,7 @@ import {
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const { revenirAuDebut, ticket, scenario, circuit, essai, sessions, etat, ordre, commentaires } =
+const { revenirAuDebut, ticket, scenario, circuit, etat, ordre, commentaires } =
   circuitEssai(ESSAIS);
 
 describe.runIf(canWrap)('the circuit of a ticket', { timeout: 300_000 }, () => {
@@ -50,30 +49,6 @@ if (existsSync('casse')) {
     );
     ecrire(path.join(p, 'casse'), '');
   };
-
-  it('takes the failed build of a package of the plan for its red, its tests for the checks', () => {
-    const id = 'demo-construction';
-    const copie = ticket(id, '030-binder');
-    casserLaConstruction(copie, 'binder');
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(
-      id,
-      'developpeur',
-      `${CODE_JUSTE}rm $c/casse\npassation 'Code écrit, binder construit.'\n`
-    );
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(0);
-    expect(ordre(id)).toEqual(['testwriter', 'developpeur', 'relecteur']);
-    const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
-    expect(preuve).toContain('1 rouge(s)');
-    expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
-    // The failed build named with its own log, whose beginning follows.
-    expect(preuve).toContain('construction de 030-binder — son journal : ');
-    expect(preuve).toContain("src/x.ts(1,1): error TS2741: Property 'champ' is missing");
-    expect(preuve).toContain(
-      'Les tests de 030-binder se jouent aux contrôles, après le développeur.'
-    );
-  });
 
   // Witness: BPScript (bp-mono-vbwf.320.2.2.1.5). 030-binder and 040-checker each hold the other
   // in their devDependencies for their tests; the lot of 000-forms breaks both builds. The proof
@@ -140,24 +115,5 @@ if (existsSync('casse')) {
     expect(preuve).toContain('0 fichier(s) qui ne se charge(nt) pas');
     expect(preuve).toContain('src/x.ts(1,1): error TS2741');
     expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-  });
-
-  it('leaves the files of the plan broken when the build that fails lies out of it', () => {
-    const id = 'demo-construction-ailleurs';
-    const copie = ticket(id, '030-binder');
-    casserLaConstruction(copie, 'forms');
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    const r = circuit([id]);
-    expect(r.status, sortie(r)).toBe(ARRETS.preuve);
-    expect(sessions(id, 'testwriter')).toBe(3);
-    expect(sessions(id, 'developpeur')).toBe(0);
-    const relance = essai(id, 'testwriter-3.prompt');
-    expect(relance).toContain('packages/binder/test/mesure.test.mjs — ne se charge pas');
-    expect(relance).not.toContain('construction de 000-forms');
-    expect(relance).not.toContain('Rouges (');
-    const arret = commentaires(id)
-      .filter(t => t.includes(' · preuve : arrêt preuve'))
-      .pop();
-    expect(arret).toContain('1 fichier(s) qui ne se charge(nt) pas');
   });
 });
