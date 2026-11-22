@@ -309,11 +309,6 @@
         "count": 13
       }
     },
-    "packages/grillhouse-essais/tests/circuit.consigne.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 1
-      }
-    },
     "packages/grillhouse-essais/tests/circuit.mecanique.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 6
@@ -326,7 +321,7 @@
     },
     "packages/grillhouse-essais/tests/circuit.plan.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 17
+        "count": 1
       }
     },
     "packages/grillhouse-essais/tests/circuit.preuve.nuit.spec.ts": {
