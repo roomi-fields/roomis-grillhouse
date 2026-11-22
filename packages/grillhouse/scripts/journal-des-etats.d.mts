@@ -9,6 +9,17 @@ export interface LigneDuJournal {
   boucle: number | null;
   place: string | null;
   raison: string;
+  /** The reservation of a place taken or given back. */
+  reservation?: Reservation;
+  /** The circuit or project a queued ticket waits for (a line `file` `attente`). */
+  autre?: string;
+}
+
+/** What a place reserves: cores, memory in GB, and who (ticket and role, or pass). */
+export interface Reservation {
+  coeurs: number;
+  memoireGo: number;
+  qui: string;
 }
 
 /** A trace to write: a line, `ts` set when it already has its date. */
@@ -29,7 +40,12 @@ export function traceDesPlaces(e: {
   ticket?: string | null;
   place?: string | null;
   raison?: string;
+  reservation?: Reservation;
 }): Trace;
+export function reservationsOuvertes(
+  lignes: LigneDuJournal[],
+  ts: string
+): ({ place: string } & Reservation)[];
 export function lireLeJournal(
   racine: string,
   plage?: { depuis?: string; jusquA?: string; ticket?: string }

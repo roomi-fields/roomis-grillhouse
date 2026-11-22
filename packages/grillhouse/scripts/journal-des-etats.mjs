@@ -82,6 +82,10 @@ function ligneEntiere(trace, ts) {
     boucle: champ(trace.boucle),
     place: champ(trace.place),
     raison: trace.raison ?? '',
+    // The reservation of a place (`{ coeurs, memoireGo, qui }`) and the circuit a queued ticket
+    // waits for (`autre`) are written only when the trace carries them.
+    ...(trace.reservation ? { reservation: trace.reservation } : {}),
+    ...(trace.autre ? { autre: trace.autre } : {}),
   };
   let raison = Array.from(String(ligne.raison));
   let texte = JSON.stringify(ligne);
@@ -133,8 +137,46 @@ export function traceDeLaFile({ ticket, evenement }) {
 }
 
 /** The trace of a place taken (`prise`), given back (`rendue`) or waited for (`attente`). */
-export function traceDesPlaces({ evenement, ticket = null, place = null, raison = '' }) {
-  return { genre: 'places', ticket, etape: evenement, boucle: null, place, raison };
+export function traceDesPlaces({
+  evenement,
+  ticket = null,
+  place = null,
+  raison = '',
+  reservation = undefined,
+}) {
+  return {
+    genre: 'places',
+    ticket,
+    etape: evenement,
+    boucle: null,
+    place,
+    raison,
+    ...(reservation ? { reservation } : {}),
+  };
+}
+
+/**
+ * The reservations open at the instant <ts> from the lines of the journal alone: each place
+ * `prise` with a reservation and not yet `rendue`, in the order of the takings.
+ * @param {object[]} lignes
+ * @param {string} ts
+ * @returns {{ place: string, coeurs: number, memoireGo: number, qui: string }[]}
+ */
+export function reservationsOuvertes(lignes, ts) {
+  const t = instant(ts);
+  const ouvertes = new Map();
+  const triees = lignes
+    .map((l, i) => ({ l, i, t: instant(l.ts) }))
+    .filter(x => x.l.genre === 'places' && x.t <= t)
+    .sort((a, b) => a.t - b.t || a.i - b.i);
+  for (const { l } of triees) {
+    if (l.etape === 'prise' && l.reservation && l.place) {
+      ouvertes.set(l.place, { place: l.place, ...l.reservation });
+    } else if (l.etape === 'rendue' && l.place) {
+      ouvertes.delete(l.place);
+    }
+  }
+  return [...ouvertes.values()];
 }
 
 const instant = ts => Date.parse(ts);

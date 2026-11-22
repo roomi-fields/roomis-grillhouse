@@ -98,6 +98,7 @@ import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { REGISTRE } from './adresse-du-registre.mjs';
 import { lireLaConsommation } from './consommation-des-passes.mjs';
+import { lireLeJournal } from './journal-des-etats.mjs';
 import { pathToFileURL } from 'node:url';
 import {
   AGENTS_DU_LOT,
@@ -219,6 +220,81 @@ function longueur(l) {
 const commun = ([d, f], l) =>
   longueur(l.map(([a, b]) => [Math.max(a, d), Math.min(b, f)]).filter(([a, b]) => b > a));
 
+// The disjoint intervals of the union of <l>, in order.
+function fusion(l) {
+  const out = [];
+  for (const [d, f] of [...l].filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0])) {
+    const dernier = out.at(-1);
+    if (dernier && d <= dernier[1]) {
+      dernier[1] = Math.max(dernier[1], f);
+    } else {
+      out.push([d, f]);
+    }
+  }
+  return out;
+}
+// The parts of the disjoint intervals <a> that lie in the intervals <b>.
+const dans = (a, b) =>
+  fusion(
+    a.flatMap(([d, f]) => b.map(([x, y]) => [Math.max(d, x), Math.min(f, y)]).filter(([x, y]) => y > x))
+  );
+// The parts of the intervals <a> outside the intervals <b>.
+function sansLes(a, b) {
+  const sans = fusion(b);
+  return a.flatMap(([d, f]) => {
+    const out = [];
+    let x = d;
+    for (const [y, z] of sans) {
+      if (z <= x || y >= f) {
+        continue;
+      }
+      if (y > x) {
+        out.push([x, y]);
+      }
+      x = Math.max(x, z);
+    }
+    if (x < f) {
+      out.push([x, f]);
+    }
+    return out;
+  });
+}
+
+// The intervals of the traces of <journal> (the lines of the ticket's journal of states) by cause:
+// the waits for a place (`places` `attente` to the next `prise`, the reason naming another circuit
+// included), the waits of the queue (`file` `attente` to the next line `file`, those a line gives
+// `autre` apart). A wait never closed counts nothing.
+function tracesDuJournal(journal, ticket) {
+  const lignes = journal
+    .filter(l => l.ticket === ticket && Number.isFinite(Date.parse(l.ts)))
+    .map((l, i) => ({ l, i, t: Date.parse(l.ts) }))
+    .sort((x, y) => x.t - y.t || x.i - y.i);
+  const place = [];
+  const autre = [];
+  const file = [];
+  let attendPlace = null;
+  let attendFile = null;
+  for (const { l, t } of lignes) {
+    if (l.genre === 'places') {
+      if (l.etape === 'attente') {
+        attendPlace ??= t;
+      } else if (l.etape === 'prise' && attendPlace !== null) {
+        place.push([attendPlace, t]);
+        attendPlace = null;
+      }
+    } else if (l.genre === 'file') {
+      if (attendFile) {
+        (attendFile.autre ? autre : file).push([attendFile.t, t]);
+        attendFile = null;
+      }
+      if (l.etape === 'attente') {
+        attendFile = { t, autre: Boolean(l.autre) };
+      }
+    }
+  }
+  return { place, autre, file };
+}
+
 // The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
 // circuit kept <entrees> (`<ticket>.fiches.jsonl`), the circuit's state <etat> (or null), the
 // project's night <nuit> and the times of the owner's messages in the supervisor's sessions the
@@ -230,6 +306,7 @@ export function bilan({
   etat = null,
   nuit = NUIT,
   duResponsable = [],
+  journal = [],
   maintenant = Date.now(),
 }) {
   // The sessions the circuit launched, by their id.
@@ -403,6 +480,40 @@ export function bilan({
     0,
     mur - longueur([...segments.map(fenetre).filter(([d, f]) => f > d), ...attentes])
   );
+  // The causes of « entre deux étapes »: each instant of the gaps goes to the first cause of the
+  // list that a trace covers (a session starting, a place or cores, another circuit, the queue),
+  // the rest unattributed.
+  const trous = sansLes(
+    mur ? [[debut, fin]] : [],
+    [...segments.map(fenetre), ...attentes.map(([d, f]) => [Math.max(d, debut), Math.min(f, fin)])]
+  );
+  const traces = tracesDuJournal(journal, ticket);
+  const demarrages = entrees
+    .filter(e => e.role === CIRCUIT && e.lancement)
+    .flatMap(e => {
+      const d = Date.parse(e.date ?? '');
+      const s = derniere.get(e.lancement.seance);
+      const f = s ? Date.parse(s.debut) : NaN;
+      return f > d ? [[d, f]] : [];
+    });
+  let reste = trous;
+  const causes = {};
+  for (const [cause, l] of [
+    ['seance', demarrages],
+    ['place', traces.place],
+    ['autre', traces.autre],
+    ['file', traces.file],
+  ]) {
+    const pris = dans(reste, fusion(l));
+    causes[cause] = longueur(pris);
+    reste = sansLes(reste, pris);
+  }
+  const attribue = Object.values(causes).reduce((m, x) => m + x, 0);
+  causes.nonAttribue = Math.max(0, categories.intervalles.ms - attribue);
+  categories.intervalles.causes = causes;
+  // Whether the journal holds a line of the ticket: without one (a journal from before the lot),
+  // the text keeps its lines as they were.
+  categories.intervalles.journale = journal.some(l => l.ticket === ticket);
   for (const c of Object.values(categories)) {
     c.jetons = Math.round(c.jetons);
     c.cache = Math.round(c.cache);
@@ -563,7 +674,18 @@ export function texteDuBilan(b, avant, depassent = []) {
   const paye = new Set(['travail', 'sansEffet', 'questionnement']);
   const q = b.questionnement;
   const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
-  const lignes = CATEGORIES.map(([k, nom]) => {
+  const causes = b.categories.intervalles.causes;
+  const sousLignes =
+    causes && b.categories.intervalles.journale
+      ? [
+        ["démarrage d'une séance", 'seance'],
+        ['cœurs ou place', 'place'],
+        ['autre circuit ou projet', 'autre'],
+        ['file', 'file'],
+        ['non attribué', 'nonAttribue'],
+      ].map(([nom, k]) => `  - ${nom} : ${minutes(causes[k])} min`)
+    : [];
+  const lignes = CATEGORIES.flatMap(([k, nom]) => {
     const c = b.categories[k];
     const plus =
       (k === SUPERVISEUR || k === RESPONSABLE) && c.n
@@ -573,7 +695,7 @@ export function texteDuBilan(b, avant, depassent = []) {
           : paye.has(k)
             ? `, ${dollars(c.cout)} $`
             : '';
-    return `- ${nom} : ${minutes(c.ms)} min${plus}`;
+    return [`- ${nom} : ${minutes(c.ms)} min${plus}`, ...(k === 'intervalles' ? sousLignes : [])];
   });
   const t = b.tri;
   const verdicts = t
@@ -752,6 +874,7 @@ function calculer(racine, ticket, fin, { responsable = true } = {}) {
     etat: fin,
     nuit: plageDeNuit(racine),
     duResponsable: responsable ? [...seances].flatMap(s => messagesDeLaSeance(String(s))) : [],
+    journal: lireLeJournal(racine, { ticket }).lignes,
   });
 }
 

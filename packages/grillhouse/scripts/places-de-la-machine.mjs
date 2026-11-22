@@ -783,6 +783,19 @@ export function prendreUnePart({
     GRILLHOUSE_VERIFICATION_TICKET: _ticket,
     ...enfant
   } = env;
+  // The reservation of the part (cores, memory, who), written at its taking and its return, so
+  // that the parts held at an instant are read back from the journal alone.
+  const reservation = {
+    coeurs: part.coeurs,
+    memoireGo: Math.round((part.memoire / 2 ** 30) * 100) / 100,
+    qui: [ticket, sorte].filter(Boolean).join(' ') || 'passe',
+  };
+  const tracer = evenement =>
+    ecrireLaTrace(
+      racine,
+      traceDesPlaces({ evenement, ticket: ticket ?? null, place: moi.id, reservation })
+    );
+  tracer('prise');
   return {
     id: moi.id,
     part,
@@ -795,7 +808,10 @@ export function prendreUnePart({
       [VARIABLE_PART_TENUE]: moi.id,
       [VARIABLE_TRAVAILLEURS]: String(part.coeurs),
     },
-    rendre: () => rendreLaPart(dossier, moi.id),
+    rendre: () => {
+      rendreLaPart(dossier, moi.id);
+      tracer('rendue');
+    },
     raison: null,
   };
 }

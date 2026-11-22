@@ -56,6 +56,9 @@ const ligneDe = l =>
     l.etape ?? '-',
     ...(l.boucle === null || l.boucle === undefined ? [] : [`boucle ${l.boucle}`]),
     ...(l.place ? [`place ${l.place}`] : []),
+    ...(l.reservation
+      ? [`${l.reservation.coeurs} cœurs, ${l.reservation.memoireGo} Go, ${l.reservation.qui}`]
+      : []),
     ...(l.raison ? [`— ${l.raison}`] : []),
   ].join(' ');
 
