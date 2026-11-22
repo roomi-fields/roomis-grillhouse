@@ -199,10 +199,10 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   l'explorateur, au ticket avec leur pièce ; je change le plan (`bd update <ticket>`) ou je le
   garde, puis `--reprendre` le fait passer tel qu'il est alors ; ce qui revient au responsable lui
   monte d'abord.
-- **Le greffon pousse les questions, ma réponse les acquitte** : le greffon de ma séance met
-  dans la file de mes messages, qui arrive à la fin du tour en cours sans l'interrompre, un seul
-  message par relevé (une question neuve d'un circuit lancé seul, dans une file ou par une autre
-  séance, en trois lignes : « Question · ticket · étape · arrêt », la question, puis « → npx
+- **Le greffon pousse les questions, ma réponse les acquitte** : le greffon de ma séance ne
+  relève rien pendant un de mes tours ; la première période après sa fin relève les circuits tels
+  qu'ils sont alors, et il met dans la file de mes messages un seul message par relevé (une
+  question neuve d'un circuit lancé seul, dans une file ou par une autre séance, en trois lignes : « Question · ticket · étape · arrêt », la question, puis « → npx
   grillhouse circuit <ticket> <réponse> », où je mets ma réponse, `--reprendre`, `--depuis`,
   `--mecanique`, `--etendre`, `--reporter` ou `--arreter` ; un circuit intégré, une fois, sur
   une ligne « Intégré · ticket » ; la ligne d'un autre projet de mon groupe porte son sigle

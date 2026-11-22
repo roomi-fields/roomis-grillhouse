@@ -913,8 +913,15 @@ n'ayant pas été relancée après un lot). À chaque période (`PERIODE_DES_QUE
 greffon (`mods/grillhouse/hooks/register.tsx`, rattaché au paquet `@roomi-fields/grillhouse` qui le
 publie) demande un relevé des circuits (`npx grillhouse superviseur --relever`, qui lit les
 circuits par la même source que le tableau, `questionsEnAttente`) et soumet ce qu'il imprime par
-`$.prompt.submit` du moteur des greffons : le message attend la fin du tour en cours, sans
-l'interrompre, et un seul message part par relevé, qui regroupe les questions et les fins de
+`$.prompt.submit` du moteur des greffons. Tant qu'un tour de la boucle principale de la séance
+tourne (`tours`, que tiennent les crochets `turn.start` et `turn.complete`), le greffon ne demande
+aucun relevé, comme une file à accusé de réception ne livre pas un message dont l'objet est déjà
+traité : un message soumis pendant un tour attendrait sa fin dans la file de la séance, où rien ne
+le reprend une fois sa question répondue ou reportée (grillhouse-3uv.164 : un tour de quarante
+minutes finissait sur une douzaine de messages, chacun un tour à lui). La première période après
+la fin du tour relève les circuits tels qu'ils sont alors. Le passage d'un sous-agent ne retient
+aucun relevé : le moteur ne lève `turn.start` que pour la boucle principale. Un seul message part
+par relevé, qui regroupe les questions et les fins de
 circuit dues, chaque question en trois lignes (le rendu partagé des questions, `ligneDeQuestion`,
 que l'ouverture reprend) : sa tête « Question · ticket · étape · arrêt », avec son destinataire
 quand ce n'est pas le superviseur ; sa question sans la liste des réponses (`sansLesReponses`),

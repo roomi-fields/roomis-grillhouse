@@ -5,9 +5,9 @@ import { projetGrillhouse, suiveurSimule } from './projet'
 
 // The questions of the circuits reach the session of supervision by a push of the greffon: at each
 // period it asks one reading of the circuits of its project (`grillhouse superviseur --relever`)
-// and submits what it prints, in one message, to the session, which queues it while it works. The
-// greffon launches no wait of its own: the reading is the only process it asks for. The period is
-// moved on by the mocked clock, with no real wait.
+// and submits what it prints, in one message, to the session; while a turn of the session runs it
+// asks no reading. The greffon launches no wait of its own: the reading is the only process it asks
+// for. The period is moved on by the mocked clock, with no real wait.
 
 type Lecture = { exitCode: number; stdout: string; stderr: string }
 type Banc = Parameters<Parameters<typeof test>[1]>
@@ -121,7 +121,9 @@ test('the clock asks for a reading at each period, and for no wait', async ($, o
 // nothing takes it back once its question is answered: a long turn piled up one message per
 // reminder (Grillhouse and SyntHub, 2026-11-22, grillhouse-3uv.164). While a turn of the main loop
 // runs the greffon asks no reading; the first period after its end reads the circuits as they are.
-const tour = (turnId: string, agentId?: string) => ({ text: '', turnId, ...(agentId ? { agentId } : {}) })
+// The engine raises `turn.start` for the main loop alone; a subagent's run ends on a
+// `turn.complete` that carries its `agentId`, with no start.
+const tour = (turnId: string) => ({ text: '', turnId })
 const fin = (turnId: string, agentId?: string) => ({
   answer: '',
   durationMs: 1,
@@ -147,15 +149,16 @@ test('while a turn of the main loop runs no reading is asked; the period after i
   expect(messages).toHaveLength(1)
 })
 
-test('a subagent’s turn does not hold the readings', async ($, on) => {
-  const { lectures, horloge } = await seance($, on, () => ok('- demo-1 : Q ?\n'))
+test('the end of a subagent’s run frees no reading while the turn of the main loop runs', async ($, on) => {
+  const { lectures, messages, horloge } = await seance($, on, () => ok('- demo-1 : Q ?\n'))
   const t = ($ as unknown as Tours).turn
-  await t.start(tour('a1', 'agent-1'))
-  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
-  await attendre()
-  expect(lectures).toHaveLength(1)
   await t.start(tour('t1'))
   await t.complete(fin('a1', 'agent-1'))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(lectures).toHaveLength(0)
+  expect(messages).toEqual([])
+  await t.complete(fin('t1'))
   await horloge.advance(PERIODE_DES_QUESTIONS_MS)
   await attendre()
   expect(lectures).toHaveLength(1)

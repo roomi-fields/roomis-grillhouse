@@ -475,11 +475,11 @@ async function changerLaListe($: EngineInterface, geste: 'ajouter' | 'retirer', 
 // messages (grillhouse-3uv.110): at each period the greffon asks one reading of the circuits of the
 // project and of its group (`grillhouse superviseur --relever`, which reads the circuits as the board does and
 // answers nothing unless this session holds the lock of the supervisor) and submits what it prints,
-// one message per reading, to the session: `$.prompt.submit` queues it while the session works, so
-// it arrives at the end of the turn, without interrupting it. A question not answered comes back at
+// one message per reading, to the session (`$.prompt.submit`). A question not answered comes back at
 // the interval `grillhouse.rappel` of the project; its answer to the circuit acknowledges it. The
 // state « presented at such a time » lives in the file of the stops gone up that the reading keeps.
-// A message queued is never taken back, so none is queued behind a turn, as a queue with
+// A message submitted while the session works waits in its queue until the end of the turn, and a
+// message queued is never taken back, so none is queued behind a turn, as a queue with
 // acknowledgement does not deliver a message whose object is already treated: while a turn of the
 // main loop runs (`tours`), no reading is asked, and the first period after its end reads the
 // circuits as they are then, in one message (a turn of forty minutes piled up one message per
@@ -548,10 +548,11 @@ export const register: Register = on => {
   })
 
   // The turns of the main loop that run: no reading of the questions is asked meanwhile
-  // (`pousserLesQuestions`).
+  // (`pousserLesQuestions`). The engine raises `turn.start` for the main loop alone: a subagent's
+  // run raises none, and the id of its `turn.complete` is in no set.
   on('turn.start', async ($, e, next) => {
     const r = await next(e)
-    if (e.agentId === undefined) tours.add(e.turnId)
+    tours.add(e.turnId)
     return r
   })
   on('turn.complete', (_$, e, next) => {
