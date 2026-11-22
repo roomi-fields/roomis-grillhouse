@@ -289,6 +289,14 @@ paquet` écrit (son `name` : celui du crate ou du projet) et inscrit aux `worksp
     chemin n'est pas un paquet du graphe ; une construction en échec écrit dans `<fichier>` sa
     première ligne, puis sa sortie, et rend 0 ; tout autre échec rend un autre code et arrête le
     lancement ;
+  - `construire --gardes`, que les contrôles du plan d'un circuit jouent avant ses gardes : la même
+    implémentation du noyau, qui lit le plan à blanc des tâches de gardes dont la racine porte le
+    script (`turbo run grillhouse:gardes gardes --dry=json`) et joue chacune de ses tâches sauf les
+    gardes, les constructions qu'elles attendent, côte à côte dans la borne de la vérification
+    (`--concurrency`, la moitié des cœurs de la part) ; rien sans script de gardes ni tâche
+    attendue (0) ; son code est celui de l'outil de tâches, 1 pour un plan à blanc refusé ; une
+    construction rouge d'un paquet du plan va au développeur, celle d'un paquet hors du plan, ou
+    sans lieu, est laissée à la passe finale, et les gardes jouent sans elle ;
   - `tests-du-paquet <chemin>…` (`cargo`, `python`, `c` : CMake configure et compile, CTest joue
     chaque `tests/test_*.c`, un test CTest par fichier, dans `.build-cmake/<paquet>`, et son
     rapport JUnit est repris tel quel ; un fichier de test que CTest n'enregistre pas est rouge,
@@ -448,7 +456,9 @@ celui du manifeste ; le `tester` du module typescript en exclut les tâches `tes
 dernier vert qu'elle pose seule), les fournisseurs de `grillhouse.donnees` d'un paquet (`fournisseursDuPaquet(racine, chemin)` : leurs noms, une erreur qui nomme chaque faute de la clé), les tâches du graphe des paquets (`lancerLesTaches` : les
 tâches de Turborepo de paquets nommés, les chemins nommés dans la variable `GRILLHOUSE_TESTS` ; `empreintesDesTaches`, le hachage d'entrées des tâches de tests des paquets nommés et de leurs dépendants, que l'outil de tâches calcule, pour l'empreinte d'une étape ; `nomDuPaquet` ;
 `testsCibles` ; `cheminsDeLaTache` ; `construireDepuisLesArguments`, le lanceur de la copie d'un
-agent, le même pour tout langage, que le module appelle en lui donnant l'outil des tâches ;
+agent, le même pour tout langage, que le module appelle en lui donnant l'outil des tâches, et
+`constructionDuGraphe`, qui dit si les arguments d'un `construire` le demandent (`--echec`,
+`--gardes`) ;
 `SCRIPT_DES_TESTS` et `TESTS_CIBLES`, le nom du script des tests et celui de la variable des
 chemins, uniques pour tout langage, typescript compris ; `GRAPHE_JOUE`, que la commande composée
 pose aux modules qui jouent à côté du module de `package.json`, dont la passe joue déjà toutes les

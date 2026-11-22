@@ -118,6 +118,24 @@ arrêt (le fait `etendreAuxEcartes`), l'écrit au ticket avec sa pièce (le roug
 l'écart qu'il dément), et le rouge va au développeur. Un rouge dans un paquet que ni le plan ni les
 écartés ne nomment arrête toujours le circuit (« hors du plan du ticket »).
 
+**Une garde ne part pas avant la construction de ce qu'elle lit** : comme une tâche de Turborepo
+attend par son `dependsOn` la construction dont elle lit le produit, et comme les deps d'une cible
+Bazel, les tâches de gardes de la racine attendent la construction de chaque paquet du cadre (le
+générateur l'écrit, `turbo-des-paquets.mjs`), et `npm run verifier` les joue par le graphe. Les
+contrôles de 3.1 jouent le script de chaque garde seul, dans l'enveloppe du plan, hors du graphe :
+avant elles, ils jouent ce que ces tâches attendent, `npm exec --no -- grillhouse construire
+--gardes` (`construirePourLesGardes` de `scripts/taches-du-graphe.mjs`, une seule implémentation pour
+tout langage), qui lit le plan à blanc des tâches de gardes dont la racine porte le script et joue
+chacune de ses tâches sauf les gardes, relue du cache quand rien n'a bougé, côte à côte dans la
+borne de la vérification (`tachesCoteACote`, la moitié des cœurs de la part, `--concurrency`) ; un
+projet sans script de gardes ne joue rien. Une construction rouge se lit au résumé de l'outil de
+tâches, comme celle d'une passe : celle d'un paquet du plan est un rouge des contrôles, rendu au
+développeur ; celle d'un paquet hors du plan, ou que nul résultat ne situe, est laissée à la passe
+finale, et les gardes jouent alors sans cette construction. Ainsi une garde du cadre ou du projet lit, aux contrôles comme à
+la passe finale, le produit construit de chaque paquet, hors du plan compris (BPScript
+320.14.2.8.1 : les tests du plan ne construisaient que `000-forms` et ses fournisseurs, et
+`npm run gardes` rougissait sur le `dist/` absent de six paquets hors du plan).
+
 **Une exception inattendue arrête le circuit par écrit** : comme un ordonnanceur ne meurt pas d'une
 tâche (Zuul, Buildbot, GitLab CI écrivent l'erreur d'un job comme un résultat « erreur » avec son
 journal), toute exception que le circuit ne prévoit pas (hors `Arret` et hors un appel mal formé)

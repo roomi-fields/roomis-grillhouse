@@ -46,6 +46,7 @@ import {
   avecLaPasse,
   cheminsDeLaTache,
   construireDepuisLesArguments,
+  constructionDuGraphe,
   GRAPHE_JOUE,
   joueCeQuiNeSeDivisePas,
   lancerLesTaches,
@@ -54,6 +55,7 @@ import {
   ouvrirBase,
   retirerALInterruption,
   SCRIPT_DES_TESTS,
+  SCRIPTS_DE_GARDES,
   surUnePart,
   testsCibles,
   travailleursDeLaSeance,
@@ -411,9 +413,6 @@ function verifier(racine, args, env) {
   return code === 0 ? 0 : 1;
 }
 
-// The scripts of guards of the project, in the order they play: the frame's, then its own.
-const SCRIPTS_DE_GARDES = ['grillhouse:gardes', 'gardes'];
-
 // The pass of `verifier --gardes` in <racine>: each script of SCRIPTS_DE_GARDES the root
 // package.json holds, a task of the root; no test.
 function gardes(racine, p) {
@@ -486,8 +485,9 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     }
   }
   // The launcher's `construire` (`--echec <fichier> <plan>`) builds the copy for a session, the
-  // plan and its providers, as every language's.
-  if (nom === 'construire' && args.includes('--echec')) {
+  // plan and its providers, as every language's; `construire --gardes`, what the guard tasks wait
+  // for.
+  if (nom === 'construire' && constructionDuGraphe(args)) {
     return construireDepuisLesArguments(OUTIL, args, racine);
   }
   if (nom === 'typer' || nom === 'construire') {

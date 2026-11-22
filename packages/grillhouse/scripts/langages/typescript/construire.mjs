@@ -4,6 +4,8 @@
 // prepared copy, through its mounts: the session finds built what it reads out of its plan.
 //
 //   node construire.mjs --echec <fichier> <plan>     from the root of the copy
+//   node construire.mjs --gardes                     what the guard tasks wait for, before the
+//                                                    guards of the checks of a plan
 //
 // - The launcher is the core's, one for every language (`construireDepuisLesArguments` of
 //   scripts/taches-du-graphe.mjs): the plan and its providers by `turbo run build

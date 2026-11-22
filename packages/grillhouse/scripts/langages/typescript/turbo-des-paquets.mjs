@@ -182,7 +182,11 @@ import { lecturesDeclarees, testsDuPaquet } from './vitest-config/lances.mjs';
 import { parcourir } from './parcours.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { ecrireSarif, RESULTATS } from '../../resultats.mjs';
-import { SCRIPT_DES_TESTS as TESTS, TESTS_CIBLES } from '../../services-du-noyau.mjs';
+import {
+  SCRIPT_DES_TESTS as TESTS,
+  SCRIPTS_DE_GARDES,
+  TESTS_CIBLES,
+} from '../../services-du-noyau.mjs';
 
 export const TURBO = 'turbo.json';
 export const COMMANDE = 'npx grillhouse turbo-des-paquets --ecrire';
@@ -193,7 +197,7 @@ const TOPOLOGIE = ['dependencies', 'devDependencies', 'optionalDependencies'];
 // The root configuration of Turborepo, in the order Turborepo reads it.
 const RACINES = ['turbo.json', 'turbo.jsonc'];
 // The guard tasks of the root: the frame's controls, and the project's own guards.
-export const GARDES = ['grillhouse:gardes', 'gardes'];
+export const GARDES = SCRIPTS_DE_GARDES;
 // The controls of the root the CI used to play beside the verification: the format check and the
 // lint (grillhouse-61z). A root plays those its package.json holds a script for, none demanded.
 export const CONTROLES = ['format:check', 'lint'];

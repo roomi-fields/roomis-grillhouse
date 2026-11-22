@@ -522,7 +522,8 @@ export function nomDuPaquet(racine: string, dossier: string): string | null;
 /** Runs the tasks `taches` of the packages `noms` (all when empty) with the task runner `outil`,
  * each task whose dependencies succeed played to its end: the runner's exit code. `tests` is the
  * content of the variable `TESTS_CIBLES` of the run; the variable of `env` never passes on. A
- * red run names, through `dire`, each task whose code is not 0. */
+ * red run names, through `dire`, each task whose code is not 0. `coteACote` bounds the tasks played
+ * side by side (`--concurrency`). */
 export function lancerLesTaches(o: {
   outil: string;
   racine: string;
@@ -531,7 +532,15 @@ export function lancerLesTaches(o: {
   tests?: { arguments: string[]; rejouer?: string };
   env?: NodeJS.ProcessEnv;
   dire?: (ligne: string) => void;
+  coteACote?: number;
 }): number;
+/** The tasks a run of the graph plays side by side on `coeurs` cores (the machine's by default):
+ * half of them, one at least; the bound `--concurrency` of the pass of the verification and of the
+ * build the guards wait for. */
+export function tachesCoteACote(coeurs?: number): number;
+/** The guard scripts of the root, and their tasks of the graph, in the order they play: the frame's
+ * controls, then the project's own guards. */
+export const SCRIPTS_DE_GARDES: string[];
 /** A task of the summary of the task runner, or one a module wrote: `code` null for a task that did not run. */
 export interface TacheDuResume {
   tache: string;
@@ -586,12 +595,18 @@ export function tracesDuPlan(
 ): string[];
 /** The command `construire --echec <fichier> <plan>` of a module, run from the root of the copy:
  * builds the plan and its providers with the task runner `outil`, `run build --filter=<paquet>…`
- * (the whole copy for a plan with a path that is no package); its exit code. */
+ * (the whole copy for a plan with a path that is no package); its exit code. `construire --gardes`
+ * plays what the guard tasks of the root wait for in the graph, read in the runner's plan of them. */
 export function construireDepuisLesArguments(
   outil: string,
   args: string[],
   racine?: string
 ): number;
+/** Whether the arguments of a command `construire` ask for a build of the graph, the core's one
+ * for every language (`--echec <fichier> <plan>`, the launcher's; `--gardes`, what the guard tasks
+ * of the root wait for, which the checks of a plan play before its guards), and not for the build
+ * of one package. */
+export function constructionDuGraphe(args: string[]): boolean;
 /** What `lire` returns, read once under `cle` while the core holds a scope of readings done once
  * (a sweep that asks many questions of a tree that does not move), at each call otherwise
  * (scripts/lecture-unique.mjs). */

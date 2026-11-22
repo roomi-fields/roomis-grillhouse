@@ -34,13 +34,44 @@
 //   build failed and what was built, then its output, which the launcher puts in the session's
 //   instruction. The exit code: 0 when the launch goes on, a build failure included; 1 for a step
 //   that stops it; 2 for a malformed call.
+// - `construirePourLesGardes` is the command `construire --gardes` of every module, which the checks
+//   of a plan play before its guards (scripts/activites.mjs, `commandesDuPlan`): a guard reads what
+//   the builds write, and its task of the graph waits for them (`dependsOn`, as the deps of a Bazel
+//   target), while the checks play the guard's script alone, in the envelope of the plan. It reads
+//   the runner's plan of the guard tasks the root holds a script for (`run grillhouse:gardes gardes
+//   --dry=json`), then plays every task of it but the guards (`lancerLesTaches`): the builds they
+//   wait for, replayed from the cache when nothing moved, side by side within the cores of the part
+//   the checks play on (`tachesCoteACote`, `--concurrency`). No guard script, or no task waited for:
+//   nothing plays, 0. Its exit code is the runner's, 1 for a plan the runner refuses.
 import { spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { lireLaListe } from './enveloppe/paquets-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { langage } from './langages.mjs';
+import { travailleursDeLaSeance } from './places-de-la-machine.mjs';
 
+/** The guard scripts of the root, and their tasks of the graph: the frame's controls, then the
+ * project's own guards. */
+export const SCRIPTS_DE_GARDES = ['grillhouse:gardes', 'gardes'];
+/**
+ * The tasks a run of the graph plays side by side on <coeurs> cores: half of them, one at least,
+ * each task being itself parallel, as make's `-j` and Bazel's `--local_cpu_resources` bound a build
+ * by the machine. The pass of the verification and the build the guards wait for share it.
+ * @param {number} [coeurs]
+ */
+export const tachesCoteACote = (coeurs = availableParallelism()) =>
+  Math.max(1, Math.floor(coeurs / 2));
+/** The option of the command `construire` that builds what the guard tasks wait for. */
+export const POUR_LES_GARDES = '--gardes';
+/**
+ * Whether the arguments <args> of a command `construire` ask for a build of the graph, the core's
+ * one for every language (`construireDepuisLesArguments`), and not for the build of one package.
+ * @param {string[]} args
+ */
+export const constructionDuGraphe = args =>
+  args.includes('--echec') || args.includes(POUR_LES_GARDES);
 /** The name of the script and of the task of the tests of a package, the same for every language. */
 export const SCRIPT_DES_TESTS = 'test:unit';
 // The variable that carries the paths and the options of a targeted run to the task of the tests.
@@ -105,9 +136,10 @@ export function nomDuPaquet(racine, dossier) {
  * <tests>, when given, is the content of the variable `TESTS_CIBLES` of the run (`{ arguments,
  * rejouer? }`); the variable of <env> never passes on. A red run names, through <dire>, each task
  * whose code is not 0, « ⛔ <tâche> (code N) », as the pass of the module typescript does.
+ * <coteACote>, when given, bounds the tasks played side by side (`--concurrency=<n>`).
  * @param {{ outil: string, racine: string, taches: string[], noms?: Iterable<string>,
  *   tests?: { arguments: string[], rejouer?: string }, env?: NodeJS.ProcessEnv,
- *   dire?: (ligne: string) => void }} o
+ *   dire?: (ligne: string) => void, coteACote?: number }} o
  * @returns {number}
  */
 export function lancerLesTaches({
@@ -118,6 +150,7 @@ export function lancerLesTaches({
   tests,
   env = process.env,
   dire = l => process.stderr.write(`${l}\n`),
+  coteACote,
 }) {
   const e = { ...env };
   delete e[TESTS_CIBLES];
@@ -128,11 +161,12 @@ export function lancerLesTaches({
   // The runner's summary gives each task's verdict; kept in a named results directory, never left
   // in the project.
   const resume = ['--summarize'];
+  const borne = coteACote ? [`--concurrency=${coteACote}`] : [];
   const lanceur = langage('typescript');
   const avant = lanceur.resumesDuLancement(racine);
   const r = spawnSync(
     outil,
-    ['run', ...taches, ...filtres, '--continue=dependencies-successful', ...resume],
+    ['run', ...taches, ...filtres, '--continue=dependencies-successful', ...borne, ...resume],
     { cwd: racine, stdio: 'inherit', env: e }
   );
   const verdicts = lanceur.garderLesResumes(racine, avant, e);
@@ -383,20 +417,66 @@ function construire(outil, racine, liste, echec) {
 }
 
 /**
+ * Builds what the guard tasks of the root at <racine> wait for in the graph, with <outil>: its exit
+ * code (see the header).
+ * @param {string} outil the task runner
+ * @param {string} racine the root of the copy
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {number}
+ */
+function construirePourLesGardes(outil, racine, env = process.env) {
+  let scripts = {};
+  try {
+    scripts = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8')).scripts ?? {};
+  } catch {
+    scripts = {};
+  }
+  const gardes = SCRIPTS_DE_GARDES.filter(s => typeof scripts[s] === 'string');
+  if (gardes.length === 0) {
+    return 0;
+  }
+  let graphe;
+  try {
+    graphe = plan(outil, racine, ['run', ...gardes]);
+  } catch (e) {
+    if (!(e instanceof Arret)) {
+      throw e;
+    }
+    process.stderr.write(`⛔ ${e.message} échoue.\n`);
+    return 1;
+  }
+  const attendues = (graphe.tasks ?? [])
+    .filter(t => !gardes.includes(t.task))
+    .map(t => t.taskId)
+    .sort();
+  if (attendues.length === 0) {
+    return 0;
+  }
+  // The builds side by side are bounded by the cores of the part the checks play on, as the pass of
+  // the verification bounds its tasks.
+  const coteACote = tachesCoteACote(travailleursDeLaSeance(env) ?? availableParallelism());
+  return lancerLesTaches({ outil, racine, taches: attendues, env, coteACote });
+}
+
+/**
  * The command `construire --echec <fichier> <plan>` of a module, run from the root of the copy:
  * its exit code. <args> are the arguments after the command's name; a call without the file of a
- * failure and a plan is refused (2).
+ * failure and a plan is refused (2). `construire --gardes` builds what the guard tasks wait for
+ * (`construirePourLesGardes`).
  * @param {string} outil the task runner
  * @param {string[]} args
  * @param {string} [racine]
  * @returns {number}
  */
 export function construireDepuisLesArguments(outil, args, racine = process.cwd()) {
+  if (args.length === 1 && args[0] === POUR_LES_GARDES) {
+    return construirePourLesGardes(outil, racine);
+  }
   const i = args.indexOf('--echec');
   const echec = i >= 0 ? args[i + 1] : undefined;
   const reste = i >= 0 ? [...args.slice(0, i), ...args.slice(i + 2)] : args;
   if (!echec || reste.length !== 1) {
-    process.stderr.write('usage: construire --echec <fichier> <plan>\n');
+    process.stderr.write('usage: construire --echec <fichier> <plan> | construire --gardes\n');
     return 2;
   }
   return construire(outil, racine, reste[0], echec);

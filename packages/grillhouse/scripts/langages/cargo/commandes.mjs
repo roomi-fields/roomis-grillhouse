@@ -141,6 +141,7 @@ import {
   avecLaPasse,
   cheminsDeLaTache,
   construireDepuisLesArguments,
+  constructionDuGraphe,
   ecrirePression,
   GRAPHE_JOUE,
   joueCeQuiNeSeDivisePas,
@@ -151,6 +152,7 @@ import {
   ouvrirBase,
   retirerALInterruption,
   SCRIPT_DES_TESTS,
+  SCRIPTS_DE_GARDES,
   SEUIL_PRESSION,
   testsCibles,
   travailleursDeLaSeance,
@@ -740,10 +742,6 @@ function verifier(racine, args, env) {
   return verdict;
 }
 
-// The scripts of guards of the project, in the order they play, as the module typescript's
-// `--gardes` plays its tasks: the frame's, then the project's own.
-const SCRIPTS_DE_GARDES = ['grillhouse:gardes', 'gardes'];
-
 // The pass of `verifier --gardes` in <racine>, the run <p>: each script of SCRIPTS_DE_GARDES the
 // root package.json holds, a task of the root, whatever the verdict of the one before; no test.
 function gardes(racine, p) {
@@ -843,8 +841,9 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
   // `cargo check -p`), as Turborepo's task of one package; `typer` alone checks the workspace.
   let crate = null;
   // The launcher's `construire` (`--echec <fichier> <plan>`, scripts/enveloppe/lancer.sh) builds
-  // the copy for a session, the plan and its providers, as every language's.
-  if (nom === 'construire' && args.includes('--echec')) {
+  // the copy for a session, the plan and its providers, as every language's; `construire --gardes`,
+  // what the guard tasks wait for.
+  if (nom === 'construire' && constructionDuGraphe(args)) {
     return construireDepuisLesArguments(OUTIL, args, racine);
   }
   if (nom === 'construire' || (nom === 'typer' && args.length)) {

@@ -9,7 +9,8 @@ import path from 'node:path';
 // - Chaque appel est une ligne JSON du journal `FAUX_TURBO_JOURNAL` : `{ args, tests, tmpdir }`, ses
 //   arguments, la variable des chemins nommés `GRILLHOUSE_TESTS` (null si absente) et le dossier
 //   temporaire `TMPDIR`.
-// - Avec `--dry=json`, il écrit `{ "tasks": [] }` et sort avec `FAUX_TURBO_CODE_DRY`, 0 sans elle.
+// - Avec `--dry=json`, il écrit le plan `FAUX_TURBO_PLAN` (du JSON), `{ "tasks": [] }` sans elle, et
+//   sort avec `FAUX_TURBO_CODE_DRY`, 0 sans elle.
 // - Avec `--summarize` et `FAUX_TURBO_RESUME`, il écrit ce texte en résumé `.turbo/runs/faux-resume.json`
 //   du dossier courant, comme Turborepo.
 // - Sinon il écrit `FAUX_TURBO_SORTIE` et sort avec `FAUX_TURBO_CODE`, 0 sans elle.
@@ -20,7 +21,7 @@ if (process.env.FAUX_TURBO_JOURNAL) {
   fs.appendFileSync(process.env.FAUX_TURBO_JOURNAL, JSON.stringify({ args, tests: process.env.GRILLHOUSE_TESTS ?? null, tmpdir: process.env.TMPDIR ?? null }) + '\\n');
 }
 if (args.includes('--dry=json')) {
-  process.stdout.write(JSON.stringify({ tasks: [] }));
+  process.stdout.write(process.env.FAUX_TURBO_PLAN || JSON.stringify({ tasks: [] }));
   process.exit(Number(process.env.FAUX_TURBO_CODE_DRY || 0));
 }
 if (process.env.FAUX_TURBO_RESUME && args.includes('--summarize')) {

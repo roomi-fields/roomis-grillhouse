@@ -43,7 +43,7 @@
 //   `turbo run grillhouse:gardes gardes typecheck test:unit --continue=dependencies-successful
 //   --concurrency=<n> --summarize`, each argument given after it. A red does not stop the pass:
 //   every task whose prerequisites passed plays, and each red is named. <n>, the tasks side by
-//   side, is half the cores of the pass's part, one at least (`concurrence`): each task of tests is
+//   side, is half the cores of the pass's part, one at least (`tachesCoteACote` of the core): each task of tests is
 //   itself parallel (Vitest's workers), as make's `-j` and Bazel's `--local_cpu_resources` bound a
 //   build by the machine; a `--concurrency` among the arguments replaces it. The workers of each
 //   task of tests are the cores shared between the tasks of tests side by side
@@ -136,6 +136,8 @@ import {
   PASSE_ROUGE,
   retirerALInterruption,
   SCRIPT_DES_TESTS,
+  SCRIPTS_DE_GARDES as GARDES,
+  tachesCoteACote as concurrence,
   TESTS_CIBLES,
   testsCibles,
   travailleursDeLaSeance,
@@ -147,7 +149,6 @@ import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
 import { garderLesResumes } from './resume-du-lanceur.mjs';
 import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
 
-const GARDES = ['grillhouse:gardes', 'gardes'];
 const TACHES = [...GARDES, TYPAGE, SCRIPT_DES_TESTS];
 const CONCURRENCE = /^--concurrency(?:=|$)/;
 // The variable that names the file of the red tasks, which the night reads.
@@ -160,9 +161,6 @@ const rejeu = id => {
 };
 
 const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
-
-// The tasks a pass plays side by side on a machine of <coeurs> cores: half of them, one at least.
-const concurrence = (coeurs = availableParallelism()) => Math.max(1, Math.floor(coeurs / 2));
 
 // The tasks side by side <args> ask for (`--concurrency=<n>`, `--concurrency <n>`), null without
 // a whole number.

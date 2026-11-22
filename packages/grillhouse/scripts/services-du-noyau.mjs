@@ -25,6 +25,7 @@ export { poserLeGabaritAbsent } from './gabarit-absent.mjs';
 export {
   cheminsDeLaTache,
   construireDepuisLesArguments,
+  constructionDuGraphe,
   empreintesDesTaches,
   GRAPHE_JOUE,
   joueCeQuiNeSeDivisePas,
@@ -34,6 +35,8 @@ export {
   nomDuPaquet,
   PASSE_ROUGE,
   SCRIPT_DES_TESTS,
+  SCRIPTS_DE_GARDES,
+  tachesCoteACote,
   tachesDuVerdict,
   TESTS_CIBLES,
   testsCibles,

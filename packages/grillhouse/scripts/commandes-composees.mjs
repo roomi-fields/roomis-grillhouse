@@ -21,8 +21,9 @@
 //   (`moduleDuFichier`), or out of every component to the first module whose rule of a test file
 //   judges it (`estUnTest`). With paths, the modules that receive none do not play. A path no
 //   module takes is refused, named, and nothing plays (code 2).
-// - The launcher's `construire --echec <fichier> <plan>` is one implementation for every language
-//   (scripts/taches-du-graphe.mjs): the first module plays it, once.
+// - The launcher's `construire --echec <fichier> <plan>`, and `construire --gardes` of the checks of
+//   a plan, are one implementation for every language (scripts/taches-du-graphe.mjs): the first
+//   module plays it, once.
 // - No module is given a green to defer: the last green (scripts/dernier-vert.mjs) is kept by the
 //   one pass of the verification, once, when every task of every language of the graph is green
 //   (scripts/langages/typescript/verifier.mjs). A module that plays after a red one gets
@@ -45,7 +46,7 @@ import { moduleDuFichier } from './composition-des-langages.mjs';
 import { garderLeVert } from './dernier-vert.mjs';
 import { etatDuDepot } from './etat-du-depot.mjs';
 import { langagesDe } from './langages.mjs';
-import { GRAPHE_JOUE, PASSE_ROUGE } from './taches-du-graphe.mjs';
+import { constructionDuGraphe, GRAPHE_JOUE, PASSE_ROUGE } from './taches-du-graphe.mjs';
 
 /** This script, the one every composed command runs. */
 export const SCRIPT = fileURLToPath(import.meta.url);
@@ -69,7 +70,7 @@ function repartir(nom, args, modules, racine) {
   // `construire` and `typer` name a package by its path, as `tester`.
   // The launcher's build is one implementation for every language (scripts/taches-du-graphe.mjs): it
   // plays once, by the first module, not once per module (each would build the same copy again).
-  if (nom === 'construire' && args.includes('--echec')) {
+  if (nom === 'construire' && constructionDuGraphe(args)) {
     return { parts: modules.slice(0, 1).map(module => ({ module, args })) };
   }
   if (!PAR_CHEMIN.includes(nom)) {

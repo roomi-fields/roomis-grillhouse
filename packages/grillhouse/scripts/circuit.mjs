@@ -283,8 +283,10 @@
 // - The checks after the developpeur judge the plan, as Bazel plays the targets of a change: `npm
 //   test -- <package>` for each package of the plan, touched by the lot or not (a package that plays no
 //   tests, `joueDesTests`, plays only when the lot touches it), `npm test -- <test files of the lot>`
-//   that none of them holds, each test played once, then the guards in the envelope of the plan (`GRILLHOUSE_ENVELOPPE=<plan> npm run
-//   grillhouse:gardes`, and `npm run gardes` when the project has it). Each red is read in the
+//   that none of them holds, each test played once, then the build of what the guard tasks wait for in
+//   the graph (`npm exec --no -- grillhouse construire --gardes`, scripts/taches-du-graphe.mjs: a guard
+//   never plays before the build of what it reads), then the guards in the envelope of the plan
+//   (`GRILLHOUSE_ENVELOPPE=<plan> npm run grillhouse:gardes`, and `npm run gardes` when the project has it). Each red is read in the
 //   results of its command: a failed test of the reports of Vitest, a finding of level error of
 //   the guards' SARIF, a failed build or task of the summary; a red check none of them situates is
 //   one red of the command. As SARIF 2.1.0 and GitHub code scanning, a warning or a note shows

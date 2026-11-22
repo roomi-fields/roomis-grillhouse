@@ -47,6 +47,7 @@ import { avecLesOutils } from './outils-cles.mjs';
 import { avecLesDonnees } from './donnees-cles.mjs';
 import { consigneDesFlux } from './flux-des-paquets.mjs';
 import { avecLaPasse, lancementSousPart, passeLourde } from './passe-de-la-machine.mjs';
+import { POUR_LES_GARDES, SCRIPTS_DE_GARDES } from './taches-du-graphe.mjs';
 import {
   A_INSCRIRE,
   bloquantsDeLaFiche,
@@ -2162,6 +2163,10 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
   };
 }
 
+// The command of npm that builds what the guard tasks of the root wait for in the graph, by the
+// command `construire --gardes` of the module of the language (scripts/taches-du-graphe.mjs).
+const CONSTRUCTION_DES_GARDES = ['exec', '--no', '--', 'grillhouse', 'construire', POUR_LES_GARDES];
+
 // The test files <fichiers> of the lot that the checks name to `npm test`: all but the ones out of
 // every package of the language (`horsDesPaquets` of `separerLesFichiersDuJour`: the tests of the
 // frame's plugin), which `npm test` refuses and the guards play (`claude plugin test`).
@@ -2173,7 +2178,11 @@ export function testsNommesAuxControles(ctx, fichiers) {
 // The checks of the plan, out of the final pass: `npm test -- <package>` for each package of the
 // plan and each the lot touches in it, `npm test -- <test files of the lot>` that none of them
 // holds (the shared test material's out of the plan), each test played once, then the guards in
-// the envelope of the plan, whose findings on its files alone count.
+// the envelope of the plan, whose findings on its files alone count. A guard reads what the builds
+// write (the `dist/` of every package, one out of the plan included), and its task of the graph
+// waits for them, as the deps of a Bazel target: before the guards, out of the envelope, the build
+// of what the guard tasks wait for (CONSTRUCTION_DES_GARDES), which the tests of the plan do not
+// build (BPScript 320.14.2.8.1: `npm run gardes` red on the `dist/` of six packages out of the plan).
 export function commandesDuPlan(ctx, liste, seuls = null) {
   const lot = changements(ctx);
   const touches = liste.length
@@ -2203,13 +2212,13 @@ export function commandesDuPlan(ctx, liste, seuls = null) {
         .sort();
   const scripts = lireJson(path.join(ctx.copie, 'package.json'))?.scripts ?? {};
   const enveloppe = { [VARIABLE_ENVELOPPE]: ecrireLaListe(ctx.paquets) };
+  const gardes = SCRIPTS_DE_GARDES.filter(s => s in scripts);
   return [
     ...(tests.length ? [{ args: ['test', '--', ...tests] }] : []),
     ...entiers.map(d => ({ args: d === '.' ? ['test'] : ['test', '--', d] })),
     ...jouesDesEcartes.map(d => ({ args: ['test', '--', d] })),
-    ...['grillhouse:gardes', 'gardes']
-      .filter(s => s in scripts)
-      .map(s => ({ args: ['run', s], env: enveloppe })),
+    ...(gardes.length ? [{ args: CONSTRUCTION_DES_GARDES }] : []),
+    ...gardes.map(s => ({ args: ['run', s], env: enveloppe })),
   ];
 }
 
