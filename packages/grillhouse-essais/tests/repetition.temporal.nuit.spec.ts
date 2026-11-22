@@ -42,7 +42,7 @@ const TESTS = `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`;
 const CODE = `${CODE_JUSTE}passation 'Code écrit.'\n`;
 
 // The package's test script at 75 for as many runs as its file `repasser` counts, as the machine
-// loaded makes `npm run verifier` give back (./circuit.gestes.nuit.spec.ts).
+// loaded makes `npm run verifier` give back (packages/grillhouse/tests/unit/controles.rejeu-a-75.spec.ts).
 const A_75 = (n: number) =>
   `cat > $c/repasser.mjs <<'EOF'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

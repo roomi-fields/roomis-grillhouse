@@ -20,6 +20,14 @@ import {
 // context with it), `--etendre <paquet>` (the plan gains that package, the provider first, then the
 // step under way resumes, grillhouse-3uv.95.6), or `--arreter`; and carries to the owner what is
 // his.
+//
+// This file keeps the one journey of the answer that goes through every part: a real montée out of
+// the plan, the answer `--etendre` by the command, the circuit reopened and the session resumed with
+// the plan extended, up to the envelope of the session. Each rule of the answers is proved small:
+// the options of the command (tests/unit/circuit.appel-refus.spec.ts), the answers refused
+// (tests/unit/circuit.reponses-refusees.spec.ts), the stop on the supervisor's word
+// (tests/unit/circuit.arret-du-superviseur.spec.ts), the montée of a stop
+// (tests/unit/circuit.arrets-des-controles.spec.ts, tests/unit/circuit.question-hors-plan.spec.ts).
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
@@ -87,70 +95,6 @@ describe.runIf(canWrap)(
       expect(sessions(id, 'questionneur')).toBe(1);
       expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
       expect(question(id)).toBeNull();
-    });
-
-    it('--reprendre resumes the stopped step, its context its task at the head of the instruction, the question lifted', () => {
-      const id = 'demo-montee-reprendre';
-      ticket(id, '000-forms');
-      scenario(id, 'testwriter-1', HORS_PLAN);
-      scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-      scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-      const r1 = circuit([id]);
-      expect(r1.status, sortie(r1)).toBe(ARRETS['hors-plan']);
-      const r2 = circuit([id, '--reprendre', '--contexte', 'Écris dans le plan seul.']);
-      expect(r2.status, sortie(r2)).toBe(0);
-      expect(sessions(id, 'testwriter')).toBe(2);
-      expect(essai(id, 'testwriter-2.prompt')).toContain(`${TA_TACHE}Écris dans le plan seul.`);
-      expect(question(id)).toBeNull();
-      expect(etat(id)).toMatchObject({ etape: 'integre', code: 0 });
-    });
-
-    it('--arreter ends the circuit on the supervisor’s word, the question lifted, its motive kept and said at the ticket', () => {
-      const id = 'demo-montee-arreter';
-      ticket(id, '000-forms');
-      scenario(id, 'testwriter', HORS_PLAN);
-      const r1 = circuit([id]);
-      expect(r1.status, sortie(r1)).toBe(ARRETS['hors-plan']);
-      const r2 = circuit([id, '--arreter', '--contexte', 'Le ticket change de plan.']);
-      expect(r2.status, sortie(r2)).toBe(0);
-      expect(sessions(id, 'testwriter')).toBe(1);
-      expect(etat(id)).toMatchObject({
-        raison: 'arrete',
-        code: null,
-        rapport: 'Le superviseur arrête le circuit : Le ticket change de plan.',
-      });
-      expect(question(id)).toBeNull();
-      expect(commentaires(id)).toContainEqual(
-        expect.stringMatching(
-          /^Circuit · arret : le superviseur arrête le circuit : Le ticket change de plan\.$/
-        )
-      );
-      // Alone, the ticket of a circuit stopped on the supervisor's word is refused: an answer
-      // reopens it.
-      const r3 = circuit([id]);
-      expect(r3.status, sortie(r3)).toBe(2);
-      expect(r3.stderr).toContain(`le circuit de ${id} est arrêté sur le mot du superviseur`);
-    });
-
-    it('--etendre and --arreter go alone, and --etendre names a package of the repository', () => {
-      const id = 'demo-montee-usage';
-      ticket(id, '000-forms');
-      expect(circuit([id, '--arreter', '--reprendre']).status).toBe(2);
-      expect(circuit([id, '--etendre', '030-binder', '--reprendre']).status).toBe(2);
-      expect(circuit([id, '--etendre']).status).toBe(2);
-      const r = circuit([id, '--etendre', '999-absent']);
-      expect(r.status).toBe(2);
-      expect(sortie(r)).toContain('999-absent');
-    });
-
-    it('--reponse and --decision are no options of the circuit any more', () => {
-      const id = 'demo-montee-anciennes';
-      ticket(id, '000-forms');
-      for (const option of ['--reponse', '--decision']) {
-        const r = circuit([id, option, 'oui']);
-        expect(r.status, option).toBe(2);
-        expect(sortie(r), option).toContain(`option inconnue : ${option}`);
-      }
     });
   }
 );

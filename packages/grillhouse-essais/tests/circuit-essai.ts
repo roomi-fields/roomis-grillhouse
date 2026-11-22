@@ -40,8 +40,6 @@ import { ouvrirLeBanc, type Banc } from './temporal-essai.js';
 // proof and the checks are real runs of the frame's commands (npm test, npm run verifier), and the
 // integration the frame's script (scripts/integration/integrer.mjs).
 
-// The code of the circuit's acts (scripts/circuit.mjs), which a test reads.
-export const CIRCUIT = path.join(CADRE, 'scripts/circuit.mjs');
 // The frame's command, and the watch of a circuit on the server of the trial.
 const COMMANDE = path.join(CADRE, 'bin/grillhouse.mjs');
 const GUETTEUR = path.join(__dirname, 'guetter-le-circuit.mjs');
@@ -411,9 +409,8 @@ const ticketDe = (args: string[]) => args.find(a => !a.startsWith('--')) ?? '';
 
 // The circuit's named values, read once in a process; a circuit that does not load leaves them
 // empty, and the tests that read them fail on their own assertion.
-const valeurs = valeursDe('scripts/circuit.mjs', ['ARRETS', 'IMMOBILE_MS']);
+const valeurs = valeursDe('scripts/circuit.mjs', ['ARRETS']);
 export const ARRETS = (valeurs.ARRETS ?? {}) as Record<string, number>;
-export const IMMOBILE_MS = (valeurs.IMMOBILE_MS ?? 0) as number;
 
 // The trial repository of one test file under <ESSAIS>, built when this machine can wrap an
 // envelope, and what reads and drives it; <feuille> adds the third package; <refusALIntegration>

@@ -22,25 +22,12 @@ import { dormir, ouvrirLeBanc, type Banc } from './temporal-essai.js';
 const ESSAIS = racineSousLaMaison('grillhouse-essais-circuit-temporal-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 const essai = circuitEssai(ESSAIS, { banc: false });
-const { REPO, revenirAuDebut, ticket, scenario, ordre, commentaires, essai: lu, sessions } = essai;
+const { REPO, revenirAuDebut, ticket, scenario, ordre, essai: lu, sessions } = essai;
 
 // Each test waits for its circuit's end (FIN_MS of ./temporal-essai.ts) after what it plays while
 // the circuit runs (up to 12 min for the purge): its deadline stands above their sum.
 describe.runIf(canWrap)('the workflow of a ticket under Temporal', { timeout: 1_800_000 }, () => {
   afterEach(revenirAuDebut);
-
-  it('carries the ticket from its plan to its integration, the circuit’s own acts as its activities', async () => {
-    const id = 'demo-temporal';
-    ticket(id, '000-forms');
-    scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
-    scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
-    const { historique } = await mener(id);
-    const preuve = commentaires(id).find(t => t.startsWith('Circuit · preuve'));
-    expect(preuve).toContain('critère 1 — mesure rend le double');
-    // grillhouse-4nr.6.3: the plan in two steps, each the act `plan` in an activity of its own,
-    // the explorateur's, then the questionneur's, which ends it.
-    expect(historique.match(/"name":\s*"jouerUnPasDuPlan"/g)).toHaveLength(2);
-  });
 
   // The circuit stopped on the supervisor's word during the developpeur's session, then its
   // workflow purged from the server (its retention passed): the server holds no state of it, and

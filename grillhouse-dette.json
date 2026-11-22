@@ -309,11 +309,6 @@
         "count": 13
       }
     },
-    "packages/grillhouse-essais/tests/circuit.mecanique.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 6
-      }
-    },
     "packages/grillhouse-essais/tests/circuit.passe-finale.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 1
@@ -327,11 +322,6 @@
     "packages/grillhouse-essais/tests/circuit.references.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 28
-      }
-    },
-    "packages/grillhouse-essais/tests/circuit.style.nuit.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 5
       }
     },
     "packages/grillhouse-essais/tests/crochet-worktree.nuit.spec.ts": {
