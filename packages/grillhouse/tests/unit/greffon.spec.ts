@@ -39,6 +39,7 @@ const TITRE_DE_LA_CHARTE = "# La charte commune de Roomi's Grillhouse";
 const COMPETENCES = [
   'codebase-design',
   'developpeur',
+  'direct',
   'domain-modeling',
   'explorateur',
   'grill',
@@ -51,7 +52,7 @@ const COMPETENCES = [
   'testwriter',
   'writing-for-agents',
 ];
-const AGENTS = ['developpeur', 'explorateur', 'questionneur', 'relecteur', 'testwriter'];
+const AGENTS = ['developpeur', 'direct', 'explorateur', 'questionneur', 'relecteur', 'testwriter'];
 
 // The frontmatter of a Markdown file, as « key: value » lines and lists of « - item ».
 const enTete = (texte: string) => /^---\n([\s\S]*?)\n---\n/.exec(texte)?.[1] ?? '';
@@ -181,7 +182,10 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
     expect(appels).toEqual({
       SessionStart: [{ matcher: undefined, sous: ['session-start'] }],
       UserPromptSubmit: [{ matcher: undefined, sous: ['structure-guard', 'attente-au-tour'] }],
-      PreToolUse: [{ matcher: 'Agent|Task', sous: ['ticket-du-sous-agent'] }],
+      PreToolUse: [
+        { matcher: 'Agent|Task', sous: ['ticket-du-sous-agent'] },
+        { matcher: 'Write|Edit|MultiEdit|NotebookEdit', sous: ['verrou-hors-enveloppe'] },
+      ],
       PostToolUse: [{ matcher: 'Write|Edit|MultiEdit', sous: ['style-a-l-ecriture'] }],
       SubagentStop: [{ matcher: undefined, sous: ['registre', 'messages-non-lus'] }],
       TeammateIdle: [{ matcher: undefined, sous: ['messages-non-lus'] }],

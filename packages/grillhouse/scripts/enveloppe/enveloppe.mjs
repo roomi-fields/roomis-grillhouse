@@ -141,8 +141,9 @@ import { donneesDe } from '../donnees-cles.mjs';
 import { matieresDeclareesDe } from '../matieres-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
 
-// The role that writes the package of the shared test material and the lock files of the versions.
-const ROLE_MATIERE = 'testwriter';
+// The roles that write the package of the shared test material and the lock files of the versions:
+// the testwriter, and the agent of a direct, who writes tests and code together.
+const ROLES_MATIERE = ['testwriter', 'direct'];
 // The directories <sorties> of <dir>, each relative to it.
 // One that a symbolic link carries out of <dir> (a `node_modules` linked to another tree's) is
 // left out: it is not the copy's, and bwrap could not mount over it. `lien(path)` gives the text
@@ -186,7 +187,7 @@ const paquetsHorsDuPlan = (paquets, paquetsDeLaCopie, matieres) => {
 // link carries out of the copy is left out. bwrap then has a directory to mount an empty one over.
 export function preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres, role, sorties }) {
   const dossiers = paquetsHorsDuPlan(paquets, paquetsDeLaCopie, matieres);
-  if (role !== ROLE_MATIERE) {
+  if (!ROLES_MATIERE.includes(role)) {
     // A declared folder of test material is no package: no run of tests writes outputs in it.
     dossiers.push(...matieres.filter(m => paquetsDeLaCopie.some(p => p.dossier === m)));
   }
@@ -751,16 +752,16 @@ export function plan(
     // The lock files of the versions, which a run of the testwriter's tests brings in line with
     // the dependencies of his tests, are written by him alone.
     for (const v of verrous.map(v => path.join(copie, v))) {
-      if (role === ROLE_MATIERE && fs.existe(v)) {
+      if (ROLES_MATIERE.includes(role) && fs.existe(v)) {
         args.push('--bind', v, v);
       }
     }
   }
   for (const m of matieres.map(m => path.join(copie, m))) {
-    args.push(role === ROLE_MATIERE ? '--bind' : '--ro-bind', m, m);
+    args.push(ROLES_MATIERE.includes(role) ? '--bind' : '--ro-bind', m, m);
     // What a run of its tests writes goes, for a role that does not write it, to an empty
     // directory proper to the session, as Bazel writes a test's logs out of its source.
-    if (role === ROLE_MATIERE) {
+    if (ROLES_MATIERE.includes(role)) {
       continue;
     }
     for (const s of sortiesDe(m, sorties.propres, fs.lien)) {

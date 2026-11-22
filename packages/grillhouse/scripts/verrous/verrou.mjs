@@ -22,6 +22,7 @@
 //   description holds a "## Architecture" section (`sansArchitecture`, which the start of the
 //   circuit reads too). The ticket is the "TON TICKET : <id>" line of the agent's
 //   launch prompt, read from its transcript.
+// - direct writes tests and code of its plan together (a ticket led by `npx grillhouse direct`).
 // - In an envelope (`GRILLHOUSE_ENVELOPPE`, the packages of the plan, scripts/enveloppe/
 //   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`
 //   on the components of the module of the language, `paquetsDuLangage`, as the envelope reads them)
@@ -67,7 +68,7 @@ const isScratch = (file, tmp = tmpdir()) => isInside(file, tmp);
 
 // The root of the git repository (or worktree) that holds the absolute path <file>, read from its
 // nearest existing directory; null when no repository holds it.
-function racineDe(file) {
+export function racineDe(file) {
   let dir = path.dirname(file);
   while (!existsSync(dir)) {
     const parent = path.dirname(dir);
@@ -248,6 +249,11 @@ export function refusal(role, input, { tmp = tmpdir(), describe = ticketDescript
       return `Le ticket ${id} est illisible par bd.`;
     }
     return sansArchitecture(id, description);
+  }
+  if (role === 'direct') {
+    // The agent of a direct writes tests and code together; the envelope of its plan (`horsDuPlan`)
+    // bounds its writes, and its ticket needs no « ## Architecture » section.
+    return null;
   }
   return `Rôle inconnu du verrou : ${role}.`;
 }

@@ -45,6 +45,7 @@
     "scripts/dette.d.ts",
     "scripts/dette.mjs",
     "scripts/disque-des-copies.d.mts",
+    "scripts/direct.mjs",
     "scripts/disque-des-copies.mjs",
     "scripts/donnees-cles.mjs",
     "scripts/droits.mjs",
@@ -181,6 +182,7 @@
     "scripts/verdict-de-la-nuit.mjs",
     "scripts/verrou-de-fichier.mjs",
     "scripts/verrous/commande.mjs",
+    "scripts/verrous/ecriture-hors-enveloppe.mjs",
     "scripts/verrous/ticket-du-sous-agent.mjs",
     "scripts/verrous/verrou.mjs",
     "scripts/workflows-du-cadre.mjs"

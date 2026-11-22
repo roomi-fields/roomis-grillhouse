@@ -58,6 +58,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'circuit',
         'commande',
         'consommation',
+        'direct',
         'droits',
         'enveloppe',
         'integrer',
@@ -77,6 +78,7 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'tableau',
         'ticket-du-sous-agent',
         'verrou',
+        'verrou-hors-enveloppe',
       ].sort()
     );
   });

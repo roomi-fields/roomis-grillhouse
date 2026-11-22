@@ -54,7 +54,8 @@ const PAQUET_QUI_TOURNE = path.resolve(import.meta.dirname, '..');
 /**
  * The subcommands of the orchestration, which the published version runs: the circuit, the
  * supervisor, the night, the board and the status line, the hooks of Claude Code, the locks and
- * the rights of the sessions, the envelope and its launcher, the integration, the
+ * the rights of the sessions, the direct (its agent and its reviewer), the envelope and its
+ * launcher, the integration, the
  * results, the removal of a copy and the balance, even when the supervisor runs one by hand.
  */
 export const REDIRIGEES = new Set([
@@ -64,6 +65,7 @@ export const REDIRIGEES = new Set([
   'circuit',
   'commande',
   'consommation',
+  'direct',
   'droits',
   'enveloppe',
   'integrer',
@@ -83,6 +85,7 @@ export const REDIRIGEES = new Set([
   'tableau',
   'ticket-du-sous-agent',
   'verrou',
+  'verrou-hors-enveloppe',
 ]);
 
 /**

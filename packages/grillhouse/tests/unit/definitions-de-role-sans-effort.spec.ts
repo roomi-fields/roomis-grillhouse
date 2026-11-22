@@ -19,9 +19,10 @@ function enTete(texte: string): string[] {
 }
 
 describe('definitions de role', () => {
-  it('le dossier des roles porte les cinq definitions', () => {
+  it('le dossier des roles porte les six definitions', () => {
     expect(DEFINITIONS.sort()).toEqual([
       'developpeur.md',
+      'direct.md',
       'explorateur.md',
       'questionneur.md',
       'relecteur.md',

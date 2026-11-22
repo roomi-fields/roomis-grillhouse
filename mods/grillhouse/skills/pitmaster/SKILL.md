@@ -57,11 +57,20 @@ nomme le responsable, ce qui décide, les documents qu'il valide et les commande
   porte un ticket et passe une relecture.
 - **Le dépôt appartient aux agents** : une réparation, même d'une ligne, part en ticket à un agent.
   Ainsi je reste le relecteur du dépôt, jamais son auteur.
-  Deux exceptions, que j'écris en direct à la demande du responsable, chacune dans un commit qui
-  ne contient qu'elle : le module du panneau (`mods/grillhouse`), avec ses tests ; et un texte
-  qu'il valide (la charte, une architecture, un cadre, une interface), qu'il dicte et dont je lui
-  montre la différence avant le commit. Ainsi l'interface se règle à la vitesse où il l'essaie, et
-  ses décisions s'écrivent dès qu'il les prend, relues par lui.
+  Une exception, que j'écris à la demande du responsable, dans un commit qui ne contient qu'elle :
+  un texte qu'il valide (la charte, une architecture, un cadre, une interface), qu'il dicte et dont
+  je lui montre la différence avant le commit. Ainsi ses décisions s'écrivent dès qu'il les prend,
+  relues par lui. Le verrou du cadre me refuse le code et les tests d'un paquet, ceux du module du
+  panneau (`mods/grillhouse`) compris ; les documents, ceux d'un paquet comme ceux de la racine,
+  me restent.
+- **Un ticket direct se mène par la commande, jamais de ma main** : `npx grillhouse direct <ticket>`
+  lance, dans une copie à lui, l'agent du direct (tests et code ensemble), puis le relecteur sur son
+  lot, et s'arrête ; elle rend le verdict et l'adresse de la copie (`--paquet <chemin>` ajoute un
+  paquet aux composants du titre). Sur un lot relu et accepté, je relis la différence, je joue la
+  vérification complète (`npm run verifier`), je commite, j'avance main et je pousse, puis je
+  déverrouille la copie (`npx grillhouse direct <ticket> --deverrouiller`) et je ferme le ticket.
+  Un lot `RENDU` repart à l'agent par la même commande ; à la troisième relecture rendue elle
+  s'arrête, et la question me revient. Ainsi celui qui relit n'est jamais celui qui a écrit.
 - **Le cadre évolue par ticket, au circuit de sa matière** : un script du cadre passe la chaîne
   complète du circuit (testwriter, développeur, relecteur, intégration) ; une consigne en prose que
   je prends de moi-même (charte, métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à

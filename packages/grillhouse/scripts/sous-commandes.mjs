@@ -44,6 +44,7 @@ export const SOUS_COMMANDES = {
   'composants-affectes': 'composants-affectes.mjs',
   consommation: 'consommation.mjs',
   'dependances-internes': 'dependances-internes.mjs',
+  direct: 'direct.mjs',
   droits: 'droits.mjs',
   enveloppe: 'enveloppe/enveloppe.mjs',
   'flux-des-paquets': 'flux-des-paquets.mjs',
@@ -83,6 +84,7 @@ export const SOUS_COMMANDES = {
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
   verifier: { langage: 'verifier' },
   verrou: 'verrous/verrou.mjs',
+  'verrou-hors-enveloppe': 'verrous/ecriture-hors-enveloppe.mjs',
 };
 
 // The script a subcommand plays when called alone, where its command is a client of Temporal that

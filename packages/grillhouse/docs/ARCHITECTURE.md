@@ -1411,7 +1411,9 @@ une de ses mères ou un ticket sous lui (un circuit qui tourne ou attend une ré
 le superviseur a arrêté n'en tient aucun), et chaque ticket étiqueté `direct`, ouvert ou en cours,
 travaillé en direct : une ligne, une seule, hors des étapes,
 « ✎ <numéro>  <sujet> · en direct · <assignee> », de sa prise à sa fermeture (aucune tant que les
-circuits ne se lisent pas) ; puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
+circuits ne se lisent pas) ; tant que l'agent d'un direct travaille (`npx grillhouse direct`, le rôle
+`direct`, `scripts/direct.mjs`), le ticket n'a pas cette ligne : il est sous le bloc « Direct », en
+tête de la liste des agents, « ▶ <numéro>  <sujet> · direct · <durée> » ; puis, pour un ticket qui attend une place, ⏳ « attend une place », et, pour une
 dépendance ouverte, « attend <ticket> ». La part ou l'attente d'un circuit que montrent les
 agents tient sur la ligne de ce circuit, une ligne par ticket, à la place de l'avancement de sa
 passe : « · <sorte> faits/prévus · <durée> », « · part <sorte> · <durée> », la sorte en minuscules.

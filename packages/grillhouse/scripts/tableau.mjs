@@ -198,6 +198,9 @@ export const ROLE_DU_CIRCUIT = 'circuit';
 // The role of a register line that the workflow of the nights writes for a night it skips
 // (src/temporal/nuits/): no agent, no ticket, no turn; the board counts it nowhere.
 export const ROLE_DE_LA_NUIT = 'nuit';
+// The agent of a ticket led out of the circuit (scripts/direct.mjs), and the block of the board
+// that lists the sessions of that role.
+const ROLE_DIRECT = 'direct';
 // A sub-agent's role from its meta file: the type it was spawned as; a named agent's `agentType`
 // is its name.
 export const roleDuMeta = m =>
@@ -1246,13 +1249,18 @@ export function assembler({
     const e = etapeDuRole(role);
     return e ? blocs.find(b => b.numero === e.numero) : undefined;
   };
-  // One line per ticket: a ticket on which a role agent runs stands at its step.
+  // The block « Direct » heads them: the agents of the tickets led out of the circuit
+  // (`npx grillhouse direct`), at no step.
+  const directs = [];
+  // One line per ticket: a ticket on which a role agent runs stands at its step, the agent of a
+  // direct under the block « Direct ».
   for (const v of enCoursMesures) {
     const t = v.ticket && parId.get(v.ticket);
-    if (!t || !bloc(v.role)) {
+    const cible = v.role === ROLE_DIRECT ? { enCours: directs } : bloc(v.role);
+    if (!t || !cible) {
       continue;
     }
-    bloc(v.role).enCours.push({
+    cible.enCours.push({
       id: t.id,
       numero: numero(t.id),
       sujet: titre(t).sujet,
@@ -1428,7 +1436,7 @@ export function assembler({
       texte: `En file, lot déjà sur main : ${dejaSurMain.map(t => numero(t.id)).join(', ')}`,
     });
   }
-  for (const b of blocs) {
+  for (const b of [...blocs, { numero: ROLE_DIRECT, enCours: directs }]) {
     for (const x of b.enCours) {
       if (x.ligne && x.silence !== null && x.silence > SILENCE) {
         alerter('silencieux', {
@@ -1473,7 +1481,7 @@ export function assembler({
   // supervisor stopped; or labelled `direct` and claimed (led out of the circuit); and no role
   // agent shown at a step. None while the circuits do not read (a silent server, a fault) and no
   // earlier reading is kept, when no ticket can be told out of a circuit.
-  const aUneEtape = new Set(blocs.flatMap(b => b.enCours.map(x => x.id)));
+  const aUneEtape = new Set([...blocs.flatMap(b => b.enCours), ...directs].map(x => x.id));
   const tenus = new Set(
     [...parCircuit.values()].filter(c => c.vivant || attendLeSuperviseur(c)).map(c => c.ticket)
   );
@@ -1545,6 +1553,7 @@ export function assembler({
     chantiers,
     autres,
     agents: blocs,
+    directs,
     maintenant,
     machine,
     places: placesDeLaMachine && {
@@ -1814,7 +1823,9 @@ export function etatsDAgents(t) {
     lignes: [
       ...(t.circuits ?? []).map(c => ligne(c, circuits.get(c.id).signe)),
       ...(t.horsCircuit ?? []).map(x => ligne(x, '▶')),
-      ...t.agents.flatMap(b => b.enCours.filter(x => !enCircuit.has(x.id)).map(x => ligne(x, '▶'))),
+      ...[...t.agents.flatMap(b => b.enCours), ...(t.directs ?? [])]
+        .filter(x => !enCircuit.has(x.id))
+        .map(x => ligne(x, '▶')),
     ],
   };
 }
@@ -2106,7 +2117,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     const e = etapeDe(c);
     return e ? blocDe(e) : !c.vivant ? ailleurs : blocDe(ETAPES[0]);
   };
-  const montres = t.agents.flatMap(b => b.enCours.filter(x => !enCircuit.has(x.id)));
+  const montres = [...t.agents.flatMap(b => b.enCours), ...(t.directs ?? [])].filter(
+    x => !enCircuit.has(x.id)
+  );
   // A ticket's number, or on several projects' board its whole id, in one column.
   const nomme = x => String(plusieurs ? x.id : x.numero);
   const colonne = Math.max(
@@ -2208,8 +2221,26 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
       cadre(`${retrait}${b.numero} · ${b.titre}${b.qui ? ` · ${b.qui}` : ''}`, '', largeur),
       plein ? TONS.titre : TONS.vide
     );
-  // The tickets worked out of a circuit, once each, before the steps, from their claim to their
-  // close: « ▶ <numéro>  <sujet> · en direct ».
+  // The block « Direct », first of the agents: a line per ticket an agent of a direct works, its
+  // number, its subject, its role and its duration: « ▶ <numéro>  <sujet> · direct ».
+  const lesDirects = (t.directs ?? []).filter(x => !enCircuit.has(x.id));
+  if (lesDirects.length) {
+    L(cadre('  Direct', '', largeur), TONS.titre);
+    for (const x of lesDirects) {
+      poser({
+        texte: ligneDuTicket(
+          teteDe('▶', x),
+          x.sujet,
+          ` · ${ROLE_DIRECT}`,
+          droiteDe('▶', conso(x.travail, x.jetons))
+        ),
+        ton: TONS.enCours,
+        ticket: x.id,
+      });
+    }
+  }
+  // The tickets worked out of a circuit with no agent at work, once each, before the steps, from
+  // their claim to their close: « ▶ <numéro>  <sujet> · en direct ».
   for (const x of t.horsCircuit ?? []) {
     poser({
       texte: ligneDuTicket(teteDe('▶', x), x.sujet, ' · en direct', droiteDe('▶', '')),
@@ -2249,6 +2280,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     ...(t.circuits ?? []).map(c => c.id),
     ...(t.horsCircuit ?? []).map(x => x.id),
     ...t.agents.flatMap(b => b.enCours.map(x => x.id)),
+    ...(t.directs ?? []).map(x => x.id),
   ]);
   for (const ch of t.chantiers) {
     L('', undefined);
@@ -2862,6 +2894,7 @@ export function ensemble(lus) {
     ciDeMain: premier.t.ciDeMain,
     circuits: tous('circuits'),
     horsCircuit: tous('horsCircuit'),
+    directs: tous('directs'),
     chantiers: lisibles.flatMap(l => l.t.chantiers.map(noeud(l.etiquette))),
     autres: tous('autres'),
     agents: premier.t.agents.map(b => {

@@ -241,7 +241,10 @@ export function texteDuVerdict(fiche) {
 // Gerrit has the next review read the difference between two patch sets, each against its own
 // base: the files of the lot that changed since, the command of the difference, the findings
 // still open with their recipients.
-export async function relire(ctx, { constats = [] } = {}) {
+export async function relire(
+  ctx,
+  { constats = [], consigneDuRelecteur = valeurs => consigne(valeurs, 1) } = {}
+) {
   const { tests, code } = fichiersDuLot(ctx);
   const rapports = rapportsDuCircuit(ctx);
   const precedents = fichesDe(ctx, 'relecteur').length;
@@ -308,7 +311,7 @@ export async function relire(ctx, { constats = [] } = {}) {
     // The supervisor's context of a resumption, his answer to a question of the reviewer among them.
     contexte: contexteDe(ctx),
   };
-  const fiche = await jusquALaFiche(ctx, 'relecteur', consigne(valeurs, 1), {
+  const fiche = await jusquALaFiche(ctx, 'relecteur', consigneDuRelecteur(valeurs), {
     signeDeVie: ctx.ports?.signeDeVie,
     id: idDeSeance(ctx, 'relecture'),
     evenement: 'relecture',

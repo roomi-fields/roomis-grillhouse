@@ -188,6 +188,25 @@ export const ROLES = {
       ...LIRE_L_INDEX,
     ]),
   },
+  // The agent of a ticket led out of the circuit (`npx grillhouse direct`, scripts/direct.mjs): it
+  // writes the tests and the code of the whole ticket together, in the envelope of its plan, and
+  // reads the whole copy by the index. A role of its own: the developpeur keeps the rights of the
+  // circuit (no test file).
+  direct: {
+    ecrit: true,
+    index: true,
+    commandes: avecJumelles([
+      'Bash(bd update * --claim)',
+      'Bash(bd comments add *)',
+      'Bash(git -C * status*)',
+      'Bash(git -C * diff*)',
+      'Bash(npm test *)',
+      'Bash(npm run api*)',
+      // The removal of a file, by a script of its temporary directory.
+      'Bash(node $TMPDIR/*)',
+      ...LIRE_L_INDEX,
+    ]),
+  },
   relecteur: {
     metacadre: true,
     index: true,
