@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A question deferred to an hour stays quiet until that hour** (grillhouse-3uv.164): `--reporter 14:00` handed bd the date as `2026-11-22 14:00`, which bd 1.2.2 reads as 11:22 (the month and the day taken for the hour), so the deferral was already past and the reminders went on. The date is now handed as `2026-11-22T14:00:00`, which bd reads as that wall time. **Action for projects**: none.
+
 - **A file left with the marks of a conflict never closes a copy** (grillhouse-3uv.167): a developpeur's sheet was accepted with « <<<<<<< ours » left in a file, then the launcher refused the testwriter twice, the file in conflict being the developpeur's, and the stop « lancement » went up until a gesture by hand in the copy (SyntHub, SH-ae6.10.32). The instruction of a testwriter's or developpeur's session now names the files of its role that carry marks, and its sheet FAIT is refused while one of them does, the file named, the session resumed once as for a sheet out of conformity. A launch the launcher refuses while the marked files are the other role's goes to that role first (a fresh session that carries these files alone), then launches again, once; a second refusal goes up as before. **Action for projects**: none.
 
 ## [0.48.0] - 2026-11-22
