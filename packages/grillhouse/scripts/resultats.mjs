@@ -76,9 +76,10 @@
 //     hand) the developpeur alone writes, no testwriter; a sort
 //     absent, out of its kinds, or without its reason or its command is comportement, the whole
 //     circuit (`sorteDuPlan`, grillhouse-sos) (explorateur);
-//   - `ecartes` (`composant`, `raison`): the components of the survey the plan does not touch,
-//     which the circuit writes at the ticket; each other component of the survey the circuit
-//     plays is in the packages (explorateur);
+//   - `ecartes` (`composant`, `raison`): the components of the survey, and those the title of
+//     the ticket names, that the plan does not touch, which the circuit writes at the ticket; each
+//     other component of the survey the circuit plays, and of the title, is in the packages; a
+//     component set apart without its reason makes the sheet out of conformity (explorateur);
 //   - `noms_publies` (`fournisseur`, `consommateur`, `noms`): the names a component publishes to
 //     another, which the lot adds to the provider's « Consommateurs » lines; as a code owner's
 //     approval covers what it reviewed, the circuit writes them in the description (« ## Noms
@@ -258,12 +259,14 @@ const FICHES = {
       ecartes: liste(
         objet(
           {
-            composant: texte('Un composant du relevé, comme le relevé le nomme.'),
+            composant: texte(
+              'Un composant du relevé ou du titre, comme le relevé ou le titre le nomme (« . » la racine).'
+            ),
             raison: texte('Pourquoi le plan n’y touche pas.'),
           },
           ['composant', 'raison']
         ),
-        'Les composants du relevé que le plan ne touche pas, chacun avec sa raison ; chaque autre composant du relevé est dans tes paquets.'
+        'Les composants du relevé, et ceux que le titre du ticket nomme, que le plan ne touche pas, chacun avec sa raison ; chaque autre composant du relevé ou du titre est dans tes paquets, comme un composant du titre dont le ticket nomme un fichier.'
       ),
       noms_publies: liste(
         objet(
@@ -970,6 +973,11 @@ function manques(role, f) {
   if (role === 'explorateur') {
     if (!(f.paquets ?? []).length) {
       out.push('paquets : manque, pour un plan');
+    }
+    for (const [i, e] of (f.ecartes ?? []).entries()) {
+      if (!(typeof e.raison === 'string' && e.raison.trim())) {
+        out.push(`ecartes[${i}].raison : manque, pour un composant écarté`);
+      }
     }
     for (const [i, r] of (f.reponses ?? []).entries()) {
       if (!/^[1-9]\d*$/.test(r.numero)) {

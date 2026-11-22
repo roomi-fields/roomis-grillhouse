@@ -54,7 +54,9 @@
 //   which the circuit plays no more as a step. A package the repository does not hold, one named
 //   twice, or a component of the survey of the plan (`releve`, which the circuit plays with no
 //   session to check the sheet) that the sheet neither puts in its packages nor sets apart with
-//   its reason (`ecartes`, written at the ticket) makes the sheet out of conformity. The circuit
+//   its reason (`ecartes`, written at the ticket) makes the sheet out of conformity; so does a
+//   component the title named before the plan, the root (« . ») included, that the sheet neither
+//   keeps nor sets apart with its reason. The circuit
 //   writes the plan at the ticket (`bd update --title -d`): the packages end its title, the list the envelope of every later
 //   session writes; the criteria already written stay as they are, the owner's decision, and the
 //   criteria of the sheet, those the plan adds, follow them, numbered after them (a change or a
@@ -621,6 +623,7 @@ import {
   appendFileSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
@@ -730,6 +733,7 @@ import { refusArbitrage } from './integration/integrer.mjs';
 import { prendreUnRang } from './places-de-la-machine.mjs';
 import { langageDe, langageDeLaCopie } from './langages.mjs';
 import { leTitre, ticketAuLancement } from './depart-du-ticket.mjs';
+import { fichiersNommesAuTicket } from './fichiers-nommes.mjs';
 import { ouvrirBase } from './mesure/base-de-passe.mjs';
 import { GREFFON } from './cadre.mjs';
 import { retirerLesCopiesDuDepot } from './copies-finies.mjs';
@@ -1994,6 +1998,14 @@ function basculer(ctx, e) {
   return { ...e, etape: r.suivant.etape, raison: null, question: null, rapport: null };
 }
 
+// The packages the plan of <ctx> gained by an extension (`etendus`, kept among the circuit's
+// sheets), which the circuit keeps in the plan by itself (`avecLesEtendus`).
+const etendusDuPlan = ctx => [
+  ...new Set(
+    lesFiches(ctx).flatMap(e => (e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.etendus ?? []) : []))
+  ),
+];
+
 /**
  * The plan <paquets> the explorateur writes for <ctx>, with each package the supervisor gave the
  * plan (`--etendre`, kept among the sheets, `etendus`) that it leaves out, in its order
@@ -2004,10 +2016,7 @@ function basculer(ctx, e) {
  * the plan over without them.
  */
 export function avecLesEtendus(ctx, paquets) {
-  const donnes = lesFiches(ctx).flatMap(e =>
-    e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.etendus ?? []) : []
-  );
-  const gardes = [...new Set(donnes)].filter(c => !paquets.includes(c));
+  const gardes = etendusDuPlan(ctx).filter(c => !paquets.includes(c));
   if (!gardes.length) {
     return paquets;
   }
@@ -2024,8 +2033,17 @@ export function avecLesEtendus(ctx, paquets) {
 // (by its name and by its path), or a component of the survey of the plan's description
 // <description> (scripts/composants-affectes.mjs, `releve`, played by the circuit with no
 // session, as it checks the packages) that the sheet neither puts in its packages nor sets apart
-// with its reason (`ecartes`). A session that writes one is resumed once (`jusquALaFiche`).
-function fautesDesPaquets(ctx, fiche, description) {
+// with its reason (`ecartes`); or a component the title of the ticket named before the plan
+// (<composants>, their directories; those an extension gave, which the circuit keeps by itself,
+// left out) that the sheet neither keeps in its packages nor sets apart with its reason: the
+// declared scope of a change bounds what it writes (the OWNERS of Chromium, the affected projects
+// of Nx), and a plan narrows it by its word alone; or a component of the title set apart, its
+// reason given or not, while the description names a file of it the packages do not hold
+// (`fichiersNommesAuTicket`; a file of the root is one no component holds). <ecartes> are the
+// components the sheet sets apart in effect: its own, or, for an answer to the questionneur that
+// says none, those of the plan it answers. A session that writes one is resumed once
+// (`jusquALaFiche`).
+function fautesDesPaquets(ctx, fiche, description, composants, ecartes) {
   const dossier = p => {
     try {
       return ctx.resoudre(p);
@@ -2042,12 +2060,37 @@ function fautesDesPaquets(ctx, fiche, description) {
   if (doubles.length) {
     return `paquets : ${doubles.join(', ')} nomme un paquet déjà nommé dans le plan`;
   }
-  const tenus = [...dossiers, ...(fiche.ecartes ?? []).map(e => dossier(e.composant))];
+  const aPart = ecartes.map(e => dossier(e.composant));
+  const tenus = [...dossiers, ...aPart];
   const couvre = (d, c) => d === '.' || c === d || c.startsWith(`${d}/`);
+  const tenu = d => tenus.some(t => t !== null && couvre(t, d));
+  const etendus = etendusDuPlan(ctx);
+  const duTitre = composants.filter(d => !etendus.includes(d) && !tenu(d));
+  if (duTitre.length) {
+    return `paquets : ${nomsDe(ctx, duTitre).join(', ')}, que le titre du ticket nomme, n'est ni dans les paquets ni dans les écartés (ecartes, avec sa raison)`;
+  }
   const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
+  const duTitreAPart = aPart.filter(d => d !== null && composants.includes(d));
+  if (duTitreAPart.length) {
+    const estUnFichier = c => statSync(path.join(racine, c), { throwIfNoEntry: false })?.isFile();
+    const autres = composantsDe(racine)
+      .map(c => c.dossier)
+      .filter(d => d !== '.');
+    // Whether the component <d> holds <f>: the root holds what no other component does.
+    const porte = (d, f) =>
+      d === '.' ? !autres.some(a => f.startsWith(`${a}/`)) : f.startsWith(`${d}/`);
+    for (const { chemin, piece } of fichiersNommesAuTicket(description, estUnFichier)) {
+      const d = dossiers.some(p => couvre(p, chemin))
+        ? undefined
+        : duTitreAPart.find(a => porte(a, chemin));
+      if (d !== undefined) {
+        return `ecartes : ${nomsDe(ctx, [d]).join('')}, que le titre du ticket nomme, porte ${chemin}, que le ticket nomme (${piece}) : il reste dans les paquets`;
+      }
+    }
+  }
   const absents = releve(racine, description).composants.filter(c => {
     const d = dossier(c);
-    return d !== null && !tenus.some(t => t !== null && couvre(t, d));
+    return d !== null && !tenu(d);
   });
   return absents.length
     ? `paquets : ${absents.join(', ')}, que le relevé nomme, n'est ni dans les paquets ni dans les écartés (ecartes, avec sa raison)`
@@ -2079,12 +2122,16 @@ const ecartsDe = fiche =>
 // passed, its title and criteria unchanged since (`empreinteDuPlan`), passes. The workflow of a
 // ticket plays each step of the plan in an activity of its own (grillhouse-4nr.6.3): one of
 // `PAS_DU_PLAN` (`unPasDuPlan`), the one that follows decided by `pasDuPlan` of
-// scripts/transitions.mjs, on the state of the plan (`{ avant, plan, premier, seance, lu, posees,
-// reponse }`), which `planAuDebut` starts.
+// scripts/transitions.mjs, on the state of the plan (`{ avant, composants, plan, premier, seance,
+// lu, posees, reponse }`), which `planAuDebut` starts.
 
-/** The state of the plan of <ctx> before its first session: the description it starts from. */
+/**
+ * The state of the plan of <ctx> before its first session: the description it starts from, and the
+ * components its title names (`composants`, their directories), which the plan keeps.
+ */
 export const planAuDebut = ctx => ({
   avant: leTicket(ctx).description,
+  composants: leTitre(ctx.ticket, leTicket(ctx).titre, ctx.resoudre).plan,
   plan: null,
   premier: null,
   seance: null,
@@ -2122,10 +2169,20 @@ async function sessionDuPlan(ctx, role, texte, options) {
   return { fiche, seance };
 }
 
-// The explorateur's options on the plan of <ctx> whose description before it is <avant>.
-const optionsDeLExplorateur = (ctx, avant) => ({
+// The explorateur's options on the plan of <ctx> whose state is <e>: its description before the
+// plan (`avant`), the components its title named then (`composants`), and the plan a sheet
+// answers (`plan`, null before it), whose `ecartes` an answer that says none keeps
+// (`ficheDuPlan`).
+const optionsDeLExplorateur = (ctx, e) => ({
   droits: horsDeLEnveloppe(ctx, EXPLORATEUR, 'sonnet'),
-  valider: f => fautesDesPaquets(ctx, f, decrireLePlan(avant, f.criteres, f.questions)),
+  valider: f =>
+    fautesDesPaquets(
+      ctx,
+      f,
+      decrireLePlan(e.avant, f.criteres, f.questions),
+      e.composants ?? [],
+      ('ecartes' in f ? f.ecartes : e.plan?.ecartes) ?? []
+    ),
 });
 
 /**
@@ -2178,7 +2235,7 @@ const PAS_DU_PLAN = {
         },
         5
       ),
-      { ...optionsDeLExplorateur(ctx, e.avant), id: idDeSeance(ctx, 'plan'), evenement: 'plan' }
+      { ...optionsDeLExplorateur(ctx, e), id: idDeSeance(ctx, 'plan'), evenement: 'plan' }
     );
     ecrireLePlan(
       ctx,
@@ -2232,7 +2289,7 @@ const PAS_DU_PLAN = {
   },
   // The explorateur's session, resumed, answers the questions put once.
   async reponse(ctx, e) {
-    const explorateur = optionsDeLExplorateur(ctx, e.avant);
+    const explorateur = optionsDeLExplorateur(ctx, e);
     const { fiche: plan } = await sessionDuPlan(
       ctx,
       EXPLORATEUR,

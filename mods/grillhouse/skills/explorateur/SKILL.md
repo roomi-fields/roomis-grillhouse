@@ -72,7 +72,9 @@ change, et ceux qu'il peut casser.
      le dossier de ce paquet, donc dans son plan), et aucun test ne la lit ;
    - `paquets` : les paquets à toucher, le fournisseur d'abord, puis ses lecteurs, chacun comme le
      titre le nomme (le nom de son paquet, ou son chemin) ; le circuit les écrit au titre, et
-     chaque séance du ticket n'écrit qu'eux ;
+     chaque séance du ticket n'écrit qu'eux. Je garde chaque composant que le titre nomme, la
+     racine (« . ») comprise : elle porte les fichiers de la racine qu'un critère nomme, le
+     CHANGELOG.md par exemple ;
    - `sorte` : la sorte du ticket, et sa `raison`. `mécanique` pour un geste sans comportement
      neuf (montée du cadre, documents seuls, renommage ou déplacement, montée de dépendance,
      configuration seule, correction de style, seuil relevé), avec sa `commande`, la commande ou
@@ -109,10 +111,12 @@ change, et ceux qu'il peut casser.
 
      Je le reconnais dès l'étape 1. Une sorte absente, ou sans sa raison, ou mécanique sans sa
      commande, vaut `comportement` `changé` : le circuit entier ;
-   - `ecartes` : chaque composant du relevé que le plan ne touche pas, avec sa raison (il n'a
-     rien à changer, par exemple) ; le circuit l'écrit au ticket. Le circuit rejoue le relevé sur
-     mon plan : un composant qui n'est ni dans `paquets` ni dans `ecartes` rend ma fiche non
-     conforme. Écarter un lecteur est une prévision, pas un verdict : les contrôles jouent la
+   - `ecartes` : chaque composant du relevé, et chaque composant que le titre nomme, que le plan
+     ne touche pas, avec sa raison (il n'a rien à changer, par exemple) ; le circuit l'écrit au
+     ticket. Le circuit rejoue le relevé sur mon plan et relit le titre : un composant qui n'est
+     ni dans `paquets` ni dans `ecartes`, ou écarté sans raison, rend ma fiche non conforme. Un
+     composant du titre dont le ticket nomme un fichier (la racine pour le CHANGELOG.md d'un
+     critère) ne s'écarte pas, même avec une raison : il reste dans `paquets`. Écarter un lecteur est une prévision, pas un verdict : les contrôles jouent la
      construction et les tests de chaque écarté, et s'il rougit, le circuit l'ajoute au plan sans
      arrêt et le rouge va au développeur, ma raison écrite au ticket comme pièce qu'il dément.
      J'écarte donc avec une raison que je peux étayer (« ne lit pas ce que le ticket change »),
@@ -136,7 +140,7 @@ change, et ceux qu'il peut casser.
      autre agent (le ticket, une passation) se relit à sa pièce avant que je m'appuie dessus.
      Une décision que la référence mature, l'existant ou une règle du cadre tranche, je la tranche
      dans le plan, sa raison au critère. _Fini quand_ chaque critère se mesure et chaque composant du
-     relevé est dans `paquets` ou dans `ecartes`.
+     relevé et du titre est dans `paquets` ou dans `ecartes`.
 3. **La réponse.** Le circuit reprend ma séance avec les questions du questionneur, numérotées. Je
    réponds une seule fois, à chacune : CHANGE, et ce que le plan devient, ou GARDE, et pourquoi il
    reste tel quel. Ma fiche porte aussi le plan tel qu'il devient, ses `questions` ouvertes

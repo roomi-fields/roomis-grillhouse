@@ -171,6 +171,13 @@ describe('the sheet of each role holds only the fields a reader reads', () => {
     expect(
       lireFiche('explorateur', sortie({ ...plan, ecartes: [{ composant: '030-binder' }] })).erreur
     ).toContain('raison');
+    // A component set apart with a blank reason is set apart without its reason.
+    expect(
+      lireFiche(
+        'explorateur',
+        sortie({ ...plan, ecartes: [{ composant: '030-binder', raison: '  ' }] })
+      ).erreur
+    ).toContain('ecartes[0].raison');
     // The sheet carries the criteria the plan adds: none is a plan.
     expect(lireFiche('explorateur', sortie({ ...plan, criteres: [] })).erreur).toBeUndefined();
     expect(

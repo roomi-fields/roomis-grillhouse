@@ -4,12 +4,16 @@
 // un dossier parent, un nom de base seul, une autre section, un ARCHITECTURE.md, un CADRE.md ou un
 // INTERFACE.md (qui reviennent au responsable) ne sont pas nommés. Tests petits.
 import { describe, expect, it } from 'vitest';
-import { fichierNommeAuTicket } from '../../scripts/fichiers-nommes.mjs';
+import { fichierNommeAuTicket, fichiersNommesAuTicket } from '../../scripts/fichiers-nommes.mjs';
 
 const nomme = fichierNommeAuTicket as (
   description: string,
   chemin: string
 ) => { piece: string } | null;
+const nommes = fichiersNommesAuTicket as (
+  description: string,
+  estUnFichier: (chemin: string) => boolean
+) => { chemin: string; piece: string }[];
 
 const DESCRIPTION = `Demande du responsable.
 
@@ -101,5 +105,30 @@ describe('un ARCHITECTURE.md, un CADRE.md ou un INTERFACE.md', () => {
     'packages/grillhouse/docs/INTERFACE.md',
   ])('%s, même nommé au ticket, n’est pas nommé', chemin => {
     expect(nomme(NOMMES, chemin)).toBeNull();
+  });
+});
+
+describe('les fichiers que la description du ticket nomme', () => {
+  it('sont ceux de ses mots qui sont un fichier du dépôt, chacun avec sa pièce, dans leur ordre', () => {
+    expect(nommes(DESCRIPTION, () => true).filter(n => n.chemin.includes('/'))).toEqual([
+      { chemin: 'mods/grillhouse/hooks/register.tsx', piece: 'ticket, § Architecture' },
+      { chemin: 'packages/grillhouse/scripts/circuit.mjs', piece: 'ticket, § Architecture' },
+      { chemin: 'templates/projet/CLAUDE.md', piece: 'ticket, critère 2' },
+      { chemin: 'packages/grillhouse/tests/nuit/essai.nuit.test.ts', piece: 'ticket, critère 2' },
+    ]);
+  });
+
+  it('laissent un mot qui n’est pas un fichier du dépôt, et un fichier d’une autre section', () => {
+    const fichiers = new Set(['templates/projet/CLAUDE.md', 'docs/notes/seul.md']);
+    expect(nommes(DESCRIPTION, c => fichiers.has(c))).toEqual([
+      { chemin: 'templates/projet/CLAUDE.md', piece: 'ticket, critère 2' },
+    ]);
+  });
+
+  it('nomment un fichier de la racine par son seul nom', () => {
+    const d = "## Critères d'acceptation\n\n1. CHANGELOG.md le dit.\n";
+    expect(nommes(d, c => c === 'CHANGELOG.md')).toEqual([
+      { chemin: 'CHANGELOG.md', piece: 'ticket, critère 1' },
+    ]);
   });
 });

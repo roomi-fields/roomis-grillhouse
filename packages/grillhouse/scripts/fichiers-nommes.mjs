@@ -2,7 +2,8 @@
 // in its « Architecture » section or in an acceptance criterion. A file named there is one the
 // ticket's plan covers by its own word: a write out of the plan in it extends the plan, with the
 // piece that names it. A parent directory, a base name alone, another section, and the documents
-// the responsable owns (ARCHITECTURE.md, CADRE.md, INTERFACE.md) are not named.
+// the responsable owns (ARCHITECTURE.md, CADRE.md, INTERFACE.md) are not named. The plan keeps the
+// component of the title that holds a file named there (`fichiersNommesAuTicket`).
 
 const DOCUMENTS_DU_RESPONSABLE = /(^|\/)(ARCHITECTURE|CADRE|INTERFACE)\.md$/;
 
@@ -52,4 +53,29 @@ export function fichierNommeAuTicket(description, chemin) {
     }
   }
   return null;
+}
+
+// The words of a description that may be a path: what its delimiters (`figureDans`) leave.
+const MOTS = /[^\s`'"()[\],;:]+/g;
+
+/**
+ * The files the description <description> names (`{ chemin, piece }`, in their order, each once):
+ * those of its words that <estUnFichier> says a file of the repository, by its path from the root,
+ * and that `fichierNommeAuTicket` reads as named.
+ */
+export function fichiersNommesAuTicket(description, estUnFichier) {
+  const vus = new Set();
+  const nommes = [];
+  for (const [mot] of String(description ?? '').matchAll(MOTS)) {
+    const chemin = mot.replace(/\.$/, '');
+    if (vus.has(chemin) || chemin.startsWith('/') || chemin.startsWith('..')) {
+      continue;
+    }
+    vus.add(chemin);
+    const nomme = estUnFichier(chemin) ? fichierNommeAuTicket(description, chemin) : null;
+    if (nomme) {
+      nommes.push({ chemin, piece: nomme.piece });
+    }
+  }
+  return nommes;
 }

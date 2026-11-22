@@ -431,7 +431,18 @@ fiche non conforme, redemandée une fois à la même séance (BP 328 : une quest
 tranchait arrêtait le plan). Le circuit rejoue le relevé sur le plan, sans
 séance, comme il contrôle les paquets : un composant du relevé ni touché ni écarté rend la fiche
 non conforme, comme la section des composants touchés d'un document de conception dit pour
-chacun s'il change, ou pourquoi il reste. Le circuit
+chacun s'il change, ou pourquoi il reste. Le plan garde aussi chaque composant que le titre du
+ticket nommait avant lui, la racine (« . ») comprise, comme le périmètre déclaré d'un changement
+borne ce qu'il écrit (les OWNERS de Chromium, les projets affectés de Nx) : la fiche qui en laisse
+un sans l'écarter avec sa raison est non conforme (`fautesDesPaquets`, sur les `composants` de
+l'état du plan, `planAuDebut`), et un écarté sans raison écrite aussi (osc-bridge, OB-80g.20 : le
+titre nommait « osc-bridge, . », la fiche « osc-bridge » seul, et le développeur s'arrêtait
+« hors-plan » sur le CHANGELOG.md). Un composant du titre ne s'écarte pas, raison donnée ou non,
+tant que le ticket nomme un de ses fichiers (`fichiersNommesAuTicket` de
+`scripts/fichiers-nommes.mjs` : un fichier de la copie nommé dans la section « Architecture » ou
+dans un critère ; la racine porte ce qu'aucun composant ne porte), car l'extension du plan sur un
+fichier nommé laisse la racine au superviseur (`seanceLancee`). Une réponse au questionneur qui ne
+redit pas ses écartés est jugée sur ceux du plan qu'elle répond. Le circuit
 écrit le plan au ticket : les paquets finissent son titre, la seule liste que lit l'enveloppe de
 chaque séance d'après. Le questionneur le lit une fois ; l'explorateur, sa séance
 reprise, répond une fois, CHANGE ou GARDE par question, une ligne par question posée : une fiche
