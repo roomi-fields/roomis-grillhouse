@@ -240,7 +240,9 @@
 //   of the lot, or with a green the sheet names; under a plan « comportement
 //   tests-adaptés », nothing has to turn red and every green passes, so only a broken
 //   file fails it (`preuveReussie`). A failed proof relaunches the
-//   testwriter with its report, twice at most. The report (reds, justified greens) is written at
+//   testwriter with its report, twice at most. A proof whose pass is at 75 (« à repasser ») proved
+//   nothing: neither passed nor failed, it counts no file and relaunches no testwriter, and the
+//   circuit stops at « a-repasser » as on a check, its report naming the wait of the machine. The report (reds, justified greens) is written at
 //   the ticket. A proof with a red launches the developpeur, and so does a proof without a red
 //   when a finding of the reviewer still open names him, or under a plan « comportement tests-adaptés »,
 //   whose lot has code to write though nothing turns red; else it skips him (`apresLaPreuve`): the
@@ -386,7 +388,7 @@
 //   others and the path of the log; the report of a stop names every red with its package.
 // - A check at 75 (« à repasser ») out of the final pass plays once more, the gesture `rejeu`;
 //   the 75 of verifier, the final pass's, is final (its wait for the lock of the machine reached
-//   its bound). A check still at 75 ends the circuit at 75, the gesture `a-repasser`. A red relaunches the developpeur
+//   its bound). A check still at 75, or a proof at 75, ends the circuit at 75, the gesture `a-repasser`. A red relaunches the developpeur
 //   with its report, twice at most, the third session on the strong model (`lancer.sh --modele
 //   opus`; the other sessions name `sonnet`, and none fixes the effort): three sessions for the checks, and three for the final pass.
 // - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
@@ -611,7 +613,7 @@
 //   stops on a write out of the plan, `hors-plan` that lancer.sh ranges under the session's id), 25 inattendu
 //   (an act that fails, an exception no rule of the circuit settles: its message, its stack and its
 //   step in its question, `arretInattendu`), each a question for the supervisor; 26 limite-d-usage (a session the
-//   usage limit cuts: no question, the circuit reports itself to the hour the usage returns and resumes the step); 75 a-repasser (a check or the integration still at 75 once played again,
+//   usage limit cuts: no question, the circuit reports itself to the hour the usage returns and resumes the step); 75 a-repasser (a check or the integration still at 75 once played again, a proof at 75,
 //   or the branch still in the queue), the gesture `a-repasser`.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

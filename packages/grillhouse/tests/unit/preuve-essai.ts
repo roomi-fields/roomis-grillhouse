@@ -40,6 +40,9 @@ export interface Run {
   code: number;
   resultats: Resultat[];
   constructions: { nom: string; erreur: string }[];
+  attente?: boolean;
+  raison?: string | null;
+  commande?: string;
 }
 export interface Preuve {
   ok: boolean;
@@ -48,6 +51,8 @@ export interface Preuve {
   resume: string;
   mesure: { cle: string; runs: Run[] } | null;
   resultat: { casses: number; justifies: number; sans: number; anciens: number };
+  aRepasser?: boolean;
+  attente?: boolean;
 }
 
 export const preuve = activites.preuve as unknown as (

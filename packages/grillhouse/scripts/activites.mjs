@@ -1498,8 +1498,8 @@ function paquetDe(liste, fichier) {
 // group of its own, its command launched by the circuit (`lancementSousPart`); it passes the mark
 // of its part to the `npm run verifier` it runs, which takes none of its own; its wait is written
 // to the log. A wait that stops (its bound, 75; a faulty key or reserve, 1) is the command's
-// code, its message in the log; `attente`, a 75 that is a wait for a part or for room at its
-// bound (the pass's own, or that of the `npm run verifier` it runs). Once it holds its part, the
+// code, its message in the log and in `raison`; `attente`, a 75 that is a wait for a part or for
+// room at its bound (the pass's own, or that of the `npm run verifier` it runs). Once it holds its part, the
 // pass plays under a progress directory of its own (`avancement`), of the kind `genreDeLaPasse`
 // names. It plays in the environment of a pass (`environnementDeLaPasse`).
 function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
@@ -1565,7 +1565,7 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
       throw e;
     }
     appendFileSync(ctx.journal, `${e.message}\n`);
-    return { code: e.code, dossier, attente: e.code === A_REPASSER };
+    return { code: e.code, dossier, attente: e.code === A_REPASSER, raison: e.message };
   } finally {
     closeSync(fd);
   }
@@ -1606,7 +1606,10 @@ function journalDeTache(ctx, t) {
 
 // The measure of the proof of the red: one run per package, `npm test -- --force <files>` of the
 // lot that lie in it, or, with no file of the lot, `npm test -- <package>` for each package of the
-// plan, played whole. Each run `{ groupe, entier, code, resultats, constructions }`. A measure of
+// plan, played whole. Each run `{ groupe, entier, code, resultats, constructions, commande,
+// attente, raison }`, the last three its command line, whether its 75 is a wait of the machine at
+// its bound, and the reason of that wait. A run at 75 (« à repasser ») ends the measure: the runs
+// after it would wait as it did. A measure of
 // the same files on the same tree (`cleDeLaMesure`) is not played again, as Turborepo replays a
 // task whose inputs and arguments did not move: the last one, <derniere>, its caller keeps.
 // `{ cle, runs }`. The tests main already holds green are read from the registry of results
@@ -1614,7 +1617,8 @@ function journalDeTache(ctx, t) {
 // the lot.
 function mesureDeLaPreuve(ctx, liste, fichiers, derniere = null) {
   const cle = cleDeLaMesure(ctx, fichiers);
-  if (derniere?.cle === cle) {
+  // A measure with a run at 75 is no verdict: it is never read back, and plays again.
+  if (derniere?.cle === cle && !derniere.runs.some(r => r.code === A_REPASSER)) {
     return derniere;
   }
   const entiers = fichiers.length ? [] : paquetsDuPlan(ctx, liste);
@@ -1637,10 +1641,16 @@ function mesureDeLaPreuve(ctx, liste, fichiers, derniere = null) {
       groupe,
       entier,
       code: pass.code,
+      commande: `npm test -- ${(entier ? [dossier] : ['--force', ...groupe]).join(' ')}`,
+      attente: Boolean(pass.attente),
+      raison: pass.raison ?? null,
       resultats: langageDe(ctx.copie).verdict(pass.dossier).rapports,
       // The builds of the plan's packages that failed: each one a red, not compiling is failing.
       constructions: constructionsEchouees(ctx, liste, pass.dossier),
     });
+    if (pass.code === A_REPASSER) {
+      break;
+    }
   }
   return { cle, runs };
 }
@@ -1658,6 +1668,36 @@ const sansSeparateur = nom =>
 export const portentLeTravail = fiches =>
   fiches.filter(f => Array.isArray(f.portent_le_travail)).at(-1)?.portent_le_travail ?? [];
 
+// The proof of the measure <runs> when one of them is at 75 (« à repasser »: the part of the
+// machine awaited to its bound, a pass cut), null otherwise. Such a measure proved nothing, neither
+// a red nor a file that does not load: the proof is `aRepasser`, as a check at 75 is
+// (`controles`), `attente` when every such run is a wait of the machine, its report naming each
+// command, its code and its reason; it counts nothing and keeps no measure (`mesure` null: neither
+// written nor read back), which the next proof plays.
+export function preuveARepasser(ctx, runs) {
+  const aRepasser = runs.filter(r => r.code === A_REPASSER);
+  if (!aRepasser.length) {
+    return null;
+  }
+  const resume = `à repasser : ${aRepasser
+    .map(r => `${r.commande} (code ${r.code})${r.raison ? ` : ${r.raison}` : ''}`)
+    .join(' ; ')}`;
+  return {
+    ok: false,
+    aRepasser: true,
+    attente: aRepasser.every(r => r.attente),
+    rouges: 0,
+    resume,
+    texte: [
+      `${SUITE.find(e => e.etat === PREUVE).titre} : ${resume}`,
+      '',
+      'La passe n’a rien prouvé : aucun test du lot n’est jugé, aucun fichier n’est compté.',
+      `Le journal du ticket, pour le détail de la passe : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`,
+    ].join('\n'),
+    mesure: null,
+  };
+}
+
 // The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` the
 // report, written whole to its file beside the copy. The tests judged are those of the files the
 // lot changes: a module of a single integration binary the lot does not change is main's, its
@@ -1667,6 +1707,7 @@ export const portentLeTravail = fiches =>
 // separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
 // Jest and the report of the proof print it (`sansSeparateur`); the measure plays again only when
 // the copy changed (`mesureDeLaPreuve`).
+// A measure with a run at 75 proved nothing: the proof is « à repasser » (`preuveARepasser`).
 export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null } = {}) {
   // Only the files of the day are proved; the ones only the night plays are put aside, named.
   // Resumed at a red (<duRouge>, the files it names), the proof plays the tests among them alone
@@ -1704,6 +1745,10 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
       ? mesureDeLaPreuve(ctx, liste, fichiers, derniere)
       : null;
   const mesure = mesuree?.runs ?? [];
+  const aRepasser = preuveARepasser(ctx, mesure);
+  if (aRepasser) {
+    return aRepasser;
+  }
   // The tests main already holds green, read from the registry of results of the copy's branch, or
   // main's (scripts/registre-des-resultats.mjs): a test of the lot the registry holds existed, its
   // green accepted; one absent is new.

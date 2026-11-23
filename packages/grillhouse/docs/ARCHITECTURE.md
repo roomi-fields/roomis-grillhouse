@@ -2067,9 +2067,13 @@ enregistrer-la-base-de-reference.mjs`, avec la version épinglée d'alors) quand
     manquée, comme un cache manqué se reconstruit ; la relance est un lancement neuf sous le même
     identifiant, une fois, avec la consigne entière de son rôle, le circuit le dit au ticket, et
     la séance garde sa propre reprise (BP 320.20.1). Un « a-repasser » (75) se rejoue seul après
-    10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Un « a-repasser » des
-    contrôles qui est une attente de place, de part de la machine ou de place disque à sa borne
-    (`attente` des contrôles) se rejoue tout de suite, sans limite et sans compter, et ne monte
+    10 min, 6 fois de suite au plus, puis sa question monte (décision D4). Une preuve du rouge
+    dont la passe finit à 75 n'a rien prouvé : elle s'arrête « a-repasser » comme un contrôle, sans
+    compter de fichier « ne se charge pas » ni relancer le testwriter, et son rapport nomme la
+    commande, son code et l'attente de la machine ; sa mesure ne se garde pas, ni écrite ni relue
+    comme un verdict, et la preuve suivante la rejoue (BP 320.6.2.9, grillhouse-3uv.203). Un
+    « a-repasser » des contrôles ou de la preuve qui est une attente de place, de part de la machine
+    ou de place disque à sa borne (`attente` des contrôles, de la preuve) se rejoue tout de suite, sans limite et sans compter, et ne monte
     jamais en question, comme un job de Buildkite attend un agent : l'attente elle-même le cadence,
     et le panneau le montre « attend une place » (grillhouse-4nr.26). Les effets qu'une étape a
     décidés avant un fait qui échoue s'écrivent avant son arrêt : `transition` les rend avec chaque

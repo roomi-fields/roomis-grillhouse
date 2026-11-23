@@ -727,6 +727,13 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     }
     const p = lire('preuve', reprise ? { fichiers: reprise.fichiers } : {});
     rapport = p.texte;
+    if (p.aRepasser) {
+      // A proof whose pass is at 75 proved nothing, neither a red nor a refusal: « à repasser »,
+      // as the checks, with no testwriter relaunched; a wait of the machine at its bound plays
+      // again without limit.
+      garderLeVert('preuve', null);
+      return arreter('a-repasser', p.texte, p.attente ? { attente: true } : {});
+    }
     if (p.ok) {
       // Resumed at a red, a proof restricted to the file the red names goes to the checks.
       const auDeveloppeur = reprise
