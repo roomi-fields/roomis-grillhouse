@@ -608,7 +608,10 @@ celle qu'un superviseur a écrite à la main comprise), et la garde des consomma
 ces lignes sans arbitrage ; un nom que le plan ne publie pas reste refusé. Ainsi le développeur
 écrit les lignes que le plan fixe sans arrêt ni geste du superviseur (BP 320.14.2.10, 320.28,
 320.6.5 : un critère seul nommait les noms, la garde refusait le lot, et le superviseur écrivait
-la section à la main avant une nouvelle séance).
+la section à la main avant une nouvelle séance). L'interface d'un paquet de matière de test (qui exporte
+`./test-fixtures`) sort de cette garde, comme une cible `testonly` de
+Bazel sort des règles de dépendance du code livré : ses noms naissent à l'écriture des tests, aucun plan ne
+les annonce ; la garde des consommateurs refuse toujours qu'un code de production la lise.
 
 **Un circuit par ticket** : comme une demande de fusion (un auteur, une série de tests et de
 code, une CI sur l'ensemble, une revue), le circuit lance un seul testwriter et un seul

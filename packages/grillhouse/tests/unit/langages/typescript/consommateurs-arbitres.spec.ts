@@ -140,6 +140,24 @@ describe('consommateurs-arbitres — a changed Consommateurs line has its settle
     expect(r.status, r.stderr).toBe(1);
   });
 
+  // Witness: BPScript, the names a testwriter adds to the Consommateurs line of a package of the
+  // test material are born with the tests: no plan announces them.
+  it('does not judge the names added to the Consommateurs line of a package of the test material', () => {
+    const interfaces = (matiere: boolean) => [
+      {
+        rel: 'packages/corpus/docs/INTERFACE.md',
+        avant: interfaceDe(['- `b` : duree']),
+        apres: interfaceDe(['- `b` : duree, tempo', '- `c` : duree']),
+        matiere,
+      },
+    ];
+    const lire = () => [] as { text: string }[];
+    const plan = () => ({ title: 'demo-1 — un sujet — a', description: '' });
+    expect(juger('demo-1', interfaces(true), lire, plan)).toEqual([]);
+    // A package of delivered code keeps its rule.
+    expect(juger('demo-1', interfaces(false), lire, plan)).not.toEqual([]);
+  });
+
   it('judges nothing out of a branch agent/…, and calls no bd', () => {
     const lot = depot('main', ['- `c` : duree']);
     const r = jouer(lot);

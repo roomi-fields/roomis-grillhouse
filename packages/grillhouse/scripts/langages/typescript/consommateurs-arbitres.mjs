@@ -28,6 +28,12 @@
 //   section already gives that consumer were settled before. The plan fixed them before the lot,
 //   as a code owner's approval covers what it reviewed. The plan is read only for such a line; one
 //   that cannot be read refuses, as the comments do.
+// - An interface of a package of the test material (`matieres` of ./consommateurs.mjs, a package
+//   that exports `./test-fixtures`) is not judged: the names
+//   the testwriter adds to its Consommateurs lines are born with the tests, so no plan can
+//   announce them, as Bazel's `testonly` targets leave the dependency rules of released code. A
+//   production code that reads such a package stays refused by the guard of the consumers
+//   (./consommateurs.mjs).
 // - A refusal names `<INTERFACE.md> § Consommateurs`, the line and the names the plan misses; a
 //   refusal inscribed in the project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes,
 //   keyed by the interface and `consommateur-sans-arbitrage`. Comments that cannot be read refuse,
@@ -38,7 +44,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lireLigne } from './consommateurs.mjs';
+import { lireLigne, matieres } from './consommateurs.mjs';
 import { trancher } from '../../dette.mjs';
 import { arbitrageTranche, estArbitrage } from '../../services-du-noyau.mjs';
 import { aVerifier, marques, mesureDe } from './interfaces-contre-code.mjs';
@@ -131,6 +137,7 @@ export function verifier(racine, env = process.env) {
     return [];
   }
   const interfaces = [];
+  const dossiersMatiere = new Set(matieres(racine).map(m => path.resolve(m.dir)));
   for (const c of aVerifier(racine, env)) {
     const iface = path.join(c.dir, 'docs', 'INTERFACE.md');
     if (!existsSync(iface)) {
@@ -142,6 +149,7 @@ export function verifier(racine, env = process.env) {
       rel,
       avant: head.status === 0 ? head.stdout : null,
       apres: readFileSync(iface, 'utf8'),
+      matiere: dossiersMatiere.has(path.resolve(c.dir)),
     });
   }
   const principal = () =>
@@ -159,13 +167,17 @@ export function verifier(racine, env = process.env) {
 /**
  * The findings on the lot of <ticket>, in the debt's form (`dette.mjs`): <interfaces>
  * `[{ rel, avant, apres }]`, each interface's path from the root, its text at HEAD (null when
- * absent) and in the working tree; `commentaires()` the ticket's comments (`[{ text }]`) and
+ * absent) and in the working tree, `matiere` true for a package of the test material, whose lines are
+ * not judged (see the header); `commentaires()` the ticket's comments (`[{ text }]`) and
  * `ticketLu()` the ticket (`{ title, description }`), each read only when a changed line needs it,
  * throwing when it does not read.
  */
 export function juger(ticket, interfaces, commentaires, ticketLu) {
   const changees = [];
-  for (const { rel, avant: texteAvant, apres } of interfaces) {
+  for (const { rel, avant: texteAvant, apres, matiere } of interfaces) {
+    if (matiere) {
+      continue;
+    }
     const lignesAvant = texteAvant === null ? [] : lignesConsommateurs(texteAvant);
     const avant = new Set(lignesAvant);
     // The names each consumer of HEAD's section reads (`lireLigne` of scripts/langages/typescript/consommateurs.mjs,

@@ -65,7 +65,8 @@ tranché au ticket, qui nomme le consommateur, ou avec le plan du ticket (son ti
 « Architecture », sa section « Noms publiés »), qui nomme mot pour mot le consommateur et chaque élément que le lot ajoute à la
 ligne, et le garde `packages/grillhouse/scripts/langages/typescript/consommateurs-arbitres.mjs` refuse une ligne
 changée sans l'un ni l'autre ; il lit la section hors de la part générée, dont les puces ne sont
-pas des consommateurs.
+pas des consommateurs. L'interface d'un paquet de matière de test (qui exporte `./test-fixtures`) ne se juge pas : ses noms naissent à l'écriture des tests, aucun plan ne
+les annonce d'avance ; un code de production qui la lit reste refusé.
 Ainsi chaque dépendance entre composants est écrite et décidée.
 
 ## L'architecture (`ARCHITECTURE.md`)
