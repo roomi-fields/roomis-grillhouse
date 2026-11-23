@@ -207,11 +207,13 @@ export function preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres,
 }
 // The machine's temporary directory: an empty one, proper to the session, replaces it.
 const TEMPORAIRE = '/tmp';
-// What stays read-only inside `~/.claude`: the configuration and what it loads.
+// What stays read-only inside `~/.claude`: the configuration and what it loads. The user's own
+// charter (`CLAUDE.md`) is not among it: it holds rules made for the user's session (commit and
+// push on their own), and a role session never receives it; the settings of the role also exclude
+// it (`claudeMdExcludes`, scripts/droits.mjs), for the sessions out of the envelope.
 const CLAUDE_EN_LECTURE = [
   'settings.json',
   'settings.local.json',
-  'CLAUDE.md',
   'keybindings.json',
   'agents',
   'commands',

@@ -94,7 +94,12 @@ index compris (`.codegraph`, `.rtfm`) ; un rôle à qui ses droits donnent l'ind
 seule le programme codegraph (`~/.local/bin/codegraph`) et sa maison (`~/.codegraph`), comme un
 bac à sable monte les outils que sa configuration donne au processus (`cheminsDeLIndex`), et le
 journal nomme le programme que le poste n'a pas ; le serveur rtfm vient avec son greffon, déjà
-monté. Il n'écrit que les composants que le plan de son ticket
+monté. La charte personnelle de l'utilisateur (`~/.claude/CLAUDE.md`), faite pour sa propre
+séance, n'entre dans aucune séance de rôle, sous enveloppe ou non (comme un travail de CI, qui ne
+charge que la configuration du dépôt) : claude la charge quelles que soient ses sources de
+réglages, si bien que l'enveloppe ne la monte pas et que les réglages de chaque rôle l'excluent
+(`claudeMdExcludes`, `scripts/droits.mjs`) ; la charte du projet et celle qu'elle importe restent
+chargées. Il n'écrit que les composants que le plan de son ticket
 nomme (les paquets du titre), la base des tickets et les sorties du module de son langage (le
 cache de Turborepo ; le `target/` et les magasins de cargo, sa maison `~/.cargo` et `~/.rustup`
 en lecture) ; `.git` reste en lecture seule, et la matière de test partagée s'écrit par le seul

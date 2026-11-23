@@ -10,10 +10,12 @@
 //
 // prints the options of claude for that session, one per line (`optionsDuRole`):
 //
-// - `--setting-sources project,local`: the user's own configuration stays out (their CLAUDE.md,
-//   their hooks, the skills of their account, their servers, their environment); the project's
-//   settings and charter, and the frame's plugin it enables (agents, skills, common charter,
-//   hooks), stay in.
+// - `--setting-sources project,local`: the user's own configuration stays out (their hooks, the
+//   skills of their account, their servers, their environment); the project's settings and
+//   charter, and the frame's plugin it enables (agents, skills, common charter, hooks), stay in.
+//   Claude Code loads the user's charter (`~/.claude/CLAUDE.md`) whatever the sources, so the
+//   settings of the role exclude it by its path (`claudeMdExcludes`), and the envelope does not
+//   mount it.
 // - `--settings <json>` (the settings of the role, on the command line: no file the session could
 //   change): its permissions (`allow`, the commands its skill names, and the reading of its
 //   skill's files, references included, and of the METACADRE.md its skill names, in the frame's
@@ -360,6 +362,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
       deny,
     },
     autoMemoryEnabled: false,
+    claudeMdExcludes: [path.join(home, '.claude', 'CLAUDE.md')],
     disableBundledSkills: true,
     skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
     enabledPlugins: Object.fromEntries(

@@ -744,6 +744,18 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
+  it("excludes the user's own charter from every role, whatever the setting sources", () => {
+    for (const role of Object.keys(ROLES)) {
+      const maison = path.join(ESSAIS, 'vide');
+      expect(
+        reglagesDe(options(role)) as unknown as { claudeMdExcludes: string[] },
+        role
+      ).toMatchObject({
+        claudeMdExcludes: [path.join(maison, '.claude', 'CLAUDE.md')],
+      });
+    }
+  });
+
   // grillhouse-3uv.84.2: the skills of the frame are its plugin's, which Claude Code's
   // `skillOverrides` does not reach; the role's agent preloads its own.
   it("turns off the project's own skills and the built-in ones Claude Code keeps, for every role", () => {
