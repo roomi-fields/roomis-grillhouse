@@ -118,6 +118,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { ROLES } from '../droits.mjs';
 import { langageDeLaCopie } from '../langages.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 import {
@@ -221,9 +222,9 @@ const CLAUDE_EN_LECTURE = [
 ];
 // What the home shows read-only besides `~/.claude`, as paths relative to it: claude's launcher
 // and versions, node and its global tools (bd), the state of bd and of its dolt database, and the
-// git configuration. The home shows nothing else: neither codegraph nor rtfm, whose servers the
-// roles of the envelope do not receive (scripts/droits.mjs); the indexes of the repository are in
-// sight with it.
+// git configuration. The home shows nothing else but the programs of the index for a role whose
+// rights hold it (`cheminsDeLIndex`: codegraph); the indexes of the repository are in sight with
+// it.
 const MAISON_EN_LECTURE = [
   '.local/bin/claude',
   '.local/share/claude',
@@ -236,6 +237,39 @@ const MAISON_EN_LECTURE = [
   '.config/git/ignore',
   '.config/git/attributes',
 ];
+
+// The programs of the index, as paths of the home: the program that the `.mcp.json` of the project
+// launches by its name (codegraph, found in `~/.local/bin`) and the home of its versions. rtfm
+// needs none: its server comes with its plugin, which the envelope mounts (`plugins`).
+const INDEX_DE_LA_MAISON = [{ nom: 'codegraph', programme: '.local/bin/codegraph', maison: '.codegraph' }];
+
+/**
+ * The paths that the envelope of <role> mounts read-only for the index, as a sandbox mounts the
+ * tools its configuration gives a process: those of the programs of the index when the rights of
+ * the role hold it (`ROLES[role].index`), and the names of the programs the machine lacks, which
+ * the journal says. A role without the index gets nothing.
+ * @param {{ role?: string, maison: string, existe?: (p: string) => boolean }} o
+ * @returns {{ chemins: string[], manquants: string[] }}
+ */
+export function cheminsDeLIndex({ role, maison, existe = existsSync }) {
+  const r = { chemins: [], manquants: [] };
+  if (!role || !ROLES[role]?.index) {
+    return r;
+  }
+  for (const { nom, programme, maison: dossier } of INDEX_DE_LA_MAISON) {
+    const prog = path.join(maison, programme);
+    if (!existe(prog)) {
+      r.manquants.push(nom);
+      continue;
+    }
+    r.chemins.push(prog);
+    const home = path.join(maison, dossier);
+    if (existe(home)) {
+      r.chemins.push(home);
+    }
+  }
+  return r;
+}
 
 // The variables of a login session that the envelope passes on, as sudo's env_reset keeps them,
 // claude's OAuth credential, the author of the session's comments at the ticket (`BEADS_ACTOR`,
@@ -409,6 +443,7 @@ export function montagesDeLaSeance({
   scratchpads,
   sessions = [],
   outils = {},
+  index = [],
   publie = null,
 }) {
   const maison = path.dirname(claude);
@@ -420,6 +455,7 @@ export function montagesDeLaSeance({
     ...CLAUDE_EN_LECTURE.map(nom => ({ chemin: path.join(claude, nom), ecriture: false })),
     { chemin: projet, ecriture: true },
     ...MAISON_EN_LECTURE.map(rel => ({ chemin: path.join(maison, rel), ecriture: false })),
+    ...index.map(chemin => ({ chemin, ecriture: false })),
     ...Object.values(outils).map(chemin => ({ chemin, ecriture: false })),
     ...(publie === null ? [] : [{ chemin: publie, ecriture: false }]),
   ];
@@ -905,6 +941,14 @@ function envelopper(argv) {
   if (existsSync(`${claude}.json`)) {
     copyFileSync(`${claude}.json`, etatJetable);
   }
+  // The program of the index for a role whose rights hold it; one the machine lacks is named in
+  // the journal, the session starting without it.
+  const indexDeLaSeance = cheminsDeLIndex({ role, maison: os.homedir() });
+  for (const nom of indexDeLaSeance.manquants) {
+    process.stderr.write(
+      `⚠ la séance part sans ${nom} : les droits du rôle ${role} lui donnent l'index, le programme est introuvable sur le poste\n`
+    );
+  }
   const montages = avecLiens(
     montagesDeLaSeance({
       cacheNpm,
@@ -914,6 +958,7 @@ function envelopper(argv) {
       scratchpads,
       sessions,
       outils,
+      index: indexDeLaSeance.chemins,
       publie,
     }),
     lienSurDisque

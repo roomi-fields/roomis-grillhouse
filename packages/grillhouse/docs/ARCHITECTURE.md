@@ -90,7 +90,11 @@ tant que rien ne change, et corriger un test ne rejoue que lui.
 
 **Tout se lit, le plan s'écrit** : un agent de rôle travaille dans l'enveloppe de sa copie
 (`packages/grillhouse/scripts/enveloppe/`, un bac à sable bubblewrap) ; il lit toute la copie,
-index compris (`.codegraph`, `.rtfm`), et n'écrit que les composants que le plan de son ticket
+index compris (`.codegraph`, `.rtfm`) ; un rôle à qui ses droits donnent l'index reçoit en lecture
+seule le programme codegraph (`~/.local/bin/codegraph`) et sa maison (`~/.codegraph`), comme un
+bac à sable monte les outils que sa configuration donne au processus (`cheminsDeLIndex`), et le
+journal nomme le programme que le poste n'a pas ; le serveur rtfm vient avec son greffon, déjà
+monté. Il n'écrit que les composants que le plan de son ticket
 nomme (les paquets du titre), la base des tickets et les sorties du module de son langage (le
 cache de Turborepo ; le `target/` et les magasins de cargo, sa maison `~/.cargo` et `~/.rustup`
 en lecture) ; `.git` reste en lecture seule, et la matière de test partagée s'écrit par le seul
