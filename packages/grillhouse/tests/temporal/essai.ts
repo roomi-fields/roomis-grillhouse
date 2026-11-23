@@ -2,17 +2,19 @@
 // temporary directory of the run, the pinned program `temporal` that the variable TEMPORAL names
 // (`grillhouse.outils` of the root package.json), a development server of trial started on a free
 // port and a database file of its own, and the sonde's worker started as its own process, by the
-// built code (dist/temporal/travailleur.js), as the units of the account start it.
+// built code (dist/temporal/travailleur.js), as the units of the account start it; a server
+// stopped while workflows run on it is stopped once they are at rest (`attendreLeRepos`).
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { Connection } from '@temporalio/client';
+import { Connection, type Client } from '@temporalio/client';
 import { afterAll } from 'vitest';
 import { EPINGLE } from '../../src/temporal/installation.js';
 import { apresUnRefus } from './port-d-essai.js';
+import { estAuRepos } from './repos-d-essai.js';
 
 export const PAQUET = path.resolve(__dirname, '../..');
 const TRAVAILLEUR = path.join(PAQUET, 'dist/temporal/travailleur.js');
@@ -299,6 +301,27 @@ export async function attendre<T>(
     }
     await new Promise(r => setTimeout(r, 200));
   }
+}
+
+/**
+ * Waits, within <delai> ms, for each workflow of <ids> to be at rest on the server of <client>
+ * (`estAuRepos`, ./repos-d-essai.ts): a server stopped then loses no task it handed out. The
+ * workflows are read in their order, and a workflow read at rest stays so only if nothing wakes it
+ * meanwhile: the one a timer wakes comes last, its timer set well beyond the stop.
+ */
+export async function attendreLeRepos(client: Client, ids: string[], delai = 30_000) {
+  await attendre(
+    `le repos de ${ids.join(', ')}`,
+    async () => {
+      for (const id of ids) {
+        if (!estAuRepos((await client.workflow.getHandle(id).describe()).raw)) {
+          return undefined;
+        }
+      }
+      return true;
+    },
+    delai
+  );
 }
 
 /**

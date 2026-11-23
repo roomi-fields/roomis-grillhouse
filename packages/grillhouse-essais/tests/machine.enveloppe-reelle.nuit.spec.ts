@@ -1,3 +1,4 @@
+// @poste: un test de nuit du poste, joué par son nom (enveloppe.maison : le bd réel, le trousseau)
 // @equipee: l'enveloppe bwrap
 import { spawnSync } from 'node:child_process';
 import {

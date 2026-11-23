@@ -21,6 +21,13 @@
 //   keyring, the session of the user (`/run/user/`), or the command claude started for more than
 //   `plugin` or `--version` (a session, a model). A mark the reading does not see (a path built at
 //   run time, a dependency of the product's code) escapes it: such a test takes the tag by hand.
+// - A night test that plays other night tests by their name carries what they ask, as a tag of
+//   Bazel reaches the target that runs the tagged one: a string of its code, or of its material's,
+//   that ends with the name of a night test (`tests/enveloppe.nuit.spec.ts`) names each night
+//   test of the repository whose path is that string or ends with it from a directory. A test
+//   named that bears the tag `@poste`, or shows a mark of the poste, is a mark of the poste of
+//   the one that names it; one tagged `@equipee`, or showing a mark of equipment, a mark of
+//   equipment. A name built at run time is not read.
 // - A night test that depends on the poste without the tag is a finding,
 //   `{ fichier, regle: 'poste-sans-etiquette', message }`, naming its marks; a tag without a mark
 //   passes. A finding inscribed in the project's debt (`grillhouse-dette.json`, ../../dette.mjs)
@@ -91,17 +98,21 @@ export const DEPENDANCES = [
   },
 ];
 
+// A string of the code that ends with the name of a night test, to the end of its string.
+const TEST_NOMME = /['"`]((?:[\w.@-]+\/)*[\w.@-]+\.nuit\.(?:test|spec)\.[cm]?[jt]sx?)['"`]/g;
+
 /**
  * The marks of the poste the test file <fichier> (absolute) shows, with the test material it
  * imports by a relative path, read by <lire> (a path → its text, null when it does not read), in
  * the repository at <racine>: the names of DEPENDANCES, each once, in their order.
  */
 export function dependancesDu(fichier, lire = lireLeDisque, racine = path.parse(fichier).root) {
-  return marquesDu(fichier, lire, racine).map(d => d.nom);
+  return DEPENDANCES.filter(d => d.voit(codeDu(fichier, lire, racine))).map(d => d.nom);
 }
 
-// The marks (the entries of DEPENDANCES) the test file <fichier> shows, as `dependancesDu` reads them.
-function marquesDu(fichier, lire, racine) {
+// The code of the test file <fichier> and of the test material it imports by a relative path,
+// from file to file, their comments and imports left out.
+function codeDu(fichier, lire, racine) {
   const vus = new Set();
   const codes = [];
   const suivre = f => {
@@ -124,28 +135,56 @@ function marquesDu(fichier, lire, racine) {
     }
   };
   suivre(fichier);
-  const tout = codes.join('\n');
-  return DEPENDANCES.filter(d => d.voit(tout));
+  return codes.join('\n');
+}
+
+// The night tests of <fichiers> (each from the root) the code <tout> of <fichier> names: those
+// whose path is a string of the code, or ends with it from a directory; itself left out.
+function nommesPar(fichier, tout, fichiers) {
+  const noms = new Set([...tout.matchAll(TEST_NOMME)].map(m => m[1].replace(/^(?:\.\/)+/, '')));
+  return fichiers.filter(f => f !== fichier && [...noms].some(n => f === n || f.endsWith(`/${n}`)));
 }
 
 /**
  * Each night test of the repository at <racine>: `[{ fichier, etiquete, equipee, marques }]`,
  * `fichier` from its root, `etiquete` whether it bears the tag `@poste`, `equipee` whether it bears
- * the tag `@equipee`, `marques` the marks it shows, `{ nom, classe }` each.
+ * the tag `@equipee`, `marques` the marks it shows, `{ nom, classe }` each: those of
+ * DEPENDANCES, then one per class for each night test it names that asks for that class.
+ * @param {string} racine the root of the repository
+ * @returns {{ fichier: string, etiquete: boolean, equipee: boolean, marques: { nom: string, classe: string }[] }[]}
  */
 export function testsDeNuitDuDepot(racine) {
-  return testsDuDepot(racine)
-    .filter(estUnTestDeNuit)
-    .map(fichier => {
-      const abs = path.join(racine, fichier);
-      const texte = lireLeDisque(abs) ?? '';
-      return {
-        fichier,
-        etiquete: porteLEtiquetteDuPoste(texte),
-        equipee: porteLEtiquetteEquipee(texte),
-        marques: marquesDu(abs, lireLeDisque, racine).map(({ nom, classe }) => ({ nom, classe })),
-      };
-    });
+  const fichiers = testsDuDepot(racine).filter(estUnTestDeNuit);
+  const lus = fichiers.map(fichier => {
+    const abs = path.join(racine, fichier);
+    const texte = lireLeDisque(abs) ?? '';
+    const tout = codeDu(abs, lireLeDisque, racine);
+    return {
+      fichier,
+      etiquete: porteLEtiquetteDuPoste(texte),
+      equipee: porteLEtiquetteEquipee(texte),
+      marques: DEPENDANCES.filter(d => d.voit(tout)).map(({ nom, classe }) => ({ nom, classe })),
+      nommes: nommesPar(fichier, tout, fichiers),
+    };
+  });
+  const parFichier = new Map(lus.map(t => [t.fichier, t]));
+  // Whether the night test <t> asks for the class <classe>: its tag, or a mark it shows itself.
+  const demande = (t, classe) =>
+    (classe === 'poste' ? t.etiquete : t.equipee) || t.marques.some(m => m.classe === classe);
+  return lus.map(({ nommes, ...t }) => ({
+    ...t,
+    marques: [
+      ...t.marques,
+      ...['poste', 'equipee'].flatMap(classe =>
+        nommes
+          .filter(n => demande(parFichier.get(n), classe))
+          .map(n => ({
+            nom: `${n}, ${classe === 'poste' ? 'test du poste' : 'test équipé'} joué par son nom`,
+            classe,
+          }))
+      ),
+    ],
+  }));
 }
 
 /**
@@ -155,8 +194,7 @@ export function testsDeNuitDuDepot(racine) {
  * `@equipee` (REGLE_EQUIPEE).
  */
 export function verifier(racine, tous = testsDeNuitDuDepot(racine)) {
-  const noms = (marques, classe) =>
-    marques.filter(m => m.classe === classe).map(m => m.nom);
+  const noms = (marques, classe) => marques.filter(m => m.classe === classe).map(m => m.nom);
   return tous.flatMap(({ fichier, etiquete, equipee, marques }) => {
     /** @type {{ fichier: string, regle: string, message: string }[]} */
     const constats = [];

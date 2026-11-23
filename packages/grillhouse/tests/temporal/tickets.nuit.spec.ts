@@ -43,6 +43,7 @@ import {
   PAUSE_D_ESSAI,
   PAQUET,
   attendre,
+  attendreLeRepos,
   demarrerLeServeur,
   dossier,
   portLibre,
@@ -282,8 +283,14 @@ describe('la file survit à un arrêt du serveur', () => {
   it('the server stopped and started again: a ticket ready after it starts', async () => {
     const p = projet([T('d-1')], 1);
     const s = await serveur(p.lecture);
-    await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 500 }, FILE);
+    // The queue wakes by itself well beyond the stop: the end of d-1 wakes it after the restart.
+    await demarrerLesTickets(s.client, { racine: RACINE, reveilMs: 5000 }, FILE);
     await enAttente(s.client, ['d-1']);
+    // The queue shows d-1 while its circuit still opens: the server is stopped once both are at
+    // rest. Killed before, it loses the answer that hands the worker an activity of the opening,
+    // which it holds started until its timeout: the 90 s of an act's heartbeat, the ten minutes
+    // of the measure of the pause.
+    await attendreLeRepos(s.client, [idDuCircuit(RACINE, 'd-1'), idDesTickets(RACINE)]);
     await s.redemarrer();
     p.etat.tickets = [{ ...p.etat.tickets[0]!, status: 'closed' }, T('d-2')];
     await arreterLeCircuit(s.client, RACINE, 'd-1', null);

@@ -1,3 +1,4 @@
+// @poste: les tests de nuit de l'enveloppe, joués par leur nom (le bd réel, le trousseau, la session de l'utilisateur)
 // @equipee: l'enveloppe bwrap (les tests de nuit de l'enveloppe, joués par leur nom)
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -22,15 +23,17 @@ const SUITES = [
 // The tests of the launcher, of the real envelope and of the locks' hooks, night tests of the
 // package of the frame's chain beside this one, which a run of the night's configuration plays
 // (scripts/langages/typescript/tests-de-nuit.mjs: GRILLHOUSE_TESTS_DE_NUIT=nuit), the files named
-// on its command line; a targeted run of the day refuses a night test named (cibles.mjs).
+// on its command line; a targeted run of the day refuses a night test named (cibles.mjs). Each
+// is named whole, so that the guard of the tests of the poste reads the tags it carries here
+// (scripts/langages/typescript/tests-du-poste.mjs).
 const ESSAIS_DU_CADRE = path.resolve(DEPOT, '../grillhouse-essais');
 const LANCEUR = [
-  'enveloppe.lanceur',
-  'enveloppe',
-  'enveloppe.maison',
-  'enveloppe.matiere-de-test',
-  'verrous',
-].map(f => path.join(ESSAIS_DU_CADRE, `tests/${f}.nuit.spec.ts`));
+  'tests/enveloppe.lanceur.nuit.spec.ts',
+  'tests/enveloppe.nuit.spec.ts',
+  'tests/enveloppe.maison.nuit.spec.ts',
+  'tests/enveloppe.matiere-de-test.nuit.spec.ts',
+  'tests/verrous.nuit.spec.ts',
+].map(f => path.join(ESSAIS_DU_CADRE, f));
 const VITEST = path.resolve(DEPOT, '../../node_modules/vitest/vitest.mjs');
 const CONFIGURATION_DE_NUIT = path.join(
   DEPOT,
