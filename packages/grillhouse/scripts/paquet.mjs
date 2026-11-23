@@ -13,7 +13,9 @@
 //   path, or else the folder's name, as the guard of the languages reads a component; a row that
 //   names the path itself comes first. Refused, by its name, and nothing written: a path no row
 //   names; a row whose cell of the column « Langage » is empty; a language out of the frame's
-//   list; a folder that already holds the manifest of its language (`manifeste` of its module). A
+//   list; a folder that already holds the manifest of its language (`manifeste` of its module); a
+//   key `grillhouse.groupe` the update would refuse (`groupeDe` of ./groupe-cles.mjs, read in the
+//   main tree of the repository: the command plays in a copy of work as in the main tree). A
 //   folder that holds docs/ alone, the documents of the second time, is accepted, as `cargo init`
 //   takes a folder without its Cargo.toml; a folder that already holds code is given to the
 //   module with its files (`existants`), which takes them as they are, or refuses, by its name,
@@ -47,6 +49,7 @@ import { pathToFileURL } from 'node:url';
 import { CADRE } from './cadre.mjs';
 import { installerBinaires } from './binaires.mjs';
 import { aInstaller, mettreAJour, rapport, regenerer } from './grillhouse-maj.mjs';
+import { groupeDe } from './groupe-cles.mjs';
 import { LANGAGES, langage } from './langages.mjs';
 import {
   inscrireAuxEspaces,
@@ -284,15 +287,23 @@ const lancer = (commande, args, dossier) =>
 /**
  * Creates the package at <chemin> of the project at <racine>: its plan written, then the tools of
  * its language (see the header). Returns `{ ecrits, lignes, echecs }`: the files written, the
- * lines of the report, the lines of each command that fails. Throws a Refus as `planDuPaquet`.
+ * lines of the report, the lines of each command that fails. Throws a Refus as `planDuPaquet`,
+ * and on a faulty key `grillhouse.groupe`, before any file is written.
  * @param {string} racine
  * @param {string} chemin
- * @param {{ source?: string, executer?: (commande: string, args: string[], dossier: string) => number }} [o]
+ * @param {{ source?: string, executer?: (commande: string, args: string[], dossier: string) => number, bd?: (args: string[], cwd: string) => { status: number | null, stdout?: string, stderr?: string } }} [o]
+ *   `bd`: the Beads the update plays (`mettreAJour`), the real one without it
  */
-export function creerPaquet(racine, chemin, { source = CADRE, executer = lancer } = {}) {
+export function creerPaquet(racine, chemin, { source = CADRE, executer = lancer, bd } = {}) {
   const plan = planDuPaquet(racine, chemin, { source });
+  // What the update refuses by its key is refused here, before the first file is written.
+  try {
+    groupeDe(racine);
+  } catch (e) {
+    throw new Refus(e.message.replace(/^⛔ /, ''));
+  }
   const ecrits = ecrireLePaquet(racine, plan);
-  const b = mettreAJour(racine, source);
+  const b = mettreAJour(racine, source, bd ? { bd } : {});
   const echecs = [];
   const vus = new Set();
   const jouer = (commande, args, dossier) => {

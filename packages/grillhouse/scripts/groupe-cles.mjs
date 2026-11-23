@@ -5,9 +5,13 @@
 // `grillhouse maj` writes the other projects of the group as the `external_projects` of the Beads
 // of each (`bd ship` and `external:<project>:<capability>` dependencies resolve through them).
 // Any other value is a fault, named by its key before any work.
+// The key is the project's: `groupeDe` reads it in the package.json of the main tree of the
+// repository, never of a copy, and resolves its relative paths from that tree, so that a command
+// launched in a copy of work reads the same group as one launched in the main tree.
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { arbrePrincipal } from './outils-cles.mjs';
 
 /**
  * The group a package.json <pkg> declares, read from the project at <racine>.
@@ -56,6 +60,30 @@ export function lireGroupe(pkg, racine) {
     .digest('hex')
     .slice(0, 12);
   return { groupe: { id, projets }, fautes: [] };
+}
+
+/**
+ * The group of the project that holds <dir>, from the package.json of its main tree, its relative
+ * paths resolved from that tree; null without the key, or without a package.json that reads.
+ * @param {string} dir a directory of the project: its main tree or a copy
+ * @returns {{ id: string, projets: { nom: string, chemin: string }[] } | null}
+ * @throws {Error} the faults of the key, each named by its key and its value
+ */
+export function groupeDe(dir) {
+  const racine = arbrePrincipal(dir);
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(path.join(racine, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+  const { groupe, fautes } = lireGroupe(pkg, racine);
+  if (fautes.length > 0) {
+    throw new Error(
+      `⛔ ${fautes.map(f => `${f.cle} vaut ${f.valeur}, pas un chemin de projet existant, une fois`).join(' ; ')}.`
+    );
+  }
+  return groupe;
 }
 
 /**

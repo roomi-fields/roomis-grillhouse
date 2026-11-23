@@ -1394,7 +1394,11 @@ absent ou un projet inconnu le tient aussi, la faute nommée (le tableau dit « 
 <capacité>` après son commit sur main, et son échec est une faute nommée. `grillhouse maj` écrit le
 `external_projects` de Beads de chaque projet d'un groupe depuis `grillhouse.groupe`, chaque chemin
 relatif à la racine du projet, car `.beads/config.yaml` est commité : aucune arborescence locale
-n'y entre, et la file le lit depuis l'arbre principal (`cheminDuProjetExterne`). Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
+n'y entre, et la file le lit depuis l'arbre principal (`cheminDuProjetExterne`). La clé elle-même
+se lit dans le `package.json` de l'arbre principal du dépôt, ses chemins relatifs résolus depuis
+lui (`groupeDe` de `scripts/groupe-cles.mjs`), comme git lit sa configuration dans son dossier
+commun : `grillhouse maj` et `grillhouse paquet` lancés dans une copie de travail lisent le même
+groupe, et `grillhouse paquet` refuse une clé fautive avant d'écrire son squelette (grillhouse-3uv.205). Comme une file de fusion n'admet qu'un changement qui passe ses contrôles
 d'entrée, un ticket sans sa section ne part jamais (grillhouse-d4n.10) : le panneau (une alerte)
 et l'ouverture de la séance du superviseur (« ## La file des tickets ») le nomment, « En file sans
 architecture : <tickets> » (`enFileSansArchitecture`), pour que le superviseur l'écrive. Comme une

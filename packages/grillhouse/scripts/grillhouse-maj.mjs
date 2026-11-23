@@ -123,10 +123,11 @@
 //   as `npm install` brings what is installed to what is declared. A plugin that cannot be
 //   installed, or a mod left at another version, has its line naming the command to type; the
 //   update has finished its files, and the exit code is non-zero.
-// - The group: when the package.json declares `grillhouse.groupe` (scripts/groupe-cles.mjs), the
-//   update sets in the Beads of the project each other project of the group as an
-//   `external_projects.<name>` (its path relative to the project), the ones already set left alone; a group
-//   badly declared is refused by its key before any work.
+// - The group: when the package.json of the main tree of the project declares `grillhouse.groupe`
+//   (`groupeDe` of scripts/groupe-cles.mjs: the update launched in a copy of work reads the same
+//   group), the update sets in the Beads of the project each other project of the group as an
+//   `external_projects.<name>` (its path relative to the main tree), the ones already set left
+//   alone; a group badly declared is refused by its key before any work.
 // - The generated files: after the package.json, each generator of the declared language
 //   (`miseAJour.generateurs` of its module) is run in the project by the project's command
 //   (`node_modules/.bin/grillhouse`, its installed package) for the file it writes when the project
@@ -161,8 +162,9 @@ import { poserCrochets } from './crochets.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { fluxSansEntree } from './flux-des-paquets.mjs';
 import { installerGreffons } from './greffons.mjs';
-import { lireGroupe, projetsExternes } from './groupe-cles.mjs';
+import { groupeDe, projetsExternes } from './groupe-cles.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
+import { arbrePrincipal } from './outils-cles.mjs';
 import { langageDe, langagesDe } from './langages.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 import { CONFIG_BEADS, ecrireLePrefixe, prefixe, prefixeDuStore } from './prefixe-des-tickets.mjs';
@@ -343,30 +345,15 @@ export function versionDuProjet(projet) {
 const jouerBd = (args, cwd) =>
   spawnSync('bd', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
 
-// The group the package.json of <projet> declares (null without it); a fault throws, naming its
-// key (`grillhouse.groupe`) and its value.
-function lireDuGroupe(projet) {
-  const pkg = path.join(projet, 'package.json');
-  if (!existsSync(pkg)) {
-    return null;
-  }
-  const { groupe, fautes } = lireGroupe(lireJson(pkg, {}), projet);
-  if (fautes.length > 0) {
-    throw new Error(
-      `⛔ ${fautes.map(f => `${f.cle} vaut ${f.valeur}, pas un chemin de projet existant, une fois`).join(' ; ')}.`
-    );
-  }
-  return groupe;
-}
-
 // The `external_projects` of the Beads of <projet>: the other projects of its <groupe>, each by its
-// name and its path relative to <projet> (`projetsExternes`); those it sets, by name (none when already set).
+// name and its path relative to the main tree of <projet> (`projetsExternes`), which a copy shares
+// with it; those it sets, by name (none when already set).
 function poserLesProjetsExternes(projet, groupe, bd) {
   if (groupe === null) {
     return [];
   }
   const poses = [];
-  for (const [nom, chemin] of Object.entries(projetsExternes(groupe, projet))) {
+  for (const [nom, chemin] of Object.entries(projetsExternes(groupe, arbrePrincipal(projet)))) {
     const cle = `external_projects.${nom}`;
     const lu = bd(['config', 'get', cle], projet);
     if (lu.status === 0 && `${lu.stdout ?? ''}`.trim() === chemin) {
@@ -399,8 +386,9 @@ function cleActive(projet) {
  * none, the project keeping its own). Returns what changed.
  */
 export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd } = {}) {
-  // The group declared, refused by its key before any work.
-  const groupe = lireDuGroupe(projet);
+  // The group the project declares, read in its main tree (`groupeDe`), refused by its key before
+  // any work.
+  const groupe = groupeDe(projet);
   const bilan = {
     projetsExternes: [],
     dependances: [],

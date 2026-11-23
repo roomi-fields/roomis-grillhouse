@@ -18,6 +18,12 @@ export function lireGroupe(
   racine: string
 ): { groupe: GroupeDeclare | null; fautes: Array<{ cle: string; valeur: string }> };
 
+/**
+ * The group of the project that holds <dir> (its main tree or a copy), read in the package.json of
+ * its main tree; null without the key. Throws the faults of the key.
+ */
+export function groupeDe(dir: string): GroupeDeclare | null;
+
 /** The `external_projects` of the Beads of the project at <racine>: the other projects of its group. */
 export function projetsExternes(
   groupe: { projets: ProjetDuGroupe[] },
