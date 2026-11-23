@@ -167,3 +167,34 @@ describe('le repli de la nuit sur PC3', () => {
     expect(d.pc3).toEqual([2, 3]);
   });
 });
+
+describe('les mesures de temps du flux, dans le repli de la nuit', () => {
+  const job = (name: string, status: string, conclusion: string | null): Job => ({
+    name,
+    status,
+    conclusion,
+    startedAt: status === 'queued' ? null : A(1),
+  });
+  const mesures = async (jobs: Job[], fluxTermine = false) => {
+    const m = (await import('../../scripts/repli-de-la-nuit.mjs')) as unknown as {
+      choisirLeRepli: (o: object) => { mesures: string };
+    };
+    return m.choisirLeRepli({ jobs, heureDuFlux: FLUX, maintenant: A(30), fluxTermine }).mesures;
+  };
+
+  it('le job vert est vert, le job rouge est rouge', async () => {
+    expect(await mesures([job('mesures (26.x)', 'completed', 'success')])).toBe('verte');
+    expect(await mesures([job('mesures (26.x)', 'completed', 'failure')])).toBe('rouge');
+  });
+
+  it('le job qui attend ou tourne reste au flux, le job interrompu se rejoue', async () => {
+    expect(await mesures([job('mesures (26.x)', 'queued', null)])).toBe('en-cours');
+    expect(await mesures([job('mesures (26.x)', 'in_progress', null)])).toBe('en-cours');
+    expect(await mesures([job('mesures (26.x)', 'completed', 'cancelled')])).toBe('a-rejouer');
+  });
+
+  it('un job absent se rejoue quand le flux est fini, attend sinon', async () => {
+    expect(await mesures([], true)).toBe('a-rejouer');
+    expect(await mesures([])).toBe('en-cours');
+  });
+});

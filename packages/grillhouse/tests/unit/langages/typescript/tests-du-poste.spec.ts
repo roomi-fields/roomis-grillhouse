@@ -312,7 +312,7 @@ describe('the night picks its tests by tag', () => {
       'hors-poste-sans-equipement',
     ]);
     expect(runsDeLaNuit(r, { duPoste: true })).toEqual(['du-poste']);
-    expect(runsDeLaNuit(avecBanc, { duPoste: true })).toEqual([]);
+    expect(runsDeLaNuit(avecBanc, { duPoste: true })).toEqual(['mesures']);
     expect(runsDeLaNuit(avecBanc, { mesuresSeules: true })).toEqual(['mesures']);
     expect(runsDeLaNuit(r, { mesuresSeules: true })).toEqual([]);
   });

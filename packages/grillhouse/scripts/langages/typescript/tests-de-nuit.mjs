@@ -6,7 +6,8 @@
 //   node tests-de-nuit.mjs                   from the root of the copy: the night of the poste
 //   node tests-de-nuit.mjs --hors-du-poste   the night of an equipped runner: all but @poste
 //   node tests-de-nuit.mjs --hors-du-poste --sans-equipement   all but @poste and @equipee
-//   node tests-de-nuit.mjs --du-poste        the tests tagged @poste alone (the night of PC3)
+//   node tests-de-nuit.mjs --du-poste        the tests tagged @poste, then the measures of time unless
+//                                            the project's Nuit flow plays them (the night of PC3)
 //   node tests-de-nuit.mjs --mesures         the benches and the time witnesses alone
 //   node tests-de-nuit.mjs --hors-du-poste --tranche i/n   its tranche i of n
 //
@@ -54,6 +55,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   A_REPASSER,
   avecLaPasse,
+  fluxDuProjetJoueLesMesures,
   LA_FORME,
   lireLaTranche,
 } from '../../services-du-noyau.mjs';
@@ -148,7 +150,11 @@ export function runsDeLaNuit(
       : [];
   }
   if (duPoste) {
-    return testsDuPoste(racine).length > 0 ? ['du-poste'] : [];
+    // The night of the poste leaves the flow of the project the measures it declares it plays.
+    const mesures =
+      (enTient(racine, estUnBanc) || fichiersTemoins(racine).length > 0) &&
+      !fluxDuProjetJoueLesMesures(racine);
+    return [testsDuPoste(racine).length > 0 && 'du-poste', mesures && 'mesures'].filter(Boolean);
   }
   if (mesuresSeules) {
     return enTient(racine, estUnBanc) || fichiersTemoins(racine).length > 0 ? ['mesures'] : [];

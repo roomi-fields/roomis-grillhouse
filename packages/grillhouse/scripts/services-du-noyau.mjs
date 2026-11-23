@@ -45,6 +45,7 @@ export {
 } from './taches-du-graphe.mjs';
 export { luUneFois } from './lecture-unique.mjs';
 export { avecLeFichierDuPoste } from './fichier-du-poste.mjs';
+export { fluxDuProjetJoueLesMesures } from './flux-de-la-nuit.mjs';
 export { BASE_DU_LOT, CHANGEMENTS, DEPUIS_LE_VERT, garderLeVert, mesure } from './dernier-vert.mjs';
 export {
   consignerLesRegressions,

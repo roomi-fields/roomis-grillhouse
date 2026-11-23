@@ -67,9 +67,13 @@
 #   bound 15 min) and plays once more; green then, the night goes on; à repasser again, or no rest in the bound, the night
 #   ends there, « à repasser », red if the full pass is.
 # - The two parts of the night: a project whose `.github/workflows/nuit.yml` plays on the label
-#   `pc2` leaves PC2 its night tests but those tagged @poste and the measures of time (the flow's
-#   tranches, `tests-de-nuit --hors-du-poste`, then `--mesures`). The night of PC3 plays the tests
-#   tagged @poste alone (`tests-de-nuit --du-poste`, on its part), then reads the day's flow by `gh`
+#   `pc2` leaves PC2 its night tests but those tagged @poste (the flow's tranches,
+#   `tests-de-nuit --hors-du-poste`). The measures of time play on PC3, on dedicated cores, unless
+#   the flow declares a job that plays them (a command `tests-de-nuit --mesures`, as the flow of
+#   Grillhouse: scripts/flux-de-la-nuit.mjs): then that job's verdict, read for the commit of the
+#   night, stands for them, and PC3 plays them only when the job was interrupted. The night of PC3
+#   plays the tests tagged @poste, then the measures (`tests-de-nuit --du-poste`, on its part), then
+#   reads the flow of its commit by `gh`
 #   (scripts/repli-de-la-nuit.mjs): a tranche whose job has not started 60 minutes after the flow's
 #   hour is cancelled and played on PC3, a tranche started then interrupted plays whole again, a
 #   tranche finished on PC2, green or red, is never replayed; the log says which tranches played
@@ -105,7 +109,8 @@
 # - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an
 #   integration and the queue run during the night, each in its own copy.
 # - Its log is <git common dir>/nuit/<date>.log. Green: HEAD becomes the last green commit
-#   (<git common dir>/nuit/dernier-vert). Red: the red tasks, each grouped by its cause as an
+#   (<git common dir>/nuit/dernier-vert), only once the measures of time were played and are green,
+#   by PC3 or by the flow's job for that commit. Red: the red tasks, each grouped by its cause as an
 #   alerting system groups by fingerprint: each red task of the full pass (the file
 #   GRILLHOUSE_ROUGES names, which the verification of the module writes: `<task>` per line, then
 #   a tab and the command that replays it alone when the language has one, no task à repasser
@@ -185,7 +190,7 @@ preparer() {
   fi
   partages=$(bash "$ici/sous-modules.sh" pose "$copie")
 }
-# The part of PC2: reads the day's Nuit flow by `gh` (scripts/repli-de-la-nuit.mjs), which cancels the
+# The part of PC2: reads the Nuit flow of the commit the night plays by `gh` (scripts/repli-de-la-nuit.mjs), which cancels the
 # run when a tranche has not started 60 minutes after the flow's hour, then plays on PC3, whole, each
 # tranche not played on PC2 (never one finished there, green or red). A tranche still running or
 # waiting leaves the part of PC2 « à repasser » (75). The statement says which tranches played where.
@@ -197,18 +202,19 @@ repli() {
     code_pc2=75
     return
   fi
-  if ! decision="$(node "$ici/repli-de-la-nuit.mjs" "$depot" "$tranches")"; then
+  if ! decision="$(node "$ici/repli-de-la-nuit.mjs" "$depot" "$tranches" "" "$tete")"; then
     echo "⏱ le repli de la nuit ne lit pas le flux Nuit : la part de PC2 reste à repasser."
     code_pc2=75
     return
   fi
-  local lignes rejouer= rouges_pc2= attend=
-  lignes="$(printf '%s' "$decision" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s);const l=k=>(d[k]??[]).join(" ");process.stdout.write(["pc2","pc3","rouges","enAttente","enCours"].map(k=>k+"\t"+l(k)).join("\n")+"\n")})')"
+  local lignes rejouer= rouges_pc2= attend= mesures_du_flux=
+  lignes="$(printf '%s' "$decision" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s);const l=k=>(d[k]??[]).join(" ");process.stdout.write(["pc2","pc3","rouges","enAttente","enCours","mesures"].map(k=>k+"\t"+l(k)).join("\n")+"\n")})')"
   while IFS= read -r ligne; do
     case "$ligne" in
       pc2$'\t'*) echo "relevé de la nuit : tranches jouées sur PC2 : ${ligne#pc2$'\t'}" ;;
       pc3$'\t'*) rejouer="${ligne#pc3$'\t'}"; echo "relevé de la nuit : tranches jouées sur PC3 : ${rejouer:-aucune}" ;;
       rouges$'\t'*) rouges_pc2="${ligne#rouges$'\t'}" ;;
+      mesures$'\t'*) mesures_du_flux="${ligne#mesures$'\t'}"; echo "relevé de la nuit : mesures de temps du flux : ${mesures_du_flux}" ;;
       enAttente$'\t'*|enCours$'\t'*) attend="$attend ${ligne#*$'\t'}" ;;
     esac
   done <<< "$lignes"
@@ -229,6 +235,28 @@ repli() {
       attend="$attend $t"
     fi
   done
+  # The measures of time: the flow's job plays them when its file declares one; the night of the
+  # poste plays them itself otherwise (tests-de-nuit --du-poste), so no last green without them.
+  if node "$ici/flux-de-la-nuit.mjs" mesures "$copie"; then
+    case "$mesures_du_flux" in
+      rouge)
+        echo "✗ les mesures de temps du flux sont rouges sur PC2."
+        etapes_pc2+=("les mesures de temps de la nuit sur PC2")
+        taches_pc2+=("les mesures de temps de la nuit sur PC2") ;;
+      a-rejouer)
+        (cd "$copie" && monter node "$ici/commande-du-langage.mjs" tests-de-nuit --mesures)
+        code=$?
+        if [ "$code" -eq 75 ]; then
+          attend="$attend mesures"
+        elif [ "$code" -ne 0 ]; then
+          echo "✗ les mesures de temps, rejouées sur PC3, sont rouges."
+          etapes_pc2+=("les mesures de temps de la nuit, rejouées sur PC3")
+          taches_pc2+=("les mesures de temps de la nuit sur PC3 (repli)")
+        fi ;;
+      verte) ;;
+      *) attend="$attend mesures" ;;
+    esac
+  fi
   if [ "${#etapes_pc2[@]}" -gt 0 ]; then
     code_pc2=1
   elif [ -n "${attend// /}" ]; then
@@ -365,8 +393,11 @@ process.exit(paquets(process.argv[2]).some(p => p.pkg.name === "@roomi-fields/gr
     fi
   fi
   # A project whose Nuit flow plays on PC2 (its runner label `pc2`) leaves PC2 the night tests that
-  # do not need the poste: PC3 plays the tests tagged @poste alone, then the tranches PC2 did not
-  # play (the fallback, scripts/repli-de-la-nuit.mjs); the measures of time play on PC2.
+  # do not need the poste: PC3 plays the tests tagged @poste, then the tranches PC2 did not play
+  # (the fallback, scripts/repli-de-la-nuit.mjs). The measures of time play on PC3 too, unless the
+  # flow declares a job that plays them (`tests-de-nuit --mesures`, scripts/flux-de-la-nuit.mjs,
+  # the flow of Grillhouse): then the verdict of its job, read for the commit of the night, counts.
+  # The last green is set only when the measures were played and are green, by PC3 or by that job.
   local sur_pc2=0 tranches=
   if grep -q "\bpc2\b" "$copie/.github/workflows/nuit.yml" 2>/dev/null; then
     sur_pc2=1

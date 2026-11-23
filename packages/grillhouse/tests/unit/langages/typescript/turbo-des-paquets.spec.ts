@@ -1150,6 +1150,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'garde-de-la-memoire.mjs',
       // What services-du-noyau.mjs re-exports: the prefix of the tickets (grillhouse-4nr.12).
       'prefixe-des-tickets.mjs',
+      // What services-du-noyau.mjs re-exports: what the Nuit flow of a project plays (grillhouse-3uv.213).
+      'flux-de-la-nuit.mjs',
       // What services-du-noyau.mjs re-exports: the providers of grillhouse.donnees, and what it imports.
       'donnees-cles.mjs',
       'outils-cles.mjs',

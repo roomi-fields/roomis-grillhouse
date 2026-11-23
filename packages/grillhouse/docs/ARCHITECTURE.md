@@ -1612,11 +1612,21 @@ le délai du repli. Le repli est mesuré par la nuit locale de PC3 (`scripts/nui
 `scripts/repli-de-la-nuit.mjs`), non par le flux : à son heure, elle lit par `gh` le flux Nuit du
 jour ; une tranche dont le job n'a pas démarré 60 minutes après l'heure du flux est annulée et jouée
 sur PC3, sur sa part ; une tranche terminée sur PC2, verte ou rouge, n'est jamais rejouée ; une
-tranche partie puis interrompue compte pour non jouée et se rejoue en entier. Le relevé dit quelles
-tranches ont joué où, et le verdict de la nuit au panneau comme le ticket de nuit rouge tiennent
-compte des deux parts, celle de PC2 et celle de PC3. Un vert du flux ne pose jamais le dernier
-vert : la nuit du poste seule le pose, après tous les tests de nuit puis les mesures. Ainsi PC2
-joue la nuit, PC3 garde ce qui fait attendre un ticket.
+tranche partie puis interrompue compte pour non jouée et se rejoue en entier. Le flux lu est celui
+du commit que la nuit joue (`headSha`) : un passage d'un autre commit ne compte pour rien, et sans
+passage de ce commit PC3 joue toutes les tranches et les mesures. Le relevé dit quelles tranches ont
+joué où, et le verdict de la nuit au panneau comme le ticket de nuit rouge tiennent compte des deux
+parts, celle de PC2 et celle de PC3.
+**Les mesures de temps jouent sur le poste, sauf si le flux déclare le job qui les joue** : un flux
+partagé ne mesure pas (la charte, « Une mesure de temps joue la nuit »). La nuit du poste décide
+sur ce que le flux joue, lu de ses commandes (`scripts/flux-de-la-nuit.mjs` : une commande
+`tests-de-nuit --mesures`), non sur un mot du flux : le flux du gabarit n'en déclare aucune, la
+nuit du poste joue donc les mesures après les tests `@poste` (`tests-de-nuit --du-poste`), sur les
+cœurs de `grillhouse.mesure` ; le flux de Grillhouse a son job de mesures, dont le repli lit le
+verdict pour le commit de la nuit (vert, rouge, en cours, ou à rejouer sur PC3 s'il fut interrompu
+ou ne vint pas). Un vert du flux ne pose jamais le dernier vert : la nuit du poste seule le pose,
+et seulement quand les mesures ont été jouées et sont vertes, par le poste ou par ce job. Ainsi PC2
+joue la nuit, PC3 garde ce qui fait attendre un ticket et mesure ce que le flux ne mesure pas.
 
 **Le cadre porte la CI d'un projet** (`templates/projet/.github/workflows/`,
 `packages/grillhouse/scripts/workflows-du-cadre.mjs`) : `ci.yml`, la CI de main par paquets (les

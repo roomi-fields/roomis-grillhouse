@@ -409,6 +409,9 @@ export function avecLeFichierDuPoste<T extends Record<string, string | undefined
   env: T,
   o: { fichier: string; ajouts?: Record<string, string>; lire?: (f: string) => string | null }
 ): T;
+/** Whether the Nuit flow of the copy at <racine> plays the measures of time itself: one of its
+ * commands runs `tests-de-nuit --mesures`; false without a flow (scripts/flux-de-la-nuit.mjs). */
+export function fluxDuProjetJoueLesMesures(racine: string): boolean;
 /** The path of the command <nom> in the PATH of <env>, or null (scripts/commandes-du-path.mjs). */
 export function trouverDansLePath(nom: string, env?: NodeJS.ProcessEnv): string | null;
 /**
