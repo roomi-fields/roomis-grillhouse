@@ -76,7 +76,8 @@ export const NUIT_TRANCHE = 'GRILLHOUSE_TRANCHE_DE_NUIT';
 /**
  * The variable that carries the unit of a run of the night's configuration, JSON: `config`, the
  * configuration of the package of the run (absent for the root), and `exclus`, the patterns of
- * the units below it, which it leaves out.
+ * the units below it, which it leaves out. The night's configuration takes it out of the environment
+ * once read: no process the tests start receives it.
  */
 export const NUIT_PAQUET = 'GRILLHOUSE_NUIT_PAQUET';
 // Whether the file at <fichier> bears the name of <motif>, a globstar then a name: by the name of

@@ -131,7 +131,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter, the same for a
 // developpeur with an answer `levé` to each finding its prompt carries (« ### Constat <n> — <titre> »),
 // `{"verdict":"ACCEPTÉ"}` for the relecteur with a line `levé` of `suivi` to each finding its
-// prompt carries,
+// prompt carries and a line of `conformite` to each reference file its prompt lists as changed
+// (« LES FICHIERS DE RÉFÉRENCE QUE LE LOT CHANGE », `- <fichier> (+a −b)`),
 // `{"issue":"AUCUNE"}` for the questionneur (a plan it has no question on), for the explorateur the plan
 // its ticket holds (the components of its title, no criterion added, no open question), or on the
 // schema of the tri a verdict `sans-suite` for each discovery its prompt lists, none for another role
@@ -194,7 +195,9 @@ console.log(JSON.stringify({ statut: "FAIT", ...(reponses.length ? { reponses } 
   relecteur) la_fiche=$(node -e '
 const titres = [...process.argv[1].matchAll(/^### Constat \\d+ — (.+)$/gm)].map(m => m[1]);
 const suivi = titres.map(titre => ({ titre, etat: "levé", preuve: "la différence du lot." }));
-console.log(JSON.stringify({ verdict: "ACCEPTÉ", ...(suivi.length ? { suivi } : {}) }));' "$prompt") ;;
+const references = (process.argv[1].split("LES FICHIERS DE RÉFÉRENCE QUE LE LOT CHANGE")[1] ?? "").split("Tu juges un fichier de référence")[0];
+const conformite = [...references.matchAll(/^- (.+) \\(\\+\\d+ −\\d+\\)$/gm)].map(m => ({ element: m[1], conforme: "oui", document: "ARCHITECTURE", reference: "§ Les références", piece: "$ git diff --numstat\\n" + m[1] }));
+console.log(JSON.stringify({ verdict: "ACCEPTÉ", ...(suivi.length ? { suivi } : {}), ...(conformite.length ? { conformite } : {}) }));' "$prompt") ;;
   questionneur) la_fiche='{"issue":"AUCUNE"}' ;;
   explorateur) la_fiche=$(node -e '
 const [ticket, schema, prompt] = process.argv.slice(1);

@@ -390,12 +390,14 @@ function creations(): { fichier: string; nom: string; source: string }[] {
 // The directories a script makes without removing them itself, each with its reason: the base,
 // which `fermer` removes; the progress directory, which its caller removes
 // (scripts/langages/typescript/verifier.mjs, the circuit at the end of its pass); the results of a
-// pass of the circuit, in the base of its act; the trials of the suite of conformity of the modules typescript, cargo, python and c, under the
+// pass of the circuit, in the base of its act; the results of the final pass of the queue, in the
+// base of that pass, closed at its end (scripts/integration/file.mjs); the trials of the suite of conformity of the modules typescript, cargo, python and c, under the
 // directory their caller gives them and removes (scripts/conformite.mjs).
 const HORS_DU_SCRIPT = new Set([
   'scripts/mesure/base-de-passe.mjs: base',
   'scripts/avancement.mjs: dossier',
   'scripts/activites.mjs: dossier',
+  'scripts/integration/file.mjs: dossier',
   'scripts/langages/typescript/exemples.mjs: racine',
   'scripts/langages/typescript/exemples.mjs: dossier',
   'scripts/langages/typescript/exemples.mjs: vide',

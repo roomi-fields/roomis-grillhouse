@@ -2,7 +2,7 @@
 # those that bear the tag @poste (a night test that needs the session of the user, a secret, the real
 # bd, the keyring or systemd; the guard `tests-du-poste` asks for the tag), the tests tagged @equipee
 # included (the envelope, a Temporal server, the binaries of the module cargo: the equipment PC2
-# has), in tranches, then the measures of time and of load alone on the dedicated cores. The poste
+# has, or that this flow lays down), in tranches, then the measures of time and of load alone on the dedicated cores. The poste
 # (PC3) plays the tests tagged @poste alone, and the tranches PC2 did not start in time
 # (scripts/repli-de-la-nuit.mjs, from scripts/nuit.sh).
 #
@@ -68,6 +68,17 @@ jobs:
         run: |
           command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/0.9.0/install.sh | UV_NO_MODIFY_PATH=1 sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # clang-format and clang-tidy, which the night test of the module c plays for real, at the
+      # versions the module pins (its binaires.json), laid down by its own installer (`uv tool
+      # install`, into ~/.local/bin) when the runner lacks them.
+      - name: Install the clang tools
+        env:
+          MODULE_C: packages/grillhouse/scripts/langages/c
+        run: |
+          for outil in clang-format clang-tidy; do
+            command -v "$outil" >/dev/null || node "$MODULE_C/binaires.mjs" installer "$outil@$(node -p "require('./$MODULE_C/binaires.json')['$outil']")"
+          done
 
       # The command claude, at the version ci.yml installs, when the runner lacks it: the night tests
       # start it for its plugins alone (`claude plugin`), never for a session.

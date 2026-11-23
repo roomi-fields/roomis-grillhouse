@@ -142,6 +142,12 @@ Un rouge dont un lieu est un fichier de code (construction, typage, test dont le
 code) n'étend rien et monte comme avant. Le rouge d'un fichier de test d'un lecteur étendu va au
 testwriter (`attribuerLeRouge`), le renvoi les nomme tous en une fois, et chaque renvoi compte dans
 la limite des relances du testwriter ; un paquet déjà étendu aux tests n'est pas étendu de nouveau.
+Ce compte ne repart de zéro que sur une passe finale verte. Les relances viennent tour à tour de
+la passe finale, rouge dans ce test, et des contrôles restreints au fichier rouge, que joue une
+preuve qui le trouve rouge ; quand la preuve ne trouve aucun rouge, les contrôles du plan
+entier jouent, ses paquets et non le lecteur : verts, ils ne remettent pas le compte à zéro avant la passe
+finale suivante. À la borne, trois relances, le circuit s'arrête sur « controles », aux contrôles
+restreints au fichier.
 
 **Une garde ne part pas avant la construction de ce qu'elle lit** : comme une tâche de Turborepo
 attend par son `dependsOn` la construction dont elle lit le produit, et comme les deps d'une cible

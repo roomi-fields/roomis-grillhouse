@@ -121,6 +121,8 @@ const CONTROLES: [string, RegExp][] = [
   ['titres des tests', /^grillhouse titres-de-tests$/],
   ['chemins des tests', /^grillhouse chemins-des-tests$/],
   ['résumés courts', /^grillhouse resumes$/],
+  // grillhouse-3uv.189: each package.json against the entry of its package in the lock.
+  ['verrou des dépendances', /^grillhouse verrou-des-dependances$/],
 ];
 
 const GABARIT = 'templates/projet/package.json';

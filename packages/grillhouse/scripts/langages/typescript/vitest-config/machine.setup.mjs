@@ -3,7 +3,10 @@
 // the temporary directory named after its process and a token, scripts/places-de-la-machine.mjs),
 // which every process it starts inherits: a `npm run verifier` or a circuit that a test plays in
 // a repository of trial takes its part there, among its own parts alone, and no test writes in the
-// user's state. A directory already named in the environment stays. Its passes want no room in
+// user's state. A directory already named in the environment stays. The directory the file named
+// is removed at its end, with what a pass left there (the part of a pass a test killed, which
+// never gave it back), as the register of the file is (./registre.setup.mjs): the guard of the
+// temporary directory of the run finds nothing of it. Its passes want no room in
 // the temporary directory (GRILLHOUSE_TEMPORAIRE_LIBRE, 0) nor on the disk of their copy
 // (GRILLHOUSE_COPIE_LIBRE, 0): the room of the machine is the pass's that plays the file, which
 // waited for it.
@@ -11,13 +14,16 @@
 // That trial machine takes no place of the user's machine (scripts/places-de-la-machine.mjs): only
 // the server of trial a test names (GRILLHOUSE_PLACES_D_ESSAI).
 import { randomUUID } from 'node:crypto';
+import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { afterAll } from 'vitest';
 
-process.env.GRILLHOUSE_PARTS_DE_LA_MACHINE ||= path.join(
-  tmpdir(),
-  `grillhouse-parts-${process.pid}-${randomUUID()}`
-);
+if (!process.env.GRILLHOUSE_PARTS_DE_LA_MACHINE) {
+  const parts = path.join(tmpdir(), `grillhouse-parts-${process.pid}-${randomUUID()}`);
+  process.env.GRILLHOUSE_PARTS_DE_LA_MACHINE = parts;
+  afterAll(() => rmSync(parts, { recursive: true, force: true }));
+}
 // The machine a test reads is a fixed one (GRILLHOUSE_MESURE_D_ESSAI, scripts/places-de-la-machine.mjs
 // `etatDesPlaces`): no test reads the real load or memory of the user's machine.
 process.env.GRILLHOUSE_MESURE_D_ESSAI ||= JSON.stringify({

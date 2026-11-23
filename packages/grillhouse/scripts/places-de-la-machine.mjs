@@ -530,11 +530,22 @@ const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
 const ECHELLE_DES_RANGS = 1e14;
 
 // Plays <f> holding the short lock of the admission of <dossier>, so that two passes never judge
-// the same free budget at once.
+// the same free budget at once. The directory is made again when it goes between its making and
+// the lock: another pass that gives its part back removes it while it is empty (`rendreLaPart`).
+// Once the lock lies in it, it stays.
 function sousLAdmission(dossier, f) {
-  mkdirSync(dossier, { recursive: true });
   const verrou = path.join(dossier, '.admission');
-  prendreVerrou(verrou, { attendre: true });
+  for (;;) {
+    mkdirSync(dossier, { recursive: true });
+    try {
+      prendreVerrou(verrou, { attendre: true });
+      break;
+    } catch (e) {
+      if (e?.code !== 'ENOENT') {
+        throw e;
+      }
+    }
+  }
   try {
     return f();
   } finally {

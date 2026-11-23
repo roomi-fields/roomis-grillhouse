@@ -1243,7 +1243,6 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     ecrireRapport('controles', `${k.resume}.`, resultat('vert'), `${k.resume}.${k.avertissements}`);
     // Green checks: a sending of the developpeur to the testwriter may come again.
     maj.renvoiAuTestwriter = null;
-    maj.relancesTestwriter = 0;
     const entierement = !reprise && !regeneration;
     if (!passeFinale) {
       if (entierement && k.empreinte) {
@@ -1255,8 +1254,13 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       finale = true;
       return decision();
     }
-    // The whole pass green on this lot; the lot the last review accepted goes to the
-    // integration, any other to the review.
+    // The whole pass green on this lot: the relaunches of the testwriter count again from none.
+    // Green checks of the plan keep the count. The test file of a reader package extended to its
+    // tests is red at the final pass and at the checks restricted to that file, each of which
+    // sends the testwriter back; the checks of the whole plan, which play its packages and not
+    // the reader, are green in between, and would else start the count again without end.
+    maj.relancesTestwriter = 0;
+    // The lot the last review accepted goes to the integration, any other to the review.
     // A final pass green on the band of the lot (after a regeneration, on what it changed, or not
     // played when it changed nothing) verifies its tree: the lot accepted on it goes to the
     // integration.

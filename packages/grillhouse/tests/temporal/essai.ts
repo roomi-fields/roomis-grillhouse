@@ -12,6 +12,7 @@ import { createInterface } from 'node:readline';
 import { Connection } from '@temporalio/client';
 import { afterAll } from 'vitest';
 import { EPINGLE } from '../../src/temporal/installation.js';
+import { apresUnRefus } from './port-d-essai.js';
 
 export const PAQUET = path.resolve(__dirname, '../..');
 const TRAVAILLEUR = path.join(PAQUET, 'dist/temporal/travailleur.js');
@@ -96,12 +97,60 @@ export interface ServeurDEssai {
   tuer(): Promise<void>;
 }
 
+// The line of temporal's frontend whose port another process holds.
+const PORT_REFUSE = /address already in use/;
+// The time a server whose port is refused takes to say so and exit, once another server answers
+// on that port. A fixed wait, and so a limit: a server slower than it to say its refusal would
+// still be taken for the one that answers.
+const VERDICT_MS = 500;
+
+// The server of this start did not get its port.
+class PortRefuse extends Error {}
+
+// The port each base of this file is served on: a restart on a base keeps it.
+const portsDesBases = new Map<string, number>();
+
 /**
  * Starts the development server of the program <programme> on the port <port> of the loopback,
  * its state in the database file <base>, the search attributes of the frame registered, its web
  * interface off; resolves once it answers (`attendreLaReponse`), not once its port opens.
+ *
+ * A free port is read then released (`portLibre`), and bound later by the server: another process
+ * of the machine may take it between the two. What follows a refused port is `apresUnRefus`
+ * (./port-d-essai.ts): a first start takes another free port, and `adresse` names the port it
+ * got; a restart on a base this file already served keeps the port of that base, where its
+ * clients are, whatever <port> says, and tries it again after <pauseMs>; <essais> starts in all.
  */
 export async function demarrerLeServeur(
+  programme: string,
+  base: string,
+  port: number,
+  attributs: Record<string, string>,
+  { essais = 5, pauseMs = 1000 }: { essais?: number; pauseMs?: number } = {}
+): Promise<ServeurDEssai> {
+  const servie = portsDesBases.has(base);
+  let p = portsDesBases.get(base) ?? port;
+  for (let essai = 1; ; essai++) {
+    try {
+      const s = await lancerLeServeur(programme, base, p, attributs);
+      portsDesBases.set(base, p);
+      return s;
+    } catch (e) {
+      const suite = e instanceof PortRefuse ? apresUnRefus({ servie, essai, essais }) : 'echec';
+      if (suite === 'echec') {
+        throw e;
+      }
+      if (suite === 'meme-port') {
+        await new Promise(r => setTimeout(r, pauseMs));
+      } else {
+        p = await portLibre();
+      }
+    }
+  }
+}
+
+// One start of the server on <port>: the server once it answers, or `PortRefuse`.
+async function lancerLeServeur(
   programme: string,
   base: string,
   port: number,
@@ -118,7 +167,13 @@ export async function demarrerLeServeur(
   enfant.stderr.on('data', (d: Buffer) => sortie.push(d.toString()));
   enfant.stdout.on('data', (d: Buffer) => sortie.push(d.toString()));
   const adresse = `127.0.0.1:${port}`;
-  await attendreLaReponse(port, 30_000, () => sortie.join(''), enfant);
+  try {
+    await attendreLaReponse(port, 30_000, () => sortie.join(''), enfant);
+  } catch (e) {
+    await tuer(enfant);
+    enfants.delete(enfant);
+    throw e;
+  }
   return {
     adresse,
     base,
@@ -134,7 +189,9 @@ const SERVICE = 'temporal.api.workflowservice.v1.WorkflowService';
 // Waits, within <delai> ms, for the server on <port> to answer: its frontend reports itself
 // serving, and it describes the namespace `default` that start-dev registers. A port that accepts
 // a connection is not enough: the frontend refuses each call until it is healthy (« Frontend is
-// not healthy yet »).
+// not healthy yet »). The server that answers must be <enfant>: one whose port another server
+// holds says so and exits (`PortRefuse`), and an answer on the port is taken only once <enfant>,
+// given the time to say it, still runs and has not said it.
 async function attendreLaReponse(
   port: number,
   delai: number,
@@ -142,11 +199,21 @@ async function attendreLaReponse(
   enfant: ChildProcess
 ) {
   const fin = Date.now() + delai;
-  for (;;) {
-    if (enfant.exitCode !== null) {
+  const refuse = () => PORT_REFUSE.test(journal());
+  const sorti = () => enfant.exitCode !== null || enfant.signalCode !== null;
+  const juger = () => {
+    if (refuse()) {
+      throw new PortRefuse(`port ${port} refusé au serveur :\n${journal()}`);
+    }
+    if (sorti()) {
       throw new Error(`serveur sorti (${enfant.exitCode}) :\n${journal()}`);
     }
+  };
+  for (;;) {
+    juger();
     if (await repond(port)) {
+      await new Promise(r => setTimeout(r, VERDICT_MS));
+      juger();
       return;
     }
     if (Date.now() > fin) {

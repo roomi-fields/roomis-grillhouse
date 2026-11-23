@@ -24,8 +24,11 @@
 // night sets wins (include, exclusions, reporters, delays, one file at a time, the tranche). The
 // variable GRILLHOUSE_NUIT_PAQUET (NUIT_PAQUET), JSON, names the configuration of the package of
 // the run (`config`) and the directories of the units below the unit of the run (`exclus`), which
-// it leaves out. Node (>= 26) reads the package's configuration itself, TypeScript included; a
-// configuration written as a function is called as Vite calls it, for a test run.
+// it leaves out; this configuration takes it out of the environment once read, as the plugin of
+// the night does its choice and its tranche: the unit is the run's own, and a Vitest that a night
+// test starts itself, in another package, plays under no configuration but its own. Node (>= 26)
+// reads the package's configuration itself, TypeScript included; a configuration written as a
+// function is called as Vite calls it, for a test run.
 import { pathToFileURL } from 'node:url';
 import { mergeConfig } from 'vitest/config';
 import base from './vitest-config/base.mjs';
@@ -35,6 +38,7 @@ import { DELAI_NUIT_MS } from './vitest-config/bornes.mjs';
 const { config: fichier, exclus = [] } = process.env[NUIT_PAQUET]
   ? JSON.parse(process.env[NUIT_PAQUET])
   : {};
+delete process.env[NUIT_PAQUET];
 
 // What the night sets wins over the configuration of a package, whose plugins have run first: the
 // exclusions of its unit, the reporters, and the setup files, the package's before the base's.
