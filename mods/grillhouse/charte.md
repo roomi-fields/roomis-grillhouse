@@ -82,6 +82,17 @@ n'attend que les vraies décisions.
 ticket, comme une RFC amendée ; les commentaires restent l'historique. Ainsi chaque agent lit la
 même décision.
 
+**Une tension avec l'architecture monte, elle ne se résout pas dans le ticket** : le créateur du
+ticket, ou l'explorateur au plan, qui ne trouve aucun paragraphe, ou en trouve un que le travail
+contredit, s'arrête et monte au superviseur. Le superviseur charge la compétence `architecte`,
+instruit la décision (l'existant, les options, leurs compromis) et la porte au responsable, qui
+tranche. Ainsi aucun ticket ne décide de l'architecture.
+
+**Un document prescriptif change sur décision seule** : après la décision du responsable, un agent
+architecte met le document en conformité, et le responsable relit son lot ; le relecteur rend tout
+autre lot qui modifie un document prescriptif. Ainsi le document reste la décision, et non la trace
+du code.
+
 **Un fait repris se relit à sa pièce** (fichier:ligne depuis la racine de la copie,
 « $ commande » et sa sortie, ou « ticket, critère N » et « ticket, § <section> » pour ce que dit
 le ticket) avant qu'un agent s'appuie dessus, et un fait transmis porte la

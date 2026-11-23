@@ -409,6 +409,9 @@ Le circuit du ticket fait chaque commit après le verdict `ACCEPTÉ` du relecteu
   l'écris avant de le proposer ; le circuit refuse dès son départ un ticket qui ne l'a pas, avec
   la raison du verrou du développeur. Un mécanisme manquant devient le travail, jamais une compensation
   locale.
+- **Une tension avec l'architecture s'instruit avec `grillhouse:architecte`** (charte, « Une
+  tension avec l'architecture monte ») : je charge la compétence, j'instruis la décision et je la
+  porte au responsable, qui tranche.
 - **Un paquet naît hors du circuit, en quatre temps** (charte, « Un paquet naît hors du
   circuit ») : je mène le grill avec le responsable (1) ; j'écris, avec `redacteur`, sa ligne du
   tableau des composants, son langage compris, et ses `docs/CADRE.md` et `docs/INTERFACE.md`, que

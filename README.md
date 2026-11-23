@@ -109,6 +109,7 @@ Three layers, each with one job:
 | Explorer (agent)              | `explorateur`  | Writes a ticket's plan at step 1 and answers the questioner once; runs an exploration ticket. Writes no code.                         |
 | Measurement                   | `mesure`       | Measures without fooling itself; proves a guard bites before calling it green.                                                        |
 | Writer                        | `redacteur`    | Writes human-read documents (architecture on the arc42/C4 model, frame, interface).                                                   |
+| Architect                     | `architecte`   | Keeps the design: instructs a tension with the architecture for the owner, surveys it, brings a document into conformity.             |
 | Release                       | `release`      | Bumps the version, updates the changelog, tags, publishes.                                                                            |
 
 A change of behaviour is one ticket that passes from agent to agent in its copy: tests (testwriter) →

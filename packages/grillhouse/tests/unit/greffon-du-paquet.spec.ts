@@ -117,6 +117,7 @@ describe('critère 1 — the published package is the plugin', () => {
       'hooks/crochet.mjs',
       'hooks/register.tsx',
       'types/index.d.ts',
+      'skills/architecte/references/exemple-d-architecture.md',
       'skills/pitmaster/SKILL.md',
       'skills/pitmaster/references/consigne-agent.md',
       'agents/testwriter.md',

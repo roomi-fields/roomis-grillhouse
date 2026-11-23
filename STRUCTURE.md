@@ -204,8 +204,10 @@ roomis-grillhouse/
 │   │   ├── questionneur/          # The questioner's skill
 │   │   ├── explorateur/           # The explorer's skill
 │   │   ├── mesure/                # Measurement: measures without lying, proves a guard bites
-│   │   └── redacteur/             # The writer: human-read documents
-│   │       └── references/           # documents-d-un-composant
+│   │   ├── redacteur/             # The writer: human-read documents
+│   │   │   └── references/           # documents-d-un-composant
+│   │   └── architecte/            # The architect: keeps the design, instructs a decision of architecture
+│   │       └── references/           # exemple-d-architecture (an architecture document as an example)
 │   ├── charte.md                  # The common charter: the rules every agent applies, the same in every project, imported by the project's CLAUDE.md
 │   └── hooks/
 │       ├── hooks.json             # The mod's module and the hooks of Claude Code, each `node crochet.mjs <sous-commande>`
