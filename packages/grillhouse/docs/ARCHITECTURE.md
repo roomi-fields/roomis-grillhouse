@@ -1633,9 +1633,9 @@ joue la nuit, PC3 garde ce qui fait attendre un ticket et mesure ce que le flux 
 gardes, les tranches, leur fusion ; il joue quand la file le déclenche après l'entrée d'un lot, au
 plus une fois par heure, ou à la main, sans planification), et `nuit.yml`, les tests de nuit hors du
 poste, tels que Grillhouse les joue chez lui. Le fichier de CI reste au cadre, le projet ne fournit
-que sa préparation (« Scripts to Rule Them All » de GitHub) : chaque job qui joue la vérification ou
-les tests (le job sans tests et les tranches de `ci.yml`, `machine-vierge.yml`, les tranches de
-`nuit.yml` ; non la fusion des rapports) joue, après `npm ci` et avant les binaires des langages,
+que sa préparation (« Scripts to Rule Them All » de GitHub) : chaque job qui vérifie, teste ou fusionne
+les rapports (le job sans tests, les tranches et la fusion de `ci.yml`, `machine-vierge.yml`, les
+tranches de `nuit.yml` ; la fusion lit les outils du projet) joue, après `npm ci` et avant les binaires des langages,
 `npm run --if-present ci:preparer`, le script du `package.json` racine du projet, qui peut exporter
 des variables aux étapes suivantes (`$GITHUB_ENV`) ; sans lui, rien ne change. Le script est rejoué à
 chaque job et par version de Node : il est idempotent, et porte lui-même les droits d'installation

@@ -1,7 +1,7 @@
 // The frame's workflows play the project's preparation script `ci:preparer` (npm's
 // `--if-present`, so a project without it changes nothing) after `npm ci` and before the binaries
-// of the languages and the verification, in each job that verifies or tests; the job that merges
-// reports verifies nothing and gets none. The update (`grillhouse maj`) carries the step to a
+// of the languages and the verification, in each job that verifies or tests, and in the job that
+// merges the reports (its command requires the project's tools). The update (`grillhouse maj`) carries the step to a
 // project's copy that bears the frame's mark, and leaves a copy without the mark alone.
 //
 // Small tests: the text of the workflows, and the update called by its interface.
@@ -64,9 +64,14 @@ describe('the template workflows play the preparation of the project', () => {
     }
   }
 
-  it('ci.yml: the job that merges the reports plays no preparation', () => {
+  it('ci.yml: the job that merges the reports plays the preparation after npm ci, before the merge', () => {
     const etapes = jobs(path.join(GABARIT, 'ci.yml')).fusion?.steps ?? [];
-    expect(etapes.some(e => /ci:preparer/.test(e.run ?? ''))).toBe(false);
+    const install = indexDe(etapes, /^npm ci$/);
+    const preparer = indexDe(etapes, /ci:preparer/);
+    const fusion = indexDe(etapes, /fusion-des-tranches/);
+    expect(etapes[preparer]?.run?.trim()).toBe(PREPARER);
+    expect(preparer).toBeGreaterThan(install);
+    expect(preparer).toBeLessThan(fusion);
   });
 });
 
@@ -82,8 +87,16 @@ describe("the frame's own workflows play the preparation like the template's", (
     }
   }
 
-  it.each(['fusion', 'build'])('ci.yml: the job %s plays no preparation', job => {
-    const etapes = jobs(path.join(CADRE, 'ci.yml'))[job]?.steps ?? [];
+  it('ci.yml: the job fusion plays the preparation after npm ci, before the merge', () => {
+    const etapes = jobs(path.join(CADRE, 'ci.yml')).fusion?.steps ?? [];
+    const preparer = indexDe(etapes, /ci:preparer/);
+    expect(etapes[preparer]?.run?.trim()).toBe(PREPARER);
+    expect(preparer).toBeGreaterThan(indexDe(etapes, /^npm ci$/));
+    expect(preparer).toBeLessThan(indexDe(etapes, /fusion-des-tranches/));
+  });
+
+  it('ci.yml: the job build plays no preparation', () => {
+    const etapes = jobs(path.join(CADRE, 'ci.yml')).build?.steps ?? [];
     expect(etapes.some(e => /ci:preparer/.test(e.run ?? ''))).toBe(false);
   });
 });
