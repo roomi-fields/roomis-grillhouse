@@ -18,7 +18,8 @@
 //   repository, two levels above the package. CADRE is the root the template is read from:
 //   `cadre/` of the installed package, else the repository. So the package reads the same files
 //   wherever it is installed, and the repository keeps one address for each.
-// - The copy of the plugin, ELEMENTS_DU_GREFFON, is each entry of `mods/grillhouse/` but its tests
+// - The copy of the plugin, ELEMENTS_DU_GREFFON, is each entry of `mods/grillhouse/` that git does
+//   not ignore, but its tests
 //   (`tests/`), its configuration of TypeScript (`tsconfig.json`) and what makes it a package of the
 //   workspace (`package.json`, `turbo.json`, `.turbo`, `node_modules`), at the package's root,
 //   beside the package's own entries, PROPRES_DU_PAQUET; an entry of the plugin of the same name
@@ -27,6 +28,7 @@
 //   carries none.
 // - VERSION is the `version` of the package's package.json, the one version of the package and its
 //   plugin.
+import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -66,12 +68,29 @@ export const HORS_DU_GREFFON = [
   'node_modules',
 ];
 
+/**
+ * The entries of a plugin's source directory the package copies: each one but HORS_DU_GREFFON and
+ * what git ignores (a cache a tool wrote there), as `npm pack` leaves out what .gitignore names.
+ */
+export function elementsDuGreffon(source) {
+  if (!existsSync(source)) {
+    return [];
+  }
+  const entrees = readdirSync(source).filter(e => !HORS_DU_GREFFON.includes(e));
+  if (entrees.length === 0) {
+    return [];
+  }
+  const { stdout } = spawnSync('git', ['check-ignore', '-z', '--stdin'], {
+    cwd: source,
+    input: entrees.join('\0'),
+    encoding: 'utf8',
+  });
+  const ignorees = new Set(stdout.split('\0').filter(Boolean));
+  return entrees.filter(e => !ignorees.has(e)).sort();
+}
+
 /** The entries of the plugin, which `--empaqueter` copies at the package's root. */
-export const ELEMENTS_DU_GREFFON = existsSync(SOURCE_DU_GREFFON)
-  ? readdirSync(SOURCE_DU_GREFFON)
-      .filter(e => !HORS_DU_GREFFON.includes(e))
-      .sort()
-  : [];
+export const ELEMENTS_DU_GREFFON = elementsDuGreffon(SOURCE_DU_GREFFON);
 
 /** The root of the frame's files: the package's copy when installed, else the repository. */
 export const CADRE = INSTALLE ? COPIE : DEPOT;
