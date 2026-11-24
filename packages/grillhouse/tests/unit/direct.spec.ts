@@ -2,7 +2,17 @@
 // une copie à lui, puis la relecture de son lot, et rien d'autre ; les paquets du direct, le choix
 // entre démarrage et relance, la consigne du relecteur, le verrou de la copie.
 import { describe, expect, it } from 'vitest';
+import * as travail from '../../scripts/enveloppe/travail-de-la-copie.mjs';
 import { consigne } from '../../scripts/seances.mjs';
+
+const ecritPar = (
+  travail as unknown as {
+    ecritPar: (
+      role: string,
+      estUnTest: (f: string) => unknown
+    ) => ((f: string) => boolean) | undefined;
+  }
+).ecritPar;
 
 // Le module est chargé à l'exécution : tant qu'il manque, chaque test échoue seul, nommé.
 type Git = (...a: string[]) => { status: number; stdout: string; stderr: string };
@@ -25,6 +35,7 @@ interface Direct {
     options?: string[];
     resoudre: (nom: string) => string;
   }) => { sujet: string; plan: string[] };
+  rapportDuConflit: (fichiers: string[]) => string;
   verrouillerLaCopie: (copie: string, git: Git) => void;
 }
 const {
@@ -33,6 +44,7 @@ const {
   deverrouillerLaCopie,
   lancerLeDirect,
   planDuDirect,
+  rapportDuConflit,
   verrouillerLaCopie,
 } = (await import('../../scripts/direct.mjs').catch(() => ({}))) as unknown as Direct;
 
@@ -199,6 +211,35 @@ describe('la copie d’un direct est verrouillée par git', () => {
     expect(appels[0].at(-1)).toBe('/depot/.claude/worktrees/demo-9');
   });
 
+  it('une copie déjà verrouillée ne fait pas échouer la commande, git répondant en français', () => {
+    const copie = '/depot/.claude/worktrees/demo-9';
+    const appels: string[][] = [];
+    expect(() =>
+      verrouillerLaCopie(copie, (...a: string[]) => {
+        appels.push(a);
+        return a[1] === 'lock'
+          ? { status: 128, stdout: '', stderr: `fatal: « ${copie} » est déjà verrouillé` }
+          : {
+              status: 0,
+              stdout: `worktree /depot\nHEAD abc\nbranch refs/heads/main\n\nworktree ${copie}\nHEAD abc\nbranch refs/heads/agent/demo-9\nlocked copie d'un ticket direct\n`,
+              stderr: '',
+            };
+      })
+    ).not.toThrow();
+    expect(appels.at(-1)).toEqual(['worktree', 'list', '--porcelain']);
+  });
+
+  it('un refus de git sur une copie qu’aucun verrou ne tient reste une faute', () => {
+    const copie = '/depot/.claude/worktrees/demo-9';
+    expect(() =>
+      verrouillerLaCopie(copie, (...a: string[]) =>
+        a[1] === 'lock'
+          ? { status: 128, stdout: '', stderr: 'fatal: autre chose' }
+          : { status: 0, stdout: `worktree ${copie}\nHEAD abc\n`, stderr: '' }
+      )
+    ).toThrow(/ne se verrouille pas/);
+  });
+
   it('la déverrouille quand le lot est sur main', () => {
     const appels: string[][] = [];
     deverrouillerLaCopie('/depot/.claude/worktrees/demo-9', (...a: string[]) => {
@@ -210,9 +251,13 @@ describe('la copie d’un direct est verrouillée par git', () => {
 });
 
 // Les ports de la commande, essayés : ce qu'elle lance, dans l'ordre.
-function ports(fiches: object[], verdicts: ('ACCEPTÉ' | 'RENDU')[] = ['ACCEPTÉ']) {
+function ports(
+  fiches: object[],
+  verdicts: ('ACCEPTÉ' | 'RENDU')[] = ['ACCEPTÉ'],
+  enConflit: string[] = []
+) {
   const journal: string[] = [];
-  const lancees: { role: string; constats: unknown[] }[] = [];
+  const lancees: { role: string; constats: unknown[]; conflits?: string[] }[] = [];
   const places: string[] = [];
   return {
     journal,
@@ -234,9 +279,14 @@ function ports(fiches: object[], verdicts: ('ACCEPTÉ' | 'RENDU')[] = ['ACCEPTÉ
       fiches: () => fiches,
       lot: () => 'lot-1',
       resoudre,
-      seance: (role: string, o: { constats?: unknown[]; paquets: string[] }) => {
+      // L'avance de la copie sur main : les fichiers que le travail de la copie trouve en conflit.
+      avancer: () => ({ fichiers: enConflit }),
+      seance: (
+        role: string,
+        o: { constats?: unknown[]; paquets: string[]; conflits?: string[] }
+      ) => {
         journal.push(`seance:${role}`);
-        lancees.push({ role, constats: o.constats ?? [] });
+        lancees.push({ role, constats: o.constats ?? [], conflits: o.conflits });
         return { statut: 'FAIT' };
       },
       relecture: () => {
@@ -308,6 +358,23 @@ describe('la commande lance l’agent, puis le relecteur, et s’arrête', () =>
       lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: echec.ports })
     ).rejects.toThrow(/séance tombée/);
     expect(echec.places).toEqual(['prise', 'rendue']);
+  });
+
+  it('un conflit d’avance de la copie relance l’agent avec les fichiers en conflit, sans arrêt', async () => {
+    const p = ports([], ['ACCEPTÉ'], ['packages/a/src/x.ts', 'packages/a/tests/x.spec.ts']);
+    const r = await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    expect(r.arret).toBeUndefined();
+    expect(p.lancees[0].conflits).toEqual(['packages/a/src/x.ts', 'packages/a/tests/x.spec.ts']);
+    expect(p.journal).toContain('relecture');
+    const rapport = rapportDuConflit(p.lancees[0].conflits ?? []);
+    expect(rapport).toContain('packages/a/src/x.ts');
+    expect(rapport).toContain('packages/a/tests/x.spec.ts');
+  });
+
+  it('l’agent du direct écrit tous les fichiers : la copie le lance sur un conflit de test ou de code', () => {
+    const ecrit = ecritPar('direct', () => false);
+    expect(ecrit?.('a/tests/x.spec.ts')).toBe(true);
+    expect(ecrit?.('a/src/x.ts')).toBe(true);
   });
 
   it('un ticket qui n’est pas direct ne prend aucune place', async () => {

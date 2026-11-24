@@ -30,8 +30,10 @@
 // Exit code: 0 for an ACCEPTÉ lot, 1 for a RENDU lot (the same command resumes the agent), 2 for a
 // usage fault or a refusal, 3 for a stop that goes up to the supervisor.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { ecritPar, preparer } from './enveloppe/travail-de-la-copie.mjs';
 import { prendreUnePlace, VARIABLE_TENUE } from './places-de-la-machine.mjs';
 import { bloquantsDeLaFiche } from './resultats.mjs';
 import { consigne } from './seances.mjs';
@@ -107,6 +109,34 @@ export function decisionDuDirect(fiches, lot) {
 const RAISON_DU_VERROU = "copie d'un ticket direct : son lot n'est pas encore sur main";
 
 /**
+ * Whether git holds the copy <copie> locked, read on its stable output (`git worktree list
+ * --porcelain`, a `locked` line in the block of the copy), never on a message git translates.
+ * @param {string} copie
+ * @param {(...args: string[]) => { status: number, stdout: string, stderr: string }} git
+ */
+function estVerrouillee(copie, git) {
+  const r = git('worktree', 'list', '--porcelain');
+  if (r.status !== 0) {
+    return false;
+  }
+  const chemins = new Set([path.resolve(copie)]);
+  if (existsSync(copie)) {
+    chemins.add(realpathSync(copie));
+  }
+  return String(r.stdout)
+    .split(/\n\s*\n/)
+    .some(bloc => {
+      const lignes = bloc.split('\n');
+      const chemin = lignes.find(l => l.startsWith('worktree '))?.slice('worktree '.length);
+      return (
+        chemin !== undefined &&
+        chemins.has(chemin) &&
+        lignes.some(l => l === 'locked' || l.startsWith('locked '))
+      );
+    });
+}
+
+/**
  * Locks the copy <copie> against the cleaning of the circuit, which removes a copy identical to
  * main (`git worktree lock`, <git> its runner); a copy already locked stays so.
  * @param {string} copie
@@ -114,7 +144,7 @@ const RAISON_DU_VERROU = "copie d'un ticket direct : son lot n'est pas encore su
  */
 export function verrouillerLaCopie(copie, git) {
   const r = git('worktree', 'lock', '--reason', RAISON_DU_VERROU, copie);
-  if (r.status !== 0 && !/already locked/.test(r.stderr)) {
+  if (r.status !== 0 && !estVerrouillee(copie, git)) {
     throw new Error(`la copie ${copie} ne se verrouille pas : ${r.stderr}`.trim());
   }
 }
@@ -133,7 +163,7 @@ export function deverrouillerLaCopie(copie, git) {
 
 /**
  * The command: the agent, then the reviewer, and it stops. <ports> are what it launches
- * (`copie`, `verrouiller`, `fiches`, `lot`, `resoudre`, `seance`, `relecture`); <options> the paths
+ * (`copie`, `verrouiller`, `avancer`, `fiches`, `lot`, `resoudre`, `seance`, `relecture`); <options> the paths
  * `--paquet` adds to the plan.
  * @param {{ id: string, ticket: { title?: string, labels?: string[] }, options?: string[], ports: any }} o
  * @returns {Promise<{ verdict?: string, copie?: string, constats?: object[], arret?: boolean, statut?: string, rendus?: number, fiche?: object }>}
@@ -170,7 +200,10 @@ export async function lancerLeDirect({ id, ticket, options = [], ports }) {
   // its review; given back at the end, whatever the end.
   const rendre = ports.place();
   try {
-    const fiche = await ports.seance('direct', { constats, paquets: plan });
+    // The copy moves onto main before the session: the files its work meets in conflict go to the
+    // agent, who writes them all, as the author of a lot resolves his own rebase.
+    const { fichiers = [] } = (await ports.avancer(copie)) ?? {};
+    const fiche = await ports.seance('direct', { constats, paquets: plan, conflits: fichiers });
     if (fiche?.statut && fiche.statut !== 'FAIT') {
       return { arret: true, statut: fiche.statut, fiche, copie };
     }
@@ -179,6 +212,18 @@ export async function lancerLeDirect({ id, ticket, options = [], ports }) {
   } finally {
     rendre();
   }
+}
+
+/**
+ * What the agent of a direct reads of the files its work meets in conflict with main (« aucun »
+ * without any).
+ * @param {string[]} fichiers
+ * @returns {string}
+ */
+export function rapportDuConflit(fichiers) {
+  return fichiers.length
+    ? `L'avance de la copie sur main a laissé ces fichiers en conflit avec ton travail : ${fichiers.join(', ')}. Les marques de conflit sont dans la copie (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`) : tu résous chaque fichier, marques retirées ; un fichier du lot gardé (\`grillhouse-travail.patch\`, dans le dossier git de la copie) se reprend à la main dans la copie.`
+    : 'aucun';
 }
 
 // The task the agent of a direct reads at the head of its instruction.
@@ -239,7 +284,20 @@ async function portsDuProjet(id, { contexteDuSuperviseur }) {
       fiches: () =>
         lesFiches(ctx).map(e => (e.role === 'relecteur' ? { ...e, lot: e.lot?.arbre } : e)),
       lot: () => arbreDeLaCopie(ctx),
-      seance: async (_role, { constats, paquets }) => {
+      // The advance of the copy onto the tip of main, as the launcher plays it: `{ fichiers }`, the
+      // files in conflict or kept in the lot, which the agent of a direct writes (`ecritPar`).
+      avancer: copie => {
+        const tete = git('rev-parse', 'HEAD');
+        if (tete.status !== 0) {
+          return { fichiers: [] };
+        }
+        const r = preparer(copie, String(tete.stdout).trim(), {
+          ecrit: ecritPar('direct', () => false),
+          sortie: 1,
+        });
+        return { fichiers: [...(r.conflits ?? []), ...(r.enAttente ?? [])] };
+      },
+      seance: async (_role, { constats, paquets, conflits = [] }) => {
         ctx.paquets = paquets;
         ctx.contexte = ctx.contexteDuDirect;
         const r = await seance(ctx, 'direct', {
@@ -249,6 +307,7 @@ async function portsDuProjet(id, { contexteDuSuperviseur }) {
           evenement: 'neuve',
           fiche: 'developpeur',
           constats: ouverts(constats),
+          rapport: conflits.length ? rapportDuConflit(conflits) : undefined,
           lectures: { lots: () => [], references: () => [] },
         });
         return r.fiche;

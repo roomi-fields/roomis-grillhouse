@@ -335,11 +335,16 @@ export function rolesDuConflit(fichiers, estUnTest) {
 
 /**
  * Whether the role <role> writes a file, as a function of the file: the testwriter those
- * <estUnTest> judges, the developpeur the others, any other role none (undefined).
+ * <estUnTest> judges, the developpeur the others, the agent of a direct (`direct`) every file, any
+ * other role none (undefined).
  * @param {string} role
  * @param {(fichier: string) => unknown} estUnTest
  */
 export function ecritPar(role, estUnTest) {
+  if (role === 'direct') {
+    // The agent of a direct writes tests and code together: every file is its own.
+    return () => true;
+  }
   if (role === 'testwriter') {
     return f => Boolean(estUnTest(f));
   }
