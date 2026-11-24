@@ -1,6 +1,8 @@
 import { mkdirSync, readdirSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 
+// Exports `lierDependances`. See packages/grillhouse/docs/architecture/tests.md §2, choice 5.
+
 // The dependencies of the repository <DEPOT>, linked one by one into <repo>, so that Vitest writes
 // its cache in the project of trial: the projects of the night tests (./tests-de-nuit.ts), the
 // package of a configuration of trial, a run of the night's configuration alone.

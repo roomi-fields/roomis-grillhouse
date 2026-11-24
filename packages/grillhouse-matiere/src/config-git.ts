@@ -1,7 +1,8 @@
 // The git settings a test passes by the environment (GIT_CONFIG_COUNT, GIT_CONFIG_KEY_<n>,
-// GIT_CONFIG_VALUE_<n>, git-config(1)), composed with those of the suite (grillhouse-3uv.72.1):
-// the suite sets git once for all its processes, by the environment of its tests, and a test that
-// adds or removes a setting keeps the others.
+// GIT_CONFIG_VALUE_<n>, git-config(1)), composed with those of the suite: the suite sets git once
+// for all its processes, by the environment of its tests, and a test that adds or removes a
+// setting keeps the others. No paragraph of tests.md describes it: see
+// packages/grillhouse-matiere/docs/ARCHITECTURE.md.
 
 // A setting: its key and its value.
 export type ReglageGit = readonly [cle: string, valeur: string];

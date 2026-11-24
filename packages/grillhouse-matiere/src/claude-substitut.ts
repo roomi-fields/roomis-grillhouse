@@ -12,9 +12,11 @@ const VERSION_DU_PAQUET = (
   }
 ).version;
 
-// A stand-in for the `claude` command (grillhouse-3uv.71, critère 6): no test launches the real one.
+// A stand-in for the `claude` command: no test launches the real one. Exports `claudeSubstitut`,
+// `sansClaude`, `cheminSysteme`, `EtatClaude`, `AppelClaude`. No paragraph of tests.md describes
+// it: see packages/grillhouse-matiere/docs/ARCHITECTURE.md.
 // It records each call (argv and working directory) and answers the plugin commands from a state
-// file, as Claude Code 2.1.296 does (measured on 2026-10-12):
+// file, as Claude Code 2.1.296 does:
 // - `plugin list --json`: one entry per installation (id, scope, projectPath for project/local);
 // - `plugin marketplace list --json`: one entry per known marketplace (`name`);
 // - `plugin marketplace add <source>`: the marketplace becomes known, under the name `noms` gives
@@ -22,8 +24,7 @@ const VERSION_DU_PAQUET = (
 // - `plugin install <plugin>@<marketplace> [--scope s]`: refused when the marketplace is unknown,
 //   else an entry of scope s (user by default), whose projectPath is the working directory.
 //   With --scope project and a known marketplace, it first rewrites `.claude/settings.json` of the
-//   working directory, as the real one does even when the install then fails (measured on
-//   2026-10-13, grillhouse-3uv.76): the plugin set to true in `enabledPlugins`, the keys in the
+//   working directory, as the real one does even when the install then fails: the plugin set to true in `enabledPlugins`, the keys in the
 //   order of Claude Code's schema (`ORDRE_DES_REGLAGES`, the others after, in their order), the
 //   text `JSON.stringify(value, null, 2)` and a newline, written even when the value is the same.
 //   The entry carries the version its source publishes (`publiees`; the frame's plugin, the
@@ -62,8 +63,8 @@ export interface AppelClaude {
   cwd: string;
 }
 
-// The order in which Claude Code 2.1.296 writes the keys of a settings file it rewrites, as measured
-// on 2026-10-13 (keys it does not know follow, in the file's order).
+// The order in which Claude Code 2.1.296 writes the keys of a settings file it rewrites (keys it
+// does not know follow, in the file's order).
 const ORDRE_DES_REGLAGES = [
   '$schema',
   'env',

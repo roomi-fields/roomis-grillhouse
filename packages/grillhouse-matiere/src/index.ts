@@ -3,7 +3,8 @@
 // stand-in of `claude`, git's settings by the environment, the reading of a permission rule, the
 // language of a project of trial with the trial directories of the envelope's tests, and the
 // projects of trial of the night tests, with the dependencies of the repository linked into a
-// project of trial.
+// project of trial. The night tests and their trial projects: packages/grillhouse/docs/architecture/tests.md
+// §2, choice 5; the rest has no paragraph there: packages/grillhouse-matiere/docs/ARCHITECTURE.md.
 export * from './claude-substitut.js';
 export * from './config-git.js';
 export * from './dependances.js';

@@ -1,7 +1,8 @@
 // Whether the permission rule <regle> covers the call <appel> (a command, or a tool's name), as
 // Claude Code matches it: `*` any text, and a final ` *` also nothing. Shared by the tests of the
 // rights of a role (packages/grillhouse/tests/unit/droits.spec.ts) and of the tri of the discoveries
-// (packages/grillhouse-essais/tests/circuit.tri.nuit.spec.ts).
+// (packages/grillhouse-essais/tests/circuit.tri.nuit.spec.ts). No paragraph of tests.md describes
+// it: see packages/grillhouse-matiere/docs/ARCHITECTURE.md.
 export function couvre(regle: string, appel: string): boolean {
   const m = /^Bash\((.*)\)$/.exec(regle);
   if (!m) {

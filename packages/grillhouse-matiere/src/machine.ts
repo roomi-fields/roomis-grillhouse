@@ -3,8 +3,11 @@ import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, writeFileSync } fro
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-// What the machine of a run offers the tests, read in one place (grillhouse-3uv.50): a test that
-// needs a capacity of the machine creates it or skips with its reason, never fails for its lack.
+// What the machine of a run offers the tests, read in one place: a test that needs a capacity of
+// the machine creates it or skips with its reason, never fails for its lack. Exports
+// `racineSousLaMaison`, `canWrap`, `hasBd`; the trial root it makes carries the owner file
+// `.grillhouse-base` of the pass. See packages/grillhouse/docs/architecture/tests.md §4.2 (the
+// base directory of a pass).
 
 // The root of trial of a test file outside the temp directory: a fresh directory under ~/.cache,
 // named by <prefixe>, in the home <maison> of the session. The parent is created when the home

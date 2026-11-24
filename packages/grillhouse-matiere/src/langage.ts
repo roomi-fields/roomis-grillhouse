@@ -1,10 +1,12 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-// The languages of a project of trial (grillhouse-ca7): the core reads them in the column
-// « Langage » of the table of the components of its docs/ARCHITECTURE.md, and refuses a project
-// that declares none; and the trial directories of the tests of the envelope. This material
-// mounts nothing, so that a test importing it keeps its size.
+// The languages of a project of trial: the core reads them in the column « Langage » of the table
+// of the components of its docs/ARCHITECTURE.md, and refuses a project that declares none; and the
+// trial directories of the tests of the envelope. This material mounts nothing, so that a test
+// importing it keeps its size. Exports `ARCHITECTURE`, `architecture`, `declarerLesLangages`,
+// `declarerLeLangage`, `enveloppeEssai`. See packages/grillhouse/docs/architecture/tests.md §5.6;
+// the trial directories have no paragraph there: packages/grillhouse-matiere/docs/ARCHITECTURE.md.
 
 /** The document where a project declares the language of each package, from its root. */
 export const ARCHITECTURE = 'docs/ARCHITECTURE.md';

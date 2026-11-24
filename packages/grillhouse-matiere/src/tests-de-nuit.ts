@@ -12,11 +12,13 @@ import path from 'node:path';
 import { lierDependances } from './dependances.js';
 import { declarerLesLangages } from './langage.js';
 
-// The trial harness of the night tests (grillhouse-3uv.34), shared by their tests
+// The trial harness of the night tests, shared by their tests
 // (packages/grillhouse-essais/tests/tests-de-nuit.nuit.spec.ts and
 // tests-de-nuit.script-de-nuit.nuit.spec.ts): the projects of trial that play the real
 // configuration of the repository, and what reads their runs. The repository of the frame and its
-// update are passed in by the caller: this material imports no package.
+// update are passed in by the caller: this material imports no package. Exports `testsDeNuitEssai`
+// (its `projet` and `nuitDe`), `essai`, `PRESSION`, `JOUR`, `NUITS`, `noms`, `rangs`. See
+// packages/grillhouse/docs/architecture/tests.md §2, choice 5.
 
 // The update of the frame that installs it in the project <projet> from the repository <depot>.
 export type MiseAJour = (projet: string, depot: string) => unknown;
@@ -53,15 +55,15 @@ export function testsDeNuitEssai(
 ) {
   // The template of a project, whose package.json and day configuration a project of trial takes.
   const GABARIT = path.join(DEPOT, 'templates/projet');
-  // A project of trial, its frame installed by the update of the frame (critère 9): by default the
+  // A project of trial, its frame installed by the update of the frame: by default the
   // package.json of the template of a project (its build, which builds the example itself, and its
-  // typing, which types it, left out, and its section `grillhouse` with it: the key `grillhouse.nuit` is the project's, critère 8) and
+  // typing, which types it, left out, and its section `grillhouse` with it: the key `grillhouse.nuit` is the project's) and
   // its day configuration of Vitest; `pkg` replaces that package.json and `fichiers` adds or replaces files.
   // `nuits: false` leaves the night tests out. The project of trial proves the night, not the
-  // controls of the frame (grillhouse-3uv.55, critère 8): the update installs `grillhouse:gardes`,
+  // controls of the frame: the update installs `grillhouse:gardes`,
   // which projet() takes away, and Turborepo skips a task without script. Nor does it prove the
-  // lint and the format of the root, which the verification plays when their scripts exist
-  // (grillhouse-61z): the template's `lint` and `format:check` go too, its trial holding no `src/`.
+  // lint and the format of the root, which the verification plays when their scripts exist:
+  // the template's `lint` and `format:check` go too, its trial holding no `src/`.
   function projet(
     enPlus: Record<string, string> = {},
     o: {
@@ -85,7 +87,7 @@ export function testsDeNuitEssai(
       pkg = depot;
     }
     writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg, null, 2));
-    // grillhouse-ca7: the project of trial declares its language in its architecture.
+    // The project of trial declares its language in its architecture.
     declarerLesLangages(repo);
     if (o.jourVitest !== false) {
       for (const f of readdirSync(GABARIT)) {
@@ -101,7 +103,7 @@ export function testsDeNuitEssai(
     }
     mettreAJour(repo, DEPOT);
     // The frame's package at packages/grillhouse/, whose scripts the night names by their path
-    // (grillhouse-3uv.84.2: the update copies none).
+    // (the update copies none).
     for (const f of ['package.json', 'bin', 'scripts']) {
       cpSync(
         path.join(DEPOT, 'packages/grillhouse', f),
@@ -146,7 +148,7 @@ export function testsDeNuitEssai(
       GRILLHOUSE_PRESSION_CPU: pression,
       // A temporary directory of its own, under the trial directory, as Bazel gives each test its
       // TEST_TMPDIR: the night of trial never reads what the neighbour files of the pass leave in
-      // theirs (grillhouse-1eq).
+      // theirs.
       TMPDIR: mkdtempSync(path.join(ESSAIS, 'tmp-')),
     };
     const lancer = (cmd: string, args: string[]) =>
