@@ -1,4 +1,5 @@
-// The choice of the nights of the machine (grillhouse-4nr.13): which projects of the register play
+// The choice of the nights of the machine (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Choix des nuits », §5.3): which projects of the register play
 // their night, as Jenkins builds nothing without a change and Turborepo replays from its cache a
 // task whose inputs did not move. The activities of the nights (./activites.ts) call it.
 //

@@ -1,4 +1,5 @@
-// The activities of the queue of a project (./deroule.ts): each plays one
+// The activities of the queue of a project (./deroule.ts; packages/grillhouse/docs/architecture/
+// entree.md §3.1 « Actes de la file », §4.2): each plays one
 // act of the queue (scripts/faits-du-circuit.mjs over scripts/integration/file.mjs) in a process
 // of its own (../acte.ts), so that a replacement of a branch and its install leave the worker
 // serving; the acts that write give back their effects, which the workflow plays one by one

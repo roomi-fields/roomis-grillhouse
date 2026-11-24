@@ -1,4 +1,5 @@
-// The queue of integration of a project (grillhouse-4nr.8, decision Q3), `file:<racine>`, as bors
+// The queue of integration of a project (packages/grillhouse/docs/architecture/entree.md §3.1
+// « File d'intégration », §4.2, §5.1, §5.2), `file:<racine>`, as bors
 // gates a merge on the tree that enters and Google's TAP plays the touched tests before the submit
 // and the whole suite after it: the queue of scripts/integration/file.mjs, its gestures its acts
 // (./activites.ts). The circuit of a ticket sends its branch at its step 5.2 (the signal ENTRER) and

@@ -1,5 +1,5 @@
 // The generated files a project keeps committed, and their regeneration on a tree where a lot is
-// applied. As npm writes package-lock.json again after a merge instead of merging it, and as a
+// applied (packages/grillhouse/docs/architecture/entree.md §3.1 « Actes de la file », §5.1). As npm writes package-lock.json again after a merge instead of merging it, and as a
 // genrule of Bazel writes its output again on the merged tree, a derived file is never merged: its
 // command writes it again from its merged sources.
 //

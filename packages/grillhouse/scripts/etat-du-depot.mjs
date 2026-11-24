@@ -1,4 +1,5 @@
-// The state of a git repository and the place of the per-branch files the frame keeps beside it:
+// The state of a git repository (packages/grillhouse/docs/architecture/entree.md §4.1: the trees
+// judged, the last green and the results are per-repository files) and the place of the per-branch files the frame keeps beside it:
 // the layer the last green (scripts/dernier-vert.mjs) and the registry of results
 // (scripts/registre-des-resultats.mjs) share. Each keeps `{ … }` per branch under
 // `<git common dir>/grillhouse/<sous>/<branche>.json`, and each measures what counts against the

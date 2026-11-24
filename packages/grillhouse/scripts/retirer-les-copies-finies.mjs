@@ -1,5 +1,6 @@
 // The command of the removal of the finished copies (./copies-finies.mjs), which the night runs
-// once its steps are played (scripts/nuit.sh):
+// once its steps are played (scripts/nuit.sh; packages/grillhouse/docs/architecture/entree.md
+// §5.3, « Après les étapes »):
 //
 //   node scripts/retirer-les-copies-finies.mjs [<copie finie de jouer>…]   from the main tree
 //

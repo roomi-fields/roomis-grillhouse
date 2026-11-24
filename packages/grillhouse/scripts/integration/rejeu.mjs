@@ -1,7 +1,9 @@
-// The clean copy a lot is replayed in, shared by the integration (scripts/integration/integrer.mjs,
+// The clean copy a lot is replayed in (packages/grillhouse/docs/architecture/entree.md §3.1
+// « La copie de la file », §4.1, §5.1), shared by the integration (scripts/integration/integrer.mjs,
 // a lot on the main of the moment) and the queue (scripts/integration/file.mjs, a branch replaced
 // on the main of the moment): the copy made ready and the project's commands. Neither verifies
-// there: the CI of the ticket's branch judges the lot (scripts/integration/file.mjs).
+// there: the final pass (`jugerLeCandidat`, scripts/integration/file.mjs) judges the lot laid on
+// the tip of main, before main moves forward, not the CI of a branch.
 //
 // - `ouvrirCopie` makes the copy <copie> ready on <ref>: detached, every untracked file removed, its
 //   submodules set (`scripts/sous-modules.sh`, a local modification overwritten; a submodule the

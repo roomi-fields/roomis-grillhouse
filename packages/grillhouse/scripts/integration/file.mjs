@@ -1,4 +1,5 @@
-// The gestures of the queue, which brings the branches `agent/<ticket>` the integration committed
+// The acts of the queue (packages/grillhouse/docs/architecture/entree.md §3.1 « Actes de la file »
+// and « Acte de jugement » (`jugerLeCandidat`), §5.1): the gestures of the queue, which brings the branches `agent/<ticket>` the integration committed
 // onto main, one at a time, each judged by a final pass on the tree that enters before main moves, as
 // bors judges the tree that enters, and as Google's TAP plays the touched tests before the submit and
 // the whole suite after it: the workflow of the queue of a project (`file:<racine>`,
@@ -21,8 +22,7 @@
 //    and installed, the command of each one whose files, or the files it reads, the branch touches
 //    writes it again, with the tools of the project, and what it writes enters the branch's
 //    commit; a command that fails makes the branch leave the queue, the command and its output
-//    named (OSC Bridge, 2026-10-31: four conflicts in one day on the generated files of synthhub
-//    and open-synth-descriptors);
+//    named;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its ticket loses
 //    `en-file` and takes a comment, and stays as it is;
 //  - a branch that does not replace (the files in conflict) leaves the queue: its ticket loses

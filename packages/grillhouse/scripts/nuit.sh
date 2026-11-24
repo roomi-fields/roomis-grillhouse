@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# The night: once a day, the full pass played for real, then what the day never plays: the night
+# The night pass (packages/grillhouse/docs/architecture/entree.md §3.1 « Passe de nuit », §5.3):
+# once a day, the full pass played for real, then what the day never plays: the night
 # tests and the measures of time (the time budget benches and the time witnesses). During the day `npm run verifier` (the integration's) plays
 # what the changes since the last green touch (scripts/integration/integrer.mjs,
 # scripts/dernier-vert.mjs); the module of the project's language plays each step
-# (scripts/jointure.d.ts).
+# (scripts/jointure.d.ts). The paragraphs below are the details only this script knows (marks,
+# files, bounds, the text of a night ticket).
 #
 #   npx grillhouse nuit        from the root of the project, which runs it alone
 #                              (src/temporal/nuits/commande.ts): the workflow of the nights of the
@@ -55,8 +57,8 @@
 #   a project that installs the frame, even with a copy of the frame's package.json under
 #   packages/grillhouse/, builds nothing. A failed build turns the night red, and nothing runs.
 # - The night tests: after the full pass, the night tests, then the measures of time alone (the
-#   time budget benches and the time witnesses), which `npm test` and the integration leave out
-#   (grillhouse-bd7), played by the command `tests-de-nuit` of the module of the copy's language
+#   time budget benches and the time witnesses), which `npm test` and the integration leave out,
+#   played by the command `tests-de-nuit` of the module of the copy's language
 #   (the module typescript's: the files `*.nuit.test.*` and `*.nuit.spec.*`, then the files
 #   `*.budget.test.*`, `*.budget.spec.*` and those that import `mesurerAuRepos`, one at a time, by
 #   Vitest; the module python's, `*_nuit_test.py`; the module cargo's, the test targets
@@ -103,7 +105,7 @@
 #   why and the place it holds, a kept copy whose ticket is closed losing what the tools of its
 #   languages wrote there. The night names its own copy to the removal, its steps played: the copy
 #   stays, and loses what the tools of its languages wrote there (`target`, `.turbo`), its
-#   `node_modules` kept, which its next preparation would remove anyway (grillhouse-k5y). The
+#   `node_modules` kept, which its next preparation would remove anyway. The
 #   removal never changes the night's verdict; the end of each circuit runs it too
 #   (scripts/circuit.mjs), the night's copy untouched.
 # - It takes no lock of the integration or of the queue (scripts/integration/file.mjs): an

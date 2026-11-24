@@ -1,4 +1,5 @@
-// The contract of the nights of the machine (grillhouse-4nr.13, decision D6): the one schedule of
+// The contract of the nights of the machine (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Déroulé des nuits », §4.2): the one schedule of
 // the machine, the workflow it starts at each firing, the one workflow that plays the nights one
 // after the other, their signal and query by their names, their ids, what they receive and give
 // back, and the activities they call (./activites.ts). The workflows, their activities and their

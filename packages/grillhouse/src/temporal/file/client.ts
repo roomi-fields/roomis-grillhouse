@@ -1,4 +1,5 @@
-// The client of the queue of a project (./deroule.ts): it reads it (the query L_ETAT_DE_LA_FILE).
+// The client of the queue of a project (./deroule.ts; packages/grillhouse/docs/architecture/
+// entree.md §3.1 « File d'intégration », §4.1): it reads it (the query L_ETAT_DE_LA_FILE).
 // The workflow of a ticket starts it when none runs and enters it at its step 5.2
 // (`entrerDansLaFile`).
 import type { Client } from '@temporalio/client';

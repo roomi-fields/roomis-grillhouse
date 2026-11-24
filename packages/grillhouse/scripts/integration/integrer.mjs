@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The mechanical steps of one integration, run by the circuit of the ticket (scripts/circuit.mjs)
+// The commit of a lot on its ticket's branch (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Actes de la file », §5.1): the mechanical steps of one integration, run by the circuit of the ticket (scripts/circuit.mjs)
 // once the reviewer has accepted the lot, which the circuit builds from the ticket's copy. It
 // commits the lot on the branch of the ticket, or refuses it with the full output of the step that
 // refused. The circuit of the ticket then sends the branch to the queue of the project (the
@@ -60,9 +61,7 @@
 // writes in full is not applied: main's version stays, and each reference whose files or reads the
 // lot touches plays in the copy, on main of the moment, after the install and before the commit,
 // through the mounts, with the tools of the project, and what it writes enters the commit
-// (`regenerer` of scripts/engendres.mjs; BPScript 320.30: refused twice for the one conflict on the
-// index of the interfaces; OSC Bridge, 2026-10-31: four conflicts in one day on the generated files
-// of synthhub and open-synth-descriptors). A command of the project at another code than 0, one of
+// (`regenerer` of scripts/engendres.mjs). A command of the project at another code than 0, one of
 // the frame on a real failure (126, 127, a signal), or a file it changes that its `fichiers` do not
 // cover, refuses the lot, the command, its code and its output named. A conflict on any other file
 // refuses it, as the three-way application says. A generated file of the project the lot removes
@@ -81,7 +80,7 @@
 // 2 usage.
 // Called without a lot to apply (neither `--tests` nor `--code`), it does not commit: the lot is
 // already on main (`lotSurMain`, exit 0, nothing done) or it is refused by the name `lot-absent`
-// (exit 1), the same rule the circuit's resumption reads (scripts/activites.mjs, grillhouse-bf5.2).
+// (exit 1), the same rule the circuit's resumption reads (scripts/activites.mjs).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -197,7 +196,7 @@ export function refusLots(tests, code, { avant, apres }) {
  *     the tip the delivered commit) and that commit names the ticket as `messageDeCommit` writes it,
  *     `(<ticket>)` — a lot the queue entered by fast-forward; its tip naming the ticket keeps a fresh
  *     branch sitting at a commit of main (lancer.sh creates it there, no lot yet) from being taken
- *     for a delivered lot (grillhouse-bf5.2.1);
+ *     for a delivered lot;
  * (b) a commit of main whose message names the ticket (`commitsDelivering`, the prefix read from `.beads/config.yaml`,
  *     a withdrawn one left out) — a lot the queue rebased or merged in a squash, its branch gone or
  *     left behind.

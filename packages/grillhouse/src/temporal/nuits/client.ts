@@ -1,4 +1,5 @@
-// The client of the nights of the machine (./deroule.ts): it asks for nights (the signal DEMANDER,
+// The client of the nights of the machine (./deroule.ts; packages/grillhouse/docs/architecture/
+// entree.md §3.1 « Planification des nuits », §4.1): it asks for nights (the signal DEMANDER,
 // the workflow of the nights started when none runs), reads them (the query L_ETAT_DES_NUITS), and
 // creates or updates the one schedule of the machine, which starts the workflow NUIT_PLANIFIEE
 // every day at its hour, and reads that hour back.

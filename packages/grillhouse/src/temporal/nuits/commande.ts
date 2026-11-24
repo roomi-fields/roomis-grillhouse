@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The subcommand `grillhouse nuit`, the night of a project and the client of the nights of the
-// machine (./client.ts):
+// machine (./client.ts; packages/grillhouse/docs/architecture/entree.md §3.1 « Déroulé des nuits »,
+// §4.2, §5.3):
 //
 //   grillhouse nuit                the pass of the night of the project of the working directory
 //                                  (scripts/nuit.sh), which the workflow of the nights launches

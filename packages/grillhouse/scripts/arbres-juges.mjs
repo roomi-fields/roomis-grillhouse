@@ -1,4 +1,5 @@
-// The trees judged by a final pass: the file `<git common dir>/grillhouse/arbres-juges.json`, beside
+// The registry of the trees judged (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Registre des arbres jugés », §4.1): the trees judged by a final pass: the file `<git common dir>/grillhouse/arbres-juges.json`, beside
 // the last green, keeps the tree each final pass of the circuit (the queue's, on the lot laid on the
 // tip of main) and each complete verification of a lot of the direct way judged green. The pre-push
 // hook (scripts/branche-de-nuit.mjs) lets a commit go to main only when its tree is there, as bors

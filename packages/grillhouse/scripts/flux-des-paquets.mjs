@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The guard of the flows of the CI: each flow declares the packages it exercises, and the reviewer
+// The guard of the flows of the CI (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Flux CI », §5.2): each flow declares the packages it exercises, and the reviewer
 // reads it when a lot touches one of them, as a CODEOWNERS file names who reads a path.
 //
 //   npx grillhouse flux-des-paquets      (one of the frame's guards, scripts/gardes-du-cadre.mjs)

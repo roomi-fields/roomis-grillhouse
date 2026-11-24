@@ -1,4 +1,5 @@
-// The nights of the machine (grillhouse-4nr.13, decision D6), as a Temporal schedule replaces the
+// The nights of the machine (packages/grillhouse/docs/architecture/entree.md §3.1 « Déroulé des
+// nuits », §4.2, §5.3), as a Temporal schedule replaces the
 // lines of a table of tasks: one schedule (`ID_DE_LA_PLANIFICATION`) starts `nuitPlanifiee` at the
 // start of the night, which asks the one workflow of the nights (`nuitsDeLaMachine`,
 // `ID_DES_NUITS`) for the scheduled nights and ends; a request by hand (`npx grillhouse nuit

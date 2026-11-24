@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// A closed ticket keeps its one delivery: refuses a commit message whose title line names a ticket
+// The guard of the one delivery per ticket, on the way of a lot to main (packages/grillhouse/docs/
+// architecture/entree.md §5.1: a lot is one commit, closed on entry): refuses a commit message whose title line names a ticket
 // an earlier commit already delivers, unless that ticket is open in Beads. An open ticket that
 // already has its delivery is a ticket reopened for a fix led by hand: the commit is a correction
 // and passes. The queue of the tickets never starts such a ticket again (its lot is on main,

@@ -1,4 +1,5 @@
-// What the Nuit flow of a project plays (`.github/workflows/nuit.yml`), read from the flow's own
+// What the Nuit flow of a project plays (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Repli de la nuit », §5.3 « Les deux parts »; `.github/workflows/nuit.yml`), read from the flow's own
 // commands and never from a word of it: the night of the poste (scripts/nuit.sh) leaves the flow
 // what the flow declares it plays, and plays the rest (the frame's charter, « Une mesure de temps
 // joue la nuit »: the measures of time play on dedicated cores, which a shared flow lacks unless it

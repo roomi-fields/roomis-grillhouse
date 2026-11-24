@@ -1,4 +1,5 @@
-// The base of a pass in the workflows: a workflow that plays `verifier` gives it a base
+// The base of a pass in the workflows (packages/grillhouse/docs/architecture/entree.md §5.2, the
+// CI flow): a workflow that plays `verifier` gives it a base
 // (`--base <commit>`, scripts/dernier-vert.mjs) for a push alone. A pull request, the call of the
 // workflow by the release (workflow_call), the nightly schedule and any run without a push event play
 // the complete pass, as `turbo --affected` takes its base (`TURBO_SCM_BASE`) from a push event.

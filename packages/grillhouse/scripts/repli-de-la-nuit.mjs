@@ -1,4 +1,5 @@
-// The fallback of the night of Grillhouse: the night of PC3 (scripts/nuit.sh) reads, by `gh`, the jobs
+// The fallback of the night (packages/grillhouse/docs/architecture/entree.md §3.1 « Repli de la
+// nuit », §5.3 « Les deux parts »): the night of PC3 (scripts/nuit.sh) reads, by `gh`, the jobs
 // of the day's Nuit flow, and decides tranche by tranche what PC3 plays in place of PC2, as a queue
 // of agents falls back on another capacity (Buildkite) when no agent takes the job in time.
 //

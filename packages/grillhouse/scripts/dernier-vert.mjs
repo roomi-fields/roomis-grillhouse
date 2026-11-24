@@ -1,4 +1,5 @@
-// The last green of a branch: the tree of the last pass of `npm run verifier` green on every
+// The last green of a branch (the tests-and-languages document owns it; entree.md §4.1 names it
+// beside the final pass, packages/grillhouse/docs/architecture/entree.md §5.1): the tree of the last pass of `npm run verifier` green on every
 // package (scripts/langages/typescript/verifier.mjs), against which the next pass measures itself, as
 // `vitest --changed <ref>` and `jest --onlyChanged` play the tests a change reaches, and Bazel
 // keeps by target the result of a test whose inputs did not move.
@@ -22,8 +23,7 @@
 //   the working tree that kept it alone: measured against the last green of another branch (main's,
 //   from a copy or from the queue's detached replay), its absence is no removal, as Nx affected and
 //   Turborepo's `--filter=[ref]` measure against a commit. Against the branch's own, it is one: the
-//   copy created that file, then removed it. Witness: BPScript 320.3.2.1, 54 `.rapport-suite.json`
-//   untracked on main, each seen removed by every package of a copy, which played whole 264 times.
+//   copy created that file, then removed it.
 // - No last green counts without git, before the first commit, and while a submodule differs
 //   from the commit its parent records (its files changed, or its HEAD moved) or the changes
 //   reach a submodule: git's tree holds a submodule's commit, not its files. The pass is then

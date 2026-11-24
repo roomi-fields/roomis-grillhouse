@@ -1,8 +1,9 @@
-// The removal of the working copies whose content is on main, run by the night once its steps
+// The removal of the working copies whose content is on main (packages/grillhouse/docs/
+// architecture/entree.md §5.3, « Après les étapes »), run by the night once its steps
 // are played (scripts/nuit.sh) and at the end of each circuit (scripts/circuit.mjs,
 // `retirerLesCopiesDuDepot`), as `git worktree prune` and the workspace cleanup at the end of a
 // CI pipeline (Jenkins « Workspace Cleanup »): no copy outlives the entry of its content on main,
-// and no target directory its ticket (grillhouse-cyr: 34 GB of target/ under synthhub's copies).
+// and no target directory its ticket.
 //
 // Its command is ./retirer-les-copies-finies.mjs, which reads the circuits that run on the Temporal
 // server; this module imports nothing of the built `dist/`, since the lock of the machine and the
@@ -16,9 +17,8 @@
 //   preparation would (`git clean -x -e node_modules`). Its line names each output removed with
 //   the place it held (« target retiré (2,9 Go) »). The copy of the integration and that of the
 //   queue, kept that no lock holds, lose them the same way: a copy that lasts holds between its
-//   passes none of the outputs its next pass would remove anyway, and at most one pass's
-//   (grillhouse-k5y: 2.9 GB in the night's, 4.8 GB in the integration's of SyntHub). The night's
-//   copy named by no one is never touched: a night may play in it.
+//   passes none of the outputs its next pass would remove anyway, and at most one pass's.
+//   The night's copy named by no one is never touched: a night may play in it.
 // - First `git worktree prune`: a copy whose folder is gone leaves the list. Then each copy
 //   `git worktree list` names, the main tree and the copies named on the command line (the
 //   night's) left out, passes through scripts/retirer-copie.sh, without `--jetable`: a copy whose
@@ -40,10 +40,9 @@
 //   owner holds. A copy whose circuit the server no longer holds, its ticket still open, stays,
 //   its code and commits untouched, and its line says so with the place it holds and that of each
 //   of its tools' outputs (« son circuit ne tourne plus ; target y tient 5,1 Go ; son code et ses
-//   commits restent »): 5.2 GB of SyntHub's SH-cgi.8.2 were kept so under the words of a running
-//   circuit (grillhouse-k5y). Its ticket closed (delivered directly, or its circuit stopped), its
-//   `.travail` holds it no more: no circuit will remove it (grillhouse-4nr.29: 9 copies, 4.3 GB,
-//   kept so), and the copy is judged as any other; removed, its `.travail` goes with it, its
+//   commits restent »). Its ticket closed (delivered directly, or its circuit stopped), its
+//   `.travail` holds it no more: no circuit will remove it, and the copy is judged as any other;
+//   removed, its `.travail` goes with it, its
 //   balance (`<ticket>.bilan.json`) kept. Without the circuits the server holds (the server
 //   unread, or the end of a circuit, whose act reads no server), its line says only that its
 //   circuit has its working directory.
@@ -272,7 +271,7 @@ function ticketDeLaCopie(chemin) {
  * What holds the disk of the repository whose copy or main tree is <racine>: its copies, the
  * main tree left out, the five largest first, each with its ticket, its place and the place of
  * its tools' outputs (<ignorer>, by default the directories the module of the project's language
- * names): « .claude/worktrees/SH-ae6.2.7 (le ticket SH-ae6.2.7, 5,0 Go, dont target 4,8 Go) ».
+ * names): « .claude/worktrees/<ticket> (le ticket <ticket>, 5,0 Go, dont target 4,8 Go) ».
  * What the wait for room on the disk of a copy names (scripts/attente-de-la-machine.mjs).
  * @param {string} racine
  * @param {string[]} [ignorer]

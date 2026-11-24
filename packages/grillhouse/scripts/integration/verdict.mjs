@@ -1,4 +1,5 @@
-// The reviewer's verdict at a ticket, as the circuit, the integration and the board read it: a
+// The reviewer's verdict at a ticket, as the circuit, the integration (entree.md §5.1, which
+// refuses a lot without `ACCEPTÉ`) and the board read it: a
 // module of its own, which imports nothing, so the board reads a verdict without the integration.
 
 // The first word of a reviewer's verdict: ACCEPTÉ or RENDU.

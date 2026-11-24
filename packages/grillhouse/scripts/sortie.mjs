@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// A release of Grillhouse, its package npm, which carries the frame's plugin: Grillhouse's own
+// The release command (packages/grillhouse/docs/architecture/entree.md §3.1 « Commande de sortie »,
+// §5.4): a release of Grillhouse, its package npm, which carries the frame's plugin: Grillhouse's own
 // script, which no project runs (`grillhouse init` installs the template of a project alone).
 //
 //   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, packages/grillhouse/CHANGELOG.md

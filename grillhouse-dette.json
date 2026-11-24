@@ -252,11 +252,6 @@
         "count": 1
       }
     },
-    "packages/grillhouse/tests/unit/tableau-sections.spec.ts": {
-      "binaire-de-jour": {
-        "count": 1
-      }
-    },
     "packages/grillhouse/tests/unit/temps-de-travail.spec.ts": {
       "binaire-de-jour": {
         "count": 1

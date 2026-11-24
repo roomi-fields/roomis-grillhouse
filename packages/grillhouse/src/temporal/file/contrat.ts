@@ -1,5 +1,6 @@
-// The contract of the queue of integration of a project (grillhouse-4nr.8), the final pass judging
-// the lot laid on the tip of main before main moves (grillhouse-3uv.121): the id of the queue (its
+// The contract of the queue of integration of a project (packages/grillhouse/docs/architecture/
+// entree.md §3.1 « File d'intégration », §4.2), the final pass judging
+// the lot laid on the tip of main before main moves: the id of the queue (its
 // type is the name of its function, ./deroule.ts), its signals and its query by their names, what
 // they receive and give back, the issue of an entry on main (`issueDeLEntree`), and the
 // activities it calls (./activites.ts, each an act of scripts/faits-du-circuit.mjs over

@@ -1,11 +1,12 @@
-// The activities of the nights of the machine (./deroule.ts): the choice of the projects of the
+// The activities of the nights of the machine (./deroule.ts; packages/grillhouse/docs/architecture/
+// entree.md §3.1 « Déroulé des nuits », §4.2 « Jouer la nuit »): the choice of the projects of the
 // register (./choix.ts), the note of a skip in the journal of the night of its project and in the
 // register of the machine, the pass of the night of a project, and the request of the scheduled
 // nights, which the workflow the schedule starts plays.
 //
 // - The pass is `node_modules/.bin/grillhouse nuit` in the main tree of the project, the command
-//   of the version of the frame the project installs (scripts/nuit.sh, unchanged), in a process
-//   group of its own, as the table of tasks launched it. While it plays, the activity sends a
+//   of the version of the frame the project installs (scripts/nuit.sh), in a process
+//   group of its own. While it plays, the activity sends a
 //   heartbeat with its process; an attempt played again after its worker died ends the group of
 //   the dead attempt first (`finirLaTentativeMorte` of ../acte.ts), so that two nights never run
 //   at once. A cancellation sends SIGTERM to the group, then SIGKILL 10 s later.

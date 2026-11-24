@@ -1,4 +1,5 @@
-// The key `grillhouse.poussee` is retired from the frame: one branch, main, receives every lot (the
+// The refusal of the key `grillhouse.poussee` (packages/grillhouse/docs/architecture/entree.md
+// §3.3, « La file et main »; §5.1): the frame carries no such key, one branch, main, receives every lot (the
 // trunk-based development of Google and Chromium). This one reading serves the queue
 // (scripts/integration/file.mjs), the night (scripts/nuit.sh) and the pre-push guard
 // (scripts/branche-de-nuit.mjs): whatever the value of the key (null, an object, a string), the

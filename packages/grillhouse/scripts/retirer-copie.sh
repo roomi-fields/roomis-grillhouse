@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# The removal of a working copy, called by the three places that end one: the agent copy (by
+# The removal of a working copy (packages/grillhouse/docs/architecture/entree.md §5.3, « Après les
+# étapes »; §5.1 for the queue's copy), called by the three places that end one: the agent copy (by
 # scripts/integration/integrer.mjs once its lot is committed, and by the supervisor for a ticket
 # closed without integration), the integration copy (by the same script) and the night copy
 # (scripts/nuit.sh), the last two when their existing copy does not get ready; and by the night

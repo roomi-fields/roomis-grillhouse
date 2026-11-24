@@ -1,4 +1,5 @@
-// The CI of main, read after the lots entered, as Google's TAP plays the whole suite after the
+// The reading and the start of the CI of main (packages/grillhouse/docs/architecture/entree.md
+// §3.1 « Lecture et déclenchement de la CI de main », §5.2), read after the lots entered, as Google's TAP plays the whole suite after the
 // submit, by batches of changes, and a red looks for its culprit among the lots entered since the
 // last green. A lot enters main on its final pass (scripts/integration/file.mjs); the CI plays on
 // main, started by the queue itself after a lot entered, one pass an hour at most, and this module

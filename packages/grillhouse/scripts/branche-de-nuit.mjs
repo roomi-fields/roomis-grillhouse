@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The judged main guard: a push to origin of the branch main carries only a commit whose tree a
+// The judged main guard (packages/grillhouse/docs/architecture/entree.md §3.1 « Garde de main »,
+// §3.3, §5.1): a push to origin of the branch main carries only a commit whose tree a
 // final pass of the circuit, or the verification of a lot of the direct way, judged green
 // (scripts/arbres-juges.mjs), as bors and the merge queues enter only a tree already judged
 // (`refusSurMain`), in every project. Run by the pre-push hook of the frame with git's arguments

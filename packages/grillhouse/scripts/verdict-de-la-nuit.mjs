@@ -1,4 +1,5 @@
-// The durable verdict of a project's night, in two parts: the night plays on two machines, the part
+// The durable verdict of a project's night (packages/grillhouse/docs/architecture/entree.md §3.1
+// « Verdict de la nuit », §4.1, §5.3), in two parts: the night plays on two machines, the part
 // of PC2 (the tranches of the Nuit flow, which PC3 reads by `gh`) and the part of PC3 (the tests of
 // the poste, scripts/nuit.sh). Each part is noted at its end in `<git common dir>/nuit/verdict` (PC3)
 // and `<git common dir>/nuit/verdict-pc2` (PC2), and the board reads them without a server. A part is

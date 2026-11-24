@@ -1,4 +1,5 @@
-// The call of the subcommand `grillhouse nuit` (./commande.ts): what its command line asks, and the
+// The call of the subcommand `grillhouse nuit` (./commande.ts; packages/grillhouse/docs/
+// architecture/entree.md §5.3): what its command line asks, and the
 // main tree of the project it names.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';

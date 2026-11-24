@@ -1,4 +1,6 @@
-// The registry of test results, by branch, of a repository: what the last green pass of
+// The registry of test results, by branch, of a repository (a state of the tests-and-languages
+// document, which entree.md §4.1 names beside the last green; the queue's final pass writes it,
+// §5.1): what the last green pass of
 // `npm run verifier` (scripts/langages/typescript/verifier.mjs) holds, test by test. As Chromium's
 // ResultDB and Mozilla's Treeherder keep the result of each test by version of the main branch, and
 // as `.pytest_cache` keeps the last run's tests, the proof of the red reads here which tests main

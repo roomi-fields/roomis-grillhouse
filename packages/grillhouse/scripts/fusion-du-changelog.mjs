@@ -1,4 +1,5 @@
-// The frame's merge driver of the CHANGELOG, on the model of gnulib's git-merge-changelog: two
+// The frame's merge driver of the CHANGELOG (packages/grillhouse/docs/architecture/entree.md §5.1:
+// a lot enters main by a three-way application that never loses an entry), on the model of gnulib's git-merge-changelog: two
 // lots that each add an entry under the same heading both keep their entry, wherever git merges
 // three ways (the integration's `git apply --3way --index`, the relaunch's `git apply --3way`, the
 // copy's `git merge --ff-only --autostash`, a rebase, a cherry-pick).
