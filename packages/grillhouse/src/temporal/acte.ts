@@ -20,6 +20,7 @@
 // that fails is an error of the activity that is not tried again (`ApplicationFailure`, its
 // message and its stack).
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
@@ -87,6 +88,36 @@ export function cleDeLActivite(info: {
   return d ? `${d.workflowId}:${d.runId}:${info.activityId}` : null;
 }
 
+/**
+ * A reader of the lines of a stream of bytes: <surLigne> receives each whole line, and a character
+ * of several bytes cut between two chunks is decoded whole (the decoder keeps the bytes of its
+ * start). `fin()` hands the last line, without its newline, if any.
+ */
+export function lecteurDeLignes(surLigne: (ligne: string) => void): {
+  ecrire: (morceau: Buffer) => void;
+  fin: () => void;
+} {
+  const decodeur = new StringDecoder('utf8');
+  let reste = '';
+  const lire = (texte: string) => {
+    reste += texte;
+    const lignes = reste.split('\n');
+    reste = lignes.pop() ?? '';
+    lignes.forEach(surLigne);
+  };
+  return {
+    ecrire: morceau => lire(decodeur.write(morceau)),
+    fin: () => {
+      lire(decodeur.end());
+      if (reste) {
+        const derniere = reste;
+        reste = '';
+        surLigne(derniere);
+      }
+    },
+  };
+}
+
 /** Plays the act <acte> on <entree> in the main tree <racine>: its outcome. */
 export async function jouer<T>(acte: string, entree: object, racine: string): Promise<T> {
   const contexte = Context.current();
@@ -105,28 +136,23 @@ export async function jouer<T>(acte: string, entree: object, racine: string): Pr
   const moi = { pid: enfant.pid!, depart: departDe(enfant.pid!) };
   let vie: unknown = precedent;
   let resultat: { genre: string; valeur: unknown } | null = null;
-  let reste = '';
-  enfant.stdout.on('data', (d: Buffer) => {
-    reste += d.toString();
-    const lignes = reste.split('\n');
-    reste = lignes.pop() ?? '';
-    for (const l of lignes) {
-      const m = /^(vie|resultat|erreur) (.*)$/.exec(l);
-      if (!m) {
-        continue;
+  const lecteur = lecteurDeLignes(l => {
+    const m = /^(vie|resultat|erreur) (.*)$/.exec(l);
+    if (!m) {
+      return;
+    }
+    const valeur: unknown = JSON.parse(m[2]!);
+    if (m[1] === 'vie') {
+      // The end of a launch (null) keeps the group it named: what remains of it may run.
+      if (valeur !== null) {
+        vie = valeur;
       }
-      const valeur: unknown = JSON.parse(m[2]!);
-      if (m[1] === 'vie') {
-        // The end of a launch (null) keeps the group it named: what remains of it may run.
-        if (valeur !== null) {
-          vie = valeur;
-        }
-        contexte.heartbeat({ processus: moi, vie } satisfies Battement);
-      } else {
-        resultat = { genre: m[1]!, valeur };
-      }
+      contexte.heartbeat({ processus: moi, vie } satisfies Battement);
+    } else {
+      resultat = { genre: m[1]!, valeur };
     }
   });
+  enfant.stdout.on('data', (d: Buffer) => lecteur.ecrire(d));
   // An act dead before it reads its input says so by its exit, which the close gives.
   enfant.stdin.on('error', () => {});
   // Its last attempt: the one past which Temporal tries it no more (none under an unbounded policy,
@@ -149,6 +175,7 @@ export async function jouer<T>(acte: string, entree: object, racine: string): Pr
   contexte.cancellationSignal.addEventListener('abort', annuler);
   try {
     const code = await new Promise<number | null>(ok => enfant.on('close', c => ok(c)));
+    lecteur.fin();
     const r = resultat as { genre: string; valeur: unknown } | null;
     if (contexte.cancellationSignal.aborted) {
       // What remains of the group ends before the activity fails.

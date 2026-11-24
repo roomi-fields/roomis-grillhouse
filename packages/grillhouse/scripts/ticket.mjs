@@ -94,6 +94,9 @@ export function lancerBd(args, cwd) {
     const enfant = spawn('bd', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
+    // Decoded as a stream: a character cut between two chunks stays whole.
+    enfant.stdout.setEncoding('utf8');
+    enfant.stderr.setEncoding('utf8');
     enfant.stdout.on('data', d => (stdout += d));
     enfant.stderr.on('data', d => (stderr += d));
     enfant.on('error', e => resolve({ status: 127, stdout, stderr: e.message }));

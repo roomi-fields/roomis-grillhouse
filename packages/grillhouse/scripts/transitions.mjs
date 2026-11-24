@@ -596,6 +596,11 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     return true;
   };
   const plan = ticket.paquets.join(', ');
+  // The plan skips the testwriter (« comportement inchangé » he was not asked for, or no package
+  // playing tests): a sending of the red to him leads nowhere, whatever the checks between two.
+  const inchangeSansTestwriter = () =>
+    ticket.sorte?.comportement === 'inchangé' && !m('testwriterDemande');
+  const testwriterSaute = () => inchangeSansTestwriter() || Boolean(lire('sansTests'));
 
   // After the plan: the gesture of a mechanical ticket, the developpeur of a plan without tests,
   // else the testwriter.
@@ -883,7 +888,8 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       // carried ('' for none), null after green checks: the same output twice in a row is a
       // round trip without a new fact.
       const sortie = m('controlesRouges') ?? '';
-      if (m('renvoiAuTestwriter') === sortie) {
+      const dejaRenvoye = m('renvoiAuTestwriter') !== null;
+      if (m('renvoiAuTestwriter') === sortie || (dejaRenvoye && testwriterSaute())) {
         if (lire('empreinte') === avant) {
           inscrire({ etape: CODE, inchange: true }, 'inchange');
         }
@@ -1105,7 +1111,9 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       if (meles) {
         maj.rienALivrer = rien;
       } else {
-        maj.renvoiAuTestwriter = null;
+        if (!inchangeSansTestwriter()) {
+          maj.renvoiAuTestwriter = null;
+        }
         tentative = 0;
       }
       // The report of the reds of the plan, which go to the developpeur when a command of the
@@ -1241,8 +1249,11 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       return arret('a-repasser', null);
     }
     ecrireRapport('controles', `${k.resume}.`, resultat('vert'), `${k.resume}.${k.avertissements}`);
-    // Green checks: a sending of the developpeur to the testwriter may come again.
-    maj.renvoiAuTestwriter = null;
+    // Green checks: a sending of the developpeur to the testwriter may come again, unless the
+    // plan skips the testwriter.
+    if (!inchangeSansTestwriter()) {
+      maj.renvoiAuTestwriter = null;
+    }
     const entierement = !reprise && !regeneration;
     if (!passeFinale) {
       if (entierement && k.empreinte) {

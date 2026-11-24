@@ -121,7 +121,7 @@ describe('le développeur qui renvoie son rouge au testwriter', () => {
         etat: etat(CODE),
         memoire: { controlesRouges: 'critère 1 — mesure rend le double', renvoiAuTestwriter: '' },
       },
-      faits({ renvoi: RENVOI })
+      faits({ renvoi: RENVOI, sansTests: false })
     );
     expect(d.arret).toBeUndefined();
     expect(d.suivant.etape).toBe(TESTS);
@@ -174,5 +174,40 @@ describe('un plan dont aucun paquet ne joue de tests', () => {
     expect(d.suivant.rapport).toContain(
       'Le plan (packages/forms, packages/binder) ne porte aucun test'
     );
+  });
+});
+
+describe('le développeur qui renvoie deux fois de suite sous un plan « comportement inchangé »', () => {
+  const inchange = { ...TICKET, sorte: { comportement: 'inchangé' } };
+  const decider = (memoire: object, depart = etat(CODE)) => {
+    const lus: Record<string, unknown> = {};
+    const f = faits({ renvoi: RENVOI, mecanique: false, sansTests: false }) as Record<
+      string,
+      unknown
+    >;
+    for (let i = 0; i < 50; i++) {
+      const d = T.transition({ ticket: inchange, etat: depart, memoire, faits: lus });
+      if (!d.besoin) {
+        return d;
+      }
+      lus[d.besoin.fait] = f[d.besoin.fait];
+    }
+    throw new Error('trop de faits');
+  };
+
+  it('le testwriter sauté entre les deux, le second renvoi arrête à « sans-livraison »', () => {
+    const premier = decider({});
+    expect(premier.arret).toBeUndefined();
+    expect(premier.suivant.etape).toBe(TESTS);
+    // The circuit decides again on the testwriter's step, which the plan skips.
+    const saut = decider({ ...premier.memoire }, { ...premier.suivant, finale: false });
+    expect(saut.suivant.etape).toBe(CODE);
+    const second = decider({ ...premier.memoire, ...saut.memoire }, saut.suivant as never);
+    expect(second.arret?.nom).toBe('sans-livraison');
+  });
+
+  it('un autre rouge nommé par les contrôles entre les deux ne relance pas un testwriter sauté', () => {
+    const d = decider({ controlesRouges: 'un autre rouge', renvoiAuTestwriter: '' });
+    expect(d.arret?.nom).toBe('sans-livraison');
   });
 });
