@@ -132,6 +132,7 @@ import {
 } from './etapes.mjs';
 import {
   CONTROLES,
+  PREUVE,
   correctionsDuPlan,
   ouvertesDuPlan,
   pasDuPlan,
@@ -160,6 +161,7 @@ import {
   preuve,
   referencesDesRouges,
   regenerer,
+  rejouerLesEngendres,
   relire,
   sansTests,
   testsDuLot,
@@ -416,7 +418,7 @@ const fichiersRougesDe = (rouges, dossier) => [
     rouges
       .flatMap(r => [r.fichier, ...String(r.texte ?? '').split(' ')])
       .filter(t => typeof t === 'string' && t.startsWith(`${dossier}/`))
-      .map(t => t.split(':')[0]),
+      .map(t => t.split(':')[0])
   ),
 ];
 
@@ -592,6 +594,22 @@ function inscrireEtape(ctx, { etape, debut }) {
 // prepared on the tip of main before each of them.
 export const SUR_LA_POINTE = new Set([CONTROLES]);
 
+// The generated files the lot feeds, played again before a pass that plays its tests
+// (`rejouerLesEngendres`): `{}`, or `{ arret }`, the stop « references » of a command that fails.
+function rejeuDesEngendres(ctx) {
+  try {
+    if (rejouerLesEngendres(ctx)) {
+      geste(ctx, 'rejeu-des-engendres');
+    }
+    return {};
+  } catch (e) {
+    if (!(e instanceof Arret)) {
+      throw e;
+    }
+    return { arret: { nom: e.nom, rapport: e.rapport, piece: e.piece, question: e.question } };
+  }
+}
+
 // What the circuit does before the step <etape>, whose regeneration before it is <regeneration>
 // (`ctx.regeneration`), as a merge queue plays its checks on the branch set on the tip of main: at a
 // step of SUR_LA_POINTE, the copy prepared by the launcher's own preparation
@@ -610,7 +628,9 @@ export function avantLaPasse(
   { estUnTest = rouleDeTest(ctx) } = {}
 ) {
   if (!SUR_LA_POINTE.has(etape)) {
-    return { avancee: false, regeneration };
+    return etape === PREUVE
+      ? { avancee: false, regeneration, ...rejeuDesEngendres(ctx) }
+      : { avancee: false, regeneration };
   }
   const tete = dossier =>
     spawnSync('git', ['-C', dossier, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
@@ -638,7 +658,9 @@ export function avantLaPasse(
   }
   if (r.ok) {
     const avancee = tete(ctx.copie).stdout.trim() !== avant.stdout.trim();
-    return { avancee, regeneration: avancee ? null : regeneration };
+    // The generated files the lot's files feed play again on the copy as prepared.
+    const rejeu = rejeuDesEngendres(ctx);
+    return { avancee, regeneration: avancee ? null : regeneration, ...rejeu };
   }
   const fichiers = [...(r.conflits ?? []), ...(r.enAttente ?? [])];
   if (fichiers.length) {
@@ -1566,7 +1588,9 @@ export function testsEtendusDuPlan(ctx, paquets) {
   const dedans = d => paquets.some(p => p === '.' || d === p || d.startsWith(`${p}/`));
   return [
     ...new Set(
-      lesFiches(ctx).flatMap(e => (e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.testsEtendus ?? []) : []))
+      lesFiches(ctx).flatMap(e =>
+        e.role === AUTEUR_DU_CIRCUIT ? (e.plan?.testsEtendus ?? []) : []
+      )
     ),
   ].filter(d => !dedans(d));
 }

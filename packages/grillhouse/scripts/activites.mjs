@@ -337,7 +337,8 @@ export async function relire(
     valider: f =>
       [
         conformiteDuLot(f, { ...liste, references: differences.map(d => d.fichier) }),
-        suiviDesConstats(f, ouvertsALaRelecture)]
+        suiviDesConstats(f, ouvertsALaRelecture),
+      ]
         .filter(Boolean)
         .join(' ; ') || null,
   });
@@ -841,6 +842,20 @@ export function regenerer(
     fichiers,
     restreinte: { avant: avant.commit, apres: apres.commit },
   };
+}
+
+// The generated files the project declares that the lot reads through (`lit`) a file it changes,
+// played again in the copy before any pass that plays the lot's tests (the proof, the checks, the
+// final pass), as a build graph (Bazel, Nx, Turborepo) builds an output before the tests that read
+// it: the regeneration of 4.2 (`regenerer`) on those references alone, their files entering the
+// lot as its. Null when the lot changes nothing they read; else the regeneration's outcome. It
+// throws the stop « references » of `regenerer` when a command fails.
+export function rejouerLesEngendres(ctx) {
+  const changes = changements(ctx).map(c => c.fichier);
+  const noms = (ctx.engendres ?? [])
+    .filter(e => changes.some(f => couvertPar(e.lit, f)))
+    .map(e => e.nom);
+  return noms.length ? regenerer(ctx, { noms, avant: leLotGarde(ctx).lot }) : null;
 }
 
 // The copy of <ctx> restored to the commit <commit> of a lot kept: each file that differs between
@@ -1873,10 +1888,7 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
         : fichiers.length || rouges.length || misDeCote.length
           ? []
           : inchange
-            ? [
-                'Aucun fichier de test du lot : le plan dit « tests-adaptés », rien à prouver.',
-                '',
-              ]
+            ? ['Aucun fichier de test du lot : le plan dit « tests-adaptés », rien à prouver.', '']
             : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
       ...section('Rouges', rouges),
       ...sections,
@@ -2250,9 +2262,7 @@ export function controles(ctx, finale, restreinte = null, reportes = null, fichi
   // red lies in a test file (not yet extended to its tests): the plan extends to those test files
   // alone, and its reds go on as the plan's. One red in its code, or in a task of the package (a
   // build, a typing), keeps the package out of the plan: the circuit does not guess the repair.
-  const testsLecteurs = [
-    ...new Set(lus.filter(r => r.lecteur && r.test).map(r => r.lecteur)),
-  ]
+  const testsLecteurs = [...new Set(lus.filter(r => r.lecteur && r.test).map(r => r.lecteur))]
     .filter(d => lus.filter(r => r.lecteur === d).every(r => r.test))
     .sort();
   const tous = lus.map(r =>

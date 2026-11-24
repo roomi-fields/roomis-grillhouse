@@ -354,6 +354,7 @@ Un geste est ce que le circuit fait seul sur un cas qu'une règle tranche ; chac
 | renvoi après `RENDU` | un constat bloquant va au rôle qu'il nomme | la boucle des relectures |
 | rien à livrer | un auteur qui ne change rien quand les contrôles sont verts passe aux contrôles | l'arrêt `sans-livraison` quand un rouge reste |
 | régénération | un rouge qui est celui d'une référence déclarée ou engendrée va à 4.2 | une fois par arbre |
+| rejeu des engendrés | avant la preuve du rouge, les contrôles et la passe finale, la commande de chaque fichier engendré (`grillhouse.engendres`) dont un motif `lit` couvre un fichier que le lot change se joue dans la copie, comme 4.2 : ses fichiers entrent au lot (Bazel, Nx, Turborepo : une sortie se construit avant les tests qui la lisent) | à chaque passe ; une commande qui échoue arrête à `references` |
 | conflit de l'avance | l'avance de la copie sur main laisse des fichiers en conflit : ils vont au rôle qui les écrit | une séance par rôle, puis `lancement` |
 | extension du plan | une écriture dans un fichier que le ticket nomme, un composant écarté qui rougit, les tests d'un paquet lecteur que le lot fait rougir : le plan s'étend, la pièce écrite au ticket | les paquets que le ticket ou le relevé du plan nomment |
 | arrêt d'un ticket fermé hors de son circuit | la file des tickets arrête le circuit d'un ticket que Beads dit fermé | une fois |

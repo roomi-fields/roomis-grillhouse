@@ -342,6 +342,7 @@ describe('the gestures of the circuit and the questions of its stops, in the lis
       'rejeu',
       'renvoi-au-testwriter',
       'regeneration',
+      'rejeu-des-engendres',
       'rien-a-livrer',
       'mecanique',
       'conflit-de-l-avance',
@@ -349,7 +350,9 @@ describe('the gestures of the circuit and the questions of its stops, in the lis
     for (const g of GESTES) {
       expect(g.geste.trim(), g.genre).not.toBe('');
       expect(g.regle.trim(), g.genre).not.toBe('');
-      expect(g.cas, g.genre).toMatch(/\b[AB]\d{1,2}\b|\bBP 320\.\d+\b|\bSH-[a-z0-9]+\.\d+\b/);
+      expect(g.cas, g.genre).toMatch(
+        /\b[AB]\d{1,2}\b|\bBP 320\.\d+\b|\bSH-[a-z0-9]+\.\d+\b|\bOSD-sf[\d.]+\b/
+      );
     }
     expect(gesteDe('rien-a-livrer')?.genre).toBe('rien-a-livrer');
     expect(gesteDe('controles')).toBeNull();

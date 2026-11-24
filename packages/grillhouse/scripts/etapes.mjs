@@ -225,6 +225,14 @@ export const GESTES = [
     cas: 'BP 320.9 : 292 min autour des références, dont 163 min d’attente pour régénérer à la main l’index des interfaces, le plafond et l’empreinte, des rouges de références mêlés à d’autres ; BP 320.3.9 : le plafond rouge aux contrôles, laissé à une passe finale qui rejoue les mêmes tests sur le même arbre (6,1 min) ; BP 320.6.5 : un test qui lit les références des paquets, rouge à côté de leur garde, envoyé au développeur, qui n’a rien à livrer puis ne peut pas les écrire',
   },
   {
+    genre: 'rejeu-des-engendres',
+    geste:
+      'avant la preuve du rouge, les contrôles et la passe finale, la commande de chaque fichier engendré (`grillhouse.engendres`) dont un motif `lit` couvre un fichier que le lot change, jouée dans la copie ; ses fichiers entrent au lot comme ceux de 4.2',
+    regle:
+      'un fichier engendré se construit avant les tests qui le lisent, et le graphe le rejoue quand ses entrées changent (Bazel, Nx, Turborepo) : aucun test du lot ne lit un fichier engendré périmé',
+    cas: 'OSD-sf1.25.8 : un ticket qui ajoute des cas de conformité rougit au test qui lit les sommes engendrées, sans-livraison ; OSD-sf1.25.13 : la commande jouée à la main deux fois',
+  },
+  {
     genre: 'rien-a-livrer',
     geste: 'aux contrôles, qui jugent le lot',
     regle:
