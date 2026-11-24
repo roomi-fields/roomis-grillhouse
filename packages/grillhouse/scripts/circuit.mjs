@@ -1,620 +1,103 @@
-// The circuit of one ticket, as a merge request: one author, a series of tests and of code, a CI
-// on the whole, a review (grillhouse-3uv.95.6). The plan; one testwriter for the whole ticket, in
-// the envelope of every package of its plan, and the proof of the red; one developpeur on the
-// whole plan, and its checks; the final pass, then the reviewer, and on its ACCEPTÉ the
-// integration, which commits the lot on the ticket's branch and puts that branch in the queue;
-// then the queue, which brings it onto main, pushes and reads the CI, and the circuit ends on the
-// state of the ticket the queue leaves. No component is a unit of the circuit: every step is one
-// for the whole ticket. As a CI applies its rules (retry, regenerate, skip a job without object)
-// without asking anyone and calls a person only for what no rule settles (the approval of a
-// review), the circuit makes the mechanical gestures itself, with no session (GESTES of
-// scripts/etapes.mjs), and every other stop goes up to the supervisor: its state carries the
-// question (`question`: the fact, its piece, file:line or command and output, the question, and
-// who must answer it, MONTEES of scripts/etapes.mjs). He answers by a command of the circuit,
-// `--reprendre` (with `--contexte`) or `--depuis`, `--etendre <paquet>`, or `--arreter`, and
-// carries to the owner what is his (`qui` responsable). So the supervisor is woken only by a
-// question no rule settles. Witness: BP 320.9, sixteen components played one after the other,
-// 118 min of green steps played again, and a finding of the reviewer on `exemplar` lost six times.
+// The circuit of one ticket: the functions of its acts, and the client of its workflow.
+// Mechanism: docs/architecture/circuit.md §3.1, §4, §5; entree.md §5.1.
 //
-// This module is the code of the circuit's acts: the workflow of a ticket under Temporal
-// (src/temporal/circuit/deroule.ts) leads the run, and plays each act in a process of its own
-// (scripts/faits-du-circuit.mjs), which calls the functions below (the opening, a step of the plan,
-// the preparation of a pass, a fact, a stop, the end). The command `npx grillhouse circuit` is the
-// client of that workflow (src/temporal/circuit/commande.ts): it puts a ticket in the queue of the
-// tickets of the project, answers a stop, or stops the circuit. A question reaches the supervisor by
-// the push of the greffon into the queue of its session (`relever`, scripts/superviseur.mjs),
-// which reads the server, and the normal end of a circuit is given once by the same push.
+// The workflow of a ticket under Temporal (src/temporal/circuit/deroule.ts) leads the run and plays
+// each act in a process of its own (scripts/faits-du-circuit.mjs), which calls the functions below
+// (the opening, a step of the plan, the preparation of a pass, a fact, a stop, the end). The command
+// `npx grillhouse circuit` is the client of that workflow (src/temporal/circuit/commande.ts): it
+// queues a ticket, answers a stop (`--reprendre` with `--contexte`, `--depuis <testwriter|preuve|
+// developpeur|controles|passe-finale>`, `--etendre <paquet>[,<paquet>…]`) or stops it (`--arreter`).
+// `--depuis` goes with no `--reprendre` and names no component (a second name is a second ticket,
+// exit 2); `--etendre` refuses a package the repository does not hold (exit 2).
 //
-// The decisions of each step (the step that follows, its attempt, its report, its stop) are the
-// functions without input nor output of scripts/transitions.mjs (`transition`, `apresLaPreuve`,
-// `arretDuTestwriterSaute`, `arretDuGesteMecanique`…), as a workflow of Temporal decides on the
-// results of its activities: the circuit reads the facts they ask for (a session, a pass, a reading
-// of the copy) and plays the effects they return (grillhouse-4nr.5).
-//
-// The circuit decides on structured results only (scripts/resultats.mjs, the one module of their
-// formats), as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a build:
-// the sheet that ends each session, the summaries of Turborepo, the JSON reports of Vitest and the
-// SARIF of the guards. It reads no comment, no answer and no log to decide (a guard holds it:
-// tests/unit/circuit-sans-texte-libre.spec.ts); the handovers at the ticket are for the human and
-// for the next session of their author, the log for the human. Each header of the log, a step's or
-// a session's, dates it in local time with its offset (ISO 8601), one time for the whole log.
-//
+// Invariants the code holds:
+// - Every step is one for the whole ticket: no component is a unit of the circuit.
+// - The decisions of a step (next step, attempt, report, stop) are the functions without input nor
+//   output of scripts/transitions.mjs; the circuit reads the facts they ask for and plays the
+//   effects they return.
+// - The circuit decides on structured results only (scripts/resultats.mjs: the sheet that ends each
+//   session, the Turborepo summaries, the Vitest JSON reports, the guards' SARIF), never on a
+//   comment, an answer or a log (guard: tests/unit/circuit-sans-texte-libre.spec.ts).
 // - The plan is read in the ticket's title, after its last « — », and the ticket holds its
-//   « ## Architecture » section, as the launch reads them (scripts/depart-du-ticket.mjs): the launch
-//   refuses a ticket that does not, by its name, before any work (`npx grillhouse circuit`), and
-//   the opening of each act reads its plan the same way.
-// - Before the testwriter (a run that starts there), the plan (step 1 of scripts/etapes.mjs), as
-//   an RFC: its author writes it after surveying what exists, a review reads it once, the author
-//   answers once, and what stays open goes to who decides. One session of the explorateur out of
-//   the envelope, on Sonnet, its instruction from the sixth template (the ticket, its title,
-//   description and notes, the context), writes the plan in its sheet: its criteria, the packages
-//   to touch, and its open questions, each with why it goes up (its motif: the language, the
-//   architecture, a gap to the reference, or no answer) and its piece; it surveys the components the ticket
-//   reaches by `npx grillhouse composants-affectes <ticket>` (scripts/composants-affectes.mjs),
-//   which the circuit plays no more as a step. A package the repository does not hold, one named
-//   twice, or a component of the survey of the plan (`releve`, which the circuit plays with no
-//   session to check the sheet) that the sheet neither puts in its packages nor sets apart with
-//   its reason (`ecartes`, written at the ticket) makes the sheet out of conformity; so does a
-//   component the title named before the plan, the root (« . ») included, that the sheet neither
-//   keeps nor sets apart with its reason. The circuit
-//   writes the plan at the ticket (`bd update --title -d`): the packages end its title, the list the envelope of every later
-//   session writes; the criteria already written stay as they are, the owner's decision, and the
-//   criteria of the sheet, those the plan adds, follow them, numbered after them (a change or a
-//   removal of a criterion written is an open question of the sheet); the open questions a section
-//   « Questions ouvertes » after them. Each writing starts again from the description before the
-//   plan. Then one session of the questionneur out of the envelope, read-only (no tool of
-//   writing, every write of bd refused, scripts/droits.mjs), as Amazon's bar raiser, a cockpit's
-//   challenge and response and the devil's advocate of a design review, its instruction from the
-//   fifth template (the proposal, the métacadre, the rubrics « Comment on arbitre » and « Ce qui
-//   monte au superviseur » of the project's CLAUDE.md, the ticket's description; no list of
-//   questions), reads the plan once: its sheet `issue` QUESTIONS (each question with what it aims
-//   at), AUCUNE or DÉSACCORD. On its questions, its disagreement as one, the explorateur's session
-//   is resumed once, its instruction from the seventh template (the numbered questions): its sheet
-//   answers each question, CHANGE (what the plan becomes) or GARDE (why it stays), and carries the
-//   plan as it becomes, which the circuit writes at the ticket again. A sheet without a line of
-//   `reponses` by question put (`reponsesAuxQuestions` of scripts/resultats.mjs) is refused and
-//   asked again once of the same session, the numbers that lack named; only after that resumption
-//   does a question without its line stay open. The exchange is written at
-//   the ticket (`Circuit · plan : …`, `Circuit · questionnement : …`) and its end kept with the
-//   circuit's results (`questionnement`: objet, the questions asked, `questions`, change, issue,
-//   ouvertes, the plan's fingerprint). What stays open (the plan's own questions, and each
-//   question the explorateur leaves without an answer) stops at « questionnement », the open questions as its piece, a
-//   question for the supervisor: he changes the plan (`bd update`) or keeps it, then
-//   `--reprendre` lets the plan pass as it is then, from the testwriter. Nothing open, the plan
-//   passes (`plan`, its fingerprint: its title and its criteria); a plan that passed, its title
-//   and criteria unchanged since, passes with no session, whatever else of its description
-//   changed.
-// - The sheet of the plan names what a component publishes to another (`noms_publies`: the
-//   provider, each consumer, its names), which the circuit writes in the description (« ## Noms
-//   publiés », after the sort), written again at each plan from the explorateur's last sheet (an
-//   empty list erases it, a sheet without the field keeps the section the description holds), as
-//   a code owner's approval covers what it reviewed: the guard of the consumers
-//   (scripts/langages/typescript/consommateurs-arbitres.mjs) reads that section, and a lot that
-//   adds those names to the provider's « Consommateurs » lines passes it with no arbitrage
-//   (grillhouse-la3, BPScript 320.14.2.10: a criterion alone named them, the guard refused the
-//   lot, and the supervisor wrote the section by hand before a new session).
-// - The sheet of the plan says the sort of the ticket (`sorte`, read by `sorteDuPlan` of
-//   scripts/resultats.mjs, from the explorateur's last sheet of the plan), which the circuit
-//   writes in the description (« ## Sorte », after the criteria) and at the ticket with the plan:
-//   mechanical, a gesture without new behaviour, with its reason and the command that makes it;
-//   comportement, with its reason and its field `comportement` (changé, tests-adaptés, or
-//   inchangé for a gesture written by hand); absent or unreadable, comportement, the whole circuit (grillhouse-sos, BPScript
-//   320.16: 38 tools moved by mv through the testwriter and the developpeur, 117 comments). As
-//   Google's large-scale changes (Rosie, ClangMR) let a tool make the change that a verification
-//   and a review judge, with no new test, a mechanical ticket (`cheminMecanique`: no `--depuis`,
-//   no testwriter nor developpeur since the plan) skips the testwriter, the proof and the
-//   developpeur, the gesture `mecanique`: at 1.1 one session of the explorateur in the envelope
-//   of the plan (lancer.sh `--fiche geste`, its sheet the schema `geste`, its instruction the
-//   ninth template) plays in the copy the command the plan names; its BLOQUÉ or BESOIN goes up as
-//   any agent's, and a copy that then holds no change of the plan stops at « sans-livraison ». A
-//   `--reprendre` at 1.1 whose copy already holds a change of the plan (the supervisor played the
-//   command himself) plays no session. Then the checks, the final pass, the review and the
-//   integration, as for any lot; a red of the checks or of the final pass that no regeneration
-//   lifts stops at « controles », and a RENDU at « relecture-arret » (`arretDuGesteMecanique`),
-//   a question for the supervisor, who has the lot corrected (`--depuis developpeur`) or stops.
-// - Each session is a launch of scripts/enveloppe/lancer.sh, a child process the circuit waits
-//   for, in its own process group, its errors written to a file: a session outlives the death of
-//   its circuit, and the state names its group while it runs. Its plan, the packages it writes (`--paquets`, the envelope's list), is the plan of the
-//   ticket, the whole copy in sight, the session at the root (`.`); lancer.sh builds the packages
-//   of the plan and what they read before it opens. A session its lock stops on a write out of
-//   the plan ends the circuit at « hors-plan », a question for the supervisor, the write as its
-//   piece. The instruction is written from the first template of
-//   mods/grillhouse/skills/pitmaster/references/consigne-agent.md, each `{{champ}}` filled: the
-//   ticket and its subject, its plan, the ticket's description (its criteria) and its notes (a
-//   section absent without notes), both read with `bd show` at the session's launch, the report of
-//   the step before (the proof, the reds of a check), the findings of the reviewer still open, the
-//   last handover of the session's author at the ticket, for a developpeur without one yet the last
-//   of the testwriter, else « aucune » (no verdict), the text of `--contexte` at its head, as its
-//   task (`tache`), for each agent of the run, and the references 4.2 regenerates, each with its
-//   files (`lesReferences`), so that no session stops on what the circuit writes itself (BP
-//   320.8: a developpeur, code and tests green, stopped on a ceiling, the debt and the index).
-//   The session's own exit code is the one lancer.sh
-//   writes to `.claude/worktrees/<ticket>.travail/seances/<id>/fin`, under the session's id
-//   (`rangDeLaSeance` of scripts/seances.mjs); a launch that leaves none stopped before its
-//   session.
-// - Each session of the explorateur, the questionneur, the testwriter, the developpeur and the
-//   reviewer ends on its sheet (« la fiche »): claude runs with `--output-format json --json-schema
-//   <the schema of its role>` (scripts/resultats.mjs), and its JSON result carries the sheet in
-//   `structured_output`, which the circuit reads (`lireFiche`), each file piece of it checked in
-//   the copy (a piece not found refuses the sheet, asked again once like any other lack):
-//   lancer.sh writes that result to
-//   `.claude/worktrees/<ticket>.travail/seances/<id>/resultat.json`, and a session out of the
-//   envelope prints it there, its exit code beside. Each
-//   sheet read is kept with the ticket's sheets, `.claude/worktrees/<ticket>.fiches.jsonl` (`{
-//   date, role, fiche }`, the lot a review read joined to its sheet, `lot`), beside the circuit's
-//   own results: the report of each proof and check, which the reviewer receives, with its outcome
-//   (`resultat`), each stop (`arret`), each developpeur session that changed no file of the plan
-//   and goes to the checks or stops at « sans-livraison » (`inchange`), each session launched
-//   (`lancement`, its role and its session id), each end of a run on a question (`montee`: its
-//   code, its stop and the supervisor's session that ran it, `superviseur`, the session the
-//   entry of the workflow carries, `ctx.superviseur`), which the bilan reads; and each
-//   of its discoveries (`decouvertes`) filed closed under the ticket (scripts/ticket.mjs, label
-//   `decouverte`). A session that ends without a sheet that conforms (none, one out of its schema,
-//   a code other than 0) is resumed once, the same session, with the third template, which names
-//   what lacks; a second one stops the circuit at « sans-fiche ». The handover at the ticket (`bd
-//   comments add`) stays, for the human.
-// - A fresh session of the testwriter or the developpeur opens under a session id the circuit sets
-//   (`lancer.sh --seance <uuid>`, claude's `--session-id`), kept in the state (`reprise`, its
-//   author and id). A relaunch of that agent (the testwriter after a failed proof, the developpeur
-//   after red checks) resumes that session (`lancer.sh --reprise <id>`, claude's `--resume`, which
-//   finds its transcript in the copy's folder of transcripts, which the envelope mounts in writing
-//   over the real one) with the fourth template of consigne-agent.md (the ticket, its plan, what
-//   changed, the new report, the findings still open), save the last attempt (the testwriter's
-//   third session, the developpeur's on the strong model), a fresh and whole session. A resumption
-//   that ends with a code other than 0, or without a sheet that conforms, writes so at the ticket
-//   and falls back on a fresh and whole session. A resumed session keeps its id, and so its one
-//   line in the register, its latest end.
-// - A session whose transcripts (`~/.claude/projects/<copy in dashes>/`, as scripts/registre.mjs
-//   reads them) and log (its preparation writes there before the session opens) stand still for
-//   20 minutes (IMMOBILE_MS; GRILLHOUSE_CIRCUIT_IMMOBILE_MS replaces it, in milliseconds) is
-//   stopped: SIGTERM, then SIGKILL, to the launcher's group.
-// - Each comment at the ticket carries its author, which bd reads in BEADS_ACTOR (ACTEUR): each
-//   session runs with the author of its role (`testwriter`, `developpeur`, `explorateur`,
-//   `questionneur`, `relecteur`), which the envelope passes on; the circuit writes its own lines
-//   under `circuit` and the reviewer's verdict under `relecteur`, and the queue writes under `file`
-//   (`AUTEUR_DE_LA_FILE` of scripts/integration/file.mjs), whose last word the circuit names. The rights of every session
-//   refuse bd's `--actor`, `-a`/`--author` and the variable itself (AUTEUR_FIXE of
-//   scripts/droits.mjs, in the settings of every role's session), so that no agent changes its
-//   author.
-// - The sheet of the testwriter and of the developpeur carries its status (`statut`): FAIT goes on as
-//   below; BESOIN (its `question`) stops the circuit at once at « besoin », the question and the
-//   handover as its report, with no session more; so does BLOQUÉ (its `raison`), at
-//   « hors-portee », save for a developpeur whose sheet sends the red to the testwriter (`renvoi`,
-//   below), which is that sending. Either stop goes up to the supervisor, the sheet's `piece` as
-//   its piece. A developpeur's FAIT that names criteria it does not hold out of the plan
-//   (`hors_plan`) stops at « hors-portee » too, at 3 Code, as a required check keeps a merge from
-//   a change that does not pass it: the question names each criterion and its package, the
-//   supervisor answers `--etendre <paquet>`, or amends the criterion and `--reprendre` (BP 320.17:
-//   « critère 10 hors plan, non fait » in three handovers fell at the review).
-// - A plan that carries no test (sansTests: in a repository of packages, no package that plays
-//   tests, as the module of language answers (`joueDesTests`), lies in a path of the plan or holds
-//   it, as `npm test -- <chemin>` refuses a path out of every package or in a package without
-//   tests) skips the testwriter and the proof:
-//   the circuit writes `Circuit · testwriter : aucun test …` at the ticket and launches the
-//   developpeur, the reason as his report, then his checks.
-// - Each command of the proof and of the checks runs with its own results directory
-//   (`GRILLHOUSE_RESULTATS`), where Turborepo writes its summary (scripts/langages/typescript/tests.mjs,
-//   scripts/langages/typescript/verifier.mjs), Vitest its JSON report (scripts/langages/typescript/vitest-config/resultats.mjs) and each
-//   guard its SARIF; its output goes to the log, for the human. Each `npm test` of them carries
-//   the mark `GRILLHOUSE_DEPUIS_LE_VERT` (scripts/dernier-vert.mjs): in a package named whole,
-//   the tests that play are those Vitest relates to the files changed since the last green of the
-//   copy's branch (main's while the copy has none), the files named among them, as `npm run
-//   verifier` measures itself; a lot that changes one test plays that test, and those whose graph
-//   it reaches.
-// - Each automatic pass (each command of the proof and of the checks, the final pass, the
-//   integration and the queue) plays under a progress directory of its own
-//   (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), in its working directory while it plays
-//   (`<copie>.travail/avancement-*`), as Bazel counts its actions: Vitest writes
-//   there the files done and planned of each task, the queue the steps of its CI; the board shows
-//   them on the ticket's line (scripts/tableau.mjs). Its total is kept at its end under its kind
-//   (the step and the command), which the next pass of that kind takes while all its tasks have
-//   not started.
-// - The proof of the red plays the new tests alone, as test-driven development runs the test it
-//   has just written to see it red, not the whole suite: one run per package, `npm test -- --force
-//   <files>` in the copy, the test files the testwriter's lot adds or changes (git status of the
-//   copy, the testwriter's files as the integration shares them, `estUnTest`), played for real,
-//   since a run replayed from Turborepo's cache writes no report; the other tests of the plan play
-//   at its checks and at the final pass. With no file of the lot (a reader whose provider changed a
-//   type, no new test to write), each package of the plan that plays tests (`joueDesTests`) plays
-//   whole, `npm test -- <package>`: main is green, so a test HEAD holds that
-//   turns red in the copy is a regression of the lot, a red, written `rouge existant : <file> ›
-//   <name> — <message>`, and so is a file that does not load while no build of the plan fails (it
-//   loaded at HEAD); its greens do not count. A measure on the same tree is not played again, as
-//   Turborepo replays a task whose inputs did not move: a testwriter relaunched who changes no file
-//   of the copy (an expected green added to his sheet alone) is judged on the results of the proof
-//   already played, his sheet read again. A file of the lot that does not load proves nothing; a
-//   failed build of a package of the plan (a task `<package>#build` of the summary) is a red, as
-//   not compiling is failing, named with its log, and the files it keeps from loading play at the
-//   checks, after the developpeur; a failed build of a package out of the plan leaves them broken.
-//   Only a test that carries the ticket's work turns red first: the sheet of the testwriter names
-//   those in `portent_le_travail` (`fichier` from the root, `test` its full name or its title, or
-//   none for every test of the file). A green test the sheet names is a defect of the proof, named
-//   in the report; a green test it does not name is accepted with no reason, counted and listed
-//   under « Verts non nommés ». A green test main already holds has nothing to prove: the registry
-//   of results (scripts/registre-des-resultats.mjs), written by the last complete green pass of
-//   main, holds the passed tests of each file by their full name; a green test of the lot whose
-//   full name the registry holds for its file is set aside, counted, as main stays green; a body
-//   changed under the same name is not told apart. The proof passes with a red (of the lot, existing or of a build), even without
-//   a file of the lot: a testwriter with no new test to write says so in his handover, the existing
-//   reds are enough. Under a plan « comportement changé » it fails without a red, with a broken file
-//   of the lot, or with a green the sheet names; under a plan « comportement
-//   tests-adaptés », nothing has to turn red and every green passes, so only a broken
-//   file fails it (`preuveReussie`). A failed proof relaunches the
-//   testwriter with its report, twice at most. A proof whose pass is at 75 (« à repasser ») proved
-//   nothing: neither passed nor failed, it counts no file and relaunches no testwriter, and the
-//   circuit stops at « a-repasser » as on a check, its report naming the wait of the machine. The report (reds, justified greens) is written at
-//   the ticket. A proof with a red launches the developpeur, and so does a proof without a red
-//   when a finding of the reviewer still open names him, or under a plan « comportement tests-adaptés »,
-//   whose lot has code to write though nothing turns red; else it skips him (`apresLaPreuve`): the
-//   lot is a lot of tests alone, and the checks and the review judge it with no session of the
-//   developpeur.
-// - A developpeur is launched on a red, of a proof or of a check, on a finding of the reviewer, or
-//   on a plan without tests: a session that changes no file of the plan (`git status --porcelain`
-//   of its paths and the content of each file it lists, taken before and after the session; the
-//   sheet and the handover do not count) has nothing to deliver, the gesture `rien-a-livrer`, as a
-//   CI skips a job without object: the checks judge the lot; green, the run goes on; red, the
-//   circuit stops at « sans-livraison », its report sending to the developpeur's handover; but the
-//   red of a reference the lot lowers, the debt of the guards (its notes `a-elaguer`), is
-//   regenerated (4.2) instead of stopping, and the checks of the plan play again on the
-//   regenerated tree. A
-//   developpeur that `--depuis developpeur` launches on the lot the integration refused (`refus`,
-//   the fingerprint of its plan), as a merge queue lets a lot it sends back pass again only with a
-//   change, a session that changes nothing does not go to the checks of the copy, which do not see
-//   that red: the developpeur is relaunched once with the refusal, then the
-//   circuit stops at « sans-livraison », the refusal as its piece (BP 320.37: three times FAIT
-//   without a file changed, the checks of the copy green, the integration red on the same lot).
-// - A sheet of the developpeur whose `renvoi` names the testwriter says the red that remains lies
-//   in the tests of the lot: the gesture `renvoi-au-testwriter`, whether or not the session
-//   changed a file: the testwriter, the sending and the handover as his report, with the red
-//   output of the last checks when checks ran since his session, as a CI hands back the log of
-//   the check that fails, then the proof and the developpeur. The same sending twice in a row on
-//   the same red output of the checks (none, or the same), with no green checks between them,
-//   stops at « sans-livraison »: a round trip without a new fact; a sending on another red output
-//   relaunches the testwriter (BP 320.37: a first sending before any check, a second after checks
-//   that named the guard's line). That output is kept in the state (`controlesRouges`), so that a
-//   `--reprendre` or a `--depuis` keeps it.
-// - Before the checks and before the final pass (SUR_LA_POINTE), a resumption included, the copy is
-//   prepared on the tip of main by the launcher's own preparation (`avantLaPasse`,
-//   scripts/enveloppe/travail-de-la-copie.mjs `preparer`: the guard of its submodules, its
-//   advance, the pose of its submodules, their mount, the installation when the lock file is newer
-//   than it), as a merge queue plays its checks on the branch set on the tip of main: a copy at the
-//   tip or ahead of it is not moved; a copy that moves plays the pass due on its new tree, without
-//   the restriction of a regeneration before it; a preparation that fails (an advance in conflict
-//   or impossible, a branch gone from main, a lot waiting in the copy's git directory, a submodule
-//   or an installation that fails) stops at « lancement », the copy, each file in conflict and the
-//   gesture that resumes named, the work left in the copy (OSC Bridge SH-cgi.8.2: a final pass and
-//   its resumption red on two reds main had lifted, the copy still on its base of origin).
-// - The checks after the developpeur judge the plan, as Bazel plays the targets of a change: `npm
-//   test -- <package>` for each package of the plan, touched by the lot or not (a package that plays no
-//   tests, `joueDesTests`, plays only when the lot touches it), `npm test -- <test files of the lot>`
-//   that none of them holds, each test played once, then the build of what the guard tasks wait for in
-//   the graph (`npm exec --no -- grillhouse construire --gardes`, scripts/taches-du-graphe.mjs: a guard
-//   never plays before the build of what it reads), then the guards in the envelope of the plan
-//   (`GRILLHOUSE_ENVELOPPE=<plan> npm run grillhouse:gardes`, and `npm run gardes` when the project has it). Each red is read in the
-//   results of its command: a failed test of the reports of Vitest, a finding of level error of
-//   the guards' SARIF, a failed build or task of the summary; a red check none of them situates is
-//   one red of the command. As SARIF 2.1.0 and GitHub code scanning, a warning or a note shows
-//   without failing: the report of the checks lists them apart, under their own title, and gives
-//   them to no developpeur; a guards' task red without a finding of level error keeps its line of
-//   a red task, with its log (BPScript 320.17: 8 warnings on the code of the plan, given as reds,
-//   stopped at « sans-livraison » a lot whose one error was the ceiling's, to regenerate). A red a path of the plan holds is the developpeur's; the others (one without a
-//   file, the root's or a project's guard without SARIF, in a package out of the plan, or a red of
-//   a reference, which its regeneration lifts) wait for the final pass. Green,
-//   the checks lead to the final pass.
-// - The final pass: `npm run verifier`, what the integration plays, as bors plays on a lot the
-//   very check of the merge. Turborepo's cache and the last green hold its cost: a task nothing
-//   moved replays from it, and in a package that plays again, the tests Vitest relates to the files
-//   changed since the last green of the copy (scripts/dernier-vert.mjs, main's while the copy has
-//   none); what the lot reaches plays again, by the dependencies, the inputs of the tasks and
-//   `grillhouse.lit` (a reader out of the plan whose tests read a directory the lot changes
-//   included). The final pass always plays the band of the lot, never the whole repository, as
-//   Bazel and Nx `affected` play the reverse-dependency closure of a change
-//   (`laPasseFinale`): the circuit keeps the copy as it stands as a commit on the copy's HEAD,
-//   the base of the lot, and plays `npm run verifier --
-//   --filter=...[<base>...<copie>] --filter=//`, the root's tasks (the guards) with them; the
-//   complete one is the night's and the integration's. The final pass green on the band marks its lot verified (`verifie`, the tree it played, read as a mark of that green pass, never re-hashed and compared — a non-deterministic build artifact of the copy would change it between the pass and the review). A red of a package of the plan goes to the
-//   developpeur, three sessions for the final pass, counted apart from those of the checks, the
-//   third on the strong model. A red in a package out of the plan, or that no package of the plan
-//   holds, stops at « controles », a question for the supervisor: he extends the plan to that
-//   package (`--etendre`), or has the lot corrected (`--depuis developpeur`). A developpeur whose
-//   reds are all findings to settle (`a-arbitrer`) is not launched: the circuit stops at
-//   « controles », each finding as its piece.
-// - The regeneration of the references (step 4.2 of scripts/etapes.mjs), as Bazel's genrules,
-//   `--update-snapshots`, `rustc --bless` and `cargo insta accept`: a generated file is written
-//   again by its command, then the circuit replays only what depends on it. A project declares in
-//   its package.json the references it derives from the whole copy, which no envelope shows (a
-//   fingerprint of its output, a ceiling of a count), `grillhouse.references`: each `{ nom,
-//   commande, fichiers, tests, gardes }`, its name, the shell command that writes it again from the
-//   root of the copy, the files it writes (paths, directories or glob patterns, `*` and `**`, from
-//   the root, as the inputs of Turborepo), the test files that judge it, as `rustc --bless` ties a
-//   test to its expected outputs, `lit`, the files it reads that another reference writes, and the
-//   guards of the project that judge it, by the name their SARIF finding carries (its guard or its
-//   rule). The generated files it keeps committed, `grillhouse.engendres` (scripts/engendres.mjs,
-//   read from the main tree at the launch, a faulty key the stop « lancement »), follow as
-//   references written in full, which the integration regenerates instead of merging them. The
-//   frame's references follow in every project (`referencesDuCadre`): the files the
-//   frame generates, each judged by a guard of the frame, by the names its findings carry (the
-//   index of the interfaces, which reads the interfaces, the turbo.json of the packages, the API
-//   reports, which write the generated part of the interfaces), and the known debt of the guards;
-//   a reference of the project whose first file is one of theirs replaces it. A final pass with a red of a reference (a failed test of one of
-//   their test files, a finding of one of their guards, or a failed test or a finding on a file a
-//   reference of the project covers), mixed with other reds or not, or a
-//   guard's note of a key of the debt inscribed above what it finds (`a-elaguer`, the pass green
-//   or not), sends no developpeur: the gesture `regeneration`, once for that pass. A finding of a
-//   guard of a reference of the project on a file of the plan its files do not cover is no output
-//   it generates but the code of the lot, the developpeur's, at the checks of the plan as at the
-//   final pass, as `--update-snapshots` leaves every failure but the snapshots to its owner; its
-//   finding without a file, or on a file the reference covers, stays the regeneration's (BPScript
-//   320.10: a word of library written in 030-binder, sent to no developpeur). Checks of the
-//   plan with a red of a reference, mixed with other reds or not, call for it too, before any red
-//   goes to the developpeur, as Bazel builds a genrule before the tests that read it: beside
-//   other reds, the checks of the plan play again on the regenerated tree, which judges a test
-//   that reads the reference (BPScript 320.6.5: a test that reads the hash the turbo.json declare,
-//   red beside their guard, went to a developpeur who had nothing to deliver, then could not write
-//   them); alone, the final pass that is due plays once, on the regenerated tree. Neither
-//   regenerates again a reference regenerated on that same tree (BPScript 320.3.9: the ceiling of
-//   the words, red at the checks, left to the final pass, which played the same tests again on
-//   the same tree for 6.1 min before regenerating). The circuit
-//   keeps the copy as a lot, runs the command of each reference concerned on the whole copy (the
-//   debt lowered from the notes of the pass, its guards not played again), out of the envelope,
-//   under the lock of the machine, its output added to the log, then, as make remakes the targets
-//   that depend on an output, the command of each reference that reads a file one has just
-//   written, after it (the index after the API reports), keeps the copy again on that lot, then plays the final pass restricted to what the regeneration changed and its
-//   dependents (`--filter=...[<avant>...<après>] --filter=//`); each red of the pass before in a
-//   package that pass does not play again stands, and a regeneration that changes nothing plays no
-//   pass, every red of the pass before standing. What remains goes each to its owner, as any red
-//   of the final pass; a ceiling never rises (its command lowers it), so a lot beyond it stays red.
-//   That pass green keeps its tree as verified. The files regenerated stay in
-//   the copy: the lot carries them, without a word of the plan, as a genrule writes its output,
-//   and the reviewer reads them with the rest of the lot, the step's report among the circuit's. A
-//   file changed that the files of no reference run cover, or a command that fails stops at
-//   « references » (23): a command of
-//   the project at a code other than 0, one of the frame on a real failure alone (not found, killed
-//   by a signal), since its code also judges the reds it leaves (`npm run api` refuses beside
-//   them), which the pass that follows judges. The stop leaves the copy restored as it was before
-//   the regeneration, a question for the supervisor that carries each deviation (the command and
-//   its code, the file), as the comment at the ticket does; the state keeps the references to regenerate and the reds of the
-//   pass before (`aRegenerer`), for a regeneration resumed. A command of the project that refuses
-//   (no real failure), its only deviation, after a pass (the checks of the plan or the final pass) that carries reds of the plan,
-//   judges the lot, as a ceiling refuses a lot beyond it: the copy restored, those reds go to the
-//   developpeur with the end of its output, within his sessions, then that pass again.
-// - The proof, the checks and the final pass each take their part of the budget of the machine
-//   (scripts/passe-de-la-machine.mjs), shared by every repository of the machine, and wait, the
-//   wait written to the log, while the parts held leave too little; the wait bounded, the pass is
-//   at 75, « à repasser ». The pass names itself in the file of its part, its ticket and its
-//   step's title, and its progress while it holds it, which the board of every project shows.
-// - The report a developpeur receives names his reds first, each on its line (test or finding,
-//   file and line, message, the beginning of a failed build's own log), then the count of the
-//   others and the path of the log; the report of a stop names every red with its package.
-// - A check at 75 (« à repasser ») out of the final pass plays once more, the gesture `rejeu`;
-//   the 75 of verifier, the final pass's, is final (its wait for the lock of the machine reached
-//   its bound). A check still at 75, or a proof at 75, ends the circuit at 75, the gesture `a-repasser`. A red relaunches the developpeur
-//   with its report, twice at most, the third session on the strong model (`lancer.sh --modele
-//   opus`; the other sessions name `sonnet`, and none fixes the effort): three sessions for the checks, and three for the final pass.
-// - After the final pass, green, the reviewer: a session out of the envelope, which sees the whole
-//   repository with its index, claude itself (`claude -p --agent relecteur --session-id <uuid>`,
-//   CLAUDE_BIN replaces claude) in the ticket's copy, on Sonnet, under the rights and the
-//   context of its role (scripts/droits.mjs: the commands its skill names, its index), its instruction from the second template of
-//   consigne-agent.md: the ticket, its plan, the path of the claims file (the ticket's
-//   description as `bd show` gives it at the session's launch, written by the circuit in its
-//   working folder, which the session may read; the instruction carries no criteria, which the
-//   reviewer's skill reads only after its first passes), the files of the lot (the testwriter's by
-//   `estUnTest`, then the others), the elements of the lot (scripts/langages/typescript/elements-du-lot.mjs: each
-//   function, class, type, interface, constant at the top and export the lot adds, changes or
-//   removes against the copy's HEAD, its package, its place, whether its package exports it) and
-//   the circuit's reports since its last sheet (its proofs and checks). Its errors go to the log
-//   under its header line, its line to the register (scripts/registre.mjs --copie), and it is
-//   watched as a session in the envelope is. Its sheet is its verdict (`verdict` ACCEPTÉ or RENDU,
-//   its `conformite`, one line per element of the lot, conforming or not, with the rule it cites
-//   and its piece, its `constats`, each with its piece, `bloquant` with the criterion or rule it
-//   holds, or `remarque`, its `question` with its piece, `ecarts`): a sheet without a line for each element is out of
-//   conformity (`conformiteDuLot` of scripts/resultats.mjs), and a « non » is a blocking finding
-//   for its agent. In a bounded review, each element of the list is marked: to judge again
-//   when the difference between the two lots touches it, else taken up with its line of the
-//   review before. The circuit writes it at the ticket for the human, under the author
-//   `relecteur`, its first word the verdict, each blocking finding under its heading with its
-//   agent, then the conformity and the remarks (`texteDuVerdict`).
-// - A sheet of the reviewer with a `question` (what goes up to the owner, a real word of the
-//   language written in the code) stops the circuit at « besoin », whatever its verdict, before
-//   it commits or relaunches anyone, the question and the verdict as its report, a question the
-//   owner must answer (`qui` responsable), which the supervisor carries.
-// - RENDU: the blocking findings alone send the lot back, a remark reaching only the ticket (a
-//   verdict without a blocking finding is ACCEPTÉ, the sheet's schema refusing any other). Each
-//   blocking finding names its agent, `role` testwriter or developpeur. A finding stays open, kept
-//   in the state (`constats`), across every relaunch, a stop, `--reprendre`, `--depuis` or
-//   `--etendre`, until the reviewer judges it lifted (`suivi`) or accepts the lot, as the
-//   unresolved threads of a review: every session of its agent receives it. The circuit goes
-//   straight to the agent the findings name: the testwriter → preuve → developpeur → controles
-//   when one names the testwriter, else the developpeur → controles; then the final pass,
-//   restricted to what the fix changes and its dependents, and the reviewer again, on the
-//   difference: the lot it read before is kept (`lot` of its sheet's entry), as Gerrit keeps each
-//   patch set, and the next review receives the command of the difference between the two lots,
-//   the files of the lot that changed since, and the findings still open, each with the
-//   developpeur's answer under it, which it judges lifted or not (`suivi`). As the author answers
-//   in each thread of a review on GitHub or Gerrit, a sheet FAIT of the developpeur answers each
-//   finding open for him, by its title, levé or contesté with its reason, with its piece
-//   (`reponses`); a sheet without the answer to one is refused (`reponsesAuxConstats` of
-//   scripts/resultats.mjs) and asked again once of the same session, except in a run whose
-//   supervisor gives the task (`--contexte`), where the findings open at its launch are the
-//   session's context and need no answer, a finding a RENDU states within the run still its task
-//   (`auLancement`, `constatsDeLaSeance`, BP 320.14.2.3), and the answer is kept with
-//   its finding in the state until the next review (BP 320.21: the cause of his choice in a
-//   handover the circuit does not read, three RENDU, then the stop); the rest of the lot it does not read again (its skill, « La relecture
-//   bornée »). A blocking finding without a valid agent, or one that puts its criterion in
-//   question (`critere_en_cause`), stops at « relecture-arret »; so does the third RENDU since the
-//   ticket's last ACCEPTÉ, and a RENDU whose finding goes to the testwriter when the plan skips
-//   him (`sansTests`), at that verdict, as a CI fails fast on a step it cannot run
-//   (`arretDuTestwriterSaute`; OSC Bridge SH-13y.1: three RENDU « Agent : testwriter » on a
-//   package whose tests no command of the frame plays, the developpeur relaunched on an empty
-//   diff each time); its question, declare the tests of the package or settle the finding.
-// - ACCEPTÉ: the integration, as soon as a final pass has verified the lot accepted (`verifie` set
-//   by the pass that routed to this review, read as a mark and not compared to a re-hash of the
-//   live tree, which bors and Zuul teach: merge the commit tested, never a re-hash of a working
-//   tree a build artifact changes); else that pass first, once, its red going to the developpeur
-//   and the lot then to the reviewer again — a cycle bounded (`TOURS_DE_LA_PASSE_FINALE`), a lot
-//   whose tree never settles between the pass and the review stopping on a question to the
-//   supervisor. The circuit builds the lot from the copy: the files the copy changes
-//   against its HEAD, the testwriter's (`estUnTest`: test files and the shared test material)
-//   in one patch, the others in another, each file against HEAD and a new one against nothing
-//   (`git diff --no-index /dev/null`), the copy's index untouched; the message
-//   `<type>(<paquets>): <sujet> (<ticket>)`, the type read from the ticket's type (bug fix,
-//   chore, docs, else feat), its body written once from the final state: the criteria of the plan,
-//   then each deviation the sheets of the developpeur and of the reviewer name (`ecarts`), once by
-//   its subject, from the last sheet that carries it, with the trailer Co-Authored-By; and the
-//   frame's references that write files in full (`--references`; the project's generated files,
-//   the integration reads itself), which the integration regenerates on
-//   main of the moment instead of applying their files from the lot. It runs
-//   scripts/integration/integrer.mjs from the main tree, its output added to the log: 0 is the
-//   commit on agent/<ticket> (which the circuit names from git), the copy removed, the ticket
-//   labelled `en-file`; 75 (« à repasser ») plays it once more (`rejeu`), then stops at
-//   « a-repasser »; any other code is its refusal, which stops at « integration ».
-// - Then the queue: the workflow of the ticket sends its branch to the queue of the project (the
-//   workflow `file:<racine>`, src/temporal/file/deroule.ts, whose gestures are those of
-//   scripts/integration/file.mjs) and awaits its issue (it brings the branch onto main, pushes it
-//   and reads the CI of the commit pushed). Then the state of the ticket: closed, the circuit
-//   sorts the discoveries (below), then ends at « integre », exit 0 (the queue's last word at the
-//   ticket named with it, a CI it could not read); reopened (out of the queue, or a red CI), it
-//   stops at « integration », the queue's last word as its reason; still in the queue, it stops at
-//   « a-repasser », the queue's reason.
-// - Then the tri of the discoveries (step 5.3, `trier`), as Chromium and Mozilla give each new
-//   report a verdict before it is filed: each discovery a sheet filed is kept with the circuit's
-//   results (`decouverte`: its id, its subject); without one, no session. Else one session of the
-//   explorateur out of the envelope, on Sonnet, in the main tree (the copy is gone), under the
-//   rights of its role (reading, the build of a package, no pass), its instruction from the eighth
-//   template, its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
-//   (`conformiteDuTri`), each with its verdict (traitee, doublon, sans-suite, a-porter,
-//   non-confirmee), the piece of a traitee or an a-porter a command played again on main or
-//   file:line; a sheet out of conformity is asked again once of the same session. Each verdict is
-//   written at its discovery's ticket and set there as a label; an a-porter or a non-confirmee
-//   reopens under `a-valider`. A tri without a sheet that conforms leaves the discoveries as they
-//   are, said at the ticket; it never stops the circuit nor undoes the integration. Its end is kept
-//   with the circuit's results (`tri`), which the bilan counts.
-// - The working directory is the ticket's, `.claude/worktrees/<ticket>.travail`: the instructions,
-//   results and errors of the sessions, the patches and message of the integration. It lives as
-//   long as the ticket, as the workspace of a pipeline: a circuit relaunched takes it up again, no
-//   sweep touches it, the queue removes it at the ticket's closure, and scripts/retirer-copie.sh
-//   with the copy of a ticket closed without integration. The results and progress of the passes
-//   live in the base of the run (scripts/mesure/base-de-passe.mjs), removed at its end.
-// - The state, which the workflow of the ticket holds (the effect `etat`, scripts/effets.mjs), is
-//   written again at each step and at each stop: `{ etape, tentative, code, raison, rapport,
-//   finale, relanceSurLeRefus, boucles, question, questionnement, paquets, constats, verifie, mene,
-//   reprise, refus, aRegenerer, controlesRouges, rang, journal }`; `relanceSurLeRefus` whether the
-//   developpeur's next session is the one relaunched once on the lot the integration refuses;
-//   `questionnement` the work on the plan under way (`{ objet, role, seance }`: the plan, the
-//   explorateur or the questionneur, its session), null otherwise; `etape` is the
-//   state's name of a numbered step of the process (scripts/etapes.mjs: geste 1.1, testwriter 2,
-//   preuve 2.1, developpeur 3, controles 3.1, or 4.1 the final pass once `finale`, references 4.2,
-//   relecture 4.3, integration 5.1, file 5.2, tri 5.3), or integre at the end; `raison` names the
-//   stop (« arrete » once the supervisor stopped the circuit); `question` the question of a stop for
-//   the supervisor (`{ arret, fait, piece, question, qui }`), null otherwise; `paquets` the plan of
-//   the ticket, in its order; `constats` the findings of the reviewer still open, each with its
-//   agent; `boucles` the counts of the bounded loops of the step under way, by their key (`tests`,
-//   the testwriter's sessions with their proofs; `code`, the developpeur's with their checks;
-//   `relecture`, the reviews), null at a step without one; `finale` whether the final pass has
-//   begun; `verifie` marks that the last final pass green verified the current lot (the tree it
-//   played), read as a mark and never compared to a re-hash of the live tree, null before;
-//   `toursDeLaPasseFinale` the tours of the ACCEPTÉ ↔ final pass cycle since the last integration
-//   or relaunch, which bounds it, null before;
-//   `mene` the start (an ISO date) of the step the circuit leads itself while it runs, null
-//   otherwise; `reprise` the session of the testwriter or developpeur its relaunches resume,
-//   `{ agent, seance }`, null before any; `refus` the integration's refusal of the lot (`{ rapport,
-//   piece, empreinte, lance, relance }`: its output, its piece, the fingerprint of the plan refused,
-//   whether `--depuis developpeur` launched the developpeur on it, whether a session so launched
-//   left it unchanged once), null before any, once the integration accepts the lot, and on a run
-//   from the testwriter; `rang` the rank of the circuit's arrival among the machine's waits for a
-//   place.
-// - `--reprendre` starts again at the step of the state, its report given to the next session,
-//   after any stop. On a stop « integration », it plays the integration (or the queue) again on the same
-//   lot, as bors retries: a refusal can come from the load or from main (BP 320.16, 320.16.2). On
-//   a stop « questionnement », it lets the plan pass as it is then (the supervisor
-//   changed it or kept it), from the testwriter.
-// - `--depuis <testwriter|preuve|developpeur|controles|passe-finale>` (`departDepuis` of
-//   scripts/reprise.mjs) plays that step and the ones after it, no fingerprint kept (`verts`
-//   emptied, no resumption at a red): nothing is read back. Without it, a red of the checks or
-//   of the final pass resumes at the step that carries it, and a step whose inputs did not
-//   change since its last green is read back (scripts/transitions.mjs). With the developpeur's
-//   or the testwriter's step, it has the lot corrected: the whole ticket from
-//   that step, the text of `--contexte` the task at the head of each agent's instruction in the
-//   run (the agent whose step `--depuis` names reads it as his task; the other one reads whom it
-//   was given to, and does his own role's share: `constatsDeLaSeance` of scripts/seances.mjs),
-//   the reviewer's line CONTEXTE (after a stop
-//   « integration », from the developpeur, the refusal as his report, the red to lift, as a merge
-//   queue sends the lot back to its author with the log of its check; from the testwriter, the
-//   refusal dropped), as a retry
-//   of GitLab CI plays the jobs after it with the same variables: from the testwriter, his proof,
-//   then the developpeur launched by a red of the proof as without `--depuis`; from the
-//   developpeur, his checks; then the final pass, the reviewer and the integration. It goes with
-//   no `--reprendre`, and names no component: a second name is a second ticket, exit 2.
-// - `--etendre <paquet>[,<paquet>…]` (each a path or a package name of the repository) extends the
-//   plan: the circuit writes the title (`bd update --title`), each package gained before the first
-//   package of the plan that reads it, as the module of the language says (`lecteurs` of the
-//   join: the imports of a package of TypeScript, its tests' included, the dependencies of a
-//   crate, of development included), else at its end,
-//   said at the ticket
-//   (`Circuit · plan : le superviseur étend le plan à …`); then the step under way resumes as
-//   after `--reprendre`, on the plan extended, the question as its context with the text of
-//   `--contexte`; a stop « sans-livraison » on the developpeur's sending to the testwriter
-//   resumes at the testwriter, the role it names. The plan so extended has passed (`plan`, its
-//   fingerprint): neither the explorateur nor the questionneur works on it again. A package the
-//   repository does not hold is refused, exit 2.
-// - `--arreter` stops the circuit on the supervisor's word, as a pipeline cancelled: the workflow
-//   cancels the act under way, its session with it, then the state keeps its step, its stop
-//   « arrete », its question lifted, its motive (`--contexte`) as its report, said at the ticket
-//   (`Circuit · arret : le superviseur arrête le circuit : <motif>`), and the workflow ends, giving
-//   that state back, which an answer reopens from. The ticket leaves the queue of the tickets, its
-//   label `circuit` taken off (`sortirDeLaFile`): the queue does not start it again, and the run
-//   that opens on the supervisor's answer puts the label back (`rentrerDansLaFile`).
-// - On a stop other than 0, the circuit applies its gesture when one settles it (`a-repasser`:
-//   it ends at 75), the gesture written at the ticket and in the log; every other stop goes up to
-//   the supervisor (`monter`): its question (MONTEES of scripts/etapes.mjs, or the agent's own
-//   question), its fact (the first line of its motive or its report), its piece (the write out of
-//   the plan, the reds with their file and line, the sheet of the agent, or the command and the end
-//   of the log) and who must answer it, kept in the state (`question`) and written at the ticket
-//   (`Circuit · question : <arrêt> à <étape> — <fait> — au <qui> : <question>`).
-// - At each step, a short comment at the ticket: `Circuit · <étape> : <résumé>`. A proof writes
-//   there its reds and what refuses it; its whole report, the justified greens with their reasons,
-//   goes to `.claude/worktrees/<ticket>.preuve-<n>.md`, which the comment names.
-// - The commands of the circuit (the proof, the checks, the integration) are added to the log of
-//   the ticket, `.claude/worktrees/<ticket>.log`, next to the sessions, each under its header line.
-// - Each step the circuit leads itself, with no agent (the proof, the checks and the final pass,
-//   the integration, the queue), writes at its end, whatever its outcome, a line to the register
-//   of finished agents (scripts/registre.mjs, `ligneDEtape`): the role `circuit`, the ticket, the
-//   step, its start and end, its working time, no tokens. The board counts it, and the step under
-//   way (`mene` in the state), in the ticket's working time.
-// - At each of its ends (« integre », 75, or a question for the supervisor), the circuit writes the
-//   ticket's bilan (scripts/bilan.mjs): its figures by step and by role, measured on the register,
-//   its results and its state, kept in `.claude/worktrees/<ticket>.bilan.json` and written at the
-//   ticket in one short comment, `Circuit · bilan : …`, compared with the bilan before it in the
-//   project.
-// - The codes of the stops, by their name (ARRETS), 0 at « integre »:
-//   10 lancement (lancer.sh stopped before the session, or the tools of the project,
-//   `grillhouse.outils`, refused at the launch or a resumption, before any session, or the copy
-//   that does not move forward to the tip of main before the checks or the final pass, its
-//   conflicts named), 11 bloqué (a motionless transcript),
-//   12 sans-fiche (twice no sheet that conforms), 13 preuve (the third proof fails), 14 controles
-//   (the third developpeur of the checks or of the final pass leaves a red check, a red of the
-//   final pass out of the plan or that no package of the plan holds, or reds to settle),
-//   15 sans-livraison (a developpeur session that changes no file of the plan, its checks red; the
-//   first session of a `--reprendre` whose plan already holds changes goes on to the checks; a
-//   second developpeur session that `--depuis developpeur` launched on the lot the integration
-//   refused and that changes nothing; or
-//   the developpeur's same sending to the testwriter twice in a row, on the same red output of the
-//   checks, no green checks between them), 16 relecture-arret (a finding without a valid agent, one to the testwriter the plan skips,
-//   one on a criterion, the third RENDU), 17 integration (the integration script refuses the lot, or the queue reopens the
-//   ticket; at the same code, two stops of the resumption of the integration under their own
-//   names: lot-absent, a lot neither on main nor in the copy, and copie-gardee, a lot on main
-//   whose copy does not get removed), 19 hors-portee (a testwriter or developpeur whose sheet says BLOQUÉ, without a
-//   sending to the testwriter, or a developpeur's FAIT with criteria out of the plan), 20 besoin (a testwriter or developpeur whose sheet says BESOIN, a
-//   reviewer whose sheet carries a `question`, or a ticket labelled `arbitrage` whose arbitrage
-//   `refusArbitrage` of scripts/integration/integrer.mjs refuses, at the launch or a resumption,
-//   before any session), 22 questionnement (questions of the plan left open
-//   after the explorateur's answer), 23 references (a regeneration of 4.2 that changes a file
-//   no reference writes, or whose command fails), 24 hors-plan (a testwriter or developpeur session its lock
-//   stops on a write out of the plan, `hors-plan` that lancer.sh ranges under the session's id), 25 inattendu
-//   (an act that fails, an exception no rule of the circuit settles: its message, its stack and its
-//   step in its question, `arretInattendu`), each a question for the supervisor; 26 limite-d-usage (a session the
-//   usage limit cuts: no question, the circuit reports itself to the hour the usage returns and resumes the step); 75 a-repasser (a check or the integration still at 75 once played again, a proof at 75,
-//   or the branch still in the queue), the gesture `a-repasser`.
+//   « ## Architecture » section (scripts/depart-du-ticket.mjs); the launch refuses a ticket that
+//   does not, before any work.
+// - The mechanical gestures (GESTES of scripts/etapes.mjs) play with no session; every other stop
+//   goes up to the supervisor (`monter`) with its `question` { arret, fait, piece, question, qui }
+//   (MONTEES of scripts/etapes.mjs), written at the ticket (`Circuit · question : …`).
+// - Each session is a launch of scripts/enveloppe/lancer.sh in its own process group; its exit code
+//   is the one lancer.sh writes to `.claude/worktrees/<ticket>.travail/seances/<id>/fin`
+//   (`rangDeLaSeance`, scripts/seances.mjs), its result to `resultat.json` beside it. Its sheet is
+//   read in `structured_output` (`lireFiche`), each file piece checked in the copy; a session with
+//   no conforming sheet is resumed once (same session), a second one stops at « sans-fiche ».
+// - A session whose transcripts and log stand still for 20 minutes (IMMOBILE_MS;
+//   GRILLHOUSE_CIRCUIT_IMMOBILE_MS replaces it, in milliseconds) gets SIGTERM, then SIGKILL, to the
+//   launcher's group.
+// - Each comment at the ticket carries its author (BEADS_ACTOR): the role's name for a session,
+//   `circuit`, `relecteur` for the verdict, `file` for the queue (AUTEUR_DE_LA_FILE of
+//   scripts/integration/file.mjs); the rights of every session refuse `--actor`, `-a`/`--author`
+//   and the variable itself (AUTEUR_FIXE of scripts/droits.mjs).
+// - Each header of the log dates it in local time with its offset (ISO 8601).
+// - Each pass (proof, checks, final pass, integration, queue) plays under its own results directory
+//   (`GRILLHOUSE_RESULTATS`) and progress directory (`GRILLHOUSE_AVANCEMENT`), and under the
+//   machine's budget (scripts/passe-de-la-machine.mjs); a wait that reaches its bound is the 75.
+//   `npm test` in a package named whole carries `GRILLHOUSE_DEPUIS_LE_VERT`
+//   (scripts/dernier-vert.mjs).
+// - The proof plays `npm test -- --force <files of the lot>` per package (the whole package, a red
+//   written `rouge existant : <file> › <name> — <message>`, when the lot holds no test file); its
+//   report goes to `.claude/worktrees/<ticket>.preuve-<n>.md`; the tests that carry the work are
+//   those the testwriter's sheet names in `portent_le_travail`. A failed proof relaunches the
+//   testwriter twice at most.
+// - The developpeur has three sessions for the checks and three for the final pass, the third on
+//   the strong model (`lancer.sh --modele opus`, the others `sonnet`). A session that changes no
+//   file of the plan (`git status --porcelain` and the content of each file, before and after) is
+//   the gesture `rien-a-livrer`; a `renvoi` to the testwriter is `renvoi-au-testwriter`, stopped at
+//   « sans-livraison » on the same red output twice in a row (`controlesRouges`).
+// - Before the checks and the final pass (SUR_LA_POINTE) the copy is prepared on the tip of main
+//   (`avantLaPasse`, scripts/enveloppe/travail-de-la-copie.mjs `preparer`); a preparation that
+//   fails stops at « lancement ».
+// - The checks: `npm test -- <package>` per package of the plan, `npm test -- <test files of the
+//   lot>`, `npm exec --no -- grillhouse construire --gardes`, then the guards
+//   (`GRILLHOUSE_ENVELOPPE=<plan> npm run grillhouse:gardes`, and `npm run gardes` when the project
+//   has it). A warning or a note of the SARIF is listed apart and given to no developpeur.
+// - The final pass plays the band of the lot (`laPasseFinale`: the copy kept as a commit,
+//   `npm run verifier -- --filter=...[<base>...<copie>] --filter=//`) and marks the lot verified
+//   (`verifie`, read as a mark, never re-hashed).
+// - The references (4.2) are the frame's (`referencesDuCadre`), the project's
+//   (`grillhouse.references`: { nom, commande, fichiers, tests, gardes, lit }) and its generated
+//   files (`grillhouse.engendres`, scripts/engendres.mjs); a command that fails, or a file changed
+//   that no reference covers, stops at « references » (23) with the copy restored (`aRegenerer`).
+// - The reviewer is `claude -p --agent relecteur --session-id <uuid>` (CLAUDE_BIN replaces claude)
+//   on Sonnet; its sheet needs a `conformite` line per element of the lot (`conformiteDuLot`,
+//   scripts/resultats.mjs); a blocking finding names its agent; the third RENDU since the last
+//   ACCEPTÉ stops at « relecture-arret ». The ACCEPTÉ ↔ final pass cycle is bounded
+//   (`TOURS_DE_LA_PASSE_FINALE`).
+// - The integration builds the lot from the copy (the testwriter's files, `estUnTest`, in one
+//   patch, the others in another; message `<type>(<paquets>): <sujet> (<ticket>)`, the type read
+//   from the ticket's type: bug fix, chore, docs, else feat) and runs
+//   scripts/integration/integrer.mjs: 0 commits on agent/<ticket> and labels the ticket `en-file`,
+//   75 plays it once more (`rejeu`) then stops at « a-repasser », any other code is a refusal
+//   (« integration »). The queue is the workflow `file:<racine>` (src/temporal/file/deroule.ts).
+// - The tri of the discoveries (5.3, `trier`) never stops the circuit nor undoes the integration.
+// - The working files live beside the copy: `.claude/worktrees/<ticket>.travail` (instructions,
+//   results, errors, patches), `.log`, `.fiches.jsonl` (`{ date, role, fiche }`), `.bilan.json`
+//   (scripts/bilan.mjs, written at each end).
+// - The state (the effect `etat`, scripts/effets.mjs) is `{ etape, tentative, code, raison,
+//   rapport, finale, relanceSurLeRefus, boucles, question, questionnement, paquets, constats,
+//   verifie, mene, reprise, refus, aRegenerer, controlesRouges, rang, journal }`.
+// - The plan writes `## Noms publiés` (`noms_publies` of the explorateur's last sheet; an empty list
+//   erases the section, a sheet without the field keeps it) and `## Sorte` (`sorteDuPlan`,
+//   scripts/resultats.mjs; absent or unreadable, comportement) in the description; a mechanical
+//   ticket (`cheminMecanique`) plays the gesture `mecanique` at 1.1 (lancer.sh `--fiche geste`,
+//   the schema `geste`); a copy that then holds no change of the plan stops at « sans-livraison ».
+//   A plan with no test (`sansTests`) skips the testwriter and the proof.
+//
+// Codes of the stops (ARRETS), 0 at « integre »; the cause of each is in circuit.md §5.4:
+//   10 lancement, 11 bloqué, 12 sans-fiche, 13 preuve, 14 controles, 15 sans-livraison,
+//   16 relecture-arret, 17 integration (also lot-absent, copie-gardee), 19 hors-portee, 20 besoin,
+//   22 questionnement, 23 references, 24 hors-plan, 25 inattendu (`arretInattendu`),
+//   26 limite-d-usage (no question: the circuit reports itself to the hour the usage returns),
+//   75 a-repasser (the gesture `a-repasser`).
+// Every stop but 75 and 26 is a question for the supervisor.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -1398,7 +881,7 @@ function lotTravaille(ctx) {
 // Whether the ticket of <ctx> goes the mechanical path, as Google's large-scale changes (Rosie,
 // ClangMR) let a tool make the change that a verification and a review judge: its plan says it
 // mechanical (`ctx.sorte`), no `--depuis` sends its lot to an agent, and no testwriter nor
-// developpeur has worked it since the plan (grillhouse-sos).
+// developpeur has worked it since the plan.
 export const cheminMecanique = ctx =>
   ctx.sorte?.genre === 'mécanique' && !ctx.depuis && !lotTravaille(ctx);
 
@@ -1877,10 +1360,10 @@ const planPasse = (ctx, empreinte) =>
 
 // The heading of the section of the open questions in a plan's description.
 const QUESTIONS_OUVERTES = '## Questions ouvertes';
-// The heading of the section of the sort of the ticket in a plan's description (grillhouse-sos).
+// The heading of the section of the sort of the ticket in a plan's description.
 const SORTE = '## Sorte';
 // The heading of the section of the names the plan publishes in its description, the one that
-// scripts/langages/typescript/consommateurs-arbitres.mjs reads (grillhouse-la3).
+// scripts/langages/typescript/consommateurs-arbitres.mjs reads.
 const NOMS_PUBLIES = '## Noms publiés';
 
 // The names <noms> a plan publishes (`noms_publies`), one line each, as the guard of the consumers
@@ -2202,7 +1685,7 @@ const ecartsDe = fiche =>
 // the state while it runs (`questionnement`); the exchange is written at the ticket and its end
 // kept with the circuit's results (`questionnement`, which the bilan counts). A plan that has
 // passed, its title and criteria unchanged since (`empreinteDuPlan`), passes. The workflow of a
-// ticket plays each step of the plan in an activity of its own (grillhouse-4nr.6.3): one of
+// ticket plays each step of the plan in an activity of its own: one of
 // `PAS_DU_PLAN` (`unPasDuPlan`), the one that follows decided by `pasDuPlan` of
 // scripts/transitions.mjs, on the state of the plan (`{ avant, composants, plan, premier, seance,
 // lu, posees, reponse }`), which `planAuDebut` starts.
