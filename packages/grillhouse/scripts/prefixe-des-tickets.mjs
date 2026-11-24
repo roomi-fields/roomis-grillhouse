@@ -4,6 +4,7 @@
 // commented out and keeps the prefix in its database, so the frame writes the key itself, by one
 // function: the preparation of a new project (./preparation.mjs) and the update of any project
 // (`mettreAJour`, which writes the key when no active one exists, the value being the store's).
+// The mechanism is installation.md §5.1 and §5.2 (packages/grillhouse/docs/architecture/).
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

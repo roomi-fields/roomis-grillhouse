@@ -1,7 +1,8 @@
 // The table of the frame's subcommands, which `grillhouse <sous-commande>` (bin/grillhouse.mjs)
 // runs and the migrations read (a former copy of a script becomes its subcommand): one module the
 // command and the scripts import, so that no script imports the command, which is being evaluated
-// when it runs one.
+// when it runs one. The aiguillage of each subcommand is installation.md §5.5 and §3.1
+// (packages/grillhouse/docs/architecture/).
 //
 // - A subcommand of the core is named after its script, without directory nor extension
 //   (`circuit`, `tableau`); `maj` runs `grillhouse-maj.mjs`, whose name already says the frame's;

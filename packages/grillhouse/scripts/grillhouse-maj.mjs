@@ -1,157 +1,62 @@
 #!/usr/bin/env node
 // The frame's update: brings what the frame writes in a project to the version of the package
 // installed, as `npx @turbo/codemod migrate` brings a repository to the version of Turborepo.
-//
 //   npx grillhouse maj    update (npm run grillhouse:maj), after `npm install` of the version wanted
+// The mechanism is installation.md §5.2 (the migrations, §5.4), under
+// packages/grillhouse/docs/architecture/. The update reads the package's own scripts and template
+// (scripts/cadre.mjs, `miseAJour.gabarit` of each declared language), never the network. Any
+// argument is refused, `--help` included: the usage is shown, the exit code is non-zero, nothing
+// is updated. The frame copies no other file into a project.
 //
-// - The versions pass by npm: the project installs the version of @roomi-fields/grillhouse it wants
-//   (`npm install -D @roomi-fields/grillhouse@<version>`), then the update brings the project to it.
-//   What the update reads of the frame is the package's own (scripts/cadre.mjs): the template of a
-//   project of the declared language (`miseAJour.gabarit` of its module: `templates/projet/` for
-//   typescript, `templates/cargo/` for cargo), whose package.json gives the frame's scripts and
-//   the versions of the tools. Any argument is refused: the usage is shown (the exit code is
-//   non-zero) and nothing is updated, `--help` included.
-// - The migrations first (scripts/migrations.mjs): each migration of the package newer than the
-//   version the project recorded (`grillhouse.version` of its package.json; none recorded, every
-//   migration), in the order of their versions; each is replayable without effect, and the report
-//   names each one that changed something, with what it changed. What a migration leaves to the
-//   project (a copy of the frame the project modified, scripts/migrations/0.23.2-copies-du-cadre.mjs)
-//   is written on the error stream, with the command that does it, and the exit code is non-zero;
-//   the project keeps the version it recorded, so that the next update plays that migration again.
-//   Last, after the update and the regeneration, what stays to the project (`restes` of a
-//   migration played, scripts/migrations.mjs: in 0.24.0, a file that still calls a former copy of
-//   the frame; in 0.24.2, API Extractor still declared by the project) is reported on the standard output, « reste au projet », with no effect on the exit
-//   code nor on the version recorded.
-// - The frame's workflows of GitHub Actions (scripts/workflows-du-cadre.mjs): each workflow of the
-//   template's `.github/workflows/` (the CI of a lot, `ci.yml`; the night of a shared machine,
-//   `nuit.yml`) that the project holds with the frame's mark on its first line is rewritten when
-//   it differs, and one it lacks is written once the project holds one of them; a workflow without
-//   the mark is the project's, and stays. Their machine is the repository's variable RUNNER on
-//   GitHub, which no file holds. The report names each workflow written.
-// - The frame copies no other file into a project: its scripts are the package's, its skills, agents,
-//   hooks of Claude Code, common charter and meta-frame the plugin's, which the package carries
-//   (scripts/cadre.mjs): the frame arrives in one piece, at the version npm installs.
-// - The frame's plugin is a setting of the project: in a project whose `.claude/settings.json`
-//   exists, `extraKnownMarketplaces` declares the marketplace `roomi-fields` (GitHub,
-//   `roomi-fields/claude-plugins`), which names the package npm as the plugin's source, and
-//   `enabledPlugins` enables its plugin, `grillhouse@roomi-fields`, each added after the keys the
-//   settings hold, which keep their order. What is a project's own (its charter, its settings, its
-//   version of the package) lives in the project, never in what is published: the machine knows a
-//   marketplace by its name, once for every project. A migration takes off the marketplace of the
-//   project's own an earlier update wrote (scripts/migrations/0.23.0-marche-du-projet.mjs).
-// - The status line is a setting of the project, as Husky writes the project's own configuration:
-//   in a project whose `.claude/settings.json` exists, `statusLine` becomes the frame's
-//   (`"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-etat`, `refreshInterval` 10: the line
-//   redraws on a clock, as a session at rest sends no event) when it is absent or names the
-//   frame's status line (`ligne-etat`, whatever its former form), which is then rewritten whole;
-//   a status line of the project's own stays. The settings keep their other keys, in their order.
-// - `package.json`, when there is one: the version of the frame it is brought to
-//   (`grillhouse.version`, the package's version once no migration leaves anything to do), the
-//   frame's npm scripts (`tableau`,
-//   `grillhouse:maj`), its `prepare` beginning with `grillhouse hooks` (the frame's git hooks at
-//   each `npm install`, as Husky's `prepare`; a `prepare` of the project's own follows it,
-//   `grillhouse hooks && …`), and `grillhouse:gardes` (scripts/gardes-du-cadre.mjs, the frame's controls), `grillhouse:dette:inscrire` and
-//   `grillhouse:dette:elaguer` (the known debt of the guards, scripts/dette.mjs), and `api` (`npm run api`, which writes
-//   the API reports and the generated part of each `docs/INTERFACE.md`), each read as it is in the
-//   template's `package.json` (a template without one writes none). `npm run verifier` plays
-//   `grillhouse:gardes` and the project's own guards, the root script `gardes`, beside the tests:
-//   the frame's former wiring goes, a `pretest` that is the
-//   frame's call (`npm run --silent grillhouse:gardes`) removed or taken off the head of a longer
-//   one (`… && <its pretest>`, the rest kept; a `pretest` of the project's own stays). An
-//   `integration:gardes`, the script the former integration played, loses each head that is a
-//   former frame command (that call, `npm run --silent pretest`,
-//   `node scripts/integration/gardes.mjs`); what remains is the project's own guards, which move to
-//   `gardes` when the project has none (the report says so), else stay where nothing plays them
-//   (the report names both); nothing remaining, the script goes.
-// - The share of the declared language (`miseAJour.appliquer` of its module, as each plugin of Nx
-//   brings its `init` generator): what its tools ask of the project, in its package.json and its
-//   other files, and the lines of the report; the core writes the package.json after. Typescript
-//   (scripts/langages/typescript/mise-a-jour.mjs): the frame's test scripts in a project that runs
-//   its tests, the frame's package declared where the code or the tests read it, the typing of
-//   each package, the project's first configuration of its task runner. Cargo
-//   (scripts/langages/cargo/mise-a-jour.mjs): the files of its template a project lacks, and its
-//   test scripts. What the share leaves to the project (`aFaire`: for cargo, a Cargo.lock that git
-//   does not track) is written on the error stream, the exit code 1, and the verification is not
-//   played.
-// - A project of several languages (scripts/langages.mjs, `langagesDe`) receives the share of each,
-//   in the order of the declaration: its template's tools, its share of the update, its binaries,
-//   its generators (each once) and what its tools write; the frame's scripts of a template come
-//   from the first template that has each.
-// - The languages first (`declarerLesLangages`): the languages of the project are the column
-//   « Langage » of the table of the components of its docs/ARCHITECTURE.md (scripts/langages.mjs),
-//   written at its design; the update writes there the declaration of a former version of the
-//   frame (the migration of 0.27.0, ./migrations/0.27.0-langages-dans-l-architecture.mjs), played
-//   before every other, since the migrations of the declared languages play with the core's. A
-//   directory without package.json, a project that declares no language, or one whose former
-//   declaration the migration leaves to it, is refused, named on the error stream, the exit code
-//   1: the frame guesses no language from the files. No import of the project is rewritten.
-// - The tools of the declared language (the `outils` of its module: what it runs as commands and
-//   what its scripts import), and none other, are added to the project's `devDependencies` at the
-//   version the template's `devDependencies` give; a tool the project already declares in
-//   `dependencies`, `devDependencies` or `optionalDependencies` keeps its declaration, one a
-//   previous version added stays, and `devDependencies` are written sorted by name. The report
-//   names each tool added and `npm install`, which installs them. A project without
-//   `packageManager` receives the template's.
-// - What the frame writes in a project (IGNORES_DU_CADRE: the copies of the tickets,
-//   `.claude/worktrees`, and Turborepo's `.turbo`, the tool every language plays its tasks by) and
-//   what the tools of the declared language write there (`ignorer` of its module: typescript's
-//   `.vitest-reports`, cargo's `target`): a `.gitignore` that does not ignore one
-//   receives its line, `<nom>/`. The template's `.gitignore` lists none of them: the update is
-//   their one source, for a project `init` creates as for an existing one.
-// - The binaries of the declared language (`binaires` of its module: cargo's nextest and
-//   cargo-deny), after the files: the command line runs the commands of its module
-//   (`miseAJour.installation`), which list what is installed and install each one missing or at
-//   another version (cargo's: `cargo install --list`, then `cargo binstall --no-confirm --locked
-//   <nom>@<version>`, cargo-binstall installed by cargo first when it lacks), as `npm install`
-//   brings what is installed to what is declared; the report
-//   names each one installed. One that cannot be installed has its line, the error stream of its
-//   command naming the command to type, and the exit code is non-zero. A language without
-//   binaries runs nothing. The same installation runs alone by `npx grillhouse binaires`
-//   (scripts/binaires.mjs), which a CI plays after `npm ci`.
-// - The git hooks: both of the frame (commit-msg « a closed ticket refuses a second commit, a reopened ticket takes its corrections », pre-push night branch
-//   guard) are placed by scripts/crochets.mjs, the mechanism `grillhouse hooks` (the project's
-//   `prepare`) also runs, in the hooks folder git reads for the project (`core.hooksPath`, else the
-//   default one; the configuration stays). A hook of the project keeps its lines, which still run;
-//   the frame's lines of a former version give way to the current ones.
-// - The merge driver of the CHANGELOG (scripts/fusion-du-changelog.mjs): a `.gitattributes`
-//   without the line `CHANGELOG.md merge=grillhouse-changelog` receives it, after its own lines,
-//   and the driver's command is written in the repository's configuration with the hooks
-//   (scripts/crochets.mjs): two lots that each add an entry under the same heading both enter main.
-// - The plugins: after the files, the command line installs the plugins the project's settings
-//   declare, for the project, by scripts/greffons.mjs (the mechanism `grillhouse init` also calls;
-//   `mettreAJour` itself never calls claude), and brings the frame's mod to the package's version,
-//   as `npm install` brings what is installed to what is declared. A plugin that cannot be
-//   installed, or a mod left at another version, has its line naming the command to type; the
-//   update has finished its files, and the exit code is non-zero.
-// - The group: when the package.json of the main tree of the project declares `grillhouse.groupe`
-//   (`groupeDe` of scripts/groupe-cles.mjs: the update launched in a copy of work reads the same
-//   group), the update sets in the Beads of the project each other project of the group as an
-//   `external_projects.<name>` (its path relative to the main tree), the ones already set left
-//   alone; a group badly declared is refused by its key before any work.
-// - The generated files: after the package.json, each generator of the declared language
-//   (`miseAJour.generateurs` of its module) is run in the project by the project's command
-//   (`node_modules/.bin/grillhouse`, its installed package) for the file it writes when the project
-//   holds that file (every one of them for a project `grillhouse init` creates), and a generator
-//   without file in a repository with `workspaces`, so that the frame's checks accept them; a
-//   generator that fails, or a project without its command, has its line, which says to run it
-//   after `npm install` (the frame's package and tools), and the exit code is non-zero.
-// - The report names first the version of the frame, the package's, and the command that installs
-//   another before the update (`LIGNE_DU_CADRE`): npm reads a range `^0.25.5` as `>=0.25.5
-//   <0.26.0` (node-semver, caret ranges), so `npm install` never brings the next minor of a 0.x
-//   (grillhouse-qmk, OSC Bridge at 0.25.5 under ^0.25.5).
-// - Last, the update plays the project's verification, `npm run verifier`, from its root, its
-//   output shown, as Nx affected moves its base to the last green commit of main: its green keeps
-//   the last green (scripts/dernier-vert.mjs), HEAD and the tree of the working tree, the update's
-//   changes included, so that once they are committed as they stand, a copy that starts from that
-//   commit measures nothing changed (witness: BPScript 320.3.9, whose full pass measured 26 files
-//   since main's last green, 11 from the updates 0.24.5 and 0.24.6 committed without one). The
-//   update exits with its code (a failure before it, a plugin's, keeps 1), and the report's last
-//   line says it: green, the last green kept; red, its code, the last green as it was; 75, « à
-//   repasser ». It is not played, the line saying why, when the update leaves its files to finish
-//   (a migration's `aFaire`, a generator that fails: on the error stream, the exit code already
-//   non-zero), when the project has no `verifier` script (the line of the language's share says
-//   why), or when the report asks for `npm install` first (a tool or the frame's package newly
-//   declared).
+// In order:
+// - The languages (`declarerLesLangages`): the column « Langage » of docs/ARCHITECTURE.md
+//   (scripts/langages.mjs); migration 0.27.0 writes a former declaration there, before every
+//   other. No package.json, no language declared, or a declaration the migration leaves to the
+//   project: refused on the error stream, exit code 1. A project of several languages receives
+//   the share of each, in the order of the declaration (`langagesDe`).
+// - The migrations (scripts/migrations.mjs): each one newer than `grillhouse.version` (none
+//   recorded, all), in the order of their versions; the report names each that changed something.
+//   An `aFaire` goes on the error stream with its command, exit code non-zero, the version stays
+//   so that the next update plays it again; the `restes` are reported last, « reste au projet »,
+//   with no effect on the exit code nor on the version.
+// - The workflows (scripts/workflows-du-cadre.mjs): `ci.yml` and `nuit.yml` carrying the frame's
+//   mark on their first line are rewritten when they differ; a missing one is written once the
+//   project holds one; a workflow without the mark is the project's.
+// - `.claude/settings.json`, when it exists: the marketplace `roomi-fields`
+//   (`roomi-fields/claude-plugins`) and `grillhouse@roomi-fields` enabled, each added after the
+//   keys held; `statusLine` becomes `LIGNE_ETAT` (`refreshInterval` 10) when absent or naming
+//   `ligne-etat`, a status line of the project's own stays.
+// - `package.json`: the scripts `tableau`, `grillhouse:maj`, `grillhouse:gardes`,
+//   `grillhouse:dette:inscrire`, `grillhouse:dette:elaguer` and `api`, each read in the template's
+//   (none written when it has none), and `prepare` beginning with `grillhouse hooks` (the project's
+//   own `prepare` follows, `&&`). The former wiring goes: a `pretest` that is `npm run --silent
+//   grillhouse:gardes`, alone or at the head of a longer one; an `integration:gardes` loses each
+//   head that is a former frame command, the rest moving to `gardes` when the project has none.
+//   The language's share (`miseAJour.appliquer`; typescript, cargo: scripts/langages/*/mise-a-jour.mjs)
+//   comes first; its `aFaire` goes on the error stream, exit code 1, the verification not played.
+// - The tools of the declared language (`outils`), and none other, added to `devDependencies` at
+//   the template's version unless the project declares them in one of the three dependency fields,
+//   `devDependencies` sorted by name; `packageManager` from the template when the project has none.
+// - The `.gitignore`: `<nom>/` for each of IGNORES_DU_CADRE and each `ignorer` of the languages
+//   not yet ignored. The `.gitattributes` line `CHANGELOG.md merge=grillhouse-changelog` (scripts/fusion-du-changelog.mjs)
+//   and the git hooks (scripts/crochets.mjs: `commit-msg`, `pre-push`, in `core.hooksPath` or the
+//   default folder; the project's own lines stay, the frame's former ones give way).
+// - The generators of the declared language (`miseAJour.generateurs`), run by the project's
+//   `node_modules/.bin/grillhouse` for each file the project holds (all, in a project `init`
+//   creates); a failing one, or a missing command, has its line saying to run it after `npm install`.
+// - The binaries of the language (`binaires`; cargo: nextest, cargo-deny): installed when missing
+//   or at another version by `miseAJour.installation`; one that fails has its line, exit code non-zero.
+//   `npx grillhouse binaires` plays the same alone (scripts/binaires.mjs).
+// - The plugins (scripts/greffons.mjs): installed for the project, the frame's mod brought to the
+//   package's version; a failure has its line naming the command, exit code non-zero.
+// - The group: `grillhouse.groupe` of the main tree (`groupeDe`) sets each other project as a Beads
+//   `external_projects.<name>`, the ones set left alone; a group badly declared is refused first.
+//
+// The report names first the frame's version and, in `LIGNE_DU_CADRE`, the command that installs
+// another one (npm never brings the next minor of a 0.x). Last, `npm run verifier` is played from
+// the root, unless files are left to finish, there is no `verifier` script, or `npm install` is
+// asked first; its green keeps the last green (scripts/dernier-vert.mjs). The last line says the
+// outcome: green; red, its code; 75, « à repasser ».
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -215,7 +120,7 @@ const lireJson = (f, defaut) => {
 /**
  * The directories the frame itself writes in a project, which its `.gitignore` ignores: the copies
  * of the tickets, and the runs and cache of Turborepo (`.turbo`), the tool every language of the
- * frame plays its tasks by (grillhouse-x2w), written whatever the project's language. The template's
+ * frame plays its tasks by, written whatever the project's language. The template's
  * `.gitignore` lists none of them, nor what the tools of its language write: the update lays both,
  * in a new project as in an existing one.
  */

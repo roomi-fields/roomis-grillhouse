@@ -2,7 +2,8 @@
 // The binaries of the languages of a project, installed on the machine alone, as `rustup` or
 // `actions/setup-*` bring a toolchain without touching the repository: what a CI runs after
 // `npm ci`, so that `npm run verifier` finds the programs its languages run (cargo's sccache,
-// nextest and cargo-deny; python's uv).
+// nextest and cargo-deny; python's uv). The mechanism is installation.md §5.3 (step 3) and §5.2
+// (packages/grillhouse/docs/architecture/).
 //
 //   npx grillhouse binaires    from the root of the project
 //

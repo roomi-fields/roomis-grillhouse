@@ -2,8 +2,9 @@
 // the entry by which it enters the graph of Turborepo, which reads a `package.json` beside each
 // project that is no JavaScript (node_modules/turbo/docs/guides/multi-language.mdx:191), as Turborepo's
 // own example of Rust writes one beside the crate. `grillhouse paquet` writes it with the package
-// (./paquet.mjs), and the migration of 0.31.0 for the packages of an existing project
-// (./migrations/0.31.0-paquets-dans-le-graphe.mjs).
+// (./paquet.mjs), and the migration of the packages of an existing project
+// (./migrations/0.31.0-paquets-dans-le-graphe.mjs). The mechanism is installation.md §3.1
+// (« Création d'un paquet »), in packages/grillhouse/docs/architecture/.
 //
 // - Its name is the manifest's: the `name` of the `[package]` of a Cargo.toml, of the `[project]`
 //   of a pyproject.toml.

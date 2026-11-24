@@ -1,13 +1,10 @@
-// From 0.33.0 the remote cache of Turborepo is shared between the CI and the poste
-// (grillhouse-44b.12.6): the template's CI takes its server from the repository's variables and
-// secrets, and the commands of the frame on the poste read it from
-// ~/.config/grillhouse/turbo-cache.env, read alone (scripts/fichier-du-poste.mjs).
+// The remote cache of Turborepo is shared between the CI (the repository's variables and
+// secrets) and the poste (~/.config/grillhouse/turbo-cache.env, scripts/fichier-du-poste.mjs).
+// Mechanism: installation.md §5.4 and §4.3 (packages/grillhouse/docs/architecture/).
 //
-// - The migration changes no file: without a server, the CI and the poste keep their local cache,
-//   and a marked workflow of the frame reaches the project by the update.
-// - What stays to the project (`restes`), once: a project whose root's turbo.json does not sign
-//   the artifacts (`remoteCache.signature`) is told how to plug a server. One that signs them has
-//   plugged it already.
+// - The migration changes no file.
+// - `restes`, once: a project whose root turbo.json does not sign the artifacts
+//   (`remoteCache.signature`) is told how to plug a server.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 

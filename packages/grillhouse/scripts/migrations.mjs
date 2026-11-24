@@ -1,6 +1,7 @@
 // The migrations of a project from one version of the frame to the next, as the transforms of
 // `npx @turbo/codemod migrate`: one module per change of form, written once, in
 // scripts/migrations/<version>-<nom>.mjs, which `grillhouse maj` plays (scripts/grillhouse-maj.mjs).
+// The mechanism is installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
 // - A migration exports `version` (the version of the package that brings the change of form),
 //   `nom` and `migrer(projet)`, which brings the project at <projet> to the new form and returns

@@ -1,22 +1,11 @@
-// From 0.31.0 every package enters the graph of Turborepo by a `package.json` beside its manifest
-// (grillhouse-44b.4, node_modules/turbo/docs/guides/multi-language.mdx:191): the crate and the
-// project of Python of an existing project, which `grillhouse paquet` did not create, receive the
-// same one.
+// Every cargo or python package enters the graph of Turborepo by a `package.json` beside its
+// manifest. Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - The packages are those the column « Langage » of the tables of the components of
-//   docs/ARCHITECTURE.md declares `cargo` or `python`, and whose folder holds the manifest of their
-//   language with a package name (a `Cargo.toml` of a virtual workspace names none), the root
-//   excluded; a folder is named by its path, its name or its manifest's name, as the guard of the
-//   languages reads a component. A package of another language receives nothing.
-// - The package.json of a package is the one the command writes (./paquet-npm.mjs): the manifest's
-//   name, `private`, the scripts `build`, `test:unit` and `typecheck`. A package.json present is
-//   kept as it is when its name is the manifest's; any other is left to the project (`aFaire`,
-//   both names), as is a name another package of the workspaces bears, and nothing else is written
-//   for that package.
-// - The folder of each package is entered in the `workspaces` of the root package.json when its
-//   patterns do not select it, after the pattern `!` that takes it out.
-// - A project already migrated, or without crate nor project of Python, is not written: a second
-//   pass changes nothing and returns no line.
+// - The packages are those the column « Langage » of docs/ARCHITECTURE.md declares `cargo` or
+//   `python`, whose folder holds the manifest with a package name, the root excluded.
+// - The package.json is the one `grillhouse paquet` writes (./paquet-npm.mjs); one present is kept
+//   when its name is the manifest's, else left (`aFaire`), as a name another workspace bears.
+// - The folder enters the root `workspaces` when no pattern selects it, after the `!` pattern.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { inscrireAuxEspaces, packageJsonDuPaquet, paquetsSansPackageJson } from '../paquet-npm.mjs';

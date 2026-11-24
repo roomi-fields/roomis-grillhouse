@@ -1,14 +1,9 @@
-// From 0.35.0 the four skills of the plugin of mattpocock that the frame calls live in the frame's
-// plugin (`grillhouse:grilling`, `grillhouse:writing-for-agents`, `grillhouse:codebase-design`,
-// `grillhouse:domain-modeling`), and the template no longer enables the whole plugin
-// (grillhouse-8gp).
+// The frame's plugin carries the skills it calls: the plugin `mattpocock-skills` is no longer
+// enabled. Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - A project's .claude/settings.json that enables `mattpocock-skills@claude-plugins-official` in
-//   `enabledPlugins` loses that key, whatever its value; the other plugins and keys keep their
-//   place. The update cannot tell a project that enabled it for itself from one that took it from
-//   the template: it removes it and says so once.
-// - A project without .claude/settings.json, without `enabledPlugins` or without that plugin is
-//   not written: a second pass changes nothing and returns no line.
+// - `.claude/settings.json` loses the key `mattpocock-skills@claude-plugins-official` of
+//   `enabledPlugins`, whatever its value; the other plugins and keys keep their place. A project
+//   that enabled it for itself is not told apart: the key goes and the line says so once.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

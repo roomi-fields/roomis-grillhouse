@@ -1,8 +1,6 @@
-// From 0.48.0 the key `grillhouse.poussee` (the commit branch and the night branch) is retired from
-// the frame: main receives every lot, and the night pushes nothing. A package.json of the project
-// that carries the key, with any value, loses it, its other keys, its layout and its end of line
-// kept; a project without the key, without `grillhouse` or without package.json is left, and a
-// second pass changes nothing and says nothing. The remote branches of the project are not touched.
+// The key `grillhouse.poussee` has no reader: a package.json carrying it, with any value, loses
+// it, its other keys, its layout and its end of line kept; the remote branches are not touched.
+// Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

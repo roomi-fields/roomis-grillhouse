@@ -1,17 +1,11 @@
-// From 0.25.0 the script of the tests is named `test:unit`, the same for every language (decision 4
-// of the epic grillhouse-pkl): `test:vitest` named the runner of one language, and the core named
-// it. The circuit asks the module of language which component plays tests (`joueDesTests`), and
-// the module typescript answers by `test:unit`; Turborepo's task has the script's name.
+// The script of the tests is named `test:unit`, the same for every language. Mechanism:
+// installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - Each package.json of the project, the root's and each package's of the frame (scripts/paquets.mjs,
-//   a package out of the frame is its own), whose scripts hold `test:vitest` has it named
-//   `test:unit`, its command and its place kept. One that already holds `test:unit` with the same
-//   command loses `test:vitest`; with another command, nothing is written, and the project
-//   chooses (`aFaire`): the former name never stays beside the new one.
-// - Each turbo.json (or turbo.jsonc) of the root and of the packages of the frame that names the
-//   task `test:vitest` (a task, a dependency `^test:vitest` or `<paquet>#test:vitest`) names
-//   `test:unit` instead, its text kept otherwise; one that names both is left to the project.
-// - A project already in the new form is not written: a second pass changes nothing.
+// - Each package.json of the root and of the frame's packages (scripts/paquets.mjs) holding
+//   `test:vitest` has it named `test:unit`, command and place kept; with a `test:unit` of another
+//   command, nothing is written (`aFaire`).
+// - Each turbo.json(c) naming the task `test:vitest` (a task, `^test:vitest`, `<paquet>#test:vitest`)
+//   names `test:unit`; one naming both is left to the project.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { paquets } from '../paquets.mjs';

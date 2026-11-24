@@ -1,23 +1,12 @@
-// API Extractor is the package's dependency, not the project's: the package imports it as a library
-// (scripts/interfaces-contre-code.mjs) and declares it in its own `dependencies`, and no command of
-// a project runs it, as npm leaves to a package what it imports. The update of 0.23.0 to 0.24.1
-// added it to the devDependencies of a project's root as a tool the project runs, and
-// `grillhouse code-mort` then refused it as a development dependency without use. The project's
-// `tsdoc.json` extended its TSDoc base, resolved only when npm hoists API Extractor to the root:
-// the package now publishes its own base (`tsdoc-base.json`, which extends API Extractor's), as a
-// rig of Rushstack carries the base configuration beside the dependency it names.
+// API Extractor is the package's dependency, not the project's: the root `tsdoc.json` extends the
+// package's own base (`tsdoc-base.json`). Mechanism: installation.md §5.4
+// (packages/grillhouse/docs/architecture/).
 //
-// - The `tsdoc.json` of the project's root whose `extends` names the base of API Extractor
-//   (ANCIENNE_BASE) extends the package's (BASE): that name is rewritten in place, the rest of the
-//   file kept byte for byte. A `tsdoc.json` that extends another base, or none, is not written.
-// - What stays to the project (`restes`, which the update plays after its own update, so after the
-//   rewrite above): a root `package.json` that declares `@microsoft/api-extractor`
-//   (`dependencies`, `devDependencies` or `optionalDependencies`), while no source of the project
-//   imports it (scripts/sources.mjs), hears the line of the other dependencies only the package
-//   imports (`dependanceDuPaquet`), with `npm uninstall`. The dependency is named, never removed:
-//   the project decides. The migration of the copies (0.23.2-copies-du-cadre.mjs) leaves it to this
-//   one (DU_PAQUET), so that it is named once.
-// - A project already in the new form is not written, and a second pass returns no line.
+// - A root `tsdoc.json` whose `extends` names API Extractor's base (ANCIENNE_BASE) extends the
+//   package's (BASE), the rest of the file kept byte for byte; another base is not written.
+// - `restes`: a root `package.json` declaring `@microsoft/api-extractor` while no source imports it
+//   (scripts/sources.mjs) hears the line of `dependanceDuPaquet`, with `npm uninstall`; named,
+//   never removed (DU_PAQUET, named once).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { importe, sources } from '../sources.mjs';

@@ -1,11 +1,10 @@
-// From 0.44.0 the frame sets the threshold of Beads that keeps the codes of the tickets at three
-// characters (`max_collision_prob`, 0.99) in every project (grillhouse-3uv.104).
+// The threshold of Beads that keeps the codes of the tickets at three characters
+// (`max_collision_prob`, 0.99). Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - A project whose Beads has no value gets 0.99, and the update says so once.
-// - A project whose Beads has another value keeps it; the update names it, with the command that
-//   aligns it. The line is information, not a to-do, and never fails the update.
-// - A project that already has 0.99 is not touched: a second pass changes nothing and returns no line.
-// - A project whose Beads cannot be reached (no `bd`, no store) is not written; the update says so.
+// - A Beads with no value gets 0.99, and the update says so once.
+// - Another value stays; the update names it with the command that aligns it, as information that
+//   never fails the update.
+// - A Beads that cannot be reached (no `bd`, no store) is not written; the update says so.
 import { spawnSync } from 'node:child_process';
 
 export const version = '0.44.0';

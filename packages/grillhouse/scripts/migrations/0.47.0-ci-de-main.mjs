@@ -1,11 +1,10 @@
-// From 0.47.0 a lot enters main on its final pass and the CI plays on main afterwards, by batches
-// (grillhouse-3uv.121): no CI judges a ticket's branch, which the queue no longer pushes.
+// No CI judges a ticket's branch: the CI plays on main, by batches. Mechanism: installation.md
+// §5.4 (packages/grillhouse/docs/architecture/), the CI of main entree.md §5.2.
 //
-// - A workflow of the project that lists `agent/**` among the branches of its push has it taken out,
-//   its comments, its layout and its other branches kept (the library yaml's document); one that
-//   does not list it is left, and a second pass changes nothing and says nothing.
-// - A workflow of the frame is the update's (scripts/workflows-du-cadre.mjs), which writes the
-//   frame's new CI, on the hourly schedule: the migration leaves it.
+// - A workflow listing `agent/**` among the branches of its push has it taken out, its comments,
+//   its layout and its other branches kept (the library yaml's document); another is left.
+// - A workflow of the frame is the update's (scripts/workflows-du-cadre.mjs): the migration
+//   leaves it.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseDocument } from 'yaml';

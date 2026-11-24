@@ -8,50 +8,31 @@
 #   npx grillhouse sous-modules monter <copie> --partages <liste> <commande…>
 #                                                            plays a command with the shared submodules read-only
 #
-# - `grillhouse.partage` in the package.json of the copy lists the paths of the submodules the
-#   project shares (`npm pkg set 'grillhouse.partage[0]=vendor/natif'`). A shared submodule is not
-#   set in a copy: the copy reads the one of the main repository at its usual path, through a
-#   symbolic link marked « ignored in the copy » (`git update-index --skip-worktree`), so that
-#   `git status` of the copy does not report it. The copy therefore reads the shared submodule at
-#   the commit checked out in the main repository, not at the commit its own HEAD references, and
-#   with the files the main repository holds there, untracked ones included. No repository holds
-#   one more copy of it. Without the key, or with an empty list, nothing is shared.
+# The mechanism is installation.md §4.2 (the key `partage`), under
+# packages/grillhouse/docs/architecture/.
+#
+# - `grillhouse.partage` in the package.json of the copy lists the submodules the project shares.
+#   A shared submodule is not set in a copy: the copy reads the one of the main repository, at the
+#   commit checked out there, through a symbolic link marked `git update-index --skip-worktree`.
+#   Without the key, or with an empty list, nothing is shared.
 # - `pose` reads the declaration first and refuses before setting anything (exit 1, its first line
-#   on stderr citing `grillhouse.partage` and the faulty value, or naming the shared submodule):
-#   a value that is not a list, an element that is not a non-empty relative path inside the
-#   repository, a path that is not a submodule of .gitmodules, a shared submodule absent or not
-#   initialized in the main repository (never set in the copy instead). Then it puts the link of
-#   each shared submodule back (git replaces it by an empty folder when moving a copy forward
-#   changes the submodule's commit), sets each other submodule, one by one, at the commit of HEAD,
-#   nested ones included (`submodule update --init --recursive --force`), and removes their
-#   untracked files: a local modification is overwritten. A submodule that was shared and no longer
-#   is gets its own again. A submodule that cannot be set stops it, exit 1, its first line on
-#   stderr naming the submodule and its commit, git's output after. A submodule whose address is
-#   local (a path or a file:// URL) is set too: the command alone carries
-#   `-c protocol.file.allow=always`, the authorization of the file transport; no repository or
-#   machine configuration holds it.
-# - The address a submodule is set from is the one the main repository uses: its
-#   `submodule.<name>.url` (git's own rule: the local configuration wins), else the url of
-#   .gitmodules. A copy shares the configuration of the main repository, so the pose reads it
-#   there. The command carries that address (`-c submodule.<name>.url=…`) and, in a copy whose
-#   submodule was already set, the `origin` remote of that submodule is moved to it first (git
-#   fetches through `origin`, fixed at the first clone). The pose never writes the main
-#   repository's configuration. A url relative to the superproject (`./`, `../`), in the
-#   configuration or in .gitmodules, is resolved as `git submodule init` resolves it for the main
-#   repository (relative_url and chop_last_dir of git), against the url of the remote the current
-#   branch of the main repository follows (`branch.<b>.remote`), else its `origin`, else its working
-#   tree folder. A remote url that is a local path not absolute is relative to the main repository.
-#   Each `../` removes the last component of that url, at its last slash, else at its colon:
-#   `host:repo.git` with `../natif.git` gives `host:natif.git`, `git@github.com:org/repo.git` with
-#   `../../x.git` gives `git@github.com:x.git`, `upstream.git` with `../natif.git` gives `natif.git`.
-#   One final « / » of the url goes. A local path not absolute that results is taken from the main
-#   repository's folder, which need not exist (`../up/repo.git` with `../../natif.git` gives
-#   `<main repository>/../up/natif.git`). A url git refuses for the main repository stops the pose
-#   before the submodule is set — a `../` that finds neither slash nor colon left in a relative
-#   remote url (`upstream.git` with `../../natif.git`), or in the `.` an absolute one becomes once
-#   emptied of its components: exit 1, its first line on stderr naming the submodule, and the
-#   main repository's configuration stays as it is. The resolved address is the one the command
-#   carries, so a copy under .claude/worktrees/ never resolves it from its own folder.
+#   on stderr citing `grillhouse.partage` and the faulty value): a value that is not a list, an
+#   element that is not a non-empty relative path inside the repository, a path that is not a
+#   submodule of .gitmodules, a shared submodule absent or not initialized in the main repository.
+#   Then it puts the link of each shared submodule back, sets each other submodule at the commit of
+#   HEAD (`submodule update --init --recursive --force`) and removes their untracked files: a local
+#   modification is overwritten. A submodule that cannot be set stops it, exit 1, its first line
+#   naming the submodule and its commit. The command alone carries `-c protocol.file.allow=always`.
+# - The address a submodule is set from is the main repository's: its `submodule.<name>.url`, else
+#   the url of .gitmodules. The command carries it (`-c submodule.<name>.url=…`) and moves the
+#   `origin` remote of an already set submodule to it; the main repository's configuration is
+#   never written. A url relative to the superproject (`./`, `../`) is resolved as
+#   `git submodule init` does (relative_url and chop_last_dir of git), against the url of the
+#   remote the current branch follows (`branch.<b>.remote`), else `origin`, else the working tree
+#   folder: each `../` removes the last component at its last slash, else at its colon
+#   (`git@github.com:org/repo.git` with `../../x.git` gives `git@github.com:x.git`). A url git
+#   refuses (a `../` finding neither slash nor colon left) stops the pose, exit 1, naming the
+#   submodule.
 # - `pose` never enters a shared submodule, nor a submodule nested in it: they belong to the main
 #   repository, which neither sets nor cleans them.
 # - `garde` reads the copy as it stands: a submodule modified in `git status` (an edited or

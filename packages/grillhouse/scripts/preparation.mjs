@@ -1,5 +1,6 @@
 // The preparation of a project for its first session, which `grillhouse init` runs on the project
-// it creates (scripts/init.mjs). Idempotent: a second preparation changes nothing.
+// it creates (scripts/init.mjs). Idempotent: a second preparation changes nothing. The mechanism
+// is installation.md §5.1 (packages/grillhouse/docs/architecture/).
 //
 // - git: the directory becomes a repository when it is none.
 // - Beads, the ticket store the skills work from: the tool (`bd`, installed by

@@ -2,6 +2,8 @@
 // The frame's one command: `grillhouse <sous-commande> [arguments…]`, as `turbo run` or
 // `changeset version` are one executable with subcommands. A project calls `npx grillhouse
 // <sous-commande>` (`grillhouse <sous-commande>` in its npm scripts), never a path of the frame.
+// The aiguillage by the published version is installation.md §5.5, in
+// packages/grillhouse/docs/architecture/.
 //
 // - Each subcommand is a script of the package (`scripts/`), run with the arguments that follow
 //   it, in the working directory of the call, which is the project's. A `.mjs` of the core runs in

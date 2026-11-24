@@ -1,43 +1,15 @@
-// The circuit of 0.24.0 has no regulator and no technical referent: the circuit makes the mechanical
-// gestures, and any other question goes up to the supervisor with its piece, who takes to the owner
-// what is his. What a project holds of the former circuit is rewritten here, as a codemod of
-// `@turbo/codemod` rewrites what a version changes, and nothing else.
+// The circuit has no regulator and no technical referent: the project's former circuit is rewritten.
+// The mechanism is installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - The rubric « Ce qui monte au superviseur » of the project's CLAUDE.md: the paragraph of the
-//   template of 0.22.x and 0.23.x (« Le fonctionnel que le régulateur ne tranche jamais seul : <la
-//   liste>. Le cadre et l'architecture montent toujours (charte commune). »), its list as the
-//   project filled it, becomes the paragraph of the template of 0.24.0, the list kept, wrapped at
-//   100 columns; the rest of the rubric stays. A rubric the project wrote itself that still names
-//   a removed role is left to the project (`{ aFaire }`); one that names none is left silently.
-// - `docs/agents/issue-tracker.md`, the project's own since 0.23.0 (`grillhouse init` places it):
-//   a file whose bytes are those of the template of 0.21.0 to 0.22.x, or of 0.23.x (their SHA-256
-//   in FORMES), becomes the template's; a file the project modified that names a removed role is
-//   left to the project.
-// - A copy of a removed role (`.claude/agents/<rôle>.md`, `.claude/skills/<rôle>/`) still in the
-//   project is one the migration of the copies (0.23.2-copies-du-cadre.mjs, played before) could
-//   not know as the frame's: the project modified it, or no list named it. It is left to the
-//   project, with the command that removes it; the migration of the copies leaves it to this one
-//   (deRoleSupprime), so that it is named once.
-// - What stays to the project (`restes`, which the update plays after its own update and its
-//   regeneration, so that it sees the final state): a tracked file of the project (`git ls-files`,
-//   node_modules and the changelogs aside) that still calls or names a script of the frame at its former address under `scripts/`
-//   (`node scripts/<script>`, `$RACINE/scripts/<script>`, `file://$1/scripts/<script>`,
-//   `path.join(…, '..', 'scripts', '<dossier>', '<script>')`, found by its words, sousScripts; a
-//   `scripts/` under a literal directory, a package of the project or the installed package, is
-//   another's, `.` and `..` naming none; a tracked path that is no regular file, a submodule or a
-//   link, is skipped), where the project holds no such file any more, is named with its file:line
-//   and what replaces it: the subcommand (`SOUS_COMMANDES` of scripts/sous-commandes.mjs), the hook
-//   (`grillhouse hook <nom>`, `CROCHETS` of scripts/crochets.mjs) or the named entry (the
-//   `exports` of the package). A script of the package that has none of them is named with « aucune
-//   entrée publiée ne la remplace ». The project's scripts are its own: none is rewritten, and the
-//   lines are a report, which never holds back the version the project records, as a codemod
-//   reports what it leaves without failing.
-// - No version of the update wrote a setting of a role in `.claude/settings.json` or under
-//   `grillhouse` of the package.json (the update of 0.22.x wrote the hooks, the status line and the
-//   plugins; the rights of a role are given on the command line of its session, scripts/droits.mjs):
-//   the migration writes neither.
-// - A project already in the new form is not written, and a second pass reports only what it left
-//   to the project.
+// - CLAUDE.md, « Ce qui monte au superviseur »: the former paragraph (« Le fonctionnel que le
+//   régulateur… ») becomes the new one, its list kept; a rubric naming a removed role is left
+//   to the project (`{ aFaire }`).
+// - docs/agents/issue-tracker.md: a file of a former template (SHA-256 in FORMES) becomes the
+//   template's; a modified one naming a removed role is left.
+// - A copy of a removed role (`.claude/agents/<rôle>.md`, `.claude/skills/<rôle>/`) is left, with
+//   the command that removes it (deRoleSupprime, named once).
+// - `restes`: a tracked file still calling a frame script at its former address under `scripts/`
+//   is named with file:line and its replacement; the lines never hold back the recorded version.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';

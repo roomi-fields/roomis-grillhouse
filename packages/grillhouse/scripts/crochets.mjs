@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The frame's git hooks, on Husky's model: the project's `prepare`, which npm runs at its install,
-// places them, and each calls the project's command, `grillhouse hook <nom>`.
+// places them, and each calls the project's command, `grillhouse hook <nom>`. The mechanism is
+// installation.md §3.1 and §5.6 (packages/grillhouse/docs/architecture/).
 //
 //   npx grillhouse hooks [<project>]            places both hooks and the merge driver of the
 //                                               CHANGELOG (the current directory by default)

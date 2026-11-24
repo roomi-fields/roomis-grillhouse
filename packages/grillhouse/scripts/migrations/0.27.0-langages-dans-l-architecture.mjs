@@ -1,27 +1,13 @@
-// From 0.27.0 the language of each package is declared at the design, in the column « Langage »
-// of the table of the components of docs/ARCHITECTURE.md (decision D8 of grillhouse-1zu, as the
-// BUILD file of Bazel names the rule of each target): the architecture is the one source of the
-// languages, and the key `grillhouse.langages` of the package.json, which named them before,
-// disappears.
+// The language of each package moves from the key `grillhouse.langages` to the column « Langage »
+// of the table of the components of docs/ARCHITECTURE.md. Mechanism: installation.md §5.4
+// (packages/grillhouse/docs/architecture/), the declaration tests.md §5.6.
 //
-// - A project whose package.json holds the key: the declaration is written in the column when it
-//   lacks, then the key is removed (the section `grillhouse` with it, when it held nothing else).
-//   A table whose column holds a language already: the key alone is removed.
-// - The table: the first table of docs/ARCHITECTURE.md where a cell names a component of the
-//   modules of the key (./tableau-des-composants.mjs), as the project wrote it (BPScript's names
-//   the phase before the package, SyntHub's the crates of other repositories). The column is added
-//   at the end of its header, of its separator, in their style, and of each row: the language of
-//   the component the row names, empty for a row that names none. A package of the modules (its
-//   manifest in its folder) that no row names goes to a section « Les paquets » that ends the
-//   document (written when absent), a table `Paquet | Langage`, one row each: a table that says
-//   « each stage does a step » (BPScript's) receives no row without its step. A language of the
-//   key that no package carries has a row naming the root, `.`, there. The text of the document is
-//   kept otherwise.
-// - `aReporter`: whether a project holds the former declaration, which the session start names
-//   with `npx grillhouse maj`, which reports it.
-// - A key that names a language the frame lacks, or whose modules claim one folder twice, is left
-//   to the project (`aFaire`), nothing written.
-// - A project without the key, or already migrated, is not written: a second pass changes nothing.
+// - The declaration is written in the column of the first table where a cell names a component of
+//   the key's modules (./tableau-des-composants.mjs), then the key goes (`grillhouse` with it when
+//   empty). A package no row names goes to a section « Les paquets » ending the document, a table
+//   `Paquet | Langage`; a language no package carries has a row naming the root, `.`.
+// - `aReporter`: whether a project holds the former declaration (named at the session start).
+// - A language the frame lacks, or modules claiming one folder twice, is left (`aFaire`).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { composantsRanges } from '../composition-des-langages.mjs';

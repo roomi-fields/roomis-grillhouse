@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // The creation of a package, out of the circuit: the third of the four times of a package's birth
 // (the common charter, « La naissance d'un paquet »: the grill, the writing of its row and its
-// documents, this command, then a ticket of code), as the generators of Nx (`nx g @nx/js:lib`,
-// after `nx add` installs the tools of its plugin), `turbo gen workspace` and `cargo new --lib`
-// added to the members of the workspace write one. A skeleton has neither behaviour nor test: it
-// does not pass by the circuit, which works on a package that exists.
+// documents, this command, then a ticket of code), as the generators of Nx and `cargo new --lib`
+// write one. A skeleton has neither behaviour nor test. The mechanism is installation.md §3.1
+// (« Création d'un paquet »), tests.md §5.6, in packages/grillhouse/docs/architecture/.
 //
 //   npx grillhouse paquet <chemin>      from the root of the project, <chemin> from it
 //

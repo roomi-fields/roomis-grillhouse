@@ -1,17 +1,11 @@
-// The common charter arrives whole, imported by the project's CLAUDE.md from the package installed
-// (`@node_modules/@roomi-fields/grillhouse/charte.md`), as Claude Code loads a CLAUDE.md and its
-// imports whole; no hook writes it any more, since Claude Code caps a hook's output.
+// The project's CLAUDE.md imports the common charter from the package installed
+// (`@node_modules/@roomi-fields/grillhouse/charte.md`). Mechanism: installation.md §5.4
+// (packages/grillhouse/docs/architecture/).
 //
-// - A CLAUDE.md that imports a charter of the frame (`@…grillhouse/charte.md`) other than the
-//   former copy is left: it already has one (Grillhouse imports its source,
-//   `@mods/grillhouse/charte.md`).
-// - The import of the former copy (`@.claude/grillhouse/charte.md`) becomes the import of the
-//   package installed.
-// - The paragraph of the template that gave the charter by the plugin (« Les règles du cadre : la
-//   charte commune, que le greffon du cadre … donne à chaque séance. ») becomes
-//   « Les règles du cadre : @node_modules/@roomi-fields/grillhouse/charte.md ».
-// - A CLAUDE.md that names neither receives that line at its end, after a blank line.
-// - A project without CLAUDE.md is not written.
+// - A CLAUDE.md that imports another charter of the frame (`@…grillhouse/charte.md`) is left.
+// - The import of the former copy (`@.claude/grillhouse/charte.md`) becomes the package's, as the
+//   template's paragraph « Les règles du cadre : la charte commune, que le greffon… ».
+// - A CLAUDE.md that names neither receives that line at its end; none, nothing written.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

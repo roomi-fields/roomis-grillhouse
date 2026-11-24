@@ -1,13 +1,10 @@
-// From 0.44.0 the frame supports Node 26 alone (grillhouse-3uv.103): the CI and the night of
-// GitHub play Node 26 only, and the template declares `engines.node` `>=26.0.0`.
+// The frame supports Node 26 alone: the template declares `engines.node` `>=26.0.0`, and the CI
+// and the night of GitHub play Node 26 only. Mechanism: installation.md §5.4
+// (packages/grillhouse/docs/architecture/).
 //
-// - A project's package.json that holds the exact value the template held before (`>=22.0.0` or
-//   `>=24.0.0`) receives `>=26.0.0`; only that value changes in the text.
-// - Any other value stays, and a line names it: the workflows of the project play Node 26 alone,
-//   with no proof of the version it declares; the project raises it or widens its matrix.
-// - The frame's workflows of the project are written again from the template
-//   (scripts/workflows-du-cadre.mjs): a project that holds none receives none.
-// - A project already migrated, or without package.json, changes nothing and returns no line.
+// - A package.json holding `>=22.0.0` or `>=24.0.0` receives `>=26.0.0`, that value alone changing.
+// - Any other value stays, and a line names it: the project raises it or widens its matrix.
+// - The frame's workflows are written again from the template (scripts/workflows-du-cadre.mjs).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CADRE } from '../cadre.mjs';

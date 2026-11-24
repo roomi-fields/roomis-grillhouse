@@ -1,16 +1,12 @@
-// The frame's plugin comes from the marketplace roomi-fields, which names the package npm, and
-// nothing of a project is published: the marketplace of the project's own, which an earlier update
-// wrote, goes (`grillhouse maj` then declares roomi-fields and enables `grillhouse@roomi-fields`).
+// The marketplace of the project's own goes: the frame's plugin comes from the marketplace
+// roomi-fields. Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - The project's `.claude-plugin/marketplace.json` goes when it is the frame's: its name begins
-//   with `grillhouse-` and each plugin it lists is `grillhouse`, from the project's package
-//   (`./node_modules/@roomi-fields/grillhouse/…`); `.claude-plugin/` left empty goes.
-// - In `.claude/settings.json` and `.claude/settings.local.json` (where the add of a marketplace of
-//   a directory wrote it), each marketplace whose name begins with `grillhouse-` and that is the
-//   project's root (a directory, `./` or `.`) leaves `extraKnownMarketplaces`, and its plugin,
-//   `grillhouse@<name>`, leaves `enabledPlugins`. A key left empty goes; the other keys stay, in
-//   their order.
-// - A project without them is not written.
+// - `.claude-plugin/marketplace.json` goes when it is the frame's (a name beginning with
+//   `grillhouse-`, each plugin `grillhouse` from `./node_modules/@roomi-fields/grillhouse/…`),
+//   `.claude-plugin/` with it when empty.
+// - In `.claude/settings.json` and `settings.local.json`, each marketplace named `grillhouse-…`
+//   whose source is the project's root leaves `extraKnownMarketplaces`, its plugin
+//   `grillhouse@<name>` leaves `enabledPlugins`; a key left empty goes, the others keep their order.
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

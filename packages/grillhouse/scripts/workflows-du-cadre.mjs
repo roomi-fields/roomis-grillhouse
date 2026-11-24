@@ -2,7 +2,8 @@
 // header says it generated it (the « Généré par … ; ne pas éditer » of the frame's generated files):
 // the CI of a lot (`ci.yml`) and the night of a shared machine (`nuit.yml`), the template's
 // `.github/workflows/` (templates/projet), which `grillhouse init` copies and `grillhouse maj`
-// keeps (scripts/grillhouse-maj.mjs).
+// keeps (scripts/grillhouse-maj.mjs). The mechanism is installation.md §5.2 and §4.4
+// (packages/grillhouse/docs/architecture/).
 //
 // - A workflow of the frame bears MARQUE on its first line. The update rewrites each workflow of the
 //   template that the project holds with it, when its text differs; one without it is the project's,

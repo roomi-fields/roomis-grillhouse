@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // A new project, created from the frame's template of a project, as create-turbo creates one from
-// its example. The first Claude session opened in it proposes the initialisation grill.
+// its example. The first Claude session opened in it proposes the initialisation grill. The
+// mechanism is installation.md §5.1 (packages/grillhouse/docs/architecture/).
 //
 //   npx @roomi-fields/grillhouse init <dossier> [<préfixe des tickets>]
 //

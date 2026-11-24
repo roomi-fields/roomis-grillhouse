@@ -1,13 +1,10 @@
-// From 0.33.0 the frame runs on Node 24 and 26, the supported long-term releases, Node 26 at the
-// poste (grillhouse-3uv.99): the template's package.json declares `engines.node` `>=24.0.0` and
-// the npm Node 26 ships as its `packageManager`.
+// The template's package.json declares `engines.node` `>=24.0.0` and the npm Node 26 ships as
+// its `packageManager`. Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - A project's package.json that still holds the value of the template before (`engines.node`
-//   `>=22.0.0`, `packageManager` `npm@10.9.8`) receives the template's; a value the project chose
-//   stays, unsaid.
+// - A package.json still holding the former template's values (`engines.node` `>=22.0.0`,
+//   `packageManager` `npm@10.9.8`) receives the template's; a value the project chose stays,
+//   unsaid.
 // - Only those values change in the text: the rest of the file keeps its bytes.
-// - A project already migrated, or without package.json, is not written: a second pass changes
-//   nothing and returns no line.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CADRE } from '../cadre.mjs';

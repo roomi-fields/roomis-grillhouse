@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The installation of the published version that leads the frame's repository
-// (scripts/aiguillage.mjs, the key `grillhouse.outil`, the cache, the switch).
+// (scripts/aiguillage.mjs, the key `grillhouse.outil`, the cache, the switch). The mechanism is
+// installation.md §5.5 (packages/grillhouse/docs/architecture/).
 //
 //   npx grillhouse outil            installs the version the key names, nothing when it is there
 //   npx grillhouse outil <x.y.z>    writes the key, then installs that version

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The frame's plugins, installed for the project by one mechanism: `scripts/preparation.mjs` (the
 // preparation of `grillhouse init`) and `scripts/grillhouse-maj.mjs` (update, its command line) both
-// call it, and the session start
-// asks it which are absent.
+// call it, and the session start asks it which are absent. The mechanism is installation.md §5.3
+// (step 2) and §5.6, in packages/grillhouse/docs/architecture/.
 //
 //   npx grillhouse greffons [<project>]            installs the declared plugins (the current directory by default)
 //   npx grillhouse greffons --absents [<project>]  prints what the project lacks, one line each (see below)

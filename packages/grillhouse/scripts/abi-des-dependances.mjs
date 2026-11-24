@@ -2,7 +2,8 @@
 // The version of Node a project's dependencies were installed under, as Yarn's integrity file
 // keeps the system it installed for: a native module built for one binary interface of Node
 // (`process.versions.modules`, the NODE_MODULE_VERSION) refuses to load under another, and npm
-// rebuilds nothing when Node changes.
+// rebuilds nothing when Node changes. The mechanism is installation.md §5.6 and §3.1
+// (packages/grillhouse/docs/architecture/).
 //
 //   node abi-des-dependances.mjs --marquer <projet>   writes the mark of the current Node
 //   node abi-des-dependances.mjs --a-jour <projet>    exit 0 when the mark is the current Node's,

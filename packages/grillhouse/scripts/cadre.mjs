@@ -7,7 +7,8 @@
 // package is the plugin, as a package of ESLint carries its plugin: its root holds the plugin's
 // files, so the marketplace names the package by a source npm, which has no subdirectory; and
 // it carries a copy of the template under `cadre/`, as create-vite carries its templates. The
-// frame arrives in one piece.
+// frame arrives in one piece. The mechanism is installation.md §4.4 and §4.5
+// (packages/grillhouse/docs/architecture/).
 //
 //   node scripts/cadre.mjs --empaqueter   copies them into the package (the package's prepack)
 //   node scripts/cadre.mjs --nettoyer     removes the copies (the package's postpack)

@@ -1,7 +1,7 @@
-// The published version that leads the frame's repository, as rustc is built by its stage0 (a
-// published compiler, fixed in src/stage0, downloaded into a cache) and Bazel by a released Bazel:
-// the tool that orchestrates is a published version; the code the tickets change is the code that
-// is built and tested.
+// The published version that leads the frame's repository, as rustc is built by its stage0: the
+// tool that orchestrates is a published version; the code the tickets change is the code that is
+// built and tested. The mechanism is installation.md §5.5, in
+// packages/grillhouse/docs/architecture/.
 //
 // The command (bin/grillhouse.mjs) imports this module, and `grillhouse outil` (scripts/outil.mjs)
 // installs a version by it.

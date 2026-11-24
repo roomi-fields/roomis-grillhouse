@@ -1,36 +1,13 @@
-// The frame's copies leave a project in 0.22.x: the package carries the scripts, its plugin the
-// skills, agents, charter and meta-frame, so the copies the former update placed
-// (`.claude/grillhouse/fichiers.txt`, each file's SHA-256 in `.claude/grillhouse/empreintes.json`)
-// are what this version replaces, as a codemod of `@turbo/codemod` removes what a version replaces.
-// The list says what to remove: nothing is guessed.
+// The frame's copies placed by the former update (`.claude/grillhouse/fichiers.txt`, SHA-256 in
+// `empreintes.json`) are removed: the package carries the scripts, its plugin the rest. Mechanism:
+// installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - Each file `empreintes.json` records that a line of `fichiers.txt` keeps (the file itself, or a
-//   directory « …/ » above it; a line « - … » keeps none) goes when its bytes have the recorded
-//   SHA-256 (as the former update computed it), or had it before the migration 0.23.0 of Vitest
-//   rewrote its import of the base (`formesAnterieures`, below); a directory
-//   it leaves empty goes with it. A file the template of a project holds at the same path
-//   (`tsdoc.json`, `docs/agents/issue-tracker.md`) is the project's own since 0.23.0, as
-//   `grillhouse init` places it, and stays.
-// - Under a directory the list keeps that is no workspace of the project (scripts/paquets.mjs), a
-//   file the former generator of the packages' turbo.json wrote (its first line « // Généré par
-//   `…turbo-des-paquets…` ») goes too: it belonged to the former workspace of a copy.
-// - A file whose bytes differ (the project modified it) stays: the migration leaves it to the
-//   project (`{ aFaire }`), with the command that removes it, and the update's exit code is
-//   non-zero; an npm script that runs it is named with it, since its removal breaks that script.
-//   While one stays, the list and the fingerprints stay, so that the next update names it again;
-//   once none stays, `.claude/grillhouse/` goes whole (the list, the fingerprints, the version, the
-//   former charter). A modified copy of a role 0.24.0 removes stays too, but is named by that
-//   migration alone (`deRoleSupprime` of 0.24.0-circuit-simplifie.mjs), once.
-// - Each root npm script that runs a copy removed (`node scripts/<chemin>`, `bash scripts/<chemin>`,
-//   its arguments kept) runs its subcommand, `grillhouse <sous-commande>`, by the table of
-//   scripts/sous-commandes.mjs; a script that still names a copy removed (no subcommand runs it) is
-//   named, not rewritten.
-// - A dependency of the project's root that a copy removed imported, that the package declares in
-//   its own `dependencies`, that the template of a project does not declare, and that no source of
-//   the project still imports, is named, not removed: the project decides. API Extractor is named
-//   by the migration of 0.24.2 alone (`DU_PAQUET` of 0.24.2-api-extractor-du-paquet.mjs), once.
-// - A project without `fichiers.txt` and `empreintes.json` is not written: a second pass finds
-//   neither, or finds only the copies left to the project, which it names again.
+// - A file the list keeps goes when its bytes have the recorded SHA-256 (or a former form,
+//   `formesAnterieures`), its emptied directory with it; a modified file stays, `{ aFaire }`
+//   with the command that removes it, and the list stays until none is left.
+// - A root npm script running a removed copy (`node scripts/<chemin>`) runs `grillhouse
+//   <sous-commande>` (scripts/sous-commandes.mjs); one with no subcommand is named, not rewritten.
+// - A dependency only a removed copy imported is named, not removed (API Extractor: 0.24.2).
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

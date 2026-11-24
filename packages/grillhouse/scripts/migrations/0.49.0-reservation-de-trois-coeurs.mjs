@@ -1,7 +1,6 @@
-// From 0.49.0 a circuit reserves 3 cores (it reserved 4). A package.json of the project whose
-// `grillhouse.part.coeurs` is 4 gets 3, its other keys, its layout and its end of line kept; a
-// project without that value, without `grillhouse` or without package.json is left, and a second
-// pass changes nothing and says nothing.
+// A circuit reserves 3 cores: a package.json whose `grillhouse.part.coeurs` is 4 gets 3, its other
+// keys, its layout and its end of line kept. Mechanism: installation.md §5.4
+// (packages/grillhouse/docs/architecture/).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

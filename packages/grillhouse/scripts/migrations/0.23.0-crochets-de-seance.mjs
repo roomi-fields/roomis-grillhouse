@@ -1,12 +1,10 @@
-// The hooks of Claude Code come from the frame's plugin (mods/grillhouse/hooks/hooks.json): the
-// project's settings no longer run the frame's session scripts by their path.
+// The hooks of Claude Code come from the frame's plugin (mods/grillhouse/hooks/hooks.json), not
+// from the project's settings. Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - In the project's `.claude/settings.json`, each hook whose command runs one of the frame's former
-//   session scripts under `$CLAUDE_PROJECT_DIR/scripts/` (session-start.sh, structure-guard.sh,
-//   verrous/ticket-du-sous-agent.mjs, registre.mjs) goes; a group left without a hook goes, an
-//   event left without a group goes, and `hooks` left empty goes. A hook of the project's own stays,
-//   and so do the other keys, in their order.
-// - A project without settings, or whose settings hold none of these hooks, is not written.
+// - In `.claude/settings.json`, each hook running a former session script under
+//   `$CLAUDE_PROJECT_DIR/scripts/` (session-start.sh, structure-guard.sh,
+//   verrous/ticket-du-sous-agent.mjs, registre.mjs) goes, then each group, event and `hooks` left
+//   empty; a hook of the project's own and the other keys stay, in their order.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

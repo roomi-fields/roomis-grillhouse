@@ -1,13 +1,11 @@
-// From 0.30.0 `npm run verifier` plays the format check and the lint beside the guards, the typing
-// and the tests, and the CI calls it alone (grillhouse-61z): a control played in the CI is played
-// at the poste.
+// The CI calls `npm run verifier` alone. Mechanism: installation.md §5.4
+// (packages/grillhouse/docs/architecture/).
 //
-// - The `.github/workflows/ci.yml` of the project that is identical, spaces normalized, to the
-//   template of the version before is replaced by the new template.
-// - One that differs (a step the project added) stays, and `aFaire` names the steps to remove from
-//   its test job: `format:check`, `lint`, `typecheck` and `build`.
-// - One that already calls the verification alone, and a project without CI, are left, nothing
-//   said: a second pass changes nothing.
+// - A `.github/workflows/ci.yml` identical, spaces normalized, to the former template is replaced
+//   by the new one.
+// - One that differs stays, and `aFaire` names the steps to remove from its test job:
+//   `format:check`, `lint`, `typecheck` and `build`.
+// - One that already calls the verification alone, or no CI, is left.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CADRE } from '../cadre.mjs';

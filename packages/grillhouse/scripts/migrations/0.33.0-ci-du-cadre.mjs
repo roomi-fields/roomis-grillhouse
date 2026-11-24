@@ -1,12 +1,9 @@
-// From 0.33.0 the frame carries the CI of a project (grillhouse-44b.12.7): the template's
-// `.github/workflows/ci.yml` (the verification in tranches, for a lot) and `nuit.yml` (the night
-// tests out of the poste), each bearing the frame's mark on its first line, which the update keeps
-// (scripts/workflows-du-cadre.mjs).
+// The frame carries the CI of a project: the template's `.github/workflows/ci.yml` and `nuit.yml`,
+// each bearing the frame's mark on its first line (scripts/workflows-du-cadre.mjs). Mechanism:
+// installation.md §5.2 and §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - The migration changes no file: a project's CI is its own until it adopts the frame's, and the
-//   update starts no CI on a repository.
-// - What stays to the project (`restes`), once: a project that holds no workflow of the frame is
-//   told how to adopt them. One that holds one has nothing to do.
+// - The migration changes no file: a project's CI is its own until it adopts the frame's.
+// - `restes`, once: a project holding no workflow of the frame is told how to adopt them.
 import path from 'node:path';
 import { CADRE } from '../cadre.mjs';
 import { aLaCiDuCadre, GABARIT_DES_WORKFLOWS, WORKFLOWS } from '../workflows-du-cadre.mjs';

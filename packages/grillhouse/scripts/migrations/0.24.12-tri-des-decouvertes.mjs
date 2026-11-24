@@ -1,13 +1,10 @@
-// From 0.24.12 the circuit sorts the discoveries of a ticket once its lot is on main (step 5.3, the
-// tri of the discoveries, grillhouse-0yu.5): each one receives its verdict at its ticket, and an
-// `a-porter` or a `non-confirmee` reopens under `a-valider`. A project's `docs/agents/issue-tracker.md`
-// is its own since 0.23.0, and its template's rule said a discovery « reopens on the owner's
-// word », the supervisor bringing those that touch a real use: a rule the frame no longer holds.
+// The rule of the discoveries in the project's `docs/agents/issue-tracker.md` is the rule of the
+// tri (verdict per discovery, `a-porter` and `non-confirmee` reopening under `a-valider`).
+// Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
-// - Each of the two sentences of that rule, when the file holds it as the template wrote it,
-//   becomes the rule of the tri, as the template now writes it; nothing else of the file changes.
-// - A file without them (already migrated, or rewritten by the project) is not written; a project
-//   without the file neither.
+// - Each of the two sentences « reopens on the owner's word » of the template's former rule,
+//   when the file holds it as written, becomes the new rule; nothing else of the file changes.
+// - A file without them, or no file, is not written.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 

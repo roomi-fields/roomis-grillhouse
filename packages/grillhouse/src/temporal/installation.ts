@@ -3,6 +3,8 @@
 // ~/.cache/grillhouse/temporal/<version>/temporal; the units of the account's systemd (the server,
 // the worker of the project, the worker of the machine), each started again by systemd; the
 // worker's unit gets `Environment=TEMPORAL=<the program laid down>`, the package.json untouched.
+// The mechanism is installation.md §5.3 (step 4, the program and the units), §3.1, in
+// packages/grillhouse/docs/architecture/.
 //
 // - The pin (EPINGLE) is the version of the program and the SHA-256 of the archive of each
 //   platform, as its release publishes them (checksums.txt); an archive whose sum differs is

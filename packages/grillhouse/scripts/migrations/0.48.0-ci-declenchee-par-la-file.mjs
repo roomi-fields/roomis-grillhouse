@@ -1,10 +1,10 @@
-// From 0.48.0 the queue of the project starts the CI of main itself after a lot entered, one pass
-// an hour at most (scripts/ci-de-main.mjs `declencherLaCiDeMain`): the frame's ci.yml loses its
-// hourly schedule and its job `moved`, and keeps `workflow_dispatch` and `workflow_call`.
+// The queue starts the CI of main itself, one pass an hour at most (scripts/ci-de-main.mjs
+// `declencherLaCiDeMain`): the frame's ci.yml has no schedule and no job `moved`, and keeps
+// `workflow_dispatch` and `workflow_call`. Mechanism: installation.md §5.4, entree.md §5.2
+// (packages/grillhouse/docs/architecture/).
 //
-// - A ci.yml of the frame (its mark on the first line, scripts/workflows-du-cadre.mjs) is rewritten
-//   on the template's new one; a ci.yml without the mark, and every other workflow, stay as they
-//   are. A second pass changes nothing and says nothing.
+// - A ci.yml with the frame's mark on its first line (scripts/workflows-du-cadre.mjs) is rewritten
+//   on the template's; a ci.yml without the mark, and every other workflow, stay.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CADRE } from '../cadre.mjs';
