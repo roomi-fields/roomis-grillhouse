@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   assembler,
@@ -453,8 +454,21 @@ const depot = (tickets: object[]) => {
   );
   const registre = path.join(bin, 'registre.jsonl');
   writeFileSync(registre, '');
+  // The board is given its matter, not the machine's: no circuit and no night, where the script
+  // alone would read the Temporal server of the workstation (silent or slow, it adds a line).
+  const lanceur = path.join(bin, 'lanceur.mjs');
+  writeFileSync(
+    lanceur,
+    `import { sortieDeLaCommande, tableau } from ${JSON.stringify(pathToFileURL(SCRIPT).href)};
+const t = await tableau(process.cwd(), {
+  circuitsDe: async () => [],
+  nuitDe: async () => null,
+});
+process.stdout.write(sortieDeLaCommande(t, process.argv.includes('--texte')));
+`
+  );
   return (...args: string[]) =>
-    execFileSync('node', [SCRIPT, ...args], {
+    execFileSync('node', [lanceur, ...args], {
       cwd: racine,
       encoding: 'utf8',
       env: {

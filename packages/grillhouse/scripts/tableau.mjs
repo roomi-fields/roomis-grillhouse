@@ -3241,6 +3241,11 @@ export async function tableau(
   };
 }
 
+// The output of the command for a board: the texts of its lines, one per line (--texte), or its JSON.
+export function sortieDeLaCommande(t, enTexte) {
+  return enTexte ? `${t.lignes.map(l => l.texte).join('\n')}\n` : JSON.stringify(t);
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // The arguments other than --texte and --suivre are the folders of the other projects.
   const projets = process.argv
@@ -3272,11 +3277,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.stdout.on('error', fin);
   } else {
     void tableau(process.cwd(), { projets }).then(t =>
-      process.stdout.write(
-        process.argv.includes('--texte')
-          ? `${t.lignes.map(l => l.texte).join('\n')}\n`
-          : JSON.stringify(t)
-      )
+      process.stdout.write(sortieDeLaCommande(t, process.argv.includes('--texte')))
     );
   }
 }
