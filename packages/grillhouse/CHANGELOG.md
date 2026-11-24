@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-11-24
+
 - **The typed lint runs after the build of its package**: the task `lint` depends on `build` and `^build`, like `typecheck`, in the frame's `turbo.json` and in the templates of a project's; it no longer reads types from a `dist/` being written, which turned a type to `any` and made the final pass red at random. **Action for projects**: none.
 
 - **The cargo module reads the tags of a night test and plays no bench out of the poste** (grillhouse-3uv.238): `tests-de-nuit --hors-du-poste` leaves out the `tests/it_nuit/` modules and `tests/<nom>_nuit.rs` targets tagged `// @poste: <reason>`, with `--sans-equipement` those tagged `// @equipee: <reason>` too, and plays no bench `it_budget`; the benches play with `--mesures`, as in the module typescript. **Action for projects**: none.
