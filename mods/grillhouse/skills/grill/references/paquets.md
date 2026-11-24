@@ -37,14 +37,11 @@ son propre paquet, dont il importe l'entrée construite, et de tout ce qu'il imp
 inchangée se restaure de son cache. Une construction ne compte que ce qu'elle lit : le
 `package.json`, le `tsconfig.build.json` du paquet, ce qu'il étend et les dossiers qu'il inclut
 (un fichier listé, son dossier) ; un fichier de test changé ne rejoue ni elle ni ses dépendants.
-Le `turbo.json` de la racine est au projet : la mise à jour
-du cadre l'écrit une fois, depuis le gabarit de sa forme (`templates/turbo/paquets.json` quand
-le `package.json` déclare `workspaces`), puis n'y écrit que ce que le cadre en tient (les
-dépendances des gardes, la variable des passes ciblées, l'exclusion `!$TURBO_ROOT$/<chemin>/.git`
-à côté d'une entrée qui couvre un sous-module, dont le `.git` nomme la copie). Celui de chaque paquet est
-généré depuis son `package.json` (`npx grillhouse turbo-des-paquets --ecrire`, que la mise à
-jour lance) et `grillhouse:gardes` refuse un fichier absent ou périmé : une dépendance s'écrit
-au `package.json` seul. Chaque paquet testé porte son script
+Le `turbo.json` de la racine est au projet, la mise à jour du
+cadre n'y écrivant que ce que le cadre en tient ; celui de chaque paquet est engendré depuis son
+`package.json` (`npx grillhouse turbo-des-paquets --ecrire`), et la garde `turbo-des-paquets`
+refuse un fichier absent ou périmé : une dépendance s'écrit au `package.json` seul (le document
+des tests, §3.1, §3.4). Chaque paquet testé porte son script
 `test:unit` et sa configuration Vitest, qui étend la configuration de base du cadre, le
 `@roomi-fields/grillhouse/vitest-config`, que le paquet du cadre exporte (par `mergeConfig`) : les
 exclusions du jour (tests de nuit, bancs de budget) et l'environnement commun y sont, sans

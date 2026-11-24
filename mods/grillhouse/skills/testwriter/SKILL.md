@@ -100,9 +100,8 @@ ses bords et ses refus. Ainsi un code taillé pour l'exemple du ticket échoue.
 version, un historique des changements) : chaque sortie déplace ses entrées, et un test qui lit un
 document se lie à sa mise en page ; un critère qui le nomme se juge à la relecture, sans test, et
 ta passation le dit. Seuls les tests de l'outil de sortie, qui écrit ce document, le lisent.
-Exemple : OSC Bridge, le 2026-10-31, deux commits de sortie de suite
-rouges, des tests de tickets qui cherchaient leur entrée sous la section ouverte. Ainsi une sortie
-ne rougit jamais la suite.
+Un test qui cherche son entrée sous la section ouverte rougit au commit de sortie suivant. Ainsi une
+sortie ne rougit jamais la suite.
 
 **Les tests passent par l'interface** : ils appellent ce que le composant publie et vérifient ce
 qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent vrais quand le code
@@ -197,17 +196,15 @@ fichiers « ne se charge pas ». Ainsi le développeur, seul à pouvoir réparer
 
 **Un critère se prouve sur ce que la chaîne publie** : le test donne au composant ce que son
 fournisseur publie (une scène compilée, la forme publiée d'un fournisseur) et lit ce que le
-composant rend. Exemple : en 320.2.6 de BPScript, des bancs sur des objets faits à la main
-restaient verts alors que la chaîne restait fausse. Ainsi le test mord sur le produit tel qu'il
-tourne.
+composant rend. Un test sur des objets faits à la main reste vert alors que la chaîne est
+fausse. Ainsi le test mord sur le produit tel qu'il tourne.
 
 **Ce que tes tests importent se déclare** : tu inscris, dans le même lot, chaque nom de la matière
 de test partagée que tes tests se mettent à importer, sur la ligne de leur paquet dans la section
 « Consommateurs » de l'interface du fournisseur (la ligne `- <paquet> : <noms>`). Cette interface
 appartient au paquet de la matière, donc à toi seul ; la garde des consommateurs refuse le lot qui
 l'omet. Ainsi une dépendance se déclare dans le changement qui l'ajoute, comme le `package.json`
-de npm (BP 320.37 : deux noms neufs importés par les tests de 060-encoder, la ligne non écrite, le
-lot refusé).
+de npm.
 
 **Ce que tes tests lisent se nomme ou se déclare** : un test qui lance un script de son paquet,
 ou en lit un fichier, écrit son chemin entier dans une chaîne
@@ -235,8 +232,7 @@ RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2, sur 
 des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes, et celles que le projet
 déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
 et ta fiche finit FAIT sur ta part. Un test qui lit une référence se juge, aux contrôles, sur elle
-régénérée (BP 320.6.5 : un test qui lisait les `turbo.json`). Ainsi le geste mécanique reste au circuit (BP 320.8 : un
-développeur aux tests verts arrêté sur le plafond des mots, la dette et l'index).
+régénérée. Ainsi le geste mécanique reste au circuit.
 
 **Tu ne refais pas ce qu'une référence tient déjà** : ces fichiers régénérés affirment eux-mêmes la
 matière qu'ils couvrent (l'index des interfaces, les `turbo.json`, les rapports d'API, la dette des
@@ -263,7 +259,8 @@ Ainsi le jour reste court, et la preuve longue tourne chaque nuit.
 
 **Un rouge connu se met en quarantaine dans son test** : un test qui reste rouge le temps d'un
 autre ticket s'écrit `it.skip` (ou `it.fails` quand il doit échouer) avec un commentaire qui nomme
-ce ticket. L'intégration exige une passe complète verte et n'admet aucun rouge. Ainsi main reste vert, et
+ce ticket. Main n'avance que sur un lot dont la passe finale est verte, sans aucun rouge (le
+document de l'entrée sur main, §5.1). Ainsi main reste vert, et
 chaque rouge connu a son ticket.
 
 ## La fin

@@ -82,7 +82,7 @@ après lui, écrit le rapport d'API et la part générée des paquets du plan. L
 partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test de la matière>` la
 joue sans la construire, et les journaux et le cache du lancement restent dans ta séance. Les
 gardes du cadre (frontières, consommateurs, index des interfaces, rapports d'API) tournent à côté
-des tests, dans la passe complète que l'intégration joue ; le relecteur les joue seules sur la
+des tests, dans la passe finale ; le relecteur les joue seules sur la
 copie ; leur refus nomme la commande qui corrige. Le jour ne mesure aucun temps : un délai dépassé
 est un rouge. Un lancement qui nomme une mesure de temps (un banc, un témoin de temps) ou un test
 de nuit et sort en 75, « à repasser », n'a vu que des échecs de durée sous charge (la pression CPU
@@ -136,8 +136,7 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
 ## Vérifier et livrer
 
 - **Le circuit contrôle après toi** : ta séance finie, le circuit du ticket joue les tests du lot
-  et de chaque paquet du plan, puis les gardes dans l'enveloppe du plan ; puis la passe finale, la
-  passe complète que joue l'intégration. Un rouge te relance avec sa sortie quand il est dans un
+  et de chaque paquet du plan, puis les gardes dans l'enveloppe du plan ; puis la passe finale. Un rouge te relance avec sa sortie quand il est dans un
   paquet du plan ; hors du plan, il attend la passe finale, où il monte au superviseur. Tu es lancé
   sur un rouge (de la preuve, un `rouge existant` compris, ou des contrôles), sur un constat du
   relecteur ouvert pour toi, ou directement sur un plan qui ne porte aucun test (aucun paquet qui
@@ -151,15 +150,12 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
   RÉFÉRENCES QUE LE CIRCUIT RÉGÉNÈRE » se réécrivent à l'étape 4.2, sur la copie entière : l'index
   des interfaces, les `turbo.json`, les rapports d'API, la dette des gardes, et celles que le
   projet déclare, un plafond par exemple. Leur rouge n'est pas le tien : ta séance ne s'arrête pas sur elles,
-  et ta fiche finit FAIT sur ta part. Exemple : en 320.8 de BPScript, un développeur aux tests
-  verts s'est arrêté sur le plafond des mots, la dette et l'index, que 4.2 a régénérés ensuite.
+  et ta fiche finit FAIT sur ta part.
   Le circuit les régénère avant de te rendre tes rouges : un test qui les lit, sous « Tes rouges »,
-  a déjà été jugé sur elles régénérées. Exemple : en 320.6.5 de BPScript, un test qui lisait les
-  `turbo.json` périmés est allé au développeur, qui ne pouvait pas les écrire.
+  a déjà été jugé sur elles régénérées.
   Un constat de leur garde sur ton code reste le tien, sous « Tes rouges », comme le refus de leur
-  commande qu'il cause : un plafond ne monte jamais. Exemple : en 320.10 de BPScript, le mot
-  « door » écrit dans 030-binder dépassait le plafond des mots. Ainsi le geste mécanique reste au
-  circuit, et ton code à toi.
+  commande qu'il cause : un plafond ne monte jamais (un mot neuf de ton code qui dépasse le plafond
+  des mots est à toi). Ainsi le geste mécanique reste au circuit, et ton code à toi.
 - **Un rouge qui reste dans les tests va au testwriter** : quand le rouge qui reste est dans les
   tests du lot (un test existant que ton changement de type casse), ta fiche porte `renvoi`, le
   rôle testwriter. Le circuit relance le testwriter, ta `raison` et ta passation pour rapport, avec

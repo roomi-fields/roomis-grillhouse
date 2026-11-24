@@ -348,7 +348,7 @@ describe('critère 5 — la charte, les compétences, l’architecture et le CHA
     expect(charte).toMatch(/Le doute va au circuit\s+complet/);
     // Under « comportement tests-adaptés », the proof accepts every green and keeps the testwriter.
     expect(charte).toMatch(
-      /sous un plan qui dit « comportement tests-adaptés », la\s+suite existante fait la preuve : elle accepte chaque vert/
+      /« comportement tests-adaptés »\) garde le\s+circuit complet, la suite existante faisant la preuve/
     );
   });
 

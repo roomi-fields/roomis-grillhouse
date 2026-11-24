@@ -72,16 +72,17 @@ Le flux est celui de la charte, et toutes ses compétences s'appliquent. Ce que 
   d'origine est nommé dans son fichier ; elle se tait quand tout va bien ; son temps est borné ; elle
   seule mesure ce qu'elle mesure. Ainsi chaque vérification prouve quelque chose, sans bruit.
 - **Une garde passe sur sa dette inscrite** (`grillhouse-dette.json`) : un refus qui la nomme dit
-  un constat neuf, qui se corrige et ne s'inscrit jamais pour passer. L'inscription est un geste du
-  responsable, à l'adoption du cadre ; l'élagage suit chaque correction.
+  un constat neuf, qui se corrige et ne s'inscrit jamais pour passer. La dette existante s'inscrit
+  avec la migration de la garde qui la mesure ; l'élagage suit chaque correction (le document des
+  tests, §5.5).
 - **Une vérification change par le responsable** : une vérification ajoutée, retirée ou élargie
   part avec son accord, écrit au ticket. Ainsi ce qui refuse un commit reste sa décision.
-- **Le code mort se refuse** : `packages/grillhouse/scripts/langages/typescript/code-mort.mjs` (knip, configuré dans `knip.json`) refuse un
+- **Le code mort se refuse** : la garde du code mort (knip, configuré dans `knip.json`) refuse un
   fichier, un export ou une dépendance que rien de vivant n'utilise ; un nom légitime sort par son
-  nom, avec sa raison. Ainsi le dépôt garde seulement ce qui sert.
+  nom, avec sa raison (le document des tests, §3.4). Ainsi le dépôt garde seulement ce qui sert.
 - **Un plafond ne remonte jamais** : quand une vérification tolère des défauts jusqu'à un plafond,
-  ce plafond baisse avec les corrections et ne remonte jamais. Ainsi le compte mesure le progrès
-  réel.
+  ce plafond baisse avec les corrections et ne remonte jamais (le document des tests, §2.6). Ainsi
+  le compte mesure le progrès réel.
 - **Une vérification sort quand elle ne mord plus** : celle qui ne peut plus refuser son défaut,
   faute d'objet, sort du crochet dans le commit qui le constate. Ainsi chaque vérification
   branchée prouve encore quelque chose.

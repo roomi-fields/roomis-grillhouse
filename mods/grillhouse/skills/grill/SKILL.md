@@ -146,12 +146,11 @@ remplace jamais le grill. Les branches de l'arbre :
    sauf `--heure <0-23>`) lance la nuit de chaque projet du registre
    qui a bougé depuis sa dernière nuit verte, l'un après l'autre ; `npx grillhouse nuit <racine>`
    la demande à la main. La nuit rejoue pour de vrai la passe complète, puis les tests de nuit et
-   les bancs de budget, que le jour ne joue pas. La passe
-   finale du circuit joue `npm run verifier` en entier (les gardes, le typage de chaque paquet et
-   les tests) sur le lot posé sur la pointe de main avant que main avance ; la CI du projet joue
-   ensuite sur main, chaque heure, par paquets.
+   les bancs de budget, que le jour ne joue pas (le document de l'entrée sur main, §5.3). Main
+   n'avance que sur un lot que la passe finale a jugé vert, et la CI du projet joue ensuite sur
+   main (le même document, §5.1, §5.2).
    Restent des choix selon la taille du projet, que le responsable tranche :
-   - **le contrôle de l'interface contre le code** (`packages/grillhouse/scripts/langages/typescript/interfaces-contre-code.mjs`) : une
+   - **le contrôle de l'interface contre le code** (la garde `interfaces-contre-code`) : une
      seule passe avant les tests (petit projet), ou un banc par composant qui appelle
      `verifierComposant`, rejoué seulement quand son composant l'est (grand projet).
    - **les sous-modules partagés** : un sous-module qu'aucun ticket n'écrit (un moteur de

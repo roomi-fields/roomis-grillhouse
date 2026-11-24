@@ -1,37 +1,41 @@
 # La consigne d'un agent
 
-Neuf gabarits, que le circuit du ticket (`packages/grillhouse/scripts/circuit.mjs`) remplit, chaque `{{champ}}` reçu
-de lui : le premier pour chaque séance neuve du testwriter et du développeur, une par rôle pour
-tout le ticket, dans l'enveloppe du plan du ticket, le lanceur ajoutant ses sections, chaque
-consigne portant les constats du relecteur qui restent ouverts pour son rôle, et, quand le
-superviseur relance le circuit avec `--contexte`, ce contexte en tête, comme sa tâche
-(`{{tache}}` ; donné à un autre rôle par `--depuis <rôle>`, il se lit sous le nom de ce rôle, « LA TÂCHE DU SUPERVISEUR, donnée au … », et la séance en fait la part de son propre rôle), les constats ouverts au lancement de la passe devenant son contexte, après
-ceux qu'un `RENDU` pose dans la passe (`{{ouverts}}`, leur titre, et `{{constats}}`) ; le second pour chaque séance du relecteur, hors
-enveloppe, après la passe finale verte, qui porte la liste des éléments du lot, et après un `RENDU` la relecture d'avant (la
-commande de la différence entre le lot qu'elle a lu et celui d'aujourd'hui, ses fichiers, les
-constats qui restent ouverts, chacun avec la réponse du développeur sous lui) et ne nomme que les fichiers que le lot change depuis elle ; le troisième pour la reprise
-de toute séance finie sans fiche conforme, neuve ou reprise, à la même séance ; le quatrième pour la reprise de la séance du testwriter
-ou du développeur, relancé sur son étape (le testwriter après une preuve refusée, le développeur
-après des contrôles rouges), sauf la dernière tentative, une séance neuve sur le premier ; le
-cinquième pour le questionneur, qui lit le plan du ticket une seule fois ; le sixième pour
-l'explorateur, qui écrit le plan ; le septième pour la reprise de sa séance, qui répond une seule
-fois aux questions du plan ; le huitième pour l'explorateur au tri des découvertes, à l'étape 5.3,
-une fois le lot entré sur main, qui rend un verdict par découverte du ticket (`traitee`, `doublon`,
-`sans-suite`, `a-porter` ou `non-confirmee`) et porte les commandes que ses droits permettent
-(`{{commandes}}`, tirées des droits du rôle, `packages/grillhouse/scripts/droits.mjs`) et leur forme ;
-le neuvième pour l'explorateur au geste mécanique, à l'étape 1.1, dans l'enveloppe du plan, sur un
-ticket que son plan dit mécanique, qui joue dans la copie la commande que le plan nomme
-(`{{commande}}`, avec la raison de sa sorte, `{{raison}}`) et finit sur son statut.
-La consigne du questionneur porte la proposition et le cadre qui l'oriente, jamais une liste de
-questions. Le circuit lit
-la description et les notes du ticket au lancement de chaque séance ; `{{notes}}` porte la section
-des notes, vide quand le ticket n'en a pas ; `{{references}}`, les références que l'étape 4.2
-régénère (celles que le projet déclare, puis celles du cadre), chacune avec ses fichiers. Ainsi chaque agent reçoit la même consigne à chaque
-séance, sur le ticket tel qu'il est, et une reprise ne relit que ce qui a changé.
+Les gabarits de ce fichier sont les consignes que le circuit donne aux séances de rôle : le
+circuit lit chaque bloc `text` dans son ordre et remplit chaque `{{champ}}`. Changer un gabarit
+change ce que chaque séance reçoit : c'est un changement du circuit, qui passe par un ticket.
+L'ordre des blocs et leurs titres comptent.
 
-Chaque séance finit sur sa fiche : la sortie structurée que le schéma de son rôle décrit
-(`packages/grillhouse/scripts/resultats.mjs`, que claude reçoit par `--json-schema`), seule lue par le circuit. Ainsi
-le circuit décide sur des champs, jamais sur un texte libre.
+| Gabarit | La séance qui le reçoit |
+|---|---|
+| Testwriter et développeur | chaque séance neuve du testwriter et du développeur, une par rôle pour tout le ticket, dans l'enveloppe du plan |
+| Relecteur | chaque séance du relecteur, hors enveloppe, après la passe finale verte |
+| Toute séance, sur une fiche absente ou non conforme | la reprise d'une séance finie sans fiche conforme, à la même séance |
+| Testwriter et développeur, sur une reprise | la reprise du testwriter après une preuve refusée, ou du développeur après des contrôles rouges ; la dernière tentative est une séance neuve, sur le premier gabarit |
+| Questionneur, sur le plan | le questionneur, qui lit le plan une seule fois |
+| Explorateur, sur le plan | l'explorateur, qui écrit le plan |
+| Explorateur, sur les questions du plan | la reprise de l'explorateur, qui répond une seule fois aux questions du plan |
+| Explorateur, sur le tri des découvertes | l'explorateur à 5.3, une fois le lot entré sur main |
+| Explorateur, sur le geste mécanique | l'explorateur à 1.1, dans l'enveloppe du plan, sur un ticket que son plan dit mécanique |
+
+Ce que le circuit y met, et que le superviseur doit savoir pour lui répondre :
+
+- **Le `--contexte` du superviseur** devient la tâche de la séance (`{{tache}}`), en tête de sa
+  consigne ; donné à un autre rôle par `--depuis <rôle>`, il se lit sous le nom de ce rôle (« LA
+  TÂCHE DU SUPERVISEUR, donnée au … »), et la séance en fait la part de son propre rôle.
+- **Les constats du relecteur** ouverts pour le rôle (`{{ouverts}}`, `{{constats}}`) : ceux qu'un
+  `RENDU` pose dans la passe d'abord, puis ceux qui étaient ouverts au lancement de la passe,
+  donnés en contexte quand le superviseur a donné une tâche.
+- **La relecture d'avant**, après un `RENDU` : la commande de la différence entre le lot qu'elle
+  a lu et celui d'aujourd'hui, ses fichiers, les constats ouverts et la réponse du développeur
+  sous chacun ; la consigne ne nomme alors que les fichiers que le lot change depuis elle.
+- **Le ticket tel qu'il est** : la description et les notes (`{{notes}}`, vide sans notes),
+  relues au lancement de chaque séance ; `{{references}}`, les références que l'étape 4.2
+  régénère, chacune avec ses fichiers ; `{{commandes}}`, au tri, les commandes que les droits du
+  rôle permettent.
+
+Chaque séance finit sur sa fiche, la sortie structurée que le schéma de son rôle décrit, seule
+lue par le circuit (le document du circuit, §4.4). Ainsi le circuit décide sur des champs, jamais
+sur un texte libre, et une reprise ne relit que ce qui a changé.
 
 ## Testwriter et développeur (rempli par le circuit)
 

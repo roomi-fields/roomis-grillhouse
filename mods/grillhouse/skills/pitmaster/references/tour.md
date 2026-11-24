@@ -23,7 +23,7 @@ ouvert ne se perd entre deux tours.
 ```bash
 git -C <racine> log --format='%h %ad %an %s' --date=iso --since='<dernier tour>'
 git -C <racine> log @{u}..HEAD --oneline | wc -l   # commits non poussés
-gh run list --limit 3                               # la CI des derniers commits ; un rouge ouvre un ticket
+gh run list --limit 3                               # la CI des derniers commits ; un rouge de main a son ticket de défaut
 git -C <racine> status --short
 ```
 
@@ -117,7 +117,7 @@ agents voient ce que le cadre attend.
 - Un agent se reprend avec `SendMessage` (chargé par `ToolSearch`, `select:SendMessage`) et son
   identifiant : il garde son contexte. Un nouvel appel `Agent` part de zéro. Un message arrivé
   pendant que l'agent rédige sa fin lui revient avant sa pause : le crochet d'arrêt du greffon le
-  lui remet, sans geste du superviseur.
+  lui remet, sans geste du superviseur (le document du greffon, §3.2).
 - **J'inscris chaque lancement dans `SUIVI.md`** : le ticket, l'agent, les fichiers qu'il
   touchera. Ainsi deux agents ne touchent jamais le même fichier.
 

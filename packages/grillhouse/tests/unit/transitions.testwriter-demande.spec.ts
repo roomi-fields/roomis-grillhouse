@@ -201,13 +201,13 @@ describe('la preuve sous la marque', () => {
 });
 
 describe('la règle écrite : la charte et l’architecture du paquet disent l’exception', () => {
-  it('la charte : sous « comportement inchangé », la commande --depuis testwriter du superviseur l’emporte', () => {
-    const charte = plat('mods/grillhouse/charte.md');
-    const debut = charte.indexOf('**Un ticket prend le circuit court');
-    const fin = charte.indexOf("**Un ticket prend l'une de trois voies**");
-    const paragraphe = charte.slice(debut, fin);
+  it('le document du circuit : sous « comportement inchangé », la commande --depuis testwriter du superviseur l’emporte', () => {
+    const circuit = plat('packages/grillhouse/docs/architecture/circuit.md');
+    const i = circuit.indexOf("**La commande explicite l'emporte**");
+    expect(i).toBeGreaterThan(-1);
+    const paragraphe = circuit.slice(i, i + 300);
     expect(paragraphe).toContain('--depuis testwriter');
-    expect(paragraphe).toMatch(/superviseur/);
+    expect(paragraphe).toMatch(/inchangé/);
   });
 
   it('l’architecture du paquet : la commande du superviseur l’emporte sur la sorte « inchangé »', () => {

@@ -59,12 +59,6 @@ entree=
 role="$(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s).agent_type;if(typeof a==="string"&&/^[A-Za-z0-9_:-]+$/.test(a))process.stdout.write(a)}catch{}})' 2>/dev/null)"
 role="${role#grillhouse:}"
 [ -n "$role" ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "$CLAUDE_PLUGIN_ROOT/agents/$role.md" ] && exit 0
-if [ -f "$root/.claude/template" ]; then
-  echo "## Gabarit Roomi's Grillhouse"
-  echo "Ce dossier est le gabarit du framework, pas un projet : il ne s'initialise pas. Un projet neuf se crée par \`npx @roomi-fields/grillhouse init <chemin> [préfixe]\` ; sa première séance propose le grill d'initialisation."
-  exit 0
-fi
-
 # One supervisor per project: the lock of the repository, or the section that says who holds it.
 superviseur="$(node "$ici/superviseur.mjs" "$root" 2>/dev/null)"
 [ -z "$superviseur" ] || echo "$superviseur"

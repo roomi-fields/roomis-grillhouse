@@ -193,7 +193,7 @@ fois, et seules celles qui comptent attendent le responsable.
    `cd` ni enchaînement, ma séance tournant déjà dans l'arbre principal (hors de lui,
    `git -C <depot> show <commit>`, `git -C <depot> log --oneline --grep <ticket>`). Une commande
    refusée, je la relance sous sa forme simple. Ainsi une découverte n'attend jamais le
-   responsable sur un refus de forme (BP 320.39 : trois `non-confirmee` sur une boucle refusée).
+   responsable sur un refus de forme.
 
 2. **Le verdict.** Ma fiche du tri porte une ligne par découverte de ma consigne, ni plus ni moins
    (`verdicts`), chacune avec son `texte` :

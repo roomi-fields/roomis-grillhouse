@@ -1,2 +1,0 @@
-Ce dossier est le gabarit Roomi's Grillhouse lui-même, pas un projet.
-`npx @roomi-fields/grillhouse init` crée un projet depuis `templates/projet/` : un projet créé ne porte pas ce fichier.

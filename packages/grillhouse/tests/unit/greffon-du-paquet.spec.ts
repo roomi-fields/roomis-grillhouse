@@ -188,7 +188,7 @@ describe('critère 1 — the published package is the plugin', () => {
     const chemins = [...charte.matchAll(/`node_modules\/@roomi-fields\/grillhouse\/([^`]+)`/g)].map(
       m => m[1]!
     );
-    expect(chemins).toContain('docs/ARCHITECTURE.md');
+    expect(chemins).toContain('docs/architecture/');
     for (const c of chemins) {
       expect(existsSync(path.join(racine, c)), c).toBe(true);
       expect(existsSync(path.join(PAQUET, c)), c).toBe(true);

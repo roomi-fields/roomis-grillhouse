@@ -114,7 +114,7 @@ describe('grillhouse-nt4, critère 1 — la règle dans la charte commune', () =
       .find(l => l.startsWith('**Les tests ne laissent rien dans le dossier temporaire**'));
     expect(regle).toBeDefined();
     expect(regle).toMatch(/l'outil de son langage/);
-    expect(regle).toMatch(/échoue en nommant/);
+    expect(regle).toMatch(/échoue\s+en\s+nommant/);
     expect(regle).not.toMatch(/tempfile|mkdtemp|vitest|pytest|nextest|cargo|tmp_path/i);
   });
 });

@@ -2,11 +2,15 @@
 
 Les règles que tout agent applique, identiques dans chaque projet qui installe le cadre. La charte
 du projet (`CLAUDE.md`) l'importe depuis le paquet installé et porte ce qui lui est propre : son
-nom, son responsable, ce qui décide chez lui, ses critères d'arbitrage, ses commandes. Le détail
-d'un rôle vit dans sa compétence, celui d'un outil dans l'architecture du paquet
-(`node_modules/@roomi-fields/grillhouse/docs/ARCHITECTURE.md`). Ce fichier ne se modifie pas
-dans un projet : un écart se propose à Grillhouse. Ainsi les projets suivent un seul cadre, et
-chaque séance ne charge que ce qu'elle applique.
+nom, son responsable, ce qui décide chez lui, ses critères d'arbitrage, ses commandes ; elle ne
+décrit aucun réglage. Le détail d'un rôle vit dans sa compétence ; celui d'un mécanisme du cadre
+dans son document, sous `node_modules/@roomi-fields/grillhouse/docs/architecture/` : le circuit
+(`circuit.md`), l'entrée sur main, la CI et la nuit (`entree.md`), la machine et l'enveloppe
+(`machine.md`), les tests et les langages (`tests.md`), l'installation et les réglages d'un
+projet (`installation.md`), le greffon et le panneau (`greffon.md`). Une règle de cette charte
+renvoie au paragraphe qui la décrit. Ce fichier ne se modifie pas dans un projet : un écart se
+propose à Grillhouse. Ainsi les projets suivent un seul cadre, et chaque séance ne charge que ce
+qu'elle applique.
 
 ## Ce qui décide
 
@@ -44,33 +48,22 @@ professionnel.
    structurée de son rôle, sur laquelle le circuit décide. Ainsi la passation sert l'humain, et
    la fiche le circuit.
 
-Un ticket parcourt les étapes de son circuit (`etapes.mjs`, la seule liste), chacune tenue par un
-rôle, agent du cadre, sous ses droits : 1 Plan, l'explorateur puis le questionneur, et
-1.1 Geste mécanique, l'explorateur, pour un ticket que son plan dit mécanique ; 2 Tests, une
-séance du testwriter, et 2.1 Preuve du rouge ; 3 Code, une séance du développeur, et
-3.1 Contrôles ; 4 Passe finale et relecture : la passe finale, la régénération des références,
-puis le relecteur, qui rend une ligne de conformité par élément que le lot ajoute, change ou
-supprime ; 5 Intégration, et 5.3 Tri des découvertes, l'explorateur, sur le lot entré sur main.
-Ainsi chaque agent travaille dans son cadre,
-et le numéro d'une étape dit où en est chaque ticket.
+Un ticket parcourt les étapes de son circuit, chacune tenue par un rôle, agent du cadre, sous ses
+droits, ou par le circuit lui-même ; leur liste est une seule (`etapes.mjs`), et le document du
+circuit la décrit (§5.1), avec ce que chaque rôle écrit (§3.3). Ainsi chaque agent travaille dans
+son cadre, et le numéro d'une étape dit où en est chaque ticket.
 
 **Le circuit fait les gestes, une vraie question monte** : le circuit fait lui-même les gestes
-mécaniques que la liste des étapes écrit (rejouer, régénérer, juger un lot sans rien à livrer) ;
-tout autre arrêt monte au superviseur avec sa pièce, et il monte au responsable ce qui lui
-revient. Ainsi aucune séance ne juge ce qu'une règle tranche.
+mécaniques que la liste des étapes écrit (le document du circuit, §5.5) ; tout autre arrêt monte
+au superviseur avec sa pièce, et il monte au responsable ce qui lui revient (§5.4).
+Ainsi aucune séance ne juge ce qu'une règle tranche.
 
-**Le greffon pousse les questions dans la file de la séance du superviseur, la réponse les
-acquitte** : le greffon de la séance qui tient le verrou du superviseur met chaque question neuve
-d'un circuit du projet et des projets de son groupe qu'aucune autre séance ne supervise, et chaque
-fin de circuit, dans la file des messages de cette séance, un
-message par relevé ; aucun relevé ne part pendant un tour de la séance, le premier part après sa
-fin ; une question a trois états que le greffon tient (envoyée, lue quand un tour de la séance démarre
-avec son message, répondue) et ne revient qu'une fois lue, à l'intervalle de la clé `grillhouse.rappel`
-(10 minutes par défaut) compté depuis sa lecture, jamais tant qu'elle est en file ; sa réponse au
-circuit l'acquitte, et `--chez-le-responsable` la tait jusqu'à cette réponse quand le superviseur l'a
-portée au responsable. Sans séance de superviseur ni
-greffon, rien n'est poussé : le tableau, l'ouverture de séance et le crochet de fin de tour portent
-les questions. Ainsi une question ne dépend d'aucune attente que la séance relance.
+**Le greffon pousse les questions des circuits à la séance du superviseur, et la réponse les
+acquitte** : seule la séance qui tient le verrou du superviseur les reçoit, un message par
+relevé, jamais pendant un de ses tours ; une question lue et restée sans réponse revient à
+l'intervalle de rappel du projet. Les états d'une question, le groupe de projets et la réponse
+portée au responsable sont au document du greffon (§5.1). Ainsi une question ne dépend d'aucune
+attente que la séance relance.
 
 **Un agent qui a la réponse l'applique** : une décision qu'il sait trancher et qu'il recommande
 (un nom, une signature, un paquet à retirer de son plan), il la prend et l'écrit dans sa fiche,
@@ -118,15 +111,17 @@ justification à donner. Chaque sorte de test prouve une chose :
 | Banc de temps, témoin de temps | Un temps reste sous sa borne | Non : mesuré la nuit |
 | Test de nuit | Le produit entier, monté dans un projet d'essai | Oui s'il porte le travail du ticket, joué la nuit |
 
-Ainsi la preuve du rouge mesure le travail, et aucun test ne rougit pour la forme.
+Ainsi la preuve du rouge mesure le travail, et aucun test ne rougit pour la forme. La preuve, ce
+qu'elle joue et ce qu'elle refuse : le document des tests (§5.2).
 
 **La taille d'un test suit la pyramide** (la pyramide des tests de Google, les tailles de
 Bazel) : un test petit vérifie son module par son interface, sans processus ; un test moyen
 assemble quelques modules sur la machine, avec des processus locaux ; un test grand monte un
 projet d'essai et y lance le produit ou le cadre entier : il est un test de nuit (`*.nuit.test.*`,
-`*_nuit_test.py`, un module de `tests/it_nuit/` en Rust), jamais joué au fil du travail. Chaque test prend la plus petite taille qui prouve son critère, dans
-Grillhouse comme dans chaque projet. La garde des tailles (`grillhouse tailles-des-tests`) refuse
-un grand test de jour, et la dette inscrite des grands tests existants ne fait que baisser. Un
+`*_nuit_test.py`, un module de `tests/it_nuit/` en Rust), jamais joué au fil du travail. Chaque
+test prend la plus petite taille qui prouve son critère, dans Grillhouse comme dans chaque projet.
+La garde des tailles (`grillhouse tailles-des-tests`) refuse un grand test de jour, et la dette
+inscrite des grands tests existants ne fait que baisser (les gardes : le document des tests, §3.4). Un
 test de jour valide le code en l'important : lancer la commande grillhouse (son binaire, un
 script du cadre) est réservé aux tests de bout-en-bout, sous un dossier `e2e/`, et la même garde
 refuse les autres. Un test qui a besoin d'un autre paquet construit — le binaire ou la
@@ -145,21 +140,21 @@ test vit autant que son comportement, pas que son ticket.
 **Une mesure de temps joue la nuit** (les tests `manual` de Bazel, les bancs de rustc-perf hors de
 la CI de chaque commit) : le jour sert l'activité, et sa machine est toujours chargée. Un test qui
 mesure un temps (un banc de temps, un témoin de temps) est hors du jour dans chaque langage, comme
-un test de nuit ; la nuit le joue seul, sur des cœurs au repos (des cœurs dédiés que personne
-d'autre ne touche, le reste de la machine continuant de travailler), et un échec sous charge y est
-« à repasser » (75). Le jour n'attend aucun repos : un délai de test est un garde-fou, pas une mesure ; dépassé,
-il est rouge, et un délai trop juste s'élargit, très au-dessus de la durée normale du test. Ainsi
-le jour avance, et une mesure se prend au repos.
+un test de nuit ; la nuit le joue sur des cœurs dédiés que personne d'autre ne touche, et un
+échec sous charge y est « à repasser » (75) (la nuit : le document de l'entrée sur main, §5.3 ;
+les cœurs dédiés : le document de la machine, §5.2). Le jour n'attend aucun repos : un délai de
+test est un garde-fou, pas une mesure ; dépassé, il est rouge, et un délai trop juste s'élargit,
+très au-dessus de la durée normale du test. Ainsi le jour avance, et une mesure se prend au repos.
 
 **Un test qui exige de la charge joue la nuit** (les tests de résistance de Chromium et de rustc,
 hors de la passe de chaque changement) : un test qui a besoin d'une machine chargée produit sa
-charge lui-même et est un test de nuit, joué seul, sur des cœurs dédiés (`grillhouse.mesure`),
-comme une mesure de temps. La nuit d'un projet joue sur la part du projet, comme une passe, sans
-réserver la machine (l'étiquette `exclusive` de Bazel est donnée aux seuls tests qui l'exigent,
-non à la suite) : seuls une mesure de temps et un test qui exige de la charge réservent ce qu'ils
-exigent, et les autres projets continuent de travailler. De jour, personne ne fabrique de charge :
-un test soupçonné instable se rejoue par `npm run test:forcer`, sans boucle ni processus lancés
-pour occuper la machine. Ainsi la charge d'un test reste la sienne, et le jour garde sa machine.
+charge lui-même et est un test de nuit, joué sur des cœurs dédiés (`grillhouse.mesure`), comme
+une mesure de temps. Pendant la nuit d'un projet, les autres projets continuent de travailler :
+seuls une mesure de temps et un test qui exige de la charge prennent des cœurs que personne d'autre
+ne touche (l'étiquette `exclusive` de Bazel, donnée aux seuls tests qui l'exigent, non à la
+suite). De jour, personne ne fabrique de charge : un test soupçonné instable se rejoue par
+`npm run test:forcer`, sans boucle ni processus lancés pour occuper la machine. Ainsi la charge
+d'un test reste la sienne, et le jour garde sa machine.
 
 **Un projet a plusieurs langages, un paquet un seul** : chaque paquet relève du langage de son
 outil, et `npm test`, la vérification et le circuit jouent chaque paquet avec cet outil. Ainsi
@@ -169,8 +164,8 @@ chaque paquet se construit et se teste d'une seule façon.
 composants de `docs/ARCHITECTURE.md` le nomme, l'`INTERFACE.md` du paquet le reprend, et le cadre
 le lit là, sans le deviner aux fichiers ; la garde `grillhouse langages-des-paquets` refuse un
 paquet que l'architecture ne déclare pas, dont le manifeste suit un autre langage, ou qui n'a pas
-le manifeste du sien. Ainsi
-l'architecture fixe le langage, et le code le suit.
+le manifeste du sien (le document des tests, §5.6). Ainsi l'architecture fixe le langage, et le
+code le suit.
 
 **Un test vit dans un fichier à lui**, jamais dans un fichier de code, reconnu au nom ou au
 dossier qu'attend l'outil de son langage : près de son module pour un test unitaire (en Rust, un
@@ -217,19 +212,12 @@ testwriter et la preuve du rouge, et une séance du développeur écrit, puis le
 relecture. Reste au circuit complet ce qu'un utilisateur ou un autre paquet observe (une sortie,
 un code de retour, une interface publiée) ; le texte qui accompagne un changement de comportement
 reste dans son lot. Une configuration dont une garde mesure l'effet reste au circuit. Une
-réorganisation qui a du code garde sa règle : sous un plan qui dit « comportement tests-adaptés », la
-suite existante fait la preuve : elle accepte chaque vert, le testwriter garde ses tests, et le
-développeur écrit le code, puis les contrôles et la relecture ; « comportement inchangé » est le
-geste écrit à la main, le développeur seul, sans testwriter ni preuve, sauf si le superviseur répond `--depuis testwriter` : sa commande explicite l'emporte sur la sorte du plan, le testwriter joue, la preuve accepte chaque vert, et le circuit reprend aux contrôles. Hors de ce cas, une preuve qui ne trouve aucun rouge passe aux
-contrôles et à la relecture sans séance du développeur.
-La bascule marche dans les deux sens, sur le même plan, ses paquets et ses critères gardés : le
-testwriter qui ne trouve aucun comportement à tester s'arrête (motif `aucun-comportement`), ou la
-preuve du rouge refuse un lot de tests dont aucun ne peut rougir (arrêt `preuve`), et le
-superviseur répond `--mecanique [<commande>]` (avec sa commande vers 1.1, sans elle vers le
-développeur) ; le relecteur d'un lot du circuit court qui voit un comportement changer le rend
-avec le motif `comportement-change`, et le ticket repart à 2 Tests, sa sorte changée. Cette
-bascule compte parmi les `RENDU` : le troisième arrête toujours le circuit. Ainsi chaque séance
-du circuit a un lot à écrire.
+réorganisation qui a du code et dont les tests s'adaptent (« comportement tests-adaptés ») garde le
+circuit complet, la suite existante faisant la preuve. La bascule marche dans les deux sens, sur le
+même plan, ses paquets et ses critères gardés : un lot de tests dont aucun ne peut rougir passe au
+circuit court, un lot du circuit court qui change un comportement repart au circuit complet ; ses
+arrêts, les réponses du superviseur et leur compte parmi les `RENDU` sont au document du circuit
+(§5.6, §5.4). Ainsi chaque séance du circuit a un lot à écrire.
 
 **Un ticket prend l'une de trois voies** : le circuit complet pour un comportement qui change ;
 le circuit court pour un geste sans comportement neuf, que l'explorateur juge au plan par son critère, et que la bascule rend dans les deux sens ; hors
@@ -286,18 +274,18 @@ dossier.
   Ainsi le cadre ne maintient aucune spécificité par composant.
 - **Une dette connue s'inscrit et se gèle** (`grillhouse-dette.json`) : une garde refuse tout
   constat neuf, et le compte ne remonte jamais. Une garde à dette neuve du cadre arrive avec sa
-  migration, qui inscrit la dette existante des projets (la garde des migrations des gardes refuse
-  celle qui n'en a pas). Ainsi la dette ne fait que baisser, et un projet monte sans geste à la main.
+  migration, qui inscrit la dette existante des projets (le document des tests, §5.5). Ainsi la
+  dette ne fait que baisser, et un projet monte sans geste à la main.
 - **Un flux de la CI déclare les paquets qu'il exerce, le relecteur le lit** (`grillhouse.flux` du
   `package.json` racine) : une garde refuse un flux sans entrée ou un paquet inconnu, et la
-  consigne du relecteur nomme chaque flux que le lot touche. Ainsi un flux qui ne suit pas un
-  changement est lu avant le commit.
+  consigne du relecteur nomme chaque flux que le lot touche (le document des tests, §3.4). Ainsi un
+  flux qui ne suit pas un changement est lu avant le commit.
 - **Un fichier engendré se construit** plutôt que de se commiter (au démarrage, au déploiement),
   comme les index de Homebrew ou de caniuse. Un fichier qu'un lecteur ne peut pas construire
   (une page lue sur GitHub, une somme de contrôle publiée) reste commité : le projet le déclare
-  avec sa commande (`grillhouse.engendres` de son `package.json`), et l'intégration le régénère
-  sur le lot appliqué au lieu de le fusionner. Ainsi deux tickets qui touchent ses sources
-  entrent tous deux.
+  avec sa commande (`grillhouse.engendres`), et l'entrée sur main le régénère sur le lot au lieu
+  de le fusionner (le document de l'entrée sur main, §5.1). Ainsi deux tickets qui touchent ses
+  sources entrent tous deux.
 - **Un remplacement supprime le remplacé** dans le même commit, avec ses consommateurs et ses
   gardes. Ainsi le produit garde une seule façon de faire chaque chose.
 - **Une règle retirée emporte ce qu'elle seule tenait** : retirer une règle supprime, dans le même
@@ -328,16 +316,15 @@ dossier.
 - **Les tests se lancent par `npm test`** : `npm test -- <chemins>` pour un lancement ciblé,
   chaque chemin écrit depuis la racine du dépôt ; `npm run test:forcer -- <chemins>` pour rejouer
   pour de vrai un test soupçonné instable. `npm run verifier` joue les gardes, le typage de chaque
-  paquet et les tests ; `npm run verifier -- --gardes`, les gardes, la mise en forme et le lint. Aucun agent ne lance
-  l'outil de test directement. Ainsi chaque test tourne avec ce dont il dépend, et une seule fois
-  tant que rien ne change.
+  paquet et les tests ; `npm run verifier -- --gardes`, les gardes, la mise en forme et le lint. Aucun
+  agent ne lance l'outil de test directement. Ce que chaque commande joue : le document des tests
+  (§5.1, §5.4). Ainsi chaque test tourne avec ce dont il dépend, et une seule fois tant que rien ne
+  change.
 - **Les tests ne laissent rien dans le dossier temporaire** : un test crée ses fichiers et
   dossiers temporaires par l'outil de son langage, qui les retire à la fin, test rouge compris ;
-  aucun chemin ne se bâtit à la main sous le dossier temporaire. Chaque passe de tests joue sous un
-  dossier temporaire à elle, retiré à sa fin, même rouge ou interrompue, et échoue en nommant ce
-  qu'un test y laisse ; le module de chaque langage nomme son outil et porte cette garde. Ainsi le
-  dossier temporaire, souvent un disque en mémoire que partagent les séances du poste, ne sature
-  jamais.
+  aucun chemin ne se bâtit à la main sous le dossier temporaire. Une passe de tests échoue en
+  nommant ce qu'un test y laisse (le document des tests, §4.2). Ainsi le dossier temporaire,
+  souvent un disque en mémoire que partagent les séances du poste, ne sature jamais.
 - **Un fichier temporaire meurt avec son propriétaire** : une passe ou une séance hors ticket (la
   nuit, une vérification) écrit sous un dossier temporaire à elle, retiré à sa fin, même
   interrompue, et balayé par la suivante quand son processus est tué ; un agent écrit sous celui
@@ -347,33 +334,27 @@ dossier.
   reprendre vit dans la copie du ticket ou sa passation, jamais dans le seul dossier temporaire,
   qui ne porte que ce qui se refait. Le dossier temporaire ne tient ni copie du dépôt, ni
   `node_modules`, ni cache : un cache de compilation va sous `~/.cache/grillhouse/`. Une passe
-  lourde qui trouve moins de 4 Go libres, sous le dossier temporaire ou sur le disque de sa copie,
-  attend la place et dit ce qui l'occupe, le ticket nommé. Ainsi le poste ne sature jamais ses
-  disques.
+  qui ne trouve pas la place de disque qu'elle exige attend, et dit ce qui l'occupe (le document de
+  la machine, §5.2). Ainsi le poste ne sature jamais ses disques.
 - **Main reste vert** : la file n'avance main que sur l'arbre que la passe finale du circuit (ou,
   hors du circuit, la vérification du lot direct) a jugé vert, le lot posé sur la pointe de main ;
-  elle n'attend aucune CI de branche. La CI du projet joue ensuite sur main, par paquets, au plus
-  une fois par heure (le modèle de Google, TAP, et de Chromium), la file la déclenchant elle-même
-  après l'entrée d'un lot (`gh workflow run`), sans horloge tierce : elle voit ce que la passe finale
-  ne joue pas (autres plates-formes, matrice de versions, flux hors `npm run verifier`). Un rouge
-  de la CI de main, ou de la machine vierge, alerte le superviseur avec les lots entrés depuis le
-  dernier vert, sans arrêter la file, et ouvre un ticket de défaut sous `a-valider` : un rouge de
-  main est un défaut ouvert tant que ce ticket n'est pas fermé. Un test connu rouge se met en
-  quarantaine dans le test lui-même (`it.skip` ou `it.fails`), avec le ticket qui le corrige.
-  Ainsi chaque rouge a son ticket.
+  elle n'attend aucune CI de branche. La CI du projet rejoue ensuite main entier, par paquets de
+  lots, au plus une fois par heure (le modèle du TAP de Google), la file la déclenchant elle-même
+  après l'entrée d'un lot, sans l'attendre. Un rouge de la CI de main ou de la nuit alerte le
+  superviseur avec les lots entrés depuis le dernier vert, sans arrêter la file, et ouvre un ticket
+  de défaut : un rouge de main est un défaut ouvert tant que ce ticket n'est pas fermé (le document
+  de l'entrée sur main, §2, §5.2). Un test connu rouge se met en quarantaine dans le test lui-même,
+  avec le ticket qui le corrige. Ainsi chaque rouge a son ticket.
 - **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Ainsi une affirmation sur le code repose sur ce que le code contient.
 - **Tout se lit, le plan s'écrit** : dans son enveloppe, un agent lit tout le dépôt, index compris,
   et n'écrit que les paquets que le plan de son ticket nomme. Une écriture hors du plan l'arrête,
-  et le superviseur étend le plan ou refuse. Trois cas le circuit étend le plan lui-même, sans
-  arrêt, sa pièce écrite au ticket : un fichier que la description du ticket nomme, et un
-  composant que le relevé nommait et que le plan avait écarté, quand il rougit aux contrôles ou à
-  la passe finale (écarter un lecteur est une prévision, que les contrôles vérifient), et les
-  tests d'un paquet lecteur que le lot fait rougir, quand chaque lieu rouge du
-  paquet est un fichier de test ; le circuit étend alors le plan à ces fichiers de test seuls,
-  que le testwriter écrit, le code du lecteur restant hors du plan. Ainsi
-  l'agent lit ce dont il a besoin, et les gardes tiennent l'architecture.
+  et le superviseur étend le plan ou refuse. Dans trois cas, le circuit étend le plan lui-même,
+  sans arrêt, sa pièce écrite au ticket : un fichier que la description du ticket nomme, un
+  composant écarté du plan qui rougit, et les seuls fichiers de test d'un paquet lecteur que le lot
+  fait rougir (le document du circuit, §5.5). Ainsi l'agent lit ce dont il a besoin, et les gardes tiennent
+  l'architecture.
 - Tickets : Beads (`bd`), sous le préfixe du projet, voir `docs/agents/issue-tracker.md`.
 - Une compétence du cadre s'appelle avec son préfixe `grillhouse:` ; un document pour un agent
   s'écrit avec `grillhouse:writing-for-agents`.

@@ -2,9 +2,7 @@
 
 Le noyau mène le travail des tickets, quel que soit le langage du projet.
 
-Le paquet `@roomi-fields/grillhouse` porte le noyau et un module par langage, sous
-`scripts/langages/` (`docs/ARCHITECTURE.md`, « La cible : un noyau et un module par langage »).
-Ce cadre est celui du noyau ; l'interface qu'il demande aux modules est `docs/INTERFACE.md`.
+Le paquet `@roomi-fields/grillhouse` porte le noyau et un module par langage, sous `scripts/langages/` (le document des tests et des langages, §2.2, §3.3). Ce cadre est celui du noyau ; l'interface qu'il demande aux modules est `docs/INTERFACE.md`.
 
 ## Son rôle
 
@@ -29,76 +27,21 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   `./vitest-config/mesure`, `./vitest-config/duree` et `./tsdoc-base.json` mènent au module
   typescript.
 
-- **R2.1.** Tout langage entre dans le graphe de Turborepo par un `package.json` : celui d'un
-  crate ou d'un projet Python, écrit par `npx grillhouse paquet` (ou la migration 0.31.0 pour un
-  projet existant), inscrit aux `workspaces`, dont les scripts appellent les commandes par paquet
-  du module (`construire <chemin>`, `typer <chemin>`, `tester <chemin>`) ; la garde
-  `dependances-internes` tient ses dépendances internes d'accord avec le manifeste du langage.
+- **R2.1.** Tout langage entre dans le graphe de Turborepo par un `package.json` : celui d'un crate ou d'un projet Python, écrit par `npx grillhouse paquet` (ou par `grillhouse maj` pour un projet existant), inscrit aux `workspaces`, dont les scripts appellent les commandes par paquet du module (`construire <chemin>`, `typer <chemin>`, `tester <chemin>`) ; la garde `dependances-internes` tient ses dépendances internes d'accord avec le manifeste du langage (le document des tests et des langages, §2.1, §3.4).
 - **R2.2.** Un paquet déclare dans `grillhouse.donnees` (`{ "<VARIABLE>": "<paquet>#<sortie>" }`), à
   côté de `grillhouse.outils`, la sortie d'un autre paquet que ses tests lancent, et inscrit le
   fournisseur en `devDependencies` : la construction l'attend, même hors du plan, et la variable
   porte le chemin absolu de la sortie (pour un crate, un binaire de `cargo metadata`). Une
   déclaration fautive est refusée par son nom avant tout travail.
-- **R2.3.** Aux tickets, la reprise à l'étape qui porte le rouge et la relecture d'une étape
-  inchangée (`scripts/reprise.mjs`). Un rouge de contrôles ou de passe finale s'attribue par la
-  sortie de l'étape rouge (le paquet et le fichier nommés) : un fichier de code va au développeur,
-  un test du lot qui échoue au développeur, un fichier de test du lot que refuse une garde ou le
-  style au testwriter, un rouge de tâche d'un paquet du plan sans fichier nommé (lint, mise en forme, typage, construction) au développeur, un autre rouge sans fichier nommé monte au superviseur, jamais deviné. Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier, puis les
-  contrôles et la passe finale restreints à sa portée. Une étape (preuve, contrôles, passe
-  finale) dont l'empreinte (le hachage de sa commande et du contenu de ce qu'elle lit, par le
-  hachage d'entrées de Turborepo) est celle de son dernier vert ne se rejoue pas : son résultat
-  se relit et le ticket le dit. `--depuis <étape>` rejoue cette étape et les suivantes sans rien
-  relire. `--recommencer` repart à neuf d'un circuit arrêté sur le mot du superviseur : sa copie
-  (avec le travail qu'elle porte), ses fiches et son journal sont retirés, puis le ticket repart
-  du testwriter dans une copie fraîche ; le ticket, son plan et ses commentaires restent. Un
-  circuit qui tourne le refuse, et l'option va seule. La preuve du rouge s'abstient quand le code
-  du développeur est dans la copie, non commité ou commité en avance sur main, fiche ou non.
-  Le bilan compte à part le temps rejoué après un rouge et le temps relu.
-- **R2.4.** Aux tickets, un conflit de l'avance d'une copie sur main va au rôle qui écrit ses
-  fichiers, sans monter au superviseur : l'avance applique le lot fichier par fichier (un fichier
-  en conflit garde ses marques, un fichier que git refuse sans marques reste seul dans
-  `grillhouse-travail.patch`, les autres s'appliquent), puis le circuit relance, par le geste
-  `conflit-de-l-avance`, le testwriter pour un test ou la matière de test partagée (`estUnTest`
-  du module du langage), le développeur pour le code, le testwriter d'abord ; la séance du rôle
-  relancé revient à la passe, qui revoit la copie et relance l'autre rôle tant qu'un de ses
-  fichiers garde ses marques (cherchées aussi dans les fichiers du conflit que l'index ne dit plus
-  en conflit), si bien qu'aucune construction ne joue sur un fichier marqué. Le lanceur accepte
-  la relance d'un rôle sur une copie aux conflits non résolus ou au lot gardé quand il écrit un de
-  ces fichiers, et le refuse sinon ; un conflit que la seconde séance du rôle ne lève pas monte
-  (arrêt « lancement »), chaque fichier nommé. La fiche FAIT d'une séance est refusée tant qu'un
-  fichier de son rôle porte une marque de conflit, le fichier nommé, mis à l'index ou non ; un
-  lancement refusé parce que les fichiers marqués sont à l'autre rôle va d'abord à ce rôle, dont
-  la fiche BLOQUÉ ou BESOIN monte avec sa raison ou sa question, puis se relance une fois.
-- **R2.5.** À la CI, la vérification en morceaux qui, réunis, font la passe complète, comme Vitest
-  découpe une passe (`--shard`, puis `--merge-reports`) : `npm run verifier -- --sans-tests` joue
-  chaque tâche sauf les tests (gardes, typage, mise en forme, lint) ; `npm run verifier --
-  --tranche i/n` joue les seuls tests de la tranche i sur n, avec les constructions dont ils
-  dépendent, chaque paquet de Vitest jouant la i-ième part de ses fichiers de tests ; `grillhouse
-  fusion-des-tranches` réunit leurs rapports et refuse un fichier de la passe qu'aucune tranche ne
-  joue ou que deux jouent ; la commande existe dans tout projet, et un projet dont aucun langage
-  n'écrit de rapport de tranche (cargo seul, python seul, c seul) n'a rien à réunir : elle y est
-  verte. Une tranche mal écrite est refusée avant tout travail ; ni une tranche
-  ni la passe sans tests ne garde de dernier vert.
-- **R2.6.** La nuit d'un projet joue sur sa part : sa passe prend la part du projet (sorte « nuit »,
-  la part que déclare `grillhouse.part`, sinon la part par défaut), l'attend en disant ce qu'elle
-  attend (cœurs, mémoire, charge) et la rend à sa fin, verte, rouge, interrompue ou annulée,
-  comme toute passe. Aucune réservation de la machine : les circuits et les passes des autres
-  projets prennent leurs places et leurs parts pendant elle, comme une étiquette `exclusive` de
-  Bazel n'est donnée qu'aux tests qui l'exigent. Une mesure de temps, et un test qui exige de la
-  charge, jouent sur des cœurs dédiés (`grillhouse.mesure`). Seule la fermeture de la machine par
-  le superviseur retient les places, et la passe de la nuit attend alors sans borne la réouverture.
-  Aucun créneau horaire hors de l'heure de la planification, aucun gel de processus.
+- **R2.3.** Aux tickets, la reprise à l'étape qui porte le rouge : un rouge de contrôles ou de passe finale s'attribue, par la sortie de l'étape rouge (le paquet et le fichier nommés), à l'un des rôles qui écrivent le lot, un rouge que nulle règle n'attribue monte au superviseur, jamais deviné, et les réponses `--depuis <étape>` et `--recommencer` rejouent ou reprennent à neuf (le document du circuit, §5.4, §5.5).
+- **R2.4.** Aux tickets, un conflit de l'avance d'une copie sur main va au rôle qui écrit ses fichiers, une séance par rôle, sans monter au superviseur ; un conflit qui reste arrête le circuit (arrêt `lancement`) (le document du circuit, §5.5).
+- **R2.5.** À la CI, la vérification en morceaux qui, réunis, font la passe complète : `npm run verifier -- --sans-tests`, `npm run verifier -- --tranche i/n` et `grillhouse fusion-des-tranches`, qui existe dans tout projet (le document des tests et des langages, §3.1, §5.1 ; le document de l'entrée sur main, §5.2).
+- **R2.6.** La nuit d'un projet joue sa passe sans retenir la machine aux autres projets, et ses mesures de temps et ses tests qui exigent de la charge sur des cœurs dédiés (`grillhouse.mesure`) (le document de l'entrée sur main, §5.3 ; le document de la machine, §5.2).
 
 ## Ce qu'il refuse
 
-- **R3.** Le noyau n'importe aucun fichier d'un module de langage hors de la jointure
-  (`scripts/langages.mjs`), et un module de langage n'importe du noyau que ses entrées publiées :
-  la garde des frontières refuse l'un et l'autre (`.dependency-cruiser.projet.cjs` du dépôt du
-  cadre). Les scripts du shell qui lancent encore un fichier d'un module par son chemin sont
-  inscrits avec le ticket qui les retire (`tests/unit/jointure.spec.ts`).
-- **R4.** Le code du noyau ne nomme aucun outil d'un langage (turbo, vitest, knip,
-  dependency-cruiser, tsc) ; chaque reste nommé l'est avec le ticket qui le retire
-  (`tests/unit/jointure.spec.ts`).
+- **R3.** Le noyau n'importe aucun fichier d'un module de langage hors de la jointure (`scripts/langages.mjs`), et un module de langage n'importe du noyau que ses entrées publiées : la garde des frontières refuse l'un et l'autre (`.dependency-cruiser.projet.cjs` du dépôt du cadre). Un fichier du noyau qui nomme un fichier d'un module, un script du shell compris, est refusé par `tests/unit/jointure.spec.ts`, hors des restes que ce test inscrit, chacun avec le ticket qui le retire.
+- **R4.** Le code du noyau ne nomme aucun outil d'un langage (vitest, knip, dependency-cruiser, tsc, cargo, pytest, uv) ; Turborepo, qui joue le graphe de tous les langages, est l'outil du noyau. `tests/unit/jointure.spec.ts` le tient, hors des restes qu'il inscrit, chacun avec le ticket qui le retire (le document des tests et des langages, §2.1, §3.5).
 - **R5.** Un projet a plusieurs langages, un paquet un seul : un langage hors de la liste du
   cadre, ou déclaré deux fois, est refusé, nommé ; un dossier que deux modules revendiquent est
   refusé, nommé avec les deux langages.
@@ -111,7 +54,7 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   outil lourd (turbo, vitest, knip, depcruise, api-extractor, la constante `OUTILS_LOURDS`)
   nommé en littéral dans un appel de processus à `cwd:`, `-C` ou `--prefix`. Un outil nommé par
   variable ou par script npm échappe à la lecture. Un grand test de jour est un constat inscrit
-  à la dette, qui ne remonte jamais ; la migration 0.30.0 l'inscrit dans un projet.
+  à la dette, qui ne remonte jamais.
 - **R8.** Un import que le `package.json` du paquet importateur ne déclare pas est refusé par la
   garde des frontières (`pas-d-import-non-declare`, la règle `no-non-package-json` de
   dependency-cruiser : un paquet n'importe que ce qu'il déclare, comme npm et pnpm en mode
@@ -130,5 +73,4 @@ langage d'un paquet, il le demande au module de ce langage, par la jointure
   aux tests de bout-en-bout : sous un dossier `e2e/` (comme le `e2e/` de Playwright et
   d'Angular), ou dans le paquet `grillhouse-essais` (comme un projet `<app>-e2e` de Nx). Un
   chemin bâti à l'exécution, un lanceur passé par une fonction auxiliaire et le code d'un
-  `node -e` échappent à la lecture. Les cas existants sont inscrits à la dette ; la migration
-  0.33.0 les inscrit dans un projet.
+  `node -e` échappent à la lecture. Les cas existants sont inscrits à la dette.

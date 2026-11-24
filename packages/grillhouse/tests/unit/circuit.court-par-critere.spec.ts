@@ -59,7 +59,7 @@ describe('la charte dit le critère du circuit court et ses exemples', () => {
     expect(charte).toContain('un code de retour');
     expect(charte).toContain('une interface publiée');
     expect(charte).toMatch(/[Uu]ne configuration dont une garde mesure l['’]effet/);
-    expect(charte).toMatch(/« comportement inchangé »/);
+    expect(charte).toMatch(/« comportement tests-adaptés »/);
   });
 });
 

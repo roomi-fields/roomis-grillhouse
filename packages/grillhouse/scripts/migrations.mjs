@@ -46,6 +46,8 @@ import * as pousseeRetiree from './migrations/0.48.0-poussee-retiree.mjs';
 import * as ciDeclencheeParLaFile from './migrations/0.48.0-ci-declenchee-par-la-file.mjs';
 import * as reservationDeTroisCoeurs from './migrations/0.49.0-reservation-de-trois-coeurs.mjs';
 
+import * as reglagesHorsDeLaCharte from './migrations/0.50.0-reglages-hors-de-la-charte.mjs';
+
 /** The migrations of the core. */
 export const MIGRATIONS = [
   crochetsDeSeance,
@@ -69,6 +71,7 @@ export const MIGRATIONS = [
   pousseeRetiree,
   ciDeclencheeParLaFile,
   reservationDeTroisCoeurs,
+  reglagesHorsDeLaCharte,
 ];
 
 /**

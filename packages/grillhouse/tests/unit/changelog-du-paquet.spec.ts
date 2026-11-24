@@ -64,12 +64,7 @@ describe('grillhouse-bf5.4, critère 6 — les consignes et documents disent la 
     'mods/grillhouse/skills/pitmaster/SKILL.md',
     'packages/grillhouse/docs/ARCHITECTURE.md',
   ];
-  const ANGLAIS = [
-    'docs/agents/issue-tracker.md',
-    'templates/projet/docs/agents/issue-tracker.md',
-    'CONTRIBUTING.md',
-    'STRUCTURE.md',
-  ];
+  const ANGLAIS = ['docs/agents/issue-tracker.md', 'templates/projet/docs/agents/issue-tracker.md'];
 
   it.each(FRANCAIS)('%s says the CHANGELOG.md is the one of the published package', f => {
     expect(plat(f)).toMatch(/CHANGELOG(\.md)? du paquet publié/);
@@ -77,6 +72,11 @@ describe('grillhouse-bf5.4, critère 6 — les consignes et documents disent la 
 
   it.each(ANGLAIS)('%s says the CHANGELOG.md is the one of the published package', f => {
     expect(plat(f)).toMatch(/CHANGELOG(\.md)? (of|in) the published package/);
+  });
+
+  it('CONTRIBUTING.md and STRUCTURE.md name the CHANGELOG.md of the package', () => {
+    expect(lire('CONTRIBUTING.md')).toContain('`packages/grillhouse/CHANGELOG.md`');
+    expect(lire('STRUCTURE.md')).toMatch(/CHANGELOG\.md\s+# .*published with the package/);
   });
 
   it('STRUCTURE.md places the CHANGELOG.md in packages/grillhouse, not at the root', () => {
