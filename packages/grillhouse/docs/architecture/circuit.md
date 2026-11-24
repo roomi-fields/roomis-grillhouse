@@ -411,7 +411,7 @@ La voie de secours ne passe ni par la file des tickets ni par l'arbitre des rés
 - **Le déterminisme** : la règle de décision se rejoue du début de son étape avec les faits déjà lus ; les mêmes faits donnent la même décision. Un marqueur de version naît avec le ticket de son retrait.
 - **La séparation des auteurs** : celui qui relit n'a pas écrit ; le testwriter n'écrit que des tests, le développeur que du code ; dans le circuit direct un seul agent écrit les deux, et le relecteur tient lui-même la preuve du rouge.
 - **La conformité** : au plan, l'explorateur vérifie le paragraphe que le ticket cite et s'arrête sur une tension ; le relecteur cite ce paragraphe à chaque ligne de conformité, et rend un lot qui modifie un document prescriptif sans décision.
-- **Le superviseur** : il lance, répond, tranche et escalade ; aucun circuit n'attend de lui une vérification, un commit ou une poussée, et il pilote les trois circuits par les mêmes commandes. Il ne traite aucun point seul et n'appelle aucun agent à sa main : ce travail est un ticket direct. La voie de secours (§5.8) est la seule exception.
+- **Le superviseur** : il lance, répond, tranche et escalade ; aucun circuit n'attend de lui une vérification, un commit ou une poussée, et il pilote les trois circuits par les mêmes commandes. Dans le travail des tickets, il ne traite aucun point seul et n'appelle aucun agent à sa main : ce travail est un ticket direct ; la réorganisation du cadre, qu'il mène avec le responsable par des agents architectes et rédacteurs, reste à part. La voie de secours (§5.8) est la seule exception.
 
 ## 8. Qualité
 

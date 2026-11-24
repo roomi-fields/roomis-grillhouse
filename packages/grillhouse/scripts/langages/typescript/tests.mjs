@@ -59,9 +59,10 @@
 //   verdict that counts is the reviewer's and the integration's, out of the envelope.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, carried
 //   in the variable beside the paths.
-// - A night test or a time budget bench, which the day leaves out, plays when a path names its own
-//   file, under the measure of time of the day's configuration (scripts/langages/typescript/vitest-config/cibles.mjs);
-//   a directory or a package named leaves them out.
+// - A time budget bench or a time witness, which the day leaves out, plays when a path names its
+//   own file, under the measure of time of the day's configuration (scripts/langages/typescript/vitest-config/cibles.mjs);
+//   a night test named is refused, naming it, and nothing plays (the night alone plays it,
+//   ./tests-de-nuit.mjs); a directory or a package named leaves them all out.
 // - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
 //   `passWithNoTests: false` (scripts/langages/typescript/vitest-config/base.mjs).
 // - Under the circuit's mark (`GRILLHOUSE_DEPUIS_LE_VERT`, its proof and its checks,
