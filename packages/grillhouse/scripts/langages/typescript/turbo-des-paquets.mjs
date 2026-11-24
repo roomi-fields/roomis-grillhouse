@@ -1067,7 +1067,9 @@ export function ecrire(racine) {
     const abs = path.join(racine, controles[0].f);
     let texte = readFileSync(abs, 'utf8');
     for (const { cle } of controles) {
-      texte = applyEdits(texte, modify(texte, ['tasks', cle], { outputs: [] }, MISE_EN_FORME));
+      // The lint of a package reads the types its build writes (and its neighbours'), as the typing.
+      const tache = cle === 'lint' ? { dependsOn: ['build', '^build'], outputs: [] } : { outputs: [] };
+      texte = applyEdits(texte, modify(texte, ['tasks', cle], tache, MISE_EN_FORME));
     }
     writeFileSync(abs, texte);
     if (!ecrits.includes(controles[0].f)) {
