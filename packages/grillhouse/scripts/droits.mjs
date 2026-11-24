@@ -29,8 +29,9 @@
 //   hooks and servers are not the role's), save the frame's (`grillhouse@…`), which carries the
 //   role's agent, its skills and the frame's hooks: Claude Code applies no `skillOverrides` to the
 //   skills of a plugin, and the role's agent preloads its own (`skills` of its definition);
-//   the background tasks off (`env`, SANS_TACHE_DE_FOND: a role waits in the foreground for what
-//   it launches, and its session ends with its sheet); for a role that writes, its locks as hooks (PreToolUse: verrous/verrou.mjs on the tools of
+//   the background tasks off and Code Mode on (`env`, ENV_DES_SEANCES: a role waits in the
+//   foreground for what it launches, and its session ends with its sheet; `claude -p` gets Code
+//   Mode, the REPL, only from this block); for a role that writes, its locks as hooks (PreToolUse: verrous/verrou.mjs on the tools of
 //   writing, verrous/commande.mjs on Bash), since the hooks of an agent's definition do not run in
 //   a folder Claude Code has not trusted, as the copy of a ticket.
 // - `--tools <list>`: the tools its work uses; Edit and Write for a role that writes alone, the
@@ -82,10 +83,15 @@ const ECRIRE_AU_TICKET = [
   'Bash(bd delete*)',
   'Bash(npx grillhouse ticket*)',
 ];
-// The variable that turns off the background tasks of Claude Code (the Bash tool's
-// `run_in_background`, the background agents): `claude -p` waits for them before it ends, so a
-// session ends with its sheet only without them.
-const SANS_TACHE_DE_FOND = { CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' };
+// The variables of the env block of every session. One turns off the background tasks of Claude
+// Code (the Bash tool's `run_in_background`, the background agents): `claude -p` waits for them
+// before it ends, so a session ends with its sheet only without them. The other turns on Code Mode
+// (the REPL): `claude -p` gets it only from the env block of `--settings`; the hooks and the
+// permissions of the role apply to the tools the REPL calls.
+const ENV_DES_SEANCES = {
+  CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
+  CLAUDE_CODE_EXPERIMENTAL_CODE_MODE: '1',
+};
 
 // The reads of git in the copy, by its path (`git -C <copie> …`), which Claude Code does not let
 // through without a rule, as it does `git status` in the working directory.
@@ -369,7 +375,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
         .filter(g => !g.startsWith(GREFFON_DU_CADRE))
         .map(g => [g, false])
     ),
-    env: SANS_TACHE_DE_FOND,
+    env: ENV_DES_SEANCES,
   };
   // The write lock runs the frame of the main tree, never the copy's; a copy that is the root keeps
   // the project's own command.

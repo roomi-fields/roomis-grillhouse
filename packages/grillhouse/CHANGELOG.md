@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The sessions of the agents play in Code Mode** (grillhouse-3uv.241): decided by the owner (2026-11-24). The settings of every role set `CLAUDE_CODE_EXPERIMENTAL_CODE_MODE` in their `env` block, in and out of the envelope, so the agents call their tools from the REPL; the role's hooks and permissions still apply to them, and the sheet still comes out. **Action for projects**: none.
+
 ## [0.50.0] - 2026-11-24
 
 - **The typed lint runs after the build of its package**: the task `lint` depends on `build` and `^build`, like `typecheck`, in the frame's `turbo.json` and in the templates of a project's; it no longer reads types from a `dist/` being written, which turned a type to `any` and made the final pass red at random. **Action for projects**: none.

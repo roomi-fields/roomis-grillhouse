@@ -1014,6 +1014,7 @@ describe('3uv.92.6 — a role session ends with its sheet, without a background 
     for (const role of Object.keys(ROLES)) {
       expect(reglagesDe(options(role)).env, role).toEqual({
         CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
+        CLAUDE_CODE_EXPERIMENTAL_CODE_MODE: '1',
       });
     }
   });
