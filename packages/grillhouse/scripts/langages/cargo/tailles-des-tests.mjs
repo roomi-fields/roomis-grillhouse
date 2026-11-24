@@ -30,6 +30,8 @@
 //   when the rule arrives are inscribed there by the update
 //   (./migrations/0.28.4-tailles-des-tests.mjs), the count never rises, and a new one is refused.
 // - The guard writes on its error stream the count of each size, the night's included.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4 (the guards).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

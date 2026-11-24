@@ -7,8 +7,8 @@
 //   scripts, which run the frame's commands (`grillhouse tests`, `grillhouse verifier`), and no
 //   tool of npm.
 // - Each other file of the template a project lacks is copied at its path: `deny.toml`, the
-//   policy of cargo-deny, which refuses every licence without one (cargo-deny's code 4, the probe
-//   of grillhouse-pkl.1); `.config/nextest.toml`, the project's configuration of nextest, which
+//   policy of cargo-deny, which refuses every licence without one (cargo-deny's code 4);
+//   `.config/nextest.toml`, the project's configuration of nextest, which
 //   leaves the frame's profile `grillhouse` to the frame (./nextest.toml); `rust-toolchain.toml`,
 //   the toolchain and its components clippy and rustfmt, which the guards run. A file the project
 //   holds is its own: never written again.
@@ -17,7 +17,7 @@
 // - The root scripts `test`, `test:forcer` and `verifier` a project lacks become the template's:
 //   the agents run `npm test`, the integration and the night `npm run verifier`. A project's own
 //   script stays.
-// - A Cargo.lock that git does not track is left to the project (`aFaire`, grillhouse-rph): the
+// - A Cargo.lock that git does not track is left to the project (`aFaire`): the
 //   line of ./commandes.mjs (`verrouNonVersionne`), the gesture named; the core writes it on the
 //   error stream and plays no verification, which `--locked` would fail in a copy taken from git.
 // - The generator: the index of the interfaces (./index-interfaces.mjs), run where the project
@@ -25,6 +25,9 @@
 // - The installation of its binaries (./binaires.json): the commands of ./binaires.mjs, which list
 //   what cargo installed and install one binary by cargo-binstall, installed first when it lacks;
 //   the core runs them.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language);
+// installation.md §5.2 (the update of a project) and §4.4 (what the frame writes in a project).
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

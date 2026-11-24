@@ -10,18 +10,20 @@
 //   of the doctests; `journal`, from the root, the log of the task `build`, the build of a crate's
 //   test targets, which the circuit reads for a failed build), and the file of each test binary of nextest by its id (`ws-core`,
 //   `ws-core::integ`, `ws-core::bin/outil`), its target's source.
-// - `echecDeCompilation` reads a task's log: whether a test target did not compile (grillhouse-lv9),
+// - `echecDeCompilation` reads a task's log: whether a test target did not compile,
 //   which the circuit reads as a failed build whatever the cargo task that bears it — the build of
-//   `cargo test --no-run` (grillhouse-egm), or the test task nextest, which bears the compiler's
+//   `cargo test --no-run`, or the test task nextest, which bears the compiler's
 //   errors with no JUnit when a target does not compile.
 // - `<dossier>/nextest/<run>-<crate>.xml`, the JUnit report of each run of nextest: each
 //   `testsuite`, a test binary, gives a test file, each `testcase` a test, failed when it holds a
 //   `failure` or an `error`, skipped when it holds `skipped`; its message, the failure's. A unit
 //   test of a module `tests` that lives in a file of its own (`server::tests::relais`, in
-//   `src/server/tests.rs` beside the library's root, grillhouse-agr) gives that file, so that the
+//   `src/server/tests.rs` beside the library's root) gives that file, so that the
 //   proof of the red finds the result of a new tests.rs; so does a test of a module of a target
-//   `tests/<dossier>/main.rs` (`foo::bar`, in `tests/it/foo.rs`, grillhouse-pkl.9), each test file
+//   `tests/<dossier>/main.rs` (`foo::bar`, in `tests/it/foo.rs`), each test file
 //   of `tests/it/` a module of the crate's one executable.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { tachesDuVerdict } from '../../services-du-noyau.mjs';
@@ -160,7 +162,7 @@ export function verdict(dossier) {
 // compile`). A test that compiled then failed at run time, or a binary that does not load, shows
 // neither. The circuit reads a test target that does not compile as a failed build
 // (`construction de <crate> », scripts/activites.mjs), whatever the cargo task that bears it: the
-// build of `cargo test --no-run` (grillhouse-egm), or the test task nextest, which bears the
-// errors with no JUnit when a target does not compile (grillhouse-lv9, OSC Bridge OB-4gy).
+// build of `cargo test --no-run`, or the test task nextest, which bears the
+// errors with no JUnit when a target does not compile.
 export const echecDeCompilation = texte =>
   /error\[E\d+\]/.test(texte) || /could not compile/.test(texte);

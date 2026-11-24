@@ -1,11 +1,9 @@
-// From 0.28.4 the guard of the sizes of the tests in Rust (scripts/langages/cargo/tailles-des-tests.mjs)
-// refuses a large test of the day, one that mounts a trial repository and starts the product
-// there, as the module typescript's guard does since 0.25.0. A project of cargo that updates may
-// hold such tests already (SyntHub, OSC Bridge), and its main would turn red at its next pass. As
-// the module typescript's migration (../../typescript/migrations/0.25.0-tailles-des-tests.mjs) and
-// ESLint's `--suppress-all` do once at the passage of a rule, the update inscribes them as the
-// project's known debt (scripts/dette.mjs), frozen: the count never rises, a new large test of the
-// day is refused, and its verification does not change that day.
+// The migration of the guard of the sizes of the tests in Rust (../tailles-des-tests.mjs): the
+// large tests of the day a project of cargo holds when the guard arrives are inscribed as the
+// project's known debt (scripts/dette.mjs), frozen, as ESLint's `--suppress-all` does at the
+// passage of a rule and as the module typescript's migration does
+// (../../typescript/migrations/0.25.0-tailles-des-tests.mjs): the count never rises, a new large
+// test of the day is refused.
 //
 // - The migration writes the section of the guard in `grillhouse-dette.json` when the guard finds a
 //   large test of the day and the file holds no section of it yet; the rest of the debt stays.
@@ -13,6 +11,8 @@
 //   (a module of `tests/it_nuit/`) or reduces it, and the debt comes down with it.
 // - Replayable without effect: once the section is written, nothing (a debt lowered since never
 //   rises again).
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4 (the guards).
 import { FICHIER, lire, trancher } from '../../../dette.mjs';
 import { GARDE, verifier } from '../tailles-des-tests.mjs';
 

@@ -19,6 +19,8 @@
 //   writes them, a lint more refuses, a lint less is pruned), and written in SARIF under the
 //   results directory (../../resultats.mjs). Clippy red without any diagnostic (a manifest cargo
 //   cannot read, a missing tool) refuses, named, never inscribed.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4 (the guards).
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

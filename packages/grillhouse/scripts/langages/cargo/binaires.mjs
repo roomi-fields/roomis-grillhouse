@@ -12,8 +12,9 @@
 //   error stream, its code this process's; a failure names on the error stream the command to type.
 //   A machine whose cargo lacks binstall (`cargo --list`) first receives cargo-binstall from cargo,
 //   at its exact version (`cargo install --locked cargo-binstall@<BINSTALL>`, the installation the
-//   README of cargo-binstall gives): the update installs the binaries without a step by hand
-//   (grillhouse-qmk, OSC Bridge). Its failure names that command, and no binstall runs.
+//   README of cargo-binstall gives). Its failure names that command, and no binstall runs.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

@@ -31,14 +31,13 @@
 //   calls (`grillhouse tests-du-paquet <dossier du crate>`, written with the package): it never runs
 //   Turborepo, so `tester` and the task do not loop. For a crate that plays tests
 //   (./composants.mjs, `joueDesTests`): the build of its test targets, `cargo test --no-run -p
-//   <crate>`, a task `build` of its own, as Turborepo's `test` depends on `build` (grillhouse-egm);
+//   <crate>`, a task `build` of its own, as Turborepo's `test` depends on `build`;
 //   then `cargo nextest run -p <crate> --no-fail-fast`, which finds them built. Then `cargo test
 //   --doc -p <crate>` for a crate whose library has doctests, which nextest does not play. Once
 //   the tests and the benches played, the run removes the test executables its builds made, each
 //   one cargo reports in JSON (`--message-format=json-render-diagnostics`, the `executable` of an
 //   artifact of a test profile), as Swatinem/rust-cache keeps the dependencies and drops the
-//   workspace's own artifacts: they weighed 3.4 of the 4.6 GiB of a copy of SyntHub
-//   (grillhouse-pkl.8), and cargo builds again an executable it misses. The libraries, the
+//   workspace's own artifacts: cargo builds again an executable it misses. The libraries, the
 //   dependencies and the binaries of `cargo build` (`target/debug/<bin>`, a datum another package's
 //   tests run) stay; only the crate's own task runs its test executables. A failed
 //   build leaves the crate's other tasks not played (`code` null): a test that does not compile is
@@ -53,7 +52,7 @@
 //   A path out of every crate, or in a crate without tests, is refused, named, and nothing plays
 //   (code 2). `--force` changes nothing here: cargo keeps no result of a test to replay. Another
 //   option goes to nextest.
-// - A test target is named by its file, as `*_nuit_test.py` and `*.budget.test.*` (grillhouse-wbk):
+// - A test target is named by its file, as `*_nuit_test.py` and `*.budget.test.*`:
 //   `tests/<nom>_nuit.rs` (or `tests/<nom>_nuit/main.rs`, the target `<nom>_nuit`) is a night
 //   test, `tests/<nom>_budget.rs` a time budget bench. A crate played whole leaves both out of
 //   nextest, in `tester` as in `verifier`, which then plays its library (`--lib`), its binaries
@@ -81,8 +80,8 @@
 //   project's root scripts `grillhouse:gardes` (the frame's guards) then `gardes` (its own), each
 //   one the package.json holds a task of the root, by npm, without its tests nor cargo deny, and
 //   keeps no last green.
-// - `tests-du-paquet`, `verifier` and `tests-de-nuit` play under a temporary directory of their pass, the module's guard of
-//   the temporary directory, as the CI of osc-bridge (OB-ud1.3): a base (`ouvrirBase` of
+// - `tests-du-paquet`, `verifier` and `tests-de-nuit` play under a temporary directory of their
+//   pass, the module's guard of the temporary directory: a base (`ouvrirBase` of
 //   ./jointure, genre `tests` or `verification`) in the temporary directory of the environment,
 //   named in TMPDIR, TMP and TEMP to cargo, which nextest and the doctests inherit; removed at the
 //   end of the pass, green, red or interrupted (SIGINT, SIGTERM, SIGHUP). What the tests left there
@@ -94,10 +93,10 @@
 //   again at rest after a 75.
 // - `typer`: `cargo check --all-targets`.
 // - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
-//   (./sccache.mjs), in a copy as in an agent's envelope (grillhouse-cyr), its server started
-//   under the machine's /tmp before each run of cargo that compiles (grillhouse-qmk).
-//   `tests-du-paquet`, `verifier` and `typer` refuse, before any run of cargo, a PATH without sccache, in one line that names it
-//   and `npx grillhouse binaires`, which installs it (code 2).
+//   (./sccache.mjs), in a copy as in an agent's envelope, its server started under the machine's
+//   /tmp before each run of cargo that compiles. `tests-du-paquet`, `verifier` and `typer` refuse,
+//   before any run of cargo, a PATH without sccache, in one line that names it and
+//   `npx grillhouse binaires`, which installs it (code 2).
 // - Nextest reads the frame's profile `grillhouse` (./nextest.toml, a tool's configuration under
 //   the project's own, `--tool-config-file`), whose JUnit report lands in nextest's store, at
 //   `<workspace root>/target/nextest/grillhouse/junit.xml` (nextest's default `store.dir`, under
@@ -107,7 +106,7 @@
 //   ran), and the JUnit report of each run of nextest. A task of the workspace is named after its
 //   root, `//`, as Turborepo names the root's tasks.
 // - `tests-du-paquet` and `verifier` refuse, before any run of cargo, a workspace whose
-//   Cargo.lock git does not track (grillhouse-rph), in one line that names the file and the
+//   Cargo.lock git does not track, in one line that names the file and the
 //   gesture: `git add Cargo.lock`, or `cargo generate-lockfile` first when it is absent. Cargo
 //   recommends committing it for every project, and the verification plays the exact versions of
 //   the repository (`--locked`, as `npm ci` refuses a project without package-lock.json): a lock
@@ -119,6 +118,10 @@
 //   the core's one for every language (`construireDepuisLesArguments` of
 //   scripts/taches-du-graphe.mjs): the plan and its providers by `turbo run build --filter=<paquet>…`.
 //   `construire <chemin>` builds one crate (`cargo build -p`), as the script `build` of its package.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4
+// (the guards); `GRILLHOUSE_TESTS` and `GRILLHOUSE_RESULTATS` are data of a pass (tests.md §4.2),
+// and the code applies no key of the project (installation.md §4.2) nor file of the post (§4.3).
 import { spawnSync } from 'node:child_process';
 import {
   closeSync,
@@ -843,7 +846,7 @@ export function verrouNonVersionne(racine) {
     return `⛔ ${VERROU} absent : cargo generate-lockfile, puis git add ${VERROU}`;
   }
   // A tree with no `.git` carries HEAD's Cargo.lock, versioned by construction: nothing is
-  // unversioned. The check runs git only in <racine> when it is a real git tree (grillhouse-uja).
+  // unversioned. The check runs git only in <racine> when it is a real git tree.
   if (!existsSync(path.join(racine, '.git'))) {
     return null;
   }

@@ -12,6 +12,8 @@
 // - The module reads no element of a Rust source: each `.rs` the lot changes is named in
 //   `horsDuService`, and the reviewer surveys its items himself (`service` says why).
 // - Every file the lot changes is named in `fichiers`.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 

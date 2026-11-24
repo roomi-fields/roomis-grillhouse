@@ -30,12 +30,13 @@
 //   (./frontieres.mjs), the index of the interfaces up to date, each a command by its name too
 //   (./commandes.mjs), which the line of a red guard names; the entries of the index of each
 //   interface (`entreesDeLIndex`), which the core assembles in a project of several languages.
-// - Its migrations (./migrations/): 0.28.4, the large tests of the day a project holds inscribed
-//   in its debt when the guard of the sizes arrives; 0.34.0, the executables of tests too many
-//   inscribed when the guard of the executables arrives.
+// - Its migrations (./migrations/): the large tests of the day, then the executables of tests too
+//   many, a project holds are inscribed in its debt when the guard of each arrives.
 // - Its share of the update (./mise-a-jour.mjs, `miseAJour`): the template of a project of cargo
 //   (`templates/cargo/`) and its test scripts.
 // - The skeleton of a new crate (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,7 +68,7 @@ const ici = nom => path.join(path.dirname(fileURLToPath(import.meta.url)), nom);
 
 export default {
   nom: 'cargo',
-  // The expected size of a copy before any is measured: its target/, 2 to 7.6 GB (2026-11-11).
+  // The expected size of a copy before any is measured: its target/.
   tailleDUneCopie: 8 * 1024 ** 3,
   manifeste: 'Cargo.toml',
   nomDuManifeste,
@@ -82,9 +83,8 @@ export default {
   // The programs the installer of Temporal requires in the PATH of the workers: cargo's folder is
   // also rustc's, nextest's and sccache's (rustup, `cargo install`).
   executables: ['cargo'],
-  // The binaries the module runs, each at an exact version: nextest and cargo-deny at the ones the
-  // probe of grillhouse-pkl.1 measured; sccache, the cache of compilation common to the copies
-  // (./sccache.mjs), at the last release of mozilla/sccache, v0.19.0 (2026-10-24).
+  // The binaries the module runs, each at an exact version (nextest, cargo-deny, sccache, the
+  // cache of compilation common to the copies, ./sccache.mjs).
   binaires: JSON.parse(readFileSync(ici('binaires.json'), 'utf8')),
   // What cargo writes in a project: its target directory.
   ignorer: ['target'],
@@ -95,8 +95,7 @@ export default {
   // (./sccache.mjs), where a server of sccache the session starts writes; the targets of the
   // workspaces rooted in the temporary directory, `~/.cache/grillhouse/cargo/` (./sccache.mjs). What it reads, read-only: its home, `~/.cargo`
   // (its binaries, its `env`, which the shells source, and its configuration stay unwritten), and
-  // rustup's toolchains, `~/.rustup`. Measured on 2026-10-30: `cargo fetch --locked` of
-  // osc-bridge in bwrap with these mounts alone, green, the cache of its packages written.
+  // rustup's toolchains, `~/.rustup`.
   sorties: {
     ecrites: [
       'target/',

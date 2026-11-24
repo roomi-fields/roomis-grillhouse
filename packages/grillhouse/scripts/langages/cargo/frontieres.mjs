@@ -16,6 +16,8 @@
 //   the rule `dependance-non-permise`, a message naming both crates and the kind. The findings are
 //   judged by the debt (../../dette.mjs) and written in SARIF (../../resultats.mjs); cargo unable
 //   to answer refuses, named, never inscribed.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4 (the guards).
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MODE, trancher } from '../../dette.mjs';

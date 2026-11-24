@@ -2,7 +2,7 @@
 // One executable of integration tests per crate and per moment, on the model of Cargo's own
 // testsuite (`tests/testsuite/main.rs`, each test file a module) and of matklad's « Delete Cargo
 // Integration Tests »: each file of `tests/` is an executable cargo links apart, with every
-// dependency (62 of about 90 MB in a copy of SyntHub, grillhouse-pkl.9); one entry point links one.
+// dependency; one entry point links one.
 //
 //   npx grillhouse executables-de-tests   run from the repository root (a guard of grillhouse:gardes)
 //
@@ -21,6 +21,8 @@
 //   (./migrations/0.34.0-executables-de-tests.mjs), the count never rises, and a new one is
 //   refused.
 // - The guard writes on its error stream the count of the crates and of their executables.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4 (the guards).
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MODE, trancher } from '../../dette.mjs';

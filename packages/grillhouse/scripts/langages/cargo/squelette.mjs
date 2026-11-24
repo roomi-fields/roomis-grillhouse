@@ -30,6 +30,8 @@
 //   root; code under `src/` without `src/lib.rs`), the folder is refused by its name, nothing
 //   written, the layout and what is missing named, in place of a skeleton beside the code.
 // - The manifest is read with smol-toml, the tool of this module (`outils`), loaded at the call.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';

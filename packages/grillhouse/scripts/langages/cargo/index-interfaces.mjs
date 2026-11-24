@@ -19,6 +19,8 @@
 //   root, as OSC Bridge), else `(racine) — <title>`.
 // - No line per element: a crate's interface has no part generated from its code, which the
 //   index of the module typescript reads its elements from.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

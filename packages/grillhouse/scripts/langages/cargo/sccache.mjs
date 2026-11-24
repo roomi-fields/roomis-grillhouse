@@ -12,8 +12,8 @@
 //   (`cibleDeCompilation`).
 // - Cargo compiles without incremental compilation (`CARGO_INCREMENTAL=0`), as the CI of Rust and
 //   the usual continuous integrations do: a copy of a ticket compiles once and seldom again, and
-//   its `target/debug/incremental` held up to 1.1 GB of a target of 5.0 GB (SyntHub, SH-ae6.2.7,
-//   grillhouse-k5y); sccache caches no incremental compilation either. Whoever decides it keeps
+//   its `target/debug/incremental` weighs on the disk; sccache caches no incremental compilation
+//   either. Whoever decides it keeps
 //   it, as cargo reads it, which lets each of them override every profile: the caller, by
 //   `CARGO_INCREMENTAL` (an agent or a person who debugs, `CARGO_INCREMENTAL=1`),
 //   `CARGO_BUILD_INCREMENTAL` or a `CARGO_PROFILE_<nom>_INCREMENTAL` of the environment; the
@@ -35,14 +35,13 @@
 //   read-only copy nor the 108 bytes of a socket's path bind it, and it goes with its server,
 //   leaving no stale file. A server cargo starts keeps the temporary directory of its run, where it
 //   writes as it compiles, and outlives it (its idle time): a pass, whose temporary directory goes
-//   at its end, never joins the server of another (SyntHub, grillhouse-67dz). The disk cache stays
-//   common.
+//   at its end, never joins the server of another. The disk cache stays common.
 // - The server starts before each run of cargo that compiles, under the machine's `/tmp`
 //   (`demarrerLeServeur`): sccache 0.19.0 starts its server by binding a socket of a path under
 //   TMPDIR (`<TMPDIR>/sccacheXXXXXX/sock`, src/commands.rs, `run_server_process`), which fails
 //   past the 108 bytes of a socket's path (« path must be shorter than SUN_LEN »), and the
-//   temporary directory of a pass of tests under the working directory of a session passes them
-//   (grillhouse-qmk, OSC Bridge OB-p58). Cargo then finds the server running and starts none; it
+//   temporary directory of a pass of tests under the working directory of a session passes them.
+//   Cargo then finds the server running and starts none; it
 //   keeps its own temporary directory, the pass's.
 // - A wrapper the project sets already is its own: the run keeps it, without sccache. It is read
 //   as cargo reads it: the environment (`RUSTC_WRAPPER`, `CARGO_BUILD_RUSTC_WRAPPER`), then
@@ -51,6 +50,11 @@
 // - A machine without sccache on the PATH of the command is refused before any run of cargo, in
 //   one line that names it and the command that installs it (`sccacheAbsent`), rather than on the
 //   error of cargo that cannot run its wrapper.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
+// Settings applied: the variables of the environment named above (`SCCACHE_DIR`,
+// `CARGO_TARGET_DIR`, `CARGO_INCREMENTAL`, `RUSTC_WRAPPER`), none of the project's keys of
+// installation.md §4.2 nor of the post's files of §4.3.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readlinkSync, realpathSync } from 'node:fs';

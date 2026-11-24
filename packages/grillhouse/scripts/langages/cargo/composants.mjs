@@ -13,8 +13,7 @@
 //   ./touches.mjs reads as the whole workspace.
 // - The shared test material: the crates whose manifest says `[package.metadata.grillhouse]
 //   matiere = true`.
-// - A test lives in a file of its own, never in a file of code (decision 5 of the epic
-//   grillhouse-pkl, amended by grillhouse-agr): the tests by the interface under `tests/` of each
+// - A test lives in a file of its own, never in a file of code: the tests by the interface under `tests/` of each
 //   crate, where cargo finds its integration tests; the unit tests near their module, under
 //   `src/`, in a file `tests.rs` or a folder `tests/`, as rustc's tidy check wants them
 //   (src/tools/tidy/src/unit_tests.rs), declared in the module by `#[cfg(test)] mod tests;`, a line
@@ -35,12 +34,14 @@
 //   declares the deps of its target; and Cargo.lock at the root, which cargo brings in line with
 //   them. A change of any other table is named by it; the Cargo.toml of a virtual workspace is
 //   no crate's. Of a file of code of `src/` of a crate, the testwriter writes its test module
-//   alone (grillhouse-agr): the declaration `#[cfg(test)] mod tests;` added or removed, without
+//   alone: the declaration `#[cfg(test)] mod tests;` added or removed, without
 //   which a new tests.rs is never compiled, and an inline `#[cfg(test)] mod tests { … }` removed,
 //   which he moves into tests.rs; any other change is named by its first line. The manifests are
 //   read with smol-toml, a tool of this module (`outils`), an optional peer of the package loaded
 //   when a manifest is judged, so that a project of another language, which loads this module
 //   without it, never needs it.
+//
+// Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
