@@ -1,7 +1,8 @@
 // The join of the languages: what the core asks of a module of language (docs/INTERFACE.md, « La
 // jointure des langages »), the types of scripts/services-du-noyau.mjs (the join of scripts/langages.mjs and
 // the services of the core to a module) and of scripts/conformite.mjs as the entries
-// `@roomi-fields/grillhouse/jointure` and `@roomi-fields/grillhouse/conformite` publish them.
+// `@roomi-fields/grillhouse/jointure` and `@roomi-fields/grillhouse/conformite` publish them. What
+// the core asks of a module, by the mechanism that poses it: docs/architecture/tests.md §3.3.
 
 /** A component of the project: its folder (absolute), its name (the folder's), its package name. */
 export interface Composant {

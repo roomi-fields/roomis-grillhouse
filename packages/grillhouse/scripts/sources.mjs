@@ -9,6 +9,8 @@
 //   leaves out what a `.gitignore` names. A project that declares no language
 //   (the column « Langage » of its docs/ARCHITECTURE.md) leaves out what every language of the
 //   frame writes.
+//
+// What each language writes in the project: docs/architecture/tests.md §3.3.
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { LANGAGES, langage, langageDe, langagesDeclares } from './langages.mjs';

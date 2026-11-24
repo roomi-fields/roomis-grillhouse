@@ -41,7 +41,7 @@
 //   element that only names a symbol internal to a package leads to no component, its package
 //   included, as « find all references » starts from a published symbol: the ticket names the
 //   package it changes. A survey by the types that cannot run says why, and the survey stands on
-//   the names; a name the types resolve is no longer set apart.
+//   the names; a name the types resolve is not set apart.
 // - By the paths read (`lit`): each component whose tests declare they read a path
 //   (`grillhouse.lit` of its package.json and the `lit` of its traces, `cheminsLus`) that a
 //   path the ticket changes holds or lies in: a path of the repository the sections write (its
@@ -53,6 +53,8 @@
 // - The components of the survey go in the title's order, the provider first: each one after
 //   every component it reads among them (its imports, the providers of the elements it reads), in
 //   the order of their names otherwise.
+//
+// The mechanism: docs/architecture/circuit.md §5.2 (the plan of a ticket).
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

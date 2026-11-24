@@ -1,7 +1,8 @@
 // The types of the shared test material the package's typed tests read
 // (`@roomi-fields/grillhouse-matiere/test-fixtures`, which publishes its source, not a built
 // declaration): tsconfig.json maps the entry here, so the typing of this package stays on its own
-// files. Only the names these tests import are declared.
+// files. Only the names these tests import are declared. The tests that import them, and what each
+// proves: docs/architecture/tests.md, §3.4 and §5.
 
 /** Writes at <repo> the docs/ARCHITECTURE.md of <paquets>: a list of languages (a package each,
  * `paquet-<n>`), or a record of package name to language. */

@@ -19,6 +19,8 @@
 //
 // A project's guard imports `horsCadre` by the package's entry `@roomi-fields/grillhouse/paquets`,
 // its types in ./paquets.d.ts (docs/ARCHITECTURE.md, the package's named entries).
+//
+// The packages are the nodes of the graph of the tasks: docs/architecture/tests.md §2.1 and §3.1.
 import { spawnSync } from 'node:child_process';
 import { existsSync, globSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';

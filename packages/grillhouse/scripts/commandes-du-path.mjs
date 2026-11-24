@@ -1,7 +1,7 @@
 // The search of a command in the PATH, as `command -v` finds it: the first folder of PATH that
 // holds an executable file of its name. The one search of the core, which the installation of
 // Temporal (src/temporal/installation.ts), the preparation of a project (./preparation.mjs) and
-// the modules of language (by ./services-du-noyau.mjs) call.
+// the modules of language (by ./services-du-noyau.mjs) call (docs/architecture/tests.md §3.3).
 import { accessSync, constants } from 'node:fs';
 import path from 'node:path';
 

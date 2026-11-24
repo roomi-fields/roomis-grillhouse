@@ -29,6 +29,8 @@
 //   of the first. What the role lock, the envelope and the update ask (the lock
 //   files, the outputs, the rules of the roles, the tools, the binaries, the directories to
 //   ignore): the union, each once.
+//
+// What the core asks of a module: docs/architecture/tests.md §3.1 and §3.3.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

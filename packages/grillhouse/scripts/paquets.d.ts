@@ -1,5 +1,5 @@
 // The types of ./paquets.mjs as the entry `@roomi-fields/grillhouse/paquets` publishes it, for a
-// project's guard that leaves out the packages out of the frame.
+// project's guard that leaves out the packages out of the frame (docs/architecture/tests.md §3.4).
 
 /** The code of `src/` (the root's, or a package's under `packages/`), as a pattern of a path from
  * the root: what a project publishes, out of its tests. */

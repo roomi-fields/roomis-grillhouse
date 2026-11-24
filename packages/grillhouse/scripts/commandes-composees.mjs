@@ -30,15 +30,15 @@
 //   `PASSE_ROUGE` in its environment: that pass keeps none. A project without a module of
 //   package.json (cargo alone, python alone) has no such pass: the composed `verifier` keeps the
 //   green itself then, on the tree the repository had before the modules played, when every module
-//   is green and the verification is whole (`garderSansLeGraphe`). Without it no tree of such a
-//   project was ever judged, and the pre-push hook let none of its commits go to main
-//   (open-synth-descriptors and osc-bridge, 2026-11-21).
+//   is green and the verification is whole (`garderSansLeGraphe`).
 // - `verifier`: the module of package.json plays last, and passes over the whole graph (every task
 //   of every language, once); the others play before it in their declared order and get
 //   `GRAPHE_JOUE` and play no task of it again (cargo: its `deny check` alone), so that nextest
 //   and pytest play once.
 // - The exit code: 0 when every module is green, 75 when the only reds are « à repasser », else the
 //   first other code; 128 plus the number of a signal that ended a module.
+//
+// The mechanism: docs/architecture/tests.md §3.1 (the pass of verification) and §6 (the exit codes).
 import { spawnSync } from 'node:child_process';
 import { constants } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';

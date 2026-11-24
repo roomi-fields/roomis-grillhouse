@@ -20,6 +20,8 @@
 //   the debt, `a-elaguer`, is none) has one written for it, without location, its name (its
 //   script's, without extension) and its code: a red no reader can place.
 // - The build is not among them: Turborepo builds before this task (turbo.json).
+//
+// The list and what each guard refuses: docs/architecture/tests.md §3.1 and §3.4.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

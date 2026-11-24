@@ -43,6 +43,9 @@
 //   wait for, replayed from the cache when nothing moved, side by side within the cores of the part
 //   the checks play on (`tachesCoteACote`, `--concurrency`). No guard script, or no task waited for:
 //   nothing plays, 0. Its exit code is the runner's, 1 for a plan the runner refuses.
+//
+// The mechanism: docs/architecture/tests.md §3.1 (the launcher of the tasks of the graph), §5.1
+// and §5.4.
 import { spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';

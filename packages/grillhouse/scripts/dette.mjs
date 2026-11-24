@@ -31,6 +31,8 @@
 //
 // A project's guard imports `trancher` by the package's entry `@roomi-fields/grillhouse/dette`,
 // its types in ./dette.d.ts (docs/ARCHITECTURE.md, the package's named entries).
+//
+// The mechanism: docs/architecture/tests.md §2.6, §4.1 and §5.5.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

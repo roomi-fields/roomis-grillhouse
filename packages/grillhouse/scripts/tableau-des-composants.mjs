@@ -1,12 +1,11 @@
 // The tables of the components of a project, in its docs/ARCHITECTURE.md: where the project
 // declares the language of each package, as the BUILD file of Bazel names the rule of each target.
-// The core reads them (./langages.mjs), the guard of the languages judges the packages against
-// them (./langages-des-paquets.mjs), and the migration of 0.27.0 writes their column
-// (./migrations/0.27.0-langages-dans-l-architecture.mjs).
+// The core reads them (./langages.mjs), and the guard of the languages judges the packages against
+// them (./langages-des-paquets.mjs); docs/architecture/tests.md §4.1.
 //
 // - A table of the components is a table of Markdown of docs/ARCHITECTURE.md whose header holds a
-//   column « Langage » (COLONNE), or « Language » in a document written in English: BPScript's table of the stages, and its section « Les paquets »
-//   for the packages that table does not name; each counts, in the order of the document. A row
+//   column « Langage » (COLONNE), or « Language » in a document written in English; each counts, in
+//   the order of the document. A row
 //   declares a package when its cell of that column is not empty: the language is that cell, its backquotes and its case left out. A row
 //   with an empty cell names a part that is no package of the project (a crate of another
 //   repository, a folder of data).
@@ -15,8 +14,7 @@
 // - A row names a component when one name of its cell of the names is the component's folder name,
 //   its package name or its path from the root (`.` for the root; a trailing `/` and a leading
 //   `./` left out). The column of the names of a table is its first column, left to right, where a
-//   cell names a component: the phase of BPScript's table comes before its package, the crates a row calls
-//   come after the component of SyntHub's.
+//   cell names a component.
 // - A cell holds no `|` but in backquotes, as GitHub's tables read it.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

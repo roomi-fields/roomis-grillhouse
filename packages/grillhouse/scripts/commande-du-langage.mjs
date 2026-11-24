@@ -12,6 +12,8 @@
 // - A project that declares no language (the column « Langage » of its docs/ARCHITECTURE.md),
 //   or whose module describes no command <nom>, plays nothing: exit 0.
 // - A name of the core (`grillhouse <nom>`), or none, is refused, exit 2.
+//
+// What a module describes: docs/architecture/tests.md §3.3.
 import { spawnSync } from 'node:child_process';
 import { constants } from 'node:os';
 import { pathToFileURL } from 'node:url';

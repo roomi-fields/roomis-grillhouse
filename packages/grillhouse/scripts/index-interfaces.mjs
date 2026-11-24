@@ -16,6 +16,8 @@
 // - The finding of the check carries the name `index-interfaces`, as each module's.
 // - Any other argument goes to the command `index-interfaces` of each module that describes it,
 //   which writes nothing then: what the providers of a component publish.
+//
+// The guard of the index: docs/architecture/tests.md §3.4.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

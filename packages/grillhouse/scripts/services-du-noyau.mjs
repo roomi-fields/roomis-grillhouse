@@ -7,6 +7,8 @@
 //   repository).
 // - The core imports ./langages.mjs, never this entry: the command (bin/grillhouse.mjs) loads it
 //   at each call, and a script of the core it loads before running one would not run again.
+//
+// What the core asks of a module, and the boundary: docs/architecture/tests.md §3.3 and §3.5.
 import { fileURLToPath } from 'node:url';
 
 export * from './langages.mjs';

@@ -1,5 +1,6 @@
 // The types of ./dette.mjs as the entry `@roomi-fields/grillhouse/dette` publishes it, for a
-// project's guard that judges its findings against the project's known debt.
+// project's guard that judges its findings against the project's known debt
+// (docs/architecture/tests.md §5.5).
 
 /** A finding of a guard: inscribed in the debt only with its `fichier` and its `regle`. */
 export type Constat = {

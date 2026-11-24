@@ -19,6 +19,8 @@
 //   are inscribed, frozen, and the entry of a guard that receives its migration is pruned.
 // - It plays at the frame only: scripts installed under node_modules, or outside the root, are the
 //   frame's, whose debt the frame holds; a project that updates sees none refused.
+//
+// The list of the guards: docs/architecture/tests.md §3.4; their debt: §5.5.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

@@ -19,6 +19,8 @@
 //   that is a package, holds one or lies inside one (the declaration gives the testwriter no
 //   manifest, and no package is opened to him by it). The nature of the files of a folder is not
 //   bounded, as the `data` of a `filegroup(testonly)` and `tests/ui`.
+//
+// What a test reads out of its imports: docs/architecture/tests.md §4.1 and §7.
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { luUneFois } from './lecture-unique.mjs';

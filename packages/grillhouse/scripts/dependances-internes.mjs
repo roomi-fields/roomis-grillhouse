@@ -8,8 +8,8 @@
 //   npx grillhouse dependances-internes      (one of the frame's guards, scripts/gardes-du-cadre.mjs)
 //
 // - The packages are those the architecture declares of a language without package.json of its own
-//   (`paquetsSansPackageJson`, ./paquet-npm.mjs) that hold a package.json; one without it is the
-//   migration's (./migrations/0.31.0-paquets-dans-le-graphe.mjs).
+//   (`paquetsSansPackageJson`, ./paquet-npm.mjs) that hold a package.json; one without it is not
+//   judged here.
 // - The internal dependencies of the manifest: of a Cargo.toml, each dependency with a `path`
 //   (`[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`, and the same under
 //   `[target.*]`; a `workspace = true` one takes the `path` of `[workspace.dependencies]` of the
@@ -24,6 +24,8 @@
 //   package.json that lacks a dependency its manifest links, or names an internal package its
 //   manifest does not link. Written in SARIF under the guard's name, and on the error stream after
 //   ⛔; the exit code is 1 when there is one, 0 otherwise.
+//
+// The list of the guards: docs/architecture/tests.md §3.4.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

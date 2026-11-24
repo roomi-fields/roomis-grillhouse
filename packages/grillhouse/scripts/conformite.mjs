@@ -29,6 +29,8 @@
 //   element of, and each element it adds, changes or removes;
 // - matieres: each component of the shared test material of the repository of the entry;
 // - joueDesTests: each component of the repository of the entry that plays tests.
+//
+// One check per demand of the join, which the module answers: docs/architecture/tests.md §3.3.
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

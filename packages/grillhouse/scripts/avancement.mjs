@@ -26,6 +26,8 @@
 //   a ticket, `npm run verifier` of a supervisor, or a pass of the circuit of a ticket) names its
 //   progress directory in the file of its part (`nommerLAvancement`); the board reads the parts
 //   held with their progress, and the waits for a part or for room (`lireLaMesure`).
+//
+// The mechanism: docs/architecture/tests.md §3.1 and §4.2.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -3,6 +3,7 @@
 // counted per file and rule against the debt of `grillhouse-dette.json` (`trancher`, dette.mjs).
 // An error beyond the inscribed count refuses with the file, the rule and the counts.
 // ESLint is the repository's own tool, played by its executable (the package does not depend on it).
+// The debt: docs/architecture/tests.md §5.5.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

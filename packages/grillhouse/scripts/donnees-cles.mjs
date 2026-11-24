@@ -23,6 +23,8 @@
 // - `node donnees-cles.mjs <dir>` writes one line `export VARIABLE='chemin'` per datum of the
 //   project that holds <dir> (`exportsDesDonnees`), which the night evaluates, exit 0; a faulty key
 //   writes its faults on stderr, exit 1.
+//
+// What a test reads out of its imports: docs/architecture/tests.md §4.1 and §7.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

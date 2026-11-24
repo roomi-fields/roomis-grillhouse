@@ -1,5 +1,6 @@
 // The types of ./conformite.mjs as the entry `@roomi-fields/grillhouse/conformite` publishes it:
-// the suite of conformity of a module of language to the join (./jointure.d.ts).
+// the suite of conformity of a module of language to the join (./jointure.d.ts,
+// docs/architecture/tests.md §3.3).
 import type { Langage } from './jointure.js';
 
 /** A case of the join: the faults its check finds on the valid entry (none expected) and on the

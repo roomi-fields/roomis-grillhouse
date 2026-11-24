@@ -15,17 +15,19 @@
 //   `langageDe` their join (./composition-des-langages.mjs), which gives each file to the module
 //   of its component, the module itself when one is declared. A name out of the list is refused,
 //   named.
-// - A copy its tool no longer loads is still read: `langageDeLaCopie` gives the join whose
+// - A copy its tool cannot load is still read: `langageDeLaCopie` gives the join whose
 //   readings of the tree (LECTURES: the components, the test material, the class of a file; and
 //   the part of a manifest its tests own) are
 //   played in the main tree of the repository when they throw in the copy, the paths carried from
 //   one tree to the other. A session leaves such a copy between two writes of one change (cargo:
-//   a dependency moved in the manifest of the workspace and not yet in a crate's, osc-bridge
-//   OB-ud1.6); the lock of its writes, its envelope and the acts of its circuit read on, as
+//   a dependency moved in the manifest of the workspace and not yet in a crate's); the lock of
+//   its writes, its envelope and the acts of its circuit read on, as
 //   rust-analyzer keeps the last graph that loaded, and the write that repairs the copy passes.
 //   `langageDe` stays strict: a guard, a build and the red of a reading read the tree as it is.
 // - A module is loaded once per process, synchronously (`require` of an ES module, Node 22): the
 //   locks and the guards ask it in a hook, where nothing waits.
+//
+// What the core asks of a module: docs/architecture/tests.md §3.3 and scripts/jointure.d.ts.
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';

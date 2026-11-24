@@ -18,12 +18,14 @@
 //   language; a docs/INTERFACE.md of the package, or of
 //   the root for the row that names it (`.`), whose line `**Langage** : <nom>` names another
 //   language; a row that names a folder of the project no module finds (a package of Python
-//   without its pyproject.toml, grillhouse-ziy), without the manifest of its language. A folder of
+//   without its pyproject.toml), without the manifest of its language. A folder of
 //   a module without its manifest and without row (a folder of `src/` of a project of one package)
 //   is no package; a row that names neither a component nor a folder (a package not yet created,
 //   a crate of another repository) is not judged.
 // - Each finding is written in SARIF under the guard's name, and on the error stream after ⛔; the
 //   exit code is 1 when there is one, 0 otherwise.
+//
+// The list of the guards: docs/architecture/tests.md §3.4.
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

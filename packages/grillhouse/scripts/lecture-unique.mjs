@@ -6,7 +6,8 @@
 // language keeps there what it reads at a cost (cargo's metadata). A reading that throws is not
 // kept. The scope lives on the process under a global symbol, so that every instance of this file
 // shares it: the modules of language are loaded by `require` (./langages.mjs), which a test
-// runner may load apart from the core's imports.
+// runner may load apart from the core's imports. The join that loads the modules:
+// docs/architecture/tests.md §3.3.
 
 const PORTEE = Symbol.for('grillhouse.lecture-unique');
 

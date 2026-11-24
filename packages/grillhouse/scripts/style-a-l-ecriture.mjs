@@ -18,6 +18,8 @@
 //   stands, and nothing blocks.
 // - It never fails on the tool: without Prettier or ESLint installed in the project, an input that
 //   is no JSON, a file absent or out of the project, it exits 0 and writes nothing.
+//
+// The hook: docs/architecture/greffon.md §3.2.
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';

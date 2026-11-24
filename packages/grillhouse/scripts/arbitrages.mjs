@@ -3,7 +3,7 @@
 // pitmaster, « Une question de conception se tranche par les règles »). The integration
 // (scripts/integration/integrer.mjs) holds a lot whose arbitrage is not settled, and a module of
 // language reads them by the join (scripts/langages.mjs), the guard of the consumers' arbitrages
-// of the module typescript among them.
+// of the module typescript among them (docs/architecture/tests.md §3.4).
 
 // True when the text <text> of a comment is an arbitrage: a « ## Arbitrage… » comment.
 export const estArbitrage = text => /^\s*## Arbitrage\b/.test(String(text ?? ''));

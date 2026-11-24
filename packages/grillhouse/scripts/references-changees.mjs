@@ -2,7 +2,7 @@
 // of Jest and insta, the review of the goldens of Chromium) shows the difference of each file:
 // measured by git between the base of the lot and the lot kept (`git diff --numstat`), summarised
 // by name of field for a JSON file, so that the reviewer judges the change of a reference on the
-// tree, not on what the agent declares.
+// tree, not on what the agent declares (docs/architecture/circuit.md §5.3).
 import { spawnSync } from 'node:child_process';
 import { couvertPar } from './engendres.mjs';
 
