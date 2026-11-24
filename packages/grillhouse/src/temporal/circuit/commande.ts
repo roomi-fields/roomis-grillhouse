@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// The subcommand `grillhouse circuit`, the client of the workflow of a ticket (./client.ts), as
-// `gh run` speaks to a CI it does not run:
+// The subcommand `grillhouse circuit`, the client of the workflow of a ticket (./client.ts), which
+// reads the supervisor's call, refuses at the door a ticket the circuit could not run, and hands
+// over (circuit.md §3.1, « Commande du circuit »; the answers, §5.4):
 //
 //   grillhouse circuit <ticket>                                          puts it in the queue
 //   grillhouse circuit <ticket> --reprendre [--contexte <texte>]
@@ -37,8 +38,8 @@
 //   any work it carries), its sheets and its journal are removed, then the ticket goes in the queue
 //   and its circuit starts from the testwriter in a fresh copy; the ticket, its plan and its
 //   comments stay. The finished workflow stays on the server, but the queue counts only the live
-//   circuits and no more holds the ticket back (grillhouse-d0t). A circuit that runs is refused; it
-//   goes alone (./appel.ts).
+//   circuits and no more holds the ticket back. A circuit that runs is refused; it goes alone
+//   (./appel.ts).
 // - Each writes one line on the standard output, exit 0. A malformed call writes the usage, a
 //   refusal (`ReponseRefusee`, the ticket refused) its reason, on the error stream, exit 2. A
 //   server that does not answer, or Beads that fails, is said on the error stream, exit 1.

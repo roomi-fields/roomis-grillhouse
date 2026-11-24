@@ -1,4 +1,4 @@
-// The client of the queue of the tickets of a project (./deroule.ts): it starts it (or leaves the
+// The client of the queue of the tickets of a project (./deroule.ts; circuit.md §5.7): it starts it (or leaves the
 // one that runs), gives it the supervisor's session of a ticket put in it (the signal
 // SEANCE_DU_SUPERVISEUR), and reads it (the query L_ETAT_DES_TICKETS).
 import type { Client } from '@temporalio/client';

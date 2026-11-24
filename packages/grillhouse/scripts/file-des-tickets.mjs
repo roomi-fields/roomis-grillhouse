@@ -1,7 +1,9 @@
 // The rule of the queue of the tickets of a project: the tickets the owner validated (label
 // `circuit`) whose dependencies are all closed start by themselves, by Beads priority, as Zuul and
 // the merge queues start a change once what it depends on has merged. The queue of the tickets
-// under Temporal (src/temporal/tickets/) reads the tickets and applies this rule.
+// under Temporal (src/temporal/tickets/) reads the tickets and applies this rule (circuit.md
+// §5.7, « La file des tickets »; the code still asks for the section « ## Architecture » where
+// the target reads « Régi par », circuit.md §9.1).
 //
 // - A ticket starts when it is open, labelled `circuit`, with no circuit already on it, its
 //   description holds its section « ## Architecture » (a line that begins so), and every

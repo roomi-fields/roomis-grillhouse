@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// One act of the circuit of a ticket for its workflow under Temporal (src/temporal/circuit/), in a
-// process of its own, as Buildkite's agent and GitLab's runner play each job in a child process:
-// the circuit's code waits on its passes synchronously, so the worker that awaits this process
-// keeps serving, and sends its heartbeats, while the act plays. The worker's activities
-// (src/temporal/circuit/activites.ts) start it in the main tree of the repository:
+// One act of the circuit of a ticket for its workflow under Temporal, in a process of its own: the
+// circuit's code waits on its passes synchronously, so the worker that awaits this process keeps
+// serving, and sends its heartbeats, while the act plays (circuit.md §3.1, « Actes du circuit »;
+// §2.3). The worker's activities (src/temporal/circuit/activites.ts) start it in the main tree of
+// the repository:
 //
 //   node scripts/faits-du-circuit.mjs <acte>    (its input in JSON on the standard input)
 //
@@ -12,19 +12,19 @@
 // killed (scripts/seances.mjs). The act ends with its worker: once the worker is gone, it exits
 // at once, the group of its session left running, which the attempt played again waits for.
 //
-// The acts of a ticket write nothing outside themselves (docs/ARCHITECTURE.md, « une activité, un
-// effet, une clé »): each gathers the effects the circuit's code emits (scripts/effets.mjs) and
-// gives them back with its outcome (`effets`), its own readings seeing those it already emitted;
-// the workflow then plays each one in an activity of its own, the act `effet`, under the key of
-// that activity (`cle`: its workflow, its run, its activity, the same for each of its attempts).
-// A fact (the act `fait`) is read again on an attempt played again: a reading, a measure, a pass
-// of the checks, a regeneration and the integration (no second commit for a lot already in the
-// queue) replay without harm. Under the opening and a fact, a session draws its id from the key of
-// its activity, its event and the attempt of the activity (`idDeSeance` of scripts/seances.mjs,
-// `<séance>-e<essai>`), and ranges its result under it (`rangDeLaSeance`). Only an attempt Temporal plays again (its
-// attempt 2 or more, `essai`), at the launch the dead attempt made last, takes the result of a
-// session the dead attempt launched in its envelope once its group has ended, with no second
-// session (scripts/seances.mjs `lancer`); a session out of the envelope (the explorateur's, the
+// The acts of a ticket write nothing outside themselves: each gathers the effects the circuit's
+// code emits (scripts/effets.mjs) and gives them back with its outcome (`effets`), its own
+// readings seeing those it already emitted; the workflow then plays each one in an activity of its
+// own, the act `effet`, under the key of that activity (`cle`: its workflow, its run, its
+// activity, the same for each of its attempts). A fact (the act `fait`) is read again on an
+// attempt played again: a reading, a measure, a pass of the checks, a regeneration and the
+// integration (no second commit for a lot already in the queue) replay without harm. Under the
+// opening and a fact, a session draws its id from the key of its activity, its event and the
+// attempt of the activity (`idDeSeance` of scripts/seances.mjs, `<séance>-e<essai>`), and ranges
+// its result under it (`rangDeLaSeance`). Only an attempt Temporal plays again (its attempt 2 or
+// more, `essai`), at the launch the dead attempt made last, takes the result of a session the
+// dead attempt launched in its envelope once its group has ended, with no second session
+// (scripts/seances.mjs `lancer`); a session out of the envelope (the explorateur's, the
 // questionneur's, the reviewer's), which writes nothing in the lot, is launched again. The acts of
 // the queue of a project follow the same model: each of their gestures replays without harm (main
 // moved onto a lot already on main enters it, a ticket closed stays closed, a commit pushed is
@@ -49,7 +49,7 @@
 // - `effet`, one effect an act gave back, written under the key of its activity (`ecrireLEffet`):
 //   an effect not written has its outcome, said on the error output or the failure of its
 //   activity;
-// - the acts of the queue of a project (scripts/integration/file.mjs, grillhouse-4nr.8): `situer`,
+// - the acts of the queue of a project (scripts/integration/file.mjs): `situer`,
 //   where the lot of a ticket stands (`situerLeLot`); `brancher`, the branch made the candidate the
 //   final pass judges (`preparerLaBranche`); `avancer`,
 //   main moved onto the candidate (`avancerMain`); each of `brancher` and `avancer` telling the

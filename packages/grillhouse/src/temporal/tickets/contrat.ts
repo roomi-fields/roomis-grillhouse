@@ -1,4 +1,4 @@
-// The contract of the queue of the tickets of a project (grillhouse-4nr.9, decision D9): its type,
+// The contract of the queue of the tickets of a project (circuit.md §5.7): its type,
 // its id and its query by their names, what it receives and gives back, and the activities
 // it calls (./activites.ts). The workflow, its activities and its client share it.
 import type { EntreeDuCircuit } from '../circuit/contrat.js';

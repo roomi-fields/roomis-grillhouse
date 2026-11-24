@@ -1,11 +1,11 @@
-// The activities of the circuit of a ticket (scripts/circuit.mjs) beside its sessions
-// (scripts/seances.mjs), as Temporal runs the activities of a workflow: the proof of the red
+// The acts of the circuit of a ticket (scripts/circuit.mjs; circuit.md §3.1, « Actes du circuit »)
+// beside its sessions (scripts/seances.mjs): the proof of the red
 // (`preuve`), the checks and the final pass (`controles`), the regeneration of the references
 // (`regenerer`), the integration (`integrer`), the review (`relire`), the tri of the discoveries
 // (`trier`) and the readings of the copy (its tree, its lot kept, its fingerprint, what it
 // delivers). Each receives its inputs (the run's context <ctx>, its paths and its ports, and what
 // it reads of the circuit's memory) and returns its outcome; none reads nor writes the circuit's
-// memory: the circuit keeps what it returns (grillhouse-4nr.4). The regeneration starts by
+// memory: the circuit keeps what it returns. The regeneration starts by
 // restoring the copy it kept before it; the integration of a lot already committed, its branch in
 // the queue, makes no second commit. The port of <ctx> (`ctx.ports.signeDeVie`, the sign of life
 // of a session) is the caller's.
@@ -1928,9 +1928,9 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
 // task `<package>#build`) of a package of the plan: `{ nom, erreur }`, `erreur` its log file and
 // the beginning of its own output.
 // Whether the failed task <t> is a failed compilation, which renders « construction de <crate> »: a
-// build task (`cargo test --no-run`, grillhouse-egm), or a test task whose target did not compile —
-// code not 0, the compiler's errors in its log, which the module reads (`echecDeCompilation` of the
-// join) — reaching the circuit by the test task with no report (grillhouse-lv9, OSC Bridge OB-4gy).
+// build task (`cargo test --no-run`), or a test task whose target did not compile — code not 0,
+// the compiler's errors in its log, which the module reads (`echecDeCompilation` of the join) —
+// reaching the circuit by the test task with no report.
 // A task that did not run, is green or « à repasser » is no failure; a test that failed at run time
 // or a binary that does not load shows no compiler error, and stays what it is.
 function echecDeConstruction(ctx, langage, t) {
@@ -2103,7 +2103,7 @@ export function rougesDe(ctx, liste, c) {
   // The guards of the project wrote findings when one comes from a guard out of the frame's.
   const duProjet = constats.some(k => !duCadre(k));
   // The crates already rendered « construction de »: a failed build task and a test task that did
-  // not compile, both of one crate, give one red (grillhouse-lv9).
+  // not compile, both of one crate, give one red.
   const construits = new Set();
   for (const t of langage.verdict(c.dossier).taches) {
     if (t.code === null || t.code === 0 || t.code === A_REPASSER) {
@@ -2119,7 +2119,7 @@ export function rougesDe(ctx, liste, c) {
       continue;
     }
     // A failed compilation (a build task, or a test task whose target does not compile) renders
-    // « construction de <crate> », once per crate (grillhouse-lv9).
+    // « construction de <crate> », once per crate.
     const construction = echecDeConstruction(ctx, langage, t);
     if (construction && construits.has(t.paquet)) {
       continue;

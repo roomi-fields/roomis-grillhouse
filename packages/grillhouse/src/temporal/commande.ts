@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The subcommand `grillhouse temporal`, the account's Temporal:
+// The subcommand `grillhouse temporal`, the account's Temporal (installation.md §3.1 and §5.3):
 //
 //   grillhouse temporal installer [--archive <fichier>] [lieux]   lays down the program and the units
 //   grillhouse temporal installer --programme-seul [--archive <fichier>] [--maison <dossier>]

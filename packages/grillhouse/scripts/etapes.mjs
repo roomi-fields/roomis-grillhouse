@@ -1,7 +1,8 @@
-// The steps of a ticket, the tree of its circuit, as a pipeline of GitLab CI shows its stages and
-// their jobs and GitHub Actions its jobs and their steps, and the stops of its circuit: the one
-// list, which the circuit (scripts/circuit.mjs), the board (scripts/tableau.mjs), the bilan
-// (scripts/bilan.mjs) and the texts read.
+// The steps of a ticket, the tree of its circuit, and the stops of its circuit: the one list,
+// which the circuit (scripts/circuit.mjs), the board (scripts/tableau.mjs), the bilan
+// (scripts/bilan.mjs) and the texts read. The list of the steps is told here and at circuit.md
+// §5.1 alone; the gestures and the stops, at §5.4 and §5.5. The code today holds the long and the
+// short circuits; the direct one is a target (circuit.md §9.1).
 //
 // - A step (ETAPES): its number (« 2 », « 4.1 »), its title, who works there (`qui`: the role
 //   agents, or AUTO for a step the circuit leads itself; none for a step that only holds its
@@ -15,8 +16,8 @@
 //   The tri of the discoveries (5.3) is the explorateur's too, once the queue has brought the lot
 //   onto main, as Chromium and Mozilla give each new report a verdict before it is filed; so is the
 //   gesture of a mechanical ticket (1.1), the command its plan names played in the copy, as Rosie
-//   and ClangMR let a tool make a large-scale change at Google (grillhouse-sos); the role's own step
-//   stays the plan (`etapeDuRole`).
+//   and ClangMR let a tool make a large-scale change at Google; the role's own step stays the plan
+//   (`etapeDuRole`).
 //   SUITE is the tree in its order, each step before its sub-steps.
 // - A step carries as many bounded loops as it needs (`boucles`), each spanning the step and its
 //   sub-steps: each its key (`cle`, which keys its count in the state's `boucles`), its label and
@@ -51,7 +52,7 @@ export const ETAPES = [
     questionnement: 'plan',
     arrets: ['questionnement'],
     // The gesture of a mechanical ticket, in the copy, in place of the testwriter and the
-    // developpeur (grillhouse-sos).
+    // developpeur.
     sous: [{ numero: '1.1', titre: 'Geste mécanique', qui: [EXPLORATEUR], etat: 'geste' }],
   },
   {
@@ -101,7 +102,7 @@ export const ETAPES = [
     sous: [
       { numero: '5.1', titre: 'Commit', qui: [AUTO], etat: 'integration' },
       { numero: '5.2', titre: 'File : passe finale, main', qui: [AUTO], etat: 'file' },
-      // The tri of the discoveries of the ticket, on the lot entered on main (grillhouse-0yu.5).
+      // The tri of the discoveries of the ticket, on the lot entered on main.
       { numero: '5.3', titre: 'Tri des découvertes', qui: [EXPLORATEUR], etat: 'tri' },
     ],
   },
@@ -135,7 +136,7 @@ export const ARRETS = {
   integration: 17,
   // The resumption of the integration of a lot already on main: a lot neither on main nor in the
   // copy (`lot-absent`), or a copy that does not get removed (`copie-gardee`); both at the code of
-  // the integration stop (grillhouse-bf5.2).
+  // the integration stop.
   'lot-absent': 17,
   'copie-gardee': 17,
   'hors-portee': 19,

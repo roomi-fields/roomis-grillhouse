@@ -1,5 +1,5 @@
 // The circuits of a repository as the board (scripts/tableau.mjs) and the supervisor
-// (scripts/superviseur.mjs) read them: one call to the Temporal server (src/temporal/circuit/
+// (scripts/superviseur.mjs) read them, from the view of the circuit (circuit.md §4.2): one call to the Temporal server (src/temporal/circuit/
 // client.ts `lireLesCircuits`, the memo and the status of each workflow, no worker living), as the
 // UI of Temporal lists its workflows, and the progress of the pass under way of each one that runs,
 // read in its working directory (scripts/avancement.mjs `avancementDuTravail`); and the night

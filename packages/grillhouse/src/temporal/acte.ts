@@ -1,4 +1,5 @@
-// One act of the circuit (scripts/faits-du-circuit.mjs), which the activities of the workflow of a
+// The launcher of an act (circuit.md §3.1, « Activités du circuit et lanceur d'acte »; §2.3). One
+// act of the circuit (scripts/faits-du-circuit.mjs), which the activities of the workflow of a
 // ticket (./circuit/activites.ts) and of the queue of a project (./file/activites.ts) play, in a
 // process of its own, in the main tree of the repository, as
 // a CI runner plays each job in a child process. While the act plays, the activity sends a

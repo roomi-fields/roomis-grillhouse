@@ -1,5 +1,5 @@
-// The client of the workflow of a ticket (./deroule.ts), as `npx grillhouse circuit` speaks to it
-// (./commande.ts): it starts the circuit of a ticket (or leaves the one that runs), answers its
+// The client of the circuit (circuit.md §3.1, « Client du circuit »; §5.4) of the workflow of a
+// ticket (./deroule.ts), as `npx grillhouse circuit` speaks to it (./commande.ts): it starts the circuit of a ticket (or leaves the one that runs), answers its
 // stop (the updates REPRENDRE, DEPUIS and ETENDRE, which a validator refuses out of a wait or on a
 // question already answered, and the signal ARRETER, taken anywhere), and reads it (the query
 // L_ETAT). A circuit stopped on the supervisor's word has ended its workflow, which gave back the
@@ -7,8 +7,7 @@
 // from that state (`reprise`, `etatDArret`), not as a first launch, the bounds of the entry it
 // follows kept. The server holds a workflow for the retention of its namespace (7 days, the
 // installation's); past it, the state is gone with it, and only `--depuis` reopens the circuit,
-// from the step of its agent, on the task queue of the project's worker (decision Q2 of
-// grillhouse-4nr.12).
+// from the step of its agent, on the task queue of the project's worker.
 import { spawnSync } from 'node:child_process';
 import { DepartRefuse, ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
 import { lesReponses, SANS_ISSUE } from '../../../scripts/reponses-du-circuit.mjs';
@@ -53,9 +52,7 @@ const pageTropGrande = (e: unknown): boolean => {
 /**
  * The workflows the query <query> finds on the server, read whole, by pages of PAGE. No size of
  * page is safe for good, a memo having no bound of its own: a page the client refuses as too large
- * makes the list start again with pages of half the size, down to one workflow a page (pc3,
- * 2026-11-21: 100 circuits passed the 4 MB by 3 kB, and the queues of the tickets of two projects
- * failed on it).
+ * makes the list start again with pages of half the size, down to one workflow a page.
  */
 export async function listerLesDeroules(
   client: Client,
@@ -298,7 +295,7 @@ export async function reprendreLeCircuit(
  * Starts the circuit of <ticket> over (`--recommencer`): <retirer> removes its copy, sheets and
  * journal, and its line names the copy removed. It resets the copy, not Temporal: the finished
  * workflow stays on the server, which the queue, counting only the live circuits, no more holds the
- * ticket back for (grillhouse-d0t). A circuit that runs is refused by its name (`ReponseRefusee`)
+ * ticket back for. A circuit that runs is refused by its name (`ReponseRefusee`)
  * and nothing is removed; a ticket the server no longer holds is removed all the same.
  */
 export async function recommencerLeCircuit(

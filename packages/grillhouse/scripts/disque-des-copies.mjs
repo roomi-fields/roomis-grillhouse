@@ -1,6 +1,6 @@
 // The disk of the copies of a project, which a circuit's start consumes (its copy, its
 // dependencies, its compilation), as Nomad reserves the disk of a client (`client.reserved.disk`):
-// the queue of the tickets admits a circuit only when the disk of the project's copies
+// the queue of the tickets (circuit.md §5.7; machine.md §5.4) admits a circuit only when the disk of the project's copies
 // (`<racine>/.claude/worktrees`) has the room of one more copy, and says otherwise what holds it.
 //
 // - The size of a copy is measured once, when its circuit pauses on a question or ends

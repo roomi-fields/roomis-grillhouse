@@ -1,5 +1,5 @@
 // The ticket of a circuit, read and written as the circuit and its activities share it
-// (scripts/circuit.mjs, scripts/seances.mjs): its comments and its description in Beads, the
+// (scripts/circuit.mjs, scripts/seances.mjs; circuit.md §3.1, « Actes du circuit »): its comments and its description in Beads, the
 // sheets and the results of its sessions (`<ticket>.fiches.jsonl`), its log, the components of its
 // repository, and the stop of the circuit (`Arret`). Every function takes the circuit's context
 // <ctx> (`contexte` of scripts/circuit.mjs: `bd`, `ticket`, `fiches`, `journal`, `copie`,

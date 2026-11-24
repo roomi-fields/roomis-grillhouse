@@ -1,4 +1,4 @@
-// The state of the account's Temporal (`grillhouse temporal etat`): for the server, the worker of
+// The state of the account's Temporal (`grillhouse temporal etat`; installation.md §3.1): for the server, the worker of
 // the project and the worker of the machine, whether each runs (`systemctl --user is-active`), the
 // version of the program laid down (`temporal --version`), and whether the server answers (the
 // common client library, ./client.ts). Without an installation (the program of the pinned version

@@ -1,122 +1,102 @@
-// The formats of the results the circuit decides on, in one module, which the circuit
-// (scripts/circuit.mjs), the guards and the tests read; as Bazel's Build Event Protocol and the
-// JUnit reports carry the outcome of a build, no reader reads an output meant for the human.
+// The formats of the results the circuit decides on, in one module that the circuit, the guards
+// and the tests read; as Bazel's Build Event Protocol and the JUnit reports carry the outcome of a
+// build, no reader reads an output meant for the human (circuit.md §4.4, the sheet of a role).
 //
 //   npx grillhouse resultats --schema <rôle>      prints the JSON schema of a role's sheet
 //
 // - The sheet of the end of a session (« la fiche ») of the explorateur, the questionneur, the
-//   testwriter, the developpeur and the reviewer: the schema of each role (FICHES), which the session receives
-//   (`claude -p --output-format json --json-schema <schéma>`) and fills as its last act; claude
-//   writes it in the field `structured_output` of its result (Claude Code, « headless »). A field
-//   exists only when a reader reads it:
+//   testwriter, the developpeur and the reviewer: the schema of each role (FICHES), which the
+//   session receives (`claude -p --output-format json --json-schema <schéma>`) and fills as its
+//   last act, in the field `structured_output` of its result. A field exists only when a reader
+//   reads it:
 //   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN, each
-//     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin », the piece
-//     with the stop (testwriter, developpeur, and the explorateur's gesture of a mechanical ticket,
-//     its own schema, `geste`);
-//   - `portent_le_travail` (`fichier` from the root, `test` its full name, or none for every test of
-//     the file): the tests of the lot that carry the ticket's work, which the proof of the red
-//     requires red (testwriter);
+//     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin »
+//     (testwriter, developpeur, and the explorateur's gesture of a mechanical ticket, its own
+//     schema, `geste`);
+//   - `portent_le_travail` (`fichier` from the root, `test` its full name, or none for every test
+//     of the file): the tests of the lot that the proof of the red requires red (testwriter);
 //   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
 //     developpeur (developpeur);
 //   - `hors_plan` (`critere` its number, `paquet` the package out of the plan that would hold it,
 //     `piece`): each criterion the session does not hold for want of a package out of the plan; a
-//     FAIT that carries one stops at « hors-portee », as a required check keeps a merge from a
-//     change that does not pass it (BP 320.17: « critère 10 hors plan, non fait », in a handover
-//     the circuit does not read, fell at the review) (developpeur);
+//     FAIT that carries one stops at « hors-portee » (developpeur);
 //   - `reponses` (`titre` of the finding, `etat` levé or contesté, `raison` for a contesté,
-//     `piece`): as the author answers in each thread of a review on GitHub or Gerrit, a FAIT
-//     answers each finding of the reviewer open for him, by its title (the number « Constat N — »
-//     its instruction heads it with recognised, `cleDuConstat`), and the circuit refuses a
-//     sheet without the answer to one (`reponsesAuxConstats`), save in a run where the supervisor
-//     gives the task (`--contexte`, the findings open at the run's launch then its context, the
-//     ones a RENDU states within it still its task: `constatsDeLaSeance` of
-//     scripts/circuit.mjs), and gives the next review each answer
-//     under its finding (BP 320.21: the cause of his choice in a handover the circuit does not
-//     read, three RENDU, then the stop) (developpeur);
+//     `piece`): a FAIT answers each finding of the reviewer open for its role, by its title (the
+//     number « Constat N — » is recognised, `cleDuConstat`); the circuit refuses a sheet without
+//     the answer to one (`reponsesAuxConstats`), save in a run where the supervisor gives the task
+//     (`--contexte`: the findings open at the run's launch are then its context, the ones a RENDU
+//     states within it still its task, `constatsDeLaSeance` of scripts/circuit.mjs), and gives the
+//     next review each answer under its finding (developpeur);
 //   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each
 //     subject once, its value from the last sheet that carries it (developpeur, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
 //     `decouverte`, created by the circuit (every role);
 //   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `piece`, `genre` bloquant or
-//     remarque; a
-//     blocking one with `regle`, the criterion of the plan or the rule of the frame it holds, and
-//     `role` its recipient, or `critere_en_cause`): as Conventional Comments mark
-//     a comment blocking or not, the circuit plays the blocking findings alone, each open until a
-//     review marks it lifted, and writes the verdict at the ticket for the human, the remarks with
-//     it; a RENDU carries a blocking finding, an ACCEPTÉ none (reviewer);
+//     remarque; a blocking one with `regle`, the criterion of the plan or the rule of the frame
+//     it holds, and `role` its recipient, or `critere_en_cause`): the circuit plays the blocking
+//     findings alone, each open until a review marks it lifted, and writes the verdict at the
+//     ticket, the remarks with it; a RENDU carries a blocking finding, an ACCEPTÉ none (reviewer);
 //   - `conformite` (`element`, `conforme` oui or non, `document` CADRE, INTERFACE or
-//     ARCHITECTURE, `reference`, `piece`; a « non » with `role` its recipient):
-//     one line per element of the lot (scripts/langages/typescript/elements-du-lot.mjs), its rule cited from a
-//     document of its package, a new export's the entry of the INTERFACE that names it; a line
-//     without its reference is refused; a « non » is a blocking finding (`bloquantsDeLaFiche`),
-//     and the circuit refuses a sheet without a line for each element, or with a line on an
-//     element out of the list, a file the lot changes named alone or as `<fichier>#<nom>`
-//     (`conformiteDuLot`) (reviewer);
+//     ARCHITECTURE, `reference`, `piece`; a « non » with `role` its recipient): one line per
+//     element of the lot (scripts/langages/typescript/elements-du-lot.mjs), a new export's the
+//     entry of the INTERFACE that names it; a line without its reference is refused; a « non » is
+//     a blocking finding (`bloquantsDeLaFiche`), and the circuit refuses a sheet without a line
+//     for each element, or with a line on an element out of the list, a file the lot changes
+//     named alone or as `<fichier>#<nom>` (`conformiteDuLot`) (reviewer);
 //   - `suivi` (`titre`, `etat` levé or non levé, `preuve`): each finding still open judged on the
-//     lot, bounded or whole, by its title (its number « Constat N — » recognised, `cleDuConstat`),
-//     which the circuit writes at the ticket with the verdict, for the human; the circuit refuses
-//     a sheet without a line for one, or an ACCEPTÉ that holds one not lifted
+//     lot, by its title (`cleDuConstat`), which the circuit writes at the ticket with the verdict;
+//     it refuses a sheet without a line for one, or an ACCEPTÉ that holds one not lifted
 //     (`suiviDesConstats`) (reviewer);
-//   - `question`, with its `piece` (reviewer): what goes up to the owner, a real word of the
-//     language written in the code; the circuit stops at « besoin » before it commits or
-//     relaunches anyone;
-//   - `criteres`, `paquets`, `questions` (each with its `motif` and its `piece`): the plan, which the circuit
-//     writes at the ticket: the criteria it adds after those the ticket holds, which the circuit
-//     keeps as they are; the packages in the title as it names its components (a package name or a
-//     path), the list the envelope of every later session writes; the open questions, a change or
-//     a removal of a criterion written among them, go up to the supervisor, each naming why: the
-//     language, the architecture, a gap to the reference, or no answer (BP 328: a question the
-//     ticket settled stopped the plan) (explorateur);
+//   - `question`, with its `piece` (reviewer): what goes up to the owner; the circuit stops at
+//     « besoin » before it commits or relaunches anyone;
+//   - `criteres`, `paquets`, `questions` (each with its `motif` and its `piece`): the plan, which
+//     the circuit writes at the ticket: the criteria it adds after those the ticket holds, the
+//     packages in the title as it names its components (a package name or a path), the list the
+//     envelope of every later session writes; the open questions, a change or a removal of a
+//     criterion written among them, go up to the supervisor, each naming why: the language, the
+//     architecture, a gap to the reference, or no answer (explorateur);
 //   - `sorte` (`genre` mécanique or comportement, its `raison`, the `commande` a mechanical ticket
-//     plays, and, for a comportement, `comportement` changé, tests-adaptés or inchangé): as
-//     Google's large-scale changes let a tool make a change that a verification and a review
-//     judge (Rosie, ClangMR), a ticket the plan says mechanical skips the testwriter, the proof
-//     and the developpeur; under « tests-adaptés » the testwriter writes and every green of the
-//     proof is expected, then the developpeur writes; under « inchangé » (a gesture written by
-//     hand) the developpeur alone writes, no testwriter; a sort
-//     absent, out of its kinds, or without its reason or its command is comportement, the whole
-//     circuit (`sorteDuPlan`, grillhouse-sos) (explorateur);
+//     plays, and, for a comportement, `comportement` changé, tests-adaptés or inchangé): a
+//     mechanical ticket skips the testwriter, the proof and the developpeur; under
+//     « tests-adaptés » the testwriter writes and every green of the proof is expected, then the
+//     developpeur writes; under « inchangé » the developpeur alone writes; a sort absent, out of
+//     its kinds, or without its reason or its command is comportement, the whole circuit
+//     (`sorteDuPlan`) (explorateur; circuit.md §5.1);
 //   - `ecartes` (`composant`, `raison`): the components of the survey, and those the title of
-//     the ticket names, that the plan does not touch, which the circuit writes at the ticket; each
-//     other component of the survey the circuit plays, and of the title, is in the packages; a
-//     component set apart without its reason makes the sheet out of conformity (explorateur);
-//   - `noms_publies` (`fournisseur`, `consommateur`, `noms`): the names a component publishes to
-//     another, which the lot adds to the provider's « Consommateurs » lines; as a code owner's
-//     approval covers what it reviewed, the circuit writes them in the description (« ## Noms
-//     publiés »), which scripts/langages/typescript/consommateurs-arbitres.mjs reads (BP
-//     320.14.2.10: a criterion alone named them, the guard refused the lot) (grillhouse-la3)
+//     the ticket names, that the plan does not touch; each other component the circuit plays is in
+//     the packages; a component set apart without its reason makes the sheet out of conformity
 //     (explorateur);
+//   - `noms_publies` (`fournisseur`, `consommateur`, `noms`): the names a component publishes to
+//     another, which the lot adds to the provider's « Consommateurs » lines; the circuit writes
+//     them in the description (« ## Noms publiés »), which
+//     scripts/langages/typescript/consommateurs-arbitres.mjs reads (explorateur);
 //   - `reponses` (`numero` of the question, `reponse` CHANGE or GARDE, `texte`): the explorateur's
-//     one answer to the questionneur, which the circuit writes at the ticket; a question without
-//     an answer stays open (explorateur); an answer may carry a `correction` of a criterion
-//     (`critere`, `texte`, `piece`, `extrait`), which the circuit accepts when the extract stands
-//     at the line of the question's piece (`correctionsDuPlan` of scripts/transitions.mjs);
+//     one answer to the questionneur; a question without an answer stays open (explorateur); an
+//     answer may carry a `correction` of a criterion (`critere`, `texte`, `piece`, `extrait`),
+//     which the circuit accepts when the extract stands at the line of the question's piece
+//     (`correctionsDuPlan` of scripts/transitions.mjs);
 //   - `issue` (QUESTIONS with its `questions`, each with what it aims at, `vise`, and its
-//     `piece`; AUCUNE; DÉSACCORD
-//     with its `desaccord`): the explorateur answers the questions, the disagreement as one, and
-//     the circuit writes them at the ticket (questionneur);
+//     `piece`; AUCUNE; DÉSACCORD with its `desaccord`) (questionneur);
 //   - `verdicts` (`decouverte`, `verdict` among VERDICTS_DU_TRI, `texte`, `piece`): the tri of the
 //     discoveries, the explorateur's sheet after the queue (its own schema, `tri`), one line per
 //     discovery of the ticket, which the circuit writes at the ticket of each and reopens under
 //     `a-valider` for an a-porter or a non-confirmee; the piece of a traitee or an a-porter, a
 //     command played again on main and its output or file:line, is required, and the circuit
 //     refuses a sheet without a line for each discovery, with a line on another, or two on one
-//     (`conformiteDuTri`) (grillhouse-0yu.5).
+//     (`conformiteDuTri`).
 //   `lireFiche` reads a session's output: the sheet and the session's id, or the error that
 //   names what lacks or does not conform (no `structured_output`, a field out of the schema, a
 //   status without its reason, a blocking finding without its criterion or rule, a line of
 //   conformity without its rule or a « non » without its recipient, a plan without packages, a
 //   fact without its piece, a piece in no form, given the copy, a file piece not in it, and, given
 //   the ticket's description, a piece of the ticket whose criterion or section it lacks).
-// - The piece of a fact (« la pièce »), one format, as a code review cites the line it judges: a
-//   finding, a question or a stop carries it, so the agent who takes the fact up re-reads it
-//   before he builds on it (BP 320.9: a line read wrong, copied by five agents up to the owner).
-//   Either `<fichier>:<ligne>` or `<fichier>:<ligne>-<fin>`, the file from the root of the copy,
-//   the line from 1, then, after a space, what it shows (« packages/a/src/x.ts:3 divise par sa valeur. »); or `$ <commande>` on
-//   its first line and its output on the lines after (after a « \n » written in two characters,
-//   in a piece written on one line); or, for what the ticket says, `ticket, critère <N>` or
-//   `ticket, § <section>`, then « : » and what it shows, as a review of a specification cites its
-//   section (BP 320.17: the questionneur's pieces on the plan it questions, refused). `lirePiece`
+// - The piece of a fact (« la pièce »), one format: a finding, a question or a stop carries it, so
+//   the agent who takes the fact up re-reads it before he builds on it. Either
+//   `<fichier>:<ligne>` or `<fichier>:<ligne>-<fin>`, the file from the root of the copy, the line
+//   from 1, then, after a space, what it shows (« packages/a/src/x.ts:3 divise par sa valeur. »);
+//   or `$ <commande>` on its first line and its output on the lines after (after a « \n » written
+//   in two characters, in a piece written on one line); or, for what the ticket says,
+//   `ticket, critère <N>` or `ticket, § <section>`, then « : » and what it shows. `lirePiece`
 //   reads it; the circuit gives `lireFiche` the copy, where each file piece's file stands and
 //   holds its line, and the ticket's description, which carries each criterion or section cited.
 // - The findings of a guard, in SARIF 2.1.0 (OASIS), beside its output for the human: one run per
@@ -204,7 +184,7 @@ const DOCUMENTS = ['CADRE', 'INTERFACE', 'ARCHITECTURE'];
 // gap to the mature reference), or no answer the explorateur holds.
 const MOTIFS = ['langage', 'architecture', 'écart à la référence', 'sans réponse'];
 
-// The verdicts of the tri of the discoveries (grillhouse-0yu.5), as the triage of a report of
+// The verdicts of the tri of the discoveries, as the triage of a report of
 // Chromium or Mozilla: the lot or a ticket already holds it, it repeats another, it stays out of
 // the actual use, it is a defect of the actual use, or no proof could be played again. The
 // verdicts that reopen their discovery under `a-valider`, for the owner.
@@ -213,7 +193,7 @@ export const VERDICTS_ROUVERTS = ['a-porter', 'non-confirmee'];
 // The verdicts whose piece is a command played again on main and its output, or file:line.
 const VERDICTS_PROUVES = ['traitee', 'a-porter'];
 
-// The sorts of a ticket the explorateur judges at the plan (grillhouse-sos): a gesture without new
+// The sorts of a ticket the explorateur judges at the plan: a gesture without new
 // behaviour, which its command makes, or a change of behaviour, which the circuit of code makes.
 export const SORTES = ['mécanique', 'comportement'];
 // The values of the field `comportement` of a plan of sort comportement: changé (the testwriter
@@ -528,7 +508,7 @@ export const schemaDeFiche = role => FICHES[role] ?? null;
 // 'mécanique', raison, commande }` for a mechanical ticket with its reason and its command; else
 // `{ genre: 'comportement', raison, comportement }`, `comportement` one of COMPORTEMENTS, changé
 // when absent, unknown or without its reason. A sort absent, out of its kinds or without what it needs is comportement, the
-// whole circuit, as a doubt goes to the circuit (grillhouse-sos).
+// whole circuit, as a doubt goes to the circuit.
 export function sorteDuPlan(fiche) {
   const s = fiche?.sorte;
   const plein = v => typeof v === 'string' && v.trim() !== '';
@@ -647,8 +627,7 @@ export const bloquantsDeLaFiche = fiche => [
 // without its line, a line on an element out of the list, a new export whose rule does not name
 // its entry in the INTERFACE of its package. A line on a changed file, a source or not, names it
 // alone or one of its parts, `<fichier>#<nom>`, as a review on GitHub or Gerrit accepts a comment
-// on any line of any changed file (BP 320.17: lines on an INTERFACE.md, a CADRE.md and a ceiling
-// the commit changes, refused); a changed file asks no line, but a reference file the lot changes
+// on any line of any changed file; a changed file asks no line, but a reference file the lot changes
 // (<references>, their paths, `differencesDesReferences`) asks one, its `element` its path. The
 // fault, or null.
 export function conformiteDuLot(fiche, { elements, fichiers, references = [] }) {
@@ -765,11 +744,10 @@ export function conformiteDuTri(fiche, decouvertes) {
 // fin }` for « <fichier>:<ligne>-<fin> » (as SARIF's region has a start line and an optional end
 // line), then what it shows after a space, the place in backquotes or followed by punctuation
 // read the same; `{ commande, sortie }` for « $ <commande> » and its output on the lines after,
-// a « \n » written in two characters read as the line break of a piece written on one line (BP
-// 320.3.9: a BESOIN refused on it); `{ critere }` for « ticket, critère <N> » and `{ section }`
+// a « \n » written in two characters read as the line break of a piece written on one line;
+// `{ critere }` for « ticket, critère <N> » and `{ section }`
 // for « ticket, § <section> » (in « » or up to « : »), what the ticket says, as a review of a
-// specification cites its section (« RFC 9110 § 15.5 »; BP 320.17: three sheets of the
-// questionneur refused for a piece on the plan they question); null for a text in no form.
+// specification cites its section (« RFC 9110 § 15.5 »); null for a text in no form.
 export function lirePiece(texte) {
   const t = String(texte ?? '').trim();
   const ticket = /^ticket\s*,\s*/i.exec(t);

@@ -1,4 +1,5 @@
-// The resumption of the circuit at the step that carries a red, with no input nor output (as
+// The resumption of the circuit at the step that carries a red (circuit.md §5.4 and §5.5, « renvoi
+// à l'auteur du code »), with no input nor output (as
 // scripts/transitions.mjs): the attribution of a red to the step that carries it and the step where
 // `--depuis` resumes. Mature model: « Re-run failed jobs » of GitHub Actions (the red job and what
 // depends on it replay). The fingerprint of a step, which hashes with `node:crypto`, is in
@@ -18,7 +19,7 @@ const etatDe = n => SUITE.find(e => e.numero === n).etat;
  * test file of the lot (no guard) and a file of code are the developpeur's. A red
  * that names no file but lies in a package of the plan (a red task: lint, format check, typing,
  * build) is the developpeur's, no file named, as a red job of a CI goes back to its author (the
- * owner's decision on grillhouse-4nr.14.1); one out of the plan, or a file nobody wrote, is never
+ * the owner's decision); one out of the plan, or a file nobody wrote, is never
  * attributed (`etape` null, its `motif` said): it goes up.
  */
 export function attribuerLeRouge({ lieux, portes }) {

@@ -1,5 +1,5 @@
-// The ticket a circuit starts on, read before any work, as a CI validates its configuration before
-// it runs its jobs: `npx grillhouse circuit` refuses at the door what the circuit could not run
+// The ticket a circuit starts on, read before any work (circuit.md §3.1, « Commande du circuit »;
+// §5.2), as a CI validates its configuration before it runs its jobs: `npx grillhouse circuit` refuses at the door what the circuit could not run
 // (src/temporal/circuit/commande.ts), and the opening of each act of the circuit reads its plan
 // the same way (scripts/circuit.mjs `contexte`).
 //

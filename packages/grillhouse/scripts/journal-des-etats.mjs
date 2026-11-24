@@ -1,5 +1,5 @@
-// The journal of states of a project (grillhouse-4nr.20, docs/ARCHITECTURE.md « Le journal des
-// états »): one dated JSONL line per change of state of the circuits, the queue and the places, a
+// The journal of states of a project (docs/ARCHITECTURE.md « Le journal des états »; machine.md
+// §4.2, the trace of a wait): one dated JSONL line per change of state of the circuits, the queue and the places, a
 // segment per local date under the common git directory (`<git-common-dir>/grillhouse-journal/
 // <YYYY-MM-DD>.jsonl`, never versioned), read back as a chronology. As the log of a scheduler: a
 // whole line in one append, no lock, no wait, so that it never delays what it traces.

@@ -1,5 +1,5 @@
-// The workflow of a ticket (grillhouse-4nr.6, decision Q3), `circuit:<racine>:<ticket>`: the
-// circuit of scripts/circuit.mjs, its decisions the pure ones of scripts/transitions.mjs, each
+// The workflow of a ticket, `circuit:<racine>:<ticket>` (circuit.md §3.1 « Déroulé du circuit »,
+// §5.2, §5.4): the circuit of scripts/circuit.mjs, its decisions the pure ones of scripts/transitions.mjs, each
 // act an activity (./activites.ts: the opening and the plan, the preparation of a pass, each fact
 // a decision asks for, the effects, the stops, the end). A stop does not end the workflow: it
 // writes its question, then the workflow waits for the supervisor's answer, durably, as a pipeline
@@ -10,12 +10,12 @@
 // fails is the stop « inattendu » at the step it fell, its question awaited; when the act of the
 // stop fails too, the stop stands in the memo alone (scripts/transitions.mjs `arretSansActe`). A « a-repasser » (75)
 // plays again by itself after `repasserMs` (10 min), `repassesMax` times (6) in a row, then its
-// question goes up (decision D4); one that is a wait for a place, the lock or room plays again at
+// question goes up; one that is a wait for a place, the lock or room plays again at
 // once, without limit, never a question. The effects a step decided before a fact that fails are written
 // before its stop (scripts/transitions.mjs gives them with each fact it asks for). The step and the
 // question are a search attribute and the memo, which the board reads from the server alone; past
 // its length of history, the workflow continues as new at a step's start. At its step 5.2, the
-// fact `file` is the queue of the project's (../file/deroule.ts, grillhouse-4nr.8): a lot to enter
+// fact `file` is the queue of the project's (../file/deroule.ts): a lot to enter
 // goes into the queue (the signal ENTRER, the queue started when none runs), whose issue the workflow awaits; a lot on main whose
 // ticket a red CI reopened has its CI read again (the child workflow of the CI of its commit);
 // a ticket closed is the queue's end. Deterministic: it imports the workflow API, the search

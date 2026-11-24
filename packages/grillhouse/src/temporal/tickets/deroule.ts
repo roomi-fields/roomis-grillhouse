@@ -1,6 +1,6 @@
-// The queue of the tickets of a project (grillhouse-4nr.9, decision D9), `tickets:<racine>`, as Zuul
-// and the merge queues start a change once what it depends on has merged: woken every `reveilMs`
-// (60 s) and at the end of each circuit it started, it counts the
+// The queue of the tickets of a project, `tickets:<racine>` (circuit.md §5.7, « La file des
+// tickets »), as Zuul and the merge queues start a change once what it depends on has merged:
+// woken every `reveilMs` (60 s) and at the end of each circuit it started, it counts the
 // circuits of the project alive (those the server runs, and those it has just started, which the
 // server's visibility may not show yet), then starts the circuit of each ticket that starts
 // (`ticketsAPartir`: open, labelled `circuit`, its section « ## Architecture » written, its
@@ -15,7 +15,7 @@
 // (delivered directly) before its integration counts no more: the queue stops it (ARRETER) at its
 // next wake, as Zuul drops from its pipeline a change abandoned or merged. Only the circuits alive
 // (the server's Running: in progress or paused on a question, a place) hold their ticket out of the
-// queue (grillhouse-d0t); a finished circuit not integrated — integrated, stopped, closed outside
+// queue; a finished circuit not integrated — integrated, stopped, closed outside
 // it, interrupted — holds it no more, as a merge queue counts no finished try. The server keeps the
 // finished circuits readable for the table and the supervisor, only the decision to start stops
 // counting them.

@@ -1,9 +1,9 @@
-// `grillhouse circuit <ticket> --recommencer`: the removal of what a ticket's circuit left, so that
+// `grillhouse circuit <ticket> --recommencer` (circuit.md §5.4): the removal of what a ticket's circuit left, so that
 // a fresh launch starts from the testwriter in a fresh copy. It resets the copy, not Temporal: the
 // copy (whatever work it carries, the gesture being asked for), its branch, its sheets, its journal
 // and its working directory go; the ticket, its description, its plan and its comments are Beads'
 // and stay. The finished workflow stays on the server, which the queue, counting only the live
-// circuits, no more holds the ticket back for (grillhouse-d0t).
+// circuits, no more holds the ticket back for (circuit.md §5.4).
 import { spawnSync } from 'node:child_process';
 import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';

@@ -1,4 +1,4 @@
-// The activities of the queue of the tickets of a project (./deroule.ts): the tickets that start,
+// The activities of the queue of the tickets of a project (./deroule.ts; circuit.md §5.7): the tickets that start,
 // read from Beads in the main tree of the repository with the setting of its package.json, those
 // whose lot is on main left out, the
 // circuits of the project alive and those not integrated, read from the server, those alive whose

@@ -1,4 +1,5 @@
-// The activities of the workflow of a ticket (./deroule.ts): each plays one act of the circuit
+// The activities of the workflow of a ticket (./deroule.ts; circuit.md §3.1, « Activités du
+// circuit et lanceur d'acte »): each plays one act of the circuit
 // in a process of its own (../acte.ts); each act but `effet` gives back the effects it emitted,
 // which the workflow plays one by one (`jouerUnEffet`); and the acts of its pause on a question,
 // its copy measured and its place asked again (`ActivitesDeLaPause`).

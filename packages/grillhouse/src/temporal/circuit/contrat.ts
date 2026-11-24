@@ -1,5 +1,5 @@
-// The contract of the workflow of a ticket (grillhouse-4nr.6, decision Q3): its type and its id,
-// its signal, its updates and its query by their names, what it receives and gives back, and
+// The contract of the workflow of a ticket (circuit.md §3.1, « Contrat du circuit »; §4.2, §4.3):
+// its type and its id, its signal, its updates and its query by their names, what it receives and gives back, and
 // the activities it calls (./activites.ts, each an act of scripts/faits-du-circuit.mjs), their
 // inputs and their outputs.
 // The workflow, its activities and their clients share it without importing each other.
@@ -246,9 +246,9 @@ export interface Ouverture {
 export interface EntreeDuCircuit {
   racine: string;
   ticket: string;
-  /** The sleep before a « a-repasser » (75) plays again, in ms: 10 min (decision D4). */
+  /** The sleep before a « a-repasser » (75) plays again, in ms: 10 min. */
   repasserMs?: number;
-  /** How many times a « a-repasser » plays again before its question goes up: 6 (decision D4). */
+  /** How many times a « a-repasser » plays again before its question goes up: 6. */
   repassesMax?: number;
   /** The bounds of the reading of the CI at the step 5.2 (../file/contrat.ts). */
   ci?: DelaisDeLaCI;
@@ -342,7 +342,7 @@ interface Lieu {
 }
 
 /**
- * The acts of a circuit's pause on a question (grillhouse-4nr.27): the size of its copy kept once
+ * The acts of a circuit's pause on a question: the size of its copy kept once
  * (`mesurerLaCopie` of scripts/disque-des-copies.mjs), and, resumed, its place of a circuit asked
  * again by itself (`reserverDesCircuits` of ../places/client.ts, its rank of arrival kept):
  * whether it holds one.

@@ -1,4 +1,5 @@
-// The sessions of the agents as activities, as Temporal runs an activity: each session is a
+// The sessions of the agents (circuit.md §3.1, « Actes du circuit »; the sheet they end on, §4.4):
+// each session is a
 // process group the activity launches (`jouerLeGroupe`), which sends a sign of life
 // `{ pid, depart, seanceId }` at its launch and at each step of its watch, stops on a motionless
 // transcript (`IMMOBILE_MS` of scripts/circuit.mjs, `ctx.immobileMs`), and, cancelled, kills its
@@ -8,7 +9,7 @@
 // each session comes from its caller, which gives a new one to each session it launches. `lancer` launches one session, `jusquALaFiche` until its
 // sheet, `seance` the testwriter's or the developpeur's on the whole ticket, with the instruction of
 // the templates (`consigne`) and the findings of the reviewer open for its role
-// (`constatsDeLaSeance`). The circuit (scripts/circuit.mjs) calls them (grillhouse-4nr.3).
+// (`constatsDeLaSeance`). The circuit (scripts/circuit.mjs) calls them.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {

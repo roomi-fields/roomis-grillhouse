@@ -1,4 +1,5 @@
-// The answers a circuit accepts from the supervisor, by the status of its workflow, with no input
+// The answers a circuit accepts from the supervisor (circuit.md §5.4, « Un arrêt et sa réponse »),
+// by the status of its workflow, with no input
 // nor output: the one rule the client (src/temporal/circuit/client.ts: its refusals and the
 // circuits it reads), the opening, the wait, the board and the line of a stop name; and the
 // answer `--mecanique`, which turns the sort of a ticket stopped on the testwriter or on the proof
@@ -44,8 +45,8 @@ export function lesReponses(ticket, statut, ecrit) {
  * The hour of a deferral (`--reporter <heure>`): a lone hour (`H:MM` or `HH:MM`, 0-23 and 00-59)
  * aims at its next occurrence in the machine's local time, today when strictly after <maintenant>
  * (to the second), else tomorrow, and is handed to `bd update --defer` as `AAAA-MM-JJTHH:MM:00`,
- * the form bd reads as that wall time (bd 1.2.2 reads `2026-11-22 14:00` as 11:22, the month and
- * the day taken for the hour); any other form goes to bd as written. `quand` is the phrase of the texts (« reportée <quand> »).
+ * the form bd reads as that wall time (bd reads a space-separated `AAAA-MM-JJ HH:MM` with the
+ * month and the day taken for the hour); any other form goes to bd as written. `quand` is the phrase of the texts (« reportée <quand> »).
  * @param {string} heure
  * @param {Date} maintenant
  * @returns {{ defer: string, quand: string }}

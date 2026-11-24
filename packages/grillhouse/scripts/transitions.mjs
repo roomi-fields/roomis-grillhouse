@@ -1,7 +1,8 @@
-// The decisions of the circuit of a ticket (scripts/circuit.mjs), with no input nor output, as a
-// workflow of Temporal decides on the results of its activities and a reducer of Redux on its
-// actions: from the state of the run, the circuit's memory and the facts read so far, the step
-// that follows. The circuit reads the facts and interprets what this module returns; this module
+// The decision rule of the circuit of a ticket (scripts/circuit.mjs; circuit.md §2.3, §3.1 « Règle
+// de décision »), with no input nor output, as a workflow of Temporal decides on the results of
+// its activities and a reducer of Redux on its actions: from the state of the run, the circuit's
+// memory and the facts read so far, the step that follows (the steps and their loops: circuit.md
+// §5.1, ./etapes.mjs). The circuit reads the facts and interprets what this module returns; this module
 // reads no file, launches no process and imports no module that does (a guard holds it:
 // tests/unit/transitions.spec.ts).
 //
@@ -132,9 +133,8 @@ export const etapeApresLePlan = ({ sorte, sansTests, demande = false }) =>
 
 // The step after a proof that passes: the developpeur on a red (<rouges>), on a finding of the
 // reviewer still open for him (<pourLeDeveloppeur>), or under a plan « comportement
-// tests-adaptés » (<inchange>), whose lot has code to write though nothing turns red, as a reorganisation does
-// (decision 3, amended by the owner on 2026-11-01); else the checks, a lot of tests alone, with
-// no session of the developpeur.
+// tests-adaptés » (<inchange>), whose lot has code to write though nothing turns red, as a
+// reorganisation does; else the checks, a lot of tests alone, with no session of the developpeur.
 export const apresLaPreuve = ({ rouges, pourLeDeveloppeur, inchange }) =>
   rouges > 0 || pourLeDeveloppeur || inchange ? CODE : CONTROLES;
 
@@ -150,8 +150,8 @@ export function suiteDuRougeDeLecture(role, tentative) {
 export const ouverts = (constats, role) => (constats ?? []).filter(c => c.role === role);
 
 // The stop for the findings open (<constats>) that go to the testwriter when the plan skips him
-// (<sansTests>), or null: no new pass treats them, as a CI fails fast on a step it cannot run
-// (grillhouse-26x). A stop `relecture-arret` whose report names each finding, the role skipped
+// (<sansTests>), or null: no new pass treats them, as a CI fails fast on a step it cannot run.
+// A stop `relecture-arret` whose report names each finding, the role skipped
 // and why, then the verdict <texte>; its piece, the findings' pieces; its question, declare the
 // tests of the package or settle the finding.
 export function arretDuTestwriterSaute({ constats, sansTests, paquets }, texte) {
@@ -208,8 +208,8 @@ class Besoin {
   }
 }
 
-// The plan of a ticket, its decisions as the circuit and the workflow of a ticket take them
-// (grillhouse-4nr.6.3): the step of the plan that follows its state <e> (`{ plan, lu, posees,
+// The plan of a ticket, its decisions as the circuit and the workflow of a ticket take them:
+// the step of the plan that follows its state <e> (`{ plan, lu, posees,
 // reponse }`, the explorateur's sheet, the questionneur's, the questions put, the explorateur's
 // answer): `explorateur`, `questionneur`, `reponse` (questions were put), then `conclure`.
 export const pasDuPlan = e =>
@@ -1187,10 +1187,10 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
         `Le ticket est mécanique (${ticket.sorte.raison}) : ni testwriter ni développeur ne lève ce rouge du lot de sa commande. Le superviseur fait corriger le lot (\`--depuis developpeur\`, le rouge en \`--contexte\`), corrige le geste dans la copie puis \`--reprendre\`, ou arrête le circuit (\`--arreter\`).`
       );
     }
-    // A run recorded before the marker `attribution-avant-sans-livraison` of the workflow of a
-    // ticket (src/temporal/circuit/deroule.ts) keeps the former order: the stop of a developpeur
-    // who had nothing to deliver before any attribution, the fact « portes » not read, as its
-    // history replays. This path leaves once those runs have ended (grillhouse-3uv.177).
+    // A run without the marker `attribution-avant-sans-livraison` of the workflow of a ticket
+    // (src/temporal/circuit/deroule.ts) keeps the former order: the stop of a developpeur who had
+    // nothing to deliver before any attribution, the fact « portes » not read, as its history
+    // replays.
     if (k.rouge && rien && !marqueurs.attributionAvantSansLivraison) {
       return arret('sans-livraison', rien, CODE);
     }

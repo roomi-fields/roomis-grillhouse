@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The direct, a gesture of the frame: a ticket led out of the circuit is written by an agent in a
+// The direct, the command of rescue of the frame (circuit.md §5.8, « La voie de secours »; the
+// direct circuit of the target is circuit.md §9.1, chantier 2): a ticket led out of the circuit is written by an agent in a
 // copy of its own, then read by the reviewer, and the command stops there. As a fix of the tooling
 // outside a merge queue is still written by an author other than its reviewer and verified before
 // it lands (the « tree closer fix » of Chromium, the stage0 of rustc fixed outside bors), the

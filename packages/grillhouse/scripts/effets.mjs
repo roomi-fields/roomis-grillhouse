@@ -1,6 +1,6 @@
-// The external effects of the circuit, as data, and their one writer (docs/ARCHITECTURE.md, the
-// workflow of a ticket: « une activité, un effet, une clé »), as a functional core hands its
-// imperative shell what to write. The code of the circuit that the workflow of a ticket runs
+// The external effects of the circuit, as data, and their one writer (circuit.md §3.1, « Écrivain
+// des effets »; §2.3, §4.3): a functional core hands its imperative shell what to write. The code
+// of the circuit that the workflow of a ticket runs
 // (scripts/circuit.mjs, scripts/seances.mjs, scripts/activites.mjs, scripts/ticket-du-circuit.mjs),
 // and the queue of a project its comments (scripts/integration/file.mjs), write nothing outside
 // themselves: it emits each effect (`emettre`). An effect emitted outside an act is played

@@ -1,5 +1,5 @@
-// The reading of the command line of `grillhouse circuit` (./commande.ts runs it): its options, their
-// combinations, and the text of the refusal of a fresh launch after `--arreter`.
+// The reading of the command line of `grillhouse circuit` (./commande.ts runs it; circuit.md §3.1,
+// « Commande du circuit »): its options, their combinations, and the text of the refusal of a fresh launch after `--arreter`.
 import { ETAPES_DE_REPRISE } from './contrat.js';
 
 export const USAGE =

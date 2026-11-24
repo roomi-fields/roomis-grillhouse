@@ -1,8 +1,7 @@
 // The workflows of the frame, which the worker bundles (./travailleur.ts, `workflowsPath`): the
-// sonde (grillhouse-4nr.2), the places of the machine (grillhouse-4nr.7), the circuit of a ticket
-// (grillhouse-4nr.6), the queue of a project (grillhouse-4nr.8), the queue of
-// the tickets of a project (grillhouse-4nr.9), the nights of the machine and the workflow its
-// schedule starts (grillhouse-4nr.13).
+// sonde, the places of the machine, the circuit of a ticket (circuit.md §3.1), the queue of a
+// project, the queue of the tickets of a project (circuit.md §5.7), the nights of the machine and
+// the workflow its schedule starts.
 export { sonde } from './sonde/deroule.js';
 export { placesDeLaMachine } from './places/deroule.js';
 export { circuitDuTicket } from './circuit/deroule.js';
