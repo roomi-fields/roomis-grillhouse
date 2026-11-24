@@ -1154,6 +1154,62 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     expect(sans.appels).toEqual([]);
   });
 
+  it('tests-de-nuit --hors-du-poste --sans-equipement leaves out the modules and targets tagged @equipee, and --hors-du-poste alone the tagged @poste', () => {
+    const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'etiquettes-'))) as {
+      depots: Depots;
+    };
+    const dossier = e.depots.seul;
+    mkdirSync(path.join(dossier, 'tests/it_nuit'));
+    const mod = (nom: string, tete: string) =>
+      writeFileSync(path.join(dossier, `tests/it_nuit/${nom}.rs`), `${tete}#[test]\nfn t() {}\n`);
+    mod('libre', '');
+    mod('audio', '// @equipee: /dev/snd/seq\n\n');
+    mod('poste', '// @poste: session\n\n');
+    writeFileSync(
+      path.join(dossier, 'tests/it_nuit/main.rs'),
+      'mod libre;\nmod audio;\nmod poste;\n'
+    );
+    writeFileSync(
+      path.join(dossier, 'tests/seul_nuit.rs'),
+      '// @equipee: sccache\n#[test]\nfn long() {}\n'
+    );
+    const plein = lancer(dossier, 'tests-de-nuit', [], {}, pression(0));
+    expect(plein.appels.filter(a => a.startsWith('nextest'))).toEqual([
+      `${NEXTEST} --test it_nuit --test seul_nuit`,
+    ]);
+    const sans = lancer(
+      dossier,
+      'tests-de-nuit',
+      ['--hors-du-poste', '--sans-equipement'],
+      {},
+      pression(0)
+    );
+    expect(sans.code, sans.stderr).toBe(0);
+    expect(sans.appels.filter(a => a.startsWith('test --no-run'))).toEqual([
+      'test --no-run -p seul --test it_nuit',
+    ]);
+    expect(sans.appels.filter(a => a.includes('nextest'))).toEqual([
+      `${NEXTEST} --test it_nuit -E not (binary_id(seul::it_nuit) & (test(/^audio::/) | test(/^poste::/)))`,
+    ]);
+    const horsPoste = lancer(dossier, 'tests-de-nuit', ['--hors-du-poste'], {}, pression(0));
+    expect(horsPoste.appels.filter(a => a.includes('nextest'))).toEqual([
+      `${NEXTEST} --test it_nuit --test seul_nuit -E not (binary_id(seul::it_nuit) & (test(/^poste::/)))`,
+    ]);
+  });
+
+  it('tests-de-nuit --hors-du-poste plays no bench, --mesures plays the benches alone', () => {
+    const hors = lancer(racine, 'tests-de-nuit', ['--hors-du-poste'], {}, pression(0));
+    expect(hors.code, hors.stderr).toBe(0);
+    expect(hors.appels.filter(a => a.includes('nextest'))).toEqual([
+      `${NEXTEST} --test lourd_nuit`,
+    ]);
+    const mesures = lancer(racine, 'tests-de-nuit', ['--mesures'], {}, pression(0));
+    expect(mesures.code, mesures.stderr).toBe(0);
+    expect(mesures.appels.filter(a => a.includes('nextest'))).toEqual([
+      `${NEXTEST} --test recherche_budget --test-threads 1`,
+    ]);
+  });
+
   it('critères 2 et 5 — tests-de-nuit: a bench red under load is 75, which the night replays at rest; at rest, a red', () => {
     const rouge = { 'nextest seul::recherche_budget': 101 };
     const charge = lancer(racine, 'tests-de-nuit', [], rouge, pression(60));

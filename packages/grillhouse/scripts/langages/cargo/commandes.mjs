@@ -165,6 +165,7 @@ import {
   joueDesTests,
   metadonnees,
 } from './composants.mjs';
+import { ecartsDeLaCible } from './etiquettes.mjs';
 import { avecSccache, demarrerLeServeur, sccacheAbsent } from './sccache.mjs';
 import { JUNIT, TACHES } from './verdict.mjs';
 
@@ -465,7 +466,7 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
   const bancs = [];
   // The test executables the builds of the run report, removed once its tests played.
   const executables = [];
-  for (const { c, cibles: nommees, jour, modules = new Map() } of choix) {
+  for (const { c, cibles: nommees, jour, modules = new Map(), sauf = new Map() } of choix) {
     // Targets named beside the day of the crate (`jour`, a unit test of `src/` named): the day
     // builds whole, and plays besides the targets named.
     const cibles = jour && nommees.length === 0 ? [] : nommees;
@@ -504,7 +505,15 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
         // The day of a whole crate with no test at all is green (a crate born of its skeleton,
         // its target of tests empty); a target or a module named that plays none stays an error.
         const sansTest = cibles.length === 0 && !tranche ? ['--no-tests=pass'] : [];
-        const args = [...nextest, '-p', nom, ...selection, ...options, ...sansTest];
+        const args = [
+          ...nextest,
+          '-p',
+          nom,
+          ...selection,
+          ...filtreDesEcarts(nom, sauf),
+          ...options,
+          ...sansTest,
+        ];
         prevues.push([
           p.prevoir(nom, d, 'nextest', true, args),
           { junit, temporaire: temporaire(nom) },
@@ -617,6 +626,21 @@ function filtreDesModules(nom, noms, modules) {
     return `(${binaire} & (${tests}))`;
   });
   return ['-E', parCible.join(' | ')];
+}
+
+// The filterset of nextest that leaves out, in the crate <nom>, the modules <sauf> holds (`Map`
+// target → its modules): `not (binary_id(<crate>::<cible>) & (test(/^<module>::/) | …))`; none
+// when nothing is left out.
+function filtreDesEcarts(nom, sauf) {
+  if (sauf.size === 0) {
+    return [];
+  }
+  const echapper = s => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const exclus = [...sauf].map(([cible, modules]) => {
+    const tests = modules.map(m => `test(/^${echapper(m)}::/)`).join(' | ');
+    return `not (binary_id(${nom}::${cible}) & (${tests}))`;
+  });
+  return ['-E', exclus.join(' & ')];
 }
 
 // The crates the paths <chemins> choose in <racine>: `{ choix }`, or `{ refus }` naming each path
@@ -904,7 +928,7 @@ export function lancer(nom, args, { racine = process.cwd(), env = process.env } 
     );
   }
   if (nom === 'tests-de-nuit') {
-    return sousLaBase('tests', env, (envBase, pp) => testsDeNuit(racine, tous, envBase, pp));
+    return sousLaBase('tests', env, (envBase, pp) => testsDeNuit(racine, tous, envBase, pp, args));
   }
   process.stderr.write(`⛔ commande inconnue du module cargo : ${nom} (${NOMS.join(', ')})\n`);
   return 2;
@@ -1004,11 +1028,39 @@ function restesParPaquet(p, choix, parPaquet) {
 
 // The pass of `tests-de-nuit` in <racine>, the crates <tous>, under <env>: the night tests and the
 // benches of each crate that holds some, each named.
-function testsDeNuit(racine, tous, env, parPaquet) {
+function testsDeNuit(racine, tous, env, parPaquet, args = []) {
   const p = passe(racine, env);
+  const nuit = {
+    horsDuPoste: args.includes('--hors-du-poste'),
+    sansEquipement: args.includes('--sans-equipement'),
+    mesures: args.includes('--mesures'),
+  };
   const choix = tous
     .filter(c => joueDesTests(racine, c.composant))
-    .map(c => ({ c, cibles: c.cibles.filter(horsDuJour).map(t => t.name) }))
+    .map(c => {
+      // The night tests tagged `@poste` (and `@equipee`) that the night of a shared machine leaves
+      // out: a target whose root file bears the tag, a module of a target in a folder (`sauf`).
+      const sauf = new Map();
+      const cibles = c.cibles
+        .filter(horsDuJour)
+        .filter(t => {
+          if (horsDuJour(t) !== 'nuit') {
+            // A shared machine measures no time: the benches play with the measures alone
+            // (`--mesures`), as in the module typescript.
+            return !nuit.horsDuPoste;
+          }
+          if (nuit.mesures) {
+            return false;
+          }
+          const ecarts = ecartsDeLaCible(t.src, nuit);
+          if (ecarts?.length) {
+            sauf.set(t.name, ecarts);
+          }
+          return ecarts !== null;
+        })
+        .map(t => t.name);
+      return { c, cibles, sauf };
+    })
     .filter(x => x.cibles.length);
   if (choix.length) {
     jouerLesTests(racine, p, choix, [], parPaquet.temporaire)();

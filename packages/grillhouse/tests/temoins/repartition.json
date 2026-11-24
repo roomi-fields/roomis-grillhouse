@@ -265,6 +265,7 @@
     "scripts/langages/cargo/commandes.mjs",
     "scripts/langages/cargo/composants.mjs",
     "scripts/langages/cargo/elements-du-lot.mjs",
+    "scripts/langages/cargo/etiquettes.mjs",
     "scripts/langages/cargo/executables-de-tests.mjs",
     "scripts/langages/cargo/exemples.mjs",
     "scripts/langages/cargo/frontieres.mjs",
