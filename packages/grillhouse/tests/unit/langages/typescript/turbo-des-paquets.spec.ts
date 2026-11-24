@@ -1139,6 +1139,8 @@ describe('the generator’s use of jsonc-parser is one the dead-code guard sees'
       'langages/typescript/composants.mjs',
       'dette.mjs',
       'resultats.mjs',
+      // What resultats.mjs imports: the rule of the command of a plan.
+      'commande-du-plan.mjs',
       // The roles the results name (grillhouse-3uv.137).
       'etapes.mjs',
       'mesure/avancement.mjs',

@@ -88,7 +88,7 @@ const sorte = sorteDuPlan as (fiche: object) => Sorte;
 const MECANIQUE = {
   genre: 'mécanique',
   raison: 'un renommage de fichiers, sans comportement neuf',
-  commande: 'git mv packages/a/src/vieux.ts packages/a/src/neuf.ts',
+  commande: 'mv packages/a/src/vieux.ts packages/a/src/neuf.ts',
 };
 const PLAN = { criteres: [], paquets: ['packages/a'], questions: [] };
 const sortie = (fiche: object) =>

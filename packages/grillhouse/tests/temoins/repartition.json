@@ -23,6 +23,7 @@
     "scripts/codes-de-sortie.mjs",
     "scripts/coeurs-dedies.mjs",
     "scripts/commande-du-langage.mjs",
+    "scripts/commande-du-plan.mjs",
     "scripts/commandes-composees.mjs",
     "scripts/commandes-du-path.d.mts",
     "scripts/commandes-du-path.mjs",

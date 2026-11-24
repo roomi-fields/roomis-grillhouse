@@ -89,7 +89,7 @@ const REFUS: [string, string[], RegExp][] = [
   ['--mecanique sans --contexte', ['demo-1', '--mecanique'], /--mecanique attend son --contexte/],
   [
     '--mecanique avec une commande et sans --contexte',
-    ['demo-1', '--mecanique', 'git mv a b'],
+    ['demo-1', '--mecanique', 'mv a b'],
     /--mecanique attend son --contexte/,
   ],
   [

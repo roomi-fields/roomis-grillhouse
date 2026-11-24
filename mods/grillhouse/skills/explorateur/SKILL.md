@@ -78,7 +78,11 @@ change, et ceux qu'il peut casser.
    - `sorte` : la sorte du ticket, et sa `raison`. `mécanique` pour un geste sans comportement
      neuf (montée du cadre, documents seuls, renommage ou déplacement, montée de dépendance,
      configuration seule, correction de style, seuil relevé), avec sa `commande`, la commande ou
-     l'outil qui fait le geste, telle qu'elle se lance à la racine de la copie, comme Rosie et
+     l'outil qui fait le geste, telle qu'elle se lance à la racine de la copie, sans appeler git :
+     l'enveloppe monte le dossier git de la copie en lecture seule, et le circuit refuse au plan
+     une commande qui l'appelle ; le geste joue sur l'arbre de travail (`mv` au lieu de git mv,
+     `rm` au lieu de git rm), et le commit du circuit enregistre l'arbre, où git détecte le
+     renommage, comme Rosie et
      ClangMR font un grand changement chez Google, Renovate une montée de dépendance, `nx migrate`
      une montée du cadre, `eslint --fix` une correction de style : le circuit saute alors le
      testwriter, la preuve du rouge et le développeur. Le critère : je dis mécanique un ticket

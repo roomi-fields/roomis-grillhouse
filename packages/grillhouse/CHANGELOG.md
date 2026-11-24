@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A plan whose command calls git is refused at the plan** (grillhouse-3uv.240): the command of a mechanical ticket runs at 1.1 in the envelope, which mounts the git directory of the copy read-only, so `git mv` failed on `index.lock` (BPScript). The sheet of the plan and the answer `--mecanique` now refuse a command that calls git, naming the equivalent (`mv` for `git mv`, `rm` for `git rm`; the commit of the circuit records the tree, where git detects the rename), and the explorer's skill says so. **Action for projects**: none.
 - **The sccache server starts in the envelope of a copy with a long path** (grillhouse-3uv.239): cargo's sccache client now runs under a short temporary directory, so a server it starts binds its socket under the 108 bytes of a socket's path (« path must be shorter than SUN_LEN », seen by OSD in its agents' checks). **Action for projects**: none.
 
 ## [0.50.1] - 2026-11-24

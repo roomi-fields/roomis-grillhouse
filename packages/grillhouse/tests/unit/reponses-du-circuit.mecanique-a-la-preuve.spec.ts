@@ -30,11 +30,11 @@ describe('--mecanique répond à l’arrêt de la preuve du rouge, comme à celu
     const r = reponse({
       etat: A_LA_PREUVE,
       sorte: COMPORTEMENT,
-      commande: 'git mv a b',
+      commande: 'mv a b',
       contexte: 'un renommage',
     });
     expect(r.refus).toBeUndefined();
-    expect(r.sorte).toEqual({ genre: 'mécanique', raison: 'un renommage', commande: 'git mv a b' });
+    expect(r.sorte).toEqual({ genre: 'mécanique', raison: 'un renommage', commande: 'mv a b' });
     expect(r.suivant).toMatchObject({ etape: E.GESTE });
   });
 

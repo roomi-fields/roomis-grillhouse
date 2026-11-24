@@ -117,6 +117,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { refusDeLaCommande } from './commande-du-plan.mjs';
 import { paquets } from './paquets.mjs';
 import { AUTEUR_DU_CIRCUIT, EXPLORATEUR } from './etapes.mjs';
 
@@ -959,6 +960,10 @@ function manques(role, f) {
   if (role === 'explorateur') {
     if (!(f.paquets ?? []).length) {
       out.push('paquets : manque, pour un plan');
+    }
+    const refus = refusDeLaCommande(f.sorte?.commande);
+    if (refus) {
+      out.push(`sorte.commande : ${refus}`);
     }
     for (const [i, e] of (f.ecartes ?? []).entries()) {
       if (!(typeof e.raison === 'string' && e.raison.trim())) {

@@ -4,6 +4,7 @@
 // circuits it reads), the opening, the wait, the board and the line of a stop name; and the
 // answer `--mecanique`, which turns the sort of a ticket stopped on the testwriter or on the proof
 // of the red.
+import { refusDeLaCommande } from './commande-du-plan.mjs';
 import { CODE, GESTE, PREUVE, TESTS } from './transitions.mjs';
 
 /** The statuses of a workflow ended without its issue. */
@@ -94,6 +95,10 @@ export function reponseMecanique({ etat, sorte, commande, contexte }) {
     return { refus: 'le ticket est déjà mécanique : sa commande est celle de son plan.' };
   }
   const geste = String(commande ?? '').trim();
+  const refusGit = refusDeLaCommande(geste);
+  if (refusGit) {
+    return { refus: refusGit };
+  }
   return geste
     ? { sorte: { genre: 'mécanique', raison, commande: geste }, suivant: { etape: GESTE } }
     : { sorte: { genre: 'comportement', raison, comportement: 'inchangé' }, suivant: { etape: CODE } };

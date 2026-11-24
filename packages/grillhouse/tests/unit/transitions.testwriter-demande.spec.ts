@@ -33,7 +33,7 @@ const testwriterDemande = transitions.testwriterDemande as (o: {
 }) => boolean;
 
 const INCHANGE = { genre: 'comportement', raison: 'des commentaires', comportement: 'inchangé' };
-const MECANIQUE = { genre: 'mécanique', raison: 'un renommage', commande: 'git mv a b' };
+const MECANIQUE = { genre: 'mécanique', raison: 'un renommage', commande: 'mv a b' };
 const ticket = (sorte: object) => ({
   id: 'essai-1',
   paquets: ['packages/a'],

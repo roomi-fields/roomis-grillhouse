@@ -136,10 +136,10 @@ describe('le superviseur bascule un ticket arrêté sur le testwriter par --meca
   it('lit --mecanique <commande> avec sa raison en --contexte', async () => {
     const { lireLAppel } = await appel();
     expect(
-      lireLAppel(['essai-1', '--mecanique', 'git mv a b', '--contexte', 'un renommage'])
+      lireLAppel(['essai-1', '--mecanique', 'mv a b', '--contexte', 'un renommage'])
     ).toMatchObject({
       ticket: 'essai-1',
-      mecanique: { commande: 'git mv a b' },
+      mecanique: { commande: 'mv a b' },
       contexte: 'un renommage',
       reprendre: false,
       depuis: null,
@@ -156,10 +156,10 @@ describe('le superviseur bascule un ticket arrêté sur le testwriter par --meca
 
   it('refuse --mecanique sans sa raison, ou avec une autre réponse', async () => {
     const { lireLAppel, Usage } = await appel();
-    expect(() => lireLAppel(['essai-1', '--mecanique', 'git mv a b'])).toThrow(Usage);
+    expect(() => lireLAppel(['essai-1', '--mecanique', 'mv a b'])).toThrow(Usage);
     for (const autre of [['--reprendre'], ['--depuis', 'developpeur'], ['--arreter']]) {
       expect(() =>
-        lireLAppel(['essai-1', '--mecanique', 'git mv a b', '--contexte', 'r', ...autre])
+        lireLAppel(['essai-1', '--mecanique', 'mv a b', '--contexte', 'r', ...autre])
       ).toThrow(Usage);
     }
     expect(() =>
@@ -185,14 +185,14 @@ describe('le superviseur bascule un ticket arrêté sur le testwriter par --meca
       const r = reponse({
         etat: { etape: 'testwriter', raison },
         sorte: COMPORTEMENT,
-        commande: 'git mv a b',
+        commande: 'mv a b',
         contexte: 'un renommage',
       });
       expect(r.refus).toBeUndefined();
       expect(r.sorte).toEqual({
         genre: 'mécanique',
         raison: 'un renommage',
-        commande: 'git mv a b',
+        commande: 'mv a b',
       });
       expect(r.suivant).toMatchObject({ etape: transitions.GESTE });
     }
@@ -219,7 +219,7 @@ describe('le superviseur bascule un ticket arrêté sur le testwriter par --meca
       reponse({
         etat: { etape: 'testwriter', raison: 'besoin' },
         sorte: COMPORTEMENT,
-        commande: 'git mv a b',
+        commande: 'mv a b',
         contexte: 'r',
         ...o,
       });
@@ -257,7 +257,7 @@ describe('le relecteur renvoie à 2 Tests un lot qui change un comportement, sur
   }
   const transition = transitions.transition as (e: object) => Decision;
   const T = transitions as unknown as Record<string, string> & { RELECTURES: number };
-  const MECANIQUE = { genre: 'mécanique', raison: 'un renommage', commande: 'git mv a b' };
+  const MECANIQUE = { genre: 'mécanique', raison: 'un renommage', commande: 'mv a b' };
   const A_LA_MAIN = { genre: 'comportement', raison: 'des commentaires', comportement: 'inchangé' };
   const ticket = (sorte: object) => ({
     id: 'essai-1',
@@ -391,7 +391,7 @@ describe('le champ comportement du plan a trois valeurs : changé, tests-adapté
   });
 
   it('un plan mécanique va au geste ; un plan sans test va au développeur, quelle que soit sa valeur', () => {
-    const meca = sorteDe({ sorte: { genre: 'mécanique', raison: 'r', commande: 'git mv a b' } });
+    const meca = sorteDe({ sorte: { genre: 'mécanique', raison: 'r', commande: 'mv a b' } });
     expect(apresLePlan({ sorte: meca, sansTests: false })).toBe(transitions.GESTE);
     expect(apresLePlan({ sorte: sorteDe(plan('tests-adaptés')), sansTests: true })).toBe(
       transitions.CODE
