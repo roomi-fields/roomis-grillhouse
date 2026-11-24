@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.50.1] - 2026-11-24
+
 - **The copy of the plugin into the package leaves out what git ignores** (grillhouse-3uv.243): an entry of `mods/grillhouse` that git ignores (a cache a tool of the plugin's package writes, `.cache-outils/`) no longer enters the published package nor the list its tests check. **Action for projects**: none.
 
 - **The direct command survives a copy already locked and hands an advance conflict to its agent** (grillhouse-3uv.242): it reads the lock of the copy on `git worktree list --porcelain` instead of the English message of git, so a resumption no longer stops on « est déjà verrouillé » under a French git; and the copy moves onto main before the agent's session, the files its work meets in conflict named in the agent's instruction, instead of stopping and leaving them to the supervisor, whom the lock keeps from writing code. **Action for projects**: none.
