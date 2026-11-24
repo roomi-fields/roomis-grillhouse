@@ -29,8 +29,8 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { FICHIER, lire as lireDette, mesureDuPlan, trancher } from '../../dette.mjs';
-import { A_ELAGUER, ecrireSarif } from '../../resultats.mjs';
+import { deplacer, FICHIER, lire as lireDette, mesureDuPlan, trancher } from '../../dette.mjs';
+import { A_DEPLACER, A_ELAGUER, ecrireSarif } from '../../resultats.mjs';
 import { prefixe } from '../../services-du-noyau.mjs';
 import { testsDuDepot } from './tailles-des-tests.mjs';
 import { TEST } from './vitest-config/lances.mjs';
@@ -251,6 +251,19 @@ export function jugerLesTitres(dette, constats, renommes = {}, mesure = () => tr
       message: `${fichier} : aucun titre ne nomme plus un ticket ou un « critère N », pour ${permis(fichier)} inscrit(s) dans ${FICHIER} : la dette s'abaisse (npm run grillhouse:dette:elaguer), jamais à la main. ${MESSAGE_FIN}`,
     });
   }
+  // A debt that stands under the former path of a moved file is red: the commit drops the rename,
+  // and the key stays under a path that no longer exists. The regeneration carries it (`a-deplacer`).
+  for (const [fichier, ancien] of Object.entries(renommes)) {
+    if (permis(ancien) > 0) {
+      refus.push({
+        fichier,
+        regle: REGLE,
+        aDeplacer: true,
+        trouve: comptes.get(fichier) ?? 0,
+        message: `${fichier} : ${permis(ancien)} titre(s) inscrit(s) dans ${FICHIER} sous l'ancien chemin ${ancien} : la dette se déplace (npm run grillhouse:dette:elaguer), jamais à la main.`,
+      });
+    }
+  }
   return refus.sort((a, b) => (a.fichier < b.fichier ? -1 : a.fichier > b.fichier ? 1 : 0));
 }
 
@@ -272,14 +285,8 @@ function main() {
     // A write of the debt (`inscrire`, `elaguer`): a file moved takes the debt of its former name
     // first, so that the write keeps it.
     const dette = lireDette(racine);
-    const section = dette[GARDE];
-    if (section) {
-      for (const [nouveau, ancien] of Object.entries(renommes)) {
-        if (section[ancien] && !section[nouveau]) {
-          section[nouveau] = section[ancien];
-        }
-        delete section[ancien];
-      }
+    if (dette[GARDE]) {
+      deplacer({ [GARDE]: dette[GARDE] }, renommes);
       writeFileSync(path.join(racine, FICHIER), `${JSON.stringify(dette, null, 2)}\n`);
     }
     const r = trancher(racine, GARDE, constats);
@@ -303,6 +310,16 @@ function main() {
             genre: A_ELAGUER,
             trouve: r.trouve,
             message: `${r.trouve} constat(s) pour une dette plus haute : la dette s'abaisse.`,
+          })),
+        ...refus
+          .filter(r => r.aDeplacer)
+          .map(r => ({
+            fichier: r.fichier,
+            regle: r.regle,
+            niveau: 'note',
+            genre: A_DEPLACER,
+            trouve: r.trouve,
+            message: `la dette de l'ancien chemin se déplace sous ${r.fichier}.`,
           })),
       ],
     });

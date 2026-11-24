@@ -33,11 +33,13 @@
 // its types in ./dette.d.ts (docs/ARCHITECTURE.md, the package's named entries).
 //
 // The mechanism: docs/architecture/tests.md §2.6, §4.1 and §5.5.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { paquetsDeLEnveloppe } from './enveloppe/paquets-du-plan.mjs';
-import { A_ELAGUER, A_INSCRIRE, ecrireSarif } from './resultats.mjs';
+import { A_DEPLACER, A_ELAGUER, A_INSCRIRE, ecrireSarif } from './resultats.mjs';
 
 // The environment variable that names the guards of the lot's base (main), a JSON list.
 export const BASE = 'GRILLHOUSE_GARDES_DE_LA_BASE';
@@ -241,7 +243,7 @@ export function trancher(
   }));
   ecrireSarif({
     garde,
-    constats: [...refus, ...notes, ...aInscrire(garde, refus, lEnv)],
+    constats: [...refus, ...notes, ...aInscrire(racine, garde, refus, lEnv)],
     racine,
     env: lEnv,
   });
@@ -259,11 +261,32 @@ function gardesDeLaBase(env) {
   }
 }
 
+// Whether <script>, the one that runs a guard (`argv[1]`), is a file of the project that HEAD holds: a
+// guard of the project (its script `gardes`, which imports `trancher`) is a guard of main though
+// the circuit's list of names, read from the frame's guards, never names it. A script out of the
+// project, or one HEAD does not hold, says nothing.
+export function scriptDeLaBase(racine, script, env = process.env) {
+  if (!script) {
+    return false;
+  }
+  const rel = path.relative(path.resolve(racine), path.resolve(script));
+  if (rel.startsWith('..') || path.isAbsolute(rel) || rel.split(path.sep).includes('node_modules')) {
+    return false;
+  }
+  return (
+    spawnSync('git', ['-C', racine, 'cat-file', '-e', `HEAD:${rel.split(path.sep).join('/')}`], {
+      env,
+      stdio: 'ignore',
+    }).status === 0
+  );
+}
+
 // The notes « to inscribe » of <garde> when the base does not hold it: one per file and rule of
-// its refusals, with its count. None for a guard of main, nor without a base to compare with.
-function aInscrire(garde, refus, env) {
+// its refusals, with its count. None for a guard of main (its name in the base's list, or its
+// script in HEAD), nor without a base to compare with.
+function aInscrire(racine, garde, refus, env) {
   const base = gardesDeLaBase(env);
-  if (!base || base.includes(garde)) {
+  if (!base || base.includes(garde) || scriptDeLaBase(racine, process.argv[1], env)) {
     return [];
   }
   const out = [];
@@ -292,14 +315,68 @@ function ecrire(racine, dette) {
   writeFileSync(path.join(racine, FICHIER), `${JSON.stringify(triee, null, 2)}\n`);
 }
 
+// The files the working copy at <racine> renames or moves against HEAD, `{ nouveau: ancien }`, as
+// git detects them (`-M`, half the content kept) on a throwaway index that holds the new files too:
+// the lot as the circuit commits it. `{}` when git fails (not a repository, no commit).
+export function renommesDuCommit(racine) {
+  const dossier = mkdtempSync(path.join(tmpdir(), 'dette-index-'));
+  try {
+    const env = { ...process.env, GIT_INDEX_FILE: path.join(dossier, 'index') };
+    const git = (...a) =>
+      spawnSync('git', ['-C', racine, ...a], { encoding: 'utf8', env, maxBuffer: 256 * 1024 * 1024 });
+    if (git('read-tree', 'HEAD').status !== 0 || git('add', '-A').status !== 0) {
+      return {};
+    }
+    const r = git('diff', '--cached', '-M', '--name-status', '-z', 'HEAD');
+    if (r.status !== 0) {
+      return {};
+    }
+    const out = {};
+    const t = r.stdout.split('\0');
+    for (let i = 0; i < t.length; i++) {
+      if (t[i].startsWith('R')) {
+        out[t[i + 2]] = t[i + 1];
+        i += 2;
+      } else if (t[i]) {
+        i += 1;
+      }
+    }
+    return out;
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+}
+
+// <dette> with the keys of each moved file (`{ nouveau: ancien }`) carried to its new path, in every
+// guard: the debt of the former name is the new one's, added to what it already holds.
+export function deplacer(dette, renommes) {
+  for (const section of Object.values(dette)) {
+    for (const [nouveau, ancien] of Object.entries(renommes)) {
+      if (!section[ancien]) {
+        continue;
+      }
+      const cible = (section[nouveau] ??= {});
+      for (const [regle, { count }] of Object.entries(section[ancien])) {
+        cible[regle] = { count: count + (cible[regle]?.count ?? 0) };
+      }
+      delete section[ancien];
+    }
+  }
+  return dette;
+}
+
 // The debt at <racine> lowered by <notes>, each `{ garde, fichier, regle, trouve }` (the notes
 // `a-elaguer` of a pass, scripts/resultats.mjs): each key named comes down to what its guard
 // found, and leaves at zero; a count never rises, no key is added. Written when it changes;
 // returns whether it did.
 export function abaisser(racine, notes) {
   const avant = lire(racine);
-  const dette = JSON.parse(JSON.stringify(avant));
+  // The keys of the files the lot moves come first, so that the notes find them at their new path.
+  const dette = deplacer(JSON.parse(JSON.stringify(avant)), renommesDuCommit(racine));
   for (const { garde, fichier, regle, trouve, genre } of notes) {
+    if (genre === A_DEPLACER) {
+      continue;
+    }
     if (genre === A_INSCRIRE) {
       if (fichier && regle && Number.isInteger(trouve) && trouve > 0) {
         dette[garde] ??= {};

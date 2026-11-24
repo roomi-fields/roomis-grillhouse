@@ -242,21 +242,27 @@ describe('the debt inscribed file by file', () => {
     expect(refus.map(r => r.fichier)).toEqual(['tests/b.test.ts']);
   });
 
-  it('lets a file moved or renamed take the debt of its former name, its count not risen', () => {
+  it('refuses a file moved or renamed whose debt stands under its former path, to be carried', () => {
     const renommes = { 'tests/neuf.test.ts': 'tests/ancien.test.ts' };
-    expect(juger({ 'tests/ancien.test.ts': 3 }, { 'tests/neuf.test.ts': 3 }, renommes)).toEqual([]);
+    const refus = juger({ 'tests/ancien.test.ts': 3 }, { 'tests/neuf.test.ts': 3 }, renommes);
+    expect(refus).toMatchObject([{ fichier: 'tests/neuf.test.ts', aDeplacer: true }]);
+  });
+
+  it('passes a file moved or renamed whose debt the regeneration carried to its new path', () => {
+    const renommes = { 'tests/neuf.test.ts': 'tests/ancien.test.ts' };
+    expect(juger({ 'tests/neuf.test.ts': 3 }, { 'tests/neuf.test.ts': 3 }, renommes)).toEqual([]);
   });
 
   it('refuses by name a file moved or renamed whose count rose above its former debt', () => {
     const renommes = { 'tests/neuf.test.ts': 'tests/ancien.test.ts' };
     const refus = juger({ 'tests/ancien.test.ts': 3 }, { 'tests/neuf.test.ts': 4 }, renommes);
-    expect(refus.map(r => r.fichier)).toEqual(['tests/neuf.test.ts']);
+    expect(new Set(refus.map(r => r.fichier))).toEqual(new Set(['tests/neuf.test.ts']));
   });
 
   it('refuses a file moved or renamed whose former debt stays above its lowered count', () => {
     const renommes = { 'tests/neuf.test.ts': 'tests/ancien.test.ts' };
     const refus = juger({ 'tests/ancien.test.ts': 3 }, { 'tests/neuf.test.ts': 2 }, renommes);
-    expect(refus.map(r => r.fichier)).toEqual(['tests/neuf.test.ts']);
+    expect(new Set(refus.map(r => r.fichier))).toEqual(new Set(['tests/neuf.test.ts']));
   });
 
   it('judges a debt that does not hold the guard as no debt at all', () => {

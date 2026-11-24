@@ -380,7 +380,11 @@ finale, qui mesure le dépôt entier, hors de toute enveloppe) et régénèrent 
 ajoute, absente des gardes de main (le circuit les nomme à la passe par `GRILLHOUSE_GARDES_DE_LA_BASE`) :
 chaque fichier et règle de ses constats est une note `a-inscrire`, au compte trouvé, que la
 régénération inscrit en section entière et écrit au ticket (garde, fichier, règle, compte). Une garde
-de main n'en émet jamais. Un plafond ne monte jamais : un lot qui dépasse celui d'une garde de main
+de main n'en émet jamais : elle l'est par son nom dans cette liste, ou, pour la garde d'un projet que
+la liste ne nomme pas, par son script que HEAD détient. La même régénération porte la dette d'un
+fichier que le lot déplace sous son nouveau chemin (les renommages que git détecte sur le lot tel que
+le circuit le commite) ; la garde des titres de tests refuse, par une note `a-deplacer`, une dette
+restée sous l'ancien chemin. Un plafond ne monte jamais : un lot qui dépasse celui d'une garde de main
 reste rouge. Ainsi aucun fichier engendré n'attend une main (BP 320.9 : 292 min autour des
 références, dont 163 d'attente).
 
