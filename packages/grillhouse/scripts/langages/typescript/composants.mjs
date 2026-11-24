@@ -7,19 +7,21 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { horsCadre, ignoresParGit } from '../../paquets.mjs';
 
-// Every directory under `packages/` and `src/` of the repository at <racine>: [{ nom, dir }], a
+// Every directory under `packages/` and `src/` of the repository at <racine>, and each one of
+// `mods/` that holds a `package.json` (the plugin, named `mods/<dir>`): [{ nom, dir }], a
 // directory git ignores (the local clone of another repository) left out: its package.json when
 // it holds one, the directory itself otherwise.
 function tousDossiers(racine) {
   const found = [];
-  for (const parent of ['packages', 'src']) {
+  for (const parent of ['packages', 'src', 'mods']) {
     const base = path.join(racine, parent);
     if (!existsSync(base)) {
       continue;
     }
     for (const e of readdirSync(base, { withFileTypes: true })) {
-      if (e.isDirectory()) {
-        found.push({ nom: e.name, dir: path.join(base, e.name) });
+      const dir = path.join(base, e.name);
+      if (e.isDirectory() && (parent !== 'mods' || existsSync(path.join(dir, 'package.json')))) {
+        found.push({ nom: parent === 'mods' ? `mods/${e.name}` : e.name, dir });
       }
     }
   }

@@ -18,7 +18,8 @@
 //   `cadre/` of the installed package, else the repository. So the package reads the same files
 //   wherever it is installed, and the repository keeps one address for each.
 // - The copy of the plugin, ELEMENTS_DU_GREFFON, is each entry of `mods/grillhouse/` but its tests
-//   (`tests/`) and its configuration of TypeScript (`tsconfig.json`), at the package's root,
+//   (`tests/`), its configuration of TypeScript (`tsconfig.json`) and what makes it a package of the
+//   workspace (`package.json`, `turbo.json`, `.turbo`, `node_modules`), at the package's root,
 //   beside the package's own entries, PROPRES_DU_PAQUET; an entry of the plugin of the same name
 //   stops the copy. Its manifest (`.claude-plugin/plugin.json`)
 //   receives VERSION: the plugin takes the package's version, its manifest in the repository
@@ -55,7 +56,14 @@ export const PROPRES_DU_PAQUET = [
 ];
 
 /** The entries of the plugin's source the package leaves out. */
-export const HORS_DU_GREFFON = ['tests', 'tsconfig.json'];
+export const HORS_DU_GREFFON = [
+  'tests',
+  'tsconfig.json',
+  'package.json',
+  'turbo.json',
+  '.turbo',
+  'node_modules',
+];
 
 /** The entries of the plugin, which `--empaqueter` copies at the package's root. */
 export const ELEMENTS_DU_GREFFON = existsSync(SOURCE_DU_GREFFON)

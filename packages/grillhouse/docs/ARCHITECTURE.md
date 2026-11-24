@@ -2684,9 +2684,9 @@ joue tous, et un fichier nommé se joue par `npm test -- <fichier>`. La matière
 partagent ses tests et ceux du cadre vit dans un troisième paquet, `packages/grillhouse-matiere`,
 privé, qui n'importe aucun paquet et exporte `./test-fixtures`, comme le corpus de BPScript : le
 cadre et ses essais en dépendent sans cycle. Les tests du greffon
-(`mods/grillhouse/tests`) sont les gardes propres du dépôt, son script racine `gardes`
-(`claude plugin test mods/grillhouse`) : la vérification les joue, et Turborepo les relit de son
-cache tant que rien ne bouge dans le dépôt (les entrées d'une tâche de la racine) ; la CI installe la commande claude à une version
+(`mods/grillhouse/tests`) sont la tâche `test:unit` du paquet `mods/grillhouse`
+(`claude plugin test .`) : la vérification les joue, et Turborepo les relit de son
+cache tant que rien ne bouge dans le paquet ; la CI installe la commande claude à une version
 fixée. Ainsi un test unitaire ne paie jamais le prix d'un test
 d'intégration.
 

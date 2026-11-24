@@ -65,9 +65,9 @@ Le dépôt du cadre est un espace de travail npm. Le cadre lit les langages du d
 | `grillhouse` | le paquet publié : la commande du cadre, le noyau, les déroulés, les modules de langage, et le greffon qu'il embarque | typescript |
 | `grillhouse-essais` | les tests de la chaîne entière, montée dans un projet d'essai, que la nuit joue | typescript |
 | `grillhouse-matiere` | la matière de test que partagent les paquets | typescript |
-| `mods/grillhouse` | le greffon de Claude Code : la charte commune, le métacadre, les agents, les compétences, les crochets, le panneau |  |
+| `mods/grillhouse` | le greffon de Claude Code : la charte commune, le métacadre, les agents, les compétences, les crochets, le panneau | typescript |
 
-Le greffon est un composant déclaré comme les autres : il aura son langage, ses gardes et son typage quand il sera un paquet (section 9, chantier 1), et la publication le verse dans le paquet publié. Sa ligne ne porte pas encore de langage : il n'a pas de manifeste. Hors paquets, le dépôt porte le gabarit d'un projet (`templates/`), que la publication verse aussi dans le paquet.
+Le greffon est un composant déclaré comme les autres : il est un paquet de l'espace de travail (`mods/grillhouse/package.json`, privé), ses tests sont la tâche `test:unit` du graphe (`claude plugin test .`) et la garde du code mort le mesure ; la publication le verse dans le paquet publié, qui le porte comme avant. Hors paquets, le dépôt porte le gabarit d'un projet (`templates/`), que la publication verse aussi dans le paquet.
 
 ### 3.2 Les composants du cadre
 
@@ -251,7 +251,6 @@ Ce qui reste fragile ou inconnu :
 
 - La règle de décision du circuit porte des rattrapages dont le rendement est mesuré, non jugé : trois familles de relances sans effet sont à étudier avant de retirer ou de corriger.
 - Le serveur Temporal est un serveur de développement sur une base SQLite : un circuit arrêté au-delà de la rétention se rouvre par une commande, non par son histoire.
-- Le greffon est déclaré au tableau des paquets, mais il n'a pas encore de manifeste et reste hors de l'espace de travail : ses tests jouent par le script des gardes du dépôt, hors du graphe des tâches, et la garde des langages refuse un paquet déclaré sans son manifeste ; le chantier 1 ferme cet écart.
 - Le besoin « un outil qui marche et qui cadre les dérives d'architecture des projets » entre aux intentions du métacadre ; tant qu'il n'y est pas, rien n'y rattache la règle de la taille.
 
 ## 10. Les documents de mécanisme

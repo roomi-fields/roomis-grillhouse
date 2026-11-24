@@ -43,9 +43,14 @@
     "packages/grillhouse-matiere": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
+    },
+    "mods/grillhouse": {
+      "entry": ["hooks/register.tsx", "hooks/crochet.mjs", "tests/**/*.test.{ts,tsx}"],
+      "project": ["hooks/**/*.{mjs,ts,tsx}", "tests/**/*.{ts,tsx}", "types/**/*.ts"],
+      "ignoreDependencies": ["claude-code"]
     }
   },
-  "ignore": ["mods/**", "templates/**", "website/**"],
+  "ignore": ["templates/**", "website/**"],
   "ignoreBinaries": [
     "bd",
     "bwrap",
@@ -58,5 +63,8 @@
     "systemd-run",
     "uv"
   ],
-  "ignoreUnresolved": ["./.dependency-cruiser.projet.cjs"]
+  "ignoreUnresolved": ["./.dependency-cruiser.projet.cjs"],
+  "ignoreIssues": {
+    "mods/grillhouse/types/index.d.ts": ["types"]
+  }
 }

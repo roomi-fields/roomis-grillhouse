@@ -71,8 +71,8 @@ jobs:
         if: runner.environment == 'github-hosted'
         uses: astral-sh/setup-uv@v6
 
-      # The command claude, at a fixed version: the guards of the repository (its root script
-      # `gardes`) play the tests of the frame's plugin, `claude plugin test mods/grillhouse`.
+      # The command claude, at a fixed version: the task `test:unit` of the package mods/grillhouse
+      # plays the tests of the frame's plugin, `claude plugin test .`.
       - name: Install Claude Code
         if: runner.environment == 'github-hosted'
         run: npm install -g @anthropic-ai/claude-code@2.1.323

@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "mods/*"
   ],
   "scripts": {
     "prepare": "grillhouse hooks",
@@ -19,7 +20,6 @@
     "format:check": "prettier --check --cache --cache-location .cache-outils/prettier/.prettiercache \"templates/projet/{src,tests}/**/*.{ts,js,mjs}\"",
     "interfaces": "grillhouse index-interfaces",
     "grillhouse:gardes": "grillhouse gardes-du-cadre",
-    "gardes": "claude plugin test mods/grillhouse",
     "frontieres": "grillhouse frontieres",
     "api": "grillhouse interfaces-contre-code --ecrire",
     "tableau": "grillhouse tableau --texte",

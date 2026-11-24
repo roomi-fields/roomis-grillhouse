@@ -1,0 +1,11 @@
+{
+  "name": "@roomi-fields/grillhouse-greffon",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Roomi's Grillhouse: the Claude Code plugin (charter, agents, skills, hooks, pane), which the published package @roomi-fields/grillhouse carries",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test:unit": "claude plugin test ."
+  }
+}

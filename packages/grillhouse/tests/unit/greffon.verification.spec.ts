@@ -1,8 +1,6 @@
-// grillhouse-3dr.3.5: the tests of the frame's plugin (`claude plugin test mods/grillhouse`) play in
-// `npm run verifier` and in the CI. They are the repository's own guards, its root script `gardes`,
-// which the verification plays beside the frame's (scripts/langages/typescript/verifier.mjs), as the
-// root task `//#gardes` of Turborepo, cached on the root's inputs. The CI installs the command
-// claude at a fixed version before the verification.
+// The tests of the frame's plugin (`claude plugin test .`, the `test:unit` script of the package
+// mods/grillhouse) play as a task of the graph, in `npm run verifier` and in the CI. The CI installs
+// the command claude at a fixed version before the verification.
 //
 // @lit .github/workflows/** templates/projet/.github/workflows/**
 import { readFileSync } from 'node:fs';
@@ -12,18 +10,24 @@ import { parse } from 'yaml';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const lire = (f: string) => readFileSync(path.join(DEPOT, f), 'utf8');
-const COMMANDE = 'claude plugin test mods/grillhouse';
+const COMMANDE = 'claude plugin test .';
 
 type Etape = { name?: string; run?: string };
 type Flux = { jobs: Record<string, { steps?: Etape[] }> };
 
 describe('the tests of the frame plugin play in the verification and the CI', () => {
-  it('the root script gardes, which npm run verifier plays, runs the plugin tests', () => {
-    const pkg = JSON.parse(lire('package.json')) as { scripts: Record<string, string> };
-    expect(pkg.scripts.gardes).toBe(COMMANDE);
-    expect(Object.entries(pkg.scripts).filter(([, s]) => s.includes(COMMANDE))).toEqual([
-      ['gardes', COMMANDE],
-    ]);
+  it('the package of the plugin plays its tests as the task test:unit, the root script gardes no longer', () => {
+    const pkg = JSON.parse(lire('package.json')) as {
+      scripts: Record<string, string>;
+      workspaces: string[];
+    };
+    const greffon = JSON.parse(lire('mods/grillhouse/package.json')) as {
+      scripts: Record<string, string>;
+    };
+    expect(pkg.workspaces).toContain('mods/*');
+    expect(greffon.scripts['test:unit']).toBe(COMMANDE);
+    expect(pkg.scripts.gardes).toBeUndefined();
+    expect(Object.values(pkg.scripts).filter(s => s.includes('claude plugin test'))).toEqual([]);
   });
 
   it('the CI installs the command claude at a fixed version before the verification, in each of its jobs', () => {

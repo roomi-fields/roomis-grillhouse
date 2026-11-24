@@ -97,7 +97,7 @@ describe('grillhouse-3uv.84.4 critère 5 — the package declares what its scrip
     const racine = JSON.parse(readFileSync(path.join(DEPOT, 'package.json'), 'utf8')) as {
       workspaces: string[];
     };
-    expect(racine.workspaces).toEqual(['packages/*']);
+    expect(racine.workspaces).toEqual(['packages/*', 'mods/*']);
   });
 
   it('the template of a project imports the base configuration by the package’s name', () => {

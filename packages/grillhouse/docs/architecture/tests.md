@@ -125,7 +125,7 @@ Une garde est un script de Node qui lit l'arbre de travail, jamais l'index de gi
 | `consommateurs-arbitres` | typescript | une ligne de consommateur que le lot ajoute sans arbitrage tranché ni plan qui la nomme | Beads | oui |
 | `frontieres` | typescript | un cycle, un import par chemin dans un autre paquet, un import de test ou de dépendance de développement dans le code publié, un import que le `package.json` ne déclare pas | dependency-cruiser | oui |
 | `interfaces-contre-code` | typescript | une API changée sans son rapport, une partie engendrée de l'interface en retard, un résumé, un paramètre ou une faute manquant au commentaire d'un export | API Extractor | oui |
-| `code-mort` | typescript | un fichier, un export, un type ou une dépendance que rien de vivant n'utilise ; une mesure vide | knip | oui |
+| `code-mort` | typescript | un fichier, un export, un type ou une dépendance que rien de vivant n'utilise ; une mesure vide ; le greffon (`mods/grillhouse`) est mesuré, le gabarit (`templates/**`) et le site (`website/**`) restent exclus, car ce n'est pas du code du dépôt qui tourne : le gabarit est copié dans un projet, le site est publié | knip | oui |
 | `tailles-des-tests` | typescript, cargo, python | un grand test de jour ; en typescript, un test de jour qui lance la commande du cadre hors d'un dossier `e2e/` | — | oui |
 | `tests-du-poste` | typescript | un test de nuit qui dépend du poste sans l'étiquette `@poste` | — | oui |
 | `titres-de-tests` | typescript | un titre de test qui nomme un ticket ou un critère | — | oui |

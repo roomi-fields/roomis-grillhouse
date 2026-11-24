@@ -23,10 +23,10 @@ describe('the repository in three directories', () => {
     expect(existsSync(path.join(PAQUET, 'tests/unit/circuit-sans-texte-libre.spec.ts'))).toBe(true);
   });
 
-  it('is private, its workspaces the packages', () => {
+  it('is private, its workspaces the packages and the plugin', () => {
     const p = lire('package.json');
     expect(p.private).toBe(true);
-    expect(p.workspaces).toEqual(['packages/*']);
+    expect(p.workspaces).toEqual(['packages/*', 'mods/*']);
   });
 
   it('gives the example application, its package.json and its tests to the template', () => {

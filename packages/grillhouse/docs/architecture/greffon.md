@@ -103,7 +103,7 @@ Le module du panneau est en TypeScript, dans le greffon (`mods/grillhouse`) ; le
 - **Le relevé et la séance qui le demande** : le relevé ne lit et n'écrit rien hors de la séance qui tient le verrou du superviseur ; un verrou dont le processus est mort est repris par la séance qui relève, comme à l'ouverture.
 - **Le tableau et les états** : aucune garde ne refuse qu'il lise une trace ou recopie un état ; le tableau de la section 4 fait foi à la relecture.
 - **Le greffon et le paquet** : ils sortent sous une même version ; l'ouverture nomme un greffon installé à une autre version que le paquet, avec la commande qui les aligne (document de l'installation).
-- **Les tests du greffon** jouent par `claude plugin test mods/grillhouse`, le script des gardes du dépôt, hors du graphe des tâches (§9, chantier 1).
+- **Les tests du greffon** jouent comme la tâche `test:unit` du paquet `mods/grillhouse` (`claude plugin test .`), dans le graphe des tâches comme ceux des autres paquets : `npm test -- mods/grillhouse/...` les joue.
 
 ## 4. Données
 
