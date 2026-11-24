@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.49.1] - 2026-11-24
+
 - **A test of the board no longer reads the Temporal server of the workstation** (grillhouse-3uv.218): the tests that run the board script read the circuits and the night of the workstation, so a silent or slow Temporal server changed their output. They now give the board its own matter, and the script and the tests share one function for the output of the command (`--texte` or JSON). No behaviour of the board changes. **Action for projects**: none.
 
 - **A long output of an act no longer comes out altered, and a second sending of the red to a skipped testwriter stops the circuit** (grillhouse-3uv.217): in BPScript (0.49.0) the developpeur sent his red to the testwriter some twenty times in a row under a plan « comportement inchangé » (40 sessions). The act's output was decoded chunk by chunk, so a character of several bytes cut between two chunks of the pipe (near the 64 Ko mark of a 95 Ko red) became replacement characters; the red carried to the next run differed from the one compared, and the guard of the second sending never fired. The output is now decoded as a stream (the acts and the calls of Beads), and the guard no longer depends on the exact equality of a long text: under a plan that skips the testwriter, the second sending stops the circuit « sans-livraison » whatever the output. **Action for projects**: none.
