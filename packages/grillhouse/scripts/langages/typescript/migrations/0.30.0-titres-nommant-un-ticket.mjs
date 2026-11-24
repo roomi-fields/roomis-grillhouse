@@ -1,9 +1,8 @@
-// From 0.30.0 the guard of the titles of the tests (scripts/langages/typescript/titres-de-tests.mjs)
-// refuses a test file whose titles name a ticket or a « critère N » beyond its debt; the titles a
-// project already has would turn its main red at its next pass. As the migration of the large
-// tests of the day does (./0.30.0-tailles-des-outils-lourds.mjs), the update inscribes them as the
-// project's known debt (scripts/dette.mjs), frozen: the count never rises, and each title renamed
-// by its behaviour lowers it.
+// The migration of the guard of the titles of the tests
+// (scripts/langages/typescript/titres-de-tests.mjs) for the test files whose titles name a ticket
+// or a « critère N »: it inscribes them as the project's known debt (scripts/dette.mjs), frozen:
+// the count never rises, and each title renamed by its behaviour lowers it. Migrations:
+// packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - It plays after the migration of the prefix of the tickets (./0.30.0-prefixe-des-tickets.mjs),
 //   whose key it reads; without the key it inscribes nothing, and the guard names the key.

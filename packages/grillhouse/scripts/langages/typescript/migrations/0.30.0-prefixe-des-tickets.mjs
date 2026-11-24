@@ -1,7 +1,8 @@
-// From 0.30.0 the guard of the titles of the tests (scripts/langages/typescript/titres-de-tests.mjs)
-// reads the prefix of the tickets from the key `issue-prefix` of `.beads/config.yaml`, committed,
-// never from `bd`, which a CI does not have; a project without the key is refused by the guard.
-// `bd init` writes that key commented out, and Beads keeps the prefix in its database.
+// The migration of the prefix of the tickets: the guard of the titles of the tests
+// (scripts/langages/typescript/titres-de-tests.mjs) reads it from the key `issue-prefix` of
+// `.beads/config.yaml`, committed, never from `bd`, which a CI does not have; a project without the
+// key is refused by the guard. `bd init` writes that key commented out, and Beads keeps the prefix
+// in its database. Migrations: packages/grillhouse/docs/architecture/installation.md §5.4.
 //
 // - The migration writes the key `issue-prefix: "<prefix>"` in `.beads/config.yaml` by the one
 //   writer of the key (`ecrireLePrefixe` of scripts/prefixe-des-tickets.mjs, which the preparation

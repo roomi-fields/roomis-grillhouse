@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The paths the tests launch or read, on the model of Bazel's sandbox, which fails a test that
 // reads an input its target does not declare: a test's run that the frame cannot relate to a
-// changed file would keep a stale green, so the guard refuses the path the frame cannot read.
+// changed file would keep a stale green, so the guard refuses the path the frame cannot read: the
+// guard `chemins-des-tests` (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 //   npx grillhouse chemins-des-tests   run from the repository root (a guard of grillhouse:gardes)
 //

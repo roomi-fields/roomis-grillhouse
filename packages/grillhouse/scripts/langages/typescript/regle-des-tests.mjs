@@ -1,6 +1,7 @@
 // The rule of a test file of the module typescript, the fourth demand of the join
 // (scripts/jointure.d.ts, `estUnTest`): what the testwriter writes, as Pants tells `python_tests`
-// from `python_test_utils`. A file the testwriter writes is, one or several of:
+// from `python_test_utils` (packages/grillhouse/docs/architecture/tests.md §3.3). A file the
+// testwriter writes is, one or several of:
 //
 // - `joue`: a test Vitest plays, its name `*.test.*` or `*.spec.*` of a module (`NOM_DE_TEST` of
 //   scripts/langages/typescript/consommateurs.mjs), wherever it lies;

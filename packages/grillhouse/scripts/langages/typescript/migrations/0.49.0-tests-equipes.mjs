@@ -1,10 +1,10 @@
-// From 0.49.0 the guard of the night tests of the poste (scripts/langages/typescript/tests-du-poste.mjs)
-// asks the tag `@equipee` of a night test that needs the equipment of a machine (the envelope, a
-// Temporal server, sccache, the binaries of the module cargo), and `@poste` stays for what only the
-// poste has (the real bd, systemd, the keyring, the user's session, a session of claude). A project
-// whose night tests need equipment without the tag would turn red at its next pass; the update
-// inscribes them as the project's known debt (scripts/dette.mjs), frozen: the count never rises and
-// a new one is refused.
+// The migration of the guard of the night tests of the poste
+// (scripts/langages/typescript/tests-du-poste.mjs) for the night test that needs the equipment of a
+// machine (the envelope, a Temporal server, sccache, the binaries of the module cargo) without the
+// tag `@equipee`; `@poste` stays for what only the poste has (the real bd, systemd, the keyring,
+// the user's session, a session of claude). It inscribes them as the project's known debt
+// (scripts/dette.mjs), frozen: the count never rises and a new one is refused. Migrations:
+// packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - The migration inscribes the findings of the guard that the debt does not hold yet; the debt
 //   already inscribed (the guard's, the other guards') stays.

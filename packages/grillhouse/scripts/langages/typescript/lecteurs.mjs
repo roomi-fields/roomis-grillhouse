@@ -1,7 +1,8 @@
 // The readers of the elements a ticket names, by the code of the module typescript: the part of
 // the survey of composants-affectes (scripts/composants-affectes.mjs) that reads the sources, the
 // first demand of the join (scripts/jointure.d.ts, `lecteurs`), as « find all references » of a
-// language service starts from a published symbol.
+// language service starts from a published symbol (packages/grillhouse/docs/architecture/tests.md
+// §3.3).
 //
 // - The provider of an element is the component whose interface (`docs/INTERFACE.md`) publishes
 //   it: a heading of its generated part (`lire` of scripts/langages/typescript/index-interfaces.mjs). A name no

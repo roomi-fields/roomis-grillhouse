@@ -1,5 +1,6 @@
 // The module of language typescript: what the core asks of a language (scripts/jointure.d.ts,
-// docs/INTERFACE.md), answered by the scripts of this directory — the components of the frame
+// docs/INTERFACE.md; the modules of language: packages/grillhouse/docs/architecture/tests.md §3.3),
+// answered by the scripts of this directory — the components of the frame
 // (./consommateurs.mjs), the tests by Turborepo and Vitest (./tests.mjs, ./verifier.mjs), the
 // guards of structure and their generators. The core loads it by scripts/langages.mjs, and this
 // module imports of the core its published entries alone.
@@ -161,7 +162,7 @@ const joueDesTests = (_racine, composant) =>
 
 export default {
   nom: 'typescript',
-  // The expected size of a copy before any is measured: its node_modules, about 0.5 to 1 GB (2026-11-11).
+  // The expected size of a copy before any is measured: its node_modules, about 0.5 to 1 GB.
   tailleDUneCopie: 1024 ** 3,
   manifeste: 'package.json',
   // The name a package.json gives its package; its internal dependencies are the package.json's

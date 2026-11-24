@@ -1,11 +1,7 @@
-// From 0.24.4 the guard of the consumers refuses a declared name that no code of its consumer uses
-// (`declare-non-utilise`, scripts/langages/typescript/consommateurs.mjs), which it only reported before, as ESLint's
-// `no-unused-vars` refuses a name nothing uses. A project that updates holds such names already
-// (BPScript: 26 names on 11 lines of 4 interfaces), and its main would turn red at its next pass
-// without a word. As a codemod reports what it leaves, the update names them, and the command that
-// inscribes them as the project's known debt, once, at the passage of the rule (dette.mjs, as
-// ESLint's `--suppress-all`); in a ticket afterwards, the guard says to take the name out of its
-// line.
+// The migration of the guard of the consumers (scripts/langages/typescript/consommateurs.mjs) for
+// the declared names that no code of their consumer uses (`declare-non-utilise`): it names them,
+// and the command that inscribes them as the project's known debt (dette.mjs). Migrations:
+// packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - The migration changes no file (`migrer` returns no line): the project decides between the
 //   debt and the edit of its interfaces.

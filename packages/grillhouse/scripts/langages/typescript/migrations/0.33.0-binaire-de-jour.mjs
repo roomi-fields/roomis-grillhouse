@@ -1,9 +1,9 @@
-// From 0.33.0 the guard of the sizes of the tests (scripts/langages/typescript/tailles-des-tests.mjs)
-// also refuses a test of the day that starts the frame's command (its binary, or a script of its
-// `bin/` or `scripts/`) out of the zone of the end-to-end tests (a directory `e2e/`): a test of
-// the day validates the code by importing it. A project whose tests start it would turn red at its
-// next pass; as the migration 0.30.0 does for the heavy tools, the update inscribes them as the
-// project's known debt (scripts/dette.mjs), frozen: the count never rises and a new one is refused.
+// The migration of the guard of the sizes of the tests
+// (scripts/langages/typescript/tailles-des-tests.mjs) for the test of the day that starts the
+// frame's command (its binary, or a script of its `bin/` or `scripts/`) out of the zone of the
+// end-to-end tests (a directory `e2e/`): it inscribes them as the project's known debt
+// (scripts/dette.mjs), frozen: the count never rises and a new one is refused. Migrations:
+// packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - The migration inscribes the findings of the guard that the debt does not hold yet; the debt
 //   already inscribed (the guard's, the other guards') stays.

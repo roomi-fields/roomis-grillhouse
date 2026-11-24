@@ -2,14 +2,14 @@
 // The title of a test, on the model of Software Engineering at Google (ch. 12: « write a test for
 // each behavior »): a test bears the name of the behavior it proves, never a ticket's or a
 // « critère N »; a test whose title does not say its behavior ends deleted. The ticket goes to the
-// commit message.
+// commit message. The guard `titres-de-tests` (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 //   npx grillhouse titres-de-tests   run from the repository root (a guard of grillhouse:gardes)
 //
 // - The count is a union: a title counts once if it names a ticket of the project (its prefix, read
 //   from the key `issue-prefix` of `.beads/config.yaml`, committed, never by `bd`, which a CI does
 //   not have; the guard names the file or the key when it is missing), followed by an
-//   identifier: `grillhouse-44b.10.8`) or a « critère N » (or « critères N »), or both.
+//   identifier) or a « critère N » (or « critères N »), or both.
 // - The guard reads the Vitest tests of the project (the files `*.test.*` and `*.spec.*` of every
 //   component, the night tests included, as ./tailles-des-tests.mjs lists them): the calls
 //   `describe`, `it` and `test` and their variants (`skip`, `only`, `each`, `todo`...). It sees the

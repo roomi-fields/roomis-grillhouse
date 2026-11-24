@@ -1,10 +1,10 @@
-// From 0.30.0 the guard of the sizes of the tests (scripts/langages/typescript/tailles-des-tests.mjs)
-// also sees large a test that mounts a temporary directory and starts a heavy tool of the product
-// there (turbo, vitest, knip, depcruise, api-extractor), with a `cwd:`; the tests it classed medium
-// become large tests of the day, and the main of a project that updates would turn red at its next
-// pass. As the migration 0.25.0 does for the first rule, the update inscribes them as the project's
-// known debt (scripts/dette.mjs), frozen: the count never rises and a new large test of the day is
-// refused.
+// The migration of the guard of the sizes of the tests
+// (scripts/langages/typescript/tailles-des-tests.mjs) for the test that mounts a temporary
+// directory and starts a heavy tool of the product there (turbo, vitest, knip, depcruise,
+// api-extractor), with a `cwd:`, large like the other: it inscribes them as the project's known
+// debt (scripts/dette.mjs), frozen: the count never rises and a new large test of the day is
+// refused. Migrations: packages/grillhouse/docs/architecture/installation.md §5.4; the guard:
+// tests.md §3.4.
 //
 // - The migration inscribes the large tests of the day the guard finds that the debt does not hold
 //   yet; the debt already inscribed (the guard's, the other guards') stays.

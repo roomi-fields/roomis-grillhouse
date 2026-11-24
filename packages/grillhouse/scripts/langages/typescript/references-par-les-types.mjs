@@ -1,6 +1,7 @@
 // The references of a ticket's elements found through the types, as « find all references » of
 // rust-analyzer and of TypeScript's language service: an element is resolved as a symbol of the
-// repository's code (a declaration of a package, a member of a type, a function internal to a
+// repository's code (the survey of the readers: packages/grillhouse/docs/architecture/tests.md §3.3;
+// a declaration of a package, a member of a type, a function internal to a
 // package), and its references are those the language service resolves to that symbol, never a
 // text that happens to bear its name. scripts/composants-affectes.mjs runs it beside its survey
 // by the names; scripts/langages/typescript/elements-du-lot.mjs reads the declarations and the exports of a lot

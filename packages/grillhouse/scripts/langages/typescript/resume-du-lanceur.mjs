@@ -1,7 +1,7 @@
 // The summary of a run of Turborepo (`turbo run … --summarize`, `.turbo/runs/<id>.json`), read and
 // kept once, here: the module typescript drives Turborepo, and the join serves these members to the
 // modules cargo and python through the services of the core (`tachesDuVerdict`,
-// scripts/taches-du-graphe.mjs).
+// scripts/taches-du-graphe.mjs; packages/grillhouse/docs/architecture/tests.md §3.3).
 //
 // - `resumesDuLancement` names the summaries present in a project before a run.
 // - `garderLesResumes` moves the summaries a run wrote into `<dossier>/turbo/`, the results

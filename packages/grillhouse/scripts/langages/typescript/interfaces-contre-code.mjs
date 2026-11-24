@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The written interface of each component against its code.
+// The written interface of each component against its code: the guard `interfaces-contre-code`
+// (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 // - The public API of a component is reported by API Extractor from its built declarations:
 //   `docs/INTERFACE.api.md`, kept in the repository. The check refuses an API that changed

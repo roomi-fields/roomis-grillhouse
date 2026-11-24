@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The size of each test, on the model of the test pyramid of Google (Software Engineering at
 // Google, ch. 11 and 14: small ~80 %, medium ~15 %, large ~5 %) and of Bazel's `size` (small,
-// medium, large): a large test of the day is refused, as it belongs to the night.
+// medium, large): a large test of the day is refused, as it belongs to the night. The guard
+// `tailles-des-tests` (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 //   npx grillhouse tailles-des-tests   run from the repository root (a guard of grillhouse:gardes)
 //
@@ -21,11 +22,11 @@
 //     or it mounts a temporary directory (`mkdtemp`, `tmpdir`) and, in a process call carrying
 //     `cwd:` (or `-C`, `--prefix`), starts one of the heavy tools of OUTILS_LOURDS (turbo,
 //     vitest, knip, depcruise, api-extractor), named by a literal argument or a literal path to
-//     its binary, with no `git init` (grillhouse-44b.10.4, Bazel's test-encyclopedia: a test
-//     that runs the product in a trial project is large);
+//     its binary, with no `git init` (Bazel's test-encyclopedia: a test that runs the
+//     product in a trial project is large);
 //     or it starts a Temporal development server (the literal arguments `'server', 'start-dev'`
 //     in a process call of its text or of its test material): a test that mounts a real server
-//     is large (grillhouse-4nr.16). A tool named by a variable, or run by
+//     is large. A tool named by a variable, or run by
 //     an npm script (`npm run verifier`), escapes the reading and the test stays medium; so
 //     does a call without `cwd` (on the repository);
 //   - medium (`moyen`): it starts a process (it imports `child_process`, `execa` or `zx`), or it

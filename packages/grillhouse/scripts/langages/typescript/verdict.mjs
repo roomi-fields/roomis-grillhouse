@@ -1,6 +1,7 @@
 // The verdict of a run of the module typescript, the third demand of the join
 // (scripts/jointure.d.ts, `verdict`): what a run of Turborepo and of Vitest left in the results
-// directory of a pass (`GRILLHOUSE_RESULTATS`, scripts/resultats.mjs).
+// directory of a pass (`GRILLHOUSE_RESULTATS`, scripts/resultats.mjs; packages/grillhouse/docs/architecture/tests.md
+// §3.3).
 //
 // - The summary of a run of Turborepo (./resume-du-lanceur.mjs): `lireLesResumes` gives each task.
 // - The JSON report of Vitest, which the frame's base configuration writes under

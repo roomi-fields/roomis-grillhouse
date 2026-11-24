@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// A line of a `## Consommateurs` section that a lot changes enters with its settled arbitrage at the
+// The guard `consommateurs-arbitres` (packages/grillhouse/docs/architecture/tests.md §3.4): a line
+// of a `## Consommateurs` section that a lot changes enters with its settled arbitrage at the
 // ticket: each dependency between components is decided before it is written, as a code owner
 // approves a change to the files it owns.
 //

@@ -1,5 +1,5 @@
 // The components of a repository of the module typescript and its packages of the shared test
-// material: one reading, without a line `#!`, that ./consommateurs.mjs (the guard, which the entry
+// material (packages/grillhouse/docs/architecture/tests.md §3.3): one reading, without a line `#!`, that ./consommateurs.mjs (the guard, which the entry
 // `@roomi-fields/grillhouse/consommateurs` publishes) and the Vitest configuration of the frame
 // (./vitest-config/lances.mjs, which Vite bundles and whose parser refuses a `#!` out of the first
 // file) both import.

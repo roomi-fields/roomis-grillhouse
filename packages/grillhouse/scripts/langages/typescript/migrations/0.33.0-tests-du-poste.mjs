@@ -1,9 +1,9 @@
-// From 0.33.0 the guard of the night tests of the poste (scripts/langages/typescript/tests-du-poste.mjs)
-// refuses a night test that depends on the poste (the envelope, the real bd, a Temporal server,
-// sccache, systemd, the keyring, the user's session, a session of claude) without the tag `@poste`
-// at its head. A project whose night tests depend on it would turn red at its next pass; as the
-// migration of the tests that start the frame's command does, the update inscribes them as the
+// The migration of the guard of the night tests of the poste
+// (scripts/langages/typescript/tests-du-poste.mjs) for the night test that depends on the poste
+// (the envelope, the real bd, a Temporal server, sccache, systemd, the keyring, the user's
+// session, a session of claude) without the tag `@poste` at its head: it inscribes them as the
 // project's known debt (scripts/dette.mjs), frozen: the count never rises and a new one is refused.
+// Migrations: packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - The migration inscribes the findings of the guard that the debt does not hold yet; the debt
 //   already inscribed (the guard's, the other guards') stays.

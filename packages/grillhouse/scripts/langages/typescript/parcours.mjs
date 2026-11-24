@@ -1,4 +1,5 @@
-// The walk of the repository every guard of the module typescript makes: the files under a path,
+// The walk of the repository every guard of the module typescript makes (packages/grillhouse/docs/architecture/tests.md
+// §3.4): the files under a path,
 // Vite's temporary files never listed, a file or a directory gone before the walk reaches it
 // passed over. The guards walk the repository while other processes write in it (`npm run
 // verifier` plays them beside the tests). Node alone (./vitest-config/lances.mjs, which the

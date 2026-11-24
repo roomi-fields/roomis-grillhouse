@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The index of the interfaces: one line per component, then one line per element it provides,
 // generated from the components' `docs/INTERFACE.md`. An agent loads it at start and opens an
-// interface, then one of its sections, only when the index names it.
+// interface, then one of its sections, only when the index names it. The guard `index-interfaces`
+// (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 //   npx grillhouse index-interfaces            writes docs/agents/index-des-interfaces.md
 //   npx grillhouse index-interfaces --verifier refuses (exit 1) when that file is out of date,
@@ -200,7 +201,7 @@ function rend(racine, rel) {
 // repository, which the section points to the index of the interfaces; or the plan of a session,
 // several paths in the form of the envelope's list (`packages/a:packages/b`, `lireLaListe`), one
 // part of the section per package of the plan, its providers under it, as one session works the
-// whole plan of a ticket (grillhouse-3uv.95.6). Its providers are the
+// whole plan of a ticket. Its providers are the
 // components whose `## Consommateurs` section names it; for each, its line in the index of the
 // interfaces (its heading, its first sentence, its interface), the names of the elements its
 // `## Consommateurs` line declares for the component, never their sentence, which the index of the

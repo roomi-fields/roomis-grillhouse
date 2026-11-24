@@ -3,7 +3,8 @@
 // lintian holds a package's synopsis (`synopsis-too-long`) and clippy a doc's first paragraph
 // (`too_long_first_doc_paragraph`). The index of the interfaces (`docs/agents/index-des-interfaces.md`)
 // and the section « Ce que les composants d'avant publient » of a role agent's instruction carry
-// that sentence for every element (scripts/langages/typescript/index-interfaces.mjs).
+// that sentence for every element (scripts/langages/typescript/index-interfaces.mjs). The guard
+// `resumes` (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 //   npx grillhouse resumes   run from the repository root (a guard of grillhouse:gardes)
 //

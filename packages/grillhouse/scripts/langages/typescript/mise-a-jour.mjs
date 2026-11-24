@@ -1,4 +1,5 @@
-// What the module typescript brings to the update of a project (`grillhouse maj`,
+// What the module typescript brings to the update of a project (`grillhouse maj`; the update:
+// packages/grillhouse/docs/architecture/installation.md §5.2;
 // scripts/grillhouse-maj.mjs), the demand `miseAJour` of the join (scripts/jointure.d.ts), as the
 // `init` generator of a plugin of Nx brings its tool to a workspace. The core writes the root
 // package.json after, and reports the lines.
@@ -23,9 +24,8 @@
 //   it) passes to `^<version>`, as `npm install <pkg>@<version> --workspaces`, Renovate and syncpack
 //   align every declaration of a dependency of the workspace; a range that covers the version, one
 //   above it, or one that is no range of versions (`file:`, `workspace:`) stays. The report names
-//   each manifest brought up. Witness: BPScript at 0.25.1 (bp-mono-vbwf.322.15), whose packages kept
-//   `^0.24.0`: npm left a copy 0.24.15 under each `packages/*/node_modules`, where the entry
-//   `./vitest-config/duree` does not resolve.
+//   each manifest brought up; a stale range leaves npm a copy of an older frame under the
+//   package's `node_modules`, where the entries of the current one do not resolve.
 // - A package of the frame whose code imports the frame's package (a file of its `src/` out of the
 //   tests, its imports read by TypeScript's `preProcessFile`) declares it in its `dependencies`, as
 //   npm puts there what the published code imports: a declaration in its `devDependencies` moves
@@ -38,7 +38,7 @@
 // - The typing: each package of TypeScript (a `tsconfig.json`) that has no `typecheck` script
 //   receives the template's, `tsc -p tsconfig.json --noEmit`: each package of the frame in a
 //   project with `workspaces` (the root's `typecheck` stays the project's), the root in a project
-//   without. Witness: BPScript 320.21.4, whose type errors in test/ showed only at night.
+//   without.
 // - `turbo.json` is the project's own file. A project with no `turbo.json` receives the frame's
 //   template of its form: `templates/turbo/paquets.json` when its package.json declares
 //   `workspaces`, else `templates/turbo/sans-paquets.json`. A `turbo.json` present is never written

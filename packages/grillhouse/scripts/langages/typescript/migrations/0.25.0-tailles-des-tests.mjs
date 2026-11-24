@@ -1,11 +1,9 @@
-// From 0.25.0 the guard of the sizes of the tests (scripts/langages/typescript/tailles-des-tests.mjs) refuses a large
-// test of the day, one that mounts a trial repository and starts the product or the frame there,
-// as the test pyramid of Google keeps the large tests out of the day. A project that updates holds
-// such tests already (2026-10-29: Grillhouse 70 of its 170 test files, BPScript 7 of its 1 079,
-// all of 995-tools), and its main would turn
-// red at its next pass. As ESLint's `--suppress-all` does once at the passage of a rule, the update
-// inscribes them as the project's known debt (scripts/dette.mjs), frozen: the count never rises,
-// a new large test of the day is refused, and its verification does not change that day.
+// The migration of the guard of the sizes of the tests
+// (scripts/langages/typescript/tailles-des-tests.mjs) for the large test of the day, one that
+// mounts a trial repository and starts the product or the frame there: it inscribes the existing
+// ones as the project's known debt (scripts/dette.mjs), frozen: the count never rises and a new
+// large test of the day is refused. Migrations: packages/grillhouse/docs/architecture/installation.md
+// §5.4; the guard: tests.md §3.4.
 //
 // - The migration writes the section of the guard in `grillhouse-dette.json` when the guard finds a
 //   large test of the day and the file holds no section of it yet; the rest of the debt stays.

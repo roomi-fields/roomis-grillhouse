@@ -1,12 +1,8 @@
-// From 0.24.6 the guard of the consumers refuses a bullet of a `## Consommateurs` section that is
-// no list of names (`ligne-mal-formee`, scripts/langages/typescript/consommateurs.mjs): one form only,
-// ``- `consommateur` : nom, nom``, each name a JavaScript identifier or `*`. Before, the text after
-// « : » was cut at its commas, and a bullet of prose gave « names » that are none, or was passed
-// over without « : » (BPScript 990-corpus/docs/INTERFACE.md:274-289, at 0.24.5). A project that updates may hold such lines, and its
-// main would turn red at its next pass without a word. As the update of 0.24.4 names its unused
-// names, the update names these lines, and the command that inscribes them as the project's known
-// debt, once, at the passage of the rule (dette.mjs, as ESLint's `--suppress-all`); in a ticket
-// afterwards, the guard says to write the line as a list of names.
+// The migration of the guard of the consumers (scripts/langages/typescript/consommateurs.mjs) for
+// the bullets of a `## Consommateurs` section that are no list of names (`ligne-mal-formee`): one
+// form only, ``- `consommateur` : nom, nom``, each name a JavaScript identifier or `*`. It names
+// the lines, and the command that inscribes them as the project's known debt (dette.mjs).
+// Migrations: packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - The migration changes no file (`migrer` returns no line): the project decides between the
 //   debt and the edit of its interfaces.

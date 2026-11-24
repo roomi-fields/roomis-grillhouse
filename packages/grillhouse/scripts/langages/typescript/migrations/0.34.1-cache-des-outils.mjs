@@ -1,7 +1,7 @@
-// From 0.34.1 the cache of the lint and of the format check lives under `.cache-outils/`, a clean
-// output of the module typescript, no longer under `node_modules/.cache/`: a session's envelope
-// mounts `/` read-only and the `node_modules` of a copy is a link out of it, so ESLint and
-// Prettier failed to write their cache there (EROFS). The migration moves it in a project.
+// The migration that moves the cache of the lint and of the format check to `.cache-outils/`, a
+// clean output of the module typescript: a session's envelope mounts `/` read-only and the
+// `node_modules` of a copy is a link out of it, where ESLint and Prettier cannot write.
+// Migrations: packages/grillhouse/docs/architecture/installation.md §5.4.
 //
 // - In the `lint` and `format:check` scripts of `package.json`, the former path
 //   (`node_modules/.cache/`) is replaced by the new one (`.cache-outils/`), wherever it falls;

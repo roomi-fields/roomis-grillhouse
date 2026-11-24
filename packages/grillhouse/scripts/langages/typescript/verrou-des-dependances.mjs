@@ -2,7 +2,8 @@
 // The lock of the dependencies (package-lock.json) against the package.json it locks, on the model
 // of `npm ci`, which refuses a lock out of step with its package.json: the lock is written by the
 // frame at the integration (`fichiersEngendres` of ./index.mjs), and this guard refuses a copy
-// whose lock is late.
+// whose lock is late: the guard `verrou-des-dependances`
+// (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 //   npx grillhouse verrou-des-dependances   run from the repository root (a guard of grillhouse:gardes)
 //

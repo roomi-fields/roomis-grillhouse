@@ -1,14 +1,13 @@
-// The frame's base configuration of Vitest is the package's: `@roomi-fields/grillhouse/vitest-config`
-// (and `/mesure`), in place of the workspace package `@grillhouse/vitest-config` that the frame's
-// copied files held.
+// The migration that brings a project's Vitest configuration to the package's base configuration:
+// `@roomi-fields/grillhouse/vitest-config` (and `/mesure`), in place of the workspace package
+// `@grillhouse/vitest-config`. A migration of the module typescript (../index.mjs), which a
+// project of TypeScript plays; the migrations: packages/grillhouse/docs/architecture/installation.md §5.4.
 //
-// - A migration of the module typescript (../index.mjs), which a project of TypeScript plays.
 // - Each source file of the project (`sources` of the core) that names
 //   `@grillhouse/vitest-config` or `@grillhouse/vitest-config/mesure` in quotes names the package's
 //   instead; a root configuration that imports the base by its former path
 //   (`./scripts/vitest-config/base.mjs`, `./packages/grillhouse/scripts/vitest-config/base.mjs`)
-//   imports it by its name. The migration of the copies (scripts/migrations/0.23.2-copies-du-cadre.mjs)
-//   still knows a former copy of the frame so rewritten by its fingerprint.
+//   imports it by its name.
 // - Each package.json of the project (the root's and each workspace's) that declares
 //   `@grillhouse/vitest-config` declares `@roomi-fields/grillhouse` in the same field in its place,
 //   at the range the root declares (else `^<version>` of the package), unless it already declares

@@ -1,6 +1,7 @@
 // The skeleton of a new package of the module typescript, the demand `squelette` of the join
 // (scripts/jointure.d.ts), which `grillhouse paquet` writes (scripts/paquet.mjs), as `nx g
-// @nx/js:lib` and `turbo gen workspace` write one: no behaviour, no test.
+// @nx/js:lib` and `turbo gen workspace` write one: no behaviour, no test. The birth of a
+// package: packages/grillhouse/docs/architecture/tests.md §3.3.
 //
 // - A package of TypeScript lives under `packages/<nom>`, where the module finds its components
 //   (./composants.mjs); another path is refused, named.

@@ -1,13 +1,9 @@
-// From 0.24.7 the guard of the consumers reads the uses of a package of the shared test material in
-// the tests of its consumers (scripts/langages/typescript/consommateurs.mjs, as knip counts test files as entries out
-// of its `--production` mode): the material has only tests for readers, and every name declared
-// for it came out « declared, not used » (BPScript 990-corpus: 176 names, inscribed as debt at
-// 0.24.6). A test that imports a name of the material its interface does not declare is now
-// refused (`usage-non-declare`), as production code is; a project that updates may hold such
-// imports, and its main would turn red at its next pass without a word. As the updates of 0.24.4
-// and 0.24.6 name their findings, the update names these uses, and the command that inscribes them
-// as the project's known debt, once, at the passage of the rule (dette.mjs, as ESLint's
-// `--suppress-all`).
+// The migration of the guard of the consumers (scripts/langages/typescript/consommateurs.mjs) for
+// the uses of a package of the shared test material in the tests of its consumers: a test that
+// imports a name of the material its interface does not declare is refused (`usage-non-declare`),
+// as production code is. It names these uses, and the command that inscribes them as the
+// project's known debt (dette.mjs). Migrations: packages/grillhouse/docs/architecture/installation.md
+// §5.4; the guard: tests.md §3.4.
 //
 // - The migration changes no file (`migrer` returns no line): the project decides between the
 //   debt and the edit of its interfaces.

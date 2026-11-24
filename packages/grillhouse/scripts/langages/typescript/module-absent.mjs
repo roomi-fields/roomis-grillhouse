@@ -1,5 +1,6 @@
 // The module a test file imports that Vitest did not find, read from the message of its load
-// failure: the path the import names, resolved from the test file. A test written before its code
+// failure: the path the import names, resolved from the test file (packages/grillhouse/docs/architecture/tests.md
+// §3.3). A test written before its code
 // imports the module the ticket creates; that load failure is its red, as a test target that does
 // not compile is in a compiled language (`echecDeCompilation` of cargo and c). An import of a
 // package (a bare name) is no module of the project: null.

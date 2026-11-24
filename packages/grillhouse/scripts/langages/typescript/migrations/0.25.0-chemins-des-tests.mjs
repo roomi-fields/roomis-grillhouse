@@ -1,9 +1,8 @@
-// From 0.25.0 the guard of the paths of the tests (scripts/langages/typescript/chemins-des-tests.mjs)
-// refuses a test that names a module of its package by a path the frame cannot read, which a pass
-// measured against the last green would not play when that module changes (2026-10-30: 11 in
-// BPScript). As ESLint's `--suppress-all` does once at the passage of a rule, the update inscribes
-// them as the project's known debt (scripts/dette.mjs), frozen: the count never rises, a new one
-// is refused, and its verification does not change that day.
+// The migration of the guard of the paths of the tests
+// (scripts/langages/typescript/chemins-des-tests.mjs): it inscribes the tests that name a module of
+// their package by a path the frame cannot read as the project's known debt (scripts/dette.mjs),
+// frozen: the count never rises and a new one is refused. Migrations:
+// packages/grillhouse/docs/architecture/installation.md §5.4; the guard: tests.md §3.4.
 //
 // - The migration writes the section of the guard in `grillhouse-dette.json` when the guard finds
 //   one and the file holds no section of it yet; the rest of the debt stays.

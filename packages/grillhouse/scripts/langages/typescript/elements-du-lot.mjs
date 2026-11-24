@@ -3,7 +3,8 @@
 // whether its package's entry exports it. As API Extractor's report and its diff, read line by
 // line, and a review that asks a word on every changed file, the circuit gives this list to the
 // reviewer (`relire` of scripts/circuit.mjs), whose sheet holds one line of conformity per element
-// (scripts/resultats.mjs, `conformiteDuLot`).
+// (scripts/resultats.mjs, `conformiteDuLot`). The element of a lot is the module's answer to the
+// join (packages/grillhouse/docs/architecture/tests.md §3.3).
 //
 // - The lot is the difference between two commits of the copy (<avant>, its HEAD, and <apres>,
 //   the lot the circuit keeps): its changed files by `git diff --name-status -z`, the text of a

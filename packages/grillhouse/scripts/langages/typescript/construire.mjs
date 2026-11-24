@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The build of an agent's copy before its session, the command `construire` of the module
 // typescript (scripts/jointure.d.ts), which the launcher (scripts/enveloppe/lancer.sh) runs in the
-// prepared copy, through its mounts: the session finds built what it reads out of its plan.
+// prepared copy, through its mounts: the session finds built what it reads out of its plan
+// (packages/grillhouse/docs/architecture/tests.md §3.3).
 //
 //   node construire.mjs --echec <fichier> <plan>     from the root of the copy
 //   node construire.mjs --gardes                     what the guard tasks wait for, before the

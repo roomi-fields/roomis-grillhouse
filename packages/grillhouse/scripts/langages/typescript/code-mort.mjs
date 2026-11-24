@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The dead-code guard: refuses a file, an export, a type or a dependency that nothing living
-// uses, measured by knip (configured in the project's `knip.json`). Run by `grillhouse:gardes`.
+// uses, measured by knip (configured in the project's `knip.json`). Run by `grillhouse:gardes`:
+// the guard `code-mort` (packages/grillhouse/docs/architecture/tests.md §3.4).
 //
 // - Each finding is named with its file; exit code 1 when there is one. A finding inscribed in the
 //   project's debt (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed by its file and knip's

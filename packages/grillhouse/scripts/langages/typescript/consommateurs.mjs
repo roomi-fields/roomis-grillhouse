@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The consumers of the interfaces: each component's `docs/INTERFACE.md` declares, in its
+// The consumers of the interfaces, the guard `consommateurs`
+// (packages/grillhouse/docs/architecture/tests.md §3.4): each component's `docs/INTERFACE.md` declares, in its
 // `## Consommateurs` section, which components use which of its elements:
 //
 //   ## Consommateurs
@@ -10,8 +11,7 @@
 // This check reads what the production code of every component imports from every other, and what
 // its tests import from a package of the shared test material (`matieres`), whose only readers are
 // tests, as knip counts test files as entries out of its `--production` mode; it refuses (exit 1) a use that the provider's interface does not declare, and a declared name that
-// no code of its consumer uses, as ESLint's `no-unused-vars` refuses a name nothing uses (BP
-// 320.3.2.1: « LEVEL_TYPES » declared for 020-loader, only reported, caught by its second review).
+// no code of its consumer uses, as ESLint's `no-unused-vars` refuses a name nothing uses.
 // `*` stands for a namespace, default, re-export-all or side-effect import, and for a dynamic
 // import not destructured; a literal dynamic import destructured gives its names, as knip reads
 // it. A bullet of the section is a list of names, each a JavaScript identifier or `*`: a bullet of
@@ -19,10 +19,8 @@
 // and passes. A refusal inscribed in the project's debt
 // (`grillhouse-dette.json`, see `dette.mjs`) passes, keyed by the provider's interface and
 // `usage-non-declare`, `declare-non-utilise` or `ligne-mal-formee` (`homonyme` for two components
-// of one name, keyed by the first path). The debt of a new rule is inscribed once, when a project
-// updates to it (scripts/langages/typescript/migrations/0.24.4-noms-declares-inutilises.mjs,
-// scripts/langages/typescript/migrations/0.24.6-lignes-mal-formees.mjs,
-// scripts/langages/typescript/migrations/0.24.7-matiere-dans-les-tests.mjs); in a ticket, the name leaves its line, and a
+// of one name, keyed by the first path). The debt of each refusal is inscribed once, when a project
+// updates (scripts/langages/typescript/migrations/); in a lot, the name leaves its line, and a
 // line of prose is written as a list of names.
 //
 //   npx grillhouse consommateurs        run from the repository root

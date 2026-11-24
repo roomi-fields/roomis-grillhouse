@@ -1,6 +1,7 @@
 // The entries of the suite of conformity (scripts/conformite.mjs) for the module typescript, as
 // the valid and invalid cases a rule of ESLint gives its RuleTester: each a trial, built under the
-// directory the suite gives, with what a sound module answers on it.
+// directory the suite gives, with what a sound module answers on it (the modules of language:
+// packages/grillhouse/docs/architecture/tests.md §3.3).
 //
 // - A repository of four packages: `@e/a`; `@e/b`, which depends on `@e/a`; `@e/c`, which depends
 //   on `@e/b`; `@e/m`, the shared test material (it exports `./test-fixtures`). Each has its

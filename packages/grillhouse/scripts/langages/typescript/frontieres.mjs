@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// The boundaries of the code, checked by dependency-cruiser. Its configuration
+// The boundaries of the code, the guard `frontieres` (packages/grillhouse/docs/architecture/tests.md
+// §3.4), checked by dependency-cruiser. Its configuration
 // (`.dependency-cruiser.cjs`) is generated from the components of the repository, like the index
 // of the interfaces; a project adds its own rules and options in `.dependency-cruiser.projet.cjs`
 // (`module.exports = { forbidden: [...], options: {...} }`), which the generated file reads when
@@ -11,7 +12,7 @@
 //   npx grillhouse frontieres           refuses a stale configuration, then runs dependency-cruiser
 //   npx grillhouse frontieres --ecrire  writes the configuration, and `.dependency-cruiser.projet.cjs`
 //                                       empty when the project has none, so that knip resolves
-//                                       the require of the configuration (grillhouse-b32)
+//                                       the require of the configuration
 //
 // The rules: no cycle; a package reaches another by its name, never by a path into its tree; a
 // module of `src/` reaches another by its entry (`index`); the code of `src/` imports no test; the
