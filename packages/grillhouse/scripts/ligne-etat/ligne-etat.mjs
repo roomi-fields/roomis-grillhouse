@@ -9,6 +9,7 @@
 // - The right part: `grillhouse-etat.txt` in the project's common git directory, which each
 //   measure of the follower writes (`scripts/suiveur.mjs`), dim, aligned on the terminal's width
 //   (COLUMNS), on the first line; nothing when that measure is older than 10 minutes.
+// Mechanism: greffon.md, §3.1 (the status line) and §4.3 (the status text).
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import os from 'node:os';

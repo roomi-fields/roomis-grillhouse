@@ -1,7 +1,7 @@
 // The follower of the board (`grillhouse tableau --suivre`): one producer that follows the events
 // and, at each measure, writes the status line's text (`grillhouse-etat.txt`) and the pane's line
 // (`grillhouse-tableau.ligne`) from that one measure, in the common git directory. The status line
-// and the pane are readers; as watchman or `tsc --watch` keep one watch and one state.
+// and the pane are readers. Mechanism: greffon.md, §5.3.
 //
 // - A measure follows an event: a change under `.beads/`, a change of the git state (HEAD, the
 //   references), a change of the set of circuits (a light poll of Temporal), the end of a bd or git

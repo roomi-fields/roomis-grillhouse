@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // The stop of the session of supervision: the hook Stop of the frame's plugin runs it
-// (`grillhouse attente-a-l-arret`) when the session ends its turn, to wait for the owner. As an
-// alert not acknowledged pages again (PagerDuty), the supervisor does not go to sleep while a
-// circuit waits for it (grillhouse-d4n.9: bf5 stopped on a question at 17:06, read 40 min later,
-// on the owner's word). It asks for no wait: the greffon pushes the questions of the circuits.
+// (`grillhouse attente-a-l-arret`) when the session ends its turn: the supervisor does not end its
+// turn while a circuit waits for it, as an alert not acknowledged pages again (PagerDuty). It asks
+// for no wait: the greffon pushes the questions of the circuits (greffon.md, §5.1).
 //
 // - Stop runs for the session itself, never for a sub-agent (SubagentStop). The session is the
 //   supervisor's as for the signal of the turn (`racineDeLaSupervision` of
@@ -13,10 +12,10 @@
 //   scripts/superviseur.mjs, a circuit ended without its issue included): the stop is blocked
 //   with each question, its ticket, its step and the command that answers it.
 // - Each question blocks once, by its key: it is noted in `.claude/worktrees/signale-a-l-arret.json`,
-//   which keeps the questions that still wait alone (an older note that holds a `etat` reads
-//   without error, the state dropped), so that a stop the supervisor decides (a question
-//   carried to the owner) is never held in a loop (`stop_hook_active` is not read; Claude Code
-//   caps the blocks in a row at eight in any case, hooks.md « Stop »).
+//   which keeps the questions that still wait alone (a note that holds an `etat` reads without
+//   error, the state dropped), so that a stop the supervisor decides (a question carried to the
+//   owner) is never held in a loop (`stop_hook_active` is not read; Claude Code caps the blocks
+//   in a row at eight in any case, hooks.md « Stop »).
 // - The block: the reason on the error stream, exit code 2, which Claude Code gives the session as
 //   its next instruction (hooks.md, « Exit code 2 behavior per event »).
 // - A server that does not answer, a note that cannot be written, an input that is no JSON: the

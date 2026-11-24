@@ -1,7 +1,8 @@
 #!/bin/bash
 # The default left part of the Grillhouse status line, for a person without a status line command
 # of their own: the model, the context used, the OpenRouter credit (cache 30 s) or the Anthropic
-# rate limits over 5 h and 7 days. Reads Claude Code's status line input on stdin.
+# rate limits over 5 h and 7 days. Reads Claude Code's status line input on stdin. Played by
+# scripts/ligne-etat/ligne-etat.mjs (greffon.md, §3.1).
 
 input=$(cat)
 

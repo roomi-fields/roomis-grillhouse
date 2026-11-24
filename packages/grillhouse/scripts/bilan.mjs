@@ -9,79 +9,57 @@
 // prints the bilan of <ticket>, read from the main tree of the current directory; `--garder` keeps
 // it too, as the circuit does, so the next ticket's bilan names it as its base.
 //
-// - Its sources are structured results, never a text (tests/unit/circuit-sans-texte-libre.spec.ts):
-//   the register of finished agents (`~/.claude/grillhouse/registre.jsonl`, GRILLHOUSE_REGISTRE
-//   replaces it), each agent's latest line on the ticket (its project the main tree, or a folder
-//   of it), its turns, its tokens, its cache reads and its cost, and the lines of the role
-//   `circuit` of the steps the circuit leads itself; the results the circuit keeps,
-//   `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time: the launch of each session the
-//   circuit opens or resumes (`lancement`: its role and its session id, the register line's
-//   `agent`), the sheet of each session (`{ role, fiche }`), the outcome of each proof
-//   (`resultat`: `ok`, its counts, `vide`) and of each check (`resultat`: `issue` vert, rouge or a-repasser, `finale`, its reds `rouges`), each
-//   stop (`arret`, its name, `finale`, the outcome of the checks it stops), each developpeur session that changed no file of the plan (`inchange`), the
-//   end of the questioning of the plan (`questionnement`: its `objet`, the questions the
-//   questionneur asked, `questions`, whether an answer changed the plan, `change`, its `issue`,
-//   AUCUNE, QUESTIONS or DÉSACCORD, and the questions left open, `ouvertes`), the end of the tri
-//   of the discoveries (`tri`: the discoveries it read, `decouvertes`, whether its sheet
-//   conformed, `conforme`, its verdicts by kind, `verdicts`; its sessions, the launches of object
-//   `tri`), each end of a run on
-//   a stop (`montee`: its code, its stop and the supervisor's session that ran it, `superviseur`);
-//   where the circuit ended (`{ etape, raison, code }`), which the end of the circuit gives its
-//   bilan (the effect `bilan`, scripts/effets.mjs) and the command reads from the Temporal server;
-//   the night the project declares in its package.json (`grillhouse.plageDeNuit`); the transcript
-//   of each supervisor's session a stop names (`~/.claude/projects/<projet>/<séance>.jsonl`), of
-//   which the origin and the time of each message, as ccusage measures from the transcripts. It
-//   reads no comment of the ticket. Every agent declares nothing: the bilan measures.
-// - The steps and the roles are those of scripts/etapes.mjs; a register line's role is read as the
-//   board reads it (`roleDeLAgent`: bare, or scoped by the frame's plugin, `grillhouse:<rôle>`, as
-//   the register writes it). Only the circuit's roles count, the
-//   explorateur of the plan among them. Only the sessions the circuit launched count in
-//   the window, the categories, the tokens and the cost; a session of a circuit's role on the
-//   ticket the circuit did not launch, the supervisor's, counts apart (`seances.horsCircuit`: its
-//   number, by role, its cost).
-// - The window: from the first turn of a session or a step to the last result of the circuit or
-//   the last turn; its length is the wall time.
+// - Its sources are structured results, never a text (tests/unit/circuit-sans-texte-libre.spec.ts),
+//   and no comment of the ticket: the register of finished agents (`~/.claude/grillhouse/
+//   registre.jsonl`, GRILLHOUSE_REGISTRE replaces it), each agent's latest line on the ticket
+//   (turns, tokens, cache reads, cost) and the lines of the role `circuit`; the results the circuit
+//   keeps, `.claude/worktrees/<ticket>.fiches.jsonl`, each with its time (`lancement`, the sheet
+//   `{ role, fiche }`, `resultat` of a proof or of a check, `arret`, `inchange`, `questionnement`,
+//   `tri`, `montee`), and where the circuit ended (`{ etape, raison, code }`, given by the effect
+//   `bilan` of scripts/effets.mjs and read from the Temporal server by the command); the night
+//   the project declares (`grillhouse.plageDeNuit`); the transcript of each supervisor's session
+//   a stop names (`~/.claude/projects/<projet>/<séance>.jsonl`), for the origin and the time of
+//   each message.
+// - The steps and the roles are those of scripts/etapes.mjs; a register line's role is read as
+//   the board reads it (`roleDeLAgent`: bare, or scoped `grillhouse:<rôle>`). Only the circuit's
+//   roles count; only the sessions the circuit launched count in the window, the categories, the
+//   tokens and the cost; a session of a circuit's role the circuit did not launch counts apart
+//   (`seances.horsCircuit`: its number, by role, its cost).
+// - The window runs from the first turn of a session or a step to the last result of the circuit
+//   or the last turn; its length is the wall time. A step `controles` whose outcome or stop is
+//   the final pass's (`finale`) is the final pass.
 // - Each turn of a session and each step finds its result: a step, the last outcome or stop of
 //   its step kept during it, before the next step of its name; a session, the first sheet of its
-//   role kept after its turn, before the next turn of any other. Every step is one for the whole ticket. A step `controles` whose
-//   outcome or stop is the final pass's (`finale`) is the final pass.
+//   role kept after its turn, before the next turn of any other.
 // - The categories, each instant once:
 //   - travail resté au lot: a session that delivered, the reviewer's included;
-//   - relance sans effet: a developer whose session changed no file of the plan (`inchange`, which
-//     the circuit measures), whatever stop follows it; a testwriter whose next
-//     proof finds the lot of the proof before it (the same counts of reds, greens of the lot,
-//     broken files and greens of HEAD), after a refused proof, or no file of the lot (`vide`:
-//     reds that exist already or of a build alone, no green of the lot); that proof; checks that
-//     play the same measure again (their outcome and their reds) with no delivery of the testwriter or the developpeur since the
-//     checks of their kind before (the final pass: since the final pass before);
-//   - questionnement: a session of the questionneur (kept: a look that did not write the plan, as
-//     a review);
-//   - attente du superviseur, attente du responsable, nuit: as the lead time of DORA separates the
-//     wait for review from the work, each wait runs from an end of a run on a stop (`montee`) to
-//     the first turn of a session or step after it, or the next result of the circuit, the first
-//     of the two; it is the owner's when he wrote during it, a message of the person
-//     (`origin.kind` « human ») in the supervisor's session the stop names; else the supervisor's;
-//     but its part in the night: the hours of
-//     `grillhouse.plageDeNuit` in the project's package.json (`{ debut, fin }`, in local time), from 23 h to 8 h without it;
+//   - relance sans effet: a developer whose session changed no file of the plan (`inchange`); a
+//     testwriter whose next proof finds the lot of the proof before it (same counts of reds,
+//     greens of the lot, broken files, greens of HEAD) or no file of the lot (`vide`), and that
+//     proof; checks that play the same measure again with no delivery since the checks of their
+//     kind before (the final pass: since the final pass before);
+//   - questionnement: a session of the questionneur;
+//   - attente du superviseur, attente du responsable, nuit: each wait runs from an end of a run on
+//     a stop (`montee`) to the first turn of a session or step after it, or the next result of the
+//     circuit; it is the owner's when a message of the person (`origin.kind` « human ») came in
+//     the supervisor's session the stop names, else the supervisor's; its part in the night is
+//     the hours of `grillhouse.plageDeNuit` (`{ debut, fin }`, local time), 23 h to 8 h without it;
 //   - étapes automatiques: the other steps the circuit leads, but the final passes;
 //   - passes finales: the final passes, but those without effect or replayed;
-//   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green: checks green again,
-//     a testwriter run again on a proven lot, its proof;
+//   - rejeu d'étapes déjà vertes: the same, on a lot unchanged since green;
 //   - entre deux étapes: the rest of the window.
 //   What is lost is the wall time out of the work, the questioning, the automatic steps and the
 //   final passes. The text gives the wall time and the wall time out of the night spent waiting
 //   (« hors nuit d'attente »: a night at work stays in it), the time lost and the time lost out of
 //   the waits.
-// - The bilan counts the sessions by role, the steps by their titles, the stops by kind (`arret`),
-//   the ends on a stop (the waits), the questions of the plan asked, the plans they changed and the
-//   questions left open, the tri of the discoveries on a line of its own when there was one (its
-//   sessions, its discoveries and its verdicts, or its sheet that did not conform), the tokens,
-//   the cache reads and the cost (a session without a cost
-//   counts 0); a session's tokens go to its turns by their time.
+// - It counts the sessions by role, the steps by title, the stops by kind (`arret`), the waits,
+//   the questions of the plan asked, the plans they changed and the questions left open, the tri
+//   of the discoveries on a line of its own, the tokens, the cache reads and the cost (a session
+//   without a cost counts 0); a session's tokens go to its turns by their time.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
-//   the latest other ticket of the project whose bilan is kept, its bilan computed again by this
-//   version from its sources (`precedent`), or with nothing when they give none: no figure kept by
-//   an earlier version, and none of another project, is written here.
+//   the latest other ticket of the project whose bilan is kept, recomputed by this version from
+//   its sources (`precedent`), or with nothing when none is: no figure kept by an earlier version,
+//   and none of another project, is written here.
 import { spawnSync } from 'node:child_process';
 import {
   closeSync,

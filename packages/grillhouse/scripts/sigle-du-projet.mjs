@@ -1,6 +1,5 @@
 // The short name of a project on the displays shared between projects (the line of the places, the
-// board of several projects): the key `grillhouse.sigle` of its package.json (grillhouse-1lf, the
-// owner's word of 2026-11-12), else its ticket prefix (`issue-prefix` of .beads/config.yaml,
+// board of several projects): the key `grillhouse.sigle` of its package.json, else its ticket prefix (`issue-prefix` of .beads/config.yaml,
 // ./prefixe-des-tickets.mjs). Read like the other keys `grillhouse.*` (./circuits-cles.mjs): as
 // written, a faulty value is named by its key.
 import { readFileSync } from 'node:fs';

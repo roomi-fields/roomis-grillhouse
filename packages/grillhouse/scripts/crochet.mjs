@@ -7,6 +7,7 @@
 // - The guard runs in this process, as if Node had been given its path, as `grillhouse` runs a
 //   subcommand (bin/grillhouse.mjs).
 // - A name that is not a hook of the frame is refused, named on the error stream; exit code 2.
+// These are git hooks; the hooks of Claude Code are those of mods/grillhouse/hooks/crochet.mjs.
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { CROCHETS } from './crochets.mjs';

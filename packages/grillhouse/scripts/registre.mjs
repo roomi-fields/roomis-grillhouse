@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 // The register of finished agents: one JSON line per agent that ends, written by a hook of the
 // frame's plugin (`grillhouse registre`: SubagentStop for a sub-agent, SessionEnd for a session, a
-// role agent launched in a shell included). An agent resumed by a message has one line per stop; the board
-// reads an agent's latest line, and the transcripts of running ones. The circuit of a ticket
-// (scripts/circuit.mjs) writes a line at the end of each step it leads itself, with no agent
+// role agent launched in a shell included). Mechanism: greffon.md, §5.5.
+// An agent resumed by a message has one line per stop; the board reads an agent's latest line. The
+// circuit of a ticket (scripts/circuit.mjs) writes a line at the end of each step it leads itself
 // (`ligneDEtape`: its role `circuit`, its step, one turn, no tokens). The workflow of the nights
 // (src/temporal/nuits/) writes a line for each night it skips (`ligneDeNuit`: its role `nuit`, no
-// ticket, no turn, the reason, the top and the reference compared), which the board counts nowhere;
-// the projects the register names are those whose night it plays.
+// ticket, no turn, the reason, the top and the reference compared), which the board counts
+// nowhere; the projects the register names are those whose night it plays.
 //
 // - The line: the project (the main tree of the directory the session opened in, which the hook
 //   reads in CLAUDE_PROJECT_DIR, else in its input's `cwd`), the agent, its ticket (« TON TICKET : »),
-//   its role,
-//   its start and end, its working time and the turns it sums (start and end in milliseconds, the
-//   waits for a message left out), its tokens, its cache reads and its cost. All of it is read from
-//   the agent's transcript; the agent declares nothing.
+//   its role, its start and end, its working time and the turns it sums (start and end in
+//   milliseconds, the waits for a message left out), its tokens, its cache reads and its cost. All
+//   of it is read from the agent's transcript; the agent declares nothing.
 // - The cost is the total the session writes, as ccusage keeps it; without one, or with a total of
 //   0 for tokens spent (a sub-agent's transcript holds none), it is the usage of each model at its
 //   tariff (`TARIFS`), as Claude Code reckons it. A model without a tariff that spent tokens leaves
@@ -22,20 +21,19 @@
 // - The register is `~/.claude/grillhouse/registre.jsonl` (GRILLHOUSE_REGISTRE replaces it): the
 //   envelope of a role agent leaves it writable.
 // - A hook never stops the session, and never waits for a transcript: it hands the fields of its
-//   input that the line reads to a detached process (`--ecrire`) and ends at once, so a session of several hundred MB closes
-//   before Claude Code's hook time limit. The detached process reads the transcript in chunks
-//   (`lireFichier` in tableau.mjs), never whole; a transcript it cannot read writes nothing.
+//   input that the line reads to a detached process (`--ecrire`) and ends at once, within Claude
+//   Code's hook time limit. The detached process reads the transcript in chunks (`lireFichier` in
+//   tableau.mjs), never whole; a transcript it cannot read writes nothing.
 // - One stop has one line: the write holds the register's lock (`prendreVerrou`, judged by the
 //   lock's age, since a role agent's envelope and the outside do not share process numbers),
 //   and skips a line whose agent and end the register already holds. The hook and
 //   `--rattraper` write the same way.
 // - `npx grillhouse registre --copie <copie>` writes the lines of the sessions of an agent's copy
 //   the register does not hold yet, whatever their age: the launcher (scripts/enveloppe/lancer.sh)
-//   runs it once the envelope has ended, outside it, so a role agent's line no longer rests on its
-//   end hook alone.
+//   runs it once the envelope has ended, outside it.
 // - `npx grillhouse registre --rattraper` writes the lines of the project's finished agents the
-//   register does not hold yet: those that ended before the hook existed, read from their
-//   transcripts (the project's sessions and their sub-agents, the agents' copies). A transcript
+//   register does not hold yet, read from their transcripts (the project's sessions and their
+//   sub-agents, the agents' copies). A transcript
 //   that the board shows running (`tourne` in tableau.mjs: moved in the last 2 minutes, or, for a
 //   sub-agent, its last tool call awaiting its answer within 30 minutes) waits for its hook.
 import { execFileSync, spawn } from 'node:child_process';

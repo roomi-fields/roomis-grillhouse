@@ -4,7 +4,8 @@
 # the grill. Read-only; silent on every other message, including one that merely mentions structure,
 # and to a session of a role agent of the frame (`claude --agent <rôle>`: the input names it,
 # `agent_type`, bare or as `grillhouse:<rôle>`, and the frame's plugin defines it,
-# `$CLAUDE_PLUGIN_ROOT/agents/<rôle>.md`), whose instruction is a ticket's.
+# `$CLAUDE_PLUGIN_ROOT/agents/<rôle>.md`), whose instruction is a ticket's. Mechanism: greffon.md,
+# §3.2.
 entree="$(cat)"
 role="$(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s).agent_type;if(typeof a==="string"&&/^[A-Za-z0-9_:-]+$/.test(a))process.stdout.write(a)}catch{}})')"
 racine="${CLAUDE_PROJECT_DIR:-$PWD}"

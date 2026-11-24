@@ -1,8 +1,6 @@
 // The stop of an agent of a team with an unread message: the hooks SubagentStop and TeammateIdle
-// of the frame's plugin run it (`grillhouse messages-non-lus`), as a consumer of a queue (SQS,
-// Kafka) does not stop with messages it has not acknowledged. A message SendMessage leaves in the
-// box of an agent while the agent writes its last answer is otherwise read by no one: the agent
-// ends its turn and waits, and the instruction waits with it.
+// of the frame's plugin run it (`grillhouse messages-non-lus`), as a consumer of a queue does not
+// stop with messages it has not acknowledged. Mechanism: greffon.md, §3.2.
 //
 // - The box of an agent is `~/.claude/teams/<équipe>/inboxes/<nom>.json`, an array of entries
 //   `{ from, text, summary, timestamp, msg_id, read }`, which Claude Code writes and marks read

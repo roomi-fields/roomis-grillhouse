@@ -4,6 +4,7 @@
 //   node "${CLAUDE_PLUGIN_ROOT}/hooks/crochet.mjs" <sous-commande>
 //
 // with Node alone, before any installation, as Husky's hooks run before the project's tools.
+// Mechanism: greffon.md, §2 (choices 1 and 6) and §3.1.
 //
 // - The project is `CLAUDE_PROJECT_DIR`, else the working directory; its command is
 //   `node_modules/.bin/grillhouse`, which the project's `npm install` links (the package
@@ -11,7 +12,8 @@
 //   tree's (the parent of `git rev-parse --git-common-dir`) and runs with the worktree as its
 //   working directory: the code that judges is not the code of the copy it judges.
 // - The common charter reaches each session, a subagent's included, by the import of the
-//   project's CLAUDE.md, from the package installed, which Claude Code loads whole; no hook writes it, since Claude Code caps a hook's output (10,000 characters).
+//   project's CLAUDE.md, from the package installed, which Claude Code loads whole; no hook writes
+//   it, since Claude Code caps a hook's output (10,000 characters).
 // - Each subcommand runs `grillhouse <sous-commande>`; without the command, `session-start` writes
 //   a section that says to run `npm install`, and any other subcommand exits 0 and writes nothing.
 // - The command receives the hook's input on its standard input, writes on the hook's outputs, and

@@ -1,119 +1,77 @@
 #!/usr/bin/env node
-// The board of a project, on three levels, measured on Beads, the register of finished agents,
-// the transcripts of running ones and the running processes — never on what an agent declares.
-// The Grillhouse mod shows its lines; `npm run tableau` prints them.
+// The board of a project: a measure of Beads, the register of finished agents, the transcripts of
+// running agents, the circuits' views and the running processes, never of what an agent declares.
+// The Grillhouse mod shows its lines; `npm run tableau` prints them. Mechanism: greffon.md, §5.3.
 //
-//   npx grillhouse tableau            the board, as JSON (with its lines, 52 columns wide)
+//   npx grillhouse tableau            the board, as JSON (its lines 52 columns wide)
 //   npx grillhouse tableau --texte    the board, as text
-//   npx grillhouse tableau <dossier>… the board of this project and of the projects in <dossier>…,
-//                                     one board, each ticket prefixed by its project (`ensemble`)
+//   npx grillhouse tableau <dossier>… one board of this project and of the projects in <dossier>…,
+//                                     each ticket prefixed by its project (`ensemble`)
+//   npx grillhouse tableau --suivre   the follower (`scripts/suiveur.mjs`)
 //
-//   npx grillhouse tableau --suivre   the follower (`scripts/suiveur.mjs`): measures on events and
-//                                     writes the status line (`grillhouse-etat.txt` in the common
-//                                     git directory, which `scripts/ligne-etat/` reads) and one
-//                                     JSON board per line, from one measure.
-//
-// - Global: the work tickets of the project (a ticket without children; a mother is a grouping)
-//   by state, the agents' working time and tokens of the day and in all, the alerts. The head's
-//   first line counts the signs AGENTS shows (`etatsDAgents`, the one source: « ▶ N · ⏸ N · ⛔ N
-//   · N faits », a ticket closed and not integrated counted under its sign, not as done), one line
-//   per project on a board of several; the line of the queues counts the tickets blocked
-//   by an open ticket; the status line says the same signs in the same words.
-// - Agents: the tree of the steps of the process (scripts/etapes.mjs), one block per step and
-//   sub-step, with who works there, for the whole project. A ticket stands at a step only by its
-//   circuit (below) or by an agent that runs on it, at that agent's step; a ticket in the queue,
-//   its circuit not launched, stands at no step.
-// - Circuits: one entry per known ticket, open or closed, whose circuit (scripts/circuit.mjs) is
-//   launched and not integrated, read from the Temporal server in one call
-//   (scripts/circuits-du-serveur.mjs, the memo of its workflow), so that the ticket stands in
-//   AGENTS at every instant from the launch of its circuit to its end: it runs while its workflow
-//   runs with no question awaited, and stands at the step of its last state, with its attempt,
-//   every step one for the whole ticket, a running one with no known state at the step of its
-//   stop, else at the plan (1); while the explorateur or the questionneur works on its plan
-//   (`questionnement`, of the plan), it stands at the plan (1); waiting for the supervisor
-//   (`attendLeSuperviseur`, the one rule the opening and the greffon's reading read too:
-//   stopped, « à repasser » included, but by the supervisor's « arrete », or ended without its
-//   issue), it stands under the stopped step after a line « ⤷ Question · <qui> », who must answer
-//   it, the supervisor or the owner, the supervisor when it names no question; its card opens on
-//   that question, or on the stop (its name and code) and the first line of its reason.
-// - Readings: a reading of the circuits or of the tickets that fails (the Temporal server silent
-//   or at fault, Beads at fault) gives way to the last one that succeeded, kept in the common git
-//   directory (`lectureGardee`, `tableau-lu-<quoi>.json`), its age in the alert that names the
-//   fault; a project beside the session's says the faults of its own reading.
+// Lines: the head, AGENTS, CHANTIER, then FAITS AUJOURD'HUI, every line of each list shown; a
+// line folds only lines of another state (« + 2 prêts ») or chantiers not in progress.
+// - Head: the work tickets (a ticket without children; a mother is a grouping) by state; its first
+//   line counts the signs AGENTS shows (`etatsDAgents`, « ▶ N · ⏸ N · ⛔ N · N faits »; a ticket
+//   closed and not integrated counts under its sign, not as done), one line per project on a board
+//   of several; the status line says the same signs in the same words.
+// - AGENTS: the tree of the steps (scripts/etapes.mjs), one block per step and sub-step. A ticket
+//   stands at a step only by its circuit or by an agent that runs on it; a ticket in the queue,
+//   its circuit not launched, stands at no step. A circuit (scripts/circuit.mjs) launched and not
+//   integrated is read from the Temporal server in one call (scripts/circuits-du-serveur.mjs): it
+//   stands at the step of its last state, else at the plan (1), also while the explorateur or the
+//   questionneur works (`questionnement`). One that waits for the supervisor
+//   (`attendLeSuperviseur`, the rule `questionsEnAttente` of scripts/superviseur.mjs reads too)
+//   shows « ⤷ Question · <qui> » under its step;
+//   its card opens on that question, or on the stop (name, code) and the first line of its
+//   reason.
+// - Readings: a reading of the circuits or of the tickets that fails gives way to the last one
+//   that succeeded (`lectureGardee`, `tableau-lu-<quoi>.json` in the common git directory), its
+//   age in the alert that names the fault; a project beside the session's says its own faults.
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
-//   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures: wall time, share lost,
-//   sessions, cost.
-// - Chantier: a root epic with work in progress, its tree of mothers, each with its work tickets
-//   done over all; the tree shows the open work: a closed ticket, mother included, counts without
-//   a line, and a closed mother's open tickets take her place. The other chantiers, one line each.
-//   Then the tickets closed today.
-// - Lines: the head, AGENTS, CHANTIER, then FAITS AUJOURD'HUI, every line of each list shown; a
-//   line folds only lines of another state (the tree's « + 2 prêts ») or the chantiers not in
-//   progress.
-// - Measures: a finished agent from the register (`scripts/registre.mjs`), a running one from its
-//   transcript: a role agent launched in a shell (its envelope's process, which names its copy
-//   and its role) while that process runs, a sub-agent or a session whose transcript moved in the
-//   last 2 minutes.
-//   With an end in the register, it runs only when an incoming message (of the person, another
-//   agent, a notification) follows its latest end strictly (a reviewer resumed by a message); the
-//   writings of its last turn after that end leave it finished, measured by that latest end.
-//   A sub-agent, whatever its role, runs also while its last tool call awaits its answer, its
-//   transcript having moved in the last 30 minutes; a session keeps the 2-minute rule alone. The
-//   board reads no transcript older than 30 minutes: a shell agent whose transcript is older shows
-//   by its process alone.
-// - Time: a transcript's working time is the union of its turns, each bounded by the earliest and
-//   the latest date of its events, whatever their order in the file, but those a resumption writes
-//   before its incoming message (`horsDuTour`); a transcript is read where the
-//   board stopped, its reading kept in the cache file. A ticket's working time adds the steps its
-//   circuit leads itself, with no agent (the proof, the checks, the final pass, the integration,
-//   the queue): the register's lines of the role `circuit`, which no block shows and no role of the
-//   flow counts as a passage, and the step under way of a running circuit (`mene` in its state) up
-//   to now; they count out of the turns of the ticket's agents, so the ticket's time is the union
-//   of both, each instant once, and they spend no tokens.
-// - Progress: the line of a ticket whose circuit runs an automatic step gives the progress of
-//   its pass, read in the progress directory its state names (scripts/avancement.mjs), in
-//   figures, as Bazel's counter of actions: « faits/prévus · <durée> » since the start of the
-//   pass, after the counters of its loops, or in their place when room lacks (the subject is cut,
-//   never the figures nor the ticket's number); the queue (5.2) shows no wait for a CI. Past FIGEE
-//   without a sign, « figée <durée> · faits/prévus », the time since its last sign, signed ⛔ in
-//   the tone of an alert.
-// - The parts of the machine (scripts/places-de-la-machine.mjs, read by `lireLaMesure`), as Slurm's
-//   `squeue` names who holds what and what a job waits for. A part held or waited for by a circuit
-//   AGENTS shows on a line (a circuit, a ticket led in direct, a ticket worked out of a circuit,
-//   an agent) stands on that ticket's line, « 🔒 » (it holds a part) or « ⏳ » (it waits for one)
-//   after the head, before the subject, never in place of its sign: « · <sorte> · 2 cœurs ·
-//   <durée> » since it took its part, with « ⚠ » and what it consumes beyond its part when it
-//   does, « · <sorte> figée <durée> » past FIGEE without a sign, « · attend 2 cœurs · 26 réservés
-//   sur 28 · <durée> » for a wait, the kind in lower case; a circuit adds faits/prévus, and says
-//   it in place of the progress of its pass. The block at the head of AGENTS (`lignesDesParts`)
+//   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures.
+// - CHANTIER: a root epic with work in progress, its tree of mothers with their work tickets done
+//   over all; a closed ticket, mother included, counts without a line, and a closed mother's
+//   open tickets take her place. The other chantiers, one line each.
+// - Running: a finished agent is measured from the register (scripts/registre.mjs), a running one
+//   from its transcript: a role agent launched in a shell while its envelope's process runs, a
+//   sub-agent or a session whose transcript moved in the last 2 minutes. With an end in the
+//   register, an agent runs again only when an incoming message follows its latest end strictly.
+//   A sub-agent also runs while its last tool call awaits its answer, its transcript having
+//   moved in the last 30 minutes; the board reads no transcript older than 30 minutes.
+// - Time: a transcript's working time is the union of its turns (`horsDuTour` leaves out what a
+//   resumption writes before its incoming message), read where the board stopped, its reading in
+//   the cache file. A ticket's time adds the steps its circuit leads itself (the register's lines
+//   of the role `circuit`, and the step under way, `mene`, up to now), each instant once, with no
+//   tokens.
+// - Progress: the line of a ticket whose circuit runs an automatic step gives « faits/prévus ·
+//   <durée> » read in the progress directory its state names (scripts/avancement.mjs), as Bazel's
+//   counter of actions; the subject is cut when room lacks, never the figures nor the number.
+//   Past FIGEE without a sign: « figée <durée> · faits/prévus », signed ⛔.
+// - Parts (scripts/places-de-la-machine.mjs, read by `lireLaMesure`), as Slurm's `squeue` names
+//   who holds what: a part held or waited for stands on the ticket's line, « 🔒 » (holds) or « ⏳ »
+//   (waits) after the head, before the subject: « · <sorte> · 2 cœurs · <durée> », with « ⚠ » when
+//   it consumes beyond its part, « · <sorte> figée <durée> » past FIGEE, « · attend 2 cœurs · 26
+//   réservés sur 28 · <durée> » for a wait. The block at the head of AGENTS (`lignesDesParts`)
 //   keeps the budget taken, « Parts · 2 passes · 6 sur 8 cœurs · 11 sur 16 Go », which counts
-//   every pass that holds a part, those of a ticket the board does not show included, which
-//   has no other trace; and the lines of the passes with no ticket (a check launched by hand, the
-//   night, a measure): « 🔒 <sorte> · <projet> · 4 cœurs · 8 Go », with « ⚠ », then each one that
-//   waits, in the order of its rank, « ⏳ <sorte> · <projet> · attend <raison> » (cores, memory,
-//   load, with the figures). Such a line is marked `avancement`, which the pane measures again
-//   more often.
-// - Signs: each sign keeps one sense (the owner's decisions of 2026-11-01 and 2026-11-12). A
-//   ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step works (cyan,
-//   the hollow ▷ in a short circuit, counted with it),
-//   a ticket led in direct included; ⏸ it waits, under the step about to be launched, the reason
-//   on its right (« attend une place », « verrou », « disque », « démarre » in grey, the
-//   circuit waiting for the machine; « question au superviseur », « question au responsable »,
-//   « arrêté » in yellow, the circuit waiting for someone); ⛔ it stopped on a fault or its pass is
-//   frozen, to correct (red). On a ticket's line, after its head: 🔒 its pass holds a part, ⏳ it
-//   waits for one; at the head of AGENTS, the same two for a pass with no ticket, and 🌙 the night
-//   under way. The alerts: 💤 a ticket
-//   claimed with nothing running, 🌙 a red night, ⚠ the alerts without a kind of their own. A
-//   sign two columns wide stands as the others, a sign then a space; the width of a line counts
-//   its columns (`colonnes`), ⏳ and ⛔ two.
-// - Alerts: one alert per open night ticket (🌙, its subject, then its number), per circuit that
-//   waits for the supervisor (⏳, how long), a shell agent silent for 10 minutes, a ticket in
-//   progress without anything running for 30 minutes (💤), each with its state (`etat`).
-// - Tones: each state the board shows has one tone, defined once (`TONS`), which every line and
-//   every alert takes, whatever its duration or the line that shows it: red for what asks for a
-//   correction (frozen, a fault, a question with no live wait, a ceiling refused), yellow for what
-//   waits for someone (the supervisor, the owner), grey for what waits for the machine (a place,
-//   a part, the disk, the CI), cyan for what runs.
+//   every pass that holds a part, a ticket the board does not show included, then the passes with
+//   no ticket (« 🔒 <sorte> · <projet> · 4 cœurs · 8 Go »), then each wait in the order of its
+//   rank (« ⏳ <sorte> · <projet> · attend <raison> »). Such a line is marked `avancement`, which
+//   the pane measures again more often.
+// - Signs: a ticket's line in AGENTS takes one of three, by the tone of its state: ▶ its step
+//   works (cyan; ▷ in a short circuit, a ticket led in direct included); ⏸ it waits, the reason on
+//   its right (« attend une place », « verrou », « disque », « démarre » in grey, waiting for the
+//   machine; « question au superviseur », « question au responsable », « arrêté » in yellow,
+//   waiting for someone); ⛔ it stopped on a fault or its pass is frozen (red). At the head of
+//   AGENTS, 🔒 and ⏳ for a pass with no ticket, 🌙 the night under way. Alerts: 💤 a ticket
+//   claimed with nothing running, 🌙 a red night, ⚠ the others. A sign is followed by a space; the
+//   width of a line counts its columns (`colonnes`), ⏳ and ⛔ two.
+// - Alerts: one per open night ticket (🌙), per circuit that waits for the supervisor (⏳, how
+//   long), a shell agent silent for 10 minutes, a ticket in progress with nothing running for 30
+//   minutes (💤), each with its state (`etat`).
+// - Tones (`TONS`), defined once, taken by every line and alert: red for what asks for a
+//   correction, yellow for what waits for someone, grey for what waits for the machine, cyan for
+//   what runs.
 import { execFileSync } from 'node:child_process';
 import {
   closeSync,
@@ -758,8 +716,7 @@ export function lireVivant({ racine, home, prefix, maintenant, ps, cache = {} })
  * Whether the circuit <c>, as scripts/circuits-du-serveur.mjs reads it, waits for the supervisor:
  * not running on its own, not integrated, and ended without its issue, on a question, or stopped (any stop but the
  * supervisor's own « arrete », « à repasser » included: the supervisor resumes it once the machine
- * is free). The
- * one rule of the questions that wait for the supervisor (grillhouse-pq6), which the board reads,
+ * is free). The one rule of the questions that wait for the supervisor, which the board reads,
  * and `questionsEnAttente` of scripts/superviseur.mjs, the one source of the opening and of the
  * greffon's reading of the questions.
  * @param {{ vivant: boolean, integre?: boolean, interrompu: boolean, question: string | null, arret: string | null }} c
@@ -1155,7 +1112,7 @@ export function assembler({
       ...(m.tours ? { travail: partDuJour(m.tours) } : {}),
       ...(m.minutes ? { jetons: jetonsDuJour(m.minutes) } : {}),
     }));
-  // The discoveries (label `decouverte`, grillhouse-3uv.96): each counts in one case, the first that
+  // The discoveries (label `decouverte`): each counts in one case, the first that
   // applies. « rejetés » and « validés » count only since the day's marker <jour>; « new » and
   // « →check », states that await the owner, do not filter by it.
   const aLabel = (t, ...ls) => ls.some(l => (t.labels ?? []).includes(l));
@@ -1289,7 +1246,7 @@ export function assembler({
     });
   }
   const debutJour = jour;
-  // The way of a ticket done (grillhouse-592): `direct` when labelled so; else the way its kept
+  // The way of a ticket done: `direct` when labelled so; else the way its kept
   // results give (`voies`, `voiesDesCircuits`: `court` for the short circuit, else `complet`); else
   // `complet` when a circuit led a step of it (the register) or is read for it; else `direct`,
   // closed with no circuit.
@@ -1645,7 +1602,7 @@ function temoinDe(c, maintenant) {
 }
 
 // A ticket's time and tokens, « 12 min · 310 k »; nothing when both are zero.
-// The sign of a ticket done by its way (grillhouse-592): a full circuit, a short one (its gesture
+// The sign of a ticket done by its way: a full circuit, a short one (its gesture
 // played by a command, 1.1, or written by hand), a ticket led directly.
 export const SIGNE_DE_LA_VOIE = Object.freeze({ complet: '●', court: '○', direct: '✎' });
 
@@ -1968,7 +1925,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         L(cadre(`${i ? retrait : colonneDe(p.etiquette)}${x.texte}`, '', largeur), x.ton)
       );
     }
-    // The discoveries of the day, summed across the projects (grillhouse-3uv.96, criterion 14).
+    // The discoveries of the day, summed across the projects.
     const d96 = t.decouvertes ?? { new: 0, check: 0, rejetes: 0, valides: 0 };
     L(
       cadre(
@@ -1997,7 +1954,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     for (const x of lignesDActeurs(c, comptesDAgents(t).arretes)) {
       L(cadre(x.texte, '', largeur), x.ton);
     }
-    // The discoveries of the day, one count per case (grillhouse-3uv.96): always shown, at 0 when
+    // The discoveries of the day, one count per case: always shown, at 0 when
     // nothing counts, like the other head lines.
     const d = g.decouvertes ?? { new: 0, check: 0, rejetes: 0, valides: 0 };
     L(
@@ -2191,7 +2148,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
     ...[...(t.circuits ?? []), ...(t.horsCircuit ?? []), ...montres].map(x => nomme(x).length)
   );
   // A ticket's line in AGENTS: « <signe> <numéro>  <sujet> … <droite> »; on several projects'
-  // board « <[projet]> <id>  <sujet> … <signe> <droite> », the owner's maquette (grillhouse-erp.1).
+  // board « <[projet]> <id>  <sujet> … <signe> <droite> ».
   // The icon of its pass (🔒 holds a part, ⏳ waits for one) follows the head, before the subject.
   const teteDe = (signe, x) =>
     `${
@@ -2794,7 +2751,7 @@ export function dossierCommun(racine) {
   }
 }
 
-// The file of the day's marker (grillhouse-3uv.96), beside the board's cache; null without a common
+// The file of the day's marker, beside the board's cache; null without a common
 // dir. Unversioned, out of the worktree: the board does not reset at midnight.
 const fichierDuRepere = commun => commun && path.join(commun, 'tableau-repere.json');
 
@@ -2823,7 +2780,7 @@ export function lireLeRepere(commun, maintenant) {
 }
 
 // Sets the day's marker of the project at <racine> to <quand> (now by default), purging FAITS
-// AUJOURD'HUI and the « rejetés » and « validés » cases up to it (grillhouse-3uv.96, /newday).
+// AUJOURD'HUI and the « rejetés » and « validés » cases up to it (`/newday`).
 export function poserLeRepere(racine, quand = Date.now()) {
   const commun = dossierCommun(racine);
   if (!commun) {
@@ -2957,7 +2914,7 @@ function lireLesPlaces() {
   }
 }
 
-// The boards of several projects as one (grillhouse-erp.1), as the multi-root explorer of VS Code
+// The boards of several projects as one, as the multi-root explorer of VS Code
 // keeps one view and files each root under its name: <lus> holds each project's label
 // (`etiquette`, its ticket prefix), the root of its main tree (`racine`, by which the places of
 // its circuits are counted) and its board (`t`) or the fault that keeps it out (`erreur`),

@@ -1,70 +1,51 @@
 #!/usr/bin/env node
-// One supervisor per project, as Zuul has one scheduler: a session of supervision holds the lock
-// of its repository, and a second one reads it, says so, and launches no circuit. Played by the
-// session start (scripts/session-start.sh), which writes what it says to the session.
+// The lock of the supervisor of a project, and the reading of the questions of its circuits.
+// Mechanism: greffon.md, §5.1 and §5.2. Played by the session start (scripts/session-start.sh),
+// which writes what it says to the session.
 //
 //   npx grillhouse superviseur <racine>
 //
 // - Out of a git repository, in an agent's copy (a worktree whose git directory is not the common
-//   one) and in a session of a role that the circuit launches (BEADS_ACTOR set: the author of its
-//   comments at the ticket), nothing is taken and nothing is said.
+//   one) and in a session of a role that the circuit launches (BEADS_ACTOR set), nothing is taken
+//   and nothing is said.
 // - The lock is `<git common dir>/grillhouse-superviseur.lock`, one for the repository and its
 //   copies, taken through scripts/verrou-de-fichier.mjs for the session's own process: the first
-//   process above this one named `claude`, whatever stands between them (the hook of the greffon,
-//   the frame's command, a shell); without one, the first that is not a shell (sh, bash, dash, zsh).
-//   It holds as long as that process lives: a lock whose process is gone is taken over.
-// - Free, or held by a process that is gone: taken, nothing said of it. Held by the session itself
-//   (a session reopened in the same process, by a compaction or a /clear): kept, nothing said of
-//   it, circuits included. Held by another live session: the
-//   lock stays, and the section « ## Un autre superviseur tient ce dépôt » names its process and
-//   since when it holds the lock, and asks to say so to the owner and to launch no circuit
-//   (skill pitmaster, « Au lancement de la séance »).
-// - The session whose opening takes the lock (not one that keeps it) receives
-//   (`circuitsALOuverture`) the section « ## Les questions des circuits », which says that the
-//   greffon of the session pushes the questions into its queue of messages and that the answer
-//   acknowledges them, then, when the repository has some (read from the Temporal server in one
-//   call, scripts/circuits-du-serveur.mjs), « ## Les circuits du dépôt »: each circuit that runs,
-//   named; each circuit stopped on a question, with its question and the command that answers it; each
-//   circuit ended without its issue, with the command that resumes it (`--reprendre` from its last
-//   state written, else `--depuis <testwriter|developpeur> --contexte <texte>`), which the
-//   supervisor launches without waiting for the owner's word; their ticket open, and the stopped
-//   and the ended ones then gone up; a server that does not answer is said; then « ## La file des
-//   tickets », the tickets of the queue without their section « ## Architecture », which the
-//   queue never starts (scripts/file-des-tickets.mjs), for the supervisor to write it. A circuit
-//   runs on the worker of the project, apart from the sessions, its launch returns at once, and its
-//   question reaches the supervisor by the push of the greffon (below). The queue of the
-//   tickets under Temporal (src/temporal/tickets/) launches the tickets `circuit`, not the opening.
+//   process above this one named `claude`, whatever stands between them; without one, the first
+//   that is not a shell (sh, bash, dash, zsh). It holds as long as that process lives.
+// - Free, or held by a process that is gone: taken, nothing said. Held by the session itself (a
+//   compaction or a /clear): kept, nothing said, circuits included. Held by another live session:
+//   the section « ## Un autre superviseur tient ce dépôt » names its process and since when, and
+//   asks to say so to the owner and to launch no circuit.
+// - The session whose opening takes the lock (`circuitsALOuverture`) receives « ## Les questions
+//   des circuits », then, when the repository has circuits (read from the Temporal server in one
+//   call, scripts/circuits-du-serveur.mjs), « ## Les circuits du dépôt »: each circuit that runs;
+//   each circuit stopped on a question, with the command that answers it; each circuit ended
+//   without its issue, with the command that resumes it (`--reprendre` from its last state
+//   written, else `--depuis <testwriter|developpeur> --contexte <texte>`); a server that does not
+//   answer is said; then « ## La file des tickets », the tickets of the queue without their
+//   section « ## Architecture », which the queue never starts (scripts/file-des-tickets.mjs).
 // Exit 0, whatever it finds.
 //
 //   npx grillhouse superviseur --relever [<dossier>]
 //
-// - One reading of the circuits for the greffon of the session of supervision (mods/grillhouse/
-//   hooks/register.tsx), which runs it at each period and submits what it writes to the session,
-//   in the queue of its messages (`$.prompt.submit`): the questions of a circuit are given as a
-//   queue gives its messages, and the answer acknowledges them. It reads nothing and writes
-//   nothing unless the session that runs it holds the lock of the supervisor (the one above); a
-//   lock whose process is gone is taken over by the session that reads, as the opening does. It
-//   writes the message of the reading (`texteDesQuestions`) when `relever` gives something,
-//   nothing otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` is at
-//   fault. A reading is one reading: no process waits.
-// - A question has three states the greffon keeps in the file of the stops gone up: sent (put in the
-//   message of the session by `relever`), read (a turn of the session started with that message,
-//   `superviseur --lue <dossier> <lueA> <envoyeesAvant>`, or the opening listed it), answered (it
-//   leaves the file). It comes back only once read, <rappelMs> after its reading, as SQS counts the
-//   visibility timeout of a message from its reception: one still in the queue is never sent again.
-//   `superviseur --chez-le-responsable <dossier> <ticket>` (the answer `--chez-le-responsable` of
-//   the circuit) marks a question carried to the owner: silent until the circuit answers.
+// - One reading of the circuits for the greffon (mods/grillhouse/hooks/register.tsx), which runs
+//   it at each period and submits what it writes. It reads and writes nothing unless the session
+//   that runs it holds the lock; a lock whose process is gone is taken over by the session that
+//   reads. It writes the message (`texteDesQuestions`) when `relever` gives something, nothing
+//   otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` is at fault.
+// - `superviseur --lue <dossier> <lueA> <envoyeesAvant>` marks read the questions sent up to
+//   `envoyeesAvant`; `superviseur --chez-le-responsable <dossier> <ticket>` marks a question
+//   carried to the owner: silent until the circuit answers.
 // - `relever` is the one function of the reading, of the re-presentation and of the file of the
-//   stops gone up: each question of a circuit that never went up or that was read <rappelMs> ago
-//   (`grillhouse.rappel` minutes, 10 by default, scripts/circuits-cles.mjs) is given,
-//   once per due time, while its circuit stands on the same stop; one answered (its
-//   circuit left the stop) leaves the file `.claude/worktrees/questions-remontees.json` and is not
-//   given again. The stops are kept there each by its ticket, the run of its workflow, the rank of
-//   its question in that run and its stop, with the time of the first going up and of the last
-//   presentation. The end of a circuit integrated is given once (`integre`), kept in
-//   `.claude/worktrees/integrations-rendues.json`, and the alert of the CI of main (a red, or a CI
-//   not read, scripts/ci-de-main.mjs) once per passage (`.claude/worktrees/ci-de-main-rendue.json`),
-//   cleared at the next green.
+//   stops gone up: a question that never went up, or was read <rappelMs> ago (`grillhouse.rappel`
+//   minutes, 10 by default, scripts/circuits-cles.mjs), is given once per due time while its
+//   circuit stands on the same stop; one answered leaves the file
+//   `.claude/worktrees/questions-remontees.json`. A stop is kept there by its ticket, the run of
+//   its workflow, the rank of its question in that run and its stop, with the times of the first
+//   going up and of the last presentation. The end of a circuit integrated is given once
+//   (`integre`), kept in `.claude/worktrees/integrations-rendues.json`, and the alert of the CI of
+//   main (a red, or a CI not read, scripts/ci-de-main.mjs) once per passage
+//   (`.claude/worktrees/ci-de-main-rendue.json`), cleared at the next green.
 // - The reading covers the project and each other project of its group (`grillhouse.groupe`) that
 //   no other live session of supervision holds, each under its name and its folder.
 import { spawnSync } from 'node:child_process';

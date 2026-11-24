@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The signal of the supervisor's turn: the hook UserPromptSubmit of the mod runs it at each turn
 // of a session of supervision (`npx grillhouse attente-au-tour`), and what it writes reaches the
-// session. A question of a circuit must never stay mute, as a review requested on GitHub is named
-// again until it is answered.
+// session. A question of a circuit is named again until it is answered, as a review requested on
+// GitHub is. Mechanism: greffon.md, §5.1.
 //
 // - It names each circuit that waits for the supervisor (`questionsEnAttente`, the one source of
 //   the opening and of the greffon's reading), a circuit ended without its issue included: its

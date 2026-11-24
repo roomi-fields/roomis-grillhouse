@@ -1,3 +1,6 @@
+// The types of the board that the panel module (hooks/register.tsx) reads: the JSON line the
+// follower writes at each measure (`Tableau`) and its lines, composed by scripts/tableau.mjs
+// (greffon.md, §4.2).
 export type Ton = 'titre' | 'alerte' | 'attention' | 'actif' | 'discret'
 // `ticket`: the id of the ticket a line names, which makes the line selectable. `chantier`: the line is an epic's, which the pane switches on or off. `section`: the board's
 // section the line belongs to. `groupe`: the key of the folded group the line stands for, which `o`

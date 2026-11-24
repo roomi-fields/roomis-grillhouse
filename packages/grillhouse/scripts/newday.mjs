@@ -1,7 +1,7 @@
 // `grillhouse newday`: sets the day's marker of the project to now (scripts/tableau.mjs,
 // `poserLeRepere`). FAITS AUJOURD'HUI and the board's « rejetés » and « validés » cases then count
-// only since it, while « new » and « →check » stay (grillhouse-3uv.96). The mod's command
-// /grillhouse:newday runs it.
+// only since it, while « new » and « →check » stay. The mod's command /grillhouse:newday runs it
+// (greffon.md, §4.1, the day's marker).
 import { pathToFileURL } from 'node:url';
 import { poserLeRepere } from './tableau.mjs';
 

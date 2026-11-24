@@ -1,53 +1,40 @@
 #!/usr/bin/env bash
-# SessionStart hook: tells the session what the project still lacks before work can start.
-# Silent once the project is set up and initialised. It changes nothing, save the lock of the
-# supervisor below.
+# SessionStart hook (`grillhouse session-start`): tells the session what the project still lacks
+# before work can start. Silent once the project is set up and initialised. It changes nothing,
+# save the lock of the supervisor. Mechanism: greffon.md, §5.2 (the missing and the unfilled:
+# installation.md).
 #
-# The project's own check: `grillhouse.demarrage` in the package.json of the root names an npm
-# script (`npm pkg set grillhouse.demarrage=<script>`). The session start plays
-# `npm run --silent <script>` at the root; each non-blank line it writes joins the list « Pas encore
-# renseignés », as an item to deal with. The script has 10 s: past them its whole process group is
-# stopped. A failure (non-zero code) or a stop adds a line that says so, after the lines already
-# written; the session start goes on. Without the key (or with null), nothing runs; a value that is
-# not a non-blank string runs nothing and adds a line that says so. An agent's copy does not play it.
+# Each check below joins the list « Manque » or « Pas encore renseignés ».
+# - The project's own check: `grillhouse.demarrage` in the root package.json names an npm script;
+#   `npm run --silent <script>` runs at the root, 10 s (past them its whole process group is
+#   stopped), and each non-blank line it writes joins « Pas encore renseignés ». A failure or a
+#   stop adds a line that says so; the session start goes on. Without the key (or with null)
+#   nothing runs; a value that is not a non-blank string runs nothing and adds a line that says
+#   so. An agent's copy does not play it.
+# - The Node of the dependencies: installed (`npm ci`) under another binary interface of Node than
+#   the current one, the project joins « Manque » with `npm ci` (scripts/abi-des-dependances.mjs).
+# - The languages: no language declared in the column « Langage » of the table of the components of
+#   docs/ARCHITECTURE.md (scripts/langages.mjs) joins « Manque » as « le langage de chaque
+#   paquet », with the grill, or with `npx grillhouse maj` for a declaration of a former version.
+#   A document that holds a field <…> of its template stays under « Pas encore renseignés ».
+# - The plugins: scripts/greffons.mjs --absents reads `.claude/settings.json` and
+#   `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed
+#   joins « Manque » as « le greffon <id> », the missing claude command as « la commande claude »
+#   (with `npx grillhouse maj`), a failed or stopped reading as « la lecture des greffons … »; the
+#   same reading names the mod installed at another version than the package, with the command
+#   that aligns it. An agent's copy does not read them.
+# - The worker of Temporal on a former version after a change of `grillhouse.outil` (`grillhouse
+#   temporal perime`) joins « Manque » with `npx grillhouse temporal installer`. An agent's copy
+#   does not read it.
 #
-# The Node of the dependencies: a project whose dependencies were installed (`npm ci`) under
-# another binary interface of Node than the current one joins « Manque », with `npm ci`
-# (scripts/abi-des-dependances.mjs).
+# The supervisor (scripts/superviseur.mjs): the session takes the lock of its repository; when its
+# opening takes it (not when it keeps it) it receives « Les questions des circuits » then « Les
+# circuits du dépôt »; a second session while the first lives receives first « Un autre
+# superviseur tient ce dépôt ». An agent's copy takes nothing and receives nothing.
 #
-# The project's languages: a project whose docs/ARCHITECTURE.md declares none (the column
-# « Langage » of its table of the components, scripts/langages.mjs) joins « Manque » as « le
-# langage de chaque paquet », with the grill, which writes it, or with `npx grillhouse maj` for a
-# project that holds the declaration of a former version, which it reports. A document of the project that holds
-# a field <…> of its template (the template's docs/ARCHITECTURE.md declares its language, its
-# other fields left to the grill) is not yet written: it stays under « Pas encore renseignés », and
-# the line of the night waits for it.
-#
-# The frame's plugins: scripts/greffons.mjs --absents reads `.claude/settings.json` and
-# `claude plugin list --json` (each call stopped after 5 s). Each declared plugin not installed for
-# the project joins « Manque » as « le greffon <id> », the missing claude command as « la commande
-# claude » (the line gives `npx grillhouse maj`, which installs them), and a reading that fails
-# or is stopped as « la lecture des greffons … ». The same reading names the frame's mod installed
-# for the project at another version than the package @roomi-fields/grillhouse, both released under
-# one version, with the command that aligns the one behind. An agent's copy does not read them.
-#
-# The worker of Temporal on a former version after a rise of `grillhouse.outil` (see below, the
-# detection `grillhouse temporal perime`): joins « Manque » with `npx grillhouse temporal installer`.
-# An agent's copy does not read it.
-#
-# One supervisor per project (scripts/superviseur.mjs): the session takes the lock of its
-# repository, and, when its opening takes the lock (not when it keeps it, after a compaction or a
-# /clear), receives the section « Les questions des circuits » (the greffon pushes the questions, the answer
-# acknowledges them; no wait to launch), then « Les circuits du dépôt » when there are some: each circuit that runs, each one stopped on a
-# question with its question and the command that answers it, each one whose workflow ended
-# without its issue with the command that resumes it; a second session, while the first one lives, receives first the section « Un autre
-# superviseur tient ce dépôt », which asks it to say so to the owner and to launch no circuit. An
-# agent's copy and a session of a role the circuit launches take nothing and receive nothing.
-#
-# A session of a role agent of the frame (`claude --agent <rôle>`, the circuit's sessions: the
-# hook's input names it, `agent_type`, bare or as `grillhouse:<rôle>`, and the frame's plugin
-# defines it, `$CLAUDE_PLUGIN_ROOT/agents/<rôle>.md`, the plugin whose hook runs this script) receives nothing:
-# what the project lacks is the supervisor's to deal with.
+# A session of a role of the frame (`claude --agent <rôle>`: the hook's input names it,
+# `agent_type`, bare or `grillhouse:<rôle>`, and the plugin defines it,
+# `$CLAUDE_PLUGIN_ROOT/agents/<rôle>.md`) receives nothing.
 set -uo pipefail
 
 # The project is Claude Code's, else the working directory; the frame's scripts are this one's
