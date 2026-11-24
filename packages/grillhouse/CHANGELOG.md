@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The documents of the entry on main and of the machine enter the repository, the head document aligns on them**: `packages/grillhouse/docs/architecture/entree.md` (the entry on main, the CI and the night) and `packages/grillhouse/docs/architecture/machine.md` (the machine and the envelope) are the references of those mechanisms, decided point by point by the owner; the head document `docs/ARCHITECTURE.md` follows them (nine sentences and two links). No behaviour of the code changes. **Action for projects**: none.
+
 - **The document of the circuit enters the repository, the head document aligns on it**: `packages/grillhouse/docs/architecture/circuit.md` (the steps, the roles, the decision rule, the stops, the three circuits, the fallback path, the queue) is the reference of the circuit, and the package publishes it. The head document `docs/ARCHITECTURE.md` follows the owner decisions: one circuit place held by the arbiter and counted by project and by machine, a reservation at each launch of a step, the direct circuit run like the others, the fallback path and its check that records the verified content; it links the circuit document from section 10. No behaviour of the code changes. **Action for projects**: none.
 
 ## [0.49.1] - 2026-11-24
