@@ -2,6 +2,7 @@
 // the server is judged reachable by what sccache answers (`--start-server`, then `--show-stats`
 // under the same environment), and a refusal is one line carrying both outputs. The fake sccache
 // of faux-cargo.ts answers by `FAUX_SCCACHE_SORTIES` and applies no rule of SUN_LEN.
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -61,6 +62,25 @@ const appels = () =>
         socket: o.get('SCCACHE_SERVER_UDS') ?? '',
       };
     });
+
+describe('avecSccache : le lanceur de rustc', () => {
+  it('lance le client de sccache sous un dossier temporaire court, quand le TMPDIR de cargo dépasse les 108 octets d’un socket', () => {
+    // A client cargo runs may start the server itself, binding a socket under its TMPDIR: the
+    // wrapper must hand it the short one (« path must be shorter than SUN_LEN »).
+    expect(LONG.length).toBeGreaterThan(108);
+    const lanceur = avecSccache(seul, env()).RUSTC_WRAPPER as string;
+    expect(path.isAbsolute(lanceur)).toBe(true);
+    const r = spawnSync(lanceur, ['rustc', '-vV'], {
+      env: { ...avecSccache(seul, env()), TMPDIR: LONG },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const [appel] = appels();
+    expect(appel.appel).toBe('sccache rustc -vV');
+    expect(appel.tmpdir).toBe('/tmp');
+    expect(appel.socket).toBe(avecSccache(seul, env()).SCCACHE_SERVER_UDS);
+  });
+});
 
 describe('demarrerLeServeur', () => {
   it('rend null quand le serveur répond, après l’avoir démarré puis interrogé sous le même environnement court', () => {

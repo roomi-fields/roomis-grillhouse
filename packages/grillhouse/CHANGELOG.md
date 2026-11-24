@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The sccache server starts in the envelope of a copy with a long path** (grillhouse-3uv.239): cargo's sccache client now runs under a short temporary directory, so a server it starts binds its socket under the 108 bytes of a socket's path (« path must be shorter than SUN_LEN », seen by OSD in its agents' checks). **Action for projects**: none.
+
 ## [0.50.1] - 2026-11-24
 
 - **The copy of the plugin into the package leaves out what git ignores** (grillhouse-3uv.243): an entry of `mods/grillhouse` that git ignores (a cache a tool of the plugin's package writes, `.cache-outils/`) no longer enters the published package nor the list its tests check. **Action for projects**: none.

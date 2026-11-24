@@ -40,9 +40,12 @@
 //   (`demarrerLeServeur`): sccache 0.19.0 starts its server by binding a socket of a path under
 //   TMPDIR (`<TMPDIR>/sccacheXXXXXX/sock`, src/commands.rs, `run_server_process`), which fails
 //   past the 108 bytes of a socket's path (« path must be shorter than SUN_LEN »), and the
-//   temporary directory of a pass of tests under the working directory of a session passes them.
-//   Cargo then finds the server running and starts none; it
-//   keeps its own temporary directory, the pass's.
+//   temporary directory of a pass of tests under the working directory of a session passes them
+//   (grillhouse-qmk, OSC Bridge OB-p58). Cargo then finds the server running and starts none; it
+//   keeps its own temporary directory, the pass's. Its wrapper still runs the client under `/tmp`
+//   (`lanceurCourt`): a client that must start the server itself, which cargo's long TMPDIR
+//   would break, binds its socket there (grillhouse-3uv.239, OSD-sf1.25.1). The two ends of the
+//   start are so short whoever begins it, rather than one more rescue of the first.
 // - A wrapper the project sets already is its own: the run keeps it, without sccache. It is read
 //   as cargo reads it: the environment (`RUSTC_WRAPPER`, `CARGO_BUILD_RUSTC_WRAPPER`), then
 //   `build.rustc-wrapper` of each `.cargo/config.toml` (or `.cargo/config`) from the project up to
@@ -57,7 +60,15 @@
 // installation.md §4.2 nor of the post's files of §4.3.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, readlinkSync, realpathSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -116,6 +127,30 @@ function lanceurDuProjet(racine, env) {
     }
   }
   return null;
+}
+
+const LANCEUR = '#!/bin/sh\nTMPDIR=/tmp exec sccache "$@"\n';
+
+// The wrapper of rustc of the run: a script of the cache directory <cache> that runs sccache under
+// the machine's `COURT` temporary directory. Cargo hands its wrapper its own TMPDIR, which a
+// client that has to start the server (a server stopped by its idle time, killed, or born in
+// another envelope) binds a socket under, refused past 108 bytes of a path (« path must be
+// shorter than SUN_LEN », OSD-sf1.25.1); the compilations keep cargo's TMPDIR. Written once, then
+// read: a file cannot carry an executable bit in a package, so the script is made here.
+function lanceurCourt(cache) {
+  const fichier = path.join(cache, 'sccache-court');
+  try {
+    if (readFileSync(fichier, 'utf8') === LANCEUR && (statSync(fichier).mode & 0o111) !== 0) {
+      return fichier;
+    }
+  } catch {
+    // Absent: written below.
+  }
+  mkdirSync(cache, { recursive: true });
+  const temporaire = `${fichier}.${process.pid}`;
+  writeFileSync(temporaire, LANCEUR, { mode: 0o755 });
+  renameSync(temporaire, fichier);
+  return fichier;
 }
 
 /** The namespace of processes this process runs in, `pid:[<inode>]`. */
@@ -262,11 +297,12 @@ export function avecSccache(racine, env) {
   if (lanceurDuProjet(racine, env)) {
     return { ...env, ...cible };
   }
+  const cache = cacheDeCompilation('sccache', env);
   return {
     ...env,
     ...cible,
-    RUSTC_WRAPPER: 'sccache',
-    SCCACHE_DIR: cacheDeCompilation('sccache', env),
+    RUSTC_WRAPPER: lanceurCourt(cache),
+    SCCACHE_DIR: cache,
     SCCACHE_SERVER_UDS: socketDuServeur(racine, env.TMPDIR || tmpdir()),
   };
 }
