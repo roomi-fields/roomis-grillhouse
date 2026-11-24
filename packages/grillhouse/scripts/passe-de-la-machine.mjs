@@ -1,18 +1,15 @@
-// A pass on the machine: each takes its part of the budget (scripts/places-de-la-machine.mjs
-// `prendreUnePart`), waiting for it when the parts held leave too little, and plays held to that
-// part by the system: a control group of its own (`systemd-run --user --scope`) whose CPU weight
-// and memory bound come from the part, with no hard CPU ceiling (a ceiling pauses a pass by jerks;
-// a weight slows nothing on a free machine, as the `cpu.weight` of the kernel shares the cores
-// only when they are short). Its tools receive the processes of its part
-// (GRILLHOUSE_TRAVAILLEURS). A pass takes no place of the machine: a place is a session of an
-// agent or a circuit.
+// A pass on the machine: it takes its part of the budget (scripts/places-de-la-machine.mjs
+// `prendreUnePart`), waiting when the parts held leave too little, and plays held to that part
+// by a control group of its own (`systemd-run --user --scope`) whose CPU weight and memory bound
+// come from the part, with no hard CPU ceiling. Its tools receive the cores of its part
+// (GRILLHOUSE_TRAVAILLEURS). A pass takes no place. Architecture:
+// docs/architecture/machine.md (§3.1, §5.1, §6).
 //
 // - A pass out of the envelope of an agent is held to its part: the heavy pass of a circuit (its
 //   command, launched by the circuit), `npm run verifier`, a targeted `npm test`, the CI on a
-//   machine of ours, the night. The commands an agent launches in its envelope take no part (the
-//   place of its session covers them) and play without a group; where the system gives no group
-//   (no manager of the user), the pass plays without one too; each says it once, « joue sans part
-//   tenue ».
+//   machine of ours, the night. The commands an agent launches in its envelope take no part and
+//   play without a group; where the system gives no group (no manager of the user), the pass
+//   plays without one too; each says it once, « joue sans part tenue ».
 // - A heavy pass keeps what it consumes (scripts/consommation-des-passes.mjs): a pass that is the
 //   process itself (`npm run verifier`) enters its group by `StartTransientUnit` of the manager
 //   of the user, the weight and the bound of its part among its properties; a pass the circuit

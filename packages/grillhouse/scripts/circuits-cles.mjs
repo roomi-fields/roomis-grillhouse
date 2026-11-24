@@ -1,11 +1,9 @@
+// The reading of the key `grillhouse.circuits` of a package.json, read as written: an integer of
+// 1 or more, the number of circuits of the project that run at once, which the queue of its
+// tickets (src/temporal/tickets/) holds; absent or null, 1. Any other value is a fault, which
+// the queue names before any work. Architecture: docs/architecture/machine.md (§4.1, §5.4).
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
-// The reading of the key `grillhouse.circuits` of a package.json (grillhouse-4nr.9, decision D9,
-// the owner's word of 2026-11-04), read as written: an integer of 1 or more, the number of
-// circuits of the project that run at once, which the queue of its tickets
-// (src/temporal/tickets/) holds; absent or null, 1. Any other value is a fault, which the queue
-// names before any work.
 
 // Returns { max, faute }: `max` the number of circuits at once, null on a fault; `faute` the
 // fault by its name, null when the key reads.

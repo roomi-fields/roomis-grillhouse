@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The exit codes of the envelope and its launcher, named once. `enveloppe.mjs` and the tests
 // import them; `lancer.sh` reads them through `node codes.mjs`, which prints them as `NAME=value`.
+// Architecture: docs/architecture/machine.md (§5.5).
 import { pathToFileURL } from 'node:url';
 
 // A malformed call: wrong arguments, unknown role, instruction missing or without its ticket.

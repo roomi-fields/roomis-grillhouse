@@ -1,10 +1,8 @@
 // The dedicated cores of a measure of time: the cores a measure plays on alone, the rest of the
-// machine going on working, as the benches of rustc-perf and `pyperf system tune` isolate cores and
-// pin the measure to them, as the static policy of the CPU Manager of Kubernetes gives a pod of the
-// guaranteed class cores of its own, and as Slurm binds a job to its cores. Functions with the
+// machine going on working. Architecture: docs/architecture/machine.md (§3.1). Functions with the
 // system as input (what it reads is passed in, nothing is changed here):
 // - The key `grillhouse.mesure` of a project (`{ "coeurs": <integer ≥ 1> }`) and the number of
-//   dedicated cores: the default one is 3 (`COEURS_PAR_DEFAUT`).
+//   dedicated cores: without the key, `COEURS_PAR_DEFAUT` of ./plafond-de-la-machine.mjs.
 // - The topology of the system (the sibling threads of a core, the memory node): a unit of
 //   dedicated core is a physical core whole, its sibling threads with it. The count stays in
 //   threads (« cores » of the budget), as the budget does.

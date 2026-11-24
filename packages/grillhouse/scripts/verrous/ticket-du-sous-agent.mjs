@@ -7,6 +7,7 @@
 // ticket.
 //
 // - Other agents (exploration, documentation) launch freely.
+// Architecture: docs/architecture/machine.md (§3.1, §3.3).
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

@@ -1,12 +1,12 @@
 // `grillhouse machine fermer [--attendre]` and `grillhouse machine rouvrir`: closes the machine to
-// new work and reopens it, as `kubectl cordon` / `drain` / `uncordon` do for a node, so that the
-// poste restarts without cutting a circuit in the middle of its work.
+// new work and reopens it, so that the poste restarts without cutting a circuit in the middle of
+// its work. Architecture: docs/architecture/machine.md (§5.7).
 //
 // - `fermer`: no place is given any more, to any project of the poste, and no ticket starts; each
 //   circuit alive finishes its step, then waits without starting the next. The command returns at
-//   once (as `cordon`), saying what still runs by project and by ticket, and « la machine est
+//   once, saying what still runs by project and by ticket, and « la machine est
 //   vide » when nothing plays; played again, it reads that state. With `--attendre` it returns
-//   only once the machine is empty (as `drain`): exit 0.
+//   only once the machine is empty: exit 0.
 // - `rouvrir`: the circuits go on by themselves at the next step.
 // - A night that holds the machine is never doubled nor lifted: the command says so (exit 0).
 // - The closure lives in the state of the places on the Temporal server: it survives a restart of

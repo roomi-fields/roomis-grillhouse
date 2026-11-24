@@ -1,6 +1,6 @@
-// The base of a pass: the temporary directory of a run, its own and removed at its end, as Bazel
-// gives each test its temporary directory (TEST_TMPDIR) under the base of its run. A pass killed
-// leaves its base, which the next pass sweeps, as Bazel cleans its sandboxes.
+// The base of a pass: the temporary directory of a run, its own and removed at its end. A pass
+// killed leaves its base, which the next pass sweeps. Architecture:
+// docs/architecture/machine.md (§5.5, §6 « Le disque »).
 //
 // - A base is a directory `<dans>/grillhouse-<genre>-XXXXXX/`, `<dans>` the temporary directory of
 //   whoever opens it (`os.tmpdir()`). It holds its owner (`.grillhouse-base`: the process that
@@ -24,24 +24,21 @@
 //   the ticket, scripts/enveloppe/lancer.sh, and `npx grillhouse temporaire <ticket>` the
 //   supervisor), kept from one session and one resumption to the next, removed when its ticket is
 //   closed (`balayerLesTickets`, which the removal of the finished copies plays,
-//   scripts/copies-finies.mjs), as a finished copy goes, and only then, frozen or not, as a
-//   retention policy fixed in advance; or a directory
+//   scripts/copies-finies.mjs), frozen or not; or a directory
 //   (`cacheDeLaRacine`: the cache of a build rooted in the temporary directory), swept once that
 //   directory is gone, from the namespace that opened it, or, from the host (the next base of a
 //   pass, out of an envelope, where the home is read-only), untouched for 7 days whatever its
-//   namespace, as GitHub Actions removes a cache unused for 7 days. What an agent needs to resume lives in its copy or its handover, never in
+//   namespace. What an agent needs to resume lives in its copy or its handover, never in
 //   the ticket's temporary directory alone, which holds what is made again.
 // - The caches of compilation never lie in the temporary directory, a disk in memory that the
 //   sessions of the machine share: they go under `${XDG_CACHE_HOME:-~/.cache}/grillhouse/<outil>`
-//   (`cacheDeCompilation`), as Bazel keeps its output_base under ~/.cache; a build rooted in the
-//   temporary directory (a project of trial) keeps its outputs there too (`cacheDeLaRacine`).
+//   (`cacheDeCompilation`); a build rooted in the temporary directory (a project of trial) keeps
+//   its outputs there too (`cacheDeLaRacine`).
 // - The base is removed at the end of the pass, green or red (`fermer`), and when the pass is
-//   interrupted (SIGINT, SIGTERM, SIGHUP: `retirerALInterruption`), as pytest's `tmp_path` and
-//   Rust's `tempfile` remove theirs.
+//   interrupted (SIGINT, SIGTERM, SIGHUP: `retirerALInterruption`).
 // - The guard of a pass of tests: what its tests left in `t/` (`restes`) fails the pass, named
-//   (`ligneDesRestes`), as the CI of osc-bridge runs its tests under a temporary directory of
-//   their own and fails on anything left there; each module of language plays it in its runner of
-//   tests (the base configuration of Vitest, the module cargo's `tester` and `verifier`).
+//   (`ligneDesRestes`); each module of language plays it in its runner of tests (the base
+//   configuration of Vitest, the module cargo's `tester` and `verifier`).
 // - Opening a base first sweeps `<dans>`: every base there whose owner is gone is removed, whatever
 //   its genre. A base is judged by its owner's process only when that owner lives in the PID
 //   namespace of the sweeper (an envelope has its own, bwrap --unshare-pid, where a number means

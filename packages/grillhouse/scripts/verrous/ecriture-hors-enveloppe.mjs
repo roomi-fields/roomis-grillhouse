@@ -5,6 +5,7 @@
 // its reason on stderr, the write of the code or the tests of a package by a session that is no
 // agent of the frame under its envelope: the supervisor, the person who starts Claude Code by hand,
 // a session that lost its variable of envelope (`GRILLHOUSE_ENVELOPPE`, refusal by default).
+// Architecture: docs/architecture/machine.md (§3.3, §5.5 « Les verrous dans la séance »).
 //
 // - A write of a document (a `.md` file) passes: the documents of a package (CADRE.md,
 //   INTERFACE.md, ARCHITECTURE.md, CHANGELOG, the skills and the charter of `mods/grillhouse`) and

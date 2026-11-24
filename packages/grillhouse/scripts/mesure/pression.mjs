@@ -1,8 +1,7 @@
 // The CPU pressure of the machine, the witness of rest for every measure of time, which plays at
-// night (grillhouse-bd7): a measure is taken with the CPU at rest, and a failure that depends on a
-// duration under load is played again at rest (« à repasser »), never taken as a red nor as a
-// green. The model is Bazel's TIMEOUT/FLAKY and CTest's `--repeat after-timeout`: classify, then
-// play again.
+// night: a measure is taken with the CPU at rest, and a failure that depends on a duration under
+// load is played again at rest (« à repasser »), never taken as a red nor as a green.
+// Architecture: docs/architecture/machine.md (§6, « Le groupe »; the cores of a measure of time).
 //
 // - The signal is the kernel's pressure stall information, `/proc/pressure/cpu`, line `some`,
 //   field `avg10`: the share of the last ten seconds in which a task waited for a CPU, in %.

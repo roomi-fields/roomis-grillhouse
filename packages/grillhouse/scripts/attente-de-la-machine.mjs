@@ -1,32 +1,26 @@
 // The waits of a pass for the room of the machine, and the stop they end on: what a pass wants
 // before it plays, besides its part of the budget (scripts/places-de-la-machine.mjs).
+// Architecture: docs/architecture/machine.md (§5.1, §6 « Le disque »).
 //
-// - A pass first wants room in the temporary directory (`os.tmpdir()` under its environment), a
-//   disk in memory that the sessions of the machine share: under LIBRE_MIN, 4 GB free
-//   (GRILLHOUSE_TEMPORAIRE_LIBRE names another floor, in bytes; the base configuration of the
-//   tests sets 0, scripts/langages/typescript/vitest-config/machine.setup.mjs), it waits for room
-//   instead of failing for lack of it (ENOSPC: 25 reds of the night of 2026-11-01, the
-//   scratchpads holding 8 GB of 16), as Kubernetes schedules no new pod on a node under
-//   DiskPressure. It says so, with what holds the directory (its largest entries, by the blocks
-//   their files hold, the temporary directory of a ticket naming its ticket), when it begins and
-//   every 30 s, under a bound (GRILLHOUSE_ATTENTE_MACHINE_MS, ATTENTE_MACHINE_MS, 60 min), then
-//   « à repasser » (75).
+// - A pass first wants room in the temporary directory (`os.tmpdir()` under its environment):
+//   under LIBRE_MIN, 4 GB free (GRILLHOUSE_TEMPORAIRE_LIBRE names another floor, in bytes; the
+//   base configuration of the tests sets 0, scripts/langages/typescript/vitest-config/
+//   machine.setup.mjs), it waits for room instead of failing for lack of it. It says so, with
+//   what holds the directory (its largest entries, by the blocks their files hold, the
+//   temporary directory of a ticket naming its ticket), when it begins and every 30 s, under a
+//   bound (GRILLHOUSE_ATTENTE_MACHINE_MS, ATTENTE_MACHINE_MS, 60 min), then « à repasser » (75).
 // - It then wants room on the disk of the copy it plays in (its root, `racine`), where cargo
 //   writes its target directories: under LIBRE_MIN as well (GRILLHOUSE_COPIE_LIBRE names another
 //   floor, in bytes; the base configuration of the tests sets 0), it waits the same way, under
 //   the same bound counted from the start of the wait, and says what holds that disk: the copies
 //   of its repository, the largest first, each with its ticket and its tools' outputs
-//   (`occupantsDesCopies` of scripts/copies-finies.mjs: « .claude/worktrees/SH-ae6.2.7 (le
-//   ticket SH-ae6.2.7, 5,0 Go, dont target 4,8 Go) »), as Bazel and Buildkite refuse to start a
-//   build under a floor of free room rather than fail in its middle (the main disk full on
-//   2026-11-01, three circuits killed without a word, grillhouse-k5y).
+//   (`occupantsDesCopies` of scripts/copies-finies.mjs).
 // - The stop of a wait is an AttenteDeLaMachine: `code` 75 at the bound, 1 for a server of the
 //   places that does not answer.
 // - A pass has a rank: one played in the frame's own repository (one whose workspaces hold the
 //   package @roomi-fields/grillhouse in development, its agent copies included: `rangDeLaMesure`)
 //   is of the first rank, « mesure du cadre »; a project's is of the second, « mesure d'un
-//   projet », as Bazel's `--experimental_local_test_priority` orders the tests that wait for the
-//   machine.
+//   projet ».
 import { spawnSync } from 'node:child_process';
 import { lstatSync, readdirSync, readFileSync, statfsSync } from 'node:fs';
 import { tmpdir } from 'node:os';

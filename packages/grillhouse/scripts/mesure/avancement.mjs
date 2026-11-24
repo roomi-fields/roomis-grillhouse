@@ -1,4 +1,4 @@
-// The progress of a pass, as Bazel counts its actions « [1 234 / 2 000] »: the variable that names
+// The progress of a pass: the variable that names
 // the progress directory of a pass, `GRILLHOUSE_AVANCEMENT`, and the writing of a record, which
 // the reporter of the module of the language writes while it is set (for typescript,
 // scripts/langages/typescript/vitest-config/avancement.reporter.mjs). The

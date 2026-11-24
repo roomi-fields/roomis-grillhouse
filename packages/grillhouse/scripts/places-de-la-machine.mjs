@@ -1,61 +1,44 @@
-// The places of the machine: a fixed number of places for the whole machine, whatever repository a
-// session or a pass plays in, as the executors of Jenkins and the agents of Buildkite are a fixed
-// number, and as the job server of GNU make shares its slots between every make of one build.
-// Each session of an agent (testwriter, developer, reviewer…) takes a place at its start and gives
-// it back at its end; a circuit that waits for a question, or between two sessions, holds none.
-// A pass takes no place: it takes its part of the budget of the machine (below), which alone
-// bounds it. A place is a session of an agent or a circuit; a part is a pass. Witness: 2026-11-02,
-// load 39 on 12 cores with five circuits at once (grillhouse-9kq).
+// The places and the parts of the machine, taken by a synchronous caller: a place is held by a
+// session of an agent or a circuit, a part by a pass. Architecture: docs/architecture/machine.md
+// (§3.1, §5.1, §5.2, §5.4).
 //
-// - The places live on the Temporal server, in the one workflow of the machine
-//   (src/temporal/places/deroule.ts), which grants them by the rule of scripts/regles-des-places.mjs
-//   (a free place under the ceiling, the turn of the rank of arrival, the admission at the load and
-//   the memory as `make -l`'s, the spacing of the starts) and frees the place of a process gone. A
-//   synchronous caller reads and takes them by ./places-du-serveur.mjs, in a process of its own.
+// - The places live on the Temporal server, in the workflow of the machine
+//   (src/temporal/places/deroule.ts), which grants them by the rule of ./regles-des-places.mjs
+//   and frees the place of a process gone; this module reads and takes them by
+//   ./places-du-serveur.mjs, in a process of its own. A session takes a place at its start and
+//   gives it back at its end.
 // - The server is required on the workstation: one that does not answer stops the taking, named.
-//   In the CI (CI set) no place is taken. A trial machine (GRILLHOUSE_PARTS_DE_LA_MACHINE, the
-//   base configuration of the tests) takes its places on the server GRILLHOUSE_PLACES_D_ESSAI
-//   names, and none without it, so that no test takes a place of the user's machine.
+//   In the CI (CI set) no place is taken. A trial machine (GRILLHOUSE_PARTS_DE_LA_MACHINE) takes
+//   its places on the server GRILLHOUSE_PLACES_D_ESSAI names, and none without it.
 // - A session that holds a place carries its mark to its children (GRILLHOUSE_PLACE_TENUE). In
 //   the envelope of an agent (GRILLHOUSE_ENVELOPPE set, ./enveloppe/paquets-du-plan.mjs) no place
-//   and no part is taken: the place of the session, taken out of it by the circuit, covers its
-//   commands, and the envelope passes on its mark; a number of process there means nothing on
-//   the machine.
-// - The ceiling is a configuration of the poste (`plafondDe` of ./plafond-de-la-machine.mjs:
-//   GRILLHOUSE_PLACES of `~/.config/grillhouse/machine.env`, 3 without it), which the workflow
-//   reads again at each judgement; two starts are spaced by ESPACEMENT_MS
-//   (GRILLHOUSE_ESPACEMENT_MS names another, in ms), which the workflow reads when it starts.
+//   and no part is taken: the envelope passes on the mark of the session's place.
+// - The ceiling of the places is `plafondDe` of ./plafond-de-la-machine.mjs (3 without a
+//   setting), read again at each judgement; two starts are spaced by ESPACEMENT_MS
+//   (GRILLHOUSE_ESPACEMENT_MS names another, in ms), read when the workflow starts.
 // - A wait says its reason (place, rank, load, memory or spacing) when it begins and every 30 s,
-//   and is bounded, GRILLHOUSE_ATTENTE_MACHINE_MS: at the bound, « à repasser » (75), the request
-//   withdrawn.
-// - A wait keeps the rank of its arrival, as the queue of a merge train keeps its order: the rank
-//   is drawn when the circuit is launched (`prendreUnRang`) and kept from one session to the next.
-// - The number of workers of the tests of a session is `travailleursDe`: max(1, cores ÷ places),
-//   passed to the tool of each language (GRILLHOUSE_TRAVAILLEURS).
-//
-// The parts of the passes, as Slurm reserves the cores and the memory of a job and waits while
-// they lack, and as the job server of GNU make shares its slots between every make of a build:
-// - The budget of the machine (its hardware less the reserve of the user,
-//   ./plafond-de-la-machine.mjs) is shared in parts, which every pass of the machine takes, whatever
-//   repository it plays in: the heavy pass of a circuit, `npm run verifier`, a targeted
-//   `npm test`, a slice of the CI on a machine of ours, the night. A pass starts when its part
-//   fits in what the parts held leave of the budget and the machine admits it (the load under the
-//   cores, 4 GB free: `admissionDePart` of ./regles-des-places.mjs); else it waits, says what it
-//   waits for when it begins and every 30 s, keeps its rank (the measure of the frame before a
-//   project's, then the order of arrival) and stops at « à repasser » (75) at the bound of the wait.
-// - The state is shared by the machine, one file per pass in the directory of the user's state
-//   (`${XDG_STATE_HOME:-~/.local/state}/grillhouse/parts`; GRILLHOUSE_PARTS_DE_LA_MACHINE names
-//   another, which the base configuration of the tests gives to each test file): the part held
-//   or waited for, its project, ticket, kind, rank and, once it names it, its progress directory,
-//   which the board reads (`lireLesParts`). A pass whose process is gone frees its part.
-// - A part holds precise threads (`fils` of its file): the passes choose them on the topology of the
-//   system (./coeurs-dedies.mjs `choisirLesCoeurs`), none held by another. A measure of time
-//   (`mesure`) takes dedicated cores, physical cores whole (its sibling threads with them), the
-//   number its project declares (`grillhouse.mesure`) or the default part of the budget, and the
-//   other passes go on on the cores left; it waits for its cores, keeping its rank, then for the
-//   rest of them (their load, out of it, under 10 %), within the bound of the wait.
-// - A pass that holds a part carries its mark to its children (GRILLHOUSE_PART_TENUE): a pass they
-//   play takes no second part, and the workers of its tools are the cores of its part
+//   and is bounded by GRILLHOUSE_ATTENTE_MACHINE_MS: at the bound, « à repasser » (75), the
+//   request withdrawn. It keeps the rank of its arrival (`prendreUnRang`), kept from one session
+//   to the next.
+// - The workers of the tests of a session are `travailleursDe`: max(1, cores ÷ places), passed
+//   to the tool of each language (GRILLHOUSE_TRAVAILLEURS).
+// - A part is the share of the budget (./plafond-de-la-machine.mjs) that every pass takes: the
+//   heavy pass of a circuit, `npm run verifier`, a targeted `npm test`, the CI on a machine of
+//   ours, the night. A pass starts when its part fits in what the parts held leave of the budget
+//   and the machine admits it (`admissionDePart` of ./regles-des-places.mjs); else it waits, says
+//   what for when it begins and every 30 s, keeps its rank (the measure of the frame before a
+//   project's, then the order of arrival) and stops at « à repasser » (75) at the bound.
+// - The parts are one file per pass in `${XDG_STATE_HOME:-~/.local/state}/grillhouse/parts`
+//   (GRILLHOUSE_PARTS_DE_LA_MACHINE names another): the part held or waited for, its project,
+//   ticket, kind, rank and progress directory, which the board reads (`lireLesParts`). A pass
+//   whose process is gone frees its part.
+// - A part holds precise threads (`fils` of its file), chosen on the topology by
+//   ./coeurs-dedies.mjs `choisirLesCoeurs`, none held by another. A measure of time (`mesure`)
+//   takes physical cores whole, the number its project declares (`grillhouse.mesure`) or the
+//   default part of the budget; it waits for its cores, then for the load of the others to be
+//   under 10 %, within the bound of the wait.
+// - A pass that holds a part carries its mark to its children (GRILLHOUSE_PART_TENUE): a pass
+//   they play takes no second part, and the workers of its tools are the cores of its part
 //   (GRILLHOUSE_TRAVAILLEURS).
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';

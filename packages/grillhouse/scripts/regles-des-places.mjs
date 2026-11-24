@@ -1,10 +1,8 @@
 // The rules of the places of the machine, with no input nor output: whether a start is admitted
-// at a load and a free memory, as `make -l` admits it, and why a taking does not pass now. The
-// workflow of the machine (src/temporal/places/, grillhouse-4nr.7) holds the places of the machine
-// and decides by them; a session or a pass takes its place there by
-// scripts/places-de-la-machine.mjs; the places of the circuits, which the queue of each project
-// reserves (`reserverDesCircuits`). The workflow bundles this module, which imports nothing. What
-// the machine gives, its load and its memory, is measured by scripts/mesure-de-la-machine.mjs.
+// at a load and a free memory (the load under the cores, MEMOIRE_MIN free), and why a taking does
+// not pass now. The workflow of the machine (src/temporal/places/) decides by them and bundles
+// this module, which imports nothing; the load and the memory come from
+// scripts/mesure-de-la-machine.mjs. Architecture: docs/architecture/machine.md (§3.1, §5.2).
 
 /** The memory a start wants free, in bytes: 4 GB. */
 export const MEMOIRE_MIN = 4 * 1024 ** 3;

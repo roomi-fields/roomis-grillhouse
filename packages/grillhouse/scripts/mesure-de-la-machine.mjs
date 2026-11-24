@@ -4,7 +4,8 @@
 // activity of the workflow of the machine (src/temporal/places/activites.ts) measures it here, and
 // whether the process of a place still lives; a signal to a process group, and whether the group
 // a sign of life names still runs, which the sessions (scripts/seances.mjs), the circuit and the
-// acts under Temporal (src/temporal/acte.ts) share.
+// acts under Temporal (src/temporal/acte.ts) share. Architecture: docs/architecture/machine.md
+// (§3.1, §5.2).
 import { readFileSync } from 'node:fs';
 import { availableParallelism, freemem, loadavg, totalmem } from 'node:os';
 import { departDe, leMemeVivant, vivant } from './mesure/base-de-passe.mjs';

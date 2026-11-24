@@ -4,7 +4,8 @@
 // (scripts/circuit.mjs, `avantLaPasse`), in the copy alone: git's stash (refs/stash) is common to
 // every copy of a repository, so the work never goes there; the copy keeps it, as a merge or a
 // rebase in conflict does (its conflicts marked in the files, the unmerged entries in its own
-// index).
+// index). Architecture: docs/architecture/machine.md (§5.5), which does not describe the carrying
+// of the work of a copy.
 //
 //   node scripts/enveloppe/travail-de-la-copie.mjs reporter <copie> <base> <pointe>
 //   node scripts/enveloppe/travail-de-la-copie.mjs preparer <copie> [<cible>]
@@ -17,8 +18,7 @@
 //   package.json, the installation (`npm install --no-save`, under that mount) when node_modules
 //   is missing or the lock file is newer than the installation (`node_modules/.package-lock.json`).
 //   It prints on stdout the list its pose fixes, its messages on stderr; exit 1 on the first step
-//   that fails, named, its output after (BPScript: the lock file changed 27 times in two weeks,
-//   and the submodule vendor/bp3-engine, both stale in a copy moved forward without them).
+//   that fails, named, its output after.
 // - `reporter`: the lot from <base> to <pointe> (`git diff --binary`), a branch the queue sent
 //   back, becomes local work of the copy: applied three ways (`git apply --3way`), a conflict
 //   marked in its file, the rest of the lot there; the index is then left as HEAD has it, so that
@@ -67,19 +67,14 @@
 //   again in the copy, the lot applied, with the tools of the project (`grillhouse.outils`), out
 //   of the envelope. The output of a command that passes is a message, never the data of the
 //   preparation: it goes where the faults go (stderr, the log of the preparation for the circuit),
-//   so the standard output of `preparer` holds the list of its pose alone (BPScript, 2026-11-22:
-//   the output of « npm install --package-lock-only » read as the list of the shared submodules,
-//   the mount refused on « usage: sous-modules.sh … »). A command that fails stops, exit 1, the
-//   command, its code and its output named, the rest of the lot in the copy; a faulty key
-//   refuses, named, before the copy is
-//   touched (OSC Bridge, 2026-10-31: four conflicts in one day on the generated files of synthhub
-//   and open-synth-descriptors, each copy moved by hand). A lot in conflict on another file is not
-//   regenerated: its conflicts come first. A reference the frame generates itself and writes in
-//   full (`fichiersEngendres` of the module of the language, its `entiers`: the index of the
-//   interfaces, the turbo.json of the packages) follows the same rule, with no key of the project:
-//   main's version, then the frame's generator, whose code is not read, a real failure aside
-//   (BPScript, 2026-11-22: « UU docs/agents/index-des-interfaces.md » at the advance of two
-//   copies). The reports of API (INTERFACE.api.md and the generated part of an INTERFACE.md) and
+//   so the standard output of `preparer` holds the list of its pose alone. A command that fails
+//   stops, exit 1, the command, its code and its output named, the rest of the lot in the copy;
+//   a faulty key refuses, named, before the copy is touched. A lot in conflict on another file
+//   is not regenerated: its conflicts come first. A reference the frame generates itself and
+//   writes in full (`fichiersEngendres` of the module of the language, its `entiers`: the index
+//   of the interfaces, the turbo.json of the packages) follows the same rule, with no key of the
+//   project: main's version, then the frame's generator, whose code is not read, a real failure
+//   aside. The reports of API (INTERFACE.api.md and the generated part of an INTERFACE.md) and
 //   the debt of the guards, which the frame does not give as written in full (no `entiers`), are
 //   still merged. A copy whose references the module of the language does not read (no language
 //   declared) is advanced all the same, its references merged as files written by hand, and the

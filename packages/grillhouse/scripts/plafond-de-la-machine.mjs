@@ -1,30 +1,30 @@
-// The settings of the poste for the machine (scripts/places-de-la-machine.mjs), configurations of
-// the poste read again at each judgement, as Buildkite reads the number of its agents from its
-// configuration and Nomad its `client.reserved`: the workflow of the machine reads the ceiling of
-// the places by an activity (src/temporal/places/activites.ts), the board and the number of workers
-// of the tests by this same function, so that a ceiling changed counts without restarting anything.
+// The settings of the poste for the machine and the budget they give, read again at each
+// judgement so that a setting changed counts without restarting anything: the workflow of the
+// machine reads the ceiling of the places by an activity (src/temporal/places/activites.ts), the
+// board and the number of workers of the tests by the same function. Architecture:
+// docs/architecture/machine.md (§3.1, §4.1).
 //
+// The ceiling of the places (`plafondDe`; it bounds the places only, not the parts):
 // - The file of the poste `machine.env`, under the frame's directory of configuration
-//   (`~/.config/grillhouse/`, scripts/fichier-du-poste.mjs), holds `GRILLHOUSE_PLACES=<n>`, as
-//   `turbo-cache.env` holds the server of the cache.
-// - The environment wins, as for every file of the poste: GRILLHOUSE_PLACES set (a trial machine,
-//   a test) is read instead of the file. Without either, PLAFOND_PAR_DEFAUT, 3.
+//   (`~/.config/grillhouse/`, scripts/fichier-du-poste.mjs), holds `GRILLHOUSE_PLACES=<n>`.
+// - The environment wins: GRILLHOUSE_PLACES set (a trial machine, a test) is read instead of the
+//   file. Without either, PLAFOND_PAR_DEFAUT, 3.
 // - A value that is not a positive integer is refused by its name and its place.
 //
 // The budget of the machine and the part of a pass (functions with the hardware and the settings
-// as input, nothing read from the machine), as Slurm reserves the cores and the memory of a job
-// and Bazel bounds `--local_resources`:
+// as input, nothing read from the machine):
 // - The reserve of the user, the share of the machine no pass takes: GRILLHOUSE_RESERVE_COEURS
-//   (by default min(4, max(0, cores − 4)): 0 on 4 cores or fewer, 2 on 6, 4 from 8) and GRILLHOUSE_RESERVE_MEMOIRE_GO (4 GB), the environment first, then
-//   `machine.env`; zero is admitted, a value that is not a whole number ≥ 0 is refused by its name.
+//   (by default min(4, max(0, cores − 4)): 0 on 4 cores or fewer, 2 on 6, 4 from 8) and
+//   GRILLHOUSE_RESERVE_MEMOIRE_GO (4 GB), the environment first, then `machine.env`; zero is
+//   admitted, a value that is not a whole number ≥ 0 is refused by its name.
 // - The budget is the cores and the memory of the machine less the reserve; a reserve that leaves
 //   no core or no memory is refused by its name.
-// - The part of a pass is its cores and its memory: the default part has the budget divided by the
-//   places of the machine in cores (whole division, 2 at least), and in memory the largest peak the
-//   project measured plus a quarter, never under its floor (the cores' proportion of the budget
-//   before the division, a third of it, which it is without a measure); a
-//   part a project declares (`grillhouse.part` of its `package.json`) replaces its own values; a
-//   part larger than the budget is the budget (one pass at a time), and never under one core.
+// - The part of a pass (`partDe`) is its cores and its memory, within the budget and one core at
+//   least. Its cores are those its project declares (`grillhouse.part` of its `package.json`),
+//   else COEURS_PAR_DEFAUT; a direct pass has COEURS_DU_DIRECT, fixed. Its memory is the declared
+//   one, else the largest peak the project measured plus a quarter, never under a floor (the
+//   share of the budget that max(4, a third of its cores) cores hold, which it is without a
+//   measure). A part larger than the budget is the budget (one pass at a time).
 import { readFileSync } from 'node:fs';
 import { cpus, totalmem } from 'node:os';
 import path from 'node:path';

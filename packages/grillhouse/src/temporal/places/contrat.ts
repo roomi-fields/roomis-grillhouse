@@ -1,7 +1,7 @@
-// The contract of the workflow of the machine, which holds its places (grillhouse-4nr.7,
-// decision D2): its type, its update, its signals and its queries by their names, its id, its state
-// and what its callers send and receive. The workflow, its activities and their clients share it
-// without importing each other.
+// The contract of the workflow of the machine, which holds its places: its type, its update, its
+// signals and its queries by their names, its id, its state and what its callers send and
+// receive. The workflow, its activities and their clients share it without importing each other.
+// Architecture: docs/architecture/machine.md (§4.3).
 import type { PlaceDeCircuit } from '../../../scripts/regles-des-places.mjs';
 
 /** The workflow's type. */

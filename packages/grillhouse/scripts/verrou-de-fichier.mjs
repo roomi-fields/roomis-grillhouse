@@ -1,6 +1,7 @@
 // The lock of a file shared between processes: the file `<verrou>` stands while someone holds it.
 // Taken by the integration (`.git/integration.lock`), by the register (`registre.jsonl.verrou`)
 // and by the creation of a ticket (`.beads/grillhouse-ticket.lock`, scripts/ticket.mjs).
+// Architecture: docs/architecture/machine.md (§4.1).
 //
 // - A lock is created whole and exclusively: its mark (the owner's process number, then a token
 //   unique to the taking) is written to a private file that is linked to `<verrou>`; the link

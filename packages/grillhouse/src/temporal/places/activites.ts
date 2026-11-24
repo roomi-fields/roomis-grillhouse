@@ -1,7 +1,8 @@
 // The activities of the workflow of the machine: what the machine gives now (its cores, its load,
 // its free memory) and whether the process of each place still lives, both read by
 // scripts/mesure-de-la-machine.mjs, and the ceiling of its places, read from the configuration of
-// the poste by scripts/plafond-de-la-machine.mjs.
+// the poste by scripts/plafond-de-la-machine.mjs. Architecture: docs/architecture/machine.md
+// (§3.1).
 import { mesureDeLaMachine, processusVivant } from '../../../scripts/mesure-de-la-machine.mjs';
 import { plafondDe } from '../../../scripts/plafond-de-la-machine.mjs';
 import type { Mesure } from './contrat.js';

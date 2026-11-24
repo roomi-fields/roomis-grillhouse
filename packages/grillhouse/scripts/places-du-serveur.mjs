@@ -1,7 +1,8 @@
-// The places of the machine read and taken on the Temporal server, in a process of its own, so
-// that a synchronous caller (scripts/places-de-la-machine.mjs) waits for them as it waits for a
-// lock: the workflow of the machine (src/temporal/places/deroule.ts) holds them, its client
-// (src/temporal/places/client.ts) speaks to it.
+// The synchronous bridge to the places of the machine: it reads and takes them on the Temporal
+// server in a process of its own, so that a synchronous caller (scripts/places-de-la-machine.mjs)
+// waits for them as for a lock. The workflow (src/temporal/places/deroule.ts) holds them, its
+// client (src/temporal/places/client.ts) speaks to it. Architecture:
+// docs/architecture/machine.md (§3.1, §5.1).
 //
 //   node places-du-serveur.mjs rang
 //   node places-du-serveur.mjs prendre <demande>

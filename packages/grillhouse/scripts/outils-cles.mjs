@@ -1,10 +1,10 @@
-// The reading of the `grillhouse.outils` key of a package.json, the tools of the project, as Bazel
-// declares what an action sees out of its sandbox (--sandbox_add_mount_pair) and the environment
-// it gets (--action_env): `{ "<VARIABLE>": "<chemin>" }`, each path absolute or under `~`. The
-// envelope (scripts/enveloppe/enveloppe.mjs) mounts each path read-only and passes each variable to
+// The reading of the `grillhouse.outils` key of a package.json, the tools of the project:
+// `{ "<VARIABLE>": "<chemin>" }`, each path absolute or under `~`. The envelope
+// (scripts/enveloppe/enveloppe.mjs) mounts each path read-only and passes each variable to
 // the session; the circuit's passes (scripts/circuit.mjs), `npm run verifier`
 // (bin/grillhouse.mjs) and the night (scripts/nuit.sh) play with the same variables, so that every
-// one of them sees the same tool, whatever its launcher's environment.
+// one of them sees the same tool, whatever its launcher's environment. Architecture:
+// docs/architecture/machine.md (§1, §5.5).
 //
 // - The key is absent, null or an object; each name is a variable's (`[A-Za-z_][A-Za-z0-9_]*`),
 //   each value a string, a path absolute or under `~` (the home), that exists. Every fault is named
@@ -18,7 +18,7 @@
 //   `~/.local/share/keyrings`, the keyrings of the machine's credentials. A path that is a link is
 //   judged by its target too, which the envelope mounts with it.
 // - A tool is a string path (unhashed) or `{ "chemin": "<chemin>", "contenu": true }`: hashed by
-//   content, Bazel counting the tools of an action among its inputs. Its fingerprint
+//   content. Its fingerprint
 //   (`empreinteDeLOutil`, `empreintesDe`) is given to every pass as `<VARIABLE>_EMPREINTE`, which
 //   the root turbo.json's `globalEnv` names so that Turborepo hashes its value. Any other object
 //   form is refused, its key named; a hashed tool absent, unreadable or special is refused too.

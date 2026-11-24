@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // The write lock of a role agent: a PreToolUse hook declared in the settings of its session
 // (scripts/droits.mjs: `npx grillhouse verrou <role>`). It reads the hook's JSON on stdin and refuses a
-// file write the role does not own, with exit code 2 and its reason on stderr.
+// file write the role does not own, with exit code 2 and its reason on stderr. Architecture:
+// docs/architecture/machine.md (§3.1, §5.5 « Les verrous dans la séance »).
 //
 // - A path under the system temp directory (the session scratchpad) is always writable.
 // - testwriter writes the files it owns, those the rule of a test file of the module of the
@@ -27,8 +28,7 @@
 //   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`
 //   on the components of the module of the language, `paquetsDuLangage`, as the envelope reads them)
 //   and out of the shared test material, whose rule is the one above, and for the testwriter out
-//   of the lock files of the versions (`manifestes.verrous`), stops the session, as the
-//   visibility of Bazel refuses a target the rule does not open: the hook answers Claude Code's
+//   of the lock files of the versions (`manifestes.verrous`), stops the session: the hook answers Claude Code's
 //   `continue: false`, the tool refused (`permissionDecision: deny`), its reason naming the file's
 //   package and the plan, and leaves that reason in the session's working directory
 //   (`MARQUE_HORS_PLAN` under TMPDIR), which the launcher hands to the circuit. The mount of the

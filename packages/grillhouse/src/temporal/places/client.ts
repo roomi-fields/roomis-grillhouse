@@ -4,6 +4,7 @@
 // RENDRE), names the process that holds it (the signal RATTACHER), and reads the places as the
 // board shows them (the query LES_PLACES), and gives the machine the circuits of a project to
 // learn which may start (the update RESERVER), from the server and the worker of the machine.
+// Architecture: docs/architecture/machine.md (§3.1, §4.3).
 import { randomUUID } from 'node:crypto';
 import { setTimeout as dormir } from 'node:timers/promises';
 import type { Client } from '@temporalio/client';

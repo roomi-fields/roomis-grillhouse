@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // The rights and the context of each role session the circuit launches, from one source (ROLES):
 // the testwriter and the developpeur in the envelope of their plan (scripts/enveloppe/lancer.sh),
-// the explorateur, the questionneur and the reviewer out of it (scripts/circuit.mjs). As a task of CI receives its
-// rights from its steps and runs on an image of its own, not on the workstation of its author
-// (GitHub Actions `permissions:` per job, the hermetic actions of Bazel), a session receives the
-// rights the commands of its skill name, and the context its work reads.
+// the explorateur, the questionneur and the reviewer out of it (scripts/circuit.mjs). A session
+// receives the rights the commands of its skill name, and the context its work reads.
+// Architecture: docs/architecture/machine.md (§3.2, §2.5).
 //
 //   npx grillhouse droits <rôle> --racine <arbre principal> --copie <copie> --ticket <ticket>
 //
@@ -136,8 +135,8 @@ export const ROLES = {
   // the index, and ends on the plan in its sheet, which the circuit writes at the ticket. At the
   // tri of the discoveries, it reads each one and its parent, the commit of main and its history
   // (`git show`, `git log`, in its working directory, the main tree, or by `git -C`), and builds
-  // a package before it judges an error of types of its export; no pass (grillhouse-0yu.5). Its
-  // instruction of the tri lists these commands (`commandesPermises`, grillhouse-6ve).
+  // a package before it judges an error of types of its export; it has no pass. Its
+  // instruction of the tri lists these commands (`commandesPermises`).
   explorateur: {
     metacadre: true,
     index: true,

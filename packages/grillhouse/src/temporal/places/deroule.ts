@@ -1,7 +1,6 @@
-// The workflow of the machine, which holds its places (grillhouse-4nr.7, decision D2), as the job
-// server of GNU make shares its slots between every make of a build, and as the semaphore of
-// Temporal's samples (samples-typescript « mutex ») grants its leases: one workflow for the machine
+// The workflow of the machine, which holds its places: one workflow for the machine
 // (ID_DES_PLACES), the one state of the places, which every pass and session of the machine reads
+// (docs/architecture/machine.md, §3.1, §4.3, §5.2, §5.4)
 // (scripts/places-de-la-machine.mjs). A circuit draws its rank of arrival at its launch by the
 // update TIRER_UN_RANG; a session asks for a place by the update PRENDRE, which records its request and returns at once;
 // the main loop grants the places, and the session learns its grant by the query LA_DEMANDE, so no
@@ -10,8 +9,8 @@
 // that holds a place; the query LES_PLACES gives the board the places and the requests that wait.
 // The queue of the tickets of each project gives its circuits alive and the tickets it would start
 // by the update RESERVER, and starts only those the machine lets start: the circuits of every
-// project hold at most the ceiling, granted in the order of arrival of every project, as Buildkite
-// bounds its pipelines in one fleet of agents. A grant passes by the rule of the places (`refusDeLaPlace` of
+// project hold at most the ceiling, granted in the order of arrival of every project. A grant
+// passes by the rule of the places (`refusDeLaPlace` of
 // scripts/regles-des-places.mjs): a free place under the ceiling (a configuration of the poste,
 // read again by an activity at each judgement, so that a ceiling
 // changed counts without restarting the workflow), the turn of its rank of arrival

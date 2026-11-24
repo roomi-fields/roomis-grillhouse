@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Launches a role agent on one ticket, as its own Claude session inside the envelope of its
 # plan, the packages it writes (one session of the testwriter or the developpeur for the whole
-# ticket, `.` as its component and the plan as `--paquets`, grillhouse-3uv.95.6). The supervisor runs it in the background and is told when the session ends.
+# ticket, `.` as its component and the plan as `--paquets`). The supervisor runs it in the
+# background and is told when the session ends. Architecture: docs/architecture/machine.md (§3.1,
+# §5.5).
 #
 #   npx grillhouse lancer [--modele <m>] [--effort <e>] [--seance <id> | --reprise <id>] [--paquets <liste>] [--fiche <sorte>] <ticket> <rôle> <composant> <fichier de consigne>
 #
@@ -74,7 +76,7 @@
 #   input from a temporary file the launcher writes and removes (an argument may not pass the
 #   128 KiB Linux allows one, MAX_ARG_STRLEN), the instruction file
 #   followed by the section « Ce que les composants d'avant publient », for each package of the
-#   plan (one part per package when the plan holds several, grillhouse-3uv.95.6): for each
+#   plan (one part per package when the plan holds several): for each
 #   component whose `## Consommateurs` section names the package, its line, the names of the
 #   elements declared for the package, and the address of the rubric « Rend » of its frame, the
 #   rest of its elements left to the index of the interfaces (`grillhouse index-interfaces
@@ -96,7 +98,7 @@
 # - A role that ends on a sheet (scripts/resultats.mjs: the testwriter, the developpeur) runs with
 #   `--output-format json --json-schema <its schema>` (`npx grillhouse resultats --schema
 #   <rôle>`); --fiche <sorte> names the schema of a sheet that is not its role's (`geste`, the
-#   explorateur's gesture of a mechanical ticket, grillhouse-sos), taking a value as --modele does:
+#   explorateur's gesture of a mechanical ticket), taking a value as --modele does:
 #   claude's JSON result, its sheet in `structured_output`, goes to `resultat.json` in the folder
 #   of the session (.claude/worktrees/<ticket>.travail/seances/<id>/, <id> the session's
 #   --seance or --reprise, `courante` without one), which a launch removes first and the circuit

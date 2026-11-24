@@ -1,5 +1,5 @@
-// The closure of the machine by the supervisor, as `kubectl cordon` and `drain` close a node to new
-// work: the decision of each command on the reservation of the machine in place, and the lines it
+// The closure of the machine by the supervisor (docs/architecture/machine.md, §5.7):
+// the decision of each command on the reservation of the machine in place, and the lines it
 // says, what still runs by project and by ticket (sessions: the places of the workflow of the
 // machine; passes: their parts), « la machine est vide » when nothing plays, and how long the
 // closure has lasted. Pure: the workflow of the places (src/temporal/places/deroule.ts) bundles

@@ -1,4 +1,4 @@
-// The reading of the key `grillhouse.groupe` of a package.json (grillhouse-pie), read as written:
+// The reading of the key `grillhouse.groupe` of a package.json, read as written:
 // a list of projects, each by its path (absolute, or relative to the project's root), every
 // project of the group, the project itself included. The projects of a group are ordered together:
 // their tickets that wait for a place leave by priority (scripts/regles-des-places.mjs), and
@@ -8,6 +8,7 @@
 // The key is the project's: `groupeDe` reads it in the package.json of the main tree of the
 // repository, never of a copy, and resolves its relative paths from that tree, so that a command
 // launched in a copy of work reads the same group as one launched in the main tree.
+// Architecture: docs/architecture/machine.md (§5.4).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

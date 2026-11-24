@@ -1,110 +1,87 @@
 #!/usr/bin/env node
 // The envelope of a role agent: runs a command (the agent's `claude` session) inside a bwrap
-// sandbox that shows the agent the whole copy and opens in writing only the packages of its plan,
-// as the visibility of Bazel and the module boundaries of Nx refuse a dependency while the code
-// stays readable. `npx grillhouse enveloppe <copie> <paquets> <rôle> -- <commande…>`
+// sandbox that shows the agent the whole copy and opens in writing only the packages of its plan.
+// `npx grillhouse enveloppe <copie> <paquets> <rôle> -- <commande…>`: <copie> is the agent's git
+// worktree, <paquets> the plan (the paths it names inside it, in the variable's form,
+// `ecrireLaListe` of paquets-du-plan.mjs), <rôle> the agent's role. Architecture:
+// docs/architecture/machine.md (§2.5, §5.5 « Les montages de l'enveloppe »).
 //
 // - The root `/` is read-only, the copy included, its indexes (`.codegraph`, `.rtfm`) and every
-//   package outside the plan in sight. Only these are written: the packages of the plan, below; a
-//   `/tmp` empty and proper to the session, where only the scratchpad directory of the copy comes
-//   back, the session's working directory inside it (`dossierDeTravail`; Claude Code's
-//   scratchpads root, `CLAUDE_CODE_TMPDIR` else the launch's temporary directory, so that under a
-//   pass it lies in the base of the pass and goes with it); the npm cache; the Claude session
-//   state (`~/.claude` and the copy's project directory), whose configuration, skills, plugins and
-//   other projects stay read-only. `~/.claude.json` is a throwaway copy: the session writes it,
-//   the real file does not change. The tickets base (the main tree's `.beads/`) is written: the
-//   agent claims, plans, hands over and files what it finds. Every `.git`, the copy's included,
-//   stays read-only: the agent reads the git state and delivers a patch (`git diff`, and
-//   `git diff --no-index /dev/null <file>` for a new file); it never commits.
+//   package outside the plan. Written: the packages of the plan; a `/tmp` empty and proper to the
+//   session, where only the scratchpad directory of the copy comes back, the session's working
+//   directory inside it (`dossierDeTravail`; Claude Code's scratchpads root, `CLAUDE_CODE_TMPDIR`
+//   else the launch's temporary directory); the npm cache; the Claude session state (`~/.claude`
+//   and the copy's project directory), whose configuration, skills, plugins and other projects
+//   stay read-only; the tickets base (the main tree's `.beads/`). `~/.claude.json` is a throwaway
+//   copy. Every `.git`, the copy's included, stays read-only: the agent delivers a patch
+//   (`git diff`, and `git diff --no-index /dev/null <file>` for a new file); it never commits.
 // - Where the tools of the project's language write is what its module declares (`sorties`,
-//   scripts/jointure.d.ts; `sortiesDuLangage`), as a sandbox of Bazel opens in writing what the
-//   action declares: its stores, in the main tree (`//…`, TypeScript's cache of Turborepo, shared
-//   by every copy) or in the home (`~/…`, cargo's registry, git dependencies, advisories and the
-//   lock and cache files at the root of `~/.cargo`), are written, so the agent's runs of `npm
-//   test` keep their work there, as every copy's runs do; what its tools read (cargo's home,
-//   `~/.cargo` with its `env`, its configuration and its binaries, and rustup's `~/.rustup`) comes
-//   back read-only under them, nothing a shell sources written; its outputs in the copy (cargo's
-//   `target`) come back in writing; and its outputs proper to the session (TypeScript's `.turbo`
-//   and `.cache-outils`, the cache of Vite included) are below. Each written path is created on disk before the session,
-//   a directory or, without a trailing `/` in the module's list, an empty file, so that bwrap
-//   mounts it.
-// - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) show only what
-//   the envelope declares: each starts empty and sealed read-only, and the home gets back
-//   `~/.claude`, `~/.claude.json`, the npm cache, the paths of `MAISON_EN_LECTURE` (claude, node,
-//   git and the session's tools) and the repository. No socket of the session comes back. Of
-//   the machine's credentials, only claude's own are in sight: the file of the remote cache of
-//   the poste (`~/.config/grillhouse/`, scripts/fichier-du-poste.mjs) stays out, and the
-//   session's runs keep to the local cache of the main tree that every copy shares.
+//   scripts/jointure.d.ts; `sortiesDuLangage`): its stores, in the main tree (`//…`, TypeScript's
+//   cache of Turborepo, shared by every copy) or in the home (`~/…`, cargo's registry, git
+//   dependencies, advisories and the lock and cache files at the root of `~/.cargo`), are
+//   written; what its tools read (`~/.cargo` with its `env`, its configuration and its binaries,
+//   and `~/.rustup`) comes back read-only under them; its outputs in the copy (cargo's `target`)
+//   come back in writing; its outputs proper to the session (TypeScript's `.turbo` and
+//   `.cache-outils`, the cache of Vite) are empty and proper to it. Each written path is created
+//   on disk before the session, a directory or, without a trailing `/` in the module's list, an
+//   empty file, so that bwrap mounts it.
+// - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) start empty and
+//   sealed read-only; the home gets back `~/.claude`, `~/.claude.json`, the npm cache, the paths
+//   of `MAISON_EN_LECTURE` (claude, node, git and the session's tools) and the repository. No
+//   socket of the session comes back. The file of the remote cache of the poste
+//   (`~/.config/grillhouse/`, scripts/fichier-du-poste.mjs) stays out.
 // - A project that names its published version (`grillhouse.outil`) gets `~/.cache/grillhouse/outil`
 //   read-only, the version installed by the envelope before the session starts: the write lock
 //   runs on that version, never on the code of the copy it guards.
 // - The tools of the project (`grillhouse.outils` of the package.json of the main tree, never of
-//   the copy, so that an agent never opens a path for its next session; `{ "<VARIABLE>":
-//   "<chemin>" }`, read by scripts/outils-cles.mjs), as Bazel declares what an action sees out of
-//   its sandbox and the environment it gets: each path comes back read-only after the declared
-//   paths of the home, before the copy and the packages of the plan, which come back in writing
-//   over it, and each variable reaches the session, the path resolved. A tool never covers a mount
-//   of the envelope: a path is refused when it is `/`, the home or holds it, holds the main tree,
-//   `/tmp`, the temporary directories, `~/.claude`, the scratchpads, the npm cache or a session
-//   directory, or lies under a hidden directory of the first level of the home (`~/.ssh`,
-//   `~/.gnupg`, `~/.aws`, `~/.config`…) but `~/.local` and `~/.cache`, or lies under or holds the
-//   keyrings `~/.local/share/keyrings`; a link is judged by its target too. A faulty key refuses the
-//   envelope, by its name, before anything is prepared.
-// - The session gets only the environment the envelope declares (`environnementDeLaSeance`), as
-//   sudo's env_reset and bwrap's --clearenv give it: the base of a login session, claude's own
-//   configuration and credentials (`ANTHROPIC_*`, `CLAUDE_CODE_OAUTH_TOKEN`), the author of its
-//   comments at the ticket (`BEADS_ACTOR`, which bd reads), the npm cache it
-//   mounts, `npm_config_ignore_scripts=true`, and `TMPDIR`, `TMP` and `TEMP`, the session's working
-//   directory, where `mktemp`, `os.tmpdir()` and Python's `tempfile` write: under a launch, in the
-//   temporary directory of the ticket (scripts/enveloppe/lancer.sh), which goes with the ticket. With it npm runs no lifecycle script (`npm install` leaves the
-//   `prepare` that writes under the read-only `.git`; the launcher installs outside the session),
-//   while `npm test` and `npm run <script>` still run their script, without its `pre` or `post`
-//   (npm's `ignore-scripts`, docs/content/using-npm/config.md); no script of the frame has one. bwrap
-//   starts with that environment alone, so no other variable of the machine (`GH_TOKEN`,
-//   `NPM_TOKEN`…) enters, by name or by argument. The session also gets `GRILLHOUSE_ENVELOPPE`, the
-//   packages of the plan (`paquets-du-plan.mjs`): the frame's commands build, judge and write those
-//   packages only, and its lock refuses a write out of them. A declared variable that names a path
-//   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope, tested there
-//   before the command runs. The session has its own process space: it reads the environment of
-//   no process of the machine.
+//   the copy; `{ "<VARIABLE>": "<chemin>" }`, read by scripts/outils-cles.mjs): each path comes
+//   back read-only after the declared paths of the home, before the copy and the packages of the
+//   plan, which come back in writing over it, and each variable reaches the session, the path
+//   resolved. A tool never covers a mount of the envelope: a path is refused when it is `/`, the
+//   home or holds it, holds the main tree, `/tmp`, the temporary directories, `~/.claude`, the
+//   scratchpads, the npm cache or a session directory, or lies under a hidden directory of the
+//   first level of the home (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`…) but `~/.local` and
+//   `~/.cache`, or lies under or holds the keyrings `~/.local/share/keyrings`; a link is judged
+//   by its target too. A faulty key refuses the envelope, by its name, before anything is
+//   prepared.
+// - The session gets only the environment the envelope declares (`environnementDeLaSeance`): the
+//   base of a login session, claude's own configuration and credentials (`ANTHROPIC_*`,
+//   `CLAUDE_CODE_OAUTH_TOKEN`), the author of its comments at the ticket (`BEADS_ACTOR`), the npm
+//   cache, `npm_config_ignore_scripts=true` (npm runs no lifecycle script; `npm test` and
+//   `npm run <script>` still run their script, without its `pre` or `post`), and `TMPDIR`, `TMP`
+//   and `TEMP`, the session's working directory (under a launch, the temporary directory of the
+//   ticket, scripts/enveloppe/lancer.sh). No other variable of the machine (`GH_TOKEN`,
+//   `NPM_TOKEN`…) enters. It also gets `GRILLHOUSE_ENVELOPPE`, the packages of the plan
+//   (`paquets-du-plan.mjs`): the frame's commands build, judge and write those packages only, and
+//   its lock refuses a write out of them. A declared variable that names a path
+//   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope. The
+//   session has its own process space.
 // - A declared path that is a symbolic link, or that holds one among its components, comes back as
 //   that link, and its target with it (`avecLiens`); a store, a read or a written output is mounted
-//   at its real path, never at a link, by that same mechanism.
+//   at its real path, never at a link.
 // - A worktree of the repository under an emptied directory (the home, `/tmp`) comes back
-//   read-only, `.git` included; the copy's packages of the plan and the tickets base are then
-//   written as above. The copy of another ticket is an optional mount (`--ro-bind-try`): its
-//   circuit removes it at any moment, and the session leaves without it.
+//   read-only, `.git` included. The copy of another ticket is an optional mount
+//   (`--ro-bind-try`): its circuit removes it at any moment, and the session leaves without it.
 // - An envelope on the main tree is refused, so is a plan that names no package, and so is a path
 //   of the plan that does not exist; when it is the name of a package of the copy, the refusal
 //   gives its path.
-// - <copie> is the agent's git worktree; <paquets> is the plan, the paths it names inside it
-//   (`packages/a`, or `src/parser` in a one-package project), in the variable's form
-//   (`ecrireLaListe` of paquets-du-plan.mjs); <rôle> is the agent's role (`testwriter`,
-//   `developpeur`…).
 // - The plan writes, for each of its paths, the component of the copy that holds it (`ecritsDuPlan`,
 //   the components of the module of the language, `paquetsDuLangage`: a package of TypeScript, a
-//   crate of cargo), as a sandbox of Bazel or of Nix opens in writing only
-//   what the action declares: the rest of the copy is read-only, the folders of its root that no
-//   package holds (`libraries/`, `spec/`) included, and a write there fails on « Read-only file
-//   system », which the agent sees. Where the language's tools write at the root of the copy is
-//   then an empty directory proper to the session, or comes back in writing, as its module
-//   declares. A component writes itself alone, a crate or a package, `src/parser` of a
-//   one-package project included (a component of the module typescript), as does a package out of
-//   the frame (`docs/agents/hors-cadre.txt`). A path that no component holds (a folder of the
-//   root, `scripts`; `.`) writes the package that holds it, the root: the copy stays written, its
-//   `.git` read-only.
+//   crate of cargo); the rest of the copy is read-only, the folders of its root that no package
+//   holds (`libraries/`, `spec/`) included, and a write there fails on « Read-only file system ».
+//   A component writes itself alone, `src/parser` of a one-package project included, as does a
+//   package out of the frame (`docs/agents/hors-cadre.txt`). A path that no component holds (a
+//   folder of the root, `scripts`; `.`) writes the package that holds it, the root: the copy
+//   stays written, its `.git` read-only.
 // - The package of the shared test material is every component of <copie> whose `package.json`
 //   exports `./test-fixtures` (`matieres` of the module of the language). It is mounted after the
 //   packages of the plan: written for the `testwriter`, read-only for every other role, in the
 //   plan or not. For such a role, where a run of its tests writes in it (the module's outputs
 //   proper to the session: Turborepo's task logs, Vite's cache) is an empty directory proper to
-//   the session, as Bazel writes a test's logs out of its source: what is written there leaves no
-//   trace. The envelope creates each of them on disk, empty, before the session, so that bwrap
-//   mounts over it inside the read-only package.
+//   the session, created on disk before it, so that bwrap mounts over it.
 // - The lock files of the versions at the root of the copy (`manifestes.verrous` of the module of
-//   the language: cargo's Cargo.lock), which a run of the tests brings in line with the
-//   dependencies of the tests the testwriter declares, come back in writing for the `testwriter`
-//   alone, when the plan leaves the root read-only and the file exists.
+//   the language: cargo's Cargo.lock) come back in writing for the `testwriter` alone, when the
+//   plan leaves the root read-only and the file exists.
 // - The exit codes are named in `codes.mjs`.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {

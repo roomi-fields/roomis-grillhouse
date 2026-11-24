@@ -1,9 +1,8 @@
 // The variables of the poste a tool of a language reads: a file of the poste, out of every
 // repository, under the frame's directory of configuration (`$XDG_CONFIG_HOME/grillhouse/`,
-// `~/.config/grillhouse/` without it, as the XDG Base Directory Specification places a user's
-// configuration), whose name the module of the language gives (`environnementDuPoste`,
-// scripts/jointure.d.ts): the server of a remote cache, its token, which never enter a
-// repository.
+// `~/.config/grillhouse/` without it), whose name the module of the language gives
+// (`environnementDuPoste`, scripts/jointure.d.ts): the server of a remote cache, its token, which
+// never enter a repository. Architecture: docs/architecture/machine.md (§4.1).
 //
 // - The file holds one `VARIABLE=valeur` per line, as a `.env` of the shell: `export ` before the
 //   name, a value between quotes, a blank line and a line of comment (`#`) are read too; any

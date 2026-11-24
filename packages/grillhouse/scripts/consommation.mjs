@@ -1,6 +1,7 @@
 // `grillhouse consommation [--json]`: what the heavy passes of the project consume, per kind of
 // pass, read from its register (./consommation-des-passes.mjs): the number of passes, the median
 // and the maximum of the cores occupied (processor time ÷ duration) and of the peak of memory.
+// Architecture: docs/architecture/machine.md (§5.6).
 import { pathToFileURL } from 'node:url';
 import { bilanDeLaConsommation, lireLaConsommation } from './consommation-des-passes.mjs';
 

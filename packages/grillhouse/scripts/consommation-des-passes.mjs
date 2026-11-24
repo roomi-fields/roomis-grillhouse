@@ -1,8 +1,9 @@
 // What a heavy pass consumes, kept with the project: the transient scope of the user's systemd
-// manager a pass runs in (`scopeSystemd`, read for `CPUUsageNSec` and `MemoryPeak`, as `systemctl
-// show` and Slurm's `sacct` do), the register under `<git common dir>/grillhouse/` where each
-// measure is a line added (`garderLaConsommation`), and the figures per kind of pass
-// (`bilanDeLaConsommation`). The pass itself is `avecLaPasse` (./passe-de-la-machine.mjs).
+// manager a pass runs in (`scopeSystemd`, read for `CPUUsageNSec` and `MemoryPeak`), the
+// register under `<git common dir>/grillhouse/` where each measure is a line added
+// (`garderLaConsommation`), and the figures per kind of pass (`bilanDeLaConsommation`). The pass
+// itself is `avecLaPasse` (./passe-de-la-machine.mjs). Architecture: docs/architecture/machine.md
+// (§3.1, §5.6).
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';

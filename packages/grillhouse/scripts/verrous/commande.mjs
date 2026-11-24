@@ -5,7 +5,8 @@
 // out of the session's temporary directory: an output redirection (`>`, `>>`, `>|`, `&>`, `1>`…)
 // or `tee`. A file of the repository is written by the tools of writing (Write, Edit), which the
 // role's write lock (verrou.mjs) judges; a rule of Claude Code does not see a redirection, and a
-// session in its envelope runs without the check of writes.
+// session in its envelope runs without the check of writes. Architecture:
+// docs/architecture/machine.md (§3.1, §5.5 « Les verrous dans la séance »).
 //
 // - Allowed targets: the null and standard devices (`/dev/null`, `/dev/stdout`, `/dev/stderr`,
 //   `/dev/fd/…`), a duplication of a descriptor (`2>&1`, `>&2`), and a path under the temporary

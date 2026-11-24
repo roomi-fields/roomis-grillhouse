@@ -1,5 +1,5 @@
 // The watch of the memory of a pass: a heavy pass runs its command under it, and is cut before the
-// kernel kills, as earlyoom and systemd-oomd end a group before the kernel's own OOM killer does.
+// kernel kills. Architecture: docs/architecture/machine.md (§3.1, §5.3).
 //
 //   node garde-de-la-memoire.mjs --temoin <file> -- <command> [<argument>…]
 //

@@ -2,7 +2,7 @@
 // scope again and keeps the last reading; when the pass has gone without writing its final line
 // (SIGKILL, the watch of the memory), it writes the line « interrompue » with that reading. Started
 // by `scopeSystemd` (./consommation-des-passes.mjs); a pass that ends by itself leaves the marker
-// file `<id>.fin` the sampler removes.
+// file `<id>.fin` the sampler removes. Architecture: docs/architecture/machine.md (§3.1, §5.6).
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

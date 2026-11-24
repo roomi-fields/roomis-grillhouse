@@ -1,12 +1,10 @@
 // The packages of the plan of the envelope a command runs in. The envelope names them to every
 // command of its session, in the variable `GRILLHOUSE_ENVELOPPE`: the list of the paths the plan
 // names inside the copy (`packages/a`, or `src/parser` in a one-package project), joined by the
-// separator of a list of paths (`path.delimiter`, as NODE_PATH and PATH join theirs). As the
-// visibility of Bazel and the module boundaries of Nx refuse a dependency while the code stays
-// readable, the session reads the whole copy and writes these packages only: a command of the
-// frame that reads the list builds, judges and writes them alone.
-//
-// This module uses Node alone, as the modules of scripts/paquets.mjs.
+// separator of a list of paths (`path.delimiter`). The session reads the whole copy and writes
+// these packages only: a command of the frame that reads the list builds, judges and writes them
+// alone. This module uses Node alone, as the modules of scripts/paquets.mjs. Architecture:
+// docs/architecture/machine.md (§4.1, §5.5).
 import path from 'node:path';
 import { paquets } from '../paquets.mjs';
 
