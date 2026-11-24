@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The document of the circuit enters the repository, the head document aligns on it**: `packages/grillhouse/docs/architecture/circuit.md` (the steps, the roles, the decision rule, the stops, the three circuits, the fallback path, the queue) is the reference of the circuit, and the package publishes it. The head document `docs/ARCHITECTURE.md` follows the owner decisions: one circuit place held by the arbiter and counted by project and by machine, a reservation at each launch of a step, the direct circuit run like the others, the fallback path and its check that records the verified content; it links the circuit document from section 10. No behaviour of the code changes. **Action for projects**: none.
+
 ## [0.49.1] - 2026-11-24
 
 - **A test of the board no longer reads the Temporal server of the workstation** (grillhouse-3uv.218): the tests that run the board script read the circuits and the night of the workstation, so a silent or slow Temporal server changed their output. They now give the board its own matter, and the script and the tests share one function for the output of the command (`--texte` or JSON). No behaviour of the board changes. **Action for projects**: none.
