@@ -1,15 +1,16 @@
 // The duration reporter of the base configuration, beside Vitest's default reporter; a project
 // names it by its published entry, `@roomi-fields/grillhouse/vitest-config/duree`
 // (`--reporter=<entry>`, or `reporters` in a configuration; types ./duree.reporter.d.ts). At the end
-// of a run with failures, it reads each one:
+// of a run with failures, it reads each one. Mechanism: packages/grillhouse/docs/architecture/tests.md,
+// §3.3 (the module typescript), and the charter's « Une mesure de temps joue la nuit »:
 //
 // - a failure depends on a duration when it is a failure of a time budget bench (a file
 //   `*.budget.test.*`, `*.budget.spec.*`), of a test marked as a measure of time (`mesurerAuRepos`,
 //   ./mesure.mjs), or a delay past (an error « Test timed out in <n>ms. » or « Hook timed out in
 //   <n>ms. », Vitest's own message) in a file out of the day (a night test, a bench, a time
 //   witness: `estHorsDuJour` of ./cibles.mjs); every other failure is a real red, a delay past in
-//   a day test included: a delay of the day is a safeguard, not a measure, as in Bazel and Vitest
-//   (grillhouse-bd7), and one too tight widens, far above the test's usual duration;
+//   a day test included: a delay of the day is a safeguard, not a measure, as in Bazel and Vitest,
+//   and one too tight widens, far above the test's usual duration;
 // - it took place under load when the CPU pressure (./pression.mjs) was at or above the threshold
 //   at the start or at the end of the test (noted by ./mesure.setup.mjs), or, for a hook or a file
 //   that fails outside of a test, at the start or at the end of the run.

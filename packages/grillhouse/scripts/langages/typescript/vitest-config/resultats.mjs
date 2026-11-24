@@ -6,7 +6,8 @@
 //   package directory it runs in and its process: two packages, or the same one twice, never write
 //   the same file.
 // - The variable passes through Turborepo without entering any hash (`globalPassThroughEnv` of the
-//   root's turbo.json, which scripts/langages/typescript/turbo-des-paquets.mjs writes and checks).
+//   root's turbo.json, which ../turbo-des-paquets.mjs writes and checks).
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.1, §5.1.
 import path from 'node:path';
 import { RESULTATS } from '../../../resultats.mjs';
 

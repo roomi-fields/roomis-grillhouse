@@ -2,6 +2,8 @@
 // `@roomi-fields/grillhouse/vitest-config`: every Vitest configuration of a project extends it
 // (`mergeConfig(base, defineConfig({ … }))`) and adds its own `include`, coverage and options
 // without repeating what this file sets.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.1, §4.2 (the temporary base),
+// §5.4.
 //
 // - Every configuration imports it by its name (`import base from
 //   '@roomi-fields/grillhouse/vitest-config'`), the root's of a project as each package's, as the
@@ -58,9 +60,7 @@
 //   module typescript: what the tests left there at the end of the run, once Vitest removed its
 //   own directory, fails the run, each name written, the caches of the tools a test launches
 //   tolerated by name (`CACHES_DES_OUTILS`, below) (`baseDeVitest`, below; the base,
-//   scripts/mesure/base-de-passe.mjs). A test makes its temporary directory with
-//   `mkdtempSync(path.join(tmpdir(), '<prefix>-'))` and removes it in `afterAll` (`rmSync`,
-//   `recursive` and `force`), a red test included.
+//   scripts/mesure/base-de-passe.mjs).
 // - While a run names the progress directory of its pass (`GRILLHOUSE_AVANCEMENT`,
 //   scripts/mesure/avancement.mjs), the reporter of progress writes there the files done and planned of its
 //   task at each test file done, which the board reads (scripts/avancement.mjs,
@@ -95,8 +95,8 @@ const MARQUE = 'GRILLHOUSE_BASE_DE_VITEST';
  *   tests start, written out of the pass for good;
  * - `claude-<uid>`: the temporary directory of Claude Code (`CLAUDE_CODE_TMPDIR`, else
  *   `os.tmpdir()`), where a claude a test launches keeps its scratchpads. Its variable named out
- *   of the pass would bring them back into the machine's /tmp (grillhouse-3uv.93: 18 835
- *   directories of `/tmp/claude-1000` left by the envelopes of trial copies).
+ *   of the pass would bring them back into the machine's /tmp (one directory per envelope of a
+ *   trial copy).
  */
 const CACHES_DES_OUTILS = new Set(['node-compile-cache', `claude-${process.getuid?.() ?? ''}`]);
 

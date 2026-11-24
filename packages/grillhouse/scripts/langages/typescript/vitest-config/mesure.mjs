@@ -1,6 +1,6 @@
 // A test that measures time marks itself, so that its failure under load is « à repasser », not a
 // red (./duree.reporter.mjs), and its file, a time witness, plays at night alone, out of the day
-// (./cibles.mjs, grillhouse-bd7):
+// (./cibles.mjs; packages/grillhouse/docs/architecture/tests.md, §3.3):
 //
 //   import { mesurerAuRepos } from '@roomi-fields/grillhouse/vitest-config/mesure';
 //   it('rend en moins de 50 ms', ctx => mesurerAuRepos(ctx, () => { … expect(ms).toBeLessThan(50); }));

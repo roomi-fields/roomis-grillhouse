@@ -1,7 +1,7 @@
 // What the day leaves out of a project: the night tests (`*.nuit.test.*`, `*.nuit.spec.*`), too
 // long for the day, and the measures of time, the time budget benches (`*.budget.test.*`,
 // `*.budget.spec.*`) and the time witnesses (a test file that imports `mesurerAuRepos`), whose
-// measures move with the load of the day (grillhouse-bd7); `npm test`, `npm run verifier` and the
+// measures move with the load of the day; `npm test`, `npm run verifier` and the
 // integration leave them out (the frame's base configuration of the day, the package
 // @roomi-fields/grillhouse/vitest-config, which every day configuration extends). The night
 // (scripts/nuit.sh, by ./tests-de-nuit.mjs) plays them with this configuration, from the root of
@@ -14,7 +14,8 @@
 // only for its own files (below); it takes from the base configuration the common
 // environment (git's settings) and the measure of time: the setup file that notes the CPU pressure
 // of each test and the duration reporter, which gives 75, « à repasser », to a measure that fails
-// under load (scripts/langages/typescript/vitest-config/duree.reporter.mjs).
+// under load (./vitest-config/duree.reporter.mjs).
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.3 (the module typescript).
 //
 // A run plays one unit of the project: the root, under this configuration alone, or a package that
 // has a Vitest configuration (`vitest.config.*`, else `vite.config.*`, in its directory, found by

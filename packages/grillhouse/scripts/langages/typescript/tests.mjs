@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The day's tests, as Turborepo's tasks (`npm test`, `npm run test:forcer`): the build, then the
 // `test:unit` of each package, an unchanged task replayed from Turborepo's cache.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.1 (command of the tests), §5.4.
 //
 //   npx grillhouse tests [--force] [<path>…] [--<option>=<value>…]
 //
@@ -9,80 +10,56 @@
 // - A path is written from the root of the repository: a test file or a directory. In a repository
 //   of packages, each path plays in the package that holds it: Turborepo runs the `test:unit` of
 //   those packages only (`--filter=<name>`), and their Vitest receives each path made absolute,
-//   which it matches against its own test files (a path of another package matches none of them).
-//   Turborepo filters packages, not files, and Vitest resolves a relative path from the directory
-//   of the package that runs it, so the frame translates each path into its package; a Vitest at the
-//   root (its projects) would run each package's tests under the root's version, not the one the
-//   package declares. A path out of every package, in a package out of the frame
-//   (`docs/agents/hors-cadre.txt`), or in a package without a `test:unit` script is refused,
-//   named, and nothing plays. In a repository without packages, the paths go to the root's Vitest
-//   as they are.
-// - The paths and the options reach Vitest in the variable `GRILLHOUSE_TESTS`
-//   (scripts/langages/typescript/vitest-config/cibles.mjs), which the `env` of the task `test:unit` names, never
-//   after `--`: Turborepo passes the arguments after `--` to the tasks the command names only, and
-//   counts them in the hash of every task of the run (its documentation, « Caching »: « including
-//   dependencies of `build` that did not receive `--arg=value` »), where a variable of a task's
-//   `env` enters that task's hash alone. So a run with paths is one Turborepo run of the tests with
+//   which it matches against its own test files. A path out of every package, in a package out of
+//   the frame (`docs/agents/hors-cadre.txt`), or in a package without a `test:unit` script is
+//   refused, named, and nothing plays. In a repository without packages, the paths go to the
+//   root's Vitest as they are.
+// - The paths and the options reach Vitest in `GRILLHOUSE_TESTS` (vitest-config/cibles.mjs), which
+//   the `env` of the task `test:unit` names, never after `--` (Turborepo counts those arguments
+//   in the hash of every task of the run). A run with paths is one Turborepo run of the tests with
 //   what they depend on (`turbo run test:unit --filter=<name>`); a package named whole (the exact
 //   folder of a package) carries no path: it plays under the hash of the complete pass, and a run
-//   that mixes it with files of another package is two runs, the code the first that is not 0:
-//   the builds and the traces they
-//   wait for play first, from the cache when nothing moved, whatever paths are named, and the hash
-//   of the tests holds theirs, as Bazel's key of a target holds its transitive inputs; a change to
-//   a package the tests import, or to what they read, plays them again. Every other run of
-//   Turborepo plays with the variable unset.
-// - Each run of Turborepo plays every task whose dependencies succeed
-//   (`--continue=dependencies-successful`), as Bazel's `--keep_going` and `npm run verifier` do:
-//   each build that fails is named on Turborepo's line « Failed: », a test that waits for a failed
-//   build does not play, and the exit code stays red. A build that fails first does not hide another
-//   one, which the run would otherwise cancel unreported.
+//   that mixes it with files of another package is two runs, the code the first that is not 0.
+//   Every other run of Turborepo plays with the variable unset.
+// - Each run plays every task whose dependencies succeed (`--continue=dependencies-successful`):
+//   each build that fails is named on Turborepo's line « Failed: », a test that waits for it does
+//   not play, and the exit code stays red.
 // - `--force` with paths plays the tests named for real, their builds replayed from the cache:
-//   Turborepo's `--force` re-executes every task of the run, so the variable carries the moment of
-//   the run instead (`rejouer`), a value no cached run of the tests has. A test suspected unstable
-//   is played again, and a build, which the same inputs give again, is not.
+//   the variable carries the moment of the run (`rejouer`) instead of Turborepo's `--force`.
 // - In the envelope of an agent (`GRILLHOUSE_ENVELOPPE`, scripts/enveloppe/paquets-du-plan.mjs),
-//   the packages out of its plan and their traces arrive built by the launcher and read-only, as
-//   in a sandbox of Bazel: the build is the named packages' alone, with the traces of those
-//   packages their tests wait for, which live in the package the agent writes
+//   the packages out of its plan and their traces arrive built and read-only: the build is the
+//   named packages' alone, with the traces of those packages their tests wait for
 //   (`turbo run build <name>#trace:<t>… --only --filter=<name>`, their task ids read in
-//   Turborepo's plan of the tests, `turbo run test:unit --filter=<name> --dry=json`), never
-//   their dependencies nor a neighbour's trace; then the tests alone
-//   (`turbo run test:unit --only --filter=<name>`), the paths in the variable. A named package
-//   that the envelope shows read-only (one out of the plan; the shared test material, for every
-//   role but the testwriter) is not built, nor are its traces: it arrives built, as a read-only
-//   input of Bazel; the frame knows it read-only by testing its directory for writing
-//   (`inscriptible`), where the envelope mounts it. The shared test material plays its tests as
-//   it is: the logs of its tasks go to the envelope's directories proper to the session
-//   (`sortiesDeTest`, scripts/enveloppe/enveloppe.mjs), never into its source. A package out of
-//   the plan has no such directories: Turborepo and Vite cannot write its logs and its cache, and
-//   a run of its tests fails on « Read-only file system »; its tests play out of the envelope. The
-//   verdict that counts is the reviewer's and the integration's, out of the envelope.
+//   `turbo run test:unit --filter=<name> --dry=json`), never their dependencies nor a neighbour's
+//   trace; then the tests alone (`turbo run test:unit --only --filter=<name>`), the paths in the
+//   variable. A named package that the envelope shows read-only (`inscriptible`: one out of the
+//   plan; the shared test material, for every role but the testwriter) is not built, nor are its
+//   traces. The shared test material plays its tests as it is, the logs of its tasks going to the
+//   envelope's directories proper to the session (`sortiesDeTest`, scripts/enveloppe/enveloppe.mjs).
+//   A package out of the plan has none: its tests fail on « Read-only file system » and play out
+//   of the envelope.
 // - An argument that begins with « - » is an option of Vitest, written `--<name>=<value>`, carried
 //   in the variable beside the paths.
 // - A time budget bench or a time witness, which the day leaves out, plays when a path names its
-//   own file, under the measure of time of the day's configuration (scripts/langages/typescript/vitest-config/cibles.mjs);
-//   a night test named is refused, naming it, and nothing plays (the night alone plays it,
-//   ./tests-de-nuit.mjs); a directory or a package named leaves them all out.
-// - A run that plays no test fails: the frame's base configuration of Vitest keeps Vitest's
-//   `passWithNoTests: false` (scripts/langages/typescript/vitest-config/base.mjs).
-// - Under the circuit's mark (`GRILLHOUSE_DEPUIS_LE_VERT`, its proof and its checks,
-//   scripts/circuit.mjs), a run measures itself against the last green, as `npm run verifier`
-//   does (scripts/dernier-vert.mjs): in a package or a directory named, the tests Vitest relates to
-//   the files changed since it, every test when a change lies out of Vitest's graph; a file named
-//   itself plays, changed or not; `--force` plays them all. Without the mark, every test named
-//   plays. Given the base of the lot besides (`GRILLHOUSE_BASE_DU_LOT`, in a project whose CI runs
-//   on a ticket's branch), it measures itself against that base, targeted: the tests Vitest
-//   relates to the lot, never the whole package for a file out of its graph.
-// - While the environment names a results directory (`GRILLHOUSE_RESULTATS`,
-//   scripts/resultats.mjs), each run of Turborepo writes its summary (`--summarize`), moved there,
-//   and Vitest its JSON report there: what the circuit reads of a run.
-// - While the environment names the progress directory of a pass (`GRILLHOUSE_AVANCEMENT`,
-//   scripts/avancement.mjs: the circuit's proof and checks), each run of the tests plans its
-//   tasks first, and Vitest writes there the files done and planned of each.
-// - The run has a base of its own (scripts/mesure/base-de-passe.mjs), which it sweeps first
-//   of the bases a killed run left: it names it in TMPDIR, TMP and TEMP to every run of
-//   Turborepo, whose root's `globalPassThroughEnv` passes TMPDIR on to every task, and removes it
-//   at its end, green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
+//   own file, under the measure of time of the day's configuration (vitest-config/cibles.mjs);
+//   a night test named is refused, naming it, and nothing plays (./tests-de-nuit.mjs); a
+//   directory or a package named leaves them all out.
+// - A run that plays no test fails: the base configuration of Vitest keeps `passWithNoTests:
+//   false` (vitest-config/base.mjs).
+// - Under the circuit's mark (`GRILLHOUSE_DEPUIS_LE_VERT`, scripts/circuit.mjs), a run measures
+//   itself against the last green as `npm run verifier` does (scripts/dernier-vert.mjs): in a
+//   package or a directory named, the tests Vitest relates to the files changed since it, every
+//   test when a change lies out of Vitest's graph; a file named itself plays, changed or not;
+//   `--force` plays them all. Without the mark, every test named plays. With the base of the lot
+//   besides (`GRILLHOUSE_BASE_DU_LOT`), it measures against that base, targeted.
+// - While the environment names a results directory (`GRILLHOUSE_RESULTATS`), each run of
+//   Turborepo writes its summary (`--summarize`), moved there, and Vitest its JSON report there.
+// - While it names the progress directory of a pass (`GRILLHOUSE_AVANCEMENT`,
+//   scripts/avancement.mjs), each run plans its tasks first, and Vitest writes there the files
+//   done and planned of each.
+// - The base of the run (scripts/mesure/base-de-passe.mjs), swept first of the bases a killed run
+//   left: named in TMPDIR, TMP and TEMP to every run of Turborepo (`globalPassThroughEnv`), and
+//   removed at the end, green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
 // The exit code is Turborepo's; 2 for a path refused.
 import { spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs';

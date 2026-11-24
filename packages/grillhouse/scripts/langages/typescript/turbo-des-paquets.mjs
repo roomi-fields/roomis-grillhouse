@@ -1,169 +1,106 @@
 #!/usr/bin/env node
-// The `turbo.json` of each package of a repository of packages, generated from its package.json
-// (its dependencies, its build, the paths its tests read and the traces it writes), its
-// configurations of TypeScript, the root's turbo.json and the list of the packages out of the
-// frame; and, in the root's turbo.json, the `dependsOn` of the guard tasks, the typing task, the
-// `env` of the tests, the variable of the results directory and the exclusion of a submodule's
-// `.git`.
+// The generator of the graph: writes the `turbo.json` of the root and of each package of a
+// repository of packages, from their package.json and TypeScript configurations, and refuses one
+// that is absent or stale. A repository without `workspaces` has no package: none is written or
+// refused. The dependencies are read in the package.json only. Packages come from `paquets`
+// (scripts/paquets.mjs). Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.1
+// (generator of the graph), §5.1.
 //
 //   npx grillhouse turbo-des-paquets           refuses a turbo.json absent or stale, and a
-//                                                declaration of a path read or trace refused (below)
-//   npx grillhouse turbo-des-paquets --ecrire  writes the guards' dependsOn, the typing task and
-//                                                the tests' env in the root's turbo.json, then the
-//                                                turbo.json of each package, in one pass
+//                                                declaration of a path read or trace refused
+//   npx grillhouse turbo-des-paquets --ecrire  writes the root's guard `dependsOn`, typing task and
+//                                                tests' `env`, then each package's turbo.json
 //
-// Turborepo's `^build` waits for the build of every internal package a package declares, its
-// devDependencies included; a package whose tests import a neighbour that depends on it (the
-// shared test material, two stages testing each other) makes a cycle that `turbo run build`
-// refuses. A build waits for its runtime dependencies only, as Bazel separates the deps of a
-// library from those of its test. So each package receives a package configuration
-// (https://turborepo.dev/docs/reference/package-configurations): `extends: ["//"]`, and a `build`
-// whose `dependsOn`, which replaces the root's, holds the `<name>#build` of each internal package
-// its `dependencies`, `peerDependencies` and `optionalDependencies` name that has a `build`
-// script, sorted. The tests keep the root's `build` and `^build`: a test waits for its own package's build, whose
-// built entry it imports, and for everything it imports.
+// Per package (a package configuration, `extends: ["//"]`):
+// - `build` waits for the `<name>#build` of each internal package named in `dependencies`,
+//   `peerDependencies` and `optionalDependencies` that has a `build` script, sorted; never the
+//   devDependencies, which would make a cycle with the shared test material. The tests keep the
+//   root's `build` and `^build`.
+// - `build` inputs, for a package with a `tsconfig.build.json`: the root's build inputs without
+//   `$TURBO_DEFAULT$`, then, sorted, its package.json, its tsconfig.build.json, each configuration
+//   it extends inside the package, `<dir>/**` per included directory (an `include` entry, its fixed
+//   part before a glob; a `files` entry, its directory), the same for each configuration a `tsc` of
+//   its `build` script compiles (`-p`, `--project`, `-b`, `--build`, else tsconfig.json). tsc's
+//   rules hold: a configuration's `include` and `files` replace its bases', a later base of an
+//   `extends` list replaces an earlier one, each path is relative to the file that writes it
+//   (`${configDir}`, to the configuration compiled). What is unknown leaves Turborepo's default,
+//   every file hashed: a tsconfig.build.json absent or not JSON, a `build` command other than
+//   `tsc …`, a base that cannot be read, a configuration with neither `include` nor `files`, an
+//   included path out of the package or at its root.
+// - A package out of the frame (`docs/agents/hors-cadre.txt`) stays a workspace and excludes each
+//   task of the root's turbo.json (`"extends": false`). A `^` dependency still reaches an excluded
+//   task, so a package of the frame that declares one (`dependencies`, `devDependencies`,
+//   `optionalDependencies`) has each root task whose `dependsOn` holds a `^<task>` written out:
+//   its other entries kept, then the `<name>#<task>` of each internal package it declares, those
+//   out of the frame left out, sorted. The check refuses a configuration that is not so.
 //
-// A build hashes what it reads, as Turborepo's `inputs` limit what invalidates a task
-// (https://turborepo.dev/docs/reference/configuration#inputs): a test file changed leaves its
-// package's build as it is, and so the builds and tests of every package depending on it. A
-// package with a `tsconfig.build.json` has its `build` hash the root's build inputs, Turborepo's
-// default (`$TURBO_DEFAULT$`) left out, then, sorted: its package.json, its tsconfig.build.json and
-// each configuration it extends inside the package, `<dir>/**` per directory it includes (an
-// `include` entry, its fixed part before a glob; a `files` entry, its directory, since tsc compiles
-// what a listed file imports, its neighbours most often), the same for each configuration a `tsc`
-// of its `build` script compiles (`-p`, `--project`, `-b`, `--build`, else tsconfig.json). tsc's
-// own rules hold: a configuration's `include`
-// and `files` replace its bases', a later base of an `extends` list replacing an earlier one, each
-// path relative to the file that writes it (`${configDir}`, to the configuration compiled). What is
-// unknown leaves the build on Turborepo's default, every file of its package hashed, so that it
-// never gives a stale cache: a tsconfig.build.json absent or not JSON, a command of the `build`
-// script other than `tsc …` (`vite build`, `node copier.mjs`), a base that cannot be read, a
-// configuration setting
-// neither `include` nor `files` (tsc then takes every file), an included path out of the package
-// or at its root.
-//
-// A package out of the frame (`docs/agents/hors-cadre.txt`: a directory under `packages/` or
-// `src/`) stays a workspace, which a neighbour may import by its name, and Turborepo plays none
-// of its tasks: its configuration excludes each task of the root's turbo.json (or turbo.jsonc),
-// `"extends": false`, by which the task does not exist for it. A `^` dependency still reaches an excluded task, so no `dependsOn`
-// written here names a package out of the frame, and a package of the frame that declares one
-// (in its `dependencies`, `devDependencies` or `optionalDependencies`, the fields `^` follows)
-// has each root task whose `dependsOn` holds a `^<task>` written out: its other entries kept, then
-// the `<name>#<task>` of each internal package it declares there, out of the frame left out,
-// sorted. The check refuses a configuration that is not so, which Turborepo would play.
-//
-// What a package's tests read, as Bazel's `data`, and the traces a stage writes, as Bazel's
-// genrule: the test task of a package depends on its code, on what it imports and on the paths it
-// declares only. A package declares in its package.json, each path from the root:
+// What a package's tests read and the traces it writes. A package declares in its package.json,
+// each path from the root:
 //
 //   "grillhouse": {
 //     "lit": ["packages/990-corpus/test/060-encoder/paires-v1"],
 //     "traces": { "trace:grammaires": { "lit": ["…/paires-v1"], "ecrit": "packages/060-encoder/trace/grammaires-du-corpus" } }
 //   }
 //
-// - `lit`: the paths its tests read, directories or files, data or code, a neighbour's scripts and
-//   sources included, as Bazel's `data` takes any file. Its `test:unit` hashes them
-//   (`inputs`: the root's, `$TURBO_EXTENDS$`, or Turborepo's default, `$TURBO_DEFAULT$`, when the
-//   root's task sets none, since `$TURBO_EXTENDS$` then extends an empty list; then
-//   `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each trace whose
-//   output one of them overlaps (`<producer>#trace:<name>`); the producer declares nothing for it.
-//   The patterns its test files declare they read (`// @lit <motif>` at their head,
-//   ./vitest-config/lances.mjs) are hashed with them (`$TURBO_ROOT$/<motif>` each, those `lit`
-//   already covers left out), a package without `lit` included: one declaration, read by the
-//   choice of the tests of a pass and by Turborepo's cache.
+// - `lit`: the paths its tests read, directories or files, data or code. Its `test:unit` hashes
+//   them (`inputs`: the root's, `$TURBO_EXTENDS$`, or `$TURBO_DEFAULT$` when the root's task sets
+//   none; then `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each
+//   trace whose output one of them overlaps (`<producer>#trace:<name>`). The patterns its test
+//   files declare they read (`// @lit <motif>` at their head, ./vitest-config/lances.mjs) are
+//   hashed with them (`$TURBO_ROOT$/<motif>` each, those `lit` already covers left out), a
+//   package without `lit` included.
 // - `traces`: each trace the package produces, its command the package's script of the same name,
-//   `trace:<name>`. Its task waits for `build` and `^build`, and for the traces its `lit` overlaps;
+//   `trace:<name>`. Its task waits for `build` and `^build` and for the traces its `lit` overlaps;
 //   it hashes the package's files and its `lit`, its output left out, and Turborepo caches its
 //   output, `ecrit`, a directory inside the package that git ignores. A restore from the cache
-//   adds files and removes none: the command empties its directory before writing it.
-//   The traces a package's tests wait for are read in Turborepo's plan of its tests
-//   (`tracesDuPlan` of scripts/taches-du-graphe.mjs), by the targeted run
-//   (scripts/langages/typescript/tests.mjs) and the build of an agent's copy
-//   (scripts/taches-du-graphe.mjs, every language's), which produce them before the tests; the envelope shows the
-//   directory of a neighbour's trace read-only (scripts/enveloppe/enveloppe.mjs), and the targeted
-//   run inside it plays the traces of the agent's package only.
+//   adds files and removes none: the command empties its directory before writing it. The traces
+//   a package's tests wait for are read in Turborepo's plan of its tests (`tracesDuPlan` of
+//   scripts/taches-du-graphe.mjs).
 // - The package holding a declared path of data alone (the shared test material) has its `build`
-//   leave it out (`inputs`: the root's, then `!<dir>/**` each): its data no longer moves its build,
-//   nor the tests of every package that waits for it. A declared path holding code (a file a build
-//   compiles: `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts` included, whose types tsc checks, `.js`,
-//   `.jsx`, `.mjs`, `.cjs`) stays an input of its package's build, as Bazel's `data` leaves a file
-//   in the rule that builds it; what a trace writes is no code of it. The builds a package's
-//   dependencies give stay as they are: a package reduces them in its package.json.
+//   leave it out (`inputs`: the root's, then `!<dir>/**` each). A declared path holding code
+//   (`.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts`, `.js`, `.jsx`, `.mjs`, `.cjs`) stays an input of its
+//   package's build; what a trace writes is no code of it.
 //
 // The check refuses a declared path absent that no trace writes; a trace written out of its
-// package, followed by git, or not ignored; a `trace:*` script without
-// declaration, a declaration without script or not named `trace:<name>`. In the root's
-// turbo.json, which is the project's, it refuses what the generator owns: a task of one package
-// (`<package>#<task>`, the root's own `//#…` kept), a `trace:*` task, an input (`inputs` under
-// `$TURBO_ROOT$/`, `globalDependencies`) naming a package directory.
+// package, followed by git, or not ignored; a `trace:*` script without declaration, a declaration
+// without script or not named `trace:<name>`. In the root's turbo.json, which is the project's, it
+// refuses what the generator owns: a task of one package (`<package>#<task>`, the root's own
+// `//#…` kept), a `trace:*` task, an input (`inputs` under `$TURBO_ROOT$/`, `globalDependencies`)
+// naming a package directory.
 //
 // A submodule's `.git`, in a copy (a worktree), is a file naming that copy: an input reaching it
-// changes the hash of its task in each new copy, and the cache never serves. Beside each input
-// that can reach the `.git` of a submodule the .gitmodules declares (a pattern of the root under
-// `$TURBO_ROOT$/`, of any task, or a global dependency, whose fixed part is the submodule or holds
-// it, then a glob), the generator writes its exclusion, `!$TURBO_ROOT$/<path>/.git`
-// (`!<path>/.git` for a global dependency), in the root's turbo.json, the rest of the file kept,
-// and in the inputs it writes in a package's turbo.json; the check refuses a root input lacking it.
+// changes the hash of its task in each copy. Beside each input that can reach the `.git` of a
+// submodule `.gitmodules` declares (a pattern of the root under `$TURBO_ROOT$/`, of any task, or
+// a global dependency, whose fixed part is the submodule or holds it, then a glob), the generator
+// writes its exclusion, `!$TURBO_ROOT$/<path>/.git` (`!<path>/.git` for a global dependency), in
+// the root's turbo.json and in the inputs of a package's; the check refuses a root input lacking it.
 //
 // The configuration of Vitest of the package of the shared test material (`matieres` of
-// scripts/langages/typescript/consommateurs.mjs) is CommonJS (`vitest.config.cjs`): the envelope shows that package
-// read-only to every role but the testwriter (scripts/enveloppe/enveloppe.mjs), and Vite 5 loads a
-// CommonJS configuration in memory, where it bundles an ESM one into a file beside it
-// (`vitest.config.mjs.timestamp-<n>.mjs`). The check refuses a `vitest.config.mjs` or `.mts` of
-// that package, and a `.js` or `.ts` when its `type` is `module`, as Vite tells ESM from CommonJS.
+// ./consommateurs.mjs) is CommonJS (`vitest.config.cjs`): the envelope shows that package
+// read-only to every role but the testwriter, and Vite 5 bundles an ESM configuration into a file
+// beside it (`vitest.config.mjs.timestamp-<n>.mjs`). The check refuses a `vitest.config.mjs` or
+// `.mts` of that package, and a `.js` or `.ts` when its `type` is `module`.
 //
-// The guard tasks of the root: the frame's controls (`grillhouse:gardes`) and the project's own
-// guards (`gardes`, the root script the frame reserves for them; a root without it plays none),
-// which `npm run verifier` plays beside the tests. They read what the builds write (the API
-// reports and the code-mort check read the `dist/`; a project's guards may read its built form):
-// each waits for the build of each package of the frame that has a `build` script, sorted, a
-// package out of the frame left out (`//#grillhouse:gardes`, `//#gardes` in a repository of
-// packages), or for the root's build (`grillhouse:gardes`, `gardes`) in a repository without
-// packages. The generator writes their `dependsOn` in the root's turbo.json (or turbo.jsonc), and
-// adds a guard task the root lacks (`{ dependsOn, outputs: [] }`); the rest of that file is the
-// project's, its comments and its layout kept (jsonc-parser, the library of the JSON editing of
-// VS Code: each edit touches the value it sets). The check refuses a guard task absent or whose
-// `dependsOn` differs. A repository without a root turbo.json (or turbo.jsonc) has nothing written
-// or refused at its root.
-//
-// The typing of each package (`typecheck`, its script, as `check-types` in the examples of
-// create-turbo), which `npm run verifier` plays beside the guards and the tests: a task of the
-// root's turbo.json (or turbo.jsonc), cached per package, that waits, as `test:unit`, for the
-// build of its own package (`build`: the tests of BPScript's 990-corpus import its built entry,
-// `990-corpus/test-fixtures`) and, in a repository of packages, for the build of each package its
-// package declares (`^build`), whose types it reads; a package without a `typecheck` script plays
-// none. The generator adds the task the root lacks (`{ dependsOn: ["build", "^build"], outputs:
-// [] }`, `["build"]` without packages), and each of those builds a `dependsOn` of the project's
-// lacks, the rest of the task kept; the check refuses either. Witness: BPScript 320.21.4, whose type errors in test/ showed only at night.
-//
-// The tests of a targeted run: the paths reach Vitest in the variable `GRILLHOUSE_TESTS`
-// (scripts/langages/typescript/vitest-config/cibles.mjs, scripts/langages/typescript/tests.mjs), which the `env` of the root's
-// `test:unit` names: it enters the hash of the tests alone, and reaches their process alone
-// (Turborepo's strict mode of the variables). A package's own `test:unit` sets no `env`, and
-// inherits the root's. The generator adds the variable to the `env` of the root's `test:unit`,
-// the project's entries kept, and the check refuses a `test:unit` of the root without it.
-//
-// Some variables pass to every task without entering any hash: the root's `globalPassThroughEnv`
-// names them, Turborepo's strict mode of the variables keeping out of a task every variable its
-// configuration does not name. The results directory of a run (`GRILLHOUSE_RESULTATS`,
-// scripts/resultats.mjs), where the guards write their SARIF, Turborepo its summaries and Vitest
-// its JSON reports; the changes since the last green (`GRILLHOUSE_CHANGEMENTS`,
-// scripts/dernier-vert.mjs), by which the tests of a package Turborepo plays again are those
-// Vitest relates to them, while a package whose inputs did not move replays from the cache; the
-// progress directory of a pass (`GRILLHOUSE_AVANCEMENT`, scripts/avancement.mjs), where Vitest
-// writes the files done and planned of each task, which the board reads; the temporary directory
-// (`TMPDIR`), the base of a pass (scripts/mesure/base-de-passe.mjs), where every task writes
-// its temporary files and which goes at the end of the pass; the workers of the tests of a task
-// (`GRILLHOUSE_TRAVAILLEURS`, scripts/places-de-la-machine.mjs), the bound a session or a pass
-// sets, which the tool of each language reads; the Rust toolchain of a runner (`CARGO_HOME`,
-// `RUSTUP_HOME`), which a runner of the repository holds per executor. The generator adds each
-// one the root lacks, the project's entries kept, and the check refuses a
-// root without one.
-//
-// The packages are those of `paquets` (scripts/paquets.mjs, the frame's one list of the packages of
-// a repository, each marked out of the frame or not). A repository without `workspaces` has none:
-// no package turbo.json is written or refused. The dependencies are written in the package.json
-// only; this file is their only reader for the tasks' order.
+// The root's tasks, in its turbo.json or turbo.jsonc (the rest of the file is the project's,
+// its comments and layout kept by jsonc-parser; a repository without one has nothing written or
+// refused at its root). The generator adds a task the root lacks and writes its entries; the
+// check refuses a task absent or differing:
+// - the guard tasks, `grillhouse:gardes` and `gardes` (the root script the frame reserves for the
+//   project's guards; a root without it plays none): each waits for the build of each package of
+//   the frame that has a `build` script, sorted (`//#grillhouse:gardes`, `//#gardes` in a
+//   repository of packages), or for the root's build in a repository without packages; the task
+//   added is `{ dependsOn, outputs: [] }`;
+// - `typecheck`, cached per package: it waits for `build` and, in a repository of packages, for
+//   `^build`; a package without a `typecheck` script plays none; the task added is
+//   `{ dependsOn: ["build", "^build"], outputs: [] }` (`["build"]` without packages), and a
+//   `dependsOn` of the project's lacking one of them is completed, the rest kept;
+// - `test:unit`: its `env` names `GRILLHOUSE_TESTS` (cibles.mjs, tests.mjs), which so enters the
+//   hash of the tests alone; a package's own `test:unit` sets no `env` and inherits the root's;
+//   the project's entries are kept;
+// - `globalPassThroughEnv`: the variables that pass to every task without entering any hash:
+//   `GRILLHOUSE_RESULTATS`, `GRILLHOUSE_CHANGEMENTS`, `GRILLHOUSE_AVANCEMENT`, `TMPDIR`,
+//   `GRILLHOUSE_TRAVAILLEURS`, and the Rust toolchain of a runner (`CARGO_HOME`, `RUSTUP_HOME`);
+//   the project's entries are kept.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -199,8 +136,8 @@ const TOPOLOGIE = ['dependencies', 'devDependencies', 'optionalDependencies'];
 const RACINES = ['turbo.json', 'turbo.jsonc'];
 // The guard tasks of the root: the frame's controls, and the project's own guards.
 export const GARDES = SCRIPTS_DE_GARDES;
-// The controls of the root the CI used to play beside the verification: the format check and the
-// lint (grillhouse-61z). A root plays those its package.json holds a script for, none demanded.
+// The controls of the root that the CI plays beside the verification: the format check and the
+// lint. A root plays those its package.json holds a script for, none demanded.
 export const CONTROLES = ['format:check', 'lint'];
 // The controls the root package.json of <racine> holds a script for.
 export function controlesDeRacine(racine) {
@@ -271,7 +208,7 @@ const relanceLesPaquets = script =>
   /(^|[\s;&|])(npx\s+)?turbo\s+run(\s|$)/.test(String(script));
 
 // The refusals of the root's format and lint scripts at <racine> that name a file a package holds,
-// or launch the packages' scripts again: the root keeps its own files (grillhouse-44b.9), a package
+// or launch the packages' scripts again: the root keeps its own files, a package
 // plays its own.
 function controlesDeRacineRefuses(racine) {
   const dossiers = paquets(racine)

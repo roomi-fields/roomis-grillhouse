@@ -3,7 +3,8 @@
 // runner) does not have bears the tag `@poste` in the comment at its head (`porteLEtiquetteDuPoste`
 // of ./vitest-config/cibles.mjs), as Bazel's tags (`manual`, `exclusive`) and pytest's markers live
 // with the test; the night of a shared machine leaves it out (`tests-de-nuit --hors-du-poste`), the
-// night of the poste plays it. The tag lives in the test, never in a list beside it.
+// night of the poste plays it. The tag lives in the test, never in a list beside it. Mechanism:
+// packages/grillhouse/docs/architecture/tests.md, §3.4 (the guards).
 //
 //   npx grillhouse tests-du-poste   run from the repository root (a guard of grillhouse:gardes)
 //

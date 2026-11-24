@@ -4,6 +4,7 @@
 // starts inherits (scripts/registre.mjs reads the variable first); the directory is removed at the
 // end of the test file, and at the exit of the process for one made inside a running test. A
 // register the launch names stays.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.3, §4.2.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

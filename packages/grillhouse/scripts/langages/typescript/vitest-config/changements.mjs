@@ -6,12 +6,13 @@
 // untracked), and plays the tests whose graph holds one of them (`related`); the frame gives it
 // the files that differ from the tree of the last green instead, which Vitest's git cannot read
 // (a green kept on a copy whose lot is not committed).
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §5.3 (the tests of a package replayed).
 //
 // - The variable `GRILLHOUSE_CHANGEMENTS` names a JSON file, `{ racine, fichiers, supprimes, cible }`:
 //   the top of the repository, the files changed or added since the last green and the files
 //   removed, each path from the top, and, for a pass of the circuit measured against the base of
 //   its lot (scripts/dernier-vert.mjs), the mark `cible`. It passes through Turborepo without entering any hash (the root's
-//   `globalPassThroughEnv`, which scripts/langages/typescript/turbo-des-paquets.mjs writes and checks): a package whose
+//   `globalPassThroughEnv`, which ../turbo-des-paquets.mjs writes and checks): a package whose
 //   inputs did not move replays its last green from Turborepo's cache, whatever the last green.
 //   The plugin takes it out of the environment once read: no process the tests start receives it.
 // - The graph of a test is the test file and the modules it imports, statically or dynamically,
@@ -54,20 +55,15 @@
 //   Vitest's own `forceRerunTriggers` (a configuration's, or its default) still apply, as with
 //   `--changed`. Under the mark `cible`, 5 and 7 do not play the package whole, and no test is
 //   related by the paths it reads (`testsQuiLancent`): the tests Vitest relates alone, the tests
-//   that declare their reads, and the files named, as `vitest --changed` leaves a file out of its graph to the complete pass, the
-//   CI's of the ticket's branch and the night's. Witness: grillhouse-4nr.21, whose
-//   `scripts/session-start.sh` the reads of 276 of the 282 test files of packages/grillhouse hold
-//   (a test that starts the command reads every script of its table).
+//   that declare their reads, and the files named; as `vitest --changed`, a file out of its graph
+//   is left to the complete pass, the CI's of the ticket's branch and the night's.
 // - Otherwise the tests played are those Vitest relates to the files changed or added (`related`,
 //   absolute), the tests that read one of them by its path, a script they launch or a file they
 //   read, with what it imports and names (`testsQuiLancent`, ./lances.mjs, as Bazel's `data`),
 //   the tests that declare they read a file changed, added or removed (`// @lit <motif>` at
 //   their head, `testsQuiDeclarent`, ./lances.mjs), targeted or not, and the files a targeted run
-//   names themselves (./cibles.mjs): a file named plays, changed or not. Witness: the tests that
-//   judge a list of the repository complete (the share of `scripts/` and `bin/`, the callers of
-//   each subcommand), which the targeted passes of grillhouse-44b.15 left red to the CI of the
-//   branch five times in one night (grillhouse-44b.17). A package where none relates plays none and passes
-//   (`passWithNoTests`), as Vitest's `--changed` has it.
+//   names themselves (./cibles.mjs): a file named plays, changed or not. A package where none
+//   relates plays none and passes (`passWithNoTests`), as Vitest's `--changed` has it.
 //
 // This module's top level uses Node alone (./cibles.mjs, scripts/langages/typescript/tests.mjs import it); a
 // turbo.json is read with jsonc-parser, the frame's reader of JSON with comments, loaded then.

@@ -13,6 +13,7 @@
 //
 // That trial machine takes no place of the user's machine (scripts/places-de-la-machine.mjs): only
 // the server of trial a test names (GRILLHOUSE_PLACES_D_ESSAI).
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.3, §4.2.
 import { randomUUID } from 'node:crypto';
 import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

@@ -8,6 +8,7 @@
 //   large delay, whatever its text reads.
 // - A setup file of the base configuration applies the delay of its file to each test file
 //   (./delais.setup.mjs).
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.4 (the guard of the sizes).
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { lesMatieres, classer } from '../tailles-des-tests.mjs';

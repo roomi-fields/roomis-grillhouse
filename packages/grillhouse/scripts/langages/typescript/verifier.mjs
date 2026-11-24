@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// `npm run verifier`: the full pass, what the integration, the queue, the continuous integration
-// and the night play. Its verdict is green (0) or red (1); « à repasser » (75) only when the wait
-// for the lock of the machine, or for room in the temporary directory, reaches its bound.
+// `npm run verifier`: the verification pass, one run of Turborepo on the whole graph. Its verdict
+// is green (0) or red (1); « à repasser » (75) only when the wait for the part of the machine, or
+// for room in the temporary directory, reaches its bound, or the memory watch cuts it.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §5.1 (the pass), §5.3 (the tests
+// replayed), §3.1.
 //
 //   npx grillhouse verifier [<argument of Turborepo>…]      (npm run verifier -- --force)
 //   npx grillhouse verifier --tout [<argument>…]             every test, played for real
@@ -9,104 +11,67 @@
 //   npx grillhouse verifier --sans-tests [<argument>…]       every control but the tests
 //   npx grillhouse verifier --tranche i/n [<argument>…]      the tests of the tranche i of n
 //
-// - A pass measures itself against the last green (scripts/dernier-vert.mjs), as
-//   `vitest --changed` and `jest --onlyChanged` do: the tree of the last pass green on every
-//   package, kept per branch (main's for a copy that has none yet). When it counts (its commit an ancestor of HEAD), each package
-//   Turborepo plays again plays the tests Vitest relates to the files changed since it, or all
-//   its tests when a change lies out of Vitest's graph (scripts/langages/typescript/vitest-config/changements.mjs);
-//   a package whose inputs did not move replays from Turborepo's cache, the guards play whole,
-//   and so do the builds. The changes reach Vitest in a variable no hash counts
-//   (`GRILLHOUSE_CHANGEMENTS`). Without a last green that counts, the pass is complete. The
-//   line `↳` says which. The final pass of a circuit gives the base of its lot
-//   (`GRILLHOUSE_BASE_DU_LOT`, scripts/dernier-vert.mjs): it measures itself against it, targeted,
-//   the tests Vitest relates to the lot, never the whole package for a file out of its graph; a
-//   `--base` given takes precedence. A pass green, restricted by no filter, keeps its tree as the last green;
-//   a red one keeps the last green as it was. The pass is the one that keeps it, for every language
-//   of the project: it plays the tasks of every package of the graph, a crate's and a Python
-//   project's beside a TypeScript package's (their `test:unit` and `typecheck`, scripts of their
-//   package.json), so it is green only when every task of every language is, and no module of
-//   language keeps a green of its own (scripts/dernier-vert.mjs).
-// - `--tout`, and `--force` (the night, scripts/nuit.sh), play the complete pass: no measure
-//   against the last green, and each task of tests played for real (the variable of the tests
-//   carries the moment of the pass, `rejouer`, which no cached run holds).
-// - The pass takes its part of the budget of the machine (scripts/places-de-la-machine.mjs,
-//   `avecLaPasse`), shared by every repository of the machine: a pass whose part does not fit in
-//   what the parts held leave, or that the load and the memory refuse, waits, and says so, with
-//   what it waits for, when it begins and every 30 s. The wait bounded (60 min), the pass ends at
-//   75, « à repasser »; a key `grillhouse.part` or a reserve that is faulty ends it at once, red
-//   (1); either way without playing. A pass in the frame's own repository passes before a
-//   project's. It plays held to its part by the system, in a control group of its own.
-// - Turborepo plays the build, then the guards (the frame's, `grillhouse:gardes`, and the
-//   project's own, its root script `gardes`), the typing of each package (`typecheck`, its
-//   sources and its tests, cached per package: scripts/langages/typescript/turbo-des-paquets.mjs) and the tests
-//   (`test:unit`) beside each other:
+// - The measure: against the last green (scripts/dernier-vert.mjs), the changes reach Vitest in
+//   `GRILLHOUSE_CHANGEMENTS`, which no hash counts (vitest-config/changements.mjs); the line `↳`
+//   says whether the pass is targeted or complete. The final pass of a circuit gives the base of
+//   its lot (`GRILLHOUSE_BASE_DU_LOT`) and measures against it, targeted; a `--base` given takes
+//   precedence. The guards and the builds play whole. A pass green and restricted by no filter
+//   keeps its tree as the last green; a red one leaves it. The pass alone keeps it, for every
+//   language: it plays the tasks of every package of the graph, a crate's and a Python
+//   project's beside a TypeScript package's (their `test:unit` and `typecheck`).
+// - `--tout`, and `--force` (the night, scripts/nuit.sh), play the complete pass: each task of
+//   tests for real (`GRILLHOUSE_TESTS` carries only `rejouer`, the moment of the pass, no path).
+// - The part of the budget of the machine (scripts/places-de-la-machine.mjs, `avecLaPasse`): a
+//   pass whose part does not fit waits, says so with what it waits for, when it begins and every
+//   30 s; the wait bounded (60 min), it ends at 75; a key `grillhouse.part` or a reserve that is
+//   faulty ends it at once, red (1); either way without playing. A pass in the frame's own
+//   repository passes before a project's. It plays held to its part in a control group of its own.
+// - Turborepo plays the build, the guards (`grillhouse:gardes`, the project's `gardes`), the
+//   typing (`typecheck`, ./turbo-des-paquets.mjs) and the tests (`test:unit`) beside each other:
 //   `turbo run grillhouse:gardes gardes typecheck test:unit --continue=dependencies-successful
-//   --concurrency=<n> --summarize`, each argument given after it. A red does not stop the pass:
-//   every task whose prerequisites passed plays, and each red is named. <n>, the tasks side by
-//   side, is half the cores of the pass's part, one at least (`tachesCoteACote` of the core): each task of tests is
-//   itself parallel (Vitest's workers), as make's `-j` and Bazel's `--local_cpu_resources` bound a
-//   build by the machine; a `--concurrency` among the arguments replaces it. The workers of each
-//   task of tests are the cores shared between the tasks of tests side by side
-//   (`travailleursDeLaPasse`, GRILLHOUSE_TRAVAILLEURS): the test processes of a pass never
-//   outnumber the cores.
-// - The run of Turborepo plays under the watch of the memory (scripts/garde-de-la-memoire.mjs): cut
-//   when the memory available and the free swap run out, or when the machine waits for its memory
-//   half of the time, the pass says why and ends at 75, « à repasser », no task judged.
-// - The pass plays no measure of time (grillhouse-bd7): the time budget benches and the time
-//   witnesses (a test file that imports `mesurerAuRepos`) are out of the day, as the night tests
-//   are, and the night plays them (scripts/langages/typescript/vitest-config/cibles.mjs,
-//   scripts/langages/typescript/tests-de-nuit.mjs), as Bazel leaves a test tagged `manual` out of
-//   its patterns and the benchmarks of Chromium and rustc-perf leave the CI of each commit for a
-//   machine at rest. The day waits for no rest: a delay past is a red (the duration reporter
-//   classifies a delay of a day test as a real red), and so is a task at 75.
-// - The pass plays too the format check and the lint (grillhouse-61z, grillhouse-44b.9), per
-//   package: the scripts `format:check` and `lint` of each package that holds them, as its tasks
-//   (`<package>#format:check`, `<package>#lint`), and the root's for its own files only, as root
-//   tasks (`//#format:check`, `//#lint`), under the same `--continue`: a red lint hides no red
-//   test, each red is named with its package. The CI calls the pass alone.
-// - `--gardes` plays the tasks of guards and these two controls alone, `turbo run grillhouse:gardes
-//   gardes format:check lint …`, the repository whole (ESLint and Prettier have no notion of a lot;
-//   their cache reads again what changed), with the same verdict: what the reviewer plays on the
-//   ticket's copy, the tests aside.
+//   --concurrency=<n> --summarize`, each argument given after it; a `--concurrency` among them
+//   replaces <n>, half the cores of the pass's part, one at least (`tachesCoteACote`). A red
+//   stops no task whose prerequisites passed, and each red is named. The workers of each task of
+//   tests (`travailleursDeLaPasse`, GRILLHOUSE_TRAVAILLEURS) share the cores between the tasks of
+//   tests side by side: the test processes of a pass never outnumber the cores.
+// - The memory watch (scripts/garde-de-la-memoire.mjs): the run is cut when the memory available
+//   and the free swap run out, or when the machine waits for its memory half of the time; the
+//   pass says why and ends at 75, no task judged.
+// - The pass plays no measure of time: a time budget bench and a time witness (a test file that
+//   imports `mesurerAuRepos`) are out of the day, as the night tests are (vitest-config/cibles.mjs,
+//   ./tests-de-nuit.mjs). A delay past is a red, and so is a task at 75.
+// - The format check and the lint play per package (`<package>#format:check`, `<package>#lint`,
+//   the scripts of each package that holds them) and for the root's own files (`//#format:check`,
+//   `//#lint`), under the same `--continue`.
+// - `--gardes` plays the guards, `format:check` and `lint` alone (`turbo run grillhouse:gardes
+//   gardes format:check lint …`), the repository whole, with the same verdict: what the reviewer
+//   plays. `--sans-tests` plays every task but the tests (`turbo run grillhouse:gardes gardes
+//   typecheck format:check lint …`), with no measure. `--tranche i/n` plays the tasks of tests
+//   alone (`turbo run test:unit …`) with the builds they depend on, each package of Vitest playing
+//   the i-th of n parts of its test files (./tranches.mjs); it is measured as the pass is
+//   (complete with `--tout`), carries itself in `GRILLHOUSE_TESTS`, which the hash of the tests
+//   counts, plays for real since it writes its reports (`.vitest-reports/`, the former ones
+//   removed first). Neither a tranche nor `--sans-tests` keeps its tree as the last green. A
+//   tranche not of the form `i/n` (1 ≤ i ≤ n), or given with `--gardes` or `--sans-tests`, is
+//   refused before any work, code 1.
 // - The verdict reads the exit code of each task in the summary of each run
-//   (`.turbo/runs/<id>.json`), since Turborepo exits with the greatest code of its tasks (a 75
-//   would hide a 1). The summary each run writes is removed, and `.turbo/runs` with it when the
-//   run created it; while the pass names a results directory (`GRILLHOUSE_RESULTATS`,
-//   scripts/resultats.mjs), it goes there instead, where the circuit reads it.
-// - A task at 0 is green. A task at any other code, 75 included, and a summary that does not read
-//   while Turborepo failed: red, code 1, each task named.
-// - The progress of the pass (scripts/avancement.mjs): the directory its caller names in
-//   GRILLHOUSE_AVANCEMENT (the circuit's), else one of its own, which it names in the file of the
-//   part it holds while it plays (`nommerLAvancement`), as the board shows its holder, and
-//   removes at its end, its total kept. Before its run of Turborepo, the plan of
-//   the run (`turbo run … --dry=json`) names its tasks of tests and counts done the files of those
-//   Turborepo replays from its cache.
-// - The red tasks: while the variable `GRILLHOUSE_ROUGES` (`ROUGES`) names a file, the pass writes
-//   there, one Turborepo task id per line (`<package>#<task>`, `//#<task>` for the root), then a
-//   tab and the command that replays it alone (`npx turbo run <task> --filter=<package>`), each task
-//   red on its own exit code, once each; a task that did not play is none of them (its
-//   prerequisite red is). Green, the file is empty. The night reads it for its bisect commands (scripts/nuit.sh), with no second
-//   reading of the summaries.
-// - The pass has a base of its own (scripts/mesure/base-de-passe.mjs), in the temporary
-//   directory of its environment, which it sweeps first of the bases a killed pass left: every
-//   run of Turborepo gets it in TMPDIR, TMP and TEMP, the root's `globalPassThroughEnv` passing
-//   TMPDIR on to every task (scripts/langages/typescript/turbo-des-paquets.mjs), and the pass
-//   removes it at its end, green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
-// - `--sans-tests` plays every task of the pass but the tests: the guards, the typing, the format
-//   check and the lint (`turbo run grillhouse:gardes gardes typecheck format:check lint …`), with no
-//   measure; `--tranche i/n` plays the tasks of tests alone (`turbo run test:unit …`), with the
-//   builds they depend on, each package of Vitest playing the i-th of n parts of its test files
-//   (./tranches.mjs): the n tranches and `--sans-tests` together play the complete pass, each task
-//   once, as the CI plays it, one job each. A tranche is measured as the pass is (against the last
-//   green or its `--base`; complete with `--tout`), carries itself in the variable
-//   `GRILLHOUSE_TESTS`, which the hash of the tests counts (two tranches never replay one another
-//   from the cache), plays for real, since it writes its reports (./tranches.mjs, under
-//   `.vitest-reports/`, its former ones removed first), and never keeps its tree as the last green,
-//   green or not; neither does `--sans-tests`. A tranche not of the form `i/n` (1 ≤ i ≤ n), or given
-//   with `--gardes` or `--sans-tests`, is refused before any work, code 1.
-// - The run plays without the paths of a targeted run's tests: the variable `GRILLHOUSE_TESTS`
-//   (scripts/langages/typescript/vitest-config/cibles.mjs) carries only `rejouer`, for a complete
-//   pass.
+//   (`.turbo/runs/<id>.json`), since Turborepo exits with the greatest code of its tasks. The
+//   summary is removed, and `.turbo/runs` with it when the run created it; under a results
+//   directory (`GRILLHOUSE_RESULTATS`) it goes there. A task at 0 is green; any other code, 75
+//   included, and a summary that does not read while Turborepo failed: red, code 1, each task named.
+// - The progress (scripts/avancement.mjs): the directory `GRILLHOUSE_AVANCEMENT` names, else one
+//   of its own, named in the file of the part it holds (`nommerLAvancement`) and removed at its
+//   end. Before its run, the plan (`turbo run … --dry=json`) names the tasks of tests and counts
+//   done the files of those Turborepo replays from its cache.
+// - The red tasks: while `GRILLHOUSE_ROUGES` (`ROUGES`) names a file, the pass writes there, once
+//   each, one line per task red on its own exit code: its id (`<package>#<task>`, `//#<task>`
+//   for the root), a tab, the command that replays it alone (`npx turbo run <task>
+//   --filter=<package>`); a task that did not play is none. Green, the file is empty. The night
+//   reads it for its bisect commands (scripts/nuit.sh).
+// - The base of the pass (scripts/mesure/base-de-passe.mjs): in the temporary directory of its
+//   environment, swept first of the bases a killed pass left; every run of Turborepo gets it in
+//   TMPDIR, TMP and TEMP (`globalPassThroughEnv`, ./turbo-des-paquets.mjs); removed at the end,
+//   green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';

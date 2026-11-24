@@ -2,6 +2,7 @@
 // large. A module of its own, with no import: the configurations of Vitest (./base.mjs,
 // ../vitest.nuit.config.mjs) are bundled by Vite and read only these numbers, while the
 // classification that deduces a file's size (./delais.mjs) reads the guard of the sizes, a script.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.4 (the guard of the sizes).
 
 /** The delay of each size, in ms (Bazel: small 60 s, medium 300 s, large 900 s). */
 export const DELAIS_MS = { petit: 60000, moyen: 300000, grand: 900000 };

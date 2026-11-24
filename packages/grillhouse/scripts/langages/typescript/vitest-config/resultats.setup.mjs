@@ -7,6 +7,7 @@
 // or a circuit that a test plays in a repository of trial writes its results there, and its reds
 // never count in the pass that plays it. The reporters of the run, set up in its main process,
 // keep the run's own directory. Without the variable, nothing changes.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.3.
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { RESULTATS } from '../../../resultats.mjs';

@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // The night tests of a project, the command `tests-de-nuit` of the module typescript
 // (scripts/jointure.d.ts), which the night (scripts/nuit.sh) runs in its copy after the full pass,
-// through its mounts.
+// through its mounts. Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.3 (the module
+// of a language) and the document of the entry on main, §5.3 (the night).
 //
 //   node tests-de-nuit.mjs                   from the root of the copy: the night of the poste
 //   node tests-de-nuit.mjs --hors-du-poste   the night of an equipped runner: all but @poste
 //   node tests-de-nuit.mjs --hors-du-poste --sans-equipement   all but @poste and @equipee
 //   node tests-de-nuit.mjs --du-poste        the tests tagged @poste, then the measures of time unless
-//                                            the project's Nuit flow plays them (the night of PC3)
+//                                            the project's Nuit flow plays them
 //   node tests-de-nuit.mjs --mesures         the benches and the time witnesses alone
 //   node tests-de-nuit.mjs --hors-du-poste --tranche i/n   its tranche i of n
 //
@@ -20,8 +21,8 @@
 //   the copy: `npx --no-install vitest run --root <copie> --config <configuration>`, once for the
 //   night tests (GRILLHOUSE_TESTS_DE_NUIT=nuit), then once for the measures alone, one file at a
 //   time (GRILLHOUSE_TESTS_DE_NUIT=mesures), as Bazel plays a test tagged `exclusive` after the
-//   others, nothing beside it, and as the module cargo plays its benches after its night tests
-//   (grillhouse-bd7). Each run plays when the copy holds its files.
+//   others, nothing beside it, and as the module cargo plays its benches after its night tests.
+//   Each run plays when the copy holds its files.
 // - Each run plays one Vitest per unit: the root under the frame's configuration alone, and each
 //   directory below it that holds a Vitest configuration (`vitest.config.*`, else `vite.config.*`)
 //   with `--root` at that directory, under that configuration merged with the frame's, what the

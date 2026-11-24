@@ -4,6 +4,7 @@
 // done, then at the end of the run, every file done. The name of the record is made of the package
 // directory it runs in and its process; it carries the hash of its Turborepo task (TURBO_HASH), by
 // which the pass knows it again in Turborepo's cache (scripts/avancement.mjs).
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.1 (progress of a pass).
 import { fileURLToPath } from 'node:url';
 import { AVANCEMENT, ecrireTache } from '../../../services-du-noyau.mjs';
 

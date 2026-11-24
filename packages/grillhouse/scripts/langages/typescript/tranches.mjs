@@ -1,6 +1,7 @@
 // The tranches of a pass (`npm run verifier -- --tranche i/n`, ./verifier.mjs), as Vitest shards
 // a run (`--shard=i/n`, `--reporter=blob`, then `--merge-reports`: https://vitest.dev/guide/improving-performance#sharding),
-// and the command `fusion-des-tranches` of the module typescript, which merges them.
+// and the command `fusion-des-tranches` of the module typescript, which merges them. Mechanism:
+// packages/grillhouse/docs/architecture/tests.md, §3.1 (merge of the tranches), §5.1.
 //
 //   npx grillhouse fusion-des-tranches      from the root of the project, once every tranche played
 //

@@ -4,6 +4,7 @@
 // that the `env` of the task `test:unit` names enters the hash of the tests alone
 // (https://turborepo.dev/docs/reference/configuration#env). Turborepo then plays the tests with
 // what they depend on, each build and each trace hashed by Turborepo itself.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §5.4 (a targeted run), §3.3.
 //
 // - The value is JSON: `arguments`, Vitest's arguments (the paths, absolute, and the options
 //   written `--<name>=<value>`), which Vitest's own parser of its command line (`parseCLI`,
@@ -18,9 +19,8 @@
 //   A path of another package names none of its files. Each option enters the test configuration
 //   as Vitest merges its command line over it (`exclude` given on the command line is
 //   `cliExclude`, as Vitest's `normalizeCliOptions` names it).
-// - Every measure of time plays at night (grillhouse-bd7), as Bazel leaves a target tagged
-//   `manual` out of every pattern and the benchmarks of Chromium and rustc-perf leave the CI of
-//   each commit for a machine at rest: a time budget bench (BUDGET) and a time witness, a test
+// - Every measure of time plays at night, as Bazel leaves a target tagged `manual` out of every
+//   pattern: a time budget bench (BUDGET) and a time witness, a test
 //   file that imports the mark of a measure of time (`import { mesurerAuRepos } from
 //   '@roomi-fields/grillhouse/vitest-config/mesure'`, a line of its own, `estTemoin`), are out of
 //   the day, as a night test (NUIT) is. The base configuration excludes the patterns HORS_DU_JOUR;

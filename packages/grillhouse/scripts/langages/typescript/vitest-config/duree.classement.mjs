@@ -3,7 +3,7 @@
 // the end, Vitest's exit code, and per file its size label, whether it is out of the day and
 // whether it is a time budget bench, by the rules of ./cibles.mjs) and
 // never reads the disk nor the global state. The reporter reads those, calls `classer`, writes the
-// lines and sets the exit code.
+// lines and sets the exit code. Mechanism: packages/grillhouse/docs/architecture/tests.md, §3.3.
 //
 // A failure depends on a duration when it is a failure of a time budget bench (a file
 // `*.budget.test.*`, `*.budget.spec.*`), of a test marked as a measure of time (`mesurerAuRepos`),

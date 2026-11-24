@@ -2,6 +2,7 @@
 // reads by their path, as Bazel's `data` of a test target, which Vitest's graph (the modules a test
 // imports) does not hold. The frame reads them in the test's text, and in the texts they lead to,
 // as Bazel's runfiles of a target are those of its `data` and of their own dependencies.
+// Mechanism: packages/grillhouse/docs/architecture/tests.md, §5.3 (the tests of a package replayed).
 //
 // - What a test names (`nommesPar`): each path that a string of its code writes whole
 //   (`'../../scripts/verrous/verrou.mjs'`), or that the strings of one call of `join` or
@@ -135,8 +136,8 @@ const estDossier = f => {
 };
 
 // The files under the directory <dir>, absolute, SAUTES left out: the walk of the guards
-// (../parcours.mjs), which never lists Vite's temporary files (the night of 2026-11-01,
-// grillhouse-rm7: one, beside a configuration of another package, counted as a module).
+// (../parcours.mjs), which never lists Vite's temporary files (one, beside a configuration of
+// another package, would count as a module).
 const fichiersSous = dir => parcourir(dir, f => SAUTES.has(path.basename(f)));
 
 // The specifiers <texte> imports.
