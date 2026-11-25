@@ -89,9 +89,12 @@
 #   section « La construction échoue » when it fails. The temporary directory of the session is a
 #   base of a pass (scripts/mesure/base-de-passe.mjs) which the launcher, its owner, opens once the
 #   call is judged, empty: its TMPDIR, TMP and TEMP, those of the preparation of the copy and of
-#   the session, whatever CLAUDE_CODE_TMPDIR the poste holds. It goes when the launcher ends, even
-#   interrupted, once the witness and the marks the session left there are ranged in the folder of
-#   the session; the next session sweeps the one of a launcher killed. The prompt
+#   the session, whatever CLAUDE_CODE_TMPDIR the poste holds. The launcher's own files (the output
+#   of a failed build, the prompt) lie in the base, beside that directory, never in it, as the
+#   runner's files of GitHub Actions lie in RUNNER_TEMP, out of the job's workspace. The base goes
+#   when the launcher ends, even interrupted, once the witness and the marks the session left
+#   there are ranged in the folder of the session; the next session sweeps the one of a launcher
+#   killed. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
 #   the session runs without permission prompts, under the rights and the context of its role
 #   (scripts/droits.mjs, given the main tree, the copy and the ticket; a reading that fails stops
@@ -201,6 +204,9 @@ printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$
 temporaire=$(node --input-type=module -e "import { ouvrirBase } from '$ici/../mesure/base-de-passe.mjs'; process.stdout.write(ouvrirBase('seance', { pid: Number(process.argv[1]) }).dossier);" "$$" 2>> "$journal") \
   || { echo "⛔ Le dossier temporaire de la séance n'a pas pu s'ouvrir : voir $journal." >&2; exit "$CODE_COPIE"; }
 export TMPDIR="$temporaire" TMP="$temporaire" TEMP="$temporaire"
+# The launcher's own files lie in its base, beside the directory of the session, which holds what
+# the session and the preparation of its copy write.
+base_du_lanceur="${temporaire%/t}"
 unset CLAUDE_CODE_TMPDIR
 travail=
 # What the circuit reads after the session leaves its working directory for the session's folder:
@@ -223,7 +229,7 @@ ranger() {
 # The directory goes at the end of the launcher, whatever ends it.
 fermer() {
   ranger || true
-  rm -rf -- "${temporaire%/t}" || true
+  rm -rf -- "$base_du_lanceur" || true
 }
 trap fermer EXIT
 trap 'exit 129' HUP
@@ -231,7 +237,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 # The output of the session's build, when it fails, behind its first line, which says what failed
 # and what was built: the module's command `construire` writes it.
-echec=$(mktemp)
+echec=$(mktemp -p "$base_du_lanceur")
 (
   # Each step returns on failure: `set -e` does not act inside a subshell tested by `||`.
   # An existing copy moves forward to main by the preparation (`cible`); a new one is made on it.
@@ -290,7 +296,7 @@ rm -f "$echec"
 # may pass the size Linux allows one (MAX_ARG_STRLEN, 128 KiB).
 # A resumed session holds the sections of its first instruction: its new working directory and a
 # failed build alone are news.
-prompt=$(mktemp)
+prompt=$(mktemp -p "$base_du_lanceur")
 if [ -n "$reprise" ]; then
   printf '%s' "$(cat "$consigne")$dossier$construction" > "$prompt"
 else
