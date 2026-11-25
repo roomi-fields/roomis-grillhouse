@@ -32,7 +32,7 @@ import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.m
 import { ecrireLaListe, VARIABLE_TESTS_ETENDUS } from './enveloppe/paquets-du-plan.mjs';
 import { ecritPar, marquesRestantes } from './enveloppe/travail-de-la-copie.mjs';
 import { langageDe } from './langages.mjs';
-import { nomDuRole } from './etapes.mjs';
+import { leRole, nomDuRole } from './etapes.mjs';
 import { departDe, VARIABLE_SEANCE } from './mesure/base-de-passe.mjs';
 import { groupeVivant, signalerGroupe } from './mesure-de-la-machine.mjs';
 import { lancementDeLaPasse } from './passe-de-la-machine.mjs';
@@ -947,7 +947,7 @@ export function arretDuStatut(
   suite = 'Le circuit ne le relance pas sur ce rouge.'
 ) {
   const passation = derniereDe(ctx, role)?.text ?? 'aucune';
-  const qui = `Le ${nomDuRole(role)}`;
+  const qui = leRole(role);
   const { piece } = fiche;
   return fiche.statut === 'BESOIN'
     ? new Arret(

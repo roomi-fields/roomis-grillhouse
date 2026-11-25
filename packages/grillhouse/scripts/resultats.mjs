@@ -119,7 +119,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { refusDeLaCommande } from './commande-du-plan.mjs';
 import { paquets } from './paquets.mjs';
-import { AUTEUR_DU_CIRCUIT, EXPLORATEUR } from './etapes.mjs';
+import { AUTEUR_DU_CIRCUIT, AUTEURS_DE_LOT, EXPLORATEUR } from './etapes.mjs';
 
 // The variable that names the results directory of a run.
 export const RESULTATS = 'GRILLHOUSE_RESULTATS';
@@ -408,7 +408,7 @@ const FICHES = {
               'La règle dans ce document (« 000-forms, R2 », « § Les frontières ») ; un export neuf, le nom de son entrée.'
             ),
             piece: piece('Sa pièce'),
-            role: { type: 'string', enum: ['testwriter', 'developpeur'] },
+            role: { type: 'string', enum: AUTEURS_DE_LOT },
           },
           ['element', 'conforme', 'document', 'reference', 'piece']
         ),
@@ -429,7 +429,7 @@ const FICHES = {
             ),
             role: {
               type: 'string',
-              enum: ['testwriter', 'developpeur'],
+              enum: AUTEURS_DE_LOT,
               description: 'Bloquant : l’agent qui écrit la correction, à qui le circuit le rend.',
             },
             corps: texte('Sa preuve : son exemple et ce qu’il montre.'),

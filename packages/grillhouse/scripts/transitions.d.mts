@@ -14,7 +14,7 @@ export interface EtatDeLaTransition {
 export interface EntreeDeLaTransition {
   etat: EtatDeLaTransition;
   memoire: Record<string, unknown>;
-  ticket: { id: string; paquets: string[]; sorte: unknown; copie: string };
+  ticket: { id: string; paquets: string[]; sorte: unknown; copie: string; circuit?: string | null };
   reprend?: boolean;
   faits?: Record<string, unknown>;
   /**
@@ -38,6 +38,14 @@ export interface Transition {
 /** What the circuit keeps between steps, which the decisions read and change. */
 export const MEMOIRE: string[];
 
+/** The steps `--depuis` names. */
+export const ETAPES_DE_REPRISE: (
+  'testwriter' | 'preuve' | 'developpeur' | 'direct' | 'controles' | 'passe-finale'
+)[];
+
+/** The refusal of `--depuis <depuis>` in the circuit <circuit>, naming the resumptions it accepts, or null. */
+export function refusDeLaReprise(entree: { depuis: string; circuit?: string | null }): string | null;
+
 /** The decision of the step of <entree>, or the next fact it needs. */
 export function transition(entree: EntreeDeLaTransition): Transition;
 
@@ -49,6 +57,7 @@ export function depart(entree: {
   etat?: (Partial<EtatDeLaTransition> & { etape: string; raison?: string }) | null;
   refus?: { rapport: string; [cle: string]: unknown } | null;
   ticket?: string;
+  circuit?: string | null;
 }): { suivant?: EtatDeLaTransition; memoire?: Record<string, unknown>; usage?: string };
 
 /** What the testwriter receives of a developpeur's sheet that sends the red back; null without a sending. */
@@ -201,7 +210,10 @@ interface Constat {
 export function rapportDuRefus(refus: { rapport: string }): string;
 
 /** The stop of a ticket the queue reopens on its issue: its motive and its own question, or null. */
-export function refusDeLaFile(issue?: { raison?: string | null; conflit?: boolean }): {
+export function refusDeLaFile(
+  issue?: { raison?: string | null; conflit?: boolean },
+  circuit?: string | null
+): {
   motif: string;
   question: string | null;
 };

@@ -12,7 +12,8 @@
 // - `memoire`, what the circuit keeps between steps (`controlesRouges`, `renvoiAuTestwriter`,
 //   `refus`, `rienALivrer`, `regeneration`, `regenereSur`, `aRegenerer`, `verifie`,
 //   `toursDeLaPasseFinale`, `constats`);
-// - `ticket`, `{ id, paquets, sorte, copie }`;
+// - `ticket`, `{ id, paquets, sorte, copie, circuit }`, `circuit` being `long`, `court` or
+//   `direct` (without it, the rule decides as a long or short circuit);
 // - `reprend`, whether this step is the first of a `--reprendre`;
 // - `faits`, the facts read for this step, by their name;
 // - `marqueurs`, the markers of the workflow of a ticket (`patched`), each true when the run
@@ -33,8 +34,13 @@
 // step the list does not hold `usage`. Each call is played again from the start of its step with
 // the facts read so far, as Temporal replays a workflow on its history: the same facts give the
 // same decision.
-import { ARRETS, boucle, RESPONSABLE, SUITE } from './etapes.mjs';
-import { attribuerLeRouge, departDepuis } from './reprise.mjs';
+import { ARRETS, auteurDuCode, boucle, joue, RESPONSABLE, SUITE } from './etapes.mjs';
+import { attribuerLeRouge, departDepuis, refusDeLaReprise } from './reprise.mjs';
+
+// The resumptions `--depuis` names and the one rule that accepts them (./reprise.mjs), as the
+// workflow of a ticket reads them.
+export { ETAPES_DE_REPRISE } from './reprise.mjs';
+export { refusDeLaReprise };
 
 // What the circuit keeps between steps, which the decisions read and change: the one list the
 // opening reads back (scripts/faits-du-circuit.mjs `GARDEE`) and the memo of a circuit keeps
@@ -97,6 +103,17 @@ export const TOURS_DE_LA_PASSE_FINALE = 2;
 export const CHANGE_DU_REFUS =
   'l’intégration refuse ton lot, et ta séance n’a changé aucun fichier du plan : son refus, dans le rapport ci-dessous, est le rouge à lever';
 
+// The author of the code of the circuit <circuit> as the texts name him: his role, which
+// `--depuis` takes, and his name in words (« le …», « du … », « au … »).
+const auteurDe = circuit => {
+  const role = auteurDuCode(circuit);
+  const [nom, le, du, au] =
+    role === 'direct'
+      ? ['agent direct', 'l’agent direct', 'de l’agent direct', 'à l’agent direct']
+      : ['développeur', 'le développeur', 'du développeur', 'au développeur'];
+  return { role, nom, le, du, au };
+};
+
 // The developpeur's report on the integration's refusal <refus>: the red to lift, which the checks
 // of the copy, green, do not see.
 export const rapportDuRefus = refus =>
@@ -106,14 +123,15 @@ export const rapportDuRefus = refus =>
 // (`direLIssue` of scripts/integration/file.mjs): `motif`, whose first line, the
 // fact of the question gone up, says why (the first line of the reason that is not a title), the
 // whole reason after it; `question`, for a branch that does not replay on main (its conflict), the
-// answer that serves, null for any other reason.
-export function refusDeLaFile({ raison, conflit = false } = {}) {
+// answer that serves in the circuit <circuit>, null for any other reason.
+export function refusDeLaFile({ raison, conflit = false } = {}, circuit = null) {
+  const auteur = auteurDe(circuit);
   const texte = String(raison ?? '').trim();
   const pourquoi = texte.split('\n').find(l => l.trim() && !l.startsWith('#'));
   return {
     motif: `La file rouvre le ticket${pourquoi ? ` : ${pourquoi.trim()}` : '.'}\n\n${texte}`,
     question: conflit
-      ? 'La branche ne se replace pas sur main : `--depuis developpeur` remet son lot en travail local sur main, où le développeur le replace ; `--reprendre` renverrait la même branche.'
+      ? `La branche ne se replace pas sur main : \`--depuis ${auteur.role}\` remet son lot en travail local sur main, où ${auteur.le} le replace ; \`--reprendre\` renverrait la même branche.`
       : null,
   };
 }
@@ -386,8 +404,23 @@ export const etatDeReprise = etat =>
 // the log of its check; else the step a --depuis names (the testwriter's, which makes the lot
 // again, the refusal dropped, or the developpeur's), the step of the state `etat` (null without
 // one) on --reprendre, the integration or the queue played again on the same lot after their stop,
-// as bors retries, else the testwriter, the run starting over.
-export function depart({ depuis = null, reprendre = false, marque = false, etat, refus, ticket }) {
+// as bors retries, else the testwriter, the run starting over. A direct circuit (<circuit>) starts
+// at the code, its agent in the developpeur's place, and keeps on --reprendre the count of its
+// sessions from the code to the regeneration, but after a stop `controles` or `sans-livraison`. A
+// --depuis the circuit does not accept is a refusal (`refusDeLaReprise`).
+export function depart({
+  depuis = null,
+  reprendre = false,
+  marque = false,
+  etat,
+  refus,
+  ticket,
+  circuit = null,
+}) {
+  const usage = depuis ? refusDeLaReprise({ depuis, circuit }) : null;
+  if (usage) {
+    return { usage };
+  }
   // The supervisor's command wins over the sort of the plan: the mark of his `--depuis testwriter`.
   const memoire = {
     testwriterDemande: testwriterDemande({ depuis, reprendre: Boolean(reprendre), marque }),
@@ -397,7 +430,7 @@ export function depart({ depuis = null, reprendre = false, marque = false, etat,
   if (depuis) {
     Object.assign(memoire, { verts: {}, reprise: null, relancesTestwriter: null });
   }
-  if (depuis === 'developpeur' && etat?.raison === 'integration' && refus) {
+  if (depuis === auteurDuCode(circuit) && etat?.raison === 'integration' && refus) {
     memoire.refus = { ...refus, lance: true, relance: false };
     return {
       suivant: { etape: CODE, tentative: 1, rapport: rapportDuRefus(memoire.refus), finale: false },
@@ -423,7 +456,8 @@ export function depart({ depuis = null, reprendre = false, marque = false, etat,
       refus: null,
       controlesRouges: null,
     });
-    return { suivant: { etape: TESTS, tentative: 1, rapport: null, finale: false }, memoire };
+    const etape = circuit === 'direct' && !joue('2', circuit) ? CODE : TESTS;
+    return { suivant: { etape, tentative: 1, rapport: null, finale: false }, memoire };
   }
   if (!etat) {
     return { usage: `rien à reprendre : le circuit de ${ticket} n'a aucun état d'arrêt.` };
@@ -431,10 +465,14 @@ export function depart({ depuis = null, reprendre = false, marque = false, etat,
   if (etat.etape === 'integre') {
     return { usage: `rien à reprendre : le lot de ${ticket} est intégré.` };
   }
+  const compteGarde =
+    circuit === 'direct' &&
+    [CODE, CONTROLES, REFERENCES].includes(etat.etape) &&
+    !['controles', 'sans-livraison'].includes(etat.raison);
   return {
     suivant: {
       etape: etat.etape,
-      tentative: etat.etape === CONTROLES ? 0 : 1,
+      tentative: compteGarde ? etat.tentative : etat.etape === CONTROLES ? 0 : 1,
       rapport: etat.rapport,
       finale: etat.finale === true,
     },
@@ -596,11 +634,20 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     return true;
   };
   const plan = ticket.paquets.join(', ');
+  const direct = ticket.circuit === 'direct';
+  const auteur = auteurDe(ticket.circuit);
   // The plan skips the testwriter (« comportement inchangé » he was not asked for, or no package
   // playing tests): a sending of the red to him leads nowhere, whatever the checks between two.
   const inchangeSansTestwriter = () =>
     ticket.sorte?.comportement === 'inchangé' && !m('testwriterDemande');
   const testwriterSaute = () => inchangeSansTestwriter() || Boolean(lire('sansTests'));
+
+  // A direct circuit plays neither the tests nor their proof: a state that stands there (the
+  // conflict of the advance that names the testwriter) launches its agent at the code.
+  if (direct && ((etape === TESTS && !joue('2', 'direct')) || etape === PREUVE)) {
+    etape = CODE;
+    return decision();
+  }
 
   // After the plan: the gesture of a mechanical ticket, the developpeur of a plan without tests,
   // else the testwriter.
@@ -834,7 +881,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     if (f.etat === 'en-file') {
       return arreter('a-repasser', f.raison);
     }
-    const refus = refusDeLaFile(f);
+    const refus = refusDeLaFile(f, ticket.circuit);
     return refuser(refus.motif, f.raison, refus.question);
   }
   if (etape === TRI) {
@@ -861,10 +908,14 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
   }
 
   function code() {
+    if (direct) {
+      // A new session of the agent direct: what an earlier one left unchanged is judged no more.
+      maj.rienALivrer = null;
+    }
     const fort = tentative >= SEANCES_DEVELOPPEUR;
     const avant = lire('empreinteAvant');
     const fiche = lire('seance', {
-      role: 'developpeur',
+      role: auteur.role,
       tentative,
       rapport,
       fort,
@@ -877,10 +928,11 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     // it to, else up to the supervisor.
     if (fiche.statut === 'BESOIN') {
       return decision({
-        arret: { nom: 'besoin', statut: { role: 'developpeur', tentative, fiche } },
+        arret: { nom: 'besoin', statut: { role: auteur.role, tentative, fiche } },
       });
     }
-    const renvoi = lire('renvoi');
+    // The agent direct writes the tests: no red of his goes to the testwriter.
+    const renvoi = direct ? null : lire('renvoi');
     if (renvoi) {
       // The red that remains lies in the tests of the lot: the gesture `renvoi-au-testwriter`,
       // the testwriter, the sending and the handover as its report, then the proof and the
@@ -916,7 +968,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     }
     if (fiche.statut === 'BLOQUÉ') {
       return decision({
-        arret: { nom: 'hors-portee', statut: { role: 'developpeur', tentative, fiche } },
+        arret: { nom: 'hors-portee', statut: { role: auteur.role, tentative, fiche } },
       });
     }
     if (fiche.hors_plan?.length) {
@@ -931,7 +983,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       }
       commenter(
         'developpeur',
-        `séance ${tentative} finie ; la copie ne se lit plus, développeur relancé (séance ${suite.tentative}).\n\n${illisible.rapport}`
+        `séance ${tentative} finie ; la copie ne se lit plus, ${auteur.nom} relancé (séance ${suite.tentative}).\n\n${illisible.rapport}`
       );
       tentative = suite.tentative;
       rapport = illisible.rapport;
@@ -948,14 +1000,14 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       if (refus.relance) {
         return arreter(
           'sans-livraison',
-          `La séance ${tentative} du développeur ne change aucun fichier du plan (${plan}), une seconde fois sur le lot que l'intégration refuse.\n\n${refus.rapport}`,
+          `La séance ${tentative} ${auteur.du} ne change aucun fichier du plan (${plan}), une seconde fois sur le lot que l'intégration refuse.\n\n${refus.rapport}`,
           { piece: refus.piece }
         );
       }
       maj.refus = { ...refus, relance: true };
       commenter(
         'developpeur',
-        `séance ${tentative}${fortement} finie sans changement, sur le lot que l'intégration refuse : le circuit le relance une fois, le refus comme rapport.`
+        `séance ${tentative}${fortement} finie sans changement, sur le lot que l'intégration refuse : le circuit ${direct ? `relance ${auteur.le}` : 'le relance'} une fois, le refus comme rapport.`
       );
       tentative++;
       rapport = rapportDuRefus(refus);
@@ -966,7 +1018,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       // A resumed developpeur that finds the lot delivered: the checks judge it.
       commenter(
         'developpeur',
-        `séance ${tentative} reprise sans changement, le plan garde la livraison d'avant : aux contrôles.`
+        `séance ${tentative} reprise sans changement, le plan garde la livraison d'avant : ${direct ? 'à la passe finale' : 'aux contrôles'}.`
       );
       inscrire({ etape: CODE, inchange: true }, 'inchange');
     } else if (inchangee) {
@@ -974,13 +1026,15 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       // stop goes up.
       geste('rien-a-livrer');
       inscrire({ etape: CODE, inchange: true }, 'inchange');
-      maj.rienALivrer = `La séance ${tentative} du développeur ne change aucun fichier du plan (${plan}), et les contrôles restent rouges. Sa passation au ticket dit pourquoi :\n\n${lire('passation') ?? 'aucune'}`;
+      maj.rienALivrer = `La séance ${tentative} ${auteur.du} ne change aucun fichier du plan (${plan}), et ${direct ? 'la passe finale reste rouge' : 'les contrôles restent rouges'}. Sa passation au ticket dit pourquoi :\n\n${lire('passation') ?? 'aucune'}`;
     }
     if (auRetourDuConflit('developpeur')) {
       return decision();
     }
     commenter('developpeur', `séance ${tentative}${fortement} finie, sa fiche lue.`);
     etape = CONTROLES;
+    // A circuit without checks (3.1) goes to the final pass, the count of its sessions kept.
+    finale ||= direct && !joue('3.1', 'direct');
     return decision();
   }
 
@@ -1003,6 +1057,10 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     ) {
       // The step's inputs are those of its last green: its result is read back, not played.
       releve(nomEtape, vert.ms);
+      if (direct) {
+        // A green pass: the session that had nothing to deliver is judged.
+        maj.rienALivrer = null;
+      }
       maj.controlesRouges = null;
       if (!passeFinale) {
         etape = CONTROLES;
@@ -1041,6 +1099,14 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     // A developpeur who had nothing to deliver before these checks.
     const rien = m('rienALivrer');
     maj.rienALivrer = null;
+    // In a direct circuit the final pass judges that session: until a verdict of the pass falls
+    // (green, or a red that stops or relaunches), the memory keeps it, through the regeneration
+    // the pass calls for and a pass « à repasser ».
+    const garderRien = () => {
+      if (direct) {
+        maj.rienALivrer = rien;
+      }
+    };
     // A stop of the checks: <phrase>, then the report, its reds also kept apart, as its piece;
     // the stop kept at the checks keeps their outcome.
     const arret = (nom, phrase, lieu = null) => {
@@ -1131,6 +1197,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     }
     if (aRegenerer.length) {
       const noms = aRegenerer.map(r => r.nom);
+      garderRien();
       geste('regeneration');
       ecrireRapport(
         'controles',
@@ -1165,7 +1232,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     if (k.rouge && passeFinale && k.horsTitre.length) {
       return arret(
         'controles',
-        `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors du plan du ticket (${plan}) : le développeur n'est pas relancé. Le superviseur étend le plan à ce paquet (\`--etendre\`), le rouge allant ensuite au développeur, ou fait corriger le lot (\`--depuis developpeur\`, le rouge en \`--contexte\`).`
+        `La passe finale est rouge dans ${k.horsTitre.join(', ')}, hors du plan du ticket (${plan}) : ${auteur.le} n'est pas relancé. Le superviseur étend le plan à ce paquet (\`--etendre\`), le rouge allant ensuite ${auteur.au}, ou fait corriger le lot (\`--depuis ${auteur.role}\`, le rouge en \`--contexte\`).`
       );
     }
     if (k.rouge && !k.auDeveloppeur) {
@@ -1177,7 +1244,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     if (k.rouge && k.arbitrer) {
       return arret(
         'controles',
-        'Les rouges du plan sont des constats à arbitrer : aucun développeur ne les tranche.'
+        `Les rouges du plan sont des constats à arbitrer : ${direct ? 'aucun agent' : 'aucun développeur'} ne les tranche.`
       );
     }
     if (k.rouge && lire('mecanique')) {
@@ -1197,7 +1264,9 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     // The red goes back to the step that carries it, by the files it names (scripts/reprise.mjs).
     const portes =
       k.rouge && suivante <= SEANCES_DEVELOPPEUR ? lire('portes', { lieux: k.lieux }) : null;
-    const a = portes ? attribuerLeRouge({ lieux: k.lieux, portes }) : null;
+    const a = portes
+      ? attribuerLeRouge({ lieux: k.lieux, portes, circuit: ticket.circuit })
+      : null;
     // A developpeur who had nothing to deliver stops the circuit on a red that is his: the stop
     // stands at his step, which a resumption plays again. A red that names a test file of the lot
     // is the testwriter's, who is relaunched: the developpeur had nothing to write for it.
@@ -1234,7 +1303,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       maj.reprise = null;
       ecrireRapport(
         'controles',
-        `${k.resume} ; développeur relancé (séance ${suivante}).`,
+        `${k.resume} ; ${auteur.nom} relancé (séance ${suivante}).`,
         resultat('rouge'),
         `${k.texte}${k.avertissements}`
       );
@@ -1246,6 +1315,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       return arret('controles', null);
     }
     if (k.aRepasser) {
+      garderRien();
       return arret('a-repasser', null);
     }
     ecrireRapport('controles', `${k.resume}.`, resultat('vert'), `${k.resume}.${k.avertissements}`);
@@ -1297,7 +1367,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     if (!a) {
       return arreter(
         'references',
-        "L'état du circuit ne garde pas les références à régénérer : la passe finale les redonne (`--depuis developpeur`)."
+        `L'état du circuit ne garde pas les références à régénérer : la passe finale les redonne (\`--depuis ${auteur.role}\`).`
       );
     }
     // A command of the project that refuses beside reds of the plan, within the developpeur's
@@ -1313,7 +1383,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     });
     if (g.refus) {
       const texte = [
-        `La régénération des références refuse le lot ; la copie est rendue telle qu'avant elle, et les rouges du plan vont au développeur (séance ${suivante}).`,
+        `La régénération des références refuse le lot ; la copie est rendue telle qu'avant elle, et les rouges du plan vont ${auteur.au} (séance ${suivante}).`,
         '',
         ...g.refus,
       ].join('\n');
@@ -1472,7 +1542,7 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     maj.toursDeLaPasseFinale = null;
     commenter(
       'relecture',
-      `RENDU (relecture ${rendus}) ; le circuit relance ${auTestwriter ? 'le testwriter' : 'le développeur'}, ses ${lus.constats.length} constat(s) ouvert(s) dans la consigne de chaque séance, puis la passe finale sur la bande du lot (sa base et ses dépendants), et le relecteur sur la différence.`
+      `RENDU (relecture ${rendus}) ; le circuit relance ${auTestwriter ? 'le testwriter' : auteur.le}, ses ${lus.constats.length} constat(s) ouvert(s) dans la consigne de chaque séance, puis la passe finale sur la bande du lot (sa base et ses dépendants), et le relecteur sur la différence.`
     );
     return decision();
   }

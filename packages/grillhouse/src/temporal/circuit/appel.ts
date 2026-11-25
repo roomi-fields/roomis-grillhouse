@@ -4,7 +4,7 @@ import { ETAPES_DE_REPRISE } from './contrat.js';
 
 export const USAGE =
   'usage: npx grillhouse circuit <ticket> [--reprendre [--contexte <texte>] | ' +
-  '--depuis <testwriter|preuve|developpeur|controles|passe-finale> --contexte <texte> | ' +
+  '--depuis <testwriter|preuve|developpeur|direct|controles|passe-finale> --contexte <texte> | ' +
   '--mecanique [<commande>] --contexte <raison> | ' +
   '--etendre <paquet>[,<paquet>…] [--contexte <texte>] | --arreter [--contexte <motif>] | ' +
   '--reporter <heure> [--contexte <motif>] | --chez-le-responsable | ' +

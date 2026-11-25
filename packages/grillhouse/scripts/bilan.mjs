@@ -79,7 +79,7 @@ import { lireLaConsommation } from './consommation-des-passes.mjs';
 import { lireLeJournal } from './journal-des-etats.mjs';
 import { pathToFileURL } from 'node:url';
 import {
-  AGENTS_DU_LOT,
+  AUTEURS_DE_LOT,
   etapeDuCircuit,
   nomDuRole,
   QUESTIONNEUR,
@@ -87,6 +87,7 @@ import {
   roleDeLAgent,
   SUITE,
   SUPERVISEUR,
+  tousLesRolesDe,
 } from './etapes.mjs';
 
 // The role of a register line that a step of the circuit writes, and of its results.
@@ -157,7 +158,9 @@ function nuits([d, f], nuit) {
   return out;
 }
 // The roles of the circuit, by the steps they work at.
-const ROLES = new Set(SUITE.flatMap(e => e.qui));
+const ROLES = new Set(SUITE.flatMap(tousLesRolesDe));
+// The agents who write the code (3), in any circuit.
+const AUTEURS_DU_CODE = tousLesRolesDe(SUITE.find(e => e.numero === '3'));
 
 // The results the circuit kept, `{ t, …entrée }`, in their order; an entry without a time counts
 // nothing.
@@ -364,7 +367,7 @@ export function bilan({
     }
     return null;
   };
-  // Whether the circuit measured that the developer's session <s> changed no file of the plan.
+  // Whether the circuit measured that the session of the author of the code <s> changed no file of the plan.
   const inchangee = s =>
     duCircuit.some(
       e => e.etape === 'developpeur' && e.inchange && e.t >= s.f - JEU && e.t <= s.suivant + JEU
@@ -374,7 +377,7 @@ export function bilan({
   for (const s of segments.filter(x => x.role !== CIRCUIT)) {
     if (s.role === QUESTIONNEUR) {
       s.categorie = 'questionnement';
-    } else if (s.role === 'developpeur') {
+    } else if (AUTEURS_DU_CODE.includes(s.role)) {
       s.categorie = inchangee(s) ? 'sansEffet' : 'travail';
     } else if (s.role === 'testwriter') {
       const p = preuves.find(x => x.d >= s.f - JEU);
@@ -383,8 +386,8 @@ export function bilan({
       s.categorie = 'travail';
     }
   }
-  // A session that changed the lot: the testwriter's or the developpeur's, that delivered.
-  const livre = s => AGENTS_DU_LOT.includes(s.role) && s.categorie === 'travail';
+  // A session that changed the lot: of an agent who writes it, that delivered.
+  const livre = s => AUTEURS_DE_LOT.includes(s.role) && s.categorie === 'travail';
   for (const s of etapes) {
     if (s.etape === 'preuve') {
       s.categorie = parLaPreuve(s) ?? 'automatique';
@@ -501,7 +504,7 @@ export function bilan({
   // The sessions <l> by role, in the order of the steps.
   const parRoleDe = l => {
     const out = {};
-    for (const role of new Set(SUITE.flatMap(e => e.qui))) {
+    for (const role of ROLES) {
       const n = l.filter(x => x.role === role).length;
       if (n) {
         out[role] = n;

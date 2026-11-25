@@ -5,7 +5,7 @@
 // The workflow, its activities and their clients share it without importing each other.
 
 import type { DelaisDeLaCI } from '../file/contrat.js';
-import { MEMOIRE, type EtatDuPlan } from '../../../scripts/transitions.mjs';
+import { ETAPES_DE_REPRISE, MEMOIRE, type EtatDuPlan } from '../../../scripts/transitions.mjs';
 
 /** The workflow's type. */
 export const CIRCUIT = 'circuitDuTicket';
@@ -34,13 +34,7 @@ export const REFUS_DU_VALIDATEUR = 'RefusDuValidateur';
 export const L_ETAT = 'etatDuCircuit';
 
 /** The steps a `--depuis` names: it replays that step and the ones after it, no result read back. */
-export const ETAPES_DE_REPRISE = [
-  'testwriter',
-  'preuve',
-  'developpeur',
-  'controles',
-  'passe-finale',
-] as const;
+export { ETAPES_DE_REPRISE };
 
 /** The run at its step, as scripts/transitions.mjs reads it. */
 export interface EtatDeLEtape {
@@ -70,6 +64,7 @@ interface TicketDuCircuit {
   paquets: string[];
   sorte: unknown;
   copie: string;
+  circuit?: string | null;
 }
 
 /** The question of a stop, as the supervisor reads it. */

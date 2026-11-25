@@ -98,6 +98,7 @@ import {
 import { rougesDUnePasse } from './activites.mjs';
 import { ecrireLEffet } from './effets.mjs';
 import { Arret, commenter, geste } from './ticket-du-circuit.mjs';
+import { AUTEURS_DE_LOT } from './etapes.mjs';
 import { arretDeLaLimiteDUsage, MEMOIRE } from './transitions.mjs';
 
 // What the workflow keeps of the circuit's memory besides the decisions': the session a relaunch
@@ -200,7 +201,7 @@ export const optionsDe = reponse => {
     return {
       depuis: reponse.role,
       contexte: contexteDuSuperviseur,
-      destinataire: ['testwriter', 'developpeur'].includes(reponse.role) ? reponse.role : null,
+      destinataire: AUTEURS_DE_LOT.includes(reponse.role) ? reponse.role : null,
     };
   }
   if (reponse.genre === 'mecanique') {

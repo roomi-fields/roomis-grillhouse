@@ -6,7 +6,7 @@
 // (the opening, a step of the plan, the preparation of a pass, a fact, a stop, the end). The command
 // `npx grillhouse circuit` is the client of that workflow (src/temporal/circuit/commande.ts): it
 // queues a ticket, answers a stop (`--reprendre` with `--contexte`, `--depuis <testwriter|preuve|
-// developpeur|controles|passe-finale>`, `--etendre <paquet>[,<paquet>…]`) or stops it (`--arreter`).
+// developpeur|direct|controles|passe-finale>`, `--etendre <paquet>[,<paquet>…]`) or stops it (`--arreter`).
 // `--depuis` goes with no `--reprendre` and names no component (a second name is a second ticket,
 // exit 2); `--etendre` refuses a package the repository does not hold (exit 2).
 //
@@ -120,6 +120,9 @@ import { matieresDeclareesDe } from './matieres-cles.mjs';
 import { fluxDe } from './flux-des-paquets.mjs';
 import {
   AGENTS_DU_LOT,
+  agentsDuLot,
+  auteurDuCode,
+  leRole,
   ARRETS,
   AUTO,
   bouclesDe,
@@ -832,15 +835,17 @@ export function fluxAuLancement(racine) {
 // question, the answers `--etendre <paquet>` or the criterion amended and `--reprendre`; their
 // pieces as its piece, the handover after them.
 function arretHorsDuPlan(ctx, tentative, fiche) {
+  const role = auteurDuCode(ctx.circuit);
+  const qui = leRole(role);
   const criteres = fiche.hors_plan.map(h => `critère ${h.critere} (${h.paquet})`).join(', ');
   const paquets = [...new Set(fiche.hors_plan.map(h => h.paquet))].join(',');
-  const passation = derniereDe(ctx, 'developpeur')?.text ?? 'aucune';
+  const passation = derniereDe(ctx, role)?.text ?? 'aucune';
   return new Arret(
     'hors-portee',
-    `Le développeur dit FAIT sans tenir, hors du plan, ${criteres} (séance ${tentative}).\n\nSa passation :\n\n${passation}`,
+    `${qui} dit FAIT sans tenir, hors du plan, ${criteres} (séance ${tentative}).\n\nSa passation :\n\n${passation}`,
     {
       piece: fiche.hors_plan.map(h => h.piece).join('\n'),
-      question: `Le développeur ne tient pas, hors du plan, ${criteres} : le plan s'étend (\`--etendre ${paquets}\`), ou le critère s'amende au ticket, puis \`--reprendre\`.`,
+      question: `${qui} ne tient pas, hors du plan, ${criteres} : le plan s'étend (\`--etendre ${paquets}\`), ou le critère s'amende au ticket, puis \`--reprendre\`.`,
     }
   );
 }
@@ -861,9 +866,9 @@ const renvoiDuTestwriter = (ctx, fiche) =>
 // remark reaches the ticket, no agent; the sheet's schema gives a RENDU at least one), after each
 // finding open before it that the sheet neither marks lifted (`suivi`, by its title) nor states
 // again, which keeps its mark `enContexte` (`auLancement`), a finding the sheet states coming
-// without it. Each one `{ titre, regle, role, corps, piece }`, its recipient the agent it names, testwriter or
-// developpeur, without the developpeur's answer to the review before (`reponse`): his next sheet
-// answers it again. Throws an Arret `relecture-arret` for a finding without a valid recipient or one
+// without it. Each one `{ titre, regle, role, corps, piece }`, its recipient the agent it names, one
+// of those who write the lot of its circuit (`agentsDuLot`), without the developpeur's answer to the
+// review before (`reponse`): his next sheet answers it again. Throws an Arret `relecture-arret` for a finding without a valid recipient or one
 // that puts a criterion in question.
 export function constatsOuverts(ctx, fiche, texte) {
   const arret = raison =>
@@ -872,9 +877,10 @@ export function constatsOuverts(ctx, fiche, texte) {
     if (c.critere_en_cause) {
       throw arret(`Le constat « ${c.titre} » met en cause un critère du ticket.`);
     }
-    if (!AGENTS_DU_LOT.includes(c.role)) {
+    const agents = agentsDuLot(ctx.circuit);
+    if (!agents.includes(c.role)) {
       throw arret(
-        `Le constat « ${c.titre} » n'a pas de destinataire valide : il nomme ${c.role ? `« ${c.role} »` : 'personne'}, quand le rôle est ${AGENTS_DU_LOT.join(' ou ')}.`
+        `Le constat « ${c.titre} » n'a pas de destinataire valide : il nomme ${c.role ? `« ${c.role} »` : 'personne'}, quand le rôle est ${agents.join(' ou ')}.`
       );
     }
     return { titre: c.titre, regle: c.regle, role: c.role, corps: c.corps, piece: c.piece };
@@ -923,7 +929,7 @@ function boucles(ctx, etape, tentative, finale) {
     relecture: () => rendusDepuisAccepte(ctx) + 1,
   };
   const e = etapeDuCircuit({ etape, finale });
-  const l = e ? bouclesDe(e).filter(b => compte[b.cle]) : [];
+  const l = e ? bouclesDe(e, ctx.circuit).filter(b => compte[b.cle]) : [];
   return l.length ? Object.fromEntries(l.map(b => [b.cle, compte[b.cle]()])) : null;
 }
 
@@ -1245,6 +1251,7 @@ function departDuCircuit(ctx, e) {
     etat: e,
     refus: ctx.refus,
     ticket: ctx.ticket,
+    circuit: ctx.circuit ?? null,
   });
   if (d.usage) {
     throw new Usage(d.usage);

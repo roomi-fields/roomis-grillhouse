@@ -46,6 +46,7 @@ import {
   pasDuPlan,
   transition,
   type Transition,
+  refusDeLaReprise,
 } from '../../../scripts/transitions.mjs';
 import { reponseMecanique } from '../../../scripts/reponses-du-circuit.mjs';
 import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
@@ -55,7 +56,7 @@ import { entrerDansLaFile, issueDeLaFile } from '../file/deroule.js';
 import {
   ARRETER,
   DEPUIS,
-  ETAPES_DE_REPRISE,
+  type ETAPES_DE_REPRISE,
   ETENDRE,
   L_ETAT,
   MECANIQUE,
@@ -278,8 +279,12 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     {
       validator: (r: { role: (typeof ETAPES_DE_REPRISE)[number] }) => {
         uneQuestionAttend();
-        if (!ETAPES_DE_REPRISE.includes(r?.role)) {
-          refuser(`--depuis attend une étape du ticket : ${ETAPES_DE_REPRISE.join(', ')}.`);
+        const refus = refusDeLaReprise({
+          depuis: r?.role,
+          circuit: ouverture?.ticket.circuit,
+        });
+        if (refus) {
+          refuser(refus);
         }
       },
     }

@@ -2,11 +2,12 @@
 // which the circuit (scripts/circuit.mjs), the board (scripts/tableau.mjs), the bilan
 // (scripts/bilan.mjs) and the texts read. The list of the steps is told here and at circuit.md
 // §5.1 alone; the gestures and the stops, at §5.4 and §5.5. The code today holds the long and the
-// short circuits; the direct one is a target (circuit.md §9.1).
+// short circuits; of the direct one, it holds the steps and their rule.
 //
-// - A step (ETAPES): its number (« 2 », « 4.1 »), its title, who works there (`qui`: the role
-//   agents, or AUTO for a step the circuit leads itself; none for a step that only holds its
-//   sub-steps), its sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the
+// - A step (ETAPES): its number (« 2 », « 4.1 »), its title, the circuits that play it
+//   (`circuits`: long, court, direct, `joue`), who works there (`qui`: the role agents, or AUTO for
+//   a step the circuit leads itself; none for a step that only holds its sub-steps; a circuit whose
+//   roles differ names them in `quiAuCircuit`, `rolesDe`), its sub-steps (`sous`), and the step of the circuit's state it is (`etat`: the
 //   `etape` of the state the circuit writes, which the workflow of its ticket holds, the final pass being the checks once
 //   `finale`). Every step runs once for the whole ticket, as a merge request has one author of
 //   its tests and one of its code, one CI on the whole and one review: one session of the
@@ -22,7 +23,9 @@
 // - A step carries as many bounded loops as it needs (`boucles`), each spanning the step and its
 //   sub-steps: each its key (`cle`, which keys its count in the state's `boucles`), its label and
 //   its maximum (`max`, the pass that stops it): the testwriter's sessions after a refused proof,
-//   the developpeur's sessions with their checks, the reviews. The circuit stops each loop at its
+//   the developpeur's sessions with their checks, the reviews. A loop a circuit alone runs at a
+//   further step stands in `bouclesAuCircuit`: in a direct circuit, which plays no checks (3.1),
+//   the sessions of the code still count at the final pass. The circuit stops each loop at its
 //   maximum and writes its count in its state; the board shows « <label> <n>/<max> » on the
 //   ticket's line from the second pass.
 // - The stops of the circuit, each by its name and its exit code (ARRETS): the circuit ends on one
@@ -43,44 +46,68 @@ export const EXPLORATEUR = 'explorateur';
 export const AUTEUR_DU_CIRCUIT = 'circuit';
 export const QUESTIONNEUR = 'questionneur';
 
+// The circuits of a ticket: the paths through the list.
+const TOUS = ['long', 'court', 'direct'];
+const AVEC_PLAN = ['long', 'court'];
+
+// The role of the agent who writes tests and code together in a direct circuit.
+const DIRECT = 'direct';
+
+// The sessions of the author of the code, with the passes that judge them.
+const BOUCLE_DU_CODE = { cle: 'code', libelle: 'essai', max: 3 };
+
 export const ETAPES = [
   {
     numero: '1',
     titre: 'Plan',
+    circuits: AVEC_PLAN,
     qui: ['explorateur', 'questionneur'],
     etat: null,
     questionnement: 'plan',
     arrets: ['questionnement'],
     // The gesture of a mechanical ticket, in the copy, in place of the testwriter and the
     // developpeur.
-    sous: [{ numero: '1.1', titre: 'Geste mécanique', qui: [EXPLORATEUR], etat: 'geste' }],
+    sous: [{ numero: '1.1', titre: 'Geste mécanique', circuits: ['court'], qui: [EXPLORATEUR], etat: 'geste' }],
   },
   {
     numero: '2',
     titre: 'Tests',
+    circuits: ['long'],
     qui: ['testwriter'],
     etat: 'testwriter',
     boucles: [{ cle: 'tests', libelle: 'essai', max: 3 }],
-    sous: [{ numero: '2.1', titre: 'Preuve du rouge', qui: [AUTO], etat: 'preuve' }],
+    sous: [{ numero: '2.1', titre: 'Preuve du rouge', circuits: ['long'], qui: [AUTO], etat: 'preuve' }],
   },
   {
     numero: '3',
     titre: 'Code',
+    circuits: TOUS,
     qui: ['developpeur'],
+    quiAuCircuit: { direct: [DIRECT] },
     etat: 'developpeur',
-    boucles: [{ cle: 'code', libelle: 'essai', max: 3 }],
-    sous: [{ numero: '3.1', titre: 'Contrôles', qui: [AUTO], etat: 'controles' }],
+    boucles: [BOUCLE_DU_CODE],
+    sous: [{ numero: '3.1', titre: 'Contrôles', circuits: AVEC_PLAN, qui: [AUTO], etat: 'controles' }],
   },
   {
     numero: '4',
     titre: 'Passe finale et relecture',
+    circuits: TOUS,
     qui: [],
     etat: null,
     sous: [
-      { numero: '4.1', titre: 'Passe finale', qui: [AUTO], etat: 'controles', finale: true },
+      {
+        numero: '4.1',
+        titre: 'Passe finale',
+        circuits: TOUS,
+        qui: [AUTO],
+        etat: 'controles',
+        finale: true,
+        bouclesAuCircuit: { direct: [BOUCLE_DU_CODE] },
+      },
       {
         numero: '4.2',
         titre: 'Régénération des références',
+        circuits: TOUS,
         qui: [AUTO],
         etat: 'references',
         arrets: ['references'],
@@ -88,6 +115,7 @@ export const ETAPES = [
       {
         numero: '4.3',
         titre: 'Relecture',
+        circuits: TOUS,
         qui: ['relecteur'],
         etat: 'relecture',
         boucles: [{ cle: 'relecture', libelle: 'tour', max: 3 }],
@@ -97,13 +125,14 @@ export const ETAPES = [
   {
     numero: '5',
     titre: 'Intégration',
+    circuits: TOUS,
     qui: [],
     etat: null,
     sous: [
-      { numero: '5.1', titre: 'Commit', qui: [AUTO], etat: 'integration' },
-      { numero: '5.2', titre: 'File : passe finale, main', qui: [AUTO], etat: 'file' },
+      { numero: '5.1', titre: 'Commit', circuits: TOUS, qui: [AUTO], etat: 'integration' },
+      { numero: '5.2', titre: 'File : passe finale, main', circuits: TOUS, qui: [AUTO], etat: 'file' },
       // The tri of the discoveries of the ticket, on the lot entered on main.
-      { numero: '5.3', titre: 'Tri des découvertes', qui: [EXPLORATEUR], etat: 'tri' },
+      { numero: '5.3', titre: 'Tri des découvertes', circuits: TOUS, qui: [EXPLORATEUR], etat: 'tri' },
     ],
   },
 ];
@@ -114,15 +143,48 @@ export const SUITE = ETAPES.flatMap(e => [e, ...(e.sous ?? [])]);
 // The bounded loop of key <cle>.
 export const boucle = cle => SUITE.flatMap(e => e.boucles ?? []).find(b => b.cle === cle) ?? null;
 
-// The loops that run at the step <etape>: its own and its parent's.
-export const bouclesDe = etape => {
+// The loops that run at the step <etape> in the circuit <circuit>: its own, its parent's, and those
+// the circuit alone runs there.
+export const bouclesDe = (etape, circuit) => {
   const parent = ETAPES.find(e => e === etape || e.sous?.includes(etape));
-  return [...new Set([parent, etape])].flatMap(e => e?.boucles ?? []);
+  return [...new Set([parent, etape])].flatMap(e => [
+    ...(e?.boucles ?? []),
+    ...(e?.bouclesAuCircuit?.[circuit] ?? []),
+  ]);
 };
 
-// The agents who write the lot, the testwriter its tests and the developpeur its code: the roles a
-// blocking finding of the reviewer names.
+// Whether the circuit <circuit> plays the step of number <numero>.
+export const joue = (numero, circuit) =>
+  Boolean(SUITE.find(e => e.numero === numero)?.circuits.includes(circuit));
+
+// The roles of the step <e> in the circuit <circuit> (the long one when none is said); none when
+// the circuit does not play it.
+export const rolesDe = (e, circuit) =>
+  e.circuits.includes(circuit ?? 'long') ? (e.quiAuCircuit?.[circuit] ?? e.qui) : [];
+
+// The roles of the step <e> in any circuit.
+export const tousLesRolesDe = e => [
+  ...new Set([...e.qui, ...Object.values(e.quiAuCircuit ?? {}).flat()]),
+];
+
+// The agent who writes the code (3) in the circuit <circuit>.
+export const auteurDuCode = circuit =>
+  rolesDe(
+    SUITE.find(e => e.numero === '3'),
+    circuit
+  )[0];
+
+// The agents who write the lot of a long or short circuit, the testwriter its tests and the
+// developpeur its code.
 export const AGENTS_DU_LOT = ['testwriter', 'developpeur'];
+
+// The agents who write the lot of the circuit <circuit>: the roles a blocking finding of the
+// reviewer names.
+export const agentsDuLot = circuit =>
+  circuit === DIRECT ? [auteurDuCode(circuit)] : AGENTS_DU_LOT;
+
+// Every agent who writes the lot of a circuit.
+export const AUTEURS_DE_LOT = [...AGENTS_DU_LOT, DIRECT];
 
 // The exit code of each stop of the circuit.
 export const ARRETS = {
@@ -160,6 +222,9 @@ export const roleDeLAgent = nom =>
 // A role in words.
 const NOMS = { developpeur: 'développeur' };
 export const nomDuRole = role => NOMS[role] ?? role;
+
+// A role as the subject of a sentence, « Le développeur », « L’agent direct ».
+export const leRole = role => (role === DIRECT ? 'L’agent direct' : `Le ${nomDuRole(role)}`);
 
 // Who works at the step <e>, in words: its roles' names.
 export const quiDe = e => e.qui.map(nomDuRole).join(' ⇄ ');
@@ -268,7 +333,7 @@ export const RESPONSABLE = 'responsable';
 // The commands by which the supervisor answers a question (scripts/circuit.mjs): resume, extend
 // the plan, stop.
 export const REPONSES =
-  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--mecanique [<commande>]` (avec `--contexte` : à l’arrêt du testwriter qui ne trouve aucun comportement à tester, ou de la preuve du rouge qui refuse le lot de tests, le ticket bascule en circuit court sur le même plan, vers 1.1 avec sa commande, vers le développeur sans elle), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), `--reporter <heure>` (la question se tait jusqu’à l’heure, le circuit en attente), ou `--arreter`.';
+  'Le superviseur répond par une commande du circuit : `--reprendre` (avec `--contexte`) ou `--depuis <testwriter|developpeur>` (avec `--contexte`), `--depuis direct` dans un circuit direct (avec `--contexte`), `--mecanique [<commande>]` (avec `--contexte` : à l’arrêt du testwriter qui ne trouve aucun comportement à tester, ou de la preuve du rouge qui refuse le lot de tests, le ticket bascule en circuit court sur le même plan, vers 1.1 avec sa commande, vers le développeur sans elle), `--etendre <paquet>` (le plan gagne ce paquet, puis l’étape en cours reprend), `--reporter <heure>` (la question se tait jusqu’à l’heure, le circuit en attente), ou `--arreter`.';
 
 // The question of each stop no gesture settles, as a CI calls a person only for what no rule
 // settles (the approval of a review): every stop of ARRETS, « a-repasser » once the circuit has
