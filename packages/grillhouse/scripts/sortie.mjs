@@ -3,7 +3,8 @@
 // §5.4): a release of Grillhouse, its package npm, which carries the frame's plugin: Grillhouse's own
 // script, which no project runs (`grillhouse init` installs the template of a project alone).
 //
-//   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, packages/grillhouse/CHANGELOG.md
+//   npx grillhouse sortie <x.y.z>                    the release's files: the package's package.json, packages/grillhouse/CHANGELOG.md,
+//                                                    the migrations it numbers
 //   npx grillhouse sortie --etiqueter               the annotated tag v<version> on HEAD, the release commit
 //                                                    and the gesture that leads Grillhouse with it once published
 //   npx grillhouse sortie --verifier-etiquette <v>   exits 0 when the tag <v> names the version of the package
@@ -17,6 +18,9 @@
 //   other fields kept, and dates the changelog: « ## [Unreleased] » becomes « ## [<x.y.z>] - <today> » and an
 //   empty « ## [Unreleased] » opens above it. A release with nothing under « [Unreleased] » is
 //   refused. Nothing is written when a check fails.
+// - Preparing numbers each migration not released yet (`export const version = null;`, under
+//   scripts/migrations/ and scripts/langages/*/migrations/ of the package, scripts/migrations.mjs)
+//   with the version given.
 // - Tagging creates the annotated tag `v<version>` on HEAD, once the release commit is made and
 //   the working tree holds no change. Nothing is pushed: the owner validates the push, whose
 //   command the script names; `.github/workflows/release.yml` then calls the CI on the tagged
@@ -30,7 +34,7 @@
 //   installs the version published last. `--entree-du-marche` prints it; the owner sets it in that
 //   repository once the package is published, a public gesture this script does not make.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -43,6 +47,9 @@ export const ENTREE_DU_MARCHE = {
 };
 const CHANGELOG = 'packages/grillhouse/CHANGELOG.md';
 const OUVERTE = '## [Unreleased]\n';
+const SCRIPTS = 'packages/grillhouse/scripts';
+// The line of a migration not released yet.
+const SANS_VERSION = /^export const version = null;$/m;
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 const lire = (racine, f) => readFileSync(path.join(racine, f), 'utf8');
@@ -70,7 +77,23 @@ const audessus = (a, b) => {
   return false;
 };
 
-// Writes the release <version> of Grillhouse at <racine>, dated <date> (YYYY-MM-DD).
+// The migrations of the package at <racine> that have no version yet, from the root.
+function migrationsASortir(racine) {
+  const lister = dossier =>
+    existsSync(path.join(racine, dossier))
+      ? readdirSync(path.join(racine, dossier), { withFileTypes: true })
+      : [];
+  const langages = lister(`${SCRIPTS}/langages`)
+    .filter(e => e.isDirectory())
+    .map(e => `${SCRIPTS}/langages/${e.name}/migrations`);
+  return [`${SCRIPTS}/migrations`, ...langages]
+    .flatMap(d => lister(d).map(e => `${d}/${e.name}`))
+    .filter(f => f.endsWith('.mjs') && SANS_VERSION.test(lire(racine, f)))
+    .sort();
+}
+
+// Writes the release <version> of Grillhouse at <racine>, dated <date> (YYYY-MM-DD); returns the
+// migrations it numbered.
 export function preparerSortie(racine, version, date) {
   const actuelle = versionDuCadre(racine);
   const neuve = rang(version);
@@ -97,6 +120,14 @@ export function preparerSortie(racine, version, date) {
     path.join(racine, CHANGELOG),
     `${journal.slice(0, debut + 1)}${OUVERTE}\n## [${version}] - ${date}\n${corps}`
   );
+  const migrations = migrationsASortir(racine);
+  for (const f of migrations) {
+    writeFileSync(
+      path.join(racine, f),
+      lire(racine, f).replace(SANS_VERSION, `export const version = '${version}';`)
+    );
+  }
+  return migrations;
 }
 
 // Creates the annotated tag of the release at <racine> on HEAD, and returns its name; <git> runs
@@ -136,7 +167,7 @@ export function suiteDeLaSortie(etiquette) {
 }
 
 const USAGE =
-  'Usage : npx grillhouse sortie <x.y.z>                    prépare la sortie (package.json du paquet, CHANGELOG.md)\n' +
+  'Usage : npx grillhouse sortie <x.y.z>                    prépare la sortie (package.json du paquet, CHANGELOG.md, migrations sans version)\n' +
   "        npx grillhouse sortie --etiqueter                pose l'étiquette v<version> sur le commit de sortie\n" +
   "        npx grillhouse sortie --verifier-etiquette <v>   vérifie que l'étiquette <v> nomme la version du paquet\n" +
   '        npx grillhouse sortie --entree-du-marche         écrit l’entrée du greffon dans la place de marché roomi-fields\n';
@@ -164,9 +195,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     } else if (args.length === 2 && args[0] === '--verifier-etiquette') {
       verifierEtiquette(racine, args[1]);
     } else if (args.length === 1 && !args[0].startsWith('-')) {
-      preparerSortie(racine, args[0], aujourdhui());
+      const migrations = preparerSortie(racine, args[0], aujourdhui());
       process.stdout.write(
-        `Sortie ${args[0]} préparée : ${PAQUET}, ${CHANGELOG}. ` +
+        `Sortie ${args[0]} préparée : ${[PAQUET, CHANGELOG, ...migrations].join(', ')}. ` +
           `Le commit de sortie, puis : npx grillhouse sortie --etiqueter\n`
       );
     } else {

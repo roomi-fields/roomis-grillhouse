@@ -43,8 +43,8 @@ const LIGNE_ETAT = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" ligne-eta
 // The files of the template whose name the project receives changed.
 const RENOMMES: Record<string, string> = { _gitignore: '.gitignore', _npmignore: '.npmignore' };
 // The files of the template init completes: the package.json (the frame's dependency, its
-// version) and the settings (the status line).
-const COMPLETES = ['package.json', '.claude/settings.json'];
+// version), the settings (the status line) and the .mcp.json (the servers of the index).
+const COMPLETES = ['package.json', '.claude/settings.json', '.mcp.json'];
 
 // The tests of the example application, and the empty directory of the integration tests.
 const TESTS_DE_L_EXEMPLE = [
@@ -150,6 +150,13 @@ describe('grillhouse-3uv.84.4 critère 1 — grillhouse init creates a project f
     for (const f of Object.keys(RENOMMES)) {
       expect(existsSync(path.join(PROJET, f)), f).toBe(false);
     }
+  });
+
+  it('completes the .mcp.json with the servers of the index, codegraph and rtfm', () => {
+    expect(Object.keys(json('.mcp.json').mcpServers as object).sort()).toEqual([
+      'codegraph',
+      'rtfm',
+    ]);
   });
 
   it('keeps the lines of the template’s .gitignore, which ignores node_modules and Turborepo’s folder', () => {

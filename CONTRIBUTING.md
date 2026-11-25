@@ -27,8 +27,8 @@ One version covers the frame: the `version` of `packages/grillhouse/package.json
 
 The versions follow semantic versioning in 0.x: a change that obliges a project to act raises the minor, a fix the patch. A version is released per lot delivered to the projects, never per commit. The release is described in `packages/grillhouse/docs/architecture/entree.md`, §5.4; its commands:
 
-1. `npx grillhouse sortie <x.y.z>` writes the version in the package's `package.json` and dates `packages/grillhouse/CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
-2. The release commit carries these two files.
+1. `npx grillhouse sortie <x.y.z>` writes the version in the package's `package.json`, writes it in each migration that has none, and dates `packages/grillhouse/CHANGELOG.md`: « [Unreleased] » becomes « [x.y.z] - <today> » and an empty « [Unreleased] » opens above it. It refuses a version not above the current one, and an empty « [Unreleased] ».
+2. The release commit carries these files.
 3. `npx grillhouse sortie --etiqueter` creates the annotated tag `v<x.y.z>` on HEAD, the release commit, once the working tree holds no change, and names the push. It pushes nothing: the owner validates the push of the tag.
 4. On the tag, `.github/workflows/release.yml` calls the CI on the tagged commit; green, it checks that the tag names the version (`npx grillhouse sortie --verifier-etiquette <tag>`), publishes the package on the npm registry by trusted publishing (no token is stored), and publishes the GitHub release. A failure or a cancellation publishes nothing.
 5. Once the first package carrying the plugin is published, the owner sets the plugin's entry in the marketplace `roomi-fields/claude-plugins` (`.claude-plugin/marketplace.json`) to its source npm, a public gesture of that repository: `npx grillhouse sortie --entree-du-marche` prints the entry, `{ "name": "grillhouse", "source": { "source": "npm", "package": "@roomi-fields/grillhouse" } }`. A source npm has no subdirectory: the package's root is the plugin's.

@@ -29,7 +29,7 @@ roomis-grillhouse/
 │   │   ├── preparation.mjs           # init's preparation: git, Beads and its store, CodeGraph and its index, npm install, the frame's plugins
 │   │   ├── grillhouse-maj.mjs        # `npm run grillhouse:maj`: a project brought to the version of the package installed
 │   │   ├── migrations.mjs            # the migrations the update plays, those newer than the project's grillhouse.version
-│   │   ├── migrations/               # one module per change of form, `<version>-<nom>.mjs`, replayable without effect, each with its test
+│   │   ├── migrations/               # one module per change of form, `<nom>.mjs` until the release writes its version (`<version>-<nom>.mjs`), replayable without effect, each with its test
 │   │   ├── cadre.mjs                 # where the package reads its template and its plugin; its prepack copies the plugin at the package's root, its manifest at the package's version, and the template under cadre/
 │   │   ├── prefixe-des-tickets.mjs   # the prefix of the tickets, in the key issue-prefix of .beads/config.yaml
 │   │   ├── greffons.mjs              # the frame's plugins, installed for the project

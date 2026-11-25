@@ -622,6 +622,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   }
 }
 
+// A migration as the report names it: its version, none before the release that numbers it.
+function titre(version, nom) {
+  return `Migration ${version ?? 'de la prochaine sortie'} (${nom})`;
+}
+
 // The update of the project at <projet>, its languages declared (declarerLesLangages), <premiere>
 // what the migration of its languages did, null for nothing.
 function mettreAJourLeProjet(projet, premiere) {
@@ -631,12 +636,10 @@ function mettreAJourLeProjet(projet, premiere) {
   const b = mettreAJour(projet, CADRE, resteAFaire ? { inscrite: null } : {});
   process.stdout.write(`${LIGNE_DU_CADRE}\n`);
   for (const { version, nom, lignes, aFaire } of migrations) {
-    process.stdout.write(
-      `Migration ${version} (${nom}) :\n${lignes.map(l => `- ${l}\n`).join('')}`
-    );
+    process.stdout.write(`${titre(version, nom)} :\n${lignes.map(l => `- ${l}\n`).join('')}`);
     if (aFaire.length > 0) {
       process.stderr.write(
-        `Migration ${version} (${nom}), à faire :\n${aFaire.map(l => `- ${l}\n`).join('')}`
+        `${titre(version, nom)}, à faire :\n${aFaire.map(l => `- ${l}\n`).join('')}`
       );
       process.exitCode = 1;
     }
@@ -665,7 +668,7 @@ function mettreAJourLeProjet(projet, premiere) {
   }
   for (const { version, nom, lignes } of restesAuProjet(projet, depuis)) {
     process.stdout.write(
-      `Migration ${version} (${nom}), reste au projet :\n${lignes.map(l => `- ${l}\n`).join('')}`
+      `${titre(version, nom)}, reste au projet :\n${lignes.map(l => `- ${l}\n`).join('')}`
     );
   }
   const v = verifier(projet, {

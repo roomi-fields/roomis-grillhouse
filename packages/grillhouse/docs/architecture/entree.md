@@ -85,7 +85,7 @@ flowchart TB
 | Repli de la nuit (`scripts/repli-de-la-nuit.mjs`, `scripts/flux-de-la-nuit.mjs`) | lire le flux Nuit du commit de la nuit ; rejouer sur le poste chaque tranche que l'exécuteur n'a pas démarrée dans les soixante minutes ou a interrompue, et les mesures que le flux déclare mais n'a pas finies | rien | `gh` |
 | Flux Nuit (`.github/workflows/nuit.yml`, du dépôt et du gabarit) | jouer sur l'exécuteur du projet, en tranches, les tests de nuit qui n'ont pas besoin du poste ; chez Grillhouse, aussi les mesures de temps | ses passages | la commande du cadre |
 | Verdict de la nuit (`scripts/verdict-de-la-nuit.mjs`) | noter le verdict de chaque part, celle du poste et celle de l'exécuteur ; « à repasser » n'écrit rien | les verdicts | rien |
-| Commande de sortie (`grillhouse sortie`, `scripts/sortie.mjs`) | écrire la version et dater le journal des versions ; poser l'étiquette ; vérifier qu'une étiquette nomme la version ; écrire l'entrée du greffon dans la place de marché | rien | git |
+| Commande de sortie (`grillhouse sortie`, `scripts/sortie.mjs`) | écrire la version, dater le journal des versions et numéroter les migrations sans version ; poser l'étiquette ; vérifier qu'une étiquette nomme la version ; écrire l'entrée du greffon dans la place de marché | rien | git |
 | Flux de la machine vierge (`templates/projet/.github/workflows/machine-vierge.yml`) | rejouer, lancé à la main seulement, l'installation à neuf (`npm ci`, `grillhouse binaires`) et `npm run verifier` complet sur un exécuteur `ubuntu-latest` de GitHub, jamais sur `RUNNER` ; son verdict se lit dans GitHub, sans alerte ni ticket | ses passages | la commande du cadre |
 | Flux de publication (`.github/workflows/release.yml`) | sur une étiquette `v*.*.*`, appeler le flux CI sur le commit étiqueté, puis, vert, publier le paquet sur npm et la version sur GitHub | ses passages | le flux CI, npm |
 
@@ -245,7 +245,7 @@ sequenceDiagram
 
 ### 5.4 La sortie
 
-1. La version est un ticket direct, dont le lot entre sur main par la file sur sa passe finale : `npx grillhouse sortie <x.y.z>` écrit la version au-dessus de la courante et date « [Unreleased] » ; elle refuse une version qui n'est pas au-dessus et un « [Unreleased] » vide. Le commit de sortie porte ces deux fichiers.
+1. La version est un ticket direct, dont le lot entre sur main par la file sur sa passe finale : `npx grillhouse sortie <x.y.z>` écrit la version au-dessus de la courante, date « [Unreleased] » et l'écrit dans chaque migration qui n'en a pas encore (document de l'installation, §5.4) ; elle refuse une version qui n'est pas au-dessus et un « [Unreleased] » vide. Le commit de sortie porte ces fichiers.
 2. Le commit de sortie sur main, le superviseur lance `npx grillhouse sortie --etiqueter`, qui pose l'étiquette annotée sur un arbre de travail propre et nomme la poussée, que le responsable valide.
 3. Sur l'étiquette, le flux de publication appelle le flux CI sur le commit étiqueté ; vert, il vérifie que l'étiquette nomme la version, publie le paquet par publication de confiance, puis la version sur GitHub. Un échec ou une annulation ne publie jamais.
 4. Grillhouse se mène ensuite avec la version publiée ; la montée des projets vit au document de l'installation.

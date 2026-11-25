@@ -135,6 +135,19 @@ describe('a release of Grillhouse prepares its files (scripts/sortie.mjs)', () =
     expect(lire(r, JOURNAL)).toContain('## [0.17.0] - 2026-11-02');
     expect(versionDe(r, PAQUET)).toBe('0.17.0');
   });
+  it('numbers each migration not released yet, of the core and of a language, the others kept', () => {
+    const r = grillhouse();
+    const noyau = 'packages/grillhouse/scripts/migrations/neuve.mjs';
+    const langage = 'packages/grillhouse/scripts/langages/cargo/migrations/autre.mjs';
+    const ancienne = 'packages/grillhouse/scripts/migrations/0.15.0-ancienne.mjs';
+    ecrire(r, noyau, "export const version = null;\nexport const nom = 'neuve';\n");
+    ecrire(r, langage, 'export const version = null;\n');
+    ecrire(r, ancienne, "export const version = '0.15.0';\n");
+    expect(preparerSortie(r, '0.17.0', '2026-11-02')).toEqual([langage, noyau]);
+    expect(lire(r, noyau)).toBe("export const version = '0.17.0';\nexport const nom = 'neuve';\n");
+    expect(lire(r, langage)).toBe("export const version = '0.17.0';\n");
+    expect(lire(r, ancienne)).toBe("export const version = '0.15.0';\n");
+  });
   it('refuses a release whose « [Unreleased] » section holds nothing', () => {
     const r = grillhouse('0.16.0', '# Changelog\n\n## [Unreleased]\n\n## [0.16.0] - 2026-10-18\n');
     expect(() => preparerSortie(r, '0.16.1', '2026-11-02')).toThrow(/Unreleased/);

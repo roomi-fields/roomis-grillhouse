@@ -1,4 +1,4 @@
-// The migration of 0.50.4 (scripts/migrations/0.50.4-serveurs-de-l-index.mjs): the .mcp.json of a
+// The migration of the index servers (scripts/migrations/serveurs-de-l-index.mjs): the .mcp.json of a
 // project receives the servers of the index, codegraph and rtfm, that it lacks; the agents of the
 // project read them (scripts/droits.mjs). Small tests: files under a temporary directory.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,12 +9,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { optionsDuRole } from '../../scripts/droits.mjs';
 import { copierLeGabarit } from '../../scripts/init.mjs';
 import { MIGRATIONS } from '../../scripts/migrations.mjs';
-import {
-  migrer,
-  nom,
-  restes,
-  version,
-} from '../../scripts/migrations/0.50.4-serveurs-de-l-index.mjs';
+import * as migration from '../../scripts/migrations/serveurs-de-l-index.mjs';
+
+const { migrer, restes } = migration;
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'migration-serveurs-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -66,10 +63,9 @@ function maisonAvecRtfm() {
   return { home, greffon };
 }
 
-describe('migration 0.50.4 — the .mcp.json of a project has the servers of the index', () => {
-  it('is the migration of 0.50.4, in the list', () => {
-    expect(version).toBe('0.50.4');
-    expect(MIGRATIONS.map(m => m.nom)).toContain(nom);
+describe('migration of the index servers — the .mcp.json of a project has the servers of the index', () => {
+  it('is in the list', () => {
+    expect(MIGRATIONS).toContain(migration);
   });
 
   it('creates .mcp.json with codegraph and rtfm in a project that has none', () => {

@@ -134,7 +134,8 @@ export interface ElementsDuLot {
 
 /** A migration of a project from one version of the frame to the next (scripts/migrations.mjs). */
 export interface Migration {
-  version: string;
+  /** The version of the package that brings it; null until that release. */
+  version: string | null;
   nom: string;
   migrer(projet: string): (string | { aFaire: string })[];
   restes?(projet: string): string[];

@@ -3,6 +3,7 @@
 // and rtfm, the search over code and documents. `grillhouse init` plays this migration on the
 // project it creates. Mechanism: installation.md §5.4 (packages/grillhouse/docs/architecture/).
 //
+// - `version`: null until the release that brings it, which `grillhouse sortie` numbers.
 // - `migrer` adds to `mcpServers` each of the two that is missing, creating the file when the
 //   project has none; the other entries and keys stay, in their order, with the indentation of the
 //   file. A file that holds both is not rewritten. A file that is not a JSON object, or whose
@@ -12,7 +13,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const version = '0.50.4';
+export const version = null;
 export const nom = 'serveurs de l index';
 
 // Each server in the form its tool publishes: codegraph's own, and the .mcp.json of rtfm.

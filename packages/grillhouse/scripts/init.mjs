@@ -12,7 +12,7 @@
 //   `.npmignore`, the names npm neither publishes nor reads in a package, as create-vite names its
 //   templates' files.
 // - Its .mcp.json declares the servers of the index, codegraph and rtfm, as the migration that
-//   brings them to a project writes them (scripts/migrations/0.50.4-serveurs-de-l-index.mjs).
+//   brings them to a project writes them (scripts/migrations/serveurs-de-l-index.mjs).
 // - Its package.json declares the frame's package, `@roomi-fields/grillhouse` at `^<version>` of
 //   this package, in its devDependencies.
 // - The preparation (scripts/preparation.mjs): git, Beads and its ticket store under the prefix
@@ -40,7 +40,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CADRE, VERSION } from './cadre.mjs';
 import { mettreAJour, regenerer } from './grillhouse-maj.mjs';
-import * as serveursDeLIndex from './migrations/0.50.4-serveurs-de-l-index.mjs';
+import * as serveursDeLIndex from './migrations/serveurs-de-l-index.mjs';
 import { preparer } from './preparation.mjs';
 
 /** The frame's package, as a project declares it. */
