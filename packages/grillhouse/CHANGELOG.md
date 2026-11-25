@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **An integration test that reads `env!("CARGO_BIN_EXE_<bin>")` compiles again** (grillhouse-3uv.251): the short wrapper of sccache of 0.50.2 ran under `sh`, which drops a variable whose name holds a hyphen, so a binary named like `osd-reference` failed to compile (seen by OSD). The wrapper runs under bash, in a new file of the cache (`sccache-court-bash`). **Action for projects**: none.
+
 ## [0.50.2] - 2026-11-25
 
 - **A generated file the lot feeds is played again before the tests that read it** (grillhouse-3uv.245): before the proof of the red, the checks and the final pass, the circuit plays in the copy the command of each entry of `grillhouse.engendres` whose `lit` covers a file the lot changes, its files entering the lot as those of 4.2, so a ticket that adds cases no longer turns red on the test that reads their sums. **Action for projects**: none.

@@ -80,6 +80,27 @@ describe('avecSccache : le lanceur de rustc', () => {
     expect(appel.tmpdir).toBe('/tmp');
     expect(appel.socket).toBe(avecSccache(seul, env()).SCCACHE_SERVER_UDS);
   });
+
+  it('passe à sccache chaque variable que cargo donne à rustc, tiret compris (CARGO_BIN_EXE_<bin>)', () => {
+    // A POSIX shell such as dash drops a variable whose name is no shell identifier, and rustc then
+    // refuses `env!("CARGO_BIN_EXE_osd-reference")`.
+    const temoin = mkdtempSync(path.join(ESSAIS, 'sccache-temoin-'));
+    writeFileSync(
+      path.join(temoin, 'sccache'),
+      "#!/usr/bin/env node\nprocess.stdout.write(process.env['CARGO_BIN_EXE_osd-reference'] ?? 'absente');\n",
+      { mode: 0o755 }
+    );
+    const sous = avecSccache(seul, env());
+    const r = spawnSync(sous.RUSTC_WRAPPER as string, ['rustc'], {
+      env: {
+        ...sous,
+        PATH: `${temoin}${path.delimiter}${sous.PATH}`,
+        'CARGO_BIN_EXE_osd-reference': '/cible/osd-reference',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.stdout).toBe('/cible/osd-reference');
+  });
 });
 
 describe('demarrerLeServeur', () => {

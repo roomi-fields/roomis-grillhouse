@@ -46,6 +46,10 @@
 //   (`lanceurCourt`): a client that must start the server itself, which cargo's long TMPDIR
 //   would break, binds its socket there (grillhouse-3uv.239, OSD-sf1.25.1). The two ends of the
 //   start are so short whoever begins it, rather than one more rescue of the first.
+// - That wrapper changes nothing else of what rustc sees: it is run by bash, which hands on every
+//   variable of its environment; a POSIX shell such as dash (`/bin/sh` of Debian and Ubuntu)
+//   drops those whose name is no shell identifier, `CARGO_BIN_EXE_<bin>` of a binary whose name
+//   holds a hyphen among them, and `env!` then fails to compile (grillhouse-3uv.251).
 // - A wrapper the project sets already is its own: the run keeps it, without sccache. It is read
 //   as cargo reads it: the environment (`RUSTC_WRAPPER`, `CARGO_BUILD_RUSTC_WRAPPER`), then
 //   `build.rustc-wrapper` of each `.cargo/config.toml` (or `.cargo/config`) from the project up to
@@ -129,16 +133,19 @@ function lanceurDuProjet(racine, env) {
   return null;
 }
 
-const LANCEUR = '#!/bin/sh\nTMPDIR=/tmp exec sccache "$@"\n';
+// `-p`: bash reads no startup file of the caller (`BASH_ENV`) and imports none of its functions.
+const LANCEUR = '#!/bin/bash -p\nTMPDIR=/tmp exec sccache "$@"\n';
 
 // The wrapper of rustc of the run: a script of the cache directory <cache> that runs sccache under
 // the machine's `COURT` temporary directory. Cargo hands its wrapper its own TMPDIR, which a
 // client that has to start the server (a server stopped by its idle time, killed, or born in
 // another envelope) binds a socket under, refused past 108 bytes of a path (« path must be
 // shorter than SUN_LEN », OSD-sf1.25.1); the compilations keep cargo's TMPDIR. Written once, then
-// read: a file cannot carry an executable bit in a package, so the script is made here.
+// read: a file cannot carry an executable bit in a package, so the script is made here. Its name
+// is its own, apart from `sccache-court`: the cache is common to every copy of the machine, and a
+// copy on the 0.50.2 writes there its script for `sh`.
 function lanceurCourt(cache) {
-  const fichier = path.join(cache, 'sccache-court');
+  const fichier = path.join(cache, 'sccache-court-bash');
   try {
     if (readFileSync(fichier, 'utf8') === LANCEUR && (statSync(fichier).mode & 0o111) !== 0) {
       return fichier;

@@ -743,7 +743,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
   const parSccache = (appels: ReturnType<typeof compilateur>, sous: string[]) => {
     expect(appels.map(a => a.sous)).toEqual(sous);
     for (const a of appels) {
-      expect(a.wrapper).toMatch(/\/sccache-court$/);
+      expect(a.wrapper).toMatch(/\/sccache-court-bash$/);
       expect(a.cache).toBe(CACHE);
       expect(a.socket).toMatch(/^\\x00grillhouse-sccache-[0-9a-f]{16}$/);
     }
