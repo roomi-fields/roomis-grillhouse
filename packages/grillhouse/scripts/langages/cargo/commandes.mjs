@@ -90,7 +90,9 @@
 //   a failed test included, never a path built by hand under `std::env::temp_dir()`.
 // - `tests-de-nuit`: the night tests then the benches of each crate that holds some; none, nothing
 //   plays and the code is 0. The night (scripts/nuit.sh) runs it after the full pass, and plays it
-//   again at rest after a 75.
+//   again at rest after a 75. Out of the poste (`--hors-du-poste`), a crate whose night tests are
+//   all tagged away leaves nextest none to run (its code 4): green, said (« aucun test hors du
+//   poste »), as a Bazel shard without a test passes; said too when no crate is left to play.
 // - `typer`: `cargo check --all-targets`.
 // - Cargo runs with rustc wrapped by sccache, its cache common to the copies of the machine
 //   (./sccache.mjs), in a copy as in an agent's envelope, its server started under the machine's
@@ -186,6 +188,10 @@ export const NOMS = [
 // The task runner of the graph of the packages.
 const OUTIL = 'turbo';
 const A_REPASSER = 75;
+// The exit code of nextest when its filter keeps no test (NO_TESTS_RUN).
+const AUCUN_TEST = 4;
+// What the night out of the poste says of a filter that keeps no test: green.
+const AUCUN_HORS_DU_POSTE = 'aucun test hors du poste';
 const RACINE = '//';
 // The task of the time budget benches of a crate.
 const BUDGET = 'budget';
@@ -310,6 +316,7 @@ function passe(racine, env) {
         programme = 'cargo',
         temporaire = {},
         executables = null,
+        videVert = false,
       } = {}
     ) {
       // A report of an earlier run is no report of this one, which may write none.
@@ -362,6 +369,10 @@ function passe(racine, env) {
         mkdirSync(path.join(dossier, JUNIT), { recursive: true });
         const suffixe = t.script === 'nextest' ? '' : `-${t.script}`;
         copyFileSync(junit, path.join(dossier, JUNIT, `${id}-${t.paquet}${suffixe}.xml`));
+      }
+      if (videVert && t.code === AUCUN_TEST) {
+        process.stderr.write(`↳ ${t.paquet} : ${AUCUN_HORS_DU_POSTE}.\n`);
+        t.code = 0;
       }
       if (banc && t.code !== 0) {
         sousCharge(t, [avant, pression()]);
@@ -448,8 +459,17 @@ export const partitionDeNextest = tranche =>
 // crate's other tasks not played. The benches named, each crate's in a task `budget`, are
 // planned with the rest and played by the function this one returns, after the other tests.
 // In a tranche <tranche>, nextest plays its part (`partitionDeNextest`); the doctests and the
-// benches, which nextest does not split, play in the first tranche alone.
-function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranche = null) {
+// benches, which nextest does not split, play in the first tranche alone. With <videVert>, a run
+// of nextest whose filter keeps no test is green, and said.
+function jouerLesTests(
+  racine,
+  p,
+  choix,
+  options,
+  temporaire = () => ({}),
+  tranche = null,
+  videVert = false
+) {
   const m = metadonnees(racine);
   // Nextest's store is `target/nextest` under the workspace's root (its default `store.dir`),
   // whatever the target directory of the compilations (./sccache.mjs).
@@ -519,7 +539,7 @@ function jouerLesTests(racine, p, choix, options, temporaire = () => ({}), tranc
         ];
         prevues.push([
           p.prevoir(nom, d, 'nextest', true, args),
-          { junit, temporaire: temporaire(nom) },
+          { junit, temporaire: temporaire(nom), videVert },
         ]);
       }
       if (desBancs.length && indivisible) {
@@ -1066,8 +1086,10 @@ function testsDeNuit(racine, tous, env, parPaquet, args = []) {
     })
     .filter(x => x.cibles.length);
   if (choix.length) {
-    jouerLesTests(racine, p, choix, [], parPaquet.temporaire)();
+    jouerLesTests(racine, p, choix, [], parPaquet.temporaire, null, nuit.horsDuPoste)();
     restesParPaquet(p, choix, parPaquet);
+  } else if (nuit.horsDuPoste) {
+    process.stderr.write(`↳ cargo : ${AUCUN_HORS_DU_POSTE}.\n`);
   }
   return p.code();
 }

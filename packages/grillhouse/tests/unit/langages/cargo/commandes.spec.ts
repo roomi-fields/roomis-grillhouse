@@ -1197,6 +1197,50 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     ]);
   });
 
+  it('a night out of the poste whose filter keeps no test of a crate is green, and says so', () => {
+    const vide = { 'nextest seul::lourd_nuit': 4 };
+    const r = lancer(
+      racine,
+      'tests-de-nuit',
+      ['--hors-du-poste', '--tranche', '1/3'],
+      vide,
+      pression(0)
+    );
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.stderr).toContain('seul : aucun test hors du poste');
+    expect(r.verdict.taches.find(t => t.script === 'nextest')?.code).toBe(0);
+  });
+
+  it('a night out of the poste whose tags leave out every target is green, and says so', () => {
+    const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'tout-du-poste-'))) as {
+      depots: Depots;
+    };
+    writeFileSync(
+      path.join(e.depots.seul, 'tests/lourd_nuit.rs'),
+      '// @poste: session\n#[test]\nfn long() {}\n'
+    );
+    const r = lancer(e.depots.seul, 'tests-de-nuit', ['--hors-du-poste'], {}, pression(0));
+    expect(r.code, r.stderr).toBe(0);
+    expect(r.appels).toEqual([]);
+    expect(r.stderr).toContain('aucun test hors du poste');
+  });
+
+  it('a filter that keeps no test stays a red in the whole night and in a targeted run', () => {
+    const vide = { 'nextest seul::lourd_nuit': 4, 'nextest seul::bout': 4 };
+    const nuit = lancer(racine, 'tests-de-nuit', [], vide, pression(0));
+    expect(nuit.code).toBe(1);
+    expect(nuit.stderr).not.toContain('aucun test hors du poste');
+    const cible = lancer(racine, 'tester', ['tests/bout.rs'], vide);
+    expect(cible.code).toBe(1);
+    expect(cible.stderr).not.toContain('aucun test hors du poste');
+  });
+
+  it('a night test red out of the poste stays a red', () => {
+    const rouge = { 'nextest seul::lourd_nuit': 100 };
+    const r = lancer(racine, 'tests-de-nuit', ['--hors-du-poste'], rouge, pression(0));
+    expect(r.code).toBe(1);
+  });
+
   it('tests-de-nuit --hors-du-poste plays no bench, --mesures plays the benches alone', () => {
     const hors = lancer(racine, 'tests-de-nuit', ['--hors-du-poste'], {}, pression(0));
     expect(hors.code, hors.stderr).toBe(0);
