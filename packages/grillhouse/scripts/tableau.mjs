@@ -28,6 +28,8 @@
 // - Readings: a reading of the circuits or of the tickets that fails gives way to the last one
 //   that succeeded (`lectureGardee`, `tableau-lu-<quoi>.json` in the common git directory), its
 //   age in the alert that names the fault; a project beside the session's says its own faults.
+// - A path of `grillhouse.groupe` that leads to no project of the frame is an alert of its project,
+//   its key on the first line, its value below (`signalementsDuGroupe`, scripts/groupe-cles.mjs).
 // - Bilans: the card of a ticket whose circuit kept its bilan (scripts/bilan.mjs,
 //   `.claude/worktrees/<ticket>.bilan.json`) opens on its key figures.
 // - CHANTIER: a root epic with work in progress, its tree of mothers with their work tickets done
@@ -130,6 +132,7 @@ import { duree as dureeDeLaFermeture } from './regles-des-places.mjs';
 import { prefixe as prefixeDeLaRacine } from './prefixe-des-tickets.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
 import { versionDuPaquet } from './greffons.mjs';
+import { signalementsDuGroupe } from './groupe-cles.mjs';
 import { estLeCircuitCourt, sorteDesFiches } from './resultats.mjs';
 
 // The version of the package whose code draws the panel, « v0.47.1 », read once, at the first
@@ -1657,6 +1660,17 @@ const debutDe = (s, n) => {
   }
   return out;
 };
+// The end of <s> that holds in <n> columns, « … » at its head when cut.
+const finDe = (s, n) => {
+  if (colonnes(s) <= n) {
+    return s;
+  }
+  const c = [...s];
+  while (c.length && colonnes(c.join('')) > n - 1) {
+    c.shift();
+  }
+  return `…${c.join('')}`;
+};
 // A line of `largeur` columns: the left part cut to leave the right part whole.
 const couper = (gauche, droite, largeur) => {
   if (!droite) {
@@ -1983,6 +1997,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
         : cadre(`${signeDe(a)} ${duProjet(a)}${a.texte}`, '', largeur),
       a.ton
     );
+    if (a.detail) {
+      L(`  ${finDe(a.detail, largeur - 2)}`, a.ton);
+    }
   }
   if (t.ciDeMain) {
     L(cadre(t.ciDeMain.texte, '', largeur), t.ciDeMain.ton);
@@ -3152,6 +3169,18 @@ export async function tableau(
     ),
     ici.commun ? path.dirname(ici.commun) : null
   );
+  // A path of a project's `grillhouse.groupe` that leads to no project of the frame, or any other
+  // fault of the key (scripts/groupe-cles.mjs): the alert names the key, the line below its value.
+  for (const l of lus) {
+    for (const { cle, valeur, motif } of l.t ? signalementsDuGroupe(l.dossier) : []) {
+      l.t.alertes.push({
+        etat: 'panne',
+        ton: TONS.panne,
+        texte: `${cle} : ${motif === 'sans-projet' ? 'sans projet du cadre' : 'valeur refusée'}`,
+        detail: valeur,
+      });
+    }
+  }
   const etat = ligneEtat(ici.t, autres.map(l => l.t).filter(Boolean));
   const t = projets.length
     ? ensemble(

@@ -27,6 +27,10 @@
 #   temporal perime`) joins « Manque » with `npx grillhouse temporal installer`. An agent's copy
 #   does not read it.
 #
+# - The group (scripts/groupe-cles.mjs, `lignesDuGroupe`): each path of `grillhouse.groupe` that
+#   leads to no project of the frame, and each other fault of the key, in one line that names the
+#   key and the path. An agent's copy does not read it.
+#
 # The supervisor (scripts/superviseur.mjs): the session takes the lock of its repository; when its
 # opening takes it (not when it keeps it) it receives « Les questions des circuits » then « Les
 # circuits du dépôt »; a second session while the first lives receives first « Un autre
@@ -122,6 +126,14 @@ while IFS= read -r crochet; do
   [ -n "$crochet" ] && missing+=("le crochet git $crochet du cadre")
 done < <(node "$ici/crochets.mjs" --absents "$root" 2>/dev/null)
 command -v bwrap >/dev/null || missing+=("bubblewrap (bwrap), l'enveloppe des agents : sudo apt install bubblewrap")
+
+# The paths of grillhouse.groupe that lead to no project of the frame.
+groupe=
+[ -n "$copie_agent" ] || groupe="$(node --input-type=module -e '
+const { pathToFileURL } = await import("node:url");
+const { lignesDuGroupe } = await import(pathToFileURL(process.argv[1]).href);
+process.stdout.write(lignesDuGroupe(process.argv[2]).join("\n"));
+' "$ici/groupe-cles.mjs" "$root" 2>/dev/null)"
 
 # The key elements the skills read; each one still empty is proposed for a grill.
 pending=()
@@ -222,7 +234,7 @@ fi
 # An epic is a chantier, at the root: one with a mother is a mother ticket typed by mistake.
 epopees="$(cd "$root" && bd list --type epic --all --json --limit 0 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).filter(t=>t.parent).map(t=>t.id).join(" "))}catch{}})')"
 
-[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "$nuit_en_table" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && exit 0
+[ ${#missing[@]} -eq 0 ] && [ ${#pending[@]} -eq 0 ] && [ ${#wiring[@]} -eq 0 ] && [ -z "$nuit_en_table" ] && [ -z "$epopees" ] && [ -z "${inconnus:-}" ] && [ -z "${ecart_versions:-}" ] && [ -z "$groupe" ] && exit 0
 
 echo "## Éléments du projet à définir (Roomi's Grillhouse)"
 if [ ${#missing[@]} -gt 0 ]; then
@@ -246,4 +258,5 @@ if [ -n "${inconnus:-}" ]; then
   echo "docs/agents/hors-cadre.txt nomme un dossier absent de packages/ et de src/ : $inconnus. Corrige la ligne (faute de frappe) ou retire-la : un nom sans dossier n'écarte rien."
 fi
 [ -n "${ecart_versions:-}" ] && echo "$ecart_versions"
+[ -z "$groupe" ] || echo "$groupe"
 exit 0

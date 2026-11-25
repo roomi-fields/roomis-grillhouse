@@ -24,6 +24,21 @@ export function lireGroupe(
  */
 export function groupeDe(dir: string): GroupeDeclare | null;
 
+/** A fault of the key, or a path of it that leads to no project of the frame. */
+export interface SignalementDuGroupe {
+  cle: string;
+  valeur: string;
+  motif: 'sans-projet' | 'refusee';
+  /** The reading refuses the entry, which drops the whole group. */
+  ignore: boolean;
+}
+
+/** Each signalement of the key of the project that holds <dir>, read in its main tree. */
+export function signalementsDuGroupe(dir: string): SignalementDuGroupe[];
+
+/** The line the start of a session says for each signalement. */
+export function lignesDuGroupe(dir: string): string[];
+
 /** The `external_projects` of the Beads of the project at <racine>: the other projects of its group. */
 export function projetsExternes(
   groupe: { projets: ProjetDuGroupe[] },

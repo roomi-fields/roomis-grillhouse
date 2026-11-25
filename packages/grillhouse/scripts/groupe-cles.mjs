@@ -4,14 +4,17 @@
 // their tickets that wait for a place leave by priority (scripts/regles-des-places.mjs), and
 // `grillhouse maj` writes the other projects of the group as the `external_projects` of the Beads
 // of each (`bd ship` and `external:<project>:<capability>` dependencies resolve through them).
-// Any other value is a fault, named by its key before any work.
+// Any other value is a fault, named by its key before any work. The board and the start of a
+// session signal each fault, and each path that leads to no project of the frame
+// (`signalementsDuGroupe`).
 // The key is the project's: `groupeDe` reads it in the package.json of the main tree of the
 // repository, never of a copy, and resolves its relative paths from that tree, so that a command
 // launched in a copy of work reads the same group as one launched in the main tree.
-// Architecture: docs/architecture/machine.md (§5.4).
+// Architecture: docs/architecture/machine.md (§5.4), greffon.md (§5.1).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { NOM_DU_PAQUET } from './aiguillage.mjs';
 import { arbrePrincipal } from './outils-cles.mjs';
 
 /**
@@ -85,6 +88,78 @@ export function groupeDe(dir) {
     );
   }
   return groupe;
+}
+
+// The package.json of the directory <dossier>; null when none reads.
+function paquetDe(dossier) {
+  try {
+    return JSON.parse(readFileSync(path.join(dossier, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// A project of the frame: its package.json declares the frame's package, as the greffon's mod
+// recognises one.
+function estUnProjetDuCadre(dossier) {
+  const p = paquetDe(dossier);
+  return [p?.dependencies, p?.devDependencies].some(d => Object.hasOwn(d ?? {}, NOM_DU_PAQUET));
+}
+
+/**
+ * What the key of the project that holds <dir> gets wrong, read in the package.json of its main
+ * tree: each entry whose path leads to no project of the frame, the project itself apart (`motif`
+ * « sans-projet »), and each other fault of the key (« refusee »: a duplicate, a malformed value),
+ * in the order of the entries. `ignore` is true when the reading refuses the entry, which drops the
+ * whole group; false for a folder that exists and is no project of the frame. Empty without the
+ * key, or without a package.json that reads.
+ * @param {string} dir a directory of the project: its main tree or a copy
+ * @returns {{ cle: string, valeur: string, motif: 'sans-projet' | 'refusee', ignore: boolean }[]}
+ */
+export function signalementsDuGroupe(dir) {
+  const racine = arbrePrincipal(dir);
+  const pkg = paquetDe(racine);
+  const refusees = new Map(lireGroupe(pkg, racine).fautes.map(f => [f.cle, f.valeur]));
+  const liste = pkg?.grillhouse?.groupe;
+  if (!Array.isArray(liste) || liste.length === 0) {
+    return [...refusees].map(([cle, valeur]) => ({ cle, valeur, motif: 'refusee', ignore: true }));
+  }
+  return liste.flatMap((v, i) => {
+    const cle = `grillhouse.groupe[${i}]`;
+    const chemin = typeof v === 'string' && v.trim() !== '' ? path.resolve(racine, v) : null;
+    const sansProjet =
+      chemin !== null && chemin !== path.resolve(racine) && !estUnProjetDuCadre(chemin);
+    const ignore = refusees.has(cle);
+    if (!sansProjet && !ignore) {
+      return [];
+    }
+    return [
+      {
+        cle,
+        valeur: refusees.get(cle) ?? JSON.stringify(v),
+        motif: sansProjet ? 'sans-projet' : 'refusee',
+        ignore,
+      },
+    ];
+  });
+}
+
+/**
+ * The line the start of a session says for each of `signalementsDuGroupe`.
+ * @param {string} dir
+ * @returns {string[]}
+ */
+export function lignesDuGroupe(dir) {
+  return signalementsDuGroupe(dir).map(({ cle, valeur, motif, ignore }) => {
+    const constat =
+      motif === 'sans-projet'
+        ? 'ce chemin ne mène à aucun projet du cadre'
+        : 'la valeur est refusée (un chemin de projet existant, une fois)';
+    const effet = ignore
+      ? 'le groupe entier est ignoré (ni les questions de ses projets, ni leur ordre de places)'
+      : "aucune question de circuit n'en vient";
+    return `⚠️ ${cle} vaut ${valeur} : ${constat} ; ${effet}. Corrige la clé dans le package.json de la racine.`;
+  });
 }
 
 /**
