@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.50.3] - 2026-11-25
+
 - **An integration test that reads `env!("CARGO_BIN_EXE_<bin>")` compiles again** (grillhouse-3uv.251): the short wrapper of sccache of 0.50.2 ran under `sh`, which drops a variable whose name holds a hyphen, so a binary named like `osd-reference` failed to compile (seen by OSD). The wrapper runs under bash, in a new file of the cache (`sccache-court-bash`). **Action for projects**: none.
 
 ## [0.50.2] - 2026-11-25
