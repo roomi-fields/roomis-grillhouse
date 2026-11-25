@@ -24,7 +24,9 @@
 //   else COEURS_PAR_DEFAUT; a direct pass has COEURS_DU_DIRECT, fixed. Its memory is the declared
 //   one, else the largest peak the project measured plus a quarter, never under a floor (the
 //   share of the budget that max(4, a third of its cores) cores hold, which it is without a
-//   measure). A part larger than the budget is the budget (one pass at a time).
+//   measure). A part larger than the budget is the budget (one pass at a time). That memory stands
+//   for a sort of pass the register measured less than 20 times (`partDeLaPasse` of
+//   ./places-de-la-machine.mjs).
 import { readFileSync } from 'node:fs';
 import { cpus, totalmem } from 'node:os';
 import path from 'node:path';

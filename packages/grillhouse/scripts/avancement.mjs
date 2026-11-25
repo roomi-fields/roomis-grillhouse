@@ -268,11 +268,12 @@ export function garderLeTotal(dossier) {
  * The parts of the machine under <env>, as the board shows them (scripts/tableau.mjs): `budget`
  * (the cores and the memory the parts share, null when the reserve of the user is faulty, `faute`
  * then naming it), `prises`, each pass that holds a part (its repository `depot`, the root of its
- * main tree, and `projet`, its folder; its working tree `copie`; ticket, kind, `coeurs` and
- * `memoire` of its part, since when, what it consumes beyond its part `depasse`, and its progress
- * `avancement`: its files done and planned and its last sign, null while it names no progress
- * directory, or that directory does not read), and `attentes`, each live wait in the order of
- * its rank, with what it waits for (`raison`) (`lireLesParts` of scripts/places-de-la-machine.mjs).
+ * main tree, and `projet`, its folder; its working tree `copie`; ticket, kind, `coeurs`,
+ * `memoire` and `limite` of its part, since when, what it consumes beyond its part `depasse`,
+ * and its progress `avancement`: its files done and planned and its last sign, null while it
+ * names no progress directory, or that directory does not read), and `attentes`, each live wait
+ * in the order of its rank, with the part it asks for and what it waits for (`raison`)
+ * (`lireLesParts` of scripts/places-de-la-machine.mjs).
  * @param {Record<string, string | undefined>} [env]
  */
 export function lireLaMesure(env = process.env) {
@@ -284,21 +285,24 @@ export function lireLaMesure(env = process.env) {
   } catch (e) {
     faute = e.message;
   }
-  const nom = ({ depot, copie, projet, ticket, sorte, depuis }) => ({
+  // What a pass holds or asks for; `limite`, where its group is cut (null, a session; absent from
+  // a part that names none).
+  const nom = ({ depot, copie, projet, ticket, sorte, depuis, coeurs, memoire, limite }) => ({
     depot,
     copie: copie ?? null,
     projet,
     ticket: ticket ?? null,
     sorte,
     depuis,
+    coeurs,
+    memoire,
+    limite,
   });
   return {
     budget,
     faute,
     prises: prises.map(p => ({
       ...nom(p),
-      coeurs: p.coeurs,
-      memoire: p.memoire,
       depasse: p.depasse ?? null,
       avancement: typeof p.dossier === 'string' ? lireAvancement(p.dossier) : null,
     })),

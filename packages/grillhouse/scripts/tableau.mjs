@@ -52,10 +52,12 @@
 //   Past FIGEE without a sign: « figée <durée> · faits/prévus », signed ⛔.
 // - Parts (scripts/places-de-la-machine.mjs, read by `lireLaMesure`), as Slurm's `squeue` names
 //   who holds what: a part held or waited for stands on the ticket's line, « 🔒 » (holds) or « ⏳ »
-//   (waits) after the head, before the subject: « · <sorte> · 2 cœurs · <durée> », with « ⚠ » when
-//   it consumes beyond its part, « · <sorte> figée <durée> » past FIGEE, « · attend 2 cœurs · 26
-//   réservés sur 28 · <durée> » for a wait. The block at the head of AGENTS (`lignesDesParts`)
-//   keeps the budget taken, « Parts · 2 passes · 6 sur 8 cœurs · 11 sur 16 Go », which counts
+//   (waits) after the head, before the subject: « · <sorte> · 2 cœurs · 4 Go, limite 8 Go ·
+//   <durée> » (the memory reserved and where the group is cut, « sans limite » for a session), with
+//   « ⚠ » when it consumes beyond its part, « · <sorte> figée <durée> » past FIGEE, « · attend 2
+//   cœurs · 26 réservés sur 28 · 4 Go réservés, limite 8 Go · <durée> » for a wait. The block at
+//   the head of AGENTS (`lignesDesParts`) keeps the budget taken, « Parts · 2 passes · 6 sur 8
+//   cœurs · 11 sur 16 Go », which counts
 //   every pass that holds a part, a ticket the board does not show included, then the passes with
 //   no ticket (« 🔒 <sorte> · <projet> · 4 cœurs · 8 Go »), then each wait in the order of its
 //   rank (« ⏳ <sorte> · <projet> · attend <raison> »). Such a line is marked `avancement`, which
@@ -807,11 +809,13 @@ export function lecture(t, prefix) {
 /**
  * Who holds a part of the machine, or waits for one, as the board shows it (`lireLaMesure` of
  * scripts/avancement.mjs, its project named as the board names it, `nommerLesProjets`; `copie`,
- * its working tree; `ici`, it is of the board's project; `coeurs` and `memoire` (bytes) its part;
+ * its working tree; `ici`, it is of the board's project; `coeurs` and `memoire` (bytes) its part,
+ * `limite` where its group is cut (null, a session);
  * `depasse`, what it consumes beyond it; `raison`, what a wait waits for).
  * @typedef {{ id?: string, depot?: string | null, copie?: string | null, ici?: boolean,
  *   projet: string, ticket: string | null, sorte: string, depuis?: number | null, coeurs?: number,
- *   memoire?: number, depasse?: string | null, raison?: string, rang?: number,
+ *   memoire?: number, limite?: number | null, depasse?: string | null, raison?: string,
+ *   rang?: number,
  *   avancement?: { faits: number, prevus: number, debut?: number, dernier: number } | null }} DUnePart
  * @typedef {{ budget: { coeurs: number, memoire: number } | null, faute?: string | null,
  *   prises: DUnePart[], attentes: DUnePart[] }} Machine
@@ -822,13 +826,23 @@ const chiffre = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.'
 // Bytes as GB, to a tenth.
 const goDe = octets => chiffre(Math.round((octets / 1024 ** 3) * 10) / 10);
 
+// The limit of the part of a pass, after its reservation: « , limite 7,5 Go », « , sans limite »
+// for a session; nothing for a part that names none.
+const limiteDite = p =>
+  p.limite === undefined ? '' : p.limite === null ? ', sans limite' : `, limite ${goDe(p.limite)} Go`;
+// What a pass that waits asks of the memory, its reservation and its limit.
+const demandeDite = p =>
+  p.limite === undefined ? '' : ` · ${goDe(p.memoire ?? 0)} Go réservés${limiteDite(p)}`;
+
 /**
  * The parts of the machine as the board says them, in lines: first the budget taken, « Parts · 2
  * passes · 6 sur 8 cœurs · 11 sur 16 Go » (the passes that hold a part, the cores and the memory
  * they reserve of the total: the passes that wait reserve nothing), then each pass that holds a
- * part, « 🔒 <sorte> · <projet> · <qui> · 4 cœurs · 8 Go » (with « ⚠ » and what it consumes beyond
- * its part, when it does), then each pass that waits, in the order of its rank, « ⏳ <sorte> ·
- * <projet> · <qui> · attend <raison> », what it waits for (cores, memory, load) with its figures.
+ * part, « 🔒 <sorte> · <projet> · <qui> · 4 cœurs · 8 Go, limite 10 Go » (the memory reserved,
+ * then where its group is cut, « sans limite » for a session; with « ⚠ » and what it consumes
+ * beyond its part, when it does), then each pass that waits, in the order of its rank,
+ * « ⏳ <sorte> · <projet> · <qui> · attend <raison> · 2 Go réservés, limite 10 Go », what it waits
+ * for (cores, memory, load) with its figures, then what it asks of the memory.
  * <masquer> leaves out the lines of the passes it names (those of a ticket, shown on its line or
  * not shown at all: the count keeps them), <court> gives the ticket as the board names it.
  * @param {{ budget: { coeurs: number, memoire: number }, prises: DUnePart[], attentes: DUnePart[],
@@ -851,11 +865,13 @@ export function lignesDesParts({
       .filter(p => !masquer(p))
       .map(
         p =>
-          `🔒 ${p.sorte} · ${p.projet} · ${qui(p)}${p.coeurs} cœurs · ${goDe(p.memoire ?? 0)} Go${p.depasse ? ` · ⚠ ${p.depasse}` : ''}`
+          `🔒 ${p.sorte} · ${p.projet} · ${qui(p)}${p.coeurs} cœurs · ${goDe(p.memoire ?? 0)} Go${limiteDite(p)}${p.depasse ? ` · ⚠ ${p.depasse}` : ''}`
       ),
     ...attentes
       .filter(p => !masquer(p))
-      .map(p => `⏳ ${p.sorte} · ${p.projet} · ${qui(p)}attend ${p.raison ?? ''}`.trimEnd()),
+      .map(p =>
+        `⏳ ${p.sorte} · ${p.projet} · ${qui(p)}attend ${p.raison ?? ''}${demandeDite(p)}`.trimEnd()
+      ),
   ];
 }
 
@@ -1777,7 +1793,7 @@ export function etatsDAgents(t) {
       icone: '🔒',
       texte: fige
         ? ` · ${sorte} figée ${ilYa(age)}${compte ? ` · ${compte}` : ''}`
-        : ` · ${sorte}${compte ? ` ${compte}` : ''}${tenu.coeurs ? ` · ${tenu.coeurs} cœurs` : ''} · ${ilYa(maintenant - (tenu.depuis ?? maintenant))}${tenu.depasse ? ` · ⚠ ${tenu.depasse}` : ''}`,
+        : ` · ${sorte}${compte ? ` ${compte}` : ''}${tenu.coeurs ? ` · ${tenu.coeurs} cœurs` : ''}${tenu.limite === undefined ? '' : ` · ${goDe(tenu.memoire ?? 0)} Go${limiteDite(tenu)}`} · ${ilYa(maintenant - (tenu.depuis ?? maintenant))}${tenu.depasse ? ` · ⚠ ${tenu.depasse}` : ''}`,
     });
   }
   const reserves = (t.machine?.prises ?? []).reduce((n, x) => n + (x.coeurs ?? 0), 0);
@@ -1787,7 +1803,7 @@ export function etatsDAgents(t) {
       partDe.set(w.ticket, {
         fige: false,
         icone: '⏳',
-        texte: ` · attend ${w.coeurs} cœurs · ${reserves} réservés sur ${budget} · ${ilYa(maintenant - w.depuis)}`,
+        texte: ` · attend ${w.coeurs} cœurs · ${reserves} réservés sur ${budget}${demandeDite(w)} · ${ilYa(maintenant - w.depuis)}`,
       });
     }
   }

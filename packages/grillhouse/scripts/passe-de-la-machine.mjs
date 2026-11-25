@@ -1,7 +1,7 @@
 // A pass on the machine: it takes its part of the budget (scripts/places-de-la-machine.mjs
 // `prendreUnePart`), waiting when the parts held leave too little, and plays held to that part
 // by a control group of its own (`systemd-run --user --scope`) whose CPU weight and memory bound
-// come from the part, with no hard CPU ceiling. Its tools receive the cores of its part
+// come from the part (the bound its limit, else its memory), with no hard CPU ceiling. Its tools receive the cores of its part
 // (GRILLHOUSE_TRAVAILLEURS). A pass takes no place. Architecture:
 // docs/architecture/machine.md (§3.1, §5.1, §6).
 //
@@ -17,7 +17,9 @@
 //   unit named, which a sampler reads. A pass that consumes clearly more than its part is said to
 //   the board and to the figures (`depasseLaPart`).
 // - A pass under the part its parent holds (GRILLHOUSE_PART_TENUE) takes none of its own.
+// - A session of an agent keeps its peak too (`mesureDeLaSeance`), read from its group.
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import {
   coeursDeLaMachine,
@@ -86,7 +88,7 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
 /**
  * The command line that runs <cmd> in a control group of its own under the part <part>: `systemd-run
  * --user --scope` (the manager of the user, no privilege), its CPU weight and its memory bound
- * drawn from the part, no hard ceiling of CPU, the command of the pass whole at the end after
+ * (the limit of the part, else its memory) drawn from the part, no hard ceiling of CPU, the command of the pass whole at the end after
  * `--`, given as written (`--expand-environment=no`: systemd-run would otherwise expand each
  * `${…}` of its arguments, a shell script's included). <plafond> adds the hard CPU ceiling (`CPUQuota`, the cores of the part: the group of an
  * agent's session); <memoire> false leaves the memory unbound. <unite> names the scope, which a
@@ -94,8 +96,9 @@ export function lancementDeLaPasse({ lourde, cmd, args, env }) {
  * part, the system delegating the cpuset controller to the account) the group allows those
  * threads only (`AllowedCPUs`), under the slice of the frame, which the programs out of the frame
  * are kept out of.
- * @param {{ part: { coeurs: number, memoire: number }, cmd: string, args: string[],
- *   unite?: string | null, fils?: number[] | null, plafond?: boolean, memoire?: boolean }} o
+ * @param {{ part: { coeurs: number, memoire: number, limite?: number | null }, cmd: string,
+ *   args: string[], unite?: string | null, fils?: number[] | null, plafond?: boolean,
+ *   memoire?: boolean }} o
  * @returns {{ cmd: string, args: string[] }}
  */
 export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null, plafond = false, memoire = true }) {
@@ -112,7 +115,7 @@ export function commandeDuGroupe({ part, cmd, args, unite = null, fils = null, p
       'MemoryAccounting=yes',
       '-p',
       `CPUWeight=${poidsDeLaPart(part)}`,
-      ...(memoire ? ['-p', `MemoryMax=${Math.floor(part.memoire)}`] : []),
+      ...(memoire ? ['-p', `MemoryMax=${Math.floor(part.limite ?? part.memoire)}`] : []),
       ...(plafond ? ['-p', `CPUQuota=${part.coeurs * 100}%`] : []),
       ...(fils ? ['-p', `AllowedCPUs=${listeDeCoeurs(fils)}`] : []),
       '--',
@@ -216,9 +219,47 @@ const issueDe = r => {
   return 'verte';
 };
 
-// Plays <jouer> in the group <ouvert> (`ouvrir()` of a scope), reads what it consumed before the
-// group goes, and, for a heavy pass, keeps the line in the register of the project, the pass red
-// or interrupted included: the figures, its part, and what exceeds it.
+// Keeps in the register of the project the line of what the group <ouvert> consumed since <debut>:
+// the figures, its part when it holds one, and what exceeds it; then closes the group.
+function garderLaMesure({ ouvert, racine, ticket, sorte, part, horloge, coeurs, debut, issue }) {
+  let lecture = null;
+  try {
+    lecture = ouvert.lire();
+  } catch {
+    // an unreadable scope keeps a line without values
+  }
+  try {
+    const dureeMs = horloge() - debut;
+    const depasse =
+      lecture && part
+        ? depasseLaPart({ part, cpuNs: lecture.cpuNs, dureeMs, memoirePic: lecture.memoirePic })
+        : null;
+    const limite = part?.limite === undefined ? part?.memoire : part.limite;
+    garderLaConsommation(racine, {
+      sorte,
+      ...(ticket ? { ticket } : {}),
+      dureeMs,
+      cpuNs: lecture?.cpuNs ?? null,
+      memoirePic: lecture?.memoirePic ?? null,
+      coeurs,
+      ...(part
+        ? {
+            partCoeurs: part.coeurs,
+            partMemoire: part.memoire,
+            ...(limite === null ? {} : { partLimite: limite }),
+          }
+        : {}),
+      ...(depasse ? { depasse } : {}),
+      issue,
+      fin: new Date().toISOString(),
+    });
+  } finally {
+    ouvert.clore?.();
+  }
+}
+
+// Plays <jouer> in the group <ouvert> (`ouvrir()` of a scope) and, for a heavy pass, keeps its
+// line, the pass red or interrupted included, read before the group goes.
 function jouerMesuree(jouer, { ouvert, racine, ticket, sorte, part, horloge, coeurs, lourde }) {
   const debut = horloge();
   let issue = 'rouge';
@@ -227,37 +268,69 @@ function jouerMesuree(jouer, { ouvert, racine, ticket, sorte, part, horloge, coe
     issue = issueDe(r);
     return r;
   } finally {
-    let lecture = null;
-    try {
-      lecture = ouvert.lire();
-    } catch {
-      // an unreadable scope keeps a line without values
-    }
-    try {
-      if (lourde) {
-        const dureeMs = horloge() - debut;
-        garderLaConsommation(racine, {
-          sorte,
-          ...(ticket ? { ticket } : {}),
-          dureeMs,
-          cpuNs: lecture?.cpuNs ?? null,
-          memoirePic: lecture?.memoirePic ?? null,
-          coeurs,
-          partCoeurs: part.coeurs,
-          partMemoire: part.memoire,
-          ...(lecture
-            ? (d => (d ? { depasse: d } : {}))(
-                depasseLaPart({ part, cpuNs: lecture.cpuNs, dureeMs, memoirePic: lecture.memoirePic })
-              )
-            : {}),
-          issue,
-          fin: new Date().toISOString(),
-        });
-      }
-    } finally {
+    if (lourde) {
+      garderLaMesure({ ouvert, racine, ticket, sorte, part, horloge, coeurs, debut, issue });
+    } else {
       ouvert.clore?.();
     }
   }
+}
+
+/**
+ * The measure of a session of the agent <role> on the ticket <ticket>, which its control group
+ * gives: null where no group is given or on the machine a trial fixes
+ * (GRILLHOUSE_MESURE_D_ESSAI, without a <scope> of its own). Else the sampler of the group is
+ * started; `unite` names the group the session's command is to run in (`commandeDuGroupe`), and
+ * `garder(r)`, at the session's end (`r`, `{ status, signal, error }`), writes its line of the
+ * register, sort « seance-<role> ». <part>, the part the session holds, `id` the one that names
+ * the group; without one (a session out of the envelope) the line names no part.
+ * @param {{ racine: string, role: string, ticket?: string, env?: Record<string, string | undefined>,
+ *   part?: { id: string, coeurs: number, memoire: number, limite?: number | null } | null,
+ *   sonde?: () => boolean, scope?: { ouvrir: () => any }, horloge?: () => number,
+ *   coeurs?: number }} o
+ * @returns {{ unite: string, garder: (r: unknown) => void } | null}
+ */
+export function mesureDeLaSeance({
+  racine,
+  role,
+  ticket,
+  env = process.env,
+  part = null,
+  sonde,
+  scope,
+  horloge = Date.now,
+  coeurs = coeursDeLaMachine(),
+}) {
+  if (
+    (env[VARIABLE_MESURE_D_ESSAI] && !scope) ||
+    groupeIndisponible({ env, ...(sonde ? { sonde } : {}) }) !== null
+  ) {
+    return null;
+  }
+  const sorte = sorteDeLaPasse(`séance ${role}`);
+  const ouvert = (
+    scope ??
+    scopeDeCommande({
+      racine,
+      sorte,
+      ticket,
+      coeurs,
+      part: {
+        coeurs: 1,
+        memoire: 0,
+        limite: null,
+        ...part,
+        id: part?.id ?? randomUUID(),
+        dossier: dossierDesParts(env),
+      },
+    })
+  ).ouvrir();
+  const debut = horloge();
+  return {
+    unite: ouvert.unite,
+    garder: r =>
+      garderLaMesure({ ouvert, racine, ticket, sorte, part, horloge, coeurs, debut, issue: issueDe(r) }),
+  };
 }
 
 /**

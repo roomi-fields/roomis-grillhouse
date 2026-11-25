@@ -35,7 +35,11 @@ import { langageDe } from './langages.mjs';
 import { leRole, nomDuRole } from './etapes.mjs';
 import { departDe, VARIABLE_SEANCE } from './mesure/base-de-passe.mjs';
 import { groupeVivant, signalerGroupe } from './mesure-de-la-machine.mjs';
-import { lancementDeLaPasse } from './passe-de-la-machine.mjs';
+import {
+  commandeDuGroupe,
+  lancementDeLaPasse,
+  mesureDeLaSeance,
+} from './passe-de-la-machine.mjs';
 import { prendreUnePlace } from './places-de-la-machine.mjs';
 import { transcriptionsDeLaCopie } from './registre.mjs';
 import { cleDuConstat, lireFiche, reponsesAuxConstats, schemaDeFiche } from './resultats.mjs';
@@ -389,9 +393,23 @@ export async function lancer(
     const lancement = horsEnveloppe
       ? lancementDeLaPasse({ lourde: false, cmd: commande.cmd, args: commande.args, env })
       : { cmd: commande.cmd, args: commande.args, env };
+    // A session out of the envelope runs in a group of its own, which measures its peak into the
+    // register (an enveloped one is measured by its envelope): the default weight, no bound.
+    const mesure = horsEnveloppe
+      ? mesureDeLaSeance({ racine: ctx.racine, role, ticket: ctx.ticket, env: lancement.env })
+      : null;
+    const lancee = mesure
+      ? commandeDuGroupe({
+          part: { coeurs: 1, memoire: 0 },
+          cmd: lancement.cmd,
+          args: lancement.args,
+          unite: mesure.unite,
+          memoire: false,
+        })
+      : lancement;
     const r = await jouerLeGroupe({
-      cmd: lancement.cmd,
-      args: lancement.args,
+      cmd: lancee.cmd,
+      args: lancee.args,
       cwd: commande.cwd,
       env: lancement.env,
       stdio: fds,
@@ -409,6 +427,11 @@ export async function lancer(
           place.rattacher({ pid: enfant.pid, depart: departDe(enfant.pid) });
         }
       },
+    });
+    mesure?.garder({
+      status: r.code,
+      error: r.erreur ?? undefined,
+      signal: r.bloque || r.annulee ? 'SIGTERM' : null,
     });
     if (r.pid === null && r.annulee) {
       fermer();

@@ -178,9 +178,10 @@ const un = n => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','
 /**
  * What a pass consumes beyond its part, said, null when it holds to it: the cores it occupied
  * (processor time ÷ duration, once the pass has played SEUIL_DE_DEPASSEMENT_MS) above
- * DEPASSEMENT times its cores, or a peak of memory above its memory.
- * @param {{ part: { coeurs: number, memoire: number }, cpuNs: number | null, dureeMs: number,
- *   memoirePic: number | null }} o
+ * DEPASSEMENT times its cores, or a peak of memory above its limit (its memory when it names none;
+ * a limit null, a session, has none).
+ * @param {{ part: { coeurs: number, memoire: number, limite?: number | null },
+ *   cpuNs: number | null, dureeMs: number, memoirePic: number | null }} o
  * @returns {string | null}
  */
 export function depasseLaPart({ part, cpuNs, dureeMs, memoirePic }) {
@@ -190,8 +191,9 @@ export function depasseLaPart({ part, cpuNs, dureeMs, memoirePic }) {
       return `cœurs : ${un(Math.round(occupes * 10) / 10)} mesurés pour ${part.coeurs}`;
     }
   }
-  if (typeof memoirePic === 'number' && memoirePic > part.memoire) {
-    return `mémoire : ${un(Math.round((memoirePic / 1024 ** 3) * 10) / 10)} Go mesurés pour ${un(Math.round((part.memoire / 1024 ** 3) * 10) / 10)}`;
+  const limite = part.limite === undefined ? part.memoire : part.limite;
+  if (typeof memoirePic === 'number' && limite !== null && memoirePic > limite) {
+    return `mémoire : ${un(Math.round((memoirePic / 1024 ** 3) * 10) / 10)} Go mesurés pour ${un(Math.round((limite / 1024 ** 3) * 10) / 10)}`;
   }
   return null;
 }
@@ -338,7 +340,7 @@ export function scopeSystemd({
                 String(poidsDeLaPart(part)),
                 'MemoryMax',
                 't',
-                String(Math.floor(part.memoire)),
+                String(Math.floor(part.limite ?? part.memoire)),
               ]
             : []),
           // Under the framework slice, whose cores are not those withdrawn from the user's `app.slice`.

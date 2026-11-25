@@ -28,6 +28,8 @@
 //   and the machine admits it (`admissionDePart` of ./regles-des-places.mjs); else it waits, says
 //   what for when it begins and every 30 s, keeps its rank (the measure of the frame before a
 //   project's, then the order of arrival) and stops at « à repasser » (75) at the bound.
+// - The memory of a part is that of its sort (`partDeLaPasse`): at 20 peaks or more of the sort in
+//   the register, a reservation the admission counts and a limit where its group is cut.
 // - The parts are one file per pass in `${XDG_STATE_HOME:-~/.local/state}/grillhouse/parts`
 //   (GRILLHOUSE_PARTS_DE_LA_MACHINE names another): the part held or waited for, its project,
 //   ticket, kind, rank and progress directory, which the board reads (`lireLesParts`). A pass
@@ -43,10 +45,11 @@
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { availableParallelism, homedir } from 'node:os';
 import path from 'node:path';
 import { departDe } from './mesure/base-de-passe.mjs';
-import { lireLaConsommation } from './consommation-des-passes.mjs';
+import { lireLaConsommation, sorteDeLaPasse } from './consommation-des-passes.mjs';
 import { ecrireAtomique } from './mesure/avancement.mjs';
 import { A_REPASSER } from './codes-de-sortie.mjs';
 import {
@@ -437,43 +440,72 @@ export function budgetDeLaPasse(env = process.env) {
   return budgetDe({ coeurs: m.coeurs, memoireTotale: m.memoireTotale }, reserveDe(env, { coeurs: m.coeurs }));
 }
 
+// The memory of a part by its sort, from the build of src/machine/part-par-sorte.ts; null in a
+// tree not built (a fresh clone before its build), where the part of the project stands.
+function calculParSorte() {
+  try {
+    return createRequire(import.meta.url)('../dist/machine/part-par-sorte.js');
+  } catch (e) {
+    if (e?.code === 'MODULE_NOT_FOUND') {
+      return null;
+    }
+    throw e;
+  }
+}
+
 /**
- * The part of a pass of the project at <racine> under <env>: the one the key `grillhouse.part` of
- * its main tree's `package.json` declares, else the default part of the budget.
- * @param {{ racine: string, env?: Record<string, string | undefined> }} o
- * @returns {{ coeurs: number, memoire: number }}
+ * The part of a pass of the sort <sorte> of the project at <racine> under <env>. Its cores are
+ * those the key `grillhouse.part` of its main tree's `package.json` declares, else the default
+ * ones. Its memory comes from the measure of its sort in the register, at 20 peaks or more:
+ * `memoire`, the reservation the admission counts (their 95th percentile), and `limite`, the
+ * ceiling of its group (their maximum plus a quarter). Under 20, `memoire` is the declared one,
+ * else the default, and stands for both: no `limite`.
+ * @param {{ racine: string, env?: Record<string, string | undefined>, direct?: boolean,
+ *   sorte?: string }} o <sorte> as the caller names the pass (« Vérification », « séance direct »)
+ * @returns {{ coeurs: number, memoire: number, limite?: number }}
  * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
  */
-export function partDeLaPasse({ racine, env = process.env, direct = false }) {
+export function partDeLaPasse({ racine, env = process.env, direct = false, sorte }) {
   const { declaree, faute } = partDeclareeDe(packageDuDepot(racine));
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
   }
-  return partDe({
+  const budget = budgetDeLaPasse(env);
+  const depot = racineDuDepot(racine);
+  const lignes = lireLaConsommation(depot);
+  const part = partDe({
     declaree,
-    budget: budgetDeLaPasse(env),
+    budget,
     ...(direct ? { direct } : {}),
-    pic: plusGrandPicDeJour(racineDuDepot(racine)),
+    pic: plusGrandPicDeJour(lignes),
   });
+  const mesure = sorte
+    ? calculParSorte()?.memoireDeLaSorte(lignes, sorteDeLaPasse(sorte), budget.memoire)
+    : null;
+  return mesure
+    ? { coeurs: part.coeurs, memoire: mesure.reservation, limite: mesure.limite }
+    : part;
 }
 
-// The kinds of pass the night and the measures of time write: their peaks are not those of a day.
+// The kinds of line the night and the measures of time write are not those of a day, nor are the
+// sessions of the agents (« seance-<role> »).
 const SORTES_HORS_JOUR = new Set(['nuit', 'tests-de-nuit', 'mesure']);
 
 /**
- * The largest peak of memory (bytes) of the day passes in the register of the project at <racine>;
- * undefined without one. A line without a readable peak, a malformed one and those of the night
- * and of the measures of time do not count.
- * @param {string} racine
+ * The largest peak of memory (bytes) of the day passes among the <lignes> of a register;
+ * undefined without one. A line without a readable peak and those of the night, of the measures
+ * of time and of the sessions do not count.
+ * @param {Record<string, any>[]} lignes
  * @returns {number | undefined}
  */
-function plusGrandPicDeJour(racine) {
+function plusGrandPicDeJour(lignes) {
   let pic;
-  for (const l of lireLaConsommation(racine)) {
+  for (const l of lignes) {
     const p = l.memoirePic;
     if (
       SORTES_HORS_JOUR.has(l.sorte) ||
       l.sorte.startsWith('mesure') ||
+      l.sorte.startsWith('seance') ||
       typeof p !== 'number' ||
       !Number.isFinite(p) ||
       p <= 0
@@ -509,6 +541,12 @@ function coeursDeLaMesure({ racine, budget }) {
   }
   return coeursDeLaMesureDe({ declaree, budget });
 }
+
+// What a part asks of the memory, as the waiting line says it: « 4,3 Go réservés, limite 7,5 Go ».
+const memoireDite = ({ memoire, limite }) => {
+  const go = o => String(Math.round((o / 1024 ** 3) * 10) / 10).replace('.', ',');
+  return `${go(memoire)} Go réservés, ${limite === null ? 'sans limite' : `limite ${go(limite)} Go`}`;
+};
 
 const RANGS = { 1: 'mesure du cadre', 2: "mesure d'un projet" };
 // The rank of a pass among the parts: the kind of its measure first (the frame's before a
@@ -564,13 +602,16 @@ export function lecteurDeLaCharge(env = process.env, systeme = chargeDesCoeursDu
  * The reservation of the machine (<lireLaReservation>, the places of the server by default) is read at each
  * turn of the wait, before the admission lock: under the supervisor's closure the pass waits without bound
  * (« machine fermée par le superviseur »); a reading that fails stands for no reservation. Where no part is taken (the envelope of an agent, a part already
- * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing.
+ * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing. <bornee> false (a session of an
+ * agent) reserves the memory without a limit.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
- *   sorte?: string, mesure?: boolean, direct?: boolean, borneMs?: number, rappelMs?: number,
+ *   sorte?: string, mesure?: boolean, direct?: boolean, bornee?: boolean,
+ *   borneMs?: number, rappelMs?: number,
  *   dire?: (l: string) => void, maintenant?: () => number, dormir?: (ms: number) => void,
  *   libre?: (d: string) => number, occupe?: (d: string) => string,
  *   occupeLaCopie?: (r: string) => string }} [o]
- * @returns {{ id: string | null, part: { coeurs: number, memoire: number } | null,
+ * @returns {{ id: string | null,
+ *   part: { coeurs: number, memoire: number, limite?: number | null } | null,
  *   env: Record<string, string | undefined>, rendre: () => void, raison: string | null }}
  *   `env`, the environment of its holder's children, with the mark of the part and the workers of
  *   its tools; `raison`, why no part is held, null when one is
@@ -584,6 +625,7 @@ export function prendreUnePart({
   sorte,
   mesure = false,
   direct = false,
+  bornee = true,
   topologie,
   chargeDesCoeurs = lecteurDeLaCharge(env),
   borneMs = borneDe(env),
@@ -626,7 +668,7 @@ export function prendreUnePart({
       }
       part = { coeurs: fils, memoire: Math.floor((budget.memoire * fils) / budget.coeurs) };
     } else {
-      part = partDeLaPasse({ racine, env, direct });
+      part = partDeLaPasse({ racine, env, direct, sorte });
     }
   } catch (e) {
     throw e instanceof AttenteDeLaMachine ? e : new AttenteDeLaMachine(`✗ ${e.message}`, 1);
@@ -645,6 +687,8 @@ export function prendreUnePart({
     rang: rangDeLaPasse * ECHELLE_DES_RANGS + maintenant(),
     coeurs: part.coeurs,
     memoire: part.memoire,
+    // Where the group of the pass is cut; null, a session, whose group has no memory bound.
+    limite: bornee ? (part.limite ?? part.memoire) : null,
     dediee: mesure,
     depuis: maintenant(),
   };
@@ -735,10 +779,12 @@ export function prendreUnePart({
       }
       if (dit === null) {
         dire(
-          `⏳ ${RANGS[rangDeLaPasse]}, la passe attend sa part (${part.coeurs} cœurs) : ${refus}${fermee ? ' ; sans borne, jusqu’à la réouverture.' : ` ; ${duree(borneMs)} au plus.`}`
+          `⏳ ${RANGS[rangDeLaPasse]}, la passe attend sa part (${part.coeurs} cœurs, ${memoireDite(moi)}) : ${refus}${fermee ? ' ; sans borne, jusqu’à la réouverture.' : ` ; ${duree(borneMs)} au plus.`}`
         );
       } else if (t - dit >= rappelMs) {
-        dire(`⏳ la passe attend sa part depuis ${duree(t - debut)} : ${refus}.`);
+        dire(
+          `⏳ la passe attend sa part (${memoireDite(moi)}) depuis ${duree(t - debut)} : ${refus}.`
+        );
       }
       if (dit === null || t - dit >= rappelMs) {
         dit = t;
@@ -800,7 +846,7 @@ export function prendreUnePart({
   tracer('prise');
   return {
     id: moi.id,
-    part,
+    part: bornee ? part : { ...part, limite: null },
     fils: tenus,
     dediee: mesure,
     budgetFils,

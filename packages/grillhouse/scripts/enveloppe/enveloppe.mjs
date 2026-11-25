@@ -118,7 +118,11 @@ import {
   travailleursDe,
   VARIABLE_TENUE,
 } from '../places-de-la-machine.mjs';
-import { commandeDuGroupe, groupeIndisponible } from '../passe-de-la-machine.mjs';
+import {
+  commandeDuGroupe,
+  groupeIndisponible,
+  mesureDeLaSeance,
+} from '../passe-de-la-machine.mjs';
 import { donneesDe } from '../donnees-cles.mjs';
 import { matieresDeclareesDe } from '../matieres-cles.mjs';
 import { outilsDe } from '../outils-cles.mjs';
@@ -354,7 +358,8 @@ export function environnementDeLaSeance(
  * @param {{ argsBwrap: string[], commande: string[], env: Record<string, string | undefined>,
  *   cacheNpm: string, paquets: string[], travail: string, outils?: Record<string, string>,
  *   donnees?: Record<string, string>, part?: { coeurs: number, memoire: number },
- *   sonde?: () => boolean }} o
+ *   sonde?: () => boolean, unite?: string | null }} o <unite> names the group, which the measure
+ *   of the session reads
  * @returns {{ cmd: string, args: string[], env: Record<string, string>, sansBorne: string | null }}
  *   `sansBorne`: why the session starts without a group (null when it has one)
  *
@@ -375,6 +380,7 @@ export function lancementDeLaSeance({
   part,
   sonde,
   testsEtendus,
+  unite = null,
 }) {
   const seance = {
     cmd: 'bwrap',
@@ -385,7 +391,14 @@ export function lancementDeLaSeance({
     : 'aucune part du projet connue';
   const lancee =
     sansBorne === null
-      ? commandeDuGroupe({ part, cmd: seance.cmd, args: seance.args, plafond: true, memoire: false })
+      ? commandeDuGroupe({
+          part,
+          cmd: seance.cmd,
+          args: seance.args,
+          unite,
+          plafond: true,
+          memoire: false,
+        })
       : seance;
   return {
     ...lancee,
@@ -1004,15 +1017,28 @@ function envelopper(argv) {
         ticket: path.basename(copie),
         sorte: `séance ${role ?? ''}`.trim(),
         direct,
+        bornee: false,
         dire: l => process.stderr.write(`${l}\n`),
       });
-      part = prise.part ?? partDeLaPasse({ racine: copie, direct });
+      part =
+        prise.part ??
+        partDeLaPasse({ racine: copie, direct, sorte: `séance ${role ?? ''}`.trim() });
     } catch (e) {
       process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
       temporaire.fermer();
       return CODE_REFUS;
     }
+    // The peak of the session, which its group measures, enters the register under its role.
+    const mesure = prise.part
+      ? mesureDeLaSeance({
+          racine: copie,
+          role,
+          ticket: path.basename(copie),
+          part: { ...prise.part, id: prise.id },
+        })
+      : null;
     const lancement = lancementDeLaSeance({
+      unite: mesure?.unite ?? null,
       argsBwrap: args,
       commande,
       env: process.env,
@@ -1031,6 +1057,7 @@ function envelopper(argv) {
     try {
       r = spawnSync(lancement.cmd, lancement.args, { stdio: 'inherit', env: lancement.env });
     } finally {
+      mesure?.garder(r ?? { error: true });
       prise.rendre();
     }
     if (r.error) {
