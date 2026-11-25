@@ -15,6 +15,9 @@
 //   `scripts/sous-modules.sh monter`: each submodule the preparation linked is read-only, by the
 //   list the pose printed, whatever a command rewrites afterwards. With a link and no possible
 //   mount (bwrap absent or refused), the copy refuses before any command runs.
+// - A copy's node_modules is its own: a symbolic link found there at the opening is removed, never
+//   the directory it names, before any command plays, as `npm ci` would empty that directory and
+//   `npm install --package-lock-only` write into it.
 // - The dependencies follow the lock file and the manifests of the moment. One function (`accorder`,
 //   which `ouvrirCopie` hands out as `installer`) compares the fingerprint of the lock file and of
 //   the manifests (every `package.json` git tracks) with the key
@@ -30,7 +33,7 @@
 //   refreshes for its own account.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,6 +76,10 @@ export function ouvrirCopie({ racine, copie, ref, dire }) {
       : git('worktree', 'add', '-q', '--detach', copie, tete).status === 0;
     if (!prete) {
       return `La copie ${copie} ne se prépare pas.`;
+    }
+    const modules = path.join(copie, 'node_modules');
+    if (lstatSync(modules, { throwIfNoEntry: false })?.isSymbolicLink()) {
+      unlinkSync(modules);
     }
     const poses = spawnSync('bash', [SOUS_MODULES, 'pose', copie], { encoding: 'utf8' });
     if (poses.status !== 0) {

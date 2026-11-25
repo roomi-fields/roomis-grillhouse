@@ -557,10 +557,9 @@ export function circuitEssai(
     execFileSync('git', ['init', '-q', '--bare', '-b', 'main', DISTANT]);
     git('remote', 'add', 'origin', DISTANT);
     git('push', '-q', 'origin', 'main');
-    // The integration's copy made ahead, with this repository's dependencies, as a project holds them.
-    const integration = path.join(REPO, '.claude/worktrees/integration');
-    git('worktree', 'add', '-q', '--detach', integration);
-    symlinkSync(path.join(RACINE, 'node_modules'), path.join(integration, 'node_modules'), 'dir');
+    // The integration's copy made ahead, as a project holds it, without this repository's
+    // dependencies: its install writes its own node_modules.
+    git('worktree', 'add', '-q', '--detach', path.join(REPO, '.claude/worktrees/integration'));
   }
   if (canWrap) {
     depot();
