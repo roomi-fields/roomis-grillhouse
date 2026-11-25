@@ -130,6 +130,10 @@ Chaque rôle est une séance neuve de Claude Code, lancée par un acte, qui fini
 
 Un fichier que ce tableau ne nomme pas est une trace ou un cache. La sorte écrite dans la description du ticket et la ligne du journal des états sont des traces : le circuit ne les relit pas.
 
+**Le journal des états** garde la chronologie des circuits, de la file d'intégration et de l'arbitre d'un projet, comme le journal d'un ordonnanceur : une ligne datée par changement d'état, jamais un relevé périodique. Une ligne est `{ ts, genre, ticket, etape, boucle, place, raison }` : `ts` en ISO 8601 avec le décalage local ; `genre` vaut `circuit`, `file` ou `places` ; `raison` est vide pour une transition normale, le nom de l'arrêt pour un arrêt, la cause du retour pour une boucle, la raison de l'attente pour une attente. Le circuit en écrit une à chaque changement de son état, la file au lancement et à la fin d'un circuit, l'arbitre à chaque place prise, rendue ou mise en attente, au début et à la fin de l'attente d'une réservation, et à chaque changement de cran (document de la machine, §5.1, §5.2). Le journal tient un segment par date locale, `<dossier commun de git>/grillhouse-journal/<AAAA-MM-JJ>.jsonl`, non versionné, un par projet, que ses copies partagent ; une écriture ajoute une ligne entière d'un seul ajout (`O_APPEND`), tronquée pour tenir sous 4 096 octets, sans verrou ni attente, et une écriture qui échoue ne retarde ni n'arrête rien, et se dit une fois sur la sortie d'erreur. Ses bornes sont quatorze jours et 50 Mo : le retrait des copies finies (§6) retire les segments plus vieux que quatorze jours, puis, au-delà de 50 Mo, les plus anciens d'abord, sans réécrire un segment ni retirer le plus récent. `npx grillhouse journal [--depuis <instant>] [--jusqu-a <instant>] [--ticket <id>]` rend les lignes de tous les segments dans l'ordre de leur horodatage et, après chaque lancement ou fin de circuit, les tickets en travail contre la limite du projet (« en travail 1/2 : d-1 ») ; un ticket est en travail de sa ligne de lancement à sa ligne de fin. Rien ne relit le journal pour décider.
+
+**Le bilan d'un ticket** sépare les attentes, comme le délai de livraison de DORA sépare l'attente de la revue du temps de travail (non lu) : il répartit l'attente entre celle du superviseur, celle du responsable et la nuit, la plage que déclare `grillhouse.plageDeNuit` (23 h à 8 h par défaut). Chaque question nomme la séance du superviseur qui a lancé ou répondu en dernier (`superviseur` de l'état) ; une attente est celle du responsable quand une personne écrit dans cette séance pendant l'attente, et le bilan ne lit aucun commentaire du ticket. Une séance qui ne change aucun fichier du plan est une relance sans effet ; un arrêt seul ne la rend jamais sans effet. Le bilan donne le temps de bout en bout, ce temps hors des nuits d'attente, et le temps perdu hors des attentes ; le coût d'une séance se recalcule sur ses jetons, au tarif de son modèle, quand sa transcription n'en donne pas le total.
+
 ### 4.2 L'état et la vue
 
 ```ts
@@ -191,6 +195,16 @@ Une séance finit sur sa fiche, la sortie structurée de son rôle, validée con
 | relecteur | `verdict` : `ACCEPTÉ` ou `RENDU` ; une ligne de conformité par élément du lot, qui cite le paragraphe qui le régit ; les constats, bloquants ou remarques, chacun adressé à un rôle ; le suivi des constats ouverts ; le motif `comportement-change` |
 | explorateur, au tri | un verdict par découverte : `traitee`, `doublon`, `sans-suite`, `a-porter`, `non-confirmee` |
 
+**La pièce** d'une fiche a un seul format : `fichier:ligne` ou `fichier:ligne-ligne` depuis la racine de la copie ; `$ commande` suivie de sa sortie ; pour ce que dit le ticket, `ticket, critère N` ou `ticket, § <section>`. Le circuit cherche chaque pièce de fichier dans la copie, sa ligne comprise, et chaque pièce du ticket dans sa description ; une pièce introuvable refuse la fiche. L'agent qui reprend un fait relit sa pièce avant de s'appuyer dessus.
+
+**Ce que le circuit refuse d'une fiche**, redemandée une fois à la même séance :
+
+- au plan : une question sans motif, un composant du relevé ni gardé ni écarté, un composant du titre écarté sans raison, un composant qu'un fichier du ticket nomme et que le plan écarte ; une sorte absente, hors de ses valeurs ou sans raison, ou un geste mécanique sans commande, vaut « comportement » : le doute va au circuit long ;
+- chez le développeur ou l'agent direct : une fiche `FAIT` à laquelle manque la réponse à un constat ouvert ; une fiche `FAIT` qui nomme un critère non tenu faute d'un paquet hors du plan (`hors_plan` : le critère, le paquet, la pièce) arrête le circuit à 3 Code sur `hors-portee` ;
+- chez le relecteur : une fiche sans ligne de suivi pour un constat ouvert, une ligne de conformité sans document ni référence, un élément hors de la liste du lot, ou un `ACCEPTÉ` qui garde un constat non levé.
+
+Un plan passé ne se rejoue que si le titre ou les critères du ticket changent. Les noms publiés se réécrivent dans la description à chaque plan : une liste vide les efface, une fiche sans le champ garde ceux que la description porte. La liste des éléments du lot, que le relecteur juge un par un, vient du service de langage et de la différence du rapport d'API ; la consigne du relecteur porte aussi une ligne par flux de la CI que le lot touche (`grillhouse.flux`). Les constats ouverts au lancement d'une séance lui sont donnés en contexte, sans réponse exigée ; ceux qu'un `RENDU` de la passe pose lui sont donnés en tâche, réponse exigée. Toute relecture, bornée ou entière, reçoit les constats ouverts.
+
 ## 5. Déroulé
 
 ### 5.1 Les étapes et les trois circuits
@@ -230,6 +244,8 @@ Le circuit direct et le circuit court sont les deux circuits brefs ; ce tableau 
 Le circuit direct remplace deux pratiques : le superviseur qui traite un point seul, et le superviseur qui appelle un agent à sa main. Tout travail de cette taille est un ticket étiqueté `direct`, mené et tracé comme tout circuit : son état dans son déroulé, ses fiches, son bilan. Naissent directs, dès leur création : une correction triviale repérée en analyse, un ticket de données, le squelette d'un paquet, et une correction du circuit lui-même qui ne peut pas passer par le circuit long ou court parce qu'il est en défaut.
 
 Trois boucles sont bornées à trois passages, chacune comptée dans l'état : les séances du testwriter après une preuve refusée, les séances de l'auteur du code avec leurs contrôles, les relectures. Le troisième `RENDU` arrête toujours le circuit, dans les trois circuits.
+
+**Le tri des découvertes** (5.3) ne lance aucune séance quand les fiches du ticket n'ont consigné aucune découverte. Sinon l'explorateur, hors de l'enveloppe, dans l'arbre principal, aux droits de la lecture, rend une ligne par découverte, ni plus ni moins ; la pièce d'un `traitee` ou d'un `a-porter` est une commande rejouée sur main et sa sortie, ou `fichier:ligne`. Le circuit écrit chaque verdict au ticket de sa découverte avec son étiquette, et rouvre sous `a-valider` un `a-porter` ou un `non-confirmee`, pour le responsable. Un tri sans fiche conforme laisse les découvertes telles quelles et le dit au ticket ; il ne défait pas l'intégration.
 
 ### 5.2 Un ticket, de son départ à main
 
@@ -275,9 +291,9 @@ Le circuit direct joue la même séquence depuis l'étape 3 : la file des ticket
 
 ### 5.3 Le jugement d'un lot
 
-1. À 4.1, l'acte de la passe finale avance la copie sur la pointe de main, joue la passe de vérification sur cet arbre, et, verte, inscrit l'arbre au registre des arbres jugés. C'est la seule pose du lot sur main avant son entrée.
+1. Avant chaque passe qui juge le lot, 3.1 Contrôles et 4.1 Passe finale, une reprise comprise, l'acte avance la copie sur la pointe de main ; une copie déjà sur la pointe, ou en avance sur elle, n'avance pas, et une copie qui avance rejoue la passe due sur son arbre neuf. À 4.1, l'acte de la passe finale joue la passe de vérification sur cet arbre, et, verte, inscrit l'arbre au registre des arbres jugés. La copie du ticket est la seule où le lot se pose avant son entrée.
 2. À 4.2, une référence que le lot fait bouger se régénère ; l'arbre change, et la passe finale rejuge ce que la régénération change.
-3. À 4.3, le relecteur lit le lot jugé. Un `RENDU` renvoie le lot à son auteur ; le lot corrigé repasse par ses contrôles et par 4.1, qui inscrit le nouvel arbre.
+3. À 4.3, le relecteur lit le lot jugé. Un `RENDU` renvoie le lot à son auteur ; le lot corrigé repasse par ses contrôles et par 4.1, qui inscrit le nouvel arbre. Le circuit garde chaque lot avec sa base ; après une avance, le lot relu se rejoue sur la pointe neuve (`git merge-tree`), et la relecture qui suit est bornée à ce que le lot a changé depuis, jamais aux commits de main. Un lot accepté que l'avance laisse tel quel reste accepté, comme Gerrit garde les votes d'un rebasage trivial (non lu) ; un rejeu en conflit avec main, ou un fichier engendré que l'avance réécrit, rend la relecture entière.
 4. À 5.1, le commit du lot porte l'arbre que la passe finale a jugé ; un arbre qui a changé depuis repart à 4.1.
 5. À 5.2, la file d'intégration lit le registre : main n'a pas bougé, l'arbre est jugé, main avance sur lui. Main a bougé : la file repose la branche sur la pointe et appelle le même acte de jugement, qui inscrit l'arbre reposé ; rouge, elle rend l'issue `rouvert`, et le circuit s'arrête sur `integration`.
 
@@ -323,6 +339,8 @@ Un arrêt porte un nom, un fait, sa pièce, sa question et qui doit y répondre.
 | `limite-d-usage` | la limite d'usage arrête une séance, quand le superviseur a interrompu le report |
 | `inattendu` | un acte échoue : l'arrêt nomme l'étape où il est tombé |
 
+Une lecture de la copie qui échoue après la séance du testwriter ou du développeur n'est pas `inattendu` : c'est un rouge rendu à l'agent avec la sortie de l'outil, qui compte dans sa boucle. Toute autre lecture qui échoue est `inattendu`, dont la question porte le message, la pile, l'étape et la commande de reprise, y compris avant la première séance.
+
 Les réponses, les mêmes pour les trois circuits, et les mêmes dans la commande, le texte de chaque question, le panneau et la compétence du superviseur :
 
 | Réponse | Porteur | Effet |
@@ -338,6 +356,8 @@ Les réponses, les mêmes pour les trois circuits, et les mêmes dans la command
 | `--recommencer` | la commande, sur un circuit arrêté | la copie, la branche et les traces sont retirées ; le ticket, son plan gardé, repart dans une copie fraîche |
 
 Une réponse à un circuit que `--arreter` a fini démarre un déroulé neuf sous le même identifiant, qui s'ouvre sur l'état que le déroulé arrêté a rendu. Au-delà de la rétention du serveur, seul `--depuis` rouvre le circuit, sans état.
+
+La commande refuse avant tout déroulé, par le nom de la faute et le code 2 : `--reprendre` sur un état absent ou un lot intégré ; `--etendre` sur un lot intégré ou un déroulé fini sans son issue ; `--arreter` sur un lot intégré ; une réponse qu'une autre a devancée ; jamais `--depuis`. Au départ, elle refuse un ticket illisible, sans section « Régi par », dont le titre ne nomme aucun composant, ou qui nomme un composant absent du disque.
 
 ### 5.5 Les gestes du circuit
 
@@ -361,6 +381,27 @@ Un geste est ce que le circuit fait seul sur un cas qu'une règle tranche ; chac
 
 Ces gestes restent ; un geste dont le rendement mesuré est mauvais s'étudie avant d'être retiré ou corrigé (document de tête, §8).
 
+**À qui va un rouge.** Un rouge va à qui écrit le fichier qu'il nomme, comme Gerrit rend un échec à l'auteur du fichier (non lu) :
+
+- un fichier de code, ou un test qui échoue, va au développeur, à l'agent direct dans le circuit direct ;
+- un fichier de test du lot que refuse une garde ou le style, ou que nomme le message d'un test hors du lot qui échoue, va au testwriter, l'étape la plus tôt, le développeur rejouant après ; le message d'un test du lot n'est pas lu, et son rouge reste au développeur ;
+- le rouge d'une tâche d'un paquet du plan sans fichier nommé (lint, mise en forme, typage, construction) va au développeur, comme un job rouge revient à son auteur ;
+- tout autre rouge sans fichier, ou un fichier qu'aucun rôle ne porte, monte au superviseur, jamais deviné.
+
+Un rouge de passe finale dû à un seul fichier de test rejoue ce fichier, par une séance du testwriter bornée à lui et sa seule preuve, puis les contrôles et la passe finale restreints à sa portée. L'arrêt `sans-livraison` ne vaut que pour un rouge du développeur. Le testwriter qu'un renvoi relance reçoit la sortie rouge des derniers contrôles, gardée dans l'état pour une reprise ; la même sortie deux fois de suite arrête le circuit.
+
+**La régénération.** Des contrôles où rougit une référence, mêlée ou non à d'autres rouges, la régénèrent avant qu'aucun rouge n'aille au développeur, puis rejouent sur l'arbre régénéré ; à la passe finale, la passe rejoue restreinte à ce que la régénération change. Les références sont celles que le projet déclare (`grillhouse.references`) et celles du cadre dans chaque projet : l'index des interfaces, les `turbo.json` des paquets, les rapports d'API, la dette des gardes et, pour le module typescript, le verrou npm (document des tests et des langages, §3.4). Elles se régénèrent sans que le plan les nomme, dans l'ordre que déclare ce que chacune lit d'une autre (`lit`), comme make, et le relecteur lit leur différence. La régénération ne réécrit que ses sorties, comme `--update-snapshots` : le constat d'une garde d'une référence sur un fichier du plan que ses fichiers ne couvrent pas va au développeur ; une commande du projet qui refuse, seul écart d'une régénération qu'une passe finale porteuse de rouges du plan a demandée, rend ces rouges au développeur avec la fin de sa sortie, dans la limite de ses séances. Le circuit ne lit pas le code de sortie d'un générateur du cadre : il juge ce qu'il écrit, puis la passe restreinte qui suit, et seule une vraie panne (la commande introuvable, ou tuée par un signal) l'arrête sur `references`, qui porte ses écarts.
+
+**Les conflits de l'avance.** L'avance applique le travail de la copie fichier par fichier : un fichier en conflit garde ses marques, un fichier que git refuse sans marques reste seul dans le lot gardé, les autres s'appliquent. Les fichiers en conflit vont au rôle qui les écrit, le testwriter d'abord ; la séance revient à la passe, qui revoit la copie, les marques cherchées aussi dans les fichiers que l'index tient, et relance l'autre rôle tant qu'un de ses fichiers en garde. Une fiche `FAIT` est refusée tant qu'un fichier de son rôle porte des marques, et un fichier marqué ne ferme jamais la copie, comme git refuse d'enregistrer un chemin non fusionné.
+
+**L'extension du plan à un fichier que le ticket nomme** vaut pour un chemin écrit depuis la racine, nu ou entre accents graves, dans la section « Régi par » ou un critère ; la pièce écrite au ticket est « ticket, § Régi par » ou « ticket, critère N ». Un fichier de la racine, un fichier que le ticket ne nomme pas, et un `ARCHITECTURE.md`, un `CADRE.md` ou un `INTERFACE.md`, qui reviennent au responsable, montent quand même.
+
+**Le report à la limite d'usage** lit l'heure de retour au résultat de la séance, et attend une heure quand elle ne se lit pas ; l'étape reprend sur la copie telle que la séance coupée l'a laissée. La limite ne compte dans aucune borne, et des limites successives n'ont pas de borne.
+
+**Un « à repasser » de la preuve du rouge** n'a rien prouvé : la preuve suit le geste « à repasser » comme une passe, sans compter de test qui ne se charge pas ni relancer le testwriter, et sa mesure ne se garde pas. Une attente de la machine à sa borne, aux contrôles ou à la preuve, se rejoue tout de suite, sans compter, et ne monte jamais en question.
+
+**Après un refus de l'intégration**, une séance relancée qui ne change aucun fichier du lot est relancée une fois avec le refus, puis le circuit s'arrête sur `sans-livraison` ; `--depuis testwriter` oublie le refus.
+
 ### 5.6 Les bascules entre circuits
 
 - **Du long au court** : le testwriter s'arrête avec le motif `aucun-comportement`, ou la preuve du rouge s'arrête sur `preuve` ; le superviseur répond `--mecanique`. Avec une commande, la sorte devient mécanique et le circuit reprend à 1.1 ; sans elle, la sorte devient « comportement inchangé » et il reprend à l'étape 3. Le validateur refuse la réponse hors de ces arrêts.
@@ -379,7 +420,9 @@ Un déroulé par projet (`tickets:<racine>`), réveillé toutes les soixante sec
 
 Un circuit qui sort de l'écart redemande sa place par la même voie, et passe à son rang d'arrivée devant les tickets non partis.
 
-Chaque circuit démarré est un enfant détaché : il survit à la file et à son redémarrage. Un ticket dont le circuit vit ne repart pas ; une faute de réglage ne démarre rien, et la requête `etatDesTickets` la nomme.
+Une dépendance d'un autre projet s'écrit `external:<projet>:<capacité>` : elle tient le ticket tant qu'aucun ticket fermé du projet fournisseur ne porte `provides:<capacité>`, que pose `bd ship <capacité>` ; un projet externe que Beads ne connaît pas, ou des `external_projects` absents, tiennent le ticket aussi, la faute nommée, et le tableau dit « attend <projet>:<capacité> ». L'entrée d'un ticket qui porte `export:<capacité>` livre cette capacité après son commit sur main (document de l'entrée sur main, §3.1), et son échec est une faute nommée. La montée écrit les `external_projects` de chaque projet d'un groupe, chacun relatif à la racine du projet (document de l'installation, §4.4).
+
+Chaque circuit démarré est un enfant détaché : il survit à la file et à son redémarrage. Un ticket dont le circuit vit ne repart pas ; une faute de réglage ne démarre rien, et la requête `etatDesTickets` la nomme. Un ticket dont le lot est sur main ne repart jamais, resté ouvert ou rouvert, comme une file de fusion sort une entrée fusionnée quel que soit l'état de son ticket : un travail à refaire sur un lot intégré est un ticket neuf, et un lot retiré par un revert repart. Le panneau et l'ouverture de séance nomment un ticket en file sans sa section « Régi par », et un ticket en file dont le lot est déjà sur main.
 
 ### 5.8 La voie de secours
 
@@ -402,13 +445,15 @@ La voie de secours ne passe ni par la file des tickets ni par l'arbitre des rés
 - **Ce qui est synchrone** : une commande du superviseur rend la main dès que le déroulé a reçu sa demande ; une mise à jour rend la ligne que le tour a tranchée.
 - **La longueur de l'histoire** : au-delà de dix mille événements, le déroulé continue dans une exécution neuve au début d'une étape, son état en argument et sa vue reportée.
 - **Une attente ne tient aucune ressource** : un circuit arrêté sur une question n'a ni activité ouverte ni réservation ; un circuit entre deux étapes non plus. Il garde ou rend sa place de circuit selon ce qu'il attend (§5.4) ; sa copie reste, sa taille mesurée une fois.
+- **Les copies finies** : à la fin de chaque circuit, comme après chaque nuit (document de l'entrée sur main, §5.3), le retrait des copies finies retire, avec sa branche, chaque copie dont les commits et le travail local sont sur main et qu'aucun circuit ne tient (son ticket en cours, son dossier `.travail`, le verrou d'une séance vivante) ; des tickets en cours illisibles gardent toutes les copies. Une copie gardée dont le ticket est fermé perd ce que les outils de ses langages y écrivent ; son travail suivi reste. Le dossier `.travail` d'un ticket vit autant que lui : aucun balayage n'y touche, et la file l'efface à la fermeture du ticket.
 - **Les délais** : une séance dure six heures au plus ; une séance immobile vingt minutes est arrêtée ; une écriture d'effet, cinq minutes.
 
 ## 7. Concepts transverses
 
 - **L'identité** : le ticket nomme son déroulé (`circuit:<racine>:<ticket>`), sa copie et sa branche (`agent/<ticket>`) ; un second départ du même ticket est refusé par cet identifiant. Un lot se nomme par son arbre git ; une séance par un identifiant que le circuit fixe, suffixé de l'essai de son activité.
-- **Les fautes** : un déroulé ne meurt pas d'une faute. Un acte qui échoue est l'arrêt `inattendu` ; quand l'acte qui publie l'arrêt échoue aussi, l'arrêt tient dans l'état et la vue seuls. Une commande refuse avant tout travail, par le nom de ce qui manque, avec le code 2.
-- **L'écriture unique** : un effet qui ne se rejoue pas sans dommage (un commentaire, une ligne de fiche, une découverte, le bilan) porte la clé de son activité et se cherche avant de s'écrire ; les autres écrivent la même chose à chaque essai.
+- **Les fautes** : un déroulé ne meurt pas d'une faute. Un acte qui échoue est l'arrêt `inattendu` ; quand l'acte qui publie l'arrêt échoue aussi, l'arrêt tient dans l'état et la vue seuls. Les effets qu'une étape a décidés avant un fait qui échoue s'écrivent avant son arrêt. Un effet qui ne s'écrit pas, après le rejeu de son activité, arrête le circuit quand la décision en dépend (l'état, une fiche, le plan) ; un commentaire, une découverte, une ligne du registre, le bilan, des étiquettes ou une réouverture non écrits se disent au journal, et le circuit continue. Une commande refuse avant tout travail, par le nom de ce qui manque, avec le code 2.
+- **L'écriture unique** : un effet qui ne se rejoue pas sans dommage (un commentaire, une ligne de fiche, une découverte, le bilan) porte la clé de son activité et se cherche avant de s'écrire ; les autres écrivent la même chose à chaque essai. La clé ne se calcule jamais dans l'activité à partir de l'état, d'un texte ou d'un événement.
+- **La création d'un ticket** : `grillhouse ticket` crée un ticket sous sa mère, et la mère et le titre sont sa clé, comme la clé d'idempotence d'une API de paiement (non lu) : rejouée, la commande rend le ticket qui porte ce titre et n'en crée pas d'autre ; un enfant fermé ne compte que pour une découverte, et une lecture qui échoue ne crée rien. La lecture et la création se font sous un verrou du projet dans l'arbre principal (`.beads/grillhouse-ticket.lock`), jugé à son âge, cinq minutes, puisqu'un numéro de processus ne dit rien d'une enveloppe à l'autre ; une commande coupée le rend avant de finir.
 - **Le déterminisme** : la règle de décision se rejoue du début de son étape avec les faits déjà lus ; les mêmes faits donnent la même décision. Un marqueur de version naît avec le ticket de son retrait.
 - **La séparation des auteurs** : celui qui relit n'a pas écrit ; le testwriter n'écrit que des tests, le développeur que du code ; dans le circuit direct un seul agent écrit les deux, et le relecteur tient lui-même la preuve du rouge.
 - **La conformité** : au plan, l'explorateur vérifie le paragraphe que le ticket cite et s'arrête sur une tension ; le relecteur cite ce paragraphe à chaque ligne de conformité, et rend un lot qui modifie un document prescriptif sans décision.
@@ -421,6 +466,7 @@ La voie de secours ne passe ni par la file des tickets ni par l'arbitre des rés
 - **Les bornes** : aucune boucle sans borne hors des attentes de la machine et de l'heure. Mesure : la liste des étapes, qui les déclare toutes.
 - **La taille** : la règle de décision se compte en branches, chemin droit, arrêts et gestes ; un geste jamais déclenché ne se chiffre pas, un geste coûteux s'étudie.
 - **La reprise** : tuer le travailleur pendant une séance ne perd ni la séance ni un effet. Mesure : un test de nuit.
+- **Le rejeu** : une histoire de déroulé enregistrée se rejoue sans écart sur le code courant ; un changement de la règle qui la ferait diverger passe par un marqueur de version (§2.3). Mesure : les tests de rejeu des histoires enregistrées.
 
 ## 9. Risques
 

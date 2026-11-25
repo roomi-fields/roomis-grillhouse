@@ -141,14 +141,14 @@ describe('the frame’s guards that judge the root write their refusals in SARIF
   });
 });
 
-// grillhouse-3uv.84.8: the detail of a tool lives in the package's architecture.
-describe('a project’s guards write their SARIF by the same means, as the package’s architecture says', () => {
-  it('the package’s architecture names the function and the variable', () => {
-    const charte = readFileSync(
-      path.join(DEPOT, 'packages/grillhouse/docs/ARCHITECTURE.md'),
+// grillhouse-3uv.84.8: the detail of a tool lives in the document of its mechanism.
+describe('a project’s guards write their SARIF by the same means, as the tests’ document says', () => {
+  it('the tests’ document names the function and the variable', () => {
+    const document = readFileSync(
+      path.join(DEPOT, 'packages/grillhouse/docs/architecture/tests.md'),
       'utf8'
     );
-    expect(charte).toContain('ecrireSarif');
-    expect(charte).toContain(RESULTATS);
+    expect(document).toContain('ecrireSarif');
+    expect(document).toContain(RESULTATS);
   });
 });

@@ -12,7 +12,7 @@
 //   manifest, the configuration of its tests and of its typing, a file of code, its folder of
 //   tests, the entry of the workspace) and the documents of the package absent, from the template.
 // - Criterion 4: a package born of the command enters the circuit, its path in a title resolved.
-// - Criterion 5: the common charter, the skills grill and pitmaster, the package's architecture and
+// - Criterion 5: the common charter, the skills grill and pitmaster, the installation's document and
 //   the CHANGELOG say the four times.
 // Criterion 3 (the tools of the first package of a language, then the guards green) and « it
 // commits nothing » play at night: packages/grillhouse-essais/tests/premier-paquet.nuit.spec.ts.
@@ -640,7 +640,7 @@ describe('grillhouse-b32, critère 5 — les textes disent les quatre temps', ()
     'mods/grillhouse/charte.md',
     'mods/grillhouse/skills/grill/SKILL.md',
     'mods/grillhouse/skills/pitmaster/SKILL.md',
-    'packages/grillhouse/docs/ARCHITECTURE.md',
+    'packages/grillhouse/docs/architecture/installation.md',
   ];
   it.each(textes)('%s names the command and the four times', f => {
     const texte = readFileSync(path.join(DEPOT, f), 'utf8');

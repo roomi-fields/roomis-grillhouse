@@ -200,7 +200,7 @@ describe('la preuve sous la marque', () => {
   });
 });
 
-describe('la règle écrite : la charte et l’architecture du paquet disent l’exception', () => {
+describe('la règle écrite : le document du circuit dit l’exception', () => {
   it('le document du circuit : sous « comportement inchangé », la commande --depuis testwriter du superviseur l’emporte', () => {
     const circuit = plat('packages/grillhouse/docs/architecture/circuit.md');
     const i = circuit.indexOf("**La commande explicite l'emporte**");
@@ -208,12 +208,5 @@ describe('la règle écrite : la charte et l’architecture du paquet disent l�
     const paragraphe = circuit.slice(i, i + 300);
     expect(paragraphe).toContain('--depuis testwriter');
     expect(paragraphe).toMatch(/inchangé/);
-  });
-
-  it('l’architecture du paquet : la commande du superviseur l’emporte sur la sorte « inchangé »', () => {
-    const architecture = plat('packages/grillhouse/docs/ARCHITECTURE.md');
-    const i = architecture.indexOf('le développeur seul, sans testwriter ni preuve');
-    expect(i).toBeGreaterThan(-1);
-    expect(architecture.slice(i, i + 900)).toContain('--depuis testwriter');
   });
 });

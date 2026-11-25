@@ -1,9 +1,9 @@
 // The commit the tri of the discoveries names, and the texts that say the tri: the common charter,
-// the explorateur's skill, the supervisor's, the instruction of an agent and the architecture of the
-// package. The commit the tri names is the one the queue integrated for its ticket, read in the
+// the explorateur's skill, the supervisor's, the instruction of an agent and the circuit's
+// document. The commit the tri names is the one the queue integrated for its ticket, read in the
 // reason of its closure, never main's last, another ticket's once several circuits run.
 //
-// @lit mods/grillhouse/charte.md mods/grillhouse/skills/** packages/grillhouse/docs/ARCHITECTURE.md
+// @lit mods/grillhouse/charte.md mods/grillhouse/skills/** packages/grillhouse/docs/architecture/circuit.md
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -33,7 +33,7 @@ describe('les textes qui disent le tri des découvertes', () => {
     'mods/grillhouse/skills/explorateur/SKILL.md',
     'mods/grillhouse/skills/pitmaster/SKILL.md',
     'mods/grillhouse/skills/pitmaster/references/consigne-agent.md',
-    'packages/grillhouse/docs/ARCHITECTURE.md',
+    'packages/grillhouse/docs/architecture/circuit.md',
   ])('%s nomme le tri des découvertes et ses verdicts', f => {
     const t = lire(f);
     expect(t).toMatch(/[Tt]ri(age)? (des|of the) (découvertes|discoveries)/);

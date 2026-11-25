@@ -402,10 +402,10 @@ export { n, s, refus, lignes, f };
     expect(tsc.status, `${tsc.stdout}${tsc.stderr}`).toBe(0);
   }, 120_000);
 
-  it('critère 3: the architecture of the package names each entry it publishes, and names no entry it does not', () => {
-    const texte = readFileSync(path.join(PAQUET, 'docs/ARCHITECTURE.md'), 'utf8');
+  it('critère 3: the interface of the package names each entry it publishes, and names no entry it does not', () => {
+    const texte = readFileSync(path.join(PAQUET, 'docs/INTERFACE.md'), 'utf8');
     const nommees = new Set(
-      [...texte.matchAll(/`@roomi-fields\/grillhouse\/([a-z][a-z0-9/.-]*)`/g)].map(
+      [...texte.matchAll(/`(?:@roomi-fields\/grillhouse\/|\.\/)([a-z][a-z0-9/.-]*)`/g)].map(
         m => `./${m[1] as string}`
       )
     );

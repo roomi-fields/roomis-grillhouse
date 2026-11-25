@@ -323,7 +323,7 @@ describe('critère 4 — une sorte absente ou illisible vaut « comportement » 
   });
 });
 
-describe('critère 5 — la charte, les compétences, l’architecture et le CHANGELOG disent la règle', () => {
+describe('critère 5 — la charte, les compétences, le document du circuit et le CHANGELOG disent la règle', () => {
   it('the common charter: a ticket takes the short circuit by a criterion', () => {
     const charte = plat('mods/grillhouse/charte.md');
     expect(charte).toMatch(
@@ -372,9 +372,9 @@ describe('critère 5 — la charte, les compétences, l’architecture et le CHA
     expect(relecteur).toMatch(/aucun test neuf/);
   });
 
-  it('the architecture of the package says it (the CHANGELOG is judged at the review)', () => {
-    expect(plat('packages/grillhouse/docs/ARCHITECTURE.md')).toMatch(
-      /\*\*Un geste mécanique sort du circuit de code\*\*/
+  it('the circuit’s document says it (the CHANGELOG is judged at the review)', () => {
+    expect(plat('packages/grillhouse/docs/architecture/circuit.md')).toMatch(
+      /un geste sans comportement neuf fait un circuit court/
     );
   });
 });

@@ -62,7 +62,7 @@ describe('grillhouse-bf5.4, critère 6 — les consignes et documents disent la 
     'mods/grillhouse/skills/relecteur/SKILL.md',
     'mods/grillhouse/skills/explorateur/SKILL.md',
     'mods/grillhouse/skills/pitmaster/SKILL.md',
-    'packages/grillhouse/docs/ARCHITECTURE.md',
+    'packages/grillhouse/docs/architecture/installation.md',
   ];
   const ANGLAIS = ['docs/agents/issue-tracker.md', 'templates/projet/docs/agents/issue-tracker.md'];
 

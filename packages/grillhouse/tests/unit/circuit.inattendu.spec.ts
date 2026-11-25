@@ -57,7 +57,7 @@ const arretInattendu = circuit.arretInattendu as (
 const boucle = boucleDeLEtape as (nom: string) => { max: number };
 const cargo = module as unknown as { composants: (racine: string) => unknown };
 
-const ARCHITECTURE_DU_PAQUET = path.resolve(__dirname, '../../docs/ARCHITECTURE.md');
+const DOCUMENT_DU_CIRCUIT = path.resolve(__dirname, '../../docs/architecture/circuit.md');
 const TICKET = 'essai-1';
 const LIGNE_DE_CARGO = '`dependency.pyo3-build-config` was not found in `workspace.dependencies`';
 
@@ -111,7 +111,7 @@ describe('grillhouse-f24, critère 5 — l’arrêt « inattendu » : son code, 
   });
 
   it('declares its text in the circuit’s documentation in the package', () => {
-    expect(readFileSync(ARCHITECTURE_DU_PAQUET, 'utf8')).toContain('`inattendu`');
+    expect(readFileSync(DOCUMENT_DU_CIRCUIT, 'utf8')).toContain('`inattendu`');
   });
 
   it('writes a stop whose question carries the message, the stack, the step and the command that resumes', () => {

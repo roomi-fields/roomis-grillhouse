@@ -80,7 +80,7 @@ Le module du panneau est en TypeScript, dans le greffon (`mods/grillhouse`) ; le
 | `SessionStart` | `session-start` | toute séance du projet, hors une séance de rôle | l'ouverture (§5.2) |
 | `UserPromptSubmit` | `structure-guard` | toute séance hors rôle | le rappel du grill sur une demande de structure |
 | `PreToolUse` sur l'écriture | `verrou-hors-enveloppe` | toute séance | document de la machine, §5.5 |
-| `PostToolUse` sur l'écriture | `style-a-l-ecriture` | toute séance | document des tests et des langages |
+| `PostToolUse` sur l'écriture | `style-a-l-ecriture` | toute séance | document des tests et des langages, §3.4 |
 | `SubagentStop`, `SessionEnd` | `registre` | toute séance | une ligne au registre des agents finis |
 | `SubagentStop`, `TeammateIdle` | `messages-non-lus` | un agent d'une équipe, comme les agents architectes et rédacteurs que le superviseur lance pour la réorganisation du cadre | arrête sa fin sur un message non lu, une fois |
 | appel de l'outil `Bash` | module : refus de `cd` | toute séance d'un projet du cadre, copies comprises | refuse la commande et nomme la forme à prendre (`env -C`, `git -C`) |
@@ -228,6 +228,7 @@ sequenceDiagram
 - **Un écrivain par dépôt** : le premier suiveur prend le verrou d'écrivain du dossier commun ; un autre relaie la ligne que l'écrivain écrit, et reprend le verrou quand le processus de l'écrivain a disparu. Le suiveur s'arrête quand le module qui l'a lancé disparaît ; le module relance un suiveur mort après une attente qui double, d'une seconde à cinq minutes.
 - **Une lecture qui échoue** (le serveur muet, Beads en faute) cède la place à la dernière lecture réussie, gardée, et son âge entre dans l'alerte qui nomme la faute.
 - **Le temps d'un ticket** additionne les tours de ses agents, lus à leurs transcriptions et au registre des agents finis, et les étapes que son circuit joue seul, lues au registre des consommations, chaque instant compté une fois.
+- **La limite d'un projet** : le tableau d'un projet à sa limite de circuits nomme les circuits qui attendent le superviseur, ceux qui gardent la place qu'un ticket attend.
 - **Plusieurs projets** : le tableau d'un panneau qui montre d'autres projets les mesure ensemble ; chaque ticket, alerte et chantier porte le sigle de son projet, et le texte d'état reste celui du projet de la séance. Une passe sans ticket ne s'affiche qu'au panneau de son projet.
 
 ### 5.4 Ce que la personne fait au panneau
@@ -238,6 +239,8 @@ sequenceDiagram
 ### 5.5 La fin d'un agent
 
 À la fin d'un sous-agent ou d'une séance, le crochet passe les champs de son entrée à un processus détaché et rend la main aussitôt, si bien qu'une longue séance se ferme sous la limite de temps des crochets. Le processus lit la transcription par morceaux et écrit une ligne au registre, sous un verrou de fichier, sauf si le registre tient déjà cet agent et cette fin. À la fin d'une enveloppe, son lanceur rattrape les lignes des séances de la copie (`registre --copie`) ; `registre --rattraper` écrit celles des agents finis qui manquent. Un agent qui tourne encore se mesure à sa transcription, non au registre.
+
+À la fin d'un agent d'une équipe, le crochet des messages non lus lit sa boîte (`~/.claude/teams/<équipe>/inboxes/<nom>.json`, que Claude Code écrit) et bloque l'arrêt tant qu'elle porte un message non lu, en donnant chaque message, son expéditeur et son texte, comme un consommateur d'une file ne s'arrête pas sur un message non acquitté (non lu) ; chaque message ne bloque qu'une fois. Le nom de l'agent vient de l'entrée du crochet, son équipe du fichier méta de sa transcription ou de la séance de son chef. Le crochet ne modifie jamais la boîte ; une boîte absente ou illisible, ou une équipe introuvable, laisse passer l'arrêt.
 
 ## 6. Exécution
 
@@ -252,7 +255,8 @@ sequenceDiagram
 
 - **L'éligibilité** : un projet du cadre est un dossier dont le `package.json` déclare `@roomi-fields/grillhouse` ; une copie de ticket est un dossier sous `.claude/worktrees/` ; une séance de rôle se reconnaît à l'agent que son entrée nomme et que le greffon définit, ou à `BEADS_ACTOR`. Chaque crochet dit, dans sa ligne du tableau §3.2, où il agit.
 - **L'identité** : une question se nomme par son ticket, l'exécution de son déroulé, son rang dans cette exécution et son arrêt (`ticket:run:numero:arret`), si bien que l'arrêt suivant d'un circuit repris est une autre question ; un projet se nomme par son sigle (`grillhouse.sigle`, sinon le préfixe de ses tickets), et deux projets d'un même panneau au même sigle se disent en alerte.
-- **Les tons** : chaque état que montre le tableau a un seul ton, défini une fois : rouge pour ce qui demande une correction, jaune pour ce qui attend quelqu'un, gris pour ce qui attend la machine, cyan pour ce qui tourne.
+- **Les tons** : chaque état que montre le tableau a un seul ton, défini une fois : rouge pour ce qui demande une correction, jaune pour ce qui attend quelqu'un, gris pour ce qui attend la machine, l'attente du disque comprise, cyan pour ce qui tourne.
+- **Les signes** : chaque sorte d'état a un seul signe, défini une fois avec son ton, un signe puis une espace : ▶ en cours, ▷ pour un circuit court ; ⏸ circuit arrêté ; 🔒 tient une réservation ; ⏳ attend ses ressources, une place ou le disque ; 💤 ticket pris sans rien qui tourne ; ✎ circuit direct ; 🌙 la nuit ; ⚠ une alerte sans sorte à elle (une passe figée, un projet illisible, un agent silencieux). Un ticket fini dit sa voie, lue dans la vue de son circuit : ● circuit long, ○ circuit court, ✎ circuit direct ; sa ligne porte sa durée et ses jetons, ceux du superviseur restant hors du ticket.
 - **Les fautes** : un crochet qui ne lit pas laisse passer (§2.6) ; une faute de réglage du relevé, une ligne illisible du suiveur ou un suiveur mort se disent dans le panneau, jamais en silence ; une lecture qui échoue montre la dernière réussie, avec son âge.
 - **La version** : la première ligne du panneau porte la version du paquet dont le code mesure, lue une fois par processus.
 
