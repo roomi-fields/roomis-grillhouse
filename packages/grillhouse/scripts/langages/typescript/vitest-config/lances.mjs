@@ -62,7 +62,7 @@ import { existsSync, globSync, readFileSync, realpathSync, statSync } from 'node
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { matieres } from '../composants.mjs';
-import { paquets } from '../../../paquets.mjs';
+import { lecturesDeclarees, paquets } from '../../../paquets.mjs';
 import { parcourir } from '../parcours.mjs';
 
 /** A test file, as Vitest's default `include` names one. */
@@ -484,29 +484,6 @@ export function testsQuiNomment(dossier, racine, changes) {
   );
 }
 
-// The tag of a test that declares the files it reads: a line `// @lit <motif> …` of the comment at
-// the head of the file, before its first line of code, as the tag `@poste` (./cibles.mjs).
-const ETIQUETTE_DE_LECTURE = /^\/\/\s*@lit\b(.*)$/;
-
-/**
- * The patterns the text <texte> of a test file declares it reads: the words of each line
- * `// @lit` of the comment at its head, each a glob from the top of the repository.
- * @param {string} texte the text of the file
- */
-export function lecturesDeclarees(texte) {
-  const out = [];
-  for (const ligne of texte.split('\n')) {
-    const l = ligne.trim();
-    const m = ETIQUETTE_DE_LECTURE.exec(l);
-    if (m) {
-      out.push(...m[1].split(/\s+/).filter(Boolean));
-    } else if (l !== '' && !l.startsWith('//') && !l.startsWith('#!')) {
-      break;
-    }
-  }
-  return out;
-}
-
 /**
  * The test files of the package at <dossier> that declare they read one of the files <chemins>
  * (each from the top of the repository): those whose `@lit` patterns cover one; absolute, sorted.
@@ -519,6 +496,15 @@ export function testsQuiDeclarent(dossier, chemins) {
     const motifs = lecturesDeclarees(lire(t));
     return motifs.some(m => chemins.some(c => path.matchesGlob(c, m)));
   });
+}
+
+/**
+ * The patterns the test files of the package at <dossier> declare they read (`lecturesDeclarees`),
+ * each once, sorted.
+ * @param {string} dossier the directory of the package, absolute
+ */
+export function lecturesDesTests(dossier) {
+  return [...new Set(testsDuPaquet(dossier).flatMap(t => lecturesDeclarees(lire(t))))].sort();
 }
 
 // Whether the path <rel> (from the top) lies under one of the paths <lit> (from the top).

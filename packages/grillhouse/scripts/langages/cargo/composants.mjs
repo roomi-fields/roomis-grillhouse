@@ -47,6 +47,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { lecturesDeclarees } from '../../paquets.mjs';
 import { luUneFois } from '../../services-du-noyau.mjs';
 import { cibleDeCompilation } from './sccache.mjs';
 
@@ -162,6 +163,27 @@ export function joueDesTests(_racine, composant) {
       e.isFile() &&
       unitaire(['src', ...path.relative(src, path.join(e.parentPath, e.name)).split(path.sep)])
   );
+}
+
+/**
+ * The patterns the test files of the crate in <dossier> (absolute) declare they read (`// @lit` at
+ * their head), each once, sorted: its integration tests, the `.rs` files under `tests/`, and its
+ * unit tests, the ones under `src/` (`unitaire`). Read on the disk alone.
+ * @param {string} dossier
+ */
+export function lecturesDesTests(dossier) {
+  const motifs = ['tests', 'src'].flatMap(racine => {
+    const d = path.join(dossier, racine);
+    if (!existsSync(d)) {
+      return [];
+    }
+    return readdirSync(d, { recursive: true, withFileTypes: true })
+      .filter(e => e.isFile() && e.name.endsWith('.rs'))
+      .map(e => path.join(e.parentPath, e.name))
+      .filter(f => racine === 'tests' || unitaire(path.relative(dossier, f).split(path.sep)))
+      .flatMap(f => lecturesDeclarees(readFileSync(f, 'utf8')));
+  });
+  return [...new Set(motifs)].sort();
 }
 
 /**

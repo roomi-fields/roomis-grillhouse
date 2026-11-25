@@ -199,6 +199,8 @@ export function composer(modules) {
     matieres: racine => modules.flatMap(m => m.matieres(racine)),
     joueDesTests: (racine, composant) =>
       moduleDuComposant(racine, composant)?.joueDesTests(racine, composant) ?? false,
+    lecturesDesTests: dossier =>
+      unique(modules.flatMap(m => m.lecturesDesTests(dossier))).sort(),
     environnementDuPoste: env => modules.reduce((e, m) => m.environnementDuPoste(e), env),
     empreintes(racine, noms) {
       const parts = modules.map(m => m.empreintes(racine, noms));

@@ -43,8 +43,8 @@
 //   package it changes. A survey by the types that cannot run says why, and the survey stands on
 //   the names; a name the types resolve is not set apart.
 // - By the paths read (`lit`): each component whose tests declare they read a path
-//   (`grillhouse.lit` of its package.json and the `lit` of its traces, `cheminsLus`) that a
-//   path the ticket changes holds or lies in: a path of the repository the sections write (its
+//   (`grillhouse.lit` of its package.json, the `lit` of its traces and the `// @lit` lines of its
+//   test files, `cheminsLus`) that a path the ticket changes holds or lies in: a path of the repository the sections write (its
 //   `:<line>` left out), or the folder of a component they name.
 // - By the architecture: the items of the « Rend » of the `docs/CADRE.md` of each component that
 //   publishes an element (by its interface or by the types), each component they name
@@ -55,29 +55,37 @@
 //   the order of their names otherwise.
 //
 // The mechanism: docs/architecture/circuit.md §5.2 (the plan of a ticket).
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { langageDe } from './langages.mjs';
+import { langageDe, langagesDeclares } from './langages.mjs';
 
 /**
  * The paths that the tests of the package at <dir> declare they read: its `grillhouse.lit`, then
- * the `lit` of each trace it declares (`grillhouse.traces`), each path from the root; none without
- * a package.json or a declaration.
+ * the `lit` of each trace it declares (`grillhouse.traces`), each path from the root, none without
+ * a package.json or a declaration; then, in the project at <racine>, the patterns of the `// @lit`
+ * lines of its test files, as the modules of its languages read them (`lecturesDesTests`), none
+ * for a project that declares no language.
  * @param {string} dir the directory of the package
+ * @param {string} [racine] the root of the project
  * @returns {string[]}
  */
-export function cheminsLus(dir) {
+export function cheminsLus(dir, racine) {
+  const desTests =
+    racine && langagesDeclares(racine).length
+      ? langageDe(racine).lecturesDesTests(dir)
+      : [];
   const manifeste = path.join(dir, 'package.json');
   if (!existsSync(manifeste)) {
-    return [];
+    return desTests;
   }
   const { grillhouse } = JSON.parse(readFileSync(manifeste, 'utf8'));
   const liste = v => (Array.isArray(v) ? v.filter(l => typeof l === 'string') : []);
   return [
     ...liste(grillhouse?.lit),
     ...Object.values(grillhouse?.traces ?? {}).flatMap(t => liste(t?.lit)),
+    ...desTests,
   ];
 }
 
@@ -149,6 +157,15 @@ function cheminsEcrits(racine, texte) {
 // Whether the path <a> holds the path <b> or lies in it, both from the root.
 const recouvre = (a, b) => a === b || b.startsWith(`${a}/`) || a.startsWith(`${b}/`);
 
+// Whether the path <change> from <racine> is one the pattern or path <lu> reads: a path <lu> that
+// holds it or lies in it; a pattern that matches it, or that matches a file under it.
+const atteint = (racine, lu, change) =>
+  recouvre(lu, change) ||
+  path.matchesGlob(change, lu) ||
+  globSync(lu, { cwd: racine, exclude: f => path.basename(String(f)) === 'node_modules' }).some(f =>
+    f.split(path.sep).join('/').startsWith(`${change}/`)
+  );
+
 // The components of <tous> whose tests declare they read a path that one of <changes> holds or
 // lies in, out of their own folder: Map component → Set of « lit <path read> (<paths changed>) ».
 function lecteursDesChemins(racine, tous, changes) {
@@ -156,9 +173,9 @@ function lecteursDesChemins(racine, tous, changes) {
   for (const c of tous) {
     const propre = path.relative(racine, c.dossier).split(path.sep).join('/');
     const par = new Set();
-    for (const brut of new Set(cheminsLus(c.dossier))) {
+    for (const brut of new Set(cheminsLus(c.dossier, racine))) {
       const lu = brut.replace(/^\.\//, '').replace(/\/+$/, '');
-      const atteints = changes.filter(ch => !recouvre(propre, ch) && recouvre(lu, ch)).sort();
+      const atteints = changes.filter(ch => !recouvre(propre, ch) && atteint(racine, lu, ch)).sort();
       if (atteints.length) {
         par.add(`lit ${lu} (${atteints.join(', ')})`);
       }
@@ -370,7 +387,7 @@ export function texteDuReleve(r) {
   }
   if (r.lit.length) {
     const lus = r.lit.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');
-    out.push(`- Par les chemins lus (\`grillhouse.lit\`) : ${lus}.`);
+    out.push(`- Par les chemins lus (\`grillhouse.lit\`, \`// @lit\`) : ${lus}.`);
   }
   if (r.architecture.length) {
     const lus = r.architecture.map(l => `${l.composant} (${l.par.join(' ; ')})`).join(', ');

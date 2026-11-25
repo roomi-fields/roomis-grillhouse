@@ -12,6 +12,7 @@ import {
   releve,
   texteDuReleve,
 } from '../../scripts/composants-affectes.mjs';
+import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
 
 // grillhouse-3uv.89, L6 — the components fixed at the opening. As the « affected components » of
 // a design document (an RFC of Rust, a design doc of Chromium), the components a realisation
@@ -212,8 +213,32 @@ describe('the survey of the components a ticket touches', () => {
     ]);
     expect(r.composants).toEqual(['000-forms', '990-corpus', '995-tools']);
     expect(texteDuReleve(r)).toContain(
-      '- Par les chemins lus (`grillhouse.lit`) : 990-corpus (lit packages/forms/trace (packages/forms)), 995-tools (lit libraries (libraries/alphabets.bpsl)).'
+      '- Par les chemins lus (`grillhouse.lit`, `// @lit`) : 990-corpus (lit packages/forms/trace (packages/forms)), 995-tools (lit libraries (libraries/alphabets.bpsl)).'
     );
+  });
+
+  it('finds as a reader a crate whose Rust test declares it reads a path the ticket changes', () => {
+    const racine = depot({
+      'docs/ARCHITECTURE.md': architecture(['cargo']),
+      'Cargo.toml': '[workspace]\nmembers = ["crates/*"]\n',
+      'donnees/cas/un.json': '{}\n',
+      'crates/lecteur/Cargo.toml': '[package]\nname = "lecteur"\nversion = "0.1.0"\n',
+      'crates/lecteur/tests/it/main.rs': '// @lit donnees/**/*.json\nmod liste;\n',
+      'crates/autre/Cargo.toml': '[package]\nname = "autre"\nversion = "0.1.0"\n',
+      'crates/autre/tests/it/main.rs': '// @lit ailleurs/**\n',
+    });
+    const restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), path.join(ESSAIS, 'journal-cargo'));
+    try {
+      for (const change of ['donnees/cas/un.json', 'donnees/cas']) {
+        const r = releve(racine, description(`Le ticket change ${change}.`, '1. Rien.'));
+        expect(r.lit).toEqual([
+          { composant: 'lecteur', par: [`lit donnees/**/*.json (${change})`] },
+        ]);
+      }
+    } finally {
+      restaurer();
+    }
+    expect(cheminsLus(path.join(racine, 'crates/lecteur'), racine)).toEqual(['donnees/**/*.json']);
   });
 
   it('puts the provider before its readers, by the imports between them', () => {

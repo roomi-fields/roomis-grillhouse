@@ -62,6 +62,7 @@ import { garderLesResumes, lireLesResumes, resumesDuLancement } from './resume-d
 import { miseAJour } from './mise-a-jour.mjs';
 import { squelette } from './squelette.mjs';
 import { estHorsDuJour } from './vitest-config/cibles.mjs';
+import { lecturesDesTests } from './vitest-config/lances.mjs';
 import { moduleAbsent } from './module-absent.mjs';
 import * as configVitest from './migrations/0.23.0-config-vitest.mjs';
 import * as nomsDeclaresInutilises from './migrations/0.24.4-noms-declares-inutilises.mjs';
@@ -252,6 +253,7 @@ export default {
   matieres: racine =>
     matieres(racine).map(({ nom, dir, paquet }) => ({ nom, dossier: dir, paquet })),
   joueDesTests,
+  lecturesDesTests,
   lecteurs,
   elementsDuLot,
   // The hashes of the inputs of the tests tasks of the packages and their dependents, as

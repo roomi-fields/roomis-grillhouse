@@ -186,6 +186,30 @@ describe('the final pass plays the band of the lot', () => {
         '--filter=//',
       ]);
     });
+
+    it('a lot that changes a path the head of a Rust test declares it reads (`// @lit`) plays its crate and its dependents', () => {
+      const d = depot();
+      const ecrire = (fichier: string, contenu: string) => {
+        mkdirSync(path.dirname(path.join(d.copie, fichier)), { recursive: true });
+        d.ecrire(fichier, contenu);
+      };
+      ecrire(
+        'docs/ARCHITECTURE.md',
+        '# Architecture\n\n| Composant | Langage |\n|---|---|\n| `crates/lecteur` | cargo |\n'
+      );
+      ecrire('crates/lecteur/tests/it/main.rs', '// @lit donnees/**/*.json\nmod liste;\n');
+      git(d.copie, 'add', '-A');
+      git(d.copie, 'commit', '-qm', 'lecteur');
+      ecrire('donnees/cas/un.json', '{}\n');
+      const { restreinte } = laPasseFinale(d.ctx);
+      const liste = [{ dossier: 'crates/lecteur', pkg: { name: 'lecteur' } }];
+      expect(filtresDeLaBande(d.ctx, liste, restreinte!)).toEqual([
+        '--',
+        `--filter=...[${restreinte!.avant}...${restreinte!.apres}]`,
+        '--filter=...lecteur',
+        '--filter=//',
+      ]);
+    });
   });
 
   it('when git cannot keep the lot, the pass rejects naming git and never returns a null band', () => {

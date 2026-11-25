@@ -48,6 +48,7 @@ import {
   estUnTest,
   joueDesTests,
   lecteurs,
+  lecturesDesTests,
   liensDuManifeste,
   manifestes,
   matieres,
@@ -124,6 +125,7 @@ export default {
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres,
   joueDesTests,
+  lecturesDesTests,
   lecteurs,
   elementsDuLot,
   // The hashes of the inputs of the tests tasks of the crates and their dependents, as

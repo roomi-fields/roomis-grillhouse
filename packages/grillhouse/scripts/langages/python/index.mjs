@@ -95,6 +95,8 @@ export default {
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres: () => [],
   joueDesTests,
+  // No declaration of a test of Python is read yet: its comments open with `#`.
+  lecturesDesTests: () => [],
   lecteurs,
   elementsDuLot,
   // The hashes of the inputs of the tests tasks of the projects and their dependents, as

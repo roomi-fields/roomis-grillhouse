@@ -95,3 +95,48 @@ describe('the patterns a test declares enter the inputs of the test task of its 
     expect(verifier(r)).toEqual([]);
   });
 });
+
+// A repository of one crate `crates/noyau`, whose test files each declare one folder.
+function depotCargo(): string {
+  const r = mkdtempSync(path.join(ESSAIS, 'c-'));
+  ecrireFichier(
+    r,
+    'package.json',
+    json({ name: 'essai', private: true, workspaces: ['crates/*'], packageManager: 'npm@10.9.8' })
+  );
+  ecrireFichier(r, 'turbo.json', lire(DEPOT, 'templates/turbo/paquets.json'));
+  ecrireFichier(
+    r,
+    'docs/ARCHITECTURE.md',
+    '# Architecture\n\n| Composant | Langage |\n|---|---|\n| `crates/noyau` | cargo |\n'
+  );
+  ecrireFichier(
+    r,
+    'crates/noyau/package.json',
+    json({ name: 'noyau', private: true, scripts: { 'test:unit': 'grillhouse tests-du-paquet' } })
+  );
+  ecrireFichier(r, 'crates/noyau/Cargo.toml', '[package]\nname = "noyau"\nversion = "0.1.0"\n');
+  for (const [fichier, motif] of [
+    ['tests/it/liste.rs', 'donnees/jour/**'],
+    ['tests/it_nuit/liste.rs', 'donnees/nuit/**'],
+    ['src/serveur/tests.rs', 'donnees/unitaires/**'],
+    ['src/lib.rs', 'donnees/code/**'],
+  ]) {
+    ecrireFichier(r, `crates/noyau/${fichier}`, `//! The list, judged whole.\n// @lit ${motif}\n`);
+  }
+  return r;
+}
+
+describe('the patterns a Rust test declares enter the inputs of the test task of its crate', () => {
+  it('reads the integration tests of the day and of the night and the unit tests, not the code', () => {
+    const r = depotCargo();
+    ecrire(r);
+    const conf = parse(lire(r, 'crates/noyau/turbo.json')) as Taches;
+    const declarees = (conf.tasks['test:unit']?.inputs ?? []).filter(e => e.includes('donnees/'));
+    expect(declarees).toEqual([
+      '$TURBO_ROOT$/donnees/jour/**',
+      '$TURBO_ROOT$/donnees/nuit/**',
+      '$TURBO_ROOT$/donnees/unitaires/**',
+    ]);
+  });
+});

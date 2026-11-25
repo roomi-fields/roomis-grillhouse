@@ -31,6 +31,30 @@ export const CODE = '^src/|^packages/[^/]+/src/';
 /** The script of a package that types it, which the verification plays in each package. */
 export const TYPAGE = 'typecheck';
 
+// The tag of a test that declares the files it reads: a line `// @lit <motif> …` of the comment at
+// the head of the file, before its first line of code, as the tag `@poste`.
+const ETIQUETTE_DE_LECTURE = /^\/\/\s*@lit\b(.*)$/;
+
+/**
+ * The patterns the text <texte> of a test file declares it reads, as the `data` of a Bazel target:
+ * the words of each line `// @lit` of the comment at its head, each a glob from the top of the
+ * repository. The modules of the languages whose comments open with `//` read their tests by it.
+ * @param {string} texte the text of the file
+ */
+export function lecturesDeclarees(texte) {
+  const out = [];
+  for (const ligne of texte.split('\n')) {
+    const l = ligne.trim();
+    const m = ETIQUETTE_DE_LECTURE.exec(l);
+    if (m) {
+      out.push(...m[1].split(/\s+/).filter(Boolean));
+    } else if (l !== '' && !l.startsWith('//') && !l.startsWith('#!')) {
+      break;
+    }
+  }
+  return out;
+}
+
 // The list of the packages out of the frame: one line per package, « <package> <reason> », its
 // first word the name of a directory under `packages/` or `src/`; a blank line or a line starting
 // with `#` names nothing.

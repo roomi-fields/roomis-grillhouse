@@ -6,6 +6,9 @@
 export const CODE: string;
 /** The script of a package that types it, which the verification plays in each package. */
 export const TYPAGE: string;
+/** The patterns the text `texte` of a test file declares it reads: the words of each line
+ * `// @lit` of the comment at its head, each a glob from the top of the repository. */
+export function lecturesDeclarees(texte: string): string[];
 /** The names listed in `racine`'s `docs/agents/hors-cadre.txt`: empty without the file. */
 export function horsCadre(racine: string): Set<string>;
 /** Those of `chemins` (absolute, under `racine`), each as given, that git ignores in the repository

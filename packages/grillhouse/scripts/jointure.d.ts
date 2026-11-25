@@ -227,6 +227,10 @@ export interface Composition {
   matieres(racine: string): Composant[];
   /** Whether the component plays tests: the runner of the language has tests to play in it. */
   joueDesTests(racine: string, composant: Composant): boolean;
+  /** The patterns the test files of the package in `dossier` (absolute) declare in the
+   * `// @lit` lines of their head, each a glob from the root, once, sorted; read on the disk
+   * alone. None for python and c, whose declarations are not read yet. */
+  lecturesDesTests(dossier: string): string[];
   /** The hashes of the inputs of the tests tasks of the components `noms` (their package names)
    * and of their dependents, `{ <paquet>: <hash> }`, as the task runner plans them (the hash of a
    * task covers the content of the files it reads and of what it waits for); null when the runner

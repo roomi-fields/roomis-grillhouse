@@ -86,6 +86,8 @@ export default {
   composantDe: (racine, fichier) => composantDans(composants(racine), racine, fichier),
   matieres: () => [],
   joueDesTests,
+  // No declaration of a test of C is read yet.
+  lecturesDesTests: () => [],
   lecteurs,
   elementsDuLot,
   // The remote cache of Turborepo on the poste, as the other modules play by Turborepo.

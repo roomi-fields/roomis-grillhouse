@@ -603,7 +603,7 @@ export function laPasseFinale(ctx) {
 
 // The filters of Turborepo the band <restreinte> (`{ avant, apres }`, two lots kept) plays at the
 // final pass: the packages that changed from one to the other and their dependents, each package
-// of <liste> whose tests declare they read a path the band changes (`grillhouse.lit`,
+// of <liste> whose tests declare they read a path the band changes (`grillhouse.lit`, `// @lit`,
 // `cheminsLus`: the `data` of Bazel, which Turborepo's graph does not see) and its dependents, then
 // the root's tasks, the guards.
 export function filtresDeLaBande(ctx, liste, restreinte) {
@@ -612,7 +612,7 @@ export function filtresDeLaBande(ctx, liste, restreinte) {
     .filter(
       p =>
         p.pkg?.name &&
-        fichiers.some(f => couvertPar(cheminsLus(path.join(ctx.copie, p.dossier)), f))
+        fichiers.some(f => couvertPar(cheminsLus(path.join(ctx.copie, p.dossier), ctx.copie), f))
     )
     .map(p => p.pkg.name)
     .sort();

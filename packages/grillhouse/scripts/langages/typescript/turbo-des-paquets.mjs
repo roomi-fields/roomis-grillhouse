@@ -46,7 +46,7 @@
 //   them (`inputs`: the root's, `$TURBO_EXTENDS$`, or `$TURBO_DEFAULT$` when the root's task sets
 //   none; then `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each
 //   trace whose output one of them overlaps (`<producer>#trace:<name>`). The patterns its test
-//   files declare they read (`// @lit <motif>` at their head, ./vitest-config/lances.mjs) are
+//   files declare they read (`// @lit <motif>` at their head, read by the module of its language) are
 //   hashed with them (`$TURBO_ROOT$/<motif>` each, those `lit` already covers left out), a
 //   package without `lit` included.
 // - `traces`: each trace the package produces, its command the package's script of the same name,
@@ -111,12 +111,13 @@ import {
   AVANCEMENT,
   CHANGEMENTS,
   inscrireLePlan,
+  langage,
   paquetsSansPackageJson,
   TRACE,
   VARIABLE_TRAVAILLEURS as TRAVAILLEURS,
 } from '../../services-du-noyau.mjs';
 import { matieres } from './consommateurs.mjs';
-import { lecturesDeclarees, testsDuPaquet } from './vitest-config/lances.mjs';
+import { lecturesDesTests } from './vitest-config/lances.mjs';
 import { parcourir } from './parcours.mjs';
 import { paquets, TYPAGE } from '../../paquets.mjs';
 import { ecrireSarif, RESULTATS } from '../../resultats.mjs';
@@ -677,14 +678,14 @@ function declarations(liste) {
 }
 
 // The patterns the test files of the package at <dossier> (absolute) declare they read (`// @lit`
-// at their head, ./vitest-config/lances.mjs), each a glob from the root, those the paths <lit> of
-// the package already cover left out; sorted.
-function lecturesDesTests(dossier, lit) {
-  return [
-    ...new Set(testsDuPaquet(dossier).flatMap(t => lecturesDeclarees(readFileSync(t, 'utf8')))),
-  ]
-    .filter(m => !lit.some(l => m === l || m.startsWith(`${l}/`)))
-    .sort();
+// at their head), as the module of its language <langageNom> reads them (null: a package of
+// TypeScript, ./vitest-config/lances.mjs), each a glob from the root, those the paths <lit> of the
+// package already cover left out; sorted.
+function lecturesHorsDeLit(dossier, langageNom, lit) {
+  const lectures = langageNom
+    ? langage(langageNom).lecturesDesTests(dossier)
+    : lecturesDesTests(dossier);
+  return lectures.filter(m => !lit.some(l => m === l || m.startsWith(`${l}/`)));
 }
 
 // The text of a package's turbo.json, whose tasks are <taches>.
@@ -791,7 +792,11 @@ export function attendus(racine) {
         }
       }
       const decl = decls.get(dossier);
-      const declares = lecturesDesTests(path.join(racine, dossier), decl.lit);
+      const declares = lecturesHorsDeLit(
+        path.join(racine, dossier),
+        langageDuPaquet ?? null,
+        decl.lit
+      );
       if (decl.lit.length || declares.length) {
         taches[TESTS] = {
           dependsOn: [...deplier(deRacine.get(TESTS)?.dependsOn ?? []), ...jointes(decl.lit)],

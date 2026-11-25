@@ -210,6 +210,12 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   lisent ses tests (`parLesTests` : leurs imports ; `cargo`, ses dépendances de développement),
   d'où `--etendre` tire l'ordre du plan. Le relevé des composants touchés
   (`composants-affectes`) y ajoute les chemins lus et l'architecture.
+- `lecturesDesTests` (`dossier`) : les motifs que les fichiers
+  de test du paquet de ce dossier déclarent lire, par les lignes `// @lit` de leur tête, chacun
+  depuis la racine, une fois, triés, comme la `data` d'une cible de Bazel ; `cargo` lit les fichiers
+  `.rs` sous `tests/` et les tests unitaires sous `src/` ; `typescript` et `cargo` lisent la ligne par
+  `lecturesDeclarees` de l'entrée `paquets` ; `python` et `c` n'en lisent encore aucune. Le générateur du graphe les compte dans les entrées de
+  la tâche de tests, le relevé des composants touchés et la passe finale dans les chemins lus.
 - `elementsDuLot` : les éléments qu'un lot ajoute, change ou supprime entre deux commits, chacun à
   sa place, les fichiers qu'il change, et les sources dont le module ne lit aucun élément ; le
   circuit les donne au relecteur.
@@ -364,7 +370,8 @@ entrées sont celles de chaque module (`scripts/langages/<nom>/exemples.mjs`).
 
 Un cas tient chaque demande sauf `nom`, `verdict` lu à part, `migrations`, que le test de
 chaque migration tient, `manifeste`, que les tests de la garde des langages tiennent, `outils`,
-`binaires`, `ignorer` et `miseAJour`, que les tests de la mise à jour tiennent, `sorties`, que les tests
+`binaires`, `ignorer` et `miseAJour`, que les tests de la mise à jour tiennent, `lecturesDesTests`, que les tests du générateur du graphe
+et du relevé tiennent, `sorties`, que les tests
 de l'enveloppe tiennent, et `droits`, que le test des droits tient. L'entrée défectueuse des
 fichiers engendrés met chacun d'eux en retard.
 Le test du noyau joue la suite sur le module typescript et sur seize modules défectueux, un défaut
