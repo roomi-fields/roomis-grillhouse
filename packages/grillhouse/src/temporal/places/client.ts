@@ -7,7 +7,7 @@
 // Architecture: docs/architecture/machine.md (§3.1, §4.3).
 import { randomUUID } from 'node:crypto';
 import { setTimeout as dormir } from 'node:timers/promises';
-import type { Client } from '@temporalio/client';
+import type { Client, WorkflowHandle } from '@temporalio/client';
 import { FILE_DE_LA_MACHINE } from '../installation.js';
 import {
   FERMER_LA_MACHINE,
@@ -32,12 +32,32 @@ import {
   type VueDesPlaces,
 } from './contrat.js';
 
-/** Starts the workflow of the machine on <file>, or leaves the one that runs. */
+// Whether the workflow of the machine of the handle <h> runs: its description, which writes nothing
+// on the server; false where the server has none of its id.
+async function tourne(h: WorkflowHandle): Promise<boolean> {
+  try {
+    return (await h.describe()).status.name === 'RUNNING';
+  } catch (e) {
+    if ((e as Error).name === 'WorkflowNotFoundError') {
+      return false;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Starts the workflow of the machine on <file> when none runs; leaves the one that runs, without
+ * asking a start, whose history the server would write and leave orphan. Two callers that start it
+ * at once share the one run (USE_EXISTING).
+ */
 export async function demarrerLesPlaces(
   client: Client,
   entree: EntreeDesPlaces,
   { file = FILE_DE_LA_MACHINE, id = ID_DES_PLACES }: { file?: string; id?: string } = {}
 ): Promise<void> {
+  if (await tourne(client.workflow.getHandle(id))) {
+    return;
+  }
   await client.workflow.start(PLACES, {
     workflowId: id,
     taskQueue: file,
@@ -146,15 +166,8 @@ export async function reserverDesCircuits(
 ): Promise<string[]> {
   const tous = [...(c.candidats ?? []), ...(c.reprise ? [c.reprise.ticket] : [])];
   const h = client.workflow.getHandle(id);
-  try {
-    if ((await h.describe()).status.name !== 'RUNNING') {
-      return tous;
-    }
-  } catch (e) {
-    if ((e as Error).name === 'WorkflowNotFoundError') {
-      return tous;
-    }
-    throw e;
+  if (!(await tourne(h))) {
+    return tous;
   }
   return h.executeUpdate<string[], [CircuitsDuProjet]>(RESERVER, { args: [c] });
 }
