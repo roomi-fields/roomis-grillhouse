@@ -14,7 +14,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canWrap, declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { afterAll, beforeAll } from 'vitest';
-import { CADRE, RACINE, enProcessus, valeursDe } from './cadre.js';
+import { CADRE, RACINE, valeursDe } from './cadre.js';
 import { FAUX_GH, FLUX_DE_L_ESSAI } from './integration-essai.js';
 import { ouvrirLeBanc, type Banc } from './temporal-essai.js';
 
@@ -47,10 +47,6 @@ const GUETTEUR = path.join(__dirname, 'guetter-le-circuit.mjs');
 const ARRET_MS = 280_000;
 const ENVELOPPE = path.join(CADRE, 'scripts/enveloppe/enveloppe.mjs');
 export const BASE = path.join(CADRE, 'scripts/langages/typescript/vitest-config/base.mjs');
-const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
-  'scripts/mesure/base-de-passe.mjs',
-  'ouvrirBaseDuTicket'
-);
 
 // The turbo.json of each package of <racine> and its root's, written by the frame's command.
 export function ecrireTurbo(racine: string): void {
@@ -603,15 +599,7 @@ export function circuitEssai(
   // A ticket of the stand-in bd, whose title names <composants>; its copy made ahead, with this
   // repository's dependencies as its own (the launcher then installs nothing), as a project holds them.
   // Its reviewer accepts the lot, by its sheet, unless the test writes it another scenario.
-  // The temporary directory of each ticket of the trial, which the launcher gives its sessions and
-  // which outlives them (grillhouse-xv9), goes at the end of the file, as the frame names it
-  // (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`).
   const tickets = new Set<string>();
-  afterAll(() => {
-    for (const id of tickets) {
-      rmSync(ouvrirBaseDuTicket(id).base, { recursive: true, force: true });
-    }
-  });
   function ticket(id: string, composants: string, { labels = [] as string[] } = {}) {
     tickets.add(id);
     ecrire(

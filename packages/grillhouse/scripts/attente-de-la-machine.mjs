@@ -6,9 +6,9 @@
 //   under LIBRE_MIN, 4 GB free (GRILLHOUSE_TEMPORAIRE_LIBRE names another floor, in bytes; the
 //   base configuration of the tests sets 0, scripts/langages/typescript/vitest-config/
 //   machine.setup.mjs), it waits for room instead of failing for lack of it. It says so, with
-//   what holds the directory (its largest entries, by the blocks their files hold, the
-//   temporary directory of a ticket naming its ticket), when it begins and every 30 s, under a
-//   bound (GRILLHOUSE_ATTENTE_MACHINE_MS, ATTENTE_MACHINE_MS, 60 min), then « à repasser » (75).
+//   what holds the directory (its largest entries, by the blocks their files hold), when it
+//   begins and every 30 s, under a bound (GRILLHOUSE_ATTENTE_MACHINE_MS, ATTENTE_MACHINE_MS,
+//   60 min), then « à repasser » (75).
 // - It then wants room on the disk of the copy it plays in (its root, `racine`), where cargo
 //   writes its target directories: under LIBRE_MIN as well (GRILLHOUSE_COPIE_LIBRE names another
 //   floor, in bytes; the base configuration of the tests sets 0), it waits the same way, under
@@ -27,7 +27,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { A_REPASSER } from './codes-de-sortie.mjs';
 import { occupantsDesCopies } from './copies-finies.mjs';
-import { ticketDeLaBase } from './mesure/base-de-passe.mjs';
 import { paquets } from './paquets.mjs';
 import { duree } from './regles-des-places.mjs';
 import { attendreUnPeu } from './verrou-de-fichier.mjs';
@@ -172,10 +171,7 @@ function occupants(dossier) {
     .map(nom => ({ nom, octets: taille(path.join(dossier, nom)) }))
     .sort((a, b) => b.octets - a.octets)
     .slice(0, 5)
-    .map(o => {
-      const ticket = ticketDeLaBase(o.nom);
-      return `${o.nom} (${ticket ? `le ticket ${ticket}, ` : ''}${go(o.octets)})`;
-    })
+    .map(o => `${o.nom} (${go(o.octets)})`)
     .join(', ');
 }
 

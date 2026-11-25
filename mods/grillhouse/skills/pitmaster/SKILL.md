@@ -93,18 +93,15 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
   `npx grillhouse retirer-copie <copie>`, qui retire avec elle le dossier de travail de son
   circuit (`<copie>.travail`). Ainsi le dépôt garde seulement le travail commité, et rien ne se
   supprime sans avoir été lu.
-- **Le dossier temporaire d'un ticket** : la consigne d'un sous-agent que je lance sur un ticket
-  nomme le dossier que donne `npx grillhouse temporaire <ticket>`, où vont ses fichiers
-  temporaires, légers, jamais une copie du dépôt, un `node_modules` ni un cache ; c'est celui que
-  le lanceur donne aux séances du ticket ; il vit tant que le ticket est ouvert, gel compris, et
-  part avec les copies finies quand le ticket se ferme. Ainsi mon scratchpad ne grossit pas des
-  agents du ticket.
+- **Les fichiers temporaires d'un sous-agent** : la consigne d'un sous-agent que je lance
+  l'envoie écrire ses fichiers temporaires dans le scratchpad de ma séance, légers, jamais une
+  copie du dépôt, un `node_modules` ni un cache. Le dossier temporaire d'une séance que le cadre
+  lance est à elle seule, et part avec elle. Ainsi rien ne reste d'un sous-agent après ma séance.
 - **Une pièce de référence pour une séance du circuit** : une séance du circuit ne voit ni mon
-  dossier temporaire ni ma maison ; ce que je dépose dans le dossier temporaire du ticket n'y est
-  pas vu. Un dossier de référence hors du dépôt se déclare dans la clé `grillhouse.outils` du
-  `package.json`, que l'enveloppe monte en lecture seule avec sa variable ; un texte court va au
-  ticket (le document de la machine, §5.5 ; le document de l'installation, §4.2). Ainsi la séance
-  lit la pièce que je lui cite.
+  scratchpad ni ma maison ; ce que j'y dépose n'y est pas vu. Un dossier de référence hors du
+  dépôt se déclare dans la clé `grillhouse.outils` du `package.json`, que l'enveloppe monte en
+  lecture seule avec sa variable ; un texte court va au ticket (le document de la machine, §5.5 ;
+  le document de l'installation, §4.2). Ainsi la séance lit la pièce que je lui cite.
 
 ## Un agent, un ticket
 

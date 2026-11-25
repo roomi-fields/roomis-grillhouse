@@ -17,19 +17,20 @@
 //   beside its copy, which no sweep touches); `integration`, the working directory of an
 //   integration (scripts/integration/integrer.mjs); `file`, the results of the final pass of the queue
 //   (scripts/integration/file.mjs); `enveloppe`, the throwaway state of a session's envelope
-//   (scripts/enveloppe/enveloppe.mjs).
-// - The owner of a base is the process that opens it, for a pass and a session out of a ticket
-//   (the night, a verification); a ticket (`ouvrirBaseDuTicket`: `<dans>/grillhouse-ticket-<id>/`,
-//   the temporary directory of the agents of one ticket, which the launcher gives each session of
-//   the ticket, scripts/enveloppe/lancer.sh, and `npx grillhouse temporaire <ticket>` the
-//   supervisor), kept from one session and one resumption to the next, removed when its ticket is
-//   closed (`balayerLesTickets`, which the removal of the finished copies plays,
-//   scripts/copies-finies.mjs), frozen or not; or a directory
-//   (`cacheDeLaRacine`: the cache of a build rooted in the temporary directory), swept once that
-//   directory is gone, from the namespace that opened it, or, from the host (the next base of a
-//   pass, out of an envelope, where the home is read-only), untouched for 7 days whatever its
-//   namespace. What an agent needs to resume lives in its copy or its handover, never in
-//   the ticket's temporary directory alone, which holds what is made again.
+//   (scripts/enveloppe/enveloppe.mjs); `seance`, the temporary directory of one session of an
+//   agent that the frame launches, opened by the launcher of the envelope
+//   (scripts/enveloppe/lancer.sh) or by the shell that carries a session out of the envelope
+//   (scripts/seances.mjs), which removes it at the session's end, even interrupted. What an agent
+//   needs to resume lives in its copy or its handover, never in this directory, which holds what
+//   is made again.
+// - The owner of a base is the process that opens it, or the one the call names (`pid`: the
+//   process that lives as long as its session); or a directory (`cacheDeLaRacine`: the cache of a
+//   build rooted in the temporary directory), swept once that directory is gone, from the
+//   namespace that opened it, or, from the host (the next base of a pass, out of an envelope,
+//   where the home is read-only), untouched for 7 days whatever its namespace.
+// - `npx grillhouse temporaire`, without argument, writes in a session the frame launched
+//   (`GRILLHOUSE_ENVELOPPE`, or `GRILLHOUSE_SEANCE` out of the envelope) the directory its
+//   `TMPDIR` names; anywhere else, or with an argument, it says so and ends at 2.
 // - The caches of compilation never lie in the temporary directory, a disk in memory that the
 //   sessions of the machine share: they go under `${XDG_CACHE_HOME:-~/.cache}/grillhouse/<outil>`
 //   (`cacheDeCompilation`); a build rooted in the temporary directory (a project of trial) keeps
@@ -122,8 +123,7 @@ function proprietaire(base) {
 
 // Whether the base <base> is an orphan: its owner, a directory or a process, belongs to this
 // namespace of processes and is gone; a directory another namespace sees (an envelope's private
-// /tmp) or a process of another namespace is never judged here. A ticket's base goes with its
-// ticket (`balayerLesTickets`).
+// /tmp) or a process of another namespace is never judged here.
 function orpheline(base) {
   const p = proprietaire(base);
   const ici = espace();
@@ -169,6 +169,9 @@ function vieille(base) {
     return false;
   }
 }
+
+/** The variable that marks a session out of the envelope that the frame launched. */
+export const VARIABLE_SEANCE = 'GRILLHOUSE_SEANCE';
 
 // Whether <env> is an agent's envelope, where the home is read-only (scripts/enveloppe/).
 const enEnveloppe = env => Boolean(env.GRILLHOUSE_ENVELOPPE);
@@ -294,20 +297,21 @@ function balayerLesEssais(env) {
  * Opens the base of a pass of <genre> in <dans>, after sweeping the orphan bases there, and the
  * orphan trial directories under the home.
  * @param {string} genre what the pass is (`vitest`, `circuit`…), in the base's name
- * @param {{ dans?: string }} options `dans`, the directory of the base (`os.tmpdir()`)
+ * @param {{ dans?: string, pid?: number }} options `dans`, the directory of the base
+ *   (`os.tmpdir()`); `pid`, the process that owns it (this one)
  * @returns {{ base: string, dossier: string, env: Record<string, string>, restes: () => string[],
  *   essais: () => string[], fermer: () => void }} the base; the directory its pass writes in; the
  *   variables that name it to the pass's children (TMPDIR, TMP, TEMP); what is in it, sorted; the
  *   names of the `grillhouse-essais-*` directories of the home's cache whose owner file names this
  *   pass, read at the call; and the removal of the base
  */
-export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
+export function ouvrirBase(genre, { dans = tmpdir(), pid = process.pid } = {}) {
   balayer(dans);
   balayerLesCaches(process.env);
   balayerLesEssais(process.env);
   mkdirSync(dans, { recursive: true });
   const base = mkdtempSync(path.join(dans, `${PREFIXE}${genre}-`));
-  const moi = { pid: process.pid, depart: departDe(process.pid), espace: espace() };
+  const moi = { pid, depart: departDe(pid), espace: espace() };
   writeFileSync(path.join(base, PROPRIETAIRE), `${JSON.stringify(moi)}\n`);
   const dossier = path.join(base, 't');
   mkdirSync(dossier);
@@ -326,67 +330,6 @@ export function ouvrirBase(genre, { dans = tmpdir() } = {}) {
       }),
     fermer: () => rmSync(base, { recursive: true, force: true }),
   };
-}
-
-// The prefix of the base of a ticket, and the form of a ticket's id.
-const DU_TICKET = `${PREFIXE}ticket-`;
-const ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-/**
- * The base of the ticket <ticket> in <dans>: `<dans>/grillhouse-ticket-<ticket>/`, its owner the
- * ticket, made when absent and the same at each call; the temporary directory of the agents of
- * one ticket, kept from one session to the next, removed when it is closed (`balayerLesTickets`).
- * @param {string} ticket the ticket's id
- * @param {{ dans?: string }} options `dans`, the directory of the base (`os.tmpdir()`)
- * @returns {{ base: string, dossier: string }} the base, and the directory its agents write in
- */
-export function ouvrirBaseDuTicket(ticket, { dans = tmpdir() } = {}) {
-  if (!ID.test(ticket)) {
-    throw new Error(`⛔ « ${ticket} » n'est pas l'identifiant d'un ticket.`);
-  }
-  const base = path.join(dans, `${DU_TICKET}${ticket}`);
-  const dossier = path.join(base, 't');
-  mkdirSync(dossier, { recursive: true });
-  if (proprietaire(base) === null) {
-    writeFileSync(path.join(base, PROPRIETAIRE), `${JSON.stringify({ ticket })}\n`);
-  }
-  return { base, dossier };
-}
-
-/**
- * Removes from <dans> the base of each ticket that is closed; the ids of the tickets whose base
- * went. A ticket open, frozen or not, keeps its base, as a retention policy fixed in advance.
- * <fermes> reads the closed tickets, null when they do not read: called once, and only when a
- * ticket's base is there.
- * @param {() => Set<string> | null} fermes
- * @param {{ dans?: string }} options `dans`, the directory of the bases (`os.tmpdir()`)
- * @returns {string[]}
- */
-export function balayerLesTickets(fermes, { dans = tmpdir() } = {}) {
-  const tickets = contenu(dans)
-    .filter(n => n.startsWith(DU_TICKET))
-    .map(n => ({ base: path.join(dans, n), ticket: proprietaire(path.join(dans, n))?.ticket }))
-    .filter(b => typeof b.ticket === 'string');
-  if (tickets.length === 0) {
-    return [];
-  }
-  const clos = fermes();
-  if (clos === null) {
-    return [];
-  }
-  const retires = tickets.filter(b => clos.has(b.ticket));
-  for (const b of retires) {
-    rmSync(b.base, { recursive: true, force: true });
-  }
-  return retires.map(b => b.ticket);
-}
-
-/**
- * The ticket whose base is the entry <nom> of the temporary directory, or null.
- * @param {string} nom
- */
-export function ticketDeLaBase(nom) {
-  return nom.startsWith(DU_TICKET) ? nom.slice(DU_TICKET.length) : null;
 }
 
 // Whether <chemin> lies in <dossier> or is it.
@@ -455,19 +398,18 @@ export function cacheDeLaRacine(outil, racine, env = process.env, { creer = true
   return cache;
 }
 
-// `npx grillhouse temporaire <ticket>`: prints the directory of the ticket's agents.
-function commande(argv) {
-  if (argv.length !== 1 || argv[0].startsWith('-')) {
-    process.stderr.write('usage: npx grillhouse temporaire <ticket>\n');
+// `npx grillhouse temporaire`: in a session the frame launched, prints the temporary directory
+// that its TMPDIR names.
+function commande(argv, env = process.env) {
+  const enSeance = enEnveloppe(env) || Boolean(env[VARIABLE_SEANCE]);
+  if (argv.length > 0 || !enSeance || !env.TMPDIR) {
+    process.stderr.write(
+      '⛔ usage: npx grillhouse temporaire, sans argument, dans une séance que le cadre lance : elle écrit le dossier temporaire de cette séance. Hors d’elle, un fichier temporaire va dans le scratchpad de la séance.\n'
+    );
     return 2;
   }
-  try {
-    process.stdout.write(`${ouvrirBaseDuTicket(argv[0]).dossier}\n`);
-    return 0;
-  } catch (e) {
-    process.stderr.write(`${e.message}\n`);
-    return 2;
-  }
+  process.stdout.write(`${env.TMPDIR}\n`);
+  return 0;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

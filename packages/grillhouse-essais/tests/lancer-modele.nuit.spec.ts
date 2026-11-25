@@ -16,10 +16,6 @@ const { CODE_USAGE } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_USAGE']) 
   CODE_USAGE: number;
 };
 const dossierDeTravail = enProcessus<string>('scripts/enveloppe/enveloppe.mjs', 'dossierDeTravail');
-const ouvrirBaseDuTicket = enProcessus<{ dossier: string }>(
-  'scripts/mesure/base-de-passe.mjs',
-  'ouvrirBaseDuTicket'
-);
 const publie = enProcessus<string>('scripts/langages/typescript/index-interfaces.mjs', 'publie');
 const optionsDuRole = enProcessus<string[]>('scripts/droits.mjs', 'optionsDuRole');
 const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');
@@ -29,7 +25,7 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // definition decides. The trial repositories live outside /tmp, which the envelope replaces.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-lancer-modele-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-// The temporary directory of this file, under which the launcher opens each ticket's own.
+// The temporary directory of this file, under which the launcher opens each session's own.
 temporaireDuFichier();
 
 const LAUNCHER = path.join(RACINE, 'packages/grillhouse/scripts/enveloppe/lancer.sh');
@@ -167,10 +163,8 @@ function lancer(options: string[], apres: string[] = [], composant = 'packages/a
   return { r, copie, args, prompt: brut === null ? null : sansBase(brut), brut, ticket };
 }
 
-// <texte> with the temporary directory of the ticket, which the launcher gives its session
-// (grillhouse-xv9), named `/BASE`.
-const sansBase = (texte: string) =>
-  texte.replace(/[^\s`]*\/grillhouse-ticket-[^/\s`]+\/t\//g, '/BASE/');
+// <texte> with the temporary directory of the session, which the launcher opens, named `/BASE`.
+const sansBase = (texte: string) => texte.replace(/[^\s`]*\/grillhouse-[^/\s`]+\/t\//g, '/BASE/');
 
 // The section the launcher writes after the instruction, for a: b's line, the names it declares
 // for a, and the address of its rubric « Rend ».
@@ -187,7 +181,7 @@ const PUBLIE_POUR_A = [
 ].join('\n');
 
 // The section the launcher writes last: the session's working directory, in its copy's
-// scratchpads, under the temporary directory of the ticket (`/BASE`, `sansBase`).
+// scratchpads, under the temporary directory of the session (`/BASE`, `sansBase`).
 const TRAVAIL = (ticket: string) =>
   [
     '## Ton dossier de travail',
@@ -295,8 +289,9 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
 });
 
 // A relaunch of the circuit resumes the session of its agent: --seance <id> opens a session under
-// that id (claude's --session-id), --reprise <id> resumes it (--resume), its instruction alone,
-// since the session it resumes holds the sections the launcher adds.
+// that id (claude's --session-id), --reprise <id> resumes it (--resume), its instruction followed
+// by its new working directory alone, since the session it resumes holds the other sections the
+// launcher adds.
 describe.runIf(canWrap)('the launcher and the session of a relaunch', () => {
   const ID = '0b7c5f0e-6a1d-4c58-9d3e-2f4a8b9c1d2e';
   it('--seance <id> opens the session under that id, its instruction whole', () => {
@@ -306,13 +301,13 @@ describe.runIf(canWrap)('the launcher and the session of a relaunch', () => {
     expect(args).not.toContain('--resume');
     expect(prompt).toBe(PROMPT(ticket));
   });
-  it('--reprise <id> resumes that session, its instruction alone', () => {
+  it('--reprise <id> resumes that session, its instruction naming its new working directory', () => {
     const { r, args, prompt, ticket } = lancer(['--reprise', ID, '--modele', 'opus']);
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--resume')).toEqual([ID]);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(args).not.toContain('--session-id');
-    expect(prompt).toBe(`TON TICKET : ${ticket} — un sujet.`);
+    expect(prompt).toBe(`TON TICKET : ${ticket} — un sujet.\n\n${TRAVAIL(ticket)}`);
   });
   it('refuses a session without its id, or both options together', () => {
     for (const options of [
@@ -398,16 +393,13 @@ describe.runIf(canWrap)("the launcher and the session's working directory", () =
     );
   });
 
-  // grillhouse-xv9, critère 1: the working directory lies in the temporary directory of the
-  // ticket, which outlives the launch, for the next session of the ticket.
-  it("the working directory lies in the ticket's temporary directory, kept once the launch ends", () => {
-    const { r, brut, copie, ticket } = lancer([]);
+  it("the working directory lies in the session's temporary directory, removed once the launch ends", () => {
+    const { r, brut } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
     const travail = /s'écrit dans `([^`]+)`/.exec(brut ?? '')?.[1] ?? '';
-    // The ticket's directory, as the frame names it (`npx grillhouse temporaire <ticket>`).
-    const duTicket = ouvrirBaseDuTicket(ticket).dossier;
-    expect(travail).toBe(dossierDeTravail(copie, { TMPDIR: duTicket }));
-    expect(existsSync(travail)).toBe(true);
+    expect(travail).toMatch(/\/grillhouse-[^/]+\/t\/claude-/);
+    expect(travail).not.toContain('/grillhouse-ticket-');
+    expect(existsSync(travail)).toBe(false);
   });
 });
 

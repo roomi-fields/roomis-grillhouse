@@ -26,13 +26,14 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { GREFFON } from './cadre.mjs';
 import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
 import { ecrireLaListe, VARIABLE_TESTS_ETENDUS } from './enveloppe/paquets-du-plan.mjs';
 import { ecritPar, marquesRestantes } from './enveloppe/travail-de-la-copie.mjs';
 import { langageDe } from './langages.mjs';
 import { nomDuRole } from './etapes.mjs';
-import { departDe } from './mesure/base-de-passe.mjs';
+import { departDe, VARIABLE_SEANCE } from './mesure/base-de-passe.mjs';
 import { groupeVivant, signalerGroupe } from './mesure-de-la-machine.mjs';
 import { lancementDeLaPasse } from './passe-de-la-machine.mjs';
 import { prendreUnePlace } from './places-de-la-machine.mjs';
@@ -98,6 +99,26 @@ const FORT = ['--modele', 'opus'];
 const LANCEUR = path.join(import.meta.dirname, 'enveloppe', 'lancer.sh');
 
 const REGISTRE = path.join(import.meta.dirname, 'registre.mjs');
+
+// The script that opens the temporary directory of a session out of the envelope, the base of a
+// pass whose owner is the process its argument names, and writes it without its end of line.
+const OUVRIR_LE_TEMPORAIRE = `import { ouvrirBase } from ${JSON.stringify(
+  pathToFileURL(path.join(import.meta.dirname, 'mesure', 'base-de-passe.mjs')).href
+)}; process.stdout.write(ouvrirBase('seance', { pid: Number(process.argv[1]) }).dossier);`;
+
+// The shell that carries a session out of the envelope (`$0` the file of its exit code, `$1` node,
+// `$2` the script above, then the session's command): it opens the session's temporary directory,
+// which it owns, so that it outlives a dead circuit, names it in TMPDIR, TMP and TEMP, whatever
+// CLAUDE_CODE_TMPDIR the poste holds, and removes it at its end, even interrupted.
+const PORTER_LA_SEANCE = [
+  "trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM",
+  't=$("$1" --input-type=module -e "$2" "$$" </dev/null) || exit',
+  'trap \'rm -rf -- "${t%/t}"\' EXIT',
+  'shift 2',
+  'export TMPDIR="$t" TMP="$t" TEMP="$t"',
+  'unset CLAUDE_CODE_TMPDIR',
+  '"$@"; c=$?; echo "$c" > "$0"; exit "$c"',
+].join('\n');
 
 // The templates of the instructions, in the skill of the supervisor, which the frame's plugin
 // carries, read at the plugin's root (scripts/cadre.mjs).
@@ -180,7 +201,8 @@ function resultatRange(rang, id, { horsEnveloppe = false } = {}) {
 // itself, in the ticket's
 // copy (the main tree once the copy is gone), under <droits> (`horsDeLEnveloppe`), the
 // schema of its role's sheet and the options <session> names (its id, or the session it
-// resumes), its instruction on its standard input and its result on its standard output, ranged
+// resumes), its instruction on its standard input and its result on its standard output, in a
+// temporary directory of its own (PORTER_LA_SEANCE), ranged
 // under its id with its exit code as lancer.sh ranges them, added to the log under its header
 // line, then its line written to the register, as lancer.sh does.
 // Its launch is kept with the circuit's results (`lancement`: its role, its session id, and the
@@ -292,8 +314,10 @@ export async function lancer(
       cmd: 'sh',
       args: [
         '-c',
-        '"$@"; c=$?; echo "$c" > "$0"; exit "$c"',
+        PORTER_LA_SEANCE,
         rang.fin,
+        process.execPath,
+        OUVRIR_LE_TEMPORAIRE,
         process.env.CLAUDE_BIN || 'claude',
         ...['-p', '--agent', role, ...fiche, ...droits, '--add-dir', ctx.tmp, ...session],
       ],
@@ -360,7 +384,8 @@ export async function lancer(
       role === 'testwriter' && ctx.testsEtendus?.length
         ? { [VARIABLE_TESTS_ETENDUS]: ecrireLaListe(ctx.testsEtendus) }
         : {};
-    const env = { ...base, ...place.env, ...testsEtendus, [ACTEUR]: role };
+    const marque = horsEnveloppe ? { [VARIABLE_SEANCE]: '1' } : {};
+    const env = { ...base, ...place.env, ...testsEtendus, ...marque, [ACTEUR]: role };
     const lancement = horsEnveloppe
       ? lancementDeLaPasse({ lourde: false, cmd: commande.cmd, args: commande.args, env })
       : { cmd: commande.cmd, args: commande.args, env };

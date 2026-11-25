@@ -1,6 +1,14 @@
 // @equipee: l'enveloppe bwrap, un serveur Temporal
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+  rmSync,
+} from 'node:fs';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
@@ -31,7 +39,7 @@ const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFic
 // the envelope replaces with an empty directory, in a trial directory of this run alone.
 const ESSAIS = racineSousLaMaison('grillhouse-essais-enveloppe-');
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-// The temporary directory of this file, under which the launcher opens each ticket's own.
+// The temporary directory of this file, under which the launcher opens each session's own.
 temporaireDuFichier();
 const { essai } = enveloppeEssai(ESSAIS);
 
@@ -109,11 +117,10 @@ describe.runIf(canWrap)('the launcher', () => {
     expect(args).toBe(
       `-p|--agent|developpeur|--output-format|json|--json-schema|${JSON.stringify(schemaDeFiche('developpeur'))}|--permission-mode|bypassPermissions|${droits.join('|')}|`
     );
-    // The temporary directory of the ticket, which the launcher gives the session (grillhouse-xv9),
-    // is named `/BASE`.
+    // The temporary directory of the session, which the launcher opens, is named `/BASE`.
     const prompt = execFileSync('cat', [path.join(copie, 'packages/a/prompt')], {
       encoding: 'utf8',
-    }).replace(/[^\s`]*\/grillhouse-ticket-[^/\s`]+\/t\//g, '/BASE/');
+    }).replace(/[^\s`]*\/grillhouse-[^/\s`]+\/t\//g, '/BASE/');
     expect(prompt).toBe(
       'TON TICKET : demo-1 — un sujet.\n\n' +
         "## Ce que les composants d'avant publient\n\n" +
@@ -545,12 +552,15 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
   mkdirSync(path.join(repo, 'scripts/enveloppe'), { recursive: true });
   projetDuLanceur(repo);
   installerEnveloppe(repo);
-  // A stand-in for claude: records the plan and the temporary directory it receives, and leaves
-  // the mark of its lock when its instruction says so.
+  // A stand-in for claude: records the plan and the temporary directory it receives, what that
+  // directory holds, writes a file there, and leaves the mark of its lock when its instruction says
+  // so.
   ecrire(
     'faux-claude.sh',
     '#!/bin/bash\nprintenv GRILLHOUSE_ENVELOPPE > packages/a/plan\nprintenv TMPDIR > packages/a/temporaire\n' +
-      'if grep -q HORS-PLAN; then echo "⛔ hors-plan — packages/c" > "$TMPDIR/hors-plan"; fi\n',
+      'ls -A "$TMPDIR" > packages/a/contenu\necho reste > "$TMPDIR/reste"\n' +
+      'cat > packages/a/prompt\n' +
+      'if grep -q HORS-PLAN packages/a/prompt; then echo "⛔ hors-plan — packages/c" > "$TMPDIR/hors-plan"; fi\n',
     0o755
   );
   execFileSync('git', ['init', '-q', repo]);
@@ -617,11 +627,9 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     expect(readFileSync(`${copie}.travail/seances/courante/hors-plan`, 'utf8')).toContain(
       'packages/c'
     );
-    // The working directory lies in the temporary directory of the ticket (grillhouse-xv9), which
-    // the mark leaves.
+    // The working directory, where the lock left the mark, has gone with the session.
     const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
-    expect(travail).toMatch(/\/grillhouse-ticket-demo-h\/t\//);
-    expect(existsSync(path.join(travail, 'hors-plan'))).toBe(false);
+    expect(existsSync(travail)).toBe(false);
     expect(readFileSync(`${copie}.log`, 'utf8')).toContain('⛔ hors-plan — packages/c');
     // The next launch starts without it.
     lancer('demo-h', ['--paquets', 'packages/a']);
@@ -636,6 +644,40 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     expect(existsSync(`${copie}.travail/seances/courante/demarree`)).toBe(true);
     const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
     expect(existsSync(path.join(travail, '.demarree'))).toBe(false);
+  });
+  it('gives each session a directory of its own, empty at its start and removed at its end', () => {
+    const jouer = (options: string[]) => {
+      const { r, copie } = lancer('demo-v', ['--paquets', 'packages/a', ...options]);
+      expect(r.status, r.stderr).toBe(0);
+      const lu = (f: string) => readFileSync(path.join(copie, 'packages/a', f), 'utf8');
+      return { travail: lu('temporaire').trim(), contenu: lu('contenu'), prompt: lu('prompt') };
+    };
+    const id = '0b7c5f0e-6a1d-4c58-9d3e-2f4a8b9c1d2e';
+    const premiere = jouer(['--seance', id]);
+    const reprise = jouer(['--reprise', id]);
+    for (const s of [premiere, reprise]) {
+      expect(s.travail).toMatch(/\/grillhouse-[^/]+\/t\//);
+      expect(s.travail).not.toContain('/grillhouse-ticket-');
+      // The witness of the envelope's start alone, which its command writes before the session.
+      expect(s.contenu.trim()).toBe('.demarree');
+      expect(existsSync(s.travail)).toBe(false);
+      expect(s.prompt).toContain(
+        `## Ton dossier de travail\n\nTout fichier temporaire s'écrit dans \`${s.travail}\``
+      );
+    }
+    expect(reprise.travail).not.toBe(premiere.travail);
+    expect(reprise.prompt).not.toContain("## Ce que les composants d'avant publient");
+  });
+  it('keeps the working directory in its own, whatever CLAUDE_CODE_TMPDIR the poste holds', () => {
+    const duPoste = essai('claude-du-poste-');
+    const { r, copie } = lancer('demo-c', ['--paquets', 'packages/a'], '', {
+      CLAUDE_CODE_TMPDIR: duPoste,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
+    expect(travail).toMatch(/\/grillhouse-[^/]+\/t\/claude-/);
+    expect(travail.startsWith(duPoste)).toBe(false);
+    expect(readdirSync(duPoste)).toEqual([]);
   });
   it('un lancement que l’enveloppe refuse laisse un code de fin non nul, sans le témoin d’un lancement d’avant', () => {
     // A first launch that starts leaves its witness.

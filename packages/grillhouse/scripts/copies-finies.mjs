@@ -70,21 +70,13 @@
 // - The line of each copy kept names the place it holds, as `du -sk` counts it (« 2,7 Go »).
 // - The branch of a copy removed goes (`git branch -D`), its content being HEAD's, on main; main
 //   and a branch another copy holds stay.
-// - The temporary directory of each closed ticket goes too (`grillhouse-ticket-<id>/` of the
-//   temporary directory, which the launcher gives each session of the ticket and
-//   `npx grillhouse temporaire <ticket>` the supervisor, `balayerLesTickets` of
-//   scripts/mesure/base-de-passe.mjs), as its copy goes; a ticket open, frozen or not, keeps it, as
-//   a retention policy fixed in advance. The closed tickets are read only when such a directory
-//   is there.
-// - One line per copy removed or kept, and per ticket's temporary directory removed, on the
-//   output, which the night adds to its log. The exit is
+// - One line per copy removed or kept, on the output, which the night adds to its log. The exit is
 //   0 whatever is removed or kept: the removal never changes the night's verdict.
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { PILOTE } from './fusion-du-changelog.mjs';
 import { langageDe } from './langages.mjs';
-import { balayerLesTickets } from './mesure/base-de-passe.mjs';
 import { nettoyerLeJournal } from './journal-des-etats.mjs';
 
 const RETIRER = path.join(import.meta.dirname, 'retirer-copie.sh');
@@ -494,9 +486,8 @@ function ignoresDuLangage(racine) {
  * The removal of the copies of the repository at <racine> (`retirerLesCopiesFinies`), the copy of
  * the night left out, the copies <finies> left out and pruned, their owner having played its pass
  * in them (the night's own, which scripts/nuit.sh names), the tickets read by bd, the tickets
- * whose circuit the server holds <tenus> (null when unread), then of the temporary directories of
- * its closed tickets (`balayerLesTickets`): what the night and the end of each circuit
- * (scripts/circuit.mjs) run. Its lines.
+ * whose circuit the server holds <tenus> (null when unread): what the night and the end of each
+ * circuit (scripts/circuit.mjs) run. Its lines.
  * @param {string} racine the main tree
  * @param {string[]} [finies]
  * @param {Set<string> | null} [tenus]
@@ -511,12 +502,10 @@ export function retirerLesCopiesDuDepot(racine, finies = [], tenus = null) {
     lireFermes: () => tickets(racine, 'closed'),
     ignorer: ignoresDuLangage(racine),
   });
-  const retires = balayerLesTickets(() => tickets(racine, 'closed'));
   // The journal of states, bounded as the other working files (scripts/journal-des-etats.mjs).
   const segments = nettoyerLeJournal(racine).retires;
   return [
     ...lignes,
-    ...retires.map(t => `✓ dossier temporaire du ticket ${t} retiré.`),
     ...segments.map(s => `✓ segment ${s} du journal des états retiré.`),
   ];
 }

@@ -1,5 +1,5 @@
-// grillhouse-xv9: every temporary file belongs to an owner and goes with it, a pass's with its
-// process, an agent's with its ticket, as systemd's PrivateTmp= gives a service a /tmp of its own,
+// grillhouse-xv9: every temporary file belongs to an owner and goes with it, a pass's and an
+// agent's session's with its process, as systemd's PrivateTmp= gives a service a /tmp of its own,
 // destroyed with it, and Bazel a sandbox per action;
 // the caches of compilation live under ~/.cache, as Bazel's output_base, never on the disk in
 // memory that the sessions of the machine share. Witness: the night of 2026-11-01, 25 reds of
@@ -7,11 +7,10 @@
 // the scratchpads of one supervisor held (a Rust target of 2.7 GB, copies of the repository, npm
 // caches), which nothing emptied.
 //
-// The mechanism is the base of a pass (scripts/mesure/base-de-passe.mjs), its owner a process, a
-// ticket or a directory; each case plays it under a trial directory. The launcher's ticket
-// directory and the removal of the closed tickets' bases, which need a trial repository, are the
-// night's
-// (packages/grillhouse-essais/tests/temporaire.nuit.spec.ts).
+// The mechanism is the base of a pass (scripts/mesure/base-de-passe.mjs), its owner a process or a
+// directory; each case plays it under a trial directory. The temporary directory of a session is
+// seances.dossier-de-la-seance.spec.ts's, and the launcher's, which needs a trial repository, the
+// night's (packages/grillhouse-essais/tests/temporaire.nuit.spec.ts).
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -27,13 +26,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import {
-  balayerLesTickets,
-  cacheDeCompilation,
-  cacheDeLaRacine,
-  ouvrirBase,
-  ouvrirBaseDuTicket,
-} from '../../scripts/mesure/base-de-passe.mjs';
+import * as base from '../../scripts/mesure/base-de-passe.mjs';
+import { cacheDeCompilation, cacheDeLaRacine } from '../../scripts/mesure/base-de-passe.mjs';
 import { avecSccache, cibleDeCompilation } from '../../scripts/langages/cargo/sccache.mjs';
 
 const DEPOT = path.resolve(import.meta.dirname, '../..');
@@ -54,41 +48,13 @@ const ENV = Object.fromEntries(
   )
 ) as Record<string, string>;
 
-// Criterion 1, as the owner amended it: an agent's temporary directory is its ticket's (criterion
-// 2), kept from one session and one resumption to the next; the launcher gives it, which the
-// night plays (packages/grillhouse-essais/tests/temporaire.nuit.spec.ts).
-describe('grillhouse-xv9, critères 1 et 2 — un ticket a un dossier temporaire, retiré quand il se ferme', () => {
-  it('`grillhouse temporaire <ticket>` gives the same directory at each call, its owner the ticket', () => {
-    const dans = unDossier('ticket');
-    const t = path.join(dans, 'grillhouse-ticket-demo-3uv.1', 't');
-    expect(ouvrirBaseDuTicket('demo-3uv.1', { dans }).dossier).toBe(t);
-    expect(existsSync(t)).toBe(true);
-    writeFileSync(path.join(t, 'garde'), '');
-    expect(ouvrirBaseDuTicket('demo-3uv.1', { dans }).dossier).toBe(t);
-    expect(existsSync(path.join(t, 'garde'))).toBe(true);
-    expect(proprietaire(path.dirname(t))).toEqual({ ticket: 'demo-3uv.1' });
-    expect(() => ouvrirBaseDuTicket('../x', { dans })).toThrow(
-      /n'est pas l'identifiant d'un ticket/
-    );
-  });
-
-  it('the base of a closed ticket goes, an open one stays, and the sweep of the bases of passes never touches either', () => {
-    const dans = unDossier('balayage');
-    const ferme = ouvrirBaseDuTicket('demo-1', { dans });
-    const ouvert = ouvrirBaseDuTicket('demo-2', { dans });
-    ouvrirBase('passe', { dans }).fermer();
-    expect(existsSync(ferme.base) && existsSync(ouvert.base)).toBe(true);
-    expect(balayerLesTickets(() => new Set(['demo-1']), { dans })).toEqual(['demo-1']);
-    expect(existsSync(ferme.base)).toBe(false);
-    expect(existsSync(ouvert.base)).toBe(true);
-  });
-
-  it('the closed tickets are read only when a ticket has its base there', () => {
-    const dans = unDossier('vide');
-    let lus = 0;
-    expect(balayerLesTickets(() => (lus++, new Set(['demo-1'])), { dans })).toEqual([]);
-    expect(lus).toBe(0);
-  });
+describe('no temporary directory belongs to a ticket', () => {
+  it.each(['ouvrirBaseDuTicket', 'balayerLesTickets', 'ticketDeLaBase'])(
+    'the base of a pass publishes no %s',
+    nom => {
+      expect(Object.keys(base)).not.toContain(nom);
+    }
+  );
 });
 
 describe('grillhouse-xv9, critère 3 — les caches de compilation vont sous ~/.cache/grillhouse/', () => {
@@ -262,14 +228,15 @@ describe('grillhouse-xv9, critère 4 — une passe lourde attend la place au lie
     expect(lignes).toContain('joue');
   });
 
-  it('the wait names the ticket whose temporary directory holds the room', () => {
+  it('the wait names a directory a ticket left as any other entry, by its name and its size', () => {
     const dans = unDossier('ticket-occupe');
     const t = path.join(dans, 'grillhouse-ticket-demo-9', 't');
     mkdirSync(t, { recursive: true });
     writeFileSync(path.join(t, 'gros'), Buffer.alloc(64 * 1024, 1));
     const r = mesurer(dans, `{ libre: () => 0, borneMs: 0 }`);
     expect(r.status).toBe(75);
-    expect(r.stdout).toMatch(/l'occupent : grillhouse-ticket-demo-9 \(le ticket demo-9, /);
+    expect(r.stdout).toMatch(/l'occupent : grillhouse-ticket-demo-9 \(\d+,\d Go\)/);
+    expect(r.stdout).not.toContain('le ticket demo-9');
   });
 
   it('the count of what holds the directory runs only when the wait speaks, never at each turn', () => {
@@ -321,23 +288,35 @@ describe('grillhouse-xv9, critère 4 — une passe lourde attend la place au lie
   });
 });
 
-describe('grillhouse-xv9, critère 5 — la charte et la consigne des agents disent la règle', () => {
-  const lire = (f: string) => readFileSync(path.join(DEPOT, '../..', f), 'utf8');
+describe('the charter and the skills say the temporary directory of a session', () => {
+  // The text of &lt;f&gt;, its lines joined: a rule reads whole, wherever it wraps.
+  const lire = (f: string) =>
+    readFileSync(path.join(DEPOT, '../..', f), 'utf8').replace(/\s+/g, ' ');
+  const CHARTE = 'mods/grillhouse/charte.md';
+  const SUPERVISEUR = 'mods/grillhouse/skills/pitmaster/SKILL.md';
+  const CONSIGNE = 'mods/grillhouse/skills/pitmaster/references/consigne-agent.md';
 
-  it('the common charter: a temporary file dies with its owner, an agent’s with its ticket, the caches under ~/.cache/grillhouse', () => {
-    const regle = lire('mods/grillhouse/charte.md')
-      .split('\n- ')
-      .find(l => l.startsWith('**Un fichier temporaire meurt avec son propriétaire**'));
-    expect(regle).toBeDefined();
-    expect(regle).toMatch(/le temps de son ticket/);
-    expect(regle).toMatch(/jamais dans le seul dossier temporaire/);
-    expect(regle).toMatch(/~\/\.cache\/grillhouse\//);
-    expect(regle).toMatch(/npx grillhouse temporaire <ticket>/);
+  it('the common charter: an agent writes in its session’s directory, empty at its start and removed at its end', () => {
+    expect(lire(CHARTE)).toContain(
+      "un agent écrit sous celui de sa séance, que donne `npx grillhouse temporaire`, vide à son départ et retiré à sa fin, même interrompue, comme une passe ; ce qu'un agent doit avoir pour reprendre vit dans la copie du ticket ou sa passation, jamais dans le dossier temporaire, qui ne porte que ce qui se refait."
+    );
   });
 
-  it('the instruction of the agents carries it', () => {
-    expect(lire('mods/grillhouse/skills/pitmaster/references/consigne-agent.md')).toMatch(
-      /Ton dossier temporaire est celui de ton ticket[^\n]*ce qu'il te faut pour reprendre vit dans ta copie ou ta passation, jamais dans le seul dossier temporaire/
+  it('the common charter sends a temporary file to the scratchpad or to the session’s directory', () => {
+    expect(lire(CHARTE)).toContain('ou dans le dossier temporaire de la séance');
+  });
+
+  it.each([CHARTE, SUPERVISEUR, CONSIGNE])('%s names no temporary directory of a ticket', f => {
+    expect(lire(f)).not.toMatch(
+      /temporaire <ticket>|dossier temporaire (d'un|du|de ton|de son) ticket|dossier temporaire est celui de ton ticket/i
     );
+  });
+
+  it('the instruction of the agents says the directory is the session’s', () => {
+    expect(lire(CONSIGNE)).toMatch(/dossier temporaire[^.]*de ta séance/);
+  });
+
+  it('the supervisor’s skill sends the temporary files of its sub-agents to the scratchpad', () => {
+    expect(lire(SUPERVISEUR)).toMatch(/sous-agent[^.]*scratchpad/);
   });
 });

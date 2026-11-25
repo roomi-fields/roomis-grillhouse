@@ -1,14 +1,15 @@
 // @equipee: l'enveloppe bwrap
-// grillhouse-xv9: an agent's temporary directory lives the time of its ticket, as the owner
-// amended criterion 1 (2026-11-01): the launcher gives the session of the envelope the ticket's
-// directory (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), kept from one session and one
-// resumption to the next; the removal of the finished copies (scripts/copies-finies.mjs) removes it
-// once the ticket is closed, and only then, frozen or not, as a retention policy fixed in advance.
-// The rest is the day's (packages/grillhouse/tests/unit/dossier-temporaire.spec.ts).
+// The temporary directory of a session of the envelope, as GitHub Actions gives each job a new
+// runner and Bazel each action its TEST_TMPDIR: the launcher (scripts/enveloppe/lancer.sh) opens a
+// base of a pass (scripts/mesure/base-de-passe.mjs) of its own, removes it at its end, even
+// interrupted, and the next session sweeps the one of a launcher killed. The removal of the
+// finished copies (scripts/copies-finies.mjs) treats no directory of a ticket. A session out of the
+// envelope is the day's (packages/grillhouse/tests/unit/seances.dossier-de-la-seance.spec.ts).
 import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -19,23 +20,15 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CADRE, enProcessus } from './cadre.js';
+import { CADRE } from './cadre.js';
 
 const LANCER = path.join(CADRE, 'scripts/enveloppe/lancer.sh');
 const COPIES = path.join(CADRE, 'scripts/retirer-les-copies-finies.mjs');
-const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
-  'scripts/mesure/base-de-passe.mjs',
-  'ouvrirBaseDuTicket'
-);
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'temporaire-nuit-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const LONG = 60_000;
 const unDossier = (nom: string) => mkdtempSync(path.join(ESSAIS, `${nom}-`));
-const noms = (dans: string, prefixe: string) =>
-  readdirSync(dans).filter(n => n.startsWith(prefixe));
-const proprietaire = (base: string) =>
-  JSON.parse(readFileSync(path.join(base, '.grillhouse-base'), 'utf8')) as Record<string, unknown>;
 const attendre = (ms: number) => new Promise(r => setTimeout(r, ms));
 async function jusqua(condition: () => boolean, ms = 30_000) {
   const fin = Date.now() + ms;
@@ -63,7 +56,8 @@ const git = (r: string, ...a: string[]) => {
 
 // A trial repository the launcher judges and begins to prepare: its language declared, an
 // instruction of its ticket; its hook post-checkout, which `git worktree add` runs while the
-// launcher prepares the copy, writes the TMPDIR, TMP and TEMP it receives to <trace>, then waits.
+// launcher prepares the copy, writes to <trace> the TMPDIR, TMP and TEMP it receives, then the
+// owner of that directory's base, writes a file there, then waits.
 function depot(trace: string) {
   const r = unDossier('depot');
   git(r, 'init', '-q', '-b', 'main');
@@ -76,7 +70,13 @@ function depot(trace: string) {
   const crochet = path.join(r, '.git', 'hooks', 'post-checkout');
   writeFileSync(
     crochet,
-    `#!/bin/sh\nprintf '%s %s %s\\n' "$TMPDIR" "$TMP" "$TEMP" > ${JSON.stringify(trace)}\nexec sleep 30\n`
+    `#!/bin/sh
+printf '%s %s %s\\n' "$TMPDIR" "$TMP" "$TEMP" > ${JSON.stringify(trace)}.tmp
+cat "$TMPDIR/../.grillhouse-base" >> ${JSON.stringify(trace)}.tmp 2>/dev/null
+echo ecrit > "$TMPDIR/ecrit"
+mv ${JSON.stringify(trace)}.tmp ${JSON.stringify(trace)}
+exec sleep 30
+`
   );
   chmodSync(crochet, 0o755);
   const consigne = path.join(r, 'consigne.md');
@@ -84,36 +84,79 @@ function depot(trace: string) {
   return { r, consigne };
 }
 
-describe('grillhouse-xv9, critère 1 — la séance d’un agent reçoit le dossier temporaire de son ticket', () => {
+// A launch of the launcher, stopped in the preparation of its copy, its temporary directory
+// <dans>: the process, its end, and what the hook saw.
+async function lancement(dans: string) {
+  const trace = path.join(unDossier('trace'), 'temporaire');
+  const { r, consigne } = depot(trace);
+  const p = spawn('bash', [LANCER, 't-1', 'testwriter', '.', consigne], {
+    cwd: r,
+    env: { ...ENV, TMPDIR: dans },
+    detached: true,
+    stdio: 'ignore',
+  });
+  const fin = new Promise(ok => p.on('exit', ok));
+  await jusqua(() => existsSync(trace));
+  const [variables = '', proprio = ''] = readFileSync(trace, 'utf8').split('\n');
+  const [dossier = '', tmp, temp] = variables.split(' ');
+  return {
+    p,
+    fin,
+    dossier,
+    tmp,
+    temp,
+    proprietaire: JSON.parse(proprio || '{}') as { pid?: number },
+    arreter: async (signal: NodeJS.Signals) => {
+      process.kill(-(p.pid ?? 0), signal);
+      await fin;
+    },
+  };
+}
+
+describe('a session of the envelope has a temporary directory of its own', () => {
   it(
-    "the ticket's directory is the session's TMPDIR, TMP and TEMP, and stays once the launch ends, for the next session",
+    'the preparation of its copy writes in a base of the pass under TMPDIR, TMP and TEMP, owned by the launcher, removed when the launch is interrupted',
     async () => {
       const dans = unDossier('lanceur');
-      const trace = path.join(unDossier('trace'), 'temporaire');
-      const { r, consigne } = depot(trace);
-      const p = spawn('bash', [LANCER, 't-1', 'testwriter', '.', consigne], {
-        cwd: r,
-        env: { ...ENV, TMPDIR: dans },
-        detached: true,
-        stdio: 'ignore',
-      });
-      const fin = new Promise(ok => p.on('exit', ok));
-      await jusqua(() => existsSync(trace) && readFileSync(trace, 'utf8').endsWith('\n'));
-      const t = path.join(dans, 'grillhouse-ticket-t-1', 't');
-      expect(readFileSync(trace, 'utf8').trim()).toBe(`${t} ${t} ${t}`);
-      expect(proprietaire(path.dirname(t))).toEqual({ ticket: 't-1' });
-      writeFileSync(path.join(t, 'refait'), '');
-      process.kill(-(p.pid ?? 0), 'SIGTERM');
-      await fin;
-      expect(existsSync(path.join(t, 'refait'))).toBe(true);
+      const l = await lancement(dans);
+      try {
+        expect([l.tmp, l.temp]).toEqual([l.dossier, l.dossier]);
+        expect(path.basename(l.dossier)).toBe('t');
+        const base = path.dirname(l.dossier);
+        expect(path.dirname(base)).toBe(dans);
+        expect(path.basename(base)).toMatch(/^grillhouse-/);
+        expect(path.basename(base)).not.toMatch(/^grillhouse-ticket-/);
+        expect(l.proprietaire.pid).toBe(l.p.pid);
+      } finally {
+        await l.arreter('SIGTERM');
+      }
+      expect(existsSync(path.dirname(l.dossier))).toBe(false);
+    },
+    LONG
+  );
+
+  it(
+    'the directory of a launcher killed is swept by the next session, which has another',
+    async () => {
+      const dans = unDossier('tue');
+      const tue = await lancement(dans);
+      await tue.arreter('SIGKILL');
+      const suivant = await lancement(dans);
+      try {
+        expect(suivant.dossier).not.toBe(tue.dossier);
+        expect(existsSync(path.dirname(tue.dossier))).toBe(false);
+        expect(readdirSync(suivant.dossier)).toEqual(['ecrit']);
+      } finally {
+        await suivant.arreter('SIGTERM');
+      }
     },
     LONG
   );
 });
 
-describe('grillhouse-xv9, critère 2 — le dossier temporaire d’un ticket fermé part avec ses copies finies', () => {
+describe('the removal of the finished copies treats no temporary directory of a ticket', () => {
   it(
-    'the removal of the finished copies removes the base of each closed ticket, and keeps every other, frozen or not',
+    'leaves the directory a ticket left, closed or not, and says nothing of it',
     () => {
       const dans = unDossier('copies');
       const r = unDossier('depot-copies');
@@ -124,17 +167,17 @@ describe('grillhouse-xv9, critère 2 — le dossier temporaire d’un ticket fer
         `#!/bin/sh\ncase "$*" in *closed*) echo '[{"id":"demo-1"}]' ;; *) echo '[]' ;; esac\n`
       );
       chmodSync(path.join(bin, 'bd'), 0o755);
-      // demo-2 is open, or frozen: its directory stays as long as it is not closed.
-      ouvrirBaseDuTicket('demo-1', { dans });
-      ouvrirBaseDuTicket('demo-2', { dans });
+      const ancien = path.join(dans, 'grillhouse-ticket-demo-1');
+      mkdirSync(path.join(ancien, 't'), { recursive: true });
+      writeFileSync(path.join(ancien, '.grillhouse-base'), '{"ticket":"demo-1"}\n');
       const x = spawnSync(process.execPath, [COPIES], {
         cwd: r,
         encoding: 'utf8',
         env: { ...ENV, TMPDIR: dans, PATH: `${bin}${path.delimiter}${ENV.PATH ?? ''}` },
       });
       expect(x.status, x.stderr).toBe(0);
-      expect(x.stdout).toContain('✓ dossier temporaire du ticket demo-1 retiré.');
-      expect(noms(dans, 'grillhouse-ticket-')).toEqual(['grillhouse-ticket-demo-2']);
+      expect(x.stdout).not.toContain('dossier temporaire');
+      expect(existsSync(ancien)).toBe(true);
     },
     LONG
   );

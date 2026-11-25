@@ -88,7 +88,7 @@ Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commit
 
 Les outils se prennent dans le `node_modules` de ta copie.
 
-Ton dossier temporaire est celui de ton ticket : `$TMPDIR` le nomme, il reste d'une séance et d'une reprise à l'autre, gel compris, et part quand le ticket se ferme ; il ne porte que ce qui se refait : ce qu'il te faut pour reprendre vit dans ta copie ou ta passation, jamais dans le seul dossier temporaire. Tu n'y mets ni copie du dépôt, ni `node_modules`, ni cache de compilation ; un cache va sous `~/.cache/grillhouse/`. Ainsi le disque en mémoire du poste, que partagent ses séances, ne sature jamais.
+Ton dossier temporaire est celui de ta séance : `$TMPDIR` le nomme, il est vide à son départ et retiré à sa fin, même interrompue, une reprise partant d'un dossier neuf ; il ne porte que ce qui se refait : ce qu'il te faut pour reprendre vit dans ta copie ou ta passation, jamais dans le dossier temporaire. Tu n'y mets ni copie du dépôt, ni `node_modules`, ni cache de compilation ; un cache va sous `~/.cache/grillhouse/`. Ainsi le disque en mémoire du poste, que partagent ses séances, ne sature jamais.
 ```
 
 ## Relecteur (rempli par le circuit)

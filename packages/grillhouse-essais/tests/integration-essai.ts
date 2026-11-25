@@ -510,8 +510,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
   const cadre = path.join(bin, 'cadre');
   const lanceur = path.join(cadre, 'scripts/enveloppe/lancer.sh');
   // The temporary directory of the launches of this site, as Bazel gives each test its
-  // TEST_TMPDIR: the launcher opens there the temporary directory of each ticket
-  // (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`), never in one a neighbour file shares;
+  // TEST_TMPDIR: the launcher opens there the temporary directory of each session
+  // (scripts/mesure/base-de-passe.mjs, `ouvrirBase`), never in one a neighbour file shares;
   // it goes with the trial root of the file.
   const temporaire = mkdtempSync(path.join(bin, 'tmp-'));
   const lancer = (id: string): SpawnSyncReturns<string> => {

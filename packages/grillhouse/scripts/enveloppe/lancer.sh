@@ -32,8 +32,9 @@
 #   mounts in writing over the real directory, so that a transcript outlives its session). The
 #   circuit gives them, so that a relaunch of an agent on its step resumes its session. The two
 #   together are refused, CODE_USAGE; each takes a value as --modele does.
-#   A resumed session receives its instruction alone: the session it resumes holds the sections
-#   the launcher adds below, save « La construction échoue », which it receives.
+#   A resumed session receives its instruction and the sections « Ton dossier de travail » (its
+#   directory is new) and « La construction échoue »: the session it resumes holds the other
+#   sections the launcher adds below.
 # - The agent's copy is the worktree .claude/worktrees/<ticket> (branch agent/<ticket>), created
 #   from the main tree's HEAD when absent and moved forward to it otherwise. When the branch exists
 #   without a copy, it is brought back to the main tree's HEAD and the copy is made on it: the lot
@@ -84,10 +85,13 @@
 #   CODE_COPIE), then the
 #   section « Ton dossier de travail », which names the session's working directory, where every
 #   temporary file goes (`dossierDeTravail` of enveloppe.mjs, the envelope's TMPDIR, TMP and TEMP,
-#   in the temporary directory of the ticket, which the launcher opens once the call is judged and
-#   which stays from one session and one resumption to the next, removed when the ticket is
-#   closed, scripts/mesure/base-de-passe.mjs), then the
-#   section « La construction échoue » when it fails. The prompt
+#   in the temporary directory of the session), then the
+#   section « La construction échoue » when it fails. The temporary directory of the session is a
+#   base of a pass (scripts/mesure/base-de-passe.mjs) which the launcher, its owner, opens once the
+#   call is judged, empty: its TMPDIR, TMP and TEMP, those of the preparation of the copy and of
+#   the session, whatever CLAUDE_CODE_TMPDIR the poste holds. It goes when the launcher ends, even
+#   interrupted, once the witness and the marks the session left there are ranged in the folder of
+#   the session; the next session sweeps the one of a launcher killed. The prompt
 #   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
 #   the session runs without permission prompts, under the rights and the context of its role
 #   (scripts/droits.mjs, given the main tree, the copy and the ticket; a reading that fails stops
@@ -192,13 +196,39 @@ demarree="$rang/demarree"
 mkdir -p "$(dirname "$copie")" "$rang"
 rm -f "$fin" "$resultat" "$hors_plan" "$hors_plan_fait" "$demarree"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
-# The temporary directory of the ticket (`ouvrirBaseDuTicket`, scripts/mesure/base-de-passe.mjs):
-# TMPDIR, TMP and TEMP of the rest of the launch and of the session, whose scratchpads and working
-# directory lie in it. It stays from one session and one resumption of the ticket to the next, and
-# goes when the ticket is closed (scripts/copies-finies.mjs).
-temporaire=$(node "$ici/../mesure/base-de-passe.mjs" "$ticket" 2>> "$journal") \
-  || { echo "⛔ Le dossier temporaire du ticket n'a pas pu s'ouvrir : voir $journal." >&2; exit "$CODE_COPIE"; }
+# The temporary directory of the session, a base this shell owns: TMPDIR, TMP and TEMP of the rest
+# of the launch and of the session, whose scratchpads and working directory lie in it.
+temporaire=$(node --input-type=module -e "import { ouvrirBase } from '$ici/../mesure/base-de-passe.mjs'; process.stdout.write(ouvrirBase('seance', { pid: Number(process.argv[1]) }).dossier);" "$$" 2>> "$journal") \
+  || { echo "⛔ Le dossier temporaire de la séance n'a pas pu s'ouvrir : voir $journal." >&2; exit "$CODE_COPIE"; }
 export TMPDIR="$temporaire" TMP="$temporaire" TEMP="$temporaire"
+unset CLAUDE_CODE_TMPDIR
+travail=
+# What the circuit reads after the session leaves its working directory for the session's folder:
+# the witness that the envelope started its command (a launch the envelope refuses before the
+# session, a mount bwrap cannot make, leaves none), and the reason of a session its lock stopped
+# out of the plan (scripts/verrous/verrou.mjs), added to the log.
+ranger() {
+  [ -n "$travail" ] || return 0
+  if [ -f "$travail/.demarree" ]; then
+    mv "$travail/.demarree" "$demarree"
+  fi
+  if [ -f "$travail/hors-plan" ]; then
+    mv "$travail/hors-plan" "$hors_plan"
+    { cat "$hors_plan"; echo; } >> "$journal"
+  fi
+  if [ -f "$travail/hors-plan.json" ]; then
+    mv "$travail/hors-plan.json" "$hors_plan_fait"
+  fi
+}
+# The directory goes at the end of the launcher, whatever ends it.
+fermer() {
+  ranger || true
+  rm -rf -- "${temporaire%/t}" || true
+}
+trap fermer EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 # The output of the session's build, when it fails, behind its first line, which says what failed
 # and what was built: the module's command `construire` writes it.
 echec=$(mktemp)
@@ -250,10 +280,6 @@ publie=$(cd "$copie" && node "$ici/../../bin/grillhouse.mjs" index-interfaces --
 # The session's working directory, the one the envelope gives as TMPDIR, follows them.
 travail=$(node --input-type=module -e "import { dossierDeTravail } from '$ici/enveloppe.mjs'; process.stdout.write(dossierDeTravail(process.argv[1]));" "$copie" 2>> "$journal") \
   || { rm -f "$echec"; echo "⛔ Le dossier de travail de la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
-# The mark a lock leaves there when it stops the session out of the plan, and the witness the
-# envelope's command leaves there at its start (`TEMOIN_DE_DEMARRAGE` of enveloppe.mjs): none before
-# the session.
-rm -f "$travail/hors-plan" "$travail/.demarree"
 dossier=$'\n\n'"## Ton dossier de travail"$'\n\n'"Tout fichier temporaire s'écrit dans \`$travail\`, que \`\$TMPDIR\` nomme aussi."
 construction=
 if [ -s "$echec" ]; then
@@ -262,10 +288,11 @@ fi
 rm -f "$echec"
 # The prompt, assembled in a file: claude reads it on its standard input, since as an argument it
 # may pass the size Linux allows one (MAX_ARG_STRLEN, 128 KiB).
-# A resumed session holds the sections of its first instruction: only a failed build is news.
+# A resumed session holds the sections of its first instruction: its new working directory and a
+# failed build alone are news.
 prompt=$(mktemp)
 if [ -n "$reprise" ]; then
-  printf '%s' "$(cat "$consigne")$construction" > "$prompt"
+  printf '%s' "$(cat "$consigne")$dossier$construction" > "$prompt"
 else
   printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
 fi
@@ -296,20 +323,7 @@ else
   lancer_claude >> "$journal" 2>&1 || code=$?
 fi
 rm -f "$prompt"
-# The witness that the envelope started its command goes to the circuit: a launch the envelope
-# refuses before the session (a mount bwrap cannot make) leaves none.
-if [ -f "$travail/.demarree" ]; then
-  mv "$travail/.demarree" "$demarree"
-fi
-# A session its lock stopped out of the plan (scripts/verrous/verrou.mjs): its reason goes to the
-# circuit, and to the log.
-if [ -f "$travail/hors-plan" ]; then
-  mv "$travail/hors-plan" "$hors_plan"
-  { cat "$hors_plan"; echo; } >> "$journal"
-fi
-if [ -f "$travail/hors-plan.json" ]; then
-  mv "$travail/hors-plan.json" "$hors_plan_fait"
-fi
+ranger
 echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.
 node "$ici/../registre.mjs" --copie "$copie" >> "$journal" 2>&1 || true

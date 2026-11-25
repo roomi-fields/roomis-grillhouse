@@ -13,10 +13,9 @@ const TEMPORAIRES = ['TMPDIR', 'TMP', 'TEMP'] as const;
 // The temporary directory of the test file that calls it, as Bazel gives each test its
 // TEST_TMPDIR: made by mkdtemp in the temporary directory of the run, named in TMPDIR, TMP and TEMP
 // of the test process from the call to the end of the file, so that every process the file starts
-// inherits it, the launcher among them, which opens there the temporary directory of each ticket
-// (scripts/mesure/base-de-passe.mjs, `ouvrirBaseDuTicket`); removed at the end of the file, red or
-// green, with all that the file made there, the variables given back. Two files that launch a
-// ticket of the same name never share its temporary directory. Called before the file reads
+// inherits it, the launcher among them, which opens there the temporary directory of each session
+// (scripts/mesure/base-de-passe.mjs, `ouvrirBase`); removed at the end of the file, red or green,
+// with all that the file made there, the variables given back. Called before the file reads
 // process.env into the environment of its launches.
 export function temporaireDuFichier(): string {
   const avant = TEMPORAIRES.map(v => [v, process.env[v]] as const);

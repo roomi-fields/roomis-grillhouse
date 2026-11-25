@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { CADRE, RACINE, enProcessus } from './cadre.js';
+import { CADRE, RACINE } from './cadre.js';
 
 // The trial directories of this run live in one root, removed at its end (grillhouse-3uv.34).
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'nuit-'));
@@ -114,26 +114,7 @@ const ouvert = (id: string, cause: string) => ({
   title: `${id.split('-').pop()} — La nuit est rouge sur « ${cause} » depuis la nuit du 2026-10-20 — parent`,
 });
 
-// The temporary directory of a ticket, as the launcher opens it for a session (grillhouse-xv9).
-const ouvrirBaseDuTicket = enProcessus<{ base: string; dossier: string }>(
-  'scripts/mesure/base-de-passe.mjs',
-  'ouvrirBaseDuTicket'
-);
-
 describe('the night', () => {
-  // grillhouse-1eq: on the night of 2026-11-02, the launcher's trials, beside this file in the
-  // same pass, left their tickets' directories in the temporary directory of the pass; the night
-  // of trial read them, and asked the fake bd for the closed tickets (13 reds).
-  it("grillhouse-1eq — a ticket's directory a neighbour file leaves in the common temporary directory: the night of trial does not see it", () => {
-    const voisin = ouvrirBaseDuTicket('demo-voisin-nuit');
-    try {
-      const m = monde();
-      expect(m.nuit().status).toBe(0);
-      expect(m.appels()).toBe('');
-    } finally {
-      rmSync(voisin.base, { recursive: true, force: true });
-    }
-  });
   it('marks a green HEAD as the last green, and opens nothing', () => {
     const m = monde();
     expect(m.nuit().status).toBe(0);

@@ -307,7 +307,7 @@ dossier.
 ## Outils
 
 - ⛔ **Des commandes sans invite** : tout fichier temporaire dans le scratchpad de session, ou
-  dans le dossier temporaire du ticket ;
+  dans le dossier temporaire de la séance ;
   `env -C <dossier>` ou `git -C` à la place de `cd`, et le greffon refuse une commande qui
   commence par `cd` ; une suppression passe par un script node du
   scratchpad (`rmSync` de `node:fs`) sur un chemin nommé et lu ; un signal vise seulement un
@@ -328,14 +328,13 @@ dossier.
 - **Un fichier temporaire meurt avec son propriétaire** : une passe ou une séance hors ticket (la
   nuit, une vérification) écrit sous un dossier temporaire à elle, retiré à sa fin, même
   interrompue, et balayé par la suivante quand son processus est tué ; un agent écrit sous celui
-  de son ticket, que donne `npx grillhouse temporaire <ticket>`, qui vit le temps de son ticket,
-  d'une séance et d'une reprise à l'autre, gel compris, et part quand le ticket se ferme. Ce qu'un
-  agent doit avoir pour
-  reprendre vit dans la copie du ticket ou sa passation, jamais dans le seul dossier temporaire,
-  qui ne porte que ce qui se refait. Le dossier temporaire ne tient ni copie du dépôt, ni
-  `node_modules`, ni cache : un cache de compilation va sous `~/.cache/grillhouse/`. Une passe
-  qui ne trouve pas la place de disque qu'elle exige attend, et dit ce qui l'occupe (le document de
-  la machine, §5.2). Ainsi le poste ne sature jamais ses disques.
+  de sa séance, que donne `npx grillhouse temporaire`, vide à son départ et retiré à sa fin, même
+  interrompue, comme une passe ; ce qu'un agent doit avoir pour reprendre vit dans la copie du
+  ticket ou sa passation, jamais dans le dossier temporaire, qui ne porte que ce qui se refait. Le
+  dossier temporaire ne tient ni copie du dépôt, ni `node_modules`, ni cache : un cache de
+  compilation va sous `~/.cache/grillhouse/`. Une passe qui ne trouve pas la place de disque
+  qu'elle exige attend, et dit ce qui l'occupe (le document de la machine, §5.2). Ainsi le poste ne
+  sature jamais ses disques.
 - **Main reste vert** : la file n'avance main que sur l'arbre que la passe finale du circuit (ou,
   hors du circuit, la vérification du lot direct) a jugé vert, le lot posé sur la pointe de main ;
   elle n'attend aucune CI de branche. La CI du projet rejoue ensuite main entier, par paquets de

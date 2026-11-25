@@ -50,7 +50,7 @@
 //   cache, `npm_config_ignore_scripts=true` (npm runs no lifecycle script; `npm test` and
 //   `npm run <script>` still run their script, without its `pre` or `post`), and `TMPDIR`, `TMP`
 //   and `TEMP`, the session's working directory (under a launch, the temporary directory of the
-//   ticket, scripts/enveloppe/lancer.sh). No other variable of the machine (`GH_TOKEN`,
+//   session, scripts/enveloppe/lancer.sh). No other variable of the machine (`GH_TOKEN`,
 //   `NPM_TOKEN`…) enters. It also gets `GRILLHOUSE_ENVELOPPE`, the packages of the plan
 //   (`paquets-du-plan.mjs`): the frame's commands build, judge and write those packages only, and
 //   its lock refuses a write out of them. A declared variable that names a path
