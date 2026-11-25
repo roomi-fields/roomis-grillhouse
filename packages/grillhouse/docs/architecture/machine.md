@@ -333,7 +333,7 @@ Le relevé écrit une ligne pour chaque étape, séance comme passe. Une étape 
 
 ### 5.7 La fermeture de la machine
 
-`grillhouse machine fermer` inscrit la fermeture chez l'arbitre : aucune place ni réservation ne s'accorde plus, à aucun projet, et ce qui tourne finit son étape. La commande rend la main aussitôt, en disant ce qui tourne par projet et par ticket ; avec `--attendre`, elle attend que la machine soit vide. `grillhouse machine rouvrir` retire la fermeture, et les demandes en attente s'accordent d'elles-mêmes. La fermeture survit au redémarrage du poste.
+`grillhouse machine fermer` inscrit la fermeture chez l'arbitre : aucune place ni réservation ne s'accorde plus, à aucun projet, et ce qui tourne finit son étape. La commande rend la main aussitôt, en disant ce qui tourne par projet et par ticket ; avec `--attendre`, elle attend que la machine soit vide. `grillhouse machine rouvrir` retire la fermeture, et les demandes en attente s'accordent d'elles-mêmes. La fermeture refuse le travail neuf seul, ni les étapes déjà admises ni les gestes de la maintenance (le drain d'un nœud garde les pods du système) : une passe lancée par une séance déjà admise, sous sa place tenue (`GRILLHOUSE_PLACE_TENUE`), prend sa part, si bien que chaque étape en cours finit ; la montée se fait une fois les étapes finies, et sa vérification (sorte « Montée », que pose `grillhouse maj`, ou le superviseur par `GRILLHOUSE_VERIFICATION_SORTE=Montée`) prend sa part sous la fermeture. La fermeture survit au redémarrage du poste.
 
 ## 6. Exécution
 

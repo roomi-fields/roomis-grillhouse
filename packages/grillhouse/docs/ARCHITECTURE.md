@@ -2306,16 +2306,21 @@ machine rouvrir`. La commande rend la main aussitôt (comme `cordon`) en disant,
   vide » quand rien ne joue, `--attendre` ne la rendant qu'à la machine vide (comme `drain`) ;
   relancée, elle relit cet état, et dit depuis quand dure la fermeture. Fermer une machine fermée,
   ou rouvrir une machine ouverte, réussit sans effet et le dit. La passe d'une nuit lancée sous la
-  fermeture attend sans borne la réouverture, comme toute passe. `lesPlaces` porte `fermeture`
+  fermeture attend sans borne la réouverture, comme toute passe neuve. `lesPlaces` porte `fermeture`
   (`{ auteur, depuis, phase }`, `phase` `attend` ou `vide`) et le tableau dit « machine fermée par
   le superviseur », depuis quand.
   **La fermeture ferme aussi la part des passes** (grillhouse-3uv.147.1 ; `kubectl cordon` : un
-  nœud fermé ne reçoit aucun travail neuf, de quelque sorte) : `lesPlaces` porte `reservation`
+  nœud fermé ne reçoit aucun travail neuf ; le drain y laisse les pods du système) : `lesPlaces` porte `reservation`
   (`{ auteur }`, null sans fermeture), et `prendreUnePart` la lit à chaque tour de sa
   boucle d'attente, avant le verrou d'admission et non sous lui, par la lecture des places du
   serveur, bornée par le délai d'un appel ; une lecture qui échoue ou dépasse son délai vaut « pas de
   réservation » (le serveur muet ne bloque aucune passe). `refusDePart` la reçoit : la fermeture du
-  superviseur refuse toute passe (« machine fermée par le superviseur »). Sous la fermeture la passe attend sans
+  superviseur refuse toute passe neuve (« machine fermée par le superviseur »). Deux passes ne sont pas du
+  travail neuf, et `prendreUnePart` ne lit pas pour elles la réservation : celle qu'une séance déjà admise
+  lance sous sa place tenue (`GRILLHOUSE_PLACE_TENUE`), si bien que chaque étape en cours finit ; la
+  vérification de la montée (sorte « Montée », `SORTE_DE_LA_MONTEE`), geste de la maintenance, que
+  `grillhouse maj` pose et que son rapport nomme au superviseur quand il la lui laisse
+  (`GRILLHOUSE_VERIFICATION_SORTE=Montée npm run verifier`). Sous la fermeture la passe neuve attend sans
   borne, sa part « attend » écrite au dossier des parts avec cette raison (le tableau et `machine
 fermer --attendre` la voient attendre), et la prend à la réouverture. Une part déjà « tient » finit ; une part « attend » quand la machine
   ferme attend.

@@ -194,3 +194,31 @@ describe('la part d’une passe hors de toute réservation', () => {
     expect(e.appels()).toBe(0);
   });
 });
+
+describe('la part d’une passe de maintenance ou d’une séance déjà admise sous la fermeture', () => {
+  it('une passe lancée sous une place tenue (GRILLHOUSE_PLACE_TENUE) prend sa part sans lire la fermeture', () => {
+    const env = poste({ GRILLHOUSE_PLACE_TENUE: 'une-place' });
+    const e = essai(env, [FERMEE]);
+    const prise = e.prendre();
+    expect(prise.part).not.toBeNull();
+    expect(e.appels()).toBe(0);
+    expect(e.dit.join('\n')).not.toMatch(/machine fermée par le superviseur/);
+    prise.rendre();
+  });
+
+  it('la vérification de la montée (sorte « Montée ») prend sa part poste fermé', () => {
+    const env = poste({ GRILLHOUSE_VERIFICATION_SORTE: 'Montée' });
+    const e = essai(env, [FERMEE]);
+    const prise = e.prendre();
+    expect(prise.part).not.toBeNull();
+    expect(e.appels()).toBe(0);
+    prise.rendre();
+  });
+
+  it('une passe ordinaire sans place tenue reste refusée poste fermé', () => {
+    const env = poste({ GRILLHOUSE_VERIFICATION_SORTE: 'Intégration' });
+    const e = essai(env, [FERMEE, null]);
+    e.prendre().rendre();
+    expect(e.dit.join('\n')).toMatch(/machine fermée par le superviseur/);
+  });
+});

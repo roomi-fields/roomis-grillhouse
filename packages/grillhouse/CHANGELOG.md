@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **A closed machine lets the stages under way and the upgrade verify** (grillhouse-3uv.246): decided by the owner (2026-11-25). Under `grillhouse machine fermer`, a pass launched by a session already admitted (a place held, `GRILLHOUSE_PLACE_TENUE`) and the verification of the upgrade (sort « Montée ») take their part; only new work is refused, as a drain keeps the pods of the system. `grillhouse maj` runs `npm run verifier` under that sort, and its report names the command when it leaves the verification to the supervisor. **Action for projects**: none; under a closed machine, play the verification the report leaves with `GRILLHOUSE_VERIFICATION_SORTE=Montée npm run verifier`.
+
 ## [0.50.3] - 2026-11-25
 
 - **An integration test that reads `env!("CARGO_BIN_EXE_<bin>")` compiles again** (grillhouse-3uv.251): the short wrapper of sccache of 0.50.2 ran under `sh`, which drops a variable whose name holds a hyphen, so a binary named like `osd-reference` failed to compile (seen by OSD). The wrapper runs under bash, in a new file of the cache (`sccache-court-bash`). **Action for projects**: none.

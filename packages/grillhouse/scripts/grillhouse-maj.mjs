@@ -64,6 +64,7 @@ import { pathToFileURL } from 'node:url';
 import { CADRE, VERSION } from './cadre.mjs';
 import { installerBinaires } from './binaires.mjs';
 import { poserCrochets } from './crochets.mjs';
+import { SORTE_DE_LA_MONTEE } from './places-de-la-machine.mjs';
 import { ATTRIBUT } from './fusion-du-changelog.mjs';
 import { fluxSansEntree } from './flux-des-paquets.mjs';
 import { installerGreffons } from './greffons.mjs';
@@ -538,13 +539,15 @@ export const aInstaller = b => b.dependances.length > 0 || b.duLangage.installer
 // erreur }`, the code of `npm run verifier` (null when it is not played), the line of the report,
 // and whether it goes on the error stream. <sansVerifier>: the language's line on a project
 // without script `verifier`.
-function verifier(projet, { fichiersAFinir, installer, sansVerifier }) {
+export function verifier(projet, { fichiersAFinir, installer, sansVerifier }) {
   const VERT_INTACT = 'le dernier vert reste où il était';
+  // The verification left to the supervisor, under the closed machine too.
+  const POSTE_FERME = ` Machine fermée : \`GRILLHOUSE_VERIFICATION_SORTE=${SORTE_DE_LA_MONTEE} npm run verifier\`.`;
   if (fichiersAFinir) {
     return {
       code: null,
       erreur: true,
-      ligne: `Vérification non jouée : la mise à jour laisse à faire ci-dessus ; ${VERT_INTACT}. Fais-le, puis \`npm run verifier\`.`,
+      ligne: `Vérification non jouée : la mise à jour laisse à faire ci-dessus ; ${VERT_INTACT}. Fais-le, puis \`npm run verifier\`.${POSTE_FERME}`,
     };
   }
   if (typeof lireJson(path.join(projet, 'package.json'), {})?.scripts?.verifier !== 'string') {
@@ -560,10 +563,16 @@ function verifier(projet, { fichiersAFinir, installer, sansVerifier }) {
     return {
       code: null,
       erreur: false,
-      ligne: `Vérification non jouée : \`npm install\` d’abord, qui installe ce que la mise à jour déclare, puis \`npm run verifier\` ; ${VERT_INTACT}.`,
+      ligne: `Vérification non jouée : \`npm install\` d’abord, qui installe ce que la mise à jour déclare, puis \`npm run verifier\` ; ${VERT_INTACT}.${POSTE_FERME}`,
     };
   }
-  const r = spawnSync('npm', ['run', 'verifier'], { cwd: projet, stdio: 'inherit' });
+  // The update is a gesture of the maintenance window of the machine closed by the supervisor
+  // (`grillhouse machine fermer`): its pass is of the sort « Montée », which the closure does not refuse.
+  const r = spawnSync('npm', ['run', 'verifier'], {
+    cwd: projet,
+    stdio: 'inherit',
+    env: { ...process.env, GRILLHOUSE_VERIFICATION_SORTE: SORTE_DE_LA_MONTEE },
+  });
   const code = r.status ?? 1;
   if (code === 0) {
     return {
@@ -577,7 +586,7 @@ function verifier(projet, { fichiersAFinir, installer, sansVerifier }) {
     return {
       code,
       erreur: true,
-      ligne: `Vérification : \`npm run verifier\` à repasser (code 75) ; ni vert ni rouge, ${VERT_INTACT}. Relance \`npm run verifier\` plus tard.`,
+      ligne: `Vérification : \`npm run verifier\` à repasser (code 75) ; ni vert ni rouge, ${VERT_INTACT}. Relance \`npm run verifier\` plus tard.${POSTE_FERME}`,
     };
   }
   const cause = r.error ? ` (${r.error.message})` : '';

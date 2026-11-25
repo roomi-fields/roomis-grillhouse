@@ -95,6 +95,9 @@ export function sousNiceEtIonice(commande) {
 }
 /** The mark of a place held, which the children of its holder inherit. */
 export const VARIABLE_TENUE = 'GRILLHOUSE_PLACE_TENUE';
+
+/** The sort of the verification of the update (scripts/grillhouse-maj.mjs), a gesture of the maintenance. */
+export const SORTE_DE_LA_MONTEE = 'Montée';
 /** The measure of the machine a trial fixes, in JSON `{ coeurs, charge, memoireLibre, memoireTotale }`. */
 export const VARIABLE_MESURE_D_ESSAI = 'GRILLHOUSE_MESURE_D_ESSAI';
 /** The directory of the state of the parts a trial names, in place of the user's. */
@@ -666,11 +669,16 @@ export function prendreUnePart({
     for (;;) {
       // The reservation of the machine is read each turn, before the admission lock, bounded by
       // the delay of a call to the server; a reading that fails stands for « no reservation ».
+      // A pass already admitted (a place held: GRILLHOUSE_PLACE_TENUE) or of the update (sort
+      // « Montée ») is no new work: the closure does not refuse it, as a drain keeps the pods of
+      // the system.
       let reservation = null;
-      try {
-        reservation = lireLaReservation() ?? null;
-      } catch {
-        reservation = null;
+      if (!env[VARIABLE_TENUE] && sorte !== SORTE_DE_LA_MONTEE) {
+        try {
+          reservation = lireLaReservation() ?? null;
+        } catch {
+          reservation = null;
+        }
       }
       const fermee = reservation?.auteur === 'superviseur';
       const refus = sousLAdmission(dossier, () => {
