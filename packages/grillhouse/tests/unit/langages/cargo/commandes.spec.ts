@@ -9,8 +9,6 @@
 // dependents.
 import { spawn, spawnSync } from 'node:child_process';
 import {
-  chmodSync,
-  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -811,12 +809,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
       path.join(projet, '.cargo', 'config.toml'),
       '[build]\nrustc-wrapper = "mon-lanceur"\n'
     );
-    const sans = mkdtempSync(path.join(ESSAIS, 'sans-sccache-'));
-    copyFileSync(
-      path.join(process.env.PATH!.split(path.delimiter)[0], 'cargo'),
-      path.join(sans, 'cargo')
-    );
-    chmodSync(path.join(sans, 'cargo'), 0o755);
+    const sans = installerFauxCargo(ESSAIS, { sccache: false });
     const PATH = [sans, path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
     expect(compilateur(projet, 'typer', [], { PATH })).toEqual([
       { sous: 'check', wrapper: '', cache: '', socket: '' },
@@ -855,12 +848,7 @@ describe('grillhouse-cyr, critère 1 — les commandes cargo compilent à traver
 
   it('without sccache on the PATH, tester, verifier, typer and clippy refuse, named, cargo never run', () => {
     // A PATH that holds the fake cargo, node and git, without sccache.
-    const sans = mkdtempSync(path.join(ESSAIS, 'sans-sccache-'));
-    copyFileSync(
-      path.join(process.env.PATH!.split(path.delimiter)[0], 'cargo'),
-      path.join(sans, 'cargo')
-    );
-    chmodSync(path.join(sans, 'cargo'), 0o755);
+    const sans = installerFauxCargo(ESSAIS, { sccache: false });
     const PATH = [sans, path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
     for (const [nom, args] of [
       ['tester', []],

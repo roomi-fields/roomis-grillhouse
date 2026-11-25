@@ -1,19 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll } from 'vitest';
 import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { composantsLisibles } from '../../scripts/ticket-du-circuit.mjs';
 import { resoudreComposant } from '../../scripts/depart-du-ticket.mjs';
+import { poserLeFauxProgramme } from './faux-programme.js';
 
 // The trial world of the sessions of the circuit played small: a trial git repository of two
 // packages (`000-forms`, `030-binder`), the context of a circuit whose effects are gathered
@@ -146,7 +139,7 @@ export function monde({ copie: avecCopie = false } = {}): Monde {
     readdirSync(sorties).filter(f => f.startsWith(prefixe)).length;
   const faux = path.join(sorties, 'claude');
   const lanceur = path.join(sorties, 'lancer.sh');
-  writeFileSync(
+  poserLeFauxProgramme(
     faux,
     `#!/bin/bash
 d=${sorties}
@@ -158,7 +151,7 @@ mkdir -p ${tmp}/transcriptions; echo '{}' > ${tmp}/transcriptions/$id.jsonl
 if [ -f $d/fiche-$n ]; then echo "{\\"type\\":\\"result\\",\\"session_id\\":\\"s\\",\\"structured_output\\": $(cat $d/fiche-$n)}"; fi
 `
   );
-  writeFileSync(
+  poserLeFauxProgramme(
     lanceur,
     `#!/bin/bash
 d=${sorties}
@@ -174,8 +167,6 @@ if [ -f $d/fiche-$n ]; then echo "{\\"structured_output\\": $(cat $d/fiche-$n)}"
 echo 0 > $r/fin
 `
   );
-  chmodSync(faux, 0o755);
-  chmodSync(lanceur, 0o755);
 
   let ticket = { description: DESCRIPTION, notes: '', titre: TITRE };
   let commentairesDuTicket: { author: string; text: string }[] = [];

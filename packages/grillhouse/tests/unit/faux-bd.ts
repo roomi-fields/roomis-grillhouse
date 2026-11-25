@@ -2,8 +2,9 @@
 // `bd` put in a directory of the PATH. `list` gives the tickets of <BD_ETAT>/tickets.json, `create`
 // waits <BD_LENT> ms, then appends a ticket and writes its number (nothing when <BD_MUET> is set),
 // or refuses when <BD_REFUSE> is set; each call is journaled with its working directory.
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from './faux-programme.js';
 
 const FAUX_BD = `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -43,8 +44,7 @@ export type Appel = { cmd: string; args: string[]; cwd: string };
 export function poserLeFauxBd(sous: string): { bin: string; etat: string } {
   const bin = mkdtempSync(path.join(sous, 'bin-'));
   const etat = mkdtempSync(path.join(sous, 'etat-'));
-  writeFileSync(path.join(bin, 'bd'), FAUX_BD);
-  chmodSync(path.join(bin, 'bd'), 0o755);
+  poserLeFauxProgramme(path.join(bin, 'bd'), FAUX_BD);
   return { bin, etat };
 }
 

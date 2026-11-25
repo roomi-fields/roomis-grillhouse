@@ -1,5 +1,6 @@
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from './faux-programme.js';
 
 // Le Turborepo des tests (grillhouse-44b.5), premier sur le PATH, sur le modèle du faux cargo
 // (./langages/cargo/faux-cargo.ts) : un script de Node nommé `turbo`, et un `npx` qui lui passe la
@@ -46,8 +47,7 @@ export function installerFauxTurbo(dans: string): string {
     ['turbo', SCRIPT],
     ['npx', NPX],
   ] as const) {
-    writeFileSync(path.join(dossier, nom), texte);
-    chmodSync(path.join(dossier, nom), 0o755);
+    poserLeFauxProgramme(path.join(dossier, nom), texte);
   }
   return dossier;
 }

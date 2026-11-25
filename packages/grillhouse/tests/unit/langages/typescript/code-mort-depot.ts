@@ -1,5 +1,4 @@
 import {
-  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -11,6 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from '../../faux-programme.js';
 
 // The trial repositories of the dead-code guard: each built in a fresh directory under a root, its
 // modules linked to this repository's node_modules, and the guard called in this process.
@@ -41,7 +41,7 @@ function modulesJournal(dir: string, journal: string) {
     }
   }
   const knip = path.join(nm, '.bin', 'knip');
-  writeFileSync(
+  poserLeFauxProgramme(
     knip,
     [
       '#!/usr/bin/env node',
@@ -56,7 +56,6 @@ function modulesJournal(dir: string, journal: string) {
       '',
     ].join('\n')
   );
-  chmodSync(knip, 0o755);
 }
 
 // A trial repository under <racine>: each file written at its path (null: left out), the modules

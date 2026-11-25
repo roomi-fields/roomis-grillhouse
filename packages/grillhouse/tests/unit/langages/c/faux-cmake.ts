@@ -1,5 +1,6 @@
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from '../../faux-programme.js';
 
 // The tests' stand-in for cmake and ctest, first on the PATH, on the model of the fake uv
 // (../python/faux-uv.ts): one script of Node, laid under the two names, so that the tests of the
@@ -99,8 +100,7 @@ process.exit(nEchecs ? 8 : 0);
 export function installerFauxCmake(dans: string, sans: 'cmake' | 'ctest' | null = null): string {
   const dossier = mkdtempSync(path.join(dans, 'faux-cmake-'));
   for (const outil of ['cmake', 'ctest'].filter(o => o !== sans)) {
-    writeFileSync(path.join(dossier, outil), SCRIPT);
-    chmodSync(path.join(dossier, outil), 0o755);
+    poserLeFauxProgramme(path.join(dossier, outil), SCRIPT);
   }
   return dossier;
 }

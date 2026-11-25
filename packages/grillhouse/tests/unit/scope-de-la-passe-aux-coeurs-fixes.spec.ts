@@ -1,11 +1,12 @@
 // Le scope d'une passe que `scopeSystemd` (./consommation-des-passes.mjs) demande au gestionnaire
 // systemd de l'utilisateur : les arguments qu'il envoie au client du bus, remplacé par un faux
 // binaire de lancement posé en tête du PATH le temps de l'essai.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { poserLeFauxProgramme } from './faux-programme.js';
 
 const MODULE = pathToFileURL(
   path.resolve(__dirname, '../../scripts/consommation-des-passes.mjs')
@@ -29,9 +30,7 @@ const ouvrirEtLire = async (o: Record<string, unknown>): Promise<string[]> => {
   const bin = path.join(d, 'bin');
   const note = path.join(d, 'arguments.txt');
   mkdirSync(bin, { recursive: true });
-  writeFileSync(path.join(bin, 'busctl'), `#!/bin/sh\nprintf '%s\\n' "$@" > '${note}'\n`, {
-    mode: 0o755,
-  });
+  poserLeFauxProgramme(path.join(bin, 'busctl'), `#!/bin/sh\nprintf '%s\\n' "$@" > '${note}'\n`);
   process.env.PATH = `${bin}${path.delimiter}${PATH_D_AVANT}`;
   const { scopeSystemd } = (await import(MODULE)) as Module;
   const r = scopeSystemd({

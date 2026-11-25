@@ -1,5 +1,6 @@
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from '../../faux-programme.js';
 
 // The tests' stand-in for uv, first on the PATH (grillhouse-ziy, criterion 7), on the model of the
 // fake cargo (../cargo/faux-cargo.ts): a script of Node named `uv`, so that the tests of the
@@ -75,7 +76,6 @@ process.exit(code);
 /** Writes the fake uv in a new directory under <dans>, and returns that directory. */
 export function installerFauxUv(dans: string): string {
   const dossier = mkdtempSync(path.join(dans, 'faux-uv-'));
-  writeFileSync(path.join(dossier, 'uv'), SCRIPT);
-  chmodSync(path.join(dossier, 'uv'), 0o755);
+  poserLeFauxProgramme(path.join(dossier, 'uv'), SCRIPT);
   return dossier;
 }

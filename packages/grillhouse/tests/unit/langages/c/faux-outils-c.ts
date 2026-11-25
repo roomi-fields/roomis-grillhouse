@@ -1,5 +1,6 @@
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from '../../faux-programme.js';
 
 // The tests' stand-in for uv, clang-format and clang-tidy, first on the PATH, on the model of the
 // fake cmake (./faux-cmake.ts): one script of Node laid under the three names, so that the tests
@@ -72,11 +73,10 @@ export function installerFauxOutilsC(
     o => !sans.includes(o as never)
   )) {
     // The shebang names this Node, so that a PATH reduced to the fakes still runs them.
-    writeFileSync(
+    poserLeFauxProgramme(
       path.join(dossier, outil),
       SCRIPT.replace('#!/usr/bin/env node', `#!${process.execPath}`)
     );
-    chmodSync(path.join(dossier, outil), 0o755);
   }
   return dossier;
 }

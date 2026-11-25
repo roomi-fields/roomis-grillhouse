@@ -1,5 +1,6 @@
-import { appendFileSync, chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync } from 'node:fs';
 import path from 'node:path';
+import { poserLeFauxProgramme } from '../../faux-programme.js';
 
 // The tests' stand-in for cargo, first on the PATH (grillhouse-pkl.3), on the model of the fake
 // Turborepo of integration-essai.ts: a script of Node named `cargo`, so that the tests of the
@@ -279,17 +280,17 @@ process.exit(sortie.code ?? 0);
 
 /**
  * Writes the fake cargo in a new directory under <dans>, and returns that directory, to put first
- * on the PATH.
+ * on the PATH; without <sccache>, the directory leaves it out.
  */
-export function installerFauxCargo(dans: string): string {
+export function installerFauxCargo(dans: string, { sccache = true } = {}): string {
   const dossier = mkdtempSync(path.join(dans, 'faux-cargo-'));
-  writeFileSync(path.join(dossier, 'cargo'), SCRIPT);
-  chmodSync(path.join(dossier, 'cargo'), 0o755);
+  poserLeFauxProgramme(path.join(dossier, 'cargo'), SCRIPT);
   // The wrapper the commands of the module require on the PATH (grillhouse-cyr), which the fake
   // cargo never runs; the commands start its server (grillhouse-qmk), each call a line of
   // `FAUX_SCCACHE_JOURNAL` when set.
-  writeFileSync(path.join(dossier, 'sccache'), FAUX_SCCACHE);
-  chmodSync(path.join(dossier, 'sccache'), 0o755);
+  if (sccache) {
+    poserLeFauxProgramme(path.join(dossier, 'sccache'), FAUX_SCCACHE);
+  }
   return dossier;
 }
 

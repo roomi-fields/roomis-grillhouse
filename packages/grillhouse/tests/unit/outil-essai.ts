@@ -1,10 +1,11 @@
 // The trial helpers of the published version that leads the repository (grillhouse-9tu): trial
 // folders, projects with their key, a version installed by hand, stand-ins for npm.
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll } from 'vitest';
+import { poserLeFauxProgramme } from './faux-programme.js';
 
 export const PAQUET = path.resolve(__dirname, '../..');
 const DEPOT = path.resolve(PAQUET, '../..');
@@ -59,7 +60,7 @@ export function fauxNpm(
   const d = dossier('npm');
   const f = path.join(d, 'npm');
   const config = JSON.stringify({ journal, peers, copie, concurrent, PAQUET, DEPOT });
-  writeFileSync(
+  poserLeFauxProgramme(
     f,
     `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -101,7 +102,6 @@ for (const spec of a.filter(x => /^@?[^@-][^@]*@/.test(x))) {
 }
 `
   );
-  chmodSync(f, 0o755);
   return f;
 }
 
@@ -109,8 +109,7 @@ for (const spec of a.filter(x => /^@?[^@-][^@]*@/.test(x))) {
 export function npmEnPanne(journal: string, raison = 'ENOTFOUND registry.npmjs.org'): string {
   const d = dossier('npm');
   const f = path.join(d, 'npm');
-  writeFileSync(f, `#!/bin/sh\necho "$*" >> '${journal}'\necho '${raison}' >&2\nexit 1\n`);
-  chmodSync(f, 0o755);
+  poserLeFauxProgramme(f, `#!/bin/sh\necho "$*" >> '${journal}'\necho '${raison}' >&2\nexit 1\n`);
   return f;
 }
 
