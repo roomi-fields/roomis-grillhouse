@@ -26,7 +26,8 @@
 //   4. the configuration of the package at its top: `package.json`, `vitest.config.*`,
 //      `vite.config.*`, `vitest.workspace.*`, `tsconfig*.json`; its `setupFiles` and its
 //      `globalSetup`, which Vitest runs beside the graph;
-//   5. a path its tests declare they read (`grillhouse.lit` of its package.json, from the top):
+//   5. a path its tests declare they read (`grillhouse.lit` of its package.json, from the top,
+//      a path or a glob pattern, as `couvertPar` of ../../../paquets.mjs reads it):
 //      a directory or a file out of the package that its tests read as a whole (the templates,
 //      the plugin, the configuration of the repository), as Bazel's `data`, named file by file
 //      where the frame rewrites their neighbours (the hooks and configuration of `.beads`, never
@@ -71,6 +72,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { couvertPar } from '../../../paquets.mjs';
 import { testsQuiDeclarent, testsQuiLancent, testsQuiNomment } from './lances.mjs';
 
 // This directory, the frame's base configuration.
@@ -208,9 +210,9 @@ function paquetEntier(ch, dossier, test = {}) {
   const racine = ch.racine;
   const abs = f => path.join(racine, f);
   const deps = dependances(racine, dossier);
-  const lit = (lireJson(path.join(dossier, 'package.json'))?.grillhouse?.lit ?? [])
-    .filter(l => typeof l === 'string')
-    .map(l => l.replace(/^\.\//, '').replace(/\/+$/, ''));
+  const lit = (lireJson(path.join(dossier, 'package.json'))?.grillhouse?.lit ?? []).filter(
+    l => typeof l === 'string'
+  );
   const preparation = [test.setupFiles, test.globalSetup]
     .flat()
     .filter(f => typeof f === 'string')
@@ -231,7 +233,7 @@ function paquetEntier(ch, dossier, test = {}) {
           ? 'la configuration du paquet'
           : preparation.includes(a)
             ? 'un fichier de préparation des tests'
-            : !ch.cible && lit.some(l => f === l || f.startsWith(`${l}/`))
+            : !ch.cible && couvertPar(lit, f)
               ? 'un chemin que ses tests déclarent lire (grillhouse.lit)'
               : deps.some(d => sous(a, d) && construit(racine, d, a))
                 ? 'le code d’un paquet dont il dépend, que ses tests lisent construit'
@@ -246,7 +248,7 @@ function paquetEntier(ch, dossier, test = {}) {
   // path reads its text, not its output.
   if (!ch.cible) {
     for (const f of ch.sansEffet ?? []) {
-      if (lit.some(l => f === l || f.startsWith(`${l}/`))) {
+      if (couvertPar(lit, f)) {
         return { raison: 'un chemin que ses tests déclarent lire (grillhouse.lit)', fichier: f };
       }
     }

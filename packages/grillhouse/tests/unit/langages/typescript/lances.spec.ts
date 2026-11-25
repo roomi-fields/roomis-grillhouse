@@ -161,4 +161,22 @@ describe('grillhouse-3dr.3.4 critère 7 — a script named by a path the frame c
   it('a module under a path the package declares in its grillhouse.lit is no finding', () => {
     expect(nonDeclares(A, R, ['packages/a/scripts', 'packages/a/motifs'])).toEqual([]);
   });
+
+  it('a module a pattern of the grillhouse.lit covers is no finding', () => {
+    expect(nonDeclares(A, R, ['packages/a/scripts/**', 'packages/a/motifs/*.mjs'])).toEqual([]);
+  });
+});
+
+describe('a pattern of the grillhouse.lit covers a changed file', () => {
+  it('the package plays whole under a change its pattern covers', () => {
+    const r = depot({
+      ...FICHIERS,
+      'packages/a/package.json': '{"name":"a","grillhouse":{"lit":["spec/**"]}}\n',
+      'spec/langage.md': '# Le langage\n',
+    });
+    const lignes: string[] = [];
+    const ch = { racine: r, fichiers: ['spec/langage.md'], supprimes: [] };
+    restreindre({}, path.join(r, 'packages/a'), ch, [], (l: string) => lignes.push(l));
+    expect(lignes.join('\n')).toMatch(/tous ses tests.*grillhouse\.lit.*spec\/langage\.md/);
+  });
 });

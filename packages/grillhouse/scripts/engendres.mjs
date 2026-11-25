@@ -34,23 +34,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { arbrePrincipal } from './outils-cles.mjs';
+import { couvertPar } from './paquets.mjs';
+
+export { couvertPar };
 
 // The lock file `npm ci` installs from, at the root of the tree.
 const VERROU = 'package-lock.json';
-
-/**
- * Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the inputs
- * of Turborepo read them: a path names that file, a directory every file under it, a glob pattern
- * (`*`, `**`) the files it matches (`path.matchesGlob` of Node).
- * @param {string[]} motifs
- * @param {string} fichier
- */
-export function couvertPar(motifs, fichier) {
-  return motifs.some(m => {
-    const dossier = m.replace(/\/+$/, '');
-    return fichier === dossier || fichier.startsWith(`${dossier}/`) || path.matchesGlob(fichier, m);
-  });
-}
 
 // Whether the pattern <m> leaves the repository: absolute, or climbing above the root.
 const horsDuDepot = m => path.isAbsolute(m) || path.posix.normalize(m).split('/')[0] === '..';

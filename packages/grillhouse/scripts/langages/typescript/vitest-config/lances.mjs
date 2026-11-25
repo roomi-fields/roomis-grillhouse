@@ -62,7 +62,7 @@ import { existsSync, globSync, readFileSync, realpathSync, statSync } from 'node
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { matieres } from '../composants.mjs';
-import { lecturesDeclarees, paquets } from '../../../paquets.mjs';
+import { couvertPar, lecturesDeclarees, paquets } from '../../../paquets.mjs';
 import { parcourir } from '../parcours.mjs';
 
 /** A test file, as Vitest's default `include` names one. */
@@ -507,12 +507,9 @@ export function lecturesDesTests(dossier) {
   return [...new Set(testsDuPaquet(dossier).flatMap(t => lecturesDeclarees(lire(t))))].sort();
 }
 
-// Whether the path <rel> (from the top) lies under one of the paths <lit> (from the top).
-const dansLit = (rel, lit) => lit.some(l => rel === l || rel.startsWith(`${l}/`));
-
 /**
  * What the test files of the package at <dossier>, in the repository at <racine>, name without
- * the frame reading it, <lit> the package's `grillhouse.lit` (paths from the top):
+ * the frame reading it, <lit> the package's `grillhouse.lit` (paths or patterns from the top):
  * `[{ test, fichier, chaine }]`, `test` and `fichier` from the top, `fichier` a module of the
  * package out of a directory of tests whose path the string <chaine> of the test's code (or of its
  * material) ends, out of what the test reads (`lusPar`) and out of lit; in the order of the tests.
@@ -524,7 +521,7 @@ export function nonDeclares(dossier, racine, lit = [], memo = new Map()) {
   const modules = [];
   for (const f of fichiersSous(dossier)) {
     const r = du(racine, f);
-    if (!MODULE.test(f) || TEST.test(f) || MATIERE.test(r) || dansLit(r, lit)) {
+    if (!MODULE.test(f) || TEST.test(f) || MATIERE.test(r) || couvertPar(lit, r)) {
       continue;
     }
     modules.push(f);

@@ -42,9 +42,10 @@
 //     "traces": { "trace:grammaires": { "lit": ["…/paires-v1"], "ecrit": "packages/060-encoder/trace/grammaires-du-corpus" } }
 //   }
 //
-// - `lit`: the paths its tests read, directories or files, data or code. Its `test:unit` hashes
-//   them (`inputs`: the root's, `$TURBO_EXTENDS$`, or `$TURBO_DEFAULT$` when the root's task sets
-//   none; then `$TURBO_ROOT$/<dir>/**` each) and waits, beside the root's `dependsOn`, for each
+// - `lit`: the paths its tests read, directories, files or glob patterns, data or code. Its
+//   `test:unit` hashes them (`inputs`: the root's, `$TURBO_EXTENDS$`, or `$TURBO_DEFAULT$` when
+//   the root's task sets none; then `$TURBO_ROOT$/<dir>/**` per directory, a file or a pattern as
+//   is, a path strictly inside a trace's output both ways) and waits, beside the root's `dependsOn`, for each
 //   trace whose output one of them overlaps (`<producer>#trace:<name>`). The patterns its test
 //   files declare they read (`// @lit <motif>` at their head, read by the module of its language) are
 //   hashed with them (`$TURBO_ROOT$/<motif>` each, those `lit` already covers left out), a
@@ -57,11 +58,13 @@
 //   a package's tests wait for are read in Turborepo's plan of its tests (`tracesDuPlan` of
 //   scripts/taches-du-graphe.mjs).
 // - The package holding a declared path of data alone (the shared test material) has its `build`
-//   leave it out (`inputs`: the root's, then `!<dir>/**` each). A declared path holding code
+//   leave it out (`inputs`: the root's, then `!<dir>/**` per directory, a file or a pattern as is,
+//   `!` before it; a pattern that covers a file the build reads by name stays). A declared path holding code
 //   (`.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts`, `.js`, `.jsx`, `.mjs`, `.cjs`) stays an input of its
 //   package's build; what a trace writes is no code of it.
 //
-// The check refuses a declared path absent that no trace writes; a trace written out of its
+// The check refuses a declared path absent, or a pattern that covers no file, that no trace
+// writes; a trace written out of its
 // package, followed by git, or not ignored; a `trace:*` script without declaration, a declaration
 // without script or not named `trace:<name>`. In the root's turbo.json, which is the project's, it
 // refuses what the generator owns: a task of one package (`<package>#<task>`, the root's own
@@ -119,7 +122,14 @@ import {
 import { matieres } from './consommateurs.mjs';
 import { lecturesDesTests } from './vitest-config/lances.mjs';
 import { parcourir } from './parcours.mjs';
-import { paquets, TYPAGE } from '../../paquets.mjs';
+import {
+  estUnMotif,
+  fichiersDuMotif,
+  lectureNette,
+  paquets,
+  recouvreLaLecture,
+  TYPAGE,
+} from '../../paquets.mjs';
 import { ecrireSarif, RESULTATS } from '../../resultats.mjs';
 import {
   SCRIPT_DES_TESTS as TESTS,
@@ -417,13 +427,11 @@ const net = d => String(d ?? '').replace(/\/+$/, '');
 // and whether it has such a segment: { fixe, glob }.
 function partieFixe(motif) {
   const segments = String(motif).replace(/^\.\//, '').split('/');
-  const i = segments.findIndex(s => /[*?[\]{}]/.test(s));
+  const i = segments.findIndex(estUnMotif);
   return { fixe: net((i < 0 ? segments : segments.slice(0, i)).join('/')), glob: i >= 0 };
 }
 // Whether <f> is <d> or under it.
 const sous = (f, d) => f === d || f.startsWith(`${d}/`);
-// Whether one of <a> and <b> holds the other.
-const recouvre = (a, b) => sous(a, b) || sous(b, a);
 
 // The paths of the submodules the .gitmodules of <racine> declares, sorted; none without one.
 function sousModules(racine) {
@@ -444,12 +452,33 @@ function sousModules(racine) {
     .sort();
 }
 
-// The exclusion of the `.git` of each submodule of <sm> one of the <chemins> (from the root)
-// holds, each `!<prefixe><path from <depuis>>/.git`: the `.git` of a submodule set in a copy is
+// Whether an input of Turborepo, the path or pattern <lu>, can reach the `.git` of the submodule
+// <m>: a path that holds it; a pattern whose fixed part is the submodule or holds it, then a glob.
+function atteintLeGit(lu, m) {
+  const { fixe, glob } = partieFixe(lu);
+  return glob ? fixe === '' || sous(m, fixe) : sous(m, fixe);
+}
+
+// The inputs, from the root, that the path read <lu> (`grillhouse.lit`) of <racine> gives: a
+// pattern or a file as is, a directory with `/**`. A path strictly inside the output of a trace of
+// <ecrits>, which may not be written yet, gives both, so that the text does not follow the disk.
+function entreesDeLecture(racine, lu, ecrits) {
+  if (estUnMotif(lu)) {
+    return [lu];
+  }
+  if (ecrits.some(e => lu !== e && sous(lu, e))) {
+    return [lu, `${lu}/**`];
+  }
+  const f = statSync(path.join(racine, lu), { throwIfNoEntry: false });
+  return [f?.isFile() ? lu : `${lu}/**`];
+}
+
+// The exclusion of the `.git` of each submodule of <sm> one of the <chemins> (from the root, paths
+// or patterns) reaches, each `!<prefixe><path from <depuis>>/.git`: the `.git` of a submodule set in a copy is
 // a file naming that copy.
 const gitsExclus = (chemins, sm, prefixe = '$TURBO_ROOT$/', depuis = '') =>
   sm
-    .filter(m => chemins.some(c => sous(m, c)))
+    .filter(m => chemins.some(c => atteintLeGit(c, m)))
     .map(m => `!${prefixe}${depuis ? path.posix.relative(depuis, m) : m}/.git`);
 
 // The file of the base <base> that a configuration of TypeScript in <dir> extends, as tsc finds
@@ -660,7 +689,7 @@ function declarations(liste) {
     .filter(p => !p.hors)
     .map(({ dossier, pkg }) => {
       const g = pkg.grillhouse ?? {};
-      const chemins = l => [...new Set((Array.isArray(l) ? l : []).map(net))].sort();
+      const chemins = l => [...new Set((Array.isArray(l) ? l : []).map(lectureNette))].sort();
       return {
         dossier,
         pkg,
@@ -685,7 +714,9 @@ function lecturesHorsDeLit(dossier, langageNom, lit) {
   const lectures = langageNom
     ? langage(langageNom).lecturesDesTests(dossier)
     : lecturesDesTests(dossier);
-  return lectures.filter(m => !lit.some(l => m === l || m.startsWith(`${l}/`)));
+  return lectures.filter(
+    m => !lit.some(l => m === l || m.startsWith(`${l.replace(/\/\*\*$/, '')}/`))
+  );
 }
 
 // The text of a package's turbo.json, whose tasks are <taches>.
@@ -720,7 +751,7 @@ export function attendus(racine) {
   // The trace tasks whose output one of <lit> overlaps, <soi> left out, sorted.
   const jointes = (lit, soi) =>
     traces
-      .filter(t => t.id !== soi && lit.some(l => recouvre(l, t.ecrit)))
+      .filter(t => t.id !== soi && lit.some(l => recouvreLaLecture(l, t.ecrit)))
       .map(t => t.id)
       .sort();
   // The paths of data alone declared: the ones a trace writes left out, which git ignores, and the
@@ -728,7 +759,9 @@ export function attendus(racine) {
   const ecrits = traces.map(t => t.ecrit);
   const donnees = [
     ...new Set([...decls.values()].flatMap(d => [...d.lit, ...d.traces.flatMap(t => t.lit)])),
-  ].filter(l => !ecrits.some(e => recouvre(l, e)) && !contientCode(racine, l, ecrits));
+  ].filter(
+    l => !ecrits.some(e => recouvreLaLecture(l, e)) && !contientCode(racine, l, ecrits)
+  );
   // The inputs of the root's <tache> a package's own extend: the root's, or Turborepo's default
   // when the root sets none (`$TURBO_EXTENDS$` then extends an empty list).
   const base = tache => (deRacine.get(tache)?.inputs ? '$TURBO_EXTENDS$' : '$TURBO_DEFAULT$');
@@ -757,12 +790,19 @@ export function attendus(racine) {
       const lusParBuild = propres
         ? f => propres.includes(f)
         : f => f === 'package.json' || /^tsconfig[^/]*\.json$/.test(f);
+      const relatif = f => path.posix.relative(dossier, f);
+      // A pattern that covers a file the build reads by name is left in its inputs.
       const dedans = donnees
         .filter(d => d !== dossier && sous(d, dossier))
-        .map(d => path.posix.relative(dossier, d))
-        .filter(d => !lusParBuild(d))
+        .filter(d =>
+          estUnMotif(d)
+            ? !fichiersDuMotif(racine, d).some(f => lusParBuild(relatif(f)))
+            : !lusParBuild(relatif(d))
+        )
         .sort();
-      const sansDonnees = dedans.map(d => `!${d}/**`);
+      const sansDonnees = dedans
+        .flatMap(d => entreesDeLecture(racine, d, ecrits))
+        .map(e => `!${relatif(e)}`);
       if (langageDuPaquet) {
         taches.build.inputs = [...propres, ...sansDonnees];
       } else if (propres) {
@@ -802,7 +842,9 @@ export function attendus(racine) {
           dependsOn: [...deplier(deRacine.get(TESTS)?.dependsOn ?? []), ...jointes(decl.lit)],
           inputs: [
             base(TESTS),
-            ...decl.lit.map(l => `$TURBO_ROOT$/${l}/**`),
+            ...decl.lit
+              .flatMap(l => entreesDeLecture(racine, l, ecrits))
+              .map(l => `$TURBO_ROOT$/${l}`),
             ...declares.map(m => `$TURBO_ROOT$/${m}`),
             ...gitsExclus(decl.lit, sm),
           ],
@@ -814,7 +856,9 @@ export function attendus(racine) {
           dependsOn: [...deplier(['build', '^build']), ...jointes(t.lit, t.id)],
           inputs: [
             '$TURBO_DEFAULT$',
-            ...t.lit.map(l => `$TURBO_ROOT$/${l}/**`),
+            ...t.lit
+              .flatMap(l => entreesDeLecture(racine, l, ecrits))
+              .map(l => `$TURBO_ROOT$/${l}`),
             ...gitsExclus(t.lit, sm),
             `!${ecrit}/**`,
           ],
@@ -1074,11 +1118,16 @@ export function ecrire(racine) {
   return ecrits;
 }
 
-// Whether <chemin> of <racine> (a directory, or a file, from the root) holds a file of code; what
-// lies under one of <exclus> left out, as `parcourir` walks it.
+// Whether <chemin> of <racine> (a directory, a file or a pattern, from the root) holds a file of
+// code; what lies under one of <exclus> left out, as `parcourir` walks it.
 function contientCode(racine, chemin, exclus) {
   if (exclus.some(e => sous(chemin, e))) {
     return false;
+  }
+  if (estUnMotif(chemin)) {
+    return fichiersDuMotif(racine, chemin).some(
+      f => CODE.test(f) && !exclus.some(e => sous(f, e))
+    );
   }
   const rel = p => path.relative(racine, p).split(path.sep).join('/');
   return parcourir(path.join(racine, chemin), p => exclus.some(e => sous(rel(p), e))).some(f =>
@@ -1089,7 +1138,7 @@ function contientCode(racine, chemin, exclus) {
 const gitSort = (racine, args) => spawnSync('git', args, { cwd: racine, encoding: 'utf8' });
 
 // The refusals of the data and traces the packages of <racine> declare: one line per declared
-// path absent that no trace writes, per trace written out of its producer,
+// path absent or pattern covering no file that no trace writes, per trace written out of its producer,
 // followed by git or not ignored, per trace script without declaration and declaration without
 // script.
 function declarationsRefusees(racine) {
@@ -1129,8 +1178,17 @@ function declarationsRefusees(racine) {
       }
     }
     for (const l of [...new Set([...lit, ...traces.flatMap(t => t.lit)])].sort()) {
-      const sortie = ecrits.some(e => recouvre(l, e));
-      if (!sortie && !existsSync(path.join(racine, l))) {
+      const sortie = ecrits.some(e => recouvreLaLecture(l, e));
+      if (sortie) {
+        continue;
+      }
+      if (estUnMotif(l)) {
+        if (fichiersDuMotif(racine, l).length === 0) {
+          refus.push(
+            `⛔ ${ici} : le motif lu \`${l}\` ne recouvre aucun fichier, et aucune trace n'écrit sous lui (\`grillhouse.traces\`).`
+          );
+        }
+      } else if (!existsSync(path.join(racine, l))) {
         refus.push(
           `⛔ ${ici} : le chemin lu \`${l}\` n'existe pas, et aucune trace ne l'écrit (\`grillhouse.traces\`).`
         );

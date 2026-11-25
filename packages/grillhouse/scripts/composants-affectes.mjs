@@ -60,6 +60,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { langageDe, langagesDeclares } from './langages.mjs';
+import { lectureNette } from './paquets.mjs';
 
 /**
  * The paths that the tests of the package at <dir> declare they read: its `grillhouse.lit`, then
@@ -174,7 +175,7 @@ function lecteursDesChemins(racine, tous, changes) {
     const propre = path.relative(racine, c.dossier).split(path.sep).join('/');
     const par = new Set();
     for (const brut of new Set(cheminsLus(c.dossier, racine))) {
-      const lu = brut.replace(/^\.\//, '').replace(/\/+$/, '');
+      const lu = lectureNette(brut);
       const atteints = changes.filter(ch => !recouvre(propre, ch) && atteint(racine, lu, ch)).sort();
       if (atteints.length) {
         par.add(`lit ${lu} (${atteints.join(', ')})`);

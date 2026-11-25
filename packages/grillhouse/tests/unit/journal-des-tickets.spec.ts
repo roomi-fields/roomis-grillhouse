@@ -63,7 +63,7 @@ describe('grillhouse-3dr.1 — the journal of the tickets replays no test', () =
     const beads = (turbo.tasks['test:unit']?.inputs ?? []).filter(e =>
       e.startsWith('$TURBO_ROOT$/.beads')
     );
-    expect(beads).toEqual(LUS.map(f => `$TURBO_ROOT$/${f}/**`));
-    expect(beads.some(e => e.endsWith('.jsonl/**'))).toBe(false);
+    expect(beads).toEqual(LUS.map(f => `$TURBO_ROOT$/${f}`));
+    expect(beads.some(e => e.endsWith('.jsonl'))).toBe(false);
   });
 });

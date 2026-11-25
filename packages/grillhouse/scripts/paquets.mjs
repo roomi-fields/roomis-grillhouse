@@ -22,7 +22,7 @@
 //
 // The packages are the nodes of the graph of the tasks: docs/architecture/tests.md §2.1 and §3.1.
 import { spawnSync } from 'node:child_process';
-import { existsSync, globSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /** The code of `src/` (the root's, or a package's under `packages/`), as a pattern of a path from
@@ -53,6 +53,69 @@ export function lecturesDeclarees(texte) {
     }
   }
   return out;
+}
+
+// A path a project declares it reads (`grillhouse.lit`, a generated file's `fichiers` and `lit`),
+// as an input of Turborepo: a path, a directory or a file, or a glob pattern, which holds one of
+// these characters.
+const GLOB = /[*?[\]{}]/;
+
+/** Whether the path read <lu> is a glob pattern.
+ * @param {string} lu */
+export const estUnMotif = lu => GLOB.test(lu);
+
+/** The path read <lu> as the frame compares it: without a leading `./` nor trailing slashes.
+ * @param {string} lu */
+export const lectureNette = lu => String(lu ?? '').replace(/^\.\//, '').replace(/\/+$/, '');
+
+/**
+ * Whether one of <motifs> covers the file <fichier>, both from the root, as the inputs of
+ * Turborepo read them: a path names that file, a directory every file under it, a glob pattern
+ * (`*`, `**`) the files it matches (`path.matchesGlob` of Node).
+ * @param {string[]} motifs
+ * @param {string} fichier
+ */
+export function couvertPar(motifs, fichier) {
+  return motifs.some(m => {
+    const net = lectureNette(m);
+    return fichier === net || fichier.startsWith(`${net}/`) || path.matchesGlob(fichier, net);
+  });
+}
+
+/** The files of the repository at <racine> the pattern <motif> covers, from the root,
+ * `node_modules` left out.
+ * @param {string} racine
+ * @param {string} motif */
+export const fichiersDuMotif = (racine, motif) =>
+  globSync(lectureNette(motif), {
+    cwd: racine,
+    exclude: f => path.basename(String(f)) === 'node_modules',
+  })
+    .filter(f => statSync(path.join(racine, f), { throwIfNoEntry: false })?.isFile())
+    .map(f => f.split(path.sep).join('/'));
+
+/**
+ * Whether the path read <lu> and the directory or file <chemin> (from the root) overlap: a path
+ * that holds it or lies in it; a pattern that can name it or a file under it, segment by segment.
+ * @param {string} lu
+ * @param {string} chemin
+ */
+export function recouvreLaLecture(lu, chemin) {
+  const net = lectureNette(lu);
+  if (!estUnMotif(net)) {
+    return net === chemin || net.startsWith(`${chemin}/`) || chemin.startsWith(`${net}/`);
+  }
+  const motif = net.split('/');
+  const segments = chemin.split('/');
+  for (const [i, segment] of segments.entries()) {
+    if (motif[i] === '**') {
+      return true;
+    }
+    if (i >= motif.length || !path.matchesGlob(segment, motif[i])) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // The list of the packages out of the frame: one line per package, « <package> <reason> », its

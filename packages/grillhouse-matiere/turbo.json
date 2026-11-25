@@ -15,7 +15,7 @@
       ],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/packages/grillhouse/package.json/**"
+        "$TURBO_ROOT$/packages/grillhouse/package.json"
       ]
     }
   }

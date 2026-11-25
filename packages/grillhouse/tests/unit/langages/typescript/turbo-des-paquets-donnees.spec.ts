@@ -379,15 +379,87 @@ describe('a declared file is treated as a declared directory', () => {
     const racine = depotAvecFichier();
     expect(refusDe(racine)).toBe('');
     expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toContain(
-      `$TURBO_ROOT$/${LEXIQUE}/**`
+      `$TURBO_ROOT$/${LEXIQUE}`
     );
-    expect(tachesDe(racine, CORPUS).build.inputs).toContain('!test/040-checker/lexique.json/**');
+    expect(tachesDe(racine, CORPUS).build.inputs).toContain('!test/040-checker/lexique.json');
   });
 
   it('a declared file absent that no trace writes is refused, named a path read', () => {
     const absent = `${CORPUS}/test/040-checker/absent.json`;
     const refus = refusDe(depotAvecFichier(absent));
     expect(refus).toContain(`le chemin lu \`${absent}\` n'existe pas`);
+  });
+});
+
+// An entry of `grillhouse.lit` is a path or a pattern, as an input of Turborepo is a glob.
+// Witness: OSD, whose `grillhouse.lit: ["spec/**"]` was written `spec/**/**` and refused absent.
+describe('a declared pattern', () => {
+  const lisant = (...lit: string[]) =>
+    depotBP(
+      avec('040-checker', p => {
+        p.grillhouse = { lit };
+      })
+    );
+  const entreesDuLecteur = (racine: string) =>
+    tachesDe(racine, 'packages/040-checker')['test:unit'].inputs;
+
+  it('spec/** passes as is to the inputs of the reader’s tests, and the check accepts it', () => {
+    const racine = lisant('spec/**', `${SCENES_040}/*.json`);
+    expect(refusDe(racine)).toBe('');
+    expect(entreesDuLecteur(racine)).toEqual([
+      '$TURBO_EXTENDS$',
+      `$TURBO_ROOT$/${SCENES_040}/*.json`,
+      '$TURBO_ROOT$/spec/**',
+    ]);
+    expect(tachesDe(racine, CORPUS).build.inputs).toContain('!test/040-checker/scenes/*.json');
+  });
+
+  it('a pattern of data keeps in the build of its package a file the build reads by name', () => {
+    const racine = lisant(`${CORPUS}/*.json`);
+    expect(refusDe(racine)).toBe('');
+    expect(tachesDe(racine, CORPUS).build.inputs ?? []).not.toContain('!*.json');
+  });
+
+  it('a pattern that covers code leaves the build of its package its inputs', () => {
+    const racine = lisant('packages/000-forms/src/*.ts');
+    expect(refusDe(racine)).toBe('');
+    expect(tachesDe(racine, 'packages/000-forms').build.inputs ?? []).not.toContain('!src/*.ts');
+  });
+
+  it.each([['spec/**/*.absent'], ['absent/**'], ['packages/060-encoder/*.json5']])(
+    'a pattern that covers no file and no trace output is refused: %s',
+    motif => {
+      const refus = refusDe(lisant(motif));
+      expect(refus).toContain(`le motif lu \`${motif}\` ne recouvre aucun fichier`);
+    }
+  );
+
+  it('a pattern that covers only folders is refused', () => {
+    const racine = lisant('vide/**');
+    mkdirSync(path.join(racine, 'vide/dedans'), { recursive: true });
+    expect(refusDe(racine)).toContain('le motif lu `vide/**`');
+  });
+
+  it.each([[`${GRAMMAIRES}/**`], ['packages/060-encoder/trace/*/*.json']])(
+    'a pattern over the output of a trace not yet written passes and waits for the trace: %s',
+    motif => {
+      const racine = lisant(motif);
+      rmSync(path.join(racine, GRAMMAIRES), { recursive: true });
+      expect(refusDe(racine)).toBe('');
+      expect(tachesDe(racine, 'packages/040-checker')['test:unit']).toEqual({
+        dependsOn: ['build', '^build', '060-encoder#trace:grammaires'],
+        inputs: ['$TURBO_EXTENDS$', `$TURBO_ROOT$/${motif}`],
+      });
+    }
+  );
+
+  it('a file inside the output of a trace is read as is, written or not', () => {
+    const fichier = `${GRAMMAIRES}/grammaire.json`;
+    const racine = lisant(fichier);
+    ecrire(racine);
+    rmSync(path.join(racine, GRAMMAIRES), { recursive: true });
+    expect(verifier(racine)).toEqual([]);
+    expect(entreesDuLecteur(racine)).toContain(`$TURBO_ROOT$/${fichier}`);
   });
 });
 
@@ -436,7 +508,7 @@ describe('a declared path holding code, a neighbour’s', () => {
     ecrire(racine);
     expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
-      `$TURBO_ROOT$/${TABLES}/**`,
+      `$TURBO_ROOT$/${TABLES}`,
       `$TURBO_ROOT$/${CAPTURES}/**`,
       `$TURBO_ROOT$/${SCENES_040}/**`,
     ]);
@@ -819,7 +891,7 @@ describe('a declared file the build of its package reads', () => {
     ecrire(racine);
     expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
-      ...[...CONFIGS, DONNEES, SCENES_040].sort().map(l => `$TURBO_ROOT$/${l}/**`),
+      ...[...CONFIGS, `${DONNEES}/**`, `${SCENES_040}/**`].sort().map(l => `$TURBO_ROOT$/${l}`),
     ]);
   });
 });
