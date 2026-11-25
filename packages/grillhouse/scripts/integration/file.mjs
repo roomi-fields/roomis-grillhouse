@@ -18,11 +18,12 @@
 //    the replaced commit, the candidate. A generated file the project declares
 //    (`grillhouse.engendres`, scripts/engendres.mjs, read from the main tree, a faulty key keeping
 //    the branch in the queue, named) is never merged, as npm writes package-lock.json again after
-//    a merge: a conflict on such files only takes main's version, and once the branch is replaced
-//    and installed, the command of each one whose files, or the files it reads, the branch touches
-//    writes it again, with the tools of the project, and what it writes enters the branch's
-//    commit; a command that fails makes the branch leave the queue, the command and its output
-//    named;
+//    a merge: a conflict on such files only takes main's version, and once the branch is replaced,
+//    the command of each one whose files, or the files it reads, the branch touches writes it
+//    again, one that writes package-lock.json before the install and the others after it
+//    (`installerEtRegenerer`), with the tools of the project, and what it writes enters the
+//    branch's commit; a command that fails makes the branch leave the queue, the command and its
+//    output named;
 //  - a branch with nothing ahead of main does not enter: it leaves the queue, its ticket loses
 //    `en-file` and takes a comment, and stays as it is;
 //  - a branch that does not replace (the files in conflict) leaves the queue: its ticket loses
@@ -80,7 +81,7 @@ import {
   encoreDeclares,
   engendresDe,
   prendreLesEngendres,
-  regenerer,
+  installerEtRegenerer,
 } from '../engendres.mjs';
 import { arbreEstJuge, garderLArbreJuge } from '../arbres-juges.mjs';
 import { A_REPASSER } from '../codes-de-sortie.mjs';
@@ -296,10 +297,6 @@ function remplacer(o, tip, tete) {
     }
     rebase = dansCopie('-c', 'core.editor=true', 'rebase', '--continue');
   }
-  const installation = installer();
-  if (installation) {
-    return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
-  }
   const touches = aRejouer(
     engendres,
     copie,
@@ -307,21 +304,25 @@ function remplacer(o, tip, tete) {
       .stdout.split('\0')
       .filter(Boolean)
   );
+  const { installation, refus } = installerEtRegenerer({
+    refs: touches.map(e => ({ ...e, cadre: false })),
+    installer,
+    dansCopie,
+    lancer: commande =>
+      spawnSync('bash', monter('sh', '-c', commande), {
+        cwd: copie,
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        env,
+      }),
+  });
+  if (installation) {
+    return { sortie: [installation, "Le verrou de la branche replacée ne s'installe pas."] };
+  }
+  if (refus) {
+    return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
+  }
   if (touches.length) {
-    const refus = regenerer({
-      refs: touches.map(e => ({ ...e, cadre: false })),
-      dansCopie,
-      lancer: commande =>
-        spawnSync('bash', monter('sh', '-c', commande), {
-          cwd: copie,
-          encoding: 'utf8',
-          maxBuffer: 256 * 1024 * 1024,
-          env,
-        }),
-    });
-    if (refus) {
-      return { sortie: ['ses fichiers engendrés ne se régénèrent pas sur main.', refus] };
-    }
     if (dansCopie('diff', '--cached', '--quiet').status !== 0) {
       const corrige = dansCopie('commit', '-q', '--amend', '--no-edit', '--no-verify');
       if (corrige.status !== 0) {

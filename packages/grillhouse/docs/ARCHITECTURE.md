@@ -414,8 +414,10 @@ un arrêt `references` sur « le plafond ne monte pas »).
 sur l'arbre fusionné, et `npm install` le `package-lock.json` après une fusion, l'intégration
 n'applique pas du lot un fichier qu'une référence écrit en entier (`entiers` : l'index des
 interfaces, les `turbo.json` des paquets) ; elle rejoue la référence qui l'écrit dans la copie
-d'intégration, sur main à jour, après l'installation et avant la vérification, et ce qu'elle écrit
-entre dans le commit. Le circuit lui passe les références du cadre (`--references`), tirées de
+d'intégration, sur main à jour, avant la vérification, et ce qu'elle écrit entre dans le commit ;
+la référence du verrou des dépendances (`package-lock.json`) se joue avant l'installation, qui suit
+le verrou régénéré des manifestes du lot (Renovate, la file de fusion), les autres après
+l'installation. Le circuit lui passe les références du cadre (`--references`), tirées de
 sa seule liste. L'avance d'une copie sur main suit la même règle pour ces références, sans clé du
 projet : la version de main, puis le générateur du cadre sur le travail appliqué
 (`scripts/enveloppe/travail-de-la-copie.mjs` ; BPScript, 2026-11-22, l'index des interfaces en

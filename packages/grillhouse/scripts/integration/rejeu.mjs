@@ -20,10 +20,10 @@
 //   the manifests (every `package.json` git tracks) with the key
 //   `node_modules/.integration-lock`, runs `npm ci` when they differ and writes the key again; a
 //   failing install gives `DEPENDANCES_REFUSEES`, the one form of that refusal. It runs at the
-//   opening, and the consumer calls `installer` once the lot is in the copy, before the commands
-//   that regenerate its files: a lot that changes the lock file or a manifest is installed as the
-//   continuous integration installs it (`npm ci` refuses a lock file in disagreement with its
-//   manifest).
+//   opening, and the consumer calls `installer` once the lot is in the copy and the commands that
+//   write the lock file have played (`installerEtRegenerer` of scripts/engendres.mjs): a lot that
+//   changes the lock file or a manifest is installed as the continuous integration installs it
+//   (`npm ci` refuses a lock file in disagreement with its manifest).
 // - Every command of the project run in the copy (`lancer`: the install) leaves the
 //   index of its copy up to date, green or red: the consumers that apply a lot with `--index` (the
 //   integration, the queue) read an index that matches the files the command touched, and none

@@ -22,6 +22,11 @@
 //   (scripts/integration/file.mjs) and the move of a copy onto main
 //   (scripts/enveloppe/travail-de-la-copie.mjs) call it on the tree where they applied the lot,
 //   main's version of each file taken.
+// - `installerEtRegenerer` orders that play around the install of the copy, as Bazel builds an
+//   output before what reads it: first the references that write `package-lock.json`, from the
+//   manifests of the lot (`npm install --package-lock-only`, as Renovate writes a lock again),
+//   then the install, which reads that file, then the other references, which may need what it
+//   installed. The integration and the queue play it.
 // - `encoreDeclares` keeps the generated files the tree where the lot is applied still declares, by
 //   their names: as a genrule of Bazel removed with its output in one change plays no more, the
 //   one a lot removes from the key is not played, and its files follow the lot, their deletion
@@ -29,6 +34,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { arbrePrincipal } from './outils-cles.mjs';
+
+// The lock file `npm ci` installs from, at the root of the tree.
+const VERROU = 'package-lock.json';
 
 /**
  * Whether one of <motifs> covers the file <fichier>, both from the root of the copy, as the inputs
@@ -310,4 +318,28 @@ export function regenerer({ refs, lancer, dansCopie, ecrire = s => process.stdou
     return "Les fichiers régénérés ne s'ajoutent pas à l'index.";
   }
   return null;
+}
+
+/**
+ * The install of a tree where a lot is applied, between the regenerations of <refs>: those that
+ * write the lock file `npm ci` reads play before <installer> (main's version of the lock file does
+ * not know the manifests of the lot), the others after it (see the header). `{}`, or
+ * `{ installation }`, the refusal of <installer>, or `{ refus }`, the one of a regeneration.
+ * @param {Parameters<typeof regenerer>[0] & { installer: () => string | null }} o
+ * @returns {{ installation?: string, refus?: string }}
+ */
+export function installerEtRegenerer({ installer, refs, ...o }) {
+  const avant = refs.filter(r => couvertPar(r.fichiers, VERROU));
+  const apres = refs.filter(r => !avant.includes(r));
+  const jouer = les => (les.length ? regenerer({ ...o, refs: les }) : null);
+  const refusAvant = jouer(avant);
+  if (refusAvant) {
+    return { refus: refusAvant };
+  }
+  const installation = installer();
+  if (installation) {
+    return { installation };
+  }
+  const refus = jouer(apres);
+  return refus ? { refus } : {};
 }

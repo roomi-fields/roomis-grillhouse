@@ -35,10 +35,11 @@
 //  5. the lots, applied in three ways in the copy, tests first, without the files a reference
 //     writes in full; the files of the lot in the
 //     ticket's copy are compared with the copy's own base plus the lot, not with the integration
-//     copy. Once the lots are in the copy, the replay makes the dependencies agree with the lock
-//     file and the manifests the lot leaves (`npm ci`, as the continuous integration runs it); an
-//     install that fails refuses the lot, « Les dépendances de la copie ne s'installent pas. »;
-//     then the references regenerate (below);
+//     copy. Once the lots are in the copy, the references that write package-lock.json regenerate
+//     (below), then the replay makes the dependencies agree with the lock file and the manifests
+//     of the copy (`npm ci`, as the continuous integration runs it); an install that fails refuses
+//     the lot, « Les dépendances de la copie ne s'installent pas. »; then the other references
+//     regenerate (`installerEtRegenerer` of scripts/engendres.mjs);
 //  6. the commit in the copy, its hooks included, under GRILLHOUSE_INTEGRATION=1: a pre-commit
 //     hook that plays the guards skips them, as the final pass plays them; nothing is verified
 //     here: the queue lays the branch on the tip of main, and its final pass judges the lot before
@@ -59,9 +60,10 @@
 // scripts/engendres.mjs reads them). As a genrule of Bazel writes its output again on the merged
 // tree, and npm install writes package-lock.json again after a merge, a file of the lot a reference
 // writes in full is not applied: main's version stays, and each reference whose files or reads the
-// lot touches plays in the copy, on main of the moment, after the install and before the commit,
-// through the mounts, with the tools of the project, and what it writes enters the commit
-// (`regenerer` of scripts/engendres.mjs). A command of the project at another code than 0, one of
+// lot touches plays in the copy, on main of the moment, before the commit, through the mounts, with
+// the tools of the project, and what it writes enters the commit (`regenerer` of
+// scripts/engendres.mjs): one that writes package-lock.json before the install, the others after it
+// (`installerEtRegenerer`). A command of the project at another code than 0, one of
 // the frame on a real failure (126, 127, a signal), or a file it changes that its `fichiers` do not
 // cover, refuses the lot, the command, its code and its output named. A conflict on any other file
 // refuses it, as the three-way application says. A generated file of the project the lot removes
@@ -89,9 +91,9 @@ import { arbitrageTranche, estArbitrage } from '../arbitrages.mjs';
 import {
   couvertPar,
   engendresDe,
+  installerEtRegenerer,
   partDesLots,
   poserLesRetires,
-  regenerer,
   touchesPar,
 } from '../engendres.mjs';
 import { langageDe } from '../langages.mjs';
@@ -320,7 +322,7 @@ function differents(copieTicket, lots, fichiers, tmp) {
   return r.stdout.split('\0').filter(Boolean);
 }
 
-function main(argv) {
+export function main(argv, ou = process.cwd()) {
   const o = lire(argv);
   if ('faute' in o) {
     process.stderr.write(
@@ -331,6 +333,7 @@ function main(argv) {
   }
   // The main tree, from git's common directory: run from a copy, the integration still works on it.
   const commun = spawnSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+    cwd: ou,
     encoding: 'utf8',
   }).stdout.trim();
   const racine = path.dirname(commun);
@@ -484,8 +487,9 @@ function main(argv) {
     }
     const { dansCopie, monter, installer } = ouverte;
 
-    // 5. The lots, applied in the copy without the files a reference writes in full, then
-    // installed, then the references regenerated.
+    // 5. The lots, applied in the copy without the files a reference writes in full; then the
+    // references that write the lock file (regenerated from the lots' manifests), then the
+    // installation that follows that lock file, then the other references regenerated.
     const sansEntiers = entiers.map(f => `--exclude=${f}`);
     for (const p of lots) {
       const r = dansCopie('apply', '--3way', '--index', ...sansEntiers, p);
@@ -512,27 +516,24 @@ function main(argv) {
       );
     }
     dire('✓ lots appliqués');
-    const installation = installer();
-    if (installation) {
-      return refuser(installation);
-    }
     const aRejouer = part.rejouees;
+    const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env, empreintes));
+    const { installation, refus } = installerEtRegenerer({
+      refs: aRejouer,
+      installer,
+      dansCopie,
+      lancer: commande =>
+        spawnSync('bash', monter('sh', '-c', commande), {
+          cwd: copie,
+          encoding: 'utf8',
+          maxBuffer: 256 * 1024 * 1024,
+          env,
+        }),
+    });
+    if (installation || refus) {
+      return refuser(installation ?? refus);
+    }
     if (aRejouer.length) {
-      const env = avecLesDonnees(donnees, avecLesOutils(outils, process.env, empreintes));
-      const refus = regenerer({
-        refs: aRejouer,
-        dansCopie,
-        lancer: commande =>
-          spawnSync('bash', monter('sh', '-c', commande), {
-            cwd: copie,
-            encoding: 'utf8',
-            maxBuffer: 256 * 1024 * 1024,
-            env,
-          }),
-      });
-      if (refus) {
-        return refuser(refus);
-      }
       dire(`✓ références régénérées sur main à jour : ${aRejouer.map(r => r.nom).join(', ')}`);
     }
 
