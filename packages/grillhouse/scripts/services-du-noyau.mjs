@@ -11,7 +11,15 @@
 // What the core asks of a module, and the boundary: docs/architecture/tests.md §3.3 and §3.5.
 import { fileURLToPath } from 'node:url';
 
-export * from './langages.mjs';
+// `generateursDe`, which the update alone reads, stays inside the core.
+export {
+  LANGAGES,
+  langage,
+  langageDe,
+  langageDeLaCopie,
+  langagesDe,
+  langagesDeclares,
+} from './langages.mjs';
 
 // The services of the core to a module of language: the plan of an envelope, the progress of a
 // pass and its measure, the tasks of the graph of the packages, the base of a pass, the pressure of the machine, its place and its lock, the last

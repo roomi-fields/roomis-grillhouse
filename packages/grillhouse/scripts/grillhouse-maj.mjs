@@ -41,7 +41,8 @@
 //   not yet ignored. The `.gitattributes` line `CHANGELOG.md merge=grillhouse-changelog` (scripts/fusion-du-changelog.mjs)
 //   and the git hooks (scripts/crochets.mjs: `commit-msg`, `pre-push`, in `core.hooksPath` or the
 //   default folder; the project's own lines stay, the frame's former ones give way).
-// - The generators of the declared language (`miseAJour.generateurs`), run by the project's
+// - The generators of the declared language (`miseAJour.generateurs`) and the generator of the
+//   graph, which every project has (`generateursDe`, scripts/langages.mjs), run by the project's
 //   `node_modules/.bin/grillhouse` for each file the project holds (all, in a project `init`
 //   creates); a failing one, or a missing command, has its line saying to run it after `npm install`.
 // - The binaries of the language (`binaires`; cargo: nextest, cargo-deny): installed when missing
@@ -71,7 +72,7 @@ import { installerGreffons } from './greffons.mjs';
 import { groupeDe, projetsExternes } from './groupe-cles.mjs';
 import { migrer, restesAuProjet } from './migrations.mjs';
 import { arbrePrincipal } from './outils-cles.mjs';
-import { langageDe, langagesDe } from './langages.mjs';
+import { generateursDe, langageDe, langagesDe } from './langages.mjs';
 import * as langagesDansLArchitecture from './migrations/0.27.0-langages-dans-l-architecture.mjs';
 import { CONFIG_BEADS, ecrireLePrefixe, prefixe, prefixeDuStore } from './prefixe-des-tickets.mjs';
 import { paquets } from './paquets.mjs';
@@ -443,7 +444,7 @@ export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd }
 
 /**
  * Runs each generator of the languages of the project (`miseAJour.generateurs` of each module,
- * each once) whose output the project holds (every one with `tous`, for a project `grillhouse init` creates;
+ * and the generator of the graph, `generateursDe`, each once) whose output the project holds (every one with `tous`, for a project `grillhouse init` creates;
  * every one of the module <langage>, for the first package of a language `grillhouse paquet` creates);
  * returns the lines of failure.
  */
@@ -452,9 +453,7 @@ export function regenerer(projet, { tous = false, langage = null } = {}) {
   const grillhouse = path.join(projet, 'node_modules', '.bin', 'grillhouse');
   const aPaquets = lireJson(path.join(projet, 'package.json'), {})?.workspaces !== undefined;
   const vus = new Set();
-  for (const { g, m } of langagesDe(projet).flatMap(m =>
-    m.miseAJour.generateurs.map(g => ({ g, m }))
-  )) {
+  for (const { g, m } of generateursDe(langagesDe(projet))) {
     const cle = JSON.stringify([g.commande, ...g.args]);
     const absente =
       g.sortie !== null && !tous && m.nom !== langage && !existsSync(path.join(projet, g.sortie));

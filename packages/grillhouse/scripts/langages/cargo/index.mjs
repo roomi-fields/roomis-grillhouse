@@ -78,8 +78,9 @@ export default {
     throw new Error('construction non prise en charge pour cargo');
   },
   // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`), and
-  // Turborepo, which plays the tasks of the crates (./commandes.mjs).
-  outils: ['smol-toml', 'turbo'],
+  // Turborepo, which plays the tasks of the crates (./commandes.mjs); jsonc-parser, by which the
+  // generator of the graph reads and writes their turbo.json.
+  outils: ['jsonc-parser', 'smol-toml', 'turbo'],
   // The programs the installer of Temporal requires in the PATH of the workers: cargo's folder is
   // also rustc's, nextest's and sccache's (rustup, `cargo install`).
   executables: ['cargo'],

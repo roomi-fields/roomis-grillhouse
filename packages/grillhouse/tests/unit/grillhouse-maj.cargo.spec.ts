@@ -138,11 +138,16 @@ describe('grillhouse-pkl.7, critère 1 — maj sert cargo, sans outil npm d’un
     const b = mettreAJour(racine, DEPOT);
     const p = pkgDe(racine);
     expect(p.grillhouse).not.toHaveProperty('langages');
-    // The tools of npm of the module cargo: the reader of a Cargo.toml, and Turborepo, which plays
-    // the tasks of the crates.
-    expect(b.dependances).toEqual(['smol-toml', 'turbo']);
-    expect(p.devDependencies).toEqual({ 'smol-toml': '1.9.1', turbo: '2.11.8' });
-    for (const o of OUTILS_TS.filter(o => o !== 'turbo')) {
+    // The tools of npm of the module cargo: the reader of a Cargo.toml, Turborepo, which plays
+    // the tasks of the crates, and jsonc-parser, by which the generator of the graph reads their
+    // turbo.json.
+    expect(b.dependances).toEqual(['jsonc-parser', 'smol-toml', 'turbo']);
+    expect(p.devDependencies).toEqual({
+      'jsonc-parser': '3.3.1',
+      'smol-toml': '1.9.1',
+      turbo: '2.11.8',
+    });
+    for (const o of OUTILS_TS.filter(o => !['jsonc-parser', 'turbo'].includes(o))) {
       expect(p.devDependencies?.[o], o).toBeUndefined();
     }
     expect(Object.values(p.scripts ?? {}).join('\n')).not.toMatch(/vitest/);
@@ -377,8 +382,13 @@ describe('grillhouse-pkl.7, critère 3 — le gabarit d’un projet cargo', () =
     expect(p.scripts?.verifier).toBe('grillhouse verifier');
     expect(p.scripts?.['grillhouse:gardes']).toBe('grillhouse gardes-du-cadre');
     expect(JSON.stringify(p)).not.toMatch(/vitest|tsc\b/);
-    // The version of each tool of npm of the module cargo, which the update installs (grillhouse-ool).
-    expect(p.devDependencies ?? {}).toEqual({ 'smol-toml': '1.9.1', turbo: '2.11.8' });
+    // The version of each tool of npm of the module cargo, which the update installs
+    // (grillhouse-ool).
+    expect(p.devDependencies ?? {}).toEqual({
+      'jsonc-parser': '3.3.1',
+      'smol-toml': '1.9.1',
+      turbo: '2.11.8',
+    });
     expect(p.packageManager).toBe('npm@11.20.0');
   });
 

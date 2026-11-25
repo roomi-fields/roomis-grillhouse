@@ -479,9 +479,14 @@ describe('grillhouse-3dr.2.2 — le module typescript sous son dossier', () => {
       'vitest',
     ];
     // Both play their tasks by Turborepo (grillhouse-x2w).
-    expect(OUTILS_CARGO).toEqual(['smol-toml', 'turbo']);
+    // jsonc-parser: the generator of the graph serves every language.
+    expect(OUTILS_CARGO).toEqual(['jsonc-parser', 'smol-toml', 'turbo']);
     // The module python's: smol-toml too, the reader of a pyproject.toml (grillhouse-ziy).
-    expect((python as unknown as { outils: string[] }).outils).toEqual(['smol-toml', 'turbo']);
+    expect((python as unknown as { outils: string[] }).outils).toEqual([
+      'jsonc-parser',
+      'smol-toml',
+      'turbo',
+    ]);
     expect(Object.keys(PKG.peerDependencies).sort()).toEqual(outils);
     for (const o of outils) {
       expect(PKG.peerDependenciesMeta?.[o], o).toEqual({ optional: true });

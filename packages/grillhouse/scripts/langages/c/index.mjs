@@ -59,8 +59,9 @@ export default {
   sortieDuPaquet: () => {
     throw new Error('sortie non prise en charge pour c');
   },
-  // Turborepo, which plays the tasks of the projects (./commandes.mjs).
-  outils: ['turbo'],
+  // Turborepo, which plays the tasks of the projects (./commandes.mjs), and jsonc-parser, by which
+  // the generator of the graph reads and writes their turbo.json.
+  outils: ['jsonc-parser', 'turbo'],
   // The programs the installer of Temporal requires in the PATH of the workers, and the poste.
   executables: ['cmake', 'ctest'],
   // uv at the version of the module python's file (one source), first, then the clang tools.

@@ -24,6 +24,12 @@
 //   its writes, its envelope and the acts of its circuit read on, as
 //   rust-analyzer keeps the last graph that loaded, and the write that repairs the copy passes.
 //   `langageDe` stays strict: a guard, a build and the red of a reading read the tree as it is.
+// - The generator of the graph (the `turbo.json` of the packages, whose tasks hash what each
+//   package declares its tests read, `grillhouse.lit`) serves every language, as Turborepo hashes
+//   the inputs of a task whatever tool it runs. It lives in the module typescript, which the join
+//   asks for it in a project that declares no typescript: its command, its generated files, its
+//   share of the update and, in a repository of packages, its guard (docs/architecture/tests.md
+//   §3.1).
 // - A module is loaded once per process, synchronously (`require` of an ES module, Node 22): the
 //   locks and the guards ask it in a hook, where nothing waits.
 //
@@ -33,6 +39,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { composer } from './composition-des-langages.mjs';
 import { matieresDeclarees, sousUneMatiere } from './matieres-lues.mjs';
+import { paquets } from './paquets.mjs';
 import {
   ARCHITECTURE,
   COLONNE,
@@ -121,6 +128,49 @@ const avecLesMatieres = langage =>
         : null),
   });
 
+// The name of the generator of the graph, its command and its guard, and the module that holds it.
+const GRAPHE = 'turbo-des-paquets';
+const PORTEUR = 'typescript';
+
+// <composition>, the join of <modules>, with the generator of the graph when none of them holds
+// it: its command, its generated files, and its guard in a repository of packages, the first of
+// the languages'. The composition itself when one of them holds it.
+const avecLeGraphe = (composition, modules) => {
+  if (modules.some(m => m.nom === PORTEUR)) {
+    return composition;
+  }
+  const porteur = charger(PORTEUR);
+  return Object.assign(Object.create(composition), {
+    commandes: racine => ({
+      ...composition.commandes(racine),
+      [GRAPHE]: porteur.commandes(racine)[GRAPHE],
+    }),
+    fichiersEngendres: racine => [
+      ...composition.fichiersEngendres(racine),
+      ...porteur.fichiersEngendres(racine).filter(e => e.gardes.includes(GRAPHE)),
+    ],
+    gardes: racine => [
+      ...(paquets(racine).length
+        ? porteur.gardes(racine).filter(g => path.basename(g[0], '.mjs') === GRAPHE)
+        : []),
+      ...composition.gardes(racine),
+    ],
+  });
+};
+
+/**
+ * The generators the update runs in a project of the modules <modules>, each with its module:
+ * each module's (`miseAJour.generateurs`), then the generator of the graph, which every project
+ * has (a generator two give is run once, by its command).
+ * @param {import('./jointure.js').Langage[]} modules
+ */
+export const generateursDe = modules =>
+  [...modules, charger(PORTEUR)].flatMap(m =>
+    m.miseAJour.generateurs
+      .filter(g => modules.includes(m) || g.commande === GRAPHE)
+      .map(g => ({ g, m }))
+  );
+
 const composes = new Map();
 /**
  * The join of the modules that serve the project at <racine> (`langagesDe`): their composition
@@ -133,7 +183,7 @@ export function langageDe(racine) {
   const modules = langagesDe(racine);
   const cle = modules.map(m => m.nom).join('+');
   if (!composes.has(cle)) {
-    composes.set(cle, avecLesMatieres(composer(modules)));
+    composes.set(cle, avecLesMatieres(avecLeGraphe(composer(modules), modules)));
   }
   return composes.get(cle);
 }
