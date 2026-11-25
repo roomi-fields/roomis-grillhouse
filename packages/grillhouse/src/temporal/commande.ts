@@ -24,9 +24,10 @@
 // - `perime` reads only (no systemctl, no download, no writing): it writes `perime` on the standard
 //   output when the units applied differ from what `installer` would write (travailleurPerime), and
 //   nothing otherwise; exit 0. The session's start asks it and names `installer` under « Manque ».
-// - `purger` deletes the workflows closed for longer than the retention, then compacts the
-//   database with the server stopped, and says the count and the sizes (./installation.ts); a
-//   circuit in flight, the server or systemd failing: its line on the error stream, exit 1.
+// - `purger` deletes the workflows closed for longer than the retention, then, with the server
+//   stopped, removes the orphan histories and compacts the database, and says the counts and the
+//   sizes (./installation.ts); a circuit in flight, the server or systemd failing: its line on the
+//   error stream, exit 1.
 // - The places: the home ($HOME), the directory of the units (<home>/.config/systemd/user), the
 //   project (the working directory), and the program systemctl (`systemctl`), each an option, so
 //   that a test plays under a trial home and never in the account's systemd.

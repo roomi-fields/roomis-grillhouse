@@ -27,9 +27,10 @@
 //   refuses the installation by its name, the unit not recorded as applied.
 // - `purger` deletes by query the workflows closed for longer than the retention, never a running
 //   one (the server keeps the deletion timer a workflow got when it closed, under the retention of
-//   then), waits until the server counts none left, then compacts the database as above and starts
-//   the server again. A circuit in flight refuses it by its tickets, before the deletion and again
-//   before the stop.
+//   then), waits until the server counts none left, then stops the server, removes the history trees
+//   no execution references (`retirerLesOrphelins`, in SQL: a gap to the reference), compacts the
+//   database as above and starts the server again. A circuit in flight refuses it by its tickets,
+//   before the deletion and again before the stop.
 // - Each worker runs the frame's worker (dist/temporal/travailleur.js) on its task queue:
 //   `grillhouse-projet-<projet>` for the project's, `grillhouse-machine` for the machine's. A
 //   project that names its version of the frame (`grillhouse.outil`, scripts/aiguillage.mjs) runs
@@ -558,6 +559,14 @@ export interface Compactage {
   apres: number;
 }
 
+/** What the removal of the orphan histories did (`retirerLesOrphelins`). */
+interface Retrait {
+  /** How many history trees it removed. */
+  orphelins: number;
+  /** The size of the database file before it, in bytes. */
+  avant: number;
+}
+
 /** What the installation did. */
 export interface RapportDInstallation {
   programme: string;
@@ -589,23 +598,35 @@ export interface RapportDInstallation {
   versionInstallee?: string;
 }
 
+/** The runtime's SQLite (`node:sqlite`), as the frame uses it. */
+interface BaseSqlite {
+  exec(sql: string): void;
+  prepare(sql: string): {
+    run(...a: unknown[]): unknown;
+    get(...a: unknown[]): Record<string, unknown> | undefined;
+    iterate(...a: unknown[]): Iterable<Record<string, unknown>>;
+  };
+  close(): void;
+}
+
+// Opens the database file <base> of the server by the runtime's `node:sqlite`, no tool of the PATH.
+// Temporal's schema writes its JSON paths between double quotes (`"$.TemporalKeywordList02"`),
+// which the SQLite it is built with reads as strings; the runtime's SQLite reads them as columns
+// unless told otherwise, and VACUUM, which parses the schema again, fails on them.
+function ouvrirLaBase(base: string): BaseSqlite {
+  const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as {
+    DatabaseSync: new (f: string, o: { enableDoubleQuotedStringLiterals: boolean }) => BaseSqlite;
+  };
+  return new DatabaseSync(base, { enableDoubleQuotedStringLiterals: true });
+}
+
 /**
- * Compacts the SQLite database <base> (`VACUUM`, by the runtime's `node:sqlite`, no tool of the
- * PATH), its journal folded into it first; its size before and after. SQLite's own message refuses
- * a file that is not a database.
+ * Compacts the SQLite database <base> (`VACUUM`), its journal folded into it first; its size before
+ * and after. SQLite's own message refuses a file that is not a database.
  */
 export function compacterLaBase(base: string): Compactage {
-  const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as {
-    DatabaseSync: new (
-      f: string,
-      o: { enableDoubleQuotedStringLiterals: boolean }
-    ) => { exec(sql: string): void; close(): void };
-  };
   const avant = statSync(base).size;
-  // Temporal's schema writes its JSON paths between double quotes (`"$.TemporalKeywordList02"`),
-  // which the SQLite it is built with reads as strings; the runtime's SQLite reads them as columns
-  // unless told otherwise, and VACUUM, which parses the schema again, fails on them.
-  const db = new DatabaseSync(base, { enableDoubleQuotedStringLiterals: true });
+  const db = ouvrirLaBase(base);
   try {
     db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
     db.exec('VACUUM');
@@ -613,6 +634,68 @@ export function compacterLaBase(base: string): Compactage {
     db.close();
   }
   return { avant, apres: statSync(base).size };
+}
+
+/** A UUID as a text, the form a branch token of Temporal names its history tree under. */
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+// The trees the present executions of <db> may reference, in the temporary table `gardes`: the tree
+// of each run id, and every tree whose id one of the two blobs of an execution names (its branch
+// tokens, in clear in the Protobuf: a reset run reads the tree of the run it comes from). Every
+// UUID read is kept, a tree's or not: the doubt keeps a history. An encoding other than Protobuf
+// is refused, its blobs unread.
+function garderLesArbresReferences(db: BaseSqlite) {
+  db.exec('CREATE TEMP TABLE gardes (tree_id BLOB PRIMARY KEY) WITHOUT ROWID');
+  const garder = db.prepare('INSERT OR IGNORE INTO temp.gardes VALUES (?)');
+  const executions = db.prepare(
+    'SELECT run_id, data, data_encoding, state, state_encoding FROM executions'
+  );
+  for (const e of executions.iterate()) {
+    garder.run(e.run_id);
+    for (const [blob, encodage] of [
+      [e.data, e.data_encoding],
+      [e.state, e.state_encoding],
+    ]) {
+      if (encodage !== 'Proto3') {
+        throw new Error(
+          `une exécution est encodée en « ${String(encodage)} », ses historiques ne se lisent pas`
+        );
+      }
+      const texte = Buffer.from(blob as Uint8Array).toString('latin1');
+      for (const [uuid] of texte.matchAll(UUID)) {
+        garder.run(Buffer.from(uuid.replaceAll('-', ''), 'hex'));
+      }
+    }
+  }
+}
+
+/**
+ * Removes from the database <base> of the stopped server the history trees (`history_tree`,
+ * `history_node`) no execution references, in one transaction; how many trees it removed, and the
+ * size of the file before. Temporal documents no gesture for them: a gap to the reference, decided
+ * (the document of the installation, §5.3).
+ */
+function retirerLesOrphelins(base: string): Retrait {
+  const avant = statSync(base).size;
+  const db = ouvrirLaBase(base);
+  const ORPHELIN = 'tree_id NOT IN (SELECT tree_id FROM temp.gardes)';
+  try {
+    // Closing the database without the commit rolls the transaction back.
+    db.exec('BEGIN IMMEDIATE');
+    garderLesArbresReferences(db);
+    const compte = db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM (SELECT tree_id FROM history_tree WHERE ${ORPHELIN} ` +
+          `UNION SELECT tree_id FROM history_node WHERE ${ORPHELIN})`
+      )
+      .get();
+    db.exec(`DELETE FROM history_node WHERE ${ORPHELIN}`);
+    db.exec(`DELETE FROM history_tree WHERE ${ORPHELIN}`);
+    db.exec('COMMIT');
+    return { orphelins: Number(compte?.n), avant };
+  } finally {
+    db.close();
+  }
 }
 
 /**
@@ -928,21 +1011,22 @@ export function travailleurPerime({
   }
 }
 
-// Stops the server, compacts its database <donnees> and leaves it stopped for the caller to start
-// again; a failed compaction starts it again here, and is refused by its name, <suite> said after.
-function arreterEtCompacter(
+// Stops the server, plays <jouer> on its database and leaves it stopped for the caller to start
+// again; a failure of it starts the server again here, and is refused by the name of its gesture
+// (<geste>, read at the failure), <suite> said after.
+function serveurArrete<T>(
   systemctl: Systemctl,
-  donnees: string,
-  compacter: (base: string) => Compactage,
+  jouer: () => T,
+  geste: () => string,
   suite: string
-): Compactage {
+): T {
   systemd(systemctl, ['stop', UNITE_DU_SERVEUR]);
   try {
-    return compacter(donnees);
+    return jouer();
   } catch (e) {
     systemd(systemctl, ['start', UNITE_DU_SERVEUR]);
     throw new Error(
-      `temporal : le compactage de la base ${donnees} échoue : ${e instanceof Error ? e.message : String(e)} ; le serveur est redémarré, ${suite}.`,
+      `temporal : ${geste()} échoue : ${e instanceof Error ? e.message : String(e)} ; le serveur est redémarré, ${suite}.`,
       { cause: e }
     );
   }
@@ -986,6 +1070,8 @@ export interface OptionsDeLaPurge {
   /** How many workflows the server counts under a list filter (`compterSurLeServeur`). */
   compter?: (requete: string) => Promise<number>;
   temporal?: ProgrammeTemporal;
+  /** Removes the orphan histories of the database file <base> (`retirerLesOrphelins`). */
+  retirer?: (base: string) => Retrait;
   compacter?: (base: string) => Compactage;
   maintenant?: () => number;
   attendre?: (ms: number) => Promise<unknown>;
@@ -995,7 +1081,9 @@ export interface OptionsDeLaPurge {
 export interface RapportDeLaPurge {
   /** The workflows past the retention it deleted. */
   supprimes: number;
-  /** The size of the database before and after its compaction; absent without a database file. */
+  /** The orphan histories it removed; absent without a database file. */
+  orphelins?: number;
+  /** The size of the database before the purge touched it and after; absent without a database file. */
   compactage?: Compactage;
 }
 
@@ -1004,7 +1092,7 @@ export function texteDeLaPurge(r: RapportDeLaPurge): string {
   return (
     `temporal : ${r.supprimes} déroulés fermés au-delà de la rétention supprimés` +
     (r.compactage
-      ? ` ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
+      ? ` ; ${r.orphelins} historiques orphelins supprimés ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
       : ' ; aucun fichier de base, rien à compacter') +
     '.\n'
   );
@@ -1012,11 +1100,13 @@ export function texteDeLaPurge(r: RapportDeLaPurge): string {
 
 /**
  * Deletes the workflows closed for longer than the retention (their CloseTime), never a running
- * one, then compacts the database with the server stopped. The server keeps the deletion timer a
- * workflow got when it closed, so a shorter retention reaches only the workflows closed after it:
- * the others go by the batch deletion of Temporal (`temporal workflow delete --query`), which the
- * server plays on its own, so the purge counts until none is left. A circuit in flight refuses it,
- * the tickets named, before the deletion and again before the stop.
+ * one, then, with the server stopped, removes the orphan histories (`retirerLesOrphelins`) and
+ * compacts the database. The server keeps the deletion timer a workflow got when it closed, so a
+ * shorter retention reaches only the workflows closed after it: the others go by the batch
+ * deletion of Temporal (`temporal workflow delete --query`), which the server plays on its own, so
+ * the purge counts until none is left. A circuit in flight refuses it, the tickets named, before
+ * the deletion and again before the stop. A removal or a compaction that fails starts the server
+ * again.
  */
 export async function purger({
   lieux,
@@ -1025,6 +1115,7 @@ export async function purger({
   circuitsEnVol = () => circuitsEnVolDuServeur(cheminsDe(lieux, epingle.version).programme),
   compter = compterSurLeServeur,
   temporal = jouerTemporal,
+  retirer = retirerLesOrphelins,
   compacter = compacterLaBase,
   maintenant = Date.now,
   attendre = ms => new Promise(fin => setTimeout(fin, ms)),
@@ -1080,15 +1171,20 @@ export async function purger({
   if (!existsSync(donnees)) {
     return { supprimes };
   }
-  refuserSousUnVol('la purge est faite, la base n’est pas compactée');
-  const compactage = arreterEtCompacter(
+  refuserSousUnVol('la suppression est faite, ni les orphelins retirés ni la base compactée');
+  let geste = `le retrait des historiques orphelins de la base ${donnees}`;
+  const retrait = serveurArrete(
     systemctl,
-    donnees,
-    compacter,
-    'la purge est faite, le compactage est à rejouer'
+    () => {
+      const { orphelins, avant } = retirer(donnees);
+      geste = `le compactage de la base ${donnees}`;
+      return { orphelins, compactage: { ...compacter(donnees), avant } };
+    },
+    () => geste,
+    'la suppression est faite, la purge est à rejouer'
   );
   systemd(systemctl, ['start', UNITE_DU_SERVEUR]);
-  return { supprimes, compactage };
+  return { supprimes, ...retrait };
 }
 
 /** Installs the account's Temporal at the places <lieux> (see the header). */
@@ -1159,10 +1255,10 @@ export async function installer({
       // The server stopped, its database compacted, then every unit applied started again; without
       // a database file there is nothing to compact, and the server is not stopped.
       if (existsSync(donnees)) {
-        compactage = arreterEtCompacter(
+        compactage = serveurArrete(
           systemctl,
-          donnees,
-          compacter,
+          () => compacter(donnees),
+          () => `le compactage de la base ${donnees}`,
           "l'unité sera appliquée au prochain passage"
         );
       }
