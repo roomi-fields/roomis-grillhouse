@@ -6,6 +6,7 @@
 //                                                                  lays down the program alone
 //   grillhouse temporal etat [lieux]                                says whether each service runs
 //   grillhouse temporal perime [lieux]                              writes `perime` when the worker is stale
+//   grillhouse temporal purger [lieux]                              purges the closed workflows, compacts
 //
 //   lieux : [--maison <dossier>] [--unites <dossier>] [--racine <dossier>] [--systemctl <programme>]
 //
@@ -23,6 +24,9 @@
 // - `perime` reads only (no systemctl, no download, no writing): it writes `perime` on the standard
 //   output when the units applied differ from what `installer` would write (travailleurPerime), and
 //   nothing otherwise; exit 0. The session's start asks it and names `installer` under « Manque ».
+// - `purger` deletes the workflows closed for longer than the retention, then compacts the
+//   database with the server stopped, and says the count and the sizes (./installation.ts); a
+//   circuit in flight, the server or systemd failing: its line on the error stream, exit 1.
 // - The places: the home ($HOME), the directory of the units (<home>/.config/systemd/user), the
 //   project (the working directory), and the program systemctl (`systemctl`), each an option, so
 //   that a test plays under a trial home and never in the account's systemd.
@@ -33,13 +37,15 @@ import {
   installer,
   lieuxDe,
   poserLeProgramme,
+  purger,
   systemctlDuCompte,
+  texteDeLaPurge,
   texteDeLInstallation,
   travailleurPerime,
 } from './installation.js';
 
 const USAGE =
-  'Usage : grillhouse temporal <installer|etat|perime> [--programme-seul] [--archive <fichier>] ' +
+  'Usage : grillhouse temporal <installer|etat|perime|purger> [--programme-seul] [--archive <fichier>] ' +
   '[--maison <dossier>] [--unites <dossier>] [--racine <dossier>] [--systemctl <programme>]\n';
 
 const OPTIONS = new Set(['--archive', '--maison', '--unites', '--racine', '--systemctl']);
@@ -47,7 +53,7 @@ const OPTIONS = new Set(['--archive', '--maison', '--unites', '--racine', '--sys
 // The action and the options of <args>, or null for a malformed call.
 function lire(args: string[]) {
   const [action, ...reste] = args;
-  if (action !== 'installer' && action !== 'etat' && action !== 'perime') {
+  if (!['installer', 'etat', 'perime', 'purger'].includes(action ?? '')) {
     return null;
   }
   const options: Record<string, string> = {};
@@ -98,6 +104,10 @@ async function principal(args: string[]): Promise<number> {
     const e = await etat({ lieux, systemctl });
     process.stdout.write(texteDeLEtat(e));
     return e.installe ? 0 : 1;
+  }
+  if (action === 'purger') {
+    process.stdout.write(texteDeLaPurge(await purger({ lieux, systemctl })));
+    return 0;
   }
   const r = await installer({ lieux, systemctl, ...obtenir });
   process.stdout.write(texteDeLInstallation(r));

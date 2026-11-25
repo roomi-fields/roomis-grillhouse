@@ -25,6 +25,11 @@
 //   its database (`compacterLaBase`, `VACUUM` by the runtime's `node:sqlite`) and starts it again,
 //   and the report says the sizes before and after. A failed compaction starts the server again and
 //   refuses the installation by its name, the unit not recorded as applied.
+// - `purger` deletes by query the workflows closed for longer than the retention, never a running
+//   one (the server keeps the deletion timer a workflow got when it closed, under the retention of
+//   then), waits until the server counts none left, then compacts the database as above and starts
+//   the server again. A circuit in flight refuses it by its tickets, before the deletion and again
+//   before the stop.
 // - Each worker runs the frame's worker (dist/temporal/travailleur.js) on its task queue:
 //   `grillhouse-projet-<projet>` for the project's, `grillhouse-machine` for the machine's. A
 //   project that names its version of the frame (`grillhouse.outil`, scripts/aiguillage.mjs) runs
@@ -107,7 +112,12 @@ export const EPINGLE: Epingle = {
 /** The port of the account's server, Temporal's, on the loopback. */
 const PORT_DU_SERVEUR = 7233;
 /** How long the server keeps a closed workflow: 7 days. */
-const RETENTION = '168h';
+const RETENTION_EN_HEURES = 168;
+const RETENTION = `${RETENTION_EN_HEURES}h`;
+/** How long the purge waits for the count of the workflows to delete to go down. */
+const PURGE_SANS_AVANCE_MS = 5 * 60_000;
+/** How long the purge waits between two counts. */
+const PURGE_ENTRE_DEUX_COMPTES_MS = 2000;
 /** The processor weight of the server's unit, above the passes' and the workers' (100). */
 const POIDS_DU_SERVEUR = 1000;
 /** The pragmas of SQLite the server opens its database with: WAL, the synchronous write WAL advises. */
@@ -918,6 +928,169 @@ export function travailleurPerime({
   }
 }
 
+// Stops the server, compacts its database <donnees> and leaves it stopped for the caller to start
+// again; a failed compaction starts it again here, and is refused by its name, <suite> said after.
+function arreterEtCompacter(
+  systemctl: Systemctl,
+  donnees: string,
+  compacter: (base: string) => Compactage,
+  suite: string
+): Compactage {
+  systemd(systemctl, ['stop', UNITE_DU_SERVEUR]);
+  try {
+    return compacter(donnees);
+  } catch (e) {
+    systemd(systemctl, ['start', UNITE_DU_SERVEUR]);
+    throw new Error(
+      `temporal : le compactage de la base ${donnees} échoue : ${e instanceof Error ? e.message : String(e)} ; le serveur est redémarré, ${suite}.`,
+      { cause: e }
+    );
+  }
+}
+
+/**
+ * How many workflows of the account's server the list filter <requete> counts; a server that does
+ * not answer within 30 s is a failure.
+ */
+async function compterSurLeServeur(requete: string): Promise<number> {
+  const { ouvrirLeClient } = await import('./client.js');
+  const ouvert = ouvrirLeClient({ adresse: `127.0.0.1:${PORT_DU_SERVEUR}`, espace: 'default' });
+  try {
+    const { client } = ouvert;
+    return await client.connection.withDeadline(Date.now() + 30_000, async () => {
+      return (await client.workflow.count(requete)).count;
+    });
+  } finally {
+    await ouvert.fermer().catch(() => undefined);
+  }
+}
+
+/** A call of the program `temporal` <programme> with <args>. */
+type ProgrammeTemporal = (
+  programme: string,
+  args: string[]
+) => { status: number | null; stdout: string; stderr: string };
+
+const jouerTemporal: ProgrammeTemporal = (programme, args) => {
+  const r = spawnSync(programme, args, { encoding: 'utf8', timeout: 60_000 });
+  return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr || r.error?.message || '' };
+};
+
+/** What the purge receives; each one but the places and systemctl has its default. */
+export interface OptionsDeLaPurge {
+  lieux: Lieux;
+  systemctl: Systemctl;
+  epingle?: Epingle;
+  /** The tickets whose circuit runs on the server, as the installation asks them. */
+  circuitsEnVol?: () => string[];
+  /** How many workflows the server counts under a list filter (`compterSurLeServeur`). */
+  compter?: (requete: string) => Promise<number>;
+  temporal?: ProgrammeTemporal;
+  compacter?: (base: string) => Compactage;
+  maintenant?: () => number;
+  attendre?: (ms: number) => Promise<unknown>;
+}
+
+/** What the purge did. */
+export interface RapportDeLaPurge {
+  /** The workflows past the retention it deleted. */
+  supprimes: number;
+  /** The size of the database before and after its compaction; absent without a database file. */
+  compactage?: Compactage;
+}
+
+/** The line the command writes of a purge. */
+export function texteDeLaPurge(r: RapportDeLaPurge): string {
+  return (
+    `temporal : ${r.supprimes} déroulés fermés au-delà de la rétention supprimés` +
+    (r.compactage
+      ? ` ; base compactée : ${r.compactage.avant} octets avant, ${r.compactage.apres} après`
+      : ' ; aucun fichier de base, rien à compacter') +
+    '.\n'
+  );
+}
+
+/**
+ * Deletes the workflows closed for longer than the retention (their CloseTime), never a running
+ * one, then compacts the database with the server stopped. The server keeps the deletion timer a
+ * workflow got when it closed, so a shorter retention reaches only the workflows closed after it:
+ * the others go by the batch deletion of Temporal (`temporal workflow delete --query`), which the
+ * server plays on its own, so the purge counts until none is left. A circuit in flight refuses it,
+ * the tickets named, before the deletion and again before the stop.
+ */
+export async function purger({
+  lieux,
+  systemctl,
+  epingle = EPINGLE,
+  circuitsEnVol = () => circuitsEnVolDuServeur(cheminsDe(lieux, epingle.version).programme),
+  compter = compterSurLeServeur,
+  temporal = jouerTemporal,
+  compacter = compacterLaBase,
+  maintenant = Date.now,
+  attendre = ms => new Promise(fin => setTimeout(fin, ms)),
+}: OptionsDeLaPurge): Promise<RapportDeLaPurge> {
+  const { programme, donnees } = cheminsDe(lieux, epingle.version);
+  const refuserSousUnVol = (suite: string) => {
+    const vols = circuitsEnVol();
+    if (vols.length) {
+      throw new Error(
+        `temporal : circuits en vol (${vols.join(', ')}) ; ${suite}, à rejouer quand ils sont arrêtés.`
+      );
+    }
+  };
+  refuserSousUnVol('rien n’est purgé');
+  // One cutoff for the whole purge: what closes meanwhile stays within the retention.
+  const limite = new Date(maintenant() - RETENTION_EN_HEURES * 3_600_000).toISOString();
+  const requete = `ExecutionStatus != 'Running' AND CloseTime < '${limite}'`;
+  const supprimes = await compter(requete);
+  if (supprimes > 0) {
+    const r = temporal(programme, [
+      'workflow',
+      'delete',
+      '--address',
+      `127.0.0.1:${PORT_DU_SERVEUR}`,
+      '--namespace',
+      'default',
+      '--query',
+      requete,
+      '--reason',
+      'grillhouse temporal purger',
+      '--yes',
+    ]);
+    if (r.status !== 0) {
+      throw new Error(
+        `temporal : la suppression par requête échoue (${r.status}) : ${r.stderr.trim()} ; le serveur n'est pas arrêté.`
+      );
+    }
+    let reste = supprimes;
+    let avance = maintenant();
+    while (reste > 0) {
+      await attendre(PURGE_ENTRE_DEUX_COMPTES_MS);
+      const lu = await compter(requete);
+      if (lu < reste) {
+        reste = lu;
+        avance = maintenant();
+      } else if (maintenant() - avance >= PURGE_SANS_AVANCE_MS) {
+        throw new Error(
+          `temporal : la suppression n'avance plus, ${lu} déroulés restent au-delà de la rétention ; le serveur n'est pas arrêté.`
+        );
+      }
+    }
+  }
+  if (!existsSync(donnees)) {
+    return { supprimes };
+  }
+  refuserSousUnVol('la purge est faite, la base n’est pas compactée');
+  const compactage = arreterEtCompacter(
+    systemctl,
+    donnees,
+    compacter,
+    'la purge est faite, le compactage est à rejouer'
+  );
+  systemd(systemctl, ['start', UNITE_DU_SERVEUR]);
+  return { supprimes, compactage };
+}
+
 /** Installs the account's Temporal at the places <lieux> (see the header). */
 export async function installer({
   lieux,
@@ -986,16 +1159,12 @@ export async function installer({
       // The server stopped, its database compacted, then every unit applied started again; without
       // a database file there is nothing to compact, and the server is not stopped.
       if (existsSync(donnees)) {
-        systemd(systemctl, ['stop', UNITE_DU_SERVEUR]);
-        try {
-          compactage = compacter(donnees);
-        } catch (e) {
-          systemd(systemctl, ['start', UNITE_DU_SERVEUR]);
-          throw new Error(
-            `temporal : le compactage de la base ${donnees} échoue : ${e instanceof Error ? e.message : String(e)} ; le serveur est redémarré, l'unité sera appliquée au prochain passage.`,
-            { cause: e }
-          );
-        }
+        compactage = arreterEtCompacter(
+          systemctl,
+          donnees,
+          compacter,
+          "l'unité sera appliquée au prochain passage"
+        );
       }
     }
     systemd(systemctl, ['restart', ...appliquees]);
