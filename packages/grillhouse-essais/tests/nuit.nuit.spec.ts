@@ -897,15 +897,18 @@ describe('grillhouse-3uv.58 critère 6 — the night removes and recreates a cop
   );
 });
 
-// STRUCTURE.md sums up nuit.sh with the project's night script (grillhouse.nuit); the night pushes
-// nothing.
-describe('STRUCTURE.md sums up the night with its one key', () => {
-  it('the line of nuit.sh in STRUCTURE.md names grillhouse.nuit and no longer the push of the night', () => {
-    const ligne = readFileSync(path.join(RACINE, 'STRUCTURE.md'), 'utf8')
-      .split('\n')
-      .find(l => /\bnuit\.sh\s+#/.test(l));
-    expect(ligne).toBeDefined();
-    expect(ligne).toMatch(/grillhouse\.nuit\b(?!\.)/);
-    expect(ligne).not.toMatch(/grillhouse\.poussee/);
+// The document of the entry onto main (§5.3, the night) names the project's night script
+// (grillhouse.nuit); the night pushes nothing.
+describe('the document of the night names the night with its one key', () => {
+  it('the section of the night in entree.md names grillhouse.nuit and no longer the push of the night', () => {
+    const section = readFileSync(
+      path.join(RACINE, 'packages/grillhouse/docs/architecture/entree.md'),
+      'utf8'
+    )
+      .split(/^(?=##+ )/m)
+      .find(s => s.startsWith('### 5.3 La nuit'));
+    expect(section).toBeDefined();
+    expect(section).toMatch(/grillhouse\.nuit\b(?!\.)/);
+    expect(section).not.toMatch(/grillhouse\.poussee/);
   });
 });

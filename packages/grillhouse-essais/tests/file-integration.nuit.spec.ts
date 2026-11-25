@@ -289,10 +289,10 @@ describe('grillhouse-3uv.63 — the old way is gone, the texts say the new one',
   it('critère 12: STRUCTURE.md lists the queue next to the integration', () => {
     expect(lire('STRUCTURE.md')).toMatch(/file\.mjs/);
   });
-  it('critère 12: the circuit, which launches the queue, and the supervisor name the queue', () => {
+  it('critère 12: the circuit, which launches the queue, and the document of the entry onto main name the queue', () => {
     for (const f of [
       'packages/grillhouse/scripts/circuit.mjs',
-      'mods/grillhouse/skills/pitmaster/SKILL.md',
+      'packages/grillhouse/docs/architecture/entree.md',
     ]) {
       expect(lire(f), f).toMatch(/file\.mjs|en-file/);
     }
