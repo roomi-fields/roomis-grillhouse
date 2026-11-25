@@ -1,8 +1,8 @@
 // The budget of the reading of the circuits of a repository on the Temporal server
 // (grillhouse-4nr.10, criterion 3, decision Q2): the board, the opening of a session of supervision
-// and each step of the wait read them in one call (`lireLesCircuits`, a list of the workflows and
+// and each step of the wait read them in one reading (`lireLesCircuits`, lists of the workflows and
 // their memo, no worker living); with forty circuits on the server, as many as several projects
-// keep at once, the median of twenty such calls stays under the 50 ms of the criterion (21 ms
+// keep at once, the median of twenty such readings stays under the 50 ms of the criterion (21 ms
 // measured at rest on 2026-11-06). A bench of time: the night plays it, at rest.
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -23,7 +23,7 @@ afterAll(async () => {
 });
 
 describe('la lecture des circuits tient son budget', () => {
-  it(`forty circuits on the server, read in one call within ${BUDGET} ms`, async () => {
+  it(`forty circuits on the server, read within ${BUDGET} ms`, async () => {
     const s = await demarrerLeServeur(
       programmeTemporal(),
       path.join(dossier('budget-lecture'), 'temporal.db'),

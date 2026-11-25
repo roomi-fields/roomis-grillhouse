@@ -5,7 +5,7 @@
 //   node scripts/retirer-les-copies-finies.mjs [<copie finie de jouer>…]   from the main tree
 //
 // - The circuits that hold their copy are what the Temporal server says (./circuits-du-serveur.mjs,
-//   one call, 5 s at most): each that has not ended (it runs, or waits an answer or a place), and
+//   5 s at most): each that has not ended (it runs, or waits an answer or a place), and
 //   each ended without its issue, which waits the supervisor's answer; a server that does not
 //   answer, a client not built or any other fault of that reading leaves them unread (null), and
 //   the removal of ./copies-finies.mjs then keeps each copy beside its `.travail`.

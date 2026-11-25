@@ -602,7 +602,7 @@ export function texteDesQuestions(questions, o = {}) {
  * then those whose lot is already on main (`enFileSurMain`, main read by <surMainDe>,
  * `lotEstSurMain` by default), which it never starts again.
  * @param {string} racine the root of the repository
- * The circuits are read once, by <circuitsDe> (one call to the Temporal server,
+ * The circuits are read once, by <circuitsDe> (lists of the Temporal server that it filters,
  * scripts/circuits-du-serveur.mjs, by default); a server that does not answer is said, and no
  * question goes up.
  * @param {{ fermes?: (racine: string, ids: string[]) => Set<string> | null,

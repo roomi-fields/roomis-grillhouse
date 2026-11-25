@@ -167,7 +167,7 @@ interface VueDuCircuit {
 }
 ```
 
-La vue est une réduction de l'état, écrite par le déroulé à chaque changement d'étape ou de situation ; un lecteur n'a pas d'autre source. La requête `etatDuCircuit` rend l'état entier quand un travailleur vit ; la vue se lit sur le serveur seul.
+La vue est une réduction de l'état, écrite par le déroulé à chaque changement d'étape ou de situation ; un lecteur n'a pas d'autre source. La requête `etatDuCircuit` rend l'état entier quand un travailleur vit ; la vue se lit sur le serveur seul, par des listes que le serveur filtre : une, ou deux quand un déroulé non intégré est fini.
 
 ### 4.3 Ce qui traverse le déroulé
 

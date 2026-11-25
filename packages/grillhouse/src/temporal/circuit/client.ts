@@ -22,6 +22,7 @@ import {
   defaultPayloadConverter,
   WorkflowExecutionAlreadyStartedError,
 } from '@temporalio/common';
+import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
 import { fileDuProjet } from '../installation.js';
 import { demarrerLesTickets } from '../tickets/client.js';
 import { refusDuLancementApresArret } from './appel.js';
@@ -492,11 +493,52 @@ export interface CircuitLu {
   report: { raison: string; reprise: number } | null;
 }
 
+// The runs of the circuits of <racine> the server holds, filtered by it: all of them when
+// <integres>. Else the runs not integrated (a `!=` of Temporal leaves out a run that published no
+// step yet, hence `IS NULL`), then, for each ticket whose last such run has ended, its integrated
+// runs: a later one says that the ticket is integrated, and not at the step of that older run. The
+// query holds the root up to its first quote or backslash, which the caller's filter completes.
+async function passesDesCircuits(client: Client, racine: string, integres: boolean) {
+  const prefixe = idDuCircuit(racine, '');
+  const duDepot = `WorkflowType = '${CIRCUIT}' AND WorkflowId STARTS_WITH '${prefixe.split(/['\\]/)[0]}'`;
+  const lister = async (query: string) =>
+    (await listerLesDeroules(client, query)).filter(w => w.workflowId.startsWith(prefixe));
+  if (integres) {
+    return lister(duDepot);
+  }
+  const autres = await lister(
+    `${duDepot} AND (${ATTRIBUT_ETAPE.name} IS NULL OR ${ATTRIBUT_ETAPE.name} != 'integre')`
+  );
+  const finis = [...dernieresPasses(autres).values()]
+    .filter(w => w.status.name !== 'RUNNING')
+    .map(w => `'${w.workflowId.slice(prefixe.length)}'`);
+  if (!finis.length) {
+    return autres;
+  }
+  const ensuite = await lister(
+    `${duDepot} AND ${ATTRIBUT_ETAPE.name} = 'integre' AND ${ATTRIBUT_TICKET.name} IN (${finis.join(', ')})`
+  );
+  return [...autres, ...ensuite];
+}
+
+// The last run started of each workflow among <passes>.
+function dernieresPasses(passes: WorkflowExecutionInfo[]) {
+  const dernieres = new Map<string, WorkflowExecutionInfo>();
+  for (const w of passes) {
+    const avant = dernieres.get(w.workflowId);
+    if (!avant || w.startTime.getTime() > avant.startTime.getTime()) {
+      dernieres.set(w.workflowId, w);
+    }
+  }
+  return dernieres;
+}
+
 /**
- * The circuits of the repository at <racine>, read in one call to the server (a `workflow.list`,
- * its memo and its status, no worker living): the last run of each ticket, in the form the board
- * reads (`CircuitLu`); a circuit integrated is left out, unless <integres> asks for them (the wait
- * of the supervisor, which their end wakes, scripts/superviseur.mjs).
+ * The circuits of the repository at <racine>, read from the server (`workflow.list`, their memo
+ * and their status, no worker living): the last run of each ticket, in the form the board reads
+ * (`CircuitLu`); a circuit integrated is left out, by the server's filter (`passesDesCircuits`),
+ * unless <integres> asks for them (the wait of the supervisor, which their end wakes,
+ * scripts/superviseur.mjs).
  */
 export async function lireLesCircuits(
   client: Client,
@@ -504,26 +546,7 @@ export async function lireLesCircuits(
   { integres = false }: { integres?: boolean } = {}
 ): Promise<CircuitLu[]> {
   const prefixe = idDuCircuit(racine, '');
-  const lus: {
-    workflowId: string;
-    runId: string;
-    startTime: Date;
-    closeTime?: Date;
-    status: { name: string };
-    memo?: Record<string, unknown>;
-  }[] = [];
-  for (const w of await listerLesDeroules(client, `WorkflowType = '${CIRCUIT}'`)) {
-    if (w.workflowId.startsWith(prefixe)) {
-      lus.push(w);
-    }
-  }
-  const parTicket = new Map<string, (typeof lus)[number]>();
-  for (const w of lus) {
-    const avant = parTicket.get(w.workflowId);
-    if (!avant || w.startTime.getTime() > avant.startTime.getTime()) {
-      parTicket.set(w.workflowId, w);
-    }
-  }
+  const parTicket = dernieresPasses(await passesDesCircuits(client, racine, integres));
   const out: CircuitLu[] = [];
   for (const w of parTicket.values()) {
     const memo = (w.memo ?? {}) as {

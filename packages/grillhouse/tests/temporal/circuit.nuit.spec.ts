@@ -546,12 +546,12 @@ describe('le déroulé mène le plan, un pas par activité', () => {
 });
 
 // grillhouse-4nr.10, criteria 1 and 3: the board and the supervisor read the circuits of a
-// repository in one call to the server (`lireLesCircuits`, a `workflow.list`), each in the form
+// repository from the server (`lireLesCircuits`, `workflow.list` that it filters), each in the form
 // the board reads (scripts/circuits-du-serveur.mjs), from the memo the workflow publishes: the
 // summary of the last state it wrote (`etat`) and its question, numbered (`numero`); the wait of
 // the questions ends on a question the workflow publishes, once.
-describe('le tableau lit les déroulés en un appel', () => {
-  it('a circuit waiting on its question, read in one call: its step, its loops, its question', async () => {
+describe('le tableau lit les déroulés sur le serveur', () => {
+  it('a circuit waiting on its question, read in one list: its step, its loops, its question', async () => {
     const { activites } = actes(
       { seance: { statut: 'BESOIN', question: 'laquelle ?' } },
       () => TESTS,

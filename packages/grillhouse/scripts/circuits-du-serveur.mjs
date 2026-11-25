@@ -1,7 +1,7 @@
 // The circuits of a repository as the board (scripts/tableau.mjs) and the supervisor
-// (scripts/superviseur.mjs) read them, from the view of the circuit (circuit.md §4.2): one call to the Temporal server (src/temporal/circuit/
-// client.ts `lireLesCircuits`, the memo and the status of each workflow, no worker living), as the
-// UI of Temporal lists its workflows, and the progress of the pass under way of each one that runs,
+// (scripts/superviseur.mjs) read them, from the view of the circuit (circuit.md §4.2): lists of the
+// Temporal server that it filters (src/temporal/circuit/client.ts `lireLesCircuits`, the memo and
+// the status of each workflow, no worker living), as the UI of Temporal lists its workflows, and the progress of the pass under way of each one that runs,
 // read in its working directory (scripts/avancement.mjs `avancementDuTravail`); and the night
 // under way on the machine, by the query of the workflow of the nights (`nuitDuServeur`).
 import { existsSync } from 'node:fs';
@@ -76,8 +76,8 @@ const sansReponse = e =>
   [e, e?.cause].some(x => typeof x?.code === 'number' && SANS_REPONSE.has(x.code));
 
 /**
- * The circuits of the repository at <racine>, read from the Temporal server of the environment in
- * one call (the integrated ones too when <integres> asks for them, `lireLesCircuits`), with their progress (`avecLeurAvancement`) and the page of each one's workflow on the
+ * The circuits of the repository at <racine>, read from the Temporal server of the environment
+ * (the integrated ones too when <integres> asks for them, `lireLesCircuits`), with their progress (`avecLeurAvancement`) and the page of each one's workflow on the
  * web UI of the server (`lienDuTableauWeb`). A server that does not answer within
  * DELAI_MS throws `ServeurMuet`, which its caller tells from a repository without circuits and
  * from any other fault, thrown as it is; a client not built throws `ClientNonConstruit`.

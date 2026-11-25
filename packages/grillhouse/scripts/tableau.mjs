@@ -18,7 +18,7 @@
 // - AGENTS: the tree of the steps (scripts/etapes.mjs), one block per step and sub-step. A ticket
 //   stands at a step only by its circuit or by an agent that runs on it; a ticket in the queue,
 //   its circuit not launched, stands at no step. A circuit (scripts/circuit.mjs) launched and not
-//   integrated is read from the Temporal server in one call (scripts/circuits-du-serveur.mjs): it
+//   integrated is read from the Temporal server (scripts/circuits-du-serveur.mjs): it
 //   stands at the step of its last state, else at the plan (1), also while the explorateur or the
 //   questionneur works (`questionnement`). One that waits for the supervisor
 //   (`attendLeSuperviseur`, the rule `questionsEnAttente` of scripts/superviseur.mjs reads too)
@@ -3053,8 +3053,8 @@ export function nommerLesProjets(machine, noms, ici = null) {
 // The board of the repository at <racine>; with <projets>, the folders of other projects, the
 // board of them all (`ensemble`), named « <dépôt> + <projet> + … », with the folder of each
 // ticket's project (`dossiers`), where the pane runs Beads for it. The status line is the
-// session's project's alone. Each project's circuits are read by <circuitsDe> (one call to the
-// Temporal server, scripts/circuits-du-serveur.mjs, by default), and the night under way on the
+// session's project's alone. Each project's circuits are read by <circuitsDe> (lists of the
+// Temporal server that it filters, scripts/circuits-du-serveur.mjs, by default), and the night under way on the
 // machine by <nuitDe> (`nuitDuServeur` by default); a night that does not read shows none.
 /**
  * @param {string} racine
