@@ -39,7 +39,8 @@
 // - `--strict-mcp-config --mcp-config <json>`: the servers of the index (codegraph, rtfm) for a
 //   role that uses it, read in the project's `.mcp.json` and in the manifests of the plugins it
 //   enables, at their installed path (`~/.claude/plugins/installed_plugins.json`, the project's
-//   entry first, else the user's); none for the others.
+//   entry first, else the user's); a project's entry whose command is the bare name of the program
+//   a plugin ships runs that program; none for the others.
 //
 // The skills' commands and the permissions answer one another: tests/unit/droits.spec.ts fails on a
 // command a skill names that no permission covers, and on a permission no command names.
@@ -308,6 +309,9 @@ function lireSaCompetence(role, { racine, copie, home }) {
 }
 
 // The servers of the index: the project's `.mcp.json`, then the manifests of the plugins it enables.
+// An entry of the project whose command is the bare name of the program a plugin ships runs that
+// program, with the rest of the project's entry: the envelope mounts the plugin, and the PATH of a
+// session does not hold its `bin/`.
 function serveursDeLIndex(racine, home) {
   const out = {};
   const projet = lireJson(path.join(racine, '.mcp.json'))?.mcpServers ?? {};
@@ -326,10 +330,17 @@ function serveursDeLIndex(racine, home) {
       lireJson(path.join(dossier, '.mcp.json'))?.mcpServers ??
       {};
     for (const n of INDEX) {
-      if (out[n] || !serveurs[n]) {
+      if (!serveurs[n]) {
         continue;
       }
-      out[n] = JSON.parse(JSON.stringify(serveurs[n]).replaceAll('${CLAUDE_PLUGIN_ROOT}', dossier));
+      const porte = JSON.parse(
+        JSON.stringify(serveurs[n]).replaceAll('${CLAUDE_PLUGIN_ROOT}', dossier)
+      );
+      if (!out[n]) {
+        out[n] = porte;
+      } else if (out[n].command === path.basename(porte.command ?? '')) {
+        out[n] = { ...out[n], command: porte.command };
+      }
     }
   }
   return out;

@@ -11,6 +11,8 @@
 //   scripts/cadre.mjs) at its own path; `_gitignore` and `_npmignore` become `.gitignore` and
 //   `.npmignore`, the names npm neither publishes nor reads in a package, as create-vite names its
 //   templates' files.
+// - Its .mcp.json declares the servers of the index, codegraph and rtfm, as the migration that
+//   brings them to a project writes them (scripts/migrations/0.50.4-serveurs-de-l-index.mjs).
 // - Its package.json declares the frame's package, `@roomi-fields/grillhouse` at `^<version>` of
 //   this package, in its devDependencies.
 // - The preparation (scripts/preparation.mjs): git, Beads and its ticket store under the prefix
@@ -38,6 +40,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CADRE, VERSION } from './cadre.mjs';
 import { mettreAJour, regenerer } from './grillhouse-maj.mjs';
+import * as serveursDeLIndex from './migrations/0.50.4-serveurs-de-l-index.mjs';
 import { preparer } from './preparation.mjs';
 
 /** The frame's package, as a project declares it. */
@@ -49,8 +52,11 @@ const RENOMMES = { _gitignore: '.gitignore', _npmignore: '.npmignore' };
 const lancer = (projet, commande, args) =>
   execFileSync(commande, args, { cwd: projet, stdio: 'inherit' });
 
-// Copies the template of a project into <projet>, its files renamed (RENOMMES).
-function copierLeGabarit(projet) {
+/**
+ * Copies the template of a project into <projet>, its files renamed (RENOMMES), its package.json
+ * declaring the frame's package, its .mcp.json the servers of the index.
+ */
+export function copierLeGabarit(projet) {
   const gabarit = path.join(CADRE, 'templates', 'projet');
   cpSync(gabarit, projet, { recursive: true });
   const renommer = dossier => {
@@ -72,6 +78,7 @@ function copierLeGabarit(projet) {
     )
   );
   writeFileSync(fichier, `${JSON.stringify(p, null, 2)}\n`);
+  serveursDeLIndex.migrer(projet);
 }
 
 /** Creates the project at <dossier>; returns the lines of failure once it is created. */

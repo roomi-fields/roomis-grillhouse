@@ -48,6 +48,7 @@ import * as ciDeclencheeParLaFile from './migrations/0.48.0-ci-declenchee-par-la
 import * as reservationDeTroisCoeurs from './migrations/0.49.0-reservation-de-trois-coeurs.mjs';
 
 import * as reglagesHorsDeLaCharte from './migrations/0.50.0-reglages-hors-de-la-charte.mjs';
+import * as serveursDeLIndex from './migrations/0.50.4-serveurs-de-l-index.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -73,6 +74,7 @@ export const MIGRATIONS = [
   ciDeclencheeParLaFile,
   reservationDeTroisCoeurs,
   reglagesHorsDeLaCharte,
+  serveursDeLIndex,
 ];
 
 /**

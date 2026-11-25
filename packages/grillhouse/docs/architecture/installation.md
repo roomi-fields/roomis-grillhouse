@@ -174,6 +174,7 @@ Chaque fichier tient une variable par ligne, `VARIABLE=valeur`, comme un `.env` 
 | `.github/workflows/ci.yml`, `nuit.yml`, `machine-vierge.yml` | le fichier entier, marqué sur sa première ligne ; un projet qui en tient un reçoit ceux qui lui manquent, un projet qui n'en tient aucun n'en reçoit aucun | au cadre ; sans la marque, au projet (entrée sur main, §3.3) |
 | `.gitignore` | une ligne par dossier qu'écrit le cadre (`.claude/worktrees`, `.turbo`) ou l'outil d'un langage déclaré | au projet |
 | `.gitattributes` | `CHANGELOG.md merge=grillhouse-changelog` | au projet |
+| `.mcp.json` | les serveurs d'index `codegraph` et `rtfm` dans `mcpServers`, absents seulement, posés par la migration 0.50.4 à la montée et à la création | au projet : une entrée présente reste telle quelle |
 | `.beads/config.yaml`, configuration de Beads | `issue-prefix`, la valeur du magasin, quand aucune n'est active ; les `external_projects` des autres projets du groupe | au projet |
 | les fichiers engendrés de chaque langage | le fichier entier, que sa commande refait (la configuration des frontières, l'index des interfaces) | au cadre |
 | la part de chaque langage | ce que son module déclare (document des tests et des langages) | selon le module |
@@ -182,7 +183,7 @@ Hors du dépôt, le même mécanisme écrit, à chaque installation des dépenda
 
 ### 4.5 Le gabarit d'un projet
 
-Le gabarit porte ce qu'un projet reçoit une fois, à sa création, et ce que la montée lit de la version : rien d'autre. Un projet reçoit : sa charte (`CLAUDE.md`, ses champs `<…>` laissés au grill, qui importe la charte commune du paquet installé et renvoie, pour les commandes et les réglages, aux documents du paquet) ; `docs/ARCHITECTURE.md`, qui déclare son langage ; `docs/agents/issue-tracker.md` ; `CONTRIBUTING.md`, `CHANGELOG.md` ; les réglages de Claude Code (`.claude/settings.json`) et des serveurs d'index (`.mcp.json`) ; les flux du cadre ; le `package.json` des scripts du cadre et des versions des outils de son langage ; la configuration de ces outils (TypeScript, Vitest, ESLint, Prettier, TSDoc, EditorConfig) ; `_gitignore` et `_npmignore`, renommés. Il ne porte aucune application : ni code sous `src/`, ni déploiement, ni gestionnaire de processus, ni dépendance d'exécution. `templates/<langage>/` porte, pour chaque langage, les fichiers de ses outils ; `templates/paquet/` les documents d'un paquet neuf ; `templates/turbo/` la configuration de Turborepo d'un dépôt avec ou sans paquets.
+Le gabarit porte ce qu'un projet reçoit une fois, à sa création, et ce que la montée lit de la version : rien d'autre. Un projet reçoit : sa charte (`CLAUDE.md`, ses champs `<…>` laissés au grill, qui importe la charte commune du paquet installé et renvoie, pour les commandes et les réglages, aux documents du paquet) ; `docs/ARCHITECTURE.md`, qui déclare son langage ; `docs/agents/issue-tracker.md` ; `CONTRIBUTING.md`, `CHANGELOG.md` ; les réglages de Claude Code (`.claude/settings.json`) et des serveurs d'index (`.mcp.json`, que la création complète de `codegraph` et `rtfm`) ; les flux du cadre ; le `package.json` des scripts du cadre et des versions des outils de son langage ; la configuration de ces outils (TypeScript, Vitest, ESLint, Prettier, TSDoc, EditorConfig) ; `_gitignore` et `_npmignore`, renommés. Il ne porte aucune application : ni code sous `src/`, ni déploiement, ni gestionnaire de processus, ni dépendance d'exécution. `templates/<langage>/` porte, pour chaque langage, les fichiers de ses outils ; `templates/paquet/` les documents d'un paquet neuf ; `templates/turbo/` la configuration de Turborepo d'un dépôt avec ou sans paquets.
 
 ## 5. Déroulé
 
@@ -251,6 +252,8 @@ Chaque échec a sa ligne, qui nomme la commande à taper ; les autres gestes se 
 ### 5.4 Les migrations
 
 Une migration exporte sa version, son nom et sa fonction, qui amène le projet à la forme neuve et rend les lignes de ce qu'elle a changé, aucune quand il l'a déjà ; une ligne « à faire » est ce qu'elle laisse au projet, et ses restes ce qu'il reste après la montée. Le noyau porte les siennes, chaque module de langage les siennes. La montée joue celles d'une version plus récente que `grillhouse.version`, toutes quand la marque manque, dans l'ordre des versions puis de la liste. Une migration qui laisse quelque chose à faire garde la marque où elle était, si bien que la montée suivante la rejoue. Une migration naît avec son test, et part, avec lui, dans la sortie qui suit le jour où tous les projets du poste ont inscrit sa version ou une suivante.
+
+La migration 0.50.4 donne à tout projet les index : elle ajoute au `.mcp.json` (qu'elle crée au besoin) les serveurs `codegraph` et `rtfm` qui y manquent, sans toucher aux autres entrées, et la création d'un projet la joue sur le gabarit copié. Les séances des agents du projet les lisent là (document de la machine, §3.2). Le programme `rtfm-serve` vient avec le greffon rtfm : un projet qui ne l'active pas le lit parmi les restes de la montée.
 
 ### 5.5 Le dépôt du cadre
 
