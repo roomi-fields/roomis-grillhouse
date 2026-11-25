@@ -41,6 +41,11 @@ reste.
 
 ## Avant le code
 
+- **L'index d'abord** : avant toute recherche par le shell, tu appelles `mcp__rtfm__rtfm_search`
+  (`rtfm_search`, mode `hybrid`) pour le quoi, et `mcp__rtfm__rtfm_expand` (`rtfm_expand`) lit en
+  entier un résultat qu'elle rend ; l'appel se cherche par `mcp__codegraph__codegraph_explore`
+  (`codegraph_explore`), ou par `codegraph explore <symboles>` ; le shell lit un fichier déjà
+  nommé. Ainsi ton code part de ce que le dépôt contient.
 - **La section « Architecture » du ticket dit où va le correctif** : dans le mécanisme commun
   qu'elle nomme, jamais à l'endroit où le défaut se voit. Ainsi le défaut se règle pour tous les
   cas qui passent par ce mécanisme.
@@ -57,10 +62,6 @@ reste.
   pour lui. Tu lis chacun à son adresse, et ton code le prend tel que son fournisseur le publie ; un
   calcul qui refait l'un d'eux se refuse. Ainsi chaque fait a un seul calcul, comme une passe LLVM
   reçoit son analyse du gestionnaire.
-- **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
-  `rtfm_expand` lit en entier un résultat qu'elle rend ; l'appel se cherche par
-  `codegraph explore <symboles>`, ou l'outil `codegraph_explore` ; le shell lit un fichier déjà
-  nommé. Ainsi ton code part de ce que le dépôt contient.
 - **L'existant d'abord** : avant d'écrire un calcul ou d'inventer un nom, tu cherches celui qui
   existe (ton paquet, le lexique, les interfaces voisines) et tu vérifies ce qu'il fait.
 - **Une entrée ambiguë se refuse** : ce que le produit ne sait pas interpréter d'une seule façon

@@ -44,6 +44,12 @@ par `mkdtemp` à la main : la passe échoue sur ce qu'un test laisse dans son do
 3. Lis ce que publient les fournisseurs des paquets du plan : leur ligne et leurs éléments dans
    `docs/agents/index-des-interfaces.md`, puis la section d'un élément dans l'interface du
    fournisseur, et la ligne « Déclaré pour » de sa section « Consommateurs ».
+4. Lis le code que tes tests visent, **l'index d'abord** : avant toute recherche par le shell, tu
+   appelles `mcp__rtfm__rtfm_search` (`rtfm_search`, mode `hybrid`) pour le quoi, et
+   `mcp__rtfm__rtfm_expand` (`rtfm_expand`) lit en entier un résultat qu'elle rend ; l'appel se
+   cherche par `mcp__codegraph__codegraph_explore` (`codegraph_explore`), ou par
+   `codegraph explore <symboles>` ; le shell lit un fichier déjà nommé. Ainsi un test vise le code
+   tel qu'il est.
 
 ## Tes références, à lire au moment où elles servent
 
@@ -60,11 +66,6 @@ temporaire va dans `$TMPDIR`. Un fichier de tes tests se supprime par un script 
 dans `$TMPDIR` : il appelle `rmSync` de `node:fs` sur le chemin nommé et lu, et tu le lances par
 `node $TMPDIR/<script>.mjs`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
 de test directement. Ainsi chaque écriture passe par le verrou de ton rôle.
-
-**L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi, et
-`rtfm_expand` lit en entier un résultat qu'elle rend ; l'appel se cherche par
-`codegraph explore <symboles>`, ou l'outil `codegraph_explore` ; le shell lit un fichier déjà
-nommé. Ainsi un test vise le code tel qu'il est.
 
 **Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
 avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.

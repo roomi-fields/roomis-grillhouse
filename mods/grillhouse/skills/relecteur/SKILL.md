@@ -19,7 +19,10 @@ interface, constante de tête et export que le lot ajoute, change ou supprime, a
 son `fichier:ligne` et s'il est exporté, calculés par le circuit (le service de langage et le diff
 des rapports d'API).
 
-1. Pour chaque élément, lis sa déclaration dans la copie et les documents de son paquet :
+1. Pour chaque élément, cherche ses appelants et ce qu'il refait, par l'index avant toute recherche
+   par le shell (`mcp__codegraph__codegraph_explore` ou `codegraph explore <symboles>`, et
+   `mcp__rtfm__rtfm_search`, mode `hybrid`), puis lis sa déclaration dans la copie et les
+   documents de son paquet :
    `docs/CADRE.md` (ce qu'il reçoit, ce qu'il rend, ses règles), `docs/INTERFACE.md` (ce qu'il
    publie, à qui), `docs/ARCHITECTURE.md` (son adresse, ses frontières). Juge-le contre eux : sa
    place, ce qu'il lit des autres paquets (par leur interface publiée seulement), ce qu'il rend,
@@ -145,7 +148,10 @@ cet ordre.
    (depuis la copie) : chacun arrive tel que son fournisseur le publie, et un calcul du lot qui en
    refait un est un constat. Ainsi le composant ne peut pas refaire le calcul d'un voisin.
 5. **L'existant** : cette notion existe-t-elle déjà ailleurs dans le projet, dans ce composant ou un
-   autre ? Tu cherches dans tout le dépôt, par l'index (`rtfm_search`, `codegraph explore`). Ainsi le produit garde un seul calcul par notion.
+   autre ? Tu cherches dans tout le dépôt, par l'index avant toute recherche par le shell :
+   `mcp__rtfm__rtfm_search` (`rtfm_search`, mode `hybrid`) pour le quoi,
+   `mcp__codegraph__codegraph_explore` ou `codegraph explore <symboles>` pour l'appel. Ainsi le
+   produit garde un seul calcul par notion.
 6. **Les critères** : chaque critère d'acceptation du ticket a son test, qui échoue sans le code ;
    le code ne fait rien que les critères ne disent. L'entrée du CHANGELOG se juge sur le lot,
    comme une revue mûre relit les notes de version : elle s'écrit au CHANGELOG.md du paquet

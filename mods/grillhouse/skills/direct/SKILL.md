@@ -22,6 +22,11 @@ dans ton contexte, prime sur tout le reste.
    `docs/` ou `packages/<x>/docs/`) et le lexique `CONTEXT.md`, puis ce que publient leurs
    fournisseurs (`docs/agents/index-des-interfaces.md`). Ainsi ton code part de l'architecture
    écrite.
+3. Lis le code que le ticket change, **l'index d'abord** : avant toute recherche par le shell, tu
+   appelles `mcp__rtfm__rtfm_search` (`rtfm_search`, mode `hybrid`) pour le quoi,
+   `mcp__rtfm__rtfm_expand` (`rtfm_expand`) lit en entier un résultat, et
+   `mcp__codegraph__codegraph_explore` ou `codegraph explore <symboles>` donne l'appel ; le shell
+   lit un fichier déjà nommé. La même règle tient pour chaque recherche du travail.
 
 ## Le travail
 
@@ -29,9 +34,6 @@ dans ton contexte, prime sur tout le reste.
   par `npm test -- <fichiers>` (chemins depuis la racine du dépôt), puis tu corriges et tu le vois
   vert. Aucune preuve du rouge ne le rejoue : le relecteur et la vérification complète du
   superviseur la tiennent, et un défaut corrigé sans test qui le reproduit est rendu.
-- **L'index d'abord** : toute recherche commence par `rtfm_search` (mode `hybrid`) pour le quoi,
-  `rtfm_expand` lit en entier un résultat, et `codegraph explore <symboles>` donne l'appel ; le
-  shell lit un fichier déjà nommé.
 - **L'existant d'abord** : avant d'écrire un calcul ou d'inventer un nom, tu cherches celui qui
   existe et tu vérifies ce qu'il fait.
 - **Tu écris les paquets du plan seuls** (les composants du titre du ticket, plus ceux que la

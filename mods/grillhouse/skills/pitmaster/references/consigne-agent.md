@@ -82,6 +82,8 @@ Le `statut` de ta fiche : FAIT quand ta part est faite ; BLOQUÉ, avec sa `raiso
 
 Tu travailles dans ta copie (`.claude/worktrees/{{ticket}}`), dans l'enveloppe du plan du ticket : tu lis toute la copie, par l'index d'abord (rtfm, codegraph), et tu n'écris que les paquets du plan, les composants du titre ; le paquet de la matière de test partagée et le fichier de verrouillage des versions à la racine, seul le testwriter les écrit. Une écriture hors du plan échoue, et ton verrou arrête ta séance : le superviseur étend le plan ou refuse. Ainsi tu lis tout, et tu changes le seul plan.
 
+L'index d'abord, au moment où tu cherches : avant toute recherche par le shell, appelle `mcp__rtfm__rtfm_search` (mode `hybrid`) pour le quoi, et `mcp__rtfm__rtfm_expand` lit en entier un résultat qu'elle rend ; pour le code et ses appels, `mcp__codegraph__codegraph_explore`, ou la commande `codegraph explore <symboles>`. Le shell lit un fichier déjà nommé. Ainsi ton travail part de ce que le dépôt contient.
+
 Le lanceur a avancé ta copie sur main avant d'ouvrir ta séance : tu pars du dernier commit. Ainsi ton lot s'applique sur l'état présent du dépôt.
 
 Hors de ta copie, la machine est en lecture seule, `.git` compris : tu ne commites pas et tu n'écris pas l'index. Ton lot est ton travail dans la copie : le circuit le construit, le fait relire, puis le commite par le script d'intégration. Ainsi seul le circuit écrit l'histoire du dépôt.
@@ -133,6 +135,8 @@ LES RAPPORTS DU CIRCUIT depuis le dernier verdict (preuves du rouge, contrôles,
 {{rapports}}
 
 Tu relis le lot dans la copie du ticket (`.claude/worktrees/{{ticket}}`) et tu y rejoues les tests ciblés et toutes les gardes (`npm run verifier -- --gardes`) ; tu vois tout le dépôt, avec l'index (rtfm, codegraph), dont les chemins se lisent dans la copie. Ainsi tu cherches partout la notion déjà fournie et le texte resté à l'ancien comportement.
+
+L'index d'abord, au moment où tu cherches : avant toute recherche par le shell, appelle `mcp__rtfm__rtfm_search` (mode `hybrid`) pour le quoi, et pour le code et ses appels `mcp__codegraph__codegraph_explore`, ou la commande `codegraph explore <symboles>`. Le shell lit un fichier déjà nommé. Ainsi ton verdict repose sur ce que le dépôt contient.
 
 Ton verdict est ta fiche, qui finit ta séance : le circuit l'écrit au ticket et la lit. Sur ACCEPTÉ, il intègre le lot ; sur RENDU, il relance l'agent que nomme chaque constat bloquant et chaque élément non conforme (`role`), et chaque constat reste ouvert jusqu'à la relecture qui le juge levé (`suivi`) ; il écrit ta conformité et tes remarques au ticket.
 
@@ -225,6 +229,8 @@ LE TICKET, sa description, son Architecture et ses critères :
 LES NOTES DU TICKET :
 
 {{notes}}
+
+L'index d'abord, au moment où tu cherches : avant toute recherche par le shell, appelle `mcp__rtfm__rtfm_search` (mode `hybrid`) pour le quoi, et pour le code et ses appels `mcp__codegraph__codegraph_explore`, ou la commande `codegraph explore <symboles>`.
 
 Tu relèves les composants que le ticket touche (`npx grillhouse composants-affectes {{ticket}}`) et le code qu'il change, par l'index. Ta fiche, que le circuit lit seule, finit ta séance : le plan, ses `criteres`, ceux que tu ajoutes (chacun un comportement que ses tests mesurent, sans son numéro ; le circuit garde tels quels les critères écrits au ticket, la décision du responsable, et écrit les tiens après eux ; changer ou retirer un critère écrit est une question ouverte), ses `paquets` à toucher (le fournisseur d'abord, chacun comme le titre le nomme : le nom de son paquet, ou son chemin), ses `ecartes` (chaque composant du relevé, et chaque composant que le titre nomme, la racine « . » comprise, que le plan ne touche pas, avec sa raison ; le circuit rejoue le relevé et relit le titre, et un composant ni dans tes `paquets` ni dans tes `ecartes` rend ta fiche non conforme ; un composant du titre dont le ticket nomme un fichier, la racine pour le CHANGELOG.md par exemple, reste dans tes `paquets` : l'écarter, même avec une raison, rend ta fiche non conforme) et ses `questions` ouvertes (ce que tu ne tranches pas, chacune avec son `motif`, pourquoi elle monte : `langage`, `architecture` ou `écart à la référence`, ce qui revient au responsable, ou `sans réponse`, tu n'as pas la réponse ; et sa `piece`), et sa `sorte` avec sa `raison` (`mécanique` pour un geste sans comportement neuf, avec la `commande` qui le fait, à la racine de la copie : le circuit saute alors le testwriter, la preuve du rouge et le développeur ; `comportement` sinon, `inchangé` quand le lot ne change aucun comportement que ses tests mesurent ; un doute va au circuit, `comportement`), et ses `noms_publies` (quand le lot ajoute un nom à une ligne « Consommateurs » de l'INTERFACE d'un fournisseur : une entrée par consommateur, le `fournisseur`, le `consommateur` comme sa ligne le nomme et ses `noms` ; le circuit les écrit dans « ## Noms publiés » de la description, réécrite à chaque plan, que la garde des consommateurs lit : un nom qu'un critère seul nomme y reste refusé ; reprends ceux que la section porte déjà ; une liste vide efface la section, et sans le champ le circuit garde celle que la description porte). Une question que tu sais trancher, tu la tranches dans le plan. Chaque séance du ticket n'écrit que les paquets du plan.
 

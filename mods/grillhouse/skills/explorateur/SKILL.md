@@ -53,7 +53,9 @@ change, et ceux qu'il peut casser.
 ## Dans le circuit : le plan
 
 1. **Le relevé.** Je lance `npx grillhouse composants-affectes <ticket>` et je lis le code que le
-   ticket change, par l'index. _Fini quand_ je sais quel paquet fournit chaque élément, et quel
+   ticket change, par l'index, avant toute recherche par le shell :
+   `mcp__rtfm__rtfm_search` (mode `hybrid`) pour le quoi,
+   `mcp__codegraph__codegraph_explore` ou `codegraph explore <symboles>` pour l'appel. _Fini quand_ je sais quel paquet fournit chaque élément, et quel
    paquet le lit.
 2. **Le plan.** Ma fiche porte le plan, que le circuit écrit au ticket :
    - `criteres` : chacun un comportement que ses tests mesurent, sans son numéro ; un critère
