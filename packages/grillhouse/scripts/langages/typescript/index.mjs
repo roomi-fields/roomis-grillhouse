@@ -25,8 +25,8 @@
 //   removed in `afterAll`, and its guard: each run of Vitest plays under a base of its own,
 //   named in TMPDIR, TMP and TEMP, and fails naming what its tests left there
 //   (./vitest-config/base.mjs).
-// - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory
-//   (./verdict.mjs).
+// - The verdict: the summaries of Turborepo and the reports of Vitest of a results directory, and
+//   the lines of the log of a runner without a report test by test (./verdict.mjs).
 // - The rule of a test file, the sibling of HEAD's version of a test file and what the testwriter
 //   writes of the manifests (./regle-des-tests.mjs).
 // - The generated files, each its command, the guard that checks it and the names its findings

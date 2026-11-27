@@ -1523,7 +1523,8 @@ function paquetDe(liste, fichier) {
 // One npm command in the copy, under <env> added to the circuit's environment, its results written
 // to a directory of its own (RESULTATS, scripts/resultats.mjs: the summaries of Turborepo, the
 // JSON reports of Vitest, the SARIF of the guards), its output added to the log for the human:
-// `{ code, dossier }`. The circuit reads its results, never its output. Every pass (the proof of
+// `{ code, dossier }`. The circuit reads its results by the verdict of the language, never its
+// output; a runner without a report test by test is read there, from the log of its task. Every pass (the proof of
 // the red, the checks, the final pass `npm run verifier`) takes its part of the budget of the
 // machine (`avecLaPasse` of scripts/passe-de-la-machine.mjs) and plays held to it, in a control
 // group of its own, its command launched by the circuit (`lancementSousPart`); it passes the mark
@@ -1675,7 +1676,7 @@ function mesureDeLaPreuve(ctx, liste, fichiers, derniere = null) {
       commande: `npm test -- ${(entier ? [dossier] : ['--force', ...groupe]).join(' ')}`,
       attente: Boolean(pass.attente),
       raison: pass.raison ?? null,
-      resultats: langageDe(ctx.copie).verdict(pass.dossier).rapports,
+      resultats: langageDe(ctx.copie).verdict(pass.dossier, ctx.copie).rapports,
       // The builds of the plan's packages that failed: each one a red, not compiling is failing.
       constructions: constructionsEchouees(ctx, liste, pass.dossier),
     });
@@ -2087,7 +2088,7 @@ export function rougesDe(ctx, liste, c) {
   const langage = langageDe(ctx.copie);
   // The files of the lot the testwriter writes, read at the first failed test.
   let duLot = null;
-  for (const res of langage.verdict(c.dossier).rapports) {
+  for (const res of langage.verdict(c.dossier, ctx.copie).rapports) {
     const f = path.relative(ctx.copie, res.fichier);
     const lieu = situer(ctx, liste, f);
     if (res.tests.length === 0 && res.etat === 'failed') {

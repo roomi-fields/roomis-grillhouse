@@ -261,7 +261,10 @@ export interface Composition {
   commandes(
     racine: string
   ): { tester: Commande; verifier: Commande; typer: Commande } & Record<string, Commande>;
-  verdict(dossier: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
+  /** What a run left in its results directory `dossier`. With `racine`, the root of the run, the
+   * reports of a runner that writes none test by test too, read from the log of its task
+   * (typescript: `claude plugin test`). */
+  verdict(dossier: string, racine?: string): { rapports: RapportDeTest[]; taches: TacheJouee[] };
   /** Whether the log `texte` of a task shows a COMPILATION failure of the language, so the circuit
    * reads a test target that does not compile as a failed build (« construction de <crate> »),
    * whatever the task that bears it — the build task, or the test task with no report

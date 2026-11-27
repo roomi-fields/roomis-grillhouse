@@ -8,8 +8,13 @@
 //   `<dossier>/vitest/` while the variable is set (scripts/langages/typescript/vitest-config/resultats.mjs):
 //   `lireRapportsVitest` gives each test file, its status, the message of a file that does not
 //   load, and each test, its title, its full name, its status and its first message.
+// - The log of a task of tests whose package has no report (./rapports-aux-lignes.mjs, a runner
+//   without a report test by test), read from the root of the run.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
+import { A_REPASSER } from '../../services-du-noyau.mjs';
+import { rapportsAuxLignes } from './rapports-aux-lignes.mjs';
 import { lireLesResumes } from './resume-du-lanceur.mjs';
 import { VITEST } from './vitest-config/resultats.mjs';
 
@@ -46,7 +51,28 @@ export function lireRapportsVitest(dossier) {
   );
 }
 
-// The verdict the results directory <dossier> holds: `{ rapports, taches }`.
-export function verdict(dossier) {
-  return { rapports: lireRapportsVitest(dossier), taches: lireLesResumes(dossier) };
+// The reports the logs of the tasks <taches> give, from the root <racine> of their run: those of
+// each task of tests that ran, not « à repasser », whose package has none among <rapports>.
+function rapportsDesJournaux(racine, taches, rapports) {
+  return taches
+    .filter(t => t.tests && t.journal && t.code !== null && t.code !== A_REPASSER)
+    .flatMap(t => {
+      const paquet = path.join(racine, t.dossier, path.sep);
+      const journal = path.join(racine, t.journal);
+      return !existsSync(journal) || rapports.some(r => r.fichier.startsWith(paquet))
+        ? []
+        : rapportsAuxLignes(stripVTControlCharacters(readFileSync(journal, 'utf8')), {
+            dossier: paquet,
+            code: t.code,
+          });
+    });
+}
+
+// The verdict the results directory <dossier> holds: `{ rapports, taches }`; with the root
+// <racine> of the run, the reports its logs give too.
+export function verdict(dossier, racine) {
+  const rapports = lireRapportsVitest(dossier);
+  const taches = lireLesResumes(dossier);
+  const auxLignes = racine ? rapportsDesJournaux(racine, taches, rapports) : [];
+  return { rapports: [...rapports, ...auxLignes], taches };
 }

@@ -141,7 +141,7 @@ export function cas(langage, exemples, { dans = tmpdir() } = {}) {
       return out;
     },
     verdict: dossier => {
-      const v = langage.verdict(dossier);
+      const v = langage.verdict(dossier, e.racine);
       return [
         ...v.taches
           .filter(t => t.code !== null && t.code !== 0)

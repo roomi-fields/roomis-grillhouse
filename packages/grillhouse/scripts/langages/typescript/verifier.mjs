@@ -390,7 +390,7 @@ function passe({ racine, demandes, env, dire, coeurs }) {
     // green that turned red, with the moment they did. A red pass on a ticket's branch records none:
     // its reds are the ticket's work.
     if (complet && env[RESULTATS] && m?.etat) {
-      const rapports = langageDe(racine).verdict(env[RESULTATS]).rapports;
+      const rapports = langageDe(racine).verdict(env[RESULTATS], racine).rapports;
       if (code === 0) {
         garderLeRegistre(m.etat, rapports);
       } else if (!m.etat.branche || m.etat.branche === m.etat.main) {

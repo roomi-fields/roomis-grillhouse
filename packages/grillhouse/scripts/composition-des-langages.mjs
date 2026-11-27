@@ -261,8 +261,8 @@ export function composer(modules) {
             : { script: COMMANDES_COMPOSEES, args: [nom] },
         ])
       ),
-    verdict(dossier) {
-      const parts = modules.map(m => m.verdict(dossier));
+    verdict(dossier, racine) {
+      const parts = modules.map(m => m.verdict(dossier, racine));
       return {
         rapports: parts.flatMap(p => p.rapports),
         taches: parts.flatMap(p => p.taches),

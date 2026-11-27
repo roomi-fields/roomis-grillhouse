@@ -283,6 +283,10 @@ clippy`). Le noyau en lance deux
 - `verdict` : ce qu'un lancement a laissé dans son dossier de résultats (`GRILLHOUSE_RESULTATS`) :
   `{ rapports, taches }`, chaque fichier de test avec ses tests, chaque tâche avec son code, 0 vert,
   1 rouge, 75 « à repasser », et `tests` vrai pour la tâche qui joue les tests de son composant.
+  `racine`, facultative, la racine du lancement : un lanceur sans rapport test par test
+  (`claude plugin test`, module `typescript`) se lit alors aux lignes du journal de sa tâche, dans
+  `rapports` ; un fichier qu'il dit ne pas avoir chargé est rouge sans test, sa raison en message ;
+  sans bilan final, ou avec un code rouge qu'aucune ligne n'explique, aucun rapport.
 - `echecDeCompilation` : vrai quand le journal d'une tâche porte un échec de compilation du langage,
   pour que le circuit lise une cible de test qui ne compile pas comme une construction échouée
   (« construction de <crate> »), quelle que soit la tâche qui le porte — la tâche de construction,
