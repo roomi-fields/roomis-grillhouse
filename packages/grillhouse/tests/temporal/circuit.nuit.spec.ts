@@ -1404,7 +1404,11 @@ describe('un ticket direct va de l’agent à sa fin', () => {
     expect(await reprendreDepuis(client, RACINE, TICKET, 'direct' as never, 'ctx')).toBe(
       'depuis direct'
     );
-    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+    // The end carries the state written last: the simulated steps write none after the stop's.
+    expect(await finDuCircuit(client, RACINE, TICKET)).toMatchObject({
+      code: 0,
+      raison: 'integre',
+    });
   }, 120_000);
 });
 
