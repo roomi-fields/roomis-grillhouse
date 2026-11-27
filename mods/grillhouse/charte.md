@@ -18,6 +18,10 @@ Une décision vit dans le document qu'elle règle. Ainsi on la trouve là où on
 
 Une règle s'écrit selon le métacadre (`METACADRE.md`, à côté de cette charte, §2).
 
+Une chose du cadre porte un seul mot, celui de son lexique (`docs/lexique.md` du paquet) ; le
+`CONTEXT.md` d'un projet porte les mots de son domaine, jamais un mot du cadre redéfini. Ainsi
+chaque agent nomme chaque chose comme les autres.
+
 ## Comment on arbitre
 
 Une décision ou une question se tranche par les questions de la charte du projet (« Comment on
