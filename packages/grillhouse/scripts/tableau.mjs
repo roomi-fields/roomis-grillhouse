@@ -11,10 +11,12 @@
 //
 // Lines: the head, AGENTS, CHANTIER, then FAITS AUJOURD'HUI, every line of each list shown; a
 // line folds only lines of another state (« + 2 prêts ») or chantiers not in progress.
-// - Head: the work tickets (a ticket without children; a mother is a grouping) by state; its first
-//   line counts the signs AGENTS shows (`etatsDAgents`, « ▶ N · ⏸ N · ⛔ N · N faits »; a ticket
-//   closed and not integrated counts under its sign, not as done), one line per project on a board
-//   of several; the status line says the same signs in the same words.
+// - Head: the project's name, then the work tickets (a ticket without children; a mother is a
+//   grouping) by state, in lines by who acts: « toi » (sans go, à valider, N question: the
+//   questions that wait for the owner), one « ❓ » line per such question, « file » (the queues),
+//   « en cours » (in progress, done, deferred; a circuit launched and not integrated is in
+//   progress, not done); these lines once per project on a board of several. Then the day's
+//   discoveries, and the day's and cumulative time and tokens.
 // - AGENTS: the tree of the steps (scripts/etapes.mjs), one block per step and sub-step. A ticket
 //   stands at a step only by its circuit or by an agent that runs on it; a ticket in the queue,
 //   its circuit not launched, stands at no step. A circuit (scripts/circuit.mjs) launched and not
@@ -100,6 +102,7 @@ import {
   libelle,
   quiDe,
   roleDeLAgent,
+  RESPONSABLE,
   SUITE,
   SUPERVISEUR,
 } from './etapes.mjs';
@@ -1521,13 +1524,30 @@ export function assembler({
       numero: numero(c.ticket),
       sujet: titre(parId.get(c.ticket)).sujet,
     }));
+  // The questions that wait for the owner (`enQuestion`), in the tickets' order, whatever AGENTS
+  // shows of their ticket (in direct, deferred): each with the time it was carried to him, else of
+  // its first going up (`depuis`, from the file of the stops gone up), null for a stop that file
+  // does not hold. The head shows one line each.
+  const chez = chezLui({ remontees });
+  const auResponsable = [...parCircuit.values()]
+    .filter(c => enQuestion(c, chez) === RESPONSABLE)
+    .sort((a, b) => ordre({ id: a.ticket }, { id: b.ticket }))
+    .map(c => {
+      const r = remontees.find(x => x.cle === cleDe(c));
+      return {
+        id: c.ticket,
+        numero: numero(c.ticket),
+        sujet: titre(parId.get(c.ticket)).sujet,
+        depuis: r?.chez ?? r?.depuis ?? null,
+      };
+    });
   // The limit of circuits of the project (`limite`, its `grillhouse.circuits`): when it is held,
   // the circuits that hold it waiting for the supervisor (a question to no one, or to the
   // supervisor; the owner's releases the place, as does a ticket deferred), by id.
   const tenantsDeLaLimite = [...parCircuit.values()].filter(
     c =>
       parId.get(c.ticket).status !== 'deferred' &&
-      (c.vivant || (attendLeSuperviseur(c) && (c.qui ?? SUPERVISEUR) !== 'responsable'))
+      (c.vivant || (attendLeSuperviseur(c) && (c.qui ?? SUPERVISEUR) !== RESPONSABLE))
   );
   const tenueLaLimite = limite !== null && tenantsDeLaLimite.length >= limite;
   const limiteTenue = tenueLaLimite
@@ -1547,6 +1567,7 @@ export function assembler({
     limite: limiteTenue,
     circuits: lesCircuits,
     remontees,
+    auResponsable,
     horsCircuit,
     chantiers,
     autres,
@@ -1581,6 +1602,14 @@ export const duree = ms => {
   const min = Math.round(ms / MINUTE);
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
 };
+
+// The local hour of the instant <t>, « 12:44 ».
+const heureEtMinute = t =>
+  new Date(t).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
 
 // The local day and month of the instant <t>, « 16/10 ».
 const jourEtMois = t => {
@@ -1662,9 +1691,9 @@ export function voiesDesCircuits(racine, tickets) {
 const conso = (ms, jetons) =>
   Math.round(ms / MINUTE) === 0 && !jetons ? '' : `${duree(ms)} · ${k(jetons)}`;
 
-// The columns <s> takes in a terminal: a character one, ⏳ and ⛔ two, as the signs out of the
+// The columns <s> takes in a terminal: a character one, ⏳, ⛔ and ❓ two, as the signs out of the
 // basic plane (🔒 💤 🌙), which count two code units, take two.
-const colonnes = s => s.length + (s.match(/[⏳⛔]/g)?.length ?? 0);
+const colonnes = s => s.length + (s.match(/[⏳⛔❓]/g)?.length ?? 0);
 // The start of <s> that holds in <n> columns, a sign out of the basic plane never split.
 const debutDe = (s, n) => {
   let out = '';
@@ -1730,7 +1759,7 @@ const etapeDuCircuitLu = c => etapeDuCircuit({ ...c, raison: c.arret });
 // A question the supervisor carried to the owner (`chez` in the file of the stops gone up) is the
 // owner's.
 const enQuestion = (c, chez = new Set()) =>
-  attendLeSuperviseur(c) ? (chez.has(cleDe(c)) ? 'responsable' : (c.qui ?? SUPERVISEUR)) : null;
+  attendLeSuperviseur(c) ? (chez.has(cleDe(c)) ? RESPONSABLE : (c.qui ?? SUPERVISEUR)) : null;
 const chezLui = t =>
   new Set((t.remontees ?? []).filter(r => Number.isFinite(r.chez)).map(r => r.cle));
 // The state at the right of the line « ⤷ Question » of the circuit <c>: « chez lui · N min » (N from
@@ -1751,15 +1780,15 @@ const etatDeLaQuestion = (c, t) => {
 
 /**
  * The state of each ticket's line of AGENTS on the board <t>, the one source of its signs, which
- * AGENTS draws and the head and the status line count. Each circuit (`circuits`, by its ticket):
+ * AGENTS draws and the status line counts. Each circuit (`circuits`, by its ticket):
  * its state (`etat`, whose tone TONS gives), the reason of its wait (`raison`), its tone, its sign
  * and its witness (`temoin`: the part it holds or waits for, « · <sorte> faits/prévus · <durée> »,
  * « · part <sorte> · <durée> », else the progress of its automatic pass, `temoinDe`), in this
  * order: frozen; ended without its issue; its question (to the supervisor or to another); stopped;
  * its wait for the disk, a place, a part or its first
  * state; else it runs. `lignes`: one entry per
- * ticket's line of AGENTS, its id, its project on a board of several and its sign: each circuit,
- * each ticket led in direct (▶) and each agent shown out of a circuit (▶). `parts`: by ticket, the
+ * ticket's line of AGENTS, its id and its sign: each circuit, each ticket led in direct (▶) and
+ * each agent shown out of a circuit (▶). `parts`: by ticket, the
  * pass of each ticket AGENTS shows (circuit, direct, out of a circuit, agent), its icon (`icone`,
  * 🔒 it holds a part, ⏳ it waits for one) and its text (`texte`), which the ticket's line bears.
  */
@@ -1817,12 +1846,7 @@ export function etatsDAgents(t) {
     // A circuit that waits for the usage limit to lift (its kept report): its reason and the hour
     // the usage returns, local time, apart from a ticket a person deferred.
     if (c.report?.raison === 'limite-d-usage') {
-      const heure = new Date(c.report.reprise).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hourCycle: 'h23',
-      });
-      return ['reporteLimite', `limite d'usage · reprise ${heure}`];
+      return ['reporteLimite', `limite d'usage · reprise ${heureEtMinute(c.report.reprise)}`];
     }
     if (!c.vivant) {
       const qui = enQuestion(c, chezLui(t));
@@ -1863,7 +1887,7 @@ export function etatsDAgents(t) {
       temoin,
     });
   }
-  const ligne = (x, signe) => ({ id: x.id, projet: x.projet, signe });
+  const ligne = (x, signe) => ({ id: x.id, signe });
   return {
     circuits,
     parts: partDe,
@@ -1878,13 +1902,12 @@ export function etatsDAgents(t) {
 }
 
 /**
- * The counts of the signs of AGENTS on the board <t> (`etatsDAgents`), of the project <projet> on a
- * board of several, of all its lines otherwise: `enCours` ▶, `enAttente` ⏸, `arretes` ⛔.
+ * The counts of the signs of AGENTS on the board <t> (`etatsDAgents`): `enCours` ▶, `enAttente` ⏸,
+ * `arretes` ⛔.
  * @param {any} t
- * @param {string} [projet]
  */
-export function comptesDAgents(t, projet) {
-  const l = etatsDAgents(t).lignes.filter(x => projet === undefined || x.projet === projet);
+export function comptesDAgents(t) {
+  const l = etatsDAgents(t).lignes;
   const n = s => l.filter(x => x.signe === s).length;
   return { enCours: n('▶') + n('▷'), enAttente: n('⏸'), arretes: n('⛔') };
 }
@@ -1917,43 +1940,75 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   // The first line: the project's name, the frame's version at its right edge.
   const version = versionDuPanneau();
   L(version ? couper(nom.toUpperCase(), version, largeur) : nom.toUpperCase(), TONS.titre);
-  // The state of each ticket's line of AGENTS, which AGENTS draws and the head counts.
+  // The state of each ticket's line of AGENTS.
   const etats = etatsDAgents(t);
-  // The three lines of the head, grouped by who acts, each with its tone from TONS; an absent
-  // counter reads 0. « toi »: what the owner decides or validates (sans go, à valider, question: the
-  // circuits of AGENTS stopped on a question, `comptesDAgents`); « file »: the queues (● ready,
-  // ✎ direct, ⧗ attend archi, ⊘ blocked); « en cours »: where nobody acts (▶ in progress, ✓ done,
-  // ⏸ deferred).
-  const lignesDActeurs = (c, questions) => {
+  // The lines of the head, grouped by who acts, each with its tone from TONS; an absent
+  // counter reads 0. « toi »: what the owner decides or validates (sans go, à valider, question:
+  // the questions that wait for him, `auResponsable`), then one line per such question,
+  // « ❓ <number>  <subject> · depuis <HH:MM> » (« jj/mm » for another day), the subject alone cut;
+  // « file »: the queues (● ready, ✎ direct, ⧗ attend archi, ⊘ blocked); « en cours »: where
+  // nobody acts (▶ in progress, ✓ done, ⏸ deferred). On a board of several projects, <projet>
+  // names the one whose lines these are, and each line is laid under its label.
+  const lignesDActeurs = (c, projet) => {
     const n = k => c[k] ?? 0;
+    const questions = (t.auResponsable ?? []).filter(x => x.projet === projet);
+    const maintenant = t.maintenant ?? Date.now();
+    const depuis = d =>
+      d === null
+        ? ''
+        : ` · depuis ${jourEtMois(d) === jourEtMois(maintenant) ? heureEtMinute(d) : jourEtMois(d)}`;
+    const sousLeProjet = (texte, tete) =>
+      cadre(projet === undefined ? texte : `${tete}${texte}`, '', largeur);
+    const retrait = ' '.repeat(large);
     return [
       {
-        texte: `toi : ${n('sansGo')} sans go · ${n('aValider')} à valider · ${questions} question`,
-        ton: n('sansGo') ? TONS.sansGo : n('aValider') || questions ? TONS.aValider : TONS.fermes,
+        texte: sousLeProjet(
+          `toi : ${n('sansGo')} sans go · ${n('aValider')} à valider · ${questions.length} question`,
+          projet === undefined ? '' : colonneDe(projet)
+        ),
+        ton: n('sansGo')
+          ? TONS.sansGo
+          : n('aValider') || questions.length
+            ? TONS.aValider
+            : TONS.fermes,
       },
+      ...questions.map(x => ({
+        texte: couperAvant(
+          `❓ ${duProjet(x)}${x.numero}  ${x.sujet}`,
+          depuis(x.depuis),
+          '',
+          largeur
+        ),
+        ton: TONS.attendLeResponsable,
+      })),
       {
-        texte: `file : ● ${n('enAttente')} · ✎ ${n('fileDirecte')} · ⧗ ${n('attendArchi')} · ⊘ ${n('bloques')}`,
+        texte: sousLeProjet(
+          `file : ● ${n('enAttente')} · ✎ ${n('fileDirecte')} · ⧗ ${n('attendArchi')} · ⊘ ${n('bloques')}`,
+          retrait
+        ),
         ton: TONS.enAttente,
       },
       {
-        texte: `en cours : ▶ ${n('enCours')} · ✓ ${n('fermes')} · ⏸ ${n('reportes')}`,
+        texte: sousLeProjet(
+          `en cours : ▶ ${n('enCours')} · ✓ ${n('fermes')} · ⏸ ${n('reportes')}`,
+          retrait
+        ),
         ton: n('enCours') ? TONS.enCours : TONS.fermes,
       },
     ];
   };
   if (plusieurs) {
-    // The three lines of each project, as one project's board says them: the first under its
-    // label, the two others aligned below it; or the fault that keeps its board out.
-    const retrait = ' '.repeat(large);
+    // The lines of each project, as one project's board says them: « toi » under its label, its
+    // questions with the label on each, « file » and « en cours » aligned below; or the fault that
+    // keeps its board out.
     for (const p of t.projets) {
       if (p.erreur) {
         L(cadre(`${colonneDe(p.etiquette)}⚠ ${p.erreur}`, '', largeur), TONS.panne);
         continue;
       }
-      const c = p.compteurs;
-      lignesDActeurs(c, comptesDAgents(t, p.etiquette).arretes).forEach((x, i) =>
-        L(cadre(`${i ? retrait : colonneDe(p.etiquette)}${x.texte}`, '', largeur), x.ton)
-      );
+      for (const x of lignesDActeurs(p.compteurs, p.etiquette)) {
+        L(x.texte, x.ton);
+      }
     }
     // The discoveries of the day, summed across the projects.
     const d96 = t.decouvertes ?? { new: 0, check: 0, rejetes: 0, valides: 0 };
@@ -1980,9 +2035,9 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   } else {
     const g = t.global;
     const c = g.compteurs;
-    // Three lines of states, grouped by who acts.
-    for (const x of lignesDActeurs(c, comptesDAgents(t).arretes)) {
-      L(cadre(x.texte, '', largeur), x.ton);
+    // The lines of states, grouped by who acts.
+    for (const x of lignesDActeurs(c)) {
+      L(x.texte, x.ton);
     }
     // The discoveries of the day, one count per case: always shown, at 0 when
     // nothing counts, like the other head lines.
@@ -2213,7 +2268,7 @@ export function lignes(t, nom, largeur = LARGEUR, groupes = {}) {
   };
   const ligneDuCircuit = c => {
     const etape = etapeDe(c);
-    // Its state, its sign, its reason and its witness, as the head counts them.
+    // Its state, its sign, its reason and its witness.
     const { ton, signe, raison, temoin } = etats.circuits.get(c.id);
     const droite = droiteDe(
       signe,
@@ -2667,7 +2722,7 @@ export function dernierBouge(tous, lignesDuTableau, vivants = [], maintenant = D
 
 // The status line: the chantier in progress; first the alerts, counted by their signs as the board
 // shows them (🌙, 💤, ⚠), then the passes that hold a part of the machine, « 🔒 <n> », and the
-// count of those that wait for one, « ⏳ <n> »; then the signs of AGENTS counted as the head counts them
+// count of those that wait for one, « ⏳ <n> »; then the signs of AGENTS counted
 // (`comptesDAgents`), « ▶ N · ⏸ N · ⛔ N ». The alerts of the other projects of a board of several
 // (<voisins>, their boards) count beside the session's, as a multi-root status bar counts the problems
 // of every root; the counters and the chantier stay the session's.
@@ -2979,6 +3034,7 @@ export function ensemble(lus) {
     alertes: tous('alertes'),
     ciDeMain: premier.t.ciDeMain,
     circuits: tous('circuits'),
+    auResponsable: tous('auResponsable'),
     horsCircuit: tous('horsCircuit'),
     directs: tous('directs'),
     chantiers: lisibles.flatMap(l => l.t.chantiers.map(noeud(l.etiquette))),

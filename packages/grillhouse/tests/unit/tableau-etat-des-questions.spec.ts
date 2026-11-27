@@ -123,7 +123,20 @@ describe('the state of a question at the right of its line', () => {
 });
 
 describe('the head counts the question carried to the owner', () => {
+  const toi = (t: unknown) =>
+    (lignes(t, 'depot') as Ligne[]).find(x => x.texte.startsWith('toi : '))!.texte.trimEnd();
+
   it('counts it among the questions of « toi », which a question of the supervisor does not feed', () => {
+    const attend = plateau([arrete('demo-1')], [entree('demo-1', { lue: MAINTENANT - 2 * MIN })]);
+    const chez = plateau(
+      [arrete('demo-1')],
+      [entree('demo-1', { lue: MAINTENANT - 2 * MIN, chez: MAINTENANT - 1 * MIN })]
+    );
+    expect(toi(attend)).toMatch(/ 0 question$/);
+    expect(toi(chez)).toMatch(/ 1 question$/);
+  });
+
+  it('draws it ⛔ in AGENTS', () => {
     const attend = plateau([arrete('demo-1')], [entree('demo-1', { lue: MAINTENANT - 2 * MIN })]);
     const chez = plateau(
       [arrete('demo-1')],

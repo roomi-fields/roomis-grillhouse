@@ -106,7 +106,7 @@ describe('the head groups its counts by who acts', () => {
   it('says « toi », « file » and « en cours » on three lines, in that order', () => {
     const l = tete(projet('demo'));
     expect(l.map(x => x.texte)).toEqual([
-      'toi : 0 sans go · 0 à valider · 1 question',
+      'toi : 0 sans go · 0 à valider · 0 question',
       'file : ● 0 · ✎ 0 · ⧗ 0 · ⊘ 0',
       'en cours : ▶ 5 · ✓ 2 · ⏸ 0',
     ]);
@@ -210,7 +210,7 @@ describe('the tone of each line of the head comes from TONS', () => {
     expect(l.map(x => x.ton)).toEqual(['attention', 'discret', 'actif']);
   });
 
-  it('« toi » is attention for a question alone', () => {
+  it('« toi » is attention for a question of the owner alone', () => {
     const t = plateau(
       'demo',
       [T('demo-1')],
@@ -218,7 +218,7 @@ describe('the tone of each line of the head comes from TONS', () => {
         circuitLu('demo-1', {
           sansIssue: true,
           interrompu: true,
-          qui: 'superviseur',
+          qui: 'responsable',
           etape: 'controles',
           question: 'Fini sans issue.',
         }),
@@ -257,7 +257,7 @@ describe('the board of several projects groups by who acts, a line per actor und
   it('says the three lines of each project under its label, a project in fault keeping its fault line', () => {
     const l = (lignes(trois(), 'ob + sh + osd') as Ligne[]).slice(1, 8);
     expect(l.map(x => x.texte.trimEnd())).toEqual([
-      '[OB]  toi : 0 sans go · 0 à valider · 1 question',
+      '[OB]  toi : 0 sans go · 0 à valider · 0 question',
       '      file : ● 0 · ✎ 0 · ⧗ 0 · ⊘ 0',
       '      en cours : ▶ 5 · ✓ 2 · ⏸ 0',
       '[SH]  toi : 0 sans go · 0 à valider · 0 question',
@@ -266,7 +266,7 @@ describe('the board of several projects groups by who acts, a line per actor und
       '[OSD] ⚠ dossier introuvable',
     ]);
     expect(l.map(x => x.ton)).toEqual([
-      'attention',
+      'discret',
       'discret',
       'actif',
       'discret',
