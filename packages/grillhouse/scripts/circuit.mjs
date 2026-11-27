@@ -227,7 +227,7 @@ import {
 
 // The sheet of the plan that says a field, as scripts/resultats.mjs reads it.
 export { ficheDuPlan };
-import { preparer, rolesDuConflit } from './enveloppe/travail-de-la-copie.mjs';
+import { preparer, rendreLIndex, rolesDuConflit } from './enveloppe/travail-de-la-copie.mjs';
 import { refusArbitrage } from './integration/integrer.mjs';
 import { prendreUnRang } from './places-de-la-machine.mjs';
 import { langageDe, langageDeLaCopie } from './langages.mjs';
@@ -1033,6 +1033,8 @@ export function publierLArret(ctx, erreur, etat) {
 // The fact <fait> of the circuit of <ctx>, with its <parametres>, the facts <faits> of the step
 // read before it: a session, a pass, a reading of the copy or of the ticket.
 export async function lireLeFait(ctx, fait, parametres, faits) {
+  // Before any fact reads the copy: the index a killed pass left is put back.
+  rendreLIndex(ctx.copie);
   switch (fait) {
     case 'mecanique':
       return cheminMecanique(ctx);

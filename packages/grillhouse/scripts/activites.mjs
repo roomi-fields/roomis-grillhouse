@@ -39,6 +39,7 @@ import {
   texteDesDifferences,
 } from './references-changees.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
+import { inscrireLeLot, rendreLIndex } from './enveloppe/travail-de-la-copie.mjs';
 import { auteurDuCode, etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
 import { gardesDuCadre, nomsDesGardes } from './gardes-du-cadre.mjs';
 import { INTEGRE } from './integration/file.mjs';
@@ -1566,11 +1567,20 @@ function npm(ctx, etape, args, env = {}, cwd = ctx.copie) {
                   ...(args[0] === 'test' || args[1] === 'verifier' ? mesureDesPasses(ctx) : {}),
                 })
               );
-              return spawnSync(lancement.cmd, lancement.args, {
-                cwd,
-                stdio: ['ignore', fd, fd],
-                env: lancement.env,
-              });
+              // A command of the checks or of the final pass judges the tree of the lot, its
+              // new files in the index; the index is put back after it.
+              if (etape === 'controles') {
+                inscrireLeLot(ctx.copie);
+              }
+              try {
+                return spawnSync(lancement.cmd, lancement.args, {
+                  cwd,
+                  stdio: ['ignore', fd, fd],
+                  env: lancement.env,
+                });
+              } finally {
+                rendreLIndex(ctx.copie);
+              }
             } finally {
               oublier();
             }
@@ -1744,6 +1754,8 @@ export function preuveARepasser(ctx, runs) {
 // the copy changed (`mesureDeLaPreuve`).
 // A measure with a run at 75 proved nothing: the proof is « à repasser » (`preuveARepasser`).
 export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null } = {}) {
+  // Before any read of the copy: the index a killed pass left is put back.
+  rendreLIndex(ctx.copie);
   // Only the files of the day are proved; the ones only the night plays are put aside, named.
   // Resumed at a red (<duRouge>, the files it names), the proof plays the tests among them alone
   // (<seuls>) and passes when they load: a test fixed is green, not red. A red that names no test
@@ -2229,6 +2241,9 @@ const ligneDeCommande = c =>
 // at the final pass, each key of the debt a guard wrote inscribed above what it finds, `{ garde,
 // fichier, regle, trouve }`.
 export function controles(ctx, finale, restreinte = null, reportes = null, fichiers = null) {
+  // Before any read of the copy: the index a killed pass left is put back, or git reads the lot
+  // as staged there (a file moved is a rename, its source no longer a change).
+  rendreLIndex(ctx.copie);
   const liste = composantsDe(ctx.copie).filter(p => !p.hors);
   // Resumed at a red in the test files <fichiers>: the final pass plays their packages alone (the
   // graph of packages of Turborepo, the root's tasks beside), the checks of the plan their tests

@@ -33,6 +33,8 @@
 //   copy brought back to HEAD, moved forward, the lot applied three ways. The lot waits in the
 //   copy's own git directory (`git rev-parse --git-dir`, `grillhouse-travail.patch`) while the
 //   copy moves, and goes once it is applied.
+//   - First, an index the circuit saved before a command of its checks, left by a killed
+//     process, is put back (`rendreLIndex`).
 //   - The lot applies file by file (one `git apply --3way` per file, its patch alone): a file that
 //     fails touches none of the others. A file in conflict keeps its marks; a file git refuses
 //     without marks (a deletion of a file main changed) stays alone in the lot kept in the git
@@ -89,6 +91,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   utimesSync,
@@ -114,6 +117,77 @@ const lignes = r =>
     .split('\n')
     .map(l => l.trim())
     .filter(Boolean);
+
+// The index of a copy as it was before the circuit put the lot there, in the copy's git directory.
+const INDEX_SAUVE = 'grillhouse-index';
+
+// The index of <copie> and the file that saves it, absolute; null out of git.
+function indexDeLaCopie(copie) {
+  const r = git(copie, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-path',
+    'index',
+    '--git-path',
+    INDEX_SAUVE,
+  ]);
+  if (r.status !== 0) {
+    return null;
+  }
+  const [index, sauve] = lignes(r);
+  return { index, sauve };
+}
+
+/**
+ * Puts back the index of <copie> that `inscrireLeLot` saved, in one rename, when one waits in its
+ * git directory: after the command, or before the next gesture that reads the index, when the
+ * process that ran the command was killed.
+ * @param {string} copie
+ */
+export function rendreLIndex(copie) {
+  const i = indexDeLaCopie(copie);
+  if (i && existsSync(i.sauve)) {
+    renameSync(i.sauve, i.index);
+  }
+}
+
+/**
+ * Puts the lot of <copie> in its index (`git add -A`, the ignored files left out) for a command
+ * that judges it, so that a reader of the index sees a new file as a tracked one and a deleted
+ * file no more; the index as it was, unresolved conflicts included, waits in the git directory of
+ * the copy until `rendreLIndex`. Throws, naming git, the index unchanged, when git fails.
+ * @param {string} copie
+ */
+export function inscrireLeLot(copie) {
+  rendreLIndex(copie);
+  const refus = r =>
+    new Error(
+      `git ne met pas le lot à l'index de la copie ${copie} (git add -A) : la commande ne joue pas.\n${texte(r)}`
+    );
+  const rev = git(copie, ['rev-parse', '--git-dir']);
+  const i = indexDeLaCopie(copie);
+  if (!i) {
+    throw refus(rev);
+  }
+  // A repository without an index file has an empty one, written so that it can be put back.
+  if (!existsSync(i.index)) {
+    const vide = git(copie, ['read-tree', '--empty']);
+    if (vide.status !== 0) {
+      throw refus(vide);
+    }
+  }
+  // Saved whole or not at all: copied aside, then renamed. Its time with it: git reads it to
+  // judge a file written in the same instant as the index.
+  const { atime, mtime } = statSync(i.index);
+  copyFileSync(i.index, `${i.sauve}.tmp`);
+  utimesSync(`${i.sauve}.tmp`, atime, mtime);
+  renameSync(`${i.sauve}.tmp`, i.sauve);
+  const r = git(copie, ['add', '-A']);
+  if (r.status !== 0) {
+    rendreLIndex(copie);
+    throw refus(r);
+  }
+}
 
 // The files of <copie> unmerged in its index.
 const enConflit = copie => lignes(git(copie, ['diff', '--name-only', '--diff-filter=U']));
@@ -514,6 +588,7 @@ const conflit = (copie, conflits, entete) =>
  * @param {{ ecrit?: (fichier: string) => boolean, suspects?: string[], duCadre?: (copie: string) => any[], dire?: (texte: string) => void }} [o]
  */
 export function avancer(copie, cible, { ecrit, suspects = [], duCadre, dire = surStderr } = {}) {
+  rendreLIndex(copie);
   releverLesResolus(copie);
   const restants = [
     ...new Set([...enConflit(copie), ...suspects.filter(f => porteDesMarques(copie, f))]),
@@ -684,6 +759,8 @@ export function preparer(copie, cible, { env = process.env, sortie = 2, ecrit, s
     }
     return r;
   };
+  // Before any command that reads the index, the pose of the submodules included.
+  rendreLIndex(copie);
   const echec = (r, quoi) => ({
     ok: false,
     message: `⛔ ${quoi} de la copie ${copie} échoue (code ${r.status ?? r.signal}).${r.stderr?.length ? `\n${String(r.stderr).trim()}` : ''}`,

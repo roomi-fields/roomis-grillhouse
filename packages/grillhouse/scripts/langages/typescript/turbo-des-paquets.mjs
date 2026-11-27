@@ -92,7 +92,9 @@
 //   project's guards; a root without it plays none): each waits for the build of each package of
 //   the frame that has a `build` script, sorted (`//#grillhouse:gardes`, `//#gardes` in a
 //   repository of packages), or for the root's build in a repository without packages; the task
-//   added is `{ dependsOn, outputs: [] }`;
+//   added is `{ dependsOn, outputs: [] }`; in a repository of packages, the `env` of each `//#…`
+//   names `GRILLHOUSE_INDEX_DU_DEPOT`, the fingerprint of the list of the files of the index, the
+//   project's entries kept;
 // - `typecheck`, cached per package: it waits for `build` and, in a repository of packages, for
 //   `^build`; a package without a `typecheck` script plays none; the task added is
 //   `{ dependsOn: ["build", "^build"], outputs: [] }` (`["build"]` without packages), and a
@@ -147,6 +149,10 @@ const TOPOLOGIE = ['dependencies', 'devDependencies', 'optionalDependencies'];
 const RACINES = ['turbo.json', 'turbo.jsonc'];
 // The guard tasks of the root: the frame's controls, and the project's own guards.
 export const GARDES = SCRIPTS_DE_GARDES;
+// The variable that carries the fingerprint of the list of the files of the index, which the
+// verification pass gives (verifier.mjs) and the guard tasks of the root hash: a guard reads the
+// index.
+export const INDEX_DU_DEPOT = 'GRILLHOUSE_INDEX_DU_DEPOT';
 // The controls of the root that the CI plays beside the verification: the format check and the
 // lint. A root plays those its package.json holds a script for, none demanded.
 export const CONTROLES = ['format:check', 'lint'];
@@ -908,6 +914,36 @@ function gardesEcartees(racine) {
   return { f, texte, ecarts };
 }
 
+// Whether the task <cle> is written as one of the root package, in a repository of packages.
+const estDeLaRacine = cle => cle.startsWith('//#');
+
+// The guard task <cle> the generator adds to a root that lacks it.
+const gardeNeuve = (cle, dependsOn) => ({
+  dependsOn,
+  ...(estDeLaRacine(cle) ? { env: [INDEX_DU_DEPOT] } : {}),
+  outputs: [],
+});
+
+// The guard tasks of the root's turbo.json at <racine>, in a repository of packages (`//#…`), whose
+// `env` lacks INDEX_DU_DEPOT, added to the project's: [{ f, cle, attendu }]; a task absent aside,
+// which `gardesEcartees` adds whole.
+function gardesSansIndex(racine) {
+  const r = confRacine(racine);
+  if (!r) {
+    return [];
+  }
+  return [...gardesAttendues(racine).keys()].filter(estDeLaRacine).flatMap(cle => {
+    const tache = r.conf.tasks?.[cle];
+    if (!tache || typeof tache !== 'object') {
+      return [];
+    }
+    const actuel = Array.isArray(tache.env) ? tache.env : [];
+    return actuel.includes(INDEX_DU_DEPOT)
+      ? []
+      : [{ f: r.f, cle, attendu: [...actuel, INDEX_DU_DEPOT] }];
+  });
+}
+
 // The typing task of the root's turbo.json at <racine> when it lacks it, or when its `dependsOn`
 // lacks one of the builds it waits for (`attenteDuTypage`): { f, chemin, valeur, manques }, the
 // path of the edit and the value it sets (the task, `{ dependsOn, outputs: [] }`; or its
@@ -1030,11 +1066,20 @@ export function ecrire(racine) {
     for (const { cle, attendu, present } of racineEcartee.ecarts) {
       const [chemin, valeur] = present
         ? [['tasks', cle, 'dependsOn'], attendu]
-        : [['tasks', cle], { dependsOn: attendu, outputs: [] }];
+        : [['tasks', cle], gardeNeuve(cle, attendu)];
       texte = applyEdits(texte, modify(texte, chemin, valeur, MISE_EN_FORME));
     }
     writeFileSync(path.join(racine, racineEcartee.f), texte);
     ecrits.push(racineEcartee.f);
+  }
+  for (const { f, cle, attendu } of gardesSansIndex(racine)) {
+    const abs = path.join(racine, f);
+    const texte = readFileSync(abs, 'utf8');
+    const chemin = ['tasks', cle, 'env'];
+    writeFileSync(abs, applyEdits(texte, modify(texte, chemin, attendu, MISE_EN_FORME)));
+    if (!ecrits.includes(f)) {
+      ecrits.push(f);
+    }
   }
   const typage = typageEcarte(racine);
   if (typage) {
@@ -1322,6 +1367,11 @@ export function verifier(racine) {
       present
         ? `⛔ ${f} : la tâche \`${cle}\` doit attendre ${attendu.join(', ') || 'aucune construction'} (la construction de chaque paquet du cadre) ; \`${COMMANDE}\` réécrit son dependsOn.`
         : `⛔ ${f} : la tâche \`${cle}\` manque ; \`${COMMANDE}\` l'ajoute, après la construction de chaque paquet du cadre.`
+    );
+  }
+  for (const { f, cle } of gardesSansIndex(racine)) {
+    refus.push(
+      `⛔ ${f} : l'\`env\` de \`${cle}\` doit nommer ${INDEX_DU_DEPOT}, l'empreinte de la liste des fichiers de l'index, qu'une garde lit ; \`${COMMANDE}\` l'ajoute.`
     );
   }
   for (const [f, t] of attendus(racine)) {

@@ -19,6 +19,8 @@
 //   keeps its tree as the last green; a red one leaves it. The pass alone keeps it, for every
 //   language: it plays the tasks of every package of the graph, a crate's and a Python
 //   project's beside a TypeScript package's (their `test:unit` and `typecheck`).
+// - Every pass gives its tasks the fingerprint of the list of the files of the index
+//   (`GRILLHOUSE_INDEX_DU_DEPOT`), which the guard tasks hash (./turbo-des-paquets.mjs).
 // - `--tout`, and `--force` (the night, scripts/nuit.sh), play the complete pass: each task of
 //   tests for real (`GRILLHOUSE_TESTS` carries only `rejouer`, the moment of the pass, no path).
 // - The part of the budget of the machine (scripts/places-de-la-machine.mjs, `avecLaPasse`): a
@@ -73,6 +75,7 @@
 //   TMPDIR, TMP and TEMP (`globalPassThroughEnv`, ./turbo-des-paquets.mjs); removed at the end,
 //   green, red or interrupted (SIGINT, SIGTERM, SIGHUP).
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -112,7 +115,7 @@ import { paquets, TYPAGE } from '../../paquets.mjs';
 import { RESULTATS } from '../../resultats.mjs';
 import { fichiersDeLaTranche, RAPPORTS } from './tranches.mjs';
 import { garderLesResumes } from './resume-du-lanceur.mjs';
-import { controlesDuDepot, planifier } from './turbo-des-paquets.mjs';
+import { controlesDuDepot, INDEX_DU_DEPOT, planifier } from './turbo-des-paquets.mjs';
 
 const TACHES = [...GARDES, TYPAGE, SCRIPT_DES_TESTS];
 const CONCURRENCE = /^--concurrency(?:=|$)/;
@@ -124,6 +127,17 @@ const rejeu = id => {
   const i = id.indexOf('#');
   return `npx turbo run ${id.slice(i + 1)} --filter=${id.slice(0, i)}`;
 };
+
+// The fingerprint of the list of the files of the index of the repository at <racine>, under
+// <env>: it moves when a file enters or leaves the index, whatever the contents. null when git
+// gives no list.
+function empreinteDeLIndex(racine, env) {
+  const r = spawnSync('git', ['-C', racine, 'ls-files', '-z'], {
+    env,
+    maxBuffer: 1024 * 1024 * 1024,
+  });
+  return r.status === 0 ? createHash('sha256').update(r.stdout).digest('hex') : null;
+}
 
 const lister = dossier => (existsSync(dossier) ? readdirSync(dossier) : []);
 
@@ -411,7 +425,18 @@ function passe({ racine, demandes, env, dire, coeurs }) {
 
 function jouerLaPasse({ racine, demandes, args, tout, ajouts, env, dire, coeurs, taches }) {
   const { gardesSeules, sansTests, tranche } = demandes;
-  const { [TESTS_CIBLES]: _, [CHANGEMENTS]: __, [BASE_DU_LOT]: ___, ...propre } = env;
+  const {
+    [TESTS_CIBLES]: _,
+    [CHANGEMENTS]: __,
+    [BASE_DU_LOT]: ___,
+    [INDEX_DU_DEPOT]: ____,
+    ...herite
+  } = env;
+  // The fingerprint of this repository's index, never the caller's: a guard reads the index, and
+  // Turborepo, which hashes an untracked file as a tracked one, plays the guards again when the
+  // list moves.
+  const index = empreinteDeLIndex(racine, herite);
+  const propre = index === null ? herite : { ...herite, [INDEX_DU_DEPOT]: index };
   // The environment of the run: measured against the last green; the moment of a complete pass,
   // which moves the hash of every task of tests, so that each plays for real; a tranche, with it.
   const cibles = tranche

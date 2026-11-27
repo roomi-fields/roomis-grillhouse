@@ -25,11 +25,17 @@
     },
     "//#grillhouse:gardes": {
       "dependsOn": ["@roomi-fields/grillhouse#build"],
-      "outputs": []
+      "outputs": [],
+      "env": [
+        "GRILLHOUSE_INDEX_DU_DEPOT"
+      ]
     },
     "//#gardes": {
       "dependsOn": ["@roomi-fields/grillhouse#build"],
-      "outputs": []
+      "outputs": [],
+      "env": [
+        "GRILLHOUSE_INDEX_DU_DEPOT"
+      ]
     },
     "typecheck": {
       "dependsOn": ["build", "^build"],

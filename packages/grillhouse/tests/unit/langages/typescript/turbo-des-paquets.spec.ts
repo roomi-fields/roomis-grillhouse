@@ -610,7 +610,11 @@ describe('the guard tasks of the root wait for the build of each package of the 
     expect(texte).toContain('// périmé');
     expect(dependances(texte, '//#grillhouse:gardes')).toEqual(TOUS);
     // A guard task the root lacks is added, without outputs.
-    expect(lireRacine(texte).tasks['//#gardes']).toEqual({ dependsOn: TOUS, outputs: [] });
+    expect(lireRacine(texte).tasks['//#gardes']).toEqual({
+      dependsOn: TOUS,
+      env: ['GRILLHOUSE_INDEX_DU_DEPOT'],
+      outputs: [],
+    });
     // A second pass writes nothing.
     expect(ecrire(racine)).toEqual([]);
     expect(lire(racine, 'turbo.json')).toBe(texte);
@@ -680,6 +684,60 @@ describe('the guard tasks of the root wait for the build of each package of the 
     expect(dependances(lire(racine, 'turbo.json'), 'grillhouse:gardes')).toEqual(['build']);
     expect(lancer(racine, []).status).toBe(0);
   });
+});
+
+// A guard reads the index of the repository: its task declares the fingerprint of the list of its
+// files, which the verification pass gives, so that Turborepo's hash moves with it.
+describe('the env of the guard tasks of the root names the fingerprint of the index', () => {
+  const INDEX = 'GRILLHOUSE_INDEX_DU_DEPOT';
+  type Conf = { tasks: Record<string, { env?: string[] }> };
+  const conf = (racine: string) => lireRacine(lire(racine, 'turbo.json')) as unknown as Conf;
+  const reecrire = (racine: string, changer: (c: Conf) => void) => {
+    const c = conf(racine);
+    changer(c);
+    ecrireFichier(racine, 'turbo.json', JSON.stringify(c, null, 2));
+  };
+
+  it('the generator writes it into both guard tasks, and a second pass writes nothing', () => {
+    const racine = depotAvecGardes();
+    ecrire(racine);
+    for (const t of GARDES_RACINE) {
+      expect(conf(racine).tasks[t]?.env, t).toEqual([INDEX]);
+    }
+    expect(ecrire(racine)).toEqual([]);
+  });
+
+  it('keeps the entries of the env the project already holds, and writes it once', () => {
+    const racine = depotAvecGardes();
+    ecrire(racine);
+    reecrire(racine, c => {
+      c.tasks['//#gardes']!.env = ['MON_ENV'];
+      c.tasks['//#grillhouse:gardes']!.env = [INDEX, 'AUTRE_ENV'];
+    });
+    ecrire(racine);
+    ecrire(racine);
+    expect(conf(racine).tasks['//#gardes']?.env).toEqual(['MON_ENV', INDEX]);
+    expect(conf(racine).tasks['//#grillhouse:gardes']?.env).toEqual([INDEX, 'AUTRE_ENV']);
+  });
+
+  it.each(GARDES_RACINE)(
+    'the check refuses %s without it, naming the task, the variable and the command that adds it',
+    tache => {
+      const racine = depotAvecGardes();
+      ecrire(racine);
+      expect(lancer(racine, []).status).toBe(0);
+      reecrire(racine, c => {
+        c.tasks[tache]!.env = ['MON_ENV'];
+      });
+      const refus = verifier(racine).join('\n');
+      expect(refus).toContain(tache);
+      expect(refus).toContain(INDEX);
+      expect(refus).toContain(COMMANDE);
+      ecrire(racine);
+      expect(verifier(racine)).toEqual([]);
+      expect(conf(racine).tasks[tache]?.env).toEqual(['MON_ENV', INDEX]);
+    }
+  );
 });
 
 // grillhouse-kgx.3. Witness: BPScript 320.21.4, whose charter asks every commit to pass the strict
