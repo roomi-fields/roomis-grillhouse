@@ -1098,15 +1098,69 @@ describe('9jr.2 — each role reads the files of its skill', () => {
     expect(litSansInvite(path.join(cache, '9.9.8/skills/relecteur/SKILL.md'), r, copie)).toBe(true);
   });
 
+  // The roles that load the debugging skill of the plugin.
+  const DEBOGUENT = ['developpeur', 'direct', 'explorateur'];
+  const VOISINS_DU_DEBOGAGE = [
+    'SKILL.md',
+    'root-cause-tracing.md',
+    'defense-in-depth.md',
+    'condition-based-waiting.md',
+    'condition-based-waiting-example.ts',
+    'find-polluter.sh',
+  ];
+
+  it.each(DEBOGUENT)(
+    'the %s reads every file of the debugging skill, by Read and by ls, without a prompt',
+    role => {
+      installe([{ scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') }]);
+      const r = reglages(role);
+      const dossier = path.join(cache, '9.9.9/skills/systematic-debugging');
+      for (const f of VOISINS_DU_DEBOGAGE) {
+        expect(litSansInvite(path.join(dossier, f), r, copie), f).toBe(true);
+      }
+      const fichiers = VOISINS_DU_DEBOGAGE.map(f => path.join(dossier, f));
+      expect(refusReel(`ls ${fichiers.join(' ')}`, r, copie)).toBeNull();
+    }
+  );
+
+  it.each(DEBOGUENT)('the debugging skill opens to the %s no other folder of the plugin', role => {
+    installe([{ scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') }]);
+    const r = reglages(role);
+    const competences = path.join(cache, '9.9.9/skills');
+    for (const f of [
+      'grill/SKILL.md',
+      'testwriter/SKILL.md',
+      'systematic-debugging-bis/SKILL.md',
+    ]) {
+      expect(litSansInvite(path.join(competences, f), r, copie), f).toBe(false);
+    }
+    expect(refusReel(`ls ${competences}/`, r, copie)).not.toBeNull();
+  });
+
+  it('a role that does not load the debugging skill does not read it', () => {
+    installe([{ scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') }]);
+    const autres = Object.keys(ROLES).filter(role => !DEBOGUENT.includes(role));
+    expect(autres.sort()).toEqual(['questionneur', 'relecteur', 'testwriter']);
+    for (const role of autres) {
+      const f = path.join(cache, '9.9.9/skills/systematic-debugging/SKILL.md');
+      expect(litSansInvite(f, reglages(role), copie), role).toBe(false);
+    }
+  });
+
   it('criterion 2: the right gives no writing, and adds no command', () => {
     installe([{ scope: 'local', projectPath: copie, installPath: path.join(cache, '9.9.9') }]);
     for (const role of Object.keys(ROLES)) {
       const { allow } = reglages(role).permissions;
       const neufs = allow.filter(a => !ROLES[role as keyof typeof ROLES].commandes.includes(a));
-      expect(neufs, role).toEqual([
-        `Read(/${path.join(cache, '9.9.9/skills', role)}/**)`,
-        ...(nommeLeMetacadre(role) ? [`Read(/${path.join(cache, '9.9.9/METACADRE.md')})`] : []),
-      ]);
+      expect(neufs.sort(), role).toEqual(
+        [
+          `Read(/${path.join(cache, '9.9.9/skills', role)}/**)`,
+          ...(nommeLeMetacadre(role) ? [`Read(/${path.join(cache, '9.9.9/METACADRE.md')})`] : []),
+          ...(DEBOGUENT.includes(role)
+            ? [`Read(/${path.join(cache, '9.9.9/skills/systematic-debugging')}/**)`]
+            : []),
+        ].sort()
+      );
       expect(
         allow.filter(a => /^(Edit|Write|MultiEdit|NotebookEdit)\(/.test(a)),
         role

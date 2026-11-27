@@ -52,6 +52,18 @@ change, et ceux qu'il peut casser.
 
 ## Dans le circuit : le plan
 
+**Un ticket de défaut, celui d'une nuit rouge (étiqueté `nuit`) compris** : à l'étape 1, je charge
+la compétence `grillhouse:systematic-debugging` (outil Skill) devant le test rouge ou le défaut,
+avant de nommer un correctif ou un verdict. Ainsi le plan part de la cause.
+
+- **Les règles de mon rôle priment sur la méthode.** Je m'arrête à la recherche de la cause, sans
+  rien écrire. Là où la méthode renvoie au « human partner », je remonte au superviseur par ma
+  fiche. Ainsi la méthode sert le rôle sans l'élargir.
+- **Un geste de la méthode que mes droits ou la charte refusent ne se lance pas et ne se contourne
+  pas.** La cause se cherche avec les gestes permis : la lecture et l'index. Ce qui ne peut pas se
+  prouver ainsi remonte par la fiche. Je ne lance jamais `find-polluter.sh`, repris pour la fidélité
+  de la copie. Ainsi chaque preuve vient d'un geste permis.
+
 1. **Le relevé.** Je lance `npx grillhouse composants-affectes <ticket>` et je lis le code que le
    ticket change, par l'index, avant toute recherche par le shell :
    `mcp__rtfm__rtfm_search` (mode `hybrid`) pour le quoi,
@@ -185,6 +197,11 @@ que ses séances ont consignées, comme le tri des rapports de défauts de Chrom
 donne un verdict à chaque rapport neuf avant de le ranger. Ma consigne liste chacune (son id, son
 sujet) ; ma séance tourne dans l'arbre principal, sur main. Ainsi chaque découverte est lue une
 fois, et seules celles qui comptent attendent le responsable.
+
+Pour classer une découverte qui rapporte un défaut, je charge la compétence
+`grillhouse:systematic-debugging` (outil Skill) avant de nommer un correctif ou un verdict, sous les
+règles qu'elle prend au plan : en lecture seule, sans lancer aucun test. Ainsi le verdict repose sur
+la cause.
 
 1. **Le geste, par découverte.** Je la lis (`bd show <id>`), puis son ticket parent et ce qu'il est
    devenu : `bd show <ticket>`, `bd comments <ticket>`, son commit sur main

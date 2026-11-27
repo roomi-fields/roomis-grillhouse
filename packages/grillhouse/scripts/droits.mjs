@@ -17,8 +17,9 @@
 //   mount it.
 // - `--settings <json>` (the settings of the role, on the command line: no file the session could
 //   change): its permissions (`allow`, the commands its skill names, and the reading of its
-//   skill's files, references included, and of the METACADRE.md its skill names, in the frame's
-//   plugin as installed for the copy, else for the project, by `Read` and `ls` and with no writing; `deny`, the change of its
+//   skill's files, references included, of those of the debugging skill for a role whose skill
+//   loads it (`debogage`), and of the METACADRE.md its skill names, in the frame's plugin as
+//   installed for the copy, else for the project, by `Read` and `ls` and with no writing; `deny`, the change of its
 //   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
 //   tool run directly and the reading again of the ticket its instruction carries, and for a role
 //   that writes nothing at the ticket, the explorateur and the questionneur, every write of bd,
@@ -135,7 +136,8 @@ function avecJumelles(regles) {
 
 // Each role the circuit launches: whether it writes (files, `ecrit`; the ticket, unless
 // `ecritAuTicket` is false), whether it uses the index, whether its skill names the frame's
-// METACADRE.md (`metacadre`, read at the root of the plugin installed), and the commands its skill
+// METACADRE.md (`metacadre`, read at the root of the plugin installed), whether its skill loads the
+// debugging skill of the plugin (`debogage`, read with its neighbouring files), and the commands its skill
 // names (the frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
@@ -146,6 +148,7 @@ export const ROLES = {
   // instruction of the tri lists these commands (`commandesPermises`).
   explorateur: {
     metacadre: true,
+    debogage: true,
     index: true,
     ecritAuTicket: false,
     commandes: avecJumelles([
@@ -183,6 +186,7 @@ export const ROLES = {
   // by the index.
   developpeur: {
     metacadre: true,
+    debogage: true,
     ecrit: true,
     index: true,
     commandes: avecJumelles([
@@ -201,6 +205,7 @@ export const ROLES = {
   // reads the whole copy by the index. A role of its own: the developpeur keeps the rights of the
   // circuit (no test file).
   direct: {
+    debogage: true,
     ecrit: true,
     index: true,
     commandes: avecJumelles([
@@ -291,8 +296,9 @@ function cheminDuGreffon(nom, projets, home) {
 }
 
 // The reading of the skill of <role> (SKILL.md and its references/) in the frame's plugin, as
-// installed for the copy where the session runs, else for the project, and of the plugin's
-// METACADRE.md alone for a role whose skill names it: rules `Read(//…)`, which let through the
+// installed for the copy where the session runs, else for the project, of the debugging skill for a
+// role whose skill loads it (`debogage`), whose neighbouring files the tool Skill does not give,
+// and of the plugin's METACADRE.md alone for a role whose skill names it: rules `Read(//…)`, which let through the
 // tool Read and `ls` of those folders, and write nothing (measured on Claude Code in `dontAsk`).
 // Narrower than a folder of work (`--add-dir`), which would open the whole plugin; none when the
 // plugin is not installed.
@@ -302,8 +308,9 @@ function lireSaCompetence(role, { racine, copie, home }) {
   if (!dossier) {
     return [];
   }
+  const competences = [role, ...(ROLES[role].debogage ? ['systematic-debugging'] : [])];
   return [
-    `Read(/${path.join(dossier, 'skills', role)}/**)`,
+    ...competences.map(c => `Read(/${path.join(dossier, 'skills', c)}/**)`),
     ...(ROLES[role].metacadre ? [`Read(/${path.join(dossier, 'METACADRE.md')})`] : []),
   ];
 }

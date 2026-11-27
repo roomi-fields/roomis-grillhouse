@@ -56,6 +56,22 @@ reste.
   le fournisseur d'abord. Un plan qui demande un autre paquet t'arrête : ta fiche le nomme, et le
   superviseur étend le plan ou refuse. Ainsi un ticket reste dans son plan.
 
+## Devant un rouge ou un défaut
+
+Devant un rouge que ton lot ne lève pas, celui de la passe finale compris, ou devant un défaut, tu
+charges la compétence `grillhouse:systematic-debugging` (outil Skill) avant tout correctif. Ainsi
+la cause se trouve avant le correctif.
+
+- **Les règles de ton rôle priment sur la méthode.** Tu n'écris aucun test : le test qui reproduit
+  le défaut est celui du testwriter, et son rouge attendu avant le code n'est pas un défaut à
+  instruire. Là où la méthode renvoie au « human partner », tu remontes au superviseur par ta fiche.
+  Ainsi la méthode sert le rôle sans l'élargir.
+- **Un geste de la méthode que tes droits ou la charte refusent ne se lance pas et ne se contourne
+  pas.** La cause se cherche avec les gestes permis : la lecture, l'index, `npm test -- <fichiers>`
+  et une instrumentation temporaire dans les paquets du plan, retirée avant la fiche. Ce qui ne peut
+  pas se prouver ainsi remonte par la fiche. Tu ne lances jamais `find-polluter.sh`, repris pour la
+  fidélité de la copie. Ainsi chaque preuve vient d'un geste permis.
+
 ## Le code
 
 - **Chaque paquet reçoit les faits de ses fournisseurs** : ceux que publie leur interface, déclarés

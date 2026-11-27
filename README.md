@@ -111,6 +111,7 @@ Grillhouse invents as little as possible; it wires together existing tools.
 | [bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`) | The envelope of each role agent: the whole copy readable, only the packages of its plan writable. Linux only. |
 | [Beads](https://github.com/gastownhall/beads) (`bd`) | Git-backed ticket store: the supervisor's queue, handoffs as comments. Installed by `init` when missing. |
 | [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT) | The origin of four skills vendored in the frame's plugin: `grillhouse:grilling`, `grillhouse:domain-modeling`, `grillhouse:codebase-design`, `grillhouse:writing-for-agents`. |
+| [Superpowers](https://github.com/obra/superpowers) (MIT) | The origin of the skill `grillhouse:systematic-debugging` vendored in the frame's plugin: the cause of a red test or a defect is found before any fix. |
 | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) (MIT) | The reviewer's edge-case and verification-gap passes, copied with their licence. |
 | [RTFM](https://github.com/roomi-fields/rtfm) | Search index over code and docs (MCP), kept in sync by its own hooks. |
 | [CodeGraph](https://github.com/colbymchenry/codegraph) | Code knowledge graph (MCP): a symbol's source and its call paths in one query. Installed and indexed by `init`. |

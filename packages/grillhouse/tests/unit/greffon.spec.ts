@@ -50,6 +50,7 @@ const COMPETENCES = [
   'questionneur',
   'redacteur',
   'relecteur',
+  'systematic-debugging',
   'testwriter',
   'writing-for-agents',
 ];

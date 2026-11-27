@@ -28,6 +28,21 @@ dans ton contexte, prime sur tout le reste.
    `mcp__codegraph__codegraph_explore` ou `codegraph explore <symboles>` donne l'appel ; le shell
    lit un fichier déjà nommé. La même règle tient pour chaque recherche du travail.
 
+## Devant un rouge ou un défaut
+
+Devant un rouge que ton lot ne lève pas, celui d'une passe finale compris, ou devant un défaut, tu
+charges la compétence `grillhouse:systematic-debugging` (outil Skill) avant tout correctif. Ainsi
+la cause se trouve avant le correctif.
+
+- **Les règles de ton rôle priment sur la méthode.** Tu écris toi-même le test qui reproduit le
+  défaut. Là où la méthode renvoie au « human partner », tu remontes au superviseur par ta fiche.
+  Ainsi la méthode sert le rôle sans l'élargir.
+- **Un geste de la méthode que tes droits ou la charte refusent ne se lance pas et ne se contourne
+  pas.** La cause se cherche avec les gestes permis : la lecture, l'index, `npm test -- <fichiers>`
+  et une instrumentation temporaire dans les paquets du plan, retirée avant la fiche. Ce qui ne peut
+  pas se prouver ainsi remonte par la fiche. Tu ne lances jamais `find-polluter.sh`, repris pour la
+  fidélité de la copie. Ainsi chaque preuve vient d'un geste permis.
+
 ## Le travail
 
 - **Un défaut corrigé porte un test qui le reproduit** : tu écris le test d'abord, tu le vois rouge

@@ -192,7 +192,8 @@ roomis-grillhouse/
 │   │   ├── mesure/                   # Measurement: measures without lying, proves a guard bites
 │   │   ├── redacteur/                # The writer: human-read documents
 │   │   ├── architecte/               # The architect: keeps the design, instructs a decision of architecture
-│   │   └── grilling/, domain-modeling/, codebase-design/, writing-for-agents/  # vendored from Matt Pocock's skills (MIT, CREDITS.md)
+│   │   ├── grilling/, domain-modeling/, codebase-design/, writing-for-agents/  # vendored from Matt Pocock's skills (MIT, CREDITS.md)
+│   │   └── systematic-debugging/     # vendored from Superpowers (MIT, CREDITS.md): the cause before the fix
 │   ├── hooks/
 │   │   ├── hooks.json                # The mod's module and the hooks of Claude Code, each `node crochet.mjs <sous-commande>`
 │   │   ├── crochet.mjs               # Runs `grillhouse <sous-commande>` of the project (node_modules/.bin), Node alone
