@@ -132,6 +132,23 @@ describe('migration of the index servers — the .mcp.json of a project has the 
     expect(restes(sienne)).toEqual([]);
     expect(existsSync(path.join(sienne, '.claude'))).toBe(false);
   });
+
+  it.each([
+    ['settings that enable no plugin', {}],
+    ['settings that disable the plugin rtfm', { 'rtfm@roomi-fields': false }],
+    ['no settings', undefined],
+  ])(
+    'asks, with %s, to run npx grillhouse greffons in the main tree once the plugin is enabled',
+    (_, greffons) => {
+      const p = projet(null, greffons);
+      migrer(p);
+      const reste = restes(p).join('\n');
+      expect(reste).toMatch(/npx grillhouse greffons(?!\s+-)/);
+      expect(reste).toContain('arbre principal');
+      expect(reste).not.toContain('--poste');
+      expect(reste).not.toContain('grillhouse maj');
+    }
+  );
 });
 
 describe('a project grillhouse init creates', () => {

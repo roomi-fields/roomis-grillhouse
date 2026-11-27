@@ -74,6 +74,6 @@ export function restes(projet) {
     return [];
   }
   return [
-    '.claude/settings.json : le greffon rtfm n’est pas activé, qui porte le programme rtfm-serve que .mcp.json nomme, et tient son index ; active-le (« enabledPlugins » : « rtfm@roomi-fields »: true, comme le gabarit), puis rejoue npx grillhouse maj --poste.',
+    '.claude/settings.json : le greffon rtfm n’est pas activé, qui porte le programme rtfm-serve que .mcp.json nomme, et tient son index ; active-le (« enabledPlugins » : « rtfm@roomi-fields »: true, comme le gabarit), puis lance npx grillhouse greffons dans l’arbre principal.',
   ];
 }

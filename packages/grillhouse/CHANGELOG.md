@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **What the migration of the index servers leaves to a project names a command that exists** (grillhouse-3uv.271, seen by SH in the update of osc-bridge to 0.51.0): once the plugin rtfm is enabled, it asks to run `npx grillhouse greffons` in the main tree; it named `npx grillhouse maj --poste`, an option no command offers.
+
 ## [0.51.0] - 2026-11-27
 
 - **The first update of a project without `jsonc-parser` no longer fails on `ERR_MODULE_NOT_FOUND`** (grillhouse-3uv.269, seen by the canary of 0.51.0 in osc-bridge and OSD): `npx grillhouse maj` declared `jsonc-parser` and ran the generator of the graph, which imports it, before `npm install`. While `node_modules/jsonc-parser/package.json` is absent, the update no longer runs that generator: its line, on the error stream with exit code 1 and the verification not played, asks for `npm install`, then `npx grillhouse turbo-des-paquets --ecrire`. The other generators run as before. **Action for projects**: when the line shows, run those two commands and commit the `turbo.json`.
