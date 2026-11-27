@@ -520,10 +520,10 @@ export async function pousserLesQuestions($: EngineInterface): Promise<void> {
   relevee = true
   try {
     const r = await $.process.run([GRILLHOUSE, 'superviseur', '--relever', cwd], { cwd, timeoutMs: 60_000 })
+    // A reading at fault can still give a message: that of the projects of the group it read.
     if (r.exitCode !== 0) {
       const faute = (r.stderr || '').trim().slice(0, 300)
       if (faute) await update($, etat, s => ({ ...s, erreur: faute }))
-      return
     }
     const texte = (r.stdout || '').trim()
     if (texte) {

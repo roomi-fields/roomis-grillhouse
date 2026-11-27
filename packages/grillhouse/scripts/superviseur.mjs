@@ -32,7 +32,9 @@
 //   it at each period and submits what it writes. It reads and writes nothing unless the session
 //   that runs it holds the lock; a lock whose process is gone is taken over by the session that
 //   reads. It writes the message (`texteDesQuestions`) when `relever` gives something, nothing
-//   otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` is at fault.
+//   otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` of the project is
+//   at fault, or when the reading of another project of the group fails, the message of the others
+//   then written all the same.
 // - `superviseur --lue <dossier> <lueA> <envoyeesAvant>` marks read the questions sent up to
 //   `envoyeesAvant`; `superviseur --chez-le-responsable <dossier> <ticket>` marks a question
 //   carried to the owner: silent until the circuit answers.
@@ -162,16 +164,21 @@ export function horsAttente(tickets, maintenant) {
 
 // Of the tickets <ids> of the repository at <racine>, those whose question does not wait now
 // (`horsAttente`); null when bd does not read them (unknown, never « none »): a machine under
-// load can take seconds to answer.
+// load can take seconds to answer. One listing reads them all, whatever their number: `bd show`
+// costs more than a second per ticket and overruns the time given when many circuits stand.
 export function ticketsHorsAttente(racine, ids) {
-  const r = spawnSync('bd', ['show', ...ids, '--json'], {
+  const r = spawnSync('bd', ['list', '--all', '--limit', '0', '--id', ids.join(','), '--json'], {
     cwd: racine,
     encoding: 'utf8',
     timeout: 30_000,
     maxBuffer: 256 * 1024 * 1024,
   });
   try {
-    return horsAttente(JSON.parse(r.stdout), Date.now());
+    const demandes = new Set(ids);
+    return horsAttente(
+      JSON.parse(r.stdout).filter(t => demandes.has(t.id)),
+      Date.now()
+    );
   } catch {
     return null;
   }
@@ -758,11 +765,14 @@ async function superviseur(racine, { env = process.env } = {}) {
  * each reading. The session reads too each other project of its group (`grillhouse.groupe`) that
  * no other live session of supervision holds (`voisinsSansSuperviseur`): its part follows, under
  * the name and the folder of that project, where its answers are played, with that project's own
- * interval and state.
+ * interval and state. A fault in the reading of one of these projects costs the others nothing: it
+ * is thrown once all are read, each project at fault named with its reason, the message of the
+ * others in the `texte` of the error.
  * @param {string} racine
  * @param {{ env?: Record<string, string | undefined>, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
  * @returns {Promise<string>}
- * @throws {Error} `grillhouse.rappel` is at fault, named with its value
+ * @throws {Error} `grillhouse.rappel` of the project of the session is at fault, named with its
+ * value; or the reading of another project of the group failed (its `texte`: the others' message)
  */
 export async function releverPourLeGreffon(
   racine,
@@ -795,13 +805,19 @@ export async function releverPourLeGreffon(
     return '';
   }
   const parts = [await leReleveDe(racine, circuitsDe)];
+  const fautes = [];
   for (const p of voisinsSansSuperviseur(racine)) {
-    const texte = await leReleveDe(p.chemin, circuitsDe, true);
-    if (texte) {
-      parts.push(texte);
+    try {
+      parts.push(await leReleveDe(p.chemin, circuitsDe, true));
+    } catch (e) {
+      fautes.push(`${path.basename(p.chemin)} : ${e.message}`);
     }
   }
-  return parts.filter(Boolean).join('\n\n');
+  const texte = parts.filter(Boolean).join('\n\n');
+  if (fautes.length) {
+    throw Object.assign(new Error(fautes.join('\n')), { texte });
+  }
+  return texte;
 }
 
 // The package.json of the project at <racine>; empty when it does not read.
@@ -815,11 +831,12 @@ function paquetDe(racine) {
 
 // The message of one reading of the project at <racine>, under its own interval
 // (`grillhouse.rappel`) and its own state of the questions presented; empty when it gives nothing
-// or when its circuits do not read. A faulty interval throws, the project named.
+// or when its circuits do not read. A faulty interval throws, the project of the session named
+// (a neighbour is named by the caller, as for any fault of its reading).
 async function leReleveDe(racine, circuitsDe, voisin = false) {
   const { minutes, faute } = reglageDuRappel(paquetDe(racine));
   if (faute) {
-    throw new Error(`${path.basename(racine)} : ${faute}`);
+    throw new Error(voisin ? faute : `${path.basename(racine)} : ${faute}`);
   }
   let circuits;
   try {
@@ -879,6 +896,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
         process.stdout.write(`${texte}\n`);
       }
     } catch (e) {
+      if (e.texte) {
+        process.stdout.write(`${e.texte}\n`);
+      }
       process.stderr.write(`${e.message}\n`);
       process.exitCode = 1;
     }

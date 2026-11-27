@@ -40,7 +40,7 @@ const git = (cwd: string, ...args: string[]) => {
 
 // A repository (with a package.json carrying <pkg>), a copy of work of it, and the lock of the
 // supervisor naming <tenant>.
-const depot = (pkg: object = {}, tenant: number | null = process.ppid) => {
+const depot = (pkg: object = {}, tenant: number | string | null = process.ppid) => {
   const racine = mkdtempSync(path.join(ESSAIS, 'depot-'));
   git(racine, 'init', '-q');
   writeFileSync(path.join(racine, 'package.json'), JSON.stringify(pkg));
@@ -173,7 +173,7 @@ describe('the reading for the greffon covers the projects of the group that no o
       numero: 1,
     });
   // Two projects of one group: the session's own, and a neighbour whose lock names <tenant>.
-  const groupe = (tenant: number | null, pkgDuVoisin: object = {}) => {
+  const groupe = (tenant: number | string | null, pkgDuVoisin: object = {}) => {
     const soi = depot().racine;
     const voisin = depot(pkgDuVoisin, tenant).racine;
     writeFileSync(
@@ -205,6 +205,27 @@ describe('the reading for the greffon covers the projects of the group that no o
   it('gives the questions of a neighbour whose supervisor is gone', async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: T0 });
     expect(await groupe(parti()).lireLeGroupe()).toContain('voisin-1');
+  });
+
+  it('gives the questions of a neighbour whose lock names the process of the session, whatever the token it carries', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: T0 });
+    for (const jeton of [
+      'ade79115-0938-49b6-8d16-c41bd747f9cc',
+      '8e20bcf9-321d-49f8-bfe9-b420e175ff83',
+    ]) {
+      expect(await groupe(`${process.ppid}:${jeton}`).lireLeGroupe()).toContain('voisin-1');
+    }
+  });
+
+  it("refuses a faulty interval of the session's own project, whatever its neighbours hold", async () => {
+    const { soi, voisin, lireLeGroupe } = groupe(null);
+    writeFileSync(
+      path.join(soi, 'package.json'),
+      JSON.stringify({ grillhouse: { rappel: 0, groupe: [soi, voisin] } })
+    );
+    await expect(lireLeGroupe()).rejects.toThrow(
+      new RegExp(`${path.basename(soi)}.*grillhouse\\.rappel`)
+    );
   });
 
   it('leaves to its session a neighbour another live session supervises', async () => {

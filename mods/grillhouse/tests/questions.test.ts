@@ -20,8 +20,10 @@ async function seance($: Banc[0], on: Banc[1], lecture: (n: number) => Lecture |
   const lectures: string[][] = []
   const messages: string[] = []
   const etats: string[] = []
+  const lues: string[][] = []
   suiveurSimule(o, () => ({ lignes: [], fiches: {} }))
   o('process.run', async (_: unknown, e: { argv: string[] }) => {
+    if (e.argv.includes('--lue')) lues.push(e.argv)
     if (!e.argv.includes('--relever')) return { value: { exitCode: 0, stdout: '', stderr: '' } }
     lectures.push(e.argv)
     return { value: await lecture(lectures.length) }
@@ -43,7 +45,7 @@ async function seance($: Banc[0], on: Banc[1], lecture: (n: number) => Lecture |
   const horloge = mock.clock(o as never)
   await $.session.start({ cwd: '/p', surface: 'terminal', isInteractive: true })
   await new Promise(r => setTimeout(r, 50))
-  return { lectures, messages, etats, horloge }
+  return { lectures, lues, messages, etats, horloge }
 }
 
 const attendre = () => new Promise(r => setTimeout(r, 50))
@@ -72,16 +74,44 @@ test('an empty reading submits nothing', async ($, on) => {
   expect(messages).toEqual([])
 })
 
-test('a reading that fails submits nothing and notes its error', async ($, on) => {
+test('a reading that fails with no text submits nothing and notes its error', async ($, on) => {
   const { messages, etats, horloge } = await seance($, on, () => ({
     exitCode: 1,
-    stdout: 'Q ?',
+    stdout: '',
     stderr: 'grillhouse.rappel vaut 0, pas un nombre > 0.',
   }))
   await horloge.advance(PERIODE_DES_QUESTIONS_MS)
   await attendre()
   expect(messages).toEqual([])
   expect(etats.join('\n')).toContain('grillhouse.rappel vaut 0')
+})
+
+test('a reading that gives text beside a fault submits the text and notes the fault', async ($, on) => {
+  const { messages, etats, horloge } = await seance($, on, () => ({
+    exitCode: 1,
+    stdout: '[BON] Question · bon-1 · 3.1 Contrôles\nQ ?\n',
+    stderr: 'voisin : grillhouse.rappel vaut 0, pas un nombre > 0.\n',
+  }))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  expect(messages).toHaveLength(1)
+  expect(messages[0]).toContain('bon-1')
+  expect(messages[0]).not.toContain('grillhouse.rappel')
+  expect(etats.join('\n')).toContain('voisin : grillhouse.rappel vaut 0')
+})
+
+test('the questions of a text submitted beside a fault are read by the turn that starts with it', async ($, on) => {
+  const { lues, messages, horloge } = await seance($, on, () => ({
+    exitCode: 1,
+    stdout: 'Question · bon-1\n',
+    stderr: 'voisin : faute\n',
+  }))
+  await horloge.advance(PERIODE_DES_QUESTIONS_MS)
+  await attendre()
+  await ($ as unknown as Tours).turn.start({ text: messages[0] ?? 'aucun message', turnId: 't1' })
+  await attendre()
+  expect(lues).toHaveLength(1)
+  expect(lues[0]).toContain('/p')
 })
 
 test('two readings that overlap launch one only, and the next period reads again', async ($, on) => {
