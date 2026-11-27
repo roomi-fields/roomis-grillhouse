@@ -30,7 +30,7 @@ import { A_REPASSER, MEMOIRE_COUPEE } from './codes-de-sortie.mjs';
 import { BASE_DU_LOT, DEPUIS_LE_VERT } from './dernier-vert.mjs';
 import { empreinteDEtape } from './empreinte-d-etape.mjs';
 import { BASE as GARDES_DE_LA_BASE, FICHIER as DETTE } from './dette.mjs';
-import { commandesPermises, optionsDuRole } from './droits.mjs';
+import { optionsDuRole } from './droits.mjs';
 import { cheminsLus } from './composants-affectes.mjs';
 import { couvertPar } from './engendres.mjs';
 import {
@@ -1205,7 +1205,7 @@ export function integrer(ctx) {
 // envelope, on Sonnet, in the main tree, under the rights of its role (reading, the build of a
 // package, no pass), its instruction from the eighth template (the ticket, its commit on main, the
 // one the queue names in the reason it closes the ticket with, `commitIntegre`, its discoveries,
-// one per line, the commands its rights permit, `commandesPermises`), its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
+// one per line), its sheet the tri's (`tri` of scripts/resultats.mjs): one line per discovery
 // (`conformiteDuTri`), asked again once of the same session. Each verdict is written at the ticket
 // of its discovery (`Circuit · tri : <verdict> — <texte> (<piece>)`), its label set there; an
 // a-porter or a non-confirmee reopens under `a-valider`, the pane's list « à valider »; the others
@@ -1247,7 +1247,6 @@ export async function trier(ctx) {
           sujet: ctx.sujet,
           commit: commit || 'inconnu',
           decouvertes: decouvertes.map(d => `- ${d.id} — ${d.sujet}`).join('\n'),
-          commandes: commandesPermises(EXPLORATEUR),
         },
         7
       ),
@@ -2031,7 +2030,7 @@ function situer(ctx, liste, chemin) {
 }
 
 // Whether <chemin> is a test file of the module of the language of the copy (not the shared
-// test material, which the lock lets the testwriter write anywhere).
+// test material, which the testwriter writes anywhere).
 function estUnFichierDeTest(ctx, chemin) {
   try {
     const classe = langageDe(ctx.copie).estUnTest(chemin, ctx.copie);

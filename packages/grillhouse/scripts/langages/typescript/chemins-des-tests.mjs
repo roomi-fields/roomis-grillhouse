@@ -16,7 +16,7 @@
 //   directory of tests, which the frame does not find in what the test reads nor under the
 //   package's `grillhouse.lit` (`nonDeclares`): a script launched by a path built at run time
 //   (`path.join(SCRIPTS, nom)`). The test writes the path whole (`path.resolve(__dirname,
-//   '../scripts/verrous/verrou.mjs')`), or its package declares it in its `grillhouse.lit`.
+//   '../scripts/verrous/ecriture-hors-enveloppe.mjs')`), or its package declares it in its `grillhouse.lit`.
 // - The packages are those of the workspace, out of `docs/agents/hors-cadre.txt` (../../paquets.mjs);
 //   a repository without one is its own package. A finding inscribed in the project's debt
 //   (`grillhouse-dette.json`, ../../dette.mjs) passes: those that exist when the guard arrives are

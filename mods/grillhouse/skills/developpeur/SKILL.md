@@ -90,10 +90,12 @@ la cause se trouve avant le correctif.
   d'acceptation, et rien d'autre.
 
 Tu lis toute la copie, index compris. Tu écris les seuls paquets du plan de ton ticket (les
-paquets de son titre) : le reste de la copie est en lecture seule, une écriture hors d'eux
-échoue (« Read-only file system »), et ton verrou arrête ta séance sur une écriture hors du plan,
-que le superviseur étend ou refuse ; un dossier hors des paquets (des données comme `libraries/`)
-s'écrit par le paquet qui le possède, que ta `raison` nomme. Les paquets hors du plan
+paquets de son titre) : le reste de la copie est en lecture seule, et une écriture hors d'eux
+échoue (« Read-only file system »), quel que soit l'outil : ta fiche finit sur BESOIN, sa
+`question` nommant le paquet qui possède le fichier et son champ `manque` le fichier ; un fichier
+que le ticket nomme étend le plan et ta séance reprend, sinon le superviseur étend le plan ou
+refuse ; un dossier hors des paquets (des données comme `libraries/`) s'écrit par le paquet qui le
+possède. Les paquets hors du plan
 arrivent construits, et les traces que lisent tes tests produites : `npm test -- <fichiers>` construit les paquets du plan et régénère leurs propres traces, et `npm run api`,
 après lui, écrit le rapport d'API et la part générée des paquets du plan. La matière de test
 partagée, en lecture seule pour toi, arrive construite : `npm test -- <un test de la matière>` la
@@ -105,11 +107,14 @@ est un rouge. Un lancement qui nomme une mesure de temps (un banc, un témoin de
 de nuit et sort en 75, « à repasser », n'a vu que des échecs de durée sous charge (la pression CPU
 écrite à chaque échec) : la nuit le juge, et un échec au repos est un vrai rouge.
 
-**Un fichier s'écrit par l'outil Write ou Edit**, que ton verrou juge : jamais par un script
-(python3, sed -i, perl -i) ni par une redirection du shell, que ta séance refuse ; un fichier
-temporaire va dans `$TMPDIR`. Les tests se lancent par `npm test -- <fichiers>`, jamais par l'outil
-de test directement. Ainsi chaque écriture passe par le verrou de ton rôle, et une substitution qui
-ne trouve pas son texte échoue au lieu de passer en silence.
+**Tu prends l'outil que ton travail demande** : Write ou Edit, un script (python3, sed -i), une
+redirection du shell, le client d'une base. Une substitution par script vérifie qu'elle a trouvé
+son texte : `sed` qui ne trouve rien réussit sans rien changer. Un fichier temporaire va dans
+`$TMPDIR`. Les tests se lancent par `npm test -- <fichiers>`, jamais par l'outil de test
+directement. **Ton lot se juge à la fin de ta séance** : un fichier de test ou de la matière de
+test partagée qu'il change, par tout outil, une commande qui le régénère comprise, te rend l'étape,
+le fichier nommé, jusqu'à ce qu'il revienne à son état d'avant. Ainsi ton lot ne porte que le
+code.
 
 **Cargo compile sans compilation incrémentale** (`CARGO_INCREMENTAL=0`, posé par le cadre, comme
 la CI de Rust) : une copie compile une fois, et son `target/` reste petit. Pour déboguer, tu la
@@ -183,9 +188,10 @@ son adresse) : le circuit la consigne fermée sous ton ticket, et tu continues.
 - **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
   - `statut` FAIT : ton code est écrit, et les contrôles le jugent ;
   - `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un test, la matière
-    de test partagée, un fichier hors du plan, une décision hors de ton rôle) ; avec
+    de test partagée, une décision hors de ton rôle) ; avec
     `renvoi`, c'est le renvoi au testwriter ; sans lui, le circuit s'arrête (`hors-portee`) ;
-  - `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ; le circuit
+  - `statut` BESOIN, avec sa `question` : une réponse, ou un fichier hors du plan (`manque`), te
+    manque pour avancer ; le circuit étend le plan à un fichier que le ticket nomme, sinon il
     s'arrête (`besoin`) ;
   - `hors_plan` : chaque critère du ticket que tu ne tiens pas parce qu'il demande un paquet hors
     du plan, avec son numéro (`critere`), ce `paquet` et sa `piece` ; tu le remplis dès qu'un

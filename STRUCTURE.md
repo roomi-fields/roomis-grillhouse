@@ -69,8 +69,6 @@ roomis-grillhouse/
 │   │   ├── bilan.mjs                 # the bilan of a ticket, written by the circuit at each end
 │   │   #  The machine, the envelope and the locks (docs/architecture/machine.md)
 │   │   ├── droits.mjs                # the rights and the context of each role session, drawn from its skill (tests: tests/unit/droits.spec.ts)
-│   │   ├── verrous/verrou.mjs        # the role agents' write locks
-│   │   ├── verrous/commande.mjs      # the lock of the commands of a role that writes: no file of the repository written by the shell
 │   │   ├── verrous/ticket-du-sous-agent.mjs  # hook: a role agent launches with « TON TICKET : <id> »
 │   │   ├── enveloppe/                # the envelope: an agent reads the whole copy and writes the packages of its plan alone
 │   │   │   ├── enveloppe.mjs         # the bubblewrap sandbox of a session's plan

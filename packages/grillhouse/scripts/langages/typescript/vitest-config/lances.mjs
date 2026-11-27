@@ -5,7 +5,7 @@
 // Mechanism: packages/grillhouse/docs/architecture/tests.md, §5.3 (the tests of a package replayed).
 //
 // - What a test names (`nommesPar`): each path that a string of its code writes whole
-//   (`'../../scripts/verrous/verrou.mjs'`), or that the strings of one call of `join` or
+//   (`'../../scripts/verrous/ecriture-hors-enveloppe.mjs'`), or that the strings of one call of `join` or
 //   `resolve` write together (`path.join(DEPOT, 'packages/a', 'scripts/x.mjs')`), resolved from
 //   the directory of the file that writes it, then from the test's package, then from the top of
 //   the repository, the first that exists: the constant `SCRIPT` of a test that launches a script,
@@ -23,7 +23,7 @@
 // - What a test reads (`lusPar`): the test and the files it names, then, from file to file, the
 //   modules each one imports (a relative specifier, or a package of the workspace, resolved as Node
 //   resolves it, out of node_modules once its links are followed) and the paths each module's code
-//   writes from its own directory (`path.join(ICI, 'verrous/verrou.mjs')`), a command's link
+//   writes from its own directory (`path.join(ICI, 'verrous/ticket-du-sous-agent.mjs')`), a command's link
 //   included (the hook of the plugin that runs `node_modules/.bin/grillhouse <sous-commande>`), and
 //   the paths a script of the shell writes from its own directory (`"$ici/superviseur.mjs"`): a
 //   script that launches another names it. A subcommand leads to every script of the command's
@@ -44,8 +44,8 @@
 //   turbo.json (../turbo-des-paquets.mjs) writes each pattern in the inputs of the package's test
 //   task, so that Turborepo's cache follows the same declaration.
 // - What a test names without the frame reading it (`nonDeclares`): a string of the test's code or
-//   of its material that ends the path of a module of its package (`'verrou.mjs'`,
-//   `'verrous/verrou.mjs'`), out of a directory of tests, the module out of what the test reads and
+//   of its material that ends the path of a module of its package (`'registre.mjs'`,
+//   `'enveloppe/lancer.sh'`), out of a directory of tests, the module out of what the test reads and
 //   out of the package's `grillhouse.lit`: a script it launches by a path built at run time
 //   (`path.join(SCRIPTS, nom)`), whose change would not play it; or a pattern that names a
 //   directory of the package without a fixed start (`'**/scripts/*.mjs'`), for each module it

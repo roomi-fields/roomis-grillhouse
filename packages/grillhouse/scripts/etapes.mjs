@@ -205,7 +205,6 @@ export const ARRETS = {
   besoin: 20,
   questionnement: 22,
   references: 23,
-  'hors-plan': 24,
   inattendu: 25,
   // A session the usage limit stops: the circuit reports itself to the hour the usage returns and
   // resumes the step, no question gone up.
@@ -373,8 +372,6 @@ export const MONTEES = Object.fromEntries(
       'Des questions du plan restent ouvertes après la réponse de l’explorateur : le plan change-t-il (`bd update`), ou reste-t-il tel quel ? `--reprendre` le fait passer tel qu’il est alors.',
     references:
       'La régénération des références change un fichier qu’aucune référence n’écrit, ou sa commande échoue (ses écarts ci-dessus) : qui corrige la référence ou le lot ?',
-    'hors-plan':
-      'La séance écrit hors du plan du ticket : le plan s’étend-il à ce paquet (`--etendre`), ou l’écriture est-elle refusée (`--reprendre` avec son contexte) ?',
     inattendu:
       'Une exception que le circuit ne prévoit pas (une lecture de la copie, une commande, un fichier illisible) l’a arrêté : sa cause se lève-t-elle, pour reprendre (`--reprendre`, qui écrit de nouveau cet arrêt si la cause reste), ou le circuit s’arrête-t-il ?',
     'limite-d-usage':

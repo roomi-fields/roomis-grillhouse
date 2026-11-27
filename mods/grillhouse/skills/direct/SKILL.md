@@ -52,10 +52,11 @@ la cause se trouve avant le correctif.
 - **L'existant d'abord** : avant d'écrire un calcul ou d'inventer un nom, tu cherches celui qui
   existe et tu vérifies ce qu'il fait.
 - **Tu écris les paquets du plan seuls** (les composants du titre du ticket, plus ceux que la
-  commande a reçus) ; une écriture hors d'eux arrête ta séance. Un fichier s'écrit par l'outil Write
-  ou Edit, jamais par un script ni une redirection du shell ; un fichier temporaire va dans
-  `$TMPDIR`, et le retrait d'un fichier par un script `node $TMPDIR/retire.mjs` (`rmSync` de
-  `node:fs`).
+  commande a reçus) ; une écriture hors d'eux échoue (« Read-only file system »), quel que soit
+  l'outil. Tu prends l'outil que ton travail demande : Write ou Edit, un script, une redirection du
+  shell, le client d'une base ; ton lot n'est pas jugé sur une règle de rôle, le relecteur le lit.
+  Un fichier temporaire va dans `$TMPDIR`, et le retrait d'un fichier par un script
+  `node $TMPDIR/retire.mjs` (`rmSync` de `node:fs`).
 - **Les tests se lancent par `npm test -- <fichiers>`**, jamais par l'outil de test directement ;
   `npm run api`, après lui, écrit le rapport d'API des paquets du plan.
 - **Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond.
@@ -63,8 +64,10 @@ la cause se trouve avant le correctif.
 
 ## Ce qui t'arrête
 
-Une décision qui revient au responsable, un fait qu'un fournisseur ne publie pas, un fichier hors de
-ton plan : ta fiche finit sur BLOQUÉ ou BESOIN, avec sa pièce, et le superviseur tranche. Une
+Une décision qui revient au responsable, un fait qu'un fournisseur ne publie pas : ta fiche finit
+sur BLOQUÉ ou BESOIN, avec sa pièce, et le superviseur tranche. Un fichier hors de ton plan : ta
+fiche finit sur BESOIN, sa `question` nommant le paquet qui le possède et son champ `manque` le
+fichier ; un fichier que le ticket nomme étend le plan et ta séance reprend. Une
 découverte hors du ticket entre dans `decouvertes` de ta fiche.
 
 ## La fin

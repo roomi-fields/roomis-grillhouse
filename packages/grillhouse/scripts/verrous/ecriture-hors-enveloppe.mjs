@@ -10,27 +10,49 @@
 // - A write of a document (a `.md` file) passes: the documents of a package (CADRE.md,
 //   INTERFACE.md, ARCHITECTURE.md, CHANGELOG, the skills and the charter of `mods/grillhouse`) and
 //   those of the root (CLAUDE.md, docs/, the configuration) stay the supervisor's.
-// - What a package holds is read as its lock reads it (`paquetQuiTient`, the components of the
-//   module of the language); `mods/grillhouse`, the frame's plugin, is one too. A file of the root
+// - What a package holds is read on the components of the module of the language
+//   (`paquetQuiTient`); `mods/grillhouse`, the frame's plugin, is one too. A file of the root
 //   of the repository passes.
 // - A path under the temporary directory of the session passes, and so does any tool that writes
-//   nothing. A session under its envelope is judged by its role's lock (verrou.mjs).
+//   nothing. A session under its envelope is bounded by its mounts, and its lot judged by the
+//   circuit.
 // - The reason names the direct circuit (a ticket labelled `direct`, which goes by the queue), and
 //   the rescue command `npx grillhouse direct <ticket> --panne <texte>` for a failure of the engine
 //   alone.
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { paquetQuiTient, paquetsDuLangage, paquetsDeLEnveloppe } from '../enveloppe/paquets-du-plan.mjs';
 import { langageDeLaCopie } from '../langages.mjs';
-import { racineDe } from './verrou.mjs';
 
 const OUTILS_D_ECRITURE = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 // The frame's own code, a package though no table of components lists it.
 const CADRE = 'mods/grillhouse';
 
 const sous = (rel, dossier) => rel === dossier || rel.startsWith(`${dossier}/`);
+
+// The root of the git repository (or worktree) that holds the absolute path <file>, read from its
+// nearest existing directory; null when no repository holds it.
+function racineDe(file) {
+  let dir = path.dirname(file);
+  while (!existsSync(dir)) {
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return null;
+    }
+    dir = parent;
+  }
+  try {
+    return execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }).trim();
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The refusal of the write <input> of a session out of the envelope, or null when it passes.

@@ -26,7 +26,7 @@
 //   the order of the declaration; but the index of the interfaces, which each module generates:
 //   one of the core (./index-interfaces.mjs), assembled from each module's entries, its command
 //   (`index-interfaces`), its generated file and its guard in place of the modules', at the place
-//   of the first. What the role lock, the envelope and the update ask (the lock
+//   of the first. What the judgment of a lot, the envelope and the update ask (the lock
 //   files, the outputs, the rules of the roles, the tools, the binaries, the directories to
 //   ignore): the union, each once.
 //

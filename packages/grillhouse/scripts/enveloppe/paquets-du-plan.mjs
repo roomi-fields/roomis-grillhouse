@@ -10,14 +10,6 @@ import path from 'node:path';
 import { paquets } from '../paquets.mjs';
 
 export const VARIABLE = 'GRILLHOUSE_ENVELOPPE';
-// The file the lock of a session leaves in its working directory when it stops the session on a
-// write out of the plan (scripts/verrous/verrou.mjs); the launcher hands it to the circuit in the
-// session's result folder, `<copie>.travail/seances/<id>/hors-plan` (scripts/enveloppe/lancer.sh).
-export const MARQUE_HORS_PLAN = 'hors-plan';
-// Its structured twin, `{ chemin, paquet, racine }` in JSON: the path written, the package that
-// holds it (`.` for the repository root), whether the root holds it. The circuit reads it, not the text.
-export const MARQUE_HORS_PLAN_FAIT = 'hors-plan.json';
-
 // The list <paquets> as the variable carries it.
 export const ecrireLaListe = paquets => paquets.join(path.delimiter);
 

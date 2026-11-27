@@ -28,7 +28,8 @@
 //   that runs, the ticket's copy for a session of the circuit: those of the copy (DU_CODE_EN_COURS,
 //   and the commands of the modules of language) and the tools of the repository
 //   (OUTILS_DU_DEPOT). Each subcommand of the core is in one of the three lists, which a test
-//   holds. The code that runs is the version installed when their paths are the same: it runs in
+//   holds; a name the package retired that an earlier published version still calls (RETIREES) runs
+//   by that version too. The code that runs is the version installed when their paths are the same: it runs in
 //   place.
 import { spawnSync } from 'node:child_process';
 import {
@@ -53,8 +54,8 @@ const PAQUET_QUI_TOURNE = path.resolve(import.meta.dirname, '..');
 
 /**
  * The subcommands of the orchestration, which the published version runs: the circuit, the
- * supervisor, the night, the board and the status line, the hooks of Claude Code, the locks and
- * the rights of the sessions, the direct (its agent and its reviewer), the envelope and its
+ * supervisor, the night, the board and the status line, the hooks of Claude Code, the lock out of
+ * the envelope and the rights of the sessions, the direct (its agent and its reviewer), the envelope and its
  * launcher, the integration, the
  * results, the removal of a copy and the balance, even when the supervisor runs one by hand.
  */
@@ -63,7 +64,6 @@ export const REDIRIGEES = new Set([
   'attente-au-tour',
   'bilan',
   'circuit',
-  'commande',
   'consommation',
   'direct',
   'droits',
@@ -84,9 +84,16 @@ export const REDIRIGEES = new Set([
   'superviseur',
   'tableau',
   'ticket-du-sous-agent',
-  'verrou',
   'verrou-hors-enveloppe',
 ]);
+
+/**
+ * The names the package no longer carries that the settings of a session opened by an earlier
+ * published version still declare as hooks (its locks, on this copy's command or the main tree's):
+ * the published version runs them, until the key names a version whose sessions declare none (a
+ * transition path of the charter, as Temporal's `patched`).
+ */
+export const RETIREES = new Set(['commande', 'verrou']);
 
 /**
  * The subcommands that play the code of the copy: the tests, the verification, the guards, the
@@ -171,7 +178,8 @@ export function versionDeLOutil(racine = process.cwd()) {
 /**
  * Where the subcommand <nom> runs in the project at <racine>: `{ version, dossier, commande }`, the
  * version of the key and its command under <cache>, for a subcommand of the orchestration that the
- * package <paquet> (the one that runs) is not; null otherwise (see the header).
+ * package <paquet> (the one that runs) is not, or for a retired name (RETIREES); null otherwise
+ * (see the header).
  * @param {string} nom
  * @param {{ racine?: string, cache?: string, paquet?: string }} [options]
  * @returns {{ version: string, dossier: string, commande: string } | null}
@@ -180,7 +188,7 @@ export function aiguillage(
   nom,
   { racine = process.cwd(), cache = cacheDesOutils(), paquet = PAQUET_QUI_TOURNE } = {}
 ) {
-  if (!REDIRIGEES.has(nom)) {
+  if (!REDIRIGEES.has(nom) && !RETIREES.has(nom)) {
     return null;
   }
   const version = versionDeLOutil(racine);

@@ -32,7 +32,7 @@ describe('un circuit arrêté sur le mot du superviseur', () => {
     const code = await arreter(c, {
       etape: 'testwriter',
       tentative: 1,
-      question: { arret: 'hors-plan' },
+      question: { arret: 'besoin' },
       rapport: 'ancien rapport',
     });
     expect(code).toBe(0);

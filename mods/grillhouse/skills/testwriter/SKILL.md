@@ -11,8 +11,8 @@ des fichiers de test et le paquet de la matière de test partagée (celui qui ex
 `./test-fixtures`), en entier, son `package.json` et ses `docs/` compris, et ce dont tes tests
 dépendent : les `devDependencies` du `package.json` d'un paquet du plan et `package-lock.json`, ou
 les tables `[dev-dependencies]` (et `[target.<cible>.dev-dependencies]`) du `Cargo.toml` d'un
-crate du plan et `Cargo.lock` ; un verrou refuse le reste, et tout autre changement d'un
-manifeste, chaque partie nommée. Tu écris le manifeste par Write ou Edit, que le verrou juge ;
+crate du plan et `Cargo.lock`. Ton lot se juge à la fin de ta séance : tout autre fichier, et tout
+autre changement d'un manifeste, te rendent l'étape, chaque fichier et chaque partie nommés ;
 `npm test` met `Cargo.lock` d'accord. Dans un projet cargo, chaque crate a un seul exécutable de
 tests par l'interface, `tests/it/main.rs` : un fichier de tests neuf est un module de `tests/it/`,
 que tu déclares dans `tests/it/main.rs` (`mod <fichier>;`), et ta fiche nomme ce fichier du
@@ -22,14 +22,14 @@ sous `tests/` (sa dette inscrite) reçoit tes fichiers neufs sous `tests/it/` ; 
 leur module, sous `src/`, dans un fichier `tests.rs` ou un dossier `tests/`. Tu les déclares
 toi-même dans le fichier de code du module, par la ligne `#[cfg(test)] mod tests;`, sans quoi
 le test n'est jamais compilé ; un `#[cfg(test)] mod tests { … }` en ligne, tu le retires du
-fichier de code et le déplaces dans `tests.rs`. Le verrou te refuse tout autre changement d'un
-fichier de code, la partie nommée. Un test de nuit Rust est un module de `tests/it_nuit/`, un
+fichier de code et le déplaces dans `tests.rs`. Tout autre changement d'un fichier de code te
+rend l'étape, la partie nommée. Un test de nuit Rust est un module de `tests/it_nuit/`, un
 banc de temps un module de `tests/it_budget/`, chacun déclaré dans le `main.rs` de son dossier.
 La matière partagée est le crate dont le manifeste dit `[package.metadata.grillhouse] matiere = true`.
 Dans un paquet Python, tes tests sont les fichiers que pytest trouve, `test_*.py` ou `*_test.py`,
 un test de nuit `*_nuit_test.py` ; leurs aides vont dans `conftest.py` et sous `tests/`. Ce dont
 ils dépendent va dans le groupe `test` de `[dependency-groups]` du `pyproject.toml`, et
-`uv.lock` suit ; le verrou te refuse toute autre partie du `pyproject.toml`. Un dossier ou un
+`uv.lock` suit ; toute autre partie du `pyproject.toml` que ton lot change te rend l'étape. Un dossier ou un
 fichier temporaire se crée par `tempfile` (`TemporaryDirectory`, `NamedTemporaryFile`), jamais
 par `mkdtemp` à la main : la passe échoue sur ce qu'un test laisse dans son dossier temporaire.
 
@@ -60,12 +60,13 @@ par `mkdtemp` à la main : la passe échoue sur ce qu'un test laisse dans son do
 
 ## Tes outils
 
-**Un fichier s'écrit par l'outil Write ou Edit**, que ton verrou juge : jamais par un script
-(python3, sed -i, perl -i) ni par une redirection du shell, que ta séance refuse ; un fichier
-temporaire va dans `$TMPDIR`. Un fichier de tes tests se supprime par un script node que tu écris
+**Tu prends l'outil que ton travail demande** : Write ou Edit, un script (python3, sed -i), une
+redirection du shell, le client d'une base. Une substitution par script vérifie qu'elle a trouvé
+son texte : `sed` qui ne trouve rien réussit sans rien changer. Un fichier temporaire va dans
+`$TMPDIR`. Un fichier de tes tests se supprime par un script node que tu écris
 dans `$TMPDIR` : il appelle `rmSync` de `node:fs` sur le chemin nommé et lu, et tu le lances par
 `node $TMPDIR/<script>.mjs`. Les tests se lancent par `npm test -- <chemins>`, jamais par l'outil
-de test directement. Ainsi chaque écriture passe par le verrou de ton rôle.
+de test directement. Ainsi ton lot ne porte que ce que ton rôle écrit.
 
 **Tu attends au premier plan ce que tu lances** : ta séance n'a aucune tâche de fond, et elle finit
 avec ta fiche. Ainsi le circuit reprend dès ta fiche rendue.
@@ -211,7 +212,7 @@ de npm.
 
 **Ce que tes tests lisent se nomme ou se déclare** : un test qui lance un script de son paquet,
 ou en lit un fichier, écrit son chemin entier dans une chaîne
-(`const SCRIPT = path.resolve(__dirname, '../scripts/verrous/verrou.mjs')`), et le cadre le
+(`const SCRIPT = path.resolve(__dirname, '../scripts/droits.mjs')`), et le cadre le
 rejoue quand ce script, ou ce qu'il importe, change ; un chemin construit à l'exécution
 (`path.join(SCRIPTS, nom)`) est refusé par la garde des chemins des tests. Un test qui lit un
 fichier hors de son paquet et de ses imports (des scènes, des paires de la matière, la trace d'un
@@ -277,11 +278,13 @@ tests arrivent au dépôt avec le code qui les rend verts.
 **Ta séance finit sur ta fiche**, que ton schéma décrit et que le circuit lit seule :
 
 - `statut` FAIT : tes tests sont écrits, et la preuve du rouge les juge ;
-- `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (un fichier hors du
-  plan, une décision hors de ton rôle) ; hors des paquets du plan et de la matière de test
-  partagée, la copie est en lecture seule, ton verrou arrête ta séance sur une écriture hors du
-  plan, et ta `raison` nomme le paquet qui possède le fichier ;
-- `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ;
+- `statut` BLOQUÉ, avec sa `raison` : ce qui reste est hors de ta portée (une décision hors de
+  ton rôle) ;
+- `statut` BESOIN, avec sa `question` : une réponse te manque pour avancer ; hors des paquets du
+  plan et de la matière de test partagée, la copie est en lecture seule, une écriture y échoue
+  (« Read-only file system »), ta `question` nomme le paquet qui possède le fichier et ton champ
+  `manque` le fichier : un fichier que le ticket nomme, ou un fichier de test d'un paquet lecteur,
+  étend le plan et ta séance reprend ;
 - `motif` `aucun-comportement`, sur BESOIN ou BLOQUÉ : aucun comportement n'est à tester, aucun
   test honnête (qui échoue avant le lot et passe après) ne peut rougir ; ta question le dit et
   propose au superviseur `--mecanique [<commande>]` (avec une commande vers 1.1, sans elle vers le

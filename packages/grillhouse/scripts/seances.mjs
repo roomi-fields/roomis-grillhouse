@@ -9,7 +9,8 @@
 // each session comes from its caller, which gives a new one to each session it launches. `lancer` launches one session, `jusquALaFiche` until its
 // sheet, `seance` that of the testwriter, the developpeur or the agent direct on the whole ticket, with the instruction of
 // the templates (`consigne`) and the findings of the reviewer open for its role
-// (`constatsDeLaSeance`). The circuit (scripts/circuit.mjs) calls them.
+// (`constatsDeLaSeance`). Each session of a role ends on the judgment of its lot (`jugerLeLot`,
+// machine.md §5.5). The circuit (scripts/circuit.mjs) calls them.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -29,9 +30,21 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { GREFFON } from './cadre.mjs';
 import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
-import { ecrireLaListe, VARIABLE_TESTS_ETENDUS } from './enveloppe/paquets-du-plan.mjs';
-import { ecritPar, marquesRestantes } from './enveloppe/travail-de-la-copie.mjs';
-import { langageDe } from './langages.mjs';
+import {
+  changements,
+  ecritPar,
+  etatDuFichier,
+  marquesRestantes,
+  photographier,
+  texteDeLEtat,
+} from './enveloppe/travail-de-la-copie.mjs';
+import {
+  ecrireLaListe,
+  paquetQuiTient,
+  paquetsDuLangage,
+  VARIABLE_TESTS_ETENDUS,
+} from './enveloppe/paquets-du-plan.mjs';
+import { langageDe, langageDeLaCopie } from './langages.mjs';
 import { leRole, nomDuRole } from './etapes.mjs';
 import { departDe, VARIABLE_SEANCE } from './mesure/base-de-passe.mjs';
 import { groupeVivant, signalerGroupe } from './mesure-de-la-machine.mjs';
@@ -158,7 +171,7 @@ const mtime = f => {
 /**
  * Where the session <id> of <ctx> keeps its result, in the working directory of the ticket
  * (`<copie>.travail/seances/<id>/`, as lancer.sh writes it): its exit code (`fin`), claude's JSON
- * result (`resultat.json`), the reason of a write out of the plan (`hors-plan`) and the witness
+ * result (`resultat.json`), the tree the prepared copy held before it (`avant`) and the witness
  * that the envelope started its command (`demarree`).
  */
 export function rangDeLaSeance(ctx, id) {
@@ -167,8 +180,7 @@ export function rangDeLaSeance(ctx, id) {
     dossier,
     fin: path.join(dossier, 'fin'),
     resultat: path.join(dossier, 'resultat.json'),
-    horsPlan: path.join(dossier, 'hors-plan'),
-    horsPlanFait: path.join(dossier, 'hors-plan.json'),
+    avant: path.join(dossier, 'avant'),
     demarree: path.join(dossier, 'demarree'),
   };
 }
@@ -183,8 +195,6 @@ function resultatRange(rang, id, { horsEnveloppe = false } = {}) {
     code: 0,
     seance: Number(readFileSync(rang.fin, 'utf8').trim()),
     bloque: false,
-    horsPlan: existsSync(rang.horsPlan) ? lire(rang.horsPlan).trim() : null,
-    ecriture: ecritureRangee(rang),
     erreur: null,
     sortie: lire(rang.resultat).trim(),
     id,
@@ -282,12 +292,16 @@ export async function lancer(
       return mort;
     }
   }
+  // The lot a dead attempt left unjudged is judged before anything of this launch moves the copy.
+  const juge = estJuge(role, horsEnveloppe);
+  if (juge) {
+    jugerLeLot(ctx, role);
+  }
   const rang = rangDeLaSeance(ctx, id);
   mkdirSync(rang.dossier, { recursive: true });
   rmSync(rang.fin, { force: true });
   rmSync(rang.resultat, { force: true });
-  rmSync(rang.horsPlan, { force: true });
-  rmSync(rang.horsPlanFait, { force: true });
+  rmSync(rang.avant, { force: true });
   rmSync(rang.demarree, { force: true });
   inscrire(ctx, {
     role: AUTEUR_DU_CIRCUIT,
@@ -442,6 +456,9 @@ export async function lancer(
     }
     return r;
   };
+  if (juge) {
+    ouvrirLeLot(ctx, role, { id, horsEnveloppe, depot: horsEnveloppe ? commande.cwd : ctx.copie });
+  }
   let r = await jouer(cle?.env ?? process.env);
   let sortie = lireLaSortie(rang);
   const motif = cle ? motifDeRefus(sortie) : null;
@@ -463,8 +480,6 @@ export async function lancer(
   }
   place.rendre();
   let seance;
-  let horsPlan = null;
-  let ecriture = null;
   if (horsEnveloppe) {
     seance = existsSync(rang.fin)
       ? Number(readFileSync(rang.fin, 'utf8').trim())
@@ -478,15 +493,11 @@ export async function lancer(
     });
   } else {
     seance = existsSync(rang.fin) ? Number(readFileSync(rang.fin, 'utf8').trim()) : null;
-    horsPlan = existsSync(rang.horsPlan) ? lire(rang.horsPlan).trim() : null;
-    ecriture = ecritureRangee(rang);
   }
   return {
     code: r.code,
     seance,
     bloque: r.bloque,
-    horsPlan,
-    ecriture,
     erreur: r.erreur ?? lire(erreurs),
     sortie,
     id,
@@ -804,7 +815,12 @@ async function uneSeance(
     },
   };
   const plan = ctx.paquets.join(', ');
-  const repondu = fiche => ({ fiche, constats: fiche ? repondre(gardes, fiche) : gardes });
+  // The sheet of an author of the circuit carries what its lot holds out of the rule of its role.
+  const repondu = fiche => {
+    const constats = fiche ? repondre(gardes, fiche) : gardes;
+    const horsRole = fiche && AUTEURS_JUGES.has(role) ? jugerLeLot(ctx, role) : null;
+    return { fiche: horsRole ? { ...fiche, horsRole } : fiche, constats };
+  };
   if (reprise) {
     const courte = {
       role: nom,
@@ -814,7 +830,9 @@ async function uneSeance(
       tentative,
       change:
         change ??
-        (role === 'testwriter'
+        (rapport?.startsWith(TITRE_DU_LOT)
+          ? 'le jugement du lot, joué après ta séance, trouve ton lot hors de la règle de ton rôle'
+          : role === 'testwriter'
           ? 'la preuve du rouge, jouée après ta séance, refuse ton lot'
           : role === 'direct'
             ? 'la passe finale, jouée après ta séance, est rouge'
@@ -974,6 +992,9 @@ export async function seance(ctx, role, options) {
         `Sa séance devait lever un conflit de la copie (${autres.join(', ')}) avant celle du ${nomDuRole(role)}.`
       );
     }
+    if (fiche.horsRole) {
+      throw new Arret('controles', fiche.horsRole.rapport);
+    }
     return uneSeance(ctx, role, { ...options, constats });
   }
 }
@@ -981,7 +1002,9 @@ export async function seance(ctx, role, options) {
 /**
  * The stop for the sheet <fiche> of the session <tentative> of <role>, BLOQUÉ (« hors-portee »)
  * or BESOIN (« besoin »): its reason or question first, then its handover; the sheet's piece as
- * its own, and the agent's question as its own. <suite> says what follows a BLOQUÉ.
+ * its own, and the agent's question as its own, with the package of the file out of the plan a
+ * BESOIN sheet names (`manque`) and the command that extends the plan to it. <suite> says what
+ * follows a BLOQUÉ.
  */
 export function arretDuStatut(
   ctx,
@@ -997,13 +1020,75 @@ export function arretDuStatut(
     ? new Arret(
         'besoin',
         `${qui} attend une réponse (séance ${tentative}) : ${fiche.question}\n\nSa passation :\n\n${passation}`,
-        { piece, question: `${qui} demande : ${fiche.question}` }
+        {
+          piece,
+          question: [`${qui} demande : ${fiche.question}`, questionDuManque(ctx, fiche.manque)]
+            .filter(Boolean)
+            .join('\n\n'),
+        }
       )
     : new Arret(
         'hors-portee',
         `${qui} se déclare bloqué (séance ${tentative}) : ${fiche.raison}\n\n${suite} Sa passation :\n\n${passation}`,
         { piece }
       );
+}
+
+// The file <manque> of a BESOIN sheet, from the root of the copy, and the package that holds it
+// (`.` the root), read on the components of the copy; null when it names no path of the copy.
+function fichierManquant(ctx, manque) {
+  const chemin = manque ? path.posix.normalize(manque.trim()) : '.';
+  if (chemin === '.' || chemin.startsWith('..') || path.isAbsolute(chemin)) {
+    return null;
+  }
+  try {
+    const racine = existsSync(ctx.copie) ? ctx.copie : ctx.racine;
+    const liste = paquetsDuLangage(langageDeLaCopie(racine), racine);
+    return { chemin, paquet: paquetQuiTient(chemin, liste) };
+  } catch {
+    return null;
+  }
+}
+
+const dansLePlan = (ctx, paquet) => ctx.paquets.some(p => p === '.' || p === paquet);
+
+// What the question of a BESOIN stop adds on the file <manque> out of the plan, or null.
+function questionDuManque(ctx, manque) {
+  const f = fichierManquant(ctx, manque);
+  if (!f || dansLePlan(ctx, f.paquet)) {
+    return null;
+  }
+  return f.paquet === '.'
+    ? `${f.chemin} est à la racine du dépôt, hors du plan du ticket : aucun paquet ne le porte, l’écriture est-elle refusée (\`--reprendre\` avec son contexte) ?`
+    : `${f.chemin} est dans ${f.paquet}, hors du plan du ticket : le plan s’étend-il à ce paquet (\`--etendre ${f.paquet}\`), ou l’écriture est-elle refusée (\`--reprendre\` avec son contexte) ?`;
+}
+
+// The extension of the plan the file <manque> of a BESOIN sheet of <role> calls for without a
+// question: `{ etendre: { paquet, chemin, piece } }` for a file the ticket's description names,
+// `{ etendreTests: … }` for a test file of a reader package the testwriter asks for (the plan
+// extends to its tests alone), null for any other (the root and the documents the responsable
+// owns among them), which goes up.
+function extensionDemandee(ctx, role, manque) {
+  const f = fichierManquant(ctx, manque);
+  if (!f || f.paquet === '.' || dansLePlan(ctx, f.paquet)) {
+    return null;
+  }
+  const nomme = fichierNommeAuTicket(leTicket(ctx).description, f.chemin);
+  if (nomme) {
+    return { etendre: { ...f, piece: nomme.piece } };
+  }
+  if (role !== 'testwriter' || (ctx.testsEtendus ?? []).includes(f.paquet)) {
+    return null;
+  }
+  const classe = rouleDeTest(ctx)(f.chemin);
+  return classe?.test && !classe.matiere
+    ? {
+        etendreTests: {
+          ...f,
+          piece: `${f.chemin} est un fichier de test de ${f.paquet}, un paquet lecteur que le lot fait rougir`,
+        },
+      }
+    : null;
 }
 
 // The authors of the code, whose sheet answers each finding open for them.
@@ -1083,65 +1168,9 @@ function avecLesReponses(constats, fiche) {
   });
 }
 
-// The write the lock stopped, `{ chemin, paquet, racine }`, as it ranged it at <rang>
-// (`hors-plan.json`), or null without it.
-function ecritureRangee(rang) {
-  return existsSync(rang.horsPlanFait) ? JSON.parse(lire(rang.horsPlanFait)) : null;
-}
-
-// The launch <r> of a session of <role>: `{ etendre: { paquet, chemin, piece } }` for a write out
-// of the plan in a file the ticket names (the plan extends, the session resumes), nothing for a
-// session that went its way, or the Arret it is: a session its lock stopped on a
-// write out of the plan (« hors-plan », the write as its piece), a motionless session
-// (« bloqué »), a launch that stops before its session (« lancement »).
+// The launch <r> of a session of <role>: nothing for a session that went its way, or the Arret it
+// is: a motionless session (« bloqué »), a launch that stops before its session (« lancement »).
 export function seanceLancee(ctx, role, r) {
-  if (r.horsPlan) {
-    // The lock's structured write: the first line of the report names the path and its package;
-    // the question carries the command (none for the root, which no package holds).
-    const ecriture = r.ecriture;
-    // A file the ticket's description names (its « Architecture » or a criterion) extends the plan
-    // to its package without a stop; the root, and the documents the responsable owns, still go up.
-    // A ticket that does not read names nothing: the stop goes up as it did.
-    let nomme = null;
-    if (ecriture && !ecriture.racine && typeof ctx.bd === 'function') {
-      try {
-        nomme = fichierNommeAuTicket(leTicket(ctx).description, ecriture.chemin);
-      } catch {
-        nomme = null;
-      }
-    }
-    if (nomme) {
-      return {
-        etendre: { paquet: ecriture.paquet, chemin: ecriture.chemin, piece: nomme.piece },
-      };
-    }
-    // A test file of a reader package, written by the testwriter, extends the plan to the tests of
-    // that package alone, without a stop: its code stays out of the plan, and no other role writes it.
-    if (role === 'testwriter' && ecriture && !ecriture.racine) {
-      const classe = rouleDeTest(ctx)(ecriture.chemin);
-      if (classe?.test && !classe.matiere) {
-        return {
-          etendreTests: {
-            paquet: ecriture.paquet,
-            chemin: ecriture.chemin,
-            piece: `${ecriture.chemin} est un fichier de test de ${ecriture.paquet}, un paquet lecteur que le lot fait rougir`,
-          },
-        };
-      }
-    }
-    const nom = ecriture ? (ecriture.racine ? 'la racine du dépôt' : ecriture.paquet) : null;
-    const dit = ecriture ? `${ecriture.chemin} est dans ${nom}` : null;
-    const question = !ecriture
-      ? null
-      : ecriture.racine
-        ? `La séance écrit ${ecriture.chemin}, que tient la racine du dépôt, hors du plan du ticket : aucun paquet ne le porte, l'écriture est-elle refusée (\`--reprendre\` avec son contexte) ?`
-        : `La séance écrit ${ecriture.chemin}, que tient ${ecriture.paquet}, hors du plan du ticket : le plan s'étend-il à ce paquet (\`--etendre ${ecriture.paquet}\`), ou l'écriture est-elle refusée (\`--reprendre\` avec son contexte) ?`;
-    throw new Arret(
-      'hors-plan',
-      `${dit ? `${dit}, hors du plan du ticket (ses paquets : ${ctx.paquets.join(', ')}).\n\n` : ''}Le crochet de la séance du ${nomDuRole(role)} l'arrête sur une écriture hors du plan du ticket (ses paquets : ${ctx.paquets.join(', ')}) :\n\n${r.horsPlan}`,
-      { piece: r.horsPlan, ...(question ? { question } : {}) }
-    );
-  }
   if (r.bloque) {
     const minutes = Math.round(ctx.immobileMs / 60_000);
     throw new Arret(
@@ -1269,9 +1298,10 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
     }
     reste.signeDeVie?.(vie);
   };
-  // The instruction of a resumption after the plan extended to a package the ticket names: the
-  // session goes on where its lock stopped it, and the launch is neither a first nor a second.
+  // The instruction of a resumption after the plan extended to the file a BESOIN sheet names: the
+  // session goes on, and the launch is neither a first nor a second. Each package extends once.
   let etendu = null;
+  const etendus = new Set();
   // Whether the session already launched afresh for want of a conversation to resume, and
   // whether this call launched it: the launch of a dead attempt is taken up as it is (`lancer`).
   let repartie = false;
@@ -1310,10 +1340,12 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
     });
     lancee = true;
     etendu = null;
+    // The lot of the session, judged as soon as it ends, whatever it ends on.
+    const hors = estJuge(role, reste.horsEnveloppe) ? jugerLeLot(ctx, role) : null;
     // The usage limit stops a session that does not end on its own: neither a sheet missing nor a
     // sheet to resume, the circuit waits for the hour the usage returns (« limite-d-usage »).
     const limite =
-      !r.horsPlan && r.seance !== 0
+      r.seance !== 0
         ? limiteDUsage({ resultat: r.sortie, journal: finDuJournal(ctx, avantLeJournal) })
         : null;
     if (limite) {
@@ -1323,23 +1355,7 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
         { resultat: limite }
       );
     }
-    const suite = seanceLancee(ctx, role, r);
-    const extensionDesTests = suite?.etendreTests;
-    if (extensionDesTests) {
-      ctx.etendreTestsEnVol(extensionDesTests);
-      courante = r.id ?? courante;
-      etendu = `Le plan du ticket s'étend aux tests de ${extensionDesTests.paquet} (${extensionDesTests.piece}) : le crochet qui t'a arrêté sur ${extensionDesTests.chemin} le laisse maintenant passer, les fichiers de test de ce paquet seuls ; son code reste hors du plan. Reprends ta tâche là où il t'a arrêté.`;
-      essai--;
-      continue;
-    }
-    const extension = suite?.etendre;
-    if (extension) {
-      ctx.etendreEnVol(extension);
-      courante = r.id ?? courante;
-      etendu = `Le plan du ticket s'étend à ${extension.paquet} (${extension.piece}) : le crochet qui t'a arrêté sur ${extension.chemin} le laisse maintenant passer. Reprends ta tâche là où il t'a arrêté.`;
-      essai--;
-      continue;
-    }
+    seanceLancee(ctx, role, r);
     courante = r.id ?? courante;
     if (repli && r.seance !== 0) {
       return null;
@@ -1355,6 +1371,25 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
     if (faute) {
       lu = { erreur: lu.erreur ? `${lu.erreur} ; ${faute}` : `fiche non conforme : ${faute}` };
     }
+    // A role that writes nothing leaves an empty lot: its files go to the one resumption too.
+    if (hors && reste.horsEnveloppe) {
+      lu = { erreur: [lu.erreur, hors.rapport].filter(Boolean).join(' ; ') };
+    }
+    if (lu.fiche?.statut === 'BESOIN' && lu.fiche.manque && !reste.horsEnveloppe) {
+      const demande = extensionDemandee(ctx, role, lu.fiche.manque);
+      const extension = demande?.etendre ?? demande?.etendreTests;
+      const etendre = demande?.etendre ? ctx.etendreEnVol : ctx.etendreTestsEnVol;
+      if (extension && etendre && !etendus.has(extension.paquet)) {
+        etendus.add(extension.paquet);
+        garder(ctx, role, lu.fiche, avec);
+        etendre(extension);
+        etendu = demande.etendre
+          ? `Le plan du ticket s'étend à ${extension.paquet} (${extension.piece}) : ${extension.chemin} s'écrit maintenant. Reprends ta tâche là où tu l'as laissée.`
+          : `Le plan du ticket s'étend aux tests de ${extension.paquet} (${extension.piece}) : ${extension.chemin} s'écrit maintenant, les fichiers de test de ce paquet seuls ; son code reste hors du plan. Reprends ta tâche là où tu l'as laissée.`;
+        essai--;
+        continue;
+      }
+    }
     if (lu.fiche) {
       // The session that gave it, which a resumption of it names (the plan's answer).
       surLaSeance(courante);
@@ -1364,11 +1399,15 @@ export async function jusquALaFiche(ctx, role, texte, options = {}) {
       commenter(ctx, role, `séance finie sans fiche conforme : ${lu.erreur} ; reprise une fois.`);
     }
   }
-  throw new Arret(
+  throw arretQuiSeDit(
     'sans-fiche',
     `Deux fois, la séance du ${nomDuRole(role)} finit sans fiche conforme : ${lu.erreur}. Le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`
   );
 }
+
+// The stop <nom> whose error message says its report too, for a caller that reads the error alone.
+const arretQuiSeDit = (nom, rapport) =>
+  Object.assign(new Arret(nom, rapport), { message: `${nom} : ${rapport}` });
 
 // The sheet of schema <sorte> (a role's, or the tri's) in the output <sortie> of its session
 // (`lireFiche`), each file piece of it checked in the ticket's copy, or in the main tree before the
@@ -1401,6 +1440,205 @@ export function garder(ctx, role, fiche, avec) {
     });
   }
   return fiche;
+}
+
+// The judgment of the lot (machine.md §5.5), as CODEOWNERS judges a change by the files it
+// touches, whatever tool wrote them. The lot of a session is what it creates, changes or removes
+// in the folder it works in, read on content between the tree the folder held before it (`avant`,
+// which lancer.sh takes once the copy is prepared; else the circuit's, before the launch) and the
+// tree it holds after it, `.beads/`, the files git ignores and the circuit's copies aside. In the
+// main tree, which others write, each session is judged on what changes during it, a commit
+// entered meanwhile aside. In a ticket's copy, a commit of the session takes nothing out of the
+// lot, and a faulty file stays named until it is back to its state before the session that
+// changed it (or to main's, once main changed it): the circuit keeps them by role in the working
+// directory of the ticket (`lot-<rôle>.json`: the session under way `enCours`, the faulty files
+// `fautifs`), so that neither a session that leaves them nor an act played again lets them pass.
+// The judgment runs on the installed frame; it reads the languages of the copy, else, when they do
+// not load there, those of the main tree, and it fails closed when neither loads.
+
+// The authors of a circuit whose lot is judged on their rule; the agent direct writes tests and
+// code, and its lot is not judged. Every other judged session writes nothing: an empty lot.
+const AUTEURS_JUGES = new Set(['testwriter', 'developpeur']);
+
+const estJuge = (role, horsEnveloppe) => Boolean(horsEnveloppe) || AUTEURS_JUGES.has(role);
+
+// The head of the report of a lot out of the rule.
+const TITRE_DU_LOT = 'Le lot de la séance sort de la règle de son rôle';
+
+const REGLES_DU_LOT = {
+  testwriter:
+    'le testwriter n’écrit que ses fichiers de test, la matière de test partagée, la part de ses tests d’un manifeste et les fichiers de verrou des versions',
+  developpeur: 'le développeur n’écrit ni un fichier de test ni la matière de test partagée',
+};
+
+const fichierDuLot = (ctx, role) => path.join(ctx.tmp, `lot-${role}.json`);
+
+const lotGarde = (ctx, role) =>
+  existsSync(fichierDuLot(ctx, role))
+    ? JSON.parse(lire(fichierDuLot(ctx, role)))
+    : { depot: null, enCours: null, fautifs: {} };
+
+const garderLeLot = (ctx, role, lot) => {
+  mkdirSync(ctx.tmp, { recursive: true });
+  writeFileSync(fichierDuLot(ctx, role), `${JSON.stringify(lot)}\n`);
+};
+
+const estLArbrePrincipal = (ctx, depot) => path.resolve(depot) === path.resolve(ctx.racine);
+
+const teteDe = depot =>
+  spawnSync('git', ['-C', depot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+
+// Notes the session <id> of <role> about to work in <depot>, the tree it holds now.
+function ouvrirLeLot(ctx, role, { id, horsEnveloppe, depot }) {
+  const lot = lotGarde(ctx, role);
+  garderLeLot(ctx, role, {
+    depot,
+    enCours: {
+      id,
+      horsEnveloppe: Boolean(horsEnveloppe),
+      avant: existsSync(depot) ? photographier(depot) : null,
+      principal: teteDe(ctx.racine),
+    },
+    fautifs: estLArbrePrincipal(ctx, depot) ? {} : lot.fautifs,
+  });
+}
+
+// The tree the session `enCours` started from: the launcher's, taken after its preparation; else
+// the circuit's, for a session out of the envelope, or one that ran to its end. Null for a launch
+// that stopped before its session.
+function avantLaSeance(ctx, enCours) {
+  const rang = rangDeLaSeance(ctx, enCours.id);
+  if (existsSync(rang.avant)) {
+    return JSON.parse(lire(rang.avant));
+  }
+  return enCours.horsEnveloppe || existsSync(rang.fin) ? enCours.avant : null;
+}
+
+/**
+ * Judges the lot of <role> (the section's header): the session under way, once, then each faulty
+ * file kept, on the tree the folder holds now. Returns `{ fichiers, rapport }`, or null for a lot
+ * in the rule of its role. Throws an Arret when no tree says which languages judge the lot.
+ * @returns {{ fichiers: string[], rapport: string } | null}
+ */
+function jugerLeLot(ctx, role) {
+  const lot = lotGarde(ctx, role);
+  const { depot, enCours } = lot;
+  if (!depot || !existsSync(depot)) {
+    return null;
+  }
+  const principal = estLArbrePrincipal(ctx, depot);
+  const avant = enCours ? avantLaSeance(ctx, enCours) : null;
+  const apres = avant || !principal ? photographier(depot) : null;
+  if (avant && apres) {
+    const entres = new Set(
+      principal && avant.tete !== apres.tete
+        ? changements(depot, avant.tete, apres.tete).map(c => c.chemin)
+        : []
+    );
+    for (const c of changements(depot, avant.arbre, apres.arbre)) {
+      if (entres.has(c.chemin) && c.apres === etatDuFichier(depot, apres.tete, c.chemin)) {
+        continue;
+      }
+      lot.fautifs[c.chemin] ??= { avant: c.avant, principal: enCours.principal };
+    }
+  }
+  if (apres) {
+    for (const [chemin, f] of Object.entries(lot.fautifs)) {
+      const etat = etatDuFichier(depot, apres.arbre, chemin);
+      const faute =
+        !principal && revenuAMain(ctx, chemin, f.principal, etat)
+          ? null
+          : fauteDuFichier(ctx, role, depot, { chemin, avant: f.avant, apres: etat });
+      if (faute) {
+        f.parties = faute.parties;
+      } else {
+        delete lot.fautifs[chemin];
+      }
+    }
+  }
+  garderLeLot(ctx, role, { ...lot, enCours: null });
+  const fautifs = Object.entries(lot.fautifs).sort(([a], [b]) => a.localeCompare(b));
+  if (!fautifs.length) {
+    return null;
+  }
+  const regle = REGLES_DU_LOT[role] ?? 'ce rôle n’écrit rien, son lot reste vide';
+  const lignes = fautifs.map(
+    ([chemin, f]) =>
+      `- ${chemin}${f.parties ? ` (hors de la part de ses tests : ${f.parties.join(', ')})` : ''}`
+  );
+  const geste = principal
+    ? 'D’autres écrivent l’arbre principal : défais seulement ce que tu as toi-même écrit.'
+    : 'Remets chacun à son état d’avant la séance qui l’a changé.';
+  return {
+    fichiers: fautifs.map(([chemin]) => chemin),
+    rapport: `${TITRE_DU_LOT} : ${regle}.\n${lignes.join('\n')}\n${geste}`,
+  };
+}
+
+// Whether the file <chemin> of a copy, in the state <etat>, is back to main's after main changed it
+// since <depuis>: what the advance of the copy brings is no work of a session.
+function revenuAMain(ctx, chemin, depuis, etat) {
+  const tete = teteDe(ctx.racine);
+  return (
+    tete !== depuis &&
+    etatDuFichier(ctx.racine, tete, chemin) === etat &&
+    etatDuFichier(ctx.racine, depuis, chemin) !== etat
+  );
+}
+
+// What puts the change <c> of a file of <depot> out of the rule of <role>: `{ parties }`, the parts
+// of a manifest out of its tests' (null for a whole file), or null for a change in the rule.
+function fauteDuFichier(ctx, role, depot, c) {
+  if (c.avant === c.apres) {
+    return null;
+  }
+  const entier = { parties: null };
+  if (!AUTEURS_JUGES.has(role)) {
+    return entier;
+  }
+  return selonLesLangages(ctx, depot, (langage, racine) => {
+    const abs = path.join(racine, c.chemin);
+    const classe = langage.estUnTest(abs, racine);
+    if (role === 'developpeur') {
+      return classe ? entier : null;
+    }
+    // A reader package the plan extended to its tests: its test files alone.
+    const lecteur = (ctx.testsEtendus ?? []).find(d => c.chemin.startsWith(`${d}/`));
+    if (lecteur && !dansLePlan(ctx, lecteur)) {
+      return classe?.test ? null : entier;
+    }
+    if (classe || langage.manifestes.verrous.includes(c.chemin)) {
+      return null;
+    }
+    const parties =
+      c.apres === null
+        ? null
+        : langage.manifestes.horsDesTests(
+            abs,
+            racine,
+            texteDeLEtat(depot, c.avant),
+            texteDeLEtat(depot, c.apres)
+          );
+    return parties?.length === 0 ? null : { parties };
+  });
+}
+
+// `juger(langage, racine)` on the languages of <depot>, else on those of the main tree; an Arret
+// that names the version of the frame, the two causes and the main tree when neither loads.
+function selonLesLangages(ctx, depot, juger) {
+  try {
+    return juger(langageDe(depot), depot);
+  } catch (ici) {
+    try {
+      return juger(langageDe(ctx.racine), ctx.racine);
+    } catch (la) {
+      const { version } = JSON.parse(lire(path.join(import.meta.dirname, '..', 'package.json')));
+      throw arretQuiSeDit(
+        'inattendu',
+        `Le lot n'est pas jugé, et l'étape ne passe pas : la version ${version} du cadre ne charge les langages ni de la copie (${depot} : ${ici.message}) ni de l'arbre principal (${ctx.racine} : ${la.message}). L'arbre principal se répare par le superviseur, hors séance d'agent.`
+      );
+    }
+  }
 }
 
 // The findings <constats> as an agent's instruction carries them, each under its heading, with

@@ -1,9 +1,9 @@
-#!/usr/bin/env node
 // The rights and the context of each role session the circuit launches, from one source (ROLES):
 // the testwriter and the developpeur in the envelope of their plan (scripts/enveloppe/lancer.sh),
 // the explorateur, the questionneur and the reviewer out of it (scripts/circuit.mjs). A session
-// receives the rights the commands of its skill name, and the context its work reads.
-// Architecture: docs/architecture/machine.md (§3.2, §2.5).
+// has every tool its work uses and runs every command: what it writes is bounded by the mounts of
+// its envelope and judged on its lot (scripts/seances.mjs), never by a rule on its commands.
+// Architecture: docs/architecture/machine.md (§3.2, §5.5).
 //
 //   npx grillhouse droits <rôle> --racine <arbre principal> --copie <copie> --ticket <ticket>
 //
@@ -16,14 +16,14 @@
 //   settings of the role exclude it by its path (`claudeMdExcludes`), and the envelope does not
 //   mount it.
 // - `--settings <json>` (the settings of the role, on the command line: no file the session could
-//   change): its permissions (`allow`, the commands its skill names, and the reading of its
-//   skill's files, references included, of those of the debugging skill for a role whose skill
-//   loads it (`debogage`), and of the METACADRE.md its skill names, in the frame's plugin as
-//   installed for the copy, else for the project, by `Read` and `ls` and with no writing; `deny`, the change of its
-//   author at the ticket, AUTEUR_FIXE, for a role that writes the editing by script, the test
-//   tool run directly and the reading again of the ticket its instruction carries, and for a role
-//   that writes nothing at the ticket, the explorateur and the questionneur, every write of bd,
-//   ECRIRE_AU_TICKET); the
+//   change): its permissions (`allow`, every command of `Bash`, the tools of the index for a role
+//   that uses it, and the reading of its skill's files, references included, of those of the
+//   debugging skill for a role whose skill loads it (`debogage`), and of the METACADRE.md its
+//   skill names, in the frame's plugin as installed for the copy, else for the project, by `Read`
+//   and `ls` and with no writing; `deny`, the change of its author at the ticket, AUTEUR_FIXE,
+//   for a role whose instruction carries its ticket the reading of it again, for a role that
+//   writes the test tool run directly, and for a role that writes nothing at the ticket every write
+//   of bd, ECRIRE_AU_TICKET); no hook; the
 //   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
 //   INTEGREES), and the project's own skills (`.claude/skills/` of the copy) off
 //   (`skillOverrides`); every plugin the project enables off (`enabledPlugins`: their skills,
@@ -32,9 +32,7 @@
 //   skills of a plugin, and the role's agent preloads its own (`skills` of its definition);
 //   the background tasks off and Code Mode on (`env`, ENV_DES_SEANCES: a role waits in the
 //   foreground for what it launches, and its session ends with its sheet; `claude -p` gets Code
-//   Mode, the REPL, only from this block); for a role that writes, its locks as hooks (PreToolUse: verrous/verrou.mjs on the tools of
-//   writing, verrous/commande.mjs on Bash), since the hooks of an agent's definition do not run in
-//   a folder Claude Code has not trusted, as the copy of a ticket.
+//   Mode, the REPL, only from this block).
 // - `--tools <list>`: the tools its work uses; Edit and Write for a role that writes alone, the
 //   tool search for a role whose index Claude Code defers.
 // - `--strict-mcp-config --mcp-config <json>`: the servers of the index (codegraph, rtfm) for a
@@ -42,9 +40,6 @@
 //   enables, at their installed path (`~/.claude/plugins/installed_plugins.json`, the project's
 //   entry first, else the user's); a project's entry whose command is the bare name of the program
 //   a plugin ships runs that program; none for the others.
-//
-// The skills' commands and the permissions answer one another: tests/unit/droits.spec.ts fails on a
-// command a skill names that no permission covers, and on a permission no command names.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -61,18 +56,6 @@ export const AUTEUR_FIXE = [
   'Bash(bd *--author*)',
   'Bash(bd * -a*)',
   `Bash(*${ACTEUR}*)`,
-];
-// What a role that writes may not run: a file is edited by its tools of writing, which its lock
-// judges, and the tests run by `npm test` (charter, « Les tests se lancent par npm test »).
-const ECRIRE_PAR_SCRIPT = [
-  'Bash(python *)',
-  'Bash(python3 *)',
-  'Bash(sed -i*)',
-  'Bash(sed * -i*)',
-  'Bash(perl -i*)',
-  'Bash(perl -pi*)',
-  'Bash(perl * -i*)',
-  'Bash(perl * -pi*)',
 ];
 // What a role that writes nothing at the ticket may not run: the circuit writes its exchange there,
 // from its sheet.
@@ -95,24 +78,14 @@ const ENV_DES_SEANCES = {
   CLAUDE_CODE_EXPERIMENTAL_CODE_MODE: '1',
 };
 
-// The reads of git in the copy, by its path (`git -C <copie> …`), which Claude Code does not let
-// through without a rule, as it does `git status` in the working directory.
-const LIRE_GIT = [
-  'Bash(git -C * status*)',
-  'Bash(git -C * diff*)',
-  'Bash(git -C * log*)',
-  'Bash(git -C * ls-files*)',
-  'Bash(git -C * grep*)',
-];
 // The skills Claude Code keeps listed when its own are off (`disableBundledSkills`), measured on
 // Claude Code 2.1.305.
 const INTEGREES = ['design', 'doctor', 'plugin-authoring'];
 // The frame's plugin, by the start of its identifier (`grillhouse@<place de marché>`).
 const GREFFON_DU_CADRE = 'grillhouse@';
-// The servers of the index (charter, « L'index d'abord »).
+// The servers of the index (charter, « L'index d'abord »), and their tools of reading: codegraph
+// for the calls, rtfm for the search and the reading of a result whole.
 const INDEX = ['codegraph', 'rtfm'];
-// The reads of the index by a role that writes: codegraph for the calls, rtfm for the search and
-// the reading of a result whole.
 const LIRE_L_INDEX = [
   'Bash(codegraph explore *)',
   'mcp__codegraph__codegraph_explore',
@@ -123,143 +96,63 @@ const LIRE_L_INDEX = [
 const LIRE = ['Bash', 'Read', 'Skill'];
 const ECRIRE = ['Edit', 'Write'];
 
-// The charter prescribes `env -C <dossier>` in place of `cd`: a command run in the copy carries
-// that prefix, which a bare rule does not match. Each rule of command, out of bd, git and env -C,
-// gets its twin `Bash(env -C * <commande>)`, as git has `git show` and `git -C * show`.
-/** @param {string[]} regles @returns {string[]} */
-function avecJumelles(regles) {
-  return regles.flatMap(r => {
-    const bash = /^Bash\((.*)\)$/.exec(r);
-    return bash && !/^(bd|git|env -C) /.test(bash[1]) ? [r, `Bash(env -C * ${bash[1]})`] : [r];
-  });
-}
+// The rules that permit a role its commands, every one, and the tools of the index for a role that
+// uses it.
+const TOUTE_COMMANDE = ['Bash'];
+const TOUTE_COMMANDE_ET_L_INDEX = [...TOUTE_COMMANDE, ...LIRE_L_INDEX];
 
 // Each role the circuit launches: whether it writes (files, `ecrit`; the ticket, unless
-// `ecritAuTicket` is false), whether it uses the index, whether its skill names the frame's
-// METACADRE.md (`metacadre`, read at the root of the plugin installed), whether its skill loads the
-// debugging skill of the plugin (`debogage`, read with its neighbouring files), and the commands its skill
-// names (the frame's plugin, `mods/grillhouse/skills/<rôle>/`), as permission rules.
+// `ecritAuTicket` is false), whether its instruction carries its ticket (`porteSonTicket`),
+// whether it uses the index, the rules of its commands (`commandes`), whether its skill names the frame's METACADRE.md (`metacadre`, read
+// at the root of the plugin installed), and whether its skill loads the debugging skill of the
+// plugin (`debogage`, read with its neighbouring files).
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
-  // the index, and ends on the plan in its sheet, which the circuit writes at the ticket. At the
-  // tri of the discoveries, it reads each one and its parent, the commit of main and its history
-  // (`git show`, `git log`, in its working directory, the main tree, or by `git -C`), and builds
-  // a package before it judges an error of types of its export; it has no pass. Its
-  // instruction of the tri lists these commands (`commandesPermises`).
+  // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
   explorateur: {
     metacadre: true,
     debogage: true,
     index: true,
     ecritAuTicket: false,
-    commandes: avecJumelles([
-      'Bash(bd show *)',
-      'Bash(bd comments *)',
-      'Bash(git show *)',
-      'Bash(git log *)',
-      'Bash(git -C * show *)',
-      'Bash(git -C * log *)',
-      'Bash(npx grillhouse composants-affectes *)',
-      'Bash(npm run build -- --filter=*)',
-      'Bash(codegraph explore *)',
-      'mcp__codegraph__codegraph_explore',
-      'mcp__rtfm__rtfm_search',
-    ]),
+    commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
-  // It writes the tests of the whole ticket, in the envelope of its plan, and reads the whole copy
-  // by the index (charter, « L'index d'abord »).
+  // It writes the tests of the whole ticket, in the envelope of its plan.
   testwriter: {
     metacadre: true,
     ecrit: true,
     index: true,
-    commandes: avecJumelles([
-      'Bash(bd update * --claim)',
-      'Bash(bd comments add *)',
-      'Bash(npm test *)',
-      // The removal of a file of its tests, by a script of its temporary directory.
-      'Bash(node $TMPDIR/*)',
-      // The size guard on its batch before it hands back its sheet: no argument, the whole repository.
-      'Bash(npx grillhouse tailles-des-tests)',
-      ...LIRE_L_INDEX,
-    ]),
+    porteSonTicket: true,
+    commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
-  // It writes the code of the whole ticket, in the envelope of its plan, and reads the whole copy
-  // by the index.
+  // It writes the code of the whole ticket, in the envelope of its plan.
   developpeur: {
     metacadre: true,
     debogage: true,
     ecrit: true,
     index: true,
-    commandes: avecJumelles([
-      'Bash(bd update * --claim)',
-      'Bash(bd update * --notes*)',
-      'Bash(bd comments add *)',
-      'Bash(git -C * status*)',
-      'Bash(git -C * diff*)',
-      'Bash(npm test *)',
-      'Bash(npm run api*)',
-      ...LIRE_L_INDEX,
-    ]),
+    porteSonTicket: true,
+    commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
   // The agent of a ticket led out of the circuit (`npx grillhouse direct`, scripts/direct.mjs): it
-  // writes the tests and the code of the whole ticket together, in the envelope of its plan, and
-  // reads the whole copy by the index. A role of its own: the developpeur keeps the rights of the
-  // circuit (no test file).
+  // writes the tests and the code of the whole ticket together, in the envelope of its plan.
   direct: {
     debogage: true,
     ecrit: true,
     index: true,
-    commandes: avecJumelles([
-      'Bash(bd update * --claim)',
-      'Bash(bd comments add *)',
-      'Bash(git -C * status*)',
-      'Bash(git -C * diff*)',
-      'Bash(npm test *)',
-      'Bash(npm run api*)',
-      // The removal of a file, by a script of its temporary directory.
-      'Bash(node $TMPDIR/*)',
-      ...LIRE_L_INDEX,
-    ]),
+    porteSonTicket: true,
+    commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
   relecteur: {
     metacadre: true,
     index: true,
-    commandes: avecJumelles([
-      ...LIRE_GIT,
-      'Bash(npx grillhouse index-interfaces --publie *)',
-      'Bash(npm test *)',
-      'Bash(npm run verifier -- --gardes*)',
-      'Bash(codegraph explore *)',
-      'mcp__codegraph__codegraph_explore',
-      'mcp__rtfm__rtfm_search',
-    ]),
+    ecritAuTicket: false,
+    porteSonTicket: true,
+    commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
   // It asks, and decides nothing: it reads the proposal its instruction carries and the code by
   // the index; the circuit writes its questions at the ticket.
-  questionneur: {
-    index: true,
-    ecritAuTicket: false,
-    commandes: avecJumelles([
-      'Bash(codegraph explore *)',
-      'mcp__codegraph__codegraph_explore',
-      'mcp__rtfm__rtfm_search',
-    ]),
-  },
+  questionneur: { index: true, ecritAuTicket: false, commandes: TOUTE_COMMANDE_ET_L_INDEX },
 };
-
-// The commands the rights of <role> permit (ROLES.<role>.commandes), one line each, in Markdown, as
-// the help of a tool lists its commands: a rule of Bash as its command, `…` for its wildcard; a
-// tool by its name. Its instruction carries them, so that it names no command its rights refuse.
-/** @param {keyof typeof ROLES} role @returns {string} */
-export function commandesPermises(role) {
-  return ROLES[role].commandes
-    .map(r => {
-      const bash = /^Bash\((.*)\)$/.exec(r);
-      return bash
-        ? `- \`${bash[1].replaceAll('*', '…')}\``
-        : `- l'outil \`${r.split('__').at(-1)}\``;
-    })
-    .join('\n');
-}
 
 const lireJson = f => {
   try {
@@ -364,7 +257,9 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
   if (r.ecrit) {
     // The test tool run directly (charter, « Aucun agent ne lance l'outil de test directement »),
     // as the module of the copy's language names it: `npm test` and `npm run verifier` play it.
-    deny.push(...ECRIRE_PAR_SCRIPT, ...langageDe(copie).droits);
+    deny.push(...langageDe(copie).droits);
+  }
+  if (r.porteSonTicket) {
     // The ticket its instruction carries, its description, notes and last handover.
     for (const lecture of ['show', 'comments']) {
       deny.push(`Bash(bd ${lecture} ${ticket})`, `Bash(bd ${lecture} ${ticket} *)`);
@@ -379,7 +274,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
           .map(d => d.name)
       : []),
   ];
-  const reglages = {
+  return {
     permissions: {
       allow: [...r.commandes, ...lireSaCompetence(role, { racine, copie, home })],
       deny,
@@ -395,41 +290,6 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
     ),
     env: ENV_DES_SEANCES,
   };
-  // The write lock runs the frame of the main tree, never the copy's; a copy that is the root keeps
-  // the project's own command.
-  const distincte = path.resolve(copie) !== path.resolve(racine);
-  const cadre = distincte ? racine : '$CLAUDE_PROJECT_DIR';
-  const commande = `"${cadre}/node_modules/.bin/grillhouse"`;
-  // Fails closed (a firewall's rule): a missing command makes the shell exit 127, which Claude Code
-  // reads as an error that does not block, so a copy with a main tree lacking the frame refuses (2).
-  const verrou = distincte
-    ? `[ -x ${commande} ] || { echo "⛔ verrou : le cadre de l'arbre principal manque ou n'est pas exécutable : ${cadre}/node_modules/.bin/grillhouse (écriture refusée)" >&2; exit 2; }; exec ${commande} verrou ${role}`
-    : `${commande} verrou ${role}`;
-  if (r.ecrit) {
-    reglages.hooks = {
-      PreToolUse: [
-        {
-          matcher: 'Write|Edit|MultiEdit|NotebookEdit',
-          hooks: [
-            {
-              type: 'command',
-              command: verrou,
-            },
-          ],
-        },
-        {
-          matcher: 'Bash',
-          hooks: [
-            {
-              type: 'command',
-              command: '"$CLAUDE_PROJECT_DIR/node_modules/.bin/grillhouse" commande',
-            },
-          ],
-        },
-      ],
-    };
-  }
-  return reglages;
 }
 
 // The options of claude for the session of <role> (the header's list); <home> holds the plugins

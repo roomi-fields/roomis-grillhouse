@@ -14,6 +14,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { declarerLeLangage } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as travail from '../../scripts/enveloppe/travail-de-la-copie.mjs';
 import * as seances from '../../scripts/seances.mjs';
 
@@ -61,6 +62,8 @@ function essai({
   writeFileSync(path.join(racine, CODE), lignes('l2'));
   writeFileSync(path.join(racine, 'tests/a.test.txt'), 't\n');
   writeFileSync(path.join(racine, '.gitignore'), '.claude/worktrees/\n');
+  // The judgment of a session's lot reads the language of the package it changes.
+  declarerLeLangage(racine);
   git(racine, 'add', '-A');
   git(racine, 'commit', '-q', '-m', 'base');
   const copie = path.join(racine, '.claude/worktrees/demo-1');

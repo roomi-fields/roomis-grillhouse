@@ -216,7 +216,6 @@ describe('the stops of the circuit, each with its exit code', () => {
       besoin: 20,
       questionnement: 22,
       references: 23,
-      'hors-plan': 24,
       inattendu: 25,
       'limite-d-usage': 26,
       'a-repasser': 75,
@@ -369,7 +368,7 @@ describe('the gestures of the circuit and the questions of its stops, in the lis
     // « a-repasser » goes up once its replays are spent, with its own question.
     expect(monteeDe('a-repasser')?.question).toMatch(/rejouée autant de fois/);
     expect(monteeDe('inconnu')).toBeNull();
-    expect(monteeDe('hors-plan')?.question).toContain('--etendre');
+    expect(monteeDe('besoin')?.question).toContain('--etendre');
     // grillhouse-3uv.95.6: `--depuis` names a step for the whole ticket, `--etendre` a package.
     for (const m of Object.values(MONTEES)) {
       expect(m.question).toContain('`--depuis <testwriter|developpeur>`');

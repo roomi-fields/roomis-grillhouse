@@ -21,13 +21,13 @@ import {
 // step under way resumes, grillhouse-3uv.95.6), or `--arreter`; and carries to the owner what is
 // his.
 //
-// This file keeps the one journey of the answer that goes through every part: a real montée out of
+// This file keeps the one journey of the answer that goes through every part: a real montée for a file out of
 // the plan, the answer `--etendre` by the command, the circuit reopened and the session resumed with
 // the plan extended, up to the envelope of the session. Each rule of the answers is proved small:
 // the options of the command (tests/unit/circuit.appel-refus.spec.ts), the answers refused
 // (tests/unit/circuit.reponses-refusees.spec.ts), the stop on the supervisor's word
 // (tests/unit/circuit.arret-du-superviseur.spec.ts), the montée of a stop
-// (tests/unit/circuit.arrets-des-controles.spec.ts, tests/unit/circuit.question-hors-plan.spec.ts).
+// (tests/unit/circuit.arrets-des-controles.spec.ts, tests/unit/seances.besoin-hors-plan.spec.ts).
 // The trial repository and its stand-ins: ./circuit-essai.ts.
 
 // The trial lives out of /tmp, which the envelope replaces with an empty directory.
@@ -48,7 +48,7 @@ const {
   commentaires,
 } = circuitEssai(ESSAIS);
 
-const HORS_PLAN = `echo "⛔ hors-plan — packages/forms/src/index.mjs est dans packages/forms" > "$TMPDIR/hors-plan"\n`;
+const MANQUE = `fiche '{"statut":"BESOIN","question":"Il me manque packages/forms.","piece":"ticket, critère 1","manque":"packages/forms/src/index.mjs"}'\n`;
 const titre = (id: string) =>
   (JSON.parse(lire(path.join(BEADS, `${id}.json`))) as { title: string }[])[0].title;
 const question = (id: string) =>
@@ -71,12 +71,12 @@ describe.runIf(canWrap)(
       gitRepo('add', '-A');
       gitRepo('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'binder lit forms');
       ticket(id, '030-binder');
-      scenario(id, 'testwriter-1', HORS_PLAN);
+      scenario(id, 'testwriter-1', MANQUE);
       scenario(id, 'testwriter', `${ECRIT_ROUGE}passation 'Tests écrits, rouges.'\n`);
       scenario(id, 'developpeur', `${CODE_JUSTE}passation 'Code écrit.'\n`);
       const r1 = circuit([id]);
-      expect(r1.status, sortie(r1)).toBe(ARRETS['hors-plan']);
-      expect(question(id)).toMatchObject({ arret: 'hors-plan' });
+      expect(r1.status, sortie(r1)).toBe(ARRETS.besoin);
+      expect(question(id)).toMatchObject({ arret: 'besoin' });
       const r2 = circuit([id, '--etendre', '000-forms']);
       expect(r2.status, sortie(r2)).toBe(0);
       // binder depends on forms: the provider first.

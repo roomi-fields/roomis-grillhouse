@@ -78,7 +78,7 @@ export default {
   construireLesPaquets: () => {
     throw new Error('construction non prise en charge pour cargo');
   },
-  // The reader of TOML by which the lock judges a Cargo.toml (./composants.mjs, `manifestes`), and
+  // The reader of TOML by which the judgment of a lot reads a Cargo.toml (./composants.mjs, `manifestes`), and
   // Turborepo, which plays the tasks of the crates (./commandes.mjs); jsonc-parser, by which the
   // generator of the graph reads and writes their turbo.json.
   outils: ['jsonc-parser', 'smol-toml', 'turbo'],

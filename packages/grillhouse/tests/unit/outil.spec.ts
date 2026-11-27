@@ -56,7 +56,6 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'attente-au-tour',
         'bilan',
         'circuit',
-        'commande',
         'consommation',
         'direct',
         'droits',
@@ -77,7 +76,6 @@ describe('each subcommand has its side, so that a new one never falls on one by 
         'superviseur',
         'tableau',
         'ticket-du-sous-agent',
-        'verrou',
         'verrou-hors-enveloppe',
       ].sort()
     );

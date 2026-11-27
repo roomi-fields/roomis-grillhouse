@@ -74,11 +74,12 @@ qui change est jugé contre l'architecture.
    description que ce fichier porte, où une décision du responsable est versée ; tu ne cherches
    aucune décision dans les commentaires. Ainsi le récit du ticket n'oriente pas ta
    lecture.
-3. Tes commandes s'écrivent sous la forme que nomme cette compétence, chacune seule, depuis la
-   copie, sans préfixe ni redirection hors d'elle. La copie se lit par git :
+3. Tout outil de lecture te sert, le client d'une base compris, et ton lot reste vide : un fichier
+   de la copie qu'une de tes commandes change te revient une fois, nommé, puis le circuit s'arrête.
+   La copie se lit par git :
    `git -C <copie> status --short`, `git -C <copie> diff HEAD -- <fichier>`,
    `git -C <copie> log --oneline -n <n>`, `git -C <copie> ls-files <chemin>`,
-   `git -C <copie> grep -n <motif> -- <chemin>`. Ainsi chaque commande passe tes droits.
+   `git -C <copie> grep -n <motif> -- <chemin>`. Ainsi tu lis le lot tel que la copie le porte.
 
 ## La relecture bornée
 

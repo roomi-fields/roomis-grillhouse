@@ -20,8 +20,8 @@
 //   the part of a manifest its tests own) are
 //   played in the main tree of the repository when they throw in the copy, the paths carried from
 //   one tree to the other. A session leaves such a copy between two writes of one change (cargo:
-//   a dependency moved in the manifest of the workspace and not yet in a crate's); the lock of
-//   its writes, its envelope and the acts of its circuit read on, as
+//   a dependency moved in the manifest of the workspace and not yet in a crate's); the judgment
+//   of its lots, its envelope and the acts of its circuit read on, as
 //   rust-analyzer keeps the last graph that loaded, and the write that repairs the copy passes.
 //   `langageDe` stays strict: a guard, a build and the red of a reading read the tree as it is.
 // - The generator of the graph (the `turbo.json` of the packages, whose tasks hash what each
@@ -31,7 +31,7 @@
 //   share of the update and, in a repository of packages, its guard (docs/architecture/tests.md
 //   §3.1).
 // - A module is loaded once per process, synchronously (`require` of an ES module, Node 22): the
-//   locks and the guards ask it in a hook, where nothing waits.
+//   hooks and the guards ask it where nothing waits.
 //
 // What the core asks of a module: docs/architecture/tests.md §3.3 and scripts/jointure.d.ts.
 import { spawnSync } from 'node:child_process';

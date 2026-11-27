@@ -301,7 +301,7 @@ describe('the trial directories of the tests', () => {
 
   it('critère 2 — the guard reads the test files of the envelope and of the locks', () => {
     expect(fichiers).toContain('tests/unit/enveloppe.spec.ts');
-    expect(fichiers).toContain('tests/unit/verrous.spec.ts');
+    expect(fichiers).toContain('tests/unit/verrou-du-superviseur.spec.ts');
   });
 
   it('critère 2 — no test names a fixed directory under the home: every path there is made by mkdtemp', () => {

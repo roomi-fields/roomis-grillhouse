@@ -9,7 +9,11 @@
 //
 //   node scripts/enveloppe/travail-de-la-copie.mjs reporter <copie> <base> <pointe>
 //   node scripts/enveloppe/travail-de-la-copie.mjs preparer <copie> [<cible>]
+//   node scripts/enveloppe/travail-de-la-copie.mjs photographier <copie>
 //
+// - `photographier`: the tree <copie> holds, on stdout in JSON, which the launcher takes once the
+//   copy is prepared, before the session: the state its lot is read from (scripts/seances.mjs,
+//   « le jugement du lot »).
 // - `preparer`: the one preparation of a copy, which the launcher plays before each session and
 //   the circuit before each pass that judges the lot. With <cible> (an existing copy), the guard
 //   of its submodules (scripts/sous-modules.sh `garde`), then `avancer`; then, for every copy,
@@ -80,7 +84,18 @@
 //   declared) is advanced all the same, its references merged as files written by hand, and the
 //   fault is said: on stderr, in the log of the preparation for the circuit.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { couvertPar, encoreDeclares, engendresDe, regenerer, touchesPar } from '../engendres.mjs';
@@ -353,6 +368,101 @@ export function ecritPar(role, estUnTest) {
   }
   return undefined;
 }
+
+// The paths a session's lot leaves out: the tickets' store, and the copies of the tickets the main
+// tree holds, which the circuit brings.
+const HORS_DU_LOT = ['.beads/', '.claude/worktrees/'];
+
+// The output of the read `git <args>` in <depot>; a read that fails throws, its error named.
+function lireGit(depot, args, env = process.env) {
+  const r = spawnSync('git', ['-C', depot, '--literal-pathspecs', ...args], {
+    env,
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  if (r.status !== 0) {
+    throw new Error(`git ${args.join(' ')} échoue dans ${depot} : ${String(r.stderr ?? '').trim()}`);
+  }
+  return String(r.stdout);
+}
+
+/**
+ * The tree <depot> holds now, `{ arbre, tete }`: the git tree of every file that git does not
+ * ignore, as it lies on disk, written through an index of its own (the index of <depot> is left as
+ * it is), and the commit of HEAD; null out of git.
+ * @param {string} depot
+ * @returns {{ arbre: string, tete: string } | null}
+ */
+export function photographier(depot) {
+  const g = spawnSync('git', ['-C', depot, 'rev-parse', '--absolute-git-dir'], { encoding: 'utf8' });
+  if (g.status !== 0) {
+    return null;
+  }
+  const dossier = mkdtempSync(path.join(tmpdir(), 'grillhouse-photo-'));
+  try {
+    const index = path.join(dossier, 'index');
+    const sien = path.join(g.stdout.trim(), 'index');
+    if (existsSync(sien)) {
+      // Its time with it: git reads it to judge a file written in the same instant as the index.
+      const { atime, mtime } = statSync(sien);
+      copyFileSync(sien, index);
+      utimesSync(index, atime, mtime);
+    }
+    const env = { ...process.env, GIT_INDEX_FILE: index };
+    lireGit(depot, ['add', '-A'], env);
+    return {
+      arbre: lireGit(depot, ['write-tree'], env).trim(),
+      tete: lireGit(depot, ['rev-parse', 'HEAD']).trim(),
+    };
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+}
+
+/**
+ * The files that differ between the trees (or commits) <avant> and <apres> of <depot>, the paths a
+ * lot leaves out aside: `{ chemin, avant, apres }`, each state « <mode> <objet> », null without the
+ * file.
+ * @param {string} depot
+ * @param {string} avant
+ * @param {string} apres
+ * @returns {{ chemin: string, avant: string | null, apres: string | null }[]}
+ */
+export function changements(depot, avant, apres) {
+  const mots = lireGit(depot, ['diff-tree', '-r', '-z', '--no-renames', avant, apres]).split('\0');
+  const out = [];
+  for (let i = 0; i + 1 < mots.length; i += 2) {
+    const [modeA, modeB, a, b] = mots[i].slice(1).split(' ');
+    const etat = (mode, objet) => (/^0+$/.test(mode) ? null : `${mode} ${objet}`);
+    out.push({ chemin: mots[i + 1], avant: etat(modeA, a), apres: etat(modeB, b) });
+  }
+  return out.filter(c => !HORS_DU_LOT.some(d => c.chemin.startsWith(d)));
+}
+
+/**
+ * The state of the file <chemin> in the tree (or commit) <arbre> of <depot>, as `changements` gives
+ * it.
+ * @param {string} depot
+ * @param {string} arbre
+ * @param {string} chemin
+ * @returns {string | null}
+ */
+export function etatDuFichier(depot, arbre, chemin) {
+  const ligne = lireGit(depot, ['ls-tree', '-z', arbre, '--', chemin]).split('\0')[0];
+  if (!ligne) {
+    return null;
+  }
+  const [mode, , objet] = ligne.split('\t')[0].split(' ');
+  return `${mode} ${objet}`;
+}
+
+/**
+ * The text of the file of state <etat> in <depot>, null without a file.
+ * @param {string} depot
+ * @param {string | null} etat
+ * @returns {string | null}
+ */
+export const texteDeLEtat = (depot, etat) =>
+  etat === null ? null : lireGit(depot, ['cat-file', 'blob', etat.split(' ')[1]]);
 
 /**
  * The lot from <base> to <pointe> as local work of <copie>; returns `{ ok, message }`. <dire>
@@ -646,14 +756,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     ecrit = ecritPar(role, f => langageDeLaCopie(copie).estUnTest(f, copie));
   }
   const r =
-    geste === 'reporter' && reste.length === 2
+    geste === 'photographier' && reste.length === 0
+      ? { ok: true, message: JSON.stringify(photographier(copie)) }
+      : geste === 'reporter' && reste.length === 2
       ? reporter(copie, { base: reste[0], pointe: reste[1] })
       : geste === 'preparer' && reste.length <= 1
         ? preparer(copie, reste[0] ?? null, { ecrit })
         : {
             ok: false,
             message:
-              'usage: travail-de-la-copie.mjs reporter <copie> <base> <pointe> | preparer <copie> [<cible>] [--role <role>]',
+              'usage: travail-de-la-copie.mjs reporter <copie> <base> <pointe> | preparer <copie> [<cible>] [--role <role>] | photographier <copie>',
           };
   // `preparer` prints the list its pose fixes on stdout, its messages on stderr.
   if (geste === 'preparer') {

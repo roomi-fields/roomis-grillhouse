@@ -11,7 +11,6 @@ import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import type { Langage } from '../../../../scripts/jointure.js';
 import module from '../../../../scripts/langages/cargo/index.mjs';
 import exemples from '../../../../scripts/langages/cargo/exemples.mjs';
-import { refusal } from '../../../../scripts/verrous/verrou.mjs';
 import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
 
 const cargo = module as unknown as Langage;
@@ -196,8 +195,6 @@ function espaceDeManifeste() {
   return r;
 }
 
-const SCRATCH = { tmp: '/scratch' };
-
 describe('grillhouse-ool, critère 1 — le testwriter écrit les [dev-dependencies] d’un crate', () => {
   it('the module names the tables of a crate’s manifest a change touches out of its tests', () => {
     const r = espaceDeManifeste();
@@ -226,62 +223,6 @@ describe('grillhouse-ool, critère 1 — le testwriter écrit les [dev-dependenc
 
   it('the lock file of the versions is Cargo.lock, at the root', () => {
     expect(cargo.manifestes.verrous).toEqual(['Cargo.lock']);
-  });
-
-  it('the lock lets the testwriter edit [dev-dependencies] and write Cargo.lock', () => {
-    const r = espaceDeManifeste();
-    const edit = {
-      tool_name: 'Edit',
-      tool_input: {
-        file_path: path.join(r, 'crates/app/Cargo.toml'),
-        old_string: 'ws-outil = { path = "../outil" }',
-        new_string: 'ws-outil = { path = "../outil" }\ntempfile = "3"',
-      },
-      cwd: r,
-    };
-    expect(refusal('testwriter', edit, SCRATCH)).toBeNull();
-    const verrou = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(r, 'Cargo.lock'), content: 'version = 4\n# x\n' },
-      cwd: r,
-    };
-    expect(refusal('testwriter', verrou, SCRATCH)).toBeNull();
-  });
-
-  it('the lock refuses the testwriter any other table, the path and the table named', () => {
-    const r = espaceDeManifeste();
-    const fichier = path.join(r, 'crates/app/Cargo.toml');
-    const edit = (old_string: string, new_string: string) => ({
-      tool_name: 'Edit',
-      tool_input: { file_path: fichier, old_string, new_string },
-      cwd: r,
-    });
-    const dependances = refusal(
-      'testwriter',
-      edit('ws-core = { path = "../core" }', 'ws-core = { path = "../core" }\ntempfile = "3"'),
-      SCRATCH
-    );
-    expect(dependances).toContain(fichier);
-    expect(dependances).toContain('[dependencies]');
-    expect(
-      refusal('testwriter', edit('version = "0.1.0"', 'version = "0.2.0"'), SCRATCH)
-    ).toContain('[package]');
-    const ecrit = {
-      tool_name: 'Write',
-      tool_input: { file_path: fichier, content: `${MANIFESTE}\n[features]\nx = []\n` },
-      cwd: r,
-    };
-    expect(refusal('testwriter', ecrit, SCRATCH)).toContain('[features]');
-  });
-
-  it('the lock keeps refusing the testwriter the workspace’s Cargo.toml', () => {
-    const r = espaceDeManifeste();
-    const ecrit = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(r, 'Cargo.toml'), content: '[workspace]\n' },
-      cwd: r,
-    };
-    expect(refusal('testwriter', ecrit, SCRATCH)).toMatch(/seulement des fichiers de test/);
   });
 });
 
@@ -394,25 +335,6 @@ describe('grillhouse-agr, critère 1 — les tests unitaires dans tests.rs près
     const r = espaceUnitaire();
     const service = (cargo.composants(r) as Composant[])[0]!;
     expect(cargo.joueDesTests(r, service)).toBe(true);
-  });
-
-  it('the lock lets the testwriter write them, refuses him the code, refuses them to the developpeur', () => {
-    const r = espaceUnitaire();
-    const ecrire = (fichier: string) => ({
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(r, fichier), content: '#[test]\nfn relais() {}\n' },
-      cwd: r,
-    });
-    expect(refusal('testwriter', ecrire('crates/service/src/server/tests.rs'), SCRATCH)).toBeNull();
-    expect(
-      refusal('testwriter', ecrire('crates/service/src/server/tests/relais.rs'), SCRATCH)
-    ).toBeNull();
-    expect(refusal('testwriter', ecrire('crates/service/src/server.rs'), SCRATCH)).toMatch(
-      /seulement des fichiers de test/
-    );
-    expect(refusal('developpeur', ecrire('crates/service/src/server/tests.rs'), SCRATCH)).toMatch(
-      /Les tests appartiennent au testwriter/
-    );
   });
 });
 
@@ -531,32 +453,5 @@ describe('grillhouse-agr, critère 3 — le testwriter écrit seulement le modul
     expect(
       cargo.manifestes.horsDesTests('crates/core/src/notes.md', d.espace, CODE, DECLARE)
     ).toBeNull();
-  });
-
-  it('the lock lets the testwriter move an inline test module, refuses him the code, the part named', () => {
-    const r = mkdtempSync(path.join(ESSAIS, 'code-'));
-    const ecrire = (rel: string, texte: string) => {
-      mkdirSync(path.dirname(path.join(r, rel)), { recursive: true });
-      writeFileSync(path.join(r, rel), texte);
-    };
-    ecrire('package.json', JSON.stringify({ name: 'c' }));
-    ecrire('docs/ARCHITECTURE.md', architecture(['cargo']));
-    ecrire('Cargo.toml', '[workspace]\nresolver = "2"\nmembers = ["crates/service"]\n');
-    ecrire('Cargo.lock', 'version = 4\n');
-    ecrire('crates/service/Cargo.toml', '[package]\nname = "service"\nversion = "0.1.0"\n');
-    ecrire('crates/service/src/lib.rs', 'mod server;\n');
-    ecrire('crates/service/src/server.rs', EN_LIGNE);
-    const server = path.join(r, 'crates/service/src/server.rs');
-    const edit = (old_string: string, new_string: string) => ({
-      tool_name: 'Edit',
-      tool_input: { file_path: server, old_string, new_string },
-      cwd: r,
-    });
-    const deplace = edit(EN_LIGNE.slice(CODE.length), '\n#[cfg(test)]\nmod tests;\n');
-    expect(refusal('testwriter', deplace, SCRATCH)).toBeNull();
-    const code = refusal('testwriter', edit('x > 0', 'x > 1'), SCRATCH);
-    expect(code).toContain(server);
-    expect(code).toMatch(/code hors du module de test/);
-    expect(code).toMatch(/revient au développeur/);
   });
 });

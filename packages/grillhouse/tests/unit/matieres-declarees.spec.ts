@@ -5,8 +5,8 @@
 // developpeur does not. Witness: OSD, 2026-11-21, `conformance/` at the root, its cases refused to
 // the testwriter by the lock.
 //
-// Each case reads the answer of `estUnTest` of the join of the languages, the lock (`refusal`,
-// `horsDuPlan`), the conflict roles and the mounts of the envelope (`plan`), on a project of trial.
+// Each case reads the answer of `estUnTest` of the join of the languages, the conflict roles and
+// the mounts of the envelope (`plan`), on a project of trial.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,7 +17,6 @@ import * as circuit from '../../scripts/circuit.mjs';
 import * as enveloppe from '../../scripts/enveloppe/enveloppe.mjs';
 import { rolesDuConflit } from '../../scripts/enveloppe/travail-de-la-copie.mjs';
 import { langageDe } from '../../scripts/langages.mjs';
-import { horsDuPlan, refusal } from '../../scripts/verrous/verrou.mjs';
 
 // The reader of the key, loaded by its path so that each case fails alone while the module is
 // absent.
@@ -48,8 +47,6 @@ afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const CAS = 'conformance/0.6/read/cas-1/descriptor.json';
 const MATIERE = { joue: false, test: false, matiere: true };
-const SCRATCH = '/scratch';
-const options = { tmp: SCRATCH, describe: () => null };
 
 let n = 0;
 // A project of trial: packages `packages/a` and `packages/m` (the shared test material), a folder
@@ -164,61 +161,6 @@ describe('estUnTest of the join of the languages, for a file under a declared fo
     const r = projet();
     expect(langageDe(r).estUnTest(CAS, r)).toBeNull();
     expect(langageDe(r).estUnTest('src/a.test.ts', r)).toMatchObject({ joue: true });
-  });
-});
-
-describe('the role lock and the folders of test material', () => {
-  it('lets the testwriter write a file under a declared folder, and refuses it to the developpeur', () => {
-    const r = projet(['conformance']);
-    const ecrit = { tool_name: 'Write', tool_input: { file_path: path.join(r, CAS) }, cwd: r };
-    expect(refusal('testwriter', ecrit, options)).toBeNull();
-    expect(refusal('developpeur', ecrit, options)).toMatch(/appartient au testwriter/);
-  });
-
-  it('refuses the testwriter a file out of every declared folder, as before', () => {
-    const r = projet(['conformance']);
-    const autre = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(r, 'src/a.ts') },
-      cwd: r,
-    };
-    expect(refusal('testwriter', autre, options)).toMatch(/n'est rien de cela/);
-  });
-
-  it('refuses the testwriter a file of the folder without the key, as before', () => {
-    const r = projet();
-    const ecrit = { tool_name: 'Write', tool_input: { file_path: path.join(r, CAS) }, cwd: r };
-    expect(refusal('testwriter', ecrit, options)).toMatch(/n'est rien de cela/);
-  });
-
-  it('never says a file of a declared folder out of the plan, whichever the packages of the plan', () => {
-    const r = projet(['conformance']);
-    spawnSync('git', ['-C', r, 'init', '-q']);
-    const ecrit = { tool_name: 'Write', tool_input: { file_path: path.join(r, CAS) }, cwd: r };
-    const env = { GRILLHOUSE_ENVELOPPE: 'packages/a' };
-    for (const role of ['testwriter', 'developpeur']) {
-      expect(horsDuPlan(ecrit, { tmp: SCRATCH, env, role }), role).toBeNull();
-    }
-  });
-
-  it('says a file of the folder out of the plan without the key, as before', () => {
-    const r = projet();
-    spawnSync('git', ['-C', r, 'init', '-q']);
-    const ecrit = { tool_name: 'Write', tool_input: { file_path: path.join(r, CAS) }, cwd: r };
-    const env = { GRILLHOUSE_ENVELOPPE: 'packages/a' };
-    expect(horsDuPlan(ecrit, { tmp: SCRATCH, env, role: 'testwriter' })).toMatchObject({
-      paquet: 'la racine du dépôt',
-    });
-  });
-
-  it('gives the testwriter no manifest and not the key: the root package.json stays out of what he writes', () => {
-    const r = projet(['conformance']);
-    const racine = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(r, 'package.json'), content: '{}' },
-      cwd: r,
-    };
-    expect(refusal('testwriter', racine, options)).toMatch(/seulement des fichiers de test/);
   });
 });
 

@@ -41,7 +41,6 @@ export const SOUS_COMMANDES = {
   bilan: 'bilan.mjs',
   binaires: 'binaires.mjs',
   circuit: '../dist/temporal/circuit/commande.js',
-  commande: 'verrous/commande.mjs',
   'composants-affectes': 'composants-affectes.mjs',
   consommation: 'consommation.mjs',
   'dependances-internes': 'dependances-internes.mjs',
@@ -84,7 +83,6 @@ export const SOUS_COMMANDES = {
   ticket: 'ticket.mjs',
   'ticket-du-sous-agent': 'verrous/ticket-du-sous-agent.mjs',
   verifier: { langage: 'verifier' },
-  verrou: 'verrous/verrou.mjs',
   'verrou-hors-enveloppe': 'verrous/ecriture-hors-enveloppe.mjs',
 };
 

@@ -9,8 +9,6 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ecrireLaListe, VARIABLE } from '../../scripts/enveloppe/paquets-du-plan.mjs';
-import { horsDuPlan } from '../../scripts/verrous/verrou.mjs';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const JOURNAL = 'packages/grillhouse/CHANGELOG.md';
@@ -81,26 +79,6 @@ describe('grillhouse-bf5.4, critère 6 — les consignes et documents disent la 
 
   it('STRUCTURE.md places the CHANGELOG.md in packages/grillhouse, not at the root', () => {
     expect(lire('STRUCTURE.md')).not.toMatch(/^├── CHANGELOG\.md/m);
-  });
-});
-
-describe('grillhouse-bf5.4, critère 7 — le plan du seul paquet écrit son entrée sans arrêt hors-plan', () => {
-  const liste = (ecrireLaListe as (paquets: string[]) => string)(['packages/grillhouse']);
-  const env: Record<string, string> = { [VARIABLE as string]: liste };
-  const ecriture = (rel: string) => ({
-    tool_name: 'Edit',
-    cwd: DEPOT,
-    tool_input: { file_path: path.join(DEPOT, rel), old_string: 'a', new_string: 'b' },
-  });
-
-  it('an Edit of packages/grillhouse/CHANGELOG.md is not stopped', () => {
-    expect(horsDuPlan(ecriture(JOURNAL), { env, role: 'developpeur' })).toBeNull();
-  });
-
-  it('an Edit of a root CHANGELOG.md would be stopped: the root is out of that plan', () => {
-    expect(horsDuPlan(ecriture('CHANGELOG.md'), { env, role: 'developpeur' })?.raison).toMatch(
-      /hors-plan/
-    );
   });
 });
 

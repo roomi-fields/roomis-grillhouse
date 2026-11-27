@@ -50,18 +50,28 @@ const sortie = (structured?: unknown) =>
   });
 
 describe('the sheet of each role holds only the fields a reader reads', () => {
-  it('the testwriter: its status, its reason or question, the tests of the lot that carry the work, its discoveries', () => {
+  it('the testwriter: its status, its reason or question, the file out of the plan it lacks, the tests of the lot that carry the work, its discoveries', () => {
     expect(champs('testwriter')).toEqual(
-      ['decouvertes', 'motif', 'piece', 'portent_le_travail', 'question', 'raison', 'statut'].sort()
+      [
+        'decouvertes',
+        'manque',
+        'motif',
+        'piece',
+        'portent_le_travail',
+        'question',
+        'raison',
+        'statut',
+      ].sort()
     );
     expect((schemaDeFiche('testwriter') as Schema).required).toEqual(['statut']);
   });
-  it('the developpeur: its status, its sending to a testwriter, the criteria it does not hold out of the plan, its answers to the findings open, the deviations to name at the commit, its discoveries', () => {
+  it('the developpeur: its status, its sending to a testwriter, the file out of the plan it lacks, the criteria it does not hold out of the plan, its answers to the findings open, the deviations to name at the commit, its discoveries', () => {
     expect(champs('developpeur')).toEqual(
       [
         'decouvertes',
         'ecarts',
         'hors_plan',
+        'manque',
         'piece',
         'question',
         'raison',

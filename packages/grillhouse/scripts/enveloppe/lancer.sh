@@ -92,16 +92,16 @@
 #   the session, whatever CLAUDE_CODE_TMPDIR the poste holds. The launcher's own files (the output
 #   of a failed build, the prompt) lie in the base, beside that directory, never in it, as the
 #   runner's files of GitHub Actions lie in RUNNER_TEMP, out of the job's workspace. The base goes
-#   when the launcher ends, even interrupted, once the witness and the marks the session left
-#   there are ranged in the folder of the session; the next session sweeps the one of a launcher
+#   when the launcher ends, even interrupted, once the witness the session left
+#   there is ranged in the folder of the session; the next session sweeps the one of a launcher
 #   killed. The prompt
-#   carries « TON TICKET : <ticket> », which the role's locks read. The envelope is the sandbox, so
+#   carries « TON TICKET : <ticket> », the ticket of the session. The envelope is the sandbox, so
 #   the session runs without permission prompts, under the rights and the context of its role
 #   (scripts/droits.mjs, given the main tree, the copy and the ticket; a reading that fails stops
 #   the launch, CODE_COPIE): the user's own configuration left out, its settings on the command
 #   line (its refusals, among them the change of its author at the ticket, AUTEUR_FIXE: its
-#   comments carry the author the launch names in BEADS_ACTOR, which the envelope passes on; its
-#   locks), its tools and the servers of the index, for the reading of the whole copy.
+#   comments carry the author the launch names in BEADS_ACTOR, which the envelope passes on), its
+#   tools and the servers of the index, for the reading of the whole copy.
 # - A role that ends on a sheet (scripts/resultats.mjs: the testwriter, the developpeur) runs with
 #   `--output-format json --json-schema <its schema>` (`npx grillhouse resultats --schema
 #   <rôle>`); --fiche <sorte> names the schema of a sheet that is not its role's (`geste`, the
@@ -120,10 +120,9 @@
 #   The command the envelope runs leaves a witness of its start in the working directory, which the
 #   launcher ranges beside it (`demarree`, removed first): an envelope that ends without it refused
 #   the launch before the session, whatever its code (scripts/seances.mjs `seanceLancee`).
-#   A session its lock stopped on a write out of the plan (scripts/verrous/verrou.mjs) left the
-#   reason in its working directory (`hors-plan`, removed before the session): the launcher moves
-#   it to `hors-plan` in the folder of the session, which a launch removes first and the circuit reads,
-#   and adds it to the log. It then writes the session's line to the register
+#   Once the copy is prepared, before the session, the launcher writes the tree the copy holds to
+#   `avant` in the folder of the session (travail-de-la-copie.mjs `photographier`), which a launch
+#   removes first: the circuit reads the session's lot from it. It then writes the session's line to the register
 #   (scripts/registre.mjs --copie), and exits with the envelope's code.
 # - The exit codes are named in scripts/enveloppe/codes.mjs; a malformed call exits CODE_USAGE.
 # - CLAUDE_BIN replaces `claude` (the tests use it).
@@ -193,11 +192,10 @@ journal="$copie.log"
 rang="$copie.travail/seances/${seance:-${reprise:-courante}}"
 fin="$rang/fin"
 resultat="$rang/resultat.json"
-hors_plan="$rang/hors-plan"
-hors_plan_fait="$rang/hors-plan.json"
+avant="$rang/avant"
 demarree="$rang/demarree"
 mkdir -p "$(dirname "$copie")" "$rang"
-rm -f "$fin" "$resultat" "$hors_plan" "$hors_plan_fait" "$demarree"
+rm -f "$fin" "$resultat" "$avant" "$demarree"
 printf '=== %s · %s · %s ===\n' "$(date -Iseconds)" "$role" "$composant" >> "$journal"
 # The temporary directory of the session, a base this shell owns: TMPDIR, TMP and TEMP of the rest
 # of the launch and of the session, whose scratchpads and working directory lie in it.
@@ -211,19 +209,11 @@ unset CLAUDE_CODE_TMPDIR
 travail=
 # What the circuit reads after the session leaves its working directory for the session's folder:
 # the witness that the envelope started its command (a launch the envelope refuses before the
-# session, a mount bwrap cannot make, leaves none), and the reason of a session its lock stopped
-# out of the plan (scripts/verrous/verrou.mjs), added to the log.
+# session, a mount bwrap cannot make, leaves none).
 ranger() {
   [ -n "$travail" ] || return 0
   if [ -f "$travail/.demarree" ]; then
     mv "$travail/.demarree" "$demarree"
-  fi
-  if [ -f "$travail/hors-plan" ]; then
-    mv "$travail/hors-plan" "$hors_plan"
-    { cat "$hors_plan"; echo; } >> "$journal"
-  fi
-  if [ -f "$travail/hors-plan.json" ]; then
-    mv "$travail/hors-plan.json" "$hors_plan_fait"
   fi
 }
 # The directory goes at the end of the launcher, whatever ends it.
@@ -313,6 +303,10 @@ mapfile -t droits_du_role <<<"$droits"
 fiche=()
 schema=$(node "$ici/../resultats.mjs" --schema "${sorte:-$role}" 2> /dev/null) || schema=
 [ -z "$schema" ] || fiche=(--output-format json --json-schema "$schema")
+
+# The state of the prepared copy, which the session's lot is read from.
+node "$ici/travail-de-la-copie.mjs" photographier "$copie" > "$avant" 2>> "$journal" \
+  || { rm -f "$prompt" "$avant"; echo "⛔ L'état de la copie avant la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0

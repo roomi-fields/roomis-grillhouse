@@ -34,7 +34,7 @@
 // step the list does not hold `usage`. Each call is played again from the start of its step with
 // the facts read so far, as Temporal replays a workflow on its history: the same facts give the
 // same decision.
-import { ARRETS, auteurDuCode, boucle, joue, RESPONSABLE, SUITE } from './etapes.mjs';
+import { ARRETS, auteurDuCode, boucle, joue, nomDuRole, RESPONSABLE, SUITE } from './etapes.mjs';
 import { attribuerLeRouge, departDepuis, refusDeLaReprise } from './reprise.mjs';
 
 // The resumptions `--depuis` names and the one rule that accepts them (./reprise.mjs), as the
@@ -532,7 +532,7 @@ export function fichiersDeTestRouges(controlesRouges) {
 
 // The context `--etendre` gives the sessions of the run it resumes on the stop <question>: the
 // supervisor's answer (the packages <etendus> the plan gains, the plan <plan> as it is now), then his own text <contexte>. The stop's fact
-// and piece stay out of it: they say the plan as it was and tell a session to stop (a lock's
+// and piece stay out of it: they say the plan as it was and tell a session to stop (its
 // message), and a session reads its context as the supervisor's word. Without a question, his
 // text alone, or null.
 export function contexteDeLExtension({ question, etendus, plan, contexte }) {
@@ -752,6 +752,9 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
     }
     // No checks have run since this session.
     maj.controlesRouges = null;
+    if (fiche.horsRole) {
+      return rendreLeLot('testwriter', TESTS, fiche.horsRole);
+    }
     commenter('testwriter', `séance ${tentative} finie, sa fiche lue.`);
     // A copy the module of the language no longer reads is a red of the testwriter.
     const illisible = lire('lecture');
@@ -905,6 +908,24 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
   }
   return decision({ usage: `étape inconnue dans l'état : ${etape}` });
 
+  // The lot of the session of <role> at <lieu> holds files out of the rule of its role (<hors>,
+  // `{ fichiers, rapport }`): the step goes back to its author, one attempt used as a red uses
+  // it, or, the attempts used up, the stop « controles ».
+  function rendreLeLot(role, lieu, hors) {
+    const suite = suiteDuRougeDeLecture(role, tentative);
+    if (suite.arret) {
+      return arreter(suite.arret, hors.rapport, { piece: hors.fichiers.join('\n') });
+    }
+    commenter(
+      role,
+      `séance ${tentative} finie ; son lot sort de la règle de son rôle, ${nomDuRole(role)} relancé (séance ${suite.tentative}).\n\n${hors.rapport}`
+    );
+    etape = lieu;
+    tentative = suite.tentative;
+    rapport = hors.rapport;
+    return decision();
+  }
+
   // The stop « integration » of the motive <motif> and the piece <piece>, the refusal of the lot
   // kept in the memory (`refus`: `{ rapport, piece, empreinte, lance, relance }`, the fingerprint
   // of the plan refused, whether a --depuis developpeur launched the developpeur on it, and whether
@@ -944,6 +965,9 @@ function decider({ etat, memoire = {}, ticket, reprend = false, marqueurs = {} }
       return decision({
         arret: { nom: 'besoin', statut: { role: auteur.role, tentative, fiche } },
       });
+    }
+    if (fiche.horsRole) {
+      return rendreLeLot('developpeur', CODE, fiche.horsRole);
     }
     // The agent direct writes the tests: no red of his goes to the testwriter.
     const renvoi = direct ? null : lire('renvoi');

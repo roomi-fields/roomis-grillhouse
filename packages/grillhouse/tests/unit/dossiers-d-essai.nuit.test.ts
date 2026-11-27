@@ -18,7 +18,7 @@ const SUITES = [
   'tests/unit/enveloppe.spec.ts',
   'tests/unit/enveloppe.maison.spec.ts',
   'tests/unit/enveloppe.matiere-de-test.spec.ts',
-  'tests/unit/verrous.spec.ts',
+  'tests/unit/verrou-du-superviseur.spec.ts',
 ];
 // The tests of the launcher, of the real envelope and of the locks' hooks, night tests of the
 // package of the frame's chain beside this one, which a run of the night's configuration plays
@@ -32,7 +32,6 @@ const LANCEUR = [
   'tests/enveloppe.nuit.spec.ts',
   'tests/enveloppe.maison.nuit.spec.ts',
   'tests/enveloppe.matiere-de-test.nuit.spec.ts',
-  'tests/verrous.nuit.spec.ts',
 ].map(f => path.join(ESSAIS_DU_CADRE, f));
 const VITEST = path.resolve(DEPOT, '../../node_modules/vitest/vitest.mjs');
 const CONFIGURATION_DE_NUIT = path.join(

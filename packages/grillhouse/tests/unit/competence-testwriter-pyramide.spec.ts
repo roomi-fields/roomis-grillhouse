@@ -1,9 +1,8 @@
 // The testwriter skill teaches the decomposition of a behaviour along the pyramid of sizes, and the
-// testwriter's rights let it play the size guard on its batch before it hands back its sheet.
+// size guard to play on the batch before the sheet is handed back.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ROLES } from '../../scripts/droits.mjs';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const COMPETENCE = readFileSync(
@@ -11,11 +10,6 @@ const COMPETENCE = readFileSync(
   'utf8'
 );
 const COMMANDE = 'npx grillhouse tailles-des-tests';
-
-const commandesNues = (role: keyof typeof ROLES) =>
-  ROLES[role].commandes
-    .map((r: string) => /^Bash\((.*)\)$/.exec(r)?.[1])
-    .filter((c): c is string => Boolean(c));
 
 describe('the testwriter skill: decomposition along the pyramid', () => {
   it('teaches proving the logic small, by the interface of a module called in its process, with no process launched nor repository mounted', () => {
@@ -50,29 +44,5 @@ describe('the testwriter skill: decomposition along the pyramid', () => {
     expect(COMPETENCE).toMatch(/crochet/i);
     expect(COMPETENCE).toMatch(/circuits? en attente/i);
     expect(COMPETENCE).toMatch(/au plus un test de nuit/i);
-  });
-});
-
-describe('the testwriter rights: the size guard', () => {
-  it('permit the size guard without a wildcard, on the command itself and by env -C', () => {
-    const nues = commandesNues('testwriter');
-    expect(nues).toContain(COMMANDE);
-    expect(nues).toContain(`env -C * ${COMMANDE}`);
-    expect(nues.filter(c => c.includes('tailles-des-tests'))).toEqual([
-      COMMANDE,
-      `env -C * ${COMMANDE}`,
-    ]);
-  });
-
-  it('give no other role the size guard', () => {
-    for (const role of Object.keys(ROLES) as (keyof typeof ROLES)[]) {
-      if (role === 'testwriter') {
-        continue;
-      }
-      expect(
-        commandesNues(role).filter(c => c.includes('tailles-des-tests')),
-        role
-      ).toEqual([]);
-    }
   });
 });

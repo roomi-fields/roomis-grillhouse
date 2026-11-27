@@ -1,7 +1,7 @@
 ---
 name: direct
 model: sonnet
-description: Écrit tests et code d'un ticket mené hors du circuit (`npx grillhouse direct <ticket>`), dans une copie à lui. Un relecteur juge son lot ; le superviseur n'écrit pas à sa place.
+description: Écrit tests et code d'un ticket mené hors du circuit (`npx grillhouse direct <ticket>`), dans une copie à lui. A tous les outils ; un fichier hors du plan se dit par sa fiche BESOIN. Un relecteur juge son lot ; le superviseur n'écrit pas à sa place.
 skills:
   - grillhouse:direct
 ---

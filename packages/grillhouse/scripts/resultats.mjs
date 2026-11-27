@@ -13,6 +13,9 @@
 //     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin »
 //     (testwriter, developpeur, direct, and the explorateur's gesture of a mechanical ticket, its own
 //     schema, `geste`);
+//   - `manque` (the path of a file out of the plan a BESOIN sheet lacks): the circuit extends the
+//     plan to its package when the ticket names it, else puts its question (testwriter,
+//     developpeur, direct);
 //   - `portent_le_travail` (`fichier` from the root, `test` its full name, or none for every test
 //     of the file): the tests of the lot that the proof of the red requires red (testwriter);
 //   - `renvoi` (`role` testwriter): the circuit relaunches the testwriter, then the proof and the
@@ -206,12 +209,21 @@ export const SORTES = ['mécanique', 'comportement'];
 // green), inchangé (a gesture written by hand: the developpeur alone, no testwriter).
 export const COMPORTEMENTS = ['changé', 'tests-adaptés', 'inchangé'];
 
+// The file out of the plan a writing role lacks, on a sheet BESOIN: a write out of the plan fails
+// on the mount of the envelope, and the sheet says it (circuit.md §5.5).
+const MANQUE = {
+  manque: texte(
+    'BESOIN, quand un fichier hors du plan te manque (son écriture échoue sur le montage) : son chemin depuis la racine de la copie. Le circuit étend le plan quand le ticket le nomme, sinon la question monte.'
+  ),
+};
+
 // The schema of the sheet of an author of the code (3), the developpeur or the agent direct, with
 // the fields <propres> his role alone has.
 const fiche = (propres = {}) =>
   objet(
     {
       ...STATUT,
+      ...MANQUE,
       ...propres,
       hors_plan: liste(
         objet(
@@ -360,6 +372,7 @@ const FICHES = {
   testwriter: objet(
     {
       ...STATUT,
+      ...MANQUE,
       portent_le_travail: liste(
         objet(
           {

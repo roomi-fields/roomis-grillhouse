@@ -266,21 +266,6 @@
       "binaire-de-jour": {
         "count": 1
       }
-    },
-    "packages/grillhouse/tests/unit/verrou-commande.spec.ts": {
-      "binaire-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/verrou-essai.copie.spec.ts": {
-      "binaire-de-jour": {
-        "count": 1
-      }
-    },
-    "packages/grillhouse/tests/unit/verrou-publie.spec.ts": {
-      "binaire-de-jour": {
-        "count": 1
-      }
     }
   },
   "titres-de-tests": {
@@ -326,12 +311,12 @@
     },
     "packages/grillhouse-essais/tests/enveloppe.enceinte.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 10
+        "count": 6
       }
     },
     "packages/grillhouse-essais/tests/enveloppe.lanceur.nuit.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 5
+        "count": 4
       }
     },
     "packages/grillhouse-essais/tests/enveloppe.paquet.nuit.spec.ts": {
@@ -496,7 +481,7 @@
     },
     "packages/grillhouse/tests/unit/changelog-du-paquet.spec.ts": {
       "titre-nommant-un-ticket": {
-        "count": 6
+        "count": 5
       }
     },
     "packages/grillhouse/tests/unit/charte-importee.spec.ts": {
@@ -640,16 +625,6 @@
       }
     },
     "packages/grillhouse/tests/unit/droits.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 11
-      }
-    },
-    "packages/grillhouse/tests/unit/droits.verrou-racine-absente.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 4
-      }
-    },
-    "packages/grillhouse/tests/unit/droits.verrou-racine.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 4
       }
@@ -1277,21 +1252,6 @@
     "packages/grillhouse/tests/unit/verrou-de-fichier.spec.ts": {
       "titre-nommant-un-ticket": {
         "count": 3
-      }
-    },
-    "packages/grillhouse/tests/unit/verrou-publie.nuit.test.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 4
-      }
-    },
-    "packages/grillhouse/tests/unit/verrou-publie.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 13
-      }
-    },
-    "packages/grillhouse/tests/unit/verrous.spec.ts": {
-      "titre-nommant-un-ticket": {
-        "count": 2
       }
     },
     "packages/grillhouse/tests/unit/version.spec.ts": {

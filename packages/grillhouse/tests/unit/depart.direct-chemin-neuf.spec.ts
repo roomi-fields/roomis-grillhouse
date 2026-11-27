@@ -1,7 +1,6 @@
 // A package born of a direct ticket: its title names a path of the repository that does not exist
-// yet. The departure (scripts/depart-du-ticket.mjs, `ticketAuLancement`) keeps it in the plan, and
-// the write lock (scripts/verrous/verrou.mjs, `horsDuPlan`) opens that path alone (circuit.md
-// §3.4). A test of size medium: a trial git repository with a base commit.
+// yet. The departure (scripts/depart-du-ticket.mjs, `ticketAuLancement`) keeps it in the plan
+// (circuit.md §3.4). A test of size medium: a trial git repository with a base commit.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -9,11 +8,9 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { ticketAuLancement } from '../../scripts/depart-du-ticket.mjs';
-import { horsDuPlan } from '../../scripts/verrous/verrou.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'depart-chemin-neuf-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
-const SCRATCH = '/scratch';
 
 // A repository of one package `a`, a folder `scripts` at its root, all committed.
 function depot() {
@@ -87,46 +84,4 @@ describe('le départ d’un ticket direct', () => {
       );
     }
   );
-});
-
-const juge = (rel: string, plan: string, role = 'direct') =>
-  horsDuPlan(
-    {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(repo, rel), content: 'x\n' },
-      cwd: repo,
-    },
-    { tmp: SCRATCH, env: { GRILLHOUSE_ENVELOPPE: plan }, role }
-  );
-
-describe('un chemin neuf du plan n’ouvre en écriture que lui-même', () => {
-  it.each(['direct', 'developpeur', 'testwriter'])('laisse écrire sous lui (%s)', role => {
-    expect(juge('packages/neuf/package.json', 'packages/neuf', role)).toBeNull();
-    expect(juge('packages/neuf/src/index.ts', 'packages/neuf', role)).toBeNull();
-  });
-
-  it.each(['README.md', 'packages/a/src/x.ts', 'scripts/outil.mjs', 'packages/neufs/x.ts'])(
-    'arrête sur %s',
-    rel => {
-      expect(juge(rel, 'packages/neuf')).not.toBeNull();
-    }
-  );
-
-  it('le reste une fois le dossier créé dans la copie, que le commit de base ne tient pas', () => {
-    mkdirSync(path.join(repo, 'outils/neuf'), { recursive: true });
-    expect(juge('outils/neuf/x.mjs', 'outils/neuf')).toBeNull();
-    expect(juge('README.md', 'outils/neuf')?.racine).toBe(true);
-  });
-
-  it('laisse écrire dans un autre composant du plan', () => {
-    expect(juge('packages/a/src/x.ts', 'packages/neuf' + path.delimiter + 'packages/a')).toBeNull();
-    expect(juge('README.md', 'packages/neuf' + path.delimiter + 'packages/a')?.racine).toBe(true);
-  });
-
-  it.each([
-    ['le titre la nomme', '.'],
-    ['un chemin existant que la règle donne à la racine', 'scripts'],
-  ])('ouvre la racine quand %s', (_nom, existant) => {
-    expect(juge('README.md', 'packages/neuf' + path.delimiter + existant)).toBeNull();
-  });
 });

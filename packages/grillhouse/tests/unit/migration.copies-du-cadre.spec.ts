@@ -261,15 +261,20 @@ describe('migration 0.23.2 — the copies of the frame leave a project in 0.22.x
       frontieres: 'grillhouse frontieres',
       interfaces: 'grillhouse index-interfaces --verifier',
       nuit: 'npm run build && grillhouse nuit --tout',
-      commande: 'grillhouse commande',
+      commande: 'node ./scripts/verrous/commande.mjs',
       avancement: 'node scripts/avancement.mjs --texte',
       circuit: 'node scripts/circuit.mjs',
       propre: 'node scripts/propre.mjs',
     });
     expect(lignes).toContain('package.json : le script frontieres lance `grillhouse frontieres`');
-    expect(lignes.some(l => l.includes('avancement') && l.includes('scripts/avancement.mjs'))).toBe(
-      true
-    );
+    for (const [script, copie] of [
+      ['avancement', 'scripts/avancement.mjs'],
+      ['commande', 'scripts/verrous/commande.mjs'],
+    ]) {
+      expect(lignes, script).toContain(
+        `package.json : le script ${script} nomme ${copie}, copie retirée qu'aucune sous-commande ne remplace ; à réécrire`
+      );
+    }
     expect(lignes.some(l => l.includes('le script circuit'))).toBe(false);
     expect(lignes.some(l => l.includes('le script propre'))).toBe(false);
   });

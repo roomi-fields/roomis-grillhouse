@@ -1,6 +1,6 @@
 // The circuit refuses at its start a ticket whose description has no « ## Architecture » section,
-// by the rule the developer's write lock reads (scripts/verrous/verrou.mjs), as a CI validates its
-// configuration before it runs its jobs (grillhouse-d57).
+// by the one rule of its departure (scripts/depart-du-ticket.mjs, `sansArchitecture`), as a CI
+// validates its configuration before it runs its jobs (grillhouse-d57).
 // Witness: OSC Bridge, circuit OB-vch.1.3 under 0.25.3 (2026-10-30): the ticket had no
 // « ## Architecture » section; the circuit led step 1 (plan, questioner) and step 2 (testwriter),
 // then the developer's lock refused it at step 3, two steps of sessions lost.
@@ -14,7 +14,11 @@ import {
   ticketAuDepart,
   ticketAuLancement,
 } from '../../scripts/depart-du-ticket.mjs';
-import { refusal, sansArchitecture } from '../../scripts/verrous/verrou.mjs';
+import * as depart from '../../scripts/depart-du-ticket.mjs';
+
+const { sansArchitecture } = depart as unknown as {
+  sansArchitecture: (id: string, description: string) => string | null;
+};
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'circuit-architecture-'));
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -26,26 +30,12 @@ const SANS = '## Besoin\n\nUn besoin.\n\n## Critères\n\n1. Un critère.\n';
 const AVEC = '## Besoin\n\nUn besoin.\n\n## Architecture\n\nLe mécanisme commun.\n';
 
 describe('grillhouse-d57, critère 1 — le circuit refuse dès son départ un ticket sans Architecture', () => {
-  it('a ticket without « ## Architecture » is refused, with the reason of the lock', () => {
+  it('a ticket without « ## Architecture » is refused, with the reason of the rule', () => {
     const raison = sansArchitecture('OB-vch.1.3', SANS);
     expect(raison).toContain('« ## Architecture »');
     expect(() => {
       ticketAuDepart('OB-vch.1.3', montre(SANS));
     }).toThrow(raison as string);
-  });
-
-  it('the reason is the one the developer’s lock gives', () => {
-    const transcript = path.join(ESSAIS, 'transcript.jsonl');
-    const lancement = { type: 'user', message: { content: 'TON TICKET : OB-vch.1.3' } };
-    writeFileSync(transcript, `${JSON.stringify(lancement)}\n`);
-    const input = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.resolve(__dirname, '../../scripts/circuit.mjs') },
-      cwd: path.resolve(__dirname, '../..'),
-      transcript_path: transcript,
-    };
-    const raison = refusal('developpeur', input, { describe: () => SANS });
-    expect(raison).toBe(sansArchitecture('OB-vch.1.3', SANS));
   });
 
   it('a ticket with its « ## Architecture » section starts', () => {
@@ -99,10 +89,10 @@ describe('le départ d’un ticket lit son titre, sauf l’arrêt du superviseur
 });
 
 describe('grillhouse-d57, critère 2 — la règle vit à une seule adresse', () => {
-  it('only the lock’s module holds the expression of the section', () => {
+  it('only the departure’s module holds the expression of the section', () => {
     const lire = (rel: string) =>
       readFileSync(path.resolve(__dirname, '../../scripts', rel), 'utf8');
     expect(lire('circuit.mjs')).not.toContain('Architecture\\b');
-    expect(lire('verrous/verrou.mjs').split('##\\s+Architecture').length - 1).toBe(1);
+    expect(lire('depart-du-ticket.mjs').split('##\\s+Architecture').length - 1).toBe(1);
   });
 });

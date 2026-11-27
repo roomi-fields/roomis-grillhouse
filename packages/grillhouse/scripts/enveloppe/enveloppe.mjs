@@ -31,8 +31,8 @@
 //   socket of the session comes back. The file of the remote cache of the poste
 //   (`~/.config/grillhouse/`, scripts/fichier-du-poste.mjs) stays out.
 // - A project that names its published version (`grillhouse.outil`) gets `~/.cache/grillhouse/outil`
-//   read-only, the version installed by the envelope before the session starts: the write lock
-//   runs on that version, never on the code of the copy it guards.
+//   read-only, the version installed by the envelope before the session starts: the hooks of the
+//   session run on that version, never on the code of the copy.
 // - The tools of the project (`grillhouse.outils` of the package.json of the main tree, never of
 //   the copy; `{ "<VARIABLE>": "<chemin>" }`, read by scripts/outils-cles.mjs): each path comes
 //   back read-only after the declared paths of the home, before the copy and the packages of the
@@ -52,8 +52,8 @@
 //   and `TEMP`, the session's working directory (under a launch, the temporary directory of the
 //   session, scripts/enveloppe/lancer.sh). No other variable of the machine (`GH_TOKEN`,
 //   `NPM_TOKEN`…) enters. It also gets `GRILLHOUSE_ENVELOPPE`, the packages of the plan
-//   (`paquets-du-plan.mjs`): the frame's commands build, judge and write those packages only, and
-//   its lock refuses a write out of them. A declared variable that names a path
+//   (`paquets-du-plan.mjs`): the frame's commands build, judge and write those packages only; the
+//   mounts refuse a write out of them. A declared variable that names a path
 //   (`VARIABLES_DE_CHEMIN`) enters only when its path is in sight inside the envelope. The
 //   session has its own process space.
 // - A declared path that is a symbolic link, or that holds one among its components, comes back as
@@ -822,8 +822,8 @@ export function plan(
       const d = path.join(copie, e);
       args.push('--bind', d, d);
     }
-    // The reader packages the plan extended to their tests: the testwriter writes them (his lock
-    // lets only their test files through), every other role reads them.
+    // The reader packages the plan extended to their tests: the testwriter writes them (the
+    // judgment of his lot lets only their test files through), every other role reads them.
     for (const e of testsEtendus.filter(t => !ecrits.includes(t))) {
       const d = path.join(copie, e);
       if (fs.existe(d)) {
@@ -864,7 +864,7 @@ const disque = { existe: existsSync, lien: lienSurDisque };
 // The cache of the published versions to mount when the project of <copie> names its version
 // (`grillhouse.outil`, read in the main tree), after installing the version here, outside the
 // session; null without the key, or when the version cannot be installed (said on the error stream:
-// the lock then falls back on the code of the copy, and refuses when that does not load either).
+// the hooks then fall back on the code of the copy).
 function cacheDeLaVersionPubliee(copie) {
   const commun = execFileSync(
     'git',
@@ -939,8 +939,8 @@ function envelopper(argv) {
     return CODE_REFUS;
   }
   // The cache of the published versions (`grillhouse.outil` of the main tree's package.json) comes
-  // in read-only, the version installed here, outside the session: the write lock runs on it, and
-  // a session cannot install it. A version that cannot be installed is said, nothing mounted.
+  // in read-only, the version installed here, outside the session: the session's hooks run on it,
+  // and a session cannot install it. A version that cannot be installed is said, nothing mounted.
   const publie = cacheDeLaVersionPubliee(copie);
   mkdirSync(projet, { recursive: true });
   // The session's working directory, created here inside the scratchpads that bwrap mounts.

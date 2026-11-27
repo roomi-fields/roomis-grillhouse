@@ -4,7 +4,7 @@
 // with the code (Web Platform Tests keep their cases the same way): a list of folders of the
 // repository, each from the root. The testwriter writes any file under one, as a file of shared
 // test material; the developpeur does not (`estUnTest` of the join of the languages,
-// scripts/langages.mjs, which the lock, the envelope and the conflicts of a copy read).
+// scripts/langages.mjs, which the judgment of a lot, the envelope and the conflicts of a copy read).
 //
 // This module holds the reading itself, given the components of the project; it imports no
 // language, so that the join of the languages can use it. The reading a caller asks by a

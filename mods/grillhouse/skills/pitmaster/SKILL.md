@@ -20,7 +20,7 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
 - Les documents de mécanisme, sous `node_modules/@roomi-fields/grillhouse/docs/architecture/`
   (`packages/grillhouse/docs/architecture/` dans le dépôt du cadre) : `circuit.md` (les étapes,
   les arrêts, les réponses, la file des tickets), `entree.md` (l'entrée sur main, la CI de main,
-  la nuit), `machine.md` (l'arbitre, les réservations, l'enveloppe, les verrous), `tests.md` (la
+  la nuit), `machine.md` (l'arbitre, les réservations, l'enveloppe, les droits des rôles, le jugement du lot), `tests.md` (la
   passe, les gardes, la dette), `installation.md` (la montée, les clés `grillhouse.*`),
   `greffon.md` (les questions poussées, l'ouverture de séance, le panneau) : avant d'expliquer un
   mécanisme ou de juger qu'il a dérivé.
@@ -182,8 +182,8 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
   main dès le circuit reparti :
   - `--reprendre`, avec `--contexte` quand l'agent repris doit savoir ce que j'ai tranché ;
   - `--depuis <testwriter|developpeur> --contexte`, l'étape d'où le ticket entier repart ;
-  - `--etendre <paquet>` quand le plan doit gagner un paquet (un `hors-plan`, un rouge hors du
-    plan), que le circuit met au titre avant son premier lecteur, puis reprend l'étape en cours
+  - `--etendre <paquet>` quand le plan doit gagner un paquet (une fiche `BESOIN` qui nomme un
+    fichier hors du plan, un rouge hors du plan), que le circuit met au titre avant son premier lecteur, puis reprend l'étape en cours
     (celle du testwriter quand le développeur lui a renvoyé le rouge) ;
   - après un refus de l'intégration (arrêt `integration`), `--reprendre` la rejoue sur le même
     lot (la charge, main), et `--depuis developpeur` repart du développeur, le refus comme son
@@ -310,8 +310,7 @@ Ainsi le responsable n'attend jamais une commande, et aucun travail ne se perd.
 ## L'architecture tranche d'abord
 
 - **Un ticket part avec sa section « Architecture »** (charte, « Le flux d'une tâche ») : je
-  l'écris avant de le proposer ; le circuit refuse dès son départ un ticket qui ne l'a pas, avec
-  la raison du verrou du développeur. Un mécanisme manquant devient le travail, jamais une compensation
+  l'écris avant de le proposer ; le circuit refuse dès son départ un ticket qui ne l'a pas. Un mécanisme manquant devient le travail, jamais une compensation
   locale.
 - **Une tension avec l'architecture s'instruit avec `grillhouse:architecte`** (charte, « Une
   tension avec l'architecture monte ») : je charge la compétence, j'instruis la décision et je la

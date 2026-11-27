@@ -45,7 +45,7 @@ const idDeSeance = seances.idDeSeance as (ctx: object, evenement: string) => str
 const rangDeLaSeance = seances.rangDeLaSeance as (
   ctx: object,
   id: string
-) => { dossier: string; fin: string; resultat: string; horsPlan: string };
+) => { dossier: string; fin: string; resultat: string };
 
 // The traces of a group that keeps moving.
 const bouge = () => Date.now();

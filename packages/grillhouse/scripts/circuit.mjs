@@ -99,7 +99,7 @@
 // Codes of the stops (ARRETS), 0 at « integre »; the cause of each is in circuit.md §5.4:
 //   10 lancement, 11 bloqué, 12 sans-fiche, 13 preuve, 14 controles, 15 sans-livraison,
 //   16 relecture-arret, 17 integration (also lot-absent, copie-gardee), 19 hors-portee, 20 besoin,
-//   22 questionnement, 23 references, 24 hors-plan, 25 inattendu (`arretInattendu`),
+//   22 questionnement, 23 references, 25 inattendu (`arretInattendu`),
 //   26 limite-d-usage (no question: the circuit reports itself to the hour the usage returns),
 //   75 a-repasser (the gesture `a-repasser`).
 // Every stop but 75 and 26 is a question for the supervisor.
@@ -354,9 +354,9 @@ export function contexte(o) {
     tmp,
     ports: null,
   };
-  // The extension of the plan a write out of the plan in a file the ticket names asks for.
+  // The extension of the plan a BESOIN sheet naming a file the ticket names asks for.
   ctx.etendreEnVol = e => etendreEnVol(ctx, e);
-  // The same for a write of the testwriter in a test file of a reader package out of the plan.
+  // The same for a test file of a reader package out of the plan the testwriter's sheet names.
   ctx.etendreTestsEnVol = e => etendreTestsEnVol(ctx, e);
   // The reader packages the plan extended to their tests (kept among the circuit's sheets).
   ctx.testsEtendus = testsEtendusDuPlan(ctx, ctx.paquets);
@@ -436,7 +436,7 @@ const fichiersRougesDe = (rouges, dossier) => [
 // The plan of <ctx> extended, without a stop, to the tests alone of the reader packages
 // <composants> (directories) whose reds all lie in test files (`testsLecteurs` of the checks): the
 // title of the plan does not change, the package does not enter the plan, and the testwriter alone
-// writes those test files (the lock and the envelope read `ctx.testsEtendus`). Said at the ticket
+// writes those test files (the judgment of his lot and the envelope read `ctx.testsEtendus`). Said at the ticket
 // with its piece, the package, its red test files and, for one the plan set apart, the reason that
 // the red belies; kept among the circuit's sheets (`testsEtendus`) as `etendus` is. A package
 // already extended to its tests, or that the plan holds, is not extended again.
@@ -481,8 +481,8 @@ function etendreAuxTests(ctx, { composants, rouges = [] }) {
   ctx.testsEtendus = [...(ctx.testsEtendus ?? []), ...gagnes];
 }
 
-// The same extension for the package <paquet> of a test file <chemin> that the lock stopped the
-// testwriter on (« hors-plan »), <piece> saying why: the session resumes.
+// The same extension for the package <paquet> of a test file <chemin> the testwriter's BESOIN
+// sheet names, <piece> saying why: the session resumes.
 function etendreTestsEnVol(ctx, { paquet, chemin, piece }) {
   if ((ctx.testsEtendus ?? []).includes(paquet)) {
     return;
@@ -1224,8 +1224,7 @@ export function arretDe(ctx, a) {
 // rule settles: its question (`{ arret, fait, piece, question, qui }`: the fact, the first line of
 // its motive or its report; its piece, the one it carries, else its reds with their file and line,
 // else the end of the log; the question of its kind, scripts/etapes.mjs MONTEES, after the agent's
-// own, or the agent's alone for a hors-plan stop, MONTEES' text its fallback when the stop carries
-// none; who must answer it) kept in the state, written at the ticket and on the error output. Its
+// own; who must answer it) kept in the state, written at the ticket and on the error output. Its
 // exit code.
 export function monter(ctx, a) {
   const m = monteeDe(a.nom);
@@ -1237,14 +1236,7 @@ export function monter(ctx, a) {
     String(a.piece ?? '').trim() ||
     rouges ||
     `Le journal du ticket, ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`) :\n${fin(lire(ctx.journal), 20)}`;
-  // A hors-plan stop carries its own question (the exact command for its path, or the refusal
-  // alone for the repository root): the generic one would offer `--etendre` for any path.
-  const question =
-    a.question && a.nom === 'hors-plan'
-      ? a.question
-      : a.question
-        ? `${a.question}\n\n${m.question}`
-        : m.question;
+  const question = a.question ? `${a.question}\n\n${m.question}` : m.question;
   const qui = a.qui ?? m.qui;
   ecrireEtat(ctx, {
     ...a.etat,
@@ -1631,8 +1623,8 @@ export function testsEtendusDuPlan(ctx, paquets) {
  * plan (`--etendre`, kept among the sheets, `etendus`) that it leaves out, in its order
  * (`planEtendu`), said at the ticket: the supervisor's word on the plan stands until he changes
  * it, as a reviewer's requested change stays on a pull request its author pushes again, and a plan
- * written again (a description the responsable changed) does not send the developpeur back to the
- * stop « hors-plan » the extension had lifted. `--recommencer`, which removes the sheets, starts
+ * written again (a description the responsable changed) does not take back from the developpeur a
+ * package the extension had given. `--recommencer`, which removes the sheets, starts
  * the plan over without them.
  */
 export function avecLesEtendus(ctx, paquets) {

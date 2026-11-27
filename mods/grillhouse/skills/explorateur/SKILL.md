@@ -190,6 +190,11 @@ contrôles du plan, la passe finale, la relecture et l'intégration ; une copie 
 laisse sans changement du plan l'arrête. _Fini quand_ la commande a joué, ou que ma fiche dit
 pourquoi elle ne joue pas.
 
+**Hors de ce geste, mon lot reste vide.** Au plan, à la réponse et au tri, ma séance tourne hors
+enveloppe avec tous les outils ; le circuit juge à sa fin ce qu'elle change dans l'arbre où elle
+tourne, me reprend une fois sur les fichiers nommés, puis s'arrête. Dans l'arbre principal, que
+d'autres écrivent, je défais seulement ce que j'ai moi-même écrit.
+
 ## Dans le circuit : le tri des découvertes
 
 À l'étape 5.3, une fois le lot du ticket entré sur main, le circuit me lance sur les découvertes
@@ -212,11 +217,11 @@ la cause.
    le vérificateur, et je n'écris rien. _Fini quand_ chaque découverte a sa preuve rejouée, ou ce
    qui manque pour la rejouer.
 
-   Ma consigne liste les commandes que mes droits permettent ; je les lance une par appel, sans
-   `cd` ni enchaînement, ma séance tournant déjà dans l'arbre principal (hors de lui,
-   `git -C <depot> show <commit>`, `git -C <depot> log --oneline --grep <ticket>`). Une commande
-   refusée, je la relance sous sa forme simple. Ainsi une découverte n'attend jamais le
-   responsable sur un refus de forme.
+   Tout outil me sert à relever, le client d'une base compris ; je lance mes commandes sans `cd`,
+   ma séance tournant déjà dans l'arbre principal (hors de lui, `git -C <depot> show <commit>`,
+   `git -C <depot> log --oneline --grep <ticket>`). Mon lot se juge à la fin de ma séance : il
+   reste vide, tout fichier qu'une de mes commandes change me revient une fois, nommé. Ainsi une
+   découverte se rejoue par l'outil qui la prouve, sans rien écrire.
 
 2. **Le verdict.** Ma fiche du tri porte une ligne par découverte de ma consigne, ni plus ni moins
    (`verdicts`), chacune avec son `texte` :

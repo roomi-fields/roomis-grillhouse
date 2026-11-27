@@ -538,9 +538,7 @@ describe.runIf(canWrap)('the launcher and the role in the envelope', () => {
 });
 
 // grillhouse-3uv.95.3 — the launcher gives the envelope the packages of the plan (`--paquets`, the
-// list in the envelope's form), its component alone without them; a session its lock stops out of
-// the plan leaves its mark in its working directory, which the launcher hands to the circuit as
-// `hors-plan` in the folder of the session, a launch removing it first, and writes to the log.
+// list in the envelope's form), its component alone without them.
 describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du plan', () => {
   const repo = essai('lancer-plan-');
   const ecrire = (rel: string, contenu: string, mode?: number) => {
@@ -553,14 +551,12 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
   projetDuLanceur(repo);
   installerEnveloppe(repo);
   // A stand-in for claude: records the plan and the temporary directory it receives, what that
-  // directory holds, writes a file there, and leaves the mark of its lock when its instruction says
-  // so.
+  // directory holds, and writes a file there.
   ecrire(
     'faux-claude.sh',
     '#!/bin/bash\nprintenv GRILLHOUSE_ENVELOPPE > packages/a/plan\nprintenv TMPDIR > packages/a/temporaire\n' +
       'ls -A "$TMPDIR" > packages/a/contenu\necho reste > "$TMPDIR/reste"\n' +
-      'cat > packages/a/prompt\n' +
-      'if grep -q HORS-PLAN packages/a/prompt; then echo "⛔ hors-plan — packages/c" > "$TMPDIR/hors-plan"; fi\n',
+      'cat > packages/a/prompt\n',
     0o755
   );
   execFileSync('git', ['init', '-q', repo]);
@@ -621,20 +617,6 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     expect(r.stderr).toContain("n'existe pas");
     expect(existsSync(copie)).toBe(false);
   });
-  it('critère 2 — rend au circuit la marque d’une séance arrêtée hors du plan, et l’écrit au journal', () => {
-    const { r, copie } = lancer('demo-h', ['--paquets', 'packages/a'], '\nHORS-PLAN');
-    expect(r.status, r.stderr).toBe(0);
-    expect(readFileSync(`${copie}.travail/seances/courante/hors-plan`, 'utf8')).toContain(
-      'packages/c'
-    );
-    // The working directory, where the lock left the mark, has gone with the session.
-    const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
-    expect(existsSync(travail)).toBe(false);
-    expect(readFileSync(`${copie}.log`, 'utf8')).toContain('⛔ hors-plan — packages/c');
-    // The next launch starts without it.
-    lancer('demo-h', ['--paquets', 'packages/a']);
-    expect(existsSync(`${copie}.travail/seances/courante/hors-plan`)).toBe(false);
-  });
   // The witness that the envelope started its command (`TEMOIN_DE_DEMARRAGE` of enveloppe.mjs),
   // which the circuit reads to tell a session in error from a launch the envelope refused
   // (scripts/seances.mjs `seanceLancee`).
@@ -644,6 +626,20 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
     expect(existsSync(`${copie}.travail/seances/courante/demarree`)).toBe(true);
     const travail = readFileSync(path.join(copie, 'packages/a/temporaire'), 'utf8').trim();
     expect(existsSync(path.join(travail, '.demarree'))).toBe(false);
+  });
+  it('range dans `avant` l’état de la copie préparée, pris avant la séance', () => {
+    const { r, copie } = lancer('demo-a', ['--paquets', 'packages/a']);
+    expect(r.status, r.stderr).toBe(0);
+    const { arbre } = JSON.parse(
+      readFileSync(`${copie}.travail/seances/courante/avant`, 'utf8')
+    ) as { arbre: string };
+    const fichiers = execFileSync('git', ['-C', copie, 'ls-tree', '-r', '--name-only', arbre], {
+      encoding: 'utf8',
+    }).split('\n');
+    expect(fichiers).toContain('packages/a/src/a.ts');
+    // What the session writes comes after: the tree does not hold it.
+    expect(existsSync(path.join(copie, 'packages/a/temporaire'))).toBe(true);
+    expect(fichiers).not.toContain('packages/a/temporaire');
   });
   it('gives each session a directory of its own, empty at its start and removed at its end', () => {
     const jouer = (options: string[]) => {

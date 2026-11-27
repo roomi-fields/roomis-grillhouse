@@ -1,8 +1,7 @@
 // @equipee: l'enveloppe bwrap, un serveur Temporal
 // grillhouse-3uv.95.3 — the enclosure of writing: an agent reads the whole copy, and writes only in
-// the packages its plan names. The chain, played at night: bwrap itself, and the lock of the agent
-// (scripts/verrous/verrou.mjs), each in a repository of trial; the plan of the envelope is the
-// day's (packages/grillhouse/tests/unit/enveloppe.enceinte.spec.ts).
+// the packages its plan names. The chain, played at night: bwrap itself, in a repository of trial;
+// the plan of the envelope is the day's (packages/grillhouse/tests/unit/enveloppe.enceinte.spec.ts).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -13,15 +12,12 @@ import {
   declarerLesLangages,
   racineSousLaMaison,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
-import { CADRE, valeursDe } from './cadre.js';
+import { valeursDe } from './cadre.js';
 import { SCRIPT } from './enveloppe-essai.js';
 
-// The exit code of a refusal and the variable of the plan, read in a process of their own.
+// The exit code of a refusal, read in a process of their own.
 const { CODE_REFUS } = valeursDe('scripts/enveloppe/codes.mjs', ['CODE_REFUS']) as {
   CODE_REFUS: number;
-};
-const { VARIABLE } = valeursDe('scripts/enveloppe/paquets-du-plan.mjs', ['VARIABLE']) as {
-  VARIABLE: string;
 };
 
 // The real envelope replaces /tmp with an empty directory: its repositories live outside it.
@@ -92,76 +88,4 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — l’enceinte sur le disque', ()
   });
 });
 
-// The lock of the agent (scripts/verrous/verrou.mjs), a hook of its session, reads the plan in the
-// envelope's variable: a write out of the plan's packages stops the session, as Claude Code's
-// `continue: false` ends it, with the package named, and leaves its mark in the session's working
-// directory, which the launcher hands to the circuit.
-const VERROU = path.join(CADRE, 'scripts/verrous/verrou.mjs');
-describe('grillhouse-3uv.95.3 — le crochet de l’agent et le plan', () => {
-  const { essai } = enveloppeEssai(ESSAIS);
-  const repo = essai('crochet-');
-  const ecrire = (f: string, t: string) => {
-    mkdirSync(path.dirname(path.join(repo, f)), { recursive: true });
-    writeFileSync(path.join(repo, f), t);
-  };
-  ecrire('package.json', JSON.stringify({ name: 'essai', workspaces: ['packages/*'] }));
-  declarerLesLangages(repo);
-  for (const n of ['a', 'b', 'c']) {
-    ecrire(`packages/${n}/package.json`, JSON.stringify({ name: n }));
-  }
-  spawnSync('git', ['init', '-q'], { cwd: repo });
-  const ecrireAvec = (role: string, rel: string, liste: string | null) => {
-    const tmp = essai('tmp-');
-    const env: Record<string, string | undefined> = { ...process.env, TMPDIR: tmp };
-    delete env[VARIABLE];
-    if (liste !== null) {
-      env[VARIABLE] = liste;
-    }
-    const input = {
-      tool_name: 'Write',
-      tool_input: { file_path: path.join(repo, rel), content: 'x' },
-      cwd: repo,
-    };
-    const r = spawnSync('node', [VERROU, role], {
-      input: JSON.stringify(input),
-      encoding: 'utf8',
-      env,
-    });
-    const marque = path.join(tmp, 'hors-plan');
-    return { ...r, marque: existsSync(marque) ? readFileSync(marque, 'utf8') : null };
-  };
-
-  it('critère 2 — une écriture hors des paquets du plan arrête la séance, le paquet nommé', () => {
-    const r = ecrireAvec('testwriter', 'packages/c/test/x.test.ts', 'packages/a:packages/b');
-    expect(r.status, r.stderr).toBe(0);
-    const sortie = JSON.parse(r.stdout) as {
-      continue: boolean;
-      stopReason: string;
-      hookSpecificOutput: Record<string, string>;
-    };
-    expect(sortie.continue).toBe(false);
-    expect(sortie.stopReason).toContain('hors-plan');
-    expect(sortie.stopReason).toContain('packages/c');
-    expect(sortie.hookSpecificOutput).toMatchObject({
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-    });
-    expect(r.marque).toBe(sortie.stopReason);
-  });
-
-  it('critère 2 — une écriture dans un paquet du plan suit la règle de son rôle, sans arrêt', () => {
-    const r = ecrireAvec('testwriter', 'packages/b/test/x.test.ts', 'packages/a:packages/b');
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe('');
-    expect(r.marque).toBeNull();
-    const code = ecrireAvec('testwriter', 'packages/b/src/x.ts', 'packages/a:packages/b');
-    expect(code.status).toBe(2);
-    expect(code.marque).toBeNull();
-  });
-
-  it('critère 2 — hors de l’enveloppe, aucun plan ne borne l’écriture', () => {
-    const r = ecrireAvec('testwriter', 'packages/c/test/x.test.ts', null);
-    expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toBe('');
-  });
-});
+//END

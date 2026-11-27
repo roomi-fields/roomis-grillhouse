@@ -59,9 +59,12 @@ afterEach(() => {
 // that prints <fiche> at each call; `appels` counts the calls of bd.
 function contexte(sujets: string[], fiche: unknown) {
   const dossier = mkdtempSync(path.join(ESSAIS, 'essai-'));
+  // What the stand-in and the circuit write lies out of the main tree: the lot of the session of
+  // the tri, judged on that tree, stays empty.
+  const dehors = mkdtempSync(path.join(ESSAIS, 'dehors-'));
   const faux = path.join(dossier, 'claude');
   // What the session sees: its directory, its arguments, its instruction.
-  const vu = path.join(dossier, 'vu');
+  const vu = path.join(dehors, 'vu');
   mkdirSync(vu);
   writeFileSync(
     faux,
@@ -97,10 +100,10 @@ function contexte(sujets: string[], fiche: unknown) {
     ticket: 'demo-1',
     sujet: 'La mesure',
     paquets: ['.'],
-    tmp: path.join(dossier, 'tmp'),
-    journal: path.join(dossier, 'journal'),
-    fiches: path.join(dossier, 'fiches.jsonl'),
-    transcriptions: path.join(dossier, 'transcriptions'),
+    tmp: path.join(dehors, 'tmp'),
+    journal: path.join(dehors, 'journal'),
+    fiches: path.join(dehors, 'fiches.jsonl'),
+    transcriptions: path.join(dehors, 'transcriptions'),
     immobileMs: 60_000,
     rendus: [
       ...sujets.map((sujet, i) => ({
@@ -170,7 +173,7 @@ describe('le tri des découvertes en fin de ticket', () => {
     });
   });
 
-  it('la séance du tri part de l’arbre principal, sur le commit que la file a intégré, en lecture seule et sous le schéma du tri', async () => {
+  it('la séance du tri part de l’arbre principal, sur le commit que la file a intégré, avec toute commande, aucune écriture au ticket, et sous le schéma du tri', async () => {
     const { ctx, vu, dossier, integre } = contexte(['La mesure de zéro'], lignes([doublon(1)]));
     await trier(ctx);
     expect(realpathSync(readFileSync(path.join(vu, 'pwd'), 'utf8').trim())).toBe(
@@ -186,7 +189,7 @@ describe('le tri des découvertes en fin de ticket', () => {
     const { permissions } = JSON.parse(valeur('--settings') ?? '{}') as {
       permissions: { allow: string[]; deny: string[] };
     };
-    expect(permissions.allow).toContain('Bash(npm run build -- --filter=*)');
+    expect(permissions.allow).toContain('Bash');
     expect(permissions.deny).toContain('Bash(bd comments add*)');
     const prompt = readFileSync(path.join(vu, 'prompt'), 'utf8');
     expect(prompt).toContain('demo-1.1 — La mesure de zéro');

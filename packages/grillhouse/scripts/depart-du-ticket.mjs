@@ -4,8 +4,8 @@
 // the same way (scripts/circuit.mjs `contexte`).
 //
 // - The ticket is read by `bd show <id> --json` in the main tree; one Beads cannot show is refused.
-// - Its description holds a « ## Architecture » section, by the rule of the developer's lock
-//   (`sansArchitecture` of ./verrous/verrou.mjs): the code waits for the architecture. The
+// - Its description holds a « ## Architecture » section (`sansArchitecture`, the one reading of
+//   the rule): the code waits for the architecture. The
 //   supervisor's stop (`--arreter`) reads neither it nor the title: it does not depend on the
 //   ticket's content, as GitLab cancels a pipeline whatever its configuration; its plan is empty.
 // - Its title names its plan after its last « — », separated by commas: each one a path
@@ -22,7 +22,18 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { estUnCheminNeuf } from './enveloppe/paquets-du-plan.mjs';
 import { composantsLisibles } from './ticket-du-circuit.mjs';
-import { sansArchitecture } from './verrous/verrou.mjs';
+
+/**
+ * The refusal of the ticket <id> whose <description> holds no "## Architecture" section, or null.
+ * @param {string} id
+ * @param {unknown} description
+ * @returns {string | null}
+ */
+export function sansArchitecture(id, description) {
+  return /^##\s+Architecture\b/m.test(String(description ?? ''))
+    ? null
+    : `Le ticket ${id} n'a pas sa section « ## Architecture » : le code attend l'architecture. Rends la question au superviseur.`;
+}
 
 /** A ticket a circuit cannot start on, by its reason. */
 export class DepartRefuse extends Error {

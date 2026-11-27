@@ -183,11 +183,10 @@ describe('grillhouse-3dr.2.1 — la jointure des langages', () => {
     }
   });
 
-  it('criterion 4: composants-affectes, dernier-vert, the lock and the guards read no file of the language', () => {
+  it('criterion 4: composants-affectes, dernier-vert and the guards read no file of the language', () => {
     const lus = [
       'scripts/composants-affectes.mjs',
       'scripts/dernier-vert.mjs',
-      'scripts/verrous/verrou.mjs',
       'scripts/gardes-du-cadre.mjs',
     ].flatMap(f => [...nommes(f), ...voisins(f)].map(n => `${f} → ${n}`));
     expect(lus.filter(l => DU_LANGAGE.has(l.split(' → ')[1]))).toEqual([]);

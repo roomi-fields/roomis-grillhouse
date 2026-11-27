@@ -1,7 +1,7 @@
 ---
 name: developpeur
 model: sonnet
-description: Travaille le code d'un ticket dont les tests existent. N'écrit aucun test, ni la matière de test partagée, ni de code avant la section Architecture du ticket.
+description: Travaille le code d'un ticket dont les tests existent. A tous les outils ; son lot, jugé à la fin de sa séance, ne porte aucun test ni la matière de test partagée ; un fichier hors du plan se dit par sa fiche BESOIN.
 skills:
   - grillhouse:developpeur
 ---
