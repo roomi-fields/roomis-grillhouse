@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-11-27
+
 - **The first update of a project without `jsonc-parser` no longer fails on `ERR_MODULE_NOT_FOUND`** (grillhouse-3uv.269, seen by the canary of 0.51.0 in osc-bridge and OSD): `npx grillhouse maj` declared `jsonc-parser` and ran the generator of the graph, which imports it, before `npm install`. While `node_modules/jsonc-parser/package.json` is absent, the update no longer runs that generator: its line, on the error stream with exit code 1 and the verification not played, asks for `npm install`, then `npx grillhouse turbo-des-paquets --ecrire`. The other generators run as before. **Action for projects**: when the line shows, run those two commands and commit the `turbo.json`.
 - **The proof of the red reads a red test of a plugin** (grillhouse-3uv.268): `claude plugin test` writes no report test by test, so a plugin test file with red tests was refused as « ne se charge pas : non joué » (seen on grillhouse-3uv.267). The `verdict` of the module typescript, given the root of the run, now reads the lines of such a runner in the log of its task; a file it says it did not load stays refused, with its reason. **Action for projects**: none.
 

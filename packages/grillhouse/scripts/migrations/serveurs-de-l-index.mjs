@@ -13,7 +13,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const version = null;
+export const version = '0.51.0';
 export const nom = 'serveurs de l index';
 
 // Each server in the form its tool publishes: codegraph's own, and the .mcp.json of rtfm.
