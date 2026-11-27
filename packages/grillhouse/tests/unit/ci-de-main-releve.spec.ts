@@ -59,7 +59,7 @@ const creations = () => journalDe(etat).filter(a => a.cmd === 'create');
 const oublier = () =>
   rmSync(path.join(racine, '.claude', 'worktrees', 'ci-de-main-lue.json'), { force: true });
 
-const passage = (id: number, conclusion: string, flux = 'Machine vierge') => ({
+const passage = (id: number, conclusion: string, flux = 'CI') => ({
   databaseId: id,
   status: 'completed',
   conclusion,
@@ -72,7 +72,7 @@ const gh = (passages: unknown[]) => () => ({
   stderr: '',
 });
 const rouge = (id = 4242) => gh([passage(id, 'failure'), passage(id - 100, 'success')]);
-const TITRE = (id = 4242) => `CI de main rouge — Machine vierge, passage ${id}`;
+const TITRE = (id = 4242) => `CI de main rouge — CI, passage ${id}`;
 
 describe('le relevé du superviseur et le ticket de défaut d’une CI de main rouge', () => {
   it('opens the defect ticket under a-valider in the project it reads, and the alert names it', () => {
@@ -111,6 +111,15 @@ describe('le relevé du superviseur et le ticket de défaut d’une CI de main r
     oublier();
     ciDeMainDe(racine, { gh: rouge(4343) });
     expect(tickets().map(t => t.title)).toEqual([TITRE(4242), TITRE(4343)]);
+  });
+
+  it('a red of another flow than the CI gives no alert and opens no defect ticket', () => {
+    // As GitHub answers: the passes of the flow `--workflow` names alone, every flow without it.
+    const passages = [passage(20, 'failure', 'Send collection sheets'), passage(9, 'success')];
+    const github = (a: string[]) =>
+      gh(a.includes('--workflow') ? passages.filter(p => p.workflowName === 'CI') : passages)();
+    expect(ciDeMainDe(racine, { gh: github })).toBeNull();
+    expect(journalDe(etat)).toEqual([]);
   });
 
   it('opens no ticket for a green or a CI not read', () => {

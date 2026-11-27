@@ -56,30 +56,44 @@ type Passage = {
   conclusion: string;
   workflowName: string;
   headSha: string;
+  // The file of the flow, which gh filters on (`--workflow`) and never prints here.
+  fichier: string;
 };
+// A pass of the flow <flux>: the flow « CI » lives in ci.yml, any other in a file of its own.
 const passage = (
   id: number,
   flux: string,
   conclusion: string,
   sha: string,
-  status = 'completed'
+  status = 'completed',
+  fichier = flux === 'CI' ? 'ci.yml' : `${flux}.yml`
 ): Passage => ({
   databaseId: id,
   status,
   conclusion: status === 'completed' ? conclusion : '',
   workflowName: flux,
   headSha: sha,
+  fichier,
 });
 
-// A stand-in for gh answering `gh run list` with <passages>, each call kept.
+// A stand-in for gh answering `gh run list` as GitHub does, each call kept: the passes of the flow
+// `--workflow` names (by its file or its name) when it is given, every flow otherwise, newest first,
+// no more than `--limit` (20 without it).
 function github(passages: Passage[] | Reponse) {
   const appels: string[][] = [];
   const gh = (a: string[]): Reponse => {
     appels.push(a);
-    if (Array.isArray(passages)) {
-      return { status: 0, stdout: JSON.stringify(passages), stderr: '' };
+    if (!Array.isArray(passages)) {
+      return passages;
     }
-    return passages;
+    const option = (nom: string) => (a.includes(nom) ? a[a.indexOf(nom) + 1] : undefined);
+    const flux = option('--workflow');
+    const rendus = passages
+      .filter(p => !flux || p.fichier === flux || p.workflowName === flux)
+      .sort((x, y) => y.databaseId - x.databaseId)
+      .slice(0, Number(option('--limit') ?? 20))
+      .map(({ fichier: _fichier, ...p }) => p);
+    return { status: 0, stdout: JSON.stringify(rendus), stderr: '' };
   };
   return { gh, appels };
 }
@@ -89,24 +103,22 @@ const lire = (p: Passage[] | Reponse, branche?: string) => {
 };
 
 describe('la lecture de la CI de main', () => {
-  it('is green when the latest finished pass of every workflow is a success', () => {
+  it('is green when the latest finished pass of the flow CI is a success', () => {
     const { lecture } = lire([
       passage(20, 'CI', 'success', VERT),
-      passage(19, 'Machine vierge', 'success', VERT),
       passage(10, 'CI', 'failure', ANCIEN),
     ]);
-    expect(lecture).toMatchObject({ etat: 'verte', commit: VERT });
+    expect(lecture).toEqual({ etat: 'verte', commit: VERT, passage: '20' });
   });
 
-  it('is red as soon as one workflow’s latest finished pass failed, naming it, its pass and its commit', () => {
+  it('is red when the latest finished pass of the flow CI failed, naming it, its pass, its commit and its last green', () => {
     const { lecture } = lire([
-      passage(30, 'Machine vierge', 'failure', ROUGE),
-      passage(29, 'CI', 'success', ROUGE),
-      passage(12, 'Machine vierge', 'success', VERT),
+      passage(30, 'CI', 'failure', ROUGE),
+      passage(12, 'CI', 'success', VERT),
     ]);
     expect(lecture).toEqual({
       etat: 'rouge',
-      flux: 'Machine vierge',
+      flux: 'CI',
       passage: '30',
       commit: ROUGE,
       vert: VERT,
@@ -135,10 +147,9 @@ describe('la lecture de la CI de main', () => {
     ).toMatchObject({ etat: 'rouge', passage: '8' });
   });
 
-  it('a skipped pass judged nothing: the flow that alerts on a red one, skipped on a green, is not red', () => {
+  it('a skipped pass judged nothing: the one before it decides', () => {
     expect(
-      lire([passage(9, 'Alert on a red flow', 'skipped', VERT), passage(8, 'CI', 'success', VERT)])
-        .lecture
+      lire([passage(9, 'CI', 'skipped', ROUGE), passage(8, 'CI', 'success', VERT)]).lecture
     ).toMatchObject({ etat: 'verte', commit: VERT });
     expect(
       lire([passage(9, 'CI', 'skipped', VERT), passage(8, 'CI', 'failure', ROUGE)]).lecture
@@ -174,6 +185,85 @@ describe('la lecture de la CI de main', () => {
       etat: 'non-lue',
     });
     expect(lire([]).lecture).toMatchObject({ etat: 'non-lue' });
+  });
+});
+
+describe('la lecture de la CI de main ne juge que le flux CI', () => {
+  const CI_VERTE = passage(8, 'CI', 'success', VERT);
+
+  it('a red pass of another flow present on main leaves the CI green', () => {
+    for (const flux of ['Nuit', 'Deploy docs', 'Release']) {
+      expect(lire([passage(9, flux, 'failure', ROUGE), CI_VERTE]).lecture, flux).toEqual({
+        etat: 'verte',
+        commit: VERT,
+        passage: '8',
+      });
+    }
+  });
+
+  it('a red pass started by hand of a flow since removed from main opens no red', () => {
+    expect(
+      lire([passage(45398057561, 'Send collection sheets', 'failure', ROUGE), CI_VERTE]).lecture
+    ).toEqual({ etat: 'verte', commit: VERT, passage: '8' });
+  });
+
+  it('a red of the CI is named as such under a newer red of another flow', () => {
+    const { lecture } = lire([
+      passage(31, 'Nuit', 'failure', ANCIEN),
+      passage(30, 'CI', 'failure', ROUGE),
+      passage(29, 'Nuit', 'success', ANCIEN),
+      passage(12, 'CI', 'success', VERT),
+    ]);
+    expect(lecture).toEqual({
+      etat: 'rouge',
+      flux: 'CI',
+      passage: '30',
+      commit: ROUGE,
+      vert: VERT,
+    });
+  });
+
+  it('the green of another flow is no last green of the CI', () => {
+    expect(
+      lire([passage(9, 'CI', 'failure', ROUGE), passage(8, 'Nuit', 'success', VERT)]).lecture
+    ).toMatchObject({ etat: 'rouge', flux: 'CI', vert: null });
+  });
+
+  it('the passes of other flows, however many, do not push the CI out of the reading', () => {
+    const autres = Array.from({ length: 150 }, (_, i) =>
+      passage(1000 + i, 'Nuit', 'success', VERT)
+    );
+    expect(lire([...autres, passage(9, 'CI', 'failure', ROUGE)]).lecture).toMatchObject({
+      etat: 'rouge',
+      passage: '9',
+    });
+  });
+
+  it('the flow CI is known by its file ci.yml, whatever name GitHub gives it', () => {
+    const nom = '.github/workflows/ci.yml';
+    expect(lire([passage(9, nom, 'failure', ROUGE, 'completed', 'ci.yml')]).lecture).toMatchObject({
+      etat: 'rouge',
+      flux: nom,
+      passage: '9',
+    });
+  });
+
+  it('is not read without a finished pass of the flow CI, whatever the other flows did', () => {
+    const autres = [
+      passage(20, 'Nuit', 'failure', ROUGE),
+      passage(19, 'Deploy docs', 'success', VERT),
+    ];
+    const sansFini = [
+      [],
+      [passage(21, 'CI', '', ROUGE, 'in_progress')],
+      [passage(21, 'CI', 'cancelled', ROUGE), passage(18, 'CI', 'skipped', ROUGE)],
+    ];
+    for (const ci of sansFini) {
+      expect(lire([...ci, ...autres]).lecture).toEqual({
+        etat: 'non-lue',
+        raison: 'aucun passage fini de la CI sur main.',
+      });
+    }
   });
 });
 
@@ -241,7 +331,7 @@ const lot = (ticket: string): Lot => ({
 });
 const ROUGEE: Lecture = {
   etat: 'rouge',
-  flux: 'Machine vierge',
+  flux: 'CI',
   passage: '4242',
   commit: ROUGE,
   vert: VERT,
@@ -252,15 +342,8 @@ describe('l’alerte de la CI de main', () => {
     const a = alerteDeLaCiDeMain(ROUGEE, [lot('demo-1'), lot('demo-2')])!;
     expect(a.genre).toBe('rouge');
     expect(a.cle).toContain('4242');
-    for (const mot of ['Machine vierge', '4242', ROUGE.slice(0, 7), 'demo-1', 'demo-2']) {
+    for (const mot of ['CI', '4242', ROUGE.slice(0, 7), 'demo-1', 'demo-2']) {
       expect(a.texte, mot).toContain(mot);
-    }
-  });
-
-  it('the red of the clean machine and the red of the CI are told the same way', () => {
-    for (const flux of ['CI', 'Machine vierge']) {
-      const a = alerteDeLaCiDeMain({ ...ROUGEE, flux } as Lecture, [lot('demo-1')])!;
-      expect(a.texte).toContain(flux);
     }
   });
 
@@ -301,7 +384,7 @@ describe('la ligne de la CI de main au panneau', () => {
   it('shows a red with its workflow, its pass and its last green', () => {
     const l = ligneDeLaCiDeMain(ROUGEE);
     expect(l).toContain('CI de main rouge');
-    expect(l).toContain('Machine vierge');
+    expect(l).toContain('CI');
     expect(l).toContain('4242');
     expect(l).toContain(VERT.slice(0, 7));
     expect(ligneDeLaCiDeMain({ ...ROUGEE, vert: null } as Lecture)).toContain('aucun vert');
@@ -351,7 +434,7 @@ describe('le défaut qu’un rouge de main ouvre pour le responsable', () => {
     expect(b.creations()).toHaveLength(1);
     const ligne = b.creations()[0]!.join(' ');
     expect(ligne).toContain('a-valider');
-    for (const mot of ['4242', 'Machine vierge', 'demo-1', 'demo-2', ROUGE.slice(0, 7)]) {
+    for (const mot of ['4242', 'CI', 'demo-1', 'demo-2', ROUGE.slice(0, 7)]) {
       expect(ligne, mot).toContain(mot);
     }
   });
@@ -359,7 +442,7 @@ describe('le défaut qu’un rouge de main ouvre pour le responsable', () => {
   it('opens no second ticket for the same pass, closed or not, and says which holds it', () => {
     const existant: TicketBd = {
       id: 'demo-90',
-      title: 'CI de main rouge — Machine vierge, passage 4242',
+      title: 'CI de main rouge — CI, passage 4242',
       status: 'closed',
       labels: ['a-valider'],
       description: 'passage 4242',
@@ -373,7 +456,7 @@ describe('le défaut qu’un rouge de main ouvre pour le responsable', () => {
   it('opens a ticket for another pass even when one stands for an earlier pass', () => {
     const existant: TicketBd = {
       id: 'demo-90',
-      title: 'CI de main rouge — Machine vierge, passage 4100',
+      title: 'CI de main rouge — CI, passage 4100',
       status: 'open',
       labels: ['a-valider'],
       description: 'passage 4100',
@@ -411,7 +494,7 @@ describe('le défaut qu’un rouge de main ouvre pour le responsable', () => {
       const b = beads([
         {
           id: 'demo-77',
-          title: 'CI de main rouge — Machine vierge, passage 4242',
+          title: 'CI de main rouge — CI, passage 4242',
           status,
           labels: ['a-valider'],
           description: '',
@@ -435,7 +518,7 @@ describe('le défaut qu’un rouge de main ouvre pour le responsable', () => {
     const b = beads([
       {
         id: 'demo-92',
-        title: 'CI de main rouge — Machine vierge, passage 4242',
+        title: 'CI de main rouge — CI, passage 4242',
         status: 'open',
         labels: ['a-valider'],
         description: '',

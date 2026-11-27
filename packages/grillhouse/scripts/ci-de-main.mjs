@@ -7,12 +7,10 @@
 //
 // - `declencherLaCiDeMain`: the start (`gh workflow run`), its delay and its fault kept in a file of
 //   the project; `alerteDeDeclenchement` tells the supervisor of a start GitHub refused.
-// - `lireLaCiDeMain`: the latest finished pass of each workflow of the branch (`gh run list`),
-//   green when every one succeeded, red as soon as one failed (any conclusion but `success`,
-//   `cancelled` and `skipped`: a cancelled pass is replaced by a later one, the one before it
-//   decides, and a skipped pass judged nothing, as the flow that alerts on a red one, which skips
-//   itself on a green), and not
-//   read, never silence, when gh fails, does not start, answers garbage or no pass at all.
+// - `lireLaCiDeMain`: the latest finished pass of the flow CI (ci.yml) on the branch
+//   (`gh run list`), the other flows judging nothing: green when it succeeded, red on any other
+//   conclusion (a cancelled or skipped pass judged nothing, the one before it decides), and not
+//   read, never silence, when gh fails, does not start, answers garbage or no finished pass.
 // - `lotsDepuisLeVert`: the lots of the circuit between the last green and the tip, by git alone
 //   (the commits whose subject ends with « (<ticket>) »), no state kept.
 // - `alerteDeLaCiDeMain` and `ligneDeLaCiDeMain`: what is told to the supervisor and shown on the
@@ -30,11 +28,13 @@ const COURT = 7;
 const court = sha => String(sha).slice(0, COURT);
 const uneLigne = t => String(t).replace(/\s+/g, ' ').trim();
 
+const FLUX_DE_LA_CI = 'ci.yml';
+
 /**
  * The CI of the branch <branche> (main by default) read with <o.gh> in <o.racine>: `{ etat: 'verte',
- * commit, passage }`, `{ etat: 'rouge', flux, passage, commit, vert }` (the workflow, its red pass,
- * the commit of that pass and the commit of the last green pass of the same workflow, null when it
- * never succeeded) or `{ etat: 'non-lue', raison }`.
+ * commit, passage }`, `{ etat: 'rouge', flux, passage, commit, vert }` (the name of the flow, its
+ * red pass, the commit of that pass and the commit of its last green pass, null when none is read)
+ * or `{ etat: 'non-lue', raison }`.
  */
 export function lireLaCiDeMain(o, { branche = 'main' } = {}) {
   const r = o.gh([
@@ -42,6 +42,8 @@ export function lireLaCiDeMain(o, { branche = 'main' } = {}) {
     'list',
     '--branch',
     branche,
+    '--workflow',
+    FLUX_DE_LA_CI,
     '--limit',
     '100',
     '--json',
@@ -75,26 +77,21 @@ export function lireLaCiDeMain(o, { branche = 'main' } = {}) {
   if (finis.length === 0) {
     return { etat: 'non-lue', raison: `aucun passage fini de la CI sur ${branche}.` };
   }
-  const derniers = [...new Set(finis.map(p => p.workflowName))].map(nom =>
-    finis.find(p => p.workflowName === nom)
-  );
-  const rouge = derniers.find(p => p.conclusion !== 'success');
-  if (rouge) {
-    const vert = finis.find(p => p.workflowName === rouge.workflowName && p.conclusion === 'success');
+  const [dernier] = finis;
+  if (dernier.conclusion !== 'success') {
+    const vert = finis.find(p => p.conclusion === 'success');
     return {
       etat: 'rouge',
-      flux: rouge.workflowName,
-      passage: String(rouge.databaseId),
-      commit: rouge.headSha,
+      flux: dernier.workflowName,
+      passage: String(dernier.databaseId),
+      commit: dernier.headSha,
       vert: vert?.headSha ?? null,
     };
   }
-  const tete = derniers[0];
-  return { etat: 'verte', commit: tete.headSha, passage: String(tete.databaseId) };
+  return { etat: 'verte', commit: dernier.headSha, passage: String(dernier.databaseId) };
 }
 
 const HEURE = 3_600_000;
-const FLUX_DE_LA_CI = 'ci.yml';
 const EN_ATTENTE = state => state !== 'completed';
 
 const etatDuDeclenchement = racine =>
