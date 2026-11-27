@@ -19,7 +19,8 @@
 //   `bilan` of scripts/effets.mjs and read from the Temporal server by the command); the night
 //   the project declares (`grillhouse.plageDeNuit`); the transcript of each supervisor's session
 //   a stop names (`~/.claude/projects/<projet>/<séance>.jsonl`), for the origin and the time of
-//   each message.
+//   each message; the transcript of each session the circuit launched, found the same way, for
+//   the usage of its first request, read by the board's reader (scripts/tableau.mjs).
 // - The steps and the roles are those of scripts/etapes.mjs; a register line's role is read as
 //   the board reads it (`roleDeLAgent`: bare, or scoped `grillhouse:<rôle>`). Only the circuit's
 //   roles count; only the sessions the circuit launched count in the window, the categories, the
@@ -56,6 +57,10 @@
 //   the questions of the plan asked, the plans they changed and the questions left open, the tri
 //   of the discoveries on a line of its own, the tokens, the cache reads and the cost (a session
 //   without a cost counts 0); a session's tokens go to its turns by their time.
+// - `premiersTours` holds one `{ seance, role }` per session the circuit launched, whether the
+//   register holds it or not, with the input, cache written and cache read of its first response
+//   of a model (`entree`, `cacheEcrit`, `cacheLu`), none of them without a readable one; the text
+//   gives their means by role over the sessions that have them.
 // - It is kept in the main tree, `.claude/worktrees/<ticket>.bilan.json`, and compares itself with
 //   the latest other ticket of the project whose bilan is kept, recomputed by this version from
 //   its sources (`precedent`), or with nothing when none is: no figure kept by an earlier version,
@@ -75,6 +80,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { REGISTRE } from './adresse-du-registre.mjs';
+import {
+  bilansGardes,
+  dollars,
+  dossier,
+  minutes,
+  pourcent,
+  SUFFIXE,
+} from './bilans-gardes.mjs';
 import { lireLaConsommation } from './consommation-des-passes.mjs';
 import { lireLeJournal } from './journal-des-etats.mjs';
 import { pathToFileURL } from 'node:url';
@@ -89,12 +102,14 @@ import {
   SUPERVISEUR,
   tousLesRolesDe,
 } from './etapes.mjs';
+import { lireFichier } from './tableau.mjs';
+
+export { bilansGardes, enBref } from './bilans-gardes.mjs';
 
 // The role of a register line that a step of the circuit writes, and of its results.
 const CIRCUIT = 'circuit';
 // The gap allowed between a result and the turn or step it closes.
 const JEU = 2000;
-const MINUTE = 60_000;
 
 // The categories, in the order the text lists them, with their names.
 const CATEGORIES = [
@@ -279,7 +294,8 @@ function tracesDuJournal(journal, ticket) {
 // The bilan of <ticket> from the register's lines <lignes> (of its project), the results the
 // circuit kept <entrees> (`<ticket>.fiches.jsonl`), the circuit's state <etat> (or null), the
 // project's night <nuit> and the times of the owner's messages in the supervisor's sessions the
-// stops name <duResponsable>.
+// stops name <duResponsable>; `premierTour` gives the usage of the first request of the session it
+// is given, or null.
 export function bilan({
   ticket,
   lignes,
@@ -288,6 +304,7 @@ export function bilan({
   nuit = NUIT,
   duResponsable = [],
   journal = [],
+  premierTour = () => null,
   maintenant = Date.now(),
 }) {
   // The sessions the circuit launched, by their id.
@@ -500,6 +517,17 @@ export function bilan({
     c.cache = Math.round(c.cache);
   }
 
+  // One entry per session the circuit launched, by its id.
+  const lesLancements = new Map(
+    entrees
+      .filter(e => e.role === CIRCUIT && e.lancement)
+      .map(e => [e.lancement.seance, roleDeLAgent(e.lancement.role)])
+  );
+  const premiersTours = [...lesLancements].map(([seance, role]) => ({
+    seance,
+    role,
+    ...premierTour(seance),
+  }));
   const sessions = agents.filter(l => l.role !== CIRCUIT);
   // The sessions <l> by role, in the order of the steps.
   const parRoleDe = l => {
@@ -598,6 +626,7 @@ export function bilan({
     arrets,
     questionnement,
     tri,
+    premiersTours,
     jetons: somme('jetons'),
     cache: somme('cache'),
     cout: somme('cout'),
@@ -615,14 +644,7 @@ function statutDe(etat) {
   return 'en cours';
 }
 
-const minutes = ms => Math.round(ms / MINUTE);
-const pourcent = (x, sur) => (sur ? Math.round((100 * x) / sur) : 0);
-const dollars = x => (x ?? 0).toFixed(2).replace('.', ',');
 const millions = x => ((x ?? 0) / 1e6).toFixed(2).replace('.', ',');
-
-// The key figures of the bilan <b> in one sentence, as the ticket's card shows them.
-export const enBref = b =>
-  `Bilan : ${minutes(b.mur)} min, ${pourcent(b.perdu, b.mur)} % perdus, ${b.seances.total} séances, ${dollars(b.cout)} $.`;
 
 /**
  * The passes of <ticket> that consumed clearly more than their part, from the register of the
@@ -701,18 +723,38 @@ export function texteDuBilan(b, avant, depassent = []) {
       .map(([nom, ms]) => `${nom} ${minutes(ms)} min`)
       .join(', ');
   const reprise = `Reprise après un rouge : ${minutes(b.reprise.rejoue.ms)} min rejouées${b.reprise.rejoue.ms ? ` (${parEtape(b.reprise.rejoue)})` : ''}, ${minutes(b.reprise.relu.ms)} min relues sans rejouer${b.reprise.relu.ms ? ` (${parEtape(b.reprise.relu)})` : ''}.`;
+  const premiers = ligneDesPremiersTours(b.premiersTours ?? []);
   const parts = depassent.length
     ? [
         `Passes au-delà de leur part : ${depassent.length} (${depassent.map(d => `${d.sorte}, ${d.depasse}`).join(' ; ')}).`,
       ]
     : [];
-  return [tete, ...lignes, ...tri, reprise, ...parts, `Arrêts : ${arrets || 'aucun'}.`, base].join(
-    '\n'
-  );
+  const fin = [...premiers, ...parts, `Arrêts : ${arrets || 'aucun'}.`, base];
+  return [tete, ...lignes, ...tri, reprise, ...fin].join('\n');
 }
 
-const dossier = racine => path.join(racine, '.claude', 'worktrees');
-const SUFFIXE = '.bilan.json';
+// The line of the first requests of the sessions <tours> (`premiersTours`): by role, in the order
+// of the steps, the means in whole tokens over the measured sessions and their number; no line
+// without a measured session.
+function ligneDesPremiersTours(tours) {
+  const mesures = tours.filter(t => t.entree !== undefined);
+  const roles = new Set([...ROLES, ...mesures.map(t => t.role)]);
+  const parRole = [...roles].flatMap(role => {
+    const l = mesures.filter(t => t.role === role);
+    if (!l.length) {
+      return [];
+    }
+    const moyennes = ['entree', 'cacheEcrit', 'cacheLu']
+      .map(k => Math.round(l.reduce((m, t) => m + t[k], 0) / l.length))
+      .join(', ');
+    return [`${nomDuRole(role)} ${moyennes} (${l.length} séance${l.length > 1 ? 's' : ''})`];
+  });
+  return parRole.length
+    ? [
+        `Premier tour, moyenne par rôle en jetons (entrée, cache écrit, cache lu) : ${parRole.join(' ; ')}.`,
+      ]
+    : [];
+}
 
 // Keeps the bilan <b> in the main tree <racine>.
 export function garder(racine, b) {
@@ -722,31 +764,11 @@ export function garder(racine, b) {
   renameSync(provisoire, f);
 }
 
-// The bilans kept in the main tree <racine>, by ticket; a file that does not parse is left out.
-export function bilansGardes(racine) {
-  const d = dossier(racine);
-  const out = {};
-  if (!existsSync(d)) {
-    return out;
-  }
-  for (const n of readdirSync(d).filter(x => x.endsWith(SUFFIXE))) {
-    try {
-      const b = JSON.parse(readFileSync(path.join(d, n), 'utf8'));
-      if (b?.ticket) {
-        out[b.ticket] = b;
-      }
-    } catch {
-      // A torn bilan counts nothing.
-    }
-  }
-  return out;
-}
-
 // The base of the bilan of <ticket> in the main tree <racine>: the bilan of the latest other ticket
 // whose bilan is kept, computed again by this version from its sources, as a bench of time remakes
 // its base, never the figures kept by the version that wrote them; null when its sources give no
 // bilan any more. The figures a base gives (wall time, loss, sessions, cost) hold whoever waited,
-// the owner or the supervisor: the transcripts of its supervisor's sessions are not read.
+// the owner or the supervisor: no transcript is read.
 export function precedent(racine, ticket) {
   const avant = Object.values(bilansGardes(racine))
     .filter(b => b.ticket !== ticket)
@@ -754,7 +776,7 @@ export function precedent(racine, ticket) {
   if (!avant) {
     return null;
   }
-  const b = calculer(racine, avant.ticket, { responsable: false });
+  const b = calculer(racine, avant.ticket, { transcriptions: false });
   return b.mur > 0 ? b : null;
 }
 
@@ -798,15 +820,32 @@ export function messagesDuResponsable(texte) {
 // whole.
 const MORCEAU = 1_048_576;
 
-// The times of the owner's messages in the transcript of the supervisor's session <seance>, in any
-// project folder of ~/.claude/projects; none when no transcript holds it.
-function messagesDeLaSeance(seance) {
+// The transcript of the session <seance>, in any project folder of ~/.claude/projects (the main
+// tree's or a copy's); undefined when none holds it.
+function transcriptionDeLaSeance(seance) {
   const projets = path.join(os.homedir(), '.claude', 'projects');
-  const f = existsSync(projets)
+  return existsSync(projets)
     ? readdirSync(projets)
         .map(d => path.join(projets, d, `${seance}.jsonl`))
         .find(g => existsSync(g))
-    : null;
+    : undefined;
+}
+
+// The usage of the first request of the session <seance>, read in its transcript; null without a
+// transcript that reads, or without a readable usage.
+function premierTourDeLaSeance(seance) {
+  const f = transcriptionDeLaSeance(seance);
+  try {
+    return f ? lireFichier(f).premierTour : null;
+  } catch {
+    return null;
+  }
+}
+
+// The times of the owner's messages in the transcript of the supervisor's session <seance>; none
+// when no transcript holds it.
+function messagesDeLaSeance(seance) {
+  const f = transcriptionDeLaSeance(seance);
   if (!f) {
     return [];
   }
@@ -831,8 +870,9 @@ function messagesDeLaSeance(seance) {
 
 // The bilan of <ticket> computed from the main tree <racine>: its register, the results its
 // circuit kept, where its circuit ended (<fin>, `{ etape, raison, code }`, null while it runs), and
-// the owner's messages in the supervisor's sessions its stops name unless <responsable> is false.
-function calculer(racine, ticket, fin, { responsable = true } = {}) {
+// the owner's messages in the supervisor's sessions its stops name and the first request of each
+// session it launched, unless <transcriptions> is false: then no transcript is read.
+function calculer(racine, ticket, fin, { transcriptions = true } = {}) {
   const lignes = lignesDuProjet(
     existsSync(REGISTRE) ? readFileSync(REGISTRE, 'utf8') : '',
     racine
@@ -854,7 +894,8 @@ function calculer(racine, ticket, fin, { responsable = true } = {}) {
     entrees,
     etat: fin,
     nuit: plageDeNuit(racine),
-    duResponsable: responsable ? [...seances].flatMap(s => messagesDeLaSeance(String(s))) : [],
+    duResponsable: transcriptions ? [...seances].flatMap(s => messagesDeLaSeance(String(s))) : [],
+    premierTour: transcriptions ? s => premierTourDeLaSeance(String(s)) : undefined,
     journal: lireLeJournal(racine, { ticket }).lignes,
   });
 }

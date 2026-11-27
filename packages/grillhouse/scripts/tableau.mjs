@@ -108,7 +108,7 @@ import {
 } from './etapes.mjs';
 import { echecDeLOutil } from './aiguillage.mjs';
 import { maxDuProjet } from './circuits-cles.mjs';
-import { bilansGardes, enBref } from './bilan.mjs';
+import { bilansGardes, enBref } from './bilans-gardes.mjs';
 import { REGISTRE } from './adresse-du-registre.mjs';
 import { lireLaMesure } from './avancement.mjs';
 import {
@@ -316,6 +316,17 @@ function reunir(intervalles) {
 // transcript, a turn starts at its incoming message.
 const horsDuTour = e => e.type === 'queue-operation' || e.message?.model === '<synthetic>';
 
+// The usage of a session's first request, from its response's `u`: `{ entree, cacheEcrit, cacheLu
+// }`, or null when one of the three is not a number.
+function tourDeLUsage(u) {
+  const tour = {
+    entree: u?.input_tokens,
+    cacheEcrit: u?.cache_creation_input_tokens,
+    cacheLu: u?.cache_read_input_tokens,
+  };
+  return Object.values(tour).every(n => Number.isFinite(n)) ? tour : null;
+}
+
 // Adds the lines of `texte` to the state `etat`, which it returns.
 function avancer(etat, texte) {
   const vus = new Set(etat.vus);
@@ -375,6 +386,15 @@ function avancer(etat, texte) {
       const m = /TON TICKET : ([A-Za-z0-9_-]+-[A-Za-z0-9]+(?:\.[0-9]+)*)/.exec(texteUser);
       etat.ticket = m ? m[1] : '';
     }
+    // The first response of a model, absent from the state until it is read.
+    if (
+      etat.premierTour === undefined &&
+      e.type === 'assistant' &&
+      e.message &&
+      e.message.model !== '<synthetic>'
+    ) {
+      etat.premierTour = tourDeLUsage(e.message.usage);
+    }
     const u = e.message?.usage;
     const id = e.message?.id ?? e.requestId;
     if (!u || (id && vus.has(id))) {
@@ -417,8 +437,9 @@ function avancer(etat, texte) {
 
 // The measures of a state: the tokens, the turns and their working time (the union of the turns,
 // the waits left out), the start (the oldest date) and the end (the latest), the ticket, the role
-// (a session launched with `--agent`), the cost (the total a session writes) and the usage by
-// model. `entre` is the
+// (a session launched with `--agent`), the cost (the total a session writes), the usage by
+// model and the one of the first response of a model (`premierTour`, null without a readable
+// one). `entre` is the
 // time of the latest incoming message, or null; `attend` tells whether the last tool call still
 // awaits its answer, the call and its answer paired by their identifier.
 const mesurer = etat => ({
@@ -435,6 +456,7 @@ const mesurer = etat => ({
   cout: etat.cout,
   modeles: structuredClone(etat.modeles),
   minutes: { ...(etat.minutes ?? {}) },
+  premierTour: etat.premierTour ? { ...etat.premierTour } : null,
 });
 
 // The measures of the transcript text `texte` held in memory.
