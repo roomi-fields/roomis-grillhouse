@@ -294,8 +294,8 @@ clippy`). Le noyau en lance deux
   compilateur porte ce cas (`echecDeCompilation` : Rust, C) répond toujours rien.
 - `estUnTest` : ce que le testwriter écrit dans un fichier, `{ joue, test, matiere }` (un test que
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
-  partagée), ou null pour un fichier qu'il n'écrit pas. Les verrous des rôles, l'intégration et le
-  circuit le lisent.
+  partagée), ou null pour un fichier qu'il n'écrit pas. Le jugement du lot, l'intégration et le circuit le
+  lisent.
 - `horsDuJour` (`chemin`, `racine`) : vrai quand le fichier de test est de ceux que seule la nuit
   joue (test de nuit, banc ou témoin de temps), selon les définitions du module ; faux pour tout
   autre fichier, absent compris. La preuve du rouge met ces fichiers de côté et les nomme.
@@ -318,8 +318,8 @@ clippy`). Le noyau en lance deux
   cargo, d'un fichier de code de `src/` d'un crate hors de son module de
   test (la déclaration `#[cfg(test)] mod tests;` ajoutée ou retirée, un module de test en ligne
   retiré), chacune nommée, ou null pour un fichier que le module ne juge pas.
-  Le verrou du testwriter accepte une écriture dont la liste est vide, et refuse les autres en
-  nommant le chemin et chaque partie ; le noyau ne connaît aucun nom de section.
+  Le jugement du lot du testwriter accepte un fichier dont la liste est vide, et rend l'étape sur
+  les autres en nommant le chemin et chaque partie ; le noyau ne connaît aucun nom de section.
 - `fichiersEngendres` : les fichiers que le module engendre, chacun avec sa commande, ses fichiers,
   ceux qu'il lit, les noms de ses constats et sa vérification (`verifier`), qui rend ses écarts.
   Le circuit les régénère et les juge (étape 4.2). Les fichiers engendrés qu'un projet déclare

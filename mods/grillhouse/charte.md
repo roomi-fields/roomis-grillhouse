@@ -352,9 +352,11 @@ dossier.
   par `codegraph explore` (ou l'outil `codegraph_explore`) pour l'appel ; le shell lit un fichier
   déjà nommé. Ainsi une affirmation sur le code repose sur ce que le code contient.
 - **Tout se lit, le plan s'écrit** : dans son enveloppe, un agent lit tout le dépôt, index compris,
-  et n'écrit que les paquets que le plan de son ticket nomme. Une écriture hors du plan l'arrête,
-  et le superviseur étend le plan ou refuse. Dans trois cas, le circuit étend le plan lui-même,
-  sans arrêt, sa pièce écrite au ticket : un fichier que la description du ticket nomme, un
+  prend l'outil que son travail demande, et n'écrit que les paquets que le plan de son ticket
+  nomme ; la règle de son rôle se juge sur son lot, à la fin de sa séance (le document de la
+  machine, §5.5). Une écriture hors du plan échoue : l'agent dit dans sa fiche le paquet qui lui
+  manque, et le superviseur étend le plan ou refuse. Dans trois cas, le circuit étend le plan
+  lui-même, sans question, sa pièce écrite au ticket : un fichier que la description du ticket nomme, un
   composant écarté du plan qui rougit, et les seuls fichiers de test d'un paquet lecteur que le lot
   fait rougir (le document du circuit, §5.5). Ainsi l'agent lit ce dont il a besoin, et les gardes tiennent
   l'architecture.

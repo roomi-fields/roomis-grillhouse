@@ -188,7 +188,7 @@ sequenceDiagram
 
 Une passe demande et rend sa réservation comme une séance : la réservation se prend au lancement de chaque étape et se rend à sa fin. Les trois circuits suivent cette séquence, sur le même moteur. Le circuit long la joue entière ; le circuit court saute ce que son geste ne demande pas ; dans le circuit direct, un seul agent écrit tests et code, sans plan ni preuve du rouge ; il part par la file des tickets, tient sa place et prend ses réservations comme les deux autres, sa passe finale précède sa relecture, le superviseur le pilote par les mêmes commandes, et il entre sur main par la file d'intégration. Hors du moteur, la voie de secours mène un ticket quand le moteur lui-même est en panne (le déroulé, la file des tickets, la passe finale, la file d'intégration) : une commande lance un agent puis un relecteur, sans le moteur, et son usage est écrit au ticket.
 
-Un rouge, une fiche qui manque ou une écriture hors du plan suit la règle de décision du circuit : un geste automatique borné, sinon une question. Le détail des étapes, des gestes et des arrêts vit dans le document du circuit.
+Un rouge ou une fiche qui manque suit la règle de décision du circuit : un geste automatique borné, sinon une question. Le détail des étapes, des gestes et des arrêts vit dans le document du circuit.
 
 **Une question atteint le superviseur.**
 
@@ -259,7 +259,7 @@ Ce qui reste fragile ou inconnu :
 |---|---|
 | [Le circuit](../packages/grillhouse/docs/architecture/circuit.md) | les étapes, les rôles, la règle de décision, les arrêts et les réponses, les trois circuits (direct, court, long), la voie de secours, la file des tickets |
 | [L'entrée sur main, la CI et la nuit](../packages/grillhouse/docs/architecture/entree.md) | la passe finale, les arbres jugés, la file d'intégration, la CI de main, la nuit, la sortie |
-| [La machine et l'enveloppe](../packages/grillhouse/docs/architecture/machine.md) | le budget, les réservations, l'arbitre, le relevé et la table des consommations, les groupes de contrôle, l'enveloppe, les droits des rôles, les verrous |
+| [La machine et l'enveloppe](../packages/grillhouse/docs/architecture/machine.md) | le budget, les réservations, l'arbitre, le relevé et la table des consommations, les groupes de contrôle, l'enveloppe, les droits des rôles, le jugement du lot, le verrou hors enveloppe |
 | [Les tests et les langages](../packages/grillhouse/docs/architecture/tests.md) | la passe de vérification, le choix des tests, les modules de langage, les gardes et la dette |
 | [L'installation et les réglages d'un projet](../packages/grillhouse/docs/architecture/installation.md) | l'installation, la montée, les clés `grillhouse.*`, les réglages du poste, le gabarit, les unités |
 | [Le greffon et le panneau](../packages/grillhouse/docs/architecture/greffon.md) | les crochets, les questions poussées, le tableau, le suiveur, la ligne d'état |

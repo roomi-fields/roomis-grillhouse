@@ -74,7 +74,7 @@ flowchart TB
 | Liste des étapes (`scripts/etapes.mjs`) | déclarer les étapes, les circuits qui jouent chacune, les rôles, les boucles et leurs bornes, les gestes, les arrêts et leurs questions | rien : des données fixes | rien |
 | Règle de décision (`scripts/transitions.mjs`) | décider, sans entrée ni sortie, du fait à lire ou de l'étape suivante, de l'arrêt ou de la fin | rien | la liste des étapes |
 | Activités du circuit et lanceur d'acte (`src/temporal/circuit/activites.ts`, `src/temporal/acte.ts`) | jouer chaque acte dans un processus à lui, envoyer son signe de vie, lui donner la clé de son activité, tuer son groupe à l'annulation | rien | les actes du circuit |
-| Actes du circuit (`scripts/faits-du-circuit.mjs` et le code qu'il joue) | faire ce qu'une étape demande hors du déroulé : ouvrir, écrire le plan, préparer la copie sur la pointe de main, lancer une séance et lire sa fiche, jouer la preuve du rouge, les contrôles et la passe finale, poser le commit, publier un arrêt | la copie et la branche du ticket, ses traces, le registre des arbres jugés | l'enveloppe, la passe de vérification, git, l'écrivain des effets |
+| Actes du circuit (`scripts/faits-du-circuit.mjs` et le code qu'il joue) | faire ce qu'une étape demande hors du déroulé : ouvrir, écrire le plan, préparer la copie sur la pointe de main, lancer une séance, lire sa fiche et juger son lot sur la règle de son rôle, jouer la preuve du rouge, les contrôles et la passe finale, poser le commit, publier un arrêt | la copie et la branche du ticket, ses traces, le registre des arbres jugés | l'enveloppe, la passe de vérification, git, l'écrivain des effets |
 | Écrivain des effets (`scripts/effets.mjs`) | écrire une fois chaque effet qu'un acte rend : un commentaire, une ligne de fiche, une découverte, le plan, des étiquettes, le bilan | rien | Beads, les fichiers de traces |
 | File des tickets (`ticketsDuProjet`, `src/temporal/tickets/`) | démarrer le circuit de chaque ticket prêt, après avoir demandé sa place à l'arbitre ; arrêter le circuit d'un ticket fermé hors de lui | rien : la liste des circuits qu'elle a démarrés se refait du serveur | Beads (lecture), l'arbitre, le déroulé du circuit |
 | Commande de secours (`grillhouse direct`, `scripts/direct.mjs`) | mener un ticket hors du moteur quand le moteur lui-même est en panne : un agent, puis un relecteur, dans le processus de la commande | rien : son état se lit aux fiches de la copie | l'enveloppe, les séances de rôle, Beads |
@@ -109,7 +109,8 @@ Chaque rôle est une séance neuve de Claude Code, lancée par un acte, qui fini
 ### 3.4 La garde de chaque frontière
 
 - **Le déroulé et la règle de décision** : le déroulé n'importe que l'interface de Temporal, les contrats, la liste des étapes et la règle ; un test lit les sources de la règle et y refuse toute entrée ou sortie.
-- **Un agent et le dépôt** : l'enveloppe n'ouvre en écriture que les paquets du plan ; une écriture hors du plan arrête la séance, et le circuit s'arrête sur `hors-plan` ou étend le plan par un geste (§5.5).
+- **Un agent et le dépôt** : l'enveloppe n'ouvre en écriture que les paquets du plan, quel que soit l'outil qui écrit ; une écriture hors du plan échoue, l'agent la dit dans sa fiche (`BESOIN`, le paquet nommé), et le circuit étend le plan par un geste (§5.5) ou monte au superviseur, qui étend (`--etendre`) ou refuse.
+- **Un rôle et son lot** : le jugement du lot rend l'étape d'un testwriter dont le lot touche du code, d'un développeur dont le lot touche un test, et d'un explorateur, d'un questionneur ou d'un relecteur dont le lot n'est pas vide, les fichiers fautifs nommés (document de la machine, §5.5).
 - **Un lot et main** : le crochet de poussée refuse un commit dont l'arbre n'est pas au registre des arbres jugés, que seuls écrivent l'acte de jugement (§2.5) et, par exception, la vérification de la voie de secours (§5.8).
 - **La liste unique** : aucune garde ne refuse aujourd'hui une borne ou un geste déclaré hors de la liste des étapes ; la relecture le tient.
 - **Un état, un propriétaire** : aucune garde ; le tableau de la section 4 fait foi à la relecture.
@@ -327,7 +328,6 @@ Un arrêt porte un nom, un fait, sa pièce, sa question et qui doit y répondre.
 |---|---|
 | `questionnement` | des questions du plan restent ouvertes après la réponse de l'explorateur |
 | `besoin`, `hors-portee` | la fiche d'un agent demande une réponse, ou se dit bloquée hors de sa portée ; l'agent direct juge que son ticket demande un plan (motif `demande-un-plan`) |
-| `hors-plan` | une séance écrit hors des paquets du plan, sans geste qui l'étende |
 | `sans-fiche`, `bloqué` | une séance finit deux fois sans fiche conforme ; une séance immobile que le circuit a arrêtée |
 | `preuve` | la troisième preuve du rouge refuse le lot de tests |
 | `controles`, `sans-livraison` | un rouge que le circuit ne rend à personne, ou que trois séances n'ont pas levé ; un auteur qui ne change rien quand le rouge reste |
@@ -369,6 +369,7 @@ Un geste est ce que le circuit fait seul sur un cas qu'une règle tranche ; chac
 | attente de la machine | les ressources d'une étape, ou la place de circuit, ne sont pas libres : le déroulé attend son tour | sans borne : l'arbitre dit la cause de l'attente |
 | report à la limite d'usage | la limite d'usage arrête une séance : le circuit attend l'heure de retour, puis reprend l'étape | l'heure lue |
 | séance sans fiche | une séance sans fiche conforme est reprise | une fois, puis `sans-fiche` |
+| lot hors du rôle | le lot d'un testwriter touche du code, celui d'un développeur un test, ou celui d'un rôle qui n'écrit pas n'est pas vide : l'étape est rendue à son auteur, les fichiers fautifs nommés | la boucle des tests, ou celle du code ; pour un rôle qui n'écrit pas, la reprise d'une séance sans fiche conforme |
 | renvoi au testwriter | une preuve refusée, ou un rouge qui nomme un fichier de test du lot, va au testwriter | la boucle des tests |
 | renvoi à l'auteur du code | un rouge des contrôles au code va au développeur, ou à l'agent direct | la boucle du code |
 | renvoi après `RENDU` | un constat bloquant va au rôle qu'il nomme | la boucle des relectures |
@@ -376,7 +377,7 @@ Un geste est ce que le circuit fait seul sur un cas qu'une règle tranche ; chac
 | régénération | un rouge qui est celui d'une référence déclarée ou engendrée va à 4.2 | une fois par arbre |
 | rejeu des engendrés | avant la preuve du rouge, les contrôles et la passe finale, la commande de chaque fichier engendré (`grillhouse.engendres`) dont un motif `lit` couvre un fichier que le lot change se joue dans la copie, comme 4.2 : ses fichiers entrent au lot (Bazel, Nx, Turborepo : une sortie se construit avant les tests qui la lisent) | à chaque passe ; une commande qui échoue arrête à `references` |
 | conflit de l'avance | l'avance de la copie sur main laisse des fichiers en conflit : ils vont au rôle qui les écrit | une séance par rôle, puis `lancement` |
-| extension du plan | une écriture dans un fichier que le ticket nomme, un composant écarté qui rougit, les tests d'un paquet lecteur que le lot fait rougir : le plan s'étend, la pièce écrite au ticket | les paquets que le ticket ou le relevé du plan nomment |
+| extension du plan | une fiche `BESOIN` qui nomme le paquet d'un fichier que la description du ticket nomme, un composant écarté qui rougit, les tests d'un paquet lecteur que le lot fait rougir : le plan s'étend, la pièce écrite au ticket | les paquets que le ticket ou le relevé du plan nomment |
 | arrêt d'un ticket fermé hors de son circuit | la file des tickets arrête le circuit d'un ticket que Beads dit fermé | une fois |
 
 Ces gestes restent ; un geste dont le rendement mesuré est mauvais s'étudie avant d'être retiré ou corrigé (document de tête, §8).
