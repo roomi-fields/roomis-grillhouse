@@ -15,7 +15,8 @@
 //   grillhouse maj`, which installs it.
 // - Its files: its pyproject.toml (PEP 621: its name, its version 0.1.0, the Python it requires, no
 //   dependency; its group `test` of `[dependency-groups]`, PEP 735, pytest, which the module runs
-//   by `uv run --group test pytest`; the configuration of pytest, `[tool.pytest.ini_options]`, its
+//   by its path in the environment of the package (./commandes.mjs); the configuration of pytest,
+//   `[tool.pytest.ini_options]`, its
 //   tests under `tests/` and its code importable from `src/`, as uv's layout of a library has it);
 //   `src/<module>/__init__.py`, without code; `tests/.gitkeep`, its folder of tests. The typing is
 //   `python -m compileall`, which needs no configuration. No build system: uv neither builds nor

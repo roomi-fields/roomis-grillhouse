@@ -15,7 +15,7 @@ import { cas, echecs } from '../../../../scripts/conformite.mjs';
 import module from '../../../../scripts/langages/python/index.mjs';
 import lesExemples, { INDEX } from '../../../../scripts/langages/python/exemples.mjs';
 import typescript from '../../../../scripts/langages/typescript/index.mjs';
-import { installerFauxUv } from './faux-uv.js';
+import { installerFauxUv, lancePytest } from './faux-uv.js';
 
 type Langage = Parameters<typeof cas>[0];
 const python = module as unknown as Langage;
@@ -115,7 +115,7 @@ describe('grillhouse-ziy — verifier et le corps de la tâche des tests', () =>
       FAUX_UV_CODES: JSON.stringify({ pytest: 5 }),
     });
     expect(r.code, r.stderr).toBe(0);
-    expect(r.appels.some(a => a.args.includes('pytest'))).toBe(true);
+    expect(r.appels.some(a => lancePytest(a.args))).toBe(true);
   });
 
   it('a red pytest makes the body of the task red', () => {

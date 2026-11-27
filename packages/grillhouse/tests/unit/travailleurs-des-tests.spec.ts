@@ -22,7 +22,7 @@ import exemplesCargo from '../../scripts/langages/cargo/exemples.mjs';
 import pythonModule from '../../scripts/langages/python/index.mjs';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { avecFauxCargo, installerFauxCargo } from './langages/cargo/faux-cargo.js';
-import { installerFauxUv } from './langages/python/faux-uv.js';
+import { installerFauxUv, lancePytest } from './langages/python/faux-uv.js';
 
 type Commandes = { commandes: (r: string) => Record<string, { script: string; args: string[] }> };
 const cargo = cargoModule as unknown as Commandes;
@@ -173,14 +173,14 @@ describe('grillhouse-9kq critère 17 — pytest (module python)', () => {
   };
 
   it('pytest reçoit « -n 4 » sous GRILLHOUSE_TRAVAILLEURS=4', () => {
-    const pytest = jouer({ GRILLHOUSE_TRAVAILLEURS: '4' }).find(a => a.includes('pytest'))!;
+    const pytest = jouer({ GRILLHOUSE_TRAVAILLEURS: '4' }).find(lancePytest)!;
     const i = pytest.indexOf('-n');
     expect(i).toBeGreaterThan(-1);
     expect(pytest[i + 1]).toBe('4');
   });
 
   it('sans la variable, pas de « -n » : pytest joue seul', () => {
-    const pytest = jouer({}).find(a => a.includes('pytest'))!;
+    const pytest = jouer({}).find(lancePytest)!;
     expect(pytest).not.toContain('-n');
   });
 });

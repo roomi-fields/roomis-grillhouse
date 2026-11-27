@@ -11,7 +11,13 @@ import { poserLeFauxProgramme } from '../../faux-programme.js';
 //   UV_PROJECT_ENVIRONMENT, its UV_CACHE_DIR and its TMPDIR.
 // - `uv --version`: `uv <FAUX_UV_VERSION> (faux)`, 0.10.4 by default; under `FAUX_UV_ABSENT`, it
 //   fails (code 2).
-// - `uv run … pytest …`: the test files are those of the paths named after `pytest`, else of its
+// - `uv run … <pytest> …`, the program named `pytest` or a path to a file of that name. By a path,
+//   it plays that file as the real uv does: missing under UV_PROJECT_ENVIRONMENT, it is first laid
+//   there, as the sync of `uv run` lays it, except under `FAUX_UV_SANS_PYTEST` (an environment
+//   without it); still missing, or its shebang naming an interpreter that does not exist, the call
+//   fails (code 2, « Failed to spawn »). By its name alone it always plays, as the `pytest` of the
+//   PATH uv falls back to. `lancePytest(args)` tells such a call.
+// - Its test files are those of the paths named after the program, else of its
 //   working directory, as pytest 9 collects them (measured): a folder gives every `test_*.py` and
 //   `*_test.py` under it, those an `--ignore-glob=*_nuit_test.py` names left out; a file named
 //   plays even when an `--ignore-glob` names it, as pytest never ignores a path named, unless a
@@ -35,11 +41,25 @@ if (args[0] === '--version') {
   process.stdout.write('uv ' + (process.env.FAUX_UV_VERSION || '0.10.4') + ' (faux)\\n');
   process.exit(0);
 }
-const sous = args.includes('pytest') ? 'pytest' : args.includes('compileall') ? 'compileall' : args[0];
+const programme = args.findIndex(a => path.basename(a) === 'pytest');
+const sous = programme >= 0 ? 'pytest' : args.includes('compileall') ? 'compileall' : args[0];
 const codes = JSON.parse(process.env.FAUX_UV_CODES || '{}');
 const code = codes[sous + ' ' + path.basename(cwd)] ?? codes[sous] ?? 0;
 if (sous === 'pytest') {
-  const apres = args.slice(args.indexOf('pytest') + 1);
+  if (args[programme] !== 'pytest') {
+    const f = path.resolve(cwd, args[programme]);
+    const venv = process.env.UV_PROJECT_ENVIRONMENT;
+    if (!fs.existsSync(f) && !process.env.FAUX_UV_SANS_PYTEST && venv && f === path.join(venv, 'bin', 'pytest')) {
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      fs.writeFileSync(f, '#!/bin/sh\\n', { mode: 0o755 });
+    }
+    const shebang = fs.existsSync(f) ? /^#!\\s*(\\S+)/.exec(fs.readFileSync(f, 'utf8')) : null;
+    if (!shebang || !fs.existsSync(shebang[1])) {
+      process.stderr.write('error: Failed to spawn: ' + args[programme] + '\\n');
+      process.exit(2);
+    }
+  }
+  const apres = args.slice(programme + 1);
   const nommes = [];
   let junit = null;
   const ignores = [];
@@ -72,6 +92,9 @@ if (sous === 'pytest') {
 }
 process.exit(code);
 `;
+
+/** Whether the call of arguments <args> plays pytest, by its name or by a path to it. */
+export const lancePytest = (args: string[]) => args.some(a => path.basename(a) === 'pytest');
 
 /** Writes the fake uv in a new directory under <dans>, and returns that directory. */
 export function installerFauxUv(dans: string): string {

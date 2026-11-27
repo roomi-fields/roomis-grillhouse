@@ -202,14 +202,20 @@ describe('grillhouse-ziy, critère 3 — les commandes par uv', () => {
     expect(python.gardes(ESSAIS)).toEqual([[script], [index, '--verifier']]);
   });
 
-  it('tester: uv run --locked --group test pytest in the package, its JUnit report read by the verdict', () => {
+  it('tester: uv run --locked --group test plays the pytest of the package’s environment, its JUnit report read by the verdict', () => {
     const racine = projet();
     const r = lancer(racine, 'tester');
     expect(r.code, r.stderr).toBe(0);
     expect(r.appels).toHaveLength(1);
     const [appel] = r.appels;
     expect(appel.cwd).toBe(path.join(racine, 'site'));
-    expect(appel.args.slice(0, 5)).toEqual(['run', '--locked', '--group', 'test', 'pytest']);
+    expect(appel.args.slice(0, 5)).toEqual([
+      'run',
+      '--locked',
+      '--group',
+      'test',
+      path.join(racine, '.venv/site/bin/pytest'),
+    ]);
     expect(appel.args).toContain('junit_family=xunit1');
     expect(r.verdict.taches.map(t => [t.tache, t.tests, t.code])).toEqual([
       ['site#pytest', true, 0],

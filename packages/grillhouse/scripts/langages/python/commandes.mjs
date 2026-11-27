@@ -28,8 +28,13 @@
 // - `tests-du-paquet <chemin>…` is the body of that task, which the `test:unit` script of a project
 //   calls (`grillhouse tests-du-paquet <dossier du projet>`, written with the package): it never
 //   runs Turborepo, so `tester` and the task do not loop. It plays pytest in the project:
-//   `uv run --locked --group test pytest`, the group `test` holding pytest and what the tests
-//   depend on, its JUnit report in the family `xunit1` (./verdict.mjs). A path, written from the
+//   `uv run --locked --group test <racine>/.venv/<dossier>/bin/pytest`, the pytest of the
+//   environment of the package by its path, the group `test` holding pytest and what the tests
+//   depend on, its JUnit report in the family `xunit1` (./verdict.mjs). Never `pytest` by its
+//   name: uv then plays the one of the PATH, without a word, when the environment holds none that
+//   launches. A pytest of the environment absent or broken (the interpreter of its shebang gone,
+//   as after the repository moved) is red, its line naming the repair, `uv sync --locked --group
+//   test --reinstall` on that environment. A path, written from the
 //   root, chooses the project that holds it, and pytest plays that path alone; the paths of the
 //   variable `GRILLHOUSE_TESTS` that lie in the project replace the folder the script names. A path
 //   out of every project is refused, named, and nothing plays (code 2). The night tests
@@ -80,7 +85,7 @@
 // - The exit code: 0 when every task is green, 75 when the only reds are « à repasser », 1
 //   otherwise; 2 for a path refused or a command unknown.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { constants, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -160,6 +165,7 @@ function passe(racine, env) {
   const id = `${Date.now()}-${process.pid}`;
   const taches = [];
   const rapports = {};
+  let uvAbsent = false;
   // uv keeps its cache with the frame's caches of compilation, out of the temporary directory.
   const environnement = {
     ...env,
@@ -205,14 +211,14 @@ function passe(racine, env) {
     },
     // <vert>, the codes that count green beside 0.
     jouer({ t, args, cwd, programme }, vert = []) {
-      // The environment of uv of the package, at the root (`sorties` of ./index.mjs).
-      const venv = path.join(racine, VENV, path.relative(racine, cwd));
+      const venv = environnementDe(racine, cwd);
       const r = spawnSync(programme, args, {
         cwd,
         env: { ...environnement, UV_PROJECT_ENVIRONMENT: venv },
         stdio: 'inherit',
       });
       if (r.error?.code === 'ENOENT' && programme === 'uv') {
+        uvAbsent = true;
         process.stderr.write("⛔ uv absent du PATH : `npx grillhouse binaires` l'installe.\n");
       }
       t.code = r.error ? 127 : (r.status ?? 128 + (constants.signals[r.signal] ?? 0));
@@ -222,6 +228,8 @@ function passe(racine, env) {
       ecrire();
       return t.code;
     },
+    // Whether a task found no uv to run, which `jouer` said.
+    uvAbsent: () => uvAbsent,
     code() {
       const rouges = taches.filter(t => t.code !== 0);
       if (rouges.length === 0) {
@@ -230,6 +238,35 @@ function passe(racine, env) {
       return rouges.every(t => t.code === A_REPASSER) ? A_REPASSER : 1;
     },
   };
+}
+
+// The environment of uv of the package at <dossier>, at the root (`sorties` of ./index.mjs).
+const environnementDe = (racine, dossier) =>
+  path.join(racine, VENV, path.relative(racine, dossier));
+
+// Whether the script <f> of an environment launches: there, and the interpreter it names there,
+// by its shebang or, for a path too long or with a space, by the `exec` of its `/bin/sh` header.
+function seLance(f) {
+  let texte;
+  try {
+    texte = readFileSync(f, 'utf8');
+  } catch {
+    return false;
+  }
+  const [premiere, seconde = ''] = texte.split('\n');
+  const interpretes = [
+    /^#!\s*(\S+)/.exec(premiere)?.[1],
+    /^'''exec' '(\/[^']*)' "\$0"/.exec(seconde)?.[1],
+  ];
+  return interpretes.every(i => i === undefined || existsSync(i));
+}
+
+// The line of a red run of the package at <dossier> whose pytest <pytest> does not launch: the
+// repair, on the environment of the package at the root.
+function ligneDeReparation(racine, dossier, pytest) {
+  const venv = environnementDe(racine, dossier);
+  const paquet = path.relative(racine, dossier) || '.';
+  return `⛔ ${paquet} : pytest de son environnement absent ou cassé (${pytest}) ; le réparer, dans ${paquet} : \`UV_PROJECT_ENVIRONMENT='${venv}' uv sync --locked --group ${GROUPE} --reinstall\`\n`;
 }
 
 const UV_RUN = ['run', '--locked'];
@@ -259,7 +296,9 @@ function declareXdist(dossier) {
 function jouerLesTests(p, choix, options) {
   for (const { c, chemins } of choix) {
     const cache = path.join(p.racine, CACHE_DE_PYTEST, path.relative(p.racine, c.dossier));
-    const args = [...UV_RUN, '--group', GROUPE, 'pytest', '-o', `cache_dir=${cache}`];
+    // By its path: by its name, uv falls back to the pytest of the PATH.
+    const pytest = path.join(environnementDe(p.racine, c.dossier), 'bin', 'pytest');
+    const args = [...UV_RUN, '--group', GROUPE, pytest, '-o', `cache_dir=${cache}`];
     args.push(...p.junit(c.nom, c.dossier));
     // The workers of the task (GRILLHOUSE_TRAVAILLEURS, which a session and a pass set): `-n` of
     // pytest-xdist, for a package whose test group declares it; without the variable, one process.
@@ -268,10 +307,14 @@ function jouerLesTests(p, choix, options) {
       args.push('-n', String(travailleurs));
     }
     const entier = chemins.every(ch => ch === '.');
-    p.jouer(
+    const code = p.jouer(
       p.prevoir(c.nom, c.dossier, 'pytest', true, [...args, ...selection(chemins), ...options]),
       entier ? [AUCUN_TEST] : []
     );
+    // Read after the run: `uv run` syncs the environment first, which lays a pytest it lacks.
+    if (code !== 0 && !p.uvAbsent() && !seLance(pytest)) {
+      process.stderr.write(ligneDeReparation(p.racine, c.dossier, pytest));
+    }
   }
 }
 

@@ -13,7 +13,7 @@ import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtu
 import type { Langage } from '../../../../scripts/jointure.js';
 import module from '../../../../scripts/langages/python/index.mjs';
 import { appelsDeTurbo, installerFauxTurbo } from '../../faux-turbo.js';
-import { installerFauxUv } from './faux-uv.js';
+import { installerFauxUv, lancePytest } from './faux-uv.js';
 
 const python = module as unknown as Langage;
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'python-par-turbo-'));
@@ -176,7 +176,7 @@ describe('grillhouse-44b.5, critère 7 — le corps de la tâche est une command
     expect(r.code, r.stderr).toBe(0);
     expect(r.turbo).toEqual([]);
     expect(r.appels).toHaveLength(1);
-    expect(r.appels[0]!.args).toContain('pytest');
+    expect(lancePytest(r.appels[0]!.args)).toBe(true);
     expect(r.appels[0]!.cwd).toBe(path.join(racine, 'site'));
   });
 
@@ -209,7 +209,7 @@ describe('grillhouse-44b.5, critères 1 et 9 — verifier joue les tâches de Tu
     const test = r.turbo.find(a => a.args.includes('test:unit'));
     expect(test, JSON.stringify(r.turbo)).toBeDefined();
     expect(test!.args[0]).toBe('run');
-    expect(r.appels.filter(a => a.args.includes('pytest'))).toEqual([]);
+    expect(r.appels.filter(a => lancePytest(a.args))).toEqual([]);
   });
 
   it('critère 9: aucun vert posé par le module python, vert ou non', () => {
@@ -229,6 +229,6 @@ describe('grillhouse-44b.5, critères 1 et 9 — verifier joue les tâches de Tu
     const r = lancer(projet(), 'verifier', ['--tout'], { GRILLHOUSE_GRAPHE_JOUE: '1' });
     expect(r.code, r.stderr).toBe(0);
     expect(r.turbo.some(a => a.args.includes('test:unit'))).toBe(false);
-    expect(r.appels.filter(a => a.args.includes('pytest'))).toEqual([]);
+    expect(r.appels.filter(a => lancePytest(a.args))).toEqual([]);
   });
 });

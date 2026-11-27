@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+- **The tests of a python package play the pytest of its environment, never the one of the system** (grillhouse-3uv.273, seen by SH in synthub-server, `ModuleNotFoundError` from the system's yaml): after the repository moved, the scripts of `.venv/<package>/bin` kept a shebang to the old folder, `uv sync --locked` did not rewrite them (uv 0.10.4), and `uv run … pytest` fell back without a word to the `pytest` of the PATH. The module python now launches `<root>/.venv/<package>/bin/pytest` by its path (a whole package, a named path, the night tests); a `pytest` absent or broken in the environment is red, and its line names the repair. **Action for projects**: repair a moved environment by `uv sync --locked --group test --reinstall` in the package, on its environment (the red line names the whole command); run `npm run verifier -- --tout` once to play again the packages that were green with the system's pytest.
 - **What the migration of the index servers leaves to a project names a command that exists** (grillhouse-3uv.271, seen by SH in the update of osc-bridge to 0.51.0): once the plugin rtfm is enabled, it asks to run `npx grillhouse greffons` in the main tree; it named `npx grillhouse maj --poste`, an option no command offers.
 
 ## [0.51.0] - 2026-11-27
