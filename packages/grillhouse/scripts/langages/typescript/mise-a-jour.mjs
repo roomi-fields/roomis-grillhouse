@@ -358,7 +358,7 @@ export const miseAJour = joueDesTests => ({
   generateurs: [
     { commande: 'frontieres', args: ['--ecrire'], sortie: '.dependency-cruiser.cjs' },
     { commande: 'index-interfaces', args: [], sortie: 'docs/agents/index-des-interfaces.md' },
-    { commande: 'turbo-des-paquets', args: ['--ecrire'], sortie: null },
+    { commande: 'turbo-des-paquets', args: ['--ecrire'], sortie: null, importe: ['jsonc-parser'] },
   ],
   // No binary of the machine: nothing to install.
   installation: null,

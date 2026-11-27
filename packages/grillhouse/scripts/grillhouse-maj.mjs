@@ -45,6 +45,9 @@
 //   graph, which every project has (`generateursDe`, scripts/langages.mjs), run by the project's
 //   `node_modules/.bin/grillhouse` for each file the project holds (all, in a project `init`
 //   creates); a failing one, or a missing command, has its line saying to run it after `npm install`.
+//   One that imports a tool the project has not installed (`importe`: the graph's, jsonc-parser) is
+//   not run, as `nx migrate` installs before it runs a migration: its line asks for `npm install`,
+//   then its command.
 // - The binaries of the language (`binaires`; cargo: nextest, cargo-deny): installed when missing
 //   or at another version by `miseAJour.installation`; one that fails has its line, exit code non-zero.
 //   `npx grillhouse binaires` plays the same alone (scripts/binaires.mjs).
@@ -446,7 +449,8 @@ export function mettreAJour(projet, source, { inscrite = VERSION, bd = jouerBd }
  * Runs each generator of the languages of the project (`miseAJour.generateurs` of each module,
  * and the generator of the graph, `generateursDe`, each once) whose output the project holds (every one with `tous`, for a project `grillhouse init` creates;
  * every one of the module <langage>, for the first package of a language `grillhouse paquet` creates);
- * returns the lines of failure.
+ * one that imports a tool not installed in the project (`importe`) is not run. Returns the lines of
+ * failure, one for each generator not run among them.
  */
 export function regenerer(projet, { tous = false, langage = null } = {}) {
   const lignes = [];
@@ -461,13 +465,23 @@ export function regenerer(projet, { tous = false, langage = null } = {}) {
       continue;
     }
     vus.add(cle);
+    const geste = `npx grillhouse ${[g.commande, ...g.args].join(' ')}`;
+    const manquants = (g.importe ?? []).filter(
+      nom => !existsSync(path.join(projet, 'node_modules', nom, 'package.json'))
+    );
+    if (manquants.length > 0) {
+      lignes.push(
+        `${g.sortie ?? g.commande} : non joué, ${manquants.join(', ')} n’est pas installé ; lance \`npm install\`, puis \`${geste}\`.`
+      );
+      continue;
+    }
     if (g.sortie !== null) {
       mkdirSync(path.dirname(path.join(projet, g.sortie)), { recursive: true });
     }
     const r = spawnSync(grillhouse, [g.commande, ...g.args], { cwd: projet, encoding: 'utf8' });
     if (r.status !== 0) {
       lignes.push(
-        `${g.sortie ?? g.commande} : \`npx grillhouse ${[g.commande, ...g.args].join(' ')}\` échoue ; lance-le après \`npm install\`, qui installe les outils du cadre. ${(r.stderr ?? '').trim()}`.trim()
+        `${g.sortie ?? g.commande} : \`${geste}\` échoue ; lance-le après \`npm install\`, qui installe les outils du cadre. ${(r.stderr ?? '').trim()}`.trim()
       );
     }
   }

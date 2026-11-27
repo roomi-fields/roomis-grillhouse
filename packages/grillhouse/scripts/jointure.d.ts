@@ -157,6 +157,10 @@ export interface Generateur {
    * project `grillhouse init` creates); null, it runs in every project whose package.json declares
    * `workspaces`. */
   sortie: string | null;
+  /** The tools of the project it imports (`outils`): while one is not installed in the project
+   * (no `node_modules/<tool>/package.json`), the update does not run it, and its line asks for
+   * `npm install` then its command; absent, it imports none. */
+  importe?: string[];
 }
 
 /** What the module brings to the update of a project (`grillhouse maj`), as each plugin of Nx

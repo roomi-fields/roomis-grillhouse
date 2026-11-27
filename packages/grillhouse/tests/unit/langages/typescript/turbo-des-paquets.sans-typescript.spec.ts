@@ -100,6 +100,7 @@ describe.each(['cargo', 'python', 'c'] as const)('un projet %s sans paquet TypeS
   it('joue le générateur à la montée', () => {
     const r = depot(langage);
     fichier(r, 'node_modules/.bin/grillhouse', '#!/bin/sh\necho "$*" >> commandes-jouees\n', 0o755);
+    fichier(r, 'node_modules/jsonc-parser/package.json', json({ name: 'jsonc-parser' }));
     expect(regenerer(r)).toEqual([]);
     expect(readFileSync(path.join(r, 'commandes-jouees'), 'utf8').split('\n')).toContain(
       'turbo-des-paquets --ecrire'
