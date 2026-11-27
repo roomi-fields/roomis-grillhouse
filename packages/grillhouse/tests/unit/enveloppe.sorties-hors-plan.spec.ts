@@ -1,6 +1,6 @@
 // The envelope opens where the tools of the language write, as a sandbox of Bazel opens the
 // outputs an action declares whatever the package: in each package of the copy that the plan does
-// not name, every own output of the module of the language (`sorties.propres`: `.turbo`,
+// not name, every own output of the session (the core's `.turbo`, the module typescript's
 // `.cache-outils`) is an empty directory proper to the session, and the rest of the package
 // stays read-only. A package the plan names keeps its outputs written; a plan that writes the
 // root stays as it was. Read on the plan of the envelope, without disk.

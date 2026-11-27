@@ -37,9 +37,10 @@
 // - The migrations of a project of TypeScript (./migrations/): the base configuration of Vitest,
 //   and the ones that replay a guard of this module, which the update plays with the core's
 //   (scripts/migrations.mjs), as each plugin of Nx carries its own.
-// - No binary of the machine (`binaires`); what its tools write in a project, `.turbo`
-//   (`ignorer`); its share of the update (./mise-a-jour.mjs, `miseAJour`): the tests by Vitest,
-//   the frame's package declared, the typing, the turbo.json, and the generators.
+// - No binary of the machine (`binaires`); what its tools write in a project, Vitest's reports
+//   and the cache of the tools (`ignorer`); its share of the update (./mise-a-jour.mjs,
+//   `miseAJour`): the tests by Vitest, the frame's package declared, the typing, the turbo.json,
+//   and the generators.
 // - The skeleton of a new package (./squelette.mjs, `squelette`), which `grillhouse paquet` writes.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -219,16 +220,15 @@ export default {
   // runs and cache (`.turbo`) are the frame's, every language playing by it: IGNORES_DU_CADRE of
   // scripts/grillhouse-maj.mjs ignores them.
   ignorer: ['.vitest-reports', '.cache-outils'],
-  // Where its tools write: the cache of Turborepo in the main tree, shared by every copy, written;
-  // the logs of Turborepo's tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
-  // from its cache included, and which no option of Turborepo sends elsewhere) and the cache of
-  // Vite, where Vitest writes the results of a run (`.cache-outils/vite/vitest/`, the `cacheDir` of
-  // the base configurations: a copy's `node_modules` is a link, so nothing under it is a clean
-  // output) and whose failure fails it; and the cache of ESLint and Prettier (`.cache-outils/`),
-  // proper to the session, an empty one costing a whole reading, as without a cache.
+  // Where its tools write, Turborepo's outputs being the core's (`sortiesDuLangage` of
+  // scripts/enveloppe/enveloppe.mjs): the cache of Vite, where Vitest writes the results of a run
+  // (`.cache-outils/vite/vitest/`, the `cacheDir` of the base configurations: a copy's
+  // `node_modules` is a link, so nothing under it is a clean output) and whose failure fails it;
+  // and the cache of ESLint and Prettier (`.cache-outils/`), proper to the session, an empty one
+  // costing a whole reading, as without a cache.
   sorties: {
-    ecrites: ['//.turbo/cache/'],
-    propres: ['.turbo', '.cache-outils'],
+    ecrites: [],
+    propres: ['.cache-outils'],
     lues: [],
   },
   // The test tool run directly, Vitest or Turborepo that plays it: `npm test` and `npm run

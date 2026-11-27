@@ -162,8 +162,9 @@ noyau, et chaque réponse décrit sans agir, sauf `verifier` d'un fichier engend
   la racine quand le plan ne l'écrit pas, et dans la matière de test sauf pour le testwriter, qui
   l'écrit ; le lanceur crée ceux qui manquent avant de monter (`preparerLesSorties`), comme Bazel
   écrit les journaux d'un test hors de ses sources. `lues`, `~/…` ou `//…`, se montent en lecture seule avant ce qui s'écrit en
-  elles, quand elles existent. `typescript` : `//.turbo/cache/` écrit, `.turbo` et
-  `.cache-outils` propres (le cache de Vite vit sous `.cache-outils/vite`, `cacheDir` des bases de jour et de nuit ; `node_modules/.vite` n'est plus une sortie propre, `node_modules` d'une copie étant un lien) ; `cargo` : `target/`, et dans `~/.cargo` son registre, ses
+  elles, quand elles existent. Le noyau déclare, pour chaque
+  langage et sans qu'un module le déclare, ce qu'écrit Turborepo : `//.turbo/cache/` écrit,
+  `.turbo` propre. `typescript` : `.cache-outils` propre (le cache de Vite vit sous `.cache-outils/vite`, `cacheDir` des bases de jour et de nuit ; `node_modules/.vite` n'est plus une sortie propre, `node_modules` d'une copie étant un lien) ; `cargo` : `target/`, et dans `~/.cargo` son registre, ses
   dépendances git, ses avis de sécurité et les fichiers de ses verrous et du cache de ses paquets
   écrits ; `~/.cargo/` (son `env`, que les shells sourcent, sa configuration, ses binaires) et
   `~/.rustup/` lus ; `python` : `.venv/` et `.pytest_cache/`, où ses commandes font écrire uv et pytest pour chaque

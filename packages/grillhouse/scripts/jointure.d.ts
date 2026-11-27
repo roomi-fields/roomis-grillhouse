@@ -218,7 +218,8 @@ export interface Composition {
    * out, the update writes them in the project's `.gitignore`, and the removal of the finished
    * copies removes them from a kept copy whose ticket is closed (scripts/copies-finies.mjs). */
   ignorer: string[];
-  /** Where a run of the language's tools writes, which the envelope opens to a session. */
+  /** Where a run of the language's tools writes, which the envelope opens to a session;
+   * Turborepo's outputs are the core's, which no module declares. */
   sorties: {
     /** Opened in writing: from the root of the copy, from the home (`~/…`), or from the main
      * tree (`//…`), a store shared by every copy; each created before the session, a directory

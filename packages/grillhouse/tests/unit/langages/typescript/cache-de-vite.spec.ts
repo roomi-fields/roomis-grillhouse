@@ -25,8 +25,8 @@ describe('the cache of Vite of the typescript module', () => {
     );
   });
 
-  it('the clean outputs of the module are .turbo and .cache-outils', () => {
-    expect([...typescript.sorties.propres].sort()).toEqual(['.cache-outils', '.turbo']);
+  it('the only clean output of the module is .cache-outils, Turborepo’s being the core’s', () => {
+    expect(typescript.sorties.propres).toEqual(['.cache-outils']);
   });
 
   it('the cache of Vite falls under a clean output of the module', () => {

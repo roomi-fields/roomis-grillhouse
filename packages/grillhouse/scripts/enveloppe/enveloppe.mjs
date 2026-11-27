@@ -16,15 +16,15 @@
 //   copy. Every `.git`, the copy's included, stays read-only: the agent delivers a patch
 //   (`git diff`, and `git diff --no-index /dev/null <file>` for a new file); it never commits.
 // - Where the tools of the project's language write is what its module declares (`sorties`,
-//   scripts/jointure.d.ts; `sortiesDuLangage`): its stores, in the main tree (`//…`, TypeScript's
-//   cache of Turborepo, shared by every copy) or in the home (`~/…`, cargo's registry, git
-//   dependencies, advisories and the lock and cache files at the root of `~/.cargo`), are
-//   written; what its tools read (`~/.cargo` with its `env`, its configuration and its binaries,
-//   and `~/.rustup`) comes back read-only under them; its outputs in the copy (cargo's `target`)
-//   come back in writing; its outputs proper to the session (TypeScript's `.turbo` and
-//   `.cache-outils`, the cache of Vite) are empty and proper to it. Each written path is created
-//   on disk before the session, a directory or, without a trailing `/` in the module's list, an
-//   empty file, so that bwrap mounts it.
+//   scripts/jointure.d.ts), with what the core declares of Turborepo for every language
+//   (`sortiesDuLangage`): the stores, in the main tree (`//…`, the cache of Turborepo, shared by
+//   every copy) or in the home (`~/…`, cargo's registry, git dependencies, advisories and the lock
+//   and cache files at the root of `~/.cargo`), are written; what the tools read (`~/.cargo` with
+//   its `env`, its configuration and its binaries, and `~/.rustup`) comes back read-only under
+//   them; the outputs in the copy (cargo's `target`) come back in writing; the outputs proper to
+//   the session (Turborepo's `.turbo`, TypeScript's `.cache-outils`, the cache of Vite) are empty
+//   and proper to it. Each written path is created on disk before the session, a directory or,
+//   without a trailing `/` in the list, an empty file, so that bwrap mounts it.
 // - The home and the session directories (`$XDG_RUNTIME_DIR`, `/run/user/<uid>`) start empty and
 //   sealed read-only; the home gets back `~/.claude`, `~/.claude.json`, the npm cache, the paths
 //   of `MAISON_EN_LECTURE` (claude, node, git and the session's tools) and the repository. No
@@ -535,10 +535,16 @@ const lienSurDisque = p => {
   }
 };
 
+// Where Turborepo writes, the task runner every language of the frame plays by, declared once by
+// the core for every module: its cache in the main tree, shared by every copy, written; and
+// `.turbo`, the logs of its tasks (`.turbo/turbo-<task>.log`, written on every run, a task replayed
+// from its cache included, and which no option of Turborepo sends elsewhere), proper to the session.
+const SORTIES_DE_TURBOREPO = { ecrites: ['//.turbo/cache/'], propres: ['.turbo'] };
+
 /**
- * The outputs <s> of the module of the language (its `sorties`, scripts/jointure.d.ts) for a
- * session whose home is <maison> and whose main tree is <principal>: `lectures`, what its tools
- * read, absolute (`~/…` from the home, `//…` from the main tree), mounted read-only;
+ * The outputs <s> of the module of the language (its `sorties`, scripts/jointure.d.ts), with
+ * Turborepo's (`SORTIES_DE_TURBOREPO`), for a session whose home is <maison> and whose main tree
+ * is <principal>: `lectures`, what its tools read, absolute (`~/…` from the home, `//…` from the main tree), mounted read-only;
  * `magasins`, the stores written, absolute, mounted after them; `sorties`, what the copy holds,
  * from its root: `ecrites` in writing, `propres` proper to the session; `fichiers`, the written
  * paths of `magasins` and `sorties.ecrites` that are files (written without a trailing `/`), which
@@ -563,7 +569,7 @@ export function sortiesDuLangage(s, { maison, principal }) {
   const ecrites = [];
   /** @type {string[]} */
   const fichiers = [];
-  for (const e of s.ecrites) {
+  for (const e of [...SORTIES_DE_TURBOREPO.ecrites, ...s.ecrites]) {
     const a = absolu(e);
     const p = a === null ? nu(e) : nu(a);
     if (a === null) {
@@ -576,7 +582,8 @@ export function sortiesDuLangage(s, { maison, principal }) {
     }
   }
   const lectures = s.lues.map(absolu).flatMap(a => (a === null ? [] : [nu(a)]));
-  return { magasins, lectures, fichiers, sorties: { ecrites, propres: [...s.propres] } };
+  const propres = [...new Set([...SORTIES_DE_TURBOREPO.propres, ...s.propres])];
+  return { magasins, lectures, fichiers, sorties: { ecrites, propres } };
 }
 
 // Creates the directory, or the empty file when <fichier>, <chemin>, when it is absent.
@@ -639,8 +646,8 @@ export function jugerComposant({ depot, composant, paquets = [], neuf = false },
 // copy (`matieres` of the module of the language); `role` is the agent's role, and only the
 // `testwriter` writes them, and the lock files of the versions `verrous`, from the root of the copy.
 // `magasins` lists the stores written by every run, the agent's included
-// (the module's, `sortiesDuLangage`: Turborepo's `<main tree>/.turbo/cache`, cargo's registry,
-// git dependencies, advisories and lock files in the home); one that does not exist is not
+// (`sortiesDuLangage`: Turborepo's `<main tree>/.turbo/cache`, and the module's, as cargo's
+// registry, git dependencies, advisories and lock files in the home); one that does not exist is not
 // mounted. `lectures` lists what the language's tools read (cargo's home, rustup's toolchains),
 // mounted read-only before the stores, which come back in writing inside it; one that does not
 // exist is not mounted. `sorties` lists, from the root of the copy,

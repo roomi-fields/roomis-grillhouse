@@ -313,7 +313,7 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet typescrip
     expect(pairs(args, '--tmpfs')).toEqual(['/dev/shm', '/wt/.turbo', '/wt/.cache-outils']);
   });
 
-  it('mounts .cache-outils in writing in a copy whose node_modules is a link, and drops no clean output of the module', () => {
+  it('mounts .cache-outils in writing in a copy whose node_modules is a link, and drops no clean output of the session', () => {
     const { lectures, magasins, sorties } = sortiesDuLangage(ts.sorties, {
       maison: '/h',
       principal: '/main',
@@ -336,8 +336,9 @@ describe('grillhouse-pkl.5, critère 1 — l’enveloppe d’un projet typescrip
     const vides = pairs(args, '--tmpfs');
     expect(vides).toContain('/wt/.cache-outils');
     expect(vides).toContain('/wt/.turbo');
-    // Every clean output the module declares at the root is mounted: none is dropped for a link.
-    const racineDeclarees = ts.sorties.propres.filter((s: string) => presents.includes(`/wt/${s}`));
+    // Every clean output of the session at the root, the core's as the module's, is mounted: none
+    // is dropped for a link.
+    const racineDeclarees = sorties.propres.filter((s: string) => presents.includes(`/wt/${s}`));
     expect(racineDeclarees.map((s: string) => `/wt/${s}`).sort()).toEqual(
       vides.filter(v => v.startsWith('/wt/') && !v.startsWith('/wt/packages')).sort()
     );

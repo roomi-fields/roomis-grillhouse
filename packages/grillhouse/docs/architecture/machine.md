@@ -304,7 +304,7 @@ Un rôle qui n'écrit pas (questionneur, relecteur, explorateur hors de 1.1) se 
 | les paquets du plan | écriture |
 | la matière de test partagée | écriture pour le testwriter, lecture pour les autres |
 | les fichiers de verrou des versions de la racine (`Cargo.lock`) | écriture pour le testwriter quand la racine est hors du plan |
-| ce que les outils du langage écrivent : ses magasins (le cache de Turborepo de l'arbre principal, le registre de cargo) ; ses sorties dans la copie ; ses sorties propres à la séance | écriture ; écriture ; vides et propres à la séance |
+| ce qu'écrivent Turborepo, que le noyau déclare pour chaque langage (son cache de l'arbre principal, un magasin ; `.turbo`, propre à la séance), et les outils du langage : les magasins (le registre de cargo) ; les sorties dans la copie ; les sorties propres à la séance | écriture ; écriture ; vides et propres à la séance |
 | chaque `.git`, celui de la copie compris | lecture |
 | la base des tickets (`.beads/` de l'arbre principal) | écriture |
 | la copie d'un autre ticket | lecture, facultative |

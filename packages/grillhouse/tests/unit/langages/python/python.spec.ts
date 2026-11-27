@@ -271,10 +271,12 @@ describe('grillhouse-ziy, critère 4 — l’enveloppe', () => {
       lues: ['~/.local/bin/uv', '~/.local/share/uv/python/'],
     });
     const s = sortiesDuLangage(python.sorties, { maison: '/home/x', principal: '/depot' });
-    expect(s.magasins).toEqual(['/home/x/.cache/grillhouse/uv']);
+    // The cache of Turborepo, the core's, comes with the stores of every language.
+    expect([...s.magasins].sort()).toEqual(['/depot/.turbo/cache', '/home/x/.cache/grillhouse/uv']);
     // uv itself, where its installer lays it: a session of the envelope plays `npm test` with it.
     expect(s.lectures).toEqual(['/home/x/.local/bin/uv', '/home/x/.local/share/uv/python']);
-    expect(s.sorties).toEqual({ ecrites: ['.venv', '.pytest_cache'], propres: ['__pycache__'] });
+    expect(s.sorties.ecrites).toEqual(['.venv', '.pytest_cache']);
+    expect([...s.sorties.propres].sort()).toEqual(['.turbo', '__pycache__']);
     expect(python.ignorer).toEqual(['.venv', '.pytest_cache', '__pycache__']);
   });
 
