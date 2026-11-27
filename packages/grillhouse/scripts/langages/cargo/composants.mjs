@@ -247,8 +247,25 @@ const sous = (fichier, dir) => {
 };
 
 /**
+ * The test target `tests/<dossier>/main.rs` of the crate <crate> (an entry of `crates`) whose
+ * module is the file <abs>: a `.rs` file under that folder, `tests/common/` and the root of the
+ * target apart; undefined for any other file.
+ */
+export function cibleDuModule(crate, abs) {
+  const parts = path.relative(crate.composant.dossier, abs).split(path.sep);
+  if (parts.length < 3 || parts[0] !== 'tests' || parts[1] === 'common' || !abs.endsWith('.rs')) {
+    return undefined;
+  }
+  const racine = path.join(crate.composant.dossier, 'tests', parts[1], 'main.rs');
+  return abs === racine
+    ? undefined
+    : crate.cibles.find(t => t.kind.includes('test') && t.src === racine);
+}
+
+/**
  * What the testwriter writes in <chemin>, absolute or from the root <racine>: `{ joue, test,
- * matiere }`, or null for a file he does not write.
+ * matiere }`, with `jouePar` (from the root) for a module of a test target, the file the runner
+ * plays for it; null for a file he does not write.
  */
 export function estUnTest(chemin, racine) {
   const abs = path.resolve(racine, chemin);
@@ -261,7 +278,8 @@ export function estUnTest(chemin, racine) {
   if (!c) {
     return null;
   }
-  const matiere = tous.find(x => x.composant === c).matiere;
+  const crate = tous.find(x => x.composant === c);
+  const { matiere } = crate;
   const parts = path.relative(c.dossier, abs).split(path.sep);
   if (parts[0] === 'tests' && sous(abs, path.join(c.dossier, 'tests'))) {
     if (parts[1] === 'common' && parts.length > 2) {
@@ -271,7 +289,9 @@ export function estUnTest(chemin, racine) {
     const joue =
       (parts.length === 2 && parts[1].endsWith('.rs')) ||
       (parts.length === 3 && parts[2] === 'main.rs');
-    return { joue, test: true, matiere };
+    const cible = cibleDuModule(crate, abs);
+    const jouePar = cible && path.relative(path.resolve(racine), cible.src);
+    return { joue, test: true, matiere, ...(jouePar ? { jouePar } : {}) };
   }
   // The unit tests near their module, compiled with it: `tests.rs`, the files of `tests/`.
   if (unitaire(parts)) {

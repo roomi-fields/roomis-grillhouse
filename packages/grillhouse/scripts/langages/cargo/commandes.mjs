@@ -164,6 +164,7 @@ import {
 } from '../../services-du-noyau.mjs';
 import {
   BANC,
+  cibleDuModule,
   composantDans,
   crates,
   DE_NUIT,
@@ -611,23 +612,20 @@ function duJour(c) {
 // The refusal of a night test named in a targeted run: the night alone plays it.
 const REFUS_DE_NUIT = 'un test de nuit se joue la nuit seulement (npx grillhouse nuit le joue)';
 
-// The target `tests/<dossier>/main.rs` of the crate <crate> whose module is the file <abs> (out
-// of `tests/common/` and of the target's root), and the module's path in the executable
-// (`tests/it/foo.rs` and `tests/it/foo/mod.rs` → `foo`, `tests/it/foo/sous.rs` → `foo::sous`):
-// `{ cible, module }`, null for any other file.
+// The test target of the crate <crate> whose module is the file <abs> (`cibleDuModule`), and the
+// module's path in the executable (`tests/it/foo.rs` and `tests/it/foo/mod.rs` → `foo`,
+// `tests/it/foo/sous.rs` → `foo::sous`): `{ cible, module }`, null for any other file.
 function moduleDeCible(crate, abs) {
-  const parts = path.relative(crate.composant.dossier, abs).split(path.sep);
-  if (parts.length < 3 || parts[0] !== 'tests' || parts[1] === 'common' || !abs.endsWith('.rs')) {
+  const cible = cibleDuModule(crate, abs);
+  if (!cible) {
     return null;
   }
-  const racine = path.join(crate.composant.dossier, 'tests', parts[1], 'main.rs');
-  const cible = crate.cibles.find(t => t.kind.includes('test') && t.src === racine);
-  const module = parts.slice(2);
+  const module = path.relative(path.dirname(cible.src), abs).split(path.sep);
   module[module.length - 1] = module[module.length - 1].replace(/\.rs$/, '');
   if (module.at(-1) === 'mod') {
     module.pop();
   }
-  return cible && module.length ? { cible, module: module.join('::') } : null;
+  return module.length ? { cible, module: module.join('::') } : null;
 }
 
 // The filterset of nextest that plays, of the targets <noms> of the crate <nom>, the modules

@@ -294,8 +294,11 @@ clippy`). Le noyau en lance deux
   compilateur porte ce cas (`echecDeCompilation` : Rust, C) répond toujours rien.
 - `estUnTest` : ce que le testwriter écrit dans un fichier, `{ joue, test, matiere }` (un test que
   le lanceur joue, un fichier de test ou d'un dossier de tests, un fichier de la matière de test
-  partagée), ou null pour un fichier qu'il n'écrit pas. Le jugement du lot, l'intégration et le circuit le
-  lisent.
+  partagée), ou null pour un fichier qu'il n'écrit pas ; `jouePar`, facultatif, depuis la racine,
+  le fichier que le lanceur joue pour un fichier qu'il joue dans un autre : sous cargo, le
+  `tests/<dossier>/main.rs` de la cible pour chaque `.rs` de son dossier (module, sous-module,
+  `mod.rs`, aide sans test), hors `tests/common/`. Le jugement du lot, l'intégration et le circuit
+  le lisent ; la preuve du rouge et les contrôles jouent `jouePar`.
 - `horsDuJour` (`chemin`, `racine`) : vrai quand le fichier de test est de ceux que seule la nuit
   joue (test de nuit, banc ou témoin de temps), selon les définitions du module ; faux pour tout
   autre fichier, absent compris. La preuve du rouge met ces fichiers de côté et les nomme.

@@ -67,7 +67,14 @@ export interface FichierEngendre {
 /** What the testwriter writes in a file: a test the runner plays (`joue`), a test file or a file of
  * a folder of tests (`test`), a file of the shared test material (`matiere`); null for a file it
  * does not write. */
-export type ClasseDeTest = { joue: boolean; test: boolean; matiere: boolean } | null;
+export type ClasseDeTest = {
+  joue: boolean;
+  test: boolean;
+  matiere: boolean;
+  /** For a file the runner plays within another, as a module of an executable of tests: the file
+   * it plays for it, from the root. The proof of the red names that file. */
+  jouePar?: string;
+} | null;
 
 /** What the testwriter writes of the manifests, as the author of a test of Bazel declares the deps
  * of its target: the part of a component's manifest that declares what its tests depend on, and

@@ -955,9 +955,10 @@ function restaurer(ctx, commit, fichiers) {
 
 // Whether a proof of the counts <compte> passes: no file of the lot that does not load (one that
 // imports a module the copy does not hold is a red, `casseDeChargement`), no green
-// the sheet names in `portent_le_travail` (`nommes`), and at least one red (of the lot, existing
-// or of a build); the greens the sheet does not name and the ones HEAD holds are accepted but prove
-// nothing. Under a plan « comportement tests-adaptés » (<inchange>), nothing has to turn red and every
+// the sheet names in `portent_le_travail` (`nommes`), and at least one red that proves the work
+// (`rouges`: with test files of the lot played, a red of the lot or of a build; without, the
+// existing reds of the packages played whole too); the greens the sheet does not name and the ones
+// HEAD holds are accepted but prove nothing. Under a plan « comportement tests-adaptés » (<inchange>), nothing has to turn red and every
 // green passes: a proof passes with no file of the lot that does not load, its reds going to the
 // developpeur.
 // The files of the lot that only the night plays (<misDeCote>, `separerLesFichiersDuJour`) are no
@@ -1475,9 +1476,22 @@ function nommesParLeMessage(message, fichier, dossier, candidats) {
   );
 }
 
-// The test files of the lot that the testwriter writes, present in the copy: in the packages of
-// the plan and in the shared test material. <langage> reads the class of a file: the strict join
-// by default, the join of the copy (`langageDeLaCopie`) for the launch of a session, which must
+// The files the runner plays for the test files <fichiers> of the copy of <ctx>, as the module of
+// its language <l> tells it (`estUnTest`): a file it plays itself, or the file that plays it
+// (`jouePar`, the executable of a module), each once; none for another file.
+/** @returns {string[]} */
+const joues = (ctx, l, fichiers) => [
+  ...new Set(
+    fichiers.flatMap(f => {
+      const classe = l.estUnTest(f, ctx.copie);
+      return classe?.jouePar ? [classe.jouePar] : classe?.joue ? [f] : [];
+    })
+  ),
+];
+
+// What the runner plays for the test files of the lot that the testwriter writes, present in the
+// copy: in the packages of the plan and in the shared test material (`joues`). <langage> reads the
+// class of a file: the strict join by default, the join of the copy (`langageDeLaCopie`) for the launch of a session, which must
 // go on in a copy its tool no longer loads.
 // A copy not made yet (the launch of the first session of the testwriter) has no change, and
 // the language is read only when a file is to class.
@@ -1488,19 +1502,17 @@ export function testsDuLot(ctx, langage = langageDe) {
   if (fichiers.length === 0) {
     return [];
   }
-  const l = langage(ctx.copie);
-  return fichiers.filter(f => l.estUnTest(f, ctx.copie)?.joue).sort();
+  return joues(ctx, langage(ctx.copie), fichiers).sort();
 }
 
-// The files a proof resumed at a red plays: of the files the red names <nommes>, the tests the
-// runner of the copy's language plays. A red of a guard names what it found, a document among it
+// The files a proof resumed at a red plays: what the runner of the copy's language plays for the
+// files the red names <nommes> (`joues`). A red of a guard names what it found, a document among it
 // (a line « Consommateurs » of an INTERFACE.md): no test, so nothing for the proof to play.
 export function testsDeLaReprise(ctx, nommes, langage = langageDe) {
   if (nommes.length === 0) {
     return [];
   }
-  const l = langage(ctx.copie);
-  return nommes.filter(f => l.estUnTest(f, ctx.copie)?.joue);
+  return joues(ctx, langage(ctx.copie), nommes);
 }
 
 // The package directory of the copy that holds <fichier>, or « . ».
@@ -1719,9 +1731,12 @@ export function preuveARepasser(ctx, runs) {
 }
 
 // The proof of the red, on every test of the lot: `{ ok, rouges, texte, resume }`, `texte` the
-// report, written whole to its file beside the copy. The tests judged are those of the files the
-// lot changes: a module of a single integration binary the lot does not change is main's, its
-// greens left out and its reds existing reds. A
+// report, written whole to its file beside the copy. In a file the proof plays for the lot (not a
+// package played whole), the tests judged as the lot's are those of the files the lot changes and
+// those the testwriter's sheets name, whatever their module; the others are main's, as a module of
+// a single integration binary the lot does not change: their greens are left out and their failures
+// are existing reds. With test files of the lot played and a plan that expects a red, existing reds
+// alone do not pass the proof: it takes a red of the lot or a failed build. A
 // green test is a defect when the testwriter's sheets name it (`portent_le_travail`), read at
 // each proof, and accepted when they do not; a test's full name is read whatever the
 // separator between its group and its title, a blank, or « > » as Vitest prints it, or « › » as
@@ -1776,7 +1791,8 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
   // A plan « comportement tests-adaptés », or a testwriter session the supervisor asked
   // (`--depuis testwriter`, `ctx.testwriterDemande`): every green of the lot is expected.
   const inchange = ctx.sorte?.comportement === 'tests-adaptés' || Boolean(ctx.testwriterDemande);
-  // The files the lot changes: a result of the run under another file is main's.
+  // The files the lot changes: of a result of the run under another file, only the tests the sheet
+  // names are the lot's.
   const duLot = new Set(
     changements(ctx)
       .filter(c => !c.supprime)
@@ -1807,24 +1823,15 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
         }
       }
     }
-    // The files judged: those of the lot in the group, and, for a single integration binary that
-    // plays its modules (Rust `tests/it/main.rs`), each module file the run reports that the lot
-    // changes — the group names the binary, the results name the modules, so a module's reds are
-    // credited to the lot, and the aggregator is no false casse. A module the lot does not change
-    // is main's: its greens say nothing of the lot, and its reds are existing reds, as those of a
-    // package played whole (`entier`), which keeps its own branch above.
-    const modules = entier ? [] : resultats.map(r => path.relative(ctx.copie, r.fichier));
-    const fichiersDuGroupe = [...new Set([...groupe, ...modules.filter(f => duLot.has(f))])];
-    for (const res of entier ? [] : resultats) {
-      const f = path.relative(ctx.copie, res.fichier);
-      if (fichiersDuGroupe.includes(f)) {
-        continue;
-      }
-      for (const a of res.tests.filter(x => x.etat === 'failed')) {
-        rouges.push(`rouge existant : ${f} › ${a.nom} — ${premiereLigne(a.message)}`);
-      }
-    }
-    for (const f of fichiersDuGroupe) {
+    // The files read: those of the group, and each file the run reports, as the modules of a
+    // single integration binary (Rust `tests/it/main.rs`): the group names the binary, the results
+    // name the modules. The tests judged as the lot's are those of the files the lot changes and
+    // those the sheet names; the others are main's: their greens say nothing of the lot, and their
+    // reds are existing reds, as those of a package played whole (`entier`), which keeps its own
+    // branch above. A file of the group or of the lot that does not load proves nothing, so the
+    // aggregator is no false casse.
+    const rapportes = entier ? [] : resultats.map(r => path.relative(ctx.copie, r.fichier));
+    for (const f of new Set([...groupe, ...rapportes])) {
       const res = resultats.find(t => t.fichier === path.join(ctx.copie, f));
       const tests = res?.tests ?? [];
       const deHead = vertsDuRegistre(registre, f);
@@ -1833,13 +1840,16 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
         res && tests.length === 0
           ? langage.moduleAbsent(res.message ?? '', path.join(ctx.copie, f))
           : null;
-      const casse = casseDeChargement({
-        res,
-        code,
-        constructions,
-        aDesResultats: resultats.length > 0,
-        absent: Boolean(importe) && !existsSync(importe),
-      });
+      const casse =
+        groupe.includes(f) || duLot.has(f)
+          ? casseDeChargement({
+              res,
+              code,
+              constructions,
+              aDesResultats: resultats.length > 0,
+              absent: Boolean(importe) && !existsSync(importe),
+            })
+          : null;
       if (casse === 'non-joue') {
         casses.push(
           `${f} — ne se charge pas : non joué (code ${code}) ; le journal du ticket : ${ctx.journal} (il se cite en pièce, \`${ctx.ticket}.log:<ligne>\`)`
@@ -1853,7 +1863,11 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
         rougesDuLot++;
       }
       for (const a of tests) {
-        if (a.etat === 'failed') {
+        if (!duLot.has(f) && !nomme(f, a)) {
+          if (a.etat === 'failed') {
+            rouges.push(`rouge existant : ${f} › ${a.nom} — ${premiereLigne(a.message)}`);
+          }
+        } else if (a.etat === 'failed') {
           rouges.push(`${f} › ${a.nom} — ${premiereLigne(a.message)}`);
           rougesDuLot++;
         } else if (a.etat === 'passed' && deHead.has(a.nom)) {
@@ -1866,12 +1880,15 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
   }
   const section = (titre, l) =>
     l.length ? [`${titre} (${l.length}) :`, ...l.map(x => `- ${x}`), ''] : [];
+  // With test files of the lot played, an existing red proves nothing of the ticket's work: the
+  // proof needs a red of the lot or a failed build. A package played whole has existing reds alone.
+  const rougesProbants = fichiers.length ? rougesDuLot + reportes.length : rouges.length;
   const ok = seuls
     ? casses.length === 0
     : preuveReussie(
         {
           fichiers: fichiers.length,
-          rouges: rouges.length,
+          rouges: rougesProbants,
           casses: casses.length,
           nommes: nommes.length,
           nonNommes: nonNommes.length,
@@ -1896,6 +1913,9 @@ export function preuve(ctx, { mesure: derniere = null, fichiers: duRouge = null 
             ? ['Aucun fichier de test du lot : le plan dit « tests-adaptés », rien à prouver.', '']
             : ['Aucun fichier de test du lot dans le plan : rien ne prouve le rouge.', '']),
       ...section('Rouges', rouges),
+      ...(!ok && rouges.length && !rougesProbants
+        ? ['Aucun rouge du lot ni construction rouge : ces rouges seuls ne prouvent rien.', '']
+        : []),
       ...sections,
       ...(nommes.length
         ? [

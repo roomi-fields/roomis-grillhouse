@@ -42,8 +42,10 @@
 //   machine's budget (scripts/passe-de-la-machine.mjs); a wait that reaches its bound is the 75.
 //   `npm test` in a package named whole carries `GRILLHOUSE_DEPUIS_LE_VERT`
 //   (scripts/dernier-vert.mjs).
-// - The proof plays `npm test -- --force <files of the lot>` per package (the whole package, a red
-//   written `rouge existant : <file> › <name> — <message>`, when the lot holds no test file); its
+// - The proof plays `npm test -- --force <files of the lot>` per package, a module of a test
+//   executable by the file that plays it (the whole package when the lot holds no test file); the
+//   failure of a test it holds as main's is a red written
+//   `rouge existant : <file> › <name> — <message>`; its
 //   report goes to `.claude/worktrees/<ticket>.preuve-<n>.md`; the tests that carry the work are
 //   those the testwriter's sheet names in `portent_le_travail`. A failed proof relaunches the
 //   testwriter twice at most.

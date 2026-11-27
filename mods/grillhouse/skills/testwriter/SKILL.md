@@ -167,17 +167,19 @@ tous les paquets du plan, et écrit au ticket les rouges, les verts non nommés 
 relecteur lit) et les tests nommés encore verts, qui sont un défaut : il te relance. Un test nommé
 que HEAD tient déjà vert sous le même nom n'a rien à prouver. Les fichiers de ton lot que joue la
 seule nuit (un test de nuit, un banc, un témoin de temps) sont mis de côté : ils ne sont ni exigés
-rouges ni cause de refus. Sous un plan « comportement changé », la preuve passe avec au moins un
-rouge ; sans rouge, la question monte au superviseur. Ainsi la
+rouges ni cause de refus. Sous un plan « comportement changé », quand la preuve joue des
+fichiers de ton lot, elle passe avec au moins un rouge du lot (dans un fichier que le lot change, ou
+un test que ta fiche nomme) ou une construction rouge : des rouges existants seuls la refusent. Une
+preuve refusée te relance deux fois, puis la question monte au superviseur. Ainsi la
 preuve mesure le travail du ticket, et aucun test ne rougit pour la forme.
 
-**Un rouge existant suffit** : sans fichier de ton lot, la preuve joue en entier les paquets du
-plan ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a changé un
-type) est un rouge de la preuve, `rouge existant`, qui lance le développeur. Quand ces rouges
-couvrent les critères du ticket, tu n'écris aucun test neuf et ta passation le dit.
-Sans fichier de ton lot ni rouge, la preuve échoue, sauf quand les seuls fichiers de test de ton
-lot sont ceux que joue la nuit : elle passe. Ainsi le développeur du lecteur est lancé sur
-ce que le lot casse.
+**Un rouge existant suffit** : sans fichier de ton lot que la preuve joue, elle joue en entier les
+paquets du plan ; un test que HEAD tient et que le lot rougit (un lecteur dont le fournisseur a
+changé un type) est un rouge de la preuve, `rouge existant`, qui lance le développeur. Quand ces
+rouges couvrent les critères du ticket, tu n'écris aucun test neuf et ta passation le dit.
+Sans fichier de ton lot que la preuve joue ni rouge, elle échoue, sauf quand les seuls fichiers de
+test de ton lot sont ceux que joue la nuit : elle passe. Ainsi le développeur du lecteur est lancé
+sur ce que le lot casse.
 
 **Un fichier entier se nomme sans `test`** : `portent_le_travail` porte `fichier` (depuis la
 racine du dépôt) et, facultatif, `test` (son nom complet tel que le rapport de la preuve l'écrit,
