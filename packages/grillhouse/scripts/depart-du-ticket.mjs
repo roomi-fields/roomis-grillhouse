@@ -11,7 +11,8 @@
 // - Its title names its plan after its last « — », separated by commas: each one a path
 //   (`packages/<nom>`, or `.`), or the name of a package, which becomes its directory, read in the
 //   ticket's copy when it exists, else in the main tree (`composantsLisibles`). A title without it, and
-//   a component that names neither, are refused by their name. An act after the opening is given
+//   a component that names neither, are refused by their name, but a new path of the repository
+//   on a ticket labelled `direct`, kept as it is written. An act after the opening is given
 //   the plan its workflow holds (<plan>) and reads only the subject of the title: the integration
 //   removes the ticket's copy while the circuit still runs, and a component the lot creates is in
 //   neither tree then.
@@ -19,6 +20,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { estUnCheminNeuf } from './enveloppe/paquets-du-plan.mjs';
 import { composantsLisibles } from './ticket-du-circuit.mjs';
 import { sansArchitecture } from './verrous/verrou.mjs';
 
@@ -32,10 +34,11 @@ export class DepartRefuse extends Error {
 
 /**
  * The directory of the component <nom> of a title among <liste> (`composantsLisibles` of the repository
- * at <base>): `.` itself; a component by its path or its name; else a path of the repository; or a
- * refusal.
+ * at <base>): `.` itself; a component by its path or its name; else a path of the repository; else,
+ * for a direct ticket (<neuf>), a path the repository does not hold yet, as it is written
+ * (`estUnCheminNeuf`): a package is born of a direct ticket; or a refusal.
  */
-export function resoudreComposant(liste, base, nom) {
+export function resoudreComposant(liste, base, nom, { neuf = false } = {}) {
   const brut = path.normalize(nom);
   const norme = brut.endsWith('/') ? brut.slice(0, -1) : brut;
   if (norme === '.') {
@@ -49,6 +52,9 @@ export function resoudreComposant(liste, base, nom) {
     return parNom.dossier;
   }
   if (!norme.startsWith('..') && existsSync(path.join(base, norme))) {
+    return norme;
+  }
+  if (neuf && estUnCheminNeuf(nom)) {
     return norme;
   }
   throw new DepartRefuse(
@@ -115,7 +121,8 @@ export function ticketAuLancement(racine, id, { arreter = false, bd = null, plan
   const copie = path.join(racine, '.claude', 'worktrees', id);
   const base = existsSync(copie) ? copie : racine;
   const liste = composantsLisibles(base);
-  const resoudre = nom => resoudreComposant(liste, base, nom);
+  const neuf = Boolean(ticket?.labels?.includes('direct'));
+  const resoudre = nom => resoudreComposant(liste, base, nom, { neuf });
   // The supervisor's stop reads neither the ticket's « ## Architecture » section nor its title.
   const titre = arreter
     ? { sujet: String(ticket?.title ?? id), plan: [] }

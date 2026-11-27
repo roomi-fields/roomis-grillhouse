@@ -39,7 +39,7 @@ import {
   texteDesDifferences,
 } from './references-changees.mjs';
 import { ecrireLaListe, VARIABLE as VARIABLE_ENVELOPPE } from './enveloppe/paquets-du-plan.mjs';
-import { etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
+import { auteurDuCode, etapeDuCircuit, EXPLORATEUR, SUITE } from './etapes.mjs';
 import { gardesDuCadre, nomsDesGardes } from './gardes-du-cadre.mjs';
 import { INTEGRE } from './integration/file.mjs';
 import { lotSurMain, refusLotAbsent } from './integration/integrer.mjs';
@@ -66,7 +66,7 @@ import {
   VERDICTS_DU_TRI,
   VERDICTS_ROUVERTS,
 } from './resultats.mjs';
-import { consigne, idDeSeance, jusquALaFiche } from './seances.mjs';
+import { consigne, consigneDuRelecteurDUnLotDirect, idDeSeance, jusquALaFiche } from './seances.mjs';
 import {
   Arret,
   AUTEUR_DU_CIRCUIT,
@@ -179,7 +179,8 @@ const bloquants = bloquantsDeLaFiche;
 
 // The blocking findings <constats>, each under its heading, the criterion or rule it holds, its
 // recipient (or the criterion in question), its body and its piece (an element judged not
-// conforming carries it in its body), then the developpeur's answer to it, when he gave one: lines.
+// conforming carries it in its body), then the answer of the author of the code to it, when he
+// gave one: lines.
 const lignesDesConstats = constats =>
   constats.flatMap((c, i) => [
     `### Constat ${i + 1} — ${c.titre}`,
@@ -189,7 +190,7 @@ const lignesDesConstats = constats =>
     ...(c.piece ? [`Pièce : ${c.piece}`] : []),
     ...(c.reponse
       ? [
-          `Réponse du développeur : ${c.reponse.etat}${c.reponse.raison ? ` — ${c.reponse.raison}` : ''}`,
+          `Réponse ${c.role === 'direct' ? 'de l’agent direct' : 'du développeur'} : ${c.reponse.etat}${c.reponse.raison ? ` — ${c.reponse.raison}` : ''}`,
           `Pièce de la réponse : ${c.reponse.piece}`,
         ]
       : []),
@@ -248,7 +249,11 @@ export function texteDuVerdict(fiche) {
 // still open with their recipients.
 export async function relire(
   ctx,
-  { constats = [], consigneDuRelecteur = valeurs => consigne(valeurs, 1) } = {}
+  {
+    constats = [],
+    consigneDuRelecteur = valeurs =>
+      ctx.circuit === 'direct' ? consigneDuRelecteurDUnLotDirect(valeurs) : consigne(valeurs, 1),
+  } = {}
 ) {
   const { tests, code } = fichiersDuLot(ctx);
   const rapports = rapportsDuCircuit(ctx);
@@ -1330,8 +1335,8 @@ export function commitIntegre(raison) {
 const TYPES_DE_COMMIT = { bug: 'fix', chore: 'chore', docs: 'docs' };
 
 // The commit message of the lot: `<type>(<paquets>): <sujet> (<ticket>)`, the packages of the
-// plan by their name; then the message the sheets of the developpeur and of the reviewer give, in
-// their order, written once from the final state (`messageDuLot`).
+// plan by their name; then the message the sheets of the author of the code (the developpeur or
+// the agent direct) and of the reviewer give, in their order, written once from the final state (`messageDuLot`).
 function messageDeCommit(ctx) {
   const liste = composantsDe(existsSync(ctx.copie) ? ctx.copie : ctx.racine);
   const noms = ctx.paquets.flatMap(c => {
@@ -1354,7 +1359,7 @@ function messageDeCommit(ctx) {
     entete: `${type}${portee}: ${ctx.sujet} (${ctx.ticket})`,
     description: leTicket(ctx).description,
     fiches: lesFiches(ctx)
-      .filter(e => e.role === 'developpeur' || e.role === 'relecteur')
+      .filter(e => [auteurDuCode(ctx.circuit), 'relecteur'].includes(e.role))
       .map(e => e.fiche),
   });
 }

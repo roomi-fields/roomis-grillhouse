@@ -4,7 +4,11 @@
 // (`etatDeLaReprise`), a memo that still holds the whole state read by the same path.
 import { describe, expect, it } from 'vitest';
 import { MEMOIRE } from '../../scripts/transitions.mjs';
-import { etatDeLaReprise, etatPourLeMemo } from '../../src/temporal/circuit/contrat.js';
+import {
+  etatDeLaReprise,
+  etatPourLeMemo,
+  resumeDeLEtat,
+} from '../../src/temporal/circuit/contrat.js';
 
 const BORNE_DU_MEMO = 4096;
 const GROS = 'x'.repeat(200 * 1024);
@@ -38,6 +42,24 @@ const etatEntier = (surcharge: Record<string, unknown> = {}) => ({
 });
 
 const taille = (v: unknown) => JSON.stringify(v).length;
+
+describe('le circuit qu’un circuit publie', () => {
+  const lu = (e: object) => (resumeDeLEtat(e) as unknown as { circuit?: string }).circuit;
+
+  it.each(['long', 'court', 'direct'])('le mémo que lit le tableau porte %s', c => {
+    expect(lu({ etape: 'developpeur', circuit: c })).toBe(c);
+  });
+
+  it('un état écrit sans le champ se lit long au tableau', () => {
+    expect(lu({ etape: 'developpeur' })).toBe('long');
+  });
+
+  it('la reprise le relit du mémo réduit', () => {
+    expect(etatPourLeMemo({ etape: 'developpeur', circuit: 'direct' })).toMatchObject({
+      circuit: 'direct',
+    });
+  });
+});
 
 describe('le mémo d’un circuit', () => {
   it('reste sous quelques Ko après un état dont le rapport, les constats et le journal pèsent 200 Ko', () => {

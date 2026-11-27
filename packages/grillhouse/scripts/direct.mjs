@@ -36,25 +36,23 @@ import { pathToFileURL } from 'node:url';
 import { ecritPar, preparer } from './enveloppe/travail-de-la-copie.mjs';
 import { prendreUnePlace, VARIABLE_TENUE } from './places-de-la-machine.mjs';
 import { bloquantsDeLaFiche } from './resultats.mjs';
-import { consigne } from './seances.mjs';
+import { consigneDuRelecteurDUnLotDirect } from './seances.mjs';
 
 // The RENDU verdicts in a row that stop the command, as the circuit stops its third.
 const RENDUS_MAX = 3;
 
-// The requirement of the reviewer of a direct, after the instruction of the circuit's.
-const EXIGENCE_DU_DIRECT = [
-  'CE LOT EST UN DIRECT, mené hors du circuit par `npx grillhouse direct` : un seul agent, le rôle `direct`, a écrit les tests et le code ensemble. Tout constat bloquant lui est adressé : son destinataire est `developpeur`.',
-  "La preuve du rouge n'est pas jouée : tu la tiens. Un défaut corrigé porte un test qui le reproduit, et ce test échoue sans le code du lot ; sans lui, le constat est bloquant. Un ticket de données ou le squelette d'un paquet, qui ne change aucun comportement, n'a pas de test à exiger.",
-].join('\n\n');
+// What the rescue command alone says of its lot to the reviewer.
+const PROPRE_A_LA_VOIE_DE_SECOURS =
+  'Ce lot est mené hors du circuit, par la voie de secours `npx grillhouse direct`.';
 
 /**
- * The instruction of the reviewer of a direct: that of the circuit's reviewer (the second template
- * of the supervisor's skill), then what a direct asks of its lot.
+ * The instruction of the reviewer of a lot of the rescue command: that of a direct lot
+ * (`consigneDuRelecteurDUnLotDirect`), with what the command alone says of it.
  * @param {Record<string, string>} valeurs
  * @returns {string}
  */
 export function consigneDuRelecteurDuDirect(valeurs) {
-  return `${consigne(valeurs, 1).trim()}\n\n${EXIGENCE_DU_DIRECT}\n`;
+  return consigneDuRelecteurDUnLotDirect(valeurs, PROPRE_A_LA_VOIE_DE_SECOURS);
 }
 
 /**
@@ -305,7 +303,6 @@ async function portsDuProjet(id, { contexteDuSuperviseur }) {
           derniere: true,
           seanceId: idDeSeance(ctx, 'direct'),
           evenement: 'neuve',
-          fiche: 'developpeur',
           constats: ouverts(constats),
           rapport: conflits.length ? rapportDuConflit(conflits) : undefined,
           lectures: { lots: () => [], references: () => [] },

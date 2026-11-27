@@ -18,8 +18,14 @@ export interface TicketDeBeads {
 /** A ticket a circuit cannot start on, by its reason. */
 export class DepartRefuse extends Error {}
 
-/** The directory of the component <nom> of a title among <liste>; or a refusal. */
-export function resoudreComposant(liste: Composant[], base: string, nom: string): string;
+/** The directory of the component <nom> of a title among <liste>, a new path kept as it is on a
+ * direct ticket (<neuf>); or a refusal. */
+export function resoudreComposant(
+  liste: Composant[],
+  base: string,
+  nom: string,
+  options?: { neuf?: boolean }
+): string;
 
 /** The ticket <id> as `bd show --json` gives it in <sortie>, refused without its architecture. */
 export function ticketAuDepart(

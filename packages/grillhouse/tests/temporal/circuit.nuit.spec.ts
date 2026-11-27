@@ -1254,6 +1254,160 @@ describe('les réponses du superviseur reprennent comme circuit.mjs', () => {
   }, 120_000);
 });
 
+describe('un ticket direct va de l’agent à sa fin', () => {
+  const CODE_DIRECT: EtatDeLEtape = {
+    etape: 'developpeur',
+    tentative: 1,
+    rapport: null,
+    finale: false,
+  };
+  type Acte = Parameters<Activites['ouvrirLeCircuit']>[0];
+  const enDirect = async (e: Acte, simule: Activites['ouvrirLeCircuit']) => {
+    const o = (await simule(e)) as unknown as { ouverture: { ticket: object } };
+    return {
+      ...o,
+      ouverture: { ...o.ouverture, ticket: { ...o.ouverture.ticket, circuit: 'direct' } },
+      effets: [],
+    } as unknown as Awaited<ReturnType<Activites['ouvrirLeCircuit']>>;
+  };
+  const circuitPublie = async (client: Awaited<ReturnType<typeof circuit>>) =>
+    ((await lireLeCircuit(client, RACINE, TICKET)) as unknown as { circuit?: string }).circuit;
+
+  it('agent direct, passe finale, relecture ACCEPTÉ, commit, entrée par la file, tri', async () => {
+    const roles: unknown[] = [];
+    const { activites, journal } = actes(
+      {
+        seance: (p: { role?: string }) => {
+          roles.push(p.role);
+          return { statut: 'FAIT' };
+        },
+      },
+      () => CODE_DIRECT,
+      { ouvrirLeCircuit: enDirect }
+    );
+    const client = await circuit(activites);
+    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+    expect(roles).toEqual(['direct']);
+    expect(journal.faits).not.toContain('preuve');
+    for (const [avant, apres] of [
+      ['seance', 'passeFinale'],
+      ['passeFinale', 'relecture'],
+      ['relecture', 'integration'],
+      ['integration', 'file'],
+      ['file', 'tri'],
+    ]) {
+      expect(journal.faits.indexOf(avant!), avant).toBeGreaterThanOrEqual(0);
+      expect(journal.faits.indexOf(apres!), apres).toBeGreaterThan(journal.faits.indexOf(avant!));
+    }
+    expect(journal.plan).toEqual([]);
+  }, 120_000);
+
+  it('la requête etatDuCircuit rend le circuit direct, arrêt compris', async () => {
+    const { activites } = actes(
+      { seance: (_p: unknown, n: number) => ({ statut: n === 1 ? 'BESOIN' : 'FAIT' }) },
+      () => CODE_DIRECT,
+      { ouvrirLeCircuit: enDirect }
+    );
+    const client = await circuit(activites);
+    await enAttente(client);
+    expect(await circuitPublie(client)).toBe('direct');
+  }, 120_000);
+
+  it('un circuit court que sa sorte rend long : la requête et les actes suivants le disent', async () => {
+    const recus: { fait: string; circuit: unknown; sorte: unknown }[] = [];
+    const sorte = { genre: 'comportement', comportement: 'inchangé', raison: 'r' };
+    const { activites } = actes(
+      {
+        seance: (_p: unknown, n: number) =>
+          n === 1 ? { statut: 'FAIT' } : { statut: 'BESOIN', question: 'laquelle ?' },
+        relecture: {
+          verdict: 'RENDU',
+          fiche: { motif: 'comportement-change' },
+          texte: 'RENDU',
+          arbre: 'x',
+        },
+        rendus: 1,
+        constats: { constats: [] },
+      },
+      () => CODE_DIRECT,
+      {
+        ouvrirLeCircuit: async (e, simule) => {
+          const o = (await simule(e)) as unknown as {
+            ouverture: { ticket: object; memoire: object };
+          };
+          return {
+            ...o,
+            ouverture: {
+              ...o.ouverture,
+              memoire: { ...o.ouverture.memoire, circuit: 'court', sorte },
+              ticket: { ...o.ouverture.ticket, circuit: 'court', sorte },
+            },
+            effets: [],
+          } as unknown as Awaited<ReturnType<Activites['ouvrirLeCircuit']>>;
+        },
+        lireUnFait: (e, simule) => {
+          const lu = e as unknown as {
+            fait: string;
+            memoire: { circuit?: unknown };
+            sorte: unknown;
+          };
+          recus.push({ fait: lu.fait, circuit: lu.memoire.circuit, sorte: lu.sorte });
+          return simule(e);
+        },
+      }
+    );
+    const client = await circuit(activites);
+    await enAttente(client);
+    expect(await circuitPublie(client)).toBe('long');
+    const avant = recus.find(r => r.fait === 'relecture');
+    expect(avant?.circuit).toBe('court');
+    expect(recus.at(-1)).toMatchObject({
+      fait: 'seance',
+      circuit: 'long',
+      sorte: { comportement: 'changé' },
+    });
+  }, 120_000);
+
+  it('arrêté dès son ouverture, il accepte --depuis direct et refuse testwriter et developpeur', async () => {
+    let ouvertures = 0;
+    const { activites } = actes({}, () => CODE_DIRECT, {
+      ouvrirLeCircuit: async (e, simule) => {
+        ouvertures += 1;
+        if (ouvertures > 1) {
+          return enDirect(e, simule);
+        }
+        const etat = { ...CODE_DIRECT, circuit: 'direct', raison: 'besoin' };
+        return {
+          arret: {
+            code: 20,
+            nom: 'besoin',
+            question: {
+              arret: 'besoin',
+              fait: 'l’arbitrage manque',
+              piece: 'la pièce',
+              question: 'que faire ?',
+              qui: 'superviseur',
+            },
+            etat,
+          },
+          effets: [{ genre: 'etat', etat }],
+        };
+      },
+    });
+    const client = await circuit(activites);
+    await enAttente(client);
+    for (const role of ['testwriter', 'developpeur'] as const) {
+      await expect(reprendreDepuis(client, RACINE, TICKET, role, 'ctx')).rejects.toBeInstanceOf(
+        ReponseRefusee
+      );
+    }
+    expect(await reprendreDepuis(client, RACINE, TICKET, 'direct' as never, 'ctx')).toBe(
+      'depuis direct'
+    );
+    expect(await finDuCircuit(client, RACINE, TICKET)).toEqual({ code: 0, raison: 'integre' });
+  }, 120_000);
+});
+
 describe('un refus de validateur n’écrit rien dans l’histoire', () => {
   it('--depuis while the circuit runs, and a role out of the lot on a wait, are refused', async () => {
     let lacher: () => void = () => {};

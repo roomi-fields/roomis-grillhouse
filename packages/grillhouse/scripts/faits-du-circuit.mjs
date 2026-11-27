@@ -66,6 +66,7 @@ import {
   arretDe,
   arreter,
   avantLaPasse,
+  circuitSansTrace,
   contexte,
   ecrireEtat,
   finirLOuverture,
@@ -102,7 +103,7 @@ import { AUTEURS_DE_LOT } from './etapes.mjs';
 import { arretDeLaLimiteDUsage, MEMOIRE } from './transitions.mjs';
 
 // What the workflow keeps of the circuit's memory besides the decisions': the session a relaunch
-// resumes, the rank of arrival, the sort of the ticket, what the opening reads of the project's
+// resumes, the rank of arrival, the circuit and the sort of the ticket, what the opening reads of the project's
 // package.json (its tools, its data, its generated files), which every pass of a later act plays
 // with, each act in a process of its own, and the supervisor's context of the
 // run (`contexte`), which each session of the run reads at the head of its instruction, with the
@@ -112,6 +113,7 @@ const GARDEE = [
   ...MEMOIRE,
   'seanceReprise',
   'rang',
+  'circuit',
   'sorte',
   'outils',
   'donnees',
@@ -333,6 +335,8 @@ const ACTES = {
   async arret({ ticket, memoire, arret, etat, monter: aMonter, paquets, menee }) {
     const ctx = leContexte(ticket, memoire, { paquets });
     return rendre(ctx, () => {
+      // A stop of an opening that failed before its first state still says its circuit.
+      ctx.circuit ??= circuitSansTrace(ctx);
       const a = publierLArret(ctx, erreurDe(ctx, arret), etat);
       finirLEtape(ctx, menee ?? null);
       if (a.nom === 'limite-d-usage' && !aMonter) {
@@ -433,6 +437,7 @@ const lOuverture = (ctx, debut) => ({
     paquets: ctx.paquets,
     sorte: ctx.sorte ?? null,
     copie: ctx.copie,
+    circuit: ctx.circuit ?? null,
   },
 });
 

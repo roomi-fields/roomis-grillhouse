@@ -5,6 +5,7 @@
 // these packages only: a command of the frame that reads the list builds, judges and writes them
 // alone. This module uses Node alone, as the modules of scripts/paquets.mjs. Architecture:
 // docs/architecture/machine.md (§4.1, §5.5).
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { paquets } from '../paquets.mjs';
 
@@ -78,11 +79,45 @@ export function paquetQuiTient(chemin, paquetsDeLaCopie) {
   return tenants.sort((a, b) => b.length - a.length)[0] ?? '.';
 }
 
+/**
+ * Whether the component <chemin> of a plan is written as a path of the repository that may not
+ * exist yet: with a `/`, no `@` at its head (the name of a scoped package), within the repository.
+ * @param {string} chemin
+ */
+export function estUnCheminNeuf(chemin) {
+  const n = path.normalize(chemin).replace(/\/+$/, '');
+  return (
+    chemin.includes('/') &&
+    !chemin.startsWith('@') &&
+    !path.isAbsolute(n) &&
+    !['.', '..'].includes(n) &&
+    !n.startsWith('../')
+  );
+}
+
+// Whether the base commit of the copy <copie> (its HEAD) lacks the path <rel>; false where git
+// reads no commit.
+function absentDeLaBase(copie, rel) {
+  const lire = objet => spawnSync('git', ['-C', copie, 'cat-file', '-e', objet]).status === 0;
+  return lire('HEAD^{commit}') && !lire(`HEAD:${rel}`);
+}
+
 // The directories, relative to the copy, that the plan <paquets> writes, sorted: for each path of
 // the plan, the package that holds it (`paquetQuiTient`). A path that no package holds (a folder of
 // the root, `scripts`; `src/parser` in a one-package project; `.`) writes the package that holds
-// it, the root: the plan then writes the whole copy, `['.']`.
-export function ecritsDuPlan(paquets, paquetsDeLaCopie) {
-  const ecrits = [...new Set(paquets.map(p => paquetQuiTient(p, paquetsDeLaCopie)))].sort();
+// it, the root: the plan then writes the whole copy, `['.']`. But a new path of the copy <copie>
+// (`estUnCheminNeuf`), which no package holds and its base commit lacks, writes itself alone: a
+// package to be born.
+export function ecritsDuPlan(paquets, paquetsDeLaCopie, copie = null) {
+  const aLaRacine = paquetsDeLaCopie.some(p => path.normalize(p.dossier) === '.');
+  const ecrit = p => {
+    const tenant = paquetQuiTient(p, paquetsDeLaCopie);
+    if (tenant !== '.' || aLaRacine || !copie || !estUnCheminNeuf(p)) {
+      return tenant;
+    }
+    const rel = path.normalize(p).replace(/\/+$/, '');
+    return absentDeLaBase(copie, rel) ? rel : tenant;
+  };
+  const ecrits = [...new Set(paquets.map(ecrit))].sort();
   return ecrits.includes('.') ? ['.'] : ecrits;
 }

@@ -72,7 +72,9 @@
 //   A component writes itself alone, `src/parser` of a one-package project included, as does a
 //   package out of the frame (`docs/agents/hors-cadre.txt`). A path that no component holds (a
 //   folder of the root, `scripts`; `.`) writes the package that holds it, the root: the copy
-//   stays written, its `.git` read-only.
+//   stays written, its `.git` read-only. A new path of a direct (`estUnCheminNeuf`), which no
+//   package holds and the base commit of the copy lacks, is created empty by the agent direct's
+//   launch when it does not exist, and writes itself alone.
 // - The package of the shared test material is every component of <copie> whose `package.json`
 //   exports `./test-fixtures` (`matieres` of the module of the language). It is mounted after the
 //   packages of the plan: written for the `testwriter`, read-only for every other role, in the
@@ -100,6 +102,7 @@ import { langageDeLaCopie } from '../langages.mjs';
 import { CODE_REFUS, CODE_USAGE } from './codes.mjs';
 import {
   ecritsDuPlan,
+  estUnCheminNeuf,
   ecrireLaListe,
   lireLaListe,
   paquetsDuLangage,
@@ -161,8 +164,8 @@ export function matieresDeLaCopie(langage, copie) {
 // The packages of the copy that the plan <paquets> does not name and that are not the shared test
 // material, relative to the copy: where the envelope opens an empty own output to each run. The
 // root package is the copy's own root, treated apart.
-const paquetsHorsDuPlan = (paquets, paquetsDeLaCopie, matieres) => {
-  const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie);
+const paquetsHorsDuPlan = (copie, paquets, paquetsDeLaCopie, matieres) => {
+  const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie, copie);
   return paquetsDeLaCopie
     .map(p => p.dossier)
     .filter(d => d !== '.' && !ecrits.includes(d) && !matieres.includes(d));
@@ -171,13 +174,26 @@ const paquetsHorsDuPlan = (paquets, paquetsDeLaCopie, matieres) => {
 // that are missing: in each package out of the plan, in the shared test material for a role that
 // does not write it, and at the root of the copy when the plan does not write it. An output that a
 // link carries out of the copy is left out. bwrap then has a directory to mount an empty one over.
+// For the agent direct, a new path that the plan writes as itself (`ecritsDuPlan`) and that does
+// not exist yet is created first, so that bwrap mounts it in writing inside the read-only copy; a
+// path that exists, file or directory, stays as it is.
 export function preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres, role, sorties }) {
-  const dossiers = paquetsHorsDuPlan(paquets, paquetsDeLaCopie, matieres);
+  if (role === 'direct') {
+    const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie, copie);
+    for (const p of paquets.filter(estUnCheminNeuf)) {
+      const rel = path.normalize(p).replace(/\/+$/, '');
+      const chemin = path.join(copie, rel);
+      if (ecrits.includes(rel) && !existsSync(chemin)) {
+        mkdirSync(chemin, { recursive: true });
+      }
+    }
+  }
+  const dossiers = paquetsHorsDuPlan(copie, paquets, paquetsDeLaCopie, matieres);
   if (!ROLES_MATIERE.includes(role)) {
     // A declared folder of test material is no package: no run of tests writes outputs in it.
     dossiers.push(...matieres.filter(m => paquetsDeLaCopie.some(p => p.dossier === m)));
   }
-  if (!ecritsDuPlan(paquets, paquetsDeLaCopie).includes('.')) {
+  if (!ecritsDuPlan(paquets, paquetsDeLaCopie, copie).includes('.')) {
     dossiers.push('.');
   }
   for (const d of dossiers) {
@@ -594,13 +610,14 @@ const inside = (child, parent) => {
 // The refusal of <composant> in the repository at <depot>, or null when it is the path of a
 // directory there (`.`, the whole repository, included). A <composant> that is the name of a
 // component of `paquets` (`paquetsDuLangage`), or the name of its folder, is told
-// its path, as git says « did you mean ». `fs` gives `existe(path)`. The launcher judges the
+// its path, as git says « did you mean ». A new path (`estUnCheminNeuf`) stands on a session of
+// the agent direct (<neuf>), which creates it. `fs` gives `existe(path)`. The launcher judges the
 // component with it before preparing the copy, in the ticket's copy when it exists, else in the
 // main tree or in the tree of the ticket's branch, its `existe` accepting either; `plan` judges it
 // in the copy.
-export function jugerComposant({ depot, composant, paquets = [] }, fs) {
+export function jugerComposant({ depot, composant, paquets = [], neuf = false }, fs) {
   const propre = path.join(depot, composant);
-  if (fs.existe(propre)) {
+  if (fs.existe(propre) || (neuf && estUnCheminNeuf(composant))) {
     return null;
   }
   const nomme =
@@ -677,12 +694,15 @@ export function plan(
     return { refus: "Le plan ne nomme aucun paquet : l'enveloppe n'ouvre rien en écriture." };
   }
   for (const p of paquets) {
-    const refus = jugerComposant({ depot: copie, composant: p, paquets: paquetsDeLaCopie }, fs);
+    const refus = jugerComposant(
+      { depot: copie, composant: p, paquets: paquetsDeLaCopie, neuf: role === 'direct' },
+      fs
+    );
     if (refus) {
       return { refus };
     }
   }
-  const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie);
+  const ecrits = ecritsDuPlan(paquets, paquetsDeLaCopie, copie);
   const toute = ecrits.includes('.');
 
   // /dev/shm, which /dev brings in writing, becomes an empty directory proper to the session.
@@ -772,7 +792,7 @@ export function plan(
   // Each package out of the plan has its own outputs as empty directories proper to the session,
   // as a sandbox of Bazel opens the declared outputs whatever the package; the rest stays read-only.
   if (!toute) {
-    for (const d of paquetsHorsDuPlan(paquets, paquetsDeLaCopie, matieres)) {
+    for (const d of paquetsHorsDuPlan(copie, paquets, paquetsDeLaCopie, matieres)) {
       for (const s of sortiesDe(path.join(copie, d), sorties.propres, fs.lien)) {
         if (fs.existe(s)) {
           args.push('--tmpfs', s);
@@ -975,7 +995,7 @@ function envelopper(argv) {
   preparerLesSorties({ copie, paquets, paquetsDeLaCopie, matieres, role, sorties });
   // For a plan that leaves the root read-only, where the language's tools write at the root of the
   // copy is created here, so that bwrap mounts it in writing, inside the read-only copy.
-  if (!ecritsDuPlan(paquets, paquetsDeLaCopie).includes('.')) {
+  if (!ecritsDuPlan(paquets, paquetsDeLaCopie, copie).includes('.')) {
     for (const s of sortiesDe(copie, sorties.ecrites, lienSurDisque)) {
       creer(s, fichiers.includes(path.relative(copie, s)));
     }
@@ -1006,23 +1026,21 @@ function envelopper(argv) {
     process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${refus}\n`);
     code = CODE_REFUS;
   } else {
-    // The session reserves its cores for its phase alone (3, a direct's 2) against the budget of
-    // the machine, and gives them back at its end; under a part already held, its cap is that part.
+    // The session reserves its cores for its phase alone (3 by default, a direct's too) against
+    // the budget of the machine, and gives them back at its end; under a part already held, its cap is that part.
     let part;
     let prise = null;
     try {
-      const direct = role === 'direct';
       prise = prendreUnePart({
         racine: copie,
         ticket: path.basename(copie),
         sorte: `séance ${role ?? ''}`.trim(),
-        direct,
         bornee: false,
         dire: l => process.stderr.write(`${l}\n`),
       });
       part =
         prise.part ??
-        partDeLaPasse({ racine: copie, direct, sorte: `séance ${role ?? ''}`.trim() });
+        partDeLaPasse({ racine: copie, sorte: `séance ${role ?? ''}`.trim() });
     } catch (e) {
       process.stderr.write(`⛔ ENVELOPPE REFUSÉE — ${e.message}\n`);
       temporaire.fermer();

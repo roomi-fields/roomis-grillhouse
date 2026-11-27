@@ -41,6 +41,8 @@ import {
 import {
   arretSansActe,
   AU_PLAN,
+  circuitSuivant,
+  CODE,
   effetsAJouer,
   etatDeReprise,
   pasDuPlan,
@@ -211,6 +213,10 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
   };
   // The state of the stop the run waits on, which `--mecanique` is judged against.
   let etatDeLArret: { etape: string; raison?: string | null } | null = null;
+  // The circuit of the run: that of its ticket once opened, else that of the state written last
+  // (a stop at the opening, a workflow that reopens from it).
+  const leCircuit = () =>
+    ouverture?.ticket.circuit ?? (etatEcrit?.circuit as VueDuCircuit['circuit'] | undefined);
   // ARRETER while a step plays: its motive, and the scope it cancels.
   let arretDemande: { contexte: string | null } | null = null;
   let enCours: CancellationScope | null = null;
@@ -281,7 +287,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         uneQuestionAttend();
         const refus = refusDeLaReprise({
           depuis: r?.role,
-          circuit: ouverture?.ticket.circuit,
+          circuit: leCircuit(),
         });
         if (refus) {
           refuser(refus);
@@ -357,6 +363,7 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     return i;
   };
   setHandler(lEtat, () => ({
+    circuit: leCircuit() ?? 'long',
     etape: etat.etape,
     tentative: etat.tentative,
     attente,
@@ -540,8 +547,9 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
         // The advance left files in conflict: the role that writes them is relaunched, the marks
         // in the copy; its decision then comes back to the pass (`retourDuConflit`).
         await finir([], menee);
+        // The agent direct stands at the step of the code.
         etat = {
-          etape: pointe.conflit.role,
+          etape: pointe.conflit.role === 'direct' ? CODE : pointe.conflit.role,
           tentative: 1,
           rapport: pointe.conflit.rapport,
           finale: false,
@@ -600,10 +608,13 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
       // A stop ends its step once written; any other decision ends it with its effects.
       await finir(d.effets, arret ? null : menee);
       // A sort the decision turns (the reviewer's RENDU of a lot that changes a behaviour) is the
-      // sort of the later steps of the run: the ticket the acts receive holds it.
+      // sort of the later steps of the run, and its circuit follows it: the ticket and the memory
+      // the acts receive hold them.
       for (const e of (d.effets ?? []) as Effet[]) {
         if (e.genre === 'sorte') {
           ticket.sorte = e.sorte;
+          ticket.circuit = circuitSuivant(ticket.circuit, e.sorte);
+          memoire = { ...memoire, circuit: ticket.circuit };
         }
       }
       if (arret) {

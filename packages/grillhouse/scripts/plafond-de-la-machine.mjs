@@ -21,7 +21,7 @@
 //   no core or no memory is refused by its name.
 // - The part of a pass (`partDe`) is its cores and its memory, within the budget and one core at
 //   least. Its cores are those its project declares (`grillhouse.part` of its `package.json`),
-//   else COEURS_PAR_DEFAUT; a direct pass has COEURS_DU_DIRECT, fixed. Its memory is the declared
+//   else COEURS_PAR_DEFAUT. Its memory is the declared
 //   one, else the largest peak the project measured plus a quarter, never under a floor (the
 //   share of the budget that max(4, a third of its cores) cores hold, which it is without a
 //   measure). A part larger than the budget is the budget (one pass at a time). That memory stands
@@ -50,8 +50,6 @@ export const RESERVE_COEURS_PAR_DEFAUT = 4;
 export const RESERVE_MEMOIRE_GO_PAR_DEFAUT = 4;
 /** The cores the reservation of an ordinary pass holds when its project declares none. */
 export const COEURS_PAR_DEFAUT = 3;
-/** The cores the reservation of a direct pass holds, fixed. */
-export const COEURS_DU_DIRECT = 2;
 // The cores the reserve of the user leaves the passes at least; the floor of the memory.
 const COEURS_LAISSES_AUX_PASSES = 4;
 
@@ -178,14 +176,14 @@ function memoireParDefautDe(budget, pic) {
 
 /**
  * The reservation of a pass: the cores its project declares (`partDeclareeDe`), else 3, within the
- * budget and one core at least; a direct pass reserves 2 cores, fixed. Its memory is the declared
- * one, else the default memory, within the budget.
+ * budget and one core at least. Its memory is the declared one, else the default memory, within
+ * the budget.
  * @param {{ declaree: { coeurs?: number, memoire?: number } | null,
- *   budget: { coeurs: number, memoire: number }, pic: number | undefined, direct?: boolean }} o
+ *   budget: { coeurs: number, memoire: number }, pic: number | undefined }} o
  * @returns {{ coeurs: number, memoire: number }}
  */
-export function partDe({ declaree, budget, pic, direct = false }) {
-  const voulus = direct ? COEURS_DU_DIRECT : (declaree?.coeurs ?? COEURS_PAR_DEFAUT);
+export function partDe({ declaree, budget, pic }) {
+  const voulus = declaree?.coeurs ?? COEURS_PAR_DEFAUT;
   return {
     coeurs: Math.max(1, Math.min(budget.coeurs, voulus)),
     memoire: Math.min(budget.memoire, declaree?.memoire ?? memoireParDefautDe(budget, pic)),

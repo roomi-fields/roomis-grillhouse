@@ -154,11 +154,12 @@ describe('la réservation de cœurs d’une passe, sans clé', () => {
     }
   );
 
-  it('une passe directe réserve 2 cœurs, fixes, même avec une clé qui en déclare plus', () => {
-    expect(sans(budget28, true).coeurs).toBe(2);
-    expect(
-      P.partDe({ declaree: { coeurs: 6 }, budget: budget28, pic: undefined, direct: true }).coeurs
-    ).toBe(2);
+  it('une séance direct réserve la part d’une autre séance, sans part fixe', () => {
+    expect(sans(budget28, true)).toEqual(sans(budget28));
+    const declaree = { coeurs: 6 };
+    expect(P.partDe({ declaree, budget: budget28, pic: undefined, direct: true })).toEqual(
+      P.partDe({ declaree, budget: budget28, pic: undefined })
+    );
   });
 
   it('une réservation plus grande que le budget vaut le budget, jamais moins d’un cœur', () => {

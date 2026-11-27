@@ -460,12 +460,12 @@ function calculParSorte() {
  * `memoire`, the reservation the admission counts (their 95th percentile), and `limite`, the
  * ceiling of its group (their maximum plus a quarter). Under 20, `memoire` is the declared one,
  * else the default, and stands for both: no `limite`.
- * @param {{ racine: string, env?: Record<string, string | undefined>, direct?: boolean,
+ * @param {{ racine: string, env?: Record<string, string | undefined>,
  *   sorte?: string }} o <sorte> as the caller names the pass (« Vérification », « séance direct »)
  * @returns {{ coeurs: number, memoire: number, limite?: number }}
  * @throws {AttenteDeLaMachine} naming the key (code 1) when its value is faulty, before any work
  */
-export function partDeLaPasse({ racine, env = process.env, direct = false, sorte }) {
+export function partDeLaPasse({ racine, env = process.env, sorte }) {
   const { declaree, faute } = partDeclareeDe(packageDuDepot(racine));
   if (faute) {
     throw new AttenteDeLaMachine(`✗ ${faute}`, 1);
@@ -476,7 +476,6 @@ export function partDeLaPasse({ racine, env = process.env, direct = false, sorte
   const part = partDe({
     declaree,
     budget,
-    ...(direct ? { direct } : {}),
     pic: plusGrandPicDeJour(lignes),
   });
   const mesure = sorte
@@ -605,7 +604,7 @@ export function lecteurDeLaCharge(env = process.env, systeme = chargeDesCoeursDu
  * held: GRILLHOUSE_PART_TENUE) the part returned holds nothing. <bornee> false (a session of an
  * agent) reserves the memory without a limit.
  * @param {{ env?: Record<string, string | undefined>, racine?: string, ticket?: string | null,
- *   sorte?: string, mesure?: boolean, direct?: boolean, bornee?: boolean,
+ *   sorte?: string, mesure?: boolean, bornee?: boolean,
  *   borneMs?: number, rappelMs?: number,
  *   dire?: (l: string) => void, maintenant?: () => number, dormir?: (ms: number) => void,
  *   libre?: (d: string) => number, occupe?: (d: string) => string,
@@ -624,7 +623,6 @@ export function prendreUnePart({
   ticket,
   sorte,
   mesure = false,
-  direct = false,
   bornee = true,
   topologie,
   chargeDesCoeurs = lecteurDeLaCharge(env),
@@ -668,7 +666,7 @@ export function prendreUnePart({
       }
       part = { coeurs: fils, memoire: Math.floor((budget.memoire * fils) / budget.coeurs) };
     } else {
-      part = partDeLaPasse({ racine, env, direct, sorte });
+      part = partDeLaPasse({ racine, env, sorte });
     }
   } catch (e) {
     throw e instanceof AttenteDeLaMachine ? e : new AttenteDeLaMachine(`✗ ${e.message}`, 1);

@@ -5,13 +5,13 @@
 //   npx grillhouse resultats --schema <rôle>      prints the JSON schema of a role's sheet
 //
 // - The sheet of the end of a session (« la fiche ») of the explorateur, the questionneur, the
-//   testwriter, the developpeur and the reviewer: the schema of each role (FICHES), which the
+//   testwriter, the developpeur, the agent direct and the reviewer: the schema of each role (FICHES), which the
 //   session receives (`claude -p --output-format json --json-schema <schéma>`) and fills as its
 //   last act, in the field `structured_output` of its result. A field exists only when a reader
 //   reads it:
 //   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN, each
 //     with its `piece`: the circuit goes on, or stops at « hors-portee » or « besoin »
-//     (testwriter, developpeur, and the explorateur's gesture of a mechanical ticket, its own
+//     (testwriter, developpeur, direct, and the explorateur's gesture of a mechanical ticket, its own
 //     schema, `geste`);
 //   - `portent_le_travail` (`fichier` from the root, `test` its full name, or none for every test
 //     of the file): the tests of the lot that the proof of the red requires red (testwriter);
@@ -19,16 +19,16 @@
 //     developpeur (developpeur);
 //   - `hors_plan` (`critere` its number, `paquet` the package out of the plan that would hold it,
 //     `piece`): each criterion the session does not hold for want of a package out of the plan; a
-//     FAIT that carries one stops at « hors-portee » (developpeur);
+//     FAIT that carries one stops at « hors-portee » (developpeur, direct);
 //   - `reponses` (`titre` of the finding, `etat` levé or contesté, `raison` for a contesté,
 //     `piece`): a FAIT answers each finding of the reviewer open for its role, by its title (the
 //     number « Constat N — » is recognised, `cleDuConstat`); the circuit refuses a sheet without
 //     the answer to one (`reponsesAuxConstats`), save in a run where the supervisor gives the task
 //     (`--contexte`: the findings open at the run's launch are then its context, the ones a RENDU
 //     states within it still its task, `constatsDeLaSeance` of scripts/circuit.mjs), and gives the
-//     next review each answer under its finding (developpeur);
+//     next review each answer under its finding (developpeur, direct);
 //   - `ecarts` (`sujet`, `texte`): the body of the commit message, written by the circuit, each
-//     subject once, its value from the last sheet that carries it (developpeur, reviewer);
+//     subject once, its value from the last sheet that carries it (developpeur, direct, reviewer);
 //   - `decouvertes` (`sujet`, `corps`): each one a ticket filed closed under the ticket, labelled
 //     `decouverte`, created by the circuit (every role);
 //   - `verdict` (ACCEPTÉ, RENDU), `constats` (`titre`, `corps`, `piece`, `genre` bloquant or
@@ -206,6 +206,49 @@ export const SORTES = ['mécanique', 'comportement'];
 // green), inchangé (a gesture written by hand: the developpeur alone, no testwriter).
 export const COMPORTEMENTS = ['changé', 'tests-adaptés', 'inchangé'];
 
+// The schema of the sheet of an author of the code (3), the developpeur or the agent direct, with
+// the fields <propres> his role alone has.
+const fiche = (propres = {}) =>
+  objet(
+    {
+      ...STATUT,
+      ...propres,
+      hors_plan: liste(
+        objet(
+          {
+            critere: texte('Le numéro du critère du ticket, « 10 ».'),
+            paquet: texte('Le paquet hors du plan qui le porterait, comme le titre le nomme.'),
+            piece: piece('Sa pièce'),
+          },
+          ['critere', 'paquet', 'piece']
+        ),
+        'Chaque critère du ticket que tu ne tiens pas parce qu’il demande un paquet hors du plan ; le circuit monte au superviseur, qui étend le plan ou amende le critère.'
+      ),
+      reponses: liste(
+        objet(
+          {
+            titre: texte(
+              'Le titre du constat, tel que ta consigne l’écrit, sans son numéro « Constat N — ».'
+            ),
+            etat: {
+              type: 'string',
+              enum: ['levé', 'contesté'],
+              description:
+                'levé : ton lot le lève ; contesté : tu ne le lèves pas, avec ta raison.',
+            },
+            raison: texte('Contesté : pourquoi le lot reste tel quel.'),
+            piece: piece('Sa pièce, ce qui le lève ou ce qui fonde ta raison'),
+          },
+          ['titre', 'etat', 'piece']
+        ),
+        'FAIT : ta réponse à chaque constat du relecteur ouvert pour toi, par son titre ; le relecteur la lit sous son constat. Le circuit refuse une fiche à laquelle il en manque une.'
+      ),
+      ...ECARTS,
+      ...DECOUVERTES,
+    },
+    ['statut']
+  );
+
 // The schema of the sheet of each role the circuit leads, and of the tri of the discoveries
 // (`tri`), the explorateur's after the queue.
 const FICHES = {
@@ -337,49 +380,15 @@ const FICHES = {
     },
     ['statut']
   ),
-  developpeur: objet(
-    {
-      ...STATUT,
-      renvoi: objet(
-        { role: { type: 'string', enum: ['testwriter'] } },
-        ['role'],
-        'Le rouge qui reste est dans les tests du lot : le circuit relance le testwriter.'
-      ),
-      hors_plan: liste(
-        objet(
-          {
-            critere: texte('Le numéro du critère du ticket, « 10 ».'),
-            paquet: texte('Le paquet hors du plan qui le porterait, comme le titre le nomme.'),
-            piece: piece('Sa pièce'),
-          },
-          ['critere', 'paquet', 'piece']
-        ),
-        'Chaque critère du ticket que tu ne tiens pas parce qu’il demande un paquet hors du plan ; le circuit monte au superviseur, qui étend le plan ou amende le critère.'
-      ),
-      reponses: liste(
-        objet(
-          {
-            titre: texte(
-              'Le titre du constat, tel que ta consigne l’écrit, sans son numéro « Constat N — ».'
-            ),
-            etat: {
-              type: 'string',
-              enum: ['levé', 'contesté'],
-              description:
-                'levé : ton lot le lève ; contesté : tu ne le lèves pas, avec ta raison.',
-            },
-            raison: texte('Contesté : pourquoi le lot reste tel quel.'),
-            piece: piece('Sa pièce, ce qui le lève ou ce qui fonde ta raison'),
-          },
-          ['titre', 'etat', 'piece']
-        ),
-        'FAIT : ta réponse à chaque constat du relecteur ouvert pour toi, par son titre ; le relecteur la lit sous son constat. Le circuit refuse une fiche à laquelle il en manque une.'
-      ),
-      ...ECARTS,
-      ...DECOUVERTES,
-    },
-    ['statut']
-  ),
+  developpeur: fiche({
+    renvoi: objet(
+      { role: { type: 'string', enum: ['testwriter'] } },
+      ['role'],
+      'Le rouge qui reste est dans les tests du lot : le circuit relance le testwriter.'
+    ),
+  }),
+  // The agent direct writes the tests with the code: he sends no red to the testwriter.
+  direct: fiche(),
   relecteur: objet(
     {
       verdict: { type: 'string', enum: ['ACCEPTÉ', 'RENDU'] },
@@ -891,8 +900,8 @@ function horsDuTicket(f, description) {
 }
 
 // What a sheet of <role> needs beyond its schema: the reason of a BLOQUÉ, the question of a
-// BESOIN, the number of each criterion out of the plan, the reason of a developpeur's answer
-// contesté, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
+// BESOIN, the number of each criterion out of the plan, the reason of an answer contesté of the
+// developpeur or the agent direct, the packages of a plan and the number of each answer, the questions of a QUESTIONS, the text of a
 // DÉSACCORD, the criterion or rule of a blocking finding, the reference of the rule each line of
 // a reviewer's conformity cites in its document and the recipient of a « non », and a reviewer's verdict that follows its blocking findings, its « non » among them
 // (RENDU with one, ACCEPTÉ without), the piece of a BLOQUÉ, a BESOIN and a reviewer's question,
@@ -950,7 +959,7 @@ function manques(role, f) {
       out.push(`hors_plan[${i}].critere : « ${h.critere} » n'est pas le numéro d'un critère`);
     }
   }
-  if (role === 'developpeur') {
+  if (role === 'developpeur' || role === 'direct') {
     for (const [i, r] of (f.reponses ?? []).entries()) {
       if (r.etat === 'contesté' && !(typeof r.raison === 'string' && r.raison.trim())) {
         out.push(`reponses[${i}].raison : manque, pour contesté`);

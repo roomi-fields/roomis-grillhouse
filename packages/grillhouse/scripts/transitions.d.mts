@@ -35,6 +35,17 @@ export interface Transition {
   usage?: string;
 }
 
+/** The circuit (`long` or `court`) the sort of a ticket makes. */
+export function circuitDeLaSorte(
+  sorte: { genre?: string; comportement?: string } | null | undefined
+): 'long' | 'court';
+
+/** The circuit <circuit> once the sort of its ticket turns to <sorte>: a direct circuit stays so. */
+export function circuitSuivant(
+  circuit: 'long' | 'court' | 'direct' | null | undefined,
+  sorte: unknown
+): 'long' | 'court' | 'direct';
+
 /** What the circuit keeps between steps, which the decisions read and change. */
 export const MEMOIRE: string[];
 

@@ -26,7 +26,8 @@
 // - direct writes tests and code of its plan together (a ticket led by `npx grillhouse direct`).
 // - In an envelope (`GRILLHOUSE_ENVELOPPE`, the packages of the plan, scripts/enveloppe/
 //   paquets-du-plan.mjs), a write in the copy out of the packages the plan writes (`ecritsDuPlan`
-//   on the components of the module of the language, `paquetsDuLangage`, as the envelope reads them)
+//   on the components of the module of the language, `paquetsDuLangage`, as the envelope reads
+//   them, a new path of the plan writing itself alone)
 //   and out of the shared test material, whose rule is the one above, and for the testwriter out
 //   of the lock files of the versions (`manifestes.verrous`), stops the session: the hook answers Claude Code's
 //   `continue: false`, the tool refused (`permissionDecision: deny`), its reason naming the file's
@@ -113,9 +114,9 @@ export function horsDuPlan(input, { tmp = tmpdir(), env = process.env, role = nu
   }
   const langage = langageDeLaCopie(copie);
   const liste = paquetsDuLangage(langage, copie);
-  const ecrits = ecritsDuPlan(plan, liste);
+  const ecrits = ecritsDuPlan(plan, liste, copie);
   const rel = path.relative(copie, file);
-  if (ecrits.includes('.') || ecrits.some(d => rel.startsWith(`${d}/`))) {
+  if (ecrits.includes('.') || ecrits.some(d => rel === d || rel.startsWith(`${d}/`))) {
     return null;
   }
   if (langage.estUnTest(file, copie)?.matiere) {

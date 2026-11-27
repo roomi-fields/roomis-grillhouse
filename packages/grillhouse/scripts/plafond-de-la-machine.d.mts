@@ -16,8 +16,6 @@ export const RESERVE_COEURS_PAR_DEFAUT: 4;
 export const RESERVE_MEMOIRE_GO_PAR_DEFAUT: 4;
 /** The cores the reservation of an ordinary pass holds when its project declares none. */
 export const COEURS_PAR_DEFAUT: 3;
-/** The cores the reservation of a direct pass holds, fixed. */
-export const COEURS_DU_DIRECT: 2;
 
 /**
  * The ceiling of the places under <env>: GRILLHOUSE_PLACES of the environment, else of the file of
@@ -43,13 +41,12 @@ export function budgetDe(
   reserve: PartDeLaPasse
 ): PartDeLaPasse;
 
-/** The reservation of a pass: the declared cores, else 3, within the budget (a direct pass: 2,
- * fixed); its memory the declared one, else the default memory, within the budget. */
+/** The reservation of a pass: the declared cores, else 3, within the budget; its memory the
+ * declared one, else the default memory, within the budget. */
 export function partDe(o: {
   declaree: { coeurs?: number; memoire?: number } | null;
   budget: PartDeLaPasse;
   pic: number | undefined;
-  direct?: boolean;
 }): PartDeLaPasse;
 
 /** The part a project declares in `grillhouse.part` of its package.json, or the fault naming it. */

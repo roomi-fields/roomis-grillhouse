@@ -47,10 +47,10 @@ export interface EtatDeLEtape {
 
 /**
  * The conflict an advance of the copy left (gesture `conflit-de-l-avance`): the role relaunched
- * (`testwriter` or `developpeur`), the files it writes and its report, the marks being in the copy.
+ * (`testwriter`, `developpeur` or `direct`), the files it writes and its report, the marks being in the copy.
  */
 interface ConflitDeLAvance {
-  role: 'testwriter' | 'developpeur';
+  role: 'testwriter' | 'developpeur' | 'direct';
   fichiers: string[];
   rapport: string;
 }
@@ -58,13 +58,16 @@ interface ConflitDeLAvance {
 /** What the circuit keeps between steps (`MEMOIRE` of scripts/transitions.mjs, and its session to resume). */
 export type Memoire = Record<string, unknown>;
 
+/** The circuit of a ticket (circuit.md §4.2). */
+type Parcours = 'long' | 'court' | 'direct';
+
 /** The ticket as the decisions read it. */
 interface TicketDuCircuit {
   id: string;
   paquets: string[];
   sorte: unknown;
   copie: string;
-  circuit?: string | null;
+  circuit?: Parcours | null;
 }
 
 /** The question of a stop, as the supervisor reads it. */
@@ -78,10 +81,11 @@ export interface Question {
 
 /**
  * What the memo of a circuit holds of the state its run wrote last (`etat`), which the board reads
- * (`lireLesCircuits`): its step, its attempt, its stop, the first line of its report, the object
+ * (`lireLesCircuits`): its circuit, its step, its attempt, its stop, the first line of its report, the object
  * of its questioning, its loops and the start of its step led (ISO).
  */
 export interface ResumeDeLEtat {
+  circuit: Parcours;
   etape: string | null;
   tentative: number | null;
   finale: boolean;
@@ -95,7 +99,7 @@ export interface ResumeDeLEtat {
 
 /**
  * What the board shows of the state <e> a run wrote (the effect `etat`), published in the memo
- * (./client.ts `lireLesCircuits` reads it): its step, its attempt, its stop and the first line of
+ * (./client.ts `lireLesCircuits` reads it): its circuit (`long` for a state without it), its step, its attempt, its stop and the first line of
  * its report, the object of its questioning, its loops, the start of its step led. A run at its
  * plan (<auPlan>, from its opening to its plan passed) stands at the step `plan`, its
  * questioning the plan, whatever state its plan wrote last, <e> null before the first: the board
@@ -107,6 +111,7 @@ export function resumeDeLEtat(e: unknown, auPlan = false): ResumeDeLEtat {
   const rapport = typeof x.rapport === 'string' ? x.rapport : '';
   const objet = (x.questionnement as { objet?: unknown } | null | undefined)?.objet;
   const resume: ResumeDeLEtat = {
+    circuit: (x.circuit as Parcours | null | undefined) ?? 'long',
     etape: typeof x.etape === 'string' ? x.etape : null,
     tentative: typeof x.tentative === 'number' ? x.tentative : null,
     finale: x.finale === true,
@@ -140,6 +145,7 @@ export type EtatEcrit = Record<string, unknown>;
  * session to resume.
  */
 const CHAMPS_DE_L_ARRET = [
+  'circuit',
   'etape',
   'tentative',
   'code',
@@ -287,6 +293,7 @@ export interface FinDuCircuit {
 
 /** The circuit as the query gives it. */
 export interface VueDuCircuit {
+  circuit: Parcours;
   etape: string;
   tentative: number;
   attente: boolean;

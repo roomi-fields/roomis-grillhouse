@@ -7,7 +7,7 @@
 // for it, under the same watch, before it takes its place (`lancer`): the second attempt of
 // `jusquALaFiche`, and the fresh session that follows a failed resumption in `seance`; the id of
 // each session comes from its caller, which gives a new one to each session it launches. `lancer` launches one session, `jusquALaFiche` until its
-// sheet, `seance` the testwriter's or the developpeur's on the whole ticket, with the instruction of
+// sheet, `seance` that of the testwriter, the developpeur or the agent direct on the whole ticket, with the instruction of
 // the templates (`consigne`) and the findings of the reviewer open for its role
 // (`constatsDeLaSeance`). The circuit (scripts/circuit.mjs) calls them.
 import { spawn, spawnSync } from 'node:child_process';
@@ -701,6 +701,25 @@ export function consigne(valeurs, rang = 0) {
   return `${bloc[1].replace(/\{\{(\w+)\}\}/g, (m, k) => (k in valeurs ? valeurs[k] : m))}\n`;
 }
 
+// What a direct asks of the reviewer of its lot, written once: the instruction of the circuit's
+// reviewer on a direct circuit and that of the rescue command carry it.
+const EXIGENCE_DU_DIRECT = [
+  'CE LOT EST UN DIRECT : un seul agent, le rôle `direct`, a écrit les tests et le code ensemble. Tout constat bloquant lui est adressé : son destinataire est `direct`.',
+  "La preuve du rouge n'est pas jouée : tu la tiens. Un défaut corrigé porte un test qui le reproduit, et ce test échoue sans le code du lot ; sans lui, le constat est bloquant. Un ticket de données ou le squelette d'un paquet, qui ne change aucun comportement, n'a pas de test à exiger.",
+].join('\n\n');
+
+/**
+ * The instruction of the reviewer of a direct lot: that of the circuit's reviewer (the second
+ * template of the supervisor's skill) filled with <valeurs>, then `propre`, what the caller alone
+ * says of the lot, then what a direct asks of it.
+ * @param {Record<string, string>} valeurs
+ * @param {string | null} [propre]
+ * @returns {string}
+ */
+export function consigneDuRelecteurDUnLotDirect(valeurs, propre = null) {
+  return `${[consigne(valeurs, 1).trim(), propre, EXIGENCE_DU_DIRECT].filter(Boolean).join('\n\n')}\n`;
+}
+
 // One session of <role> on the whole ticket: its sheet. A relaunch on its step (<tentative> past
 // 1) that is not the last (<derniere>) resumes the agent's session the circuit keeps
 // (<reprise>, its author and id) with the short instruction (the fourth template); its sheet
@@ -797,7 +816,9 @@ async function uneSeance(
         change ??
         (role === 'testwriter'
           ? 'la preuve du rouge, jouée après ta séance, refuse ton lot'
-          : 'les contrôles, joués après ta séance, sont rouges'),
+          : role === 'direct'
+            ? 'la passe finale, jouée après ta séance, est rouge'
+            : 'les contrôles, joués après ta séance, sont rouges'),
       rapport: rapport ?? 'aucun',
       tache,
       ouverts,
@@ -985,6 +1006,9 @@ export function arretDuStatut(
       );
 }
 
+// The authors of the code, whose sheet answers each finding open for them.
+const REPONDENT = ['developpeur', 'direct'];
+
 // The findings of the reviewer open for <role> among <constats>, as a session of the run whose
 // supervisor's context is <contexte> (`--contexte`, with `--depuis`, `--reprendre` or
 // `--etendre`) receives them, as a review its author relaunches on a change he frames keeps its
@@ -1006,7 +1030,8 @@ export function constatsDeLaSeance(contexte, constats, role, destinataire = null
   const siens = (constats ?? []).filter(c => c.role === role);
   const anciens = siens.filter(c => c.enContexte);
   const neufs = siens.filter(c => !c.enContexte);
-  const titres = role === 'developpeur' ? neufs.map(c => c.titre) : [];
+  const repondAuxConstats = REPONDENT.includes(role);
+  const titres = repondAuxConstats ? neufs.map(c => c.titre) : [];
   const enContexte = `les constats ouverts au lancement de la passe du superviseur, donnés en contexte : ta tâche est celle du superviseur, ci-dessus ; chacun reste ouvert jusqu'à la relecture qui le juge levé, et ta fiche n'a pas à répondre à chacun`;
   const titre =
     'LES CONSTATS DU RELECTEUR QUI RESTENT OUVERTS pour ton rôle, ' +
@@ -1027,7 +1052,7 @@ export function constatsDeLaSeance(contexte, constats, role, destinataire = null
     constats: texte,
     valider: f => reponsesAuxConstats(f, titres),
     repondre: (tous, fiche) =>
-      role === 'developpeur' && siens.length ? avecLesReponses(tous, fiche) : tous,
+      repondAuxConstats && siens.length ? avecLesReponses(tous, fiche) : tous,
   };
 }
 
@@ -1041,13 +1066,13 @@ export const auLancement = (contexte, constats) =>
     return contexte ? { ...reste, enContexte: true } : reste;
   });
 
-// The findings <constats>, each finding of the developpeur that his sheet <fiche> answers (by its
+// The findings <constats>, each finding of the author of the code that his sheet <fiche> answers (by its
 // title, numbered or not: `cleDuConstat`) with its answer `{ etat, raison, piece }`, as a thread
 // of a review keeps the author's reply under its comment.
 function avecLesReponses(constats, fiche) {
   const parTitre = new Map((fiche.reponses ?? []).map(r => [cleDuConstat(r.titre), r]));
   return (constats ?? []).map(c => {
-    const r = c.role === 'developpeur' ? parTitre.get(c.titre) : undefined;
+    const r = REPONDENT.includes(c.role) ? parTitre.get(c.titre) : undefined;
     if (!r) {
       return c;
     }

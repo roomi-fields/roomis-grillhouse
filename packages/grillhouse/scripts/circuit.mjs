@@ -83,7 +83,10 @@
 //   (scripts/bilan.mjs, written at each end).
 // - The state (the effect `etat`, scripts/effets.mjs) is `{ etape, tentative, code, raison,
 //   rapport, finale, relanceSurLeRefus, boucles, question, questionnement, paquets, constats,
-//   verifie, mene, reprise, refus, aRegenerer, controlesRouges, rang, journal }`.
+//   verifie, mene, reprise, refus, aRegenerer, controlesRouges, rang, circuit, journal }`.
+// - The circuit (`long`, `court` or `direct`) is fixed at the first opening, `direct` on the label
+//   of the ticket, with no plan; a resumption keeps that of the stopped state, and the sort turns
+//   `long` and `court` (`circuitSuivant` of scripts/transitions.mjs).
 // - The plan writes `## Noms publiés` (`noms_publies` of the explorateur's last sheet; an empty list
 //   erases the section, a sheet without the field keeps it) and `## Sorte` (`sorteDuPlan`,
 //   scripts/resultats.mjs; absent or unreadable, comportement) in the description; a mechanical
@@ -120,6 +123,7 @@ import { matieresDeclareesDe } from './matieres-cles.mjs';
 import { fluxDe } from './flux-des-paquets.mjs';
 import {
   AGENTS_DU_LOT,
+  AUTEURS_DE_LOT,
   agentsDuLot,
   auteurDuCode,
   leRole,
@@ -136,6 +140,8 @@ import {
 import {
   CONTROLES,
   PREUVE,
+  circuitDeLaSorte,
+  circuitSuivant,
   correctionsDuPlan,
   ouvertesDuPlan,
   pasDuPlan,
@@ -533,9 +539,21 @@ function ecrireRapport(ctx, etape, texte, resultat, rapport = texte) {
   });
 }
 
+/**
+ * The circuit of a run of <ctx> whose state and memory say none: that of the label `direct` for a
+ * ticket no session has worked (an opening that failed before its state), else that of its sort
+ * (a run in flight, opened without the field).
+ */
+export function circuitSansTrace(ctx) {
+  const mene = lesFiches(ctx).some(e => estUnPlan(e) || AUTEURS_DE_LOT.includes(e.role));
+  return !mene && leTicket(ctx).labels.includes('direct')
+    ? 'direct'
+    : circuitDeLaSorte(ctx.sorte ?? sorteDuTicket(ctx));
+}
+
 // The state of the run, written whole (`raison`, `boucles` and `question` null, `finale` and
 // `relanceSurLeRefus` false unless <etat> sets them, `paquets`, `constats`, `verifie`, `reprise`,
-// `aRegenerer`, `refus`, `controlesRouges` and `rang` the run's), kept as the run's current
+// `aRegenerer`, `refus`, `controlesRouges`, `rang` and `circuit` the run's), kept as the run's current
 // state and emitted (the effect `etat`), which the workflow of the ticket holds
 // (src/temporal/circuit/deroule.ts).
 export function ecrireEtat(ctx, etat) {
@@ -548,6 +566,7 @@ export function ecrireEtat(ctx, etat) {
     questionnement: null,
     mene: null,
     ...etat,
+    circuit: ctx.circuit ?? circuitDeLaSorte(ctx.sorte),
     paquets: ctx.paquets,
     constats: ctx.constats ?? [],
     verifie: ctx.verifie ?? null,
@@ -668,23 +687,25 @@ export function avantLaPasse(
   const fichiers = [...(r.conflits ?? []), ...(r.enAttente ?? [])];
   if (fichiers.length) {
     // The files in conflict, or kept in the lot, go to the role that writes them, the testwriter
-    // first; a role already relaunched for them that left one of its files is not relaunched: the
-    // stop goes up.
-    const { testwriter, developpeur, roles } = rolesDuConflit(fichiers, estUnTest);
+    // first, all of them to the agent direct in a direct circuit, who writes tests and code; a
+    // role already relaunched for them that left one of its files is not relaunched: the stop
+    // goes up.
+    const direct = ctx.circuit === 'direct';
+    const parRole = direct ? { direct: fichiers } : rolesDuConflit(fichiers, estUnTest);
+    const roles = direct ? ['direct'] : parRole.roles;
     const relances = ctx.conflitsRelances ?? [];
     const restants = roles.filter(role => !relances.includes(role));
     if (restants.length && restants.length === roles.length) {
-      const deRestants = restants.flatMap(role =>
-        role === 'testwriter' ? testwriter : developpeur
-      );
-      const siens = restants[0] === 'testwriter' ? testwriter : developpeur;
+      const deRestants = restants.flatMap(role => parRole[role]);
+      const siens = parRole[restants[0]];
+      const autres = direct ? '' : " Les fichiers de l'autre rôle restent à sa séance.";
       return {
         avancee: false,
         regeneration,
         conflit: {
           fichiers: deRestants,
           roles: restants,
-          rapport: `${r.message}\n\nL'avance de la copie sur la pointe de main a laissé ces fichiers à ton rôle : ${siens.join(', ')}.\nLes marques de conflit sont dans la copie (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`) : tu résous chaque fichier, marques retirées ; un fichier du lot gardé (\`grillhouse-travail.patch\`, dans le dossier git de la copie) se reprend à la main dans la copie, un fichier supprimé par le lot se supprime. Les fichiers de l'autre rôle restent à sa séance.`,
+          rapport: `${r.message}\n\nL'avance de la copie sur la pointe de main a laissé ces fichiers à ton rôle : ${siens.join(', ')}.\nLes marques de conflit sont dans la copie (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`) : tu résous chaque fichier, marques retirées ; un fichier du lot gardé (\`grillhouse-travail.patch\`, dans le dossier git de la copie) se reprend à la main dans la copie, un fichier supprimé par le lot se supprime.${autres}`,
         },
       };
     }
@@ -1551,6 +1572,7 @@ function ecrireLePlan(ctx, plan, description = null) {
 // plan), written in the description (« ## Sorte ») and said at the ticket (`Circuit · plan : …`).
 function ecrireLaSorte(ctx, sorte) {
   ctx.sorte = sorte;
+  ctx.circuit = circuitSuivant(ctx.circuit, sorte);
   inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, sorte });
   ecrireLePlan(ctx, ctx.paquets, redecrireLaSorte(leTicket(ctx).description, sorte));
   commenter(ctx, 'plan', `la sorte du ticket devient ${texteDeLaSorte(sorte)} ; le plan reste.`);
@@ -1988,6 +2010,7 @@ const PAS_DU_PLAN = {
 // « arrete », its question lifted, said at the ticket. Its exit code, 0.
 export async function arreter(ctx, e) {
   const lu = e;
+  ctx.circuit = ctx.circuit ?? lu.circuit;
   ctx.constats = [...(lu.constats ?? [])];
   ctx.verifie = lu.verifie ?? null;
   ctx.toursDeLaPasseFinale = lu.toursDeLaPasseFinale ?? null;
@@ -2131,6 +2154,13 @@ function etendre(ctx, e) {
 // The opening of <ctx> on <e> before its plan: `{ debut }`, or `{ code }`, a stop gone up.
 async function avantLePlan(ctx, e) {
   rentrerDansLaFile(ctx, e);
+  // The circuit is fixed at the first opening, read in the label of the ticket; a resumption
+  // keeps that of the stopped state.
+  if (e) {
+    ctx.circuit = e.circuit ?? ctx.circuit ?? circuitSansTrace(ctx);
+  } else {
+    ctx.circuit = leTicket(ctx).labels.includes('direct') ? 'direct' : 'long';
+  }
   if (ctx.etendre) {
     if (e?.etape === 'integre') {
       throw new Usage(`--etendre : le lot de ${ctx.ticket} est intégré.`);
@@ -2153,6 +2183,11 @@ async function avantLePlan(ctx, e) {
     inscrire(ctx, { role: AUTEUR_DU_CIRCUIT, plan: { empreinte: empreinteDuPlan(leTicket(ctx)) } });
   }
   const d = departDuCircuit(ctx, e);
+  // A direct circuit has no plan to write: the packages of its title, resolved, are its plan,
+  // written at the ticket as one.
+  if (!e && ctx.circuit === 'direct') {
+    ecrireLePlan(ctx, ctx.paquets);
+  }
   // A ticket labelled arbitrage starts and resumes only on the arbitrage its integration will
   // ask for: the integration's rule, before any session.
   const arbitrage = refusArbitrage({ id: ctx.ticket, ...leTicket(ctx) }, lesCommentaires(ctx));
@@ -2216,13 +2251,20 @@ export async function ouvrirJusquAuPlan(ctx, e) {
   if ('code' in o) {
     return o;
   }
-  const aEcrire = o.debut.etape === TESTS && !planPasse(ctx, empreinteDuPlan(leTicket(ctx)));
+  const aEcrire =
+    ctx.circuit !== 'direct' &&
+    o.debut.etape === TESTS &&
+    !planPasse(ctx, empreinteDuPlan(leTicket(ctx)));
   return { debut: o.debut, plan: aEcrire ? planAuDebut(ctx) : null };
 }
 
-/** The end of the opening of <ctx> at the step <d>: the sort of the ticket. `{ debut }`. */
+/**
+ * The end of the opening of <ctx> at the step <d>: the sort of the ticket, none for a direct
+ * circuit, and the circuit that follows it. `{ debut }`.
+ */
 export function finirLOuverture(ctx, d) {
   // The sort of the ticket its plan says, which the run reads at each step.
-  ctx.sorte = sorteDuTicket(ctx);
+  ctx.sorte = ctx.circuit === 'direct' ? null : sorteDuTicket(ctx);
+  ctx.circuit = circuitSuivant(ctx.circuit, ctx.sorte);
   return { debut: d };
 }

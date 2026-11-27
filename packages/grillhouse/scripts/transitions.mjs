@@ -42,6 +42,20 @@ import { attribuerLeRouge, departDepuis, refusDeLaReprise } from './reprise.mjs'
 export { ETAPES_DE_REPRISE } from './reprise.mjs';
 export { refusDeLaReprise };
 
+/**
+ * The circuit (`long` or `court`) the sort <sorte> of a ticket makes: short for a gesture without
+ * new behaviour (mechanical, or « comportement inchangé »), long for any other, none said included.
+ */
+export const circuitDeLaSorte = sorte =>
+  sorte?.genre === 'mécanique' || sorte?.comportement === 'inchangé' ? 'court' : 'long';
+
+/**
+ * The circuit <circuit> once the sort of its ticket turns to <sorte>: a direct circuit stays so,
+ * any other follows the sort.
+ */
+export const circuitSuivant = (circuit, sorte) =>
+  circuit === 'direct' ? circuit : circuitDeLaSorte(sorte);
+
 // What the circuit keeps between steps, which the decisions read and change: the one list the
 // opening reads back (scripts/faits-du-circuit.mjs `GARDEE`) and the memo of a circuit keeps
 // (src/temporal/circuit/contrat.ts `etatPourLeMemo`).
