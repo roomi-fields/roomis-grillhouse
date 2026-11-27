@@ -222,7 +222,19 @@ describe('la consigne du relecteur d’un lot direct', () => {
     for (const p of exigence(circuitDirect)) {
       expect(secours).toContain(p.trim());
     }
-    expect(secours).toMatch(/hors du circuit/);
+    expect(secours).toMatch(/voie de secours/);
+    expect(secours).not.toMatch(/hors du circuit/);
+  });
+
+  it('écrit le verdict de la relecture une seule fois au ticket', async () => {
+    const m = monde({ copie: true });
+    lot(m);
+    m.ctx.circuit = 'direct';
+    m.fiche({ verdict: 'ACCEPTÉ' });
+    await m.jouer(() =>
+      relire(m.ctx, { constats: [], consigneDuRelecteur: consigneDuRelecteurDuDirect })
+    );
+    expect(m.commentaires().filter(c => c.startsWith('ACCEPTÉ'))).toHaveLength(1);
   });
 
   it.each(['long', 'court'])('d’un circuit %s ne la porte pas', async c => {

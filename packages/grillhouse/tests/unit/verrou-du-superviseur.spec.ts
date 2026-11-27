@@ -1,6 +1,7 @@
 // Le verrou de la séance hors enveloppe (le superviseur, l'humain qui lance Claude Code à la main,
 // une séance qui a perdu sa variable d'enveloppe) : il refuse le code et les tests d'un paquet, par
-// défaut, et nomme la commande du direct ; les documents restent écrits.
+// défaut, et nomme le circuit direct, la commande de secours pour la seule panne du moteur ; les
+// documents restent écrits.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -65,6 +66,30 @@ describe('la séance hors enveloppe n’écrit ni code ni test d’un paquet', (
 
   it('refuse une séance dont la variable d’enveloppe est vide', () => {
     expect(refus('packages/a/src/index.ts', { GRILLHOUSE_ENVELOPPE: '' })).toContain('direct');
+  });
+});
+
+describe('le refus du verrou hors enveloppe dit par où passe l’écriture', () => {
+  // Les phrases du refus.
+  const phrases = () => refus('packages/a/src/index.ts')!.split(/(?<=\.)\s+/);
+
+  it('nomme le circuit direct : un ticket étiqueté direct, qui part par la file', () => {
+    const circuit = phrases().filter(p => /étiqueté `direct`/.test(p));
+    expect(circuit).not.toEqual([]);
+    expect(circuit.join(' ')).toMatch(/par la file/);
+    expect(circuit.join(' ')).not.toMatch(/commite/);
+  });
+
+  it('ne nomme la voie de secours que pour une panne du moteur', () => {
+    const secours = phrases().filter(p => /npx grillhouse direct|voie de secours/.test(p));
+    expect(secours).not.toEqual([]);
+    for (const p of secours) {
+      expect(p).toMatch(/panne du moteur/);
+    }
+  });
+
+  it('la commande de secours est nommée avec la panne qu’elle exige', () => {
+    expect(refus('packages/a/src/index.ts')).toMatch(/npx grillhouse direct <ticket> --panne/);
   });
 });
 

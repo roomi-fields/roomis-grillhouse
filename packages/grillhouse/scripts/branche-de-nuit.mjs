@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The judged main guard (packages/grillhouse/docs/architecture/entree.md §3.1 « Garde de main »,
 // §3.3, §5.1): a push to origin of the branch main carries only a commit whose tree a
-// final pass of the circuit, or the verification of a lot of the direct way, judged green
+// final pass of the circuit, or the verification of the rescue way, judged green
 // (scripts/arbres-juges.mjs), as bors and the merge queues enter only a tree already judged
 // (`refusSurMain`), in every project. Run by the pre-push hook of the frame with git's arguments
 // (remote name, remote URL) and, on the standard input, the lines
@@ -40,7 +40,7 @@ export function refusSurMain(remote, refs, { jugee, tete, ecarts }) {
     .filter(r => r.distante === 'refs/heads/main' && !SUPPRESSION.test(r.sha))
     .filter(r => !jugee(r.sha))
     .map(r => {
-      const base = `⛔ ${r.sha.slice(0, 8)} n'est jugé vert par aucune passe finale ni vérification de lot : main n'avance que sur un arbre jugé. Joue \`npm run verifier\` sur ce commit (lot direct), ou laisse la file du circuit jouer sa passe finale.`;
+      const base = `⛔ ${r.sha.slice(0, 8)} n'est jugé vert par aucune passe finale ni vérification de lot : main n'avance que sur un arbre jugé. Joue \`npm run verifier\` sur ce commit (vérification de la voie de secours), ou laisse la file du circuit jouer sa passe finale.`;
       const fichiers = tete === r.sha && ecarts ? ecarts() : [];
       return fichiers.length
         ? `${base} Le dossier diffère du commit par : ${fichiers.join(', ')} (commite-les ou restaure-les).`

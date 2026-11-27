@@ -1,6 +1,6 @@
 // The judged main of the pre-push hook (scripts/branche-de-nuit.mjs, `refusSurMain`): a push to
 // origin of the branch main carries only a commit that a final pass of the circuit or the
-// verification of a lot of the direct way judged green; any other is refused. The hook reads no
+// verification of a lot of the rescue way judged green; any other is refused. The hook reads no
 // key: main is the one branch that receives the lots.
 import { describe, expect, it } from 'vitest';
 import * as nuit from '../../scripts/branche-de-nuit.mjs';
@@ -26,6 +26,13 @@ describe('a push to main carries only a commit a final pass or a verification ju
     expect(lignes[0]).toContain('passe finale');
     expect(lignes[0]).not.toContain('agent/<ticket>');
     expect(refusSurMain('origin', [vers('refs/heads/main', JUGE)], { jugee })).toEqual([]);
+  });
+
+  it('names the verification of the rescue way, and no longer a direct lot', () => {
+    const [ligne] = refusSurMain('origin', [vers('refs/heads/main', NEUF)], { jugee });
+    expect(ligne).toMatch(/npm run verifier/);
+    expect(ligne).toMatch(/voie de secours/);
+    expect(ligne).not.toMatch(/lot direct/);
   });
 
   it('asks nothing of the CI of a branch of a ticket: the judgement is the pass’s alone', () => {

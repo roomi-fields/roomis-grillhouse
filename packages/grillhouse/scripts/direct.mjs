@@ -7,8 +7,18 @@
 // supervisor never writes it: it reads the lot, plays the full verification, commits, advances main
 // and pushes.
 //
-//   npx grillhouse direct <ticket> [--paquet <chemin>]… [--contexte <texte>]
+//   npx grillhouse direct <ticket> --panne <texte> [--paquet <chemin>]… [--contexte <texte>]
 //   npx grillhouse direct <ticket> --deverrouiller
+//
+// - It exists for a failure of the engine alone, which `--panne` names: without it, or with a
+//   blank text, the command refuses before any work.
+// - It refuses a closed ticket, and a ticket whose workflow runs on the server, a question
+//   included; a server that does not read (silent, or its client not built) does not stop it, the
+//   failure of the engine being its case, and the ticket says the check was not made.
+// - Once nothing refuses it, it takes the ticket (`in_progress`), so that the queue of the tickets
+//   starts no circuit on it, and writes there the failure, once; each review writes its verdict.
+// - It asks nothing of the arbiter of the machine: no place, and its sessions run under the mark of
+//   a place held, so that a closed machine does not hold them back.
 //
 // - The ticket carries the label `direct`. Its packages are the components of its title, as the
 //   circuit writes them (« numéro — sujet — composant, composant »), completed by each `--paquet`;
@@ -34,7 +44,8 @@ import { existsSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ecritPar, preparer } from './enveloppe/travail-de-la-copie.mjs';
-import { prendreUnePlace, VARIABLE_TENUE } from './places-de-la-machine.mjs';
+import { circuitsDuServeur, ClientNonConstruit, ServeurMuet } from './circuits-du-serveur.mjs';
+import { VARIABLE_TENUE } from './places-de-la-machine.mjs';
 import { bloquantsDeLaFiche } from './resultats.mjs';
 import { consigneDuRelecteurDUnLotDirect } from './seances.mjs';
 
@@ -43,7 +54,14 @@ const RENDUS_MAX = 3;
 
 // What the rescue command alone says of its lot to the reviewer.
 const PROPRE_A_LA_VOIE_DE_SECOURS =
-  'Ce lot est mené hors du circuit, par la voie de secours `npx grillhouse direct`.';
+  'Ce lot est mené par la voie de secours `npx grillhouse direct`, réservée aux pannes du moteur.';
+
+// The mark of a place held under which the command plays: its sessions and their commands ask the
+// arbiter of the machine for no place and read no closure; each still takes its part of the poste.
+const SANS_ARBITRE = 'voie-de-secours';
+
+// What the ticket says of a launch that could not read the circuits.
+const NON_VERIFIE = "La commande n'a pas pu vérifier qu'aucun circuit ne vit sur ce ticket";
 
 /**
  * The instruction of the reviewer of a lot of the rescue command: that of a direct lot
@@ -159,25 +177,59 @@ export function deverrouillerLaCopie(copie, git) {
   }
 }
 
-/**
- * The command: the agent, then the reviewer, and it stops. <ports> are what it launches
- * (`copie`, `verrouiller`, `avancer`, `fiches`, `lot`, `resoudre`, `seance`, `relecture`); <options> the paths
- * `--paquet` adds to the plan.
- * @param {{ id: string, ticket: { title?: string, labels?: string[] }, options?: string[], ports: any }} o
- * @returns {Promise<{ verdict?: string, copie?: string, constats?: object[], arret?: boolean, statut?: string, rendus?: number, fiche?: object }>}
- */
-export async function lancerLeDirect({ id, ticket, options = [], ports }) {
-  if (!(ticket.labels ?? []).includes('direct')) {
+// Refuses the ticket <id> while a workflow of its circuit runs on the server, a question included;
+// returns null, or what the ticket says when the server does not read.
+async function refuserUnCircuitVivant(id, ports) {
+  let circuits;
+  try {
+    circuits = await ports.circuits();
+  } catch (e) {
+    if (e instanceof ServeurMuet || e instanceof ClientNonConstruit) {
+      return `${NON_VERIFIE} : ${e.message}.`;
+    }
+    throw e;
+  }
+  if (circuits.some(c => c.ticket === id && c.fin === null)) {
     throw new Error(
-      `Le ticket ${id} n'est pas étiqueté direct : la commande ne mène que les tickets de la voie directe (charte, « Un ticket prend l'une de trois voies »).`
+      `Le ticket ${id} a un circuit qui vit sur le serveur : finis-le par \`npx grillhouse circuit ${id} --arreter\` ; si son déroulé en panne ne finit pas sur ce mot, termine-le au serveur par \`temporal workflow terminate --workflow-id '${await ports.deroule()}'\`, puis relance la commande.`
     );
   }
-  const { plan } = planDuDirect({
-    id,
-    titre: ticket.title ?? '',
-    options,
-    resoudre: ports.resoudre,
-  });
+  return null;
+}
+
+// Writes at the ticket the use of the rescue way: the failure <panne>, once for each failure, and
+// <nonVerifie>, when the circuits were not read, once too unless the failure is new.
+async function ecrireLUsage(panne, nonVerifie, ports) {
+  const dits = (await ports.commentaires()).map(c => c.text);
+  const entree = `Voie de secours (\`npx grillhouse direct\`), panne du moteur : ${panne}`;
+  const neuve = !dits.some(t => t === entree || t.startsWith(`${entree}\n`));
+  const lignes = [
+    neuve ? entree : null,
+    nonVerifie && (neuve || !dits.some(t => t.includes(NON_VERIFIE))) ? nonVerifie : null,
+  ].filter(Boolean);
+  if (lignes.length) {
+    await ports.commenter(lignes.join('\n\n'));
+  }
+}
+
+// Plays <f> under the mark of a place held, the environment given back at its end.
+async function sansArbitre(f) {
+  const avant = process.env[VARIABLE_TENUE];
+  process.env[VARIABLE_TENUE] = avant || SANS_ARBITRE;
+  try {
+    return await f();
+  } finally {
+    if (avant === undefined) {
+      delete process.env[VARIABLE_TENUE];
+    } else {
+      process.env[VARIABLE_TENUE] = avant;
+    }
+  }
+}
+
+// The lot of the direct <id> on the paths <plan>: the copy, then what the sheets of the reviewer
+// decide.
+async function menerLeLot(plan, ports) {
   const copie = ports.copie();
   ports.verrouiller(copie);
   const decision = decisionDuDirect(ports.fiches(), ports.lot());
@@ -194,23 +246,53 @@ export async function lancerLeDirect({ id, ticket, options = [], ports }) {
     };
   }
   const constats = decision.constats ?? [];
-  // A direct holds a place of circuit of the machine, counted with the circuits, from its agent to
-  // its review; given back at the end, whatever the end.
-  const rendre = ports.place();
-  try {
-    // The copy moves onto main before the session: the files its work meets in conflict go to the
-    // agent, who writes them all, as the author of a lot resolves his own rebase.
-    const { fichiers = [] } = (await ports.avancer(copie)) ?? {};
-    const fiche = await ports.seance('direct', { constats, paquets: plan, conflits: fichiers });
-    if (fiche?.statut && fiche.statut !== 'FAIT') {
-      return { arret: true, statut: fiche.statut, fiche, copie };
-    }
-    const relue = await ports.relecture({ constats });
-    return { verdict: relue.verdict, constats: relue.constats ?? [], fiche: relue.fiche, copie };
-  } finally {
-    rendre();
+  // The copy moves onto main before the session: the files its work meets in conflict go to the
+  // agent, who writes them all, as the author of a lot resolves his own rebase.
+  const { fichiers = [] } = (await ports.avancer(copie)) ?? {};
+  const fiche = await ports.seance('direct', { constats, paquets: plan, conflits: fichiers });
+  if (fiche?.statut && fiche.statut !== 'FAIT') {
+    return { arret: true, statut: fiche.statut, fiche, copie };
   }
+  const relue = await ports.relecture({ constats });
+  return { verdict: relue.verdict, constats: relue.constats ?? [], fiche: relue.fiche, copie };
 }
+
+/**
+ * The command: its refusals, which leave the ticket as it was, then the ticket taken and the use
+ * of the rescue way written there, then the agent, the reviewer, and it stops. <ports> are what it
+ * reads, writes and launches (`circuits`, `deroule`, `prendre`, `commentaires`, `commenter`,
+ * `copie`, `verrouiller`, `avancer`, `fiches`, `lot`, `resoudre`, `seance`, `relecture`); <panne>
+ * the failure of the engine that justifies it; <options> the paths `--paquet` adds to the plan.
+ * @param {{ id: string, ticket: { title?: string, labels?: string[], status?: string }, panne?: string | null, options?: string[], ports: any }} o
+ * @returns {Promise<{ verdict?: string, copie?: string, constats?: object[], arret?: boolean, statut?: string, rendus?: number, fiche?: object }>}
+ */
+export async function lancerLeDirect({ id, ticket, panne, options = [], ports }) {
+  const motif = String(panne ?? '').trim();
+  if (!motif) {
+    throw new Error(SANS_PANNE);
+  }
+  if (!(ticket.labels ?? []).includes('direct')) {
+    throw new Error(
+      `Le ticket ${id} n'est pas étiqueté direct : la commande ne mène que les tickets de la voie directe (charte, « Un ticket prend l'une de trois voies »).`
+    );
+  }
+  if (ticket.status === 'closed') {
+    throw new Error(`Le ticket ${id} est fermé : la commande ne le rouvre pas.`);
+  }
+  const { plan } = planDuDirect({
+    id,
+    titre: ticket.title ?? '',
+    options,
+    resoudre: ports.resoudre,
+  });
+  const nonVerifie = await refuserUnCircuitVivant(id, ports);
+  await ports.prendre();
+  await ecrireLUsage(motif, nonVerifie, ports);
+  return sansArbitre(() => menerLeLot(plan, ports));
+}
+
+const SANS_PANNE =
+  "La commande est la voie de secours, réservée aux pannes du moteur : nomme celle qui la justifie par `--panne <texte>`.";
 
 /**
  * What the agent of a direct reads of the files its work meets in conflict with main (« aucun »
@@ -226,14 +308,23 @@ export function rapportDuConflit(fichiers) {
 
 // The task the agent of a direct reads at the head of its instruction.
 const TACHE_DU_DIRECT =
-  "Ce ticket est mené en direct, hors du circuit : tu écris ses tests et son code ensemble, dans les paquets de ton plan. Un défaut corrigé porte un test qui le reproduit. Aucune preuve du rouge ni aucun contrôle du circuit ne suit ta séance : un relecteur juge ton lot, puis le superviseur le vérifie. Les constats ci-dessous, s'il y en a, viennent de ce relecteur.";
+  "Ce ticket est mené en direct, par la voie de secours : tu écris ses tests et son code ensemble, dans les paquets de ton plan. Un défaut corrigé porte un test qui le reproduit. Aucune preuve du rouge ni aucun contrôle du circuit ne suit ta séance : un relecteur juge ton lot, puis le superviseur le vérifie. Les constats ci-dessous, s'il y en a, viennent de ce relecteur.";
+
+// bd writing at the ticket of <ctx> under the supervisor, who launches the command; a failed write
+// throws.
+function ecrireAuTicket(ctx, ...args) {
+  const r = ctx.bdSous('superviseur', ...args);
+  if (r.status !== 0) {
+    throw new Error(`bd ${args[0]} échoue : ${r.error?.message ?? r.stderr ?? ''}`.trim());
+  }
+}
 
 // The ports of the command on the project at the working directory, the circuit's own sessions.
 async function portsDuProjet(id, { contexteDuSuperviseur }) {
   const { contexte } = await import('./circuit.mjs');
   const { seance, idDeSeance } = await import('./seances.mjs');
   const { arbreDeLaCopie, relire } = await import('./activites.mjs');
-  const { lesFiches } = await import('./ticket-du-circuit.mjs');
+  const { lesCommentaires, lesFiches } = await import('./ticket-du-circuit.mjs');
   const ctx = contexte({ ticket: id, arreter: true, contexte: contexteDuSuperviseur });
   const git = (...a) => spawnSync('git', ['-C', ctx.racine, ...a], { encoding: 'utf8' });
   const ouverts = constats =>
@@ -257,27 +348,16 @@ async function portsDuProjet(id, { contexteDuSuperviseur }) {
         }
         return ctx.copie;
       },
-      // The place of circuit the direct holds for its whole run: the sessions it launches then
-      // hold nothing more (GRILLHOUSE_PLACE_TENUE), as under any place already held.
-      place: () => {
-        const p = prendreUnePlace({
-          ticket: id,
-          racine: ctx.racine,
-          dire: l => process.stdout.write(`${l}\n`),
-        });
-        const avant = process.env[VARIABLE_TENUE];
-        if (p.id) {
-          process.env[VARIABLE_TENUE] = p.id;
-        }
-        return () => {
-          if (avant === undefined) {
-            delete process.env[VARIABLE_TENUE];
-          } else {
-            process.env[VARIABLE_TENUE] = avant;
-          }
-          p.rendre();
-        };
+      // The circuits of the repository, the integrated ones included: a workflow still at its
+      // triage runs.
+      circuits: () => circuitsDuServeur(ctx.racine, { integres: true }),
+      deroule: async () => {
+        const { idDuCircuit } = await import('../dist/temporal/circuit/contrat.js');
+        return idDuCircuit(ctx.racine, id);
       },
+      prendre: () => ecrireAuTicket(ctx, 'update', id, '--status', 'in_progress'),
+      commentaires: () => lesCommentaires(ctx),
+      commenter: texte => ecrireAuTicket(ctx, 'comments', 'add', id, texte),
       verrouiller: copie => verrouillerLaCopie(copie, git),
       fiches: () =>
         lesFiches(ctx).map(e => (e.role === 'relecteur' ? { ...e, lot: e.lot?.arbre } : e)),
@@ -321,20 +401,23 @@ async function portsDuProjet(id, { contexteDuSuperviseur }) {
   };
 }
 
-// The command's options for <argv>: the ticket, the paths added to the plan, the context, and the
-// unlocking; or a usage fault.
-function lireLesOptions(argv) {
-  const o = { id: null, paquets: [], contexte: null, deverrouiller: false };
+/**
+ * The command's options for <argv>: the ticket, the failure of the engine, the paths added to the
+ * plan, the context, and the unlocking; or null, a usage fault.
+ * @param {string[]} argv
+ */
+export function lireLesOptions(argv) {
+  const o = { id: null, panne: null, paquets: [], contexte: null, deverrouiller: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--paquet' || a === '--contexte') {
+    if (a === '--paquet' || a === '--contexte' || a === '--panne') {
       if (i + 1 >= argv.length) {
         return null;
       }
       if (a === '--paquet') {
         o.paquets.push(argv[++i]);
       } else {
-        o.contexte = argv[++i];
+        o[a.slice(2)] = argv[++i];
       }
     } else if (a === '--deverrouiller') {
       o.deverrouiller = true;
@@ -348,13 +431,18 @@ function lireLesOptions(argv) {
 }
 
 const USAGE =
-  'usage : npx grillhouse direct <ticket> [--paquet <chemin>]… [--contexte <texte>] | npx grillhouse direct <ticket> --deverrouiller\n';
+  'usage : npx grillhouse direct <ticket> --panne <texte> [--paquet <chemin>]… [--contexte <texte>] | npx grillhouse direct <ticket> --deverrouiller\n';
 
 // The command on <argv>: its exit code.
 async function commande(argv) {
   const o = lireLesOptions(argv);
   if (!o) {
     process.stderr.write(USAGE);
+    return 2;
+  }
+  // Refused before any work: the context of the ticket already writes beside its copy.
+  if (!o.deverrouiller && !o.panne?.trim()) {
+    process.stderr.write(`⛔ ${SANS_PANNE}\n${USAGE}`);
     return 2;
   }
   const { ctx, ports, git } = await portsDuProjet(o.id, { contexteDuSuperviseur: '' });
@@ -372,6 +460,7 @@ async function commande(argv) {
   const r = await lancerLeDirect({
     id: o.id,
     ticket: JSON.parse(show.stdout || '[]')[0] ?? {},
+    panne: o.panne,
     options: o.paquets,
     ports,
   });

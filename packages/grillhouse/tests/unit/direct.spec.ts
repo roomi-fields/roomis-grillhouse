@@ -1,9 +1,22 @@
-// La commande du direct (`npx grillhouse direct <ticket>`, scripts/direct.mjs) : un agent lancé dans
-// une copie à lui, puis la relecture de son lot, et rien d'autre ; les paquets du direct, le choix
-// entre démarrage et relance, la consigne du relecteur, le verrou de la copie.
-import { describe, expect, it } from 'vitest';
+// La commande du direct (`npx grillhouse direct <ticket>`, scripts/direct.mjs), voie de secours du
+// moteur : un agent lancé dans une copie à lui, puis la relecture de son lot, et rien d'autre ; les
+// paquets du direct, la panne exigée et écrite au ticket, la prise du ticket, le refus d'un circuit
+// vivant, rien demandé à l'arbitre, le choix entre démarrage et relance, la consigne du relecteur, le
+// verrou de la copie.
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import type { Client } from '@temporalio/client';
+import { afterAll, describe, expect, it } from 'vitest';
+import { ClientNonConstruit, ServeurMuet } from '../../scripts/circuits-du-serveur.mjs';
 import * as travail from '../../scripts/enveloppe/travail-de-la-copie.mjs';
+import { prendreUnePart, prendreUnePlace } from '../../scripts/places-de-la-machine.mjs';
 import { consigne } from '../../scripts/seances.mjs';
+import { lireLesCircuits } from '../../src/temporal/circuit/client.js';
+import { idDuCircuit } from '../../src/temporal/circuit/contrat.js';
+
+const ESSAIS = mkdtempSync(path.join(tmpdir(), 'direct-secours-'));
+afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
 
 const ecritPar = (
   travail as unknown as {
@@ -23,12 +36,18 @@ interface Direct {
     lot: string
   ) => { action: string; constats?: { titre: string }[]; rendus?: number };
   deverrouillerLaCopie: (copie: string, git: Git) => void;
-  lancerLeDirect: (o: { id: string; ticket: object; ports: object }) => Promise<{
+  lancerLeDirect: (o: { id: string; ticket: object; panne?: string; ports: object }) => Promise<{
     verdict?: string;
     copie?: string;
     constats?: { titre: string }[];
     arret?: boolean;
   }>;
+  lireLesOptions: (argv: string[]) => {
+    id: string;
+    panne?: string | null;
+    paquets: string[];
+    deverrouiller: boolean;
+  } | null;
   planDuDirect: (o: {
     id: string;
     titre: string;
@@ -43,6 +62,7 @@ const {
   decisionDuDirect,
   deverrouillerLaCopie,
   lancerLeDirect,
+  lireLesOptions,
   planDuDirect,
   rapportDuConflit,
   verrouillerLaCopie,
@@ -196,6 +216,12 @@ describe('la consigne du relecteur d’un direct exige un test qui reproduit un 
     expect(consigneDuRelecteurDuDirect(valeurs)).toContain(consigne(valeurs, 1).trim());
     expect(consigne(valeurs, 1)).not.toMatch(/preuve du rouge[^.]*pas jouée/i);
   });
+
+  it('dit le lot mené par la voie de secours, et non plus hors du circuit', () => {
+    const texte = consigneDuRelecteurDuDirect(valeurs);
+    expect(texte).toMatch(/voie de secours/);
+    expect(texte).not.toMatch(/hors du circuit/);
+  });
 });
 
 describe('la copie d’un direct est verrouillée par git', () => {
@@ -250,7 +276,54 @@ describe('la copie d’un direct est verrouillée par git', () => {
   });
 });
 
-// Les ports de la commande, essayés : ce qu'elle lance, dans l'ordre.
+// La racine du dépôt d'essai, et l'identifiant du déroulé de son ticket.
+const RACINE = '/depot';
+const DEROULE = idDuCircuit(RACINE, 'demo-9');
+
+// Un déroulé tel que le serveur le liste.
+interface Deroule {
+  ticket: string;
+  statut: string;
+  question?: boolean;
+}
+// Les circuits tels que `lireLesCircuits` les publie, depuis les déroulés `deroules` du serveur.
+const circuitsLus = (deroules: Deroule[]) => {
+  let appel = 0;
+  const client = {
+    workflow: {
+      list: () => {
+        const premier = appel++ === 0;
+        return (async function* () {
+          await Promise.resolve();
+          for (const [rang, d] of premier ? deroules.entries() : []) {
+            yield {
+              workflowId: idDuCircuit(RACINE, d.ticket),
+              runId: String(rang),
+              startTime: new Date(rang),
+              ...(d.statut === 'RUNNING' ? {} : { closeTime: new Date(rang + 1) }),
+              status: { name: d.statut },
+              memo: {
+                etape: 'developpeur',
+                ...(d.question
+                  ? { question: { arret: 'besoin', qui: 'superviseur', question: 'Laquelle ?' } }
+                  : {}),
+              },
+            };
+          }
+        })();
+      },
+    },
+  } as unknown as Client;
+  return lireLesCircuits(client, RACINE);
+};
+
+// Un commentaire du ticket, tel que `bd comments` le donne.
+interface Commentaire {
+  author: string;
+  text: string;
+}
+
+// Les ports de la commande, essayés : ce qu'elle lance et écrit, dans l'ordre.
 function ports(
   fiches: object[],
   verdicts: ('ACCEPTÉ' | 'RENDU')[] = ['ACCEPTÉ'],
@@ -258,18 +331,24 @@ function ports(
 ) {
   const journal: string[] = [];
   const lancees: { role: string; constats: unknown[]; conflits?: string[] }[] = [];
-  const places: string[] = [];
+  const commentaires: Commentaire[] = [];
   return {
     journal,
     lancees,
-    places,
+    commentaires,
     ports: {
-      // La place de circuit de la machine : prise au départ, rendue par la fonction rendue.
-      place: () => {
-        places.push('prise');
-        return () => {
-          places.push('rendue');
-        };
+      // Les circuits du dépôt, lus au serveur.
+      circuits: (): Promise<unknown[]> => circuitsLus([]),
+      // L'identifiant du déroulé du ticket au serveur.
+      deroule: () => DEROULE,
+      // La prise du ticket (`in_progress`).
+      prendre: () => {
+        journal.push('prendre');
+      },
+      commentaires: () => [...commentaires],
+      commenter: (texte: string) => {
+        journal.push('commenter');
+        commentaires.push({ author: 'superviseur', text: texte });
       },
       copie: () => {
         journal.push('copie');
@@ -289,9 +368,11 @@ function ports(
         lancees.push({ role, constats: o.constats ?? [], conflits: o.conflits });
         return { statut: 'FAIT' };
       },
+      // La relecture écrit elle-même son verdict au ticket, comme `relire` (scripts/activites.mjs).
       relecture: () => {
         journal.push('relecture');
         const verdict = verdicts.shift() ?? 'ACCEPTÉ';
+        commentaires.push({ author: 'relecteur', text: `${verdict}\n` });
         return {
           verdict,
           constats: verdict === 'RENDU' ? [bloquant('Un constat')] : [],
@@ -300,69 +381,43 @@ function ports(
     },
   };
 }
-const ticket = (labels: string[]) => ({
+const ticket = (labels: string[], status = 'open', title = '9 — Le sujet — packages/a') => ({
   id: 'demo-9',
-  title: '9 — Le sujet — packages/a',
+  title,
+  status,
   labels,
 });
+const PANNE = 'la file d’intégration ne répond plus';
+const lancer = (
+  p: ReturnType<typeof ports>,
+  o: { ticket?: object; panne?: string | undefined } = {}
+) =>
+  lancerLeDirect({
+    id: 'demo-9',
+    ticket: o.ticket ?? ticket(['direct']),
+    panne: 'panne' in o ? o.panne : PANNE,
+    ports: p.ports,
+  });
+const GESTES = /^(copie|verrouiller|prendre|commenter|seance:direct|relecture)$/;
+const lancements = (journal: string[]) =>
+  journal.filter(j => /^(copie|verrouiller|seance:direct|relecture)$/.test(j));
+const ecritsDeLaPanne = (p: ReturnType<typeof ports>, panne = PANNE) =>
+  p.commentaires.filter(c => c.text.includes(panne));
 
 describe('la commande lance l’agent, puis le relecteur, et s’arrête', () => {
   it('sur un ticket direct, joue la copie verrouillée, l’agent direct, la relecture, dans cet ordre', async () => {
     const p = ports([]);
-    const r = await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
-    expect(p.journal).toEqual(['copie', 'verrouiller', 'seance:direct', 'relecture']);
+    const r = await lancer(p);
+    expect(lancements(p.journal)).toEqual(['copie', 'verrouiller', 'seance:direct', 'relecture']);
     expect(r).toMatchObject({
       verdict: 'ACCEPTÉ',
       copie: '/depot/.claude/worktrees/demo-9',
     });
   });
 
-  it('un direct prend une place de circuit de la machine avant l’agent et la rend après la relecture', async () => {
-    const p = ports([]);
-    const journal: string[] = [];
-    const place = p.ports.place;
-    p.ports.place = () => {
-      journal.push('place:prise');
-      const rendre = place();
-      return () => {
-        journal.push('place:rendue');
-        rendre();
-      };
-    };
-    const seance = p.ports.seance;
-    p.ports.seance = (...a: Parameters<typeof seance>) => {
-      journal.push('seance');
-      return seance(...a);
-    };
-    const relecture = p.ports.relecture;
-    p.ports.relecture = () => {
-      journal.push('relecture');
-      return relecture();
-    };
-    await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
-    expect(journal).toEqual(['place:prise', 'seance', 'relecture', 'place:rendue']);
-    expect(p.places).toEqual(['prise', 'rendue']);
-  });
-
-  it('un direct rend sa place quand l’agent s’arrête, ou que la séance échoue', async () => {
-    const arret = ports([]);
-    arret.ports.seance = () => ({ statut: 'BLOQUÉ' }) as never;
-    await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: arret.ports });
-    expect(arret.places).toEqual(['prise', 'rendue']);
-
-    const echec = ports([]);
-    echec.ports.seance = () => {
-      throw new Error('séance tombée');
-    };
-    await expect(
-      lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: echec.ports })
-    ).rejects.toThrow(/séance tombée/);
-    expect(echec.places).toEqual(['prise', 'rendue']);
-  });
-
   it('un conflit d’avance de la copie relance l’agent avec les fichiers en conflit, sans arrêt', async () => {
     const p = ports([], ['ACCEPTÉ'], ['packages/a/src/x.ts', 'packages/a/tests/x.spec.ts']);
-    const r = await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    const r = await lancer(p);
     expect(r.arret).toBeUndefined();
     expect(p.lancees[0].conflits).toEqual(['packages/a/src/x.ts', 'packages/a/tests/x.spec.ts']);
     expect(p.journal).toContain('relecture');
@@ -377,42 +432,24 @@ describe('la commande lance l’agent, puis le relecteur, et s’arrête', () =>
     expect(ecrit?.('a/src/x.ts')).toBe(true);
   });
 
-  it('un ticket qui n’est pas direct ne prend aucune place', async () => {
-    const p = ports([]);
-    await expect(
-      lancerLeDirect({ id: 'demo-9', ticket: ticket(['circuit']), ports: p.ports })
-    ).rejects.toThrow();
-    expect(p.places).toEqual([]);
-  });
-
   it('ne joue ni plan, ni preuve du rouge, ni contrôles, ni file : seuls l’agent direct et le relecteur', async () => {
     const p = ports([]);
-    await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    await lancer(p);
     expect(p.lancees.map(l => l.role)).toEqual(['direct']);
-    expect(p.journal.filter(j => !/^(copie|verrouiller|seance:direct|relecture)$/.test(j))).toEqual(
-      []
-    );
+    expect(p.journal.filter(j => !GESTES.test(j))).toEqual([]);
   });
 
   it('rend le verdict RENDU du relecteur et ses constats, sans relancer l’agent de lui-même', async () => {
     const p = ports([], ['RENDU']);
-    const r = await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    const r = await lancer(p);
     expect(r.verdict).toBe('RENDU');
     expect((r.constats as { titre: string }[]).map(c => c.titre)).toEqual(['Un constat']);
     expect(p.lancees).toHaveLength(1);
   });
 
-  it('refuse un ticket qui n’est pas étiqueté direct, sans rien lancer', async () => {
-    const p = ports([]);
-    await expect(
-      lancerLeDirect({ id: 'demo-9', ticket: ticket(['circuit']), ports: p.ports })
-    ).rejects.toThrow(/direct/);
-    expect(p.journal).toEqual([]);
-  });
-
   it('relance l’agent avec les constats ouverts d’un lot rendu', async () => {
     const p = ports([fiche('lot-1', 'RENDU', [bloquant('Un défaut sans test')])]);
-    await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    await lancer(p);
     expect(p.lancees).toHaveLength(1);
     expect(p.lancees[0].role).toBe('direct');
     expect((p.lancees[0].constats as { titre: string }[]).map(c => c.titre)).toEqual([
@@ -424,7 +461,7 @@ describe('la commande lance l’agent, puis le relecteur, et s’arrête', () =>
     const rendus = [1, 2, 3].map(n => fiche(`lot-${n}`, 'RENDU', [bloquant(`c${n}`)]));
     const p = ports(rendus);
     p.ports.lot = () => 'lot-3';
-    const r = await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    const r = await lancer(p);
     expect(r).toMatchObject({ arret: true });
     expect(p.lancees).toEqual([]);
     expect(p.journal).not.toContain('relecture');
@@ -432,9 +469,285 @@ describe('la commande lance l’agent, puis le relecteur, et s’arrête', () =>
 
   it('un lot déjà accepté rend son verdict sans relancer ni relire', async () => {
     const p = ports([fiche('lot-1', 'ACCEPTÉ')]);
-    const r = await lancerLeDirect({ id: 'demo-9', ticket: ticket(['direct']), ports: p.ports });
+    const r = await lancer(p);
     expect(r.verdict).toBe('ACCEPTÉ');
     expect(p.lancees).toEqual([]);
     expect(p.journal).not.toContain('relecture');
+  });
+});
+
+describe('la commande prend le ticket avant sa première séance', () => {
+  it('le ticket est pris avant la séance de l’agent direct', async () => {
+    const p = ports([]);
+    await lancer(p);
+    expect(p.journal.filter(j => j === 'prendre')).toHaveLength(1);
+    expect(p.journal.indexOf('prendre')).toBeLessThan(p.journal.indexOf('seance:direct'));
+  });
+
+  it('relancée sur le ticket qu’elle a déjà pris, elle repart sans refus', async () => {
+    const p = ports([fiche('lot-1', 'RENDU', [bloquant('c')])]);
+    await lancer(p, { ticket: ticket(['direct'], 'in_progress') });
+    expect(p.lancees).toHaveLength(1);
+    expect(p.journal).toContain('prendre');
+  });
+});
+
+describe('la commande exige la panne du moteur qui la justifie', () => {
+  it.each([
+    ['absente', undefined],
+    ['vide', ''],
+    ['faite de blancs', '  \n '],
+  ])('une panne %s est refusée avant tout travail, l’option nommée', async (_nom, panne) => {
+    const p = ports([]);
+    await expect(lancer(p, { panne })).rejects.toThrow(/--panne/);
+    expect(p.journal).toEqual([]);
+    expect(p.commentaires).toEqual([]);
+  });
+
+  it('la ligne de commande lit la panne avec les autres options', () => {
+    expect(lireLesOptions(['demo-9', '--panne', PANNE, '--paquet', 'packages/b'])).toMatchObject({
+      id: 'demo-9',
+      panne: PANNE,
+      paquets: ['packages/b'],
+    });
+  });
+
+  it('l’option sans son texte est une faute d’usage', () => {
+    expect(lireLesOptions(['demo-9', '--panne'])).toBeNull();
+  });
+
+  it('le déverrouillage de la copie ne l’exige pas', () => {
+    expect(lireLesOptions(['demo-9', '--deverrouiller'])).toMatchObject({
+      id: 'demo-9',
+      deverrouiller: true,
+    });
+  });
+});
+
+describe('la commande écrit au ticket l’usage de la voie de secours', () => {
+  it('écrit la panne avant la séance, puis la relecture son verdict', async () => {
+    const p = ports([]);
+    await lancer(p);
+    expect(ecritsDeLaPanne(p)).toHaveLength(1);
+    expect(ecritsDeLaPanne(p)[0].text).toMatch(/voie de secours/i);
+    expect(p.journal.indexOf('commenter')).toBeGreaterThanOrEqual(0);
+    expect(p.journal.indexOf('commenter')).toBeLessThan(p.journal.indexOf('seance:direct'));
+    expect(p.commentaires.at(-1)).toMatchObject({ author: 'relecteur' });
+  });
+
+  it.each([
+    ['un lot déjà accepté', [fiche('lot-1', 'ACCEPTÉ')]],
+    [
+      'un troisième lot rendu',
+      [1, 2, 3].map(n => fiche(`lot-${n === 3 ? 1 : n + 10}`, 'RENDU', [bloquant(`c${n}`)])),
+    ],
+  ])('écrit la panne même sans aucune séance : %s', async (_nom, fiches) => {
+    const p = ports(fiches);
+    await lancer(p);
+    expect(p.lancees).toEqual([]);
+    expect(ecritsDeLaPanne(p)).toHaveLength(1);
+  });
+
+  it('la même panne relancée sur le même ticket ne s’écrit qu’une fois', async () => {
+    const p = ports([], ['RENDU', 'ACCEPTÉ']);
+    await lancer(p);
+    await lancer(p, { ticket: ticket(['direct'], 'in_progress') });
+    expect(ecritsDeLaPanne(p)).toHaveLength(1);
+  });
+
+  it('une autre panne sur le même ticket s’écrit à son tour', async () => {
+    const p = ports([], ['RENDU', 'ACCEPTÉ']);
+    await lancer(p);
+    await lancer(p, { panne: 'le déroulé du circuit meurt à l’ouverture' });
+    expect(ecritsDeLaPanne(p)).toHaveLength(1);
+    expect(ecritsDeLaPanne(p, 'le déroulé du circuit meurt à l’ouverture')).toHaveLength(1);
+  });
+
+  it('chaque relecture jouée écrit son verdict une fois, un verdict rendu de nouveau ne se réécrit pas', async () => {
+    const p = ports([], ['ACCEPTÉ']);
+    await lancer(p);
+    p.ports.fiches = () => [fiche('lot-1', 'ACCEPTÉ')];
+    await lancer(p, { ticket: ticket(['direct'], 'in_progress') });
+    expect(p.commentaires.filter(c => c.text.includes('ACCEPTÉ'))).toHaveLength(1);
+  });
+});
+
+// Un refus : rien n'est pris, écrit ni lancé.
+async function refuse(
+  p: ReturnType<typeof ports>,
+  motif: RegExp,
+  o: Parameters<typeof lancer>[1] = {}
+) {
+  await expect(lancer(p, o)).rejects.toThrow(motif);
+  expect(p.journal).toEqual([]);
+  expect(p.commentaires).toEqual([]);
+}
+
+describe('un refus de la commande laisse le ticket tel qu’il était', () => {
+  it('un ticket qui n’est pas étiqueté direct', async () => {
+    await refuse(ports([]), /direct/, { ticket: ticket(['circuit']) });
+  });
+
+  it('un ticket sans aucun paquet à son plan', async () => {
+    await refuse(ports([]), /Sans composants/, {
+      ticket: ticket(['direct'], 'open', 'Sans composants'),
+    });
+  });
+
+  it('un ticket fermé est refusé par son nom, sans être rouvert', async () => {
+    await refuse(ports([]), /demo-9[^]*fermé/, { ticket: ticket(['direct'], 'closed') });
+  });
+
+  it.each([
+    ['en cours', { ticket: 'demo-9', statut: 'RUNNING' }],
+    ['arrêté sur une question', { ticket: 'demo-9', statut: 'RUNNING', question: true }],
+  ])('un ticket dont un circuit vit sur le serveur, %s', async (_nom, deroule) => {
+    const p = ports([]);
+    p.ports.circuits = () => circuitsLus([deroule]);
+    await refuse(p, /demo-9/);
+  });
+
+  it('le refus d’un circuit vivant nomme les gestes qui le finissent', async () => {
+    const p = ports([]);
+    p.ports.circuits = () => circuitsLus([{ ticket: 'demo-9', statut: 'RUNNING', question: true }]);
+    const message = await lancer(p).then(
+      () => '',
+      (e: Error) => e.message
+    );
+    expect(message).toContain('npx grillhouse circuit demo-9 --arreter');
+    expect(message).toContain('temporal workflow terminate');
+    expect(message).toContain(DEROULE);
+  });
+});
+
+describe('la commande passe un ticket sans circuit vivant', () => {
+  it.each([
+    ['sans déroulé', []],
+    ['au déroulé fini', [{ ticket: 'demo-9', statut: 'COMPLETED' }]],
+    ['au déroulé terminé au serveur', [{ ticket: 'demo-9', statut: 'TERMINATED' }]],
+    [
+      'au déroulé terminé pendant sa question',
+      [{ ticket: 'demo-9', statut: 'TERMINATED', question: true }],
+    ],
+    ['au déroulé en échec', [{ ticket: 'demo-9', statut: 'FAILED' }]],
+    ['quand seul le circuit d’un autre ticket vit', [{ ticket: 'demo-90', statut: 'RUNNING' }]],
+  ])('un ticket %s', async (_nom, deroules) => {
+    const p = ports([]);
+    p.ports.circuits = () => circuitsLus(deroules);
+    await lancer(p);
+    expect(p.lancees).toHaveLength(1);
+    expect(p.commentaires.map(c => c.text).join('\n')).not.toMatch(/pas pu vérifier/);
+  });
+});
+
+describe('quand le serveur des circuits ne se lit pas, la commande continue et le dit au ticket', () => {
+  it.each([
+    ['muet', new ServeurMuet('127.0.0.1:7233', new Error('UNAVAILABLE'))],
+    ['au client non construit', new ClientNonConstruit()],
+  ])('un serveur %s', async (_nom, faute) => {
+    const p = ports([]);
+    p.ports.circuits = () => Promise.reject(faute);
+    await lancer(p);
+    expect(p.lancees).toHaveLength(1);
+    expect(ecritsDeLaPanne(p)).toHaveLength(1);
+    expect(p.commentaires.map(c => c.text).join('\n')).toMatch(
+      /pas pu vérifier qu['’]aucun circuit ne vit/i
+    );
+    expect(p.journal.indexOf('commenter')).toBeLessThan(p.journal.indexOf('seance:direct'));
+  });
+});
+
+const GO = 1024 ** 3;
+// La machine d'essai d'une séance lancée sous l'environnement `env` : le serveur de ses places à une
+// adresse que rien n'écoute, ses parts dans un dossier à elle, hors de la CI et de toute enveloppe.
+function surLaMachineDEssai(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const { CI: _ci, GRILLHOUSE_ENVELOPPE: _enveloppe, ...reste } = env;
+  return {
+    ...reste,
+    GRILLHOUSE_PARTS_DE_LA_MACHINE: mkdtempSync(path.join(ESSAIS, 'parts-')),
+    GRILLHOUSE_PLACES_D_ESSAI: '127.0.0.1:1',
+    GRILLHOUSE_MESURE_D_ESSAI: JSON.stringify({
+      coeurs: 12,
+      charge: 0,
+      memoireLibre: 64 * GO,
+      memoireTotale: 64 * GO,
+    }),
+  };
+}
+
+// L'environnement sous lequel la commande lance chacune de ses séances, par son rôle.
+async function environnementsDesSeances() {
+  const MARQUES = ['GRILLHOUSE_PLACE_TENUE', 'GRILLHOUSE_PART_TENUE'];
+  const avant = MARQUES.map(m => [m, process.env[m]] as const);
+  MARQUES.forEach(m => delete process.env[m]);
+  const vus: Record<string, NodeJS.ProcessEnv> = {};
+  const p = ports([]);
+  const { seance, relecture } = p.ports;
+  p.ports.seance = (...a: Parameters<typeof seance>) => {
+    vus.direct = { ...process.env };
+    return seance(...a);
+  };
+  p.ports.relecture = () => {
+    vus.relecteur = { ...process.env };
+    return relecture();
+  };
+  const places: string[] = [];
+  try {
+    await lancer({
+      ...p,
+      ports: { ...p.ports, place: () => (places.push('prise'), () => {}) } as typeof p.ports,
+    });
+  } finally {
+    for (const [m, v] of avant) {
+      if (v === undefined) {
+        delete process.env[m];
+      } else {
+        process.env[m] = v;
+      }
+    }
+  }
+  return { vus, places };
+}
+
+describe('la voie de secours ne demande rien à l’arbitre', () => {
+  it('la commande ne prend aucune place', async () => {
+    const { places } = await environnementsDesSeances();
+    expect(places).toEqual([]);
+  });
+
+  it.each(['direct', 'relecteur'])(
+    'la séance du rôle %s ne demande aucune place au serveur',
+    async role => {
+      const { vus } = await environnementsDesSeances();
+      const place = prendreUnePlace({
+        env: surLaMachineDEssai(vus[role]!),
+        ticket: 'demo-9',
+        borneMs: 0,
+        dire: () => {},
+      });
+      expect(place.id).toBeNull();
+    }
+  );
+
+  it('la séance de l’agent direct prend sa part du poste sans lire la fermeture de la machine', async () => {
+    const { vus } = await environnementsDesSeances();
+    let lectures = 0;
+    const prise = prendreUnePart({
+      env: surLaMachineDEssai(vus.direct!),
+      racine: mkdtempSync(path.join(ESSAIS, 'copie-')),
+      ticket: 'demo-9',
+      sorte: 'séance direct',
+      bornee: false,
+      borneMs: 0,
+      libre: () => Infinity,
+      dire: () => {},
+      lireLaReservation: () => {
+        lectures++;
+        return null;
+      },
+    });
+    prise.rendre();
+    expect(prise.id).not.toBeNull();
+    expect(lectures).toBe(0);
   });
 });

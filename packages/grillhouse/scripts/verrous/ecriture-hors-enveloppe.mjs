@@ -15,9 +15,9 @@
 //   of the repository passes.
 // - A path under the temporary directory of the session passes, and so does any tool that writes
 //   nothing. A session under its envelope is judged by its role's lock (verrou.mjs).
-// - The reason names `npx grillhouse direct <ticket>`: the agent of a direct writes the tests and
-//   the code in a copy of its own, a reviewer reads its lot, and the supervisor verifies and
-//   commits it.
+// - The reason names the direct circuit (a ticket labelled `direct`, which goes by the queue), and
+//   the rescue command `npx grillhouse direct <ticket> --panne <texte>` for a failure of the engine
+//   alone.
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -68,7 +68,7 @@ export function refusDeLEcritureHorsEnveloppe(
   if (tenant === '.') {
     return null;
   }
-  return `⛔ ${rel} est du code ou un test du paquet ${tenant} : une séance hors enveloppe (le superviseur, une séance lancée à la main, une séance qui a perdu sa variable d'enveloppe) n'écrit ni le code ni les tests d'un paquet. Un ticket direct se mène par \`npx grillhouse direct <ticket>\` : un agent l'écrit dans une copie à lui, un relecteur le relit, puis le superviseur le vérifie et le commite. Les documents restent écrits ici.`;
+  return `⛔ ${rel} est du code ou un test du paquet ${tenant} : une séance hors enveloppe (le superviseur, une séance lancée à la main, une séance qui a perdu sa variable d'enveloppe) n'écrit ni le code ni les tests d'un paquet. Ce travail passe par le circuit direct : un ticket étiqueté \`direct\`, qui part par la file, un agent l'écrit dans une copie à lui et un relecteur le relit. Pour une panne du moteur seulement, la voie de secours le mène : \`npx grillhouse direct <ticket> --panne <texte>\`. Les documents restent écrits ici.`;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
