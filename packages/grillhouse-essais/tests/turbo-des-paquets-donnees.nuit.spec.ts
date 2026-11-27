@@ -420,7 +420,7 @@ describe('a declared path holding code, a neighbour’s', () => {
     ecrire(racine);
     expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
-      `$TURBO_ROOT$/${TABLES}/**`,
+      `$TURBO_ROOT$/${TABLES}`,
       `$TURBO_ROOT$/${CAPTURES}/**`,
       `$TURBO_ROOT$/${SCENES_040}/**`,
     ]);
@@ -675,7 +675,9 @@ describe('a declared file the build of its package reads', () => {
     ecrire(racine);
     expect(tachesDe(racine, 'packages/040-checker')['test:unit'].inputs).toEqual([
       '$TURBO_EXTENDS$',
-      ...[...CONFIGS, DONNEES, SCENES_040].sort().map(l => `$TURBO_ROOT$/${l}/**`),
+      ...[...CONFIGS, DONNEES, SCENES_040]
+        .sort()
+        .map(l => `$TURBO_ROOT$/${l}${CONFIGS.includes(l) ? '' : '/**'}`),
     ]);
     const lues = Object.keys(sec(racine, ['test:unit']).get('040-checker#test:unit')!.inputs).map(
       f => path.posix.normalize(path.posix.join('packages/040-checker', f))
