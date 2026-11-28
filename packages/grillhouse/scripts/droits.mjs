@@ -36,7 +36,9 @@
 //   skills of a plugin, and the role's agent preloads its own (`skills` of its definition);
 //   the background tasks off and Code Mode on (`env`, ENV_DES_SEANCES: a role waits in the
 //   foreground for what it launches, and its session ends with its sheet; `claude -p` gets Code
-//   Mode, the REPL, only from this block); no line of attribution of commit or pull request
+//   Mode, the REPL, only from this block), and, in the same block, the prompt cache forced to five
+//   minutes for a role that takes it (`cacheCinqMinutes`, ROLES; CINQ_MINUTES_DE_CACHE); no line of
+//   attribution of commit or pull request
 //   (`attribution`, both empty, whatever the project and the user choose: a role commits nothing);
 //   the output style the user chooses (`outputStyle` of `<home>/.claude/settings.json`), left out
 //   when they choose none, and when a settings file of the project chooses one (`settings.json`
@@ -87,6 +89,13 @@ const ENV_DES_SEANCES = {
   CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
   CLAUDE_CODE_EXPERIMENTAL_CODE_MODE: '1',
 };
+// The variable the env block adds for a role whose prompt cache lasts five minutes
+// (`cacheCinqMinutes`, ROLES): the explorateur, the questionneur, the testwriter and the relecteur,
+// whose turns mostly follow each other within five minutes, and a cache write kept five minutes
+// costs 1.25 times an input, against 2 times for one hour. The developpeur and the direct often
+// wait longer (tests, builds) and would lose by it (simulated: developpeur −3.6 %, direct
+// −11.9 %): they keep Claude Code's default, one hour on the subscription.
+const CINQ_MINUTES_DE_CACHE = { FORCE_PROMPT_CACHING_5M: '1' };
 
 // The skills Claude Code keeps listed when its own are off (`disableBundledSkills`), measured on
 // Claude Code 2.1.305.
@@ -120,12 +129,14 @@ const DOSSIERS_DE_LA_CHARTE = ['node_modules/@roomi-fields/grillhouse', 'mods/gr
 // supervisor's is no role's), whether it writes (files, `ecrit`; the ticket, unless
 // `ecritAuTicket` is false), whether its instruction carries its ticket (`porteSonTicket`),
 // whether it uses the index, the rules of its commands (`commandes`), whether its skill names the frame's METACADRE.md (`metacadre`, read
-// at the root of the plugin installed), and whether its skill loads the debugging skill of the
-// plugin (`debogage`, read with its neighbouring files).
+// at the root of the plugin installed), whether its skill loads the debugging skill of the
+// plugin (`debogage`, read with its neighbouring files), and whether its prompt cache lasts five
+// minutes (`cacheCinqMinutes`).
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
   // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
   explorateur: {
+    cacheCinqMinutes: true,
     modules: ['plan', 'preuve'],
     metacadre: true,
     debogage: true,
@@ -135,6 +146,7 @@ export const ROLES = {
   },
   // It writes the tests of the whole ticket, in the envelope of its plan.
   testwriter: {
+    cacheCinqMinutes: true,
     modules: ['preuve', 'tests'],
     metacadre: true,
     ecrit: true,
@@ -163,6 +175,7 @@ export const ROLES = {
     commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
   relecteur: {
+    cacheCinqMinutes: true,
     modules: ['plan', 'preuve', 'tests'],
     metacadre: true,
     index: true,
@@ -173,6 +186,7 @@ export const ROLES = {
   // It asks, and decides nothing: it reads the proposal its instruction carries and the code by
   // the index; the circuit writes its questions at the ticket.
   questionneur: {
+    cacheCinqMinutes: true,
     modules: ['plan', 'preuve'],
     index: true,
     ecritAuTicket: false,
@@ -341,7 +355,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
         .filter(g => !g.startsWith(GREFFON_DU_CADRE))
         .map(g => [g, false])
     ),
-    env: ENV_DES_SEANCES,
+    env: { ...ENV_DES_SEANCES, ...(r.cacheCinqMinutes ? CINQ_MINUTES_DE_CACHE : {}) },
     attribution: { commit: '', pr: '' },
     ...styleDuPoste({ racine, copie, home }),
   };

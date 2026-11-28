@@ -461,21 +461,36 @@ describe("L2 — the context of a role's session", () => {
   });
 });
 
+describe('the env block of a role session', () => {
+  // The prompt cache lasts by role: a cache written for five minutes costs less than one written
+  // for an hour, and pays off for a role whose turns mostly follow each other within five minutes;
+  // the developpeur and the direct often wait longer (tests, builds) and keep Claude Code's default.
+  it('every role turns off background tasks and turns on Code Mode, and only the explorateur, the questionneur, the testwriter and the relecteur force a five-minute prompt cache', () => {
+    const DE_CHAQUE_ROLE = {
+      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
+      CLAUDE_CODE_EXPERIMENTAL_CODE_MODE: '1',
+    };
+    const CINQ_MINUTES = ['explorateur', 'questionneur', 'testwriter', 'relecteur'];
+    const DUREE_PAR_DEFAUT = ['developpeur', 'direct'];
+    expect(Object.keys(ROLES).sort()).toEqual([...CINQ_MINUTES, ...DUREE_PAR_DEFAUT].sort());
+    for (const role of CINQ_MINUTES) {
+      expect(reglagesDe(options(role)).env, role).toEqual({
+        ...DE_CHAQUE_ROLE,
+        FORCE_PROMPT_CACHING_5M: '1',
+      });
+    }
+    for (const role of DUREE_PAR_DEFAUT) {
+      expect(reglagesDe(options(role)).env, role).toEqual(DE_CHAQUE_ROLE);
+    }
+  });
+});
+
 // grillhouse-3uv.92.6: a role's session ends with its sheet; it launches nothing in the
 // background, which would hold it alive past its sheet (`claude -p` waits for its background
 // tasks), as a job of GitLab ends with its main command. Witness: BPScript 320.4, a session's
 // `until … sleep 5` launched in the background; its sheet given at 21:37:14, the session ended at
 // 21:46:43, when the task reached its limit. 9.3 min.
 describe('3uv.92.6 — a role session ends with its sheet, without a background task', () => {
-  it("criterion 1: every role's settings turn off Claude Code's background tasks", () => {
-    for (const role of Object.keys(ROLES)) {
-      expect(reglagesDe(options(role)).env, role).toEqual({
-        CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
-        CLAUDE_CODE_EXPERIMENTAL_CODE_MODE: '1',
-      });
-    }
-  });
-
   it('criterion 2: the skill of every role of the circuit says it waits in the foreground for what it launches', () => {
     for (const role of Object.keys(ROLES)) {
       const competence = readFileSync(
