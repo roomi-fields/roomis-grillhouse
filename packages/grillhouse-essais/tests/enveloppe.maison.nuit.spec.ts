@@ -32,7 +32,9 @@ const { essai } = enveloppeEssai(ESSAIS);
 // what the session needs: `~/.claude` and `~/.claude.json`, claude's binary and versions
 // (`~/.local/bin/claude`, `~/.local/share/claude`), node and its tools (`~/.nvm`), `~/.gitconfig`,
 // the npm cache, and the repository (main tree, its `.git`, `.beads`) with today's rights, the
-// whole of it in sight. No socket of the session comes back.
+// whole of it in sight. For a role whose rights hold the index, it also declares the program of
+// codegraph, read-only (`~/.local/bin/codegraph`, `~/.codegraph`), and says so in one line when
+// the home lacks it. No socket of the session comes back.
 describe.runIf(canWrap)(
   'the envelope shows of the home and the session only what it declares',
   () => {
@@ -71,7 +73,7 @@ describe.runIf(canWrap)(
     const copieRtfm = path.join(repo, '.claude/worktrees/demo-3');
     git('worktree', 'add', '-q', '-b', 'agent/demo-3', copieRtfm);
     // The indexes of the repository, as codegraph and rtfm make them in each tree they index (the
-    // main tree, a copy), and their state in the home. demo-3 holds the index of rtfm alone.
+    // main tree, a copy). demo-3 holds the index of rtfm alone.
     const INDEX: string[] = [];
     const indexer = (arbre: string, rels: string[]) => {
       for (const rel of rels) {
@@ -105,8 +107,7 @@ describe.runIf(canWrap)(
       '.local/share/keyrings/login.keyring': 'SECRET-keyring',
       '.bash_history': 'SECRET-history',
       '.claude.json.bak': 'SECRET-claude-backup',
-      // The state of codegraph and rtfm in the home: the envelope does not declare it.
-      '.codegraph/daemons/sonde': 'SECRET-codegraph-state',
+      // The state of rtfm in the home: the envelope does not declare it.
       '.rtfm/memory.db': 'SECRET-rtfm-state',
       // Beside the targets of the declared configurations a dotfiles manager links (below).
       'dotfiles/autre': 'SECRET-dotfiles-neighbour',
@@ -127,9 +128,9 @@ describe.runIf(canWrap)(
       mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
       writeFileSync(path.join(home, rel), contenu);
     }
-    // The launchers of the home are links, as on the machine: claude's to its binary; those of
-    // codegraph, rtfm and a tool of node to a script of their package, which finds the package's
-    // other files beside its own real path.
+    // The launchers of the home are links, as on the machine: claude's to its binary, codegraph's
+    // to a script of a version it keeps under `~/.codegraph`; those of rtfm and a tool of node to
+    // a script of their package. Each script finds the other files beside its own real path.
     const ecrire = (rel: string, contenu: string, mode = 0o644) => {
       mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
       writeFileSync(path.join(home, rel), contenu, { mode });
@@ -141,10 +142,16 @@ describe.runIf(canWrap)(
     const LANCEUR = '#!/bin/sh\ncat "$(dirname "$(readlink -f "$0")")/voisin"\n';
     ecrire('.local/share/claude/versions/1.0.0', '#!/bin/sh\necho claude-demarre\n', 0o755);
     lier('.local/bin/claude', path.join(home, '.local/share/claude/versions/1.0.0'));
-    ecrire('.nvm/versions/node/v1/lib/node_modules/codegraph/shim.sh', LANCEUR, 0o755);
-    ecrire('.nvm/versions/node/v1/lib/node_modules/codegraph/voisin', 'codegraph-voisin\n');
-    lier('.nvm/versions/node/v1/bin/codegraph', '../lib/node_modules/codegraph/shim.sh');
-    lier('.local/bin/codegraph', path.join(home, '.nvm/versions/node/v1/bin/codegraph'));
+    // Gives the home <maison> the program of codegraph, as its installer lays it out.
+    const poserCodegraph = (maison: string) => {
+      const bin = path.join(maison, '.codegraph/versions/v1/bin');
+      mkdirSync(bin, { recursive: true });
+      writeFileSync(path.join(bin, 'codegraph'), LANCEUR, { mode: 0o755 });
+      writeFileSync(path.join(bin, 'voisin'), 'codegraph-voisin\n');
+      mkdirSync(path.join(maison, '.local/bin'), { recursive: true });
+      symlinkSync(path.join(bin, 'codegraph'), path.join(maison, '.local/bin/codegraph'));
+    };
+    poserCodegraph(home);
     ecrire('.local/share/pipx/venvs/rtfm/bin/rtfm', LANCEUR, 0o755);
     ecrire('.local/share/pipx/venvs/rtfm/bin/voisin', 'rtfm-voisin\n');
     lier('.local/bin/rtfm', path.join(home, '.local/share/pipx/venvs/rtfm/bin/rtfm'));
@@ -168,6 +175,8 @@ describe.runIf(canWrap)(
       '.gitconfig',
       '.local/bin/claude',
       '.local/share/claude/',
+      '.local/bin/codegraph',
+      '.codegraph/',
       '.nvm/',
       '.npm/',
       '.dolt/',
@@ -250,17 +259,31 @@ describe.runIf(canWrap)(
     it('keeps a tool of node reached through its link: its package finds its other files', () => {
       expect(run('PATH=~/.nvm/versions/node/v1/bin:$PATH outil').stdout).toBe('outil-voisin\n');
     });
-    it('shows neither codegraph nor rtfm of the home: no launcher, no state, no environment', () => {
-      for (const rel of [
-        '.local/bin/codegraph',
-        '.local/bin/rtfm',
-        '.codegraph',
-        '.rtfm',
-        '.local/share/pipx',
+    it('shows a role with the index the launcher of codegraph, which runs, and ~/.codegraph', () => {
+      expect(run('test -L ~/.local/bin/codegraph && test -d ~/.codegraph').status).toBe(0);
+      const r = run('~/.local/bin/codegraph');
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toBe('codegraph-voisin\n');
+    });
+    it('keeps the program of codegraph and ~/.codegraph read-only', () => {
+      const voisin = '.codegraph/versions/v1/bin/voisin';
+      for (const ecriture of [
+        'touch ~/.codegraph/neuf',
+        `echo x >> ~/${voisin}`,
+        `rm ~/${voisin}`,
+        'echo x >> ~/.local/bin/codegraph',
       ]) {
+        expect(run(ecriture).status, ecriture).not.toBe(0);
+      }
+      expect(existsSync(path.join(home, '.codegraph/neuf'))).toBe(false);
+      expect(readFileSync(path.join(home, voisin), 'utf8')).toBe('codegraph-voisin\n');
+      expect(run('~/.local/bin/codegraph').stdout).toBe('codegraph-voisin\n');
+    });
+    it('shows nothing of rtfm in the home: no launcher, no state, no environment', () => {
+      for (const rel of ['.local/bin/rtfm', '.rtfm', '.local/share/pipx']) {
         expect(run(`test -e ~/${rel} || test -L ~/${rel}`).status, rel).not.toBe(0);
       }
-      expect(run('~/.local/bin/codegraph; ~/.local/bin/rtfm; true').stdout).toBe('');
+      expect(run('~/.local/bin/rtfm; true').stdout).toBe('');
     });
     // grillhouse-3uv.95.3: the whole repository is in sight, its indexes included: the main
     // tree's, the copy's and another copy's; what lies out of the copy stays read-only.
@@ -371,13 +394,25 @@ describe.runIf(canWrap)(
       expect(readFileSync(path.join(home, '.npmrc'), 'utf8')).toBe('SECRET-npm-token');
       expect(existsSync(path.join(home, 'neuf'))).toBe(false);
     });
-    it('still launches in a home that holds none of the declared paths but ~/.claude', () => {
+    // A trial home reaches no manager of control groups: the session starts unbounded, and the
+    // envelope says so in one line, which depends on the machine.
+    const sansLaBorne = (stderr: string) =>
+      stderr.replace(/^⚠ la séance part sans borne de processeur : .*\n/m, '');
+    it('still launches in a home that holds none of the declared paths but ~/.claude, and says in one line that the session starts without codegraph', () => {
       const nu = essai('home-nu-');
       mkdirSync(path.join(nu, '.claude'));
       const r = run('echo ok', nu);
-      // A bare home reaches no manager of control groups: the session starts unbounded, and the
-      // envelope says so in one line; nothing else is written.
-      expect(r.stderr.replace(/^⚠ la séance part sans borne de processeur : .*\n/, '')).toBe('');
+      // Nothing else is written.
+      expect(sansLaBorne(r.stderr)).toMatch(/^⚠ la séance part sans codegraph : .*\n$/);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe('ok\n');
+    });
+    it('says nothing of codegraph in a home that holds it', () => {
+      const outillee = essai('home-codegraph-');
+      mkdirSync(path.join(outillee, '.claude'));
+      poserCodegraph(outillee);
+      const r = run('echo ok', outillee);
+      expect(sansLaBorne(r.stderr)).toBe('');
       expect(r.status).toBe(0);
       expect(r.stdout).toBe('ok\n');
     });

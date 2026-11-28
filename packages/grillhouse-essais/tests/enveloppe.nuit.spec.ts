@@ -172,6 +172,11 @@ describe.runIf(canWrap && existsSync(CERTIFICATS))(
     const copie = path.join(repo, '.claude/worktrees/demo-1');
     git('worktree', 'add', '-q', '-b', 'agent/demo-1', copie);
     mkdirSync(path.join(home, '.claude'), { recursive: true });
+    // The home holds codegraph, which the developer's rights give it: the envelope has nothing to
+    // say on its error output.
+    mkdirSync(path.join(home, '.codegraph'));
+    mkdirSync(path.join(home, '.local/bin'), { recursive: true });
+    writeFileSync(path.join(home, '.local/bin/codegraph'), '#!/bin/sh\n', { mode: 0o755 });
     // A certificate the envelope shows (the main tree comes back read-only), and one it hides
     // (an undeclared directory of the home), as a house certificate under ~/.local/share.
     const caVue = path.join(repo, 'certificats/maison.pem');
@@ -392,11 +397,13 @@ describe.runIf(canWrap && existsSync(sessionReelle))(
 
 // The probe of the ticket, on the real home of this machine: claude and the tools of the session
 // work in the envelope, each for real — claude reads its identity, bd opens a tickets base — and
-// the indexes of the repository are in sight, as outside; the tools of the index are not. Its copy is the one this suite runs in, when that copy is not
-// the main tree and its session directory under the real `~/.claude/projects` can be written (a
-// role session); else, where `~/.claude/projects` can be written (outside an envelope), a test
-// repository, whose tickets base and indexes are made here and whose session directory is removed
-// after. On the copy of this suite, bd only reads the base: the probe writes no ticket there.
+// the indexes of the repository are in sight, as outside; of the tools of the index in the home,
+// the program of codegraph is in sight read-only when the machine has it, and rtfm is not. Its copy
+// is the one this suite runs in, when that copy is not the main tree and its session directory
+// under the real `~/.claude/projects` can be written (a role session); else, where
+// `~/.claude/projects` can be written (outside an envelope), a test repository, whose tickets base
+// and indexes are made here and whose session directory is removed after. On the copy of this suite, bd only reads
+// the base: the probe writes no ticket there.
 const maisonReelle = userInfo().homedir;
 const projetsReels = path.join(maisonReelle, '.claude/projects');
 const ecrivable = (p: string) => {
@@ -500,7 +507,7 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain(ticket);
   });
-  it('shows the indexes of the repository as the machine has them, not the state of codegraph and rtfm', () => {
+  it('shows the indexes of the repository as the machine has them', () => {
     for (const p of [principal, copie].flatMap(t => [
       path.join(t, '.codegraph'),
       path.join(t, '.rtfm'),
@@ -508,10 +515,33 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
       const lister = ['bash', '-c', `find ${p} -mindepth 1 2>/dev/null | sort; true`];
       expect(dedans(lister).stdout, p).toBe(dehors(lister, copie).stdout);
     }
-    for (const rel of ['.codegraph', '.rtfm', '.local/bin/codegraph', '.local/bin/rtfm']) {
+  });
+  // The command answers by its output: a launch the envelope refuses is not read as an absence.
+  const enVue = (p: string) => {
+    const r = dedans([
+      'bash',
+      '-c',
+      `if [ -e ${p} ] || [ -L ${p} ]; then echo vu; else echo absent; fi`,
+    ]);
+    expect(r.status, r.stderr).toBe(0);
+    return r.stdout === 'vu\n';
+  };
+  const codegraphDuPoste = existsSync(path.join(maisonReelle, '.local/bin/codegraph'));
+  it('shows the program of codegraph and ~/.codegraph read-only when the machine has codegraph, neither of them when it lacks it', () => {
+    for (const rel of ['.local/bin/codegraph', '.codegraph']) {
       const p = path.join(maisonReelle, rel);
-      const r = dedans(['bash', '-c', `test -e ${p} || test -L ${p}`]);
-      expect(r.status, p).not.toBe(0);
+      expect(enVue(p), p).toBe(codegraphDuPoste);
+      if (codegraphDuPoste) {
+        // `test -w` asks the kernel, which refuses a read-only mount: nothing is written in the
+        // real home.
+        expect(dedans(['test', '-w', p]).status, p).toBe(1);
+      }
+    }
+  });
+  it('shows neither the launcher nor the state of rtfm', () => {
+    for (const rel of ['.rtfm', '.local/bin/rtfm']) {
+      const p = path.join(maisonReelle, rel);
+      expect(enVue(p), p).toBe(false);
     }
   });
   // Needs the real bd, which writes the ticket, and the trial repository, made for the probe alone

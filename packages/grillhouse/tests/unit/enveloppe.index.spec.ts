@@ -28,15 +28,15 @@ describe('the index of the code in the envelope of a role', () => {
     }
   });
 
-  it('gives nothing to a role without the index', () => {
-    const sans = (Object.entries(ROLES) as [string, { index?: boolean }][]).filter(
-      ([, d]) => !d.index
-    );
-    for (const [role] of sans) {
-      expect(cheminsDeLIndex({ role, maison: '/h', existe })).toEqual({
-        chemins: [],
-        manquants: [],
-      });
+  it('gives no path and names no missing program to an unknown role, nor without a role', () => {
+    for (const role of ['role-inconnu', undefined]) {
+      // On a machine that has codegraph, then on one that lacks it.
+      for (const present of [existe, () => false]) {
+        expect(cheminsDeLIndex({ role, maison: '/h', existe: present }), String(role)).toEqual({
+          chemins: [],
+          manquants: [],
+        });
+      }
     }
   });
 
