@@ -72,7 +72,7 @@ avant de nommer un correctif ou un verdict. Ainsi le plan part de la cause.
 2. **Le plan.** Ma fiche porte le plan, que le circuit écrit au ticket :
    - `criteres` : chacun un comportement que ses tests mesurent, sans son numéro ; un critère
      répond à un besoin réel de l'usage actuel, et se confronte à la spécification. **Je fixe la
-     taille du test au critère** (charte, « La taille d'un test suit la pyramide ») : par défaut il
+     taille du test au critère** (charte, module `preuve`, « La taille d'un test suit la pyramide ») : par défaut il
      se prouve petit, et je ne dis rien ; je ne nomme que l'exception, avec sa raison (comme un
      écart à la référence porte la sienne) — `moyen` quand une couture entre quelques modules
      échappe au petit, `grand` quand seul le produit ou le cadre monté prouve le câblage (un seul
@@ -258,7 +258,7 @@ composants qu'il nomme. Je n'écris rien au ticket : mes écritures passent par 
    rapport.
 3. **Le découpage.** Je propose les tickets de réalisation. Chacun décrit un seul comportement par
    ses tests, fait une seule livraison, et nomme les composants qu'il touche, le fournisseur
-   d'abord, puis ses lecteurs (charte, « Un ticket de réalisation nomme ses composants »). Les
+   d'abord, puis ses lecteurs (charte, module `plan`, « Un ticket de réalisation nomme ses composants »). Les
    composants d'un ticket se relèvent sur son brouillon :
    `npx grillhouse composants-affectes --description <brouillon>` ; la section « Architecture »
    reprend le relevé. Chaque critère de fin se confronte à la spécification et se mesure par une

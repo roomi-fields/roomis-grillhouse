@@ -2,6 +2,7 @@
 // each pass whose lot touches one plays it.
 // @lit package.json templates/projet/package.json README.md CONTRIBUTING.md STRUCTURE.md
 // @lit mods/grillhouse/skills/** mods/grillhouse/agents/** mods/grillhouse/charte.md
+// @lit mods/grillhouse/charte/**
 // @lit docs/agents/** mods/grillhouse/hooks/register.tsx
 import { spawnSync } from 'node:child_process';
 import {
@@ -16,6 +17,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { declarerLeLangage } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { importsDeLaCharte } from './charte-entiere.js';
 import { afterAll, describe, expect, it } from 'vitest';
 import { commandeDe, sousCommandes } from '../../scripts/sous-commandes.mjs';
 
@@ -108,6 +110,10 @@ const APPELANTS = [
   ...sous(path.join(DEPOT, 'mods/grillhouse/skills')).map(f => path.relative(DEPOT, f)),
   ...sous(path.join(DEPOT, 'mods/grillhouse/agents')).map(f => path.relative(DEPOT, f)),
   'mods/grillhouse/charte.md',
+  // The modules the charter imports.
+  ...importsDeLaCharte(readFileSync(path.join(DEPOT, 'mods/grillhouse/charte.md'), 'utf8')).map(
+    f => `mods/grillhouse/${f}`
+  ),
   ...sous(path.join(DEPOT, 'docs/agents')).map(f => path.relative(DEPOT, f)),
   'mods/grillhouse/hooks/register.tsx',
   'README.md',

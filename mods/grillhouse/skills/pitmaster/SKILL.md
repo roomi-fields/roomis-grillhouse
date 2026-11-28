@@ -130,10 +130,10 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
   (que j'écris) ou une place. Ainsi la file avance seule, et je ne relance rien.
 - **Je ne lance pas de circuit pour un ticket de données** : un ticket qui n'ajoute que des
   données (des fichiers qu'un schéma valide) passe par le chemin de données du projet, sa
-  validation et sa CI (charte commune). Ainsi les tests, la preuve du rouge et le développeur ne
+  validation et sa CI (charte, module `superviseur`). Ainsi les tests, la preuve du rouge et le développeur ne
   tournent que sur du code.
-- **Un ticket mécanique passe par sa commande** (charte commune, « Un ticket prend le circuit
-  court ») : je lance le circuit comme pour tout ticket ; l'explorateur juge au plan sa sorte et la
+- **Un ticket mécanique passe par sa commande** (charte, module `plan`, « Un ticket prend le
+  circuit court ») : je lance le circuit comme pour tout ticket ; l'explorateur juge au plan sa sorte et la
   commande du geste, et un ticket mécanique passe par 1.1 Geste mécanique au lieu des tests et du
   code (le document du circuit, §5.1). Une sorte absente vaut « comportement » : le circuit entier.
   Le circuit ne relit pas « ## Sorte » de la description : l'amender à la main ne change rien.
@@ -243,7 +243,7 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
   et le panneau montre ce qui tourne.
 - **Les composants d'un ticket** : un travail qui traverse plusieurs composants est un seul ticket
   qui les nomme, dans son titre et sa section « Architecture », le fournisseur d'abord, puis ses
-  lecteurs (charte, « Un ticket de réalisation nomme ses composants ») ; je valide cet ordre, qui
+  lecteurs (charte, module `plan`, « Un ticket de réalisation nomme ses composants ») ; je valide cet ordre, qui
   suit les dépendances des composants. L'explorateur les trouve au plan, et le circuit écrit au
   titre ses paquets à toucher ; un seul testwriter et un seul développeur travaillent tout le
   ticket, puis le relecteur relit l'ensemble (le document du circuit, §3.3). Ainsi un retrait
@@ -312,11 +312,11 @@ Ainsi le responsable n'attend jamais une commande, et aucun travail ne se perd.
 - **Un ticket part avec sa section « Architecture »** (charte, « Le flux d'une tâche ») : je
   l'écris avant de le proposer ; le circuit refuse dès son départ un ticket qui ne l'a pas. Un mécanisme manquant devient le travail, jamais une compensation
   locale.
-- **Une tension avec l'architecture s'instruit avec `grillhouse:architecte`** (charte, « Une
-  tension avec l'architecture monte ») : je charge la compétence, j'instruis la décision et je la
+- **Une tension avec l'architecture s'instruit avec `grillhouse:architecte`** (charte, module `plan`,
+  « Une tension avec l'architecture monte ») : je charge la compétence, j'instruis la décision et je la
   porte au responsable, qui tranche.
-- **Un paquet naît hors du circuit, en quatre temps** (charte, « Un paquet naît hors du
-  circuit ») : je mène le grill avec le responsable (1) ; j'écris, avec `redacteur`, sa ligne du
+- **Un paquet naît hors du circuit, en quatre temps** (charte, module `superviseur`,
+  « Un paquet naît hors du circuit ») : je mène le grill avec le responsable (1) ; j'écris, avec `redacteur`, sa ligne du
   tableau des composants, son langage compris, et ses `docs/CADRE.md` et `docs/INTERFACE.md`, que
   le responsable relit (2) ; je lance `npx grillhouse paquet <chemin>` dans une copie, sans agent,
   puis `npm run verifier`, et je commite 2 et 3 ensemble sur ce vert (3) ; le code part ensuite

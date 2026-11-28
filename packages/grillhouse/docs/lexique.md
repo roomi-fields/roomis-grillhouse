@@ -107,7 +107,8 @@ L'unité qu'on construit et qu'on publie, d'un seul langage, une ligne du tablea
 _À éviter_ : composant, crate, projet
 
 **Module** :
-Une partie interne d'un paquet, ou le module d'un langage dans le cadre.
+Une partie interne d'un paquet, le module d'un langage dans le cadre, ou un module de la charte
+commune, ses règles propres à un public.
 
 ## L'entrée sur main
 

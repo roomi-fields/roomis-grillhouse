@@ -7,6 +7,7 @@
 // (`grillhouse-dette.json`, scripts/dette.mjs) inscribing those that exist; a night test
 // (`*.nuit.test.*`) is never refused. The update inscribes a project's debt once
 // (./migration.tailles-des-tests.spec.ts).
+// @lit mods/grillhouse/charte.md mods/grillhouse/charte/**
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,6 +25,7 @@ import {
   testsDuDepot,
   verifier,
 } from '../../../../scripts/langages/typescript/tailles-des-tests.mjs';
+import { lireLaCharte } from '../../charte-entiere.js';
 
 const DEPOT = path.resolve(__dirname, '../../../../../..');
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tailles-des-tests-'));
@@ -378,7 +380,7 @@ const texte = (f: string) => readFileSync(path.join(DEPOT, f), 'utf8');
 
 describe('grillhouse-3dr.4 critères 1 et 2 — the rule in the charter and the skills', () => {
   it('critère 1: the common charter writes the three sizes, and the large test is a night test', () => {
-    const charte = texte('mods/grillhouse/charte.md');
+    const charte = lireLaCharte().entiere;
     const regle = charte.slice(charte.indexOf('**La taille d'));
     expect(regle).toMatch(/petit/);
     expect(regle).toMatch(/moyen/);

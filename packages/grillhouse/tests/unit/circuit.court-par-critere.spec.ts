@@ -5,6 +5,7 @@
 // geste qu'une commande joue (1.1, `--mecanique <commande>`) et le geste écrit à la main (le
 // développeur écrit, la suite existante fait la preuve, `--mecanique` sans commande).
 // Tests petits : aucun serveur, aucun processus.
+// @lit mods/grillhouse/charte.md mods/grillhouse/charte/**
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -12,13 +13,14 @@ import * as reponses from '../../scripts/reponses-du-circuit.mjs';
 import * as transitions from '../../scripts/transitions.mjs';
 import { MONTEES } from '../../scripts/etapes.mjs';
 import { lireFiche, schemaDeFiche, sorteDuPlan } from '../../scripts/resultats.mjs';
+import { lireLaCharte } from './charte-entiere.js';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const plat = (f: string) => readFileSync(path.join(RACINE, f), 'utf8').replace(/\s+/g, ' ');
 const appel = () => import('../../src/temporal/circuit/appel.js');
 
 describe('la charte dit le critère du circuit court et ses exemples', () => {
-  const charte = plat('mods/grillhouse/charte.md');
+  const charte = lireLaCharte().entiere.replace(/\s+/g, ' ');
 
   it('un ticket prend le circuit court quand aucun test honnête ne peut rougir avant son lot', () => {
     expect(charte).toMatch(/aucun test honnête ne peut rougir avant son lot/);

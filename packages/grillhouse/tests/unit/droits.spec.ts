@@ -278,12 +278,10 @@ describe("L2 — the context of a role's session", () => {
   it("excludes the user's own charter from every role, whatever the setting sources", () => {
     for (const role of Object.keys(ROLES)) {
       const maison = path.join(ESSAIS, 'vide');
-      expect(
-        reglagesDe(options(role)) as unknown as { claudeMdExcludes: string[] },
-        role
-      ).toMatchObject({
-        claudeMdExcludes: [path.join(maison, '.claude', 'CLAUDE.md')],
-      });
+      const { claudeMdExcludes } = reglagesDe(options(role)) as unknown as {
+        claudeMdExcludes: string[];
+      };
+      expect(claudeMdExcludes, role).toContain(path.join(maison, '.claude', 'CLAUDE.md'));
     }
   });
 

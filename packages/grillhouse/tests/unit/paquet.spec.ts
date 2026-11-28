@@ -16,6 +16,7 @@
 //   the CHANGELOG say the four times.
 // Criterion 3 (the tools of the first package of a language, then the guards green) and « it
 // commits nothing » play at night: packages/grillhouse-essais/tests/premier-paquet.nuit.spec.ts.
+// @lit mods/grillhouse/charte.md mods/grillhouse/charte/**
 import {
   existsSync,
   mkdirSync,
@@ -32,6 +33,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { resoudreComposant } from '../../scripts/depart-du-ticket.mjs';
 import { composantsDe } from '../../scripts/ticket-du-circuit.mjs';
 import { creerPaquet, ecrireLePaquet, planDuPaquet, Refus } from '../../scripts/paquet.mjs';
+import { lireLaCharte } from './charte-entiere.js';
 
 const PAQUET = path.resolve(__dirname, '../..');
 const DEPOT = path.resolve(PAQUET, '../..');
@@ -643,7 +645,11 @@ describe('grillhouse-b32, critère 5 — les textes disent les quatre temps', ()
     'packages/grillhouse/docs/architecture/installation.md',
   ];
   it.each(textes)('%s names the command and the four times', f => {
-    const texte = readFileSync(path.join(DEPOT, f), 'utf8');
+    // The common charter is read with the modules it imports.
+    const texte =
+      f === 'mods/grillhouse/charte.md'
+        ? lireLaCharte().entiere
+        : readFileSync(path.join(DEPOT, f), 'utf8');
     expect(texte).toContain('grillhouse paquet');
     expect(texte).toMatch(/quatre temps/);
   });

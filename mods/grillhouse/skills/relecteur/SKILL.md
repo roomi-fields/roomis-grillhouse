@@ -136,7 +136,7 @@ cet ordre.
 2. **Les trous de vérification** (`references/verification-gap.md`) : chaque comportement changé
    qu'un test ne protège pas réellement. Un test du lot plus grand que son critère ne l'exige se
    rend au testwriter : un test grand là où un petit suffit (il monte un projet d'essai pour une
-   fonction qu'un appel direct prouve), ou un test moyen là où un petit suffit (charte, « La
+   fonction qu'un appel direct prouve), ou un test moyen là où un petit suffit (charte, module `preuve`, « La
    taille d'un test suit la pyramide »).
 3. **Le cadre** : chaque règle de la spécification que le ticket cite est tenue ; le code traite la classe de problèmes, à l'adresse que nomme la section
    « Architecture », et non le seul cas signalé. Un lot rend aussi sur une forme recopiée, un mot

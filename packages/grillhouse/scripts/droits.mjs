@@ -15,7 +15,10 @@
 //   charter, and the frame's plugin it enables (agents, skills, common charter, hooks), stay in.
 //   Claude Code loads the user's charter (`~/.claude/CLAUDE.md`) whatever the sources, so the
 //   settings of the role exclude it by its path (`claudeMdExcludes`), and the envelope does not
-//   mount it.
+//   mount it. The common charter is cut by public: its core, `charte.md`, which each session loads,
+//   imports one module per public (`charte/<module>.md`, MODULES_DE_LA_CHARTE); the settings of the
+//   role exclude each module the role does not apply (`modules`, ROLES) by the same key, wherever
+//   the charter is read, the package installed or the frame's source.
 // - `--settings <json>` (the settings of the role, on the command line: no file the session could
 //   change): its permissions (`allow`, every command of `Bash`, the tools of the index for a role
 //   that uses it, and the reading of its skill's files, references included, of those of the
@@ -108,7 +111,13 @@ const ECRIRE = ['Edit', 'Write'];
 const TOUTE_COMMANDE = ['Bash'];
 const TOUTE_COMMANDE_ET_L_INDEX = [...TOUTE_COMMANDE, ...LIRE_L_INDEX];
 
-// Each role the circuit launches: whether it writes (files, `ecrit`; the ticket, unless
+// The modules of the common charter (`charte/<module>.md`, beside `charte.md`), and the folders
+// that hold the charter: the package installed in a project, the frame's source in its repository.
+const MODULES_DE_LA_CHARTE = ['superviseur', 'plan', 'preuve', 'tests'];
+const DOSSIERS_DE_LA_CHARTE = ['node_modules/@roomi-fields/grillhouse', 'mods/grillhouse'];
+
+// Each role the circuit launches: the modules of the common charter it applies (`modules`; the
+// supervisor's is no role's), whether it writes (files, `ecrit`; the ticket, unless
 // `ecritAuTicket` is false), whether its instruction carries its ticket (`porteSonTicket`),
 // whether it uses the index, the rules of its commands (`commandes`), whether its skill names the frame's METACADRE.md (`metacadre`, read
 // at the root of the plugin installed), and whether its skill loads the debugging skill of the
@@ -117,6 +126,7 @@ export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
   // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
   explorateur: {
+    modules: ['plan', 'preuve'],
     metacadre: true,
     debogage: true,
     index: true,
@@ -125,6 +135,7 @@ export const ROLES = {
   },
   // It writes the tests of the whole ticket, in the envelope of its plan.
   testwriter: {
+    modules: ['preuve', 'tests'],
     metacadre: true,
     ecrit: true,
     index: true,
@@ -133,6 +144,7 @@ export const ROLES = {
   },
   // It writes the code of the whole ticket, in the envelope of its plan.
   developpeur: {
+    modules: [],
     metacadre: true,
     debogage: true,
     ecrit: true,
@@ -143,6 +155,7 @@ export const ROLES = {
   // The agent of a ticket led out of the circuit (`npx grillhouse direct`, scripts/direct.mjs): it
   // writes the tests and the code of the whole ticket together, in the envelope of its plan.
   direct: {
+    modules: ['preuve', 'tests'],
     debogage: true,
     ecrit: true,
     index: true,
@@ -150,6 +163,7 @@ export const ROLES = {
     commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
   relecteur: {
+    modules: ['plan', 'preuve', 'tests'],
     metacadre: true,
     index: true,
     ecritAuTicket: false,
@@ -158,7 +172,12 @@ export const ROLES = {
   },
   // It asks, and decides nothing: it reads the proposal its instruction carries and the code by
   // the index; the circuit writes its questions at the ticket.
-  questionneur: { index: true, ecritAuTicket: false, commandes: TOUTE_COMMANDE_ET_L_INDEX },
+  questionneur: {
+    modules: ['plan', 'preuve'],
+    index: true,
+    ecritAuTicket: false,
+    commandes: TOUTE_COMMANDE_ET_L_INDEX,
+  },
 };
 
 const lireJson = f => {
@@ -267,6 +286,18 @@ function styleDuPoste({ racine, copie, home }) {
   return duPoste && !duProjet ? { outputStyle: duPoste } : {};
 }
 
+// What the session of the role <r> does not load of the charters: the user's own, by its path, and
+// each module of the common charter the role does not apply, by a pattern that Claude Code matches
+// against the absolute path of each file it loads, an imported one too.
+function chartesExclues(r, home) {
+  return [
+    path.join(home, '.claude', 'CLAUDE.md'),
+    ...MODULES_DE_LA_CHARTE.filter(m => !r.modules.includes(m)).flatMap(m =>
+      DOSSIERS_DE_LA_CHARTE.map(d => `**/${d}/charte/${m}.md`)
+    ),
+  ];
+}
+
 // The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where the
 // project's own skills and settings are read) and the main tree <racine>; <home> holds the plugins
 // installed and the settings of the user.
@@ -302,7 +333,7 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
       deny,
     },
     autoMemoryEnabled: false,
-    claudeMdExcludes: [path.join(home, '.claude', 'CLAUDE.md')],
+    claudeMdExcludes: chartesExclues(r, home),
     disableBundledSkills: true,
     skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
     enabledPlugins: Object.fromEntries(

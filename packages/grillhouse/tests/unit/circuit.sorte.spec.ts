@@ -11,6 +11,7 @@
 // the whole circuit. Witnesses: BPScript 320.16 (38 tools moved by mv, 117 comments), 322.11.1
 // (Vitest on 31 packages), 320.40.1 (an unused variable, 4 sessions), si61.8 (a threshold 77 → 95,
 // 2 sessions « aucun code à livrer »).
+// @lit mods/grillhouse/charte.md mods/grillhouse/charte/**
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -20,6 +21,7 @@ import * as activites from '../../scripts/activites.mjs';
 import * as transitions from '../../scripts/transitions.mjs';
 import { gesteDe, SUITE } from '../../scripts/etapes.mjs';
 import { lireFiche, schemaDeFiche, sorteDuPlan } from '../../scripts/resultats.mjs';
+import { lireLaCharte } from './charte-entiere.js';
 
 const RACINE = path.resolve(__dirname, '../../../..');
 const lire = (f: string) => readFileSync(path.join(RACINE, f), 'utf8');
@@ -325,7 +327,7 @@ describe('critère 4 — une sorte absente ou illisible vaut « comportement » 
 
 describe('critère 5 — la charte, les compétences, le document du circuit et le CHANGELOG disent la règle', () => {
   it('the common charter: a ticket takes the short circuit by a criterion', () => {
-    const charte = plat('mods/grillhouse/charte.md');
+    const charte = lireLaCharte().entiere.replace(/\s+/g, ' ');
     expect(charte).toMatch(
       /\*\*Un ticket prend le circuit court quand aucun test honnête ne peut rougir avant son lot\*\*/
     );

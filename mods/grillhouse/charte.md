@@ -8,9 +8,11 @@ dans son document, sous `node_modules/@roomi-fields/grillhouse/docs/architecture
 (`circuit.md`), l'entrée sur main, la CI et la nuit (`entree.md`), la machine et l'enveloppe
 (`machine.md`), les tests et les langages (`tests.md`), l'installation et les réglages d'un
 projet (`installation.md`), le greffon et le panneau (`greffon.md`). Une règle de cette charte
-renvoie au paragraphe qui la décrit. Ce fichier ne se modifie pas dans un projet : un écart se
-propose à Grillhouse. Ainsi les projets suivent un seul cadre, et chaque séance ne charge que ce
-qu'elle applique.
+renvoie au paragraphe qui la décrit. Ce fichier porte le noyau, les règles de chaque séance, et
+importe à sa fin un module par public (« Les modules de la charte ») : une règle d'un module vaut
+celle du noyau pour son public. Ce fichier et ses modules ne se modifient pas dans un projet : un
+écart se propose à Grillhouse. Ainsi les projets suivent un seul cadre, et chaque séance ne charge
+que ce qu'elle applique.
 
 ## Ce qui décide
 
@@ -62,13 +64,6 @@ mécaniques que la liste des étapes écrit (le document du circuit, §5.5) ; to
 au superviseur avec sa pièce, et il monte au responsable ce qui lui revient (§5.4).
 Ainsi aucune séance ne juge ce qu'une règle tranche.
 
-**Le greffon pousse les questions des circuits à la séance du superviseur, et la réponse les
-acquitte** : seule la séance qui tient le verrou du superviseur les reçoit, un message par
-relevé, jamais pendant un de ses tours ; une question lue et restée sans réponse revient à
-l'intervalle de rappel du projet. Les états d'une question, le groupe de projets et la réponse
-portée au responsable sont au document du greffon (§5.1). Ainsi une question ne dépend d'aucune
-attente que la séance relance.
-
 **Un agent qui a la réponse l'applique** : une décision qu'il sait trancher et qu'il recommande
 (un nom, une signature, un paquet à retirer de son plan), il la prend et l'écrit dans sa fiche,
 sans s'arrêter ; seule monte une question qui revient au responsable (le langage, l'architecture,
@@ -79,12 +74,6 @@ n'attend que les vraies décisions.
 ticket, comme une RFC amendée ; les commentaires restent l'historique. Ainsi chaque agent lit la
 même décision.
 
-**Une tension avec l'architecture monte, elle ne se résout pas dans le ticket** : le créateur du
-ticket, ou l'explorateur au plan, qui ne trouve aucun paragraphe, ou en trouve un que le travail
-contredit, s'arrête et monte au superviseur. Le superviseur charge la compétence `architecte`,
-instruit la décision (l'existant, les options, leurs compromis) et la porte au responsable, qui
-tranche. Ainsi aucun ticket ne décide de l'architecture.
-
 **Un document prescriptif change sur décision seule** : après la décision du responsable, un agent
 architecte met le document en conformité, et le responsable relit son lot ; le relecteur rend tout
 autre lot qui modifie un document prescriptif. Ainsi le document reste la décision, et non la trace
@@ -94,71 +83,6 @@ du code.
 « $ commande » et sa sortie, ou « ticket, critère N » et « ticket, § <section> » pour ce que dit
 le ticket) avant qu'un agent s'appuie dessus, et un fait transmis porte la
 sienne. Ainsi une ligne mal lue s'arrête au premier qui la relit.
-
-**Un ticket de réalisation nomme ses composants** dans son titre (« numéro — sujet — composant,
-composant ») et sa section « Architecture », le fournisseur d'abord ; il fait une seule livraison,
-en un seul commit, et se crée sous sa mère (`docs/agents/issue-tracker.md`). Un objectif dont le
-découpage n'est pas connu commence par une exploration, sans code. Ainsi l'avancement se lit
-ticket par ticket.
-
-**Le rouge prouve le travail du ticket** : un test qui échoue avant le code prouve qu'avant le
-travail le comportement manque, et qu'après il est là ; c'est son seul sens. Seul un test qui
-porte le travail du ticket rougit donc d'abord ; les autres sont verts avant le code, sans
-justification à donner. Chaque sorte de test prouve une chose :
-
-| Sorte | Ce qu'elle prouve | Rouge avant le code |
-|---|---|---|
-| Test du comportement développé | Le ticket fait ce que dit son critère | Oui : c'est la preuve du travail |
-| Test d'un défaut corrigé | Le défaut est reproduit, puis corrigé | Oui : il montre le défaut |
-| Test d'un comportement existant | Le lot ne casse rien | Non : vert attendu |
-| Test d'interface | Un paquet tient ce qu'il publie | Oui s'il porte le travail du ticket, sinon non |
-| Banc de temps, témoin de temps | Un temps reste sous sa borne | Non : mesuré la nuit |
-| Test de nuit | Le produit entier, monté dans un projet d'essai | Oui s'il porte le travail du ticket, joué la nuit |
-
-Ainsi la preuve du rouge mesure le travail, et aucun test ne rougit pour la forme. La preuve, ce
-qu'elle joue et ce qu'elle refuse : le document des tests (§5.2).
-
-**La taille d'un test suit la pyramide** (la pyramide des tests de Google, les tailles de
-Bazel) : un test petit vérifie son module par son interface, sans processus ; un test moyen
-assemble quelques modules sur la machine, avec des processus locaux ; un test grand monte un
-projet d'essai et y lance le produit ou le cadre entier : il est un test de nuit (`*.nuit.test.*`,
-`*_nuit_test.py`, un module de `tests/it_nuit/` en Rust), jamais joué au fil du travail. Chaque
-test prend la plus petite taille qui prouve son critère, dans Grillhouse comme dans chaque projet.
-La garde des tailles (`grillhouse tailles-des-tests`) refuse un grand test de jour, et la dette
-inscrite des grands tests existants ne fait que baisser (les gardes : le document des tests, §3.4). Un
-test de jour valide le code en l'important : lancer la commande grillhouse (son binaire, un
-script du cadre) est réservé aux tests de bout-en-bout, sous un dossier `e2e/`, et la même garde
-refuse les autres. Un test qui a besoin d'un autre paquet construit — le binaire ou la
-bibliothèque d'un composant, dans quelque langage — le déclare en dépendance (ses `dependencies`,
-comme la `data` d'une cible Bazel) : le graphe le construit avant ses tests et le cache le garde,
-si bien qu'un lot qui ne touche pas ses sources le reprend sans le reconstruire. Un tel test reste
-un test de jour ; seul un test qui monte le produit entier dans un projet d'essai est un test de
-nuit. Un test qui lance le binaire d'un paquet sans déclarer qu'il en dépend plante le jour, faute
-de l'avoir construit. Ainsi le jour reste court, le petit CPU ne reconstruit que ce qui a changé,
-et la preuve longue tourne la nuit.
-
-**Un test porte le nom du comportement qu'il prouve**, jamais le numéro de son ticket, qui va au
-message du commit (Software Engineering at Google, chap. 12 : un test par comportement). Ainsi un
-test vit autant que son comportement, pas que son ticket.
-
-**Une mesure de temps joue la nuit** (les tests `manual` de Bazel, les bancs de rustc-perf hors de
-la CI de chaque commit) : le jour sert l'activité, et sa machine est toujours chargée. Un test qui
-mesure un temps (un banc de temps, un témoin de temps) est hors du jour dans chaque langage, comme
-un test de nuit ; la nuit le joue sur des cœurs dédiés que personne d'autre ne touche, et un
-échec sous charge y est « à repasser » (75) (la nuit : le document de l'entrée sur main, §5.3 ;
-les cœurs dédiés : le document de la machine, §5.2). Le jour n'attend aucun repos : un délai de
-test est un garde-fou, pas une mesure ; dépassé, il est rouge, et un délai trop juste s'élargit,
-très au-dessus de la durée normale du test. Ainsi le jour avance, et une mesure se prend au repos.
-
-**Un test qui exige de la charge joue la nuit** (les tests de résistance de Chromium et de rustc,
-hors de la passe de chaque changement) : un test qui a besoin d'une machine chargée produit sa
-charge lui-même et est un test de nuit, joué sur des cœurs dédiés (`grillhouse.mesure`), comme
-une mesure de temps. Pendant la nuit d'un projet, les autres projets continuent de travailler :
-seuls une mesure de temps et un test qui exige de la charge prennent des cœurs que personne d'autre
-ne touche (l'étiquette `exclusive` de Bazel, donnée aux seuls tests qui l'exigent, non à la
-suite). De jour, personne ne fabrique de charge : un test soupçonné instable se rejoue par
-`npm run test:forcer`, sans boucle ni processus lancés pour occuper la machine. Ainsi la charge
-d'un test reste la sienne, et le jour garde sa machine.
 
 **Un projet a plusieurs langages, un paquet un seul** : chaque paquet relève du langage de son
 outil, et `npm test`, la vérification et le circuit jouent chaque paquet avec cet outil. Ainsi
@@ -171,108 +95,12 @@ paquet que l'architecture ne déclare pas, dont le manifeste suit un autre langa
 le manifeste du sien (le document des tests, §5.6). Ainsi l'architecture fixe le langage, et le
 code le suit.
 
-**Un test vit dans un fichier à lui**, jamais dans un fichier de code, reconnu au nom ou au
-dossier qu'attend l'outil de son langage : près de son module pour un test unitaire (en Rust, un
-`tests.rs` ou un dossier `tests/` sous `src/`, comme le veut le contrôle tidy de rustc), dans le
-dossier de tests du paquet pour un test par l'interface (en Rust, un module de `tests/it/` du
-crate ; en C, un fichier `tests/test_<nom>.c` du paquet, un exécutable et un test CTest). Les sortes de tests, qui les écrit, qui les lit et qui les joue sont les mêmes dans chaque
-langage ; seule l'adresse d'un fichier de test suit l'outil. Ainsi chaque test a un fichier à lui,
-que le testwriter écrit.
-
-**Un crate Rust a un seul exécutable de tests d'intégration par moment** (la suite de tests de
-Cargo, `tests/testsuite/main.rs`) : chaque fichier de tests est un module que déclare
-`tests/it/main.rs` le jour, `tests/it_nuit/main.rs` la nuit, `tests/it_budget/main.rs` pour les
-bancs ; une garde du module cargo refuse un exécutable de plus. Ainsi cargo lie
-les dépendances une fois par moment, et une copie garde la place de son disque.
-
-**Un ticket ouvert naît du mot du responsable**, ou d'un défaut qu'un projet du cadre rencontre.
-Une découverte d'agent se consigne dans un ticket fermé, sous le ticket qui l'a trouvée, étiqueté
-`decouverte`. En fin de ticket, le tri des découvertes lui donne son verdict, avec sa pièce :
-`traitee`, `doublon` ou `sans-suite` la laissent fermée ; `a-porter` (un défaut de l'usage
-actuel) ou `non-confirmee` (sans preuve rejouée) la rouvrent sous `a-valider`, pour le
-responsable. Ainsi chaque découverte est lue, et le backlog reste le plan du responsable.
-
-**Un ticket de données suit le chemin de données du projet** : un ticket qui n'ajoute que des
-données (des fichiers qu'un schéma valide, une fiche à un catalogue) ne passe pas par le circuit
-de code ; il passe par la validation du projet et sa CI, comme une formule de Homebrew ou un
-type de DefinitelyTyped. Ainsi le circuit garde les tests et le code pour ce qui en a.
-
-**Un ticket prend le circuit court quand aucun test honnête ne peut rougir avant son lot**, le
-produit se comportant pareil avant et après : la suite existante, qui reste verte, et la relecture
-font la preuve, comme les grands changements de Google (Rosie, ClangMR), Renovate, `nx migrate`,
-`eslint --fix`, sans test neuf. Un test honnête échoue avant le lot et passe après, sur un
-comportement qu'un test, un autre paquet ou une interface publiée observe. Le doute va au circuit
-complet. L'explorateur juge au plan que le ticket est mécanique, et l'écrit avec sa raison, ce
-qu'il a cherché et sa commande. La liste qui suit donne des exemples du critère, non son
-périmètre : montée du cadre, documents seuls, renommage ou déplacement, montée de dépendance,
-configuration seule (sans garde qui en mesure l'effet), correction de style, seuil relevé,
-commentaires de code seuls, suppression de code sans appelant vivant, fichiers engendrés
-régénérés, textes de messages qu'aucun test ni aucun autre paquet ne lit, typage resserré sans
-changement à l'exécution et dont aucun lecteur du relevé ne casse à la compilation.
-Le circuit court a deux formes : le geste qu'une commande ou un outil joue passe par 1.1 (Geste
-mécanique, l'explorateur joue la commande du plan), sans testwriter ni développeur ; le geste
-écrit à la main (commentaires, code supprimé, texte d'un message, typage resserré) saute le
-testwriter et la preuve du rouge, et une séance du développeur écrit, puis les contrôles et la
-relecture. Reste au circuit complet ce qu'un utilisateur ou un autre paquet observe (une sortie,
-un code de retour, une interface publiée) ; le texte qui accompagne un changement de comportement
-reste dans son lot. Une configuration dont une garde mesure l'effet reste au circuit. Une
-réorganisation qui a du code et dont les tests s'adaptent (« comportement tests-adaptés ») garde le
-circuit complet, la suite existante faisant la preuve. La bascule marche dans les deux sens, sur le
-même plan, ses paquets et ses critères gardés : un lot de tests dont aucun ne peut rougir passe au
-circuit court, un lot du circuit court qui change un comportement repart au circuit complet ; ses
-arrêts, les réponses du superviseur et leur compte parmi les `RENDU` sont au document du circuit
-(§5.6, §5.4). Ainsi chaque séance du circuit a un lot à écrire.
-
-**Un ticket prend l'une de trois voies** : le circuit complet pour un comportement qui change ;
-le circuit court pour un geste sans comportement neuf, que l'explorateur juge au plan par son critère, et que la bascule rend dans les deux sens ; hors
-du circuit, mené en direct par une commande du cadre (`npx grillhouse direct <ticket>`), pour un
-défaut du circuit lui-même (le circuit ne se répare pas par lui-même), une correction triviale
-repérée en analyse (une ligne fautive, un mauvais argument, sans exception), un ticket de données
-ou le squelette d'un paquet ; il porte l'étiquette `direct`, que la file des
-tickets ignore, même s'il porte aussi `circuit`. Un lot hors du circuit entre
-sur main sur sa vérification complète verte. Un changement de comportement du produit va au
-circuit, même pressé. Ainsi la voie d'un ticket se lit à la charte, et non au choix de la séance.
-
-**Le superviseur n'écrit pas le code d'un direct** : la commande lance, dans une copie à elle, un
-agent (le rôle `direct`, qui écrit tests et code ensemble, sous les droits que son rôle donne), puis
-le relecteur sur son lot, et s'arrête : ni plan, ni preuve du rouge, ni contrôles, ni file. Un
-défaut corrigé porte un test qui le reproduit, que la relecture exige. Le superviseur reprend la main
-sur un lot relu : il relit, joue la vérification complète, commite, avance main et pousse ; un lot
-`RENDU` repart à l'agent par la même commande, qui s'arrête à la troisième relecture rendue. Le
-verrou du cadre refuse à toute séance hors enveloppe qui n'est pas un agent du cadre (le
-superviseur, une séance lancée à la main, une séance qui perd sa variable d'enveloppe) le code et
-les tests d'un paquet, et nomme la commande ; les documents, ceux d'un paquet comme ceux de la
-racine, restent écrits par le superviseur. Ainsi celui qui relit n'est jamais celui qui a écrit.
-
-**La file directe se tient comme la file des tickets** : un ticket direct attend ouvert, et l'en-tête
-du panneau le compte (« ✎ N en direct ») ; le superviseur lance par la commande le seul qu'il mène,
-rend ouvert celui qu'il quitte, et ferme celui dont le lot est sur main (« intégré : <commit> »),
-même si une nuit doit encore le confirmer, après avoir déverrouillé sa copie
-(`npx grillhouse direct <ticket> --deverrouiller`). Le panneau montre l'agent d'un direct en cours
-sous le bloc « Direct », en tête des agents. Ainsi le panneau montre seulement ce qui tourne.
-
-**Un paquet naît hors du circuit, en quatre temps** (un squelette n'a ni comportement ni test),
-comme les générateurs de Nx et `cargo new --lib` : 1, le grill, le superviseur et le responsable
-(son rôle, sa frontière, ses refus, son interface, son langage) ; 2, l'écriture, le superviseur
-avec la compétence `redacteur`, relue par le responsable : sa ligne du tableau des composants de
-`docs/ARCHITECTURE.md`, avec son langage, et ses documents (`<chemin>/docs/CADRE.md`,
-`INTERFACE.md`) ; 3, la création, sans agent : `npx grillhouse paquet <chemin>` lit la ligne et
-bâtit ce que son langage demande, les outils de ce langage compris pour son premier paquet ; 4, le
-code, un ticket ordinaire du circuit sur un paquet qui existe. Les temps 2 et 3 entrent dans un
-même commit, après une vérification verte. Ainsi main ne voit jamais un paquet déclaré sans
-dossier.
-
 ## Ce qui tient le dépôt droit
 
 - **Une matière, une adresse** : ce qu'un document décrit déjà s'y verse. Ainsi l'architecture
   écrite reste une, et le code suit une seule version.
 - **Un changement de comportement corrige ses textes** dans le même commit. Ainsi les documents
   restent vrais.
-- **Une décision de structure passe par le grill** (compétence `grill`) : découpage, paquets,
-  modules, interfaces, frontières. Ainsi l'architecture décide de la structure, et le code la suit.
-- **Un geste transverse, un seul ticket** : un même changement sur plusieurs composants se décide
-  une fois, en gabarit dans la section « Architecture », et se mène dans une seule copie. Ainsi le
-  geste reste le même partout.
 - **Les composants suivent un modèle commun** : chacun étend les configurations de base du cadre ;
   un écart passe seulement inscrit, avec sa raison, dans la liste que le superviseur valide.
   Ainsi le cadre ne maintient aucune spécificité par composant.
@@ -324,6 +152,9 @@ dossier.
   agent ne lance l'outil de test directement. Ce que chaque commande joue : le document des tests
   (§5.1, §5.4). Ainsi chaque test tourne avec ce dont il dépend, et une seule fois tant que rien ne
   change.
+- **De jour, personne ne fabrique de charge** : un test soupçonné instable se rejoue par
+  `npm run test:forcer`, sans boucle ni processus lancés pour occuper la machine. Ainsi le jour
+  garde sa machine.
 - **Les tests ne laissent rien dans le dossier temporaire** : un test crée ses fichiers et
   dossiers temporaires par l'outil de son langage, qui les retire à la fin, test rouge compris ;
   aucun chemin ne se bâtit à la main sous le dossier temporaire. Une passe de tests échoue en
@@ -364,3 +195,17 @@ dossier.
 - Une compétence du cadre s'appelle avec son préfixe `grillhouse:` ; un document pour un agent
   s'écrit avec `grillhouse:writing-for-agents`.
 - Réponses en français ; le code et les noms d'API restent en anglais.
+
+## Les modules de la charte
+
+Une séance de rôle reçoit le noyau et les modules de son rôle, ses réglages excluant les autres
+(le document de la machine, §3.2). Toute autre séance (le superviseur, une séance lancée à la main)
+et ses sous-agents reçoivent la charte entière.
+
+@charte/superviseur.md
+
+@charte/plan.md
+
+@charte/preuve.md
+
+@charte/tests.md

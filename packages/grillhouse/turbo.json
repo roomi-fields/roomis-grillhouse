@@ -54,6 +54,7 @@
         "$TURBO_ROOT$/docs/agents/**",
         "$TURBO_ROOT$/packages/grillhouse/docs/**",
         "$TURBO_ROOT$/packages/grillhouse/docs/architecture/circuit.md",
+        "$TURBO_ROOT$/packages/grillhouse/docs/architecture/machine.md",
         "$TURBO_ROOT$/packages/grillhouse/scripts/**",
         "$TURBO_ROOT$/packages/grillhouse/scripts/**/*.d.ts",
         "$TURBO_ROOT$/packages/grillhouse/scripts/**/*.mjs",

@@ -37,6 +37,7 @@ import {
 } from '../../scripts/grillhouse-maj.mjs';
 import { MIGRATIONS } from '../../scripts/migrations.mjs';
 import { ENTREE_DU_MARCHE } from '../../scripts/sortie.mjs';
+import { importsDeLaCharte } from './charte-entiere.js';
 
 const PAQUET = path.resolve(__dirname, '../..');
 const DEPOT = path.resolve(PAQUET, '../..');
@@ -173,7 +174,10 @@ describe('critère 1 — the published package is the plugin', () => {
       unknown
     >;
     expect(manifeste).toEqual({ ...source, version: VERSION });
-    for (const f of ['charte.md', 'METACADRE.md', 'hooks/hooks.json']) {
+    // The modules of the charter at the path charte.md imports them from.
+    const modules = importsDeLaCharte(lire('mods/grillhouse/charte.md'));
+    expect(modules.length).toBeGreaterThan(0);
+    for (const f of ['charte.md', ...modules, 'METACADRE.md', 'hooks/hooks.json']) {
       expect(readFileSync(path.join(racine, f), 'utf8'), f).toBe(lire(`mods/grillhouse/${f}`));
     }
   });

@@ -110,7 +110,7 @@ qu'il rend, sans simuler ce que le composant fait lui-même. Ainsi ils restent v
 change de forme.
 
 **La plus petite taille qui prouve** : la taille d'un test — petit, moyen, grand — est une décision
-d'architecture, que le plan du ticket fixe (charte, « La taille d'un test suit la pyramide »). Par
+d'architecture, que le plan du ticket fixe (charte, module `preuve`, « La taille d'un test suit la pyramide »). Par
 défaut, chaque critère se prouve **petit** : un test qui appelle son module par son interface, dans
 son processus, sans rien lancer. Le plan ne nomme que l'exception, avec sa raison : **moyen** (une
 couture entre quelques modules que le petit n'atteint pas, avec des processus locaux) ou **grand**
@@ -244,7 +244,7 @@ gardes, un plafond). Un critère qui porte sur cette matière est prouvé par sa
 au circuit ; tu écris le test du comportement du ticket, jamais un double de ce qu'une référence
 tient. Ainsi une seule chose prouve chaque fait, et le relecteur n'a pas un doublon à retirer.
 
-**Une mesure de temps joue la nuit** (la charte commune) : un test dont le verdict dépend d'une
+**Une mesure de temps joue la nuit** (charte, module `tests`) : un test dont le verdict dépend d'une
 durée (une attente bornée, un écart de temps comparé à un seuil) s'écrit dans un banc, un fichier
 `*.budget.test.ts` (en Rust, un module de `tests/it_budget/`), ou dans un témoin de temps, un fichier à
 lui, sans test ordinaire à côté, où sa mesure s'enveloppe dans `mesurerAuRepos(ctx, () => …)`,

@@ -1,9 +1,11 @@
-// @lit mods/grillhouse/charte.md mods/grillhouse/skills/architecte/** mods/grillhouse/skills/pitmaster/SKILL.md
+// @lit mods/grillhouse/charte.md mods/grillhouse/charte/** mods/grillhouse/skills/architecte/**
+// @lit mods/grillhouse/skills/pitmaster/SKILL.md
 // The plugin carries the skill of the architect with its example of an architecture document, the
 // charter carries the two rules that send a tension to it, and the supervisor's skill names it.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { lireLaCharte } from './charte-entiere.js';
 
 const DEPOT = path.resolve(__dirname, '../../../..');
 const COMPETENCE = 'mods/grillhouse/skills/architecte';
@@ -38,15 +40,16 @@ describe('the skill of the architect', () => {
     expect(enTete).toContain('osc-bridge');
   });
 
-  it('the charter carries the two rules that send a tension to it, after « Tous les agents jugent sur le plan »', () => {
-    const charte = lire('mods/grillhouse/charte.md');
-    const plan = charte.indexOf('**Tous les agents jugent sur le plan**');
-    const tension = charte.indexOf(TENSION);
-    const prescriptif = charte.indexOf(DOCUMENT_PRESCRIPTIF);
+  it('the charter carries the two rules that send a tension to it', () => {
+    const charte = lireLaCharte().entiere.replace(/\s+/g, ' ');
+    expect(charte).toContain(TENSION);
+    // The core keeps the order of its own rules.
+    const noyau = lireLaCharte().noyau.replace(/\s+/g, ' ');
+    const plan = noyau.indexOf('**Tous les agents jugent sur le plan**');
+    const prescriptif = noyau.indexOf(DOCUMENT_PRESCRIPTIF);
     expect(plan).toBeGreaterThan(-1);
-    expect(tension).toBeGreaterThan(plan);
-    expect(prescriptif).toBeGreaterThan(tension);
-    expect(charte.indexOf('**Un fait repris se relit à sa pièce**')).toBeGreaterThan(prescriptif);
+    expect(prescriptif).toBeGreaterThan(plan);
+    expect(noyau.indexOf('**Un fait repris se relit à sa pièce**')).toBeGreaterThan(prescriptif);
   });
 
   it('the supervisor’s skill names it under its name in the plugin', () => {

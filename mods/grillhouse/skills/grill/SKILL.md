@@ -133,7 +133,7 @@ remplace jamais le grill. Les branches de l'arbre :
    que le tableau ne déclare pas, un paquet dont le manifeste suit un autre langage (un
    `package.json` pour `typescript`, un `Cargo.toml` pour `cargo`, un `pyproject.toml` pour
    `python`, un `CMakeLists.txt` pour `c`), un dossier déclaré sans ce manifeste, et une interface qui en nomme un autre.
-   **Un paquet neuf naît en quatre temps, hors du circuit** (charte commune) : ce grill tranche
+   **Un paquet neuf naît en quatre temps, hors du circuit** (charte, module `superviseur`) : ce grill tranche
    son rôle, sa frontière, ses refus, son interface et son langage (1) ; le superviseur écrit sa
    ligne et ses documents, relus par le responsable (2) ; `npx grillhouse paquet <chemin>` bâtit
    son squelette et, pour le premier paquet d'un langage, les outils de ce langage (3), dans le

@@ -3,11 +3,13 @@
 // document. The commit the tri names is the one the queue integrated for its ticket, read in the
 // reason of its closure, never main's last, another ticket's once several circuits run.
 //
-// @lit mods/grillhouse/charte.md mods/grillhouse/skills/** packages/grillhouse/docs/architecture/circuit.md
+// @lit mods/grillhouse/charte.md mods/grillhouse/charte/** mods/grillhouse/skills/**
+// @lit packages/grillhouse/docs/architecture/circuit.md
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as activites from '../../scripts/activites.mjs';
+import { lireLaCharte } from './charte-entiere.js';
 
 const commitIntegre = activites.commitIntegre as (raison: string | null) => string | null;
 
@@ -35,7 +37,8 @@ describe('les textes qui disent le tri des découvertes', () => {
     'mods/grillhouse/skills/pitmaster/references/consigne-agent.md',
     'packages/grillhouse/docs/architecture/circuit.md',
   ])('%s nomme le tri des découvertes et ses verdicts', f => {
-    const t = lire(f);
+    // The common charter is read with the modules it imports.
+    const t = f === 'mods/grillhouse/charte.md' ? lireLaCharte().entiere : lire(f);
     expect(t).toMatch(/[Tt]ri(age)? (des|of the) (découvertes|discoveries)/);
     for (const v of ['a-porter', 'non-confirmee']) {
       expect(t, v).toContain(v);

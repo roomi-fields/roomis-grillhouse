@@ -273,7 +273,7 @@ export async function lancerLeDirect({ id, ticket, panne, options = [], ports })
   }
   if (!(ticket.labels ?? []).includes('direct')) {
     throw new Error(
-      `Le ticket ${id} n'est pas étiqueté direct : la commande ne mène que les tickets de la voie directe (charte, « Un ticket prend l'une de trois voies »).`
+      `Le ticket ${id} n'est pas étiqueté direct : la commande ne mène que les tickets de la voie directe (charte, module superviseur, « Un ticket prend l'une de trois voies »).`
     );
   }
   if (ticket.status === 'closed') {
