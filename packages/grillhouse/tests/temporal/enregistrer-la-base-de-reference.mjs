@@ -11,10 +11,10 @@
 //   built), sets the retention of the namespace `default` to a century (start-dev gives it 24 h,
 //   which purged the file's closed workflow one day after its recording), plays the workflow
 //   `sonde-reference` (ticket `reference`, two steps, the wait for the signal FINIR, the signal
-//   sent), then stops the worker and the server by SIGTERM, so that the file is whole. <fichier>
-//   must not exist.
+//   sent), the worker's version made current on its task queue before it starts, then stops the
+//   worker and the server by SIGTERM, so that the file is whole. <fichier> must not exist.
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer, connect } from 'node:net';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
@@ -23,6 +23,7 @@ import {
   ATTRIBUTS_DE_RECHERCHE,
   lireLeDeroule,
   ouvrirLeClient,
+  rendreCourante,
 } from '../../dist/temporal/client.js';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +96,8 @@ for (;;) {
   }
   await pause(200);
 }
+const { version } = JSON.parse(readFileSync(path.resolve(ICI, '../../package.json'), 'utf8'));
+await rendreCourante(client, 'reference', version);
 const h = await client.workflow.start('sonde', {
   workflowId: 'sonde-reference',
   taskQueue: 'reference',

@@ -34,6 +34,7 @@ import {
   setHandler,
   startChild,
   workflowInfo,
+  setWorkflowOptions,
 } from '@temporalio/workflow';
 import { WorkflowExecutionAlreadyStartedError } from '@temporalio/common';
 import {
@@ -302,3 +303,5 @@ export async function fileDuProjet(entree: EntreeDeLaFileDuProjet): Promise<void
     }
   }
 }
+
+setWorkflowOptions({ versioningBehavior: 'AUTO_UPGRADE' }, fileDuProjet);

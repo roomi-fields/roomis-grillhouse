@@ -61,6 +61,7 @@ import {
   portLibre,
   programmeTemporal,
 } from './essai.js';
+import { demarrerUnTravailleurDeCeProcessus } from './travailleur-d-essai.js';
 
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
 const HISTOIRE = path.join(__dirname, 'histoires/circuit-integre.json');
@@ -280,10 +281,9 @@ async function circuit(activites: Activites, entree: Partial<EntreeDuCircuit> = 
   );
   arrets.push(() => s.tuer());
   const connexion = await NativeConnection.connect({ address: s.adresse });
-  let fin: Promise<void> = Promise.resolve();
-  let enMarche: Worker | null = null;
+  let couper = () => Promise.resolve();
   const lancer = async () => {
-    enMarche = await Worker.create({
+    const t = await demarrerUnTravailleurDeCeProcessus(s.adresse, {
       connection: connexion,
       taskQueue: FILE,
       workflowsPath: DEROULES,
@@ -291,15 +291,10 @@ async function circuit(activites: Activites, entree: Partial<EntreeDuCircuit> = 
       maxHeartbeatThrottleInterval: '1 second',
       defaultHeartbeatThrottleInterval: '1 second',
     });
-    fin = enMarche.run();
-  };
-  const couper = async () => {
-    enMarche?.shutdown();
-    enMarche = null;
-    await fin;
+    couper = t.arreter;
   };
   await lancer();
-  travailleurDuCircuit = { couper, lancer };
+  travailleurDuCircuit = { couper: () => couper(), lancer };
   adresseDuCircuit = s.adresse;
   arrets.unshift(async () => {
     await couper();

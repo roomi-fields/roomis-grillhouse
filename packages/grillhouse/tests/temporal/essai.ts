@@ -5,13 +5,14 @@
 // built code (dist/temporal/travailleur.js), as the units of the account start it; a server
 // stopped while workflows run on it is stopped once they are at rest (`attendreLeRepos`).
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { Connection, type Client } from '@temporalio/client';
 import { afterAll } from 'vitest';
+import { ouvrirLeClient, rendreCourante } from '../../src/temporal/client.js';
 import { EPINGLE } from '../../src/temporal/installation.js';
 import { apresUnRefus } from './port-d-essai.js';
 import { estAuRepos } from './repos-d-essai.js';
@@ -268,7 +269,8 @@ export interface TravailleurDEssai {
 
 /**
  * Starts the sonde's worker (dist/temporal/travailleur.js) on the task queue <file> of the server
- * at <adresse>, as its own process; resolves once it says it is ready.
+ * at <adresse>, as its own process; resolves once it says it is ready and its version, that of the
+ * package, is the current one of the deployment of <file> (`rendreCourante`).
  */
 export async function demarrerLeTravailleur(
   adresse: string,
@@ -281,6 +283,15 @@ export async function demarrerLeTravailleur(
   });
   enfants.add(enfant);
   await attendreLaLigne(enfant, /^prêt /, 60_000, 'travailleur');
+  const { version } = JSON.parse(readFileSync(path.join(PAQUET, 'package.json'), 'utf8')) as {
+    version: string;
+  };
+  const { client, fermer } = ouvrirLeClient({ adresse });
+  try {
+    await rendreCourante(client, file, version);
+  } finally {
+    await fermer();
+  }
   return { pid: enfant.pid!, tuer: () => tuer(enfant) };
 }
 

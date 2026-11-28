@@ -39,6 +39,7 @@ import {
   setHandler,
   startChild,
   workflowInfo,
+  setWorkflowOptions,
 } from '@temporalio/workflow';
 import { ARRETER, idDuCircuit } from '../circuit/contrat.js';
 import { circuitDuTicket } from '../circuit/deroule.js';
@@ -178,3 +179,5 @@ export async function ticketsDuProjet(entree: EntreeDesTickets): Promise<void> {
     }
   }
 }
+
+setWorkflowOptions({ versioningBehavior: 'AUTO_UPGRADE' }, ticketsDuProjet);

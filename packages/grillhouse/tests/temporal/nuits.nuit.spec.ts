@@ -8,7 +8,7 @@
 // twice; the one schedule is created once and updated when played again, and its firing asks the
 // workflow for the scheduled nights.
 import path from 'node:path';
-import { NativeConnection, Worker } from '@temporalio/worker';
+import { NativeConnection } from '@temporalio/worker';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ATTRIBUTS_DE_RECHERCHE, ouvrirLeClient } from '../../src/temporal/client.js';
 import {
@@ -33,6 +33,7 @@ import {
   portLibre,
   programmeTemporal,
 } from './essai.js';
+import { demarrerUnTravailleurDeCeProcessus } from './travailleur-d-essai.js';
 
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
 const FILE = 'essai-nuits';
@@ -112,16 +113,14 @@ async function serveur(activites: ActivitesDesNuits) {
   );
   arrets.push(() => s.tuer());
   const connexion = await NativeConnection.connect({ address: s.adresse });
-  const travailleur = await Worker.create({
+  const travailleur = await demarrerUnTravailleurDeCeProcessus(s.adresse, {
     connection: connexion,
     taskQueue: FILE,
     workflowsPath: DEROULES,
     activities: activites,
   });
-  const fin = travailleur.run();
   arrets.unshift(async () => {
-    travailleur.shutdown();
-    await fin;
+    await travailleur.arreter();
     await connexion.close();
   });
   const c = ouvrirLeClient({ adresse: s.adresse });

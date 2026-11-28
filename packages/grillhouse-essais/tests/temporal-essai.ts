@@ -2,9 +2,10 @@
 // tests/circuit.temporal.nuit.spec.ts and tests/repetition.temporal.nuit.spec.ts: on the trial
 // repository of ./circuit-essai.ts, a development server of its own (the pinned program TEMPORAL,
 // on a free port and a database of its own), which a test may kill and start again on the same
-// database and port, and the frame's worker started by its built code, which a test may kill and
-// start again. The test speaks to the server by the CLI of Temporal, answers a stop by the frame's
-// built client (dist/temporal/circuit/client.js, in a process of its own, as ./cadre.ts has every
+// database and port, and the frame's worker started by its built code, its version made current on
+// its task queue at each start (`rendreCourante`), which a test may kill and start again. The test
+// speaks to the server by the CLI of Temporal, answers a stop by the frame's built client
+// (dist/temporal/circuit/client.js, in a process of its own, as ./cadre.ts has every
 // script of the frame) and reads the circuits as the board does (scripts/circuits-du-serveur.mjs).
 // At its end, green or red, every workflow still running stops, then the worker, then the
 // server: nothing outlives the test.
@@ -175,12 +176,42 @@ export async function ouvrirLeBanc(ESSAIS: string, essai: Essai, nom: string) {
     }
     return s;
   };
+  // The function <nom> of the built module <module>, called on a client of the server and <args>
+  // in a process of its own; its result, as JSON.
+  const parLeClient = (module: string, nom: string, ...args: unknown[]): unknown => {
+    const code = `const { ouvrirLeClient } = await import(${JSON.stringify(pathToFileURL(CLIENT).href)});
+const m = await import(${JSON.stringify(pathToFileURL(module).href)});
+const c = ouvrirLeClient();
+try {
+  process.stdout.write(JSON.stringify((await m[${JSON.stringify(nom)}](c.client, ...JSON.parse(process.argv[1]))) ?? null));
+} finally {
+  await c.fermer();
+}`;
+    const r = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', code, JSON.stringify(args)],
+      { encoding: 'utf8', env, timeout: 60_000 }
+    );
+    if (r.status !== 0) {
+      throw new Error(`${nom} : ${r.stderr}`);
+    }
+    return JSON.parse(r.stdout || 'null') as unknown;
+  };
+
   // What the worker writes, its acts' lines included, kept for the harness of the circuit: a file
   // of the bench, as a service writes to its journal. The tests wait synchronously (the watch of
   // a circuit), so that a pipe to this process would never be drained: once full, an act that
   // writes its last line would never exit, and its activity never end (grillhouse-3eo).
   const SORTIE = path.join(base, 'travailleur.log');
   const sortieDuTravailleur = () => (existsSync(SORTIE) ? readFileSync(SORTIE, 'utf8') : '');
+  // The version of the worker, that of its package, made current on the task queue <file> by the
+  // frame's gesture, in a process of its own.
+  const rendreLaVersionCourante = (file: string) => {
+    const { version } = JSON.parse(readFileSync(path.join(CADRE, 'package.json'), 'utf8')) as {
+      version: string;
+    };
+    parLeClient(CLIENT, 'rendreCourante', file, version);
+  };
   // The environment the worker runs with, besides the bench's.
   let enPlus: Record<string, string> = {};
   const unTravailleur = async () => {
@@ -197,6 +228,7 @@ export async function ouvrirLeBanc(ESSAIS: string, essai: Essai, nom: string) {
     }
     enfants.push(t);
     await attendreLaLigne(SORTIE, depuis, /^prêt /m, 60_000);
+    rendreLaVersionCourante(FILE);
     return t;
   };
   let serveur = await unServeur();
@@ -251,33 +283,12 @@ export async function ouvrirLeBanc(ESSAIS: string, essai: Essai, nom: string) {
       .join('\n')}`;
   };
 
-  // The function <nom> of the built module <module>, called on a client of the server and <args>
-  // in a process of its own; its result, as JSON.
-  const parLeClient = (module: string, nom: string, ...args: unknown[]): unknown => {
-    const code = `const { ouvrirLeClient } = await import(${JSON.stringify(pathToFileURL(CLIENT).href)});
-const m = await import(${JSON.stringify(pathToFileURL(module).href)});
-const c = ouvrirLeClient();
-try {
-  process.stdout.write(JSON.stringify((await m[${JSON.stringify(nom)}](c.client, ...JSON.parse(process.argv[1]))) ?? null));
-} finally {
-  await c.fermer();
-}`;
-    const r = spawnSync(
-      process.execPath,
-      ['--input-type=module', '-e', code, JSON.stringify(args)],
-      { encoding: 'utf8', env, timeout: 60_000 }
-    );
-    if (r.status !== 0) {
-      throw new Error(`${nom} : ${r.stderr}`);
-    }
-    return JSON.parse(r.stdout || 'null') as unknown;
-  };
-
   const banc = {
     adresse,
     env,
     /** The task queue the worker of the trial serves, the project's. */
     file: FILE,
+    rendreLaVersionCourante,
     cli,
     statut,
     vue,

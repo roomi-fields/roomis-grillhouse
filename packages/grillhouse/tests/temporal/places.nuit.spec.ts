@@ -9,7 +9,7 @@
 // attached to it.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { NativeConnection, Worker } from '@temporalio/worker';
+import { NativeConnection } from '@temporalio/worker';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   ATTRIBUTS_DE_RECHERCHE,
@@ -36,6 +36,7 @@ import {
   portLibre,
   programmeTemporal,
 } from './essai.js';
+import { demarrerUnTravailleurDeCeProcessus } from './travailleur-d-essai.js';
 
 const GO = 1024 ** 3;
 const ouverts: ClientOuvert[] = [];
@@ -321,7 +322,7 @@ async function machineAPortes({ plafond = 1, ...entree }: Partial<EntreeDesPlace
   );
   arrets.push(() => s.tuer());
   const connexion = await NativeConnection.connect({ address: s.adresse });
-  const travailleur = await Worker.create({
+  const travailleur = await demarrerUnTravailleurDeCeProcessus(s.adresse, {
     connection: connexion,
     taskQueue: 'essai-portes',
     workflowsPath: path.join(PAQUET, 'dist/temporal/deroules.js'),
@@ -337,12 +338,10 @@ async function machineAPortes({ plafond = 1, ...entree }: Partial<EntreeDesPlace
       plafondDeLaMachine: () => Promise.resolve({ plafond, faute: null }),
     },
   });
-  const fin = travailleur.run();
   arrets.unshift(async () => {
     mesure.ouvrir();
     vie.ouvrir();
-    travailleur.shutdown();
-    await fin;
+    await travailleur.arreter();
     await connexion.close();
   });
   const c = ouvrirLeClient({ adresse: s.adresse });

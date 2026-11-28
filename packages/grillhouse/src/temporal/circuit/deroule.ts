@@ -37,6 +37,7 @@ import {
   upsertMemo,
   upsertSearchAttributes,
   workflowInfo,
+  setWorkflowOptions,
 } from '@temporalio/workflow';
 import {
   arretSansActe,
@@ -792,3 +793,6 @@ export async function circuitDuTicket(entree: EntreeDuCircuit): Promise<FinDuCir
     }
   }
 }
+
+// Pinned: a circuit ends on the version it started on (installation.md §2.6).
+setWorkflowOptions({ versioningBehavior: 'PINNED' }, circuitDuTicket);

@@ -30,6 +30,7 @@ import {
   proxyActivities,
   setHandler,
   workflowInfo,
+  setWorkflowOptions,
 } from '@temporalio/workflow';
 import {
   decisionDeFermeture,
@@ -321,3 +322,5 @@ export async function placesDeLaMachine(entree: EntreeDesPlaces): Promise<void> 
     }
   }
 }
+
+setWorkflowOptions({ versioningBehavior: 'AUTO_UPGRADE' }, placesDeLaMachine);

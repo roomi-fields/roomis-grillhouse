@@ -3,7 +3,8 @@
 // client of the frame read. The address and the namespace come from Temporal's own variables
 // (TEMPORAL_ADDRESS, TEMPORAL_NAMESPACE), as the `temporal` program and the SDKs read them, the
 // account's server on the loopback by default. The client it opens is lazy: opening it opens no
-// network, its first call does.
+// network, its first call does. It also holds the gesture that makes a worker's version current
+// (`rendreCourante`).
 import { Client, Connection } from '@temporalio/client';
 import { defaultPayloadConverter, type Payload } from '@temporalio/common';
 import { NativeConnection } from '@temporalio/worker';
@@ -46,7 +47,7 @@ export interface OuOuvrir {
 export interface ClientOuvert {
   client: Client;
   adresse: string;
-  fermer(): Promise<void>;
+  fermer: () => Promise<void>;
 }
 
 /** Opens the Temporal client of the server <adresse>, lazily: no network until its first call. */
@@ -62,6 +63,64 @@ export function ouvrirLaConnexionDuTravailleur({
   adresse,
 }: Pick<OuOuvrir, 'adresse'> = {}): Promise<NativeConnection> {
   return NativeConnection.connect({ address: adresse ?? adresseDuServeur() });
+}
+
+// How long `rendreCourante` waits for the server by default.
+const DELAI_VERSION_CONNUE_MS = 50_000;
+
+// The refusals of a server that does not know the version yet, or one of its pollers: gRPC
+// NOT_FOUND and FAILED_PRECONDITION.
+const PAS_ENCORE = [5, 9];
+const PAUSE_ENTRE_LECTURES_MS = 200;
+// A routing change not yet propagated to the task queues
+// (temporal.api.enums.v1.RoutingConfigUpdateState.IN_PROGRESS).
+const ROUTAGE_EN_COURS = 1;
+
+/**
+ * Makes the version `version` the current one of the Worker Deployment of the task queue `file`
+ * (installation.md §2.6), the one gesture of the frame that does it: it waits until the server
+ * knows that version, which a worker announces by polling, and until the new routing has reached
+ * the task queues, so that a workflow started next is served by it. A version already current is
+ * left as it is. After `delaiMs`, it fails, naming the version and what the server last said.
+ */
+export async function rendreCourante(
+  client: Client,
+  file: string,
+  version: string,
+  delaiMs = DELAI_VERSION_CONNUE_MS
+): Promise<void> {
+  const deploiement = { namespace: client.options.namespace, deploymentName: file };
+  const limite = Date.now() + delaiMs;
+  let dernier = 'aucune réponse';
+  for (;;) {
+    try {
+      const { workerDeploymentInfo: info } =
+        await client.workflowService.describeWorkerDeployment(deploiement);
+      if (info?.routingConfig?.currentDeploymentVersion?.buildId !== version) {
+        await client.workflowService.setWorkerDeploymentCurrentVersion({
+          ...deploiement,
+          buildId: version,
+          identity: client.options.identity,
+        });
+      } else if (Number(info.routingConfigUpdateState) !== ROUTAGE_EN_COURS) {
+        return;
+      } else {
+        dernier = 'le routage n’a pas encore atteint les files de tâches';
+      }
+    } catch (e) {
+      const { code, message } = e as { code?: number; message?: string };
+      if (code === undefined || !PAS_ENCORE.includes(code)) {
+        throw e;
+      }
+      dernier = message ?? String(code);
+    }
+    if (Date.now() >= limite) {
+      throw new Error(
+        `temporal : la version ${version} du déploiement ${file} n’est pas courante après ${delaiMs / 1000} s : ${dernier}`
+      );
+    }
+    await new Promise(r => setTimeout(r, PAUSE_ENTRE_LECTURES_MS));
+  }
 }
 
 /** How long `serveurJoignable` waits for the server by default. */

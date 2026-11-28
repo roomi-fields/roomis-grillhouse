@@ -652,6 +652,8 @@ export function chantier(essais: string, pkg: Record<string, unknown> = {}) {
     closeSync(sortie);
     travailleurs.push(p);
     travailleur = p;
+    // The gesture waits for the server to know the version the worker announces.
+    serveurDeLaFile.rendreLaVersionCourante(tache);
     return serveurDeLaFile.env;
   };
   // The queue played as the circuits of its tickets send it their branches: each ticket the

@@ -24,6 +24,7 @@ import {
   proxyActivities,
   setHandler,
   workflowInfo,
+  setWorkflowOptions,
 } from '@temporalio/workflow';
 import {
   DEMANDER,
@@ -120,7 +121,11 @@ export async function nuitsDeLaMachine(entree: EntreeDesNuits = {}): Promise<Vue
   }
 }
 
+setWorkflowOptions({ versioningBehavior: 'AUTO_UPGRADE' }, nuitsDeLaMachine);
+
 /** The workflow the schedule starts: it asks for the scheduled nights, and ends. */
 export async function nuitPlanifiee(): Promise<void> {
   await actes.demanderLesNuitsPlanifiees();
 }
+
+setWorkflowOptions({ versioningBehavior: 'AUTO_UPGRADE' }, nuitPlanifiee);

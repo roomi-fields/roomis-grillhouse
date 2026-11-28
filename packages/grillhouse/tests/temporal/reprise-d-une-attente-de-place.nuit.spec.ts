@@ -35,6 +35,7 @@ import {
   portLibre,
   programmeTemporal,
 } from './essai.js';
+import { demarrerUnTravailleurDeCeProcessus } from './travailleur-d-essai.js';
 
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
 const HISTOIRE = path.join(__dirname, 'histoires/circuit-attente-de-place.json');
@@ -189,7 +190,7 @@ async function lancer(activites: Activites, entree: Partial<EntreeDuCircuit> = {
   );
   arrets.push(() => s.tuer());
   const connexion = await NativeConnection.connect({ address: s.adresse });
-  const travailleur = await Worker.create({
+  const travailleur = await demarrerUnTravailleurDeCeProcessus(s.adresse, {
     connection: connexion,
     taskQueue: FILE,
     workflowsPath: DEROULES,
@@ -197,10 +198,8 @@ async function lancer(activites: Activites, entree: Partial<EntreeDuCircuit> = {
     maxHeartbeatThrottleInterval: '1 second',
     defaultHeartbeatThrottleInterval: '1 second',
   });
-  const fin = travailleur.run();
   arrets.unshift(async () => {
-    travailleur.shutdown();
-    await fin;
+    await travailleur.arreter();
     await connexion.close();
   });
   const c = ouvrirLeClient({ adresse: s.adresse });

@@ -6,7 +6,7 @@
 // issue the circuit receives, carrying those that wait, none of which the run that got the signal
 // judges. The view of the queue says its `version`, that its activity read.
 import path from 'node:path';
-import { NativeConnection, Worker } from '@temporalio/worker';
+import { NativeConnection } from '@temporalio/worker';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ATTRIBUTS_DE_RECHERCHE, ouvrirLeClient } from '../../src/temporal/client.js';
 import { demarrerLeCircuit, finDuCircuit } from '../../src/temporal/circuit/client.js';
@@ -22,6 +22,7 @@ import {
   portLibre,
   programmeTemporal,
 } from './essai.js';
+import { demarrerUnTravailleurDeCeProcessus } from './travailleur-d-essai.js';
 
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
 const RACINE = '/depot/essai';
@@ -137,7 +138,7 @@ async function serveur() {
     await connexion.close();
   });
   const travailleur = async (chemin: string, activites: object) => {
-    const w = await Worker.create({
+    const { arreter } = await demarrerUnTravailleurDeCeProcessus(s.adresse, {
       connection: connexion,
       taskQueue: FILE,
       workflowsPath: chemin,
@@ -145,15 +146,6 @@ async function serveur() {
       maxHeartbeatThrottleInterval: '1 second',
       defaultHeartbeatThrottleInterval: '1 second',
     });
-    const fin = w.run();
-    let arrete = false;
-    const arreter = async () => {
-      if (!arrete) {
-        arrete = true;
-        w.shutdown();
-        await fin;
-      }
-    };
     arrets.unshift(arreter);
     return arreter;
   };

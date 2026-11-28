@@ -10,6 +10,7 @@ import {
   setHandler,
   upsertSearchAttributes,
   workflowInfo,
+  setWorkflowOptions,
 } from '@temporalio/workflow';
 import { ATTRIBUT_ETAPE, ATTRIBUT_TICKET } from '../attributs.js';
 import type * as activites from './activites.js';
@@ -48,3 +49,5 @@ export async function sonde(entree: EntreeDeLaSonde): Promise<ResultatDeLaSonde>
   etape('fini', entree.ticket);
   return { ticket: entree.ticket, activite };
 }
+
+setWorkflowOptions({ versioningBehavior: 'AUTO_UPGRADE' }, sonde);

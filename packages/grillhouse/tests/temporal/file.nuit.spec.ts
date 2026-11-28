@@ -33,6 +33,7 @@ import {
   portLibre,
   programmeTemporal,
 } from './essai.js';
+import { demarrerUnTravailleurDeCeProcessus } from './travailleur-d-essai.js';
 
 const DEROULES = path.join(PAQUET, 'dist/temporal/deroules.js');
 const RACINE = '/depot/essai';
@@ -218,7 +219,7 @@ async function serveur(activites: object) {
   );
   arrets.push(() => s.tuer());
   const connexion = await NativeConnection.connect({ address: s.adresse });
-  const travailleur = await Worker.create({
+  const travailleur = await demarrerUnTravailleurDeCeProcessus(s.adresse, {
     connection: connexion,
     taskQueue: FILE,
     workflowsPath: DEROULES,
@@ -226,12 +227,10 @@ async function serveur(activites: object) {
     maxHeartbeatThrottleInterval: '1 second',
     defaultHeartbeatThrottleInterval: '1 second',
   });
-  const fin = travailleur.run();
   const c = ouvrirLeClient({ adresse: s.adresse });
   arrets.unshift(async () => {
     await c.fermer();
-    travailleur.shutdown();
-    await fin;
+    await travailleur.arreter();
     await connexion.close();
   });
   const demarrer = (ticket: string) =>
