@@ -10,7 +10,8 @@
 // prints the options of claude for that session, one per line (`optionsDuRole`):
 //
 // - `--setting-sources project,local`: the user's own configuration stays out (their hooks, the
-//   skills of their account, their servers, their environment); the project's settings and
+//   skills of their account, their servers, their environment; of their settings, the settings of
+//   the role carry the output style alone, below); the project's settings and
 //   charter, and the frame's plugin it enables (agents, skills, common charter, hooks), stay in.
 //   Claude Code loads the user's charter (`~/.claude/CLAUDE.md`) whatever the sources, so the
 //   settings of the role exclude it by its path (`claudeMdExcludes`), and the envelope does not
@@ -32,7 +33,13 @@
 //   skills of a plugin, and the role's agent preloads its own (`skills` of its definition);
 //   the background tasks off and Code Mode on (`env`, ENV_DES_SEANCES: a role waits in the
 //   foreground for what it launches, and its session ends with its sheet; `claude -p` gets Code
-//   Mode, the REPL, only from this block).
+//   Mode, the REPL, only from this block); no line of attribution of commit or pull request
+//   (`attribution`, both empty, whatever the project and the user choose: a role commits nothing);
+//   the output style the user chooses (`outputStyle` of `<home>/.claude/settings.json`), left out
+//   when they choose none, and when a settings file of the project chooses one (`settings.json`
+//   of the copy, `settings.local.json` of the main tree or of the copy), which the command line
+//   would override. The name of the style alone goes: a style the session cannot resolve (a file
+//   of `~/.claude/output-styles`, a plugin it does not load) does not apply.
 // - `--tools <list>`: the tools its work uses; Edit and Write for a role that writes alone, the
 //   tool search for a role whose index Claude Code defers.
 // - `--strict-mcp-config --mcp-config <json>`: the servers of the index (codegraph, rtfm) for a
@@ -246,8 +253,23 @@ function serveursDeLIndex(racine, home) {
   return out;
 }
 
+// The output style of the session, as the settings to add: the one the user chooses in <home>,
+// none when a settings file of the project that the session reads chooses one (in a copy, Claude
+// Code reads `settings.json` there, and `settings.local.json` at the main tree and there).
+function styleDuPoste({ racine, copie, home }) {
+  const style = (base, f) => lireJson(path.join(base, '.claude', f))?.outputStyle;
+  const duProjet = [
+    style(copie, 'settings.json'),
+    style(racine, 'settings.local.json'),
+    style(copie, 'settings.local.json'),
+  ].some(s => s !== undefined);
+  const duPoste = style(home, 'settings.json');
+  return duPoste && !duProjet ? { outputStyle: duPoste } : {};
+}
+
 // The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where the
-// project's own skills are read) and the main tree <racine>; <home> holds the plugins installed.
+// project's own skills and settings are read) and the main tree <racine>; <home> holds the plugins
+// installed and the settings of the user.
 function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
   const r = ROLES[role];
   if (!r) {
@@ -289,11 +311,13 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
         .map(g => [g, false])
     ),
     env: ENV_DES_SEANCES,
+    attribution: { commit: '', pr: '' },
+    ...styleDuPoste({ racine, copie, home }),
   };
 }
 
 // The options of claude for the session of <role> (the header's list); <home> holds the plugins
-// installed.
+// installed and the settings of the user.
 export function optionsDuRole(role, contexte) {
   const { racine, home = os.homedir() } = contexte;
   const r = ROLES[role];
