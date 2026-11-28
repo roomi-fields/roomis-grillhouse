@@ -5,7 +5,7 @@
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
-export const version = null;
+export const version = '0.52.0';
 export const nom = 'suivi du superviseur retire';
 
 const FICHIER = 'pitmaster/SUIVI.md';
