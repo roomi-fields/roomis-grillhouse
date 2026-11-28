@@ -54,6 +54,7 @@ import * as reservationDeTroisCoeurs from './migrations/0.49.0-reservation-de-tr
 
 import * as reglagesHorsDeLaCharte from './migrations/0.50.0-reglages-hors-de-la-charte.mjs';
 import * as serveursDeLIndex from './migrations/serveurs-de-l-index.mjs';
+import * as suiviDuSuperviseurRetire from './migrations/suivi-du-superviseur-retire.mjs';
 
 /** The migrations of the core. */
 export const MIGRATIONS = [
@@ -80,6 +81,7 @@ export const MIGRATIONS = [
   reservationDeTroisCoeurs,
   reglagesHorsDeLaCharte,
   serveursDeLIndex,
+  suiviDuSuperviseurRetire,
 ];
 
 /**

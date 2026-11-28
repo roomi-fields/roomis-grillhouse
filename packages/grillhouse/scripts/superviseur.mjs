@@ -3,7 +3,7 @@
 // Mechanism: greffon.md, §5.1 and §5.2. Played by the session start (scripts/session-start.sh),
 // which writes what it says to the session.
 //
-//   npx grillhouse superviseur <racine>
+//   npx grillhouse superviseur <racine> [<source>]
 //
 // - Out of a git repository, in an agent's copy (a worktree whose git directory is not the common
 //   one) and in a session of a role that the circuit launches (BEADS_ACTOR set), nothing is taken
@@ -12,11 +12,16 @@
 //   copies, taken through scripts/verrou-de-fichier.mjs for the session's own process: the first
 //   process above this one named `claude`, whatever stands between them; without one, the first
 //   that is not a shell (sh, bash, dash, zsh). It holds as long as that process lives.
-// - Free, or held by a process that is gone: taken, nothing said. Held by the session itself (a
-//   compaction or a /clear): kept, nothing said, circuits included. Held by another live session:
-//   the section « ## Un autre superviseur tient ce dépôt » names its process and since when, and
-//   asks to say so to the owner and to launch no circuit.
-// - The session whose opening takes the lock (`circuitsALOuverture`) receives « ## Les questions
+// - <source> is the one of the SessionStart hook (`startup` without one). Free, or held by a
+//   process that is gone: taken. Held by the session itself: kept, and nothing is said after a
+//   compaction or a resume. After a /clear, the session that holds the lock receives « ## Reprise
+//   de la supervision après un /clear » (load `grillhouse:pitmaster`, take up the note of
+//   resumption, no whole round, put the owner's pending question again at the first turn), then
+//   what a session that takes the lock receives. Held by another live session: the section « ## Un
+//   autre superviseur tient ce dépôt » names its process and since when, and asks to say so to the
+//   owner and to launch no circuit. A declared milestone ends with the context that declared it: it
+//   is removed at every opening of the holder but after a compaction.
+// - The session whose opening takes the lock (`ouvertureDuSuperviseur`) receives « ## Les questions
 //   des circuits », then, when the repository has circuits (read from the Temporal server in one
 //   call, scripts/circuits-du-serveur.mjs), « ## Les circuits du dépôt »: each circuit that runs;
 //   each circuit stopped on a question, with the command that answers it; each circuit ended
@@ -24,9 +29,25 @@
 //   written, else `--depuis <testwriter|developpeur> --contexte <texte>`); a server that does not
 //   answer is said; then « ## La file des tickets », the tickets of the queue without their
 //   section « ## Architecture », which the queue never starts (scripts/file-des-tickets.mjs).
+//   Last, « ## La note de reprise » gives the note of resumption, when one is written.
 // Exit 0, whatever it finds.
 //
-//   npx grillhouse superviseur --relever [<dossier>]
+//   npx grillhouse superviseur --jalon <fichier>
+//   npx grillhouse superviseur --question <fichier>
+//
+// - Played by the session that holds the lock, from the root of the repository. The note of
+//   resumption, one per repository, is `<git common dir>/grillhouse-reprise.md`. `--jalon` replaces
+//   it whole by the text of <fichier> and declares a milestone, which replaces the one before
+//   (`<git common dir>/grillhouse-jalon.json`); `--question` adds the text at its end, creating it,
+//   and declares nothing. Exit 2 and the reason on the error stream, nothing written, on a file
+//   that is absent or empty, a session that does not hold the lock, a session of a role or a copy.
+//
+//   npx grillhouse superviseur --renouveler <dossier> <arretA> <messageA>
+//
+// - Played by the greffon at each period: writes the message of resumption when the renewal is due
+//   (`renouvellement`), nothing otherwise.
+//
+//   npx grillhouse superviseur --relever [<dossier>] [--compaction]
 //
 // - One reading of the circuits for the greffon (mods/grillhouse/hooks/register.tsx), which runs
 //   it at each period and submits what it writes. It reads and writes nothing unless the session
@@ -34,7 +55,10 @@
 //   reads. It writes the message (`texteDesQuestions`) when `relever` gives something, nothing
 //   otherwise; exit 1 and the fault on the error stream when `grillhouse.rappel` of the project is
 //   at fault, or when the reading of another project of the group fails, the message of the others
-//   then written all the same.
+//   then written all the same. The message ends with the request to write the note and declare a
+//   milestone after a compaction (`--compaction`), and once for each night
+//   (`grillhouse.plageDeNuit`) at a reading where no question of a circuit waits for the
+//   supervisor.
 // - `superviseur --lue <dossier> <lueA> <envoyeesAvant>` marks read the questions sent up to
 //   `envoyeesAvant`; `superviseur --chez-le-responsable <dossier> <ticket>` marks a question
 //   carried to the owner: silent until the circuit answers.
@@ -51,9 +75,10 @@
 // - The reading covers the project and each other project of its group (`grillhouse.groupe`) that
 //   no other live session of supervision holds, each under its name and its folder.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { nuitEnCours, plageDeNuit } from './bilan.mjs';
 import { lireEtOuvrirLeDefautDeMain } from './ci-de-main.mjs';
 import { lacherVerrou, prendreVerrou } from './verrou-de-fichier.mjs';
 import { vivant } from './mesure/base-de-passe.mjs';
@@ -67,7 +92,14 @@ import {
 } from './tableau.mjs';
 import { rappelDuProjet, reglageDuRappel } from './circuits-cles.mjs';
 import { lireGroupe } from './groupe-cles.mjs';
-import { etapeDuCircuit, libelle, REPONSES, sansLesReponses, SUPERVISEUR } from './etapes.mjs';
+import {
+  etapeDuCircuit,
+  libelle,
+  REPONSES,
+  RESPONSABLE,
+  sansLesReponses,
+  SUPERVISEUR,
+} from './etapes.mjs';
 import { sigleDuProjet } from './sigle-du-projet.mjs';
 import {
   enFileSansArchitecture,
@@ -78,6 +110,15 @@ import {
 } from './file-des-tickets.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
+// In the common directory of git: the note of resumption of the supervisor, its declared milestone,
+// and the start of the last night whose request was given.
+const NOTE_DE_REPRISE = 'grillhouse-reprise.md';
+const JALON = 'grillhouse-jalon.json';
+const DEMANDE_DE_NUIT = 'grillhouse-demande-de-nuit.json';
+// The message the greffon submits once the /clear of a renewal is done; the note, the questions and
+// the circuits come with the opening.
+const MESSAGE_DE_REPRISE =
+  "Reprends la supervision : ta séance vient de se renouveler au jalon que tu as déclaré. L'ouverture te donne la note de reprise, les questions et les circuits : suis-la.";
 const COQUILLES = new Set(['sh', 'bash', 'dash', 'zsh']);
 // The name of the process of a session of the engine.
 const MOTEUR = 'claude';
@@ -705,41 +746,213 @@ const git = (racine, ...args) =>
     encoding: 'utf8',
   });
 
-/**
- * The check of the supervisor at the opening of a session in <racine>: what it says (empty when
- * nothing), the lock taken when it is free.
- * @param {string} racine the directory the session opens in
- * @param {{ env?: Record<string, string | undefined> }} options
- * @returns {Promise<string>}
- */
-async function superviseur(racine, { env = process.env } = {}) {
+// Where the session of supervision of the directory <dossier> stands: the common directory of git
+// and the lock; `refus` says why <dossier> or the session has none (a role's session, out of git, a
+// copy).
+function depotDuSuperviseur(dossier, env) {
   if (env.BEADS_ACTOR) {
-    return '';
+    return { refus: "la séance d'un rôle ne supervise pas" };
   }
-  const r = git(racine, '--git-dir', '--git-common-dir');
+  const r = git(dossier, '--git-dir', '--git-common-dir');
   if (r.status !== 0) {
-    return '';
+    return { refus: `${dossier} n'est pas dans un dépôt git` };
   }
   const [dossierGit, commun] = r.stdout.trim().split('\n');
   if (path.resolve(dossierGit) !== path.resolve(commun)) {
+    return { refus: 'une copie de ticket ne supervise pas : joue la commande à la racine du dépôt' };
+  }
+  return { commun, verrou: path.join(commun, VERROU_SUPERVISEUR) };
+}
+
+// The process the lock <verrou> names; null when no lock reads.
+function tenantDe(verrou) {
+  try {
+    const pid = Number(/^(\d+)/.exec(readFileSync(verrou, 'utf8'))?.[1]);
+    return Number.isInteger(pid) ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+// `depotDuSuperviseur` for the session that holds the lock alone, its process in `tenant`.
+function laSeanceQuiTient(dossier, env) {
+  const depot = depotDuSuperviseur(dossier, env);
+  if (depot.refus) {
+    return depot;
+  }
+  const tenant = tenantDe(depot.verrou);
+  return tenant !== null && estAuDessus(tenant)
+    ? { ...depot, tenant }
+    : { refus: 'cette séance ne tient pas le verrou du superviseur' };
+}
+
+// Writes <texte> whole into <f>, by a rename.
+function ecrireEntier(f, texte) {
+  const provisoire = `${f}.${process.pid}`;
+  writeFileSync(provisoire, texte);
+  renameSync(provisoire, f);
+}
+
+function lireJson(f) {
+  try {
+    return JSON.parse(readFileSync(f, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function lireTexte(f) {
+  try {
+    return readFileSync(f, 'utf8');
+  } catch {
     return '';
   }
-  const verrou = path.join(commun, VERROU_SUPERVISEUR);
+}
+
+// The gesture of the holder of the lock on the note: <ecrire> is given its session and the text of
+// <fichier>. Code 2 and the reason, nothing written, when the session or the file is refused.
+function surLaNote(dossier, fichier, env, ecrire) {
+  const session = laSeanceQuiTient(dossier, env);
+  if (session.refus) {
+    return { code: 2, raison: session.refus };
+  }
+  let texte;
+  try {
+    texte = readFileSync(fichier, 'utf8');
+  } catch {
+    return { code: 2, raison: `le fichier ${fichier} ne se lit pas` };
+  }
+  if (!texte.trim()) {
+    return { code: 2, raison: `le fichier ${fichier} est vide` };
+  }
+  ecrire(session, texte);
+  return { code: 0, raison: '' };
+}
+
+/**
+ * The session that holds the lock of the supervisor of <dossier> declares a milestone: the text of
+ * <fichier> replaces its note of resumption whole, and the milestone, which holds for the context
+ * that declares it, replaces the one before (`superviseur --jalon`).
+ * @param {string} dossier
+ * @param {string} fichier
+ * @param {{ env?: Record<string, string | undefined> }} [options]
+ * @returns {Promise<{ code: number, raison: string }>} code 2 and its reason, nothing written, on a
+ * refusal
+ */
+export async function declarerLeJalon(dossier, fichier, { env = process.env } = {}) {
+  return surLaNote(dossier, fichier, env, ({ commun, tenant }, texte) => {
+    ecrireEntier(path.join(commun, NOTE_DE_REPRISE), texte);
+    ecrireEntier(path.join(commun, JALON), `${JSON.stringify({ declareA: Date.now(), tenant })}\n`);
+  });
+}
+
+/**
+ * The session that holds the lock adds the text of <fichier> at the end of its note of resumption,
+ * which it creates when there is none; no milestone is declared (`superviseur --question`).
+ * @param {string} dossier
+ * @param {string} fichier
+ * @param {{ env?: Record<string, string | undefined> }} [options]
+ * @returns {Promise<{ code: number, raison: string }>} code 2 and its reason, nothing written, on a
+ * refusal
+ */
+export async function ajouterLaQuestion(dossier, fichier, { env = process.env } = {}) {
+  return surLaNote(dossier, fichier, env, ({ commun }, texte) => {
+    const note = path.join(commun, NOTE_DE_REPRISE);
+    const avant = lireTexte(note);
+    const joint = avant ? `${avant.replace(/\n*$/, '')}\n\n` : '';
+    ecrireEntier(note, `${joint}${texte}`);
+  });
+}
+
+/**
+ * The message of resumption when the renewal of the session of supervision of <dossier> is due,
+ * empty otherwise (`superviseur --renouveler`): the session holds the lock, a milestone it declared
+ * stands, and a quiet Stop (<arretA>, ms, 0 without one) is later than it. A message of the owner
+ * (<messageA>, ms, 0 without one) later than the declaration cancels the milestone. The reading
+ * keeps a milestone that is due: the opening that follows the /clear removes it.
+ * @param {string} dossier
+ * @param {{ arretA: number, messageA: number, env?: Record<string, string | undefined> }} options
+ * @returns {Promise<string>}
+ */
+export async function renouvellement(dossier, { arretA, messageA, env = process.env }) {
+  const session = laSeanceQuiTient(dossier, env);
+  if (session.refus) {
+    return '';
+  }
+  const f = path.join(session.commun, JALON);
+  const jalon = lireJson(f);
+  if (!jalon || jalon.tenant !== session.tenant) {
+    return '';
+  }
+  if (messageA > jalon.declareA) {
+    rmSync(f, { force: true });
+    return '';
+  }
+  return arretA > jalon.declareA ? MESSAGE_DE_REPRISE : '';
+}
+
+// The section the opening gives of the note of resumption <note>; empty when none is written.
+function laNote(note) {
+  const texte = lireTexte(note).trimEnd();
+  return texte
+    ? [
+        '## La note de reprise',
+        `Elle est au fichier \`${note}\` : lis-le en entier si ce texte est coupé.`,
+        '',
+        texte,
+      ].join('\n')
+    : '';
+}
+
+// What the opening that follows a /clear asks, before the circuits and the note.
+const APRES_CLEAR = [
+  '## Reprise de la supervision après un /clear',
+  'Charge la compétence `grillhouse:pitmaster`, puis reprends la note de reprise donnée plus bas ; ne fais aucun tour complet.',
+  'À ton premier tour, quel que soit le message qui l’ouvre, repose au responsable la question que la note tient en attente.',
+].join('\n');
+
+/**
+ * The check of the supervisor at the opening of a session in <dossier> (greffon.md, §5.2): what it
+ * says (empty when nothing), the lock taken when it is free. <source> is the one of the
+ * SessionStart hook. The session that takes the lock, and the holder after a /clear, receive the
+ * circuits and the note of resumption; every opening of the holder but after a compaction removes
+ * the declared milestone.
+ * @param {string} dossier the directory the session opens in
+ * @param {{ source?: string, env?: Record<string, string | undefined>, circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
+ * @returns {Promise<string>}
+ */
+export async function ouvertureDuSuperviseur(
+  dossier,
+  { source = 'startup', env = process.env, circuitsDe = circuitsDuServeur } = {}
+) {
+  const depot = depotDuSuperviseur(dossier, env);
+  if (depot.refus) {
+    return '';
+  }
+  const { commun, verrou } = depot;
   const moi = seance();
-  const tenant = () => {
-    try {
-      return Number(/^(\d+)/.exec(readFileSync(verrou, 'utf8'))?.[1]);
-    } catch {
-      return null;
-    }
-  };
-  if (tenant() === moi) {
+  const tenait = tenantDe(verrou) === moi;
+  if (!tenait && !prendreVerrou(verrou, { attendre: false, pid: moi })) {
+    return unAutreSuperviseur(verrou, moi);
+  }
+  if (source !== 'compact') {
+    rmSync(path.join(commun, JALON), { force: true });
+  }
+  if (tenait && source !== 'clear') {
     return '';
   }
-  if (prendreVerrou(verrou, { attendre: false, pid: moi })) {
-    return circuitsALOuverture(path.dirname(commun));
-  }
-  const autre = tenant();
+  return [
+    source === 'clear' ? APRES_CLEAR : '',
+    await circuitsALOuverture(path.dirname(commun), { circuitsDe }),
+    laNote(path.join(commun, NOTE_DE_REPRISE)),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+// The section a session receives when another live one holds the lock <verrou>; empty when none does.
+function unAutreSuperviseur(verrou, moi) {
+  const autre = tenantDe(verrou);
   if (!autre || autre === moi || !vivant(autre)) {
     return '';
   }
@@ -755,6 +968,32 @@ async function superviseur(racine, { env = process.env } = {}) {
   ].join('\n');
 }
 
+// Whether a question of the circuits <circuits> of the repository at <racine> waits for the
+// supervisor, read or not: neither addressed to the owner, nor carried to him, nor deferred to a
+// later time, its ticket open. null when the tickets do not read.
+function uneQuestionAttend(racine, circuits) {
+  const chez = new Set(
+    lireLesRemontees(racine, Date.now())
+      .filter(r => r.chez !== undefined)
+      .map(r => r.cle)
+  );
+  const debout = circuits.filter(
+    c => attendLeSuperviseur(c) && c.qui !== RESPONSABLE && !chez.has(cleDe(c))
+  );
+  if (!debout.length) {
+    return false;
+  }
+  const hors = ticketsHorsAttente(
+    racine,
+    debout.map(c => c.ticket)
+  );
+  return hors === null ? null : debout.some(c => !hors.has(c.ticket));
+}
+
+// The request the reading submits to the session, for the reason <raison>.
+const demandeDuJalon = raison =>
+  `Jalon · ${raison} : écris ta note de reprise et déclare le jalon (compétence \`grillhouse:pitmaster\`), par \`npx grillhouse superviseur --jalon <fichier>\`.`;
+
 /**
  * One reading for the greffon of the session of supervision of the repository at <racine>
  * (`npx grillhouse superviseur --relever`): the message of what `relever` gives (the questions of
@@ -767,53 +1006,61 @@ async function superviseur(racine, { env = process.env } = {}) {
  * the name and the folder of that project, where its answers are played, with that project's own
  * interval and state. A fault in the reading of one of these projects costs the others nothing: it
  * is thrown once all are read, each project at fault named with its reason, the message of the
- * others in the `texte` of the error.
+ * others in the `texte` of the error. Last comes the request to write the note of resumption and
+ * declare a milestone: after a compaction (<compaction>), and once for each night of the project
+ * (`grillhouse.plageDeNuit`) at a reading where every project read says that no question waits for
+ * the supervisor.
  * @param {string} racine
- * @param {{ env?: Record<string, string | undefined>, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
+ * @param {{ env?: Record<string, string | undefined>, compaction?: boolean, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
  * @returns {Promise<string>}
  * @throws {Error} `grillhouse.rappel` of the project of the session is at fault, named with its
  * value; or the reading of another project of the group failed (its `texte`: the others' message)
  */
 export async function releverPourLeGreffon(
   racine,
-  { env = process.env, circuitsDe = circuitsDuServeur } = {}
+  { env = process.env, circuitsDe = circuitsDuServeur, compaction = false } = {}
 ) {
-  if (env.BEADS_ACTOR) {
+  const depot = depotDuSuperviseur(racine, env);
+  if (depot.refus) {
     return '';
   }
-  const r = git(racine, '--git-dir', '--git-common-dir');
-  if (r.status !== 0) {
-    return '';
-  }
-  const [dossierGit, commun] = r.stdout.trim().split('\n');
-  if (path.resolve(dossierGit) !== path.resolve(commun)) {
-    return '';
-  }
-  const verrou = path.join(commun, VERROU_SUPERVISEUR);
-  let tenant = null;
-  try {
-    tenant = Number(/^(\d+)/.exec(readFileSync(verrou, 'utf8'))?.[1]);
-  } catch {
+  const { commun, verrou } = depot;
+  let tenant = tenantDe(verrou);
+  if (tenant === null) {
     return '';
   }
   // A lock whose process is gone is taken over, as the opening does: the session that reads holds it.
-  if (Number.isInteger(tenant) && !estAuDessus(tenant) && !vivant(tenant)) {
+  if (!estAuDessus(tenant) && !vivant(tenant)) {
     const moi = seance();
     tenant = prendreVerrou(verrou, { attendre: false, pid: moi }) ? moi : null;
   }
-  if (!Number.isInteger(tenant) || !estAuDessus(tenant)) {
+  if (tenant === null || !estAuDessus(tenant)) {
     return '';
   }
-  const parts = [await leReleveDe(racine, circuitsDe)];
+  const demandeNocturne = path.join(commun, DEMANDE_DE_NUIT);
+  const nuit = nuitEnCours(Date.now(), plageDeNuit(racine));
+  const aDemander = nuit !== null && lireJson(demandeNocturne)?.nuit !== nuit;
+  const apresCompaction = compaction ? demandeDuJalon('une compaction a eu lieu') : '';
+  const parts = [];
+  try {
+    parts.push(await leReleveDe(racine, circuitsDe, { nocturne: aDemander }));
+  } catch (e) {
+    throw Object.assign(e, { texte: apresCompaction });
+  }
   const fautes = [];
   for (const p of voisinsSansSuperviseur(racine)) {
     try {
-      parts.push(await leReleveDe(p.chemin, circuitsDe, true));
+      parts.push(await leReleveDe(p.chemin, circuitsDe, { voisin: true, nocturne: aDemander }));
     } catch (e) {
       fautes.push(`${path.basename(p.chemin)} : ${e.message}`);
     }
   }
-  const texte = parts.filter(Boolean).join('\n\n');
+  let demande = apresCompaction;
+  if (aDemander && !fautes.length && parts.every(p => p.attend === false)) {
+    ecrireEntier(demandeNocturne, `${JSON.stringify({ nuit })}\n`);
+    demande ||= demandeDuJalon('la nuit a commencé');
+  }
+  const texte = [...parts.map(p => p.texte), demande].filter(Boolean).join('\n\n');
   if (fautes.length) {
     throw Object.assign(new Error(fautes.join('\n')), { texte });
   }
@@ -829,11 +1076,13 @@ function paquetDe(racine) {
   }
 }
 
-// The message of one reading of the project at <racine>, under its own interval
-// (`grillhouse.rappel`) and its own state of the questions presented; empty when it gives nothing
-// or when its circuits do not read. A faulty interval throws, the project of the session named
-// (a neighbour is named by the caller, as for any fault of its reading).
-async function leReleveDe(racine, circuitsDe, voisin = false) {
+// One reading of the project at <racine>, under its own interval (`grillhouse.rappel`) and its own
+// state of the questions presented: `texte`, its message, empty when it gives nothing or when its
+// circuits do not read; `attend`, read for the request of the night (<o.nocturne>), whether a
+// question waits for the supervisor (`uneQuestionAttend`), null when unknown. A faulty interval
+// throws, the project of the session named (a neighbour is named by the caller, as for any fault of
+// its reading).
+async function leReleveDe(racine, circuitsDe, { voisin = false, nocturne = false } = {}) {
   const { minutes, faute } = reglageDuRappel(paquetDe(racine));
   if (faute) {
     throw new Error(voisin ? faute : `${path.basename(racine)} : ${faute}`);
@@ -842,7 +1091,7 @@ async function leReleveDe(racine, circuitsDe, voisin = false) {
   try {
     circuits = await circuitsDe(racine, { integres: true });
   } catch {
-    return '';
+    return { texte: '', attend: null };
   }
   const lot = relever(racine, circuits, {
     fermes: ticketsHorsAttente,
@@ -854,7 +1103,10 @@ async function leReleveDe(racine, circuitsDe, voisin = false) {
   const projet = voisin
     ? { sigle: sigleDuProjet(racine).sigle ?? path.basename(racine), dossier: racine }
     : {};
-  return lot.length ? texteDesQuestions(lot, projet) : '';
+  return {
+    texte: lot.length ? texteDesQuestions(lot, projet) : '',
+    attend: nocturne ? uneQuestionAttend(racine, circuits) : null,
+  };
 }
 
 // The other projects of the group of the project at <racine> (`grillhouse.groupe`) that no other
@@ -889,9 +1141,33 @@ function racineDe(dossier) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  if (process.argv[2] === '--relever') {
+  if (process.argv[2] === '--jalon' || process.argv[2] === '--question') {
+    // superviseur --jalon|--question <fichier> : played from the root of the repository.
+    const geste = process.argv[2] === '--jalon' ? declarerLeJalon : ajouterLaQuestion;
+    const { code, raison } = process.argv[3]
+      ? await geste(process.cwd(), process.argv[3])
+      : { code: 2, raison: 'le fichier manque' };
+    if (raison) {
+      process.stderr.write(`${process.argv[2]} : ${raison}.\n`);
+    }
+    process.exitCode = code;
+  } else if (process.argv[2] === '--renouveler') {
+    // superviseur --renouveler <dossier> <arretA> <messageA> (the greffon, at each period).
+    const [, , , dossier, arretA, messageA] = process.argv;
+    const texte = await renouvellement(dossier ?? process.cwd(), {
+      arretA: Number(arretA),
+      messageA: Number(messageA),
+    });
+    if (texte) {
+      process.stdout.write(`${texte}\n`);
+    }
+  } else if (process.argv[2] === '--relever') {
+    const args = process.argv.slice(3);
+    const dossier = args.find(a => a !== '--compaction') ?? process.cwd();
     try {
-      const texte = await releverPourLeGreffon(racineDe(process.argv[3] ?? process.cwd()));
+      const texte = await releverPourLeGreffon(racineDe(dossier), {
+        compaction: args.includes('--compaction'),
+      });
       if (texte) {
         process.stdout.write(`${texte}\n`);
       }
@@ -936,7 +1212,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       }
     }
   } else {
-    const texte = await superviseur(process.argv[2] ?? process.cwd());
+    const texte = await ouvertureDuSuperviseur(process.argv[2] ?? process.cwd(), {
+      source: process.argv[3] || undefined,
+    });
     if (texte) {
       process.stdout.write(`${texte}\n`);
     }

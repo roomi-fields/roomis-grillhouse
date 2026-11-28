@@ -19,6 +19,7 @@ import type { Etat, Fiche, Ligne, Tableau } from '../types'
 // the frame's command measures their board as one (`grillhouse tableau <dossier>…`), which the
 // pane draws as it draws one project's. `/grillhouse newday` sets the day's marker to now
 // (`grillhouse newday`): FAITS AUJOURD'HUI and the « rejetés »/« validés » cases restart from zero.
+// The session of supervision renews itself at a milestone it declared (`renouveler`).
 const PANE = 'grillhouse'
 // The frame's command, which the project's `npm install` links, and its package.
 const GRILLHOUSE = 'node_modules/.bin/grillhouse'
@@ -497,6 +498,13 @@ let relevee = false
 const tours = new Set<string>()
 // The messages submitted and not yet read: their text, and the time they were put in the queue.
 const soumis: { texte: string; envoyeA: number }[] = []
+// What the renewal reads of the session: the time of its last Stop with no task in flight and of
+// the last message of the owner (0 without one), and whether a compaction of the main conversation
+// is still to tell.
+let arretA = 0
+let messageA = 0
+let compaction = false
+const DU_RESPONSABLE = new Set(['composer', 'bridge'])
 
 // A turn started at <lueA> with <texte>: the questions of each message it contains are read, those
 // sent up to the latest such message. A text that holds no submitted message marks nothing.
@@ -519,13 +527,30 @@ export async function pousserLesQuestions($: EngineInterface): Promise<void> {
   if (!eligible || relevee || tours.size) return
   relevee = true
   try {
-    const r = await $.process.run([GRILLHOUSE, 'superviseur', '--relever', cwd], { cwd, timeoutMs: 60_000 })
+    await relever($)
+    await renouveler($)
+  } finally {
+    relevee = false
+  }
+}
+
+// One reading of the questions: its message submitted to the session. A compaction not yet told
+// goes with it, and stays to tell when the reading gave nothing for a fault.
+async function relever($: EngineInterface): Promise<void> {
+  const apresCompaction = compaction
+  compaction = false
+  try {
+    const r = await $.process.run(
+      [GRILLHOUSE, 'superviseur', '--relever', cwd, ...(apresCompaction ? ['--compaction'] : [])],
+      { cwd, timeoutMs: 60_000 },
+    )
     // A reading at fault can still give a message: that of the projects of the group it read.
     if (r.exitCode !== 0) {
       const faute = (r.stderr || '').trim().slice(0, 300)
       if (faute) await update($, etat, s => ({ ...s, erreur: faute }))
     }
     const texte = (r.stdout || '').trim()
+    if (apresCompaction && r.exitCode !== 0 && !texte) compaction = true
     if (texte) {
       // The questions of this message are sent: kept with the time they were put in it, until a
       // turn starts with its text (`marquerLesLues`).
@@ -535,9 +560,49 @@ export async function pousserLesQuestions($: EngineInterface): Promise<void> {
     }
   } catch {
     // a reading that fails is taken again at the next period
-  } finally {
-    relevee = false
+    if (apresCompaction) compaction = true
   }
+}
+
+// The renewal of the session of supervision (greffon.md, §5.1), as a worker is recycled between
+// two requests. The frame's command judges (`grillhouse superviseur --renouveler`): it is told the
+// time of the last Stop of the session that left no task in flight (`arretA`) and of the last
+// message of the owner (`messageA`), and gives the message of resumption when the milestone is due.
+// The mod then runs /clear and submits it, unless a turn runs, a draft stands in the prompt box, a
+// message of questions is not read, or a Stop or a message of the owner came since the command was
+// asked. A /clear refused is tried again at a later period.
+async function renouveler($: EngineInterface): Promise<void> {
+  if (tours.size) return
+  const dits = { arretA, messageA }
+  try {
+    const r = await $.process.run(
+      [GRILLHOUSE, 'superviseur', '--renouveler', cwd, String(dits.arretA), String(dits.messageA)],
+      { cwd, timeoutMs: 60_000 },
+    )
+    const reprise = (r.stdout || '').trim()
+    if (r.exitCode !== 0 || !reprise) return
+    if ((await $.prompt.read()).text !== '') return
+    if (tours.size || soumis.length || arretA !== dits.arretA || messageA !== dits.messageA) return
+    await $.command.run({ command: 'clear' })
+    arretA = 0
+    void $.prompt.submit({ text: reprise })
+  } catch {
+    // a renewal refused is tried again at the next period
+  }
+}
+
+// The /clear of the session ends its context: what the mod holds of it starts over, and the pane
+// takes its projects again from the store, the state having been emptied.
+async function reprendreApresClear($: EngineInterface): Promise<void> {
+  arretA = 0
+  messageA = 0
+  compaction = false
+  tours.clear()
+  soumis.length = 0
+  if (!eligible) return
+  const projets = await lireLaListe($)
+  await update($, etat, s => ({ ...s, projets }))
+  void demarrer($)
 }
 
 // The board applies to a Grillhouse project outside an agent's copy (`eligible`), once someone can
@@ -593,6 +658,29 @@ export const register: Register = on => {
   on('turn.complete', (_$, e, next) => {
     tours.delete(e.turnId)
     return next(e)
+  })
+
+  on('classic.Stop', (_$, e, next) => {
+    arretA = e.background_tasks?.length === 0 ? Date.now() : 0
+    return next(e)
+  })
+
+  on('prompt.submit', (_$, e, next) => {
+    if (DU_RESPONSABLE.has(e.origin?.kind ?? '')) messageA = Date.now()
+    return next(e)
+  })
+
+  // A compaction installed in the main conversation: neither a subagent's, nor one computed ahead.
+  on('session.compact', async (_$, e, next) => {
+    const r = await next(e)
+    if (!e.agentId && e.trigger !== 'precompute' && !('skip' in r)) compaction = true
+    return r
+  })
+
+  on('classic.SessionStart', async ($, e, next) => {
+    const r = await next(e)
+    if (e.source === 'clear') await reprendreApresClear($)
+    return r
   })
 
   // The command answers at once; the board comes from the follower's lines.

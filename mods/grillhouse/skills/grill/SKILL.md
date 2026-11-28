@@ -195,7 +195,8 @@ ensuite. Ainsi les documents écrivent des décisions prises.
   s'ouvrent sous l'étiquette `a-valider`, chacun avec les règles et les documents qu'il touche,
   et chaque réalisation avec ses critères d'acceptation numérotés (`docs/agents/issue-tracker.md`).
   Ainsi le premier chantier part avec l'accord du responsable.
-- `pitmaster/SUIVI.md` : le premier tour, les questions restées ouvertes.
+- Les questions restées ouvertes, chacune dans un ticket : la note de reprise du superviseur
+  (compétence `pitmaster`) commence à son premier jalon.
 - Un commit `docs: initialiser le projet` qui ne contient que ces éléments.
 
 À la fin, l'ouverture de séance ne signale plus rien : la séance suivante charge `pitmaster`.

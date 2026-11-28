@@ -141,6 +141,14 @@ _À éviter_ : mise à jour, upgrade, migration
 Un arrêt du circuit qui attend le superviseur.
 _À éviter_ : blocage, demande
 
+**Note de reprise** :
+Ce que la séance du superviseur transmet à la suivante, une par dépôt.
+_À éviter_ : suivi, passation
+
+**Jalon** :
+Le moment que la séance du superviseur déclare propre à son renouvellement.
+_À éviter_ : point d'étape, checkpoint
+
 **Remontée** :
 Un défaut qu'un projet du cadre signale au cadre.
 _À éviter_ : retour, feedback

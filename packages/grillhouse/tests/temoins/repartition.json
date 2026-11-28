@@ -128,6 +128,7 @@
     "scripts/migrations/0.49.0-reservation-de-trois-coeurs.mjs",
     "scripts/migrations/0.50.0-reglages-hors-de-la-charte.mjs",
     "scripts/migrations/serveurs-de-l-index.mjs",
+    "scripts/migrations/suivi-du-superviseur-retire.mjs",
     "scripts/fermeture-de-la-machine.mjs",
     "scripts/fermeture-de-la-machine.d.mts",
     "scripts/machine.mjs",

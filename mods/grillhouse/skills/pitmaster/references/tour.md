@@ -14,9 +14,10 @@ contrôle du travail réel, jamais à vide.
 
 ## 0. Le point de départ
 
-Lis `pitmaster/SUIVI.md` : le dernier tour, les agents lancés, ce qui est « à vérifier ». **Un tour
-commence par ce qui était « à vérifier »** au tour précédent, et le vérifie. Ainsi aucun point
-ouvert ne se perd entre deux tours.
+Reprends la note de reprise que l'ouverture donne (SKILL.md, « La note de reprise ») : le dernier
+tour, les agents lancés, ce qui est « à vérifier ». **Un tour commence par ce qui était « à
+vérifier »** au tour précédent, et le vérifie. Ainsi aucun point ouvert ne se perd entre deux
+tours.
 
 ## 1. Le périmètre
 
@@ -118,9 +119,9 @@ agents voient ce que le cadre attend.
   identifiant : il garde son contexte. Un nouvel appel `Agent` part de zéro. Un message arrivé
   pendant que l'agent rédige sa fin lui revient avant sa pause : le crochet d'arrêt du greffon le
   lui remet, sans geste du superviseur (le document du greffon, §3.2).
-- **J'inscris chaque lancement dans `SUIVI.md`** : le ticket, l'agent, les fichiers qu'il
+- **J'inscris chaque lancement dans la note de reprise** : le ticket, l'agent, les fichiers qu'il
   touchera. Ainsi deux agents ne touchent jamais le même fichier.
 
 ## 8. Avant de rendre la main
 
-- `SUIVI.md` à jour : points R/S ouverts ou fermés, ce qui est « à vérifier ».
+- La note de reprise à jour : les questions ouvertes, ce qui est « à vérifier ».

@@ -138,7 +138,6 @@ roomis-grillhouse/
 │   ├── package.json               # the example's package manifest, its npm scripts calling `grillhouse <sous-commande>`
 │   ├── tsconfig.json (the typing of its sources and its tests, npm run typecheck), tsconfig.build.json (its build, src/ into dist/), vitest.config.ts, ecosystem.config.cjs, .env.example, .npmignore
 │   ├── README.md, CHANGELOG.md, CONTRIBUTING.md, CREDITS.md
-│   ├── pitmaster/SUIVI.md         # its supervisor's follow-up, empty
 │   ├── deployment/                 # Deployment resources (services only)
 │   │   ├── README.md                  # Deployment overview
 │   │   ├── docs/                      # Detailed guides
@@ -170,7 +169,6 @@ roomis-grillhouse/
 ├── templates/c/, templates/python/   # The template of a project of C, of Python: its package.json
 ├── templates/paquet/                 # The documents of a new package (CADRE.md, INTERFACE.md), which `grillhouse paquet` places
 ├── templates/turbo/                  # The templates of a project's turbo.json, one per form (sans-paquets.json, paquets.json)
-├── pitmaster/SUIVI.md          # Grillhouse's pitmaster follow-up (open questions, last round; not copied to projects)
 │
 ├── mods/grillhouse/                  # The frame's plugin, grillhouse (grillhouse@roomi-fields), which the package carries at its root; a project holds no copy of it (docs/architecture/greffon.md)
 │   ├── .claude-plugin/plugin.json    # the plugin's manifest; the package's version is written in it when packed

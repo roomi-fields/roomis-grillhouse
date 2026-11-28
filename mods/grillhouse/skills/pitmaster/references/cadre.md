@@ -101,7 +101,7 @@ Le flux est celui de la charte, et toutes ses compétences s'appliquent. Ce que 
   motif d'arrêt, par exemple un état propre, c'est le responsable qui le juge. Ainsi l'arrêt du
   travail reste sa décision.
 - **Une attente ne bloque pas la file** : un ticket qui attend le responsable laisse partir le
-  suivant ; sa question s'inscrit dans le ticket et dans `pitmaster/SUIVI.md`. Ainsi une décision
+  suivant ; sa question s'inscrit dans le ticket et dans la note de reprise. Ainsi une décision
   en attente ne retient pas le travail qui n'en dépend pas.
 
 ## 7. Ce qui monte vers le responsable

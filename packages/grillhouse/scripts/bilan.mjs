@@ -148,23 +148,42 @@ export function plageDeNuit(racine) {
     : NUIT;
 }
 
-// The parts of the interval [d, f] in the night <nuit>, each night from its start hour of a day to
-// its end hour, of the next day when it crosses midnight, in local time.
+// The bounds [start, end] (ms) of the night <nuit> that starts the day of <jour>: from its start
+// hour of that day to its end hour, of the next day when it crosses midnight, in local time.
+function laNuitDu(jour, nuit) {
+  const a = new Date(jour);
+  a.setHours(nuit.debut, 0, 0, 0);
+  const b = new Date(a);
+  if (nuit.fin < nuit.debut) {
+    b.setDate(b.getDate() + 1);
+  }
+  b.setHours(nuit.fin, 0, 0, 0);
+  return [a.getTime(), b.getTime()];
+}
+
+// The start (ms) of the night <nuit> that runs at <maintenant>; null by day.
+export function nuitEnCours(maintenant, nuit) {
+  const veille = new Date(maintenant);
+  veille.setDate(veille.getDate() - 1);
+  for (const jour of [veille, maintenant]) {
+    const [a, b] = laNuitDu(jour, nuit);
+    if (a <= maintenant && maintenant < b) {
+      return a;
+    }
+  }
+  return null;
+}
+
+// The parts of the interval [d, f] in the nights <nuit>.
 function nuits([d, f], nuit) {
   const out = [];
   const jour = new Date(d);
   jour.setHours(0, 0, 0, 0);
   jour.setDate(jour.getDate() - 1);
   while (jour.getTime() < f) {
-    const a = new Date(jour);
-    a.setHours(nuit.debut);
-    const b = new Date(jour);
-    if (nuit.fin < nuit.debut) {
-      b.setDate(b.getDate() + 1);
-    }
-    b.setHours(nuit.fin);
-    const x = Math.max(a.getTime(), d);
-    const y = Math.min(b.getTime(), f);
+    const [a, b] = laNuitDu(jour, nuit);
+    const x = Math.max(a, d);
+    const y = Math.min(b, f);
     if (y > x) {
       out.push([x, y]);
     }

@@ -31,10 +31,11 @@
 #   leads to no project of the frame, and each other fault of the key, in one line that names the
 #   key and the path. An agent's copy does not read it.
 #
-# The supervisor (scripts/superviseur.mjs): the session takes the lock of its repository; when its
-# opening takes it (not when it keeps it) it receives « Les questions des circuits » then « Les
-# circuits du dépôt »; a second session while the first lives receives first « Un autre
-# superviseur tient ce dépôt ». An agent's copy takes nothing and receives nothing.
+# The supervisor (scripts/superviseur.mjs, given the `source` of the hook's input): the session
+# takes the lock of its repository; when its opening takes it, and after a /clear of the session
+# that holds it, it receives « Les questions des circuits », « Les circuits du dépôt » and the note
+# of resumption; a second session while the first lives receives first « Un autre superviseur tient
+# ce dépôt ». An agent's copy takes nothing and receives nothing.
 #
 # A session of a role of the frame (`claude --agent <rôle>`: the hook's input names it,
 # `agent_type`, bare or `grillhouse:<rôle>`, and the plugin defines it,
@@ -47,11 +48,12 @@ root="${CLAUDE_PROJECT_DIR:-$PWD}"
 ici="$(cd "$(dirname "$0")" && pwd)"
 entree=
 [ -t 0 ] || entree="$(cat)"
-role="$(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const a=JSON.parse(s).agent_type;if(typeof a==="string"&&/^[A-Za-z0-9_:-]+$/.test(a))process.stdout.write(a)}catch{}})' 2>/dev/null)"
+role= origine=
+{ read -r role; read -r origine; } < <(printf '%s' "$entree" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{let e={};try{e=JSON.parse(s)}catch{}for(const v of [e?.agent_type,e?.source])console.log(typeof v==="string"&&/^[A-Za-z0-9_:-]+$/.test(v)?v:"")})' 2>/dev/null)
 role="${role#grillhouse:}"
 [ -n "$role" ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "$CLAUDE_PLUGIN_ROOT/agents/$role.md" ] && exit 0
 # One supervisor per project: the lock of the repository, or the section that says who holds it.
-superviseur="$(node "$ici/superviseur.mjs" "$root" 2>/dev/null)"
+superviseur="$(node "$ici/superviseur.mjs" "$root" "$origine" 2>/dev/null)"
 [ -z "$superviseur" ] || echo "$superviseur"
 # The published version that leads the repository (grillhouse.outil), when it cannot be installed:
 # the orchestration runs on the code of the repository, which the session is told

@@ -33,8 +33,8 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
   séance de rôle : avant de répondre à un circuit par `--contexte`, et pour une question sur ce
   qu'un agent reçoit.
 - `docs/agents/issue-tracker.md` — le format des tickets : avant d'en ouvrir un.
-- `pitmaster/SUIVI.md` — le dernier tour, les agents lancés, les questions en attente : au
-  lancement de la séance.
+- La note de reprise (plus bas, « La note de reprise »), que l'ouverture de séance me donne : au
+  lancement, et après un renouvellement.
 
 ## Au lancement de la séance
 
@@ -52,9 +52,40 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
 2. Si l'ouverture de séance liste des éléments « pas encore renseignés », je propose d'abord au
    responsable de les griller (compétence `grill`), chacun avec ma recommandation. Ainsi chaque
    séance part d'une charte et d'un cadre écrits : sans eux, il n'y a rien à superviser.
-3. Lis `pitmaster/SUIVI.md`.
+3. Je reprends la note de reprise que l'ouverture donne.
 4. Fais un tour complet (`references/tour.md`), puis rends au responsable le point de départ en
    quelques lignes : les tickets prêts, les bloqués, les questions qui l'attendent.
+
+**Après un renouvellement** (l'ouverture dit « Reprise de la supervision après un /clear ») : je
+reprends la note, sans tour complet, et à mon premier tour, quel que soit le message qui l'ouvre,
+je repose au responsable la question que la note tient en attente. Ainsi le renouvellement ne coûte
+ni un tour ni une question.
+
+## La note de reprise
+
+La note de reprise est ce que ma séance transmet à la suivante : le dernier tour, les agents lancés
+et les fichiers qu'ils touchent, ce qui est « à vérifier », les gestes promis, le prochain geste et
+chaque question au responsable hors circuit. Il y en a une par dépôt, hors des commits ;
+l'ouverture de séance me la donne (le document du greffon, §5.2). Une question d'un circuit reste à
+l'état de son circuit : la note ne la recopie pas.
+
+- **Je déclare un jalon** par `npx grillhouse superviseur --jalon <fichier>` : le texte du fichier
+  remplace la note entière, et ma séance se renouvelle (`/clear`) une fois mon tour fini, sans
+  tâche en cours ; un message du responsable annule le jalon. Ainsi la séance repart d'un contexte
+  neuf sans relance à la main.
+- **Les trois jalons** : une sortie annoncée (la version publiée et dite au responsable, le jalon
+  déclaré à la fin du tour de l'annonce) ; une compaction, après laquelle le greffon me demande la
+  note et le jalon ; la fin de journée sans circuit qui m'attende, que le greffon me demande une
+  fois par nuit. Ainsi le renouvellement tombe entre deux travaux.
+- **Je réécris la note depuis la note courante**, chaque question au responsable encore ouverte
+  recopiée : une question n'en sort que tranchée, sa réponse à son ticket. Ainsi aucune question ne
+  se perd d'un jalon à l'autre.
+- **Un tour postérieur à la déclaration qui change ce que la note dit** la réécrit et redéclare le
+  jalon. Ainsi la séance suivante lit l'état présent.
+- **Hors jalon, une question qui naît** s'ajoute à la note par
+  `npx grillhouse superviseur --question <fichier>`, écrite comme elle se pose au responsable :
+  contexte, exemple, règle, référence mature, existant, exigence du domaine, recommandation,
+  question. Ainsi elle survit à une relance.
 
 ## Je tiens les tickets, les agents tiennent le dépôt
 
@@ -86,8 +117,8 @@ son document de mécanisme, que je cite par sa section quand j'ai besoin du dét
   je prends de moi-même (charte, métacadre, compétences, agents) passe à un développeur seul, puis au relecteur et à
   l'intégration. Ainsi chaque changement du cadre est relu par un autre que son auteur, et un test
   écrit d'avance garde seulement ce qui s'exécute.
-- **Mes fichiers** : `pitmaster/SUIVI.md` et ma mémoire. Je les commite seuls, dans un commit qui
-  ne contient qu'eux.
+- **Mes écrits** : la note de reprise, par sa commande, et ma mémoire, qui ne garde que des faits
+  durables. Ainsi la reprise a une seule adresse.
 - **Le ménage de la séance** : je retire les copies de travail et les sondes que les agents
   laissent, chacune par son chemin nommé et lu, une copie par
   `npx grillhouse retirer-copie <copie>`, qui retire avec elle le dossier de travail de son
@@ -388,7 +419,7 @@ Ainsi le responsable n'attend jamais une commande, et aucun travail ne se perd.
   le domaine (charte, « Comment on arbitre ») et ma recommandation. Ainsi il arbitre sur pièces,
   sans refaire l'enquête.
 - **Une question par message** : je pose au responsable une seule question par message ; les
-  autres attendent au suivi (`pitmaster/SUIVI.md`). Ainsi il tranche chaque question avec toute
+  autres attendent dans la note de reprise. Ainsi il tranche chaque question avec toute
   son attention.
 
 ## Les tickets restent dans le plan
@@ -442,7 +473,6 @@ ticket garde l'histoire de la décision.
   nommé par son nom. Ainsi le responsable lit vite et sans ambiguïté.
 - **Ses mots, mot pour mot** : les réponses du responsable vont mot pour mot dans le ticket
   qu'elles tranchent. Ainsi sa décision reste la sienne, sans reformulation.
-- **Le suivi des questions** : `pitmaster/SUIVI.md` tient chaque question en attente, écrite comme
-  elle se pose au responsable : contexte, exemple, règle, référence mature, existant, exigence du
-  domaine, recommandation, question. Elle s'y écrit dès qu'elle naît ; tranchée, elle en sort et sa
-  réponse va dans son ticket. Ainsi aucune question ne se perd entre deux séances.
+- **Les questions en attente** : la note de reprise tient chaque question au responsable hors
+  circuit, dès qu'elle naît (« La note de reprise ») ; tranchée, elle en sort et sa réponse va dans
+  son ticket. Ainsi aucune question ne se perd entre deux séances.

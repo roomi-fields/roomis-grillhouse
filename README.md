@@ -67,7 +67,7 @@ Three layers, each with one job:
 │ docs/INTERFACE.md            what crosses each boundary, and its guard
 │ CONTEXT.md                   the domain lexicon
 │ docs/agents/issue-tracker.md ticket conventions
-│ pitmaster/SUIVI.md           the supervisor's follow-up: open questions, last round
+│ .git/grillhouse-reprise.md   the supervisor's note of resumption, never committed
 ├─ Code tooling
 │ packages/grillhouse/         the frame's command, `grillhouse <sous-commande>`,
 │                              its scripts and its tests (an npm package)
