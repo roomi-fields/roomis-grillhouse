@@ -210,13 +210,13 @@ repli() {
     return
   fi
   local lignes rejouer= rouges_pc2= attend= mesures_du_flux=
-  lignes="$(printf '%s' "$decision" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s);const l=k=>(d[k]??[]).join(" ");process.stdout.write(["pc2","pc3","rouges","enAttente","enCours","mesures"].map(k=>k+"\t"+l(k)).join("\n")+"\n")})')"
+  lignes="$(printf '%s' "$decision" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s);const l=k=>(d[k]??[]).join(" ");process.stdout.write([...["pc2","pc3","rouges","enAttente","enCours"].map(k=>k+"\t"+l(k)),"mesures\t"+d.mesures].join("\n")+"\n")})')"
   while IFS= read -r ligne; do
     case "$ligne" in
       pc2$'\t'*) echo "relevé de la nuit : tranches jouées sur PC2 : ${ligne#pc2$'\t'}" ;;
       pc3$'\t'*) rejouer="${ligne#pc3$'\t'}"; echo "relevé de la nuit : tranches jouées sur PC3 : ${rejouer:-aucune}" ;;
       rouges$'\t'*) rouges_pc2="${ligne#rouges$'\t'}" ;;
-      mesures$'\t'*) mesures_du_flux="${ligne#mesures$'\t'}"; echo "relevé de la nuit : mesures de temps du flux : ${mesures_du_flux}" ;;
+      mesures$'\t'*) mesures_du_flux="${ligne#mesures$'\t'}" ;;
       enAttente$'\t'*|enCours$'\t'*) attend="$attend ${ligne#*$'\t'}" ;;
     esac
   done <<< "$lignes"
@@ -240,6 +240,7 @@ repli() {
   # The measures of time: the flow's job plays them when its file declares one; the night of the
   # poste plays them itself otherwise (tests-de-nuit --du-poste), so no last green without them.
   if node "$ici/flux-de-la-nuit.mjs" mesures "$copie"; then
+    echo "relevé de la nuit : mesures de temps du flux : $mesures_du_flux"
     case "$mesures_du_flux" in
       rouge)
         echo "✗ les mesures de temps du flux sont rouges sur PC2."
