@@ -4,8 +4,13 @@
 export const SANS_ISSUE: Set<string>;
 /** The answers accepted for the circuit of <ticket> whose workflow has the status <statut>. */
 export function lesReponses(ticket: string, statut: string, ecrit: boolean): string;
-/** The hour `bd update --defer` receives for `--reporter <heure>`, and the phrase of its texts. */
-export function heureDuReport(heure: string, maintenant: Date): { defer: string; quand: string };
+/** The refusal of an hour of deferral, which cites the forms accepted. */
+export const REFUS_DE_L_HEURE: string;
+/** The hour `bd update --defer` receives for `--reporter <heure>`, and the phrase of its texts; null refused. */
+export function heureDuReport(
+  heure: string,
+  maintenant: Date
+): { defer: string; quand: string } | null;
 /** The stops `--mecanique` answers, by the step they stand at: the testwriter's, the proof's. */
 export const ARRETS_DE_LA_BASCULE: Record<string, string[]>;
 /** The sort of a ticket, as the plan says it (scripts/resultats.mjs `sorteDuPlan`). */

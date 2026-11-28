@@ -194,26 +194,55 @@ export function fermesHorsCircuit(tous, circuits) {
 }
 
 /**
+ * The instant (ms) until which the ticket <t> is deferred at <maintenant> (ms), else null: its
+ * `defer_until` (the answer `--reporter <heure>`), strictly later. Beads writes it as the local
+ * wall time of the machine, followed by a « Z » it does not mean (`bd update --defer 17:30` gives
+ * `…T17:30:00Z`). The one reading of a deferral to an hour: the wait of the supervisor, the limit
+ * of the project and the board.
+ * @param {{ defer_until?: string }} t
+ * @param {number} maintenant
+ * @returns {number | null}
+ */
+export function reporteJusqua(t, maintenant) {
+  const heure = Date.parse(String(t.defer_until ?? '').replace(/Z$/, ''));
+  return heure > maintenant ? heure : null;
+}
+
+/**
+ * Whether the deferral of the ticket <t> releases the place of its circuit in the limit of the
+ * project at <maintenant> (ms): deferred to a later time, or deferred with no hour.
+ * @param {{ status?: string, defer_until?: string }} t
+ * @param {number} maintenant
+ * @returns {boolean}
+ */
+export function leReportRendLaPlace(t, maintenant) {
+  return reporteJusqua(t, maintenant) !== null || (t.status === 'deferred' && !t.defer_until);
+}
+
+/**
  * The circuits of <circuits> that hold a place in the limit of the project (`grillhouse.circuits`),
  * as a Kanban limit of work in progress keeps a blocked card in it: a circuit that works, one
  * resumed and waiting for its place of the machine, and one stopped on a question to the
  * supervisor (no recipient, or `qui` « superviseur »). A question to the owner, a ticket deferred
- * (`--reporter`) and a wait for another project release their place. Each circuit is judged by
+ * (`leReportRendLaPlace` at <maintenant>) and a wait for another project release their place. Each circuit is judged by
  * its own memo, read again at every wake of the queue.
  * @param {Array<{ ticket: string, etape?: string | null, question?: { qui?: string } | null }>} circuits
  *   the circuits alive, each with its memo
  * @param {Parameters<typeof ticketsAPartir>[0]} tous every ticket of the project
- * @param {{ externes?: Record<string, typeof tous> }} [o]
+ * @param {{ externes?: Record<string, typeof tous>, maintenant?: number }} [o]
  * @returns {{ tenant: string[], superviseur: string[] }} the circuits that hold the limit, and
  *   among them those that wait for the supervisor, each sorted
  */
-export function circuitsDeLaLimite(circuits, tous, { externes } = {}) {
+export function circuitsDeLaLimite(circuits, tous, { externes, maintenant = Date.now() } = {}) {
   const parId = new Map(tous.map(t => [t.id, t]));
   const tenant = [];
   const superviseur = [];
   for (const c of circuits) {
     const t = parId.get(c.ticket);
-    if (t && (t.status === 'deferred' || attendDeLAutreProjet(t, externes).length > 0)) {
+    if (
+      t &&
+      (leReportRendLaPlace(t, maintenant) || attendDeLAutreProjet(t, externes).length > 0)
+    ) {
       continue;
     }
     // A circuit reported for the usage limit (its kept report) waits for an hour, as a ticket

@@ -10,6 +10,7 @@ export interface TicketDeBeads {
   created_at?: string;
   description?: string;
   dependencies?: Array<{ type: string; depends_on_id: string }>;
+  defer_until?: string;
 }
 
 /** Whether the description of <t> holds its section « ## Architecture ». */
@@ -51,7 +52,8 @@ export function attentesExternes(
 /**
  * The circuits that hold a place in the limit of the project: those that work, those resumed and
  * waiting for their place of the machine, and those stopped on a question to the supervisor (no
- * recipient, or « superviseur »); the question to the owner, the ticket deferred and the wait for
+ * recipient, or « superviseur »); the question to the owner, the ticket deferred (to a later time
+ * at `maintenant`, or with no hour) and the wait for
  * another project release it. `superviseur`: those of `tenant` that wait for the supervisor.
  */
 export function circuitsDeLaLimite(
@@ -62,8 +64,17 @@ export function circuitsDeLaLimite(
     report?: object | null;
   }>,
   tous: TicketDeBeads[],
-  o?: { externes?: Record<string, TicketDeBeads[]> }
+  o?: { externes?: Record<string, TicketDeBeads[]>; maintenant?: number }
 ): { tenant: string[]; superviseur: string[] };
+
+/** The instant (ms) until which the ticket `t` is deferred at `maintenant`, else null. */
+export function reporteJusqua(t: { defer_until?: string }, maintenant: number): number | null;
+
+/** Whether the deferral of `t` releases the place of its circuit in the limit of the project. */
+export function leReportRendLaPlace(
+  t: { status?: string; defer_until?: string },
+  maintenant: number
+): boolean;
 
 /** The tickets of <tous> in the queue that never start for want of their section « ## Architecture ». */
 export function enFileSansArchitecture<T extends TicketDeBeads>(

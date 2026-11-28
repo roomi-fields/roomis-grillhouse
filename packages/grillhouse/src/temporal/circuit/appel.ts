@@ -1,5 +1,6 @@
 // The reading of the command line of `grillhouse circuit` (./commande.ts runs it; circuit.md §3.1,
 // « Commande du circuit »): its options, their combinations, and the text of the refusal of a fresh launch after `--arreter`.
+import { heureDuReport, REFUS_DE_L_HEURE } from '../../../scripts/reponses-du-circuit.mjs';
 import { ETAPES_DE_REPRISE } from './contrat.js';
 
 export const USAGE =
@@ -62,8 +63,12 @@ export function lireLAppel(argv: string[]): Appel {
     } else if (a === '--arreter') {
       o.arreter = true;
     } else if (a === '--reporter') {
-      if (suivant === undefined || suivant.startsWith('-')) {
-        throw new Usage('--reporter attend son heure (+6h, demain, 2026-11-13 08:00).');
+      if (
+        suivant === undefined ||
+        suivant.startsWith('-') ||
+        heureDuReport(suivant, new Date()) === null
+      ) {
+        throw new Usage(REFUS_DE_L_HEURE);
       }
       o.reporter = suivant;
       i++;

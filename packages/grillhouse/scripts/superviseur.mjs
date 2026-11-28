@@ -107,6 +107,7 @@ import {
   lireLesExternes,
   lireLesTickets,
   lotEstSurMain,
+  reporteJusqua,
 } from './file-des-tickets.mjs';
 
 const VERROU_SUPERVISEUR = 'grillhouse-superviseur.lock';
@@ -181,15 +182,10 @@ function estAuDessus(pid) {
   return false;
 }
 
-// The time in ms of <texte>, a `defer_until` as Beads writes it: the local wall time of the
-// machine, followed by a « Z » it does not mean (`bd update --defer 17:30` gives `…T17:30:00Z`);
-// NaN without one.
-const heureMurale = texte => Date.parse(String(texte ?? '').replace(/Z$/, ''));
-
 /**
  * Of the tickets <tickets> (as `bd show --json` gives them), the ids of those whose question does
  * not wait for the supervisor at <maintenant> (ms): closed, or deferred to a later time
- * (`defer_until`, the answer `--reporter <heure>`), as a review's snooze hides a request until its
+ * (`reporteJusqua` of ./file-des-tickets.mjs), as a review's snooze hides a request until its
  * hour, then shows it again.
  * @param {{ id: string, status?: string, defer_until?: string }[]} tickets
  * @param {number} maintenant
@@ -198,7 +194,7 @@ const heureMurale = texte => Date.parse(String(texte ?? '').replace(/Z$/, ''));
 export function horsAttente(tickets, maintenant) {
   return new Set(
     tickets
-      .filter(t => t.status === 'closed' || heureMurale(t.defer_until) > maintenant)
+      .filter(t => t.status === 'closed' || reporteJusqua(t, maintenant) !== null)
       .map(t => t.id)
   );
 }

@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 // La limite des circuits d'un projet (`grillhouse.circuits`) que tient la file des tickets : un
 // circuit en attente du superviseur, ou repris et en attente de sa place de la machine, garde sa
-// place dans la limite ; la question au responsable, le ticket reporté (`bd defer`) et l'attente
+// place dans la limite ; la question au responsable, le ticket reporté (`bd defer`) jusqu'à son heure et l'attente
 // d'un autre projet la rendent. `circuitsDeLaLimite(circuits, tous, { externes })` lit le mémo de
 // chaque circuit vivant (`{ ticket, etape, question }`, `question.qui` le destinataire) et rend
 // `{ tenant, superviseur }` : les circuits qui tiennent la limite, et parmi eux ceux qui attendent
 // le superviseur (le circuit repris n'en est pas : son destinataire n'est plus dans le mémo).
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const FILE = path.resolve(__dirname, '../../scripts/file-des-tickets.mjs');
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -77,13 +77,43 @@ describe('la limite des circuits d’un projet', () => {
     expect(r.superviseur).toEqual([]);
   });
 
-  it('une question reportée à une heure (ticket différé) rend la place, même au superviseur', () => {
+  it('un ticket différé sans heure rend la place, même au superviseur', () => {
     const r = circuitsDeLaLimite(
       [enQuestion('d-1', 'superviseur')],
       [T('d-1', { status: 'deferred' })]
     );
     expect(r.tenant).toEqual([]);
     expect(r.superviseur).toEqual([]);
+  });
+
+  describe('une question reportée à une heure', () => {
+    // Beads écrit `defer_until` en heure murale locale, suivie d'un « Z » qu'il ne veut pas dire.
+    const reporte = T('d-1', { status: 'deferred', defer_until: '2026-11-28T14:00:00Z' });
+    const a = (h: number, m: number, qui = 'superviseur') => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 10, 28, h, m));
+      try {
+        return circuitsDeLaLimite([enQuestion('d-1', qui)], [reporte]);
+      } finally {
+        vi.useRealTimers();
+      }
+    };
+
+    it('rend la place avant son heure', () => {
+      expect(a(13, 59)).toEqual({ tenant: [], superviseur: [] });
+    });
+
+    it('reprend la place une fois l’heure passée, le ticket resté différé', () => {
+      expect(a(14, 1)).toEqual({ tenant: ['d-1'], superviseur: ['d-1'] });
+    });
+
+    it('n’est plus un report à l’instant même de son heure', () => {
+      expect(a(14, 0)).toEqual({ tenant: ['d-1'], superviseur: ['d-1'] });
+    });
+
+    it('au responsable, rend la place après son heure aussi', () => {
+      expect(a(14, 1, 'responsable')).toEqual({ tenant: [], superviseur: [] });
+    });
   });
 
   it('un circuit en attente d’un autre projet rend la place', () => {

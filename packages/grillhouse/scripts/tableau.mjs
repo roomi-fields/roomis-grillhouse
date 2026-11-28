@@ -129,8 +129,10 @@ import {
   attendDeLAutreProjet,
   enFileSansArchitecture,
   enFileSurMain,
+  leReportRendLaPlace,
   lireLesExternes,
   lotEstSurMain,
+  reporteJusqua,
 } from './file-des-tickets.mjs';
 import { etatDesPlaces } from './places-de-la-machine.mjs';
 import { duree as dureeDeLaFermeture } from './regles-des-places.mjs';
@@ -213,6 +215,7 @@ export const TONS = Object.freeze({
   // A circuit, a pass, a wait.
   attendUnePlace: 'discret',
   reporteLimite: 'discret',
+  reporteQuestion: 'discret',
   attendUnePart: 'discret',
   attendLeDisque: 'discret',
   sansEtape: 'discret',
@@ -1013,7 +1016,12 @@ export function assembler({
           !c.integre &&
           (parId.get(c.ticket).status !== 'closed' || c.vivant || attendLeSuperviseur(c))
       )
-      .map(c => [c.ticket, c])
+      // `reporteA`: the hour its ticket is deferred to, still to come; none for a ticket closed.
+      .map(c => {
+        const t = parId.get(c.ticket);
+        const reporteA = t.status === 'closed' ? null : reporteJusqua(t, maintenant);
+        return [c.ticket, { ...c, reporteA }];
+      })
   );
   const actifs = new Set([
     ...enCoursMesures.map(v => v.ticket).filter(Boolean),
@@ -1425,7 +1433,9 @@ export function assembler({
     remontees.filter(r => !estLue(r) && !Number.isFinite(r.chez)).map(r => [r.cle, r.depuis])
   );
   const enAttenteDuSuperviseur = [...parCircuit.values()]
-    .filter(attendLeSuperviseur)
+    // A deferred question asks nothing of the supervisor until its hour, whoever must answer it:
+    // no alert. The owner's keeps its line ❓ and its count (`auResponsable`).
+    .filter(c => attendLeSuperviseur(c) && !c.reporteA)
     .sort((a, b) => ordre({ id: a.ticket }, { id: b.ticket }));
   for (const c of enAttenteDuSuperviseur) {
     const depuis = depuisDe.get(cleDe(c));
@@ -1565,10 +1575,11 @@ export function assembler({
     });
   // The limit of circuits of the project (`limite`, its `grillhouse.circuits`): when it is held,
   // the circuits that hold it waiting for the supervisor (a question to no one, or to the
-  // supervisor; the owner's releases the place, as does a ticket deferred), by id.
+  // supervisor; the owner's releases the place, as does a ticket deferred,
+  // `leReportRendLaPlace`), by id.
   const tenantsDeLaLimite = [...parCircuit.values()].filter(
     c =>
-      parId.get(c.ticket).status !== 'deferred' &&
+      !leReportRendLaPlace(parId.get(c.ticket), maintenant) &&
       (c.vivant || (attendLeSuperviseur(c) && (c.qui ?? SUPERVISEUR) !== RESPONSABLE))
   );
   const tenueLaLimite = limite !== null && tenantsDeLaLimite.length >= limite;
@@ -1780,8 +1791,13 @@ const etapeDuCircuitLu = c => etapeDuCircuit({ ...c, raison: c.arret });
 // its question, the supervisor when its stop names no one.
 // A question the supervisor carried to the owner (`chez` in the file of the stops gone up) is the
 // owner's.
-const enQuestion = (c, chez = new Set()) =>
+const destinataire = (c, chez) =>
   attendLeSuperviseur(c) ? (chez.has(cleDe(c)) ? RESPONSABLE : (c.qui ?? SUPERVISEUR)) : null;
+// Whether the wait of <c> on the supervisor (its question, or its end without its issue) is deferred
+// to a later hour (`reporteA`): the board shows it paused until then. The owner's never is.
+const misEnPause = (c, chez) => Boolean(c.reporteA) && destinataire(c, chez) === SUPERVISEUR;
+// Who the board shows <c> on a question to: no one while paused.
+const enQuestion = (c, chez = new Set()) => (misEnPause(c, chez) ? null : destinataire(c, chez));
 const chezLui = t =>
   new Set((t.remontees ?? []).filter(r => Number.isFinite(r.chez)).map(r => r.cle));
 // The state at the right of the line « ⤷ Question » of the circuit <c>: « chez lui · N min » (N from
@@ -1806,7 +1822,7 @@ const etatDeLaQuestion = (c, t) => {
  * its state (`etat`, whose tone TONS gives), the reason of its wait (`raison`), its tone, its sign
  * and its witness (`temoin`: the part it holds or waits for, « · <sorte> faits/prévus · <durée> »,
  * « · part <sorte> · <durée> », else the progress of its automatic pass, `temoinDe`), in this
- * order: frozen; ended without its issue; its question (to the supervisor or to another); stopped;
+ * order: frozen; its wait on the supervisor deferred to a later hour; ended without its issue; its question (to the supervisor or to another); stopped;
  * its wait for the disk, a place, a part or its first
  * state; else it runs. `lignes`: one entry per
  * ticket's line of AGENTS, its id and its sign: each circuit, each ticket led in direct (▶) and
@@ -1869,6 +1885,14 @@ export function etatsDAgents(t) {
     // the usage returns, local time, apart from a ticket a person deferred.
     if (c.report?.raison === 'limite-d-usage') {
       return ['reporteLimite', `limite d'usage · reprise ${heureEtMinute(c.report.reprise)}`];
+    }
+    if (misEnPause(c, chezLui(t))) {
+      const jour = jourEtMois(c.reporteA);
+      const heure = heureEtMinute(c.reporteA);
+      return [
+        'reporteQuestion',
+        `reporté ${jour === jourEtMois(maintenant) ? heure : `${jour} ${heure}`}`,
+      ];
     }
     if (!c.vivant) {
       const qui = enQuestion(c, chezLui(t));

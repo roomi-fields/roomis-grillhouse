@@ -42,31 +42,64 @@ export function lesReponses(ticket, statut, ecrit) {
     : `${circuit} --reprendre\`, \`${depuis}\`, \`${mecanique}\`, \`${etendre}\` ou \`${chez}`;
 }
 
-/**
- * The hour of a deferral (`--reporter <heure>`): a lone hour (`H:MM` or `HH:MM`, 0-23 and 00-59)
- * aims at its next occurrence in the machine's local time, today when strictly after <maintenant>
- * (to the second), else tomorrow, and is handed to `bd update --defer` as `AAAA-MM-JJTHH:MM:00`,
- * the form bd reads as that wall time (bd reads a space-separated `AAAA-MM-JJ HH:MM` with the
- * month and the day taken for the hour); any other form goes to bd as written. `quand` is the phrase of the texts (« reportée <quand> »).
- * @param {string} heure
- * @param {Date} maintenant
- * @returns {{ defer: string, quand: string }}
- */
-export function heureDuReport(heure, maintenant) {
-  const lue = /^(\d{1,2}):([0-5]\d)$/.exec(heure);
-  if (!lue || Number(lue[1]) > 23) {
-    return { defer: heure, quand: `au ${heure}` };
+/** The refusal of an hour of deferral, which cites the forms accepted. */
+export const REFUS_DE_L_HEURE =
+  '--reporter attend son heure, à venir : H:MM, AAAA-MM-JJ, AAAA-MM-JJ HH:MM, AAAA-MM-JJTHH:MM, +6h (en heures) ou +2d (en jours).';
+
+const deux = n => String(n).padStart(2, '0');
+// The local wall time of <d> as bd reads it, `AAAA-MM-JJTHH:MM:00`.
+const pourBd = d =>
+  `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}T${deux(d.getHours())}:${deux(d.getMinutes())}:00`;
+
+// The next occurrence of the lone hour <heures>:<minutes> after <maintenant>.
+function prochaine(heure, heures, minutes, maintenant) {
+  if (heures > 23) {
+    return null;
   }
   const cible = new Date(maintenant);
-  cible.setHours(Number(lue[1]), Number(lue[2]), 0, 0);
+  cible.setHours(heures, minutes, 0, 0);
   const demain = cible.getTime() <= maintenant.getTime();
   if (demain) {
     cible.setDate(cible.getDate() + 1);
   }
-  const deux = (n) => String(n).padStart(2, '0');
   const hhmm = `${deux(cible.getHours())}:${deux(cible.getMinutes())}`;
-  const defer = `${cible.getFullYear()}-${deux(cible.getMonth() + 1)}-${deux(cible.getDate())}T${hhmm}:00`;
-  return { defer, quand: demain ? `à demain ${hhmm}` : `au ${heure}` };
+  return { defer: pourBd(cible), quand: demain ? `à demain ${hhmm}` : `au ${heure}` };
+}
+
+/**
+ * The hour of a deferral (`--reporter <heure>`), read here alone: what `bd update --defer`
+ * receives and the phrase of the texts (« reportée <quand> »), or null for a form refused, an
+ * impossible date or hour, or a time not strictly after <maintenant>. A lone hour (`H:MM` or
+ * `HH:MM`) aims at its next occurrence in the machine's local time, today when strictly after
+ * <maintenant> (to the second), else tomorrow. A date (`AAAA-MM-JJ`, at midnight) and a date and
+ * hour (`AAAA-MM-JJ HH:MM` or `AAAA-MM-JJTHH:MM`) go to bd as `AAAA-MM-JJTHH:MM:00`, the form it
+ * reads as that wall time (bd reads a space-separated one with the month and the day taken for the
+ * hour). The durations `+<n>h` and `+<n>d` go as written.
+ * @param {string} heure
+ * @param {Date} maintenant
+ * @returns {{ defer: string, quand: string } | null}
+ */
+export function heureDuReport(heure, maintenant) {
+  const seule = /^(\d{1,2}):([0-5]\d)$/.exec(heure);
+  if (seule) {
+    return prochaine(heure, Number(seule[1]), Number(seule[2]), maintenant);
+  }
+  const quand = `au ${heure}`;
+  const duree = /^\+(\d+)[hd]$/.exec(heure);
+  if (duree) {
+    return Number(duree[1]) > 0 ? { defer: heure, quand } : null;
+  }
+  const date = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/.exec(heure);
+  if (!date) {
+    return null;
+  }
+  const [, annee, mois, jour, heures = '00', minutes = '00'] = date;
+  const cible = new Date(maintenant);
+  cible.setFullYear(Number(annee), Number(mois) - 1, Number(jour));
+  cible.setHours(Number(heures), Number(minutes), 0, 0);
+  // A date or an hour that does not exist rolls over to another one.
+  const defer = `${annee}-${mois}-${jour}T${heures}:${minutes}:00`;
+  return pourBd(cible) === defer && cible > maintenant ? { defer, quand } : null;
 }
 
 /**

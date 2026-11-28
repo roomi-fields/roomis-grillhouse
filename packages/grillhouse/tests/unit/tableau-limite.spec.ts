@@ -88,3 +88,38 @@ describe('le tableau d’un projet à sa limite de circuits', () => {
     expect(t).not.toMatch(/\b13\b/);
   });
 });
+
+// Le report à une heure : `defer_until` en heure murale locale, le « Z » de Beads non voulu.
+describe('la ligne « limite » et le report d’une question', () => {
+  const reporte = { ...T('demo-11'), status: 'deferred', defer_until: '2026-11-02T14:00:00Z' };
+  const a = (h: number, m: number, ticket: object = reporte) => {
+    const p = assembler({
+      tous: [ticket],
+      prefix: 'demo',
+      registre: [],
+      vivants: [],
+      circuits: [enQuestion('demo-11', 'superviseur')],
+      maintenant: new Date(2026, 10, 2, h, m).getTime(),
+      jour: new Date(2026, 10, 2, 0, 0).getTime(),
+      machine: null,
+      places: null,
+      limite: 1,
+    } as unknown as Parameters<typeof assembler>[0]);
+    return (lignes(p, 'depot') as Ligne[])
+      .filter(l => l.section === 'agents' && /^limite/i.test(l.texte))
+      .map(l => l.texte)
+      .join('\n');
+  };
+
+  it('ne compte pas un circuit au superviseur reporté avant son heure', () => {
+    expect(a(13, 59)).toBe('');
+  });
+
+  it('compte et nomme ce circuit une fois l’heure passée, son ticket resté différé', () => {
+    expect(a(14, 1)).toMatch(/^Limite 1\/1 .*superviseur : 11\b/);
+  });
+
+  it('ne compte jamais un ticket différé sans heure', () => {
+    expect(a(14, 1, { ...T('demo-11'), status: 'deferred' })).toBe('');
+  });
+});

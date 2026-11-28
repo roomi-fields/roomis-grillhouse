@@ -48,7 +48,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ticketAuLancement } from '../../../scripts/depart-du-ticket.mjs';
 import { retirerLaCopieDuTicket } from '../../../scripts/recommencer.mjs';
-import { heureDuReport } from '../../../scripts/reponses-du-circuit.mjs';
+import { heureDuReport, REFUS_DE_L_HEURE } from '../../../scripts/reponses-du-circuit.mjs';
 import { sansReponseEn } from '../../../scripts/sans-reponse.mjs';
 import {
   DELAI_JOIGNABLE_MS,
@@ -110,7 +110,12 @@ async function repondre(
   if (appel.reporter) {
     // The ticket deferred, its circuit left waiting on its question: the wait, the stop and the
     // opening keep it quiet until the hour (scripts/superviseur.mjs `horsAttente`).
-    const { defer, quand } = heureDuReport(appel.reporter, new Date());
+    const lue = heureDuReport(appel.reporter, new Date());
+    if (!lue) {
+      // Its hour passed since the call was read.
+      throw new ReponseRefusee(REFUS_DE_L_HEURE);
+    }
+    const { defer, quand } = lue;
     bd(racine, 'update', ticket, '--defer', defer);
     bd(
       racine,

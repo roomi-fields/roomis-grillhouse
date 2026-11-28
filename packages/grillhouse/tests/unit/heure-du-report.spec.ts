@@ -45,23 +45,27 @@ describe('l’heure d’un report', () => {
     expect(heureDuReport('23:59', a(12, 0)).defer).toBe('2026-11-20T23:59:00');
   });
 
-  it('toute autre forme est passée telle quelle à bd, dite telle qu’écrite', () => {
-    for (const forme of [
-      '+9h',
-      'demain',
-      '8h',
-      '2026-11-25 08:30',
-      '2026-11-25',
-      '25:99',
-      '24:00',
-      '08:60',
-      '08:30:15',
-      ' 08:30',
-    ]) {
-      expect(heureDuReport(forme, a(23, 15)), forme).toEqual({
-        defer: forme,
-        quand: `au ${forme}`,
-      });
-    }
+  it.each([
+    ['2026-11-25 08:30', '2026-11-25T08:30:00'],
+    ['2026-11-25T08:30', '2026-11-25T08:30:00'],
+    ['2027-01-01 00:00', '2027-01-01T00:00:00'],
+    ['2026-11-20T23:59', '2026-11-20T23:59:00'],
+  ])('une date et heure « %s » arrive à bd comme %s, dite telle qu’écrite', (forme, defer) => {
+    expect(heureDuReport(forme, a(23, 15))).toEqual({ defer, quand: `au ${forme}` });
   });
+
+  it.each([
+    ['2026-11-25', '2026-11-25T00:00:00'],
+    ['2026-11-21', '2026-11-21T00:00:00'],
+    ['2028-02-29', '2028-02-29T00:00:00'],
+  ])('une date seule « %s » arrive à bd à minuit, %s', (forme, defer) => {
+    expect(heureDuReport(forme, a(23, 15))).toEqual({ defer, quand: `au ${forme}` });
+  });
+
+  it.each(['+6h', '+2d', '+1h', '+48h', '+10d'])(
+    'la durée relative « %s » passe telle quelle à bd',
+    forme => {
+      expect(heureDuReport(forme, a(23, 15))).toEqual({ defer: forme, quand: `au ${forme}` });
+    }
+  );
 });
