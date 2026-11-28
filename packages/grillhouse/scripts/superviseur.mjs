@@ -65,13 +65,13 @@
 // - `relever` is the one function of the reading, of the re-presentation and of the file of the
 //   stops gone up: a question that never went up, or was read <rappelMs> ago (`grillhouse.rappel`
 //   minutes, 10 by default, scripts/circuits-cles.mjs), is given once per due time while its
-//   circuit stands on the same stop; one answered leaves the file
+//   circuit stands on the same stop; one addressed to the owner goes up once, without reminder,
+//   and the opening lists it; one answered leaves the file
 //   `.claude/worktrees/questions-remontees.json`. A stop is kept there by its ticket, the run of
 //   its workflow, the rank of its question in that run and its stop, with the times of the first
-//   going up and of the last presentation. The end of a circuit integrated is given once
-//   (`integre`), kept in `.claude/worktrees/integrations-rendues.json`, and the alert of the CI of
-//   main (a red, or a CI not read, scripts/ci-de-main.mjs) once per passage
-//   (`.claude/worktrees/ci-de-main-rendue.json`), cleared at the next green.
+//   going up and of the last presentation. The alert of the CI of main (a red, or a CI not read,
+//   scripts/ci-de-main.mjs) is given once per passage (`.claude/worktrees/ci-de-main-rendue.json`),
+//   cleared at the next green. A circuit integrated gives nothing: it is read on the board.
 // - The reading covers the project and each other project of its group (`grillhouse.groupe`) that
 //   no other live session of supervision holds, each under its name and its folder.
 import { spawnSync } from 'node:child_process';
@@ -235,21 +235,6 @@ const ou = c => {
 // of the circuits (scripts/tableau.mjs reads it: its alerts).
 const etatsDe = racine => path.join(racine, '.claude', 'worktrees');
 
-// The integrations given by the waits of the repository at <racine>: `depuis`, the time (ms) of
-// the last reading of the last wait, from which an integration is new; `rendues`, the keys of the
-// integrations it gave, ended at that time or after. Absent or unreadable: none since <maintenant>.
-const integrationsDe = racine => path.join(etatsDe(racine), 'integrations-rendues.json');
-function lireLesIntegrations(racine, maintenant) {
-  try {
-    const lu = JSON.parse(readFileSync(integrationsDe(racine), 'utf8'));
-    if (Number.isFinite(lu?.depuis) && Array.isArray(lu?.rendues)) {
-      return { depuis: lu.depuis, rendues: new Set(lu.rendues.map(String)) };
-    }
-  } catch {
-    // none yet
-  }
-  return { depuis: maintenant, rendues: new Set() };
-}
 // The alert of the CI of main of the project at <racine> (scripts/ci-de-main.mjs), read for the
 // supervisor: `{ cle, texte }` for a red or a CI not read, null for a green (the alert clears),
 // undefined for a project with no CI to read. The lots entered since the last green are named by
@@ -303,19 +288,6 @@ function releverLaCiDeMain(racine, alerte, toutes) {
       cle: `ci-de-main ${alerte.cle}`,
     },
   ];
-}
-
-// A file that cannot be written never costs the batch: the next wait reads the former one.
-function ecrireLesIntegrations(racine, depuis, rendues) {
-  const f = integrationsDe(racine);
-  try {
-    mkdirSync(path.dirname(f), { recursive: true });
-    const provisoire = `${f}.${process.pid}`;
-    writeFileSync(provisoire, `${JSON.stringify({ depuis, rendues: [...rendues].sort() })}\n`);
-    renameSync(provisoire, f);
-  } catch {
-    // kept as it was
-  }
 }
 
 // The file of the stops gone up as text: each stop with its key, its times, and its reading and its
@@ -398,23 +370,22 @@ export function marquerChezLeResponsable(racine, { cle, depuisA }) {
 }
 
 /**
- * One reading of the circuits <circuits> (those integrated included) of the repository at <racine>,
+ * One reading of the circuits <circuits> of the repository at <racine>,
  * at <maintenant> ms, under the lock of the file of the stops gone up; what the greffon of the
  * session of supervision submits, and the opening lists. Each stop that waits for the supervisor
- * and never went up, or whose last presentation is <rappelMs> ms old or more (<toutes>: every
- * one), is given, its ticket <fermes> gives closed left out (bd is asked of those alone); a stop
+ * and never went up, or whose last presentation is <rappelMs> ms old or more, is given (a
+ * question addressed to the owner goes up once and is never given again; <toutes>: every
+ * one), its ticket <fermes> gives closed left out (bd is asked of those alone); a stop
  * given is presented now, and one that goes up has its `depuis` set now. The file is written whole
  * with the stops that still stand, their circuit waiting for the supervisor: a question answered
- * so leaves it, and the next stop of its circuit is new. The end of a circuit integrated since the
- * last reading is given once (`integre`; the file of the integrations holds the time of that
- * reading), and the alert of the CI of main <ciDeMain> (`{ cle, texte }`; null at a green, which
- * clears it; undefined when it is not read, which keeps what was given) once per passage. The
- * result is the questions given, each marked `representee` when it comes back, then the ends, then
- * the alert of the CI of main.
+ * so leaves it, and the next stop of its circuit is new. The alert of the CI of main <ciDeMain>
+ * (`{ cle, texte }`; null at a green, which clears it; undefined when it is not read, which keeps
+ * what was given) is given once per passage. A circuit integrated gives nothing. The result is the
+ * questions given, each marked `representee` when it comes back, then the alert of the CI of main.
  * @param {string} racine
  * @param {import('./circuits-du-serveur.mjs').CircuitDuServeur[]} circuits
  * @param {{ fermes: (racine: string, ids: string[]) => Set<string> | null, maintenant: number, rappelMs: number, toutes?: boolean, ciDeMain?: { cle: string, texte: string } | null }} options
- * @returns {{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean, integre?: boolean }[]}
+ * @returns {{ ticket: string, etape: string, question: string, qui: string, commande: string, cle: string, representee?: boolean }[]}
  */
 export function relever(
   racine,
@@ -427,34 +398,21 @@ export function relever(
   // Held for one reading of the circuits: older than that, abandoned.
   prendreVerrou(verrou, { attendre: true, perime: 30_000 });
   try {
-    const { depuis: depuisIntegrations, rendues } = lireLesIntegrations(racine, maintenant);
-    const integres = circuits
-      .filter(
-        c => c.integre && c.fin !== null && c.fin >= depuisIntegrations && !rendues.has(cleDe(c))
-      )
-      .map(enFin)
-      .sort((a, b) => a.ticket.localeCompare(b.ticket, 'en'));
-    const fins = new Map(circuits.map(c => [cleDe(c), c.fin]));
-    ecrireLesIntegrations(
-      racine,
-      maintenant,
-      [...rendues, ...integres.map(i => i.cle)].filter(
-        k => (fins.get(k) ?? -Infinity) >= maintenant
-      )
-    );
     const rouges = ciDeMain === undefined ? [] : releverLaCiDeMain(racine, ciDeMain, toutes);
-    circuits = circuits.filter(c => !c.integre);
     const avant = new Map(lireLesRemontees(racine, maintenant).map(r => [r.cle, r]));
     const debout = questionsEnAttente(racine, circuits, { fermes: aucunFerme });
-    // A question comes back from its reading, never from its sending: one read, not carried to the
-    // owner, whose delay has passed since its reading. One still in the queue (sent, unread) or
-    // carried to the owner is never given again.
+    // A question comes back from its reading, never from its sending: one read, waiting for the
+    // supervisor, not carried to the owner, whose delay has passed since its reading. One still in
+    // the queue (sent, unread), addressed to the owner or carried to him is never given again.
     const aRendre = debout.filter(q => {
       const r = avant.get(q.cle);
       return (
         toutes ||
         !r ||
-        (estLue(r) && r.chez === undefined && maintenant - r.lue >= rappelMs)
+        (q.qui !== RESPONSABLE &&
+          estLue(r) &&
+          r.chez === undefined &&
+          maintenant - r.lue >= rappelMs)
       );
     });
     const fermesDe = aRendre.length
@@ -490,7 +448,7 @@ export function relever(
         })
     );
     ecrireLesRemontees(racine, ecrit, debout.length === 0 && avant.size === 0);
-    return [...rendu, ...integres, ...rouges];
+    return [...rendu, ...rouges];
   } finally {
     lacherVerrou(verrou);
   }
@@ -510,17 +468,6 @@ const enQuestion = c => ({
   cle: cleDe(c),
   interrompu: c.interrompu,
   arret: c.arret,
-});
-
-// The end of the circuit <c> integrated, given once by the wait: its ticket, its step, and its key.
-const enFin = c => ({
-  ticket: c.ticket,
-  etape: '5 Intégration',
-  question: 'son lot est sur main.',
-  qui: SUPERVISEUR,
-  commande: '',
-  cle: cleDe(c),
-  integre: true,
 });
 
 // Of the circuits <lus> of the repository at <racine>, those whose ticket <fermes> does not give
@@ -619,19 +566,13 @@ export const ligneDeQuestion = (q, o = {}) => {
 /**
  * The message the greffon submits to the session of supervision for the questions <questions> of
  * one reading (`relever`), and the lines of the opening: for each one, its ticket, step, who must
- * answer it, its question and the command that answers it; then each end of a circuit integrated
- * (`integre`), its ticket and its step. A question presented again (`representee`) says that it
- * still waits for an answer.
- * @param {{ ticket: string, etape: string, question: string, qui: string, commande: string, representee?: boolean, integre?: boolean }[]} questions
+ * answer it, its question and the command that answers it. A question presented again
+ * (`representee`) says that it still waits for an answer.
+ * @param {{ ticket: string, etape: string, question: string, qui: string, commande: string, representee?: boolean }[]} questions
  * @returns {string}
  */
 export function texteDesQuestions(questions, o = {}) {
-  const fins = questions.filter(q => q.integre);
-  const attente = questions.filter(q => !q.integre);
-  return [
-    ...attente.map(q => ligneDeQuestion(q, o)),
-    ...fins.map(q => `${o.sigle ? `[${o.sigle}] ` : ''}Intégré · ${q.ticket}`),
-  ].join('\n');
+  return questions.map(q => ligneDeQuestion(q, o)).join('\n');
 }
 
 /**
@@ -679,7 +620,6 @@ export async function circuitsALOuverture(
         ? `${e.message} : les circuits ne se lisent pas.`
         : `Les circuits ne se lisent pas : ${message}.`;
   }
-  ecrireLesIntegrations(racine, Date.now(), []);
   const ouverteA = Date.now();
   const questions = circuits
     ? relever(racine, circuits, {
@@ -688,7 +628,7 @@ export async function circuitsALOuverture(
         rappelMs: rappelDuProjet(racine) * 60_000,
         toutes: true,
         ciDeMain: ciDeMainDe(racine),
-      }).filter(q => !q.integre)
+      })
     : [];
   // The opening lists every question that waits: the session reads them, and their reminder runs
   // from now (a question sent to a closed session, or whose message was never recognised, included).
@@ -723,7 +663,7 @@ export async function circuitsALOuverture(
   );
   return [
     '## Les questions des circuits',
-    "Le greffon de ta séance pousse dans la file de tes messages chaque question neuve d'un circuit du dépôt, quel que soit son lanceur, et chaque fin de circuit, une fois ; il n'y a aucune attente à lancer. Une question sans réponse revient une fois lue, à intervalle réglable depuis sa lecture (`grillhouse.rappel`, 10 min par défaut) : ta réponse au circuit l'acquitte, et répondue elle ne revient plus ; une question que tu as portée au responsable se tait par `npx grillhouse circuit <ticket> --chez-le-responsable`, jusqu'à la réponse du circuit. Tu ne te mets pas en attente du responsable tant qu'une question d'un circuit attend ta réponse : le crochet de fin de tour te le rappelle. Les questions en attente sont listées ci-dessous.",
+    "Le greffon de ta séance pousse dans la file de tes messages chaque question neuve d'un circuit du dépôt, quel que soit son lanceur ; il n'y a aucune attente à lancer. Une question sans réponse au superviseur revient une fois lue, à intervalle réglable depuis sa lecture (`grillhouse.rappel`, 10 min par défaut) : ta réponse au circuit l'acquitte, et répondue elle ne revient plus ; une question que tu as portée au responsable se tait par `npx grillhouse circuit <ticket> --chez-le-responsable`, jusqu'à la réponse du circuit ; une question adressée au responsable part une fois, pour que tu la lui portes, et ne revient pas. Tu ne te mets pas en attente du responsable tant qu'une question d'un circuit attend ta réponse. Les questions en attente sont listées ci-dessous.",
     ...(panne ? ['', '## Les circuits du dépôt', panne] : []),
     ...(nommes.length ? ['', '## Les circuits du dépôt', ...nommes.map(n => n.ligne)] : []),
     ...(questions.length ? ['', `Les réponses à une question : ${REPONSES}`] : []),
@@ -997,7 +937,7 @@ const demandeDuJalon = raison =>
 /**
  * One reading for the greffon of the session of supervision of the repository at <racine>
  * (`npx grillhouse superviseur --relever`): the message of what `relever` gives (the questions of
- * the circuits due, the ends of circuits, the reds of main), empty when it gives nothing, when the
+ * the circuits due, the reds of main), empty when it gives nothing, when the
  * circuits do not read, or when the session that runs it is not the one that holds the lock of the
  * supervisor (a role's session, an agent's copy, another project's, a session that took no lock).
  * The interval of the re-presentation is the key `grillhouse.rappel` of the project, applied at
@@ -1011,7 +951,7 @@ const demandeDuJalon = raison =>
  * (`grillhouse.plageDeNuit`) at a reading where every project read says that no question waits for
  * the supervisor.
  * @param {string} racine
- * @param {{ env?: Record<string, string | undefined>, compaction?: boolean, circuitsDe?: (racine: string, options?: { integres?: boolean }) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
+ * @param {{ env?: Record<string, string | undefined>, compaction?: boolean, circuitsDe?: (racine: string) => Promise<import('./circuits-du-serveur.mjs').CircuitDuServeur[]> }} [options]
  * @returns {Promise<string>}
  * @throws {Error} `grillhouse.rappel` of the project of the session is at fault, named with its
  * value; or the reading of another project of the group failed (its `texte`: the others' message)
@@ -1089,7 +1029,7 @@ async function leReleveDe(racine, circuitsDe, { voisin = false, nocturne = false
   }
   let circuits;
   try {
-    circuits = await circuitsDe(racine, { integres: true });
+    circuits = await circuitsDe(racine);
   } catch {
     return { texte: '', attend: null };
   }

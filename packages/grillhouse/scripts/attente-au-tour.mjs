@@ -21,13 +21,12 @@ import { ligneDeQuestion, questionsEnAttente, ticketsHorsAttente } from './super
 /**
  * The root of the repository whose session of supervision works in <dossier>: null out of a git
  * repository, in an agent's copy (a worktree) and in the session of a role that the circuit
- * launches (BEADS_ACTOR set). The hooks of the supervisor's session read it (this one, and
- * scripts/attente-a-l-arret.mjs).
+ * launches (BEADS_ACTOR set).
  * @param {string} dossier
  * @param {Record<string, string | undefined>} env
  * @returns {string | null}
  */
-export function racineDeLaSupervision(dossier, env = process.env) {
+function racineDeLaSupervision(dossier, env = process.env) {
   if (env.BEADS_ACTOR) {
     return null;
   }

@@ -21,7 +21,6 @@ interface Donnee {
   ticket: string;
   cle: string;
   representee?: boolean;
-  integre?: boolean;
 }
 type Circuit = ReturnType<typeof circuitLu>;
 interface Entree {
@@ -360,6 +359,68 @@ describe('a question carried to the owner is silent until the circuit answers', 
     const suivante = lire(racine, [arrete('demo-1', 2)], 6);
     expect(suivante).toHaveLength(1);
     expect(entrees(racine)[0]).not.toHaveProperty('chez');
+  });
+});
+
+describe('a question addressed to the owner from the start goes up to the supervisor once', () => {
+  const auResponsable = (ticket: string, numero = 1) => ({
+    ...arrete(ticket, numero),
+    qui: 'responsable',
+  });
+
+  it('is sent at its first reading, as a new question that names who answers it', () => {
+    const lot = lire(depot(), [auResponsable('demo-1')], 0);
+    expect(tickets(lot)).toEqual(['demo-1']);
+    expect(lot[0]).not.toHaveProperty('representee', true);
+    expect(texteDesQuestions(lot as Parameters<typeof texteDesQuestions>[0])).toContain(
+      'au responsable'
+    );
+  });
+
+  it('never comes back at the reminder, whatever the time since its reading', () => {
+    const racine = depot();
+    const attend = [auResponsable('demo-1')];
+    lire(racine, attend, 0);
+    lue(racine, 1);
+    for (const m of [11, 12, 21, 60, 1440]) {
+      expect(lire(racine, attend, m), `à ${m} min`).toEqual([]);
+    }
+    expect(entrees(racine).map(e => e.cle)).toEqual([cle('demo-1')]);
+  });
+
+  it('stands aside the others: a question of the supervisor still comes back', () => {
+    const racine = depot();
+    const deux = [auResponsable('demo-1'), arrete('demo-2')];
+    expect(tickets(lire(racine, deux, 0))).toEqual(['demo-1', 'demo-2']);
+    lue(racine, 1);
+    expect(tickets(lire(racine, deux, 11))).toEqual(['demo-2']);
+  });
+
+  it('is sent once again for the next stop of its circuit, itself without reminder', () => {
+    const racine = depot();
+    lire(racine, [auResponsable('demo-1')], 0);
+    lue(racine, 1);
+    lire(racine, [tourne('demo-1')], 2);
+    const suivante = [auResponsable('demo-1', 2)];
+    expect(tickets(lire(racine, suivante, 3))).toEqual(['demo-1']);
+    lue(racine, 4);
+    expect(lire(racine, suivante, 60)).toEqual([]);
+  });
+
+  it('is listed by the opening of a session, sent and read long before', async () => {
+    const racine = depot();
+    const attend = [auResponsable('demo-1')];
+    ecrire(racine, [{ cle: cle('demo-1'), depuis: T0, presentee: T0, lue: T0 }]);
+    for (let ouverture = 0; ouverture < 2; ouverture++) {
+      const texte = await circuitsALOuverture(racine, {
+        fermes: aucun,
+        circuitsDe: () => Promise.resolve(attend),
+        ticketsDe: () => [],
+      });
+      expect(texte).toContain('Question · demo-1 · ');
+      expect(texte).toContain('au responsable');
+    }
+    expect(lire(racine, attend, 0, 10, { maintenant: Date.now() + 60 * MIN })).toEqual([]);
   });
 });
 

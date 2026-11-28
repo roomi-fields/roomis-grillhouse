@@ -537,8 +537,7 @@ function dernieresPasses(passes: WorkflowExecutionInfo[]) {
  * The circuits of the repository at <racine>, read from the server (`workflow.list`, their memo
  * and their status, no worker living): the last run of each ticket, in the form the board reads
  * (`CircuitLu`); a circuit integrated is left out, by the server's filter (`passesDesCircuits`),
- * unless <integres> asks for them (the wait of the supervisor, which their end wakes,
- * scripts/superviseur.mjs).
+ * unless <integres> asks for them (the command of the direct, scripts/direct.mjs).
  */
 export async function lireLesCircuits(
   client: Client,

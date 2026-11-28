@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { declarerLesLangages } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { REDIRIGEES } from '../../scripts/aiguillage.mjs';
 import { SOUS_COMMANDES } from '../../scripts/sous-commandes.mjs';
 import * as maj from '../../scripts/grillhouse-maj.mjs';
 
@@ -191,7 +192,6 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       PostToolUse: [{ matcher: 'Write|Edit|MultiEdit', sous: ['style-a-l-ecriture'] }],
       SubagentStop: [{ matcher: undefined, sous: ['registre', 'messages-non-lus'] }],
       TeammateIdle: [{ matcher: undefined, sous: ['messages-non-lus'] }],
-      Stop: [{ matcher: undefined, sous: ['attente-a-l-arret'] }],
       SessionEnd: [{ matcher: undefined, sous: ['registre'] }],
     });
     for (const sous of [
@@ -202,10 +202,15 @@ describe('critère 2 — the plugin carries the hooks of the frame, each calling
       'style-a-l-ecriture',
       'registre',
       'messages-non-lus',
-      'attente-a-l-arret',
     ]) {
       expect(Object.keys(SOUS_COMMANDES), sous).toContain(sous);
     }
+  });
+
+  it('declares no hook at the end of a turn of the session, and the package no subcommand for it', () => {
+    expect(declaration().hooks).not.toHaveProperty('Stop');
+    expect(Object.keys(SOUS_COMMANDES)).not.toContain('attente-a-l-arret');
+    expect([...REDIRIGEES]).not.toContain('attente-a-l-arret');
   });
 
   it('the settings of the repository declare no hook of the frame: the plugin carries them, run once', () => {

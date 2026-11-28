@@ -152,18 +152,28 @@ describe('a new question of a project of the group reaches the session at the ne
     expect(questionsDe(await g.relever())).toEqual(['neuve-1']);
   });
 
-  it('gives every question when many wait at once, in the same reading as the ends of circuits', async () => {
+  it('gives every question when many wait at once, and nothing of a circuit integrated meanwhile', async () => {
     const g = groupe([{}]);
     const [voisin] = g.voisins as [string];
     const neuves = noms('neuve', 30);
-    // The first reading dates the ends from itself.
     g.remplir(voisin, []);
     await g.relever();
     vi.setSystemTime(T0 + MIN);
     g.remplir(voisin, [...neuves.map(question), integre('fini-1', T0 + MIN)]);
     const texte = await g.relever();
     expect(questionsDe(texte)).toEqual([...neuves].sort());
-    expect(texte).toContain('Intégré · fini-1');
+    expect(texte).not.toMatch(/fini-1|Intégré/);
+  });
+
+  it('says nothing of a neighbour whose circuits are integrated since the last reading', async () => {
+    const g = groupe([{}]);
+    const [voisin] = g.voisins as [string];
+    g.remplir(voisin, []);
+    await g.relever();
+    vi.setSystemTime(T0 + MIN);
+    g.remplir(g.soi, [integre('fini-1', T0 + MIN)]);
+    g.remplir(voisin, [integre('fini-2', T0 + MIN)]);
+    expect(await g.relever()).toBe('');
   });
 
   it('gives a question that appears after others went up, the circuits of closed tickets still standing', async () => {

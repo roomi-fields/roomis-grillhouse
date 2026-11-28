@@ -113,6 +113,29 @@ describe('the reading for the greffon gives the message only to the session that
   });
 });
 
+describe('the reading for the greffon asks nothing of the circuits integrated', () => {
+  it('asks the server of no integrated circuit, for the project of the session nor for its neighbours', async () => {
+    const soi = depot().racine;
+    const voisin = depot({}, null).racine;
+    writeFileSync(
+      path.join(soi, 'package.json'),
+      JSON.stringify({ grillhouse: { groupe: [soi, voisin] } })
+    );
+    const demandes: [string, boolean][] = [];
+    await releverPourLeGreffon(soi, {
+      env: {},
+      circuitsDe: (racine: string, options?: { integres?: boolean }) => {
+        demandes.push([racine, options?.integres ?? false]);
+        return Promise.resolve([]);
+      },
+    });
+    expect(demandes).toEqual([
+      [soi, false],
+      [voisin, false],
+    ]);
+  });
+});
+
 describe('the reading for the greffon applies the key grillhouse.rappel at each reading', () => {
   it('refuses a faulty key, naming it with its value', async () => {
     for (const rappel of [0, -3, 'cinq', true]) {

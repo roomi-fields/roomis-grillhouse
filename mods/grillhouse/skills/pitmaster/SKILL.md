@@ -140,8 +140,8 @@ l'état de son circuit : la note ne la recopie pas.
   `npx grillhouse circuit <ticket>`, que je lance une fois, au premier plan. La commande met le
   ticket dans la file des tickets du projet et rend la main aussitôt (« ▶ <ticket> est dans la file
   des tickets du projet ») ; son circuit tourne sur le serveur Temporal, hors de ma séance. Ses
-  questions et sa fin me parviennent par le greffon, dans la file de mes messages, sans attente à
-  lancer. Une file de lancements part d'un coup, au premier plan, chaque lancement rendant la main
+  questions me parviennent par le greffon, dans la file de mes messages, sans attente à lancer ;
+  sa fin se lit au panneau. Une file de lancements part d'un coup, au premier plan, chaque lancement rendant la main
   en quelques secondes.
   Le circuit mène les étapes de la liste des étapes : 1 Plan, 1.1 Geste mécanique, 2 Tests,
   2.1 Preuve du rouge, 3 Code, 3.1 Contrôles, 4 Passe finale et relecture (4.1 Passe finale,
@@ -182,12 +182,15 @@ l'état de son circuit : la note ne la recopie pas.
 
   Ainsi un geste sans comportement neuf ne coûte ni testwriter ni développeur.
 - **La fin du circuit dit la suite** : à `integre`, le lot est sur main et le ticket fermé ; le
-  panneau le montre, et je lis sa fermeture au tour suivant. Un arrêt me parvient comme une
-  question. Une étape « à repasser » se rejoue seule, dans sa borne ; à sa borne, l'arrêt
-  `a-repasser` me monte, et je reprends le circuit (`--reprendre`, au premier plan) une fois sa
-  cause levée (le document du circuit, §5.5). La machine admet elle-même chaque étape et dit ce
-  qu'elle attend (le document de la machine, §5.2). Ainsi un « à repasser » se rejoue sans
-  décision.
+  panneau le montre, et l'intégration n'ouvre aucun tour de ma séance. La relecture de la
+  fermeture, le diff des documents de référence et le port au responsable des découvertes rouvertes
+  sous `a-valider` se font au tour de supervision suivant (ouverture de séance, document de
+  référence qui bouge ou demande du responsable), qui reprend les tickets fermés et créés depuis le
+  précédent. Un arrêt me parvient comme une question. Une étape « à repasser » se rejoue seule,
+  dans sa borne ; à sa borne, l'arrêt `a-repasser` me monte, et je reprends le circuit
+  (`--reprendre`, au premier plan) une fois sa cause levée (le document du circuit, §5.5). La
+  machine admet elle-même chaque étape et dit ce qu'elle attend (le document de la machine, §5.2).
+  Ainsi un « à repasser » se rejoue sans décision.
 - **Le bilan chiffré de chaque ticket** : à chacune de ses fins, `integre` ou un arrêt qui me
   revient, le circuit écrit au ticket son bilan (`Circuit · … · bilan`) : le temps mur et sa part
   perdue, le temps par catégorie, l'attente répartie entre la mienne, celle du responsable et la
@@ -232,16 +235,17 @@ l'état de son circuit : la note ne la recopie pas.
   (`bd update <ticket> -d`), que tous les agents lisent, avant que je reprenne.
 - **Le greffon pousse les questions, ma réponse les acquitte** : le greffon de ma séance met dans
   la file de mes messages, hors de mes tours, chaque question neuve d'un circuit du projet et des
-  projets de mon groupe, quel que soit son lanceur, et chaque circuit intégré, une fois ; chaque
+  projets de mon groupe, quel que soit son lanceur ; un circuit intégré se lit au panneau. Chaque
   question vient avec la commande du circuit à compléter de ma réponse, et la ligne d'un autre
-  projet porte son sigle et son dossier (le document du greffon, §5.1). Une question qu'aucune
-  réponse n'a levée revient une fois lue, à l'intervalle de `grillhouse.rappel`, jusqu'à sa
-  réponse : je la réponds, ou je la porte au responsable et je le dis au circuit
+  projet porte son sigle et son dossier (le document du greffon, §5.1). Une question au superviseur
+  qu'aucune réponse n'a levée revient une fois lue, à l'intervalle de `grillhouse.rappel`, jusqu'à
+  sa réponse : je la réponds, ou je la porte au responsable et je le dis au circuit
   (`npx grillhouse circuit <ticket> --chez-le-responsable`), et elle se tait jusqu'à la réponse
-  du circuit. `--reporter <heure>` la tait jusqu'à l'heure. Je ne me mets pas en attente du
-  responsable tant qu'une question d'un circuit attend ma réponse. Sans greffon, rien n'est
-  poussé : l'ouverture de séance liste les questions. Je ne sonde jamais les circuits moi-même.
-  Ainsi aucune question ne reste sans réponse par oubli.
+  du circuit. Une question adressée au responsable d'emblée me parvient une fois, pour que je la
+  lui porte, et ne revient pas. `--reporter <heure>` la tait jusqu'à l'heure. Je ne me mets pas en
+  attente du responsable tant qu'une question d'un circuit attend ma réponse. Sans greffon, rien
+  n'est poussé : l'ouverture de séance liste les questions. Je ne sonde jamais les circuits
+  moi-même. Ainsi aucune question ne reste sans réponse par oubli.
 - **J'arrête tout agent que j'ai lancé moi-même** dès son rapport lu (`TaskStop`). Ainsi ma
   séance ne porte pas le détail des tickets, et elle reste courte.
 - **Un ticket débloqué repart de son état** : l'état du travail est dans l'état du circuit, au

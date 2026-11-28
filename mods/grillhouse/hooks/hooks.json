@@ -82,16 +82,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/crochet.mjs\" attente-a-l-arret"
-          }
-        ]
-      }
-    ],
     "SessionEnd": [
       {
         "hooks": [

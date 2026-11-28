@@ -6,7 +6,7 @@
 // answered, a question answered leaves the file and never comes back. Every time is measured on an
 // injected clock, with no real wait. Witness: on 2026-11-18, OSC Bridge's supervisor had not
 // launched its wait again after a batch, and 7 questions of SyntHub stayed unanswered a morning.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -23,7 +23,6 @@ interface Donnee {
   commande: string;
   cle: string;
   representee?: boolean;
-  integre?: boolean;
   adresse?: string;
 }
 type Circuit = ReturnType<typeof circuitLu>;
@@ -336,43 +335,58 @@ describe('the file of the stops gone up holds the state « presented at such a t
   });
 });
 
-describe('the end of a circuit integrated is given once, in the same reading', () => {
-  it('is given with its ticket, marked as integrated', () => {
+describe('a circuit integrated gives the reading nothing: it is read on the board alone', () => {
+  // The file the reading kept of the ends of circuits it gave.
+  const integrations = (racine: string) =>
+    path.join(racine, '.claude', 'worktrees', 'integrations-rendues.json');
+
+  it('gives nothing of a circuit integrated since the last reading, nor at a later reading', () => {
     const racine = depot();
     lire(racine, [tourne('demo-1')], 0);
-    const lot = lire(racine, [integre('demo-1', T0 + 1 * MIN)], 2);
-    expect(lot.map(q => [q.ticket, q.integre])).toEqual([['demo-1', true]]);
+    for (const m of [2, 3, 60]) {
+      expect(lire(racine, [integre('demo-1', T0 + 1 * MIN)], m), `à ${m} min`).toEqual([]);
+    }
   });
 
-  it('is given once, never by a later reading', () => {
+  it('gives only the question of a reading that holds a circuit integrated too', () => {
     const racine = depot();
-    lire(racine, [tourne('demo-1')], 0);
-    const fini = [integre('demo-1', T0 + 1 * MIN)];
-    expect(lire(racine, fini, 2)).toHaveLength(1);
-    expect(lire(racine, fini, 3)).toEqual([]);
-    expect(lire(racine, fini, 30)).toEqual([]);
-  });
-
-  it('ended before the first reading is not given', () => {
-    const racine = depot();
-    expect(lire(racine, [integre('demo-1', T0 - 60 * MIN)], 0)).toEqual([]);
-  });
-
-  it('an integration between two readings is given by the next one, with the questions', () => {
-    const racine = depot();
-    lire(racine, [arrete('demo-1', 'Q1 ?'), tourne('demo-2')], 0);
+    lire(racine, [tourne('demo-2')], 0);
     const lot = lire(racine, [arrete('demo-1', 'Q1 ?'), integre('demo-2', T0 + 1 * MIN)], 2);
-    expect(lot.map(q => [q.ticket, q.integre])).toEqual([['demo-2', true]]);
+    expect(tickets(lot)).toEqual(['demo-1']);
+    expect(texteDesQuestions(lot)).not.toMatch(/demo-2|Intégré/);
   });
 
-  it('an integrated circuit is never a question', () => {
+  it('gives nothing of a circuit integrated even when every question is asked for', () => {
     const racine = depot();
     lire(racine, [], 0);
-    const lot = lire(racine, [integre('demo-1', T0 + 1 * MIN)], 2);
-    expect(lot.filter(q => !q.integre)).toEqual([]);
+    expect(lire(racine, [integre('demo-1', T0 + 1 * MIN)], 2, 5, { toutes: true })).toEqual([]);
   });
 
-  it('the supervisor stop (« arrete ») of a circuit not integrated is no end given', () => {
+  it('gives the alert of the CI of main beside a circuit integrated, and nothing else', () => {
+    const racine = depot();
+    lire(racine, [], 0);
+    const lot = lire(racine, [integre('demo-1', T0 + 1 * MIN)], 2, 5, {
+      ciDeMain: { cle: 'rouge 9', texte: 'CI de main rouge : CI, passage 9.' },
+    });
+    expect(tickets(lot)).toEqual(['CI de main']);
+  });
+
+  it('writes no file of the integrations', () => {
+    const racine = depot();
+    lire(racine, [tourne('demo-1')], 0);
+    lire(racine, [integre('demo-1', T0 + 1 * MIN)], 2);
+    expect(existsSync(integrations(racine))).toBe(false);
+  });
+
+  it('leaves a file of the integrations an older version wrote as it is', () => {
+    const racine = depot();
+    const ancien = `${JSON.stringify({ depuis: T0, rendues: [] })}\n`;
+    writeFileSync(integrations(racine), ancien);
+    expect(lire(racine, [integre('demo-1', T0 + 1 * MIN)], 2)).toEqual([]);
+    expect(readFileSync(integrations(racine), 'utf8')).toBe(ancien);
+  });
+
+  it('the supervisor stop (« arrete ») of a circuit not integrated gives nothing', () => {
     const racine = depot();
     lire(racine, [tourne('demo-1')], 0);
     expect(lire(racine, [circuitLu('demo-1', { code: 0, arret: 'arrete' })], 2)).toEqual([]);
@@ -467,10 +481,10 @@ describe('the one message of a reading', () => {
   });
 
   it('bears the sigle of another project, and plays its command in its folder', () => {
-    const texte = texteDesQuestions(
-      [q('SH-1'), q('SH-2', { representee: true }), q('SH-3', { integre: true })],
-      { sigle: 'SH', dossier: '/projets/synthhub' }
-    );
+    const texte = texteDesQuestions([q('SH-1'), q('SH-2', { representee: true })], {
+      sigle: 'SH',
+      dossier: '/projets/synthhub',
+    });
     expect(texte).toBe(
       [
         '[SH] Question · SH-1 · 3.1 Contrôles',
@@ -478,20 +492,14 @@ describe('the one message of a reading', () => {
         '→ env -C /projets/synthhub npx grillhouse circuit SH-1 <réponse>',
         '[SH] Toujours sans réponse · SH-2 · 3.1 Contrôles',
         '→ env -C /projets/synthhub npx grillhouse circuit SH-2 <réponse> ou --chez-le-responsable',
-        '[SH] Intégré · SH-3',
       ].join('\n')
     );
   });
 
-  it('groups the questions and the ends of circuits of one reading in one text', () => {
-    const texte = texteDesQuestions([
-      q('demo-1'),
-      q('demo-2'),
-      q('demo-3', { integre: true, etape: '5 Intégration' }),
-    ]);
+  it('groups the questions of one reading in one text', () => {
+    const texte = texteDesQuestions([q('demo-1'), q('demo-2')]);
     expect(texte).toContain('Question · demo-1 · 3.1 Contrôles');
     expect(texte).toContain('Question · demo-2 · 3.1 Contrôles');
-    expect(texte.split('\n').at(-1)).toBe('Intégré · demo-3');
   });
 
   it('says that a question presented again still waits for an answer, and names the answer « chez le responsable » beside the command of the circuit', () => {
@@ -508,7 +516,7 @@ describe('the one message of a reading', () => {
   });
 
   it('asks the session to launch no wait: the greffon pushes the questions and the answer acknowledges them', () => {
-    const texte = texteDesQuestions([q('demo-1'), q('demo-2', { integre: true })]);
+    const texte = texteDesQuestions([q('demo-1'), q('demo-2')]);
     expect(texte).not.toContain('--attendre');
     expect(texte).not.toMatch(/relance l'attente/i);
     expect(texte).not.toContain('run_in_background');
@@ -580,12 +588,16 @@ describe('the opening of the session of supervision', () => {
     ).toEqual([]);
   });
 
-  it('an integration before the opening is not given by the next reading', async () => {
+  it('names no circuit integrated, writes no file of the integrations, and the next reading gives none', async () => {
     const racine = depot();
     const fini = [integre('demo-1', Date.now() - 1000)];
-    await ouvrir(racine, fini);
+    const texte = await ouvrir(racine, fini);
+    expect(texte).not.toContain('demo-1');
     expect(
       relever(racine, fini, { fermes: aucun, maintenant: Date.now() + 1000, rappelMs: 5 * MIN })
     ).toEqual([]);
+    expect(existsSync(path.join(racine, '.claude', 'worktrees', 'integrations-rendues.json'))).toBe(
+      false
+    );
   });
 });

@@ -46,7 +46,6 @@ roomis-grillhouse/
 │   │   ├── superviseur.mjs           # one supervisor per project: the lock the session start takes
 │   │   ├── tableau.mjs               # `npm run tableau`: the board on three levels (project, agents, chantier)
 │   │   ├── ligne-etat/               # the status line: the person's own on the left, the chantier on the right
-│   │   ├── attente-a-l-arret.mjs     # Stop hook of the supervision session, while a circuit waits for its answer
 │   │   ├── messages-non-lus.mjs      # SubagentStop and TeammateIdle hook: an agent of a team does not stop while its box holds an unread message
 │   │   ├── registre.mjs              # hook: one line per finished agent (ticket, role, time, tokens)
 │   │   #  The circuit of a ticket (docs/architecture/circuit.md)

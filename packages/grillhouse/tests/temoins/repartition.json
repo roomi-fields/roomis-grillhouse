@@ -7,7 +7,6 @@
     "scripts/aiguillage.mjs",
     "scripts/aiguillage.d.mts",
     "scripts/arbitrages.mjs",
-    "scripts/attente-a-l-arret.mjs",
     "scripts/attente-au-tour.mjs",
     "scripts/attente-de-la-machine.mjs",
     "scripts/avancement.mjs",

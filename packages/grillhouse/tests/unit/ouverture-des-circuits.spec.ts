@@ -68,6 +68,17 @@ describe('the opening of a session of supervision', () => {
     expect(texte).not.toContain('## Les circuits du dépôt');
   });
 
+  it('announces the questions alone as pushed: no end of a circuit, no hook at the end of a turn', async () => {
+    const texte = await circuitsALOuverture(depot(), {
+      fermes: () => new Set(),
+      circuitsDe: lus([]),
+    });
+    expect(texte).not.toMatch(/fins? de circuit|intégr/i);
+    expect(texte).not.toMatch(/crochet|fin de tour/i);
+    expect(texte).toContain('--chez-le-responsable');
+    expect(texte).toContain('grillhouse.rappel');
+  });
+
   it('names each running circuit, each stopped one with its question and its answer, each ended one with --reprendre', async () => {
     const texte = await circuitsALOuverture(depot(), {
       fermes: () => new Set(['demo-5']),
