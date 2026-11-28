@@ -532,9 +532,16 @@ describe.runIf(canWrap && (copieDeLaSuite || sondeEssai))('the envelope on the r
       const p = path.join(maisonReelle, rel);
       expect(enVue(p), p).toBe(codegraphDuPoste);
       if (codegraphDuPoste) {
-        // `test -w` asks the kernel, which refuses a read-only mount: nothing is written in the
-        // real home.
-        expect(dedans(['test', '-w', p]).status, p).toBe(1);
+        // The builtin `[ -w ]` of bash asks the kernel, which refuses a read-only mount; the
+        // `test` program of the PATH may judge on the permissions of the file alone (the one of
+        // rust-coreutils). Nothing is written in the real home.
+        const r = dedans([
+          'bash',
+          '-c',
+          `if [ -w ${p} ]; then echo inscriptible; else echo lecture-seule; fi`,
+        ]);
+        expect(r.status, r.stderr).toBe(0);
+        expect(r.stdout, p).toBe('lecture-seule\n');
       }
     }
   });
