@@ -36,7 +36,7 @@ done
 paquet=$(printf '%s' "$GRILLHOUSE_ENVELOPPE" | cut -d: -f1)
 printf '%s' "$modele" > "$paquet/.modele-vu"
 cat > /dev/null
-[ "$format" = json ] && printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok","structured_output":{"statut":"FAIT"}}'
+[ "$format" = stream-json ] && printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok","structured_output":{"statut":"FAIT"}}'
 exit 0
 `;
 

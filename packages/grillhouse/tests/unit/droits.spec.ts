@@ -23,7 +23,6 @@ type Reglages = {
   permissions: { allow: string[]; deny: string[] };
   autoMemoryEnabled: boolean;
   disableBundledSkills: boolean;
-  skillOverrides: Record<string, string>;
   enabledPlugins: Record<string, boolean>;
   env?: Record<string, string>;
   hooks?: { PreToolUse?: { matcher: string; hooks: { command: string }[] }[] };
@@ -285,22 +284,18 @@ describe("L2 — the context of a role's session", () => {
     }
   });
 
-  // grillhouse-3uv.84.2: the skills of the frame are its plugin's, which Claude Code's
-  // `skillOverrides` does not reach; the role's agent preloads its own.
-  it("turns off the project's own skills and the built-in ones Claude Code keeps, for every role", () => {
+  // The skills of a session are bounded by its input (the `skills` of the `initialize` request),
+  // which no setting reaches for a plugin's: its settings name no skill.
+  it('leaves the skills of a role to the list of its input: no setting turns one off, the built-in ones stay off', () => {
     const projet = mkdtempSync(path.join(ESSAIS, 'propres-'));
     mkdirSync(path.join(projet, '.claude/skills/propre'), { recursive: true });
     writeFileSync(path.join(projet, '.claude/skills/propre/SKILL.md'), '---\nname: propre\n---\n');
     writeFileSync(path.join(projet, 'package.json'), JSON.stringify({ name: 'p' }));
     declarerLesLangages(projet);
     for (const role of Object.keys(ROLES)) {
-      const { skillOverrides } = reglagesDe(options(role, projet));
-      expect(skillOverrides, role).toEqual({
-        design: 'off',
-        doctor: 'off',
-        'plugin-authoring': 'off',
-        propre: 'off',
-      });
+      const reglages = reglagesDe(options(role, projet));
+      expect(reglages, role).not.toHaveProperty('skillOverrides');
+      expect(reglages.disableBundledSkills, role).toBe(true);
     }
   });
 

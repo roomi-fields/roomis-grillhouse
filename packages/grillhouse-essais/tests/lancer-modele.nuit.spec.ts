@@ -7,6 +7,7 @@ import {
   canWrap,
   racineSousLaMaison,
   declarerLesLangages,
+  lireLEntree,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { projetDuLanceur } from './enveloppe-essai.js';
 import { temporaireDuFichier } from './temporaire-du-fichier.js';
@@ -19,6 +20,7 @@ const dossierDeTravail = enProcessus<string>('scripts/enveloppe/enveloppe.mjs', 
 const publie = enProcessus<string>('scripts/langages/typescript/index-interfaces.mjs', 'publie');
 const optionsDuRole = enProcessus<string[]>('scripts/droits.mjs', 'optionsDuRole');
 const schemaDeFiche = enProcessus<unknown>('scripts/resultats.mjs', 'schemaDeFiche');
+const competencesDuRole = enProcessus<string[]>('scripts/droits.mjs', 'competencesDuRole');
 
 // Ticket grillhouse-3uv.46: the launcher takes a model and a reasoning level for one session
 // (--modele, --effort) and hands them to claude (--model, --effort); without them, the role's
@@ -51,6 +53,42 @@ function installerEnveloppe(repo: string) {
   };
   suivre(SCRIPT);
 }
+
+// A stand-in for claude that prints a stream of messages, a line that is none among them, and an
+// error, then ends on the code <code>; <resultat> adds the line of its result.
+const ligne = (o: object) => JSON.stringify(o);
+const RESULTAT = ligne({
+  type: 'result',
+  subtype: 'success',
+  session_id: 'x',
+  result: 'ok',
+  structured_output: { statut: 'FAIT' },
+});
+const assistant = (text: string) =>
+  ligne({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } });
+const OUTIL = ligne({
+  type: 'user',
+  message: {
+    role: 'user',
+    content: [{ type: 'tool_result', tool_use_id: 't', content: 'MARQUE-OUTIL' }],
+  },
+});
+const fauxEnFlux = (resultat: string[], code: number) =>
+  [
+    '#!/bin/bash',
+    'cat > /dev/null',
+    "cat <<'FLUX'",
+    ligne({ type: 'system', subtype: 'init', marque: 'MARQUE-INIT' }),
+    'Une ligne qui n’est pas un message du flux',
+    assistant('MARQUE-PREMIER'),
+    assistant('MARQUE-DERNIER'),
+    OUTIL,
+    ...resultat,
+    'FLUX',
+    'echo MARQUE-ERREUR-STANDARD >&2',
+    `exit ${code}`,
+    '',
+  ].join('\n');
 
 // A test repository whose developpeur's definition sets its own model and level, and a stand-in
 // for claude that records its arguments, one per NUL, and the prompt it reads on its standard
@@ -118,6 +156,10 @@ writeFileSync(
 );
 projetDuLanceur(REPO);
 installerEnveloppe(REPO);
+const FAUX_EN_FLUX = path.join(REPO, 'faux-en-flux.sh');
+writeFileSync(FAUX_EN_FLUX, fauxEnFlux([RESULTAT], 0), { mode: 0o755 });
+const FAUX_SANS_RESULTAT = path.join(REPO, 'faux-sans-resultat.sh');
+writeFileSync(FAUX_SANS_RESULTAT, fauxEnFlux([], 3), { mode: 0o755 });
 const FAUX = path.join(REPO, 'faux-claude.sh');
 // It writes in the first package of the plan the envelope names (grillhouse-3uv.95.3).
 writeFileSync(
@@ -142,25 +184,28 @@ execFileSync('git', [
 let numero = 0;
 // One launch, on a ticket of its own: the options come before the four arguments of today, and
 // `apres` after them.
-function lancer(options: string[], apres: string[] = [], composant = 'packages/a') {
+function lancer(
+  options: string[],
+  apres: string[] = [],
+  composant = 'packages/a',
+  { claude = FAUX, role = 'developpeur' } = {}
+) {
   const ticket = `demo-${++numero}`;
   const consigne = path.join(REPO, `${ticket}.txt`);
   writeFileSync(consigne, `TON TICKET : ${ticket} — un sujet.`);
-  const r = spawnSync(
-    'bash',
-    [LAUNCHER, ...options, ticket, 'developpeur', composant, consigne, ...apres],
-    {
-      cwd: REPO,
-      encoding: 'utf8',
-      env: { ...process.env, CLAUDE_BIN: FAUX, HOME },
-    }
-  );
+  const r = spawnSync('bash', [LAUNCHER, ...options, ticket, role, composant, consigne, ...apres], {
+    cwd: REPO,
+    encoding: 'utf8',
+    env: { ...process.env, CLAUDE_BIN: claude, HOME },
+  });
   const copie = path.join(REPO, '.claude/worktrees', ticket);
   const fichier = path.join(copie, composant, 'args');
   const args = existsSync(fichier) ? readFileSync(fichier, 'utf8').split('\0').slice(0, -1) : null;
   const recu = path.join(copie, composant, 'prompt');
   const brut = existsSync(recu) ? readFileSync(recu, 'utf8') : null;
-  return { r, copie, args, prompt: brut === null ? null : sansBase(brut), brut, ticket };
+  const entree = brut === null ? null : lireLEntree(brut);
+  const prompt = entree ? sansBase(entree.consigne) : null;
+  return { r, copie, args, prompt, brut, entree, ticket };
 }
 
 // <texte> with the temporary directory of the session, which the launcher opens, named `/BASE`.
@@ -193,15 +238,13 @@ const TRAVAIL = (ticket: string) =>
 const PROMPT = (ticket: string) =>
   `TON TICKET : ${ticket} — un sujet.\n\n${PUBLIE_POUR_A}\n\n${TRAVAIL(ticket)}`;
 
-// The arguments claude receives today for <ticket>: the schema of the role's sheet and claude's
-// JSON output, then the rights and the context of its role last (scripts/droits.mjs); the
+// The arguments claude receives for <ticket>, the options of its streams aside (`sansFlux`): the
+// schema of the role's sheet, then the rights and the context of its role last (scripts/droits.mjs); the
 // instruction is not among them.
 const AUJOURDHUI = (ticket: string) => [
   '-p',
   '--agent',
   'developpeur',
-  '--output-format',
-  'json',
   '--json-schema',
   JSON.stringify(schemaDeFiche('developpeur')),
   '--permission-mode',
@@ -218,6 +261,14 @@ const AUJOURDHUI = (ticket: string) => [
 const valeurs = (args: string[], flag: string) =>
   args.flatMap((a, i) => (a === flag ? [args[i + 1]] : []));
 
+// The arguments without the options of the streams, which their own tests read.
+const sansFlux = (args: string[]) =>
+  args.filter(
+    (a, i) =>
+      !['--input-format', '--output-format', '--verbose'].includes(a) &&
+      !['--input-format', '--output-format'].includes(args[i - 1])
+  );
+
 // The arguments without the pairs --model <m> and --effort <e>.
 const sansSurcharge = (args: string[]) =>
   args.filter(
@@ -230,7 +281,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(valeurs(args ?? [], '--effort')).toEqual(['high']);
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansFlux(sansSurcharge(args ?? []))).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — the two options in the other order launch the same session', () => {
@@ -238,7 +289,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['opus']);
     expect(valeurs(args ?? [], '--effort')).toEqual(['high']);
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansFlux(sansSurcharge(args ?? []))).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — --modele alone sets the model and leaves the level to the role', () => {
@@ -246,7 +297,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--model')).toEqual(['haiku']);
     expect(args).not.toContain('--effort');
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansFlux(sansSurcharge(args ?? []))).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — --effort alone sets the level and leaves the model to the role', () => {
@@ -254,7 +305,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
     expect(r.status, r.stderr).toBe(0);
     expect(valeurs(args ?? [], '--effort')).toEqual(['low']);
     expect(args).not.toContain('--model');
-    expect(sansSurcharge(args ?? [])).toEqual(AUJOURDHUI(ticket));
+    expect(sansFlux(sansSurcharge(args ?? []))).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
   it('critère 1 — a full model name goes to claude as written', () => {
@@ -273,7 +324,7 @@ describe.runIf(canWrap)('the launcher and the model and level of a session', () 
   it('critère 2 — without an option, claude receives the command of today: the role decides', () => {
     const { r, args, prompt, ticket } = lancer([]);
     expect(r.status, r.stderr).toBe(0);
-    expect(args).toEqual(AUJOURDHUI(ticket));
+    expect(sansFlux(args ?? [])).toEqual(AUJOURDHUI(ticket));
     expect(prompt).toBe(PROMPT(ticket));
   });
 
@@ -322,6 +373,65 @@ describe.runIf(canWrap)('the launcher and the session of a relaunch', () => {
   });
 });
 
+// Each session under the envelope speaks stream-json both ways: the skills of its role then its
+// instruction on its input; of its output, its result alone is ranged, and the log takes what is
+// not the conversation.
+describe.runIf(canWrap)('the launcher and the streams of a session', () => {
+  const ID = '0b7c5f0e-6a1d-4c58-9d3e-2f4a8b9c1d2e';
+  it.each([
+    ['developpeur', '--seance'],
+    ['developpeur', '--reprise'],
+    ['testwriter', '--seance'],
+  ])(
+    'gives the session of the %s (%s) the skills of its role on its input, in stream-json',
+    (role, option) => {
+      const { r, args, entree } = lancer([option, ID], [], 'packages/a', { role });
+      expect(r.status, r.stderr).toBe(0);
+      expect(valeurs(args ?? [], '--input-format')).toEqual(['stream-json']);
+      expect(valeurs(args ?? [], '--output-format')).toEqual(['stream-json']);
+      expect(args).toContain('--verbose');
+      expect(entree?.competences).toEqual(competencesDuRole(role));
+    }
+  );
+
+  // A session on the stand-in <claude>: its ranged result and its log.
+  const flux = (claude: string) => {
+    const { r, copie } = lancer([], [], 'packages/a', { claude });
+    const rang = path.join(`${copie}.travail`, 'seances/courante');
+    return {
+      r,
+      resultat: readFileSync(path.join(rang, 'resultat.json'), 'utf8').trim(),
+      fin: readFileSync(path.join(rang, 'fin'), 'utf8').trim(),
+      journal: readFileSync(`${copie}.log`, 'utf8'),
+    };
+  };
+
+  it('ranges the line of the result alone, and logs it, the lines that are no message and the errors', () => {
+    const s = flux(FAUX_EN_FLUX);
+    expect(s.r.status, s.journal).toBe(0);
+    expect(s.resultat).toBe(RESULTAT);
+    expect(s.fin).toBe('0');
+    const lignes = s.journal.split('\n');
+    for (const attendue of [
+      RESULTAT,
+      'Une ligne qui n’est pas un message du flux',
+      'MARQUE-ERREUR-STANDARD',
+    ]) {
+      expect(lignes.filter(l => l === attendue)).toHaveLength(1);
+    }
+    expect(s.journal).not.toMatch(/MARQUE-(INIT|PREMIER|DERNIER|OUTIL)/);
+  });
+
+  it('without a result, ranges none, keeps the code of claude, and logs the last assistant text alone', () => {
+    const s = flux(FAUX_SANS_RESULTAT);
+    expect(s.r.status, s.journal).toBe(3);
+    expect(s.resultat).toBe('');
+    expect(s.fin).toBe('3');
+    expect(s.journal).toContain('MARQUE-DERNIER');
+    expect(s.journal).not.toMatch(/MARQUE-(INIT|PREMIER|OUTIL)/);
+  });
+});
+
 // The instruction of the session carries what the components its component depends on publish,
 // read in the copy from the `## Consommateurs` sections of their interfaces.
 describe.runIf(canWrap)('the launcher and what the components before publish', () => {
@@ -352,7 +462,8 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
     );
     const copie = path.join(REPO, '.claude/worktrees', ticket);
     expect(r.status, r.stderr).toBe(0);
-    const prompt = sansBase(readFileSync(path.join(copie, 'packages/a/prompt'), 'utf8'));
+    const recu = readFileSync(path.join(copie, 'packages/a/prompt'), 'utf8');
+    const prompt = sansBase(lireLEntree(recu)?.consigne ?? '');
     expect(prompt).toContain("## Ce que les composants d'avant publient");
     expect(prompt).toContain('### Pour `a`');
     expect(prompt).toContain('#### b');
@@ -372,7 +483,7 @@ describe.runIf(canWrap)('the launcher and what the components before publish', (
     const { r, args, prompt, copie, ticket } = lancer([], [], 'packages/d');
     const journal = existsSync(`${copie}.log`) ? readFileSync(`${copie}.log`, 'utf8') : '';
     expect(r.status, `${r.stderr}\n${journal}`).toBe(0);
-    expect(args).toEqual(AUJOURDHUI(ticket));
+    expect(sansFlux(args ?? [])).toEqual(AUJOURDHUI(ticket));
     const section = publie(copie, 'packages/d');
     expect(Buffer.byteLength(section)).toBeGreaterThan(128 * 1024);
     expect(prompt).toBe(`TON TICKET : ${ticket} — un sujet.\n\n${section}\n\n${TRAVAIL(ticket)}`);

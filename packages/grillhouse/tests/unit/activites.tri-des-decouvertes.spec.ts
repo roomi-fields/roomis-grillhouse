@@ -17,6 +17,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { lireLEntree } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as activites from '../../scripts/activites.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'tri-des-decouvertes-'));
@@ -191,7 +192,8 @@ describe('le tri des découvertes en fin de ticket', () => {
     };
     expect(permissions.allow).toContain('Bash');
     expect(permissions.deny).toContain('Bash(bd comments add*)');
-    const prompt = readFileSync(path.join(vu, 'prompt'), 'utf8');
+    const recu = readFileSync(path.join(vu, 'prompt'), 'utf8');
+    const prompt = lireLEntree(recu)?.consigne ?? recu;
     expect(prompt).toContain('demo-1.1 — La mesure de zéro');
     expect(prompt).toContain(`SON COMMIT SUR MAIN : ${integre} feat(forms): La mesure (demo-1)`);
   });

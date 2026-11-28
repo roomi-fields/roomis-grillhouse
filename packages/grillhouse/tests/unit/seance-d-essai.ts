@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll } from 'vitest';
-import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { architecture, lireLEntree } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { composantsLisibles } from '../../scripts/ticket-du-circuit.mjs';
 import { resoudreComposant } from '../../scripts/depart-du-ticket.mjs';
 import { poserLeFauxProgramme } from './faux-programme.js';
@@ -252,7 +252,12 @@ echo 0 > $r/fin
     passations: c => {
       commentairesDuTicket = c;
     },
-    prompt: n => lire(`prompt-${n}`),
+    // The instruction of the session: a session out of the envelope receives it in its input
+    // (`lireLEntree`), the launcher as the file it is given.
+    prompt: n => {
+      const recu = lire(`prompt-${n}`);
+      return lireLEntree(recu)?.consigne ?? recu;
+    },
     args: n => lire(`args-${n}`).split('\0').slice(0, -1),
     appels: () => nombre('prompt-'),
     commentaires: () => ctx.rendus.filter(e => e.genre === 'commentaire').map(e => String(e.texte)),

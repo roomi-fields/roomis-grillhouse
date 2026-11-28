@@ -6,7 +6,7 @@
 //
 // - The sheet of the end of a session (« la fiche ») of the explorateur, the questionneur, the
 //   testwriter, the developpeur, the agent direct and the reviewer: the schema of each role (FICHES), which the
-//   session receives (`claude -p --output-format json --json-schema <schéma>`) and fills as its
+//   session receives (`claude -p --json-schema <schéma>`) and fills as its
 //   last act, in the field `structured_output` of its result. A field exists only when a reader
 //   reads it:
 //   - `statut` (FAIT, BLOQUÉ, BESOIN), with `raison` for BLOQUÉ and `question` for BESOIN, each
@@ -1024,7 +1024,7 @@ function manques(role, f) {
   return out;
 }
 
-// The sheet of <role> in <sortie>, what claude prints with `--output-format json`: `{ fiche,
+// The sheet of <role> in <sortie>, the line `type: result` of claude's stream: `{ fiche,
 // seance }`, or `{ erreur }` naming what lacks or does not conform; with <copie>, the directory
 // of the copy, each file piece of the sheet stands in it, its file and its line; with <ticket>,
 // the description of the ticket, each piece of the ticket names a criterion or a section of it.

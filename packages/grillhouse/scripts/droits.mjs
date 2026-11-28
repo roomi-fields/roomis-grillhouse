@@ -28,13 +28,10 @@
 //   for a role whose instruction carries its ticket the reading of it again, for a role that
 //   writes the test tool run directly, and for a role that writes nothing at the ticket every write
 //   of bd, ECRIRE_AU_TICKET); no hook; the
-//   automatic memory off; the skills of Claude Code off (`disableBundledSkills`, and the few it keeps,
-//   INTEGREES), and the project's own skills (`.claude/skills/` of the copy) off
-//   (`skillOverrides`); every plugin the project enables off (`enabledPlugins`: their skills,
-//   hooks and servers are not the role's), save the frame's (`grillhouse@…`), which carries the
-//   role's agent, its skills and the frame's hooks: Claude Code applies no `skillOverrides` to the
-//   skills of a plugin, and the role's agent preloads its own (`skills` of its definition);
-//   the background tasks off and Code Mode on (`env`, ENV_DES_SEANCES: a role waits in the
+//   automatic memory off; the skills of Claude Code off (`disableBundledSkills`); every plugin the
+//   project enables off (`enabledPlugins`: their skills, hooks and servers are not the role's),
+//   save the frame's (`grillhouse@…`), which carries the role's agent, its skills and the frame's
+//   hooks; the background tasks off and Code Mode on (`env`, ENV_DES_SEANCES: a role waits in the
 //   foreground for what it launches, and its session ends with its sheet; `claude -p` gets Code
 //   Mode, the REPL, only from this block), and, in the same block, the prompt cache forced to five
 //   minutes for a role that takes it (`cacheCinqMinutes`, ROLES; CINQ_MINUTES_DE_CACHE); no line of
@@ -45,6 +42,9 @@
 //   of the copy, `settings.local.json` of the main tree or of the copy), which the command line
 //   would override. The name of the style alone goes: a style the session cannot resolve (a file
 //   of `~/.claude/output-styles`, a plugin it does not load) does not apply.
+// - The skills the session lists and may load are no option: they go on its standard input
+//   (`competencesDuRole`, scripts/entree-de-seance.mjs), the one list no setting can bound for the
+//   skills of a plugin.
 // - `--tools <list>`: the tools its work uses; Edit and Write for a role that writes alone, the
 //   tool search for a role whose index Claude Code defers.
 // - `--strict-mcp-config --mcp-config <json>`: the servers of the index (codegraph, rtfm) for a
@@ -52,7 +52,7 @@
 //   enables, at their installed path (`~/.claude/plugins/installed_plugins.json`, the project's
 //   entry first, else the user's); a project's entry whose command is the bare name of the program
 //   a plugin ships runs that program; none for the others.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -97,9 +97,6 @@ const ENV_DES_SEANCES = {
 // −11.9 %): they keep Claude Code's default, one hour on the subscription.
 const CINQ_MINUTES_DE_CACHE = { FORCE_PROMPT_CACHING_5M: '1' };
 
-// The skills Claude Code keeps listed when its own are off (`disableBundledSkills`), measured on
-// Claude Code 2.1.305.
-const INTEGREES = ['design', 'doctor', 'plugin-authoring'];
 // The frame's plugin, by the start of its identifier (`grillhouse@<place de marché>`).
 const GREFFON_DU_CADRE = 'grillhouse@';
 // The servers of the index (charter, « L'index d'abord »), and their tools of reading: codegraph
@@ -128,10 +125,11 @@ const DOSSIERS_DE_LA_CHARTE = ['node_modules/@roomi-fields/grillhouse', 'mods/gr
 // Each role the circuit launches: the modules of the common charter it applies (`modules`; the
 // supervisor's is no role's), whether it writes (files, `ecrit`; the ticket, unless
 // `ecritAuTicket` is false), whether its instruction carries its ticket (`porteSonTicket`),
-// whether it uses the index, the rules of its commands (`commandes`), whether its skill names the frame's METACADRE.md (`metacadre`, read
-// at the root of the plugin installed), whether its skill loads the debugging skill of the
-// plugin (`debogage`, read with its neighbouring files), and whether its prompt cache lasts five
-// minutes (`cacheCinqMinutes`).
+// whether it uses the index, the rules of its commands (`commandes`), whether its skill names the
+// frame's METACADRE.md (`metacadre`, read at the root of the plugin installed), whether its skill
+// loads the debugging skill of the plugin (`debogage`, read with its neighbouring files), the other
+// skills of the plugin its skill or the common charter ask it to load (`competences`), and whether
+// its prompt cache lasts five minutes (`cacheCinqMinutes`).
 export const ROLES = {
   // It writes no file and nothing at the ticket: it surveys the components and reads the code by
   // the index, and ends on the plan in its sheet, which the circuit writes at the ticket.
@@ -140,6 +138,7 @@ export const ROLES = {
     modules: ['plan', 'preuve'],
     metacadre: true,
     debogage: true,
+    competences: ['mesure'],
     index: true,
     ecritAuTicket: false,
     commandes: TOUTE_COMMANDE_ET_L_INDEX,
@@ -149,6 +148,7 @@ export const ROLES = {
     cacheCinqMinutes: true,
     modules: ['preuve', 'tests'],
     metacadre: true,
+    competences: ['mesure'],
     ecrit: true,
     index: true,
     porteSonTicket: true,
@@ -159,6 +159,7 @@ export const ROLES = {
     modules: [],
     metacadre: true,
     debogage: true,
+    competences: ['mesure', 'redacteur', 'writing-for-agents'],
     ecrit: true,
     index: true,
     porteSonTicket: true,
@@ -169,6 +170,7 @@ export const ROLES = {
   direct: {
     modules: ['preuve', 'tests'],
     debogage: true,
+    competences: ['mesure', 'redacteur', 'writing-for-agents'],
     ecrit: true,
     index: true,
     porteSonTicket: true,
@@ -193,6 +195,25 @@ export const ROLES = {
     commandes: TOUTE_COMMANDE_ET_L_INDEX,
   },
 };
+
+// The skills of the plugin <role> loads: its own, then the debugging skill for a role that debugs.
+const competencesDeTravail = role => [
+  role,
+  ...(ROLES[role].debogage ? ['systematic-debugging'] : []),
+];
+
+/**
+ * The skills a session of `role` lists and may load, qualified by the frame's plugin: its own, the
+ * debugging skill for a role that debugs, and those its skill and the common charter ask of it.
+ */
+export function competencesDuRole(role) {
+  if (!ROLES[role]) {
+    throw new Error(`rôle sans droits : ${role}`);
+  }
+  return [...competencesDeTravail(role), ...(ROLES[role].competences ?? [])].map(
+    c => `grillhouse:${c}`
+  );
+}
 
 const lireJson = f => {
   try {
@@ -241,9 +262,8 @@ function lireSaCompetence(role, { racine, copie, home }) {
   if (!dossier) {
     return [];
   }
-  const competences = [role, ...(ROLES[role].debogage ? ['systematic-debugging'] : [])];
   return [
-    ...competences.map(c => `Read(/${path.join(dossier, 'skills', c)}/**)`),
+    ...competencesDeTravail(role).map(c => `Read(/${path.join(dossier, 'skills', c)}/**)`),
     ...(ROLES[role].metacadre ? [`Read(/${path.join(dossier, 'METACADRE.md')})`] : []),
   ];
 }
@@ -312,9 +332,9 @@ function chartesExclues(r, home) {
   ];
 }
 
-// The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (where the
-// project's own skills and settings are read) and the main tree <racine>; <home> holds the plugins
-// installed and the settings of the user.
+// The settings of the session of <role>, for the ticket <ticket>, its copy <copie> (whose
+// language names the test tool, and whose settings may choose the output style) and the main tree
+// <racine>; <home> holds the plugins installed and the settings of the user.
 function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
   const r = ROLES[role];
   if (!r) {
@@ -332,15 +352,6 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
       deny.push(`Bash(bd ${lecture} ${ticket})`, `Bash(bd ${lecture} ${ticket} *)`);
     }
   }
-  const propres = path.join(copie, '.claude', 'skills');
-  const autres = [
-    ...INTEGREES,
-    ...(existsSync(propres)
-      ? readdirSync(propres, { withFileTypes: true })
-          .filter(d => d.isDirectory())
-          .map(d => d.name)
-      : []),
-  ];
   return {
     permissions: {
       allow: [...r.commandes, ...lireSaCompetence(role, { racine, copie, home })],
@@ -349,7 +360,6 @@ function reglagesDuRole(role, { racine, copie = racine, ticket, home }) {
     autoMemoryEnabled: false,
     claudeMdExcludes: chartesExclues(r, home),
     disableBundledSkills: true,
-    skillOverrides: Object.fromEntries(autres.map(s => [s, 'off'])),
     enabledPlugins: Object.fromEntries(
       greffonsDuProjet(racine)
         .filter(g => !g.startsWith(GREFFON_DU_CADRE))

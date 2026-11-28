@@ -73,9 +73,11 @@
 #   refused), the launch stops, CODE_COPIE, before any command runs. In the envelope the main
 #   repository is read-only as a whole.
 # - The envelope receives the role: it decides who writes the package of the shared test material.
-# - The session runs `claude -p` with the role's agent and, as its prompt, read on its standard
-#   input from a temporary file the launcher writes and removes (an argument may not pass the
-#   128 KiB Linux allows one, MAX_ARG_STRLEN), the instruction file
+# - The session runs `claude -p` with the role's agent, in stream-json both ways
+#   (`--input-format stream-json --output-format stream-json --verbose`). Its standard input,
+#   read from a temporary file the launcher writes and removes (an argument may not pass the
+#   128 KiB Linux allows one, MAX_ARG_STRLEN), is composed by scripts/entree-de-seance.mjs: the
+#   skills of the role, then as its prompt, in one message of the user, the instruction file
 #   followed by the section « Ce que les composants d'avant publient », for each package of the
 #   plan (one part per package when the plan holds several): for each
 #   component whose `## Consommateurs` section names the package, its line, the names of the
@@ -103,13 +105,15 @@
 #   comments carry the author the launch names in BEADS_ACTOR, which the envelope passes on), its
 #   tools and the servers of the index, for the reading of the whole copy.
 # - A role that ends on a sheet (scripts/resultats.mjs: the testwriter, the developpeur) runs with
-#   `--output-format json --json-schema <its schema>` (`npx grillhouse resultats --schema
-#   <rôle>`); --fiche <sorte> names the schema of a sheet that is not its role's (`geste`, the
-#   explorateur's gesture of a mechanical ticket), taking a value as --modele does:
-#   claude's JSON result, its sheet in `structured_output`, goes to `resultat.json` in the folder
+#   `--json-schema <its schema>` (`npx grillhouse resultats --schema <rôle>`); --fiche <sorte>
+#   names the schema of a sheet that is not its role's (`geste`, the explorateur's gesture of a
+#   mechanical ticket), taking a value as --modele does.
+# - Once claude ends, its output stream is sorted (scripts/sortie-de-seance.mjs): the line
+#   `type: result`, its sheet in `structured_output`, goes to `resultat.json` in the folder
 #   of the session (.claude/worktrees/<ticket>.travail/seances/<id>/, <id> the session's
 #   --seance or --reprise, `courante` without one), which a launch removes first and the circuit
-#   reads, then to the log; its errors go to the log.
+#   reads; the log takes that line, the lines that are no message of the stream and, without a
+#   result, the text of the last assistant message; its errors go to the log.
 # - Its output, and an envelope refusal (CODE_REFUS), are added to .claude/worktrees/<ticket>.log,
 #   the log of the ticket, which keeps every session of the ticket: each launch past the checks of
 #   its call adds a header line, `=== <time> · <rôle> · <composant> ===`, then its preparation and
@@ -282,8 +286,8 @@ if [ -s "$echec" ]; then
   construction=$'\n\n'"## La construction échoue"$'\n\n'"$(head -n 1 "$echec") La réparer fait partie de ta tâche. La fin de sa sortie :"$'\n\n```\n'"$(tail -n +2 "$echec" | tail -n 100)"$'\n```'
 fi
 rm -f "$echec"
-# The prompt, assembled in a file: claude reads it on its standard input, since as an argument it
-# may pass the size Linux allows one (MAX_ARG_STRLEN, 128 KiB).
+# The prompt, assembled in a file: it may pass the size Linux allows one argument (MAX_ARG_STRLEN,
+# 128 KiB), and claude reads it on its standard input, in the input composed below.
 # A resumed session holds the sections of its first instruction: its new working directory and a
 # failed build alone are news.
 prompt=$(mktemp -p "$base_du_lanceur")
@@ -293,36 +297,42 @@ else
   printf '%s' "$(cat "$consigne")"$'\n\n'"$publie$dossier$construction" > "$prompt"
 fi
 
+# The input of the session: the skills of its role, then the prompt (scripts/entree-de-seance.mjs).
+entree=$(mktemp -p "$base_du_lanceur")
+node "$ici/../entree-de-seance.mjs" "$role" < "$prompt" > "$entree" 2>> "$journal" \
+  || { rm -f "$prompt" "$entree"; echo "⛔ L'entrée de la séance n'a pas pu se composer : voir $journal." >&2; exit "$CODE_COPIE"; }
+rm -f "$prompt"
+
 # The rights and the context of the role's session (scripts/droits.mjs), one option per line.
 droits=$(node "$ici/../droits.mjs" "$role" --racine "$racine" --copie "$copie" --ticket "$ticket" 2>> "$journal") \
-  || { rm -f "$prompt"; echo "⛔ Les droits de la séance n'ont pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+  || { rm -f "$entree"; echo "⛔ Les droits de la séance n'ont pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 mapfile -t droits_du_role <<<"$droits"
 
 # The schema of the role's end-of-session sheet (scripts/resultats.mjs), for a role that has one:
-# the session ends on it, which claude writes in its JSON result, on the standard output.
+# the session ends on it, which claude writes in the result line of its stream.
 fiche=()
 schema=$(node "$ici/../resultats.mjs" --schema "${sorte:-$role}" 2> /dev/null) || schema=
-[ -z "$schema" ] || fiche=(--output-format json --json-schema "$schema")
+[ -z "$schema" ] || fiche=(--json-schema "$schema")
 
 # The state of the prepared copy, which the session's lot is read from.
 node "$ici/travail-de-la-copie.mjs" photographier "$copie" > "$avant" 2>> "$journal" \
-  || { rm -f "$prompt" "$avant"; echo "⛔ L'état de la copie avant la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
+  || { rm -f "$entree" "$avant"; echo "⛔ L'état de la copie avant la séance n'a pas pu se lire : voir $journal." >&2; exit "$CODE_COPIE"; }
 
 # An envelope in error does not stop the launcher (set -e): its code is kept for the exit.
 code=0
 lancer_claude() {
   node "$ici/enveloppe.mjs" "$copie" "$paquets" "$role" -- \
     "${CLAUDE_BIN:-claude}" -p --agent "$role" \
+    --input-format stream-json --output-format stream-json --verbose \
     ${surcharge[@]+"${surcharge[@]}"} ${fiche[@]+"${fiche[@]}"} --permission-mode bypassPermissions \
-    "${droits_du_role[@]}" < "$prompt"
+    "${droits_du_role[@]}" < "$entree"
 }
-if [ -n "$schema" ]; then
-  lancer_claude > "$resultat" 2>> "$journal" || code=$?
-  { cat "$resultat"; echo; } >> "$journal"
-else
-  lancer_claude >> "$journal" 2>&1 || code=$?
-fi
-rm -f "$prompt"
+# The stream of the session, beside its temporary directory, sorted once claude ends: its result
+# to its folder, the rest of what the log takes to the log.
+flux="$base_du_lanceur/flux"
+lancer_claude > "$flux" 2>> "$journal" || code=$?
+node "$ici/../sortie-de-seance.mjs" "$flux" "$resultat" >> "$journal" 2>&1 || true
+rm -f "$entree" "$flux"
 ranger
 echo "$code" > "$fin"
 # The envelope ended: the session's line goes to the register from outside it, whatever its end hook did.

@@ -16,6 +16,7 @@ import {
   enveloppeEssai,
   declarerLesLangages,
   racineSousLaMaison,
+  lireLEntree,
 } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import { SCRIPT, projetDuLanceur } from './enveloppe-essai.js';
 import { temporaireDuFichier } from './temporaire-du-fichier.js';
@@ -114,13 +115,18 @@ describe.runIf(canWrap)('the launcher', () => {
     const args = execFileSync('cat', [path.join(copie, 'packages/a/args')], { encoding: 'utf8' });
     // The rights and the context of its role (scripts/droits.mjs), drawn for its ticket and its copy.
     const droits = optionsDuRole('developpeur', { racine: repo, copie, ticket: 'demo-1', home });
-    expect(args).toBe(
-      `-p|--agent|developpeur|--output-format|json|--json-schema|${JSON.stringify(schemaDeFiche('developpeur'))}|--permission-mode|bypassPermissions|${droits.join('|')}|`
+    // The options of its streams are read by lancer-modele.nuit.spec.ts.
+    expect(args.replace(/(--(input|output)-format\|stream-json|--verbose)\|/g, '')).toBe(
+      `-p|--agent|developpeur|--json-schema|${JSON.stringify(schemaDeFiche('developpeur'))}|--permission-mode|bypassPermissions|${droits.join('|')}|`
     );
     // The temporary directory of the session, which the launcher opens, is named `/BASE`.
-    const prompt = execFileSync('cat', [path.join(copie, 'packages/a/prompt')], {
+    const recu = execFileSync('cat', [path.join(copie, 'packages/a/prompt')], {
       encoding: 'utf8',
-    }).replace(/[^\s`]*\/grillhouse-[^/\s`]+\/t\//g, '/BASE/');
+    });
+    const prompt = (lireLEntree(recu)?.consigne ?? '').replace(
+      /[^\s`]*\/grillhouse-[^/\s`]+\/t\//g,
+      '/BASE/'
+    );
     expect(prompt).toBe(
       'TON TICKET : demo-1 — un sujet.\n\n' +
         "## Ce que les composants d'avant publient\n\n" +
@@ -646,7 +652,8 @@ describe.runIf(canWrap)('grillhouse-3uv.95.3 — le lanceur et les paquets du pl
       const { r, copie } = lancer('demo-v', ['--paquets', 'packages/a', ...options]);
       expect(r.status, r.stderr).toBe(0);
       const lu = (f: string) => readFileSync(path.join(copie, 'packages/a', f), 'utf8');
-      return { travail: lu('temporaire').trim(), contenu: lu('contenu'), prompt: lu('prompt') };
+      const prompt = lireLEntree(lu('prompt'))?.consigne;
+      return { travail: lu('temporaire').trim(), contenu: lu('contenu'), prompt };
     };
     const id = '0b7c5f0e-6a1d-4c58-9d3e-2f4a8b9c1d2e';
     const premiere = jouer(['--seance', id]);

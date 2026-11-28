@@ -17,7 +17,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { architecture } from '@roomi-fields/grillhouse-matiere/test-fixtures';
+import { architecture, lireLEntree } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as activites from '../../scripts/activites.mjs';
 
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'activites-relecture-'));
@@ -72,7 +72,7 @@ function monde() {
   mkdirSync(sorties);
   writeFileSync(
     faux,
-    `#!/bin/bash\nn=$(( $(ls ${sorties} | grep -c consigne) + 1 ))\ncat > ${sorties}/consigne-$n\nif [ -f ${sorties}/fiche-$n ]; then echo "{\\"structured_output\\": $(cat ${sorties}/fiche-$n)}"; fi\n`
+    `#!/bin/bash\nn=$(( $(ls ${sorties} | grep -c consigne) + 1 ))\ncat > ${sorties}/consigne-$n\nif [ -f ${sorties}/fiche-$n ]; then echo "{\\"type\\":\\"result\\",\\"structured_output\\": $(cat ${sorties}/fiche-$n)}"; fi\n`
   );
   chmodSync(faux, 0o755);
   const ctx = {
@@ -117,7 +117,8 @@ async function lire(m: ReturnType<typeof monde>, constats: Constat[], fiche: obj
       }
     }
   }
-  return readFileSync(path.join(m.sorties, `consigne-${n}`), 'utf8');
+  const recu = readFileSync(path.join(m.sorties, `consigne-${n}`), 'utf8');
+  return lireLEntree(recu)?.consigne ?? recu;
 }
 
 const CONSTAT: Constat = {

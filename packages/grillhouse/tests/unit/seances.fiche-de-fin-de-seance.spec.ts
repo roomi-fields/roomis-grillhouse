@@ -1,5 +1,5 @@
 // The sheet that ends a session (scripts/seances.mjs, `jusquALaFiche`, `seance`, `garder`): each
-// session out of the envelope receives the schema of its role's sheet and claude's JSON output; a
+// session out of the envelope receives the schema of its role's sheet and claude's stream of JSON; a
 // session that ends without a sheet that conforms is resumed once, the same session, with the
 // short instruction that names what lacks; the handover at the ticket decides nothing; each
 // discovery of a sheet is filed closed under the ticket. A test of size medium: the sessions are
@@ -66,14 +66,14 @@ const FICHES: Record<string, object> = {
 
 describe('la fiche qui finit une séance hors de l’enveloppe', () => {
   it.each(Object.keys(FICHES))(
-    'le %s reçoit le schéma de la fiche de son rôle et la sortie JSON de claude',
+    'le %s reçoit le schéma de la fiche de son rôle et la sortie en flux JSON de claude',
     async role => {
       const m = monde();
       m.fiche(FICHES[role]);
       await horsEnveloppe(m, role);
       const a = m.args(1);
       expect(valeur(a, '--agent')).toBe(role);
-      expect(valeur(a, '--output-format')).toBe('json');
+      expect(valeur(a, '--output-format')).toBe('stream-json');
       expect(JSON.parse(valeur(a, '--json-schema'))).toEqual(schemaDeFiche(role));
     }
   );

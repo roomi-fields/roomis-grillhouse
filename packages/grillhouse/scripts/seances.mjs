@@ -29,6 +29,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { GREFFON } from './cadre.mjs';
+import { competencesDuRole } from './droits.mjs';
+import { entreeDeSeance } from './entree-de-seance.mjs';
 import { avecLeFichierDuPoste, configurationDuPoste } from './fichier-du-poste.mjs';
 import {
   changements,
@@ -124,18 +126,27 @@ const OUVRIR_LE_TEMPORAIRE = `import { ouvrirBase } from ${JSON.stringify(
 )}; process.stdout.write(ouvrirBase('seance', { pid: Number(process.argv[1]) }).dossier);`;
 
 // The shell that carries a session out of the envelope (`$0` the file of its exit code, `$1` node,
-// `$2` the script above, then the session's command): it opens the session's temporary directory,
-// which it owns, so that it outlives a dead circuit, names it in TMPDIR, TMP and TEMP, whatever
-// CLAUDE_CODE_TMPDIR the poste holds, and removes it at its end, even interrupted.
+// `$2` the script above, `$3` the sorter of its stream (scripts/sortie-de-seance.mjs), `$4` the
+// file of its result, `$5` that of the lines the log takes of it, then the session's command): it
+// opens the session's temporary directory, which it owns, so that it outlives a dead circuit,
+// names it in TMPDIR, TMP and TEMP, whatever CLAUDE_CODE_TMPDIR the poste holds, and removes it at
+// its end, even interrupted. The stream of the session is written beside that directory, then
+// sorted: its result to `$4`, the lines of the log to `$5`, which the circuit adds to the log
+// after the last attempt of the launch.
 const PORTER_LA_SEANCE = [
   "trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM",
   't=$("$1" --input-type=module -e "$2" "$$" </dev/null) || exit',
   'trap \'rm -rf -- "${t%/t}"\' EXIT',
-  'shift 2',
+  'node=$1 tri=$3 resultat=$4 journal=$5 flux="${t%/t}/flux"',
+  'shift 5',
   'export TMPDIR="$t" TMP="$t" TEMP="$t"',
   'unset CLAUDE_CODE_TMPDIR',
-  '"$@"; c=$?; echo "$c" > "$0"; exit "$c"',
+  '"$@" > "$flux"; c=$?',
+  '"$node" "$tri" "$flux" "$resultat" > "$journal"',
+  'echo "$c" > "$0"; exit "$c"',
 ].join('\n');
+
+const TRIER_LE_FLUX = path.join(import.meta.dirname, 'sortie-de-seance.mjs');
 
 // The templates of the instructions, in the skill of the supervisor, which the frame's plugin
 // carries, read at the plugin's root (scripts/cadre.mjs).
@@ -170,9 +181,10 @@ const mtime = f => {
 
 /**
  * Where the session <id> of <ctx> keeps its result, in the working directory of the ticket
- * (`<copie>.travail/seances/<id>/`, as lancer.sh writes it): its exit code (`fin`), claude's JSON
- * result (`resultat.json`), the tree the prepared copy held before it (`avant`) and the witness
- * that the envelope started its command (`demarree`).
+ * (`<copie>.travail/seances/<id>/`, as lancer.sh writes it): its exit code (`fin`), the line
+ * `type: result` of claude's stream (`resultat.json`), the lines the log takes of the stream of
+ * a session out of the envelope (`au-journal`), the tree the prepared copy held before it
+ * (`avant`) and the witness that the envelope started its command (`demarree`).
  */
 export function rangDeLaSeance(ctx, id) {
   const dossier = path.join(ctx.tmp, 'seances', id);
@@ -180,6 +192,7 @@ export function rangDeLaSeance(ctx, id) {
     dossier,
     fin: path.join(dossier, 'fin'),
     resultat: path.join(dossier, 'resultat.json'),
+    auJournal: path.join(dossier, 'au-journal'),
     avant: path.join(dossier, 'avant'),
     demarree: path.join(dossier, 'demarree'),
   };
@@ -215,10 +228,12 @@ function resultatRange(rang, id, { horsEnveloppe = false } = {}) {
 // itself, in the ticket's
 // copy (the main tree once the copy is gone), under <droits> (`horsDeLEnveloppe`), the
 // schema of its role's sheet and the options <session> names (its id, or the session it
-// resumes), its instruction on its standard input and its result on its standard output, in a
-// temporary directory of its own (PORTER_LA_SEANCE), ranged
-// under its id with its exit code as lancer.sh ranges them, added to the log under its header
-// line, then its line written to the register, as lancer.sh does.
+// resumes), in stream-json both ways: the skills of its role and its instruction on its standard
+// input (scripts/entree-de-seance.mjs), its stream on its standard output, in a temporary
+// directory of its own (PORTER_LA_SEANCE); of that stream, its result is ranged under its id with
+// its exit code as lancer.sh ranges them, and the log takes under its header line what is not the
+// conversation (scripts/sortie-de-seance.mjs); then its line is written to the register, as
+// lancer.sh does.
 // Its launch is kept with the circuit's results (`lancement`: its role, its session id, and the
 // <objet> of a session that is not its role's own work, `tri`), which the bilan reads to count the
 // sessions the circuit launched (scripts/bilan.mjs). Its sign of life names the session
@@ -301,6 +316,7 @@ export async function lancer(
   mkdirSync(rang.dossier, { recursive: true });
   rmSync(rang.fin, { force: true });
   rmSync(rang.resultat, { force: true });
+  rmSync(rang.auJournal, { force: true });
   rmSync(rang.avant, { force: true });
   rmSync(rang.demarree, { force: true });
   inscrire(ctx, {
@@ -312,22 +328,27 @@ export async function lancer(
   writeFileSync(fichier, consigne);
   // A file, not a pipe: a session whose circuit is dead writes its errors without breaking.
   const erreurs = path.join(ctx.tmp, `erreurs-${numero}.txt`);
+  // The input of a session out of the envelope; lancer.sh composes that of an enveloped one.
+  const entree = path.join(ctx.tmp, `entree-${numero}.jsonl`);
+  if (horsEnveloppe) {
+    writeFileSync(entree, entreeDeSeance({ competences: competencesDuRole(role), consigne }));
+  }
   let commande;
-  // Its result ranged under its id, as lancer.sh ranges a session's: claude's output, then its
-  // exit code once it ends, written by the shell that runs it, which outlives a dead circuit.
-  const ouvrirLesFds = () =>
-    horsEnveloppe
-      ? [openSync(fichier, 'r'), openSync(rang.resultat, 'w'), openSync(ctx.journal, 'a')]
-      : ['ignore', 'ignore', openSync(erreurs, 'w')];
+  // Its result ranged under its id, as lancer.sh ranges a session's: the result of claude's
+  // stream, then its exit code once it ends, written by the shell that runs it, which outlives a
+  // dead circuit.
+  const ouvrirLesFds = () => {
+    if (!horsEnveloppe) {
+      return ['ignore', 'ignore', openSync(erreurs, 'w')];
+    }
+    const journal = openSync(ctx.journal, 'a');
+    return [openSync(entree, 'r'), journal, journal];
+  };
   let fds = ouvrirLesFds();
   if (horsEnveloppe) {
     entete(ctx, role);
-    const fiche = [
-      '--output-format',
-      'json',
-      '--json-schema',
-      JSON.stringify(schemaDeFiche(sorte ?? role)),
-    ];
+    const flux = ['--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose'];
+    const fiche = ['--json-schema', JSON.stringify(schemaDeFiche(sorte ?? role))];
     commande = {
       cmd: 'sh',
       args: [
@@ -336,8 +357,11 @@ export async function lancer(
         rang.fin,
         process.execPath,
         OUVRIR_LE_TEMPORAIRE,
+        TRIER_LE_FLUX,
+        rang.resultat,
+        rang.auJournal,
         process.env.CLAUDE_BIN || 'claude',
-        ...['-p', '--agent', role, ...fiche, ...droits, '--add-dir', ctx.tmp, ...session],
+        ...['-p', '--agent', role, ...flux, ...fiche, ...droits, '--add-dir', ctx.tmp, ...session],
       ],
       cwd: existsSync(ctx.copie) ? ctx.copie : ctx.racine,
     };
@@ -473,6 +497,7 @@ export async function lancer(
     );
     rmSync(rang.fin, { force: true });
     rmSync(rang.resultat, { force: true });
+    rmSync(rang.auJournal, { force: true });
     fds = ouvrirLesFds();
     const { ANTHROPIC_API_KEY: _cle, ...sansCle } = process.env;
     r = await jouer(sansCle);
@@ -486,7 +511,9 @@ export async function lancer(
       : r.erreur === null
         ? r.code
         : null;
-    appendFileSync(ctx.journal, `${sortie}\n`);
+    if (existsSync(rang.auJournal)) {
+      appendFileSync(ctx.journal, readFileSync(rang.auJournal));
+    }
     spawnSync(process.execPath, [REGISTRE, '--copie', ctx.copie], {
       cwd: ctx.racine,
       stdio: ['ignore', 'ignore', 'ignore'],

@@ -122,8 +122,8 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // session, else `<role>.sh`. A scenario writes in the first package of the plan (`$c`), or in any
 // package of the plan by its path, hands over with
 // `passation <text>`, a comment under the session's author, as bd writes it, and ends on its sheet
-// with `fiche '<json>'`. As claude with `--output-format json`, it prints on its standard output
-// its JSON result alone, whatever the scenario prints (on its standard error), the sheet in
+// with `fiche '<json>'`. As claude with `--output-format stream-json`, it prints on its standard output
+// the line of its result alone of its stream, whatever the scenario prints (on its standard error), the sheet in
 // `structured_output`: the scenario's, else `{"statut":"FAIT"}` for a testwriter, the same for a
 // developpeur with an answer `levé` to each finding its prompt carries (« ### Constat <n> — <titre> »),
 // `{"verdict":"ACCEPTÉ"}` for the relecteur with a line `levé` of `suivi` to each finding its
@@ -139,7 +139,13 @@ export const ecrire = (f: string, texte: string, mode?: number) => {
 // there is none.
 const FAUX_CLAUDE = `#!/bin/bash
 racine=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
-prompt=$(cat)
+# The input of the session: the instruction is the message of the user of its stream
+# (--input-format stream-json), else the input as it is.
+prompt=$(node -e '
+const brut = require("node:fs").readFileSync(0, "utf8");
+const demande = brut.split("\\n").filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).find(m => m && m.type === "user");
+const contenu = demande ? demande.message.content : brut;
+process.stdout.write(typeof contenu === "string" ? contenu : contenu.map(b => b.text).join(""));')
 ticket=$(printf '%s\\n' "$prompt" | sed -n 's/^TON TICKET : \\([^ ]*\\).*/\\1/p' | head -1)
 role= prec= sid= reprise= schema= format=
 for a in "$@"; do
@@ -211,7 +217,7 @@ sans_fiche() { la_fiche=; }
 # The result on the standard output, the scenario's own output on the standard error.
 exec 3>&1 1>&2
 resultat() {
-  [ "$format" = json ] || return 0
+  [ "$format" = stream-json ] || return 0
   node -e 'const [s, f] = process.argv.slice(1); const r = { type: "result", subtype: "success", is_error: false, session_id: s, result: "fini" }; if (f) r.structured_output = JSON.parse(f); console.log(JSON.stringify(r));' "\${sid:-$reprise}" "$la_fiche" >&3
 }
 trap resultat EXIT

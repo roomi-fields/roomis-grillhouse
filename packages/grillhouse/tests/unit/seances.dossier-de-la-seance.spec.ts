@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { signalerGroupe } from '../../scripts/mesure-de-la-machine.mjs';
+import { lireLEntree } from '@roomi-fields/grillhouse-matiere/test-fixtures';
 import * as seances from '../../scripts/seances.mjs';
 import { monde, type Monde } from './seance-d-essai.js';
 
@@ -217,6 +218,6 @@ describe('a session out of the envelope has a temporary directory of its own', (
   it('receives no section « Ton dossier de travail »', async () => {
     const e = espion();
     await jouer(monde(), e.faux, 'relecteur');
-    expect(e.vu().consigne).toBe('TON TICKET : demo-1\n');
+    expect(lireLEntree(e.vu().consigne)?.consigne).toBe('TON TICKET : demo-1\n');
   });
 });

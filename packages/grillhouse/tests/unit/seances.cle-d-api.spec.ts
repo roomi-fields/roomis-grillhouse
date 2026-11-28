@@ -36,7 +36,7 @@ const lancer = seances.lancer as (
 
 const CLE = 'sk-ant-secret-valeur';
 const BRUT = 'MARQUEUR-BRUT';
-const FICHE = '{"is_error":false,"structured_output":{"statut":"FAIT"}}';
+const FICHE = '{"type":"result","is_error":false,"structured_output":{"statut":"FAIT"}}';
 const PLACE = () => ({ rattacher: () => {}, rendre: () => {} });
 
 const credit = (
@@ -327,6 +327,7 @@ describe('une erreur que le circuit ne reconnaît pas garde la clé et suit le c
     [
       'erreur d’API sans terminal_reason, texte de crédit',
       JSON.stringify({
+        type: 'result',
         is_error: true,
         api_error_status: 400,
         result: 'Credit balance is too low',
@@ -337,10 +338,9 @@ describe('une erreur que le circuit ne reconnaît pas garde la clé et suit le c
     ['surcharge', refus(529, 'Overloaded')],
     ['erreur serveur', refus(500, 'Internal server error')],
     ['erreur de requête autre', refus(400, 'prompt is too long')],
-    ['texte de crédit hors d’un JSON', 'Credit balance is too low to access the Anthropic API.'],
     [
       'texte de crédit d’un résultat sans erreur',
-      JSON.stringify({ is_error: false, result: 'Credit balance is too low' }),
+      JSON.stringify({ type: 'result', is_error: false, result: 'Credit balance is too low' }),
     ],
   ])('%s: no relaunch, nothing noted, the refusal is the result', async (_n, reponse) => {
     const m = monde();
@@ -352,6 +352,19 @@ describe('une erreur que le circuit ne reconnaît pas garde la clé et suit le c
     expect(r.seance).toBe(1);
     expect(r.sortie).toBe(reponse);
     expect(journal(m)).not.toMatch(/crédit épuisé|clé refusée/);
+  });
+
+  it('texte de crédit hors d’un JSON: no relaunch, nothing noted, no result, the text at the log', async () => {
+    const texte = 'Credit balance is too low to access the Anthropic API.';
+    const m = monde();
+    m.ecrireLaCle();
+    m.refuser(texte);
+    const r = await sous(m, () => jeu(m));
+    expect(m.lancements()).toHaveLength(1);
+    expect(m.notes()).toEqual([]);
+    expect(r.seance).toBe(1);
+    expect(r.sortie).toBe('');
+    expect(journal(m).split('\n')).toContain(texte);
   });
 });
 
