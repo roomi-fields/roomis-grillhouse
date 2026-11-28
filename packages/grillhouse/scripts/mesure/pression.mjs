@@ -12,8 +12,10 @@
 // - A_REPASSER (scripts/codes-de-sortie.mjs), 75, is the exit code of « à repasser » (EX_TEMPFAIL
 //   of sysexits.h: try again later), neither green nor red: the measure of time of each module of language gives it
 //   (scripts/langages/typescript/vitest-config/duree.reporter.mjs, the benches of the module cargo),
-//   and the night reads it (scripts/nuit.sh). The day waits for no rest: `npm run verifier` takes a
-//   task at 75 for a red (scripts/langages/typescript/verifier.mjs).
+//   and the night reads it (scripts/nuit.sh). The module cargo also waits for rest, one minute at
+//   most, before it plays each time budget bench (scripts/langages/cargo/commandes.mjs). A day pass
+//   plays no measure of time: `npm run verifier` takes a task at 75 for a red
+//   (scripts/langages/typescript/verifier.mjs).
 //
 //   npx grillhouse pression attendre
 //
@@ -60,7 +62,7 @@ export function attendreLeRepos({
   for (;;) {
     const p = lire();
     if (p === null) {
-      dire('⏳ pression CPU illisible : la relance part sans attendre, verdict des tests.');
+      dire('⏳ pression CPU illisible : la mesure part sans attendre, verdict des tests.');
       return true;
     }
     if (p < SEUIL_PRESSION) {

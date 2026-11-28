@@ -27,6 +27,9 @@ import { poserLeFauxProgramme } from '../../faux-programme.js';
 //   a test profile, and the test executable of each target built (`deps/<nom>-…`: the library's
 //   and the binary's, each test target's, or the ones `--test <nom>` names alone), each one a
 //   `compiler-artifact` message on its output stream, as cargo's (grillhouse-pkl.8).
+// - A build under `--profile bench` takes its code under the key `build-bench <crate>` or
+//   `build-bench` instead, and puts its artifacts under `<target>/release`, as cargo's. A green
+//   build says its profile on its error stream.
 // - `cargo nextest run -p <crate> [--test <nom>]…`: writes the JUnit report of the profile
 //   `grillhouse` under `target/nextest/grillhouse/junit.xml`, one suite per test binary of the
 //   crate (the library, each test target, or the ones `--lib` and `--test <nom>` name), one test
@@ -44,7 +47,8 @@ import { poserLeFauxProgramme } from '../../faux-programme.js';
 //   test (grillhouse-nt4). Under `FAUX_CARGO_TEMPORAIRES`, each nextest adds there a JSON line
 //   `{ crate, TMPDIR, TMP, TEMP }`; `FAUX_CARGO_RESTE_DE=<crate>` limits `FAUX_CARGO_RESTE` to
 //   that crate's runs. Under `FAUX_CARGO_VUS`, each nextest adds there a JSON line `{ crate, deps,
-//   fichiers }`: the folder `<target>/debug/deps` and the files it holds as nextest starts.
+//   fichiers, release }`: the folder `<target>/debug/deps`, the files it holds and those of
+//   `<target>/release/deps` as nextest starts.
 // - Under `FAUX_CARGO_COMPILATEUR`, each call adds there a line `<sous-commande>
 //   RUSTC_WRAPPER=<valeur> SCCACHE_DIR=<valeur> SCCACHE_SERVER_UDS=<valeur> TMPDIR=<valeur>`:
 //   the wrapper of rustc it was given, the cache of sccache and the socket of its server
@@ -152,14 +156,21 @@ if (process.env.FAUX_CARGO_COMPILATEUR) {
 }
 const nomme = sous === 'install' ? args.at(-1).split('@')[0] : args[args.indexOf('-p') + 1];
 const nommees = args.flatMap((a, i) => (a === '--test' ? [args[i + 1]] : []));
-const parCible = nommees.map(n => codes[sous + ' ' + nomme + '::' + n]).filter(c => c !== undefined);
-const code = parCible.length ? Math.max(...parCible) : (codes[sous + ' ' + nomme] ?? codes[sous] ?? 0);
+const auProfilBench = sous === 'build' && (args.includes('--profile=bench') || args[args.indexOf('--profile') + 1] === 'bench');
+const cle = auProfilBench ? 'build-bench' : sous;
+const parCible = nommees.map(n => codes[cle + ' ' + nomme + '::' + n]).filter(c => c !== undefined);
+const code = parCible.length ? Math.max(...parCible) : (codes[cle + ' ' + nomme] ?? codes[cle] ?? 0);
+const profil = auProfilBench ? 'bench' : 'test';
 if (sous === 'build' && code !== 0) {
   process.stderr.write(
     '   Compiling ' + nomme + ' v0.1.0\\n' +
     'error[E0425]: cannot find function \`convert\` in crate \`' + nomme + '\`\\n' +
-    'error: could not compile \`' + nomme + '\` (test "bout") due to 1 previous error\\n'
+    'error: could not compile \`' + nomme + '\` (test "bout") due to 1 previous error\\n' +
+    (auProfilBench ? 'error: build failed under the profile bench\\n' : '')
   );
+}
+if (sous === 'build' && code === 0) {
+  process.stderr.write('    Finished \`' + profil + '\` profile\\n');
 }
 if (sous === 'nextest' && process.env.FAUX_CARGO_TEMPORAIRE) {
   const { TMPDIR, TMP, TEMP } = process.env;
@@ -175,7 +186,9 @@ if (sous === 'nextest' && process.env.FAUX_CARGO_RESTE && (!process.env.FAUX_CAR
 if (sous === 'nextest' && process.env.FAUX_CARGO_VUS) {
   const deps = path.resolve(process.env.CARGO_TARGET_DIR || path.join(racine, 'target'), 'debug', 'deps');
   const fichiers = fs.existsSync(deps) ? fs.readdirSync(deps).sort() : [];
-  fs.appendFileSync(process.env.FAUX_CARGO_VUS, JSON.stringify({ crate: nomme, deps, fichiers }) + '\\n');
+  const optimises = path.resolve(deps, '..', '..', 'release', 'deps');
+  const release = fs.existsSync(optimises) ? fs.readdirSync(optimises).sort() : [];
+  fs.appendFileSync(process.env.FAUX_CARGO_VUS, JSON.stringify({ crate: nomme, deps, fichiers, release }) + '\\n');
 }
 if (sous === 'nextest' && process.env.FAUX_CARGO_ATTENDRE) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(process.env.FAUX_CARGO_ATTENDRE));
@@ -235,7 +248,7 @@ if (sous === 'nextest') {
 }
 if (sous === 'build' && code === 0 && args.some(a => a.startsWith('--message-format=json'))) {
   const c = dossiers.map(crate).find(p => p.name === nomme);
-  const cible = path.resolve(process.env.CARGO_TARGET_DIR || path.join(racine, 'target'), 'debug');
+  const cible = path.resolve(process.env.CARGO_TARGET_DIR || path.join(racine, 'target'), auProfilBench ? 'release' : 'debug');
   fs.mkdirSync(path.join(cible, 'deps'), { recursive: true });
   const message = (t, test, executable, filenames) => {
     for (const f of filenames) fs.writeFileSync(f, '');
@@ -277,6 +290,23 @@ if (sortie.stdout) process.stdout.write(sortie.stdout);
 if (sortie.stderr) process.stderr.write(sortie.stderr);
 process.exit(sortie.code ?? 0);
 `;
+
+/**
+ * A line of the journal with the profile of a bench at one place, wherever cargo's options hold
+ * it: `test --no-run --profile bench …` and `nextest run --cargo-profile bench …`.
+ */
+export function profilDuBancEnTete(ligne: string): string {
+  for (const [tete, option] of [
+    ['test --no-run', '--profile'],
+    ['nextest run', '--cargo-profile'],
+  ]) {
+    const motif = new RegExp(` ${option}[ =]bench(?= |$)`);
+    if (ligne.startsWith(`${tete} `) && motif.test(ligne)) {
+      return `${tete} ${option} bench${ligne.replace(motif, '').slice(tete.length)}`;
+    }
+  }
+  return ligne;
+}
 
 /**
  * Writes the fake cargo in a new directory under <dans>, and returns that directory, to put first

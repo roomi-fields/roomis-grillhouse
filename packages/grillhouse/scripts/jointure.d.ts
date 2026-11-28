@@ -479,6 +479,17 @@ export function ecrireLePrefixe(racine: string, valeur: string): string | null;
 export function lirePression(fichier?: string): number | null;
 /** The pressure `p` as a line says it. */
 export function ecrirePression(p: number | null): string;
+/** Waits until the pressure (`lire`) is under the threshold, or until the instant `limite` (ms),
+ * saying through `dire` that it waits, one line per 30 s at most: true at rest, or on a pressure
+ * that does not read, said; false at the bound (scripts/mesure/pression.mjs). */
+export function attendreLeRepos(o: {
+  lire?: () => number | null;
+  maintenant?: () => number;
+  dormir?: (ms: number) => void;
+  limite: number;
+  pasMs?: number;
+  dire: (ligne: string) => void;
+}): boolean;
 /** The variable naming the files changed since the last green (scripts/dernier-vert.mjs). */
 export const CHANGEMENTS: string;
 /** The variable naming the commit of the last green a run measures itself from. */

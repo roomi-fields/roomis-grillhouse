@@ -61,11 +61,20 @@
 //   names the file of a bench plays it, as Bazel builds a target tagged `manual` when named; a path
 //   that names a night test is refused, named, and nothing plays (code 2): the night alone plays
 //   it; a folder named leaves them out, as the day does.
+// - A time budget bench is built and played under cargo's profile `bench`, so that it measures
+//   optimized code: a build of its own (`cargo test --no-run --profile bench` on the benches of
+//   the crate alone, a task `build` with its log `<target>/grillhouse/<crate>-build-bench.log`),
+//   then `cargo nextest run --cargo-profile bench`; the other tests keep the profile `test`. A
+//   build of benches that fails leaves its benches not played; a build under the profile `test`
+//   that fails leaves the crate's build of benches and its benches not played. Every build of
+//   benches of a pass comes before the first bench played.
 // - A time budget bench plays alone, one test at a time (`--test-threads 1`), in a task `budget` of
-//   its own after the other tests: in `tests-de-nuit` and in a path that names it. A red of the
-//   task while the CPU pressure of the machine (`lirePression` of ./jointure) is at or above its
-//   threshold at its start or at its end is « à repasser », 75, said in one line with the
-//   pressure; at rest, a red.
+//   its own after the other tests: in `tests-de-nuit` and in a path that names it. Before it, the
+//   module waits for the rest of the machine (`attendreLeRepos` of ./jointure), one minute at
+//   most, or `GRILLHOUSE_ATTENTE_REPOS_MS` milliseconds; at the bound, or on a pressure that does
+//   not read, the bench plays all the same. A red of the task while the CPU pressure of the machine
+//   (`lirePression` of ./jointure) is at or above its threshold at its start or at its end is « à
+//   repasser », 75, said in one line with the pressure; at rest, a red.
 // - `verifier` plays the tests of the crates as the tasks of Turborepo (`turbo run test:unit
 //   --filter=<crate>…`, each crate a package of the graph, the cache of the tasks selecting those
 //   that play again; `--tout` plays them for real, the moment of the pass in the variable
@@ -123,6 +132,7 @@
 //
 // Mechanism: packages/grillhouse/docs/architecture/tests.md §3.3 (the modules of language), §3.4
 // (the guards); `GRILLHOUSE_TESTS` and `GRILLHOUSE_RESULTATS` are data of a pass (tests.md §4.2),
+// `GRILLHOUSE_ATTENTE_REPOS_MS` and `GRILLHOUSE_PRESSION_CPU` data of the trials,
 // and the code applies no key of the project (installation.md §4.2) nor file of the post (§4.3).
 import { spawnSync } from 'node:child_process';
 import {
@@ -142,6 +152,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RESULTATS } from '../../resultats.mjs';
 import {
   AttenteDeLaMachine,
+  attendreLeRepos,
   surUnePart,
   avecLaPasse,
   cheminsDeLaTache,
@@ -196,6 +207,10 @@ const AUCUN_HORS_DU_POSTE = 'aucun test hors du poste';
 const RACINE = '//';
 // The task of the time budget benches of a crate.
 const BUDGET = 'budget';
+// The longest wait for rest before a bench, and the variable that sets it, in ms (a datum of the
+// trials, as GRILLHOUSE_PRESSION_CPU).
+const ATTENTE_DU_BANC_MS = 60_000;
+const VARIABLE_ATTENTE = 'GRILLHOUSE_ATTENTE_REPOS_MS';
 const VERROU = 'Cargo.lock';
 // The commands that play the exact versions of the repository, refused without its Cargo.lock.
 const VERROUILLEES = ['tests-du-paquet', 'verifier', 'tests-de-nuit'];
@@ -282,6 +297,20 @@ function passe(racine, env) {
   const compilation = avecSccache(racine, env);
   // The CPU pressure of the machine, the file <env> names or the kernel's.
   const pression = () => lirePression(env.GRILLHOUSE_PRESSION_CPU || undefined);
+  // Waits for the rest of the machine before a bench, so that the load of the builds of the pass,
+  // once fallen, leaves a red bench red; at the bound, the bench plays all the same.
+  const attendre = () => {
+    const posee = env[VARIABLE_ATTENTE];
+    const borne = posee ? Number(posee) : ATTENTE_DU_BANC_MS;
+    if (!Number.isFinite(borne) || borne < 0) {
+      throw new Error(`⛔ ${VARIABLE_ATTENTE} : « ${posee} » n'est pas un temps en millisecondes.`);
+    }
+    attendreLeRepos({
+      lire: pression,
+      limite: Date.now() + borne,
+      dire: l => process.stderr.write(`${l}\n`),
+    });
+  };
   const ecrire = () => {
     if (!dossier) {
       return;
@@ -334,6 +363,9 @@ function passe(racine, env) {
         return t.code;
       }
       const banc = t.script === BUDGET;
+      if (banc) {
+        attendre();
+      }
       const avant = banc ? pression() : null;
       let r;
       if (journal) {
@@ -457,8 +489,10 @@ export const partitionDeNextest = tranche =>
 // the test targets named, empty for the whole crate of the day (its night tests and its benches
 // left out). For a crate that plays tests:
 // the build of its test targets first, then nextest, then its doctests; a failed build leaves the
-// crate's other tasks not played. The benches named, each crate's in a task `budget`, are
-// planned with the rest and played by the function this one returns, after the other tests.
+// crate's other tasks not played. The benches named, each crate's built under cargo's profile
+// `bench` in a task `build` of its own and played in a task `budget`, are planned with the rest
+// and played by the function this one returns, after the other tests: every build of benches
+// first, then the benches whose build is green.
 // In a tranche <tranche>, nextest plays its part (`partitionDeNextest`); the doctests and the
 // benches, which nextest does not split, play in the first tranche alone. With <videVert>, a run
 // of nextest whose filter keeps no test is green, and said.
@@ -483,7 +517,7 @@ function jouerLesTests(
   const j = travailleurs === null ? [] : ['-j', String(travailleurs)];
   // A bench plays on one thread (`--test-threads 1`, which `-j` of nextest is the alias of): it
   // takes the arguments without `-j`.
-  const nextestDuBanc = [...nextest];
+  const nextestDuBanc = ['nextest', 'run', '--cargo-profile', 'bench', ...nextest.slice(2)];
   nextest.push(...j, ...partitionDeNextest(tranche));
   const indivisible = joueCeQuiNeSeDivisePas(tranche);
   const parCrate = [];
@@ -505,18 +539,25 @@ function jouerLesTests(
       const deBanc = n => tests.some(t => t.name === n && horsDuJour(t) === 'banc');
       const desBancs = cibles.filter(deBanc);
       const autres = cibles.filter(n => !deBanc(n));
-      const journal = path.join(m.target_directory, 'grillhouse', `${nom}-build.log`);
-      const construction = [
-        'test',
-        '--no-run',
-        MESSAGES,
-        ...j,
-        '-p',
-        nom,
-        ...(avecLeJour ? [] : cibles.flatMap(n => ['--test', n])),
-      ];
-      prevues.push([p.prevoir(nom, d, 'build', false, construction), { journal, executables }]);
+      // The build of the targets `noms` (every test target without one) under the options
+      // `profil` of cargo, planned with its log `<crate>-<journal>.log`.
+      const construire = (journal, profil, noms) => {
+        const args = [
+          'test',
+          '--no-run',
+          ...profil,
+          MESSAGES,
+          ...j,
+          '-p',
+          nom,
+          ...noms.flatMap(n => ['--test', n]),
+        ];
+        const sortie = path.join(m.target_directory, 'grillhouse', `${nom}-${journal}.log`);
+        return [p.prevoir(nom, d, 'build', false, args), { journal: sortie, executables }];
+      };
+      // A run that names benches alone builds nothing under the profile `test`.
       if (cibles.length === 0 || autres.length || avecLeJour) {
+        prevues.push(construire('build', [], avecLeJour ? [] : autres));
         const duC = duJour(c);
         const nommes = autres.flatMap(n => ['--test', n]);
         const selection = !cibles.length
@@ -552,6 +593,7 @@ function jouerLesTests(
           ...filtreDesModules(nom, desBancs, modules),
         ];
         bancs.push({
+          construction: construire('build-bench', ['--profile', 'bench'], desBancs),
           nom,
           d,
           temporaire: temporaire(nom),
@@ -567,11 +609,10 @@ function jouerLesTests(
     }
     parCrate.push([prevues, etat]);
   }
-  const prevusBancs = bancs.map(b => [
-    p.prevoir(b.nom, b.d, BUDGET, true, b.args),
-    b.etat,
-    b.temporaire,
-  ]);
+  const prevusBancs = bancs.map(b => ({
+    ...b,
+    tache: p.prevoir(b.nom, b.d, BUDGET, true, b.args),
+  }));
   for (const [prevues, etat] of parCrate) {
     for (const [t, o] of prevues) {
       if (p.jouer(t, o) !== 0 && t.t.script === 'build') {
@@ -581,10 +622,12 @@ function jouerLesTests(
     }
   }
   return () => {
-    for (const [t, etat, temporaire] of prevusBancs) {
-      if (etat.construit) {
-        p.jouer(t, { junit, temporaire });
-      }
+    // A crate whose build under the profile `test` failed builds no bench.
+    const construits = prevusBancs.filter(
+      b => b.etat.construit && p.jouer(...b.construction) === 0
+    );
+    for (const { tache, temporaire } of construits) {
+      p.jouer(tache, { junit, temporaire });
     }
     // The copy keeps no test executable between two passes: cargo builds again the one it misses.
     for (const f of executables) {

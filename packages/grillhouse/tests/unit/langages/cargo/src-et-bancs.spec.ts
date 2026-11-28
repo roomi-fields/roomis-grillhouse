@@ -21,8 +21,11 @@ type Depots = Record<'espace' | 'seul', string>;
 const ESSAIS = mkdtempSync(path.join(tmpdir(), 'src-et-bancs-'));
 const JOURNAL = path.join(ESSAIS, 'journal');
 const MAISON = path.join(ESSAIS, 'maison');
+// A machine at rest, so that a bench named waits for nothing.
+const REPOS = path.join(ESSAIS, 'pression-au-repos');
 let restaurer = () => {};
 beforeAll(() => {
+  writeFileSync(REPOS, 'some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n');
   restaurer = avecFauxCargo(installerFauxCargo(ESSAIS), JOURNAL);
 });
 afterAll(() => rmSync(ESSAIS, { recursive: true, force: true }));
@@ -64,6 +67,7 @@ function tester(racine: string, chemins: string[], cas: object = {}) {
       XDG_CACHE_HOME: '',
       GRILLHOUSE_RESULTATS: resultats,
       FAUX_CARGO_CODES: '{}',
+      GRILLHOUSE_PRESSION_CPU: REPOS,
       FAUX_CARGO_CAS: JSON.stringify(cas),
     },
   });

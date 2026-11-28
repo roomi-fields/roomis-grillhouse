@@ -32,7 +32,7 @@ import {
   socketDuServeur,
 } from '../../../../scripts/langages/cargo/sccache.mjs';
 import { installerFauxTurbo } from '../../faux-turbo.js';
-import { avecFauxCargo, installerFauxCargo } from './faux-cargo.js';
+import { avecFauxCargo, installerFauxCargo, profilDuBancEnTete } from './faux-cargo.js';
 
 const cargo = module as unknown as Langage;
 
@@ -109,7 +109,7 @@ function lu(resultats: string) {
     .split('\n')
     .filter(l => l && !l.startsWith('metadata '))
     .map(l =>
-      l
+      profilDuBancEnTete(l)
         .replace(/--tool-config-file grillhouse:\S+ --profile grillhouse /, '')
         .replace(' --message-format=json-render-diagnostics', '')
     );
@@ -1066,11 +1066,13 @@ describe('grillhouse-cyr, critère 2 — la mise à jour installe sccache à sa 
 // « à repasser » (75); a targeted run that names the file plays it.
 describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module cargo', () => {
   const NEXTEST = 'nextest run --no-fail-fast -p seul';
+  const NEXTEST_DU_BANC = 'nextest run --cargo-profile bench --no-fail-fast -p seul';
   let racine = '';
+  // The pressure of the machine, steady, and a wait for rest before a bench cut short.
   const pression = (valeur: number) => {
     const f = path.join(mkdtempSync(path.join(ESSAIS, 'pression-')), 'cpu');
     writeFileSync(f, `some avg10=${valeur.toFixed(2)} avg60=0.00 avg300=0.00 total=0\n`);
-    return { GRILLHOUSE_PRESSION_CPU: f };
+    return { GRILLHOUSE_PRESSION_CPU: f, GRILLHOUSE_ATTENTE_REPOS_MS: '1' };
   };
   beforeAll(() => {
     const e = exemples.preparer(mkdtempSync(path.join(ESSAIS, 'nuit-'))) as { depots: Depots };
@@ -1132,11 +1134,17 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     });
     const r = lancer(racine, 'tests-de-nuit', [], {}, pression(0));
     expect(r.code, r.stderr).toBe(0);
-    expect(r.appels).toEqual([
-      'test --no-run -p seul --test lourd_nuit --test recherche_budget',
-      `${NEXTEST} --test lourd_nuit`,
-      `${NEXTEST} --test recherche_budget --test-threads 1`,
-    ]);
+    const nuit = `${NEXTEST} --test lourd_nuit`;
+    const banc = `${NEXTEST_DU_BANC} --test recherche_budget --test-threads 1`;
+    expect([...r.appels].sort()).toEqual(
+      [
+        'test --no-run -p seul --test lourd_nuit',
+        'test --no-run --profile bench -p seul --test recherche_budget',
+        nuit,
+        banc,
+      ].sort()
+    );
+    expect(r.appels.indexOf(nuit)).toBeLessThan(r.appels.indexOf(banc));
     const sans = lancer(d.espace, 'tests-de-nuit');
     expect(sans.code, sans.stderr).toBe(0);
     expect(sans.appels).toEqual([]);
@@ -1238,7 +1246,7 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     const mesures = lancer(racine, 'tests-de-nuit', ['--mesures'], {}, pression(0));
     expect(mesures.code, mesures.stderr).toBe(0);
     expect(mesures.appels.filter(a => a.includes('nextest'))).toEqual([
-      `${NEXTEST} --test recherche_budget --test-threads 1`,
+      `${NEXTEST_DU_BANC} --test recherche_budget --test-threads 1`,
     ]);
   });
 
@@ -1270,8 +1278,8 @@ describe('grillhouse-wbk — les tests de nuit et les bancs de temps du module c
     expect(nuit.appels).toEqual([]);
     const banc = lancer(racine, 'tester', ['tests/recherche_budget.rs'], {}, pression(0));
     expect(banc.appels).toEqual([
-      'test --no-run -p seul --test recherche_budget',
-      `${NEXTEST} --test recherche_budget --test-threads 1`,
+      'test --no-run --profile bench -p seul --test recherche_budget',
+      `${NEXTEST_DU_BANC} --test recherche_budget --test-threads 1`,
     ]);
     const charge = lancer(
       racine,
@@ -1344,11 +1352,12 @@ describe('a targeted run of a module of tests/it/ plays that module’s tests al
       {},
       {
         GRILLHOUSE_PRESSION_CPU: f,
+        GRILLHOUSE_ATTENTE_REPOS_MS: '1',
       }
     );
     expect(r.appels).toEqual([
-      'test --no-run -p seul --test it_budget',
-      `${NEXTEST} --test it_budget -E (binary_id(seul::it_budget) & (test(/^vite::/))) --test-threads 1`,
+      'test --no-run --profile bench -p seul --test it_budget',
+      `nextest run --cargo-profile bench --no-fail-fast -p seul --test it_budget -E (binary_id(seul::it_budget) & (test(/^vite::/))) --test-threads 1`,
     ]);
   });
 

@@ -78,7 +78,12 @@ export { A_REPASSER, MEMOIRE_COUPEE } from './codes-de-sortie.mjs';
 export const GARDE_DE_LA_MEMOIRE = fileURLToPath(
   new URL('./garde-de-la-memoire.mjs', import.meta.url)
 );
-export { ecrirePression, lirePression, SEUIL_PRESSION } from './mesure/pression.mjs';
+export {
+  attendreLeRepos,
+  ecrirePression,
+  lirePression,
+  SEUIL_PRESSION,
+} from './mesure/pression.mjs';
 export { avecLaPasse, surUnePart } from './passe-de-la-machine.mjs';
 export {
   nommerLAvancement,
